@@ -1,6 +1,6 @@
 "use client";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import type { CertificateInfo, CertificatePem } from "@akashnetwork/akashjs/build/certificates/certificate-manager/CertificateManager";
+import React, { useCallback, useEffect, useState } from "react";
+import type { CertificateInfo, CertificatePem } from "@akashnetwork/chain-sdk/web";
 import { Snackbar } from "@akashnetwork/ui/components";
 import { useSnackbar } from "notistack";
 
@@ -82,6 +82,7 @@ export const CertificateProvider: React.FC<Props> = ({ children, dependencies: d
   const [localCerts, setLocalCerts] = useState<Array<LocalCert> | null>(null);
   const [localCert, setLocalCert] = useState<LocalCert | null>(null);
   const [isLocalCertMatching, setIsLocalCertMatching] = useState(false);
+  const [parsedLocalCert, setParsedLocalCert] = useState<CertificateInfo | null>(null);
   const { enqueueSnackbar } = d.useSnackbar();
   const { address, signAndBroadcastTx } = d.useWallet();
   const { isSettingsInit } = d.useSettings();
@@ -95,15 +96,17 @@ export const CertificateProvider: React.FC<Props> = ({ children, dependencies: d
           .getAllCertificates({ address, state: "valid" })
           .catch(error => (chainApiHttpClient.isFallbackEnabled ? [] : Promise.reject(error)));
 
-        const certs = (certificates || []).map(cert => {
-          const parsed = atob(cert.certificate.cert);
-          const pem = certificateManager.parsePem(parsed);
-          return {
-            ...cert,
-            parsed,
-            pem
-          };
-        });
+        const certs = await Promise.all(
+          (certificates || []).map(async cert => {
+            const parsed = atob(cert.certificate.cert);
+            const pem = await certificateManager.parsePem(parsed);
+            return {
+              ...cert,
+              parsed,
+              pem
+            };
+          })
+        );
 
         setValidCertificates(certs);
         setIsLoadingCertificates(false);
@@ -168,10 +171,13 @@ export const CertificateProvider: React.FC<Props> = ({ children, dependencies: d
     setIsLocalCertMatching(isMatching);
   }, [selectedCertificate, localCert, validCertificates]);
 
-  const parsedLocalCert = useMemo(() => {
-    if (!localCert) return null;
-    return certificateManager.parsePem(localCert.certPem);
-  }, [localCert]);
+  useEffect(() => {
+    if (!localCert) {
+      setParsedLocalCert(null);
+      return;
+    }
+    certificateManager.parsePem(localCert.certPem).then(setParsedLocalCert);
+  }, [localCert, certificateManager]);
 
   const loadLocalCert = async () => {
     const wallets = getStorageWallets();
@@ -198,7 +204,7 @@ export const CertificateProvider: React.FC<Props> = ({ children, dependencies: d
   async function createCertificate() {
     setIsCreatingCert(true);
 
-    const { cert: crtpem, publicKey: pubpem, privateKey: encryptedKey } = certificateManager.generatePEM(address);
+    const { cert: crtpem, publicKey: pubpem, privateKey: encryptedKey } = await certificateManager.generatePEM(address);
 
     try {
       const message = TransactionMessageData.getCreateCertificateMsg(address, crtpem, pubpem);
@@ -235,7 +241,7 @@ export const CertificateProvider: React.FC<Props> = ({ children, dependencies: d
    */
   async function regenerateCertificate() {
     setIsCreatingCert(true);
-    const { cert: crtpem, publicKey: pubpem, privateKey: encryptedKey } = certificateManager.generatePEM(address);
+    const { cert: crtpem, publicKey: pubpem, privateKey: encryptedKey } = await certificateManager.generatePEM(address);
 
     try {
       const revokeCertMsg = TransactionMessageData.getRevokeCertificateMsg(address, selectedCertificate?.serial as string);
@@ -323,14 +329,14 @@ export const CertificateProvider: React.FC<Props> = ({ children, dependencies: d
   };
 
   const genNewCertificateIfLocalIsInvalid = useCallback(async () => {
-    if (!parsedLocalCert || isExpired(parsedLocalCert)) return certificateManager.generatePEM(address);
+    if (!parsedLocalCert || isExpired(parsedLocalCert)) return await certificateManager.generatePEM(address);
 
     const validCerts = await loadValidCertificates();
     const currentCert = localCert ? validCerts.find(({ parsed }) => parsed === localCert.certPem) : null;
     const isLocalCertValid = currentCert?.certificate?.state === "valid" && isLocalCertMatching;
 
-    return isLocalCertValid ? null : certificateManager.generatePEM(address);
-  }, [localCert, loadValidCertificates, isLocalCertMatching, address]);
+    return isLocalCertValid ? null : await certificateManager.generatePEM(address);
+  }, [localCert, loadValidCertificates, isLocalCertMatching, address, parsedLocalCert, certificateManager]);
 
   const updateSelectedCertificate = useCallback(
     async (cert: CertificatePem) => {

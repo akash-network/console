@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
-import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
+import { certificateManager } from "@akashnetwork/chain-sdk/web";
 import { Alert, Button, Form, Spinner } from "@akashnetwork/ui/components";
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -24,7 +24,6 @@ import type { DepositParams } from "@src/types/deployment";
 import type { ProviderAttributeSchemaDetailValue } from "@src/types/providerAttributes";
 import { RouteStep } from "@src/types/route-steps.type";
 import { deploymentData } from "@src/utils/deploymentData";
-import { saveDeploymentManifestAndName } from "@src/utils/deploymentLocalDataUtils";
 import { validateDeploymentData } from "@src/utils/deploymentUtils";
 import { defaultAnyRegion, defaultRentGpuService } from "@src/utils/sdl/data";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
@@ -47,7 +46,7 @@ import { RegionSelect } from "./RegionSelect";
 import { TokenFormControl } from "./TokenFormControl";
 
 export const RentGpusForm: React.FunctionComponent = () => {
-  const { chainApiHttpClient, analyticsService, appConfig } = useServices();
+  const { chainApiHttpClient, analyticsService, appConfig, deploymentLocalStorage } = useServices();
   const [error, setError] = useState<string | null>(null);
   // const [templateMetadata, setTemplateMetadata] = useState<ITemplate>(null);
   const [isQueryInit, setIsQuertInit] = useState(false);
@@ -124,16 +123,11 @@ export const RentGpusForm: React.FunctionComponent = () => {
     }
   }, [searchParams, gpuModels, isQueryInit]);
 
-  async function createAndValidateDeploymentData(
-    yamlStr: string,
-    dseq: string | null = null,
-    deposit = defaultDeposit,
-    depositorAddress: string | null = null
-  ) {
+  async function createAndValidateDeploymentData(yamlStr: string, dseq: string | null = null, deposit = defaultDeposit) {
     try {
       if (!yamlStr) return null;
 
-      const dd = await deploymentData.NewDeploymentData(chainApiHttpClient, yamlStr, dseq, address, deposit, depositorAddress);
+      const dd = await deploymentData.NewDeploymentData(chainApiHttpClient, yamlStr, dseq, address, deposit);
       validateDeploymentData(dd);
 
       setSdlDenom(dd.deposit.denom);
@@ -193,9 +187,9 @@ export const RentGpusForm: React.FunctionComponent = () => {
     setIsDepositingDeployment(true);
   };
 
-  const onDeploymentDeposit = async (deposit: number, depositorAddress: string) => {
+  const onDeploymentDeposit = async (deposit: number) => {
     setIsDepositingDeployment(false);
-    await handleCreateClick(deposit, depositorAddress);
+    await handleCreateClick(deposit);
   };
 
   const onSubmit = async (data: RentGpusFormValuesType) => {
@@ -208,7 +202,7 @@ export const RentGpusForm: React.FunctionComponent = () => {
     }
   };
 
-  async function handleCreateClick(deposit: number | DepositParams[], depositorAddress: string) {
+  async function handleCreateClick(deposit: number | DepositParams[]) {
     setError(null);
 
     try {
@@ -218,7 +212,7 @@ export const RentGpusForm: React.FunctionComponent = () => {
 
       setIsCreatingDeployment(true);
 
-      const dd = await createAndValidateDeploymentData(sdl, null, deposit, depositorAddress);
+      const dd = await createAndValidateDeploymentData(sdl, null, deposit);
       const validCertificates = await loadValidCertificates();
       const currentCert = validCertificates.find(x => x.parsed === localCert?.certPem);
       const isCertificateValidated = currentCert?.certificate?.state === "valid";
@@ -233,7 +227,7 @@ export const RentGpusForm: React.FunctionComponent = () => {
 
       // Create a cert if the user doesn't have one
       if (!hasValidCert) {
-        const { cert: crtpem, publicKey: pubpem, privateKey: encryptedKey } = certificateManager.generatePEM(address);
+        const { cert: crtpem, publicKey: pubpem, privateKey: encryptedKey } = await certificateManager.generatePEM(address);
         _crtpem = crtpem;
         _encryptedKey = encryptedKey;
         messages.push(TransactionMessageData.getCreateCertificateMsg(address, crtpem, pubpem));
@@ -260,8 +254,11 @@ export const RentGpusForm: React.FunctionComponent = () => {
 
         setDeploySdl(null);
 
-        // Save the manifest
-        saveDeploymentManifestAndName(dd.deploymentId.dseq, sdl, dd.version, address, currentService.image);
+        deploymentLocalStorage.update(address, dd.deploymentId.dseq, {
+          manifest: sdl,
+          manifestVersion: dd.hash,
+          name: currentService.image
+        });
         router.push(UrlService.newDeployment({ step: RouteStep.createLeases, dseq: dd.deploymentId.dseq }));
 
         analyticsService.track("create_gpu_deployment", {

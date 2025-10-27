@@ -1,15 +1,15 @@
-import type { CertificatePem } from "@akashnetwork/akashjs/build/certificates/certificate-manager/CertificateManager";
+import { MsgCreateCertificate } from "@akashnetwork/chain-sdk/private-types/akash.v1";
+import { MsgCreateLease } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
+import type { CertificatePem } from "@akashnetwork/chain-sdk/web";
 import { mock } from "jest-mock-extended";
 
 import type { ContextType as CertificateContextType, LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
 import type { AppDIContainer } from "@src/context/ServicesProvider";
 import type { useFlag } from "@src/hooks/useFlag";
 import { mapToBidDto } from "@src/queries/useBidQuery";
+import type { LocalDeploymentData } from "@src/services/deployment-storage/deployment-storage.service";
 import type { RpcBid } from "@src/types/deployment";
 import type { ApiProviderDetail } from "@src/types/provider";
-import { saveDeploymentManifestAndName } from "@src/utils/deploymentLocalDataUtils";
-import { initAkashTypes } from "@src/utils/init";
-import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { updateStorageWallets } from "@src/utils/walletUtils";
 import { CreateLease, DEPENDENCIES as CREATE_LEASE_DEPENDENCIES } from "./CreateLease";
 
@@ -29,7 +29,7 @@ describe(CreateLease.name, () => {
     const bids = [
       buildRpcBid({
         bid: {
-          bid_id: {
+          id: {
             gseq: 1
           },
           state: "open"
@@ -37,7 +37,7 @@ describe(CreateLease.name, () => {
       }),
       buildRpcBid({
         bid: {
-          bid_id: {
+          id: {
             gseq: 1
           },
           state: "open"
@@ -66,7 +66,7 @@ describe(CreateLease.name, () => {
     const bids = [
       buildRpcBid({
         bid: {
-          bid_id: {
+          id: {
             gseq: 1
           },
           state: "open"
@@ -74,7 +74,7 @@ describe(CreateLease.name, () => {
       }),
       buildRpcBid({
         bid: {
-          bid_id: {
+          id: {
             gseq: 2
           },
           state: "open"
@@ -90,14 +90,14 @@ describe(CreateLease.name, () => {
       expect(BidGroup).toHaveBeenCalledWith(
         expect.objectContaining({
           gseq: 1,
-          bids: bids.filter(b => b.bid.bid_id.gseq === 1).map(mapToBidDto)
+          bids: bids.filter(b => b.bid.id.gseq === 1).map(mapToBidDto)
         }),
         {}
       );
       expect(BidGroup).toHaveBeenCalledWith(
         expect.objectContaining({
           gseq: 2,
-          bids: bids.filter(b => b.bid.bid_id.gseq === 2).map(mapToBidDto)
+          bids: bids.filter(b => b.bid.id.gseq === 2).map(mapToBidDto)
         }),
         {}
       );
@@ -109,7 +109,7 @@ describe(CreateLease.name, () => {
     const bids = [
       buildRpcBid({
         bid: {
-          bid_id: {
+          id: {
             gseq: 1
           },
           state: "closed"
@@ -117,7 +117,7 @@ describe(CreateLease.name, () => {
       }),
       buildRpcBid({
         bid: {
-          bid_id: {
+          id: {
             gseq: 1
           },
           state: "closed"
@@ -154,7 +154,7 @@ describe(CreateLease.name, () => {
     const bids = [
       buildRpcBid({
         bid: {
-          bid_id: {
+          id: {
             gseq: 1
           },
           state: "open"
@@ -162,7 +162,7 @@ describe(CreateLease.name, () => {
       }),
       buildRpcBid({
         bid: {
-          bid_id: {
+          id: {
             gseq: 1
           },
           state: "open"
@@ -201,7 +201,7 @@ describe(CreateLease.name, () => {
       await waitFor(() => {
         expect(signAndBroadcastTx).toHaveBeenCalledWith([
           expect.objectContaining({
-            typeUrl: TransactionMessageData.Types.MSG_CREATE_LEASE
+            typeUrl: `/${MsgCreateLease.$type}`
           })
         ]);
         expect(sendManifest).toHaveBeenCalledWith(selectedProvider, expect.any(Array), {
@@ -254,10 +254,10 @@ describe(CreateLease.name, () => {
         expect(signAndBroadcastTx).toHaveBeenCalledWith(
           expect.arrayContaining([
             expect.objectContaining({
-              typeUrl: TransactionMessageData.Types.MSG_CREATE_CERTIFICATE
+              typeUrl: `/${MsgCreateCertificate.$type}`
             }),
             expect.objectContaining({
-              typeUrl: TransactionMessageData.Types.MSG_CREATE_LEASE
+              typeUrl: `/${MsgCreateLease.$type}`
             })
           ])
         );
@@ -295,7 +295,7 @@ describe(CreateLease.name, () => {
       const bids = [
         buildRpcBid({
           bid: {
-            bid_id: {
+            id: {
               gseq: 1,
               provider: selectedProvider.owner
             },
@@ -321,7 +321,7 @@ describe(CreateLease.name, () => {
       await waitFor(() => {
         expect(signAndBroadcastTx).toHaveBeenCalledWith([
           expect.objectContaining({
-            typeUrl: TransactionMessageData.Types.MSG_CREATE_CERTIFICATE
+            typeUrl: `/${MsgCreateCertificate.$type}`
           })
         ]);
         expect(sendManifest).toHaveBeenCalledWith(selectedProvider, expect.any(Array), {
@@ -352,7 +352,7 @@ describe(CreateLease.name, () => {
       const bids = input?.bids ?? [
         buildRpcBid({
           bid: {
-            bid_id: {
+            id: {
               gseq: 1,
               provider: providers[0].owner
             },
@@ -361,7 +361,7 @@ describe(CreateLease.name, () => {
         }),
         buildRpcBid({
           bid: {
-            bid_id: {
+            id: {
               gseq: 1,
               provider: providers[1].owner
             },
@@ -371,7 +371,6 @@ describe(CreateLease.name, () => {
       ];
       const BidGroup = jest.fn(ComponentMock);
       const walletAddress = input?.localCert?.address ?? "akash123";
-      const dseq = input?.dseq ?? "123";
 
       setup({
         ...input,
@@ -379,7 +378,13 @@ describe(CreateLease.name, () => {
         BidGroup,
         walletAddress,
         localCert: input?.localCert,
-        providers
+        providers,
+        storedDeployment: {
+          manifest: helloWorldManifest,
+          manifestVersion: new Uint8Array([1, 2, 3]),
+          name: "test deployment",
+          owner: walletAddress
+        }
       });
 
       await waitFor(() => expect(BidGroup).toHaveBeenCalled());
@@ -392,7 +397,6 @@ describe(CreateLease.name, () => {
             selected: true
           }
         ]);
-        saveDeploymentManifestAndName(dseq, helloWorldManifest, new Uint8Array([1, 2, 3]), walletAddress, "test deployment");
         const bidGroupProps = BidGroup.mock.calls[0][0];
         bidGroupProps.handleBidSelected(mapToBidDto(bids[0]));
       });
@@ -413,6 +417,7 @@ describe(CreateLease.name, () => {
     isTrialWallet?: boolean;
     getBlock?: () => Promise<BlockDetail>;
     isBlockchainDown?: boolean;
+    storedDeployment?: LocalDeploymentData;
   }) {
     const favoriteProviders: string[] = [];
     const useLocalNotes = (() => ({
@@ -424,12 +429,6 @@ describe(CreateLease.name, () => {
       }
       return false;
     }) as unknown as ReturnType<typeof useFlag>;
-
-    initAkashTypes({
-      networkApiVersion: "v1beta3",
-      marketApiVersion: "v1beta3",
-      networkId: "mainnet"
-    });
 
     return render(
       <TestContainerProvider
@@ -479,7 +478,21 @@ describe(CreateLease.name, () => {
                 }
                 throw new Error(`unexpected request: ${url}`);
               }
-            } as unknown as AppDIContainer["publicConsoleApiHttpClient"])
+            } as unknown as AppDIContainer["publicConsoleApiHttpClient"]),
+          deploymentLocalStorage: () =>
+            mock<AppDIContainer["deploymentLocalStorage"]>({
+              get: (walletAddress, dseq) => {
+                if (!walletAddress || !dseq) return null;
+                return (
+                  input?.storedDeployment ?? {
+                    manifest: helloWorldManifest,
+                    manifestVersion: new Uint8Array([1, 2, 3]),
+                    name: "test deployment",
+                    owner: walletAddress
+                  }
+                );
+              }
+            })
         }}
       >
         <CreateLease

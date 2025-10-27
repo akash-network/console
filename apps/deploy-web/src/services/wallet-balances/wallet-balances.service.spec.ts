@@ -18,7 +18,7 @@ describe(WalletBalancesService.name, () => {
       const deployments = [
         buildRpcDeployment({
           deployment: {
-            deployment_id: {
+            id: {
               dseq: "666922",
               owner: walletAddress
             },
@@ -27,7 +27,7 @@ describe(WalletBalancesService.name, () => {
         }),
         buildRpcDeployment({
           deployment: {
-            deployment_id: {
+            id: {
               dseq: "666923",
               owner: walletAddress
             },
@@ -36,7 +36,7 @@ describe(WalletBalancesService.name, () => {
         })
       ];
       const service = setup({
-        getValidDepositDeploymentGrantsForGranterAndGrantee: () => Promise.resolve(undefined),
+        getAllDepositDeploymentGrants: () => Promise.resolve([]),
         getDeploymentList: () => deployments
       });
       const balances = await service.getBalances(walletAddress);
@@ -46,7 +46,7 @@ describe(WalletBalancesService.name, () => {
         balanceUUSDC: 0,
         deploymentEscrowUAKT: 0.8768,
         deploymentEscrowUUSDC: 0,
-        deploymentGrant: undefined,
+        deploymentGrants: [],
         deploymentGrantsUAKT: 0,
         deploymentGrantsUUSDC: 0,
         activeDeployments: deployments.map(d => deploymentToDto(d))
@@ -55,14 +55,14 @@ describe(WalletBalancesService.name, () => {
   });
 
   function setup(input: {
-    getValidDepositDeploymentGrantsForGranterAndGrantee?: AuthzHttpService["getValidDepositDeploymentGrantsForGranterAndGrantee"];
+    getAllDepositDeploymentGrants?: AuthzHttpService["getAllDepositDeploymentGrants"];
     getBalances?: () => RestApiBalancesResponseType;
     getDeploymentList?: () => RpcDeployment[];
     masterWalletAddress?: string;
   }) {
     return new WalletBalancesService(
       mock({
-        getValidDepositDeploymentGrantsForGranterAndGrantee: input.getValidDepositDeploymentGrantsForGranterAndGrantee
+        getAllDepositDeploymentGrants: input.getAllDepositDeploymentGrants
       }),
       mock({
         async get(url: string) {
@@ -72,7 +72,7 @@ describe(WalletBalancesService.name, () => {
                 deployments: input.getDeploymentList?.() || [
                   buildRpcDeployment({
                     deployment: {
-                      deployment_id: {
+                      id: {
                         dseq: "666922",
                         owner: walletAddress
                       },
@@ -81,7 +81,7 @@ describe(WalletBalancesService.name, () => {
                   }),
                   buildRpcDeployment({
                     deployment: {
-                      deployment_id: {
+                      id: {
                         dseq: "666923",
                         owner: walletAddress
                       },

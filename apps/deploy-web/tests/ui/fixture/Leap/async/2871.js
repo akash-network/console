@@ -1,0 +1,771 @@
+!(function () {
+  try {
+    var e = "undefined" != typeof window ? window : "undefined" != typeof global ? global : "undefined" != typeof self ? self : {},
+      a = new e.Error().stack;
+    a &&
+      ((e._sentryDebugIds = e._sentryDebugIds || {}),
+      (e._sentryDebugIds[a] = "f497816c-84ce-4600-a813-7211f42e17c1"),
+      (e._sentryDebugIdIdentifier = "sentry-dbid-f497816c-84ce-4600-a813-7211f42e17c1"));
+  } catch (e) {}
+})();
+var _global = "undefined" != typeof window ? window : "undefined" != typeof global ? global : "undefined" != typeof self ? self : {};
+_global.SENTRY_RELEASE = { id: "0.22.9" };
+("use strict");
+(self.webpackChunk_leap_cosmos_extension = self.webpackChunk_leap_cosmos_extension || []).push([
+  ["2871"],
+  {
+    34424: function (e, a, t) {
+      t.a(e, async function (e, r) {
+        try {
+          t.d(a, { Y: () => f });
+          var l = t(52322),
+            s = t(43166),
+            n = t(36906),
+            i = t(16283),
+            o = t(85027),
+            c = t(86240),
+            d = t(35065),
+            m = t(2784),
+            u = t(10289),
+            x = t(11218),
+            h = e([d]);
+          d = (h.then ? (await h)() : h)[0];
+          let f = e => {
+            let { disableWalletButton: a, onBackClick: t } = e,
+              r = (0, u.s0)(),
+              h = (0, c.v)(),
+              [f, p] = (0, m.useState)(!1),
+              [g, b] = (0, m.useState)(!1),
+              y = (0, m.useCallback)(() => b(!0), []);
+            return (0, l.jsxs)(l.Fragment, {
+              children: [
+                (0, l.jsxs)(o.m, {
+                  className: "bg-secondary-50/75",
+                  children: [
+                    (0, l.jsx)(s.X, {
+                      size: 36,
+                      className: "text-muted-foreground hover:text-foreground cursor-pointer p-2",
+                      onClick: () => {
+                        t ? t() : r(-1);
+                      }
+                    }),
+                    (0, l.jsx)(i.G2, {
+                      showDropdown: !0,
+                      showWalletAvatar: !0,
+                      className: "absolute top-1/2 right-1/2 translate-x-1/2 -translate-y-1/2",
+                      walletName: h.walletName,
+                      walletAvatar: h.walletAvatar,
+                      handleDropdownClick: () => p(!a)
+                    }),
+                    (0, l.jsx)(n.k, { size: 20, className: "text-muted-foreground hover:text-foreground cursor-pointer shrink-0 mr-2", onClick: y })
+                  ]
+                }),
+                (0, l.jsx)(d.Z, { isVisible: f, onClose: () => p(!1), title: "Your Wallets" }),
+                (0, l.jsx)(x.k, { isOpen: g, onClose: () => b(!1) })
+              ]
+            });
+          };
+          r();
+        } catch (e) {
+          r(e);
+        }
+      });
+    },
+    27192: function (e, a, t) {
+      t.a(e, async function (e, r) {
+        try {
+          t.d(a, { Z: () => b });
+          var l = t(52322),
+            s = t(41172),
+            n = t(4370),
+            i = t(30464),
+            o = t(10588),
+            c = t(2784),
+            d = t(46338),
+            m = t(48735),
+            u = t(67430),
+            x = t(47125),
+            h = t(44777),
+            f = t(21430),
+            p = t(74993),
+            g = e([p, u, m]);
+          function b() {
+            let [e, a] = (0, c.useState)(!0),
+              t = (0, s._2_)(),
+              r = null === t;
+            return ((0, c.useEffect)(() => {
+              let e;
+              return (
+                r
+                  ? (a(!0),
+                    (e = setTimeout(() => {
+                      a(!1);
+                    }, 1e4)))
+                  : a(!1),
+                () => clearTimeout(e)
+              );
+            }, [r]),
+            e)
+              ? (0, l.jsxs)("div", {
+                  className: "flex flex-col items-center justify-center gap-8 flex-1 pb-[75px] h-full",
+                  children: [
+                    (0, l.jsxs)("div", {
+                      className: "relative",
+                      children: [
+                        (0, l.jsx)("img", { src: i.r.Misc.WalletIconGreen, alt: "wallet", className: "size-6 absolute inset-0 mx-auto my-auto" }),
+                        (0, l.jsx)("div", { className: "loader-container", children: (0, l.jsx)("div", { className: "spinning-loader" }) })
+                      ]
+                    }),
+                    (0, l.jsx)(n.E.span, {
+                      className: "text-secondary-foreground text-xl font-bold",
+                      transition: d.eR,
+                      variants: o.Hx,
+                      initial: "hidden",
+                      animate: "visible",
+                      children: "Loading Airdrops..."
+                    })
+                  ]
+                })
+              : (0, l.jsxs)("div", {
+                  className: "flex flex-col gap-4",
+                  children: [
+                    (0, l.jsx)(p.Z, {}),
+                    r
+                      ? (0, l.jsx)(u.Z, {
+                          className: "h-[340px] justify-center",
+                          title: "Airdrops can’t be loaded",
+                          subTitle: (0, l.jsxs)(l.Fragment, {
+                            children: ["Airdrops can’t be loaded due to a ", (0, l.jsx)("br", {}), " technical failure, Kindly try again later."]
+                          }),
+                          showRetryButton: !0
+                        })
+                      : (0, l.jsxs)(l.Fragment, { children: [(0, l.jsx)(m.Z, {}), (0, l.jsx)(x.Z, {}), (0, l.jsx)(h.Z, {}), (0, l.jsx)(f.Z, {})] })
+                  ]
+                });
+          }
+          ([p, u, m] = g.then ? (await g)() : g), r();
+        } catch (e) {
+          r(e);
+        }
+      });
+    },
+    48735: function (e, a, t) {
+      t.a(e, async function (e, r) {
+        try {
+          t.d(a, { Z: () => p });
+          var l = t(52322),
+            s = t(41172),
+            n = t(89187),
+            i = t(72779),
+            o = t.n(i),
+            c = t(69816);
+          t(2784);
+          var d = t(10289),
+            m = t(70514),
+            u = t(48534),
+            x = t(71198),
+            h = t(67430),
+            f = e([h]);
+          function p() {
+            let e = (0, s._2_)() || {},
+              a = Object.values(e).filter(e => (null == e ? void 0 : e.isEligible) && !(null == e ? void 0 : e.isHidden)),
+              t = (0, d.s0)();
+            return a.length < 1
+              ? (0, l.jsx)(h.Z, {
+                  title: "No eligible Airdrops",
+                  subTitle: (0, l.jsxs)(l.Fragment, {
+                    children: ["You can change your wallet or ", (0, l.jsx)("br", {}), " check all airdrops on Leapboard."]
+                  }),
+                  showLeapBoardButton: !0
+                })
+              : (0, l.jsxs)("div", {
+                  children: [
+                    (0, l.jsx)(c.Z, { size: "sm", className: "font-bold mb-3", children: "Eligible Airdrops" }),
+                    (0, l.jsx)("div", {
+                      children: a.map((e, r) => {
+                        var i, d;
+                        return (0, l.jsxs)(
+                          "div",
+                          {
+                            className: (0, m.cn)(
+                              "flex gap-2 items-center bg-secondary-100 hover:bg-secondary-200 py-3 cursor-pointer px-3 rounded-xl",
+                              r !== a.length - 1 && "mb-4"
+                            ),
+                            onClick: () => t(`/airdropsDetails?airdropId=${e.id}`),
+                            children: [
+                              (0, l.jsx)("img", { src: e.airdropIcon, alt: "airdrop-icon", className: "w-8 h-8 rounded-full" }),
+                              (0, l.jsx)(c.Z, {
+                                size: "sm",
+                                className: "flex-1 font-medium",
+                                children: (0, x.fy)(e.name, (0, u.oj)() ? 10 + Math.floor(((Math.min(window.innerWidth, 400) - 320) / 81) * 7) : 17)
+                              }),
+                              (0, l.jsx)(c.Z, {
+                                size: "sm",
+                                className: o()("font-medium", { "w-[100px]": !(0, u.oj)(), "text-right": (0, u.oj)() }),
+                                children: e.totalAmount
+                                  ? (0, s.LHZ)(String(e.totalAmount), null === (i = e.tokenInfo[0]) || void 0 === i ? void 0 : i.denom, 2)
+                                  : null === (d = e.tokenInfo[0]) || void 0 === d
+                                    ? void 0
+                                    : d.denom
+                              }),
+                              (0, l.jsx)(n.T, { size: 16, className: "text-gray-600 dark:text-gray-400" })
+                            ]
+                          },
+                          r
+                        );
+                      })
+                    })
+                  ]
+                });
+          }
+          (h = (f.then ? (await f)() : f)[0]), r();
+        } catch (e) {
+          r(e);
+        }
+      });
+    },
+    67430: function (e, a, t) {
+      t.a(e, async function (e, r) {
+        try {
+          t.d(a, { Z: () => j });
+          var l = t(52322),
+            s = t(75377),
+            n = t(18536),
+            i = t(92642),
+            o = t(72779),
+            c = t.n(o),
+            d = t(19623),
+            m = t(69816),
+            u = t(26571),
+            x = t(17643),
+            h = t(30464),
+            f = t(24542),
+            p = t.n(f),
+            g = t(2784),
+            b = t(11653),
+            y = e([x]);
+          function j(e) {
+            let { title: a, subTitle: t, className: r = "", showRetryButton: o = !1, showLeapBoardButton: f = !1 } = e,
+              [y, j] = (0, g.useState)(!1),
+              [v, w] = (0, g.useState)(1),
+              Z = (0, x.u)(),
+              N = () => {
+                try {
+                  p().track(u.B_.ButtonClick, {
+                    buttonType: u.L$.AIRDROPS,
+                    buttonName: u.$S.RETRY_AIRDROP,
+                    redirectURL: "",
+                    numberOfRetries: v,
+                    time: Date.now() / 1e3
+                  });
+                } catch (e) {
+                  (0, i.Tb)(e);
+                }
+              };
+            return (0, l.jsxs)("div", {
+              className: c()("bg-white-100 dark:bg-gray-950 rounded-xl pt-8 p-4 flex flex-col items-center", r),
+              children: [
+                y
+                  ? (0, l.jsxs)("div", {
+                      className: "flex justify-center items-center min-h-[208px]",
+                      children: [(0, l.jsx)(d.Z, {}), (0, l.jsx)(m.Z, { className: "mt-16", children: "Loading Airdrop" })]
+                    })
+                  : (0, l.jsxs)(l.Fragment, {
+                      children: [
+                        (0, l.jsx)("img", { src: h.r.Misc.FrogSad, alt: "FrogSad", className: "mb-6" }),
+                        (0, l.jsx)(m.Z, { size: "sm", className: "font-bold mb-1", children: a }),
+                        (0, l.jsx)(m.Z, { size: "xs", color: "text-gray-800 dark:text-gray-200", className: "font-medium text-center !leading-5", children: t })
+                      ]
+                    }),
+                f && (0, l.jsx)(b.Z, { className: "!w-full justify-center !p-3 !mt-6" }),
+                o &&
+                  (0, l.jsx)(s.Buttons.Generic, {
+                    size: "normal",
+                    className: "w-full mt-6 !bg-black-100 dark:!bg-white-100 text-white-100 dark:text-black-100",
+                    title: "Retry",
+                    disabled: y,
+                    onClick: () => {
+                      j(!0),
+                        setTimeout(() => {
+                          j(!1);
+                        }, 1e4),
+                        w(e => e + 1),
+                        Z(),
+                        N();
+                    },
+                    children: y
+                      ? "Loading"
+                      : (0, l.jsxs)("div", {
+                          className: "flex items-center gap-2",
+                          children: [
+                            "Retry",
+                            (0, l.jsx)(n.y, { size: 20, className: "text-white-100 dark:text-black-100", style: { transform: "rotateY(180deg)" } })
+                          ]
+                        })
+                  })
+              ]
+            });
+          }
+          (x = (y.then ? (await y)() : y)[0]), r();
+        } catch (e) {
+          r(e);
+        }
+      });
+    },
+    47125: function (e, a, t) {
+      t.d(a, { Z: () => m });
+      var r = t(52322),
+        l = t(41172),
+        s = t(89187),
+        n = t(69816),
+        i = t(30464);
+      t(2784);
+      var o = t(10289),
+        c = t(70514),
+        d = t(71198);
+      function m() {
+        let e = (0, o.s0)(),
+          a = Object.values((0, l._2_)() || {}).filter(e => (null == e ? void 0 : e.status) === "failed" && !(null == e ? void 0 : e.isHidden));
+        return a.length < 1
+          ? null
+          : (0, r.jsxs)("div", {
+              children: [
+                (0, r.jsx)(n.Z, { size: "sm", className: "font-bold mb-3", children: "Status unavailable" }),
+                (0, r.jsx)("div", {
+                  children: a.map((t, l) =>
+                    (0, r.jsxs)(
+                      "div",
+                      {
+                        className: (0, c.cn)(
+                          "flex gap-2 items-center bg-secondary-100 hover:bg-secondary-200 py-3 cursor-pointer px-3 rounded-xl",
+                          l !== a.length - 1 && "mb-4"
+                        ),
+                        onClick: () => e(`/airdropsDetails?airdropId=${t.id}`),
+                        children: [
+                          (0, r.jsx)("img", { src: t.airdropIcon, alt: "airdrop-icon", className: "w-8 h-8 rounded-full" }),
+                          (0, r.jsxs)(n.Z, {
+                            size: "sm",
+                            className: "flex-1 font-medium",
+                            children: [
+                              (0, d.fy)(t.name, 30),
+                              (0, r.jsx)("img", {
+                                src: i.r.Misc.InfoFilledExclamationRedMark,
+                                alt: "InfoFilledExclamationRedMark",
+                                className: "w-5 h-5 rounded-full ml-2 rotate-180"
+                              })
+                            ]
+                          }),
+                          (0, r.jsx)(s.T, { size: 16, className: "text-gray-600 dark:text-gray-400" })
+                        ]
+                      },
+                      l
+                    )
+                  )
+                })
+              ]
+            });
+      }
+    },
+    11653: function (e, a, t) {
+      t.d(a, { Z: () => A });
+      var r = t(52322),
+        l = t(2784),
+        s = t(6806);
+      let n = new Map([
+        [
+          "bold",
+          l.createElement(
+            l.Fragment,
+            null,
+            l.createElement("path", {
+              d: "M227.85,46.89a20,20,0,0,0-18.74-18.74c-13.13-.77-46.65.42-74.48,28.24L131,60H74.36a19.83,19.83,0,0,0-14.14,5.86L25.87,100.19a20,20,0,0,0,11.35,33.95l37.14,5.18,42.32,42.32,5.19,37.18A19.88,19.88,0,0,0,135.34,235a20.13,20.13,0,0,0,6.37,1,19.9,19.9,0,0,0,14.1-5.87l34.34-34.35A19.85,19.85,0,0,0,196,181.64V125l3.6-3.59C227.43,93.54,228.62,60,227.85,46.89ZM76,84h31L75.75,115.28l-27.23-3.8ZM151.6,73.37A72.27,72.27,0,0,1,204,52a72.17,72.17,0,0,1-21.38,52.41L128,159,97,128ZM172,180l-27.49,27.49-3.8-27.23L172,149Zm-72,22c-8.71,11.85-26.19,26-60,26a12,12,0,0,1-12-12c0-33.84,14.12-51.32,26-60A12,12,0,1,1,68.18,175.3C62.3,179.63,55.51,187.8,53,203c15.21-2.51,23.37-9.3,27.7-15.18A12,12,0,1,1,100,202Z"
+            })
+          )
+        ],
+        [
+          "duotone",
+          l.createElement(
+            l.Fragment,
+            null,
+            l.createElement("path", {
+              d: "M184,120v61.65a8,8,0,0,1-2.34,5.65l-34.35,34.35a8,8,0,0,1-13.57-4.53L128,176ZM136,72H74.35a8,8,0,0,0-5.65,2.34L34.35,108.69a8,8,0,0,0,4.53,13.57L80,128ZM40,216c37.65,0,50.69-19.69,54.56-28.18L68.18,161.44C59.69,165.31,40,178.35,40,216Z",
+              opacity: "0.2"
+            }),
+            l.createElement("path", {
+              d: "M223.85,47.12a16,16,0,0,0-15-15c-12.58-.75-44.73.4-71.41,27.07L132.69,64H74.36A15.91,15.91,0,0,0,63,68.68L28.7,103a16,16,0,0,0,9.07,27.16l38.47,5.37,44.21,44.21,5.37,38.49a15.94,15.94,0,0,0,10.78,12.92,16.11,16.11,0,0,0,5.1.83A15.91,15.91,0,0,0,153,227.3L187.32,193A15.91,15.91,0,0,0,192,181.64V123.31l4.77-4.77C223.45,91.86,224.6,59.71,223.85,47.12ZM74.36,80h42.33L77.16,119.52,40,114.34Zm74.41-9.45a76.65,76.65,0,0,1,59.11-22.47,76.46,76.46,0,0,1-22.42,59.16L128,164.68,91.32,128ZM176,181.64,141.67,216l-5.19-37.17L176,139.31Zm-74.16,9.5C97.34,201,82.29,224,40,224a8,8,0,0,1-8-8c0-42.29,23-57.34,32.86-61.85a8,8,0,0,1,6.64,14.56c-6.43,2.93-20.62,12.36-23.12,38.91,26.55-2.5,36-16.69,38.91-23.12a8,8,0,1,1,14.56,6.64Z"
+            })
+          )
+        ],
+        [
+          "fill",
+          l.createElement(
+            l.Fragment,
+            null,
+            l.createElement("path", {
+              d: "M101.85,191.14C97.34,201,82.29,224,40,224a8,8,0,0,1-8-8c0-42.29,23-57.34,32.86-61.85a8,8,0,0,1,6.64,14.56c-6.43,2.93-20.62,12.36-23.12,38.91,26.55-2.5,36-16.69,38.91-23.12a8,8,0,1,1,14.56,6.64Zm122-144a16,16,0,0,0-15-15c-12.58-.75-44.73.4-71.4,27.07h0L88,108.7A8,8,0,0,1,76.67,97.39l26.56-26.57A4,4,0,0,0,100.41,64H74.35A15.9,15.9,0,0,0,63,68.68L28.7,103a16,16,0,0,0,9.07,27.16l38.47,5.37,44.21,44.21,5.37,38.49a15.94,15.94,0,0,0,10.78,12.92,16.11,16.11,0,0,0,5.1.83A15.91,15.91,0,0,0,153,227.3L187.32,193A16,16,0,0,0,192,181.65V155.59a4,4,0,0,0-6.83-2.82l-26.57,26.56a8,8,0,0,1-11.71-.42,8.2,8.2,0,0,1,.6-11.1l49.27-49.27h0C223.45,91.86,224.6,59.71,223.85,47.12Z"
+            })
+          )
+        ],
+        [
+          "light",
+          l.createElement(
+            l.Fragment,
+            null,
+            l.createElement("path", {
+              d: "M221.86,47.24a14,14,0,0,0-13.11-13.1c-12.31-.73-43.77.39-69.88,26.5L133.52,66H74.35a13.9,13.9,0,0,0-9.89,4.1L30.11,104.44a14,14,0,0,0,7.94,23.76l39.13,5.46,45.16,45.16L127.8,218a14,14,0,0,0,23.76,7.92l34.35-34.35a13.91,13.91,0,0,0,4.1-9.89V122.48l5.35-5.35h0C221.46,91,222.59,59.56,221.86,47.24ZM38.11,115a2,2,0,0,1,.49-2L72.94,78.58A2,2,0,0,1,74.35,78h47.17L77.87,121.64l-38.14-5.32A1.93,1.93,0,0,1,38.11,115ZM178,181.65a2,2,0,0,1-.59,1.41L143.08,217.4a2,2,0,0,1-3.4-1.11l-5.32-38.16L178,134.48Zm8.87-73h0L128,167.51,88.49,128l58.87-58.88a78.47,78.47,0,0,1,60.69-23A2,2,0,0,1,209.88,48,78.47,78.47,0,0,1,186.88,108.64ZM100,190.31C95.68,199.84,81.13,222,40,222a6,6,0,0,1-6-6c0-41.13,22.16-55.68,31.69-60a6,6,0,1,1,5,10.92c-7,3.17-22.53,13.52-24.47,42.91,29.39-1.94,39.74-17.52,42.91-24.47a6,6,0,1,1,10.92,5Z"
+            })
+          )
+        ],
+        [
+          "regular",
+          l.createElement(
+            l.Fragment,
+            null,
+            l.createElement("path", {
+              d: "M223.85,47.12a16,16,0,0,0-15-15c-12.58-.75-44.73.4-71.41,27.07L132.69,64H74.36A15.91,15.91,0,0,0,63,68.68L28.7,103a16,16,0,0,0,9.07,27.16l38.47,5.37,44.21,44.21,5.37,38.49a15.94,15.94,0,0,0,10.78,12.92,16.11,16.11,0,0,0,5.1.83A15.91,15.91,0,0,0,153,227.3L187.32,193A15.91,15.91,0,0,0,192,181.64V123.31l4.77-4.77C223.45,91.86,224.6,59.71,223.85,47.12ZM74.36,80h42.33L77.16,119.52,40,114.34Zm74.41-9.45a76.65,76.65,0,0,1,59.11-22.47,76.46,76.46,0,0,1-22.42,59.16L128,164.68,91.32,128ZM176,181.64,141.67,216l-5.19-37.17L176,139.31Zm-74.16,9.5C97.34,201,82.29,224,40,224a8,8,0,0,1-8-8c0-42.29,23-57.34,32.86-61.85a8,8,0,0,1,6.64,14.56c-6.43,2.93-20.62,12.36-23.12,38.91,26.55-2.5,36-16.69,38.91-23.12a8,8,0,1,1,14.56,6.64Z"
+            })
+          )
+        ],
+        [
+          "thin",
+          l.createElement(
+            l.Fragment,
+            null,
+            l.createElement("path", {
+              d: "M219.86,47.36a12,12,0,0,0-11.22-11.22c-12-.71-42.82.38-68.35,25.91L134.35,68h-60a11.9,11.9,0,0,0-8.48,3.52L31.52,105.85a12,12,0,0,0,6.81,20.37l39.79,5.55,46.11,46.11,5.55,39.81a12,12,0,0,0,20.37,6.79l34.34-34.35a11.9,11.9,0,0,0,3.52-8.48v-60l5.94-5.94C219.48,90.18,220.57,59.41,219.86,47.36ZM36.21,115.6a3.94,3.94,0,0,1,1-4.09L71.53,77.17A4,4,0,0,1,74.35,76h52L78.58,123.76,39.44,118.3A3.94,3.94,0,0,1,36.21,115.6ZM180,181.65a4,4,0,0,1-1.17,2.83l-34.35,34.34a4,4,0,0,1-6.79-2.25l-5.46-39.15L180,129.65Zm-52-11.31L85.66,128l60.28-60.29c23.24-23.24,51.25-24.23,62.22-23.58a3.93,3.93,0,0,1,3.71,3.71c.65,11-.35,39-23.58,62.22ZM98.21,189.48C94,198.66,80,220,40,220a4,4,0,0,1-4-4c0-40,21.34-54,30.52-58.21a4,4,0,0,1,3.32,7.28c-7.46,3.41-24.43,14.66-25.76,46.85,32.19-1.33,43.44-18.3,46.85-25.76a4,4,0,1,1,7.28,3.32Z"
+            })
+          )
+        ]
+      ]);
+      var i = Object.defineProperty,
+        o = Object.defineProperties,
+        c = Object.getOwnPropertyDescriptors,
+        d = Object.getOwnPropertySymbols,
+        m = Object.prototype.hasOwnProperty,
+        u = Object.prototype.propertyIsEnumerable,
+        x = (e, a, t) => (a in e ? i(e, a, { enumerable: !0, configurable: !0, writable: !0, value: t }) : (e[a] = t)),
+        h = (e, a) => {
+          for (var t in a || (a = {})) m.call(a, t) && x(e, t, a[t]);
+          if (d) for (var t of d(a)) u.call(a, t) && x(e, t, a[t]);
+          return e;
+        },
+        f = (e, a) => o(e, c(a));
+      let p = (0, l.forwardRef)((e, a) => l.createElement(s.Z, f(h({ ref: a }, e), { weights: n })));
+      p.displayName = "RocketLaunch";
+      var g = t(92642),
+        b = t(72779),
+        y = t.n(b),
+        j = t(69816),
+        v = t(26571),
+        w = t(23259),
+        Z = t(24542),
+        N = t.n(Z);
+      let L = `${w.x3}/airdrops`;
+      function A(e) {
+        let { className: a = "" } = e,
+          t = () => {
+            try {
+              N().track(v.B_.ButtonClick, { buttonType: v.L$.AIRDROPS, buttonName: v.$S.GO_TO_LEAPBOARD, redirectURL: L, time: Date.now() / 1e3 });
+            } catch (e) {
+              (0, g.Tb)(e);
+            }
+          };
+        return (0, r.jsxs)("div", {
+          className: y()("flex gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-900 rounded-3xl w-fit items-center cursor-pointer", a),
+          onClick: () => {
+            window.open(L, "_blank"), t();
+          },
+          children: [
+            (0, r.jsx)("img", { src: "https://assets.leapwallet.io/Leapboard.png", alt: "leapboard_logo", width: 16, height: 16 }),
+            (0, r.jsx)(j.Z, { size: "xs", className: "font-bold", children: "Go to Leap Dashboard" }),
+            (0, r.jsx)(p, { size: 16, className: "text-black-100 dark:text-white-100" })
+          ]
+        });
+      }
+    },
+    44777: function (e, a, t) {
+      t.d(a, { Z: () => u });
+      var r = t(52322),
+        l = t(41172),
+        s = t(63161),
+        n = t(48272),
+        i = t(69816),
+        o = t(2784),
+        c = t(70514),
+        d = t(48534),
+        m = t(71198);
+      function u() {
+        let [e, a] = (0, o.useState)(!1),
+          t = Object.values((0, l._2_)() || {}).filter(
+            e => !(null == e ? void 0 : e.isEligible) && (null == e ? void 0 : e.status) !== "failed" && !(null == e ? void 0 : e.isHidden)
+          );
+        return (0, r.jsxs)("div", {
+          children: [
+            (0, r.jsxs)("div", {
+              className: "flex items-center justify-between",
+              children: [
+                (0, r.jsx)(i.Z, { size: "sm", className: "font-bold", children: "Ineligible Airdrops" }),
+                (0, r.jsxs)("div", {
+                  className: "flex items-center cursor-pointer gap-1",
+                  onClick: () => a(e => !e),
+                  children: [
+                    (0, r.jsxs)(i.Z, {
+                      size: "sm",
+                      color: "text-gray-600 dark:text-gray-400",
+                      className: "font-bold",
+                      children: ["Show ", e ? "less" : "more"]
+                    }),
+                    e
+                      ? (0, r.jsx)(s.U, { size: 16, className: "text-gray-600 dark:text-gray-400" })
+                      : (0, r.jsx)(n.p, { size: 16, className: "text-gray-600 dark:text-gray-400" })
+                  ]
+                })
+              ]
+            }),
+            e &&
+              (0, r.jsx)("div", {
+                className: "mt-3",
+                children: t.map((e, a) =>
+                  (0, r.jsxs)(
+                    "div",
+                    {
+                      className: (0, c.cn)(
+                        "flex gap-2 items-center bg-secondary-100 hover:bg-secondary-200 py-3 cursor-pointer px-3 rounded-xl",
+                        a !== t.length - 1 && "mb-4"
+                      ),
+                      children: [
+                        (0, r.jsx)("img", { src: e.airdropIcon, alt: "airdrop-icon", className: "w-8 h-8 rounded-full" }),
+                        (0, r.jsx)(i.Z, {
+                          size: "sm",
+                          className: "flex-1 font-medium",
+                          children: (0, m.fy)(e.name, (0, d.oj)() ? 28 + Math.floor(((Math.min(window.innerWidth, 400) - 320) / 81) * 7) : 34)
+                        })
+                      ]
+                    },
+                    a
+                  )
+                )
+              })
+          ]
+        });
+      }
+    },
+    21430: function (e, a, t) {
+      t.d(a, { Z: () => d });
+      var r = t(52322),
+        l = t(72779),
+        s = t.n(l),
+        n = t(69816),
+        i = t(30464);
+      t(2784);
+      var o = t(48534),
+        c = t(11653);
+      function d() {
+        return (0, r.jsxs)("div", {
+          className: "p-4 bg-white-100 dark:bg-gray-950 rounded-xl relative overflow-hidden",
+          children: [
+            (0, r.jsx)(n.Z, { size: "sm", className: "font-bold mb-1", children: "Looking for more?" }),
+            (0, r.jsxs)(n.Z, {
+              size: "xs",
+              color: "text-gray-800 dark:text-gray-200",
+              className: "font-medium mb-3 !leading-5",
+              children: ["View upcoming airdrops and check", (0, r.jsx)("br", {}), "eligibility for other addresses."]
+            }),
+            (0, r.jsx)(c.Z, { className: "relative" }),
+            (0, r.jsx)("img", {
+              src: i.r.Misc.FrogHappy,
+              alt: "FrogHappy",
+              className: s()("absolute right-0 bottom-0", { "min-[350px]:!max-w-[40%] max-[349px]:!max-w-[32%]": (0, o.oj)() })
+            })
+          ]
+        });
+      }
+    },
+    74993: function (e, a, t) {
+      t.a(e, async function (e, r) {
+        try {
+          t.d(a, { Z: () => u });
+          var l = t(52322),
+            s = t(69816),
+            n = t(10706),
+            i = t(30464),
+            o = t(2784),
+            c = t(32374),
+            d = t(71198),
+            m = e([n]);
+          function u() {
+            let { activeWallet: e } = (0, n.ZP)(),
+              a = (0, c.k)((null == e ? void 0 : e.name) || ""),
+              t = (0, o.useMemo)(() => {
+                if (null == e ? void 0 : e.avatar) return e.avatar;
+              }, [null == e ? void 0 : e.avatar]);
+            return (0, l.jsxs)("div", {
+              className: "flex items-center justify-between bg-secondary-100 pl-4 rounded-xl py-[10px]",
+              children: [
+                (0, l.jsx)(s.Z, { size: "sm", className: "font-medium", children: "Airdrops shown for" }),
+                (0, l.jsxs)("div", {
+                  className: "flex items-center gap-2 py-2 pl-3 pr-4 bg-gray-50 dark:bg-gray-900 rounded-[30px]",
+                  children: [
+                    t
+                      ? (0, l.jsx)("img", { className: "w-5 h-5 rounded-full", src: t, alt: "wallet-avatar" })
+                      : (0, l.jsx)("img", { className: "w-5 h-5", src: i.r.Logos.LeapLogo28, alt: "wallet-avatar" }),
+                    (0, l.jsx)(s.Z, { size: "sm", className: "font-bold", children: (0, d.fy)(a, 10) })
+                  ]
+                })
+              ]
+            });
+          }
+          (n = (m.then ? (await m)() : m)[0]), r();
+        } catch (e) {
+          r(e);
+        }
+      });
+    },
+    11218: function (e, a, t) {
+      t.d(a, { k: () => o });
+      var r = t(52322),
+        l = t(36906),
+        s = t(96217),
+        n = t(69816);
+      t(2784);
+      var i = t(11653);
+      let o = e => {
+        let { isOpen: a, onClose: t } = e;
+        return (0, r.jsxs)(s.Z, {
+          isOpen: a,
+          onClose: t,
+          title: "About Airdrops",
+          children: [
+            (0, r.jsx)(n.Z, {
+              size: "sm",
+              color: "text-gray-800 dark:text-gray-200",
+              className: "font-medium mb-3",
+              children:
+                "Only active airdrops that Leap has partnered with for eligibility tracking are displayed here. For information on other airdrops, visit our Leap Dashboard."
+            }),
+            (0, r.jsx)(i.Z, {}),
+            (0, r.jsxs)("div", {
+              className: "flex gap-2 mt-8 mb-2 items-center",
+              children: [
+                (0, r.jsx)(l.k, { size: 20, className: "text-black-100 dark:text-white-100" }),
+                (0, r.jsx)(n.Z, { size: "md", className: "font-bold", children: "Disclaimer" })
+              ]
+            }),
+            (0, r.jsx)(n.Z, {
+              size: "sm",
+              color: "text-gray-800 dark:text-gray-200",
+              className: "font-medium",
+              children:
+                "We aggregate airdrops data without endorsing or verifying it. Accuracy, relevance, or timeliness of data not guaranteed. Conduct your own research before engaging."
+            })
+          ]
+        });
+      };
+    },
+    61752: function (e, a, t) {
+      t.a(e, async function (e, r) {
+        try {
+          t.r(a), t.d(a, { default: () => o });
+          var l = t(52322);
+          t(2784);
+          var s = t(34424),
+            n = t(27192),
+            i = e([s, n]);
+          function o() {
+            return (0, l.jsxs)("div", {
+              className: "relative h-full w-full enclosing-panel bg-secondary-50 overflow-y-auto",
+              children: [(0, l.jsx)(s.Y, {}), (0, l.jsx)("div", { className: "p-7 h-[calc(100%-64px)]", children: (0, l.jsx)(n.Z, {}) })]
+            });
+          }
+          ([s, n] = i.then ? (await i)() : i), r();
+        } catch (e) {
+          r(e);
+        }
+      });
+    },
+    18536: function (e, a, t) {
+      t.d(a, { y: () => f });
+      var r = t(2784),
+        l = t(6806);
+      let s = new Map([
+        [
+          "bold",
+          r.createElement(
+            r.Fragment,
+            null,
+            r.createElement("path", {
+              d: "M228,128a100,100,0,0,1-98.66,100H128a99.39,99.39,0,0,1-68.62-27.29,12,12,0,0,1,16.48-17.45,76,76,0,1,0-1.57-109c-.13.13-.25.25-.39.37L54.89,92H72a12,12,0,0,1,0,24H24a12,12,0,0,1-12-12V56a12,12,0,0,1,24,0V76.72L57.48,57.06A100,100,0,0,1,228,128Z"
+            })
+          )
+        ],
+        [
+          "duotone",
+          r.createElement(
+            r.Fragment,
+            null,
+            r.createElement("path", { d: "M216,128a88,88,0,1,1-88-88A88,88,0,0,1,216,128Z", opacity: "0.2" }),
+            r.createElement("path", {
+              d: "M224,128a96,96,0,0,1-94.71,96H128A95.38,95.38,0,0,1,62.1,197.8a8,8,0,0,1,11-11.63A80,80,0,1,0,71.43,71.39a3.07,3.07,0,0,1-.26.25L44.59,96H72a8,8,0,0,1,0,16H24a8,8,0,0,1-8-8V56a8,8,0,0,1,16,0V85.8L60.25,60A96,96,0,0,1,224,128Z"
+            })
+          )
+        ],
+        [
+          "fill",
+          r.createElement(
+            r.Fragment,
+            null,
+            r.createElement("path", {
+              d: "M224,128a96,96,0,0,1-94.71,96H128A95.38,95.38,0,0,1,62.1,197.8a8,8,0,0,1,11-11.63A80,80,0,1,0,71.43,71.39a3.07,3.07,0,0,1-.26.25L60.63,81.29l17,17A8,8,0,0,1,72,112H24a8,8,0,0,1-8-8V56A8,8,0,0,1,29.66,50.3L49.31,70,60.25,60A96,96,0,0,1,224,128Z"
+            })
+          )
+        ],
+        [
+          "light",
+          r.createElement(
+            r.Fragment,
+            null,
+            r.createElement("path", {
+              d: "M222,128a94,94,0,0,1-92.74,94H128a93.43,93.43,0,0,1-64.5-25.65,6,6,0,1,1,8.24-8.72A82,82,0,1,0,70,70l-.19.19L39.44,98H72a6,6,0,0,1,0,12H24a6,6,0,0,1-6-6V56a6,6,0,0,1,12,0V90.34L61.63,61.4A94,94,0,0,1,222,128Z"
+            })
+          )
+        ],
+        [
+          "regular",
+          r.createElement(
+            r.Fragment,
+            null,
+            r.createElement("path", {
+              d: "M224,128a96,96,0,0,1-94.71,96H128A95.38,95.38,0,0,1,62.1,197.8a8,8,0,0,1,11-11.63A80,80,0,1,0,71.43,71.39a3.07,3.07,0,0,1-.26.25L44.59,96H72a8,8,0,0,1,0,16H24a8,8,0,0,1-8-8V56a8,8,0,0,1,16,0V85.8L60.25,60A96,96,0,0,1,224,128Z"
+            })
+          )
+        ],
+        [
+          "thin",
+          r.createElement(
+            r.Fragment,
+            null,
+            r.createElement("path", {
+              d: "M220,128a92,92,0,0,1-90.77,92H128a91.47,91.47,0,0,1-63.13-25.1,4,4,0,1,1,5.5-5.82A84,84,0,1,0,68.6,68.57l-.13.12L34.3,100H72a4,4,0,0,1,0,8H24a4,4,0,0,1-4-4V56a4,4,0,0,1,8,0V94.89l35-32A92,92,0,0,1,220,128Z"
+            })
+          )
+        ]
+      ]);
+      var n = Object.defineProperty,
+        i = Object.defineProperties,
+        o = Object.getOwnPropertyDescriptors,
+        c = Object.getOwnPropertySymbols,
+        d = Object.prototype.hasOwnProperty,
+        m = Object.prototype.propertyIsEnumerable,
+        u = (e, a, t) => (a in e ? n(e, a, { enumerable: !0, configurable: !0, writable: !0, value: t }) : (e[a] = t)),
+        x = (e, a) => {
+          for (var t in a || (a = {})) d.call(a, t) && u(e, t, a[t]);
+          if (c) for (var t of c(a)) m.call(a, t) && u(e, t, a[t]);
+          return e;
+        },
+        h = (e, a) => i(e, o(a));
+      let f = (0, r.forwardRef)((e, a) => r.createElement(l.Z, h(x({ ref: a }, e), { weights: s })));
+      f.displayName = "ArrowCounterClockwise";
+    }
+  }
+]);
+//# sourceMappingURL=2871.js.map

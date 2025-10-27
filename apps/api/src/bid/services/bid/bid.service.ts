@@ -30,7 +30,7 @@ export class BidService {
   }
 
   private async decorateWithCertRequirement<T extends Bid>(bid: T): Promise<T & { isCertificateRequired: boolean }> {
-    const provider = await this.providerService.getProvider(bid.bid.bid_id.provider);
+    const provider = await this.providerService.getProvider(bid.bid.id.provider);
     return {
       ...bid,
       isCertificateRequired: !provider || !semver.valid(provider.akashVersion) || semver.lt(provider.akashVersion, BidService.JWT_AUTH_SUPPORT_VERSION)

@@ -1,0 +1,2141 @@
+!(function () {
+  try {
+    var e = "undefined" != typeof window ? window : "undefined" != typeof global ? global : "undefined" != typeof self ? self : {},
+      t = new e.Error().stack;
+    t &&
+      ((e._sentryDebugIds = e._sentryDebugIds || {}),
+      (e._sentryDebugIds[t] = "b754bcb9-c729-4202-8489-c654a8702798"),
+      (e._sentryDebugIdIdentifier = "sentry-dbid-b754bcb9-c729-4202-8489-c654a8702798"));
+  } catch (e) {}
+})();
+var _global = "undefined" != typeof window ? window : "undefined" != typeof global ? global : "undefined" != typeof self ? self : {};
+_global.SENTRY_RELEASE = { id: "0.22.9" };
+("use strict");
+(self.webpackChunk_leap_cosmos_extension = self.webpackChunk_leap_cosmos_extension || []).push([
+  ["1958"],
+  {
+    4914: function (e, t, l) {
+      l.d(t, { w: () => r });
+      var s = l(60431),
+        a = l(55334);
+      async function n() {
+        let { data: e } = await a.Z.get("https://api.coingecko.com/api/v3/asset_platforms");
+        return e;
+      }
+      function r() {
+        let {
+          data: e = [],
+          isLoading: t,
+          error: l
+        } = (0, s.useQuery)({ queryKey: ["coingecko-chains"], queryFn: n, refetchInterval: 18e5, staleTime: 9e5, retry: 2 });
+        return { chains: e, isLoading: t, error: l };
+      }
+    },
+    57667: function (e, t, l) {
+      l.d(t, { C: () => i });
+      var s = l(41172),
+        a = l(60431),
+        n = l(55334);
+      async function r(e, t) {
+        let l = (0, s.O65)(),
+          a = `${l}/alpha-insights/raffle-entries/raffle/${e}/user/${t}`,
+          { data: r } = await n.Z.get(a);
+        return r.hasEntered;
+      }
+      function i(e, t) {
+        let {
+          data: l = !1,
+          isLoading: s,
+          error: n,
+          refetch: i
+        } = (0, a.useQuery)({ queryKey: ["raffle-entry", e, t], queryFn: () => !!e && !!t && r(e, t), staleTime: 0, cacheTime: 0 });
+        return { hasEntered: l, isLoading: s, error: n, refetch: i };
+      }
+    },
+    25798: function (e, t, l) {
+      l.a(e, async function (e, s) {
+        try {
+          l.d(t, { Z: () => i });
+          var a = l(52322);
+          l(2784);
+          var n = l(28401),
+            r = e([n]);
+          function i() {
+            return (0, a.jsx)(n.Z, {});
+          }
+          (n = (r.then ? (await r)() : r)[0]), s();
+        } catch (e) {
+          s(e);
+        }
+      });
+    },
+    72327: function (e, t, l) {
+      l.a(e, async function (e, s) {
+        try {
+          l.d(t, { g: () => b });
+          var a = l(52322),
+            n = l(76601),
+            r = l(16283),
+            i = l(85027),
+            o = l(70724),
+            c = l(81662),
+            d = l(26571),
+            u = l(42941),
+            h = l(86240),
+            m = l(75958),
+            x = l(35065),
+            f = l(2784),
+            p = l(35153),
+            v = l(35492),
+            g = l(43342),
+            y = e([x]);
+          x = (y.then ? (await y)() : y)[0];
+          let j = () => {
+              let e = (0, u.K)(),
+                t = "true" === e.get(p.S.alphaBookmarks);
+              return (0, a.jsxs)("button", {
+                className:
+                  "py-2 px-2.5 text-foreground/75 hover:text-foreground transition-colors flex items-center bg-secondary-200 rounded-full overflow-hidden",
+                onClick: () => {
+                  e.set(p.S.alphaBookmarks, (!t).toString()), (0, v.W)(d.B_.PageView, { pageName: d.q.Bookmark });
+                },
+                children: [(0, a.jsx)(n.W, { id: g.f, size: 20 }), (0, a.jsx)(n.W, { id: g.y, className: "hidden", weight: "fill", size: 20 })]
+              });
+            },
+            C = e => {
+              let [t, l] = (0, f.useState)(!1),
+                s = (0, h.v)();
+              return (0, a.jsxs)(a.Fragment, {
+                children: [
+                  (0, a.jsxs)(i.m, {
+                    children: [
+                      (0, a.jsxs)("div", {
+                        className: "flex items-center bg-secondary-200 rounded-full overflow-hidden",
+                        children: [
+                          (0, a.jsx)(o.Z, { className: "py-2 pr-1.5 pl-2.5 text-foreground/75 hover:text-foreground transition-colors" }),
+                          (0, a.jsx)("div", { className: "h-5 w-px bg-secondary-300" }),
+                          (0, a.jsx)(c.D, { className: "py-2 pl-1.5 pr-2.5 text-foreground/75 hover:text-foreground transition-colors" })
+                        ]
+                      }),
+                      (0, a.jsx)(r.G2, {
+                        showDropdown: !0,
+                        showWalletAvatar: !0,
+                        className: "absolute top-1/2 right-1/2 translate-x-1/2 -translate-y-1/2",
+                        walletName: s.walletName,
+                        walletAvatar: s.walletAvatar,
+                        handleDropdownClick: () => l(!e.disableWalletButton)
+                      }),
+                      (0, a.jsx)(j, {})
+                    ]
+                  }),
+                  (0, a.jsx)(x.Z, { isVisible: t, onClose: () => l(!1) })
+                ]
+              });
+            };
+          C.displayName = "AlphaHeaderView";
+          let b = (0, m.Pi)(C);
+          s();
+        } catch (e) {
+          s(e);
+        }
+      });
+    },
+    25294: function (e, t, l) {
+      l.d(t, { N: () => d });
+      var s = l(52322),
+        a = l(75377),
+        n = l(42941),
+        r = l(30464);
+      l(2784);
+      var i = l(35153);
+      let o = { background: "linear-gradient(180deg, #053F27 0%, #022718 100%)" },
+        c = { background: "linear-gradient(rgb(115 151 136) 0%, rgb(24 97 68) 100%)" };
+      function d() {
+        let e = (0, n.K)(),
+          { theme: t } = (0, a.useTheme)();
+        return (0, s.jsxs)("div", {
+          className: "px-4 pt-6 pb-5 border border-primary overflow-hidden rounded-xl shrink-0 flex flex-col gap-1 relative isolate",
+          style: "light" === t ? c : o,
+          children: [
+            (0, s.jsx)("span", { className: "font-bold text-white-100 text-shad", children: "You're not a Leap Chad, yet" }),
+            (0, s.jsxs)("span", {
+              className: "text-white-100 text-xs",
+              children: [
+                "The more you use Leap, the closer ",
+                (0, s.jsx)("br", {}),
+                "to Chad status!",
+                " ",
+                (0, s.jsx)("button", {
+                  className: "text-accent-success font-medium underline underline-offset-4 decoration-dashed hover:text-primary transition-colors",
+                  onClick: () => e.set(i.S.chadEligibility, "true"),
+                  children: "Learn more"
+                })
+              ]
+            }),
+            (0, s.jsx)("img", { src: r.r.Alpha.chadHighlightBanner, className: "h-[5.375rem] w-[11rem] absolute top-0 right-0 -z-10" })
+          ]
+        });
+      }
+    },
+    8747: function (e, t, l) {
+      l.a(e, async function (e, s) {
+        try {
+          l.d(t, { J: () => k });
+          var a = l(52322),
+            n = l(75377),
+            r = l(96217),
+            i = l(26571),
+            o = l(71659),
+            c = l(78646),
+            d = l(5254),
+            u = l(2784),
+            h = l(7474),
+            m = l(69019),
+            x = l(64502),
+            f = l(39331),
+            p = l(23393),
+            v = l(11151),
+            g = l(8420),
+            y = l(91064),
+            j = l(97222),
+            C = l(38742),
+            b = l(88987),
+            w = e([c, j]);
+          function N() {
+            return (0, a.jsx)("div", { style: { padding: "3rem", textAlign: "center" }, children: " " });
+          }
+          [c, j] = w.then ? (await w)() : w;
+          let k = e => {
+            let { isOpen: t, toggler: l } = e,
+              { raffles: s, isLoading: w } = (0, d.Zw)(),
+              { bookmarks: k } = (0, v.ZE)(),
+              { alphaUser: S, selectedOpportunities: E, selectedEcosystems: Z } = (0, g.o)();
+            (0, c.a)(i.q.ChadExclusivesBookmark, t, { isChad: (null == S ? void 0 : S.isChad) ?? !1 });
+            let { raffleWins: A } = (0, d.Cn)((null == S ? void 0 : S.id) ?? ""),
+              { theme: M } = (0, n.useTheme)(),
+              [L, F] = (0, u.useState)(!1),
+              [O, D] = (0, u.useState)(""),
+              [T, B] = (0, u.useState)(null),
+              z = (0, u.useMemo)(() => new o.default(s, { keys: ["title", "secondaryTitle", "ecosystem", "categories"], threshold: 0.3, shouldSort: !0 }), [s]),
+              V = (0, u.useMemo)(() => {
+                if (!O) return (0, y.pu)(s);
+                let e = z.search(O);
+                return (0, y.pu)(e.map(e => e.item));
+              }, [s, O, z]),
+              P = (0, u.useMemo)(() => {
+                let e = V.filter(e => k.has(e.id ?? ""));
+                return (null == E ? void 0 : E.length) || (null == Z ? void 0 : Z.length)
+                  ? e.filter(
+                      e =>
+                        (!(null == E ? void 0 : E.length) ||
+                          E.every(t => {
+                            var l;
+                            return null === (l = e.categories) || void 0 === l ? void 0 : l.includes(t);
+                          })) &&
+                        (!(null == Z ? void 0 : Z.length) ||
+                          Z.every(t => {
+                            var l;
+                            return null === (l = e.ecosystem) || void 0 === l ? void 0 : l.includes(t);
+                          }))
+                    )
+                  : e;
+              }, [V, E, Z, k]),
+              R = (null == Z ? void 0 : Z.length) + (null == E ? void 0 : E.length);
+            return (0, a.jsx)(r.Z, {
+              fullScreen: !0,
+              isOpen: t,
+              onClose: l,
+              title: "Bookmarks",
+              className: "flex-1",
+              children:
+                0 !== P.length || 0 !== R || w || O
+                  ? (0, a.jsxs)("div", {
+                      className: "flex flex-col gap-4 h-full",
+                      ref: B,
+                      children: [
+                        (0, a.jsx)(C.z5, { setIsFilterDrawerOpen: F, setSearch: D }),
+                        E.length > 0 || Z.length > 0 ? (0, a.jsx)(p.$, {}) : null,
+                        0 === P.length && !w && (0, a.jsx)(f.M, { className: "mt-3 flex-1 h-full", filterType: O ? "search" : "no-results" }),
+                        P.length > 0
+                          ? (0, a.jsx)("div", {
+                              className: "h-full flex flex-col flex-1",
+                              children: (0, a.jsx)(h.OO, {
+                                components: { Footer: N },
+                                customScrollParent: T ?? void 0,
+                                style: { height: "100%" },
+                                totalCount: P.length,
+                                itemContent: e => {
+                                  let t = P[e];
+                                  return (0, a.jsx)(
+                                    b.ZP,
+                                    {
+                                      ...t,
+                                      pageName: i.q.Bookmark,
+                                      isSearched: "" !== O,
+                                      isBookmarked: k.has(t.id ?? ""),
+                                      userWon: !!(null == A ? void 0 : A.find(e => e.id === t.id))
+                                    },
+                                    `${t.id}-${e}`
+                                  );
+                                }
+                              })
+                            })
+                          : w
+                            ? (0, a.jsx)("div", { className: "space-y-4 isolate", children: (0, a.jsx)(m.V, {}) })
+                            : null,
+                        (0, a.jsx)(j.Z, { isChad: (null == S ? void 0 : S.isChad) ?? !1, raffles: s, isShown: L, onClose: () => F(!1), pageName: i.q.Bookmark })
+                      ]
+                    })
+                  : (0, a.jsx)(x.Z, {
+                      title: "No Bookmarks Found",
+                      subTitle: "Try looking at some exclusive opportunities and saving them",
+                      className: "h-full"
+                    })
+            });
+          };
+          s();
+        } catch (e) {
+          s(e);
+        }
+      });
+    },
+    98409: function (e, t, l) {
+      l.d(t, { Z: () => u });
+      var s = l(52322),
+        a = l(26571),
+        n = l(30464),
+        r = l(2784),
+        i = l(35492),
+        o = l(74481),
+        c = l(8420);
+      let d = {
+        NFT: n.r.Alpha.nftGiveaway,
+        "NFT Giveaway": n.r.Alpha.nftGiveaway,
+        Airdrop: n.r.Alpha.airdrop,
+        News: n.r.Alpha.news,
+        Quest: n.r.Alpha.quest,
+        "Leap Exclusive": n.r.Alpha.exclusive,
+        "Airdrop checker": n.r.Alpha.airdrop,
+        "Potential Airdrop": n.r.Alpha.airdrop,
+        Testnet: n.r.Alpha.testnet,
+        "NFT Mint": n.r.Alpha.nftMint,
+        Presale: n.r.Alpha.presale,
+        "Zero Cost": n.r.Alpha.zeroCost,
+        TGE: n.r.Alpha.tge,
+        Mainnet: n.r.Alpha.mainnet,
+        Whitelist: n.r.Alpha.whitelist,
+        Rewards: n.r.Alpha.reward
+      };
+      function u(e) {
+        var t;
+        let { categoryFilters: l, pageName: u, isChad: h, onClose: m } = e,
+          { selectedOpportunities: x, selectedEcosystems: f, setOpportunities: p } = (0, c.o)(),
+          v = (0, r.useCallback)(
+            e => {
+              let t = (null == x ? void 0 : x.includes(e)) ? x.filter(t => t !== e) : [...(x || []), e];
+              p(t), m(), (0, i.W)(a.B_.Filters, { filterSelected: [...(t || []), ...(f || [])], filterApplySource: u, isChad: h });
+            },
+            [x, p, f, u, h, m]
+          );
+        return (0, s.jsxs)("div", {
+          className: "flex flex-col gap-5",
+          children: [
+            (0, s.jsx)("span", { className: "text-muted-foreground text-sm uppercase font-bold", children: "Category" }),
+            (0, s.jsx)("div", {
+              className: "flex flex-col",
+              children:
+                null == l
+                  ? void 0
+                  : null === (t = l.sort((e, t) => e.localeCompare(t))) || void 0 === t
+                    ? void 0
+                    : t.map((e, t) =>
+                        (0, s.jsx)(
+                          o.Z,
+                          {
+                            icon: d[e] ?? n.r.Alpha.nftGiveaway,
+                            label: e,
+                            isLast: t === l.length - 1,
+                            isSelected: null == x ? void 0 : x.includes(e),
+                            onSelect: () => v(e),
+                            onRemove: () => v(e)
+                          },
+                          e
+                        )
+                      )
+            })
+          ]
+        });
+      }
+    },
+    76239: function (e, t, l) {
+      l.a(e, async function (e, s) {
+        try {
+          l.d(t, { Z: () => f });
+          var a = l(52322),
+            n = l(26571),
+            r = l(74229),
+            i = l(36400),
+            o = l(4914),
+            c = l(24542),
+            d = l.n(c),
+            u = l(2784),
+            h = l(74481),
+            m = l(8420),
+            x = e([i]);
+          function f(e) {
+            var t;
+            let { ecosystemFilters: l, pageName: s, isChad: c, onClose: x } = e,
+              { chains: f } = (0, o.w)(),
+              p = (0, i.pb)(),
+              v = (0, r.os)(),
+              g = (0, r.a1)(),
+              y = Object.values(p),
+              j = Object.values(v),
+              C = [...y, ...j],
+              { selectedOpportunities: b, selectedEcosystems: w, setEcosystems: N } = (0, m.o)(),
+              k = (0, u.useCallback)(
+                e => {
+                  try {
+                    let t = (null == w ? void 0 : w.includes(e)) ? w.filter(t => t !== e) : [...(w || []), e];
+                    N(t), x(), d().track(n.B_.Filters, { filterSelected: [...(b || []), ...(t || [])], filterApplySource: s, isChad: c });
+                  } catch (e) {}
+                },
+                [b, w, N, s, c, x]
+              );
+            return (0, a.jsxs)("div", {
+              className: "flex flex-col gap-5",
+              children: [
+                (0, a.jsx)("span", { className: "text-muted-foreground text-sm uppercase font-bold", children: "Ecosystem" }),
+                (0, a.jsx)("div", {
+                  className: "flex flex-col",
+                  children:
+                    null == l
+                      ? void 0
+                      : null === (t = l.sort((e, t) => e.localeCompare(t))) || void 0 === t
+                        ? void 0
+                        : t.map((e, t) => {
+                            var s, n;
+                            let r = f.find(t => t.name.toLowerCase().startsWith(null == e ? void 0 : e.toLowerCase().split(" ")[0])),
+                              i = C.find(t => t.chainName.toLowerCase().startsWith(null == e ? void 0 : e.toLowerCase().split(" ")[0])),
+                              o =
+                                i && (null == i ? void 0 : i.chainSymbolImageUrl)
+                                  ? null == i
+                                    ? void 0
+                                    : i.chainSymbolImageUrl
+                                  : (r &&
+                                      ((null == r ? void 0 : null === (s = r.image) || void 0 === s ? void 0 : s.small) ||
+                                        (null == r ? void 0 : null === (n = r.image) || void 0 === n ? void 0 : n.large))) ||
+                                    g;
+                            return (0, a.jsx)(
+                              h.Z,
+                              {
+                                icon: o,
+                                label: e,
+                                isLast: t === l.length - 1,
+                                isSelected: null == w ? void 0 : w.includes(e),
+                                onSelect: () => k(e),
+                                onRemove: () => k(e)
+                              },
+                              e
+                            );
+                          })
+                })
+              ]
+            });
+          }
+          (i = (x.then ? (await x)() : x)[0]), s();
+        } catch (e) {
+          s(e);
+        }
+      });
+    },
+    97222: function (e, t, l) {
+      l.a(e, async function (e, s) {
+        try {
+          l.d(t, { Z: () => d });
+          var a = l(52322),
+            n = l(96217),
+            r = l(2784),
+            i = l(98409),
+            o = l(76239),
+            c = e([o]);
+          function d(e) {
+            let { raffles: t, isShown: l, onClose: s, pageName: c, isChad: d } = e,
+              u = (0, r.useMemo)(() => {
+                let e = new Set();
+                return (
+                  null == t ||
+                    t.forEach(t => {
+                      var l;
+                      null === (l = t.categories) ||
+                        void 0 === l ||
+                        l.forEach(t => {
+                          let l = t.trim();
+                          l && e.add(l);
+                        });
+                    }),
+                  Array.from(e)
+                );
+              }, [t]),
+              h = (0, r.useMemo)(() => {
+                let e = new Set();
+                return (
+                  null == t ||
+                    t.forEach(t => {
+                      var l;
+                      null === (l = t.ecosystem) ||
+                        void 0 === l ||
+                        l.forEach(t => {
+                          let l = t.trim();
+                          l && e.add(l);
+                        });
+                    }),
+                  Array.from(e)
+                );
+              }, [t]);
+            return (0, a.jsxs)(n.Z, {
+              fullScreen: !0,
+              isOpen: l,
+              onClose: s,
+              title: "Filter by",
+              className: "flex flex-col gap-10",
+              children: [
+                (0, a.jsx)(i.Z, { categoryFilters: u, pageName: c, isChad: d, onClose: s }),
+                (0, a.jsx)(o.Z, { onClose: s, ecosystemFilters: h, pageName: c, isChad: d })
+              ]
+            });
+          }
+          (o = (c.then ? (await c)() : c)[0]), s();
+        } catch (e) {
+          s(e);
+        }
+      });
+    },
+    38742: function (e, t, l) {
+      l.d(t, { z5: () => N, rr: () => v });
+      var s,
+        a = l(52322),
+        n = l(48039),
+        r = l(91486),
+        i = l(84916),
+        o = l(14981),
+        c = l(4370),
+        d = l(42941),
+        u = l(19059),
+        h = l(2784);
+      let m = e =>
+        (0, a.jsx)("svg", {
+          width: "24",
+          height: "25",
+          viewBox: "0 0 24 25",
+          fill: "none",
+          xmlns: "http://www.w3.org/2000/svg",
+          ...e,
+          children: (0, a.jsx)("path", {
+            d: "M3 18.4173C3 18.9673 3.45 19.4173 4 19.4173H9V17.4173H4C3.45 17.4173 3 17.8673 3 18.4173ZM3 6.41733C3 6.96733 3.45 7.41733 4 7.41733H13V5.41733H4C3.45 5.41733 3 5.86733 3 6.41733ZM13 20.4173V19.4173H20C20.55 19.4173 21 18.9673 21 18.4173C21 17.8673 20.55 17.4173 20 17.4173H13V16.4173C13 15.8673 12.55 15.4173 12 15.4173C11.45 15.4173 11 15.8673 11 16.4173V20.4173C11 20.9673 11.45 21.4173 12 21.4173C12.55 21.4173 13 20.9673 13 20.4173ZM7 10.4173V11.4173H4C3.45 11.4173 3 11.8673 3 12.4173C3 12.9673 3.45 13.4173 4 13.4173H7V14.4173C7 14.9673 7.45 15.4173 8 15.4173C8.55 15.4173 9 14.9673 9 14.4173V10.4173C9 9.86733 8.55 9.41733 8 9.41733C7.45 9.41733 7 9.86733 7 10.4173ZM21 12.4173C21 11.8673 20.55 11.4173 20 11.4173H11V13.4173H20C20.55 13.4173 21 12.9673 21 12.4173ZM16 9.41733C16.55 9.41733 17 8.96733 17 8.41733V7.41733H20C20.55 7.41733 21 6.96733 21 6.41733C21 5.86733 20.55 5.41733 20 5.41733H17V4.41733C17 3.86733 16.55 3.41733 16 3.41733C15.45 3.41733 15 3.86733 15 4.41733V8.41733C15 8.96733 15.45 9.41733 16 9.41733Z",
+            fill: "currentColor"
+          })
+        });
+      var x = l(70514),
+        f = l(46338),
+        p = l(35153),
+        v = (((s = {}).Live = "live"), (s.Upcoming = "upcoming"), (s.Ended = "ended"), s);
+      let g = [
+          { label: "Live", value: "live" },
+          { label: "Upcoming", value: "upcoming" },
+          { label: "Ended", value: "ended" }
+        ],
+        y = e =>
+          (0, a.jsx)(r.zx, {
+            variant: "secondary",
+            size: "sm",
+            ...e,
+            className: (0, x.cn)("bg-secondary-200 font-normal text-xs h-10 rounded-full text-muted-foreground hover:text-foreground p-0", e.className),
+            children: e.children
+          }),
+        j = { hidden: { opacity: 0, height: 0 }, visible: { opacity: 1, height: "auto" } },
+        C = e =>
+          (0, a.jsx)(o.M, {
+            children: e.showSearch
+              ? (0, a.jsx)(c.E.div, {
+                  initial: "hidden",
+                  animate: "visible",
+                  exit: "hidden",
+                  variants: j,
+                  transition: f.Wz,
+                  children: (0, a.jsx)(i.M, {
+                    autoFocus: !0,
+                    className: "mt-4 py-0",
+                    placeholder: "Search...",
+                    onClear: () => e.setSearch(""),
+                    onChange: t => e.setSearch(t.target.value)
+                  })
+                })
+              : null
+          }),
+        b = { hidden: { opacity: 0, scale: 0.95, rotate: 90 }, visible: { opacity: 1, scale: 1, rotate: 0 } },
+        w = e =>
+          (0, a.jsxs)(o.M, {
+            mode: "wait",
+            children: [
+              e.showSearch
+                ? (0, a.jsx)(
+                    c.E.div,
+                    {
+                      initial: "hidden",
+                      animate: "visible",
+                      className: "size-10 grid place-content-center",
+                      variants: b,
+                      transition: f.Wz,
+                      children: (0, a.jsx)(n.X, { className: (0, x.cn)("size-5", e.className) })
+                    },
+                    "search"
+                  )
+                : (0, a.jsx)(
+                    c.E.div,
+                    {
+                      initial: "hidden",
+                      animate: "visible",
+                      className: "size-10 grid place-content-center",
+                      variants: b,
+                      transition: f.Wz,
+                      children: (0, a.jsx)(u.W, { className: (0, x.cn)("size-5", e.className) })
+                    },
+                    "clear"
+                  ),
+              (0, a.jsx)("span", { className: "sr-only", children: "Search" })
+            ]
+          }),
+        N = e => {
+          let [t, l] = (0, h.useState)(!1),
+            s = (0, d.K)(),
+            n = s.get(p.S.alphaDateStatus);
+          return (0, a.jsxs)("div", {
+            className: (0, x.cn)("flex flex-col", e.className),
+            children: [
+              (0, a.jsxs)("div", {
+                className: "flex gap-2 items-center",
+                children: [
+                  (0, a.jsx)("div", {
+                    className: "flex gap-2 items-center",
+                    children: g.map(e =>
+                      (0, a.jsx)(
+                        y,
+                        {
+                          className: (0, x.cn)("px-4", n === e.value && "bg-secondary-500 ring-muted-foreground/75 ring-1 text-foreground"),
+                          onClick: () => {
+                            n === e.value ? s.remove(p.S.alphaDateStatus) : s.set(p.S.alphaDateStatus, e.value);
+                          },
+                          children: e.label
+                        },
+                        e.value
+                      )
+                    )
+                  }),
+                  (0, a.jsx)(y, {
+                    className: "rounded-full ml-auto",
+                    onClick: () => {
+                      l(!t), e.setSearch("");
+                    },
+                    children: (0, a.jsx)(w, { showSearch: t })
+                  }),
+                  (0, a.jsxs)(y, {
+                    className: "rounded-full size-10 grid place-content-center",
+                    onClick: () => e.setIsFilterDrawerOpen(!0),
+                    children: [(0, a.jsx)(m, { className: "size-5" }), (0, a.jsx)("span", { className: "sr-only", children: "Filters" })]
+                  })
+                ]
+              }),
+              (0, a.jsx)(C, { showSearch: t, setSearch: e.setSearch })
+            ]
+          });
+        };
+    },
+    92404: function (e, t, l) {
+      l.d(t, { T: () => f });
+      var s = l(52322),
+        a = l(42941),
+        n = l(75377);
+      l(2784);
+      let r = e =>
+          (0, s.jsx)("svg", {
+            width: "16",
+            height: "16",
+            viewBox: "0 0 16 16",
+            fill: "none",
+            xmlns: "http://www.w3.org/2000/svg",
+            ...e,
+            children: (0, s.jsx)("path", {
+              d: "M15.5005 5.99945C15.5007 5.72536 15.4366 5.45504 15.3132 5.21028C15.1898 4.96553 15.0107 4.75316 14.7902 4.59031C14.5698 4.42746 14.3141 4.31867 14.0439 4.2727C13.7737 4.22674 13.4965 4.24488 13.2346 4.32568C12.9727 4.40648 12.7334 4.54766 12.5361 4.73787C12.3387 4.92807 12.1888 5.16197 12.0984 5.42072C12.008 5.67947 11.9796 5.95584 12.0156 6.22756C12.0516 6.49928 12.1508 6.75875 12.3055 6.98507L10.6311 9.04757L9.12546 5.58695C9.40006 5.35583 9.59695 5.04588 9.68946 4.69909C9.78196 4.3523 9.7656 3.98546 9.6426 3.64829C9.51959 3.31111 9.29589 3.01991 9.00181 2.81416C8.70773 2.6084 8.35749 2.49805 7.99858 2.49805C7.63967 2.49805 7.28944 2.6084 6.99536 2.81416C6.70128 3.01991 6.47757 3.31111 6.35457 3.64829C6.23156 3.98546 6.2152 4.3523 6.30771 4.69909C6.40021 5.04588 6.59711 5.35583 6.87171 5.58695L5.36983 9.0457L3.69546 6.9832C3.91055 6.66804 4.01674 6.29122 3.99786 5.91013C3.97898 5.52903 3.83607 5.16455 3.59089 4.87219C3.3457 4.57984 3.01169 4.37562 2.63971 4.29065C2.26773 4.20568 1.87817 4.24462 1.53037 4.40152C1.18256 4.55842 0.895568 4.8247 0.713094 5.1598C0.53062 5.4949 0.462666 5.88045 0.519581 6.25775C0.576496 6.63504 0.755161 6.98339 1.02837 7.24975C1.30157 7.51611 1.65434 7.68587 2.03296 7.7332L2.93796 13.1638C2.97686 13.3973 3.09733 13.6094 3.27791 13.7624C3.4585 13.9154 3.68751 13.9994 3.92421 13.9994H12.0767C12.3134 13.9994 12.5424 13.9154 12.723 13.7624C12.9036 13.6094 13.0241 13.3973 13.063 13.1638L13.9673 7.7357C14.3906 7.68284 14.7799 7.47723 15.0622 7.15751C15.3446 6.83779 15.5004 6.42597 15.5005 5.99945ZM8.00046 3.49945C8.14879 3.49945 8.2938 3.54343 8.41714 3.62584C8.54047 3.70826 8.6366 3.82539 8.69337 3.96243C8.75013 4.09948 8.76499 4.25028 8.73605 4.39576C8.70711 4.54125 8.63568 4.67489 8.53079 4.77978C8.4259 4.88467 8.29226 4.9561 8.14678 4.98504C8.00129 5.01397 7.85049 4.99912 7.71345 4.94236C7.5764 4.88559 7.45927 4.78946 7.37686 4.66612C7.29444 4.54279 7.25046 4.39778 7.25046 4.24945C7.25046 4.05053 7.32948 3.85977 7.47013 3.71912C7.61078 3.57846 7.80155 3.49945 8.00046 3.49945ZM1.50046 5.99945C1.50046 5.85111 1.54444 5.70611 1.62686 5.58277C1.70927 5.45943 1.8264 5.3633 1.96344 5.30654C2.10049 5.24977 2.25129 5.23492 2.39678 5.26386C2.54226 5.2928 2.6759 5.36423 2.78079 5.46912C2.88568 5.57401 2.95711 5.70764 2.98605 5.85313C3.01499 5.99861 3.00013 6.14941 2.94337 6.28646C2.8866 6.4235 2.79047 6.54064 2.66714 6.62305C2.5438 6.70546 2.39879 6.74945 2.25046 6.74945C2.05155 6.74945 1.86078 6.67043 1.72013 6.52978C1.57948 6.38912 1.50046 6.19836 1.50046 5.99945ZM13.7505 6.74945C13.6021 6.74945 13.4571 6.70546 13.3338 6.62305C13.2104 6.54064 13.1143 6.4235 13.0575 6.28646C13.0008 6.14941 12.9859 5.99861 13.0149 5.85313C13.0438 5.70764 13.1152 5.57401 13.2201 5.46912C13.325 5.36423 13.4587 5.2928 13.6041 5.26386C13.7496 5.23492 13.9004 5.24977 14.0375 5.30654C14.1745 5.3633 14.2916 5.45943 14.3741 5.58277C14.4565 5.70611 14.5005 5.85111 14.5005 5.99945C14.5005 6.19836 14.4214 6.38912 14.2808 6.52978C14.1401 6.67043 13.9494 6.74945 13.7505 6.74945Z",
+              fill: "currentColor"
+            })
+          }),
+        i = { background: "linear-gradient(225deg, #29A874 1.39%, #10422E 98.61%)" },
+        o = { background: "linear-gradient(225deg, #4BCB8F 1.39%, #1A6B4A 98.61%)" },
+        c = () => {
+          let { theme: e } = (0, n.useTheme)();
+          return (0, s.jsxs)("div", {
+            className: "flex items-center gap-1 py-1 px-2 w-fit rounded-lg text-xs font-medium text-white-100",
+            style: "light" === e ? o : i,
+            children: [(0, s.jsx)(r, { className: "size-4" }), (0, s.jsx)("span", { className: "leading-relaxed", children: "Chad" })]
+          });
+        },
+        d = { background: "linear-gradient(225deg, #101113 1.39%, #424242 98.61%)" },
+        u = { background: "linear-gradient(225deg, #717171a8 1.39%, #9E9E9E 98.61%)" },
+        h = () => {
+          let { theme: e } = (0, n.useTheme)();
+          return (0, s.jsxs)("div", {
+            className: "flex items-center gap-1 py-1 px-2 w-fit rounded-lg text-xs font-medium text-white-100",
+            style: "light" === e ? u : d,
+            children: [(0, s.jsx)(r, { className: "size-4" }), (0, s.jsx)("span", { className: "leading-relaxed", children: "Chad Inactive" })]
+          });
+        };
+      var m = l(70514),
+        x = l(35153);
+      let f = e => {
+        let t = (0, a.K)();
+        return (0, s.jsxs)("header", {
+          className: (0, m.cn)("flex flex-col gap-2", e.className),
+          children: [
+            (0, s.jsxs)("div", {
+              className: "flex items-center gap-3",
+              children: [
+                (0, s.jsx)("h1", { className: "text-[1.75rem] leading-[2.375rem] font-bold", children: "Chad exclusives" }),
+                (0, s.jsx)("button", { onClick: () => t.set(x.S.chadEligibility, "true"), children: e.isChad ? (0, s.jsx)(c, {}) : (0, s.jsx)(h, {}) })
+              ]
+            }),
+            (0, s.jsx)("p", { className: "text-sm text-secondary-800", children: "Handpicked rewards for Leap Chad users only" })
+          ]
+        });
+      };
+    },
+    28401: function (e, t, l) {
+      l.a(e, async function (e, s) {
+        try {
+          l.d(t, { Z: () => V });
+          var a = l(52322),
+            n = l(41172),
+            r = l(48039),
+            i = l(69816),
+            o = l(12334),
+            c = l(26571),
+            d = l(28879),
+            u = l.n(d),
+            h = l(4370),
+            m = l(14981),
+            x = l(71659),
+            f = l(78646),
+            p = l(5254),
+            v = l(42941),
+            g = l(75958),
+            y = l(2784),
+            j = l(7474),
+            C = l(74544),
+            b = l(35153),
+            w = l(35492),
+            N = l(69019),
+            k = l(64502),
+            S = l(39331),
+            E = l(23393),
+            Z = l(11151),
+            A = l(8420),
+            M = l(91064),
+            L = l(25294),
+            F = l(97222),
+            O = l(88987),
+            D = l(38742),
+            T = l(92404),
+            B = e([f, F]);
+          function z() {
+            return (0, a.jsx)("div", { style: { padding: "2rem", textAlign: "center" }, children: " " });
+          }
+          [f, F] = B.then ? (await B)() : B;
+          let V = (0, g.Pi)(function () {
+            let { raffles: e, isLoading: t } = (0, p.Zw)(),
+              { selectedOpportunities: l, selectedEcosystems: s, alphaUser: d, openDetails: g } = (0, A.o)(),
+              { bookmarks: B } = (0, Z.S7)(),
+              { raffleWins: V } = (0, p.Cn)((null == d ? void 0 : d.id) ?? ""),
+              P = (0, v.K)(),
+              R = P.get(b.S.alphaDateStatus),
+              [_, W] = (0, y.useState)(""),
+              H = (0, n.NrF)(_, 1e3),
+              [I, $] = (0, y.useState)(!1),
+              [q, Y] = (0, y.useState)(""),
+              [U, K] = (0, y.useState)(null),
+              G = (0, y.useRef)(null);
+            (0, f.a)(c.q.ChadExclusives, !C.f.hasSeenChadExclusives, { isChad: (null == d ? void 0 : d.isChad) ?? !1 }, () => {
+              C.f.updateSeenChadExclusives(!0);
+            }),
+              (0, y.useEffect)(() => {
+                q && setTimeout(() => Y(""), 2e3);
+              }, [q]),
+              (0, y.useEffect)(() => {
+                let t = P.get("listingId");
+                if (t && e.length > 0) {
+                  let l = e.find(e => e.id === t);
+                  l && g({ ...l, isBookmarked: B.has(l.id), pageName: c.q.ChadExclusives, userWon: !!(null == V ? void 0 : V.find(e => e.id === l.id)) });
+                }
+              }, [P, g, e, I, B, V]);
+            let X = (0, y.useMemo)(
+                () => new x.default(e, { keys: ["title", "secondaryTitle", "ecosystem", "categories"], threshold: 0.3, shouldSort: !0 }),
+                [e]
+              ),
+              J = (0, y.useMemo)(() => {
+                if (!_) return (0, M.pu)(e);
+                let t = X.search(_);
+                return (0, M.pu)(t.map(e => e.item));
+              }, [e, _, X]),
+              Q = (0, y.useMemo)(
+                () =>
+                  (null == l ? void 0 : l.length) || (null == s ? void 0 : s.length) || R
+                    ? (R
+                        ? J.filter(e => {
+                            let t = u()(e.startsAt),
+                              l = u()(e.endsAt),
+                              s = u()(),
+                              a = s.diff(t, "second");
+                            return R === D.rr.Live
+                              ? e.endsAt && a >= 0 && e.status !== p.rk.COMPLETED && "Ended" !== (0, M.pW)(e.endsAt)
+                              : R === D.rr.Upcoming
+                                ? t.isAfter(s)
+                                : R === D.rr.Ended
+                                  ? l.isBefore(s)
+                                  : void 0;
+                          })
+                        : J
+                      ).filter(
+                        e =>
+                          (!(null == l ? void 0 : l.length) ||
+                            l.every(t => {
+                              var l;
+                              return null == e ? void 0 : null === (l = e.categories) || void 0 === l ? void 0 : l.includes(t);
+                            })) &&
+                          (!(null == s ? void 0 : s.length) ||
+                            s.every(t => {
+                              var l;
+                              return null == e ? void 0 : null === (l = e.ecosystem) || void 0 === l ? void 0 : l.includes(t);
+                            }))
+                      )
+                    : J,
+                [l, s, R, J]
+              );
+            (0, y.useEffect)(() => {
+              H &&
+                (0, w.W)(c.B_.SearchDone, {
+                  searchTerm: H,
+                  searchResultsCount: Q.length,
+                  topResults: Q.slice(0, 5).map(e => e.id),
+                  page: c.q.ChadExclusives,
+                  isChad: (null == d ? void 0 : d.isChad) ?? !1
+                });
+            }, [H]);
+            let ee = (0, y.useMemo)(() => (_ ? "search" : R || "no-results"), [_, R]);
+            return e.length < 1 && !t
+              ? (0, a.jsx)(h.E.div, {
+                  initial: { opacity: 0, y: 20 },
+                  animate: { opacity: 1, y: 0 },
+                  transition: { duration: 0.3, ease: "easeOut" },
+                  className: "p-7",
+                  children: (0, a.jsx)(k.Z, {
+                    title: "No Opportunities",
+                    subTitle: (0, a.jsx)(a.Fragment, { children: "Check back later for new exclusive opportunities" })
+                  })
+                })
+              : (0, a.jsxs)("div", {
+                  className: "flex flex-col h-full overflow-y-auto px-6 py-7 mb-4",
+                  ref: K,
+                  children: [
+                    !(null == d ? void 0 : d.isChad) && (0, a.jsx)(L.N, {}),
+                    (0, a.jsx)(T.T, { className: (null == d ? void 0 : d.isChad) ? "" : "mt-8", isChad: (null == d ? void 0 : d.isChad) ?? !1 }),
+                    (0, a.jsx)(o.Z, { className: "my-7" }),
+                    (0, a.jsx)(D.z5, { className: "mb-7", setSearch: W, setIsFilterDrawerOpen: $ }),
+                    (0, a.jsxs)(m.M, {
+                      children: [
+                        l.length > 0 || s.length > 0 ? (0, a.jsx)(E.$, {}) : null,
+                        0 === Q.length && !t && (0, a.jsx)(S.M, { filterType: ee, className: "mb-9" }),
+                        Q.length > 0 &&
+                          (0, a.jsx)("div", {
+                            className: "h-full flex flex-col flex-1",
+                            children: (0, a.jsx)(j.OO, {
+                              ref: G,
+                              components: { Footer: z },
+                              customScrollParent: U ?? void 0,
+                              style: { height: "100%" },
+                              totalCount: Q.length,
+                              itemContent: e => {
+                                let t = Q[e];
+                                return (0, a.jsx)(
+                                  O.ZP,
+                                  {
+                                    ...t,
+                                    pageName: c.q.ChadExclusives,
+                                    isSearched: "" !== _,
+                                    isBookmarked: B.has(t.id ?? ""),
+                                    userWon: !!(null == V ? void 0 : V.find(e => e.id === t.id))
+                                  },
+                                  `${t.id}-${e}`
+                                );
+                              }
+                            })
+                          }),
+                        t && (0, a.jsx)("div", { className: "space-y-4", children: (0, a.jsx)(N.V, {}) }),
+                        (0, a.jsx)(F.Z, {
+                          isChad: (null == d ? void 0 : d.isChad) ?? !1,
+                          raffles: e,
+                          isShown: I,
+                          onClose: () => $(!1),
+                          pageName: c.q.ChadExclusives
+                        })
+                      ]
+                    }),
+                    (0, a.jsx)(m.M, {
+                      children:
+                        q &&
+                        (0, a.jsxs)(h.E.div, {
+                          initial: { opacity: 0, y: 20 },
+                          animate: { opacity: 1, y: 0 },
+                          exit: { opacity: 0, y: 20 },
+                          transition: { duration: 0.2 },
+                          className:
+                            "sticky bottom-3 bg-green-600 dark:bg-green-600 rounded-full py-2.5 pr-[14px] pl-3 w-full flex items-center justify-between",
+                          children: [
+                            (0, a.jsx)(i.Z, { size: "xs", className: "font-bold text-gray-900 dark:text-white-100", children: q }),
+                            (0, a.jsx)(r.X, { size: 12, onClick: () => Y(""), className: "cursor-pointer text-gray-900 dark:text-white-100 ml-2" })
+                          ]
+                        })
+                    })
+                  ]
+                });
+          });
+          s();
+        } catch (e) {
+          s(e);
+        }
+      });
+    },
+    22256: function (e, t, l) {
+      l.a(e, async function (e, s) {
+        try {
+          l.d(t, { Z: () => F });
+          var a = l(52322),
+            n = l(41172),
+            r = l(48039),
+            i = l(6011),
+            o = l(55334),
+            c = l(96217),
+            d = l(69816),
+            u = l(91486),
+            h = l(12334),
+            m = l(26571),
+            x = l(53108),
+            f = l(28879),
+            p = l.n(f),
+            v = l(14981),
+            g = l(4370),
+            y = l(78646),
+            j = l(5254),
+            C = l(57667),
+            b = l(2784),
+            w = l(35492),
+            N = l(72565),
+            k = l.n(N),
+            S = l(78233),
+            E = l(16733),
+            Z = l(8420),
+            A = l(91064),
+            M = l(10723),
+            L = e([y]);
+          y = (L.then ? (await L)() : L)[0];
+          let O = p()();
+          function F(e) {
+            let { isShown: t, onClose: l, raffle: s } = e,
+              { alphaUser: f } = (0, Z.o)();
+            (0, y.a)(m.q.ChadExclusivesDetail, t, {
+              isChad: (null == f ? void 0 : f.isChad) ?? !1,
+              ecosystem: [...new Set((null == s ? void 0 : s.ecosystem) ?? [])],
+              categories: [...new Set((null == s ? void 0 : s.categories) ?? [])]
+            });
+            let { raffleWins: N } = (0, j.Cn)((null == f ? void 0 : f.id) ?? ""),
+              [L, F] = (0, b.useState)(""),
+              D = (0, b.useMemo)(() => p()(null == s ? void 0 : s.endsAt), [null == s ? void 0 : s.endsAt]),
+              T = (0, b.useMemo)(() => p()(null == s ? void 0 : s.startsAt), [null == s ? void 0 : s.startsAt]),
+              [B, z] = (0, b.useState)(T.isAfter(O)),
+              [V, P] = (0, b.useState)((null == s ? void 0 : s.status) === j.rk.COMPLETED ? 0 : D.diff(O, "second")),
+              R = (0, b.useMemo)(
+                () =>
+                  !!(
+                    (null == s ? void 0 : s.endsAt) &&
+                    V >= 0 &&
+                    (null == s ? void 0 : s.status) !== j.rk.COMPLETED &&
+                    "Ended" !== (0, A.pW)(null == s ? void 0 : s.endsAt)
+                  ),
+                [V, null == s ? void 0 : s.endsAt, null == s ? void 0 : s.status]
+              );
+            (0, b.useEffect)(() => {
+              let e = () => {
+                let e = p()(),
+                  t = T.isAfter(e),
+                  l = (null == s ? void 0 : s.status) === j.rk.COMPLETED ? 0 : D.diff(e, "second");
+                z(t), P(l);
+              };
+              e();
+              let t = setInterval(e, 1e3);
+              return () => clearInterval(t);
+            }, [null == s ? void 0 : s.status, T, D]);
+            let { hasEntered: _, isLoading: W, refetch: H } = (0, C.C)(null == s ? void 0 : s.id, null == f ? void 0 : f.id),
+              I = (0, b.useMemo)(() => N.find(e => e.id === (null == s ? void 0 : s.id)), [N, null == s ? void 0 : s.id]);
+            (0, b.useEffect)(() => {
+              L && setTimeout(() => F(""), 2e3);
+            }, [L]),
+              (0, b.useEffect)(() => {
+                (async () => {
+                  if (t && I && (null == s ? void 0 : s.id)) {
+                    let e = (await k().storage.local.get(x.M7))[x.M7] || [];
+                    if (!e.includes(s.id)) {
+                      let t = [...e, s.id];
+                      await k().storage.local.set({ [x.M7]: t });
+                    }
+                  }
+                })();
+              }, [t, I, null == s ? void 0 : s.id]);
+            let $ = (0, b.useCallback)(async () => {
+              try {
+                let e = (0, n.O65)(),
+                  t = `${e}/alpha-insights/raffle-entries`;
+                await o.Z.post(t, { raffleId: null == s ? void 0 : s.id, userId: null == f ? void 0 : f.id }),
+                  (0, w.W)(m.B_.ButtonClick, {
+                    buttonName: m.$S.ENTER_RAFFLE,
+                    ButtonPageName: m.q.ChadExclusivesDetail,
+                    isChad: (null == f ? void 0 : f.isChad) ?? !1
+                  }),
+                  await H();
+              } catch (e) {}
+            }, [null == f ? void 0 : f.id, null == s ? void 0 : s.id, H]);
+            return (0, a.jsxs)(a.Fragment, {
+              children: [
+                (0, a.jsxs)(c.Z, {
+                  fullScreen: !0,
+                  title: "Reward Details",
+                  isOpen: t,
+                  onClose: l,
+                  className: "px-6 pt-8 flex flex-col gap-6",
+                  footerComponent: I
+                    ? (0, a.jsx)(u.zx, { className: "w-full", children: "Claim now" })
+                    : _
+                      ? (0, a.jsxs)(u.zx, {
+                          className: "w-full",
+                          onClick: $,
+                          disabled: !0,
+                          children: [(0, a.jsx)(i.f, { size: 20, weight: "bold" }), "You have entered!"]
+                        })
+                      : R
+                        ? (0, a.jsx)(u.zx, { className: "w-full", children: "Enter giveaway" })
+                        : (0, a.jsx)(u.zx, { className: "w-full", children: "View more exclusives" }),
+                  children: [
+                    (0, a.jsxs)("header", {
+                      className: "space-y-3",
+                      children: [
+                        (0, a.jsx)("h1", { className: "text-center text-xl font-bold", children: null == s ? void 0 : s.title }),
+                        (0, a.jsx)(E.Z, {
+                          className: "justify-center",
+                          ecosystemFilter: (null == s ? void 0 : s.ecosystem) ?? [],
+                          categoryFilter: (null == s ? void 0 : s.categories) ?? []
+                        })
+                      ]
+                    }),
+                    (0, a.jsx)("img", {
+                      src: (null == s ? void 0 : s.bannerImage) ?? `https://placehold.co/40x40?text=${null == s ? void 0 : s.secondaryTitle}`,
+                      className: "w-full h-[107px] rounded-lg object-cover"
+                    }),
+                    (0, a.jsx)(h.Z, {}),
+                    (0, a.jsx)(v.M, {
+                      mode: "wait",
+                      children: W
+                        ? (0, a.jsx)(M.Uv, {}, "loading")
+                        : B
+                          ? (0, a.jsx)(
+                              M._N,
+                              {
+                                title: "Stay tuned, starting in",
+                                endDate: (null == s ? void 0 : s.startsAt) ?? "",
+                                onExpire: () => {
+                                  z(!1);
+                                }
+                              },
+                              "subscription-countdown"
+                            )
+                          : !_ && (null == f ? void 0 : f.isChad) && V > 0
+                            ? (0, a.jsx)(
+                                M._N,
+                                {
+                                  title: "Giveaway ends in",
+                                  endDate: (null == s ? void 0 : s.endsAt) ?? "",
+                                  onExpire: () => {
+                                    P(0);
+                                  }
+                                },
+                                "subscription-countdown"
+                              )
+                            : _ && (null == s ? void 0 : s.status) !== j.rk.COMPLETED
+                              ? (0, a.jsx)(M.Rv, {}, "result-soon")
+                              : I
+                                ? (0, a.jsx)(M.bS, { rewardUnit: null == s ? void 0 : s.rewardUnitName }, "raffle-winner")
+                                : _ && !I
+                                  ? (0, a.jsx)(M._u, {}, "not-winner")
+                                  : (null == f ? void 0 : f.isChad) || !(V > 0)
+                                    ? V <= 0
+                                      ? (0, a.jsx)(M.hI, {})
+                                      : null
+                                    : (0, a.jsx)(M.sv, {}, "ineligible")
+                    }),
+                    (0, a.jsx)(h.Z, {}),
+                    (null == s ? void 0 : s.description) ? (0, a.jsx)(S.m, { ...s, pageName: s.pageName }) : null
+                  ]
+                }),
+                t &&
+                  (0, a.jsx)(v.M, {
+                    children:
+                      L &&
+                      (0, a.jsxs)(g.E.div, {
+                        initial: { opacity: 0, y: 20 },
+                        animate: { opacity: 1, y: 0 },
+                        exit: { opacity: 0, y: 20 },
+                        transition: { duration: 0.2 },
+                        className:
+                          "absolute bottom-24 left-0 right-0 mx-4 z-[9999] bg-green-600 dark:bg-green-600 rounded-full py-2.5 px-4 flex items-center justify-between shadow-lg",
+                        children: [
+                          (0, a.jsx)(d.Z, { size: "xs", className: "font-bold text-gray-900 dark:text-white-100", children: L }),
+                          (0, a.jsx)(r.X, { size: 12, onClick: () => F(""), className: "cursor-pointer text-gray-900 dark:text-white-100 ml-2" })
+                        ]
+                      })
+                  })
+              ]
+            });
+          }
+          s();
+        } catch (e) {
+          s(e);
+        }
+      });
+    },
+    10723: function (e, t, l) {
+      l.d(t, { Rv: () => p, Uv: () => j, _N: () => x, _u: () => g, bS: () => v, hI: () => y, sv: () => f });
+      var s = l(52322),
+        a = l(28879),
+        n = l.n(a),
+        r = l(4370),
+        i = l(2784),
+        o = l(86874),
+        c = l(70514);
+      let d = { hidden: { opacity: 0, y: 10 }, visible: { opacity: 1, y: 0 }, exit: { opacity: 0, y: -10 } },
+        u = { duration: 0.2, ease: "easeOut" },
+        h = e => {
+          let { primary: t = !1, children: l, className: a } = e;
+          return (0, s.jsx)(r.E.div, {
+            initial: "hidden",
+            animate: "visible",
+            exit: "exit",
+            variants: d,
+            transition: u,
+            className: (0, c.cn)(
+              "rounded-lg p-5 flex flex-col items-center gap-3 border border-secondary-200",
+              t ? "gradient-linear-primary" : "gradient-linear-mono",
+              a
+            ),
+            children: l
+          });
+        },
+        m = e => {
+          let { label: t, value: l } = e;
+          return (0, s.jsxs)("div", {
+            className: "flex flex-col items-center gap-1",
+            children: [
+              (0, s.jsx)("div", {
+                className: "w-14 h-12 flex text-lg items-center justify-center rounded-lg font-bold bg-primary/40 border border-primary",
+                children: String(l).padStart(2, "0")
+              }),
+              (0, s.jsx)("span", { className: "text-xs", children: t })
+            ]
+          });
+        };
+      function x(e) {
+        let { title: t, endDate: l, onExpire: a } = e,
+          [r, o] = (0, i.useState)({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+        (0, i.useEffect)(() => {
+          let e = () => {
+            let e = n()(),
+              t = n()(l).diff(e, "second");
+            if (t <= 0) {
+              o({ days: 0, hours: 0, minutes: 0, seconds: 0 }), null == a || a();
+              return;
+            }
+            let s = Math.floor(t / 86400),
+              r = Math.floor((t % 86400) / 3600);
+            o({ days: s, hours: r, minutes: Math.floor((t % 3600) / 60), seconds: Math.floor(t % 60) });
+          };
+          e();
+          let t = setInterval(e, 1e3);
+          return () => clearInterval(t);
+        }, [l, a]);
+        let { days: c, hours: d, minutes: u, seconds: x } = r;
+        return (0, s.jsxs)(h, {
+          primary: !0,
+          children: [
+            (0, s.jsx)("span", { className: "text-secondary-800 text-sm", children: t }),
+            (0, s.jsxs)("div", {
+              className: "flex justify-center gap-3",
+              children: [
+                (0, s.jsx)(m, { label: "D", value: c }),
+                (0, s.jsx)(m, { label: "H", value: d }),
+                (0, s.jsx)(m, { label: "M", value: u }),
+                (0, s.jsx)(m, { label: "S", value: x })
+              ]
+            })
+          ]
+        });
+      }
+      function f() {
+        return (0, s.jsxs)(h, {
+          children: [
+            (0, s.jsx)("span", { className: "text-secondary-800 text-sm", children: "You're not a Leap Chad yet" }),
+            (0, s.jsx)("span", { className: "text-lg font-bold text-center", children: "We'll notify you when you are eligible" })
+          ]
+        });
+      }
+      function p() {
+        return (0, s.jsxs)(h, {
+          children: [
+            (0, s.jsx)("span", { className: "text-secondary-800 text-sm", children: "Giveaway has ended" }),
+            (0, s.jsx)("span", { className: "text-lg font-bold text-center", children: "Results will be declared soon" })
+          ]
+        });
+      }
+      function v(e) {
+        let { rewardUnit: t } = e;
+        return (0, s.jsxs)(h, {
+          primary: !0,
+          children: [
+            (0, s.jsx)("span", { className: "text-secondary-800 text-sm", children: "Congratulations!" }),
+            (0, s.jsxs)("span", { className: "text-lg font-bold text-center", children: ["You've won ", t, "!"] })
+          ]
+        });
+      }
+      function g() {
+        return (0, s.jsxs)(h, {
+          children: [
+            (0, s.jsx)("span", { className: "text-secondary-800 text-sm", children: "You did not win" }),
+            (0, s.jsx)("span", { className: "text-lg font-bold text-center", children: "Better luck next time" })
+          ]
+        });
+      }
+      function y() {
+        return (0, s.jsxs)(h, {
+          children: [
+            (0, s.jsx)("span", { className: "text-secondary-800 text-sm", children: "You did not win" }),
+            (0, s.jsx)("span", { className: "text-lg font-bold text-center", children: "Better luck next time" })
+          ]
+        });
+      }
+      function j() {
+        return (0, s.jsx)(r.E.div, {
+          initial: "hidden",
+          animate: "visible",
+          exit: "exit",
+          variants: d,
+          transition: u,
+          className: "relative rounded-xl",
+          children: (0, s.jsx)(o.Z, { className: "w-full", height: 100, borderRadius: 20 })
+        });
+      }
+    },
+    88987: function (e, t, l) {
+      l.d(t, { ZP: () => _ });
+      var s = l(52322),
+        a = l(2784),
+        n = l(6806);
+      let r = new Map([
+        [
+          "bold",
+          a.createElement(
+            a.Fragment,
+            null,
+            a.createElement("path", {
+              d: "M228.75,100.05c-3.52-3.67-7.15-7.46-8.34-10.33-1.06-2.56-1.14-7.83-1.21-12.47-.15-10-.34-22.44-9.18-31.27s-21.27-9-31.27-9.18c-4.64-.07-9.91-.15-12.47-1.21-2.87-1.19-6.66-4.82-10.33-8.34C148.87,20.46,140.05,12,128,12s-20.87,8.46-27.95,15.25c-3.67,3.52-7.46,7.15-10.33,8.34-2.56,1.06-7.83,1.14-12.47,1.21C67.25,37,54.81,37.14,46,46S37,67.25,36.8,77.25c-.07,4.64-.15,9.91-1.21,12.47-1.19,2.87-4.82,6.66-8.34,10.33C20.46,107.13,12,116,12,128S20.46,148.87,27.25,156c3.52,3.67,7.15,7.46,8.34,10.33,1.06,2.56,1.14,7.83,1.21,12.47.15,10,.34,22.44,9.18,31.27s21.27,9,31.27,9.18c4.64.07,9.91.15,12.47,1.21,2.87,1.19,6.66,4.82,10.33,8.34C107.13,235.54,116,244,128,244s20.87-8.46,27.95-15.25c3.67-3.52,7.46-7.15,10.33-8.34,2.56-1.06,7.83-1.14,12.47-1.21,10-.15,22.44-.34,31.27-9.18s9-21.27,9.18-31.27c.07-4.64.15-9.91,1.21-12.47,1.19-2.87,4.82-6.66,8.34-10.33C235.54,148.87,244,140.05,244,128S235.54,107.13,228.75,100.05Zm-17.32,39.29c-4.82,5-10.28,10.72-13.19,17.76-2.82,6.8-2.93,14.16-3,21.29-.08,5.36-.19,12.71-2.15,14.66s-9.3,2.07-14.66,2.15c-7.13.11-14.49.22-21.29,3-7,2.91-12.73,8.37-17.76,13.19C135.78,214.84,130.4,220,128,220s-7.78-5.16-11.34-8.57c-5-4.82-10.72-10.28-17.76-13.19-6.8-2.82-14.16-2.93-21.29-3-5.36-.08-12.71-.19-14.66-2.15s-2.07-9.3-2.15-14.66c-.11-7.13-.22-14.49-3-21.29-2.91-7-8.37-12.73-13.19-17.76C41.16,135.78,36,130.4,36,128s5.16-7.78,8.57-11.34c4.82-5,10.28-10.72,13.19-17.76,2.82-6.8,2.93-14.16,3-21.29C60.88,72.25,61,64.9,63,63s9.3-2.07,14.66-2.15c7.13-.11,14.49-.22,21.29-3,7-2.91,12.73-8.37,17.76-13.19C120.22,41.16,125.6,36,128,36s7.78,5.16,11.34,8.57c5,4.82,10.72,10.28,17.76,13.19,6.8,2.82,14.16,2.93,21.29,3,5.36.08,12.71.19,14.66,2.15s2.07,9.3,2.15,14.66c.11,7.13.22,14.49,3,21.29,2.91,7,8.37,12.73,13.19,17.76,3.41,3.56,8.57,8.94,8.57,11.34S214.84,135.78,211.43,139.34ZM176.49,95.51a12,12,0,0,1,0,17l-56,56a12,12,0,0,1-17,0l-24-24a12,12,0,1,1,17-17L112,143l47.51-47.52A12,12,0,0,1,176.49,95.51Z"
+            })
+          )
+        ],
+        [
+          "duotone",
+          a.createElement(
+            a.Fragment,
+            null,
+            a.createElement("path", {
+              d: "M232,128c0,12.51-17.82,21.95-22.68,33.69-4.68,11.32,1.42,30.65-7.78,39.85s-28.53,3.1-39.85,7.78C150,214.18,140.5,232,128,232s-22-17.82-33.69-22.68c-11.32-4.68-30.65,1.42-39.85-7.78s-3.1-28.53-7.78-39.85C41.82,150,24,140.5,24,128s17.82-22,22.68-33.69C51.36,83,45.26,63.66,54.46,54.46S83,51.36,94.31,46.68C106.05,41.82,115.5,24,128,24S150,41.82,161.69,46.68c11.32,4.68,30.65-1.42,39.85,7.78s3.1,28.53,7.78,39.85C214.18,106.05,232,115.5,232,128Z",
+              opacity: "0.2"
+            }),
+            a.createElement("path", {
+              d: "M225.86,102.82c-3.77-3.94-7.67-8-9.14-11.57-1.36-3.27-1.44-8.69-1.52-13.94-.15-9.76-.31-20.82-8-28.51s-18.75-7.85-28.51-8c-5.25-.08-10.67-.16-13.94-1.52-3.56-1.47-7.63-5.37-11.57-9.14C146.28,23.51,138.44,16,128,16s-18.27,7.51-25.18,14.14c-3.94,3.77-8,7.67-11.57,9.14C88,40.64,82.56,40.72,77.31,40.8c-9.76.15-20.82.31-28.51,8S41,67.55,40.8,77.31c-.08,5.25-.16,10.67-1.52,13.94-1.47,3.56-5.37,7.63-9.14,11.57C23.51,109.72,16,117.56,16,128s7.51,18.27,14.14,25.18c3.77,3.94,7.67,8,9.14,11.57,1.36,3.27,1.44,8.69,1.52,13.94.15,9.76.31,20.82,8,28.51s18.75,7.85,28.51,8c5.25.08,10.67.16,13.94,1.52,3.56,1.47,7.63,5.37,11.57,9.14C109.72,232.49,117.56,240,128,240s18.27-7.51,25.18-14.14c3.94-3.77,8-7.67,11.57-9.14,3.27-1.36,8.69-1.44,13.94-1.52,9.76-.15,20.82-.31,28.51-8s7.85-18.75,8-28.51c.08-5.25.16-10.67,1.52-13.94,1.47-3.56,5.37-7.63,9.14-11.57C232.49,146.28,240,138.44,240,128S232.49,109.73,225.86,102.82Zm-11.55,39.29c-4.79,5-9.75,10.17-12.38,16.52-2.52,6.1-2.63,13.07-2.73,19.82-.1,7-.21,14.33-3.32,17.43s-10.39,3.22-17.43,3.32c-6.75.1-13.72.21-19.82,2.73-6.35,2.63-11.52,7.59-16.52,12.38S132,224,128,224s-9.15-4.92-14.11-9.69-10.17-9.75-16.52-12.38c-6.1-2.52-13.07-2.63-19.82-2.73-7-.1-14.33-.21-17.43-3.32s-3.22-10.39-3.32-17.43c-.1-6.75-.21-13.72-2.73-19.82-2.63-6.35-7.59-11.52-12.38-16.52S32,132,32,128s4.92-9.15,9.69-14.11,9.75-10.17,12.38-16.52c2.52-6.1,2.63-13.07,2.73-19.82.1-7,.21-14.33,3.32-17.43S70.51,56.9,77.55,56.8c6.75-.1,13.72-.21,19.82-2.73,6.35-2.63,11.52-7.59,16.52-12.38S124,32,128,32s9.15,4.92,14.11,9.69,10.17,9.75,16.52,12.38c6.1,2.52,13.07,2.63,19.82,2.73,7,.1,14.33.21,17.43,3.32s3.22,10.39,3.32,17.43c.1,6.75.21,13.72,2.73,19.82,2.63,6.35,7.59,11.52,12.38,16.52S224,124,224,128,219.08,137.15,214.31,142.11ZM173.66,98.34a8,8,0,0,1,0,11.32l-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35A8,8,0,0,1,173.66,98.34Z"
+            })
+          )
+        ],
+        [
+          "fill",
+          a.createElement(
+            a.Fragment,
+            null,
+            a.createElement("path", {
+              d: "M225.86,102.82c-3.77-3.94-7.67-8-9.14-11.57-1.36-3.27-1.44-8.69-1.52-13.94-.15-9.76-.31-20.82-8-28.51s-18.75-7.85-28.51-8c-5.25-.08-10.67-.16-13.94-1.52-3.56-1.47-7.63-5.37-11.57-9.14C146.28,23.51,138.44,16,128,16s-18.27,7.51-25.18,14.14c-3.94,3.77-8,7.67-11.57,9.14C88,40.64,82.56,40.72,77.31,40.8c-9.76.15-20.82.31-28.51,8S41,67.55,40.8,77.31c-.08,5.25-.16,10.67-1.52,13.94-1.47,3.56-5.37,7.63-9.14,11.57C23.51,109.72,16,117.56,16,128s7.51,18.27,14.14,25.18c3.77,3.94,7.67,8,9.14,11.57,1.36,3.27,1.44,8.69,1.52,13.94.15,9.76.31,20.82,8,28.51s18.75,7.85,28.51,8c5.25.08,10.67.16,13.94,1.52,3.56,1.47,7.63,5.37,11.57,9.14C109.72,232.49,117.56,240,128,240s18.27-7.51,25.18-14.14c3.94-3.77,8-7.67,11.57-9.14,3.27-1.36,8.69-1.44,13.94-1.52,9.76-.15,20.82-.31,28.51-8s7.85-18.75,8-28.51c.08-5.25.16-10.67,1.52-13.94,1.47-3.56,5.37-7.63,9.14-11.57C232.49,146.28,240,138.44,240,128S232.49,109.73,225.86,102.82Zm-52.2,6.84-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32Z"
+            })
+          )
+        ],
+        [
+          "light",
+          a.createElement(
+            a.Fragment,
+            null,
+            a.createElement("path", {
+              d: "M224.42,104.2c-3.9-4.07-7.93-8.27-9.55-12.18-1.5-3.63-1.58-9-1.67-14.68-.14-9.38-.3-20-7.42-27.12S188,42.94,178.66,42.8c-5.68-.09-11-.17-14.68-1.67-3.91-1.62-8.11-5.65-12.18-9.55C145.16,25.22,137.64,18,128,18s-17.16,7.22-23.8,13.58c-4.07,3.9-8.27,7.93-12.18,9.55-3.63,1.5-9,1.58-14.68,1.67-9.38.14-20,.3-27.12,7.42S42.94,68,42.8,77.34c-.09,5.68-.17,11-1.67,14.68-1.62,3.91-5.65,8.11-9.55,12.18C25.22,110.84,18,118.36,18,128s7.22,17.16,13.58,23.8c3.9,4.07,7.93,8.27,9.55,12.18,1.5,3.63,1.58,9,1.67,14.68.14,9.38.3,20,7.42,27.12S68,213.06,77.34,213.2c5.68.09,11,.17,14.68,1.67,3.91,1.62,8.11,5.65,12.18,9.55C110.84,230.78,118.36,238,128,238s17.16-7.22,23.8-13.58c4.07-3.9,8.27-7.93,12.18-9.55,3.63-1.5,9-1.58,14.68-1.67,9.38-.14,20-.3,27.12-7.42s7.28-17.74,7.42-27.12c.09-5.68.17-11,1.67-14.68,1.62-3.91,5.65-8.11,9.55-12.18C230.78,145.16,238,137.64,238,128S230.78,110.84,224.42,104.2Zm-8.66,39.3c-4.67,4.86-9.5,9.9-12,15.9-2.38,5.74-2.48,12.52-2.58,19.08-.11,7.44-.23,15.14-3.9,18.82s-11.38,3.79-18.82,3.9c-6.56.1-13.34.2-19.08,2.58-6,2.48-11,7.31-15.91,12-5.25,5-10.68,10.24-15.49,10.24s-10.24-5.21-15.5-10.24c-4.86-4.67-9.9-9.5-15.9-12-5.74-2.38-12.52-2.48-19.08-2.58-7.44-.11-15.14-.23-18.82-3.9s-3.79-11.38-3.9-18.82c-.1-6.56-.2-13.34-2.58-19.08-2.48-6-7.31-11-12-15.91C35.21,138.24,30,132.81,30,128s5.21-10.24,10.24-15.5c4.67-4.86,9.5-9.9,12-15.9,2.38-5.74,2.48-12.52,2.58-19.08.11-7.44.23-15.14,3.9-18.82s11.38-3.79,18.82-3.9c6.56-.1,13.34-.2,19.08-2.58,6-2.48,11-7.31,15.91-12C117.76,35.21,123.19,30,128,30s10.24,5.21,15.5,10.24c4.86,4.67,9.9,9.5,15.9,12,5.74,2.38,12.52,2.48,19.08,2.58,7.44.11,15.14.23,18.82,3.9s3.79,11.38,3.9,18.82c.1,6.56.2,13.34,2.58,19.08,2.48,6,7.31,11,12,15.91,5,5.25,10.24,10.68,10.24,15.49S220.79,138.24,215.76,143.5ZM172.24,99.76a6,6,0,0,1,0,8.48l-56,56a6,6,0,0,1-8.48,0l-24-24a6,6,0,0,1,8.48-8.48L112,151.51l51.76-51.75A6,6,0,0,1,172.24,99.76Z"
+            })
+          )
+        ],
+        [
+          "regular",
+          a.createElement(
+            a.Fragment,
+            null,
+            a.createElement("path", {
+              d: "M225.86,102.82c-3.77-3.94-7.67-8-9.14-11.57-1.36-3.27-1.44-8.69-1.52-13.94-.15-9.76-.31-20.82-8-28.51s-18.75-7.85-28.51-8c-5.25-.08-10.67-.16-13.94-1.52-3.56-1.47-7.63-5.37-11.57-9.14C146.28,23.51,138.44,16,128,16s-18.27,7.51-25.18,14.14c-3.94,3.77-8,7.67-11.57,9.14C88,40.64,82.56,40.72,77.31,40.8c-9.76.15-20.82.31-28.51,8S41,67.55,40.8,77.31c-.08,5.25-.16,10.67-1.52,13.94-1.47,3.56-5.37,7.63-9.14,11.57C23.51,109.72,16,117.56,16,128s7.51,18.27,14.14,25.18c3.77,3.94,7.67,8,9.14,11.57,1.36,3.27,1.44,8.69,1.52,13.94.15,9.76.31,20.82,8,28.51s18.75,7.85,28.51,8c5.25.08,10.67.16,13.94,1.52,3.56,1.47,7.63,5.37,11.57,9.14C109.72,232.49,117.56,240,128,240s18.27-7.51,25.18-14.14c3.94-3.77,8-7.67,11.57-9.14,3.27-1.36,8.69-1.44,13.94-1.52,9.76-.15,20.82-.31,28.51-8s7.85-18.75,8-28.51c.08-5.25.16-10.67,1.52-13.94,1.47-3.56,5.37-7.63,9.14-11.57C232.49,146.28,240,138.44,240,128S232.49,109.73,225.86,102.82Zm-11.55,39.29c-4.79,5-9.75,10.17-12.38,16.52-2.52,6.1-2.63,13.07-2.73,19.82-.1,7-.21,14.33-3.32,17.43s-10.39,3.22-17.43,3.32c-6.75.1-13.72.21-19.82,2.73-6.35,2.63-11.52,7.59-16.52,12.38S132,224,128,224s-9.15-4.92-14.11-9.69-10.17-9.75-16.52-12.38c-6.1-2.52-13.07-2.63-19.82-2.73-7-.1-14.33-.21-17.43-3.32s-3.22-10.39-3.32-17.43c-.1-6.75-.21-13.72-2.73-19.82-2.63-6.35-7.59-11.52-12.38-16.52S32,132,32,128s4.92-9.15,9.69-14.11,9.75-10.17,12.38-16.52c2.52-6.1,2.63-13.07,2.73-19.82.1-7,.21-14.33,3.32-17.43S70.51,56.9,77.55,56.8c6.75-.1,13.72-.21,19.82-2.73,6.35-2.63,11.52-7.59,16.52-12.38S124,32,128,32s9.15,4.92,14.11,9.69,10.17,9.75,16.52,12.38c6.1,2.52,13.07,2.63,19.82,2.73,7,.1,14.33.21,17.43,3.32s3.22,10.39,3.32,17.43c.1,6.75.21,13.72,2.73,19.82,2.63,6.35,7.59,11.52,12.38,16.52S224,124,224,128,219.08,137.15,214.31,142.11ZM173.66,98.34a8,8,0,0,1,0,11.32l-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35A8,8,0,0,1,173.66,98.34Z"
+            })
+          )
+        ],
+        [
+          "thin",
+          a.createElement(
+            a.Fragment,
+            null,
+            a.createElement("path", {
+              d: "M223,105.58c-4-4.2-8.2-8.54-10-12.8-1.65-4-1.73-9.53-1.82-15.41-.14-9-.29-19.19-6.83-25.74s-16.74-6.69-25.74-6.83c-5.88-.09-11.43-.17-15.41-1.82-4.26-1.76-8.6-5.93-12.8-9.95-6.68-6.41-13.59-13-22.42-13s-15.74,6.62-22.42,13c-4.2,4-8.54,8.2-12.8,10-4,1.65-9.53,1.73-15.41,1.82-9,.14-19.19.29-25.74,6.83S44.94,68.37,44.8,77.37c-.09,5.88-.17,11.43-1.82,15.41-1.76,4.26-5.93,8.6-9.95,12.8-6.41,6.68-13,13.59-13,22.42s6.62,15.74,13,22.42c4,4.2,8.2,8.54,10,12.8,1.65,4,1.73,9.53,1.82,15.41.14,9,.29,19.19,6.83,25.74s16.74,6.69,25.74,6.83c5.88.09,11.43.17,15.41,1.82,4.26,1.76,8.6,5.93,12.8,9.95,6.68,6.41,13.59,13,22.42,13s15.74-6.62,22.42-13c4.2-4,8.54-8.2,12.8-10,4-1.65,9.53-1.73,15.41-1.82,9-.14,19.19-.29,25.74-6.83s6.69-16.74,6.83-25.74c.09-5.88.17-11.43,1.82-15.41,1.76-4.26,5.93-8.6,9.95-12.8,6.41-6.68,13-13.59,13-22.42S229.38,112.26,223,105.58Zm-5.78,39.3c-4.54,4.73-9.24,9.63-11.57,15.28-2.23,5.39-2.33,12-2.43,18.35-.12,8.2-.24,16-4.49,20.2s-12,4.37-20.2,4.49c-6.37.1-13,.2-18.35,2.43-5.65,2.33-10.55,7-15.28,11.57C139.09,222.75,133.62,228,128,228s-11.09-5.25-16.88-10.8c-4.73-4.54-9.63-9.24-15.28-11.57-5.39-2.23-12-2.33-18.35-2.43-8.2-.12-15.95-.24-20.2-4.49s-4.37-12-4.49-20.2c-.1-6.37-.2-13-2.43-18.35-2.33-5.65-7-10.55-11.57-15.28C33.25,139.09,28,133.62,28,128s5.25-11.09,10.8-16.88c4.54-4.73,9.24-9.63,11.57-15.28,2.23-5.39,2.33-12,2.43-18.35.12-8.2.24-15.95,4.49-20.2s12-4.37,20.2-4.49c6.37-.1,13-.2,18.35-2.43,5.65-2.33,10.55-7,15.28-11.57C116.91,33.25,122.38,28,128,28s11.09,5.25,16.88,10.8c4.73,4.54,9.63,9.24,15.28,11.57,5.39,2.23,12,2.33,18.35,2.43,8.2.12,16,.24,20.2,4.49s4.37,12,4.49,20.2c.1,6.37.2,13,2.43,18.35,2.33,5.65,7,10.55,11.57,15.28,5.55,5.79,10.8,11.26,10.8,16.88S222.75,139.09,217.2,144.88Zm-46.37-43.71a4,4,0,0,1,0,5.66l-56,56a4,4,0,0,1-5.66,0l-24-24a4,4,0,0,1,5.66-5.66L112,154.34l53.17-53.17A4,4,0,0,1,170.83,101.17Z"
+            })
+          )
+        ]
+      ]);
+      var i = Object.defineProperty,
+        o = Object.defineProperties,
+        c = Object.getOwnPropertyDescriptors,
+        d = Object.getOwnPropertySymbols,
+        u = Object.prototype.hasOwnProperty,
+        h = Object.prototype.propertyIsEnumerable,
+        m = (e, t, l) => (t in e ? i(e, t, { enumerable: !0, configurable: !0, writable: !0, value: l }) : (e[t] = l)),
+        x = (e, t) => {
+          for (var l in t || (t = {})) u.call(t, l) && m(e, l, t[l]);
+          if (d) for (var l of d(t)) h.call(t, l) && m(e, l, t[l]);
+          return e;
+        },
+        f = (e, t) => o(e, c(t));
+      let p = (0, a.forwardRef)((e, t) => a.createElement(n.Z, f(x({ ref: t }, e), { weights: r })));
+      p.displayName = "SealCheck";
+      var v = l(76601),
+        g = l(91486),
+        y = l(26571),
+        j = l(28879),
+        C = l.n(j),
+        b = l(4370),
+        w = l(5254),
+        N = l(42941),
+        k = l(95862),
+        S = l(70514),
+        E = l(35153),
+        Z = l(35492),
+        A = l(16733),
+        M = l(11151),
+        L = l(8420),
+        F = l(97323),
+        O = l(91064),
+        D = l(43342);
+      function T(e) {
+        let { alt: t, image: l } = e;
+        return (0, s.jsx)("img", {
+          src: l ?? `https://placehold.co/40x40?text=${t}`,
+          alt: "icon",
+          className: "w-full h-full object-cover",
+          onError: e => {
+            e.currentTarget.src = `https://placehold.co/40x40?text=${t}`;
+          }
+        });
+      }
+      var B = l(38742);
+      let z = e => `cloned-bookmark-icon-${e}`,
+        V = (e, t, l) => {
+          var s;
+          let a = null === (s = document.getElementById(D.y)) || void 0 === s ? void 0 : s.cloneNode(!0);
+          (a.id = z(e)), (a.style.zIndex = "999"), (a.style.display = "block"), document.body.appendChild(a);
+          let n = l.getBoundingClientRect();
+          (a.style.position = "fixed"), (a.style.left = `${n.left}px`), (a.style.top = `${n.top}px`);
+          let r = t.getBoundingClientRect(),
+            i = a.animate(
+              [
+                { top: `${n.top}px`, left: `${n.left + 12}px` },
+                { top: `${r.top}px`, left: `${r.left}px` }
+              ],
+              { duration: 750, easing: "ease-in-out" }
+            );
+          return (
+            i.finished.then(() => {
+              a.remove();
+            }),
+            i
+          );
+        },
+        P = { initial: { opacity: 0, y: 10 }, animate: { opacity: 1, y: 0 } },
+        R = { duration: 0.3, ease: "easeOut" };
+      function _(e) {
+        let {
+            title: t,
+            startsAt: l,
+            endsAt: n,
+            status: r,
+            ecosystem: i,
+            categories: o,
+            image: c,
+            id: d,
+            isSearched: u,
+            highlight: h,
+            userWon: m,
+            redirectUrl: x
+          } = e,
+          f = (0, N.K)(),
+          { toggleBookmark: j, isBookmarked: _ } = (0, M.ZE)(),
+          { setOpportunities: W, setEcosystems: H, selectedOpportunities: I, selectedEcosystems: $, openDetails: q, alphaUser: Y } = (0, L.o)(),
+          { setOpportunities: U, setEcosystems: K, selectedOpportunities: G, selectedEcosystems: X } = (0, F.m)(),
+          J = (0, a.useRef)(null),
+          Q = (0, a.useRef)(null),
+          ee = (0, a.useCallback)(
+            e => {
+              h ? K([...(X || []), e]) : H([...($ || []), e]);
+            },
+            [$, H, X, K, h]
+          ),
+          et = (0, a.useCallback)(
+            e => {
+              h ? U([...(G || []), e]) : W([...(I || []), e]);
+            },
+            [I, W, G, U, h]
+          ),
+          el = (0, a.useCallback)(() => {
+            f.get(E.S.alphaDateStatus) === B.rr.Live ? f.remove(E.S.alphaDateStatus) : f.set(E.S.alphaDateStatus, B.rr.Live);
+          }, [f]);
+        (0, a.useEffect)(
+          () => () => {
+            if (Q.current) {
+              var e;
+              Q.current.cancel(), null === (e = document.getElementById(z(d))) || void 0 === e || e.remove();
+            }
+          },
+          [d]
+        );
+        let es = (0, a.useMemo)(() => {
+            let e = C()(l);
+            return C()().diff(e, "second");
+          }, [l]),
+          ea = (0, a.useMemo)(() => {
+            if (es < 0) return `Starts in ${(0, O.Or)(l)}`;
+            let e = (0, O.pW)(n);
+            return r === w.rk.COMPLETED || "Ended" === e ? `Ended on ${C()(n).format("MMM D, YYYY")}` : e;
+          }, [es, n, r, l]),
+          en = (0, a.useMemo)(() => !!(n && es >= 0 && r !== w.rk.COMPLETED && "Ended" !== (0, O.pW)(n)), [es, n, r]),
+          er = (0, a.useMemo)(() => r === w.rk.COMPLETED || "Ended" === (0, O.pW)(n), [n, r]);
+        return (0, s.jsxs)(b.E.div, {
+          initial: "initial",
+          animate: "animate",
+          variants: P,
+          transition: R,
+          onClick: () => {
+            if (x) {
+              (0, Z.W)(y.B_.PageView, {
+                pageName: h ? y.q.Alpha : y.q.ChadExclusives,
+                RaffleSelectSource: u ? "Search Results" : "Default List",
+                id: d,
+                ChadEligibility: (null == Y ? void 0 : Y.isChad) ? Y.id : "No",
+                ecosystem: [...(i ?? [])],
+                categories: [...(o ?? [])],
+                raffleExternalURL: x,
+                isChad: (null == Y ? void 0 : Y.isChad) ?? !1
+              }),
+                window.open(x, "_blank");
+              return;
+            }
+            q(e),
+              (0, Z.W)(y.B_.PageView, {
+                pageName: h ? y.q.Alpha : y.q.ChadExclusives,
+                RaffleSelectSource: u ? "Search Results" : "Default List",
+                id: d,
+                ChadEligibility: (null == Y ? void 0 : Y.isChad) ? Y.id : "No",
+                ecosystem: [...(i ?? [])],
+                categories: [...(o ?? [])],
+                isChad: (null == Y ? void 0 : Y.isChad) ?? !1
+              });
+          },
+          className: (0, S.cn)(
+            "flex items-start cursor-pointer p-5 transition-colors duration-200 ease-in-out gap-4 flex-col rounded-2xl border mb-4 border-secondary-300",
+            er ? "bg-secondary" : "gradient-linear-mono"
+          ),
+          children: [
+            (0, s.jsx)(A.Z, {
+              isLive: en,
+              ecosystemFilter: i ?? [],
+              categoryFilter: o ?? [],
+              handleEcosystemClick: ee,
+              handleCategoryClick: et,
+              handleLiveClick: el
+            }),
+            (0, s.jsxs)("div", {
+              className: "flex items-center gap-4 justify-between w-full",
+              children: [
+                (0, s.jsxs)("div", {
+                  className: "flex flex-col gap-1",
+                  children: [
+                    (0, s.jsx)("span", { className: "font-bold leading-snug", children: t }),
+                    (0, s.jsx)("span", { className: "text-secondary-800 text-sm", children: ea })
+                  ]
+                }),
+                (0, s.jsx)("div", { className: "size-16 rounded-lg bg-secondary overflow-hidden shrink-0", children: (0, s.jsx)(T, { image: c, alt: t }) })
+              ]
+            }),
+            (0, s.jsxs)("div", {
+              className: "flex items-center justify-between gap-2 w-full",
+              children: [
+                (0, s.jsxs)(g.zx, {
+                  size: "sm",
+                  className: "text-xs h-8 w-[9.375rem] gap-1",
+                  variant: "mono",
+                  children: [
+                    en ? (0, s.jsx)(s.Fragment, { children: "Enter now" }) : (0, s.jsx)(s.Fragment, { children: "Check details" }),
+                    !!x && (0, s.jsx)(k.h, { className: "size-3" })
+                  ]
+                }),
+                m
+                  ? (0, s.jsxs)("div", {
+                      className: "flex items-center gap-1 text-accent-success py-1.5 pl-4 pr-5 rounded-l-full bg-accent-foreground/10 font-bold -mr-5",
+                      children: [(0, s.jsx)(p, { weight: "fill", height: 16, width: 16 }), (0, s.jsx)("span", { className: "text-xs", children: "You won" })]
+                    })
+                  : (0, s.jsx)("button", {
+                      onClick: e => {
+                        e.stopPropagation();
+                        let l = _(d),
+                          s = document.getElementById(D.f);
+                        !l && s && J.current && (Q.current = V(d, s, J.current)),
+                          j(d),
+                          (0, Z.W)(y.B_.Bookmark, {
+                            [l ? "bookmarkRemoved" : "bookmarkAdded"]: d,
+                            name: t,
+                            page: h ? y.q.Alpha : y.q.ChadExclusives,
+                            isChad: (null == Y ? void 0 : Y.isChad) ?? !1
+                          });
+                      },
+                      children: (0, s.jsx)(v.W, {
+                        ref: J,
+                        weight: _(d) ? "fill" : "regular",
+                        className: (0, S.cn)("size-6", _(d) ? "text-primary" : "text- dark:text-gray-400")
+                      })
+                    })
+              ]
+            })
+          ]
+        });
+      }
+    },
+    78233: function (e, t, l) {
+      l.d(t, { Z: () => h, m: () => m });
+      var s = l(52322),
+        a = l(12334),
+        n = l(26571),
+        r = l(24542),
+        i = l.n(r);
+      l(2784);
+      var o = l(67750),
+        c = l(66936),
+        d = l(91064);
+      let u = [c.Z];
+      function h(e) {
+        return (0, s.jsx)("div", {
+          className: "rounded-xl prose-neutral prose prose-sm dark:prose-invert",
+          children: (0, s.jsx)(o.D, {
+            remarkPlugins: u,
+            components: {
+              a: e => {
+                let { ...t } = e;
+                return (0, s.jsx)("a", {
+                  onClick: () => {},
+                  ...t,
+                  target: "_blank",
+                  rel: "noreferrer noopener",
+                  className: "text-green-600 hover:text-green-500 no-underline transition-colors break-all",
+                  style: { wordBreak: "break-all" }
+                });
+              },
+              hr: () => (0, s.jsx)(a.Z, { className: "my-6" })
+            },
+            children: e.descriptionActions
+          })
+        });
+      }
+      function m(e) {
+        return e.description
+          ? (0, s.jsxs)("section", {
+              className: "rounded-xl prose-neutral prose prose-sm dark:prose-invert space-y-3",
+              children: [
+                (0, s.jsx)("span", { className: "text-[1.125rem] font-bold", children: "About" }),
+                (0, s.jsx)(o.D, {
+                  remarkPlugins: u,
+                  components: {
+                    a: t => {
+                      let { ...l } = t;
+                      return (0, s.jsx)("a", {
+                        onClick: () => {
+                          try {
+                            i().track(n.B_.PageView, {
+                              pageName: n.q.ChadExclusivesDetail,
+                              name: e.title,
+                              id: e.id,
+                              raffleExternalURL: (0, d.Fo)((null == l ? void 0 : l.href) ?? ""),
+                              ecosystem: [...((null == e ? void 0 : e.categories) ?? [])],
+                              categories: [...((null == e ? void 0 : e.ecosystem) ?? [])],
+                              isChad: !0
+                            });
+                          } catch (e) {}
+                        },
+                        ...l,
+                        target: "_blank",
+                        rel: "noreferrer noopener",
+                        className: "text-green-600 hover:text-green-500 no-underline transition-colors break-all",
+                        style: { wordBreak: "break-all" }
+                      });
+                    }
+                  },
+                  children: e.description || ""
+                })
+              ]
+            })
+          : null;
+      }
+    },
+    6381: function (e, t, l) {
+      l.a(e, async function (e, s) {
+        try {
+          l.d(t, { Z: () => p });
+          var a = l(52322),
+            n = l(72779),
+            r = l.n(n),
+            i = l(96217),
+            o = l(12334),
+            c = l(26571),
+            d = l(2784),
+            u = l(78233),
+            h = l(31065),
+            m = l(9908),
+            x = l(16733),
+            f = e([m]);
+          function p(e) {
+            var t, l, s;
+            let { isShown: n, onClose: f, opportunity: p } = e,
+              v = (0, d.useRef)(null);
+            return (
+              (0, d.useEffect)(() => {
+                if (v.current) {
+                  v.current.style.height = "100%";
+                  let e = v.current.parentElement;
+                  e && (n ? (e.style.overflow = "hidden") : (e.style.overflow = "auto"));
+                }
+              }, [n]),
+              (0, a.jsxs)(i.Z, {
+                fullScreen: !0,
+                isOpen: n,
+                onClose: f,
+                title: "Post",
+                className: "flex flex-col gap-4 p-6 pt-7 mb-4",
+                children: [
+                  (0, a.jsxs)("div", {
+                    onClick: () => {
+                      var e;
+                      let t = null == p ? void 0 : null === (e = p.relevantLinks) || void 0 === e ? void 0 : e[0];
+                      t && window.open(t ?? "", "_blank", "noopener,noreferrer");
+                    },
+                    className: r()("flex items-start gap-6", {
+                      "cursor-pointer": !!(null == p ? void 0 : null === (t = p.relevantLinks) || void 0 === t ? void 0 : t[0])
+                    }),
+                    children: [
+                      (0, a.jsxs)("header", {
+                        children: [
+                          (0, a.jsx)(x.Z, {
+                            visibilityStatus: null == p ? void 0 : p.visibilityStatus,
+                            ecosystemFilter: (null == p ? void 0 : p.ecosystemFilter) ?? [],
+                            categoryFilter: (null == p ? void 0 : p.categoryFilter) ?? []
+                          }),
+                          (0, a.jsx)("p", { className: "text-xl font-bold mt-3 mb-2", children: null == p ? void 0 : p.homepageDescription }),
+                          (0, a.jsx)(h.Z, {
+                            endDate: null == p ? void 0 : p.endDate,
+                            additionDate: (null == p ? void 0 : p.additionDate) ?? "",
+                            relevantLinks: (null == p ? void 0 : p.relevantLinks) ?? []
+                          })
+                        ]
+                      }),
+                      (0, a.jsx)("div", {
+                        className: "size-12 rounded-lg overflow-hidden shrink-0",
+                        children: (0, a.jsx)(m.Z, {
+                          ecosystemFilter: null == p ? void 0 : null === (l = p.ecosystemFilter) || void 0 === l ? void 0 : l[0],
+                          categoryFilter: null == p ? void 0 : null === (s = p.categoryFilter) || void 0 === s ? void 0 : s[0],
+                          image: null == p ? void 0 : p.image
+                        })
+                      })
+                    ]
+                  }),
+                  (0, a.jsx)(o.Z, { className: "my-2" }),
+                  (null == p ? void 0 : p.descriptionActions) && (null == p ? void 0 : p.descriptionActions) !== "NA"
+                    ? (0, a.jsx)(u.Z, { ...p, pageName: c.q.Alpha })
+                    : null
+                ]
+              })
+            );
+          }
+          (m = (f.then ? (await f)() : f)[0]), s();
+        } catch (e) {
+          s(e);
+        }
+      });
+    },
+    69019: function (e, t, l) {
+      l.d(t, { V: () => r });
+      var s = l(52322);
+      l(2784);
+      var a = l(86874);
+      function n() {
+        return (0, s.jsxs)("div", {
+          className: "bg-white-100 dark:bg-gray-950 rounded-xl p-4 mb-4",
+          children: [
+            (0, s.jsxs)("div", {
+              className: "flex justify-between items-start mb-3",
+              children: [
+                (0, s.jsxs)("div", {
+                  className: "flex gap-2 items-center",
+                  children: [(0, s.jsx)(a.Z, { width: 80, height: 20, borderRadius: 20 }), (0, s.jsx)(a.Z, { width: 96, height: 20, borderRadius: 20 })]
+                }),
+                (0, s.jsx)(a.Z, { width: 64, height: 16, borderRadius: 20 })
+              ]
+            }),
+            (0, s.jsxs)("div", {
+              className: "space-y-2 mb-4",
+              children: [(0, s.jsx)(a.Z, { width: "100%", height: 16 }), (0, s.jsx)(a.Z, { width: "75%", height: 16 })]
+            }),
+            (0, s.jsxs)("div", {
+              className: "flex justify-between items-center",
+              children: [
+                (0, s.jsxs)("div", {
+                  className: "flex gap-2 items-center",
+                  children: [(0, s.jsx)(a.Z, { circle: !0, width: 16, height: 16 }), (0, s.jsx)(a.Z, { width: 64, height: 16 })]
+                }),
+                (0, s.jsx)(a.Z, { circle: !0, width: 16, height: 16 })
+              ]
+            })
+          ]
+        });
+      }
+      function r() {
+        return (0, s.jsxs)(s.Fragment, { children: [(0, s.jsx)(n, {}), (0, s.jsx)(n, {})] });
+      }
+    },
+    64502: function (e, t, l) {
+      l.d(t, { Z: () => c });
+      var s = l(52322),
+        a = l(4370),
+        n = l(41978);
+      l(2784);
+      var r = l(70514);
+      let i = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } },
+        o = { duration: 0.3, ease: "easeOut" };
+      function c(e) {
+        let { title: t, subTitle: l, className: c } = e;
+        return (0, s.jsxs)(a.E.div, {
+          initial: "hidden",
+          animate: "visible",
+          variants: i,
+          transition: o,
+          className: (0, r.cn)("bg-secondary-100 flex flex-col gap-2 items-center justify-center pt-[3.375rem] pb-[3.75rem] px-5 text-center rounded-2xl", c),
+          children: [
+            (0, s.jsx)(n.P, { className: "size-20 " }),
+            (0, s.jsx)("span", { className: "font-bold text-mdl mb-1", children: t }),
+            (0, s.jsx)("span", { className: "text-sm font-medium text-center text-muted-foreground !leading-5 px-11", children: l })
+          ]
+        });
+      }
+    },
+    74481: function (e, t, l) {
+      l.d(t, { Z: () => n });
+      var s = l(52322),
+        a = l(62695);
+      function n(e) {
+        let { icon: t, label: l, isSelected: n = !1, onSelect: r, isLast: i = !1, onRemove: o } = e;
+        return (0, s.jsxs)("button", {
+          onClick: n ? o : r,
+          className: `flex items-center justify-between px-2 py-3 cursor-pointer hover:bg-secondary-200 border-secondary-300 transition-colors ${i ? "" : "border-b"}`,
+          children: [
+            (0, s.jsxs)("div", {
+              className: "flex items-center gap-3 p-1",
+              children: [
+                "string" == typeof t
+                  ? (0, s.jsx)("img", {
+                      src: t,
+                      alt: l,
+                      className: "size-8 rounded-full",
+                      onError: e => {
+                        e.currentTarget.src = `https://placehold.co/20x20?text=${l}`;
+                      }
+                    })
+                  : t,
+                (0, s.jsx)("span", { className: "font-bold", children: l })
+              ]
+            }),
+            n &&
+              (0, s.jsx)("div", {
+                className: "bg-primary rounded-full p-1",
+                children: (0, s.jsx)(a.J, { weight: "bold", color: "white", className: "h-3 w-3" })
+              })
+          ]
+        });
+      }
+      l(2784);
+    },
+    31065: function (e, t, l) {
+      l.d(t, { Z: () => n });
+      var s = l(52322);
+      l(2784);
+      var a = l(91064);
+      function n(e) {
+        let { endDate: t, additionDate: l, relevantLinks: n } = e;
+        return (0, s.jsxs)("div", {
+          className: "w-full flex gap-1 items-center text-xs text-secondary-800",
+          children: [
+            t &&
+              (0, a.NS)(l) &&
+              (0, s.jsxs)(s.Fragment, { children: [(0, s.jsx)("span", { children: (0, a.cN)(t) }), (0, s.jsx)("span", { children: "\xb7" })] }),
+            l && (null == n ? void 0 : n[0])
+              ? (0, s.jsxs)(s.Fragment, { children: [(0, s.jsx)("span", { children: (0, a.NS)(l) }), (0, s.jsx)("span", { children: "\xb7" })] })
+              : l
+                ? (0, s.jsx)("span", { children: (0, a.NS)(l) })
+                : null,
+            (null == n ? void 0 : n[0]) && (0, s.jsx)("span", { children: (0, a.Fo)(n[0]) })
+          ]
+        });
+      }
+    },
+    9908: function (e, t, l) {
+      l.a(e, async function (e, s) {
+        try {
+          l.d(t, { Z: () => c });
+          var a = l(52322),
+            n = l(74229),
+            r = l(36400),
+            i = l(4914);
+          l(2784);
+          var o = e([r]);
+          function c(e) {
+            var t, l;
+            let { ecosystemFilter: s, categoryFilter: o, image: c } = e,
+              { chains: d } = (0, i.w)(),
+              u = (0, r.pb)(),
+              h = (0, n.os)(),
+              m = Object.values(u),
+              x = Object.values(h),
+              f = s ? d.find(e => e.name.toLowerCase().startsWith(s.toLowerCase().split(" ")[0])) : null,
+              p = s ? [...m, ...x].find(e => e.chainName.toLowerCase().startsWith(s.toLowerCase().split(" ")[0])) : null,
+              v =
+                (null == p ? void 0 : p.chainSymbolImageUrl) ??
+                ((null == f ? void 0 : null === (t = f.image) || void 0 === t ? void 0 : t.small) ||
+                  (null == f ? void 0 : null === (l = f.image) || void 0 === l ? void 0 : l.large));
+            return (0, a.jsx)("img", {
+              src: c,
+              alt: "icon",
+              className: "w-full h-full object-cover",
+              onError: e => {
+                e.currentTarget.src = v ?? `https://placehold.co/40x40?text=${o}`;
+              }
+            });
+          }
+          (r = (o.then ? (await o)() : o)[0]), s();
+        } catch (e) {
+          s(e);
+        }
+      });
+    },
+    39331: function (e, t, l) {
+      l.d(t, { M: () => r });
+      var s = l(52322);
+      l(2784);
+      var a = l(64502);
+      let n = {
+          upcoming: { title: "No upcoming rewards yet", subTitle: "You're early! New Chad-exclusive rewards are coming soon. Check back again." },
+          live: { title: "No live rewards yet", subTitle: "Check back again soon for new rewards" },
+          ended: { title: "No ended rewards yet", subTitle: "Check back again soon for new rewards" },
+          search: { title: "No Results Found", subTitle: "Try searching with different keywords" },
+          "no-results": { title: "No Results Found", subTitle: "Try clearing filters" }
+        },
+        r = e => {
+          let { filterType: t = "no-results", className: l } = e;
+          return (0, s.jsx)(a.Z, { className: l, title: n[t].title, subTitle: n[t].subTitle });
+        };
+    },
+    23393: function (e, t, l) {
+      l.d(t, { $: () => r });
+      var s = l(52322),
+        a = l(48039);
+      l(69816), l(2784);
+      var n = l(8420);
+      function r() {
+        let { selectedOpportunities: e, selectedEcosystems: t, setOpportunities: l, setEcosystems: r } = (0, n.o)(),
+          i = t => {
+            l((null == e ? void 0 : e.filter(e => e !== t)) || []);
+          },
+          o = e => {
+            r((null == t ? void 0 : t.filter(t => t !== e)) || []);
+          };
+        return (0, s.jsxs)("section", {
+          className: "flex flex-wrap gap-2 mb-2",
+          children: [
+            e.map(e =>
+              (0, s.jsxs)(
+                "div",
+                {
+                  className: "flex items-center gap-1 pl-2.5 pr-1.5 py-1 bg-secondary-200 rounded-full shrink-0 border border-secondary-600 ",
+                  children: [
+                    (0, s.jsx)("span", { className: "text-xs text-muted-foreground", children: e }),
+                    (0, s.jsx)("button", {
+                      onClick: () => i(e),
+                      className: "p-0.5 bg-secondary-600 hover:bg-secondary-800 rounded-full transition-colors duration-200 ease-in-out",
+                      children: (0, s.jsx)(a.X, { size: 10, weight: "bold", className: "text-gray-100 dark:text-gray-900" })
+                    })
+                  ]
+                },
+                e
+              )
+            ),
+            t.map(e =>
+              (0, s.jsxs)(
+                "div",
+                {
+                  className: "flex items-center gap-1 pl-2.5 pr-1.5 py-1 bg-secondary-200 rounded-full shrink-0 border border-secondary-600 ",
+                  children: [
+                    (0, s.jsx)("span", { className: "text-xs text-muted-foreground", children: e }),
+                    (0, s.jsx)("button", {
+                      onClick: () => o(e),
+                      className: "p-0.5 bg-secondary-600 hover:bg-secondary-800 rounded-full transition-colors duration-200 ease-in-out",
+                      children: (0, s.jsx)(a.X, { size: 10, weight: "bold", className: "text-gray-100 dark:text-gray-900" })
+                    })
+                  ]
+                },
+                e
+              )
+            )
+          ]
+        });
+      }
+      l(97323);
+    },
+    16733: function (e, t, l) {
+      l.d(t, { Z: () => r });
+      var s = l(52322);
+      l(2784);
+      var a = l(70514);
+      let n = e =>
+        (0, s.jsx)("span", {
+          className: (0, a.cn)(
+            "text-xs font-medium h-6 px-2 flex items-center justify-center border bg-secondary hover:bg-secondary-200 rounded border-secondary-300 transition-colors",
+            e.className
+          ),
+          onClick: t => {
+            var l;
+            t.preventDefault(), t.stopPropagation(), null === (l = e.onClick) || void 0 === l || l.call(e);
+          },
+          children: e.children
+        });
+      function r(e) {
+        let {
+          isLive: t,
+          visibilityStatus: l,
+          ecosystemFilter: r,
+          categoryFilter: i,
+          className: o,
+          handleEcosystemClick: c,
+          handleCategoryClick: d,
+          handleLiveClick: u
+        } = e;
+        return (0, s.jsxs)("div", {
+          className: (0, a.cn)("flex items-center justify-between w-full gap-2", o),
+          children: [
+            (0, s.jsxs)("div", {
+              className: "flex flex-wrap gap-2",
+              children: [
+                "completed" === l &&
+                  (0, s.jsx)(n, {
+                    className: "bg-accent-foreground/10 hover:bg-accent-green-100 border-primary/40 text-accent-success",
+                    onClick: () => (null == d ? void 0 : d("Completed")),
+                    children: "Completed"
+                  }),
+                "hidden" === l &&
+                  (0, s.jsx)(n, {
+                    className: "bg-destructive-100/20 hover:bg-destructive-red-100 border-destructive/40 text-destructive-error",
+                    onClick: () => (null == d ? void 0 : d("hidden")),
+                    children: "Hidden"
+                  }),
+                null == r ? void 0 : r.filter(Boolean).map(e => (0, s.jsx)(n, { onClick: () => (null == c ? void 0 : c(e)), children: e }, e)),
+                null == i ? void 0 : i.filter(Boolean).map(e => (0, s.jsx)(n, { onClick: () => (null == d ? void 0 : d(e)), children: e }, e))
+              ]
+            }),
+            t && (0, s.jsx)(n, { className: "bg-destructive-400 hover:bg-destructive-200 text-white-100 font-medium", onClick: u, children: "Live" })
+          ]
+        });
+      }
+    },
+    57430: function (e, t, l) {
+      l.a(e, async function (e, s) {
+        try {
+          l.r(t), l.d(t, { default: () => f });
+          var a = l(52322),
+            n = l(42941);
+          l(2784);
+          var r = l(35153),
+            i = l(72327),
+            o = l(8747),
+            c = l(22256),
+            d = l(6381),
+            u = l(8420),
+            h = l(97323),
+            m = l(28532),
+            x = e([i, o, d, c, m]);
+          function f() {
+            let { showDetails: e, selectedOpportunity: t, closeDetails: l } = (0, h.m)(),
+              { showDetails: s, selectedOpportunity: x, closeDetails: f } = (0, u.o)(),
+              p = (0, n.K)(),
+              v = "true" === p.get(r.S.alphaBookmarks);
+            return (0, a.jsxs)(a.Fragment, {
+              children: [
+                (0, a.jsx)(i.g, {}),
+                (0, a.jsx)(o.J, { isOpen: v, toggler: () => p.remove(r.S.alphaBookmarks) }),
+                (0, a.jsx)(d.Z, { isShown: e, onClose: l, opportunity: t }),
+                (0, a.jsx)(c.Z, { isShown: s, onClose: f, raffle: x }),
+                (0, a.jsx)(m.m, {})
+              ]
+            });
+          }
+          ([i, o, d, c, m] = x.then ? (await x)() : x), s();
+        } catch (e) {
+          s(e);
+        }
+      });
+    },
+    28532: function (e, t, l) {
+      l.a(e, async function (e, s) {
+        try {
+          l.d(t, { m: () => i });
+          var a = l(52322);
+          l(2784);
+          var n = l(25798),
+            r = e([n]);
+          n = (r.then ? (await r)() : r)[0];
+          let i = () =>
+            (0, a.jsx)("div", { className: "overflow-y-auto", style: { height: "calc(100% - 72px - 30px - 41px)" }, children: (0, a.jsx)(n.Z, {}) });
+          s();
+        } catch (e) {
+          s(e);
+        }
+      });
+    },
+    43342: function (e, t, l) {
+      l.d(t, { f: () => s, y: () => a });
+      let s = "alpha-bookmark-icon",
+        a = "alpha-bookmark-icon-clone";
+    },
+    76601: function (e, t, l) {
+      l.d(t, { W: () => f });
+      var s = l(2784),
+        a = l(6806);
+      let n = new Map([
+        [
+          "bold",
+          s.createElement(
+            s.Fragment,
+            null,
+            s.createElement("path", {
+              d: "M184,28H72A20,20,0,0,0,52,48V224a12,12,0,0,0,18.36,10.18l57.63-36,57.65,36A12,12,0,0,0,204,224V48A20,20,0,0,0,184,28Zm-4,174.35-45.65-28.53a12,12,0,0,0-12.72,0L76,202.35V52H180Z"
+            })
+          )
+        ],
+        [
+          "duotone",
+          s.createElement(
+            s.Fragment,
+            null,
+            s.createElement("path", { d: "M192,48V224l-64-40L64,224V48a8,8,0,0,1,8-8H184A8,8,0,0,1,192,48Z", opacity: "0.2" }),
+            s.createElement("path", {
+              d: "M184,32H72A16,16,0,0,0,56,48V224a8,8,0,0,0,12.24,6.78L128,193.43l59.77,37.35A8,8,0,0,0,200,224V48A16,16,0,0,0,184,32Zm0,177.57-51.77-32.35a8,8,0,0,0-8.48,0L72,209.57V48H184Z"
+            })
+          )
+        ],
+        [
+          "fill",
+          s.createElement(
+            s.Fragment,
+            null,
+            s.createElement("path", {
+              d: "M184,32H72A16,16,0,0,0,56,48V224a8,8,0,0,0,12.24,6.78L128,193.43l59.77,37.35A8,8,0,0,0,200,224V48A16,16,0,0,0,184,32Z"
+            })
+          )
+        ],
+        [
+          "light",
+          s.createElement(
+            s.Fragment,
+            null,
+            s.createElement("path", {
+              d: "M184,34H72A14,14,0,0,0,58,48V224a6,6,0,0,0,9.18,5.09l60.81-38,60.83,38A6,6,0,0,0,198,224V48A14,14,0,0,0,184,34Zm2,179.17-54.83-34.26a6,6,0,0,0-6.36,0L70,213.17V48a2,2,0,0,1,2-2H184a2,2,0,0,1,2,2Z"
+            })
+          )
+        ],
+        [
+          "regular",
+          s.createElement(
+            s.Fragment,
+            null,
+            s.createElement("path", {
+              d: "M184,32H72A16,16,0,0,0,56,48V224a8,8,0,0,0,12.24,6.78L128,193.43l59.77,37.35A8,8,0,0,0,200,224V48A16,16,0,0,0,184,32Zm0,177.57-51.77-32.35a8,8,0,0,0-8.48,0L72,209.57V48H184Z"
+            })
+          )
+        ],
+        [
+          "thin",
+          s.createElement(
+            s.Fragment,
+            null,
+            s.createElement("path", {
+              d: "M184,36H72A12,12,0,0,0,60,48V224a4,4,0,0,0,6.12,3.39L128,188.72l61.89,38.67A4,4,0,0,0,192,228a4.06,4.06,0,0,0,1.94-.5A4,4,0,0,0,196,224V48A12,12,0,0,0,184,36Zm4,180.78-57.89-36.17a4,4,0,0,0-4.24,0L68,216.78V48a4,4,0,0,1,4-4H184a4,4,0,0,1,4,4Z"
+            })
+          )
+        ]
+      ]);
+      var r = Object.defineProperty,
+        i = Object.defineProperties,
+        o = Object.getOwnPropertyDescriptors,
+        c = Object.getOwnPropertySymbols,
+        d = Object.prototype.hasOwnProperty,
+        u = Object.prototype.propertyIsEnumerable,
+        h = (e, t, l) => (t in e ? r(e, t, { enumerable: !0, configurable: !0, writable: !0, value: l }) : (e[t] = l)),
+        m = (e, t) => {
+          for (var l in t || (t = {})) d.call(t, l) && h(e, l, t[l]);
+          if (c) for (var l of c(t)) u.call(t, l) && h(e, l, t[l]);
+          return e;
+        },
+        x = (e, t) => i(e, o(t));
+      let f = (0, s.forwardRef)((e, t) => s.createElement(a.Z, x(m({ ref: t }, e), { weights: n })));
+      f.displayName = "BookmarkSimple";
+    }
+  }
+]);
+//# sourceMappingURL=1958.js.map

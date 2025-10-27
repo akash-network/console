@@ -18,18 +18,18 @@ export class WalletBalancesService {
 
   async getBalances(address: string): Promise<Balances> {
     const usdcIbcDenom = getUsdcDenom();
-    const [balanceResponse, deploymentGrant, activeDeploymentsResponse] = await Promise.all([
+    const [balanceResponse, deploymentGrants, activeDeploymentsResponse] = await Promise.all([
       this.chainApiHttpClient.get<RestApiBalancesResponseType>(ApiUrlService.balance("", address)),
-      this.authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee(this.masterWalletAddress, address),
+      this.authzHttpService.getAllDepositDeploymentGrants({ grantee: address, limit: 1000 }),
       loadWithPagination<RpcDeployment[]>(ApiUrlService.deploymentList("", address, true), "deployments", 1000, this.chainApiHttpClient)
     ]);
 
-    const deploymentGrantsUAKT = parseFloat(
-      deploymentGrant?.authorization.spend_limit.denom === UAKT_DENOM ? deploymentGrant.authorization.spend_limit.amount : "0"
-    );
-    const deploymentGrantsUUSDC = parseFloat(
-      deploymentGrant?.authorization.spend_limit.denom === usdcIbcDenom ? deploymentGrant.authorization.spend_limit.amount : "0"
-    );
+    const deploymentGrantsUAKT = deploymentGrants
+      .filter(grant => grant.authorization?.spend_limit?.denom === UAKT_DENOM)
+      .reduce((sum, grant) => sum + parseFloat(grant.authorization?.spend_limit?.amount || "0"), 0);
+    const deploymentGrantsUUSDC = deploymentGrants
+      .filter(grant => grant.authorization?.spend_limit?.denom === usdcIbcDenom)
+      .reduce((sum, grant) => sum + parseFloat(grant.authorization?.spend_limit?.amount || "0"), 0);
 
     const balanceData = balanceResponse.data;
     const balanceUAKT =
@@ -55,7 +55,7 @@ export class WalletBalancesService {
       deploymentGrantsUAKT,
       deploymentGrantsUUSDC,
       activeDeployments,
-      deploymentGrant
+      deploymentGrants
     };
   }
 }

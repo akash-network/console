@@ -18,7 +18,6 @@ import networkStore from "@src/store/networkStore";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { deploymentData } from "@src/utils/deploymentData";
-import { getDeploymentLocalData, saveDeploymentManifest } from "@src/utils/deploymentLocalDataUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import RemoteDeployUpdate from "../remote-deploy/update/RemoteDeployUpdate";
 import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar";
@@ -42,7 +41,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   editedManifest,
   onManifestChange
 }) => {
-  const { providerProxy, analyticsService, chainApiHttpClient } = useServices();
+  const { providerProxy, analyticsService, chainApiHttpClient, deploymentLocalStorage } = useServices();
   const [parsingError, setParsingError] = useState<string | null>(null);
   const [deploymentVersion, setDeploymentVersion] = useState<string | null>(null);
   const [showOutsideDeploymentMessage, setShowOutsideDeploymentMessage] = useState(false);
@@ -55,7 +54,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
 
   useEffect(() => {
     const init = async () => {
-      const localDeploymentData = getDeploymentLocalData(deployment.dseq);
+      const localDeploymentData = deploymentLocalStorage.get(address, deployment.dseq);
 
       if (localDeploymentData?.manifest) {
         onManifestChange(localDeploymentData.manifest);
@@ -74,7 +73,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
     };
 
     init();
-  }, [deployment]);
+  }, [deployment, address, deploymentLocalStorage]);
 
   /**
    * Validate the manifest periodically
@@ -146,7 +145,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
       const mani = deploymentData.getManifest(doc, true);
 
       // If it's actual update, send a transaction, else just send the manifest
-      if (Buffer.from(dd.version).toString("base64") !== deployment.version) {
+      if (Buffer.from(dd.hash).toString("base64") !== deployment.hash) {
         const message = TransactionMessageData.getUpdateDeploymentMsg(dd);
         response = await signAndBroadcastTx([message]);
       } else {
@@ -156,7 +155,10 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
       if (response) {
         setIsSendingManifest(true);
 
-        saveDeploymentManifest(dd.deploymentId.dseq, editedManifest, dd.version, address);
+        deploymentLocalStorage.update(address, dd.deploymentId.dseq, {
+          manifest: editedManifest,
+          manifestVersion: dd.hash
+        });
 
         sendManifestKey =
           !isManagedWallet &&
@@ -230,7 +232,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
                   <InfoCircle className="text-xs text-muted-foreground" />
                 </CustomTooltip>
 
-                {!!deploymentVersion && deploymentVersion !== deployment.version && (
+                {!!deploymentVersion && deploymentVersion !== deployment.hash && (
                   <CustomTooltip
                     title={
                       <Alert variant="warning">

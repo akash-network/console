@@ -1,5 +1,49 @@
 
 
+## [3.0.1](https://github.com/akash-network/console/compare/console-web/v3.0.0...console-web/v3.0.1) (2025-10-27)
+
+
+### Bug Fixes
+
+* **release:** triggers release  ([cd59471](https://github.com/akash-network/console/commit/cd594718d29ec1f7d1de13071fb2e999b5b8a088))
+
+## [3.0.0](https://github.com/akash-network/console/compare/console-web/v2.118.0...console-web/v3.0.0) (2025-10-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* targets sdk53
+* removes GET /v1/version/{network}
+
+* feat!(network): uses meta.json instead of version.txt and removes GET /v1/version/{network} ([46841af](https://github.com/akash-network/console/commit/46841af26f8510d18ce941240c49610caef642a4)), closes [#2091](https://github.com/akash-network/console/issues/2091)
+
+
+### Features
+
+* adds breaking change notice for the services targeting sdk53 ([cd8bf9b](https://github.com/akash-network/console/commit/cd8bf9bc618d32b42a4fa5ac9a38bb9e1168416f))
+* chain sdk next api ([#2023](https://github.com/akash-network/console/issues/2023)) ([4453796](https://github.com/akash-network/console/commit/44537960721dced5388cc3d39b25352943fa8931)), closes [#1980](https://github.com/akash-network/console/issues/1980) [#1983](https://github.com/akash-network/console/issues/1983) [#2016](https://github.com/akash-network/console/issues/2016)
+* chain sdk next web ([#2050](https://github.com/akash-network/console/issues/2050)) ([1bc10ea](https://github.com/akash-network/console/commit/1bc10ea201360054e53d65a21f845f22d842352b))
+* **release:** implements console-web staging testnet deploy  ([38210f1](https://github.com/akash-network/console/commit/38210f1f9b06e6269b7adb158ea392d09a58eaa6))
+
+
+### Bug Fixes
+
+* **config:** handles absent nodes/versions files ([b41833f](https://github.com/akash-network/console/commit/b41833fa5267398700b02b0924fce42e4407ae88))
+* fixes proto types of deployment authorization ([#2080](https://github.com/akash-network/console/issues/2080)) ([10dacaf](https://github.com/akash-network/console/commit/10dacaf9cec802bdbc5d62ca2be0d91e6ac7312f))
+* freetrial account check ([#2094](https://github.com/akash-network/console/issues/2094)) ([a40f1df](https://github.com/akash-network/console/commit/a40f1dfc9cdf1fd6ff2eda4643322ed975e954da))
+* name and right button link to deployment page, not the whole line ([3ea1f04](https://github.com/akash-network/console/commit/3ea1f0433cac42d13ce80d5c8e092519da423963)), closes [#1981](https://github.com/akash-network/console/issues/1981)
+* network store mapping ([#2057](https://github.com/akash-network/console/issues/2057)) ([6b4a9db](https://github.com/akash-network/console/commit/6b4a9dbc888803586f1ac38d985671a853313405))
+* removes duplicate query key def ([f04e205](https://github.com/akash-network/console/commit/f04e205ed02f1f2483098ab0b576ab906e83884e))
+* upgrade chain-sdk to latest version and adds its transport options in indexer ([#2103](https://github.com/akash-network/console/issues/2103)) ([07ba99a](https://github.com/akash-network/console/commit/07ba99a93bf6fb7a0e67eb1fbd554855e66d322b))
+* upgrades cosmjs dependencies and removes unused ones ([#2082](https://github.com/akash-network/console/issues/2082)) ([364f30e](https://github.com/akash-network/console/commit/364f30ee696c477caf7cd8ac6d080f8b933be062)), closes [#1679](https://github.com/akash-network/console/issues/1679)
+* use Link to render deployment name ([#2111](https://github.com/akash-network/console/issues/2111)) ([7fedad6](https://github.com/akash-network/console/commit/7fedad6d6e16df811f51eb5deafdff216e56ec57))
+
+
+### Code Refactoring
+
+* converts deployment local storage utils into a service ([#2106](https://github.com/akash-network/console/issues/2106)) ([b379986](https://github.com/akash-network/console/commit/b379986c49c46434ad854d2db491ca555722a95e)), closes [#1927](https://github.com/akash-network/console/issues/1927)
+* migrate provider-proxy to next chain sdk ([#1980](https://github.com/akash-network/console/issues/1980)) ([f6258f3](https://github.com/akash-network/console/commit/f6258f39ffc586e8a9c9454764a6a1e2113e1410))
+
 ## [2.118.0](https://github.com/akash-network/console/compare/console-web/v2.117.0...console-web/v2.118.0) (2025-10-21)
 
 

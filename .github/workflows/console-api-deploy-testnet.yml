@@ -1,0 +1,41 @@
+name: Deploy API testnet
+
+on:
+  push:
+    branches:
+      - main-sdk-next
+  workflow_dispatch:
+
+jobs:
+  should-deploy:
+    name: Decide Whether to Deploy
+    uses: ./.github/workflows/reusable-should-validate.yml
+    with:
+      path: apps/console-api
+
+  build:
+    needs: should-deploy
+    name: Build Docker image
+    if: github.event_name == 'workflow_dispatch' || needs.should-deploy.outputs.enabled == 'true'
+    uses: ./.github/workflows/reusable-build-image.yml
+    secrets: inherit
+    permissions:
+      contents: write
+      packages: write
+    with:
+      tag: console-api/sdk53
+      tag-latest: false
+      force-build: true
+
+  deploy-beta-testnet:
+    needs: build
+    name: Deploy to beta sandbox
+    uses: ./.github/workflows/reusable-deploy-k8s.yml
+    secrets: inherit
+    with:
+      app: console-api
+      appVersion: ${{ needs.build.outputs.image_tag }}
+      environment: staging
+      chain: testnet
+      skip_beta_deployment_check: true
+      force-rollout: true

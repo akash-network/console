@@ -1,5 +1,40 @@
 
 
+## [3.0.1](https://github.com/akash-network/console/compare/console-api/v3.0.0...console-api/v3.0.1) (2025-10-27)
+
+
+### Bug Fixes
+
+* **release:** triggers release  ([cd59471](https://github.com/akash-network/console/commit/cd594718d29ec1f7d1de13071fb2e999b5b8a088))
+
+## [3.0.0](https://github.com/akash-network/console/compare/console-api/v2.127.1...console-api/v3.0.0) (2025-10-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* targets sdk53
+* removes GET /v1/version/{network}
+
+* feat!(network): uses meta.json instead of version.txt and removes GET /v1/version/{network} ([46841af](https://github.com/akash-network/console/commit/46841af26f8510d18ce941240c49610caef642a4)), closes [#2091](https://github.com/akash-network/console/issues/2091)
+
+
+### Features
+
+* adds breaking change notice for the services targeting sdk53 ([cd8bf9b](https://github.com/akash-network/console/commit/cd8bf9bc618d32b42a4fa5ac9a38bb9e1168416f))
+* **analytics:** chain sdk next indexer ([#1983](https://github.com/akash-network/console/issues/1983)) ([dd0600b](https://github.com/akash-network/console/commit/dd0600bee5262ea98304cffcd7e51fc5740ac791))
+* chain sdk next api ([#2023](https://github.com/akash-network/console/issues/2023)) ([4453796](https://github.com/akash-network/console/commit/44537960721dced5388cc3d39b25352943fa8931)), closes [#1980](https://github.com/akash-network/console/issues/1980) [#1983](https://github.com/akash-network/console/issues/1983) [#2016](https://github.com/akash-network/console/issues/2016)
+* chain sdk next web ([#2050](https://github.com/akash-network/console/issues/2050)) ([1bc10ea](https://github.com/akash-network/console/commit/1bc10ea201360054e53d65a21f845f22d842352b))
+
+
+### Bug Fixes
+
+* **config:** handles absent nodes/versions files ([b41833f](https://github.com/akash-network/console/commit/b41833fa5267398700b02b0924fce42e4407ae88))
+* freetrial account check ([#2094](https://github.com/akash-network/console/issues/2094)) ([a40f1df](https://github.com/akash-network/console/commit/a40f1dfc9cdf1fd6ff2eda4643322ed975e954da))
+* **release:** adds api testnet env  ([37e509d](https://github.com/akash-network/console/commit/37e509d952edea38a2b08b776466bdb15c8e74ad))
+* upgrade chain-sdk to latest version and adds its transport options in indexer ([#2103](https://github.com/akash-network/console/issues/2103)) ([07ba99a](https://github.com/akash-network/console/commit/07ba99a93bf6fb7a0e67eb1fbd554855e66d322b))
+* upgrades cosmjs dependencies and removes unused ones ([#2082](https://github.com/akash-network/console/issues/2082)) ([364f30e](https://github.com/akash-network/console/commit/364f30ee696c477caf7cd8ac6d080f8b933be062)), closes [#1679](https://github.com/akash-network/console/issues/1679)
+* uses formatDistanceToNow instead of differenceInX to calc time left ([#2112](https://github.com/akash-network/console/issues/2112)) ([bb25b00](https://github.com/akash-network/console/commit/bb25b0087073410b1c21550d330ac6d9b73ce106))
+
 ## [2.127.1](https://github.com/akash-network/console/compare/console-api/v2.127.0...console-api/v2.127.1) (2025-10-21)
 
 

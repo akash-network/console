@@ -48,7 +48,6 @@ import type { BidDto } from "@src/types/deployment";
 import { RouteStep } from "@src/types/route-steps.type";
 import { deploymentData } from "@src/utils/deploymentData";
 import { TRIAL_ATTRIBUTE } from "@src/utils/deploymentData/v1beta3";
-import { getDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
 import { addScriptToHead } from "@src/utils/domUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { domainName, UrlService } from "@src/utils/urlUtils";
@@ -119,7 +118,7 @@ const TRIAL_SIGNUP_WARNING_TIMEOUT = 33_000;
 
 export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies: d = DEPENDENCIES }) => {
   const { settings } = d.useSettings();
-  const { providerProxy, analyticsService, errorHandler, networkStore, urlService } = d.useServices();
+  const { providerProxy, analyticsService, errorHandler, networkStore, urlService, deploymentLocalStorage } = d.useServices();
 
   const [isSendingManifest, setIsSendingManifest] = useState(false);
   const [isFilteringFavorites, setIsFilteringFavorites] = useState(false);
@@ -185,7 +184,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
       setIsSendingManifest(true);
       const bidKeys = Object.keys(selectedBids);
 
-      const localDeploymentData = getDeploymentLocalData(dseq);
+      const localDeploymentData = deploymentLocalStorage.get(address, dseq);
 
       analyticsService.track("send_manifest", {
         category: "deployments",
@@ -264,7 +263,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
         setIsSendingManifest(false);
       }
     },
-    [selectedBids, dseq, providers, isManaged, enqueueSnackbar, closeSnackbar, router, chainNetwork]
+    [selectedBids, dseq, providers, isManaged, enqueueSnackbar, closeSnackbar, router, chainNetwork, address, deploymentLocalStorage]
   );
 
   // Filter bids
@@ -299,7 +298,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
   const { data: block } = d.useBlock(dseq);
 
   useEffect(() => {
-    if (!isTrialing || numberOfRequests === 0 || (bids && bids.length > 0)) {
+    if (!isAnonymousFreeTrialEnabled || !isTrialing || numberOfRequests === 0 || (bids && bids.length > 0)) {
       setZeroBidsForTrialWarningDisplayed(false);
       return;
     }
@@ -312,7 +311,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
     }, 1000);
 
     return () => clearTimeout(timerId);
-  }, [block, bids, isTrialing, numberOfRequests]);
+  }, [block, bids, isTrialing, numberOfRequests, isAnonymousFreeTrialEnabled]);
 
   const selectBid = (bid: BidDto) => {
     setSelectedBids(prev => ({ ...prev, [bid.gseq]: bid }));
@@ -477,6 +476,11 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
           <div className="pt-4">
             <d.Alert variant="warning">
               There should be bids by now... You can wait longer in case a bid shows up or close the deployment and try again with a different configuration.
+              <div className="pt-4">
+                <d.Button variant="default" color="secondary" onClick={handleCloseDeployment} size="sm" disabled={settings.isBlockchainDown}>
+                  Close Deployment
+                </d.Button>
+              </div>
             </d.Alert>
           </div>
         )}

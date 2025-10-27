@@ -1,5 +1,4 @@
-import type { NetworkId } from "@akashnetwork/akashjs/build/types/network";
-import { SANDBOX_ID, TESTNET_ID } from "@akashnetwork/network-store";
+import { type NetworkId, SANDBOX_ID, TESTNET_ID } from "@akashnetwork/chain-sdk/web";
 
 import type { BrowserEnvConfig, ServerEnvConfig } from "@src/config/env-config.schema";
 

@@ -16,7 +16,7 @@ export class DeploymentGrantResponseSeeder {
             granter: input.granter || "akash1testmasterwalletaddress",
             grantee: input.grantee || "akash1testwalletaddress",
             authorization: {
-              "@type": "/akash.deployment.v1beta3.DepositDeploymentAuthorization",
+              "@type": "/akash.escrow.v1.MsgAccountDeposit",
               spend_limit: {
                 denom: "uakt",
                 amount: input.amount || "5000000"

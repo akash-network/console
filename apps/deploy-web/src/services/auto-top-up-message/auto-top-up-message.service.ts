@@ -126,7 +126,7 @@ export class AutoTopUpMessageService {
     if (options.next?.limit) {
       messages.push(TransactionMessageData.getGrantMsg(options.granter, options.grantee, options.next.limit, options.next.expiration, options.denom || "uakt"));
     } else if (typeof options.prev?.limit !== "undefined") {
-      messages.push(TransactionMessageData.getRevokeMsg(options.granter, options.grantee, "/akash.deployment.v1beta3.DepositDeploymentAuthorization"));
+      messages.push(TransactionMessageData.getRevokeDepositMsg(options.granter, options.grantee));
     }
 
     return messages;

@@ -1,6 +1,6 @@
 {
   "name": "@akashnetwork/stats-web",
-  "version": "0.40.1",
+  "version": "1.0.1",
   "private": true,
   "scripts": {
     "build": "npm run build-env-schemas && next build",
@@ -13,12 +13,12 @@
     "start": "next start"
   },
   "dependencies": {
-    "@akashnetwork/chain-sdk": "1.0.0-alpha.9",
+    "@akashnetwork/chain-sdk": "1.0.0-alpha.12",
     "@akashnetwork/env-loader": "*",
     "@akashnetwork/logging": "*",
     "@akashnetwork/network-store": "*",
     "@akashnetwork/ui": "*",
-    "@cosmjs/encoding": "^0.32.4",
+    "@cosmjs/encoding": "~0.36.1",
     "@date-fns/utc": "^2.1.0",
     "@json2csv/plainjs": "^7.0.4",
     "@nivo/line": "^0.87.0",

@@ -28,7 +28,6 @@ import type { DepositParams } from "@src/types/deployment";
 import { RouteStep } from "@src/types/route-steps.type";
 import { deploymentData } from "@src/utils/deploymentData";
 import { appendTrialAttribute, TRIAL_ATTRIBUTE, TRIAL_REGISTERED_ATTRIBUTE } from "@src/utils/deploymentData/v1beta3";
-import { saveDeploymentManifestAndName } from "@src/utils/deploymentLocalDataUtils";
 import { validateDeploymentData } from "@src/utils/deploymentUtils";
 import { Timer } from "@src/utils/timer";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
@@ -73,7 +72,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
   const [sdlDenom, setSdlDenom] = useState("uakt");
   const isAnonymousFreeTrialEnabled = useFlag("anonymous_free_trial");
 
-  const { analyticsService, chainApiHttpClient, appConfig } = useServices();
+  const { analyticsService, chainApiHttpClient, appConfig, deploymentLocalStorage } = useServices();
   const { settings } = useSettings();
   const { address, signAndBroadcastTx, isManaged, isTrialing, isOnboarding } = useWallet();
   const router = useRouter();
@@ -156,16 +155,11 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
     setEditedManifest(value || "");
   }
 
-  async function createAndValidateDeploymentData(
-    yamlStr: string,
-    dseq: string | null = null,
-    deposit = defaultDeposit,
-    depositorAddress: string | null = null
-  ) {
+  async function createAndValidateDeploymentData(yamlStr: string, dseq: string | null = null, deposit = defaultDeposit) {
     try {
       if (!yamlStr) return null;
 
-      const dd = await deploymentData.NewDeploymentData(chainApiHttpClient, yamlStr, dseq, address, deposit, depositorAddress);
+      const dd = await deploymentData.NewDeploymentData(chainApiHttpClient, yamlStr, dseq, address, deposit);
       validateDeploymentData(dd, selectedTemplate);
 
       setSdlDenom(dd.deposit.denom);
@@ -216,18 +210,18 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
     setIsCheckingPrerequisites(false);
 
     if (isManaged) {
-      handleCreateClick(defaultDeposit, appConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS);
+      handleCreateClick(defaultDeposit);
     } else {
       setIsDepositingDeployment(true);
     }
   };
 
-  const onDeploymentDeposit = async (deposit: number, depositorAddress: string) => {
+  const onDeploymentDeposit = async (deposit: number) => {
     setIsDepositingDeployment(false);
-    await handleCreateClick(deposit, depositorAddress);
+    await handleCreateClick(deposit);
   };
 
-  async function handleCreateClick(deposit: number | DepositParams[], depositorAddress: string) {
+  async function handleCreateClick(deposit: number | DepositParams[]) {
     try {
       setIsCreatingDeployment(true);
 
@@ -245,7 +239,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
         }
       }
 
-      const [dd, newCert] = await Promise.all([createAndValidateDeploymentData(sdl, null, deposit, depositorAddress), genNewCertificateIfLocalIsInvalid()]);
+      const [dd, newCert] = await Promise.all([createAndValidateDeploymentData(sdl, null, deposit), genNewCertificateIfLocalIsInvalid()]);
 
       if (!dd) return;
 
@@ -267,8 +261,11 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
 
         setDeploySdl(null);
 
-        // Save the manifest
-        saveDeploymentManifestAndName(dd.deploymentId.dseq, sdl, dd.version, address, deploymentName);
+        deploymentLocalStorage.update(address, dd.deploymentId.dseq, {
+          manifest: sdl,
+          manifestVersion: dd.hash,
+          name: deploymentName
+        });
         router.replace(UrlService.newDeployment({ step: RouteStep.createLeases, dseq: dd.deploymentId.dseq }));
 
         analyticsService.track("create_deployment", {

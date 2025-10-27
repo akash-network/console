@@ -1,5 +1,24 @@
 
 
+## [1.28.1](https://github.com/akash-network/console/compare/provider-console/v1.28.0...provider-console/v1.28.1) (2025-10-27)
+
+
+### Bug Fixes
+
+* **release:** triggers release  ([cd59471](https://github.com/akash-network/console/commit/cd594718d29ec1f7d1de13071fb2e999b5b8a088))
+
+## [1.28.0](https://github.com/akash-network/console/compare/provider-console/v1.27.1...provider-console/v1.28.0) (2025-10-27)
+
+
+### Features
+
+* chain sdk next web ([#2050](https://github.com/akash-network/console/issues/2050)) ([1bc10ea](https://github.com/akash-network/console/commit/1bc10ea201360054e53d65a21f845f22d842352b))
+
+
+### Bug Fixes
+
+* name and right button link to deployment page, not the whole line ([3ea1f04](https://github.com/akash-network/console/commit/3ea1f0433cac42d13ce80d5c8e092519da423963)), closes [#1981](https://github.com/akash-network/console/issues/1981)
+
 ## [1.27.1](https://github.com/akash-network/console/compare/provider-console/v1.27.0...provider-console/v1.27.1) (2025-10-21)
 
 

@@ -65,7 +65,10 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                             "created_at": {
                               "type": "string",
                             },
-                            "deployment_id": {
+                            "hash": {
+                              "type": "string",
+                            },
+                            "id": {
                               "properties": {
                                 "dseq": {
                                   "type": "string",
@@ -83,53 +86,17 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                             "state": {
                               "type": "string",
                             },
-                            "version": {
-                              "type": "string",
-                            },
                           },
                           "required": [
-                            "deployment_id",
+                            "id",
                             "state",
-                            "version",
+                            "hash",
                             "created_at",
                           ],
                           "type": "object",
                         },
                         "escrow_account": {
                           "properties": {
-                            "balance": {
-                              "properties": {
-                                "amount": {
-                                  "type": "string",
-                                },
-                                "denom": {
-                                  "type": "string",
-                                },
-                              },
-                              "required": [
-                                "denom",
-                                "amount",
-                              ],
-                              "type": "object",
-                            },
-                            "depositor": {
-                              "type": "string",
-                            },
-                            "funds": {
-                              "properties": {
-                                "amount": {
-                                  "type": "string",
-                                },
-                                "denom": {
-                                  "type": "string",
-                                },
-                              },
-                              "required": [
-                                "denom",
-                                "amount",
-                              ],
-                              "type": "object",
-                            },
                             "id": {
                               "properties": {
                                 "scope": {
@@ -145,40 +112,106 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                               ],
                               "type": "object",
                             },
-                            "owner": {
-                              "type": "string",
-                            },
-                            "settled_at": {
-                              "type": "string",
-                            },
                             "state": {
-                              "type": "string",
-                            },
-                            "transferred": {
                               "properties": {
-                                "amount": {
+                                "deposits": {
+                                  "items": {
+                                    "properties": {
+                                      "balance": {
+                                        "properties": {
+                                          "amount": {
+                                            "type": "string",
+                                          },
+                                          "denom": {
+                                            "type": "string",
+                                          },
+                                        },
+                                        "required": [
+                                          "denom",
+                                          "amount",
+                                        ],
+                                        "type": "object",
+                                      },
+                                      "height": {
+                                        "type": "string",
+                                      },
+                                      "owner": {
+                                        "type": "string",
+                                      },
+                                      "source": {
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "owner",
+                                      "height",
+                                      "source",
+                                      "balance",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "type": "array",
+                                },
+                                "funds": {
+                                  "items": {
+                                    "properties": {
+                                      "amount": {
+                                        "type": "string",
+                                      },
+                                      "denom": {
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "denom",
+                                      "amount",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "type": "array",
+                                },
+                                "owner": {
                                   "type": "string",
                                 },
-                                "denom": {
+                                "settled_at": {
                                   "type": "string",
+                                },
+                                "state": {
+                                  "type": "string",
+                                },
+                                "transferred": {
+                                  "items": {
+                                    "properties": {
+                                      "amount": {
+                                        "type": "string",
+                                      },
+                                      "denom": {
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "denom",
+                                      "amount",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "type": "array",
                                 },
                               },
                               "required": [
-                                "denom",
-                                "amount",
+                                "owner",
+                                "state",
+                                "transferred",
+                                "settled_at",
+                                "funds",
+                                "deposits",
                               ],
                               "type": "object",
                             },
                           },
                           "required": [
                             "id",
-                            "owner",
                             "state",
-                            "balance",
-                            "transferred",
-                            "settled_at",
-                            "depositor",
-                            "funds",
                           ],
                           "type": "object",
                         },
@@ -187,25 +220,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                             "properties": {
                               "created_at": {
                                 "type": "string",
-                              },
-                              "group_id": {
-                                "properties": {
-                                  "dseq": {
-                                    "type": "string",
-                                  },
-                                  "gseq": {
-                                    "type": "number",
-                                  },
-                                  "owner": {
-                                    "type": "string",
-                                  },
-                                },
-                                "required": [
-                                  "owner",
-                                  "dseq",
-                                  "gseq",
-                                ],
-                                "type": "object",
                               },
                               "group_spec": {
                                 "properties": {
@@ -492,12 +506,31 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                 ],
                                 "type": "object",
                               },
+                              "id": {
+                                "properties": {
+                                  "dseq": {
+                                    "type": "string",
+                                  },
+                                  "gseq": {
+                                    "type": "number",
+                                  },
+                                  "owner": {
+                                    "type": "string",
+                                  },
+                                },
+                                "required": [
+                                  "owner",
+                                  "dseq",
+                                  "gseq",
+                                ],
+                                "type": "object",
+                              },
                               "state": {
                                 "type": "string",
                               },
                             },
                             "required": [
-                              "group_id",
+                              "id",
                               "state",
                               "group_spec",
                               "created_at",
@@ -611,7 +644,10 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                               "created_at": {
                                 "type": "string",
                               },
-                              "deployment_id": {
+                              "hash": {
+                                "type": "string",
+                              },
+                              "id": {
                                 "properties": {
                                   "dseq": {
                                     "type": "string",
@@ -629,53 +665,17 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                               "state": {
                                 "type": "string",
                               },
-                              "version": {
-                                "type": "string",
-                              },
                             },
                             "required": [
-                              "deployment_id",
+                              "id",
                               "state",
-                              "version",
+                              "hash",
                               "created_at",
                             ],
                             "type": "object",
                           },
                           "escrow_account": {
                             "properties": {
-                              "balance": {
-                                "properties": {
-                                  "amount": {
-                                    "type": "string",
-                                  },
-                                  "denom": {
-                                    "type": "string",
-                                  },
-                                },
-                                "required": [
-                                  "denom",
-                                  "amount",
-                                ],
-                                "type": "object",
-                              },
-                              "depositor": {
-                                "type": "string",
-                              },
-                              "funds": {
-                                "properties": {
-                                  "amount": {
-                                    "type": "string",
-                                  },
-                                  "denom": {
-                                    "type": "string",
-                                  },
-                                },
-                                "required": [
-                                  "denom",
-                                  "amount",
-                                ],
-                                "type": "object",
-                              },
                               "id": {
                                 "properties": {
                                   "scope": {
@@ -691,40 +691,106 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                 ],
                                 "type": "object",
                               },
-                              "owner": {
-                                "type": "string",
-                              },
-                              "settled_at": {
-                                "type": "string",
-                              },
                               "state": {
-                                "type": "string",
-                              },
-                              "transferred": {
                                 "properties": {
-                                  "amount": {
+                                  "deposits": {
+                                    "items": {
+                                      "properties": {
+                                        "balance": {
+                                          "properties": {
+                                            "amount": {
+                                              "type": "string",
+                                            },
+                                            "denom": {
+                                              "type": "string",
+                                            },
+                                          },
+                                          "required": [
+                                            "denom",
+                                            "amount",
+                                          ],
+                                          "type": "object",
+                                        },
+                                        "height": {
+                                          "type": "string",
+                                        },
+                                        "owner": {
+                                          "type": "string",
+                                        },
+                                        "source": {
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "owner",
+                                        "height",
+                                        "source",
+                                        "balance",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    "type": "array",
+                                  },
+                                  "funds": {
+                                    "items": {
+                                      "properties": {
+                                        "amount": {
+                                          "type": "string",
+                                        },
+                                        "denom": {
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "denom",
+                                        "amount",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    "type": "array",
+                                  },
+                                  "owner": {
                                     "type": "string",
                                   },
-                                  "denom": {
+                                  "settled_at": {
                                     "type": "string",
+                                  },
+                                  "state": {
+                                    "type": "string",
+                                  },
+                                  "transferred": {
+                                    "items": {
+                                      "properties": {
+                                        "amount": {
+                                          "type": "string",
+                                        },
+                                        "denom": {
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "denom",
+                                        "amount",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    "type": "array",
                                   },
                                 },
                                 "required": [
-                                  "denom",
-                                  "amount",
+                                  "owner",
+                                  "state",
+                                  "transferred",
+                                  "settled_at",
+                                  "funds",
+                                  "deposits",
                                 ],
                                 "type": "object",
                               },
                             },
                             "required": [
                               "id",
-                              "owner",
                               "state",
-                              "balance",
-                              "transferred",
-                              "settled_at",
-                              "depositor",
-                              "funds",
                             ],
                             "type": "object",
                           },
@@ -733,25 +799,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                               "properties": {
                                 "created_at": {
                                   "type": "string",
-                                },
-                                "group_id": {
-                                  "properties": {
-                                    "dseq": {
-                                      "type": "string",
-                                    },
-                                    "gseq": {
-                                      "type": "number",
-                                    },
-                                    "owner": {
-                                      "type": "string",
-                                    },
-                                  },
-                                  "required": [
-                                    "owner",
-                                    "dseq",
-                                    "gseq",
-                                  ],
-                                  "type": "object",
                                 },
                                 "group_spec": {
                                   "properties": {
@@ -1038,12 +1085,31 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                   ],
                                   "type": "object",
                                 },
+                                "id": {
+                                  "properties": {
+                                    "dseq": {
+                                      "type": "string",
+                                    },
+                                    "gseq": {
+                                      "type": "number",
+                                    },
+                                    "owner": {
+                                      "type": "string",
+                                    },
+                                  },
+                                  "required": [
+                                    "owner",
+                                    "dseq",
+                                    "gseq",
+                                  ],
+                                  "type": "object",
+                                },
                                 "state": {
                                   "type": "string",
                                 },
                               },
                               "required": [
-                                "group_id",
+                                "id",
                                 "state",
                                 "group_spec",
                                 "created_at",
@@ -1204,84 +1270,116 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                         "properties": {
                           "escrow_payment": {
                             "properties": {
-                              "account_id": {
+                              "id": {
                                 "properties": {
-                                  "scope": {
-                                    "type": "string",
+                                  "aid": {
+                                    "properties": {
+                                      "scope": {
+                                        "type": "string",
+                                      },
+                                      "xid": {
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "scope",
+                                      "xid",
+                                    ],
+                                    "type": "object",
                                   },
                                   "xid": {
                                     "type": "string",
                                   },
                                 },
                                 "required": [
-                                  "scope",
+                                  "aid",
                                   "xid",
                                 ],
                                 "type": "object",
                               },
-                              "balance": {
-                                "properties": {
-                                  "amount": {
-                                    "type": "string",
-                                  },
-                                  "denom": {
-                                    "type": "string",
-                                  },
-                                },
-                                "required": [
-                                  "denom",
-                                  "amount",
-                                ],
-                                "type": "object",
-                              },
-                              "owner": {
-                                "type": "string",
-                              },
-                              "payment_id": {
-                                "type": "string",
-                              },
-                              "rate": {
-                                "properties": {
-                                  "amount": {
-                                    "type": "string",
-                                  },
-                                  "denom": {
-                                    "type": "string",
-                                  },
-                                },
-                                "required": [
-                                  "denom",
-                                  "amount",
-                                ],
-                                "type": "object",
-                              },
                               "state": {
-                                "type": "string",
-                              },
-                              "withdrawn": {
                                 "properties": {
-                                  "amount": {
+                                  "balance": {
+                                    "properties": {
+                                      "amount": {
+                                        "type": "string",
+                                      },
+                                      "denom": {
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "denom",
+                                      "amount",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "owner": {
                                     "type": "string",
                                   },
-                                  "denom": {
+                                  "rate": {
+                                    "properties": {
+                                      "amount": {
+                                        "type": "string",
+                                      },
+                                      "denom": {
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "denom",
+                                      "amount",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "state": {
                                     "type": "string",
+                                  },
+                                  "unsettled": {
+                                    "properties": {
+                                      "amount": {
+                                        "type": "string",
+                                      },
+                                      "denom": {
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "denom",
+                                      "amount",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "withdrawn": {
+                                    "properties": {
+                                      "amount": {
+                                        "type": "string",
+                                      },
+                                      "denom": {
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "denom",
+                                      "amount",
+                                    ],
+                                    "type": "object",
                                   },
                                 },
                                 "required": [
-                                  "denom",
-                                  "amount",
+                                  "owner",
+                                  "state",
+                                  "rate",
+                                  "balance",
+                                  "unsettled",
+                                  "withdrawn",
                                 ],
                                 "type": "object",
                               },
                             },
                             "required": [
-                              "account_id",
-                              "payment_id",
-                              "owner",
+                              "id",
                               "state",
-                              "rate",
-                              "balance",
-                              "withdrawn",
                             ],
                             "type": "object",
                           },
@@ -1293,8 +1391,11 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                               "created_at": {
                                 "type": "string",
                               },
-                              "lease_id": {
+                              "id": {
                                 "properties": {
+                                  "bseq": {
+                                    "type": "number",
+                                  },
                                   "dseq": {
                                     "type": "string",
                                   },
@@ -1317,6 +1418,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                   "gseq",
                                   "oseq",
                                   "provider",
+                                  "bseq",
                                 ],
                                 "type": "object",
                               },
@@ -1335,12 +1437,15 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                 ],
                                 "type": "object",
                               },
+                              "reason": {
+                                "type": "string",
+                              },
                               "state": {
                                 "type": "string",
                               },
                             },
                             "required": [
-                              "lease_id",
+                              "id",
                               "state",
                               "price",
                               "created_at",
@@ -2633,8 +2738,14 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                         "properties": {
                           "bid": {
                             "properties": {
-                              "bid_id": {
+                              "created_at": {
+                                "type": "string",
+                              },
+                              "id": {
                                 "properties": {
+                                  "bseq": {
+                                    "type": "number",
+                                  },
                                   "dseq": {
                                     "type": "string",
                                   },
@@ -2657,11 +2768,9 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                   "gseq",
                                   "oseq",
                                   "provider",
+                                  "bseq",
                                 ],
                                 "type": "object",
-                              },
-                              "created_at": {
-                                "type": "string",
                               },
                               "price": {
                                 "properties": {
@@ -2887,7 +2996,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                               },
                             },
                             "required": [
-                              "bid_id",
+                              "id",
                               "state",
                               "price",
                               "created_at",
@@ -2897,39 +3006,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                           },
                           "escrow_account": {
                             "properties": {
-                              "balance": {
-                                "properties": {
-                                  "amount": {
-                                    "type": "string",
-                                  },
-                                  "denom": {
-                                    "type": "string",
-                                  },
-                                },
-                                "required": [
-                                  "denom",
-                                  "amount",
-                                ],
-                                "type": "object",
-                              },
-                              "depositor": {
-                                "type": "string",
-                              },
-                              "funds": {
-                                "properties": {
-                                  "amount": {
-                                    "type": "string",
-                                  },
-                                  "denom": {
-                                    "type": "string",
-                                  },
-                                },
-                                "required": [
-                                  "denom",
-                                  "amount",
-                                ],
-                                "type": "object",
-                              },
                               "id": {
                                 "properties": {
                                   "scope": {
@@ -2945,40 +3021,106 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                 ],
                                 "type": "object",
                               },
-                              "owner": {
-                                "type": "string",
-                              },
-                              "settled_at": {
-                                "type": "string",
-                              },
                               "state": {
-                                "type": "string",
-                              },
-                              "transferred": {
                                 "properties": {
-                                  "amount": {
+                                  "deposits": {
+                                    "items": {
+                                      "properties": {
+                                        "balance": {
+                                          "properties": {
+                                            "amount": {
+                                              "type": "string",
+                                            },
+                                            "denom": {
+                                              "type": "string",
+                                            },
+                                          },
+                                          "required": [
+                                            "denom",
+                                            "amount",
+                                          ],
+                                          "type": "object",
+                                        },
+                                        "height": {
+                                          "type": "string",
+                                        },
+                                        "owner": {
+                                          "type": "string",
+                                        },
+                                        "source": {
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "owner",
+                                        "height",
+                                        "source",
+                                        "balance",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    "type": "array",
+                                  },
+                                  "funds": {
+                                    "items": {
+                                      "properties": {
+                                        "amount": {
+                                          "type": "string",
+                                        },
+                                        "denom": {
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "denom",
+                                        "amount",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    "type": "array",
+                                  },
+                                  "owner": {
                                     "type": "string",
                                   },
-                                  "denom": {
+                                  "settled_at": {
                                     "type": "string",
+                                  },
+                                  "state": {
+                                    "type": "string",
+                                  },
+                                  "transferred": {
+                                    "items": {
+                                      "properties": {
+                                        "amount": {
+                                          "type": "string",
+                                        },
+                                        "denom": {
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "denom",
+                                        "amount",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    "type": "array",
                                   },
                                 },
                                 "required": [
-                                  "denom",
-                                  "amount",
+                                  "owner",
+                                  "state",
+                                  "transferred",
+                                  "settled_at",
+                                  "funds",
+                                  "deposits",
                                 ],
                                 "type": "object",
                               },
                             },
                             "required": [
                               "id",
-                              "owner",
                               "state",
-                              "balance",
-                              "transferred",
-                              "settled_at",
-                              "depositor",
-                              "funds",
                             ],
                             "type": "object",
                           },
@@ -3035,8 +3177,14 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                         "properties": {
                           "bid": {
                             "properties": {
-                              "bid_id": {
+                              "created_at": {
+                                "type": "string",
+                              },
+                              "id": {
                                 "properties": {
+                                  "bseq": {
+                                    "type": "number",
+                                  },
                                   "dseq": {
                                     "type": "string",
                                   },
@@ -3059,11 +3207,9 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                   "gseq",
                                   "oseq",
                                   "provider",
+                                  "bseq",
                                 ],
                                 "type": "object",
-                              },
-                              "created_at": {
-                                "type": "string",
                               },
                               "price": {
                                 "properties": {
@@ -3289,7 +3435,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                               },
                             },
                             "required": [
-                              "bid_id",
+                              "id",
                               "state",
                               "price",
                               "created_at",
@@ -3299,39 +3445,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                           },
                           "escrow_account": {
                             "properties": {
-                              "balance": {
-                                "properties": {
-                                  "amount": {
-                                    "type": "string",
-                                  },
-                                  "denom": {
-                                    "type": "string",
-                                  },
-                                },
-                                "required": [
-                                  "denom",
-                                  "amount",
-                                ],
-                                "type": "object",
-                              },
-                              "depositor": {
-                                "type": "string",
-                              },
-                              "funds": {
-                                "properties": {
-                                  "amount": {
-                                    "type": "string",
-                                  },
-                                  "denom": {
-                                    "type": "string",
-                                  },
-                                },
-                                "required": [
-                                  "denom",
-                                  "amount",
-                                ],
-                                "type": "object",
-                              },
                               "id": {
                                 "properties": {
                                   "scope": {
@@ -3347,40 +3460,106 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                 ],
                                 "type": "object",
                               },
-                              "owner": {
-                                "type": "string",
-                              },
-                              "settled_at": {
-                                "type": "string",
-                              },
                               "state": {
-                                "type": "string",
-                              },
-                              "transferred": {
                                 "properties": {
-                                  "amount": {
+                                  "deposits": {
+                                    "items": {
+                                      "properties": {
+                                        "balance": {
+                                          "properties": {
+                                            "amount": {
+                                              "type": "string",
+                                            },
+                                            "denom": {
+                                              "type": "string",
+                                            },
+                                          },
+                                          "required": [
+                                            "denom",
+                                            "amount",
+                                          ],
+                                          "type": "object",
+                                        },
+                                        "height": {
+                                          "type": "string",
+                                        },
+                                        "owner": {
+                                          "type": "string",
+                                        },
+                                        "source": {
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "owner",
+                                        "height",
+                                        "source",
+                                        "balance",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    "type": "array",
+                                  },
+                                  "funds": {
+                                    "items": {
+                                      "properties": {
+                                        "amount": {
+                                          "type": "string",
+                                        },
+                                        "denom": {
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "denom",
+                                        "amount",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    "type": "array",
+                                  },
+                                  "owner": {
                                     "type": "string",
                                   },
-                                  "denom": {
+                                  "settled_at": {
                                     "type": "string",
+                                  },
+                                  "state": {
+                                    "type": "string",
+                                  },
+                                  "transferred": {
+                                    "items": {
+                                      "properties": {
+                                        "amount": {
+                                          "type": "string",
+                                        },
+                                        "denom": {
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "denom",
+                                        "amount",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    "type": "array",
                                   },
                                 },
                                 "required": [
-                                  "denom",
-                                  "amount",
+                                  "owner",
+                                  "state",
+                                  "transferred",
+                                  "settled_at",
+                                  "funds",
+                                  "deposits",
                                 ],
                                 "type": "object",
                               },
                             },
                             "required": [
                               "id",
-                              "owner",
                               "state",
-                              "balance",
-                              "transferred",
-                              "settled_at",
-                              "depositor",
-                              "funds",
                             ],
                             "type": "object",
                           },
@@ -4773,7 +4952,10 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                             "created_at": {
                               "type": "string",
                             },
-                            "deployment_id": {
+                            "hash": {
+                              "type": "string",
+                            },
+                            "id": {
                               "properties": {
                                 "dseq": {
                                   "type": "string",
@@ -4791,53 +4973,17 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                             "state": {
                               "type": "string",
                             },
-                            "version": {
-                              "type": "string",
-                            },
                           },
                           "required": [
-                            "deployment_id",
+                            "id",
                             "state",
-                            "version",
+                            "hash",
                             "created_at",
                           ],
                           "type": "object",
                         },
                         "escrow_account": {
                           "properties": {
-                            "balance": {
-                              "properties": {
-                                "amount": {
-                                  "type": "string",
-                                },
-                                "denom": {
-                                  "type": "string",
-                                },
-                              },
-                              "required": [
-                                "denom",
-                                "amount",
-                              ],
-                              "type": "object",
-                            },
-                            "depositor": {
-                              "type": "string",
-                            },
-                            "funds": {
-                              "properties": {
-                                "amount": {
-                                  "type": "string",
-                                },
-                                "denom": {
-                                  "type": "string",
-                                },
-                              },
-                              "required": [
-                                "denom",
-                                "amount",
-                              ],
-                              "type": "object",
-                            },
                             "id": {
                               "properties": {
                                 "scope": {
@@ -4853,40 +4999,106 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                               ],
                               "type": "object",
                             },
-                            "owner": {
-                              "type": "string",
-                            },
-                            "settled_at": {
-                              "type": "string",
-                            },
                             "state": {
-                              "type": "string",
-                            },
-                            "transferred": {
                               "properties": {
-                                "amount": {
+                                "deposits": {
+                                  "items": {
+                                    "properties": {
+                                      "balance": {
+                                        "properties": {
+                                          "amount": {
+                                            "type": "string",
+                                          },
+                                          "denom": {
+                                            "type": "string",
+                                          },
+                                        },
+                                        "required": [
+                                          "denom",
+                                          "amount",
+                                        ],
+                                        "type": "object",
+                                      },
+                                      "height": {
+                                        "type": "string",
+                                      },
+                                      "owner": {
+                                        "type": "string",
+                                      },
+                                      "source": {
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "owner",
+                                      "height",
+                                      "source",
+                                      "balance",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "type": "array",
+                                },
+                                "funds": {
+                                  "items": {
+                                    "properties": {
+                                      "amount": {
+                                        "type": "string",
+                                      },
+                                      "denom": {
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "denom",
+                                      "amount",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "type": "array",
+                                },
+                                "owner": {
                                   "type": "string",
                                 },
-                                "denom": {
+                                "settled_at": {
                                   "type": "string",
+                                },
+                                "state": {
+                                  "type": "string",
+                                },
+                                "transferred": {
+                                  "items": {
+                                    "properties": {
+                                      "amount": {
+                                        "type": "string",
+                                      },
+                                      "denom": {
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "denom",
+                                      "amount",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "type": "array",
                                 },
                               },
                               "required": [
-                                "denom",
-                                "amount",
+                                "owner",
+                                "state",
+                                "transferred",
+                                "settled_at",
+                                "funds",
+                                "deposits",
                               ],
                               "type": "object",
                             },
                           },
                           "required": [
                             "id",
-                            "owner",
                             "state",
-                            "balance",
-                            "transferred",
-                            "settled_at",
-                            "depositor",
-                            "funds",
                           ],
                           "type": "object",
                         },
@@ -4895,25 +5107,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                             "properties": {
                               "created_at": {
                                 "type": "string",
-                              },
-                              "group_id": {
-                                "properties": {
-                                  "dseq": {
-                                    "type": "string",
-                                  },
-                                  "gseq": {
-                                    "type": "number",
-                                  },
-                                  "owner": {
-                                    "type": "string",
-                                  },
-                                },
-                                "required": [
-                                  "owner",
-                                  "dseq",
-                                  "gseq",
-                                ],
-                                "type": "object",
                               },
                               "group_spec": {
                                 "properties": {
@@ -5200,12 +5393,31 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                 ],
                                 "type": "object",
                               },
+                              "id": {
+                                "properties": {
+                                  "dseq": {
+                                    "type": "string",
+                                  },
+                                  "gseq": {
+                                    "type": "number",
+                                  },
+                                  "owner": {
+                                    "type": "string",
+                                  },
+                                },
+                                "required": [
+                                  "owner",
+                                  "dseq",
+                                  "gseq",
+                                ],
+                                "type": "object",
+                              },
                               "state": {
                                 "type": "string",
                               },
                             },
                             "required": [
-                              "group_id",
+                              "id",
                               "state",
                               "group_spec",
                               "created_at",
@@ -5302,7 +5514,10 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                   "created_at": {
                                     "type": "string",
                                   },
-                                  "deployment_id": {
+                                  "hash": {
+                                    "type": "string",
+                                  },
+                                  "id": {
                                     "properties": {
                                       "dseq": {
                                         "type": "string",
@@ -5320,53 +5535,17 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                   "state": {
                                     "type": "string",
                                   },
-                                  "version": {
-                                    "type": "string",
-                                  },
                                 },
                                 "required": [
-                                  "deployment_id",
+                                  "id",
                                   "state",
-                                  "version",
+                                  "hash",
                                   "created_at",
                                 ],
                                 "type": "object",
                               },
                               "escrow_account": {
                                 "properties": {
-                                  "balance": {
-                                    "properties": {
-                                      "amount": {
-                                        "type": "string",
-                                      },
-                                      "denom": {
-                                        "type": "string",
-                                      },
-                                    },
-                                    "required": [
-                                      "denom",
-                                      "amount",
-                                    ],
-                                    "type": "object",
-                                  },
-                                  "depositor": {
-                                    "type": "string",
-                                  },
-                                  "funds": {
-                                    "properties": {
-                                      "amount": {
-                                        "type": "string",
-                                      },
-                                      "denom": {
-                                        "type": "string",
-                                      },
-                                    },
-                                    "required": [
-                                      "denom",
-                                      "amount",
-                                    ],
-                                    "type": "object",
-                                  },
                                   "id": {
                                     "properties": {
                                       "scope": {
@@ -5382,40 +5561,106 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                     ],
                                     "type": "object",
                                   },
-                                  "owner": {
-                                    "type": "string",
-                                  },
-                                  "settled_at": {
-                                    "type": "string",
-                                  },
                                   "state": {
-                                    "type": "string",
-                                  },
-                                  "transferred": {
                                     "properties": {
-                                      "amount": {
+                                      "deposits": {
+                                        "items": {
+                                          "properties": {
+                                            "balance": {
+                                              "properties": {
+                                                "amount": {
+                                                  "type": "string",
+                                                },
+                                                "denom": {
+                                                  "type": "string",
+                                                },
+                                              },
+                                              "required": [
+                                                "denom",
+                                                "amount",
+                                              ],
+                                              "type": "object",
+                                            },
+                                            "height": {
+                                              "type": "string",
+                                            },
+                                            "owner": {
+                                              "type": "string",
+                                            },
+                                            "source": {
+                                              "type": "string",
+                                            },
+                                          },
+                                          "required": [
+                                            "owner",
+                                            "height",
+                                            "source",
+                                            "balance",
+                                          ],
+                                          "type": "object",
+                                        },
+                                        "type": "array",
+                                      },
+                                      "funds": {
+                                        "items": {
+                                          "properties": {
+                                            "amount": {
+                                              "type": "string",
+                                            },
+                                            "denom": {
+                                              "type": "string",
+                                            },
+                                          },
+                                          "required": [
+                                            "denom",
+                                            "amount",
+                                          ],
+                                          "type": "object",
+                                        },
+                                        "type": "array",
+                                      },
+                                      "owner": {
                                         "type": "string",
                                       },
-                                      "denom": {
+                                      "settled_at": {
                                         "type": "string",
+                                      },
+                                      "state": {
+                                        "type": "string",
+                                      },
+                                      "transferred": {
+                                        "items": {
+                                          "properties": {
+                                            "amount": {
+                                              "type": "string",
+                                            },
+                                            "denom": {
+                                              "type": "string",
+                                            },
+                                          },
+                                          "required": [
+                                            "denom",
+                                            "amount",
+                                          ],
+                                          "type": "object",
+                                        },
+                                        "type": "array",
                                       },
                                     },
                                     "required": [
-                                      "denom",
-                                      "amount",
+                                      "owner",
+                                      "state",
+                                      "transferred",
+                                      "settled_at",
+                                      "funds",
+                                      "deposits",
                                     ],
                                     "type": "object",
                                   },
                                 },
                                 "required": [
                                   "id",
-                                  "owner",
                                   "state",
-                                  "balance",
-                                  "transferred",
-                                  "settled_at",
-                                  "depositor",
-                                  "funds",
                                 ],
                                 "type": "object",
                               },
@@ -5428,8 +5673,11 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                     "created_at": {
                                       "type": "string",
                                     },
-                                    "lease_id": {
+                                    "id": {
                                       "properties": {
+                                        "bseq": {
+                                          "type": "number",
+                                        },
                                         "dseq": {
                                           "type": "string",
                                         },
@@ -5452,6 +5700,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                         "gseq",
                                         "oseq",
                                         "provider",
+                                        "bseq",
                                       ],
                                       "type": "object",
                                     },
@@ -5469,6 +5718,9 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                         "amount",
                                       ],
                                       "type": "object",
+                                    },
+                                    "reason": {
+                                      "type": "string",
                                     },
                                     "state": {
                                       "type": "string",
@@ -5591,7 +5843,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                     },
                                   },
                                   "required": [
-                                    "lease_id",
+                                    "id",
                                     "state",
                                     "price",
                                     "created_at",
@@ -5818,7 +6070,10 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                             "created_at": {
                               "type": "string",
                             },
-                            "deployment_id": {
+                            "hash": {
+                              "type": "string",
+                            },
+                            "id": {
                               "properties": {
                                 "dseq": {
                                   "type": "string",
@@ -5836,53 +6091,17 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                             "state": {
                               "type": "string",
                             },
-                            "version": {
-                              "type": "string",
-                            },
                           },
                           "required": [
-                            "deployment_id",
+                            "id",
                             "state",
-                            "version",
+                            "hash",
                             "created_at",
                           ],
                           "type": "object",
                         },
                         "escrow_account": {
                           "properties": {
-                            "balance": {
-                              "properties": {
-                                "amount": {
-                                  "type": "string",
-                                },
-                                "denom": {
-                                  "type": "string",
-                                },
-                              },
-                              "required": [
-                                "denom",
-                                "amount",
-                              ],
-                              "type": "object",
-                            },
-                            "depositor": {
-                              "type": "string",
-                            },
-                            "funds": {
-                              "properties": {
-                                "amount": {
-                                  "type": "string",
-                                },
-                                "denom": {
-                                  "type": "string",
-                                },
-                              },
-                              "required": [
-                                "denom",
-                                "amount",
-                              ],
-                              "type": "object",
-                            },
                             "id": {
                               "properties": {
                                 "scope": {
@@ -5898,40 +6117,106 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                               ],
                               "type": "object",
                             },
-                            "owner": {
-                              "type": "string",
-                            },
-                            "settled_at": {
-                              "type": "string",
-                            },
                             "state": {
-                              "type": "string",
-                            },
-                            "transferred": {
                               "properties": {
-                                "amount": {
+                                "deposits": {
+                                  "items": {
+                                    "properties": {
+                                      "balance": {
+                                        "properties": {
+                                          "amount": {
+                                            "type": "string",
+                                          },
+                                          "denom": {
+                                            "type": "string",
+                                          },
+                                        },
+                                        "required": [
+                                          "denom",
+                                          "amount",
+                                        ],
+                                        "type": "object",
+                                      },
+                                      "height": {
+                                        "type": "string",
+                                      },
+                                      "owner": {
+                                        "type": "string",
+                                      },
+                                      "source": {
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "owner",
+                                      "height",
+                                      "source",
+                                      "balance",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "type": "array",
+                                },
+                                "funds": {
+                                  "items": {
+                                    "properties": {
+                                      "amount": {
+                                        "type": "string",
+                                      },
+                                      "denom": {
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "denom",
+                                      "amount",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "type": "array",
+                                },
+                                "owner": {
                                   "type": "string",
                                 },
-                                "denom": {
+                                "settled_at": {
                                   "type": "string",
+                                },
+                                "state": {
+                                  "type": "string",
+                                },
+                                "transferred": {
+                                  "items": {
+                                    "properties": {
+                                      "amount": {
+                                        "type": "string",
+                                      },
+                                      "denom": {
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "denom",
+                                      "amount",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "type": "array",
                                 },
                               },
                               "required": [
-                                "denom",
-                                "amount",
+                                "owner",
+                                "state",
+                                "transferred",
+                                "settled_at",
+                                "funds",
+                                "deposits",
                               ],
                               "type": "object",
                             },
                           },
                           "required": [
                             "id",
-                            "owner",
                             "state",
-                            "balance",
-                            "transferred",
-                            "settled_at",
-                            "depositor",
-                            "funds",
                           ],
                           "type": "object",
                         },
@@ -5944,8 +6229,11 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                               "created_at": {
                                 "type": "string",
                               },
-                              "lease_id": {
+                              "id": {
                                 "properties": {
+                                  "bseq": {
+                                    "type": "number",
+                                  },
                                   "dseq": {
                                     "type": "string",
                                   },
@@ -5968,6 +6256,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                   "gseq",
                                   "oseq",
                                   "provider",
+                                  "bseq",
                                 ],
                                 "type": "object",
                               },
@@ -5985,6 +6274,9 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                   "amount",
                                 ],
                                 "type": "object",
+                              },
+                              "reason": {
+                                "type": "string",
                               },
                               "state": {
                                 "type": "string",
@@ -6107,7 +6399,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                               },
                             },
                             "required": [
-                              "lease_id",
+                              "id",
                               "state",
                               "price",
                               "created_at",
@@ -6208,7 +6500,10 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                             "created_at": {
                               "type": "string",
                             },
-                            "deployment_id": {
+                            "hash": {
+                              "type": "string",
+                            },
+                            "id": {
                               "properties": {
                                 "dseq": {
                                   "type": "string",
@@ -6226,53 +6521,17 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                             "state": {
                               "type": "string",
                             },
-                            "version": {
-                              "type": "string",
-                            },
                           },
                           "required": [
-                            "deployment_id",
+                            "id",
                             "state",
-                            "version",
+                            "hash",
                             "created_at",
                           ],
                           "type": "object",
                         },
                         "escrow_account": {
                           "properties": {
-                            "balance": {
-                              "properties": {
-                                "amount": {
-                                  "type": "string",
-                                },
-                                "denom": {
-                                  "type": "string",
-                                },
-                              },
-                              "required": [
-                                "denom",
-                                "amount",
-                              ],
-                              "type": "object",
-                            },
-                            "depositor": {
-                              "type": "string",
-                            },
-                            "funds": {
-                              "properties": {
-                                "amount": {
-                                  "type": "string",
-                                },
-                                "denom": {
-                                  "type": "string",
-                                },
-                              },
-                              "required": [
-                                "denom",
-                                "amount",
-                              ],
-                              "type": "object",
-                            },
                             "id": {
                               "properties": {
                                 "scope": {
@@ -6288,40 +6547,106 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                               ],
                               "type": "object",
                             },
-                            "owner": {
-                              "type": "string",
-                            },
-                            "settled_at": {
-                              "type": "string",
-                            },
                             "state": {
-                              "type": "string",
-                            },
-                            "transferred": {
                               "properties": {
-                                "amount": {
+                                "deposits": {
+                                  "items": {
+                                    "properties": {
+                                      "balance": {
+                                        "properties": {
+                                          "amount": {
+                                            "type": "string",
+                                          },
+                                          "denom": {
+                                            "type": "string",
+                                          },
+                                        },
+                                        "required": [
+                                          "denom",
+                                          "amount",
+                                        ],
+                                        "type": "object",
+                                      },
+                                      "height": {
+                                        "type": "string",
+                                      },
+                                      "owner": {
+                                        "type": "string",
+                                      },
+                                      "source": {
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "owner",
+                                      "height",
+                                      "source",
+                                      "balance",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "type": "array",
+                                },
+                                "funds": {
+                                  "items": {
+                                    "properties": {
+                                      "amount": {
+                                        "type": "string",
+                                      },
+                                      "denom": {
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "denom",
+                                      "amount",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "type": "array",
+                                },
+                                "owner": {
                                   "type": "string",
                                 },
-                                "denom": {
+                                "settled_at": {
                                   "type": "string",
+                                },
+                                "state": {
+                                  "type": "string",
+                                },
+                                "transferred": {
+                                  "items": {
+                                    "properties": {
+                                      "amount": {
+                                        "type": "string",
+                                      },
+                                      "denom": {
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "denom",
+                                      "amount",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "type": "array",
                                 },
                               },
                               "required": [
-                                "denom",
-                                "amount",
+                                "owner",
+                                "state",
+                                "transferred",
+                                "settled_at",
+                                "funds",
+                                "deposits",
                               ],
                               "type": "object",
                             },
                           },
                           "required": [
                             "id",
-                            "owner",
                             "state",
-                            "balance",
-                            "transferred",
-                            "settled_at",
-                            "depositor",
-                            "funds",
                           ],
                           "type": "object",
                         },
@@ -6334,8 +6659,11 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                               "created_at": {
                                 "type": "string",
                               },
-                              "lease_id": {
+                              "id": {
                                 "properties": {
+                                  "bseq": {
+                                    "type": "number",
+                                  },
                                   "dseq": {
                                     "type": "string",
                                   },
@@ -6358,6 +6686,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                   "gseq",
                                   "oseq",
                                   "provider",
+                                  "bseq",
                                 ],
                                 "type": "object",
                               },
@@ -6375,6 +6704,9 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                   "amount",
                                 ],
                                 "type": "object",
+                              },
+                              "reason": {
+                                "type": "string",
                               },
                               "state": {
                                 "type": "string",
@@ -6497,7 +6829,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                               },
                             },
                             "required": [
-                              "lease_id",
+                              "id",
                               "state",
                               "price",
                               "created_at",
@@ -6579,7 +6911,10 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                             "created_at": {
                               "type": "string",
                             },
-                            "deployment_id": {
+                            "hash": {
+                              "type": "string",
+                            },
+                            "id": {
                               "properties": {
                                 "dseq": {
                                   "type": "string",
@@ -6597,53 +6932,17 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                             "state": {
                               "type": "string",
                             },
-                            "version": {
-                              "type": "string",
-                            },
                           },
                           "required": [
-                            "deployment_id",
+                            "id",
                             "state",
-                            "version",
+                            "hash",
                             "created_at",
                           ],
                           "type": "object",
                         },
                         "escrow_account": {
                           "properties": {
-                            "balance": {
-                              "properties": {
-                                "amount": {
-                                  "type": "string",
-                                },
-                                "denom": {
-                                  "type": "string",
-                                },
-                              },
-                              "required": [
-                                "denom",
-                                "amount",
-                              ],
-                              "type": "object",
-                            },
-                            "depositor": {
-                              "type": "string",
-                            },
-                            "funds": {
-                              "properties": {
-                                "amount": {
-                                  "type": "string",
-                                },
-                                "denom": {
-                                  "type": "string",
-                                },
-                              },
-                              "required": [
-                                "denom",
-                                "amount",
-                              ],
-                              "type": "object",
-                            },
                             "id": {
                               "properties": {
                                 "scope": {
@@ -6659,40 +6958,106 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                               ],
                               "type": "object",
                             },
-                            "owner": {
-                              "type": "string",
-                            },
-                            "settled_at": {
-                              "type": "string",
-                            },
                             "state": {
-                              "type": "string",
-                            },
-                            "transferred": {
                               "properties": {
-                                "amount": {
+                                "deposits": {
+                                  "items": {
+                                    "properties": {
+                                      "balance": {
+                                        "properties": {
+                                          "amount": {
+                                            "type": "string",
+                                          },
+                                          "denom": {
+                                            "type": "string",
+                                          },
+                                        },
+                                        "required": [
+                                          "denom",
+                                          "amount",
+                                        ],
+                                        "type": "object",
+                                      },
+                                      "height": {
+                                        "type": "string",
+                                      },
+                                      "owner": {
+                                        "type": "string",
+                                      },
+                                      "source": {
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "owner",
+                                      "height",
+                                      "source",
+                                      "balance",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "type": "array",
+                                },
+                                "funds": {
+                                  "items": {
+                                    "properties": {
+                                      "amount": {
+                                        "type": "string",
+                                      },
+                                      "denom": {
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "denom",
+                                      "amount",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "type": "array",
+                                },
+                                "owner": {
                                   "type": "string",
                                 },
-                                "denom": {
+                                "settled_at": {
                                   "type": "string",
+                                },
+                                "state": {
+                                  "type": "string",
+                                },
+                                "transferred": {
+                                  "items": {
+                                    "properties": {
+                                      "amount": {
+                                        "type": "string",
+                                      },
+                                      "denom": {
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "denom",
+                                      "amount",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "type": "array",
                                 },
                               },
                               "required": [
-                                "denom",
-                                "amount",
+                                "owner",
+                                "state",
+                                "transferred",
+                                "settled_at",
+                                "funds",
+                                "deposits",
                               ],
                               "type": "object",
                             },
                           },
                           "required": [
                             "id",
-                            "owner",
                             "state",
-                            "balance",
-                            "transferred",
-                            "settled_at",
-                            "depositor",
-                            "funds",
                           ],
                           "type": "object",
                         },
@@ -6705,8 +7070,11 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                               "created_at": {
                                 "type": "string",
                               },
-                              "lease_id": {
+                              "id": {
                                 "properties": {
+                                  "bseq": {
+                                    "type": "number",
+                                  },
                                   "dseq": {
                                     "type": "string",
                                   },
@@ -6729,6 +7097,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                   "gseq",
                                   "oseq",
                                   "provider",
+                                  "bseq",
                                 ],
                                 "type": "object",
                               },
@@ -6746,6 +7115,9 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                   "amount",
                                 ],
                                 "type": "object",
+                              },
+                              "reason": {
+                                "type": "string",
                               },
                               "state": {
                                 "type": "string",
@@ -6868,7 +7240,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                               },
                             },
                             "required": [
-                              "lease_id",
+                              "id",
                               "state",
                               "price",
                               "created_at",
@@ -7449,7 +7821,10 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                             "created_at": {
                               "type": "string",
                             },
-                            "deployment_id": {
+                            "hash": {
+                              "type": "string",
+                            },
+                            "id": {
                               "properties": {
                                 "dseq": {
                                   "type": "string",
@@ -7467,53 +7842,17 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                             "state": {
                               "type": "string",
                             },
-                            "version": {
-                              "type": "string",
-                            },
                           },
                           "required": [
-                            "deployment_id",
+                            "id",
                             "state",
-                            "version",
+                            "hash",
                             "created_at",
                           ],
                           "type": "object",
                         },
                         "escrow_account": {
                           "properties": {
-                            "balance": {
-                              "properties": {
-                                "amount": {
-                                  "type": "string",
-                                },
-                                "denom": {
-                                  "type": "string",
-                                },
-                              },
-                              "required": [
-                                "denom",
-                                "amount",
-                              ],
-                              "type": "object",
-                            },
-                            "depositor": {
-                              "type": "string",
-                            },
-                            "funds": {
-                              "properties": {
-                                "amount": {
-                                  "type": "string",
-                                },
-                                "denom": {
-                                  "type": "string",
-                                },
-                              },
-                              "required": [
-                                "denom",
-                                "amount",
-                              ],
-                              "type": "object",
-                            },
                             "id": {
                               "properties": {
                                 "scope": {
@@ -7529,40 +7868,106 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                               ],
                               "type": "object",
                             },
-                            "owner": {
-                              "type": "string",
-                            },
-                            "settled_at": {
-                              "type": "string",
-                            },
                             "state": {
-                              "type": "string",
-                            },
-                            "transferred": {
                               "properties": {
-                                "amount": {
+                                "deposits": {
+                                  "items": {
+                                    "properties": {
+                                      "balance": {
+                                        "properties": {
+                                          "amount": {
+                                            "type": "string",
+                                          },
+                                          "denom": {
+                                            "type": "string",
+                                          },
+                                        },
+                                        "required": [
+                                          "denom",
+                                          "amount",
+                                        ],
+                                        "type": "object",
+                                      },
+                                      "height": {
+                                        "type": "string",
+                                      },
+                                      "owner": {
+                                        "type": "string",
+                                      },
+                                      "source": {
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "owner",
+                                      "height",
+                                      "source",
+                                      "balance",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "type": "array",
+                                },
+                                "funds": {
+                                  "items": {
+                                    "properties": {
+                                      "amount": {
+                                        "type": "string",
+                                      },
+                                      "denom": {
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "denom",
+                                      "amount",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "type": "array",
+                                },
+                                "owner": {
                                   "type": "string",
                                 },
-                                "denom": {
+                                "settled_at": {
                                   "type": "string",
+                                },
+                                "state": {
+                                  "type": "string",
+                                },
+                                "transferred": {
+                                  "items": {
+                                    "properties": {
+                                      "amount": {
+                                        "type": "string",
+                                      },
+                                      "denom": {
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "denom",
+                                      "amount",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "type": "array",
                                 },
                               },
                               "required": [
-                                "denom",
-                                "amount",
+                                "owner",
+                                "state",
+                                "transferred",
+                                "settled_at",
+                                "funds",
+                                "deposits",
                               ],
                               "type": "object",
                             },
                           },
                           "required": [
                             "id",
-                            "owner",
                             "state",
-                            "balance",
-                            "transferred",
-                            "settled_at",
-                            "depositor",
-                            "funds",
                           ],
                           "type": "object",
                         },
@@ -7575,8 +7980,11 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                               "created_at": {
                                 "type": "string",
                               },
-                              "lease_id": {
+                              "id": {
                                 "properties": {
+                                  "bseq": {
+                                    "type": "number",
+                                  },
                                   "dseq": {
                                     "type": "string",
                                   },
@@ -7599,6 +8007,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                   "gseq",
                                   "oseq",
                                   "provider",
+                                  "bseq",
                                 ],
                                 "type": "object",
                               },
@@ -7616,6 +8025,9 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                   "amount",
                                 ],
                                 "type": "object",
+                              },
+                              "reason": {
+                                "type": "string",
                               },
                               "state": {
                                 "type": "string",
@@ -7738,7 +8150,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                               },
                             },
                             "required": [
-                              "lease_id",
+                              "id",
                               "state",
                               "price",
                               "created_at",
@@ -13559,12 +13971,12 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                           "properties": {
                             "typeUrl": {
                               "enum": [
-                                "/akash.deployment.v1beta3.MsgCreateDeployment",
-                                "/akash.cert.v1beta3.MsgCreateCertificate",
-                                "/akash.market.v1beta4.MsgCreateLease",
-                                "/akash.deployment.v1beta3.MsgUpdateDeployment",
-                                "/akash.deployment.v1beta3.MsgCloseDeployment",
-                                "/akash.deployment.v1beta3.MsgDepositDeployment",
+                                "/akash.deployment.v1beta4.MsgCreateDeployment",
+                                "/akash.cert.v1.MsgCreateCertificate",
+                                "/akash.market.v1beta5.MsgCreateLease",
+                                "/akash.deployment.v1beta4.MsgUpdateDeployment",
+                                "/akash.deployment.v1beta4.MsgCloseDeployment",
+                                "/akash.escrow.v1.MsgAccountDeposit",
                               ],
                               "type": "string",
                             },
@@ -14101,35 +14513,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
         "summary": "Checks if the email is verified",
         "tags": [
           "Users",
-        ],
-      },
-    },
-    "/v1/version/{network}": {
-      "get": {
-        "description": "Provide a cached version of one of these files: [https://raw.githubusercontent.com/akash-network/net/master/mainnet/version.txt](https://raw.githubusercontent.com/akash-network/net/master/mainnet/version.txt), [https://raw.githubusercontent.com/akash-network/net/master/sandbox/version.txt](https://raw.githubusercontent.com/akash-network/net/master/sandbox/version.txt), [https://raw.githubusercontent.com/akash-network/net/master/testnet-02/version.txt](https://raw.githubusercontent.com/akash-network/net/master/testnet-02/version.txt)",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "network",
-            "required": true,
-            "schema": {
-              "enum": [
-                "mainnet",
-                "testnet",
-                "sandbox",
-              ],
-              "type": "string",
-            },
-          },
-        ],
-        "responses": {
-          "200": {
-            "description": "Network version",
-          },
-        },
-        "summary": "Get network version.",
-        "tags": [
-          "Chain",
         ],
       },
     },
