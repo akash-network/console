@@ -1,5 +1,29 @@
 
 
+## [1.0.0](https://github.com/akash-network/console/compare/stats-web/v0.40.1...stats-web/v1.0.0) (2025-10-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* removes GET /v1/version/{network}
+
+* feat!(network): uses meta.json instead of version.txt and removes GET /v1/version/{network} ([46841af](https://github.com/akash-network/console/commit/46841af26f8510d18ce941240c49610caef642a4)), closes [#2091](https://github.com/akash-network/console/issues/2091)
+
+
+### Features
+
+* chain sdk next web ([#2050](https://github.com/akash-network/console/issues/2050)) ([1bc10ea](https://github.com/akash-network/console/commit/1bc10ea201360054e53d65a21f845f22d842352b))
+
+
+### Bug Fixes
+
+* **config:** handles absent nodes/versions files ([b41833f](https://github.com/akash-network/console/commit/b41833fa5267398700b02b0924fce42e4407ae88))
+* name and right button link to deployment page, not the whole line ([3ea1f04](https://github.com/akash-network/console/commit/3ea1f0433cac42d13ce80d5c8e092519da423963)), closes [#1981](https://github.com/akash-network/console/issues/1981)
+* network store mapping ([#2057](https://github.com/akash-network/console/issues/2057)) ([6b4a9db](https://github.com/akash-network/console/commit/6b4a9dbc888803586f1ac38d985671a853313405))
+* upgrade chain-sdk to latest version and adds its transport options in indexer ([#2103](https://github.com/akash-network/console/issues/2103)) ([07ba99a](https://github.com/akash-network/console/commit/07ba99a93bf6fb7a0e67eb1fbd554855e66d322b))
+* upgrades cosmjs dependencies and removes unused ones ([#2082](https://github.com/akash-network/console/issues/2082)) ([364f30e](https://github.com/akash-network/console/commit/364f30ee696c477caf7cd8ac6d080f8b933be062)), closes [#1679](https://github.com/akash-network/console/issues/1679)
+* uses formatDistanceToNow instead of differenceInX to calc time left ([#2112](https://github.com/akash-network/console/issues/2112)) ([bb25b00](https://github.com/akash-network/console/commit/bb25b0087073410b1c21550d330ac6d9b73ce106))
+
 ## [0.40.1](https://github.com/akash-network/console/compare/stats-web/v0.40.0...stats-web/v0.40.1) (2025-10-21)
 
 

@@ -1,5 +1,31 @@
 
 
+## [2.0.0](https://github.com/akash-network/console/compare/notifications/v1.33.1...notifications/v2.0.0) (2025-10-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* targets sdk53
+* removes GET /v1/version/{network}
+
+* feat!(network): uses meta.json instead of version.txt and removes GET /v1/version/{network} ([46841af](https://github.com/akash-network/console/commit/46841af26f8510d18ce941240c49610caef642a4)), closes [#2091](https://github.com/akash-network/console/issues/2091)
+
+
+### Features
+
+* adds breaking change notice for the services targeting sdk53 ([cd8bf9b](https://github.com/akash-network/console/commit/cd8bf9bc618d32b42a4fa5ac9a38bb9e1168416f))
+* chain sdk next api ([#2023](https://github.com/akash-network/console/issues/2023)) ([4453796](https://github.com/akash-network/console/commit/44537960721dced5388cc3d39b25352943fa8931)), closes [#1980](https://github.com/akash-network/console/issues/1980) [#1983](https://github.com/akash-network/console/issues/1983) [#2016](https://github.com/akash-network/console/issues/2016)
+* chain sdk next web ([#2050](https://github.com/akash-network/console/issues/2050)) ([1bc10ea](https://github.com/akash-network/console/commit/1bc10ea201360054e53d65a21f845f22d842352b))
+* **notifications:** integrates sdk53 into the service ([16caa25](https://github.com/akash-network/console/commit/16caa25c2a1e8bdc0318b0e25f7bf4e7af8dafc5)), closes [#1921](https://github.com/akash-network/console/issues/1921)
+* **release:** adds notifications testnet temporal ci ([ebec580](https://github.com/akash-network/console/commit/ebec580422910555f03e994e18f7f5118c7089e4))
+
+
+### Bug Fixes
+
+* **config:** handles absent nodes/versions files ([b41833f](https://github.com/akash-network/console/commit/b41833fa5267398700b02b0924fce42e4407ae88))
+* upgrade chain-sdk to latest version and adds its transport options in indexer ([#2103](https://github.com/akash-network/console/issues/2103)) ([07ba99a](https://github.com/akash-network/console/commit/07ba99a93bf6fb7a0e67eb1fbd554855e66d322b))
+* upgrades cosmjs dependencies and removes unused ones ([#2082](https://github.com/akash-network/console/issues/2082)) ([364f30e](https://github.com/akash-network/console/commit/364f30ee696c477caf7cd8ac6d080f8b933be062)), closes [#1679](https://github.com/akash-network/console/issues/1679)
+
 ## [1.33.1](https://github.com/akash-network/console/compare/notifications/v1.33.0...notifications/v1.33.1) (2025-10-21)
 
 
