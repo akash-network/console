@@ -11,7 +11,7 @@ import { DeploymentNameModal } from "./DeploymentNameModal";
 type ContextType = {
   getDeploymentName: (dseq: string | number) => string | null | undefined;
   changeDeploymentName: (dseq: string | number) => void;
-  getDeploymentData: (dseq: string | number) => LocalDeploymentData | null;
+  getDeploymentData: (dseq: string | number) => Partial<LocalDeploymentData> | null;
   favoriteProviders: string[];
   updateFavoriteProviders: (newFavorites: string[]) => void;
 };

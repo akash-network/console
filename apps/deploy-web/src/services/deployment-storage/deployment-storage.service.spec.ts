@@ -157,7 +157,7 @@ describe(DeploymentStorageService.name, () => {
       expect(storage.setItem).not.toHaveBeenCalled();
     });
 
-    it("does nothing when current data does not exist", () => {
+    it("sets the value when current data does not exist", () => {
       const { service, storage } = setup();
       storage.getItem.mockReturnValue(null);
       const data = { name: "updated-name" };
@@ -165,7 +165,7 @@ describe(DeploymentStorageService.name, () => {
       service.update(walletAddress, dseq, data);
 
       expect(storage.getItem).toHaveBeenCalled();
-      expect(storage.setItem).not.toHaveBeenCalled();
+      expect(storage.setItem).toHaveBeenCalledWith(expect.any(String), JSON.stringify({ owner: walletAddress, name: "updated-name" }));
     });
 
     it("updates existing deployment data", () => {

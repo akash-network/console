@@ -8,7 +8,7 @@ export class DeploymentStorageService {
     private readonly networkStore: NetworkStore
   ) {}
 
-  get(walletAddress: string | undefined | null, dseq: string | number | undefined | null): LocalDeploymentData | null {
+  get(walletAddress: string | undefined | null, dseq: string | number | undefined | null): Partial<LocalDeploymentData> | null {
     if (!dseq || !walletAddress) return null;
 
     const key = genKey(this.networkStore.selectedNetworkId, walletAddress, dseq);
@@ -23,11 +23,14 @@ export class DeploymentStorageService {
     return data;
   }
 
-  set(walletAddress: string | undefined | null, dseq: string | number | undefined | null, data: Omit<LocalDeploymentData, "owner">): void {
+  set(walletAddress: string | undefined | null, dseq: string | number | undefined | null, data: Partial<Omit<LocalDeploymentData, "owner">>): void {
     if (!dseq || !walletAddress) return;
 
     const key = genKey(this.networkStore.selectedNetworkId, walletAddress, dseq);
-    const dataToSave = { owner: walletAddress, ...data, manifestVersion: toBase64(data.manifestVersion) };
+    const dataToSave: Record<string, any> = { owner: walletAddress, ...data };
+    if (dataToSave.manifestVersion) {
+      dataToSave.manifestVersion = toBase64(dataToSave.manifestVersion);
+    }
     this.storage.setItem(key, JSON.stringify(dataToSave));
   }
 
@@ -35,8 +38,6 @@ export class DeploymentStorageService {
     if (!dseq || !walletAddress) return;
 
     const currentData = this.get(walletAddress, dseq);
-    if (!currentData) return;
-
     const newData = { ...currentData, ...data };
     this.set(walletAddress, dseq, newData);
   }
