@@ -3,8 +3,8 @@ version: "2.0"
 
 services:
   web:
-    image: baktun/akash-stats:<version>
-    env:
+    image: ghcr.io/akash-network/stats-web:<version>
+#    env:
 #      - API_BASE_URL=<API_URL_OVERRIDE>
 #      - NEXT_PUBLIC_GA_MEASUREMENT_ID=<GA_MEASUREMENT_ID>
 #      - NEXT_PUBLIC_SENTRY_DSN=<SENTRY_DSN>
