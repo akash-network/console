@@ -1,5 +1,12 @@
 
 
+## [1.28.1](https://github.com/akash-network/console/compare/provider-console/v1.28.0...provider-console/v1.28.1) (2025-10-27)
+
+
+### Bug Fixes
+
+* **release:** triggers release  ([cd59471](https://github.com/akash-network/console/commit/cd594718d29ec1f7d1de13071fb2e999b5b8a088))
+
 ## [1.28.0](https://github.com/akash-network/console/compare/provider-console/v1.27.1...provider-console/v1.28.0) (2025-10-27)
 
 
