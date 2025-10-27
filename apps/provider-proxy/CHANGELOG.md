@@ -1,5 +1,21 @@
 
 
+## [2.0.0](https://github.com/akash-network/console/compare/provider-proxy/v1.23.1...provider-proxy/v2.0.0) (2025-10-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* removes GET /v1/version/{network}
+
+* feat!(network): uses meta.json instead of version.txt and removes GET /v1/version/{network} ([46841af](https://github.com/akash-network/console/commit/46841af26f8510d18ce941240c49610caef642a4)), closes [#2091](https://github.com/akash-network/console/issues/2091)
+
+
+### Bug Fixes
+
+* **config:** handles absent nodes/versions files ([b41833f](https://github.com/akash-network/console/commit/b41833fa5267398700b02b0924fce42e4407ae88))
+* upgrade chain-sdk to latest version and adds its transport options in indexer ([#2103](https://github.com/akash-network/console/issues/2103)) ([07ba99a](https://github.com/akash-network/console/commit/07ba99a93bf6fb7a0e67eb1fbd554855e66d322b))
+* upgrades cosmjs dependencies and removes unused ones ([#2082](https://github.com/akash-network/console/issues/2082)) ([364f30e](https://github.com/akash-network/console/commit/364f30ee696c477caf7cd8ac6d080f8b933be062)), closes [#1679](https://github.com/akash-network/console/issues/1679)
+
 ## [1.23.1](https://github.com/akash-network/console/compare/provider-proxy/v1.23.0...provider-proxy/v1.23.1) (2025-10-21)
 
 
