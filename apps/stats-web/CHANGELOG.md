@@ -1,5 +1,12 @@
 
 
+## [1.0.1](https://github.com/akash-network/console/compare/stats-web/v1.0.0...stats-web/v1.0.1) (2025-10-27)
+
+
+### Bug Fixes
+
+* **release:** triggers release  ([cd59471](https://github.com/akash-network/console/commit/cd594718d29ec1f7d1de13071fb2e999b5b8a088))
+
 ## [1.0.0](https://github.com/akash-network/console/compare/stats-web/v0.40.1...stats-web/v1.0.0) (2025-10-27)
 
 
