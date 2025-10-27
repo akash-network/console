@@ -1,7 +1,5 @@
-import type { NetworkId } from "@akashnetwork/akashjs/build/types/network";
-
 export type Network = {
-  id: NetworkId;
+  id: string;
   title: string;
   description: string;
   nodesUrl: string;

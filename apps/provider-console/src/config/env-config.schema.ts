@@ -16,8 +16,6 @@ export const browserEnvSchema = z.object({
   NEXT_PUBLIC_NETWORK_TYPE: z.string(),
   NEXT_PUBLIC_RPC_ENDPOINT: z.string().url(),
   NEXT_PUBLIC_API_ENDPOINT: z.string().url(),
-  NEXT_PUBLIC_NETWORK_VERSION: z.string().optional(),
-  NEXT_PUBLIC_NETWORK_VERSION_MARKET: z.string().optional(),
   NEXT_PUBLIC_CONSOLE_API_URL: z.string().url(),
   NEXT_PUBLIC_SECURITY_URL: z.string().url(),
   NEXT_PUBLIC_API_BASE_URL: z.string().url(),
