@@ -46,8 +46,6 @@ export const defaultInitialDeposit = 500000;
 // Get network info based on selected network - no if/else conditions
 const networkVersionInfo = getNetworkVersionInfo();
 export const selectedNetworkId = networkVersionInfo.selectedNetworkId;
-export const networkVersion = networkVersionInfo.networkVersion;
-export const networkVersionMarket = networkVersionInfo.networkVersionMarket;
 
 export function setNetworkVersion() {
   // This function is kept for backward compatibility but now uses environment-driven config
