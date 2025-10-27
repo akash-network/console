@@ -20,11 +20,11 @@ export class NetConfig {
     throw new Error(`Network ${network} not supported`);
   }
 
-  getVersion(network: SupportedChainNetworks): string | null {
+  getVersion(network: string): string | null {
     return netConfigData[this.mapped(network)].version;
   }
 
-  getBaseAPIUrl(network: SupportedChainNetworks): string {
+  getBaseAPIUrl(network: string): string {
     const apiUrls = netConfigData[this.mapped(network)].apiUrls;
     return apiUrls[0];
   }
@@ -37,7 +37,7 @@ export class NetConfig {
     return netConfigData[this.mapped(network)].faucetUrl;
   }
 
-  getBaseRpcUrl(network: SupportedChainNetworks): string {
+  getBaseRpcUrl(network: string): string {
     const rpcUrls = netConfigData[this.mapped(network)].rpcUrls;
     return rpcUrls[0];
   }

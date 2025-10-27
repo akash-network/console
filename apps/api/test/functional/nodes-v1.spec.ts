@@ -1,5 +1,4 @@
 import { netConfig } from "@akashnetwork/net";
-import { faker } from "@faker-js/faker";
 import mcache from "memory-cache";
 import nock from "nock";
 
@@ -44,32 +43,6 @@ describe("Nodes API", () => {
 
     it("throws 400 for an invalid network", async () => {
       const response = await app.request("/v1/nodes/invalid-network");
-
-      expect(response.status).toBe(400);
-    });
-  });
-
-  describe("GET /version/{network}", () => {
-    it.each(["mainnet", "sandbox", "testnet"])("should return %s node version", async network => {
-      const version = `v${faker.number.int({ min: 0, max: 10 })}.${faker.number.int({ min: 0, max: 10 })}.${faker.number.int({ min: 0, max: 10 })}`;
-      interceptor
-        .get(`/net/master/${netConfig.mapped(network)}/version.txt`)
-        .times(1)
-        .reply(200, version, {
-          "Content-Type": "text/plain"
-        });
-
-      const resInit = await app.request(`/v1/version/${network}`);
-      expect(resInit.status).toBe(200);
-      expect(await resInit.text()).toEqual(version);
-
-      const resCached = await app.request(`/v1/version/${network}`);
-      expect(resCached.status).toBe(200);
-      expect(await resCached.text()).toEqual(version);
-    });
-
-    it("throws 400 for an invalid network", async () => {
-      const response = await app.request("/v1/version/invalid-network");
 
       expect(response.status).toBe(400);
     });
