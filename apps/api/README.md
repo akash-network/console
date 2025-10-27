@@ -114,3 +114,6 @@ Here is a list of endpoints that have changed in this release. Old endpoints wil
 | `/predicted-block-date/<height>/<blockWindow>`             | `/predicted-block-date/<height>?blockWindow=<blockWindow>`        |
 | `/predicted-date-height/<timestamp>/<blockWindow>`         | `/predicted-date-height/<timestamp>?blockWindow=<blockWindow>`    |
 | `/providers/<provider>/deployments/<skip>/<take>/<status>` | `/providers/<provider>/deployments/<skip>/<take>?status=<status>` |
+
+### CosmosSDK
+Target version: 53
