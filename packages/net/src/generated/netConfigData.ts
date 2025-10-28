@@ -35,7 +35,7 @@ export const netConfigData = {
     rpcUrls: ["https://rpc.sandbox-01.aksh.pw:443"]
   },
   "sandbox-2": {
-    version: "v0.38.2",
+    version: "v1.0.0",
     faucetUrl: "http://faucet.sandbox-2.aksh.pw/",
     apiUrls: ["https://api.sandbox-2.aksh.pw:443"],
     rpcUrls: ["https://rpc.sandbox-2.aksh.pw:443"]
