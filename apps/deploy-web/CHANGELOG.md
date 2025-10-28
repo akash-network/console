@@ -1,5 +1,12 @@
 
 
+## [3.0.3](https://github.com/akash-network/console/compare/console-web/v3.0.2...console-web/v3.0.3) (2025-10-28)
+
+
+### Bug Fixes
+
+* **deployment:** map denom ([#2120](https://github.com/akash-network/console/issues/2120)) ([5da7421](https://github.com/akash-network/console/commit/5da74215ccd3a1027da48283a3353f74de1502b8))
+
 ## [3.0.2](https://github.com/akash-network/console/compare/console-web/v3.0.1...console-web/v3.0.2) (2025-10-27)
 
 
