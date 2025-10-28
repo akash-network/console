@@ -1,10 +1,12 @@
 import { Deployment, DeploymentGroup, DeploymentGroupResource } from "@akashnetwork/database/dbSchemas/akash";
 import { singleton } from "tsyringe";
 
+import { USDC_IBC_DENOMS } from "@src/billing/config/network.config";
 import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import { DatabaseDeploymentListParams } from "@src/deployment/repositories/deployment/deployment.repository";
 import { RestAkashDeploymentInfoResponse } from "@src/types/rest/akashDeploymentInfoResponse";
 import { RestAkashDeploymentListResponse } from "@src/types/rest/akashDeploymentListResponse";
+import { env } from "@src/utils/env";
 
 export const UNKNOWN_DB_PLACEHOLDER = "unknown_value";
 
@@ -42,14 +44,14 @@ export class FallbackDeploymentReaderService {
               state: deployment.closedHeight ? "closed" : "open",
               transferred: [
                 {
-                  denom: deployment.denom || "uakt",
+                  denom: this.mapDenom(deployment.denom || "uakt"),
                   amount: (deployment.withdrawnAmount ?? 0).toFixed(18)
                 }
               ],
               settled_at: (deployment.lastWithdrawHeight ?? deployment.createdHeight ?? 0).toString(),
               funds: [
                 {
-                  denom: deployment.denom || "uakt",
+                  denom: this.mapDenom(deployment.denom || "uakt"),
                   amount: (deployment.balance ?? 0).toFixed(18)
                 }
               ],
@@ -59,7 +61,7 @@ export class FallbackDeploymentReaderService {
                   height: (deployment.createdHeight ?? 0).toString(),
                   source: "balance",
                   balance: {
-                    denom: deployment.denom || "uakt",
+                    denom: this.mapDenom(deployment.denom || "uakt"),
                     amount: (deployment.balance ?? 0).toFixed(18)
                   }
                 }
@@ -114,14 +116,14 @@ export class FallbackDeploymentReaderService {
           state: deployment.closedHeight ? "closed" : "open",
           transferred: [
             {
-              denom: deployment.denom || "uakt",
+              denom: this.mapDenom(deployment.denom || "uakt"),
               amount: (deployment.withdrawnAmount ?? 0).toFixed(18)
             }
           ],
           settled_at: (deployment.lastWithdrawHeight ?? deployment.createdHeight ?? 0).toString(),
           funds: [
             {
-              denom: deployment.denom || "uakt",
+              denom: this.mapDenom(deployment.denom || "uakt"),
               amount: (deployment.balance ?? 0).toFixed(18)
             }
           ],
@@ -131,7 +133,7 @@ export class FallbackDeploymentReaderService {
               height: (deployment.createdHeight ?? 0).toString(),
               source: "balance",
               balance: {
-                denom: deployment.denom || "uakt",
+                denom: this.mapDenom(deployment.denom || "uakt"),
                 amount: (deployment.balance ?? 0).toFixed(18)
               }
             }
@@ -199,7 +201,7 @@ export class FallbackDeploymentReaderService {
               },
               count: resource.count || 1,
               price: {
-                denom: deployment.denom || "uakt",
+                denom: this.mapDenom(deployment.denom || "uakt"),
                 amount: (resource.price ?? 0).toFixed(18)
               }
             })) || []
@@ -207,5 +209,18 @@ export class FallbackDeploymentReaderService {
         created_at: (deployment.createdHeight ?? 0).toString()
       })) || []
     );
+  }
+
+  private mapDenom(denom: string): string {
+    if (denom === "uusdc") {
+      const network = env.NETWORK;
+      if (network === "mainnet") {
+        return USDC_IBC_DENOMS.mainnetId;
+      } else if (network === "sandbox") {
+        return USDC_IBC_DENOMS.sandboxId;
+      }
+      return USDC_IBC_DENOMS.mainnetId;
+    }
+    return denom;
   }
 }
