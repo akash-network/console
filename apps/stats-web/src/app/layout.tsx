@@ -35,7 +35,7 @@ export const metadata: Metadata = {
     ]
   },
   twitter: {
-    site: "@akashnet_",
+    site: "@akashnet",
     card: "summary_large_image"
   },
   icons: [

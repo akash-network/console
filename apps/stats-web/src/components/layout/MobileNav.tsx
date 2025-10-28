@@ -70,7 +70,7 @@ export function MobileNav() {
             </div>
 
             <div className="flex items-center justify-center pt-4">
-              <Link target="_blank" rel="noreferrer" href="https://twitter.com/akashnet_" className="text-foreground">
+              <Link target="_blank" rel="noreferrer" href="https://twitter.com/akashnet" className="text-foreground">
                 <Button variant="ghost" size="icon">
                   <TwitterX width="1.2rem" height="1.2rem" />
                   <span className="sr-only">Twitter</span>
