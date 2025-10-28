@@ -16,12 +16,6 @@ import type { BillingConfigService } from "@src/billing/services/billing-config/
 import type { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import { withSpan } from "@src/core/services/tracing/tracing.service";
 
-interface ShortAccountInfo {
-  accountNumber: number;
-  sequence: number;
-  address: string;
-}
-
 export interface ExecuteTxOptions {
   fee: {
     granter: string;
@@ -33,22 +27,16 @@ interface ExecuteTxInput {
   options?: ExecuteTxOptions;
 }
 
-type ConnectWithSignerFn = (endpoint: string, wallet: Wallet, options: { registry: Registry }) => Promise<SyncSigningStargateClient>;
+type CreateWithSignerFn = (endpoint: string, wallet: Wallet, options: { registry: Registry }) => SyncSigningStargateClient;
 
 export class BatchSigningClientService {
   private readonly FEES_DENOM = "uakt";
 
-  private clientAsPromised: Promise<SyncSigningStargateClient>;
+  private client: SyncSigningStargateClient;
 
   private readonly semaphore = new Sema(1);
 
   private chainId?: string;
-
-  private cachedFirstAddress?: string;
-  private firstAddressPromise?: Promise<string>;
-
-  private cachedAccountInfo?: ShortAccountInfo;
-  private accountInfoPromise?: Promise<ShortAccountInfo>;
 
   private execTxLoader = new DataLoader(
     async (batchedInputs: readonly ExecuteTxInput[]) => {
@@ -63,11 +51,14 @@ export class BatchSigningClientService {
     private readonly config: BillingConfigService,
     private readonly wallet: Wallet,
     private readonly registry: Registry,
-    private readonly connectWithSigner: ConnectWithSignerFn,
+    private readonly createWithSigner: CreateWithSignerFn,
     private readonly chainErrorService: ChainErrorService,
     private readonly loggerContext = BatchSigningClientService.name
   ) {
-    this.clientAsPromised = this.initClient();
+    this.client = this.createWithSigner(this.config.get("RPC_NODE_ENDPOINT"), this.wallet, {
+      registry: this.registry
+    });
+    this.init();
   }
 
   get hasPendingTransactions() {
@@ -83,102 +74,15 @@ export class BatchSigningClientService {
   }
 
   async disconnect() {
-    const client = await this.clientAsPromised;
-    client.disconnect();
+    this.client.disconnect();
   }
 
   async dispose() {
     await this.disconnect();
   }
 
-  private async initClient() {
-    return await backOff(
-      () =>
-        this.connectWithSigner(this.config.get("RPC_NODE_ENDPOINT"), this.wallet, {
-          registry: this.registry
-        }).then(async client => {
-          this.chainId = await client.getChainId();
-          return client;
-        }),
-      {
-        maxDelay: 10_000,
-        startingDelay: 500,
-        timeMultiple: 2,
-        numOfAttempts: 7,
-        jitter: "full"
-      }
-    );
-  }
-
-  private async getCachedFirstAddress(): Promise<string> {
-    if (this.cachedFirstAddress) {
-      return this.cachedFirstAddress;
-    }
-
-    if (this.firstAddressPromise) {
-      return this.firstAddressPromise;
-    }
-
-    this.firstAddressPromise = this.wallet
-      .getFirstAddress()
-      .then(address => {
-        this.cachedFirstAddress = address;
-        this.firstAddressPromise = undefined;
-        return address;
-      })
-      .catch(error => {
-        this.firstAddressPromise = undefined;
-        throw error;
-      });
-
-    return this.firstAddressPromise;
-  }
-
-  private async getCachedAccountInfo(): Promise<ShortAccountInfo> {
-    if (this.cachedAccountInfo) {
-      return this.cachedAccountInfo;
-    }
-
-    if (this.accountInfoPromise) {
-      return this.accountInfoPromise;
-    }
-
-    this.accountInfoPromise = this.clientAsPromised
-      .then(async client => {
-        const address = await this.getCachedFirstAddress();
-        const account = await client.getAccount(address);
-
-        if (!account) {
-          throw new Error(`Account not found for address: ${address}. The account may not exist on the blockchain yet.`);
-        }
-
-        const accountInfo = {
-          accountNumber: account.accountNumber,
-          sequence: account.sequence,
-          address: address
-        };
-
-        this.cachedAccountInfo = accountInfo;
-        this.accountInfoPromise = undefined;
-        return accountInfo;
-      })
-      .catch(error => {
-        this.accountInfoPromise = undefined;
-        throw error;
-      });
-
-    return this.accountInfoPromise;
-  }
-
-  private incrementSequence(): void {
-    if (this.cachedAccountInfo) {
-      this.cachedAccountInfo.sequence++;
-    }
-  }
-
-  private clearCachedAccountInfo(): void {
-    this.cachedAccountInfo = undefined;
-    this.accountInfoPromise = undefined;
+  private async init() {
+    this.chainId = await this.client.getChainId();
   }
 
   private async executeTxBatchBlocking(inputs: ExecuteTxInput[]): Promise<IndexedTx[]> {
@@ -194,9 +98,7 @@ export class BatchSigningClientService {
           const isSequenceMismatch = error?.message?.includes("account sequence mismatch");
 
           if (isSequenceMismatch) {
-            this.clientAsPromised = this.initClient();
-            this.clearCachedAccountInfo();
-            this.logger.warn({ event: "ACCOUNT_SEQUENCE_MISMATCH", address: await this.getCachedFirstAddress(), attempt });
+            this.logger.warn({ event: "ACCOUNT_SEQUENCE_MISMATCH", address: await this.wallet.getFirstAddress(), attempt });
 
             return true;
           }
@@ -211,8 +113,12 @@ export class BatchSigningClientService {
 
   private async executeTxBatch(inputs: ExecuteTxInput[]): Promise<IndexedTx[]> {
     return await withSpan("BatchSigningClientService.executeTxBatch", async () => {
-      const client = await this.clientAsPromised;
-      const accountInfo = await this.getCachedAccountInfo();
+      const address = await this.wallet.getFirstAddress();
+      const accountInfo = await this.client.getAccount(address);
+
+      if (!accountInfo) {
+        throw new Error("Failed to get account info");
+      }
 
       const txes: TxRaw[] = [];
       let txIndex: number = 0;
@@ -222,9 +128,9 @@ export class BatchSigningClientService {
           const fee = await this.estimateFee(messages, this.FEES_DENOM, options?.fee?.granter);
 
           txes.push(
-            await client.sign(accountInfo.address, messages, fee, "", {
+            await this.client.sign(accountInfo.address, messages, fee, "", {
               accountNumber: accountInfo.accountNumber,
-              sequence: accountInfo.sequence,
+              sequence: accountInfo.sequence + txIndex,
               chainId: this.chainId!
             })
           );
@@ -232,7 +138,6 @@ export class BatchSigningClientService {
           throw await this.chainErrorService.toAppError(error as Error, messages);
         }
 
-        this.incrementSequence();
         txIndex++;
       }
 
@@ -244,10 +149,10 @@ export class BatchSigningClientService {
 
         try {
           if (txIndex < txes.length - 1) {
-            const response = await client.tmBroadcastTxSync(txBytes);
+            const response = await this.client.tmBroadcastTxSync(txBytes);
             hashes.push(toHex(response.hash));
           } else {
-            const lastDelivery = await client.broadcastTx(txBytes);
+            const lastDelivery = await this.client.broadcastTx(txBytes);
             hashes.push(lastDelivery.transactionHash);
           }
         } catch (error: any) {
@@ -262,7 +167,7 @@ export class BatchSigningClientService {
         txIndex++;
       }
 
-      const txs = await Promise.all(hashes.map(hash => client.getTx(hash)));
+      const txs = await Promise.all(hashes.map(hash => this.client.getTx(hash)));
       return txs.map((tx, index) => {
         if (tx) {
           return tx;
@@ -302,6 +207,6 @@ export class BatchSigningClientService {
   }
 
   private async simulate(messages: readonly EncodeObject[], memo: string) {
-    return (await this.clientAsPromised).simulate(await this.getCachedFirstAddress(), messages, memo);
+    return this.client.simulate(await this.wallet.getFirstAddress(), messages, memo);
   }
 }

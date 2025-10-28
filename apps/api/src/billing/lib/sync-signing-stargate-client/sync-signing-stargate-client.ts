@@ -8,17 +8,9 @@ import type { BroadcastTxSyncResponse } from "@cosmjs/tendermint-rpc/build/comet
 export type { BroadcastTxSyncResponse };
 
 export class SyncSigningStargateClient extends SigningStargateClient {
-  public static async connectWithSigner(
-    endpoint: string,
-    signer: OfflineSigner,
-    options: SigningStargateClientOptions = {}
-  ): Promise<SyncSigningStargateClient> {
+  public static init(endpoint: string, signer: OfflineSigner, options: SigningStargateClientOptions = {}): SyncSigningStargateClient {
     const client = new WebsocketClient(endpoint);
     const cometClient = Comet38Client.create(client);
-    return this.createWithSigner(cometClient, signer, options);
-  }
-
-  public static createWithSigner(cometClient: CometClient, signer: OfflineSigner, options: SigningStargateClientOptions = {}): SyncSigningStargateClient {
     return new SyncSigningStargateClient(cometClient, signer, options);
   }
 

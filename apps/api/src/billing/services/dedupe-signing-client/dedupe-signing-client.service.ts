@@ -52,7 +52,7 @@ export class DedupeSigningClientService {
           this.config,
           new Wallet(mnemonic, addressIndex),
           this.registry,
-          SyncSigningStargateClient.connectWithSigner.bind(SyncSigningStargateClient),
+          SyncSigningStargateClient.init.bind(SyncSigningStargateClient),
           this.chainErrorService
         )
       });
