@@ -32,8 +32,8 @@ export const PageHead: React.FunctionComponent<{ pageSeo?: NextSeoProps }> = ({ 
           ]
         }}
         twitter={{
-          handle: "@akashnet_",
-          site: "@akashnet_",
+          handle: "@akashnet",
+          site: "@akashnet",
           cardType: "summary_large_image"
         }}
       />

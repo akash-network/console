@@ -14,7 +14,7 @@ For an indept understanding of the code [![Ask DeepWiki](https://deepwiki.com/ba
 [![version](https://img.shields.io/github/stars/akash-network/console)](https://github.com/akash-network/console/stargazers)
 [![forks](https://img.shields.io/github/forks/akash-network/console)](https://github.com/akash-network/console/forks)
 [![license](https://img.shields.io/github/license/akash-network/console)](https://github.com/akash-network/console/blob/main/LICENSE)
-[![X (formerly Twitter) Follow](https://img.shields.io/twitter/follow/akashnet_)](https://x.com/akashnet_)
+[![X (formerly Twitter) Follow](https://img.shields.io/twitter/follow/akashnet)](https://x.com/akashnet)
 [![Discord](https://img.shields.io/badge/discord-join-7289DA.svg?logo=discord&longCache=true&style=flat)](https://discord.gg/akash)
 
 </div>

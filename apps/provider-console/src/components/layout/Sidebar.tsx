@@ -224,7 +224,7 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
               <Link
                 target="_blank"
                 rel="noreferrer"
-                href="https://twitter.com/akashnet_"
+                href="https://twitter.com/akashnet"
                 className={cn(buttonVariants({ variant: "text", size: "icon" }), "h-8 w-8")}
               >
                 <TwitterX className="h-5 w-5" />
