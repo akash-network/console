@@ -148,7 +148,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
                   {
                     title: "Akash on X",
                     icon: props => <TwitterX {...props} />,
-                    url: "https://twitter.com/akashnet_",
+                    url: "https://twitter.com/akashnet",
                     target: "_blank",
                     rel: "noreferrer noopener"
                   },

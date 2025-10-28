@@ -39,7 +39,7 @@ export const Footer: React.FC<IFooterProps> = () => {
             </li>
             <li>
               <a
-                href="https://twitter.com/akashnet_"
+                href="https://twitter.com/akashnet"
                 target="_blank"
                 rel="noreferrer"
                 className="block px-4 py-2 text-current transition-all duration-300 hover:text-primary [&>path]:fill-muted-foreground/20 hover:[&>path]:fill-primary"
