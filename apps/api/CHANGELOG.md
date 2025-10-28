@@ -1,5 +1,12 @@
 
 
+## [3.0.3](https://github.com/akash-network/console/compare/console-api/v3.0.2...console-api/v3.0.3) (2025-10-28)
+
+
+### Bug Fixes
+
+* prevent console-api crash ([#2122](https://github.com/akash-network/console/issues/2122)) ([a844b72](https://github.com/akash-network/console/commit/a844b721aa07be13bd9be122d1112842f7820a98))
+
 ## [3.0.2](https://github.com/akash-network/console/compare/console-api/v3.0.1...console-api/v3.0.2) (2025-10-28)
 
 
