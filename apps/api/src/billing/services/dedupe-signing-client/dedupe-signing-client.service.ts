@@ -36,6 +36,7 @@ export class DedupeSigningClientService {
       if (!client.hasPendingTransactions && this.clientsByAddress.has(key)) {
         this.logger.debug({ event: "DEDUPE_SIGNING_CLIENT_CLEAN_UP", key });
         this.clientsByAddress.delete(key);
+        await client.disconnect();
       }
     }
   }

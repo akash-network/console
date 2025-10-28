@@ -82,6 +82,15 @@ export class BatchSigningClientService {
     return tx;
   }
 
+  async disconnect() {
+    const client = await this.clientAsPromised;
+    client.disconnect();
+  }
+
+  async dispose() {
+    await this.disconnect();
+  }
+
   private async initClient() {
     return await backOff(
       () =>

@@ -1,19 +1,20 @@
 import type { OfflineSigner } from "@cosmjs/proto-signing";
-import type { HttpEndpoint, SigningStargateClientOptions } from "@cosmjs/stargate";
+import type { SigningStargateClientOptions } from "@cosmjs/stargate";
 import { SigningStargateClient } from "@cosmjs/stargate";
 import type { CometClient } from "@cosmjs/tendermint-rpc";
-import { connectComet } from "@cosmjs/tendermint-rpc";
+import { Comet38Client, WebsocketClient } from "@cosmjs/tendermint-rpc";
 import type { BroadcastTxSyncResponse } from "@cosmjs/tendermint-rpc/build/comet38";
 
 export type { BroadcastTxSyncResponse };
 
 export class SyncSigningStargateClient extends SigningStargateClient {
   public static async connectWithSigner(
-    endpoint: string | HttpEndpoint,
+    endpoint: string,
     signer: OfflineSigner,
     options: SigningStargateClientOptions = {}
   ): Promise<SyncSigningStargateClient> {
-    const cometClient = await connectComet(endpoint);
+    const client = new WebsocketClient(endpoint);
+    const cometClient = Comet38Client.create(client);
     return this.createWithSigner(cometClient, signer, options);
   }
 
