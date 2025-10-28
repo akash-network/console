@@ -2,9 +2,19 @@ import "reflect-metadata";
 import "@akashnetwork/env-loader";
 import "./open-telemetry";
 
+import { LoggerService } from "@akashnetwork/logging";
 import { fork } from "child_process";
 
 const SUPPORTED_INTERFACES = ["rest", "background-jobs"];
+
+// TODO: this is temp solution to prevent the app from crashing when an unhandled rejection or exception occurs
+const logger = LoggerService.forContext("SERVER");
+process.on("unhandledRejection", (reason, promise) => {
+  logger.error({ event: "UNHANDLED_REJECTION", reason, promise });
+});
+process.on("uncaughtException", error => {
+  logger.error({ event: "UNCAUGHT_EXCEPTION", error });
+});
 
 bootstrap(process.env);
 
