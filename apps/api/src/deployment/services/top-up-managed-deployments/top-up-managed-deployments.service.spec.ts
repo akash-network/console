@@ -116,7 +116,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
           {
             typeUrl: "/akash.escrow.v1.MsgAccountDeposit",
             value: {
-              signer: MANAGED_MASTER_WALLET_ADDRESS,
+              signer: deployment.address,
               id: {
                 scope: Scope.deployment,
                 xid: `${deployment.address}/${deployment.dseq}`
@@ -151,7 +151,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
                 input: expect.objectContaining({
                   amount: sufficientAmount,
                   denom: DEPLOYMENT_GRANT_DENOM,
-                  signer: MANAGED_MASTER_WALLET_ADDRESS,
+                  signer: deployment.address,
                   dseq: Number(deployment.dseq),
                   owner: deployment.address
                 })
@@ -284,7 +284,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
         {
           typeUrl: "/akash.escrow.v1.MsgAccountDeposit",
           value: {
-            signer: MANAGED_MASTER_WALLET_ADDRESS,
+            signer: owner,
             id: {
               scope: Scope.deployment,
               xid: `${owner}/${deployments[0].dseq}`
@@ -301,7 +301,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
         {
           typeUrl: "/akash.escrow.v1.MsgAccountDeposit",
           value: {
-            signer: MANAGED_MASTER_WALLET_ADDRESS,
+            signer: owner,
             id: {
               scope: Scope.deployment,
               xid: `${owner}/${deployments[1].dseq}`
