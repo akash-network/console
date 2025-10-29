@@ -1,5 +1,12 @@
 
 
+## [3.0.5](https://github.com/akash-network/console/compare/console-api/v3.0.4...console-api/v3.0.5) (2025-10-29)
+
+
+### Bug Fixes
+
+* update top up signer to owner ([#2129](https://github.com/akash-network/console/issues/2129)) ([8113375](https://github.com/akash-network/console/commit/8113375c0e4062188d8b721c5d4e4c7b7b54defe))
+
 ## [3.0.4](https://github.com/akash-network/console/compare/console-api/v3.0.3...console-api/v3.0.4) (2025-10-29)
 
 
