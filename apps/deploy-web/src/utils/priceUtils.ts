@@ -1,4 +1,4 @@
-import type { Coin } from "@cosmjs/stargate";
+import type { Coin } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 import add from "date-fns/add";
 
 import { READABLE_DENOMS, UAKT_DENOM } from "@src/config/denom.config";
