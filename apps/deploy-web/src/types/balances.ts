@@ -1,4 +1,4 @@
-import type { Coin } from "@cosmjs/stargate";
+import type { Coin } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 
 export type Grant = {
   granter: string;

@@ -10,11 +10,15 @@ import * as cosmosv1alpha1 from "@akashnetwork/chain-sdk/private-types/cosmos.v1
 import * as cosmosv1beta1 from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 import type { GeneratedType } from "@cosmjs/proto-signing";
 import { isTsProtoGeneratedType, Registry } from "@cosmjs/proto-signing";
+import { defaultRegistryTypes as stargateDefaultRegistryTypes } from "@cosmjs/stargate";
 import omit from "lodash/omit";
 
-const defaultRegistryTypes: readonly [string, GeneratedType][] = [...Object.values(cosmosv1), ...Object.values(cosmosv1beta1), ...Object.values(cosmosv1alpha1)]
-  .filter(x => "$type" in x)
-  .map(x => ["/" + x.$type, x as unknown as GeneratedType]);
+type DefaultRegistryType = [string, GeneratedType];
+const ibcTypes: DefaultRegistryType[] = stargateDefaultRegistryTypes.filter(([type]) => type.startsWith("/ibc"));
+const defaultRegistryTypes: DefaultRegistryType[] = [...Object.values(cosmosv1), ...Object.values(cosmosv1beta1), ...Object.values(cosmosv1alpha1)]
+  .filter(x => x && "$type" in x)
+  .map(x => ["/" + x.$type, x as unknown as GeneratedType])
+  .concat(ibcTypes) as DefaultRegistryType[];
 
 const akashTypes: ReadonlyArray<[string, GeneratedType]> = [
   ...Object.values(v1beta1),
