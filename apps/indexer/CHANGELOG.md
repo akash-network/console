@@ -1,5 +1,12 @@
 
 
+## [1.20.2](https://github.com/akash-network/console/compare/indexer/v1.20.1...indexer/v1.20.2) (2025-10-29)
+
+
+### Bug Fixes
+
+* adds ibc types to default registry ([#2132](https://github.com/akash-network/console/issues/2132)) ([9e3c6b0](https://github.com/akash-network/console/commit/9e3c6b0a54e8f958be051e097a05d735f51e2c60))
+
 ## [1.20.1](https://github.com/akash-network/console/compare/indexer/v1.20.0...indexer/v1.20.1) (2025-10-27)
 
 
