@@ -1,5 +1,12 @@
 
 
+## [3.0.6](https://github.com/akash-network/console/compare/console-api/v3.0.5...console-api/v3.0.6) (2025-10-29)
+
+
+### Bug Fixes
+
+* adds ibc types to default registry ([#2132](https://github.com/akash-network/console/issues/2132)) ([9e3c6b0](https://github.com/akash-network/console/commit/9e3c6b0a54e8f958be051e097a05d735f51e2c60))
+
 ## [3.0.5](https://github.com/akash-network/console/compare/console-api/v3.0.4...console-api/v3.0.5) (2025-10-29)
 
 
