@@ -1,5 +1,12 @@
 
 
+## [1.29.1](https://github.com/akash-network/console/compare/provider-console/v1.29.0...provider-console/v1.29.1) (2025-10-29)
+
+
+### Bug Fixes
+
+* akashnet twitter handle ([#2125](https://github.com/akash-network/console/issues/2125)) ([10b4d28](https://github.com/akash-network/console/commit/10b4d280eac5173661688805841499314e8e1cc8))
+
 ## [1.29.0](https://github.com/akash-network/console/compare/provider-console/v1.28.1...provider-console/v1.29.0) (2025-10-27)
 
 
