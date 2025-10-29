@@ -50,8 +50,8 @@ async function main() {
   console.log("Closing deployments...");
   const gas = await txClient.simulate(account.address, closeDeploymentsMessages, "close deployments via script");
   const tx = await txClient.signAndBroadcast(account.address, closeDeploymentsMessages, {
-    amount: [{ amount: "2500", denom: "uakt" }],
-    gas: Math.floor(1.2 * gas).toString()
+    amount: [{ amount: Math.ceil(2500 * closeDeploymentsMessages.length).toString(), denom: "uakt" }],
+    gas: Math.floor(1.3 * gas).toString()
   });
 
   if (tx.code !== 0) {
