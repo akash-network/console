@@ -1,5 +1,12 @@
 
 
+## [1.0.4](https://github.com/akash-network/console/compare/stats-web/v1.0.3...stats-web/v1.0.4) (2025-10-29)
+
+
+### Bug Fixes
+
+* remove mapping from deposit detail sources because it shows numbers ([#2134](https://github.com/akash-network/console/issues/2134)) ([fd47387](https://github.com/akash-network/console/commit/fd4738703b17c376226056ef04e9f052942c5952))
+
 ## [1.0.3](https://github.com/akash-network/console/compare/stats-web/v1.0.2...stats-web/v1.0.3) (2025-10-29)
 
 
