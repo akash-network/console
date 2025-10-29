@@ -48,7 +48,7 @@ runs:
       env:
         TEST_WALLET_MNEMONIC: ${{ inputs.test-wallet-mnemonic }}
       run: |
-        npx ts-node -P packages/dev-config/tsconfig.base-node.json apps/deploy-web/script/closeDeployments.ts
+        npx --yes tsx@4.20.6 apps/deploy-web/script/closeDeployments.ts
     - uses: actions/upload-artifact@v4
       id: playwright-report
       if: ${{ !cancelled() }}
