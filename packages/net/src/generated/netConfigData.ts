@@ -1,6 +1,6 @@
 export const netConfigData = {
   mainnet: {
-    version: "v0.38.1",
+    version: "v1.0.0",
     faucetUrl: null,
     apiUrls: [
       "https://rest-akash.ecostake.com",

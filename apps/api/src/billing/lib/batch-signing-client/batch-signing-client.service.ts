@@ -75,6 +75,12 @@ export class BatchSigningClientService {
   }
 
   async executeTx(messages: readonly EncodeObject[], options?: ExecuteTxOptions) {
+    this.logger.debug({
+      event: "EXECUTE_TX_REQUESTED",
+      messageTypes: messages.map(m => m.typeUrl),
+      granter: options?.fee?.granter
+    });
+
     const tx = await this.execTxLoader.load({ messages, options });
 
     assert(tx?.code === 0, 500, "Failed to sign and broadcast tx", { data: tx });
@@ -89,6 +95,7 @@ export class BatchSigningClientService {
           registry: this.registry
         }).then(async client => {
           this.chainId = await client.getChainId();
+          this.logger.info({ event: "CLIENT_INITIALIZED", chainId: this.chainId });
           return client;
         }),
       {
@@ -149,6 +156,13 @@ export class BatchSigningClientService {
           address: address
         };
 
+        this.logger.info({
+          event: "ACCOUNT_INFO_FETCHED",
+          address: accountInfo.address,
+          accountNumber: accountInfo.accountNumber,
+          sequence: accountInfo.sequence
+        });
+
         this.cachedAccountInfo = accountInfo;
         this.accountInfoPromise = undefined;
         return accountInfo;
@@ -163,11 +177,23 @@ export class BatchSigningClientService {
 
   private incrementSequence(): void {
     if (this.cachedAccountInfo) {
+      const oldSequence = this.cachedAccountInfo.sequence;
       this.cachedAccountInfo.sequence++;
+      this.logger.debug({
+        event: "SEQUENCE_INCREMENTED",
+        address: this.cachedAccountInfo.address,
+        oldSequence,
+        newSequence: this.cachedAccountInfo.sequence
+      });
     }
   }
 
   private clearCachedAccountInfo(): void {
+    this.logger.info({
+      event: "ACCOUNT_INFO_CACHE_CLEARED",
+      address: this.cachedAccountInfo?.address,
+      lastSequence: this.cachedAccountInfo?.sequence
+    });
     this.cachedAccountInfo = undefined;
     this.accountInfoPromise = undefined;
   }
@@ -205,12 +231,30 @@ export class BatchSigningClientService {
       const client = await this.clientAsPromised;
       const accountInfo = await this.getCachedAccountInfo();
 
+      this.logger.info({
+        event: "BATCH_EXECUTION_START",
+        batchSize: inputs.length,
+        address: accountInfo.address,
+        accountNumber: accountInfo.accountNumber,
+        startingSequence: accountInfo.sequence,
+        chainId: this.chainId
+      });
+
       const txes: TxRaw[] = [];
       let txIndex: number = 0;
       while (txIndex < inputs.length) {
         const { messages, options } = inputs[txIndex];
         try {
           const fee = await this.estimateFee(messages, this.FEES_DENOM, options?.fee?.granter);
+
+          this.logger.debug({
+            event: "SIGNING_TX",
+            txIndex,
+            address: accountInfo.address,
+            sequence: accountInfo.sequence,
+            messageTypes: messages.map(m => m.typeUrl),
+            chainId: this.chainId
+          });
 
           txes.push(
             await client.sign(accountInfo.address, messages, fee, "", {
@@ -220,6 +264,12 @@ export class BatchSigningClientService {
             })
           );
         } catch (error: unknown) {
+          this.logger.error({
+            event: "SIGNING_TX_ERROR",
+            txIndex,
+            sequence: accountInfo.sequence,
+            error: (error as Error).message
+          });
           throw await this.chainErrorService.toAppError(error as Error, messages);
         }
 
@@ -236,22 +286,52 @@ export class BatchSigningClientService {
         try {
           if (txIndex < txes.length - 1) {
             const response = await client.tmBroadcastTxSync(txBytes);
-            hashes.push(toHex(response.hash));
+            const hash = toHex(response.hash);
+            hashes.push(hash);
+            this.logger.debug({
+              event: "TX_BROADCAST_SYNC",
+              txIndex,
+              hash,
+              code: response.code
+            });
           } else {
             const lastDelivery = await client.broadcastTx(txBytes);
             hashes.push(lastDelivery.transactionHash);
+            this.logger.debug({
+              event: "TX_BROADCAST_FINAL",
+              txIndex,
+              hash: lastDelivery.transactionHash,
+              code: lastDelivery.code
+            });
           }
-        } catch (error: any) {
-          if (error?.message?.toLowerCase().includes("tx already exists in cache")) {
+        } catch (error: unknown) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          if (errorMessage.toLowerCase().includes("tx already exists in cache")) {
             const txHash = toHex(sha256(txBytes));
             hashes.push(txHash);
+            this.logger.warn({
+              event: "TX_ALREADY_IN_CACHE",
+              txIndex,
+              hash: txHash
+            });
           } else {
+            this.logger.error({
+              event: "TX_BROADCAST_ERROR",
+              txIndex,
+              error: errorMessage
+            });
             throw error;
           }
         }
 
         txIndex++;
       }
+
+      this.logger.info({
+        event: "BATCH_EXECUTION_COMPLETE",
+        batchSize: txes.length,
+        hashes
+      });
 
       const txs = await Promise.all(hashes.map(hash => client.getTx(hash)));
       return txs.map((tx, index) => {
