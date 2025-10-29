@@ -73,7 +73,6 @@ export class TopUpManagedDeploymentsService implements DeploymentsRefiller {
   }
 
   private async collectMessages(deployments: DrainingDeployment[], options: TopUpDeploymentsOptions): Promise<CollectedMessage[]> {
-    const depositor = await this.managedMasterWallet.getFirstAddress();
     const denom = this.billingConfig.get("DEPLOYMENT_GRANT_DENOM");
 
     const messageInputs = await Promise.all(
@@ -105,7 +104,7 @@ export class TopUpManagedDeploymentsService implements DeploymentsRefiller {
             amount: sufficientAmount,
             denom,
             owner: deployment.address,
-            signer: depositor
+            signer: deployment.address
           };
 
           const message = this.rpcClientService.getDepositDeploymentMsg(messageInput);
