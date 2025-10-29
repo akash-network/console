@@ -1,5 +1,13 @@
 
 
+## [1.0.3](https://github.com/akash-network/console/compare/stats-web/v1.0.2...stats-web/v1.0.3) (2025-10-29)
+
+
+### Bug Fixes
+
+* add logging batching client ([#2128](https://github.com/akash-network/console/issues/2128)) ([8bca2c8](https://github.com/akash-network/console/commit/8bca2c899af898da657b7f44de24323262962572))
+* akashnet twitter handle ([#2125](https://github.com/akash-network/console/issues/2125)) ([10b4d28](https://github.com/akash-network/console/commit/10b4d280eac5173661688805841499314e8e1cc8))
+
 ## [1.0.2](https://github.com/akash-network/console/compare/stats-web/v1.0.1...stats-web/v1.0.2) (2025-10-28)
 
 

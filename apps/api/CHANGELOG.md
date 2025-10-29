@@ -1,5 +1,12 @@
 
 
+## [3.0.4](https://github.com/akash-network/console/compare/console-api/v3.0.3...console-api/v3.0.4) (2025-10-29)
+
+
+### Bug Fixes
+
+* add logging batching client ([#2128](https://github.com/akash-network/console/issues/2128)) ([8bca2c8](https://github.com/akash-network/console/commit/8bca2c899af898da657b7f44de24323262962572))
+
 ## [3.0.3](https://github.com/akash-network/console/compare/console-api/v3.0.2...console-api/v3.0.3) (2025-10-28)
 
 
