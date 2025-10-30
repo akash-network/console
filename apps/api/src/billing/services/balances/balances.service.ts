@@ -84,14 +84,12 @@ export class BalancesService {
     const activeDeploymentsResponse = await this.deploymentHttpService.findAll({ owner: address, state: "active" });
     const activeDeployments = activeDeploymentsResponse.deployments;
 
-    const deploymentEscrowBalance = activeDeployments.reduce((total: number, deployment: DeploymentInfo) => {
+    return activeDeployments.reduce((total: number, deployment: DeploymentInfo) => {
       const escrowAccount = deployment.escrow_account;
       if (!escrowAccount) return total;
 
       return total + parseFloat(escrowAccount.state.funds.reduce((sum, { amount }) => sum + parseFloat(amount), 0).toFixed(18));
     }, 0);
-
-    return deploymentEscrowBalance;
   }
   @Memoize({ ttlInSeconds: averageBlockTime })
   async getFullBalance(address: string): Promise<GetBalancesResponseOutput> {
