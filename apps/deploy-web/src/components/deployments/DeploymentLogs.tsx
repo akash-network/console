@@ -13,8 +13,8 @@ import { LinearLoadingSkeleton } from "@src/components/shared/LinearLoadingSkele
 import { MemoMonaco } from "@src/components/shared/MemoMonaco";
 import { SelectCheckbox } from "@src/components/shared/SelectCheckbox";
 import ViewPanel from "@src/components/shared/ViewPanel";
-import { useBackgroundTask } from "@src/context/BackgroundTaskProvider";
 import { useServices } from "@src/context/ServicesProvider";
+import { useProviderApiActions } from "@src/hooks/useProviderApiActions";
 import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import { useProviderWebsocket } from "@src/hooks/useProviderWebsocket";
 import { useThrottledCallback } from "@src/hooks/useThrottle";
@@ -46,7 +46,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
   const [selectedLease, setSelectedLease] = useState<LeaseDto | null>(null);
   const { data: providers } = useProviderList();
   const providerCredentials = useProviderCredentials();
-  const { downloadLogs } = useBackgroundTask();
+  const { downloadLogs } = useProviderApiActions();
   const monacoEditorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<Monaco | null>(null);
   const providerInfo = providers?.find(p => p.owner === selectedLease?.provider);

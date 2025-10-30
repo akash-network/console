@@ -24,7 +24,6 @@ import { PageHead } from "@src/components/layout/PageHead";
 import { ClientOnlyTurnstile } from "@src/components/turnstile/Turnstile";
 import { UserProviders } from "@src/components/user/UserProviders/UserProviders";
 import { browserEnvConfig } from "@src/config/browser-env.config";
-import { BackgroundTaskProvider } from "@src/context/BackgroundTaskProvider";
 import { CertificateProvider } from "@src/context/CertificateProvider";
 import { ChainParamProvider } from "@src/context/ChainParamProvider";
 import { CustomChainProvider } from "@src/context/CustomChainProvider";
@@ -80,11 +79,9 @@ const App: React.FunctionComponent<Props> = props => {
             <WalletProvider>
               <PaymentPollingProvider>
                 <CertificateProvider>
-                  <BackgroundTaskProvider>
-                    <NavigationGuardProvider>
-                      <Component {...pageProps} />
-                    </NavigationGuardProvider>
-                  </BackgroundTaskProvider>
+                  <NavigationGuardProvider>
+                    <Component {...pageProps} />
+                  </NavigationGuardProvider>
                 </CertificateProvider>
               </PaymentPollingProvider>
             </WalletProvider>

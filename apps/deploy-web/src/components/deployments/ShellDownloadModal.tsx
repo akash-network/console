@@ -5,7 +5,7 @@ import { Alert, Form, FormField, FormInput, Popup } from "@akashnetwork/ui/compo
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 
-import { useBackgroundTask } from "@src/context/BackgroundTaskProvider";
+import { useProviderApiActions } from "@src/hooks/useProviderApiActions";
 import type { ProviderInfo } from "@src/hooks/useProviderWebsocket";
 import { analyticsService } from "@src/services/analytics/analytics.service";
 import type { LeaseDto } from "@src/types/deployment";
@@ -32,7 +32,7 @@ type FormData = z.infer<typeof formSchema>;
 
 export const ShellDownloadModal = ({ selectedLease, onCloseClick, selectedService, providerInfo }: Props) => {
   const formRef = useRef<HTMLFormElement | null>(null);
-  const { downloadFileFromShell } = useBackgroundTask();
+  const { downloadFileFromShell } = useProviderApiActions();
   const form = useForm<FormData>({
     defaultValues: {
       filePath: ""
