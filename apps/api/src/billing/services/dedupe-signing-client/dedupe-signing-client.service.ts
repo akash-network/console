@@ -3,7 +3,7 @@ import { EncodeObject, Registry } from "@cosmjs/proto-signing";
 import * as crypto from "crypto";
 import { singleton } from "tsyringe";
 
-import { BatchSigningClientService, ExecuteTxOptions } from "@src/billing/lib/batch-signing-client/batch-signing-client.service";
+import { BatchSigningClientService, SignAndBroadcastOptions } from "@src/billing/lib/batch-signing-client/batch-signing-client.service";
 import { SyncSigningStargateClient } from "@src/billing/lib/sync-signing-stargate-client/sync-signing-stargate-client";
 import { Wallet } from "@src/billing/lib/wallet/wallet";
 import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provider";
@@ -27,15 +27,16 @@ export class DedupeSigningClientService {
     private readonly chainErrorService: ChainErrorService
   ) {}
 
-  async executeManagedTx(mnemonic: string, walletIndex: number, messages: readonly EncodeObject[], options?: ExecuteTxOptions) {
+  async executeManagedTx(mnemonic: string, walletIndex: number, messages: readonly EncodeObject[], options?: SignAndBroadcastOptions) {
     const { client, key } = this.getClient(mnemonic, walletIndex);
 
     try {
-      return client.executeTx(messages, options);
+      return client.signAndBroadcast(messages, options);
     } finally {
       if (!client.hasPendingTransactions && this.clientsByAddress.has(key)) {
         this.logger.debug({ event: "DEDUPE_SIGNING_CLIENT_CLEAN_UP", key });
         this.clientsByAddress.delete(key);
+        client.dispose();
       }
     }
   }
@@ -51,7 +52,7 @@ export class DedupeSigningClientService {
           this.config,
           new Wallet(mnemonic, addressIndex),
           this.registry,
-          SyncSigningStargateClient.connectWithSigner.bind(SyncSigningStargateClient),
+          SyncSigningStargateClient.init.bind(SyncSigningStargateClient),
           this.chainErrorService
         )
       });
