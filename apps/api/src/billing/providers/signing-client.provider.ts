@@ -48,3 +48,13 @@ container.register(USDC_TOP_UP_MASTER_SIGNING_CLIENT, {
 });
 
 export const InjectSigningClient = (walletType: MasterWalletType) => inject(`${walletType}_MASTER_SIGNING_CLIENT`);
+
+export const disposeSigningClients = async () => {
+  const clients = await Promise.all([
+    container.resolve<BatchSigningClientService>(MANAGED_MASTER_SIGNING_CLIENT),
+    container.resolve<BatchSigningClientService>(UAKT_TOP_UP_MASTER_SIGNING_CLIENT),
+    container.resolve<BatchSigningClientService>(USDC_TOP_UP_MASTER_SIGNING_CLIENT)
+  ]);
+
+  await Promise.all(clients.map(client => client.dispose()));
+};
