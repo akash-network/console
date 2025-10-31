@@ -155,6 +155,8 @@ describe(ProviderProxyService.name, () => {
       const savedContent = await savedBlob.text();
       expect(savedContent).toContain("[web]: Server started on port 8080");
       expect(savedContent).toContain("[web]: Database connected");
+
+      jest.useRealTimers();
     });
 
     it("downloads events successfully and saves file", async () => {

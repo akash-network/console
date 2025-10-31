@@ -21,7 +21,7 @@ export const useProviderApiActions = (): ProviderApiActions => {
   const providerCredentials = useProviderCredentials();
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const chainNetwork = networkStore.useSelectedNetworkId();
-  const { providerProxy } = useServices();
+  const { providerProxy, logger } = useServices();
 
   const showSnackbar = useCallback(
     (title: string) => {
@@ -56,42 +56,63 @@ export const useProviderApiActions = (): ProviderApiActions => {
   const downloadLogs: ProviderApiActions["downloadLogs"] = useCallback(
     async (provider, dseq, gseq, oseq, isLogs) => {
       const { snackbarKey, abortController } = showSnackbar(isLogs ? "Downloading logs..." : "Downloading events...");
-      const result = await providerProxy.downloadLogs({
-        providerBaseUrl: provider.hostUri,
-        providerAddress: provider.owner,
-        providerCredentials: providerCredentials.details,
-        chainNetwork,
-        dseq,
-        gseq,
-        oseq,
-        type: isLogs ? "logs" : "events",
-        signal: abortController.signal
-      });
-      closeSnackbar(snackbarKey);
-      displayResult(isLogs ? "Failed to download logs" : "Failed to download events", result);
+
+      try {
+        const result = await providerProxy.downloadLogs({
+          providerBaseUrl: provider.hostUri,
+          providerAddress: provider.owner,
+          providerCredentials: providerCredentials.details,
+          chainNetwork,
+          dseq,
+          gseq,
+          oseq,
+          type: isLogs ? "logs" : "events",
+          signal: abortController.signal
+        });
+        displayResult(isLogs ? "Failed to download logs" : "Failed to download events", result);
+      } catch (error) {
+        logger.error({ event: "DOWNLOAD_LOGS_ERROR", error });
+        displayResult(isLogs ? "Failed to download logs" : "Failed to download events", {
+          ok: false,
+          code: "unknown",
+          message: "Unexpected error. Could not connect to provider."
+        });
+      } finally {
+        closeSnackbar(snackbarKey);
+      }
     },
-    [providerCredentials.details, chainNetwork, providerProxy, showSnackbar, closeSnackbar]
+    [providerCredentials.details, chainNetwork, providerProxy, showSnackbar, closeSnackbar, displayResult]
   );
 
   const downloadFileFromShell: ProviderApiActions["downloadFileFromShell"] = useCallback(
     async (provider, dseq, gseq, oseq, service, filePath) => {
       const { snackbarKey, abortController } = showSnackbar(`Downloading ${filePath}...`);
-      const result = await providerProxy.downloadFileFromShell({
-        providerBaseUrl: provider.hostUri,
-        providerAddress: provider.owner,
-        providerCredentials: providerCredentials.details,
-        chainNetwork,
-        dseq,
-        gseq,
-        oseq,
-        service,
-        filePath,
-        signal: abortController.signal
-      });
-      closeSnackbar(snackbarKey);
-      displayResult(`Failed to download file from shell`, result);
+      try {
+        const result = await providerProxy.downloadFileFromShell({
+          providerBaseUrl: provider.hostUri,
+          providerAddress: provider.owner,
+          providerCredentials: providerCredentials.details,
+          chainNetwork,
+          dseq,
+          gseq,
+          oseq,
+          service,
+          filePath,
+          signal: abortController.signal
+        });
+        displayResult(`Failed to download file from shell`, result);
+      } catch (error) {
+        logger.error({ event: "DOWNLOAD_FILE_FROM_SHELL_ERROR", error });
+        displayResult(`Failed to download file from shell`, {
+          ok: false,
+          code: "unknown",
+          message: "Unexpected error. Could not connect to provider."
+        });
+      } finally {
+        closeSnackbar(snackbarKey);
+      }
     },
-    [providerCredentials.details, chainNetwork, providerProxy, showSnackbar, closeSnackbar]
+    [providerCredentials.details, chainNetwork, providerProxy, showSnackbar, closeSnackbar, displayResult]
   );
 
   return useMemo(
