@@ -261,6 +261,7 @@ export class BatchSigningClientService {
    * @returns Array of results, each containing either a signed transaction (Ok) or an error (Err).
    */
   private async signBatch(inputs: readonly SignAndBroadcastBatchOptions[]): Promise<Result<TxRaw, unknown>[]> {
+    await this.client.connected();
     const [address, chainId] = await Promise.all([this.getAddress(), this.getChainId()]);
     const accountInfo = await this.client.getAccount(address);
 
