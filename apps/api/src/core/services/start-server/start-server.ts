@@ -22,6 +22,7 @@ export async function startServer(
   options: {
     port: number;
     beforeStart?: () => Promise<void>;
+    beforeEnd?: () => Promise<void>;
     container?: DependencyContainer;
   }
 ): Promise<ServerType | undefined> {
@@ -36,6 +37,7 @@ export async function startServer(
   let server: ServerType | undefined;
   const shutdown = once(async (reason: string) => {
     logger.info({ event: "APP_SERVER_SHUTDOWN_REQUESTED", reason });
+    options?.beforeEnd?.();
     if (server) {
       await shutdownServer(server, logger, disposeContainerOnce);
     } else {
