@@ -57,8 +57,6 @@ describe(BatchSigningClientService.name, () => {
 
     const results = await Promise.allSettled(allTestData.map(data => service.signAndBroadcast(data.messages)));
 
-    expect(results).toHaveLength(allTestData.length);
-
     const fulfilledResults = results.filter(r => r.status === "fulfilled") as PromiseFulfilledResult<IndexedTx>[];
     const rejectedResults = results.filter(r => r.status === "rejected") as PromiseRejectedResult[];
 

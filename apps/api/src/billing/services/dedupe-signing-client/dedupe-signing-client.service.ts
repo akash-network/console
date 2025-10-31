@@ -31,7 +31,7 @@ export class DedupeSigningClientService {
     const { client, key } = this.getClient(mnemonic, walletIndex);
 
     try {
-      return client.signAndBroadcast(messages, options);
+      return await client.signAndBroadcast(messages, options);
     } finally {
       if (!client.hasPendingTransactions && this.clientsByAddress.has(key)) {
         this.logger.debug({ event: "DEDUPE_SIGNING_CLIENT_CLEAN_UP", key });
@@ -52,7 +52,7 @@ export class DedupeSigningClientService {
           this.config,
           new Wallet(mnemonic, addressIndex),
           this.registry,
-          SyncSigningStargateClient.init.bind(SyncSigningStargateClient),
+          SyncSigningStargateClient.createWithEndpoint.bind(SyncSigningStargateClient),
           this.chainErrorService
         )
       });
