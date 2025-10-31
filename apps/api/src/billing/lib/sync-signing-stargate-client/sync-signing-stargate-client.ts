@@ -9,7 +9,7 @@ import type { BroadcastTxSyncResponse } from "@cosmjs/tendermint-rpc/build/comet
 export type { BroadcastTxSyncResponse };
 
 export class SyncSigningStargateClient extends SigningStargateClient {
-  public static init(endpoint: string, signer: OfflineSigner, options: SigningStargateClientOptions = {}): SyncSigningStargateClient {
+  public static createWithEndpoint(endpoint: string, signer: OfflineSigner, options: SigningStargateClientOptions = {}): SyncSigningStargateClient {
     const client = new HttpClient(endpoint);
     const cometClient = Comet38Client.create(client);
     return new SyncSigningStargateClient(cometClient, signer, options);

@@ -1,4 +1,4 @@
-import { cacheEngine, cacheResponse, Memoize } from "./helpers";
+import { cacheEngine, cacheResponse, Memoize, memoizeAsync } from "./helpers";
 
 describe("Memoize Function", () => {
   describe("cacheResponse function", () => {
@@ -242,6 +242,128 @@ describe("Memoize Function", () => {
       const cacheKeys = cacheEngine.getKeys();
       expect(cacheKeys).toHaveLength(1);
       expect(cacheKeys).toContain("TestClass#testMethod#test");
+    });
+  });
+
+  describe(memoizeAsync.name, () => {
+    it("should cache successful results and return the same promise", async () => {
+      const fn = jest.fn().mockResolvedValue("result");
+      const memoized = memoizeAsync(fn);
+
+      const result1 = await memoized();
+      const result2 = await memoized();
+
+      expect(result1).toBe("result");
+      expect(result2).toBe("result");
+      expect(fn).toHaveBeenCalledTimes(1);
+    });
+
+    it("should share the same promise for concurrent calls", async () => {
+      let resolvePromise: (value: string) => void;
+      const promise = new Promise<string>(resolve => {
+        resolvePromise = resolve;
+      });
+
+      const fn = jest.fn().mockReturnValue(promise);
+      const memoized = memoizeAsync(fn);
+
+      const call1 = memoized();
+      const call2 = memoized();
+      const call3 = memoized();
+
+      expect(fn).toHaveBeenCalledTimes(1);
+
+      resolvePromise!("result");
+
+      const results = await Promise.all([call1, call2, call3]);
+
+      expect(results).toEqual(["result", "result", "result"]);
+    });
+
+    it("should not cache rejected promises", async () => {
+      const error = new Error("Test error");
+      const fn = jest.fn().mockRejectedValue(error);
+      const memoized = memoizeAsync(fn);
+
+      await expect(memoized()).rejects.toThrow("Test error");
+      await expect(memoized()).rejects.toThrow("Test error");
+
+      expect(fn).toHaveBeenCalledTimes(2);
+    });
+
+    it("should make new requests after a rejection", async () => {
+      const error = new Error("Test error");
+      const fn = jest.fn().mockRejectedValueOnce(error).mockResolvedValue("success");
+      const memoized = memoizeAsync(fn);
+
+      await expect(memoized()).rejects.toThrow("Test error");
+
+      const result = await memoized();
+      expect(result).toBe("success");
+      expect(fn).toHaveBeenCalledTimes(2);
+    });
+
+    it("should cache results for different arguments separately", async () => {
+      const fn = jest.fn((arg: string) => Promise.resolve(`result-${arg}`));
+      const memoized = memoizeAsync(fn as unknown as (...args: unknown[]) => Promise<unknown>) as (arg: string) => Promise<string>;
+
+      const result1 = await memoized("a");
+      const result2 = await memoized("b");
+      const result3 = await memoized("a");
+
+      expect(result1).toBe("result-a");
+      expect(result2).toBe("result-b");
+      expect(result3).toBe("result-a");
+      expect(fn).toHaveBeenCalledTimes(2);
+    });
+
+    it("should handle complex arguments correctly", async () => {
+      const fn = jest.fn((arg1: string, arg2: number) => Promise.resolve(`${arg1}-${arg2}`));
+      const memoized = memoizeAsync(fn as unknown as (...args: unknown[]) => Promise<unknown>) as (arg1: string, arg2: number) => Promise<string>;
+
+      const result1 = await memoized("test", 123);
+      const result2 = await memoized("test", 456);
+      const result3 = await memoized("test", 123);
+
+      expect(result1).toBe("test-123");
+      expect(result2).toBe("test-456");
+      expect(result3).toBe("test-123");
+      expect(fn).toHaveBeenCalledTimes(2);
+    });
+
+    it("should handle concurrent calls with rejection correctly", async () => {
+      const error = new Error("Concurrent error");
+      const fn = jest.fn().mockRejectedValue(error);
+      const memoized = memoizeAsync(fn);
+
+      const call1 = memoized();
+      const call2 = memoized();
+      const call3 = memoized();
+
+      await expect(Promise.all([call1, call2, call3])).rejects.toThrow("Concurrent error");
+
+      expect(fn).toHaveBeenCalledTimes(1);
+    });
+
+    it("should return cached result immediately on subsequent calls", async () => {
+      const fn = jest.fn().mockResolvedValue("cached");
+      const memoized = memoizeAsync(fn);
+
+      await memoized();
+      const result = memoized();
+
+      expect(result).resolves.toBe("cached");
+      expect(fn).toHaveBeenCalledTimes(1);
+    });
+
+    it("should preserve function signature and return type", async () => {
+      const fn = async (x: number): Promise<string> => Promise.resolve(`result-${x}`);
+      const memoized = memoizeAsync(fn as unknown as (...args: unknown[]) => Promise<unknown>) as (x: number) => Promise<string>;
+
+      const result = await memoized(42);
+
+      expect(result).toBe("result-42");
+      expect(typeof result).toBe("string");
     });
   });
 

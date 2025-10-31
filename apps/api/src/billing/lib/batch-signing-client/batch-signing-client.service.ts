@@ -15,6 +15,7 @@ import type { SyncSigningStargateClient } from "@src/billing/lib/sync-signing-st
 import type { Wallet } from "@src/billing/lib/wallet/wallet";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
+import { memoizeAsync } from "@src/caching/helpers";
 import { withSpan } from "@src/core/services/tracing/tracing.service";
 
 /**
@@ -78,7 +79,7 @@ export class BatchSigningClientService {
    * DataLoader instance that batches transaction requests and schedules execution.
    * Requests are collected for WALLET_BATCHING_INTERVAL_MS before being processed as a batch.
    */
-  private execTxLoader = new DataLoader(
+  private signAndBroadcastLoader = new DataLoader(
     async (batchedInputs: readonly SignAndBroadcastBatchOptions[]) => {
       return this.signAndBroadcastBatchBlocking(batchedInputs);
     },
@@ -86,19 +87,51 @@ export class BatchSigningClientService {
   );
 
   /**
+   * Retry executor for sign and broadcast operations.
+   *
+   * Retries up to 5 times with exponential backoff when account sequence mismatch errors occur.
+   * The retry strategy detects errors containing "account sequence mismatch" in the message.
+   */
+  private readonly signAndBroadcastExecutor = retry(
+    handleWhenResult(res => res instanceof Err && "message" in res.val && res.val.message?.includes("account sequence mismatch")),
+    { maxAttempts: 5, backoff: new ExponentialBackoff({ maxDelay: 5_000, initialDelay: 500 }) }
+  );
+
+  /**
+   * Retry executor for transaction retrieval operations.
+   *
+   * Retries up to 5 times with exponential backoff when the transaction is not yet available (falsy result).
+   * Uses a longer max delay (7 seconds) to account for blockchain confirmation times.
+   */
+  private readonly getTxExecutor = retry(
+    handleWhenResult(res => !res),
+    { maxAttempts: 5, backoff: new ExponentialBackoff({ maxDelay: 7_000, initialDelay: 500 }) }
+  );
+
+  /**
+   * Memoized async function that retrieves and caches the chain ID.
+   *
+   * The first call fetches the chain ID from the client, and subsequent calls
+   * return the cached value without making additional client calls.
+   *
+   * @returns A promise that resolves to the chain ID string.
+   */
+  private readonly getChainId = memoizeAsync(() => this.client.getChainId());
+
+  /**
+   * Memoized async function that retrieves and caches the wallet address.
+   *
+   * The first call fetches the address from the wallet, and subsequent calls
+   * return the cached value without making additional wallet operations.
+   *
+   * @returns A promise that resolves to the wallet address string.
+   */
+  private readonly getAddress = memoizeAsync(() => this.wallet.getFirstAddress());
+
+  /**
    * Logger instance for this service.
    */
   private readonly logger = LoggerService.forContext(this.loggerContext);
-
-  /**
-   * Cached chain ID to avoid repeated client calls.
-   */
-  private chainId: string | undefined;
-
-  /**
-   * Cached wallet address to avoid repeated wallet operations.
-   */
-  private address: string | undefined;
 
   /**
    * Checks if there are pending transactions waiting to be batched.
@@ -151,19 +184,9 @@ export class BatchSigningClientService {
       granter: options?.fee?.granter
     });
 
-    const address = await this.getAddress();
-    const result = await retry(
-      handleWhenResult(res => {
-        if (res instanceof Err && "message" in res.val && res.val.message?.includes("account sequence mismatch")) {
-          this.logger.warn({ event: "ACCOUNT_SEQUENCE_MISMATCH", address });
-          return true;
-        }
-        return false;
-      }),
-      { maxAttempts: 5, backoff: new ExponentialBackoff({ maxDelay: 5_000, initialDelay: 500 }) }
-    ).execute(context => {
-      this.logger.debug({ event: "SIGN_AND_BROADCAST_RETRY", attempt: context.attempt });
-      return this.execTxLoader.load({ messages, options });
+    const result = await this.signAndBroadcastExecutor.execute(context => {
+      this.logger.debug({ event: "SIGN_AND_BROADCAST_ATTEMPT", attempt: context.attempt });
+      return this.signAndBroadcastLoader.load({ messages, options });
     });
 
     if (!result.ok) {
@@ -180,7 +203,7 @@ export class BatchSigningClientService {
       const error = new Error("Failed to sign and broadcast transaction");
       this.logger.error({
         event: "SIGN_AND_BROADCAST_ERROR",
-        error: error.message
+        error
       });
       throw error;
     }
@@ -327,10 +350,7 @@ export class BatchSigningClientService {
    * @returns The indexed transaction, or `undefined` if not found after retries.
    */
   private async getTx(hash: string) {
-    return await retry(
-      handleWhenResult(res => !res),
-      { maxAttempts: 5, backoff: new ExponentialBackoff({ maxDelay: 7_000, initialDelay: 500 }) }
-    ).execute(() => this.client.getTx(hash));
+    return await this.getTxExecutor.execute(() => this.client.getTx(hash));
   }
 
   /**
@@ -352,33 +372,5 @@ export class BatchSigningClientService {
     const fee = calculateFee(estimatedGas, GasPrice.fromString(`${this.config.get("AVERAGE_GAS_PRICE")}${denom}`));
 
     return granter ? { ...fee, granter } : fee;
-  }
-
-  /**
-   * Gets the first address from the wallet.
-   *
-   * Results are cached in an instance variable to avoid repeated wallet operations.
-   *
-   * @returns The first address from the wallet.
-   */
-  private async getAddress() {
-    if (!this.address) {
-      this.address = await this.wallet.getFirstAddress();
-    }
-    return this.address;
-  }
-
-  /**
-   * Gets the chain ID from the blockchain client.
-   *
-   * Results are cached in an instance variable to avoid repeated client calls.
-   *
-   * @returns The chain ID.
-   */
-  private async getChainId() {
-    if (!this.chainId) {
-      this.chainId = await this.client.getChainId();
-    }
-    return this.chainId;
   }
 }
