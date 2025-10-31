@@ -160,6 +160,7 @@ describe(ProviderProxyService.name, () => {
     });
 
     it("downloads events successfully and saves file", async () => {
+      jest.useFakeTimers();
       const { service, saveFile, websocket } = setup();
       const input = {
         providerBaseUrl: "https://provider.akash.network",
@@ -197,6 +198,8 @@ describe(ProviderProxyService.name, () => {
       const savedBlob = (saveFile as jest.Mock).mock.calls[0][0];
       const savedContent = await savedBlob.text();
       expect(savedContent).toContain("[web]: [Normal] [Started] [Pod] Container started successfully");
+
+      jest.useRealTimers();
     });
 
     it("handles cancellation via AbortSignal", async () => {
@@ -229,6 +232,7 @@ describe(ProviderProxyService.name, () => {
     });
 
     it("ignores closed messages", async () => {
+      jest.useFakeTimers();
       const { service, saveFile, websocket } = setup();
       const input = {
         providerBaseUrl: "https://provider.akash.network",
@@ -257,6 +261,8 @@ describe(ProviderProxyService.name, () => {
       const savedBlob = (saveFile as jest.Mock).mock.calls[0][0];
       const savedContent = await savedBlob.text();
       expect(savedContent).toBe("");
+
+      jest.useRealTimers();
     });
 
     it("handles WebSocket close without finishing", async () => {
