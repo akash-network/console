@@ -7,6 +7,7 @@ import { once } from "lodash";
 import type { DependencyContainer } from "tsyringe";
 import { container as rootContainer } from "tsyringe";
 
+import { disposeSigningClients } from "@src/billing/providers/signing-client.provider";
 import { APP_INITIALIZER, ON_APP_START } from "@src/core/providers/app-initializer";
 import { shutdownServer } from "../shutdown-server/shutdown-server";
 
@@ -28,9 +29,11 @@ export async function startServer(
   const container = options.container ?? rootContainer;
   const disposeContainerOnce = once(() => {
     logger.info({ event: "DISPOSING_CONTAINER" });
-    return Promise.resolve(container.dispose()).catch(error => {
-      logger.error({ event: "CONTAINER_DISPOSE_ERROR", error });
-    });
+    return disposeSigningClients()
+      .then(() => container.dispose())
+      .catch(error => {
+        logger.error({ event: "CONTAINER_DISPOSE_ERROR", error });
+      });
   });
 
   let server: ServerType | undefined;

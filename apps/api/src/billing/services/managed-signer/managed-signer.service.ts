@@ -53,7 +53,7 @@ export class ManagedSignerService {
   }
 
   async executeRootTx(messages: readonly EncodeObject[]) {
-    return await this.masterSigningClientService.executeTx(messages);
+    return await this.masterSigningClientService.signAndBroadcast(messages);
   }
 
   async executeEncodedTxByUserId(userId: UserWalletOutput["userId"], messages: StringifiedEncodeObject[]) {

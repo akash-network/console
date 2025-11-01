@@ -15,7 +15,7 @@ container.register(MANAGED_MASTER_SIGNING_CLIENT, {
       c.resolve(BillingConfigService),
       c.resolve(MANAGED_MASTER_WALLET),
       c.resolve(TYPE_REGISTRY),
-      SyncSigningStargateClient.connectWithSigner.bind(SyncSigningStargateClient),
+      SyncSigningStargateClient.createWithEndpoint.bind(SyncSigningStargateClient),
       c.resolve(ChainErrorService),
       MANAGED_MASTER_SIGNING_CLIENT
     )
@@ -28,7 +28,7 @@ container.register(UAKT_TOP_UP_MASTER_SIGNING_CLIENT, {
       c.resolve(BillingConfigService),
       c.resolve(UAKT_TOP_UP_MASTER_WALLET),
       c.resolve(TYPE_REGISTRY),
-      SyncSigningStargateClient.connectWithSigner.bind(SyncSigningStargateClient),
+      SyncSigningStargateClient.createWithEndpoint.bind(SyncSigningStargateClient),
       c.resolve(ChainErrorService),
       UAKT_TOP_UP_MASTER_SIGNING_CLIENT
     )
@@ -41,10 +41,20 @@ container.register(USDC_TOP_UP_MASTER_SIGNING_CLIENT, {
       c.resolve(BillingConfigService),
       c.resolve(USDC_TOP_UP_MASTER_WALLET),
       c.resolve(TYPE_REGISTRY),
-      SyncSigningStargateClient.connectWithSigner.bind(SyncSigningStargateClient),
+      SyncSigningStargateClient.createWithEndpoint.bind(SyncSigningStargateClient),
       c.resolve(ChainErrorService),
       USDC_TOP_UP_MASTER_SIGNING_CLIENT
     )
 });
 
 export const InjectSigningClient = (walletType: MasterWalletType) => inject(`${walletType}_MASTER_SIGNING_CLIENT`);
+
+export const disposeSigningClients = async () => {
+  const clients = await Promise.all([
+    container.resolve<BatchSigningClientService>(MANAGED_MASTER_SIGNING_CLIENT),
+    container.resolve<BatchSigningClientService>(UAKT_TOP_UP_MASTER_SIGNING_CLIENT),
+    container.resolve<BatchSigningClientService>(USDC_TOP_UP_MASTER_SIGNING_CLIENT)
+  ]);
+
+  await Promise.all(clients.map(client => client.dispose()));
+};
