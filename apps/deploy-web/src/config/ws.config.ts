@@ -1,6 +1,6 @@
 import { browserEnvConfig } from "@src/config/browser-env.config";
 
-export const providerProxyUrlWs = constructUrl(browserEnvConfig.NEXT_PUBLIC_PROVIDER_PROXY_URL_WS);
+export const providerProxyUrlWs = constructUrl(browserEnvConfig.NEXT_PUBLIC_PROVIDER_PROXY_URL);
 
 function constructUrl(input: string): string {
   if (typeof window === "undefined" || !input.startsWith("/")) {
