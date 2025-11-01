@@ -94,12 +94,15 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
   }
 
   async upsertByUserId(data: UserInput): Promise<UserOutput> {
+    const insertData = this.toInput(data);
+    const { userId, ...updateData } = insertData;
+
     const [item] = await this.cursor
       .insert(this.table)
-      .values(this.toInput(data))
+      .values(insertData)
       .onConflictDoUpdate({
         target: [this.table.userId],
-        set: data
+        set: updateData
       })
       .returning();
     return this.toOutput(item);
