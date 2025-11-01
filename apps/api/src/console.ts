@@ -1,7 +1,7 @@
 import "reflect-metadata";
 import "@akashnetwork/env-loader";
+import "./app"; // eslint-disable-line import/order
 import "@src/utils/protobuf";
-import "./app";
 
 import { LoggerService } from "@akashnetwork/logging";
 import { context, trace } from "@opentelemetry/api";
