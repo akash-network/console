@@ -1,5 +1,12 @@
 
 
+## [2.0.4](https://github.com/akash-network/console/compare/notifications/v2.0.3...notifications/v2.0.4) (2025-11-01)
+
+
+### Code Refactoring
+
+* sanitizes invalid UTF characters to prevent Loki crashes ([#2143](https://github.com/akash-network/console/issues/2143)) ([d339437](https://github.com/akash-network/console/commit/d3394371dc86791b8dc1f9abfba72c7d873f17fd))
+
 ## [2.0.3](https://github.com/akash-network/console/compare/notifications/v2.0.2...notifications/v2.0.3) (2025-10-29)
 
 
