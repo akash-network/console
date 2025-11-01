@@ -121,4 +121,9 @@ describe(collectFullErrorStack.name, () => {
     const result = collectFullErrorStack(error);
     expect(result).toContain("test error (code: TEST_ERROR)");
   });
+
+  it("returns sanitized string for string input", () => {
+    const result = collectFullErrorStack("Log: \rl�dqz\u0015M�J�\t���\\�ͺ� does not allow");
+    expect(result).toBe("Log: \\rl\\uFFFD+dqz\\u0015M\\uFFFD+J\\uFFFD+\\t\\uFFFD+\\\\uFFFD+ͺ\\uFFFD+ does not allow");
+  });
 });

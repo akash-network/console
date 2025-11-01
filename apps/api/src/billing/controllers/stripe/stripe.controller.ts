@@ -87,7 +87,7 @@ export class StripeController {
       }
 
       return { data: { success: true } };
-    } catch (error: unknown) {
+    } catch (error) {
       if (this.stripeErrorService.isKnownError(error, "payment")) {
         throw this.stripeErrorService.toAppError(error, "payment");
       }

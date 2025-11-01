@@ -1,12 +1,15 @@
-export function collectFullErrorStack(error: Error | AggregateError | ErrorWithResponse | undefined | null, indent = 0): string {
-  const currentError = error;
-  if (!currentError) return "";
+export function collectFullErrorStack(error: string | Error | AggregateError | ErrorWithResponse | undefined | null, indent = 0): string {
+  if (!error) return "";
+  if (typeof error === "string") return sanitizeString(error);
 
+  const currentError = error;
   const stack = currentError.stack ? currentError.stack.split("\n") : [];
 
   if (stack.length > 0 && "code" in currentError) {
     stack[0] = `${stack[0]} (code: ${currentError.code})`;
   }
+
+  stack[0] = sanitizeString(stack[0]);
 
   if (currentError.cause) {
     stack.push("\nCaused by:", collectFullErrorStack(currentError.cause as Error, indent + 2));
@@ -25,7 +28,7 @@ export function collectFullErrorStack(error: Error | AggregateError | ErrorWithR
       "\nResponse:",
       `\n\nRequest: ${requestedPath}`,
       `\n\nStatus: ${currentError.response.status}`,
-      `\n\nError: ${currentError.response.data?.message || "Not specified"} (code: ${currentError.response.data?.code || "Not specified"})`
+      `\n\nError: ${sanitizeString(currentError.response.data?.message) || "Not specified"} (code: ${currentError.response.data?.code || "Not specified"})`
     );
   }
 
@@ -47,3 +50,29 @@ type ErrorWithResponse = Error & {
   };
 };
 type AggregateError = Error & { errors?: Error[] };
+
+export function sanitizeString(str: string | undefined | null): string {
+  if (!str) return "";
+
+  let s = String(str);
+  if (typeof s.normalize === "function") s = s.normalize("NFC");
+  s = replaceBrokenUtf8(s);
+  s = scrubControls(s);
+  return s;
+}
+
+const RE_FFFD = /\uFFFD+/g;
+function replaceBrokenUtf8(str: string): string {
+  return str.replace(RE_FFFD, "\\uFFFD+");
+}
+
+function scrubControls(str: string): string {
+  return (
+    str
+      .replace(/\r/g, "\\r")
+      .replace(/\n/g, "\\n")
+      .replace(/\t/g, "\\t")
+      // eslint-disable-next-line no-control-regex
+      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, ch => `\\u${ch.charCodeAt(0).toString(16).padStart(4, "0")}`)
+  );
+}
