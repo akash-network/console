@@ -1,5 +1,12 @@
 
 
+## [3.1.0](https://github.com/akash-network/console/compare/console-api/v3.0.7...console-api/v3.1.0) (2025-11-01)
+
+
+### Features
+
+* add otel namespace to logging package ([#2075](https://github.com/akash-network/console/issues/2075)) ([557321a](https://github.com/akash-network/console/commit/557321a4a85144383e43fb35d28527649a396213))
+
 ## [3.0.7](https://github.com/akash-network/console/compare/console-api/v3.0.6...console-api/v3.0.7) (2025-11-01)
 
 
