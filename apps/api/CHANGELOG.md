@@ -1,5 +1,12 @@
 
 
+## [3.0.7](https://github.com/akash-network/console/compare/console-api/v3.0.6...console-api/v3.0.7) (2025-11-01)
+
+
+### Code Refactoring
+
+* sanitizes invalid UTF characters to prevent Loki crashes ([#2143](https://github.com/akash-network/console/issues/2143)) ([d339437](https://github.com/akash-network/console/commit/d3394371dc86791b8dc1f9abfba72c7d873f17fd))
+
 ## [3.0.6](https://github.com/akash-network/console/compare/console-api/v3.0.5...console-api/v3.0.6) (2025-10-29)
 
 

@@ -1,5 +1,12 @@
 
 
+## [1.0.5](https://github.com/akash-network/console/compare/stats-web/v1.0.4...stats-web/v1.0.5) (2025-11-01)
+
+
+### Code Refactoring
+
+* sanitizes invalid UTF characters to prevent Loki crashes ([#2143](https://github.com/akash-network/console/issues/2143)) ([d339437](https://github.com/akash-network/console/commit/d3394371dc86791b8dc1f9abfba72c7d873f17fd))
+
 ## [1.0.4](https://github.com/akash-network/console/compare/stats-web/v1.0.3...stats-web/v1.0.4) (2025-10-29)
 
 
