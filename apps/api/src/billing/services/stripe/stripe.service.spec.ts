@@ -1084,7 +1084,7 @@ describe(StripeService.name, () => {
         id: "pi_test_123",
         status: "succeeded",
         amount: 100
-      } as Partial<Stripe.PaymentIntent> as Stripe.PaymentIntent;
+      } as Stripe.PaymentIntent;
 
       // Override default payment intent mock
       jest.spyOn(service.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as any);
