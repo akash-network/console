@@ -74,7 +74,12 @@ export const createAppRootContainer = (config: ServicesConfig) => {
       container.applyAxiosInterceptors(new AuthHttpService(apiConfig), {
         request: [withUserToken]
       }),
-    providerProxy: () => new ProviderProxyService(container.applyAxiosInterceptors(container.createAxios({ baseURL: config.BASE_PROVIDER_PROXY_URL }), {})),
+    providerProxy: () =>
+      new ProviderProxyService(
+        container.applyAxiosInterceptors(container.createAxios({ baseURL: config.BASE_PROVIDER_PROXY_URL })),
+        container.logger,
+        () => new WebSocket(config.BASE_PROVIDER_PROXY_URL.replace(/^http/, "ws"))
+      ),
     deploymentSetting: () =>
       container.applyAxiosInterceptors(new DeploymentSettingHttpService(apiConfig), {
         request: [withUserToken]
