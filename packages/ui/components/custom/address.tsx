@@ -8,6 +8,10 @@ import { cn, copyTextToClipboard } from "../../utils";
 import { CustomTooltip } from "../tooltip";
 import { Snackbar } from "./snackbar";
 
+export const shortenAddress = (address: string) => {
+  return `${address.slice(0, 8)}...${address.slice(-5)}`;
+};
+
 type Props = {
   address: string;
   isCopyable?: boolean;
@@ -21,7 +25,7 @@ type Props = {
 export const Address: React.FunctionComponent<Props> = ({ address, isCopyable, disableTruncate, disableTooltip, showIcon, className, ...rest }) => {
   const [isOver, setIsOver] = useState(false);
   const { enqueueSnackbar } = useSnackbar();
-  const formattedAddress = disableTruncate ? address : [address?.slice(0, 8), "...", address?.slice(address?.length - 5)].join("");
+  const formattedAddress = disableTruncate ? address : shortenAddress(address);
 
   const onClick = (event: React.MouseEvent<HTMLDivElement>) => {
     if (isCopyable) {

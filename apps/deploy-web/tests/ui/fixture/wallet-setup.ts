@@ -56,8 +56,11 @@ export async function connectWalletViaLeap(context: BrowserContext, page: Page) 
   }
 }
 
-export async function awaitWalletAndApprove(context: BrowserContext, page: Page) {
-  const popupPage = await context.waitForEvent("page", { timeout: 5_000 });
+export async function awaitWalletAndApprove(context: BrowserContext, page: Page, extensionId: string) {
+  const popupPage = await Promise.race([
+    context.waitForEvent("page", { timeout: 5_000 }),
+    getExtensionPage(context, extensionId),
+  ]);
   await approveWalletOperation(popupPage);
   await isWalletConnected(page);
 }
