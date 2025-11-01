@@ -1,14 +1,25 @@
 import { isHttpError } from "http-errors";
+import type { DestinationStream } from "pino";
 import pino from "pino";
-import type { PinoPretty } from "pino-pretty";
 
 import type { Config } from "../../config";
 import { config as envConfig } from "../../config";
-import { collectFullErrorStack } from "../../utils/collect-full-error-stack/collect-full-error-stack";
+import { collectFullErrorStack, sanitizeString } from "../../utils/collect-full-error-stack/collect-full-error-stack";
 
-export interface Logger extends Pick<pino.Logger, "info" | "error" | "warn" | "debug" | "fatal"> {
+export type LogMessage = string | (Record<string, unknown> & { error?: unknown; message?: string; event?: string });
+type LogFn = {
+  (message: LogMessage): void;
+  (message: Error): void;
+  (message: unknown): void;
+};
+export interface Logger {
   setContext(context: string): void;
-  log: pino.Logger["info"];
+  log: LogFn;
+  info: LogFn;
+  error: LogFn;
+  warn: LogFn;
+  debug: LogFn;
+  fatal: LogFn;
 }
 
 interface Bindings extends pino.Bindings {
@@ -18,6 +29,7 @@ interface Bindings extends pino.Bindings {
 export interface LoggerOptions extends pino.LoggerOptions {
   base?: Bindings | null;
   context?: string;
+  createPino?(options: pino.LoggerOptions, stream?: DestinationStream | undefined): pino.Logger;
 }
 
 export const CUSTOM_LEVELS: Record<string, string> = {
@@ -54,7 +66,8 @@ export class LoggerService implements Logger {
   }
 
   private initPino(): pino.Logger {
-    const options: LoggerOptions = {
+    const { createPino = pino, context, ...additionalOptions } = this.options ?? {};
+    const options: pino.LoggerOptions = {
       level: LoggerService.config.LOG_LEVEL,
       mixin: LoggerService.mixin,
       timestamp: () => `,"time":"${new Date().toISOString()}"`,
@@ -63,25 +76,38 @@ export class LoggerService implements Logger {
           return { level: CUSTOM_LEVELS[label] || label };
         }
       },
-      ...this.options
+      serializers: {
+        err: collectFullErrorStack,
+        error: collectFullErrorStack,
+        originalError: collectFullErrorStack,
+        msg: sanitizeString,
+        message: sanitizeString
+      },
+      ...additionalOptions
     };
+    const destinationStream = this.getPrettyIfPresent();
+    const logger = destinationStream?.ok ? createPino(options, destinationStream.value) : createPino(options);
 
-    const pretty = this.getPrettyIfPresent();
-
-    if (pretty) {
-      return pino(options, pretty);
+    if (destinationStream?.ok === false) {
+      logger.debug({ context: LoggerService.name, message: "Failed to load pino-pretty", error: destinationStream.error });
     }
 
-    return pino(options);
+    return logger;
   }
 
-  private getPrettyIfPresent(): PinoPretty.PrettyStream | undefined {
+  private getPrettyIfPresent() {
     if (typeof window === "undefined" && LoggerService.config.STD_OUT_LOG_FORMAT === "pretty") {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        return require("pino-pretty")({ colorize: true, sync: true });
-      } catch (e) {
-        this.debug({ context: LoggerService.name, message: "Failed to load pino-pretty", error: e });
+        return {
+          ok: true,
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          value: require("pino-pretty")({ colorize: true, sync: true })
+        } as const;
+      } catch (error) {
+        return {
+          ok: false,
+          error
+        } as const;
       }
     }
   }
@@ -96,27 +122,45 @@ export class LoggerService implements Logger {
     return this;
   }
 
-  log(message: any): void {
-    return this.pino.info(message);
+  log(message: LogMessage): void;
+  log(message: Error): void;
+  log(message: unknown): void;
+  log(message: unknown): void {
+    return this.info(message);
   }
 
-  info(message: any): void {
+  info(message: LogMessage): void;
+  info(message: Error): void;
+  info(message: unknown): void;
+  info(message: unknown): void {
     return this.pino.info(this.toLoggableInput(message));
   }
 
-  error(message: any): void {
+  error(message: LogMessage): void;
+  error(message: Error): void;
+  error(message: unknown): void;
+  error(message: unknown): void {
     this.pino.error(this.toLoggableInput(message));
   }
 
-  fatal(message: any): void {
+  fatal(message: LogMessage): void;
+  fatal(message: Error): void;
+  fatal(message: unknown): void;
+  fatal(message: unknown): void {
     this.pino.fatal(this.toLoggableInput(message));
   }
 
-  warn(message: any): void {
+  warn(message: LogMessage): void;
+  warn(message: Error): void;
+  warn(message: unknown): void;
+  warn(message: unknown): void {
     return this.pino.warn(this.toLoggableInput(message));
   }
 
-  debug(message: any): void {
+  debug(message: LogMessage): void;
+  debug(message: Error): void;
+  debug(message: unknown): void;
+  debug(message: unknown): void {
     return this.pino.debug(this.toLoggableInput(message));
   }
 
@@ -124,48 +168,18 @@ export class LoggerService implements Logger {
     if (!message) return;
 
     if (isHttpError(message)) {
-      const loggableInput: Record<string, unknown> = {
+      return {
         // keep new line
         status: message.status,
-        message: message.message,
+        message: sanitizeString(message.message),
         stack: collectFullErrorStack(message),
-        data: message.data
+        data: message.data,
+        originalError: message.originalError
       };
-
-      return "originalError" in message
-        ? {
-            ...loggableInput,
-            originalError: collectFullErrorStack(message.originalError)
-          }
-        : loggableInput;
-    }
-
-    if (message instanceof Error) {
-      return collectFullErrorStack(message);
-    }
-
-    if (typeof message === "object") {
-      if (hasOwn(message, "error") && message.error && message.error instanceof Error) {
-        return {
-          ...message,
-          error: collectFullErrorStack(message.error)
-        };
-      }
-      if (hasOwn(message, "err") && message.err && message.err instanceof Error) {
-        return {
-          ...message,
-          err: collectFullErrorStack(message.err)
-        };
-      }
-      return message;
     }
 
     return message;
   }
 }
 
-function hasOwn<T extends object, U extends PropertyKey>(obj: T, key: U): obj is T & { [k in U]: unknown } {
-  return Object.prototype.hasOwnProperty.call(obj, key);
-}
-
-declare let window: any;
+declare let window: unknown;

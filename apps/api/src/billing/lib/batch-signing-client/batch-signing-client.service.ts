@@ -318,7 +318,7 @@ export class BatchSigningClientService {
             this.logger.error({
               event: "TX_BROADCAST_ERROR",
               txIndex,
-              error: errorMessage
+              error
             });
             throw error;
           }

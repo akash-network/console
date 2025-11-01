@@ -260,7 +260,7 @@ export class StripeService extends Stripe {
             event: "COUPON_APPLICATION_ROLLBACK_SUCCESS",
             userId: currentUser.id,
             couponId: updateId,
-            error: error instanceof Error ? error.message : String(error)
+            error
           });
         } catch (rollbackError) {
           logger.error({
@@ -680,7 +680,7 @@ export class StripeService extends Stripe {
         customerId,
         paymentMethodId,
         paymentIntentId,
-        error: error instanceof Error ? error.message : String(error)
+        error
       });
       throw error;
     }
@@ -736,7 +736,7 @@ export class StripeService extends Stripe {
         event: "PAYMENT_METHOD_VALIDATION_UPDATE_FAILED",
         customerId,
         paymentMethodId,
-        error: validationError instanceof Error ? validationError.message : String(validationError)
+        error: validationError
       });
       // Don't fail the test charge if validation update fails - the card is still valid
     }
