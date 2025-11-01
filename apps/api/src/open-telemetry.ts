@@ -1,7 +1,4 @@
 import { LoggerService } from "@akashnetwork/logging";
-import { context, trace } from "@opentelemetry/api";
+import { collectOtel } from "@akashnetwork/logging/otel";
 
-LoggerService.mixin = () => {
-  const currentSpan = trace.getSpan(context.active());
-  return { ...currentSpan?.spanContext() };
-};
+LoggerService.mixin = collectOtel;

@@ -1,5 +1,5 @@
-import { LoggerService } from "@akashnetwork/logging";
 import { HttpLoggerIntercepter } from "@akashnetwork/logging/hono";
+import { createOtelLogger } from "@akashnetwork/logging/otel";
 import type { SupportedChainNetworks } from "@akashnetwork/net";
 import { netConfig } from "@akashnetwork/net";
 
@@ -12,7 +12,7 @@ export function createContainer() {
   const isLoggingDisabled = process.env.NODE_ENV === "test";
 
   const wsStats = new WebsocketStats();
-  const appLogger = isLoggingDisabled ? undefined : new LoggerService({ name: "app" });
+  const appLogger = isLoggingDisabled ? undefined : createOtelLogger({ name: "app" });
   const providerService = new ProviderService(
     (network: SupportedChainNetworks) => {
       // TEST_CHAIN_NETWORK_URL is hack for functional tests
@@ -28,11 +28,11 @@ export function createContainer() {
   const certificateValidator = new CertificateValidator(
     Date.now,
     providerService,
-    isLoggingDisabled ? undefined : createCertificateValidatorInstrumentation(new LoggerService({ name: "cert-validator" }))
+    isLoggingDisabled ? undefined : createCertificateValidatorInstrumentation(createOtelLogger({ name: "cert-validator" }))
   );
   const providerProxy = new ProviderProxy(certificateValidator);
-  const wsLogger = isLoggingDisabled ? undefined : new LoggerService({ name: "ws" });
-  const httpLogger = isLoggingDisabled ? undefined : new LoggerService({ name: "http" });
+  const wsLogger = isLoggingDisabled ? undefined : createOtelLogger({ name: "ws" });
+  const httpLogger = isLoggingDisabled ? undefined : createOtelLogger({ name: "http" });
   const httpLoggerInterceptor = new HttpLoggerIntercepter(httpLogger);
 
   return {

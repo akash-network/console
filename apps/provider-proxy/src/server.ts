@@ -1,5 +1,3 @@
-import "./setupOpenTelemetry";
-
 import { startAppServer } from "./app";
 
 const { PORT = 3040 } = process.env;

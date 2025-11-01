@@ -1,6 +1,5 @@
 import "reflect-metadata";
 import "@akashnetwork/env-loader";
-import "./open-telemetry";
 
 import { LoggerService } from "@akashnetwork/logging";
 import { fork } from "child_process";
