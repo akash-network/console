@@ -1,5 +1,13 @@
 
 
+## [3.0.6](https://github.com/akash-network/console/compare/console-web/v3.0.5...console-web/v3.0.6) (2025-11-01)
+
+
+### Code Refactoring
+
+* sanitizes invalid UTF characters to prevent Loki crashes ([#2143](https://github.com/akash-network/console/issues/2143)) ([d339437](https://github.com/akash-network/console/commit/d3394371dc86791b8dc1f9abfba72c7d873f17fd))
+* splits BackgroundTaskProvider into hook and service ([#2137](https://github.com/akash-network/console/issues/2137)) ([da9671d](https://github.com/akash-network/console/commit/da9671d84639434a9346453486b729a9a0e8619c))
+
 ## [3.0.5](https://github.com/akash-network/console/compare/console-web/v3.0.4...console-web/v3.0.5) (2025-10-29)
 
 
