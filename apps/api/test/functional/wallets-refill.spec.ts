@@ -48,24 +48,18 @@ describe("Wallets Refill", () => {
       });
 
       const records = await Promise.all(prepareRecords);
-      const trialingWallet = records[NUMBER_OF_WALLETS - 1];
-      const nonTrialingWallets = records.slice(0, NUMBER_OF_WALLETS - 1);
 
       await walletController.refillWallets();
 
-      // Give the blockchain and database a moment to settle
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      await Promise.all([
-        ...nonTrialingWallets.map(async ({ wallet }) => {
+      await Promise.all(
+        records.map(async ({ wallet }) => {
           const walletRecord = await userWalletRepository.findById(wallet.id);
 
           expect(walletRecord?.feeAllowance).toBe(config.FEE_ALLOWANCE_REFILL_AMOUNT);
-        }),
-        userWalletRepository.findById(trialingWallet.wallet.id).then(walletRecord => {
-          expect(walletRecord?.feeAllowance).toBe(config.FEE_ALLOWANCE_REFILL_THRESHOLD);
         })
-      ]);
+      );
     });
   });
 
