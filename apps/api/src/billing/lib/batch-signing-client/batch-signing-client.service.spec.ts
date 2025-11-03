@@ -1,234 +1,192 @@
 import { TxRaw } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 import { sha256 } from "@cosmjs/crypto";
 import { toHex } from "@cosmjs/encoding";
+import type { EncodeObject } from "@cosmjs/proto-signing";
 import { Registry } from "@cosmjs/proto-signing";
-import type { Account } from "@cosmjs/stargate";
+import type { Account, DeliverTxResponse } from "@cosmjs/stargate";
+import type { IndexedTx } from "@cosmjs/stargate/build/stargateclient";
+import { faker } from "@faker-js/faker";
 import { mock } from "jest-mock-extended";
 
-import type { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
+import { createAkashAddress } from "../../../../test/seeders";
+import { RpcMessageService } from "../../services";
 import type { BillingConfigService } from "../../services/billing-config/billing-config.service";
+import type { ChainErrorService } from "../../services/chain-error/chain-error.service";
 import type { SyncSigningStargateClient } from "../sync-signing-stargate-client/sync-signing-stargate-client";
 import type { Wallet } from "../wallet/wallet";
 import { BatchSigningClientService } from "./batch-signing-client.service";
 
-describe("BatchSigningClientService", () => {
-  it("should handle duplicate tx error gracefully and proceed with hash", async () => {
-    const { service, expectedHash, mockClient } = setup();
-    mockClient.tmBroadcastTxSync.mockImplementation(async () => {
-      const error = new Error("tx already exists in cache");
-      throw error;
-    });
-    mockClient.broadcastTx.mockImplementation(async () => {
-      const error = new Error("tx already exists in cache");
-      throw error;
-    });
-    const messages = [{ typeUrl: "/akash.test.MsgTest", value: {} }];
+import { mockConfigService } from "@test/mocks/config-service.mock";
 
-    const result = await service["executeTxBatch"]([{ messages }]);
+interface TransactionTestData {
+  messages: readonly EncodeObject[];
+  gasEstimate: number;
+  signedMessage: TxRaw;
+  hash: string | Error;
+  tx: IndexedTx;
+}
 
-    expect(result).toHaveLength(1);
-    expect(result[0]?.hash).toBe(expectedHash);
+describe(BatchSigningClientService.name, () => {
+  it("should batch and execute multiple transactions successfully", async () => {
+    const granter = createAkashAddress();
+    const testData = Array.from({ length: 5 }, () => createTransactionTestData(granter));
+
+    const { service, client } = setup(testData);
+
+    const results = await Promise.all(testData.map(data => service.signAndBroadcast(data.messages)));
+
+    expect(results).toHaveLength(testData.length);
+    expect(results).toEqual(testData.map(data => data.tx));
+    expect(client.broadcastTx).toHaveBeenCalledTimes(1);
+    expect(client.broadcastTxSync).toHaveBeenCalledTimes(testData.length - 1);
   });
 
-  it("should cache first address and prevent race conditions", async () => {
-    const { service, mockWallet } = setup();
+  it("should handle errors in batch without affecting other transactions", async () => {
+    const granter = createAkashAddress();
+    const successfulTestData = [
+      createTransactionTestData(granter),
+      createTransactionTestData(granter),
+      createTransactionTestData(granter),
+      createTransactionTestData(granter)
+    ];
+    const erroredTestData = createTransactionTestData(granter);
+    erroredTestData.hash = new Error("Test error");
 
-    let resolveAddress: (value: string) => void;
-    const addressPromise = new Promise<string>(resolve => {
-      resolveAddress = resolve;
-    });
-    mockWallet.getFirstAddress.mockReturnValue(addressPromise);
+    const allTestData = [...successfulTestData, erroredTestData];
+    const { service, client } = setup(allTestData);
 
-    const promises = [service["getCachedFirstAddress"](), service["getCachedFirstAddress"](), service["getCachedFirstAddress"]()];
+    const results = await Promise.allSettled(allTestData.map(data => service.signAndBroadcast(data.messages)));
 
-    setTimeout(() => resolveAddress!("akash1testaddress"), 10);
+    const fulfilledResults = results.filter(r => r.status === "fulfilled") as PromiseFulfilledResult<IndexedTx>[];
+    const rejectedResults = results.filter(r => r.status === "rejected") as PromiseRejectedResult[];
 
-    const results = await Promise.all(promises);
-
-    expect(results).toEqual(["akash1testaddress", "akash1testaddress", "akash1testaddress"]);
-    expect(mockWallet.getFirstAddress).toHaveBeenCalledTimes(1);
+    expect(fulfilledResults).toHaveLength(successfulTestData.length);
+    expect(rejectedResults).toHaveLength(1);
+    expect(fulfilledResults.map(r => r.value)).toEqual(successfulTestData.map(data => data.tx));
+    expect(rejectedResults[0].reason).toBeInstanceOf(Error);
+    expect(client.broadcastTx).toHaveBeenCalledTimes(1);
+    expect(client.broadcastTxSync).toHaveBeenCalledTimes(allTestData.length - 1);
   });
 
-  it("should return cached first address on subsequent calls", async () => {
-    const { service, mockWallet } = setup();
-    mockWallet.getFirstAddress.mockResolvedValue("akash1testaddress");
-
-    const firstResult = await service["getCachedFirstAddress"]();
-    expect(firstResult).toBe("akash1testaddress");
-    expect(mockWallet.getFirstAddress).toHaveBeenCalledTimes(1);
-
-    const secondResult = await service["getCachedFirstAddress"]();
-    expect(secondResult).toBe("akash1testaddress");
-    expect(mockWallet.getFirstAddress).toHaveBeenCalledTimes(1);
-  });
-
-  it("should cache account info and prevent race conditions", async () => {
-    const { service, mockClient } = setup();
-
-    let resolveAccount: (value: Account) => void;
-    const accountPromise = new Promise<Account>(resolve => {
-      resolveAccount = resolve;
-    });
-    mockClient.getAccount.mockReturnValue(accountPromise);
-
-    const promises = [service["getCachedAccountInfo"](), service["getCachedAccountInfo"](), service["getCachedAccountInfo"]()];
-
-    setTimeout(
-      () =>
-        resolveAccount!({
-          address: "akash1testaddress",
-          pubkey: null,
-          accountNumber: 1,
-          sequence: 1
-        }),
-      10
+  it("should retry failed transaction within a batch on sequence mismatch error and eventually succeed", async () => {
+    const granter = createAkashAddress();
+    const successfulTestData = [
+      createTransactionTestData(granter),
+      createTransactionTestData(granter),
+      createTransactionTestData(granter),
+      createTransactionTestData(granter)
+    ];
+    const erroredTestData = createTransactionTestData(granter);
+    const { hash } = erroredTestData;
+    erroredTestData.hash = new Error(
+      "Query failed with (6): rpc error: code = Unknown desc = account sequence mismatch, expected 15533, got 15532: incorrect account sequence [cosmos/cosmos-sdk@v0.53.3/x/auth/ante/sigverify.go:364] with gas used: '19186': unknown request"
     );
 
-    const results = await Promise.all(promises);
+    const allTestData = [...successfulTestData, erroredTestData];
+    const { service, client } = setup(allTestData);
 
-    expect(results).toHaveLength(3);
-    expect(results[0]).toEqual(results[1]);
-    expect(results[1]).toEqual(results[2]);
-    expect(results[0]).toMatchObject({
-      accountNumber: 1,
-      sequence: 1,
-      address: "akash1testaddress"
+    client.simulate.mockResolvedValueOnce(erroredTestData.gasEstimate);
+    client.sign.mockResolvedValueOnce(erroredTestData.signedMessage);
+    client.broadcastTx.mockResolvedValueOnce({ transactionHash: hash } as DeliverTxResponse);
+    client.getTx.mockResolvedValueOnce(erroredTestData.tx);
+
+    const results = await Promise.all(allTestData.map(data => service.signAndBroadcast(data.messages)));
+
+    expect(results).toHaveLength(allTestData.length);
+    expect(results).toEqual(allTestData.map(data => data.tx));
+    expect(client.broadcastTx).toHaveBeenCalledTimes(2);
+    expect(client.broadcastTxSync).toHaveBeenCalledTimes(allTestData.length - 1);
+  });
+
+  function createTransactionTestData(granter: string): TransactionTestData {
+    const signedMessage = TxRaw.fromPartial({
+      bodyBytes: generateRandomBytes(faker.number.int({ min: 10, max: 100 })),
+      authInfoBytes: generateRandomBytes(faker.number.int({ min: 10, max: 100 })),
+      signatures: [generateRandomBytes(faker.number.int({ min: 64, max: 128 }))]
     });
-    expect(mockClient.getAccount).toHaveBeenCalledTimes(1);
-  });
+    const hash = toHex(sha256(TxRaw.encode(signedMessage).finish()));
+    const gas = faker.number.int({ min: 1500, max: 3500 });
 
-  it("should return cached account info on subsequent calls", async () => {
-    const { service, mockClient } = setup();
+    return {
+      messages: [
+        new RpcMessageService().getFeesAllowanceGrantMsg({
+          limit: faker.number.int({ min: 5_000_000, max: 10_000_000 }),
+          grantee: createAkashAddress(),
+          granter
+        })
+      ],
+      gasEstimate: gas,
+      signedMessage,
+      hash,
+      tx: {
+        hash,
+        txIndex: 0,
+        code: 0,
+        events: [],
+        rawLog: "",
+        height: faker.number.int({ min: 1, max: 1_000_000 }),
+        tx: TxRaw.encode(signedMessage).finish(),
+        msgResponses: [],
+        gasUsed: BigInt(gas),
+        gasWanted: BigInt(gas)
+      }
+    };
+  }
 
-    const firstResult = await service["getCachedAccountInfo"]();
-    expect(firstResult).toMatchObject({
-      accountNumber: 1,
-      sequence: 1,
-      address: "akash1testaddress"
-    });
-    expect(mockClient.getAccount).toHaveBeenCalledTimes(1);
+  function generateRandomBytes(length: number): Uint8Array {
+    return Uint8Array.from(Array.from({ length }, () => faker.number.int({ min: 0, max: 255 })));
+  }
 
-    const secondResult = await service["getCachedAccountInfo"]();
-    expect(secondResult).toEqual(firstResult);
-    expect(mockClient.getAccount).toHaveBeenCalledTimes(1);
-  });
-
-  it("should clear cached account info when clearCachedAccountInfo is called", async () => {
-    const { service, mockClient } = setup();
-
-    await service["getCachedAccountInfo"]();
-    expect(mockClient.getAccount).toHaveBeenCalledTimes(1);
-
-    service["clearCachedAccountInfo"]();
-
-    await service["getCachedAccountInfo"]();
-    expect(mockClient.getAccount).toHaveBeenCalledTimes(2);
-  });
-
-  it("should increment sequence correctly", async () => {
-    const { service } = setup();
-
-    const initialInfo = await service["getCachedAccountInfo"]();
-    expect(initialInfo.sequence).toBe(1);
-
-    service["incrementSequence"]();
-    const updatedInfo = await service["getCachedAccountInfo"]();
-    expect(updatedInfo.sequence).toBe(2);
-
-    service["incrementSequence"]();
-    const finalInfo = await service["getCachedAccountInfo"]();
-    expect(finalInfo.sequence).toBe(3);
-  });
-
-  it("should handle errors in first address fetching and clear promise", async () => {
-    const { service, mockWallet } = setup();
-
-    mockWallet.getFirstAddress.mockRejectedValue(new Error("Network error"));
-
-    await expect(service["getCachedFirstAddress"]()).rejects.toThrow("Network error");
-
-    await expect(service["getCachedFirstAddress"]()).rejects.toThrow("Network error");
-
-    expect(mockWallet.getFirstAddress).toHaveBeenCalledTimes(2);
-  });
-
-  it("should handle errors in account info fetching and clear promise", async () => {
-    const { service, mockClient } = setup();
-
-    mockClient.getAccount.mockRejectedValue(new Error("Account not found"));
-
-    await expect(service["getCachedAccountInfo"]()).rejects.toThrow("Account not found");
-
-    await expect(service["getCachedAccountInfo"]()).rejects.toThrow("Account not found");
-
-    expect(mockClient.getAccount).toHaveBeenCalledTimes(2);
-  });
-
-  it("should handle account not found error correctly", async () => {
-    const { service, mockClient } = setup();
-
-    mockClient.getAccount.mockResolvedValue(null);
-
-    await expect(service["getCachedAccountInfo"]()).rejects.toThrow(
-      "Account not found for address: akash1testaddress. The account may not exist on the blockchain yet."
-    );
-  });
-
-  function setup() {
-    const dummyTxRaw = TxRaw.fromPartial({
-      bodyBytes: new Uint8Array([1, 2, 3]),
-      authInfoBytes: new Uint8Array([4, 5, 6]),
-      signatures: [new Uint8Array([7, 8, 9])]
-    });
-    const dummyTxBytes = TxRaw.encode(dummyTxRaw).finish();
-    const expectedHash = toHex(sha256(dummyTxBytes));
-
-    const mockWallet = mock<Wallet>();
-    mockWallet.getFirstAddress.mockResolvedValue("akash1testaddress");
-
-    const mockConfig = mock<BillingConfigService>();
-    (mockConfig.get as jest.Mock).mockImplementation(
-      (key: string) =>
-        ({
-          MASTER_WALLET_MNEMONIC: "test mnemonic",
-          RPC_NODE_ENDPOINT: "http://localhost:26657",
-          WALLET_BATCHING_INTERVAL_MS: "0",
-          GAS_SAFETY_MULTIPLIER: "1.2",
-          AVERAGE_GAS_PRICE: 0.025
-        })[key]
-    );
-
-    const mockRegistry = new Registry();
-
-    const mockClient = mock<SyncSigningStargateClient>();
-    mockClient.getChainId.mockResolvedValue("test-chain");
-    mockClient.getAccount.mockResolvedValue({
-      address: "akash1testaddress",
-      pubkey: null,
-      accountNumber: 1,
-      sequence: 1
-    });
-    mockClient.sign.mockResolvedValue(dummyTxRaw);
-    mockClient.simulate.mockResolvedValue(100000);
-    mockClient.getTx.mockResolvedValue({
-      height: 1,
-      txIndex: 0,
-      hash: expectedHash,
-      code: 0,
-      events: [],
-      rawLog: "",
-      tx: new Uint8Array(),
-      msgResponses: [],
-      gasUsed: BigInt(100000),
-      gasWanted: BigInt(100000)
+  function setup(testData: TransactionTestData[]) {
+    const wallet = mock<Wallet>({
+      getFirstAddress: jest.fn(() => Promise.resolve(createAkashAddress()))
     });
 
-    const connectWithSigner = jest.fn().mockResolvedValue(mockClient);
+    const billingConfigService = mockConfigService<BillingConfigService>({
+      MASTER_WALLET_MNEMONIC: "test mnemonic",
+      RPC_NODE_ENDPOINT: "http://localhost:26657",
+      WALLET_BATCHING_INTERVAL_MS: "0",
+      GAS_SAFETY_MULTIPLIER: "1.2",
+      AVERAGE_GAS_PRICE: 0.025
+    });
 
-    const chainErrorService = mock<ChainErrorService>();
+    const registry = new Registry();
 
-    const service = new BatchSigningClientService(mockConfig, mockWallet, mockRegistry, connectWithSigner, chainErrorService);
+    const client = mock<SyncSigningStargateClient>({
+      getChainId: jest.fn(async () => "test-chain"),
+      getAccount: jest.fn(async (address: string) => ({ accountNumber: 0, sequence: 1, address }) as Account)
+    });
 
-    return { service, expectedHash, mockWallet, mockConfig, mockRegistry, mockClient };
+    testData.forEach((data, index) => {
+      client.simulate.mockResolvedValueOnce(data.gasEstimate);
+      client.sign.mockResolvedValueOnce(data.signedMessage);
+
+      if (index < testData.length - 1) {
+        if (data.hash instanceof Error) {
+          client.broadcastTxSync.mockRejectedValueOnce(data.hash);
+        } else {
+          client.broadcastTxSync.mockResolvedValueOnce(data.hash);
+        }
+      } else {
+        if (data.hash instanceof Error) {
+          client.broadcastTx.mockRejectedValueOnce(data.hash);
+        } else {
+          client.broadcastTx.mockResolvedValueOnce({ transactionHash: data.hash } as DeliverTxResponse);
+        }
+      }
+
+      if (!(data.hash instanceof Error)) {
+        client.getTx.mockResolvedValueOnce(data.tx);
+      }
+    });
+
+    const createClientWithSigner = jest.fn(() => client);
+    const chainErrorService = mock<ChainErrorService>({
+      toAppError: jest.fn(async error => error)
+    });
+
+    const service = new BatchSigningClientService(billingConfigService, wallet, registry, createClientWithSigner, chainErrorService);
+
+    return { service, client };
   }
 });
