@@ -34,13 +34,17 @@ export class DeploymentBalanceMonitor {
     }
   }
 
-  async getDeploymentBalance(target: string): Promise<number> {
+  async getDeploymentBalance(target: string): Promise<number | null> {
     const [owner, dseq] = target.split("/");
     const response = await axios.get(`https://rest.cosmos.directory/akash/akash/deployment/v1beta4/deployments/info?id.owner=${owner}&id.dseq=${dseq}`, {
       timeout: 15_000
     });
 
-    const escrowState = response.data.escrow_account.state;
+    const escrowState = response?.data?.escrow_account?.state;
+    if (!escrowState?.funds) {
+      return null;
+    }
+
     const funds = escrowState.funds.find((f: { denom: string; amount: string }) => f.denom === activeChain.denom || f.denom === activeChain.udenom);
 
     if (!funds) {
