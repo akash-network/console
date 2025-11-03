@@ -36,21 +36,19 @@ export class DeploymentBalanceMonitor {
 
   async getDeploymentBalance(target: string): Promise<number> {
     const [owner, dseq] = target.split("/");
-    const response = await axios.get(`https://rest.cosmos.directory/akash/akash/deployment/v1beta3/deployments/info?id.owner=${owner}&id.dseq=${dseq}`, {
+    const response = await axios.get(`https://rest.cosmos.directory/akash/akash/deployment/v1beta4/deployments/info?id.owner=${owner}&id.dseq=${dseq}`, {
       timeout: 15_000
     });
 
-    const balance = response.data.escrow_account.balance;
-    const funds = response.data.escrow_account.funds;
-    const isAktDenom = balance.denom === activeChain.denom || balance.denom === activeChain.udenom;
+    const escrowState = response.data.escrow_account.state;
+    const funds = escrowState.funds.find((f: { denom: string; amount: string }) => f.denom === activeChain.denom || f.denom === activeChain.udenom);
 
-    if (!balance || !funds || !isAktDenom) {
+    if (!funds) {
       return null;
     }
 
-    const balanceAmount = balance.denom === activeChain.udenom ? parseInt(balance.amount) : parseInt(balance.amount) * 1_000_000;
     const fundsAmount = funds.denom === activeChain.udenom ? parseInt(funds.amount) : parseInt(funds.amount) * 1_000_000;
 
-    return balanceAmount + fundsAmount;
+    return fundsAmount;
   }
 }
