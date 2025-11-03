@@ -8,6 +8,8 @@ import { ManagedUserWalletService, WalletInitializerService } from "@src/billing
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { Semaphore } from "@src/core/lib/semaphore.decorator";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 
 @singleton()
 export class RefillService {
@@ -19,13 +21,18 @@ export class RefillService {
     private readonly managedUserWalletService: ManagedUserWalletService,
     private readonly balancesService: BalancesService,
     private readonly walletInitializerService: WalletInitializerService,
-    private readonly analyticsService: AnalyticsService
+    private readonly analyticsService: AnalyticsService,
+    private readonly featureFlagsService: FeatureFlagsService
   ) {}
 
   async refillAllFees() {
-    const wallets = await this.userWalletRepository.findDrainingWallets({
-      fee: this.config.FEE_ALLOWANCE_REFILL_THRESHOLD
-    });
+    const isAnonymousTrialEnabled = this.featureFlagsService.isEnabled(FeatureFlags.ANONYMOUS_FREE_TRIAL);
+    const wallets = await this.userWalletRepository.findDrainingWallets(
+      {
+        fee: this.config.FEE_ALLOWANCE_REFILL_THRESHOLD
+      },
+      { excludeTrialWallets: isAnonymousTrialEnabled }
+    );
 
     if (wallets.length) {
       const { errors } = await PromisePool.withConcurrency(this.config.ALLOWANCE_REFILL_BATCH_SIZE)
