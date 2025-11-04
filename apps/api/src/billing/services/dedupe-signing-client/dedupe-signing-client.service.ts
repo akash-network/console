@@ -4,7 +4,7 @@ import * as crypto from "crypto";
 import { singleton } from "tsyringe";
 
 import { BatchSigningClientService, SignAndBroadcastOptions } from "@src/billing/lib/batch-signing-client/batch-signing-client.service";
-import { SyncSigningStargateClient } from "@src/billing/lib/sync-signing-stargate-client/sync-signing-stargate-client";
+import { createSigningStargateClient } from "@src/billing/lib/signing-stargate-client-factory/signing-stargate-client.factory";
 import { Wallet } from "@src/billing/lib/wallet/wallet";
 import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provider";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
@@ -51,7 +51,7 @@ export class DedupeSigningClientService {
           this.config,
           new Wallet(mnemonic, addressIndex),
           this.registry,
-          SyncSigningStargateClient.createWithEndpoint.bind(SyncSigningStargateClient),
+          createSigningStargateClient,
           this.chainErrorService
         )
       });
