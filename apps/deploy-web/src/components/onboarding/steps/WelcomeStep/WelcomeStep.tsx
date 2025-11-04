@@ -1,9 +1,11 @@
 "use client";
 import React from "react";
-import { Button, Card } from "@akashnetwork/ui/components";
-import { InfoCircle } from "iconoir-react";
+import { Button, Card, Progress } from "@akashnetwork/ui/components";
+import { InfoCircle, Rocket } from "iconoir-react";
 
 import { useServices } from "@src/context/ServicesProvider";
+import { useWallet } from "@src/context/WalletProvider";
+import { useWalletBalance } from "@src/hooks/useWalletBalance";
 
 interface WelcomeStepProps {
   onComplete: () => void;
@@ -33,6 +35,8 @@ const TemplateCard: React.FC<TemplateCardProps> = ({ icon, title, description, o
 
 export const WelcomeStep: React.FunctionComponent<WelcomeStepProps> = ({ onComplete }) => {
   const { analyticsService } = useServices();
+  const { creditAmount } = useWallet();
+  const { balance: walletBalance } = useWalletBalance();
 
   const handleDeployTemplate = (templateName: string) => {
     analyticsService.track("onboarding_completed", {
@@ -52,25 +56,46 @@ export const WelcomeStep: React.FunctionComponent<WelcomeStepProps> = ({ onCompl
     onComplete();
   };
 
+  console.log("walletBalance", walletBalance);
+
+  // Calculate trial usage for progress bar
+  const TRIAL_TOTAL = 100; // $100 total trial credits
+  const creditsRemaining = walletBalance?.totalDeploymentGrantsUSD || creditAmount || TRIAL_TOTAL;
+  const creditsUsed = TRIAL_TOTAL - creditsRemaining;
+  const usagePercentage = Math.min(Math.max((creditsRemaining / TRIAL_TOTAL) * 100, 0), 100);
+
   return (
     <div className="mx-auto w-full max-w-7xl space-y-8">
       {/* Trial Status Bar */}
       <Card className="border-border bg-card/50 backdrop-blur-sm">
-        <div className="flex flex-wrap items-center justify-between gap-4 p-6">
-          <div className="flex items-center gap-6">
-            <div className="rounded-md bg-green-500/10 px-3 py-1.5">
-              <span className="text-sm font-semibold text-green-500">Trial Active</span>
-            </div>
-            <div className="space-y-1">
-              <div className="text-lg font-semibold">Free Trial Credits: $100.00</div>
-              <div className="text-sm text-muted-foreground">
-                Expires on December 3, 2025 <span className="mx-2">•</span> 30 days remaining
+        <div className="space-y-4 p-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-6">
+              <div className="rounded-md bg-green-500/10 px-3 py-1.5">
+                <span className="text-sm font-semibold text-green-500">Trial Active</span>
+              </div>
+              <div className="space-y-1">
+                <div className="text-lg font-semibold">Free Trial Credits: ${creditsRemaining.toFixed(2)}</div>
+                <div className="text-sm text-muted-foreground">
+                  Expires on December 3, 2025 <span className="mx-2">•</span> 30 days remaining
+                </div>
               </div>
             </div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <InfoCircle className="h-4 w-4" />
+              <span>Deployments last for maximum 1 day during trial</span>
+            </div>
           </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <InfoCircle className="h-4 w-4" />
-            <span>Deployments last for maximum 1 day during trial</span>
+
+          {/* Progress Bar */}
+          <div className="space-y-2">
+            <Progress value={usagePercentage} className="h-2" />
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>${creditsUsed.toFixed(2)} used</span>
+              <span>
+                ${creditsRemaining.toFixed(2)} remaining of ${TRIAL_TOTAL.toFixed(2)}
+              </span>
+            </div>
           </div>
         </div>
       </Card>
@@ -84,43 +109,19 @@ export const WelcomeStep: React.FunctionComponent<WelcomeStepProps> = ({ onCompl
       {/* Template Cards */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
         <TemplateCard
-          icon={
-            <svg className="h-16 w-16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <ellipse cx="12" cy="8" rx="4" ry="6" fill="currentColor" className="text-foreground" />
-              <circle cx="12" cy="18" r="3" fill="currentColor" className="text-foreground" />
-            </svg>
-          }
+          icon={<Rocket className="h-16 w-16 text-foreground" />}
           title="Hello Akash!"
           description="A simple web app powered by Next.js, perfect for your first deployment on Akash. View and explore the full source code here."
           onDeploy={() => handleDeployTemplate("hello-akash")}
         />
         <TemplateCard
-          icon={
-            <svg className="h-16 w-16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="8" cy="8" r="4" fill="currentColor" className="text-foreground" />
-              <circle cx="16" cy="8" r="4" fill="currentColor" className="text-foreground" />
-              <path d="M8 12L16 8" stroke="currentColor" strokeWidth="2" className="text-foreground" />
-              <circle cx="16" cy="8" r="1.5" fill="currentColor" className="text-background" />
-              <line x1="15" y1="7" x2="17" y2="7" stroke="currentColor" strokeWidth="1.5" className="text-background" />
-            </svg>
-          }
+          icon={<Rocket className="h-16 w-16 text-foreground" />}
           title="ComfyUI"
           description="A powerful, modular Stable Diffusion tool that lets you build and run advanced image workflows using a visual, node-based interface."
           onDeploy={() => handleDeployTemplate("comfyui")}
         />
         <TemplateCard
-          icon={
-            <svg className="h-16 w-16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="12" cy="4" r="2" fill="currentColor" className="text-foreground" />
-              <path d="M12 6L12 10" stroke="currentColor" strokeWidth="2" className="text-foreground" />
-              <path d="M12 10L8 13" stroke="currentColor" strokeWidth="2" className="text-foreground" />
-              <path d="M12 10L16 13" stroke="currentColor" strokeWidth="2" className="text-foreground" />
-              <path d="M8 13L8 16" stroke="currentColor" strokeWidth="2" className="text-foreground" />
-              <path d="M16 13L16 16" stroke="currentColor" strokeWidth="2" className="text-foreground" />
-              <path d="M8 16L10 20" stroke="currentColor" strokeWidth="2" className="text-foreground" />
-              <path d="M16 16L14 20" stroke="currentColor" strokeWidth="2" className="text-foreground" />
-            </svg>
-          }
+          icon={<Rocket className="h-16 w-16 text-foreground" />}
           title="Llama-3.1-8b"
           description="A cutting-edge language model built for fast, context-aware text generation. Access a wide range of advanced language tasks."
           onDeploy={() => handleDeployTemplate("llama-3.1-8b")}
