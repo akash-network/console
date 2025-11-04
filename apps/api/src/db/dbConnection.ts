@@ -8,6 +8,7 @@ import { container } from "tsyringe";
 
 import { ChainConfigService } from "@src/chain/services/chain-config/chain-config.service";
 import { LoggerService } from "@src/core";
+import { DisposableRegistry } from "@src/core/lib/disposable-registry/disposable-registry";
 import type { AppInitializer } from "@src/core/providers/app-initializer";
 import { APP_INITIALIZER, ON_APP_START } from "@src/core/providers/app-initializer";
 import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
@@ -53,13 +54,15 @@ export async function syncUserSchema() {
 
 export const closeConnections = async () => await Promise.all([chainDb.close(), userDb.close()]).then(() => undefined);
 container.register(APP_INITIALIZER, {
-  useFactory: c =>
-    ({
-      async [ON_APP_START]() {
-        await connectUsingSequelize(c.resolve(LoggerService));
-      },
-      dispose: closeConnections
-    }) satisfies AppInitializer & Disposable
+  useFactory: DisposableRegistry.registerFromFactory(
+    c =>
+      ({
+        async [ON_APP_START]() {
+          await connectUsingSequelize(c.resolve(LoggerService));
+        },
+        dispose: closeConnections
+      }) satisfies AppInitializer & Disposable
+  )
 });
 
 /**

@@ -9,6 +9,7 @@ import { container, inject } from "tsyringe";
 import * as authSchemas from "@src/auth/model-schemas";
 import * as billingSchemas from "@src/billing/model-schemas";
 import { config } from "@src/core/config";
+import { DisposableRegistry } from "@src/core/lib/disposable-registry/disposable-registry";
 import { PostgresLoggerService } from "@src/core/services/postgres-logger/postgres-logger.service";
 import * as deploymentSchemas from "@src/deployment/model-schemas";
 import * as userSchemas from "@src/user/model-schemas";
@@ -56,9 +57,11 @@ export const resolveTable = <T extends TableName>(name: T) => container.resolve<
 export const closeConnections = async () => await Promise.all([migrationClient.end(), appClient.end()]).then(() => undefined);
 
 container.register(APP_INITIALIZER, {
-  useFactory: () =>
-    ({
-      [ON_APP_START]: () => Promise.resolve(),
-      dispose: closeConnections
-    }) satisfies AppInitializer & Disposable
+  useFactory: DisposableRegistry.registerFromFactory(
+    () =>
+      ({
+        [ON_APP_START]: () => Promise.resolve(),
+        dispose: closeConnections
+      }) satisfies AppInitializer & Disposable
+  )
 });
