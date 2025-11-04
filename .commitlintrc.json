@@ -30,7 +30,8 @@
         "jwt",
         "log-collector",
         "bid",
-        "onboarding"
+        "onboarding",
+        "managed-wallet"
       ]
     ]
   }
