@@ -39,17 +39,4 @@ export class SyncSigningStargateClient extends SigningStargateClient {
   ) {
     super(cometClient, localSigner, options);
   }
-
-  /**
-   * Ensures the underlying client connection is established.
-   *
-   * This method performs a test query to verify the connection is active.
-   * Useful for waiting for the connection to be ready before making queries.
-   *
-   * @returns A promise that resolves when the connection is confirmed.
-   * @throws If the connection cannot be established.
-   */
-  async connected() {
-    await this.forceGetCometClient().status();
-  }
 }
