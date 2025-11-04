@@ -14,7 +14,8 @@ import { Transaction } from "./transaction"; // eslint-disable-line import-x/no-
   modelName: "addressReference",
   indexes: [
     { unique: false, fields: ["transactionId"] },
-    { unique: false, fields: ["address"] }
+    { unique: false, fields: ["address"] },
+    { unique: false, fields: ["address", "transactionId"] }
   ]
 })
 export class AddressReference extends Model {

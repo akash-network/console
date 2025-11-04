@@ -50,11 +50,9 @@ async function main() {
       rpcUrls: meta?.apis?.rpc?.map(({ address }) => address) ?? []
     };
 
-    if (network === "mainnet") {
-      // networkConfig.apiUrls.unshift("https://public-proxy.akt.dev/rest");
+    if (networkConfig.apiUrls.length || networkConfig.rpcUrls.length) {
+      config[network] = networkConfig;
     }
-
-    config[network] = networkConfig;
   }
 
   await fsp.mkdir(OUT_DIR, { recursive: true });
