@@ -29,10 +29,10 @@ export const netConfigData = {
     ]
   },
   sandbox: {
-    version: "v0.38.1",
-    faucetUrl: "http://faucet.sandbox-01.aksh.pw/",
-    apiUrls: ["https://api.sandbox-01.aksh.pw:443"],
-    rpcUrls: ["https://rpc.sandbox-01.aksh.pw:443"]
+    version: null,
+    faucetUrl: null,
+    apiUrls: [],
+    rpcUrls: []
   },
   "sandbox-2": {
     version: "v1.0.0",
@@ -41,15 +41,15 @@ export const netConfigData = {
     rpcUrls: ["https://rpc.sandbox-2.aksh.pw:443"]
   },
   "testnet-02": {
-    version: "v0.23.1-rc0",
-    faucetUrl: "https://faucet.testnet-02.aksh.pw",
-    apiUrls: ["https://api.testnet-02.aksh.pw:443"],
-    rpcUrls: ["https://rpc.testnet-02.aksh.pw:443"]
+    version: null,
+    faucetUrl: null,
+    apiUrls: [],
+    rpcUrls: []
   },
   "testnet-7": {
-    version: "v1.0.0-rc60",
-    faucetUrl: "https://faucet.dev.akash.pub/",
-    apiUrls: ["https://testnetapi.akashnet.net"],
-    rpcUrls: ["https://testnetrpc.akashnet.net:443"]
+    version: null,
+    faucetUrl: null,
+    apiUrls: [],
+    rpcUrls: []
   }
 };
