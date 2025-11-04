@@ -28,28 +28,10 @@ export const netConfigData = {
       "https://rpc.akash.bronbro.io:443"
     ]
   },
-  sandbox: {
-    version: null,
-    faucetUrl: null,
-    apiUrls: [],
-    rpcUrls: []
-  },
   "sandbox-2": {
     version: "v1.0.0",
     faucetUrl: "http://faucet.sandbox-2.aksh.pw/",
     apiUrls: ["https://api.sandbox-2.aksh.pw:443"],
     rpcUrls: ["https://rpc.sandbox-2.aksh.pw:443"]
-  },
-  "testnet-02": {
-    version: null,
-    faucetUrl: null,
-    apiUrls: [],
-    rpcUrls: []
-  },
-  "testnet-7": {
-    version: null,
-    faucetUrl: null,
-    apiUrls: [],
-    rpcUrls: []
   }
 };
