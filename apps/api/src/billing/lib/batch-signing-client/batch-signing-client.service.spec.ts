@@ -3,7 +3,7 @@ import { sha256 } from "@cosmjs/crypto";
 import { toHex } from "@cosmjs/encoding";
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import { Registry } from "@cosmjs/proto-signing";
-import type { Account, DeliverTxResponse } from "@cosmjs/stargate";
+import type { Account, DeliverTxResponse, SigningStargateClient } from "@cosmjs/stargate";
 import type { IndexedTx } from "@cosmjs/stargate/build/stargateclient";
 import { faker } from "@faker-js/faker";
 import { mock } from "jest-mock-extended";
@@ -12,7 +12,6 @@ import { createAkashAddress } from "../../../../test/seeders";
 import { RpcMessageService } from "../../services";
 import type { BillingConfigService } from "../../services/billing-config/billing-config.service";
 import type { ChainErrorService } from "../../services/chain-error/chain-error.service";
-import type { SyncSigningStargateClient } from "../sync-signing-stargate-client/sync-signing-stargate-client";
 import type { Wallet } from "../wallet/wallet";
 import { BatchSigningClientService } from "./batch-signing-client.service";
 
@@ -152,7 +151,7 @@ describe(BatchSigningClientService.name, () => {
 
     const registry = new Registry();
 
-    const client = mock<SyncSigningStargateClient>({
+    const client = mock<SigningStargateClient>({
       getChainId: jest.fn(async () => "test-chain"),
       getAccount: jest.fn(async (address: string) => ({ accountNumber: 0, sequence: 1, address }) as Account)
     });
