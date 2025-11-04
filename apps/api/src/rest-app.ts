@@ -8,7 +8,6 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { container } from "tsyringe";
 
-import { disposeSigningClients } from "@src/billing/providers/signing-client.provider";
 import packageJson from "../package.json";
 import { verifyEmailRouter } from "./auth/routes/verify-email/verify-email.router";
 import { AuthInterceptor } from "./auth/services/auth.interceptor";
@@ -201,7 +200,6 @@ export { appHono as app, connectUsingSequelize as initDb };
 export async function bootstrap(port: number) {
   await startServer(appHono, LoggerService.forContext("APP"), process, {
     port,
-    beforeStart: migratePG,
-    beforeEnd: () => disposeSigningClients()
+    beforeStart: migratePG
   });
 }
