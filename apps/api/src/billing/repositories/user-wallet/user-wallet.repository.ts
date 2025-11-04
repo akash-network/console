@@ -83,12 +83,8 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
     return this.toOutput(item);
   }
 
-  async findDrainingWallets(thresholds = { fee: 0 }, options?: { excludeTrialWallets?: boolean }) {
+  async findDrainingWallets(thresholds = { fee: 0 }) {
     const conditions: SQL[] = [lte(this.table.feeAllowance, thresholds.fee.toString())];
-
-    if (options?.excludeTrialWallets) {
-      conditions.push(eq(this.table.isTrialing, false));
-    }
 
     return this.toOutputList(
       await this.cursor.query.UserWallets.findMany({
