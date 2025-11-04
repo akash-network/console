@@ -3,6 +3,7 @@ import { LoggerService } from "@akashnetwork/logging";
 import { sha256 } from "@cosmjs/crypto";
 import { toHex } from "@cosmjs/encoding";
 import type { EncodeObject, Registry } from "@cosmjs/proto-signing";
+import type { SigningStargateClient } from "@cosmjs/stargate";
 import { calculateFee, GasPrice } from "@cosmjs/stargate";
 import type { IndexedTx } from "@cosmjs/stargate/build/stargateclient";
 import { Sema } from "async-sema";
@@ -11,7 +12,7 @@ import DataLoader from "dataloader";
 import type { Result } from "ts-results";
 import { Err, Ok } from "ts-results";
 
-import type { SyncSigningStargateClient } from "@src/billing/lib/sync-signing-stargate-client/sync-signing-stargate-client";
+import type { CreateSigningStargateClient } from "@src/billing/lib/signing-stargate-client-factory/signing-stargate-client.factory";
 import type { Wallet } from "@src/billing/lib/wallet/wallet";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
@@ -48,11 +49,6 @@ interface SignAndBroadcastBatchOptions {
 }
 
 /**
- * Factory function type for creating a SyncSigningStargateClient.
- */
-type CreateWithSignerFn = (endpoint: string, wallet: Wallet, options: { registry: Registry }) => SyncSigningStargateClient;
-
-/**
  * Service for batching and executing multiple blockchain transactions efficiently.
  *
  * This service batches multiple transaction requests and executes them sequentially
@@ -68,7 +64,7 @@ export class BatchSigningClientService {
   /**
    * The signing client used to interact with the blockchain.
    */
-  private client: SyncSigningStargateClient;
+  private client: SigningStargateClient;
 
   /**
    * Semaphore to ensure only one batch is processed at a time.
@@ -156,7 +152,7 @@ export class BatchSigningClientService {
     private readonly config: BillingConfigService,
     private readonly wallet: Wallet,
     private readonly registry: Registry,
-    createClientWithSigner: CreateWithSignerFn,
+    createClientWithSigner: CreateSigningStargateClient,
     private readonly chainErrorService: ChainErrorService,
     private readonly loggerContext = BatchSigningClientService.name
   ) {
