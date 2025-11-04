@@ -1,4 +1,4 @@
-import { container, inject } from "tsyringe";
+import { container, inject, instancePerContainerCachingFactory } from "tsyringe";
 
 import { BatchSigningClientService } from "@src/billing/lib/batch-signing-client/batch-signing-client.service";
 import { SyncSigningStargateClient } from "@src/billing/lib/sync-signing-stargate-client/sync-signing-stargate-client";
@@ -10,41 +10,47 @@ import { ChainErrorService } from "../services/chain-error/chain-error.service";
 
 export const MANAGED_MASTER_SIGNING_CLIENT = "MANAGED_MASTER_SIGNING_CLIENT";
 container.register(MANAGED_MASTER_SIGNING_CLIENT, {
-  useFactory: c =>
-    new BatchSigningClientService(
-      c.resolve(BillingConfigService),
-      c.resolve(MANAGED_MASTER_WALLET),
-      c.resolve(TYPE_REGISTRY),
-      SyncSigningStargateClient.createWithEndpoint.bind(SyncSigningStargateClient),
-      c.resolve(ChainErrorService),
-      MANAGED_MASTER_SIGNING_CLIENT
-    )
+  useFactory: instancePerContainerCachingFactory(
+    c =>
+      new BatchSigningClientService(
+        c.resolve(BillingConfigService),
+        c.resolve(MANAGED_MASTER_WALLET),
+        c.resolve(TYPE_REGISTRY),
+        SyncSigningStargateClient.createWithEndpoint.bind(SyncSigningStargateClient),
+        c.resolve(ChainErrorService),
+        MANAGED_MASTER_SIGNING_CLIENT
+      )
+  )
 });
 
 export const UAKT_TOP_UP_MASTER_SIGNING_CLIENT = "UAKT_TOP_UP_MASTER_SIGNING_CLIENT";
 container.register(UAKT_TOP_UP_MASTER_SIGNING_CLIENT, {
-  useFactory: c =>
-    new BatchSigningClientService(
-      c.resolve(BillingConfigService),
-      c.resolve(UAKT_TOP_UP_MASTER_WALLET),
-      c.resolve(TYPE_REGISTRY),
-      SyncSigningStargateClient.createWithEndpoint.bind(SyncSigningStargateClient),
-      c.resolve(ChainErrorService),
-      UAKT_TOP_UP_MASTER_SIGNING_CLIENT
-    )
+  useFactory: instancePerContainerCachingFactory(
+    c =>
+      new BatchSigningClientService(
+        c.resolve(BillingConfigService),
+        c.resolve(UAKT_TOP_UP_MASTER_WALLET),
+        c.resolve(TYPE_REGISTRY),
+        SyncSigningStargateClient.createWithEndpoint.bind(SyncSigningStargateClient),
+        c.resolve(ChainErrorService),
+        UAKT_TOP_UP_MASTER_SIGNING_CLIENT
+      )
+  )
 });
 
 export const USDC_TOP_UP_MASTER_SIGNING_CLIENT = "USDC_TOP_UP_MASTER_SIGNING_CLIENT";
 container.register(USDC_TOP_UP_MASTER_SIGNING_CLIENT, {
-  useFactory: c =>
-    new BatchSigningClientService(
-      c.resolve(BillingConfigService),
-      c.resolve(USDC_TOP_UP_MASTER_WALLET),
-      c.resolve(TYPE_REGISTRY),
-      SyncSigningStargateClient.createWithEndpoint.bind(SyncSigningStargateClient),
-      c.resolve(ChainErrorService),
-      USDC_TOP_UP_MASTER_SIGNING_CLIENT
-    )
+  useFactory: instancePerContainerCachingFactory(
+    c =>
+      new BatchSigningClientService(
+        c.resolve(BillingConfigService),
+        c.resolve(USDC_TOP_UP_MASTER_WALLET),
+        c.resolve(TYPE_REGISTRY),
+        SyncSigningStargateClient.createWithEndpoint.bind(SyncSigningStargateClient),
+        c.resolve(ChainErrorService),
+        USDC_TOP_UP_MASTER_SIGNING_CLIENT
+      )
+  )
 });
 
 export const InjectSigningClient = (walletType: MasterWalletType) => inject(`${walletType}_MASTER_SIGNING_CLIENT`);
