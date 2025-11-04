@@ -1,7 +1,9 @@
 // pages/api/auth/[...auth0].js
 import type { Session } from "@auth0/nextjs-auth0";
+import { AccessTokenError, AccessTokenErrorCode, ProfileHandlerError } from "@auth0/nextjs-auth0";
 import { handleAuth, handleCallback, handleLogin, handleLogout, handleProfile } from "@auth0/nextjs-auth0";
-import { AxiosHeaders } from "axios";
+import type { AxiosError } from "axios";
+import { AxiosHeaders, isAxiosError } from "axios";
 import { once } from "lodash";
 import type { NextApiRequest, NextApiResponse } from "next";
 
@@ -121,9 +123,14 @@ const authHandler = once((services: AppServices) =>
             return session;
           }
         });
-      } catch (error: any) {
+      } catch (error: unknown) {
+        if (isAccessTokenExpiredError(error)) {
+          services.logger.warn({ event: "AUTH_ACCESS_TOKEN_EXPIRED", url: req.url });
+          redirectToLogin(req, res);
+          return;
+        }
         let severity: SeverityLevel = "error";
-        if (error?.status && error.status >= 400 && error.status < 500) {
+        if (isGeneralAxiosError(error)) {
           severity = "warning";
           res.status(400).send({ message: error.message });
         } else {
@@ -134,3 +141,18 @@ const authHandler = once((services: AppServices) =>
     }
   })
 );
+
+function isAccessTokenExpiredError(error: unknown): boolean {
+  return error instanceof ProfileHandlerError && error.cause instanceof AccessTokenError && error.cause.code === AccessTokenErrorCode.EXPIRED_ACCESS_TOKEN;
+}
+
+function isGeneralAxiosError(error: unknown): error is AxiosError {
+  return isAxiosError(error) && !!error?.status && error.status >= 400 && error.status < 500;
+}
+
+function redirectToLogin(req: NextApiRequest, res: NextApiResponse): void {
+  const returnUrl = encodeURIComponent(req.url || "/");
+  const loginUrl = `/api/auth/login?from=${returnUrl}`;
+  res.writeHead(302, { Location: loginUrl });
+  res.end();
+}
