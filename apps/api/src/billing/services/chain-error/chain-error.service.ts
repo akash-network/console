@@ -49,6 +49,10 @@ export class ChainErrorService {
     "bid not open": {
       code: 400,
       message: "Cannot create lease: The selected bid is no longer open. Please refresh and select an available bid."
+    },
+    "order not open": {
+      code: 400,
+      message: "Cannot create lease: The associated order has already been matched or closed. Re-create the deployment to generate a new order and try again."
     }
   };
 
