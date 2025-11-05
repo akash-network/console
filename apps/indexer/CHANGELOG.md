@@ -1,5 +1,12 @@
 
 
+## [1.20.3](https://github.com/akash-network/console/compare/indexer/v1.20.2...indexer/v1.20.3) (2025-11-05)
+
+
+### Bug Fixes
+
+* update deployment monitored value checks ([#2146](https://github.com/akash-network/console/issues/2146)) ([f2facda](https://github.com/akash-network/console/commit/f2facda8c054e1ff406355f1049d79d2408986a6))
+
 ## [1.20.2](https://github.com/akash-network/console/compare/indexer/v1.20.1...indexer/v1.20.2) (2025-10-29)
 
 
