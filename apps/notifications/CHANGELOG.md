@@ -1,5 +1,12 @@
 
 
+## [2.1.0](https://github.com/akash-network/console/compare/notifications/v2.0.4...notifications/v2.1.0) (2025-11-05)
+
+
+### Features
+
+* add otel namespace to logging package ([#2075](https://github.com/akash-network/console/issues/2075)) ([557321a](https://github.com/akash-network/console/commit/557321a4a85144383e43fb35d28527649a396213))
+
 ## [2.0.4](https://github.com/akash-network/console/compare/notifications/v2.0.3...notifications/v2.0.4) (2025-11-01)
 
 

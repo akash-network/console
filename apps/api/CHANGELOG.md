@@ -1,5 +1,25 @@
 
 
+## [3.1.0](https://github.com/akash-network/console/compare/console-api/v3.0.7...console-api/v3.1.0) (2025-11-05)
+
+
+### Features
+
+* add otel namespace to logging package ([#2075](https://github.com/akash-network/console/issues/2075)) ([557321a](https://github.com/akash-network/console/commit/557321a4a85144383e43fb35d28527649a396213))
+* **billing:** adds a unique rpc proxy header per instance of a batch signing client  ([8122697](https://github.com/akash-network/console/commit/8122697bdbb00cd1ec14252288ca6deed328ac92))
+* **managed-wallet:** handles "order not open" error while creating a lease ([1febccc](https://github.com/akash-network/console/commit/1febccc31a38ef85b18a3016970507a6d0144c0c)), closes [#2140](https://github.com/akash-network/console/issues/2140)
+
+
+### Bug Fixes
+
+* **billing:** makes master wallets to be singletons  ([8e0e7bb](https://github.com/akash-network/console/commit/8e0e7bbc3dad4cbabda3668567b46578139c57e9))
+* implements factory produced di values dispose  ([23d3c1e](https://github.com/akash-network/console/commit/23d3c1e6b74f9d77985ad57ce637380ba61c4086))
+
+
+### Code Refactoring
+
+* **billing:** improves batch signing client ([#2138](https://github.com/akash-network/console/issues/2138)) ([68dde48](https://github.com/akash-network/console/commit/68dde48a78ebabbb6dbbba98fd1846e4497e59be))
+
 ## [3.0.7](https://github.com/akash-network/console/compare/console-api/v3.0.6...console-api/v3.0.7) (2025-11-01)
 
 
