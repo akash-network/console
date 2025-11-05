@@ -23,7 +23,11 @@ export const envSchema = z.object({
   STRIPE_WEBHOOK_SECRET: z.string(),
   STRIPE_CHECKOUT_REDIRECT_URL: z.string(),
   STRIPE_ENABLE_COUPONS: z.enum(["true", "false"]).default("false"),
-  CONSOLE_WEB_PAYMENT_LINK: z.string()
+  CONSOLE_WEB_PAYMENT_LINK: z.string(),
+  MANAGED_WALLET_LEASE_ALLOWED_AUDITORS: z
+    .string()
+    .default("akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63")
+    .transform(val => (val ? val.split(",").map(addr => addr.trim()) : []))
 });
 
 export const envConfig = envSchema.parse(process.env);

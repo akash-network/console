@@ -375,6 +375,122 @@ describe(ManagedSignerService.name, () => {
 
       expect(userRepository.findById).not.toHaveBeenCalled();
     });
+
+    it("validates lease provider for all leases regardless of trial status", async () => {
+      const wallet = UserWalletSeeder.create({
+        userId: "user-123",
+        feeAllowance: 100,
+        deploymentAllowance: 100,
+        isTrialing: false
+      });
+      const user = UserSeeder.create({ userId: "user-123" });
+      const messages: EncodeObject[] = [
+        {
+          typeUrl: MsgCreateLease.$type,
+          value: MsgCreateLease.fromPartial({
+            bidId: {
+              dseq: Long.fromNumber(123),
+              provider: "akash1provider"
+            }
+          })
+        }
+      ];
+
+      const { service, anonymousValidateService } = setup({
+        findOneByUserId: jest.fn().mockResolvedValue(wallet),
+        findById: jest.fn().mockResolvedValue(user),
+        validateLeaseProvider: jest.fn().mockResolvedValue(undefined),
+        executeManagedTx: jest.fn().mockResolvedValue({
+          code: 0,
+          hash: "tx-hash",
+          rawLog: "success"
+        }),
+        refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined)
+      });
+
+      await service.executeDecodedTxByUserId("user-123", messages);
+
+      expect(anonymousValidateService.validateLeaseProvider).toHaveBeenCalledWith(messages[0], wallet);
+    });
+
+    it("validates lease provider for trial wallets", async () => {
+      const wallet = UserWalletSeeder.create({
+        userId: "user-123",
+        feeAllowance: 100,
+        deploymentAllowance: 100,
+        isTrialing: true
+      });
+      const user = UserSeeder.create({ userId: "user-123" });
+      const messages: EncodeObject[] = [
+        {
+          typeUrl: MsgCreateLease.$type,
+          value: MsgCreateLease.fromPartial({
+            bidId: {
+              dseq: Long.fromNumber(123),
+              provider: "akash1provider"
+            }
+          })
+        }
+      ];
+
+      const { service, anonymousValidateService } = setup({
+        findOneByUserId: jest.fn().mockResolvedValue(wallet),
+        findById: jest.fn().mockResolvedValue(user),
+        validateLeaseProvider: jest.fn().mockResolvedValue(undefined),
+        executeManagedTx: jest.fn().mockResolvedValue({
+          code: 0,
+          hash: "tx-hash",
+          rawLog: "success"
+        }),
+        refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined)
+      });
+
+      await service.executeDecodedTxByUserId("user-123", messages);
+
+      expect(anonymousValidateService.validateLeaseProvider).toHaveBeenCalledWith(messages[0], wallet);
+    });
+
+    it("validates lease provider in anonymous trial mode", async () => {
+      const wallet = UserWalletSeeder.create({
+        userId: "user-123",
+        feeAllowance: 100,
+        deploymentAllowance: 100,
+        isTrialing: true
+      });
+      const user = UserSeeder.create({ userId: "user-123" });
+      const messages: EncodeObject[] = [
+        {
+          typeUrl: MsgCreateLease.$type,
+          value: MsgCreateLease.fromPartial({
+            bidId: {
+              dseq: Long.fromNumber(123),
+              provider: "akash1provider"
+            }
+          })
+        }
+      ];
+
+      const { service, anonymousValidateService } = setup({
+        findOneByUserId: jest.fn().mockResolvedValue(wallet),
+        findById: jest.fn().mockResolvedValue(user),
+        enabledFeatures: [FeatureFlags.ANONYMOUS_FREE_TRIAL],
+        validateLeaseProvider: jest.fn().mockResolvedValue(undefined),
+        validateLeaseProviders: jest.fn().mockResolvedValue(undefined),
+        validateTrialLimit: jest.fn().mockResolvedValue(undefined),
+        executeManagedTx: jest.fn().mockResolvedValue({
+          code: 0,
+          hash: "tx-hash",
+          rawLog: "success"
+        }),
+        refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined)
+      });
+
+      await service.executeDecodedTxByUserId("user-123", messages);
+
+      expect(anonymousValidateService.validateLeaseProvider).toHaveBeenCalledWith(messages[0], wallet);
+      expect(anonymousValidateService.validateLeaseProviders).toHaveBeenCalledWith(messages[0], wallet, user);
+      expect(anonymousValidateService.validateTrialLimit).toHaveBeenCalledWith(messages[0], wallet);
+    });
   });
 
   function setup(input?: {
@@ -384,6 +500,7 @@ describe(ManagedSignerService.name, () => {
     enabledFeatures?: FeatureFlagValue[];
     validateLeaseProviders?: TrialValidationService["validateLeaseProviders"];
     validateTrialLimit?: TrialValidationService["validateTrialLimit"];
+    validateLeaseProvider?: TrialValidationService["validateLeaseProvider"];
     executeManagedTx?: DedupeSigningClientService["executeManagedTx"];
     refreshUserWalletLimits?: BalancesService["refreshUserWalletLimits"];
     publish?: DomainEventsService["publish"];
@@ -418,7 +535,8 @@ describe(ManagedSignerService.name, () => {
       }),
       anonymousValidateService: mock<TrialValidationService>({
         validateLeaseProviders: input?.validateLeaseProviders ?? jest.fn(),
-        validateTrialLimit: input?.validateTrialLimit ?? jest.fn()
+        validateTrialLimit: input?.validateTrialLimit ?? jest.fn(),
+        validateLeaseProvider: input?.validateLeaseProvider ?? jest.fn()
       }),
       featureFlagsService: mock<FeatureFlagsService>({
         isEnabled: jest.fn().mockImplementation(flag => !!input?.enabledFeatures?.includes(flag))
