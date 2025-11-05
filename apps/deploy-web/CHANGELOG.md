@@ -1,5 +1,18 @@
 
 
+## [3.1.0](https://github.com/akash-network/console/compare/console-web/v3.0.6...console-web/v3.1.0) (2025-11-05)
+
+
+### Features
+
+* add otel namespace to logging package ([#2075](https://github.com/akash-network/console/issues/2075)) ([557321a](https://github.com/akash-network/console/commit/557321a4a85144383e43fb35d28527649a396213))
+* **auth:** adds offline_access scope to oauth to endure sessions with refresh token  ([f2b053f](https://github.com/akash-network/console/commit/f2b053f13efaef08275c4c188a0bd3e14cf0c1df))
+
+
+### Bug Fixes
+
+* **auth:** redirects user to a login page in case of an expired access token ([bde0a51](https://github.com/akash-network/console/commit/bde0a51210c94db28cc600a7efbbe989332db2c4)), closes [#2148](https://github.com/akash-network/console/issues/2148)
+
 ## [3.0.6](https://github.com/akash-network/console/compare/console-web/v3.0.5...console-web/v3.0.6) (2025-11-01)
 
 
