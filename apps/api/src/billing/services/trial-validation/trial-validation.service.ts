@@ -58,34 +58,20 @@ export class TrialValidationService {
       return;
     }
 
-    const uniqueProviderAddresses = new Set<string>();
-    const leaseMessages: Array<{ message: EncodeObject; providerAddress: string }> = [];
+    const leaseMessages = messages
+      .filter(message => message.typeUrl === `/${MsgCreateLease.$type}`)
+      .map(message => (message.value as MsgCreateLease).bidId?.provider)
+      .filter((provider): provider is string => !!provider);
 
-    for (const message of messages) {
-      if (message.typeUrl === `/${MsgCreateLease.$type}`) {
-        const lease = message.value as MsgCreateLease;
-        const providerAddress = lease.bidId?.provider;
-
-        if (!providerAddress) {
-          throw new Error(
-            `Provider address not found in lease message: ${lease.bidId?.dseq} ${lease.bidId?.gseq} ${lease.bidId?.oseq} ${lease.bidId?.provider}`
-          );
-        }
-
-        uniqueProviderAddresses.add(providerAddress);
-        leaseMessages.push({ message, providerAddress });
-      }
-    }
-
-    if (uniqueProviderAddresses.size === 0) {
+    if (leaseMessages.length === 0) {
       return;
     }
 
-    const providers = await this.providerRepository.getProvidersByAddressesWithAttributes(Array.from(uniqueProviderAddresses));
-
+    const uniqueProviderAddresses = Array.from(new Set(leaseMessages));
+    const providers = await this.providerRepository.getProvidersByAddressesWithAttributes(uniqueProviderAddresses);
     const providerMap = new Map(providers.map(provider => [provider.owner, provider]));
 
-    for (const { providerAddress } of leaseMessages) {
+    for (const providerAddress of leaseMessages) {
       const provider = providerMap.get(providerAddress);
       assert(provider, 404, `Provider ${providerAddress} not found`);
 
