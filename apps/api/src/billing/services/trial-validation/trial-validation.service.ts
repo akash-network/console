@@ -51,28 +51,49 @@ export class TrialValidationService {
     return true;
   }
 
-  async validateLeaseProvider(decoded: EncodeObject, _userWallet: UserWalletOutput) {
-    if (decoded.typeUrl !== `/${MsgCreateLease.$type}`) {
-      return;
-    }
-
+  async validateLeaseProvidersAuditors(messages: EncodeObject[], _userWallet: UserWalletOutput) {
     const allowedAuditors = this.config.get("MANAGED_WALLET_LEASE_ALLOWED_AUDITORS");
 
     if (!allowedAuditors || allowedAuditors.length === 0) {
       return;
     }
 
-    const lease = decoded.value as MsgCreateLease;
-    const providerAddress = lease.bidId?.provider;
-    assert(providerAddress, 400, "Provider address not found in lease message");
+    const uniqueProviderAddresses = new Set<string>();
+    const leaseMessages: Array<{ message: EncodeObject; providerAddress: string }> = [];
 
-    const provider = await this.providerRepository.getProviderByAddressWithAttributes(providerAddress);
-    assert(provider, 404, "Provider not found");
+    for (const message of messages) {
+      if (message.typeUrl === `/${MsgCreateLease.$type}`) {
+        const lease = message.value as MsgCreateLease;
+        const providerAddress = lease.bidId?.provider;
 
-    const providerAuditors = provider.providerAttributeSignatures.map(signature => signature.auditor);
-    const isAuditedByAllowedAuditor = providerAuditors.some(auditor => allowedAuditors.includes(auditor));
+        if (!providerAddress) {
+          throw new Error(
+            `Provider address not found in lease message: ${lease.bidId?.dseq} ${lease.bidId?.gseq} ${lease.bidId?.oseq} ${lease.bidId?.provider}`
+          );
+        }
 
-    assert(isAuditedByAllowedAuditor, 403, `Provider not authorized.`);
+        uniqueProviderAddresses.add(providerAddress);
+        leaseMessages.push({ message, providerAddress });
+      }
+    }
+
+    if (uniqueProviderAddresses.size === 0) {
+      return;
+    }
+
+    const providers = await this.providerRepository.getProvidersByAddressesWithAttributes(Array.from(uniqueProviderAddresses));
+
+    const providerMap = new Map(providers.map(provider => [provider.owner, provider]));
+
+    for (const { providerAddress } of leaseMessages) {
+      const provider = providerMap.get(providerAddress);
+      assert(provider, 404, `Provider ${providerAddress} not found`);
+
+      const providerAuditors = provider.providerAttributeSignatures.map(signature => signature.auditor);
+      const isAuditedByAllowedAuditor = providerAuditors.some(auditor => allowedAuditors.includes(auditor));
+
+      assert(isAuditedByAllowedAuditor, 403, `Provider not authorized.`);
+    }
   }
 
   private validateAttribute(groups: GroupSpec[], key: string) {

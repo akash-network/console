@@ -399,7 +399,7 @@ describe(ManagedSignerService.name, () => {
       const { service, anonymousValidateService } = setup({
         findOneByUserId: jest.fn().mockResolvedValue(wallet),
         findById: jest.fn().mockResolvedValue(user),
-        validateLeaseProvider: jest.fn().mockResolvedValue(undefined),
+        validateLeaseProvidersAuditors: jest.fn().mockResolvedValue(undefined),
         executeManagedTx: jest.fn().mockResolvedValue({
           code: 0,
           hash: "tx-hash",
@@ -410,7 +410,7 @@ describe(ManagedSignerService.name, () => {
 
       await service.executeDecodedTxByUserId("user-123", messages);
 
-      expect(anonymousValidateService.validateLeaseProvider).toHaveBeenCalledWith(messages[0], wallet);
+      expect(anonymousValidateService.validateLeaseProvidersAuditors).toHaveBeenCalledWith(messages, wallet);
     });
 
     it("validates lease provider for trial wallets", async () => {
@@ -436,7 +436,7 @@ describe(ManagedSignerService.name, () => {
       const { service, anonymousValidateService } = setup({
         findOneByUserId: jest.fn().mockResolvedValue(wallet),
         findById: jest.fn().mockResolvedValue(user),
-        validateLeaseProvider: jest.fn().mockResolvedValue(undefined),
+        validateLeaseProvidersAuditors: jest.fn().mockResolvedValue(undefined),
         executeManagedTx: jest.fn().mockResolvedValue({
           code: 0,
           hash: "tx-hash",
@@ -447,7 +447,7 @@ describe(ManagedSignerService.name, () => {
 
       await service.executeDecodedTxByUserId("user-123", messages);
 
-      expect(anonymousValidateService.validateLeaseProvider).toHaveBeenCalledWith(messages[0], wallet);
+      expect(anonymousValidateService.validateLeaseProvidersAuditors).toHaveBeenCalledWith(messages, wallet);
     });
 
     it("validates lease provider in anonymous trial mode", async () => {
@@ -474,7 +474,7 @@ describe(ManagedSignerService.name, () => {
         findOneByUserId: jest.fn().mockResolvedValue(wallet),
         findById: jest.fn().mockResolvedValue(user),
         enabledFeatures: [FeatureFlags.ANONYMOUS_FREE_TRIAL],
-        validateLeaseProvider: jest.fn().mockResolvedValue(undefined),
+        validateLeaseProvidersAuditors: jest.fn().mockResolvedValue(undefined),
         validateLeaseProviders: jest.fn().mockResolvedValue(undefined),
         validateTrialLimit: jest.fn().mockResolvedValue(undefined),
         executeManagedTx: jest.fn().mockResolvedValue({
@@ -487,7 +487,7 @@ describe(ManagedSignerService.name, () => {
 
       await service.executeDecodedTxByUserId("user-123", messages);
 
-      expect(anonymousValidateService.validateLeaseProvider).toHaveBeenCalledWith(messages[0], wallet);
+      expect(anonymousValidateService.validateLeaseProvidersAuditors).toHaveBeenCalledWith(messages, wallet);
       expect(anonymousValidateService.validateLeaseProviders).toHaveBeenCalledWith(messages[0], wallet, user);
       expect(anonymousValidateService.validateTrialLimit).toHaveBeenCalledWith(messages[0], wallet);
     });
@@ -500,7 +500,7 @@ describe(ManagedSignerService.name, () => {
     enabledFeatures?: FeatureFlagValue[];
     validateLeaseProviders?: TrialValidationService["validateLeaseProviders"];
     validateTrialLimit?: TrialValidationService["validateTrialLimit"];
-    validateLeaseProvider?: TrialValidationService["validateLeaseProvider"];
+    validateLeaseProvidersAuditors?: TrialValidationService["validateLeaseProvidersAuditors"];
     executeManagedTx?: DedupeSigningClientService["executeManagedTx"];
     refreshUserWalletLimits?: BalancesService["refreshUserWalletLimits"];
     publish?: DomainEventsService["publish"];
@@ -536,7 +536,7 @@ describe(ManagedSignerService.name, () => {
       anonymousValidateService: mock<TrialValidationService>({
         validateLeaseProviders: input?.validateLeaseProviders ?? jest.fn(),
         validateTrialLimit: input?.validateTrialLimit ?? jest.fn(),
-        validateLeaseProvider: input?.validateLeaseProvider ?? jest.fn()
+        validateLeaseProvidersAuditors: input?.validateLeaseProvidersAuditors ?? jest.fn()
       }),
       featureFlagsService: mock<FeatureFlagsService>({
         isEnabled: jest.fn().mockImplementation(flag => !!input?.enabledFeatures?.includes(flag))
