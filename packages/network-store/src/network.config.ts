@@ -30,7 +30,7 @@ export const getInitialNetworksConfig = ({ apiBaseUrl }: { apiBaseUrl: string })
     chainRegistryName: "akash-testnet",
     versionUrl: `${apiBaseUrl}/v1/version/testnet`,
     rpcEndpoint: netConfig.getBaseRpcUrl("testnet-7"),
-    enabled: true,
+    enabled: false,
     deploymentVersion: "v1beta4",
     marketVersion: "v1beta5",
     escrowVersion: "v1",
