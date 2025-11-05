@@ -1,4 +1,4 @@
-import { and, count, eq, inArray, lte } from "drizzle-orm";
+import { count, eq, inArray, lte } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -84,11 +84,9 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
   }
 
   async findDrainingWallets(thresholds = { fee: 0 }) {
-    const where = and(lte(this.table.feeAllowance, thresholds.fee.toString()), eq(this.table.isTrialing, false));
-
     return this.toOutputList(
       await this.cursor.query.UserWallets.findMany({
-        where: this.whereAccessibleBy(where)
+        where: this.whereAccessibleBy(lte(this.table.feeAllowance, thresholds.fee.toString()))
       })
     );
   }
