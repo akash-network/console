@@ -1,7 +1,8 @@
-import { Provider } from "@akashnetwork/database/dbSchemas/akash";
+import { Provider, ProviderAttributeSignature } from "@akashnetwork/database/dbSchemas/akash";
 import { faker } from "@faker-js/faker";
 import type { CreationAttributes } from "sequelize";
 
+import { AUDITOR } from "@src/deployment/config/provider.config";
 import { createAkashAddress } from "./akash-address.seeder";
 
 export const createProviderSeed = (overrides: Partial<CreationAttributes<Provider>> = {}): CreationAttributes<Provider> => {
@@ -37,5 +38,14 @@ export const createProviderSeed = (overrides: Partial<CreationAttributes<Provide
 };
 
 export const createProvider = async (overrides: Partial<CreationAttributes<Provider>> = {}): Promise<Provider> => {
-  return await Provider.create(createProviderSeed(overrides));
+  const provider = await Provider.create(createProviderSeed(overrides));
+
+  await ProviderAttributeSignature.create({
+    provider: provider.owner,
+    auditor: AUDITOR,
+    key: "region",
+    value: "us-west"
+  });
+
+  return provider;
 };

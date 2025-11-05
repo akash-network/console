@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { AUDITOR } from "@src/deployment/config/provider.config";
+
 export const envSchema = z.object({
   MASTER_WALLET_MNEMONIC: z.string(),
   UAKT_TOP_UP_MASTER_WALLET_MNEMONIC: z.string(),
@@ -26,7 +28,7 @@ export const envSchema = z.object({
   CONSOLE_WEB_PAYMENT_LINK: z.string(),
   MANAGED_WALLET_LEASE_ALLOWED_AUDITORS: z
     .string()
-    .default("akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63")
+    .default(AUDITOR)
     .transform(val => (val ? val.split(",").map(addr => addr.trim()) : []))
 });
 
