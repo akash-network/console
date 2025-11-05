@@ -33,7 +33,7 @@ const authHandler = once((services: AppServices) =>
         returnTo: returnUrl,
         // Reduce the scope to minimize session data
         authorizationParams: {
-          scope: "openid profile email"
+          scope: "openid profile email offline_access"
         }
       });
     },
