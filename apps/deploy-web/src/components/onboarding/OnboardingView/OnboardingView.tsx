@@ -26,7 +26,7 @@ export interface OnboardingViewProps {
   onStepChange: (step: number) => void;
   onStartTrial: () => void;
   onPaymentMethodComplete: () => void;
-  onComplete: () => void;
+  onComplete: (templateName: string) => Promise<void>;
   dependencies?: typeof DEPENDENCIES;
 }
 

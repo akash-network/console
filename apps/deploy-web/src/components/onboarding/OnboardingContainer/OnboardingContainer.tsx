@@ -1,13 +1,24 @@
 "use client";
 import type { ReactNode } from "react";
 import React, { useCallback, useEffect, useState } from "react";
+import type { EncodeObject } from "@cosmjs/proto-signing";
 import { useRouter } from "next/navigation";
+import { useSnackbar } from "notistack";
 
+import { useCertificate } from "@src/context/CertificateProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useUser } from "@src/hooks/useUser";
 import { usePaymentMethodsQuery } from "@src/queries/usePaymentQueries";
+import { useTemplates } from "@src/queries/useTemplateQuery";
 import { ONBOARDING_STEP_KEY } from "@src/services/storage/keys";
+import { RouteStep } from "@src/types/route-steps.type";
+import { deploymentData } from "@src/utils/deploymentData";
+import { appendTrialAttribute, TRIAL_REGISTERED_ATTRIBUTE } from "@src/utils/deploymentData/v1beta3";
+import { validateDeploymentData } from "@src/utils/deploymentUtils";
+import { helloWorldTemplate } from "@src/utils/templates";
+import { TransactionMessageData } from "@src/utils/TransactionMessageData";
+import { UrlService } from "@src/utils/urlUtils";
 import { type OnboardingStep } from "../OnboardingStepper/OnboardingStepper";
 
 export enum OnboardingStepIndex {
@@ -26,7 +37,7 @@ export type OnboardingContainerProps = {
     onStepComplete: (step: OnboardingStepIndex) => void;
     onStartTrial: () => void;
     onPaymentMethodComplete: () => void;
-    onComplete: () => void;
+    onComplete: (templateName: string) => Promise<void>;
   }) => ReactNode;
   dependencies?: typeof DEPENDENCIES;
 };
@@ -37,6 +48,9 @@ const DEPENDENCIES = {
   useServices,
   useRouter,
   useWallet,
+  useTemplates,
+  useCertificate,
+  useSnackbar,
   localStorage: typeof window !== "undefined" ? window.localStorage : null
 };
 
@@ -47,8 +61,11 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
   const router = d.useRouter();
   const { user } = d.useUser();
   const { data: paymentMethods = [] } = d.usePaymentMethodsQuery({ enabled: !!user?.stripeCustomerId });
-  const { analyticsService, urlService, authService } = d.useServices();
-  const { hasManagedWallet, isWalletLoading, connectManagedWallet } = d.useWallet();
+  const { analyticsService, urlService, authService, chainApiHttpClient, deploymentLocalStorage, appConfig } = d.useServices();
+  const { hasManagedWallet, isWalletLoading, connectManagedWallet, address, signAndBroadcastTx } = d.useWallet();
+  const { templates } = d.useTemplates();
+  const { genNewCertificateIfLocalIsInvalid, updateSelectedCertificate } = d.useCertificate();
+  const { enqueueSnackbar } = d.useSnackbar();
 
   useEffect(() => {
     const savedStep = d.localStorage?.getItem(ONBOARDING_STEP_KEY);
@@ -124,12 +141,6 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
     [analyticsService]
   );
 
-  const handleComplete = useCallback(() => {
-    d.localStorage?.removeItem(ONBOARDING_STEP_KEY);
-    router.push("/");
-    connectManagedWallet();
-  }, [router, connectManagedWallet, d.localStorage]);
-
   const handleStartTrial = useCallback(() => {
     analyticsService.track("onboarding_free_trial_started", {
       category: "onboarding"
@@ -160,6 +171,105 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
       handleStepChange(OnboardingStepIndex.WELCOME);
     }
   }, [paymentMethods.length, analyticsService, handleStepComplete, handleStepChange]);
+
+  const handleComplete = useCallback(
+    async (templateName: string) => {
+      try {
+        const templateMap: Record<string, { id?: string; sdl: string; name: string }> = {
+          "hello-akash": {
+            sdl: helloWorldTemplate.content,
+            name: "Hello Akash"
+          },
+          comfyui: {
+            id: "akash-network-awesome-akash-comfyui",
+            sdl: "",
+            name: "ComfyUI"
+          },
+          "llama-3.1-8b": {
+            id: "akash-network-awesome-akash-Llama-3.1-8B",
+            sdl: "",
+            name: "Llama 3.1 8B"
+          }
+        };
+
+        const templateConfig = templateMap[templateName];
+        if (!templateConfig) {
+          throw new Error(`Template ${templateName} not found`);
+        }
+
+        let sdl = templateConfig.sdl;
+
+        if (templateConfig.id) {
+          const template = templates.find(t => t.id === templateConfig.id);
+          if (!template || !template.deploy) {
+            throw new Error(`Template ${templateName} SDL not found`);
+          }
+          sdl = template.deploy;
+        }
+
+        sdl = appendTrialAttribute(sdl, TRIAL_REGISTERED_ATTRIBUTE);
+
+        const deposit = appConfig.NEXT_PUBLIC_DEFAULT_INITIAL_DEPOSIT;
+        const dd = await deploymentData.NewDeploymentData(chainApiHttpClient, sdl, null, address, deposit);
+        validateDeploymentData(dd, null);
+
+        if (!dd) {
+          throw new Error("Failed to create deployment data");
+        }
+
+        const messages: EncodeObject[] = [];
+        const newCert = await genNewCertificateIfLocalIsInvalid();
+
+        if (newCert) {
+          messages.push(TransactionMessageData.getCreateCertificateMsg(address, newCert.cert, newCert.publicKey));
+        }
+
+        messages.push(TransactionMessageData.getCreateDeploymentMsg(dd));
+        const response = await signAndBroadcastTx(messages);
+
+        if (response) {
+          if (newCert) {
+            await updateSelectedCertificate(newCert);
+          }
+
+          deploymentLocalStorage.update(address, dd.deploymentId.dseq, {
+            manifest: sdl,
+            manifestVersion: dd.hash,
+            name: templateConfig.name
+          });
+
+          analyticsService.track("create_deployment", {
+            category: "onboarding",
+            template: templateName,
+            dseq: dd.deploymentId.dseq
+          });
+
+          d.localStorage?.removeItem(ONBOARDING_STEP_KEY);
+          connectManagedWallet();
+          router.push(UrlService.newDeployment({ step: RouteStep.createLeases, dseq: dd.deploymentId.dseq }));
+        }
+      } catch (error) {
+        console.error("Error deploying template:", error);
+        enqueueSnackbar("Failed to deploy template. Please try again.", { variant: "error" });
+        throw error;
+      }
+    },
+    [
+      d.localStorage,
+      router,
+      connectManagedWallet,
+      templates,
+      chainApiHttpClient,
+      address,
+      appConfig,
+      genNewCertificateIfLocalIsInvalid,
+      signAndBroadcastTx,
+      updateSelectedCertificate,
+      deploymentLocalStorage,
+      analyticsService,
+      enqueueSnackbar
+    ]
+  );
 
   const steps: OnboardingStep[] = [
     {

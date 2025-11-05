@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useState } from "react";
 import Image from "next/image";
 
 import { useServices } from "@src/context/ServicesProvider";
@@ -7,20 +7,30 @@ import { TemplateCard } from "./TemplateCard";
 import { TrialStatusBar } from "./TrialStatusBar";
 
 interface WelcomeStepProps {
-  onComplete: () => void;
+  onComplete: (templateName: string) => Promise<void>;
 }
 
 export const WelcomeStep: React.FunctionComponent<WelcomeStepProps> = ({ onComplete }) => {
   const { analyticsService } = useServices();
+  const [isDeploying, setIsDeploying] = useState(false);
+  const [deployingTemplate, setDeployingTemplate] = useState<string | null>(null);
 
-  const handleDeployTemplate = (templateName: string) => {
-    analyticsService.track("onboarding_completed", {
-      category: "onboarding",
-      template: templateName,
-      action: "deploy_template"
-    });
-    // TODO: Implement template deployment logic
-    onComplete();
+  const handleDeployTemplate = async (templateName: string) => {
+    try {
+      setIsDeploying(true);
+      setDeployingTemplate(templateName);
+
+      analyticsService.track("onboarding_completed", {
+        category: "onboarding",
+        template: templateName,
+        action: "deploy_template"
+      });
+
+      await onComplete(templateName);
+    } catch (error) {
+      setIsDeploying(false);
+      setDeployingTemplate(null);
+    }
   };
 
   return (
@@ -41,18 +51,24 @@ export const WelcomeStep: React.FunctionComponent<WelcomeStepProps> = ({ onCompl
           title="Hello Akash!"
           description="A simple web app powered by Next.js, perfect for your first deployment on Akash. View and explore the full source code here."
           onDeploy={() => handleDeployTemplate("hello-akash")}
+          disabled={isDeploying}
+          isLoading={deployingTemplate === "hello-akash"}
         />
         <TemplateCard
           icon={<Image src="/images/onboarding/comfy_ui.svg" alt="ComfyUI" width={100} height={100} />}
           title="ComfyUI"
           description="A powerful, modular Stable Diffusion tool that lets you build and run advanced image workflows using a visual, node-based interface."
           onDeploy={() => handleDeployTemplate("comfyui")}
+          disabled={isDeploying}
+          isLoading={deployingTemplate === "comfyui"}
         />
         <TemplateCard
           icon={<Image src="/images/onboarding/llama.svg" alt="Llama" width={100} height={100} />}
           title="Llama-3.1-8b"
           description="A cutting-edge language model built for fast, context-aware text generation. Access a wide range of advanced language tasks."
           onDeploy={() => handleDeployTemplate("llama-3.1-8b")}
+          disabled={isDeploying}
+          isLoading={deployingTemplate === "llama-3.1-8b"}
         />
       </div>
     </div>
