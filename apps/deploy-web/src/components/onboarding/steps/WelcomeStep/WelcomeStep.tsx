@@ -41,7 +41,7 @@ export const WelcomeStep: React.FunctionComponent<WelcomeStepProps> = ({ onCompl
       {/* Welcome Message */}
       <div className="space-y-3">
         <h1 className="text-3xl font-semibold tracking-tight">Welcome to Akash Console</h1>
-        <p className="text-base text-muted-foreground">Choose a template below to launch your first app in minutes.</p>
+        <p className="text-base text-muted-foreground">Choose a template below to launch your first app in seconds.</p>
       </div>
 
       {/* Template Cards */}
