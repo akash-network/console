@@ -1,5 +1,13 @@
 
 
+## [3.1.2](https://github.com/akash-network/console/compare/console-api/v3.1.1...console-api/v3.1.2) (2025-11-06)
+
+
+### Code Refactoring
+
+* moves certs and transaction tests into unit scope ([#2163](https://github.com/akash-network/console/issues/2163)) ([a30c3f1](https://github.com/akash-network/console/commit/a30c3f127f79ee32d9ec18cde7c27240789dabd8))
+* rewrites SQL query to fetch transactions by address ref ([#2149](https://github.com/akash-network/console/issues/2149)) ([8d56cb0](https://github.com/akash-network/console/commit/8d56cb0fb4b67cc82191b368241927ae842745cf))
+
 ## [3.1.1](https://github.com/akash-network/console/compare/console-api/v3.1.0...console-api/v3.1.1) (2025-11-06)
 
 
