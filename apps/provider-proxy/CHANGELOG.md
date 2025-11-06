@@ -1,5 +1,12 @@
 
 
+## [2.1.2](https://github.com/akash-network/console/compare/provider-proxy/v2.1.1...provider-proxy/v2.1.2) (2025-11-06)
+
+
+### Code Refactoring
+
+* rewrites SQL query to fetch transactions by address ref ([#2149](https://github.com/akash-network/console/issues/2149)) ([8d56cb0](https://github.com/akash-network/console/commit/8d56cb0fb4b67cc82191b368241927ae842745cf))
+
 ## [2.1.1](https://github.com/akash-network/console/compare/provider-proxy/v2.1.0...provider-proxy/v2.1.1) (2025-11-06)
 
 

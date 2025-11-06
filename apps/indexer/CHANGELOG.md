@@ -1,5 +1,12 @@
 
 
+## [1.20.5](https://github.com/akash-network/console/compare/indexer/v1.20.4...indexer/v1.20.5) (2025-11-06)
+
+
+### Code Refactoring
+
+* rewrites SQL query to fetch transactions by address ref ([#2149](https://github.com/akash-network/console/issues/2149)) ([8d56cb0](https://github.com/akash-network/console/commit/8d56cb0fb4b67cc82191b368241927ae842745cf))
+
 ## [1.20.4](https://github.com/akash-network/console/compare/indexer/v1.20.3...indexer/v1.20.4) (2025-11-06)
 
 
