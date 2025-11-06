@@ -58,11 +58,6 @@ describe("Template cache generation", () => {
     jest.restoreAllMocks();
   });
 
-  const expectCacheFile = (filename: string) => {
-    const result = fs.readFileSync(path.join(__dirname, "../..", "dist/.data/templates", filename), "utf8");
-    expect(result).toMatchSnapshot();
-  };
-
   describe("Generating cache", () => {
     it("creates files as expected", async () => {
       const templateGalleryService = new TemplateGalleryService({
@@ -72,9 +67,13 @@ describe("Template cache generation", () => {
 
       await templateGalleryService.getTemplateGallery();
 
-      expectCacheFile(`akash-network-awesome-akash-${sha}.json`);
-      expectCacheFile(`akash-network-cosmos-omnibus-${sha}.json`);
-      expectCacheFile(`cryptoandcoffee-akash-linuxserver-${sha}.json`);
+      expect(readTemplate(`akash-network-awesome-akash-${sha}.json`)).toMatchSnapshot();
+      expect(readTemplate(`akash-network-cosmos-omnibus-${sha}.json`)).toMatchSnapshot();
+      expect(readTemplate(`cryptoandcoffee-akash-linuxserver-${sha}.json`)).toMatchSnapshot();
     });
   });
+
+  function readTemplate(filename: string) {
+    return fs.readFileSync(path.join(__dirname, "../..", "dist/.data/templates", filename), "utf8");
+  }
 });
