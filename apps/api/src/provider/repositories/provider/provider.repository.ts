@@ -194,6 +194,23 @@ export class ProviderRepository {
     });
   }
 
+  async getProvidersByAddressesWithAttributes(addresses: string[]) {
+    return await Provider.findAll({
+      where: {
+        deletedHeight: null,
+        owner: { [Op.in]: addresses }
+      },
+      include: [
+        {
+          model: ProviderAttribute
+        },
+        {
+          model: ProviderAttributeSignature
+        }
+      ]
+    });
+  }
+
   async findActiveByAddress(address: string): Promise<Provider | null> {
     return await Provider.findOne({
       where: {

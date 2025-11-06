@@ -76,11 +76,11 @@ describe(CertificateValidator.name, () => {
     expect(getCertificate).toHaveBeenCalledTimes(1);
     expect(result.ok).toBe(true);
 
-    result = await validator.validate(anotherCert, "sandbox", "provider");
-    expect(getCertificate).toHaveBeenCalledWith("sandbox", "provider", anotherCert.serialNumber);
+    result = await validator.validate(anotherCert, "sandbox-2", "provider");
+    expect(getCertificate).toHaveBeenCalledWith("sandbox-2", "provider", anotherCert.serialNumber);
     expect(result.ok).toBe(true);
 
-    result = await validator.validate(anotherCert, "sandbox", "provider");
+    result = await validator.validate(anotherCert, "sandbox-2", "provider");
     expect(getCertificate).toHaveBeenCalledTimes(2);
     expect(result.ok).toBe(true);
   });

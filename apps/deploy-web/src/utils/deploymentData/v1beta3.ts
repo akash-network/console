@@ -10,7 +10,8 @@ import { CustomValidationError, getSdl, Manifest, ManifestVersion } from "./help
 export const ENDPOINT_NAME_VALIDATION_REGEX = /^[a-z]+[-_\da-z]+$/;
 export const TRIAL_ATTRIBUTE = "console/trials";
 export const TRIAL_REGISTERED_ATTRIBUTE = "console/trials-registered";
-const AUDITOR = "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63";
+export const AUDITOR = "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63";
+export const MANAGED_WALLET_ALLOWED_AUDITORS = [AUDITOR];
 
 export function getManifest(yamlJson: any, asString: boolean) {
   return Manifest(yamlJson, "beta3", networkStore.selectedNetworkId, asString);
@@ -69,6 +70,37 @@ export function appendTrialAttribute(yamlStr: string, attributeKey: string) {
         return mapProviderAttributes(value);
       }
       return value;
+    }
+  });
+
+  return `---
+${result}`;
+}
+
+export function appendAuditorRequirement(yamlStr: string) {
+  const sdl = getSdl(yamlStr, "beta3", networkStore.selectedNetworkId);
+  const placementData = sdl.data?.profiles?.placement || {};
+
+  for (const [, value] of Object.entries(placementData)) {
+    if (!value.signedBy?.anyOf || !value.signedBy?.allOf) {
+      value.signedBy = {
+        anyOf: value.signedBy?.anyOf || [],
+        allOf: value.signedBy?.allOf || []
+      };
+    }
+
+    for (const auditor of MANAGED_WALLET_ALLOWED_AUDITORS) {
+      if (!value.signedBy.anyOf.includes(auditor)) {
+        value.signedBy.anyOf.push(auditor);
+      }
+    }
+  }
+
+  const result = yaml.dump(sdl.data, {
+    indent: 2,
+    quotingType: '"',
+    styles: {
+      "!!null": "empty"
     }
   });
 
