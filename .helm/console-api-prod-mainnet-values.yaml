@@ -28,3 +28,5 @@ jobs:
       - node
       - dist/console.js
       - cleanup-stale-anonymous-users
+      - -c
+      - "100"
