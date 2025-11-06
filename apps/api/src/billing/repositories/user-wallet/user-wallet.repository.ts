@@ -2,7 +2,6 @@ import subDays from "date-fns/subDays";
 import { and, count, eq, inArray, lte, or, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
-import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
 import { TxService } from "@src/core/services";
@@ -39,14 +38,13 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
   constructor(
     @InjectPg() protected readonly pg: ApiPgDatabase,
     @InjectPgTable("UserWallets") protected readonly table: ApiPgTables["UserWallets"],
-    protected readonly txManager: TxService,
-    @InjectBillingConfig() private readonly config: BillingConfig
+    protected readonly txManager: TxService
   ) {
     super(pg, table, txManager, "UserWallet", "UserWallets");
   }
 
   accessibleBy(...abilityParams: AbilityParams) {
-    return new UserWalletRepository(this.pg, this.table, this.txManager, this.config).withAbility(...abilityParams) as this;
+    return new UserWalletRepository(this.pg, this.table, this.txManager).withAbility(...abilityParams) as this;
   }
 
   async getOrCreate(input: { userId: Exclude<UserWalletInput["userId"], undefined | null> }): Promise<{ wallet: UserWalletOutput; isNew: boolean }> {
@@ -86,8 +84,8 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
     return this.toOutput(item);
   }
 
-  async findDrainingWallets(thresholds = { fee: 0 }) {
-    const trialWindowStart = subDays(new Date(), this.config.TRIAL_ALLOWANCE_EXPIRATION_DAYS);
+  async findDrainingWallets(thresholds: { fee: number; trialExpirationDays: number }) {
+    const trialWindowStart = subDays(new Date(), thresholds.trialExpirationDays);
 
     return this.toOutputList(
       await this.cursor.query.UserWallets.findMany({

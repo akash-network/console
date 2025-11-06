@@ -26,7 +26,8 @@ export class RefillService {
 
   async refillAllFees() {
     const wallets = await this.userWalletRepository.findDrainingWallets({
-      fee: this.config.FEE_ALLOWANCE_REFILL_THRESHOLD
+      fee: this.config.FEE_ALLOWANCE_REFILL_THRESHOLD,
+      trialExpirationDays: this.config.TRIAL_ALLOWANCE_EXPIRATION_DAYS
     });
 
     if (wallets.length) {
