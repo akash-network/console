@@ -35,7 +35,7 @@ export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBa
               <span className="text-xs">Credits Remaining:</span>
               <span>
                 <FormattedNumber
-                  value={walletBalance.totalDeploymentGrantsUSD}
+                  value={walletBalance.totalDeploymentGrantsUSD - walletBalance.totalDeploymentEscrowUSD}
                   // eslint-disable-next-line react/style-prop-object
                   style="currency"
                   currency="USD"
