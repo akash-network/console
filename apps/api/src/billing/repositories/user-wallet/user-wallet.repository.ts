@@ -1,4 +1,5 @@
-import { count, eq, inArray, lte } from "drizzle-orm";
+import subDays from "date-fns/subDays";
+import { and, count, eq, gt, inArray, lte, or } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -83,10 +84,17 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
     return this.toOutput(item);
   }
 
-  async findDrainingWallets(thresholds = { fee: 0 }) {
+  async findDrainingWallets(thresholds: { fee: number; trialExpirationDays: number }) {
+    const trialWindowStart = subDays(new Date(), thresholds.trialExpirationDays);
+
     return this.toOutputList(
       await this.cursor.query.UserWallets.findMany({
-        where: this.whereAccessibleBy(lte(this.table.feeAllowance, thresholds.fee.toString()))
+        where: this.whereAccessibleBy(
+          and(
+            lte(this.table.feeAllowance, thresholds.fee.toString()),
+            or(and(eq(this.table.isTrialing, true), gt(this.table.createdAt, trialWindowStart)), eq(this.table.isTrialing, false))
+          )
+        )
       })
     );
   }
