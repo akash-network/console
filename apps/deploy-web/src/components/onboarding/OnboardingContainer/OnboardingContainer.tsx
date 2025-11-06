@@ -14,7 +14,7 @@ import { useTemplates } from "@src/queries/useTemplateQuery";
 import { ONBOARDING_STEP_KEY } from "@src/services/storage/keys";
 import { RouteStep } from "@src/types/route-steps.type";
 import { deploymentData } from "@src/utils/deploymentData";
-import { appendTrialAttribute, TRIAL_REGISTERED_ATTRIBUTE } from "@src/utils/deploymentData/v1beta3";
+import { appendAuditorRequirement } from "@src/utils/deploymentData/v1beta3";
 import { validateDeploymentData } from "@src/utils/deploymentUtils";
 import { helloWorldTemplate } from "@src/utils/templates";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
@@ -207,7 +207,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
           sdl = template.deploy;
         }
 
-        sdl = appendTrialAttribute(sdl, TRIAL_REGISTERED_ATTRIBUTE);
+        sdl = appendAuditorRequirement(sdl);
 
         const deposit = appConfig.NEXT_PUBLIC_DEFAULT_INITIAL_DEPOSIT;
         const dd = await deploymentData.NewDeploymentData(chainApiHttpClient, sdl, null, address, deposit);
