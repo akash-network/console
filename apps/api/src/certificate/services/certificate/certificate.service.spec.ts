@@ -10,15 +10,12 @@ import type { RpcMessageService } from "@src/billing/services";
 import type { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { CertificateService } from "./certificate.service";
 
+import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
+
 describe(CertificateService.name, () => {
   describe("create", () => {
     it("creates certificate successfully when wallet exists", async () => {
-      const userWallet = {
-        id: faker.number.int(),
-        userId: faker.string.uuid(),
-        address: `akash${faker.string.alphanumeric({ length: 39 })}`
-      };
-
+      const userWallet = UserWalletSeeder.create();
       const certificateData = {
         cert: "-----BEGIN CERTIFICATE-----\nMOCK_CERT\n-----END CERTIFICATE-----",
         publicKey: "-----BEGIN PUBLIC KEY-----\nMOCK_PUBLIC_KEY\n-----END PUBLIC KEY-----",
@@ -63,11 +60,8 @@ describe(CertificateService.name, () => {
     });
 
     it("throws 404 error when user wallet has no address", async () => {
-      const userWallet = {
-        id: faker.number.int(),
-        userId: faker.string.uuid(),
-        address: null
-      };
+      const userWallet = UserWalletSeeder.create();
+      userWallet.address = null;
 
       const { service, userWalletRepository, authService } = setup({
         findWallet: jest.fn().mockResolvedValue(userWallet)
