@@ -22,6 +22,13 @@
       "when": 1760657218339,
       "tag": "0002_gigantic_ender_wiggin",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1762241598822,
+      "tag": "0003_add_index_address_transaction_id_on_address_ref",
+      "breakpoints": true
     }
   ]
 }
