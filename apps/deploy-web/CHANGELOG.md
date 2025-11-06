@@ -1,5 +1,13 @@
 
 
+## [3.1.1](https://github.com/akash-network/console/compare/console-web/v3.1.0...console-web/v3.1.1) (2025-11-06)
+
+
+### Bug Fixes
+
+* **billing:** onboarding provider filter ([#2160](https://github.com/akash-network/console/issues/2160)) ([07b0a6a](https://github.com/akash-network/console/commit/07b0a6ac629671e044a3d3becd34179cc99a8624))
+* **billing:** refill trial wallets for non-anonymous ([#2147](https://github.com/akash-network/console/issues/2147)) ([24d06d3](https://github.com/akash-network/console/commit/24d06d31bfa30ab38cd28599772e83a3b3c8083c))
+
 ## [3.1.0](https://github.com/akash-network/console/compare/console-web/v3.0.6...console-web/v3.1.0) (2025-11-05)
 
 
