@@ -71,7 +71,7 @@ export class TrialValidationService {
     const providers = await this.providerRepository.getProvidersByAddressesWithAttributes(uniqueProviderAddresses);
     const providerMap = new Map(providers.map(provider => [provider.owner, provider]));
 
-    for (const providerAddress of leaseMessages) {
+    for (const providerAddress of uniqueProviderAddresses) {
       const provider = providerMap.get(providerAddress);
       assert(provider, 404, `Provider ${providerAddress} not found`);
 
