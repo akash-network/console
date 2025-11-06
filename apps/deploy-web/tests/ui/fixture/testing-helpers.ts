@@ -15,8 +15,7 @@ export const clickCreateNewWalletButton = async (page: Page) => {
 };
 
 export const fillWalletName = async (page: Page, name: string) => {
-  const input = await waitForLocator(page.getByPlaceholder("Enter wallet Name"));
-  return await input.fill(name);
+  return await page.getByPlaceholder("Enter wallet Name").fill(name);
 };
 
 export const clickCreateWalletButton = async (page: Page) => {
@@ -27,6 +26,16 @@ export const clickCreateWalletButton = async (page: Page) => {
 export const clickConnectWalletButton = async (page: Page) => {
   const button = await waitForLocator(page.getByRole("button", { name: /connect button/i }));
   return await button.click();
+};
+
+export const clickCopyAddressButton = async (page: Page) => {
+  await page.getByRole("button", { name: /akash\.\.\.[a-z0-9]{5}/ }).click();
+
+  const clipboardContents = await page.evaluate(async () => {
+    return await navigator.clipboard.readText();
+  });
+
+  return clipboardContents;
 };
 
 export const waitForLocator = async (locator: Locator) => {
