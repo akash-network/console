@@ -1,5 +1,12 @@
 
 
+## [1.20.4](https://github.com/akash-network/console/compare/indexer/v1.20.3...indexer/v1.20.4) (2025-11-06)
+
+
+### Bug Fixes
+
+* **billing:** onboarding provider filter ([#2160](https://github.com/akash-network/console/issues/2160)) ([07b0a6a](https://github.com/akash-network/console/commit/07b0a6ac629671e044a3d3becd34179cc99a8624))
+
 ## [1.20.3](https://github.com/akash-network/console/compare/indexer/v1.20.2...indexer/v1.20.3) (2025-11-05)
 
 
