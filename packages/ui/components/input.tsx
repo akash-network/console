@@ -56,7 +56,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
 
     return (
       <div className={cn("space-y-1", className)}>
-        {label && (formField.id ? <FormLabel>{label}</FormLabel> : <Label htmlFor={`${finalId}-input`}>{label}</Label>)}
+        {label && (formField.id ? <FormLabel htmlFor={`${finalId}-input`}>{label}</FormLabel> : <Label htmlFor={`${finalId}-input`}>{label}</Label>)}
         <div className="relative flex items-center">
           {startIcon && <div className={cn("absolute inset-y-0 left-0 flex items-center", startIconClassName)}>{startIcon}</div>}
           <input

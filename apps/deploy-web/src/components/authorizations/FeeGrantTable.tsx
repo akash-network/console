@@ -63,7 +63,7 @@ export const FeeGrantTable: React.FC<Props> = ({
 
   return (
     <div>
-      <Table>
+      <Table aria-label="Tx Fee Authorization List">
         <TableHeader>
           <TableRow>
             <TableHead className="w-1/5">Type</TableHead>

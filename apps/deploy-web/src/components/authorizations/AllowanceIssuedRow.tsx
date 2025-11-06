@@ -53,10 +53,10 @@ export const AllowanceIssuedRow: React.FunctionComponent<Props> = ({ allowance, 
               }}
             />
           </div>
-          <Button variant="ghost" size="icon" onClick={() => onEditAllowance(allowance)}>
+          <Button variant="ghost" size="icon" onClick={() => onEditAllowance(allowance)} aria-label="Edit Authorization">
             <Edit className="text-xs" />
           </Button>
-          <Button variant="ghost" size="icon" onClick={() => setDeletingAllowance(allowance)}>
+          <Button variant="ghost" size="icon" onClick={() => setDeletingAllowance(allowance)} aria-label="Revoke Authorization">
             <Bin className="text-xs" />
           </Button>
         </div>
