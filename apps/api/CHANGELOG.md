@@ -1,5 +1,12 @@
 
 
+## [3.1.3](https://github.com/akash-network/console/compare/console-api/v3.1.2...console-api/v3.1.3) (2025-11-06)
+
+
+### Bug Fixes
+
+* **billing:** improve fee refill job ([#2168](https://github.com/akash-network/console/issues/2168)) ([3c92d89](https://github.com/akash-network/console/commit/3c92d8928755dbf20b5354cd70876b68b2b02ef5))
+
 ## [3.1.2](https://github.com/akash-network/console/compare/console-api/v3.1.1...console-api/v3.1.2) (2025-11-06)
 
 
