@@ -25,7 +25,7 @@ describe("Nodes API", () => {
   });
 
   describe("GET /nodes/{network}", () => {
-    it.each(["mainnet", "sandbox", "testnet"])("should return %s node", async network => {
+    it.each(["mainnet", "sandbox"])("should return %s node", async network => {
       const node = NodeSeeder.create();
       interceptor
         .get(`/console/main/config/${netConfig.mapped(network)}-nodes.json`)

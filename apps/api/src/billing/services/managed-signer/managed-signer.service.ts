@@ -97,6 +97,8 @@ export class ManagedSignerService {
       assert(userWallet.deploymentAllowance > 0, 403, "UserWallet has no deployment allowance");
     }
 
+    await this.anonymousValidateService.validateLeaseProvidersAuditors(messages, userWallet);
+
     if (this.featureFlagsService.isEnabled(FeatureFlags.ANONYMOUS_FREE_TRIAL)) {
       const user = walletOwner?.id === userWallet.userId ? walletOwner : await this.userRepository.findById(userWallet.userId!);
       assert(user, 500, "User for wallet not found");

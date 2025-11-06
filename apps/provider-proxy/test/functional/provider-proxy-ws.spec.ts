@@ -202,7 +202,7 @@ describe("Provider proxy ws", () => {
       JSON.stringify(
         ourMessage("test1", providerUrl, {
           providerAddress: generateBech32(),
-          chainNetwork: "sandbox"
+          chainNetwork: "sandbox-2"
         })
       )
     );
@@ -219,7 +219,7 @@ describe("Provider proxy ws", () => {
       JSON.stringify(
         ourMessage("test2", providerUrl, {
           providerAddress,
-          chainNetwork: "sandbox"
+          chainNetwork: "sandbox-2"
         })
       )
     );
@@ -380,7 +380,7 @@ describe("Provider proxy ws", () => {
         .join(","),
       url: `${url}/test`,
       providerAddress: extra?.providerAddress || generateBech32(),
-      network: extra?.chainNetwork || "sandbox"
+      network: extra?.chainNetwork || "sandbox-2"
     };
   }
 

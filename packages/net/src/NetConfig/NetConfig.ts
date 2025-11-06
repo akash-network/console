@@ -32,7 +32,7 @@ export class NetConfig {
     return Object.keys(netConfigData) as SupportedChainNetworks[];
   }
 
-  getFaucetUrl(network: SupportedChainNetworks): string | null {
+  getFaucetUrl(network: string): string | null {
     return netConfigData[this.mapped(network)].faucetUrl;
   }
 

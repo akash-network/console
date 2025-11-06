@@ -29,14 +29,14 @@ export const getInitialNetworksConfig = ({ apiBaseUrl }: { apiBaseUrl: string })
     chainId: "testnet-7",
     chainRegistryName: "akash-testnet",
     versionUrl: `${apiBaseUrl}/v1/version/testnet`,
-    rpcEndpoint: netConfig.getBaseRpcUrl("testnet-7"),
+    rpcEndpoint: "",
     enabled: false,
     deploymentVersion: "v1beta4",
     marketVersion: "v1beta5",
     escrowVersion: "v1",
     certVersion: "v1",
     providerVersion: "v1beta4",
-    version: netConfig.getVersion("testnet-7")
+    version: null
   },
   {
     id: SANDBOX_ID,

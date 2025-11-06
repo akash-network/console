@@ -27,7 +27,7 @@ import type { TemplateCreation } from "@src/types";
 import type { DepositParams } from "@src/types/deployment";
 import { RouteStep } from "@src/types/route-steps.type";
 import { deploymentData } from "@src/utils/deploymentData";
-import { appendTrialAttribute, TRIAL_ATTRIBUTE, TRIAL_REGISTERED_ATTRIBUTE } from "@src/utils/deploymentData/v1beta3";
+import { appendAuditorRequirement, appendTrialAttribute, TRIAL_ATTRIBUTE, TRIAL_REGISTERED_ATTRIBUTE } from "@src/utils/deploymentData/v1beta3";
 import { validateDeploymentData } from "@src/utils/deploymentUtils";
 import { Timer } from "@src/utils/timer";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
@@ -237,6 +237,10 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
         } else if (isOnboarding) {
           sdl = appendTrialAttribute(sdl, TRIAL_REGISTERED_ATTRIBUTE);
         }
+      }
+
+      if (isManaged) {
+        sdl = appendAuditorRequirement(sdl);
       }
 
       const [dd, newCert] = await Promise.all([createAndValidateDeploymentData(sdl, null, deposit), genNewCertificateIfLocalIsInvalid()]);

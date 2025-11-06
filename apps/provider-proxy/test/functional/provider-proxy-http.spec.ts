@@ -11,7 +11,7 @@ import { request } from "../setup/proxyServer";
 import { startServer, stopServer } from "../setup/proxyServer";
 
 describe("Provider HTTP proxy", () => {
-  const network: SupportedChainNetworks = "sandbox";
+  const network: SupportedChainNetworks = "sandbox-2";
   const ONE_HOUR = 60 * 60 * 1000;
 
   beforeAll(async () => {
