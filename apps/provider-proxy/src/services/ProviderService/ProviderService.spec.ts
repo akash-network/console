@@ -9,7 +9,7 @@ describe(ProviderService.name, () => {
       const service = setup({ httpFetch });
 
       httpFetch.mockReturnValueOnce(new Response(JSON.stringify({ certificates: [] }), { status: 200 }));
-      expect(await service.getCertificate("sandbox", "provider", "177831BE7F249E66")).toBe(null);
+      expect(await service.getCertificate("sandbox-2", "provider", "177831BE7F249E66")).toBe(null);
       expect(httpFetch).toHaveBeenCalledWith(expect.stringContaining("pagination.limit=1"), { signal: expect.any(AbortSignal) });
       expect(httpFetch).toHaveBeenCalledWith(expect.stringContaining("filter.owner=provider"), { signal: expect.any(AbortSignal) });
       expect(httpFetch).toHaveBeenCalledWith(expect.stringContaining("filter.serial=1691156354324274790"), { signal: expect.any(AbortSignal) });
@@ -22,7 +22,7 @@ describe(ProviderService.name, () => {
           { status: 200 }
         )
       );
-      expect(await service.getCertificate("sandbox", "provider", "17B85C634EF9EB05")).toHaveProperty("serialNumber", "17B85C634EF9EB05");
+      expect(await service.getCertificate("sandbox-2", "provider", "17B85C634EF9EB05")).toHaveProperty("serialNumber", "17B85C634EF9EB05");
     });
 
     it("retries certificates request if it fails with response.status > 500", async () => {
@@ -39,7 +39,7 @@ describe(ProviderService.name, () => {
           { status: 200 }
         )
       );
-      expect(await service.getCertificate("sandbox", "provider", "17B85C634EF9EB05")).toHaveProperty("serialNumber", "17B85C634EF9EB05");
+      expect(await service.getCertificate("sandbox-2", "provider", "17B85C634EF9EB05")).toHaveProperty("serialNumber", "17B85C634EF9EB05");
       expect(httpFetch).toHaveBeenCalledTimes(3);
     });
 
@@ -48,7 +48,7 @@ describe(ProviderService.name, () => {
       const service = setup({ httpFetch });
 
       httpFetch.mockReturnValue(new Response(JSON.stringify("Server error"), { status: 502 }));
-      expect(await service.getCertificate("sandbox", "provider", "17B85C634EF9EB05")).toBe(null);
+      expect(await service.getCertificate("sandbox-2", "provider", "17B85C634EF9EB05")).toBe(null);
       expect(httpFetch).toHaveBeenCalledTimes(1 + 3);
     }, 7_000);
 
@@ -57,7 +57,7 @@ describe(ProviderService.name, () => {
       const service = setup({ httpFetch });
 
       httpFetch.mockReturnValue(new Response(JSON.stringify("Server error"), { status: 500 }));
-      expect(await service.getCertificate("sandbox", "provider", "17B85C634EF9EB05")).toBe(null);
+      expect(await service.getCertificate("sandbox-2", "provider", "17B85C634EF9EB05")).toBe(null);
       expect(httpFetch).toHaveBeenCalledTimes(4);
     });
   });
