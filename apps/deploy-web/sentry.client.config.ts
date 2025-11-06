@@ -13,12 +13,13 @@ initSentry({
   // everything else will be done with custom interceptor
   tracePropagationTargets: [/^\/api\//],
   integrations: [
+    eventFiltersIntegration({
+      allowUrls: [/https?:\/\/[^.]+\.akash\.network/],
+      denyUrls: [/^chrome-extension:\/\//]
+    }),
     thirdPartyErrorFilterIntegration({
       filterKeys: [process.env.NEXT_PUBLIC_SENTRY_APPLICATION_KEY!],
       behaviour: "drop-error-if-exclusively-contains-third-party-frames"
-    }),
-    eventFiltersIntegration({
-      allowUrls: [/https?:\/\/[^.]+\.akash\.network/]
     })
   ]
   // ...
