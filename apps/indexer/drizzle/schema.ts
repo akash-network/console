@@ -587,6 +587,7 @@ export const addressReference = pgTable(
   table => [
     index("address_reference_address").using("btree", table.address.asc().nullsLast().op("text_ops")),
     index("address_reference_transaction_id").using("btree", table.transactionId.asc().nullsLast().op("uuid_ops")),
+    index("address_reference_address_transaction_id").using("btree", table.address.asc().nullsLast(), table.transactionId.asc().nullsLast()),
     foreignKey({
       columns: [table.messageId],
       foreignColumns: [message.id],

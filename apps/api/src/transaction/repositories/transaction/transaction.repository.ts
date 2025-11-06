@@ -106,15 +106,19 @@ export class TransactionRepository {
       where: { address: address }
     });
 
-    const txIdsQuery = chainDb.query<{ transactionId: string }>(
-      `SELECT "transactionId" FROM (
-          SELECT DISTINCT ON(af."transactionId") *
-          FROM "addressReference" af
-          INNER JOIN transaction t ON t.id=af."transactionId"
-          WHERE af.address=?
-      ) sub
-      ORDER BY height DESC, index DESC
-      OFFSET ? LIMIT ?`,
+    const txIdsQuery = chainDb.query<{ id: string }>(
+      `
+      SELECT t.id
+      FROM "transaction" t
+      WHERE EXISTS (
+        SELECT 1
+        FROM "addressReference" af
+        WHERE af.address = ?
+          AND af."transactionId" = t.id
+      )
+      ORDER BY t.height DESC, t.index DESC
+      OFFSET ? LIMIT ?
+      `,
       {
         replacements: [address, query.skip, query.limit],
         type: QueryTypes.SELECT
@@ -125,7 +129,7 @@ export class TransactionRepository {
 
     const txs = await Transaction.findAll({
       include: [{ model: Block, required: true }, { model: Message }, { model: AddressReference, required: true, where: { address: address } }],
-      where: { id: txIds.map(x => x.transactionId) },
+      where: { id: txIds.map(x => x.id) },
       order: [
         ["height", "DESC"],
         ["index", "DESC"]
