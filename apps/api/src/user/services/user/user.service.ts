@@ -57,7 +57,10 @@ export class UserService {
         );
         isAnonymous = !!user;
       } catch (error) {
-        if (!isUniqueViolation(error) || !error.constraint_name?.includes("userSetting_userId_unique")) {
+        if (
+          !isUniqueViolation(error) ||
+          (!error.constraint_name?.includes("userSetting_userId_unique") && !error.constraint_name?.includes("user_setting_user_id"))
+        ) {
           throw error;
         }
       }
