@@ -45,7 +45,7 @@ export class RefillService {
     const trialWindowStart = subDays(new Date(), this.config.TRIAL_ALLOWANCE_EXPIRATION_DAYS);
     const isInTrialWindow = userWallet.isTrialing && userWallet.createdAt && userWallet.createdAt >= trialWindowStart;
 
-    const expiration = isInTrialWindow ? addDays(new Date(), this.config.TRIAL_ALLOWANCE_EXPIRATION_DAYS) : undefined;
+    const expiration = isInTrialWindow && userWallet.createdAt ? addDays(userWallet.createdAt, this.config.TRIAL_ALLOWANCE_EXPIRATION_DAYS) : undefined;
 
     await this.managedUserWalletService.authorizeSpending({
       address: userWallet.address!,
