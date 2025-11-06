@@ -9,6 +9,7 @@ import { ChainBlockCreatedDto } from "@src/modules/alert/dto/chain-block-created
 import { EventClosedDeploymentDto } from "@src/modules/alert/dto/event-closed-deployment.dto";
 import { ChainAlertService } from "@src/modules/alert/services/chain-alert/chain-alert.service";
 import { DeploymentBalanceAlertsService } from "@src/modules/alert/services/deployment-balance-alerts/deployment-balance-alerts.service";
+import { WalletBalanceAlertsService } from "@src/modules/alert/services/wallet-balance-alerts/wallet-balance-alerts.service";
 import { ChainEventsHandler } from "./chain-events.handler";
 
 import { MockProvider } from "@test/mocks/provider.mock";
@@ -32,7 +33,7 @@ describe(ChainEventsHandler.name, () => {
 
   describe("processBlock", () => {
     it("should log the received block and process balance alerts", async () => {
-      const { controller, deploymentBalanceAlertsService, brokerService } = await setup();
+      const { controller, deploymentBalanceAlertsService, walletBalanceAlertsService, brokerService } = await setup();
 
       const mockBlock = generateMock(ChainBlockCreatedDto.schema);
       const alertMessage = generateAlertMessage({});
@@ -41,24 +42,27 @@ describe(ChainEventsHandler.name, () => {
       await controller.processBlock(mockBlock);
 
       expect(deploymentBalanceAlertsService.alertFor).toHaveBeenCalledWith(mockBlock, expect.any(Function));
+      expect(walletBalanceAlertsService.alertFor).toHaveBeenCalledWith(mockBlock, expect.any(Function));
       expect(brokerService.publish).toHaveBeenCalledWith(eventKeyRegistry.createNotification, alertMessage);
     });
   });
 
-  async function setup(): Promise<{
-    controller: ChainEventsHandler;
-    chainMessageAlertService: MockProxy<ChainAlertService>;
-    deploymentBalanceAlertsService: MockProxy<DeploymentBalanceAlertsService>;
-    brokerService: MockProxy<BrokerService>;
-  }> {
+  async function setup() {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [MockProvider(BrokerService), ChainEventsHandler, MockProvider(ChainAlertService), MockProvider(DeploymentBalanceAlertsService)]
+      providers: [
+        MockProvider(BrokerService),
+        ChainEventsHandler,
+        MockProvider(ChainAlertService),
+        MockProvider(DeploymentBalanceAlertsService),
+        MockProvider(WalletBalanceAlertsService)
+      ]
     }).compile();
 
     return {
       controller: module.get<ChainEventsHandler>(ChainEventsHandler),
       chainMessageAlertService: module.get<MockProxy<ChainAlertService>>(ChainAlertService),
       deploymentBalanceAlertsService: module.get<MockProxy<DeploymentBalanceAlertsService>>(DeploymentBalanceAlertsService),
+      walletBalanceAlertsService: module.get<MockProxy<WalletBalanceAlertsService>>(WalletBalanceAlertsService),
       brokerService: module.get<MockProxy<BrokerService>>(BrokerService)
     };
   }

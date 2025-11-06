@@ -35,7 +35,16 @@ export function valueBackoff<T>(request: () => Promise<T | EmptyResult>, options
     if (isInternalError(error) && options.safe) {
       return emptyResult;
     }
-    return Promise.reject(options.createError ? options.createError() : error);
+    if (options.createError) {
+      try {
+        const customError = options.createError();
+        customError.cause = error;
+        return Promise.reject(customError);
+      } catch (createErrorException) {
+        return Promise.reject(error);
+      }
+    }
+    return Promise.reject(error);
   });
 }
 

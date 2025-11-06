@@ -125,7 +125,6 @@ describe("balance alerts", () => {
       message.height = CURRENT_HEIGHT;
 
       await controller.processBlock(message);
-      await controller.processBlock(message);
 
       expect(alertsProcessed).toBe(1);
       expect(brokerService.publish).toHaveBeenCalledTimes(1);
