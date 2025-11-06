@@ -43,7 +43,7 @@ export class RefillService {
 
   private async refillWalletFees(userWallet: UserWalletOutput) {
     const trialWindowStart = subDays(new Date(), this.config.TRIAL_ALLOWANCE_EXPIRATION_DAYS);
-    const isInTrialWindow = userWallet.isTrialing && userWallet.createdAt && userWallet.createdAt >= trialWindowStart;
+    const isInTrialWindow = userWallet.isTrialing && userWallet.createdAt && userWallet.createdAt > trialWindowStart;
 
     const expiration = isInTrialWindow && userWallet.createdAt ? addDays(userWallet.createdAt, this.config.TRIAL_ALLOWANCE_EXPIRATION_DAYS) : undefined;
 

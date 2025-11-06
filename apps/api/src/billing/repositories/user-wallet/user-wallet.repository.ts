@@ -1,5 +1,5 @@
 import subDays from "date-fns/subDays";
-import { and, count, eq, gte, inArray, lte, or } from "drizzle-orm";
+import { and, count, eq, gt, inArray, lte, or } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -92,7 +92,7 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
         where: this.whereAccessibleBy(
           and(
             lte(this.table.feeAllowance, thresholds.fee.toString()),
-            or(and(eq(this.table.isTrialing, true), gte(this.table.createdAt, trialWindowStart)), eq(this.table.isTrialing, false))
+            or(and(eq(this.table.isTrialing, true), gt(this.table.createdAt, trialWindowStart)), eq(this.table.isTrialing, false))
           )
         )
       })
