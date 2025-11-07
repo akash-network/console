@@ -19,8 +19,7 @@ export const createPgBossFactory =
         executeSql(text: string, values: any[]): Promise<{ rows: any[] }> {
           return client.query(text, values);
         }
-      },
-      archiveCompletedAfterSeconds: config.getOrThrow("broker.EVENT_BROKER_ARCHIVE_COMPLETED_AFTER_SECONDS")
+      }
     });
 
     const logger = new LoggerService({ context: "PgBoss" });

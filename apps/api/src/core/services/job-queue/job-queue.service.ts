@@ -37,7 +37,6 @@ export class JobQueueService implements Disposable {
       }
       seenJobs.add(queueName);
       await this.pgBoss.createQueue(queueName, {
-        name: queueName,
         retryLimit: 5,
         retryBackoff: true,
         retryDelayMax: 5 * 60

@@ -36,7 +36,9 @@ export class BrokerService {
 
   async subscribe<ReqData>(eventName: string, options: { prefetchCount: number }, handler: SingleMsgWorkHandler<ReqData>) {
     const queueName = this.toQueueName(eventName);
-    await this.boss.createQueue(queueName);
+    await this.boss.createQueue(queueName, {
+      deleteAfterSeconds: this.configService.getOrThrow("broker.EVENT_BROKER_ARCHIVE_COMPLETED_AFTER_SECONDS")
+    });
     await this.boss.subscribe(eventName, queueName);
 
     await Promise.all(
