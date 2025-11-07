@@ -35,21 +35,26 @@ export const WelcomeStep: React.FunctionComponent<WelcomeStepProps> = ({ onCompl
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-8">
-      {/* Trial Status Bar */}
       <TrialStatusBar />
 
-      {/* Welcome Message */}
       <div className="space-y-3">
         <h1 className="text-3xl font-semibold tracking-tight">Welcome to Akash Console</h1>
         <p className="text-base text-muted-foreground">Choose a template below to launch your first app in seconds.</p>
       </div>
 
-      {/* Template Cards */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
         <TemplateCard
           icon={<Image src="/images/onboarding/hello_akash.svg" alt="Hello Akash" width={100} height={100} />}
           title="Hello Akash!"
-          description="A simple web app powered by Next.js, perfect for your first deployment on Akash. View and explore the full source code here."
+          description={
+            <>
+              A simple web app powered by Next.js, perfect for your first deployment on Akash. View and explore the full source code{" "}
+              <a href="https://github.com/akash-network/hello-akash-world" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                here
+              </a>
+              .
+            </>
+          }
           onDeploy={() => handleDeployTemplate("hello-akash")}
           disabled={isDeploying}
           isLoading={deployingTemplate === "hello-akash"}

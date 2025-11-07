@@ -5,7 +5,7 @@ import { Button, Card, Spinner } from "@akashnetwork/ui/components";
 export interface TemplateCardProps {
   icon: React.ReactNode;
   title: string;
-  description: string;
+  description: React.ReactNode;
   onDeploy: () => void;
   disabled?: boolean;
   isLoading?: boolean;
