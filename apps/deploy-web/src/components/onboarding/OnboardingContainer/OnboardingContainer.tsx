@@ -67,7 +67,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
   const router = d.useRouter();
   const { user } = d.useUser();
   const { data: paymentMethods = [] } = d.usePaymentMethodsQuery({ enabled: !!user?.stripeCustomerId });
-  const { analyticsService, urlService, authService, chainApiHttpClient, deploymentLocalStorage, appConfig } = d.useServices();
+  const { analyticsService, urlService, authService, chainApiHttpClient, deploymentLocalStorage, appConfig, errorHandler } = d.useServices();
   const { hasManagedWallet, isWalletLoading, connectManagedWallet, address, signAndBroadcastTx } = d.useWallet();
   const { templates } = d.useTemplates();
   const { genNewCertificateIfLocalIsInvalid, updateSelectedCertificate } = d.useCertificate();
@@ -200,7 +200,14 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
 
         const templateConfig = templateMap[templateName];
         if (!templateConfig) {
-          throw new Error(`Template ${templateName} not found`);
+          const error = new Error(`Template ${templateName} not found`);
+          errorHandler.reportError({
+            error,
+            severity: "warning",
+            tags: { component: "onboarding", template: templateName }
+          });
+          enqueueSnackbar(`Template "${templateName}" is no longer supported, please choose another one`, { variant: "error" });
+          return;
         }
 
         let sdl = templateConfig.sdl;
@@ -208,7 +215,14 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
         if (templateConfig.id) {
           const template = templates.find(t => t.id === templateConfig.id);
           if (!template || !template.deploy) {
-            throw new Error(`Template ${templateName} SDL not found`);
+            const error = new Error(`Template ${templateName} SDL not found`);
+            errorHandler.reportError({
+              error,
+              severity: "warning",
+              tags: { component: "onboarding", template: templateName, templateId: templateConfig.id }
+            });
+            enqueueSnackbar(`Template "${templateConfig.name}" is no longer supported, please choose another one`, { variant: "error" });
+            return;
           }
           sdl = template.deploy;
         }
@@ -255,7 +269,6 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
           router.push(d.UrlService.newDeployment({ step: RouteStep.createLeases, dseq: dd.deploymentId.dseq }));
         }
       } catch (error) {
-        console.error("Error deploying template:", error);
         enqueueSnackbar("Failed to deploy template. Please try again.", { variant: "error" });
         throw error;
       }
@@ -273,7 +286,8 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
       updateSelectedCertificate,
       deploymentLocalStorage,
       analyticsService,
-      enqueueSnackbar
+      enqueueSnackbar,
+      errorHandler
     ]
   );
 
