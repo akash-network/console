@@ -7,7 +7,7 @@ export type TrialBalance = {
   total: number;
   remaining: number;
   used: number;
-  usagePercentage: number;
+  remainingPercentage: number;
   isLoading: boolean;
   trialEndDate: Date;
   daysRemaining: number;
@@ -24,7 +24,7 @@ export const useTrialBalance = (): TrialBalance => {
 
   const creditsRemaining = Math.min(Math.max(walletBalance?.totalDeploymentGrantsUSD ?? creditAmount ?? TRIAL_TOTAL, 0), TRIAL_TOTAL);
   const creditsUsed = TRIAL_TOTAL - creditsRemaining;
-  const usagePercentage = Math.min(Math.max((creditsUsed / TRIAL_TOTAL) * 100, 0), 100);
+  const remainingPercentage = Math.min(Math.max((creditsRemaining / TRIAL_TOTAL) * 100, 0), 100);
 
   // Calculate trial end date from wallet creation date
   const now = new Date();
@@ -47,7 +47,7 @@ export const useTrialBalance = (): TrialBalance => {
     total: TRIAL_TOTAL,
     remaining: creditsRemaining,
     used: creditsUsed,
-    usagePercentage,
+    remainingPercentage,
     isLoading,
     trialEndDate,
     daysRemaining

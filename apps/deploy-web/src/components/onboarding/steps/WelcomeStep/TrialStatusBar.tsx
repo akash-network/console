@@ -7,7 +7,7 @@ import { InfoCircle } from "iconoir-react";
 import { useTrialBalance } from "@src/hooks/useTrialBalance";
 
 export const TrialStatusBar: React.FC = () => {
-  const { total: TRIAL_TOTAL, remaining: creditsRemaining, used: creditsUsed, usagePercentage, isLoading, trialEndDate, daysRemaining } = useTrialBalance();
+  const { total: TRIAL_TOTAL, remaining: creditsRemaining, used: creditsUsed, remainingPercentage, isLoading, trialEndDate, daysRemaining } = useTrialBalance();
 
   if (isLoading) {
     return (
@@ -59,7 +59,7 @@ export const TrialStatusBar: React.FC = () => {
         </div>
 
         <div className="space-y-2">
-          <Progress value={usagePercentage} className="h-2" />
+          <Progress value={remainingPercentage} className="h-2" />
           <div className="flex flex-col gap-1 text-xs text-muted-foreground sm:flex-row sm:justify-between">
             <span>${creditsUsed.toFixed(2)} used</span>
             <span>
