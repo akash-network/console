@@ -1,5 +1,12 @@
 
 
+## [3.2.0](https://github.com/akash-network/console/compare/console-web/v3.1.2...console-web/v3.2.0) (2025-11-07)
+
+
+### Features
+
+* **onboarding:** welcome step create deployment ([#2170](https://github.com/akash-network/console/issues/2170)) ([47c2a91](https://github.com/akash-network/console/commit/47c2a91aea877d4a06ea7953b20f3fa31151b0dd))
+
 ## [3.1.2](https://github.com/akash-network/console/compare/console-web/v3.1.1...console-web/v3.1.2) (2025-11-06)
 
 
