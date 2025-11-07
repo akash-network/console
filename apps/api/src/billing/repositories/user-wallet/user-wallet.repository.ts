@@ -31,6 +31,7 @@ export interface UserWalletPublicOutput {
   address: UserWalletOutput["address"];
   creditAmount: UserWalletOutput["creditAmount"];
   isTrialing: boolean;
+  createdAt: UserWalletOutput["createdAt"];
 }
 
 @singleton()
@@ -153,7 +154,8 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
       userId: output.userId,
       address: output.address,
       creditAmount: output.creditAmount,
-      isTrialing: !!output.isTrialing
+      isTrialing: !!output.isTrialing,
+      createdAt: output.createdAt
     };
   }
 }

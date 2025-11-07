@@ -6,6 +6,7 @@ export interface ApiWalletOutput {
   address: string;
   creditAmount: number;
   isTrialing: boolean;
+  createdAt: Date;
 }
 
 export interface ApiThreeDSecureAuth {

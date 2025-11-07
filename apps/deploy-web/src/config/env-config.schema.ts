@@ -18,6 +18,8 @@ export const browserEnvSchema = z.object({
   NEXT_PUBLIC_NODE_ENV: z.enum(["development", "production", "test"]).optional().default("development"),
   NEXT_PUBLIC_DEFAULT_INITIAL_DEPOSIT: z.number({ coerce: true }).optional().default(500000),
   NEXT_PUBLIC_TRIAL_DEPLOYMENTS_DURATION_HOURS: z.number({ coerce: true }).optional().default(24),
+  NEXT_PUBLIC_TRIAL_CREDITS_AMOUNT: z.number({ coerce: true }).optional().default(100),
+  NEXT_PUBLIC_TRIAL_DURATION_DAYS: z.number({ coerce: true }).optional().default(30),
   NEXT_PUBLIC_BASE_API_MAINNET_URL: z.string(),
   NEXT_PUBLIC_BASE_API_TESTNET_URL: z.string(),
   NEXT_PUBLIC_BASE_API_SANDBOX_URL: z.string(),

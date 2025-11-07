@@ -1,62 +1,81 @@
 "use client";
 import React, { useState } from "react";
-import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@akashnetwork/ui/components";
-import { CheckCircle, Rocket } from "iconoir-react";
+import Image from "next/image";
 
-import { SuccessAnimation } from "@src/components/shared/SuccessAnimation";
-import { Title } from "@src/components/shared/Title";
 import { useServices } from "@src/context/ServicesProvider";
+import { TemplateCard } from "./TemplateCard";
+import { TrialStatusBar } from "./TrialStatusBar";
 
 interface WelcomeStepProps {
-  onComplete: () => void;
+  onComplete: (templateName: string) => Promise<void>;
 }
 
 export const WelcomeStep: React.FunctionComponent<WelcomeStepProps> = ({ onComplete }) => {
   const { analyticsService } = useServices();
-  const [showSuccessAnimation, setShowSuccessAnimation] = useState(true);
+  const [isDeploying, setIsDeploying] = useState(false);
+  const [deployingTemplate, setDeployingTemplate] = useState<string | null>(null);
 
-  const handleComplete = () => {
-    analyticsService.track("onboarding_completed", {
-      category: "onboarding"
-    });
-    onComplete();
-  };
+  const handleDeployTemplate = async (templateName: string) => {
+    try {
+      setIsDeploying(true);
+      setDeployingTemplate(templateName);
 
-  const handleAnimationComplete = () => {
-    setShowSuccessAnimation(false);
+      analyticsService.track("onboarding_completed", {
+        category: "onboarding",
+        template: templateName,
+        action: "deploy_template"
+      });
+
+      await onComplete(templateName);
+    } catch (error) {
+      setIsDeploying(false);
+      setDeployingTemplate(null);
+    }
   };
 
   return (
-    <>
-      <SuccessAnimation show={showSuccessAnimation} onComplete={handleAnimationComplete} />
-      <div className="space-y-6 text-center">
-        <Title>Welcome to Akash Console!</Title>
-        <p className="text-muted-foreground">Your account is now set up and ready to go. Start deploying your applications on Akash Network.</p>
+    <div className="mx-auto w-full max-w-7xl space-y-8">
+      <TrialStatusBar />
 
-        <Card className="mx-auto max-w-md">
-          <CardHeader>
-            <div className="mb-4 flex justify-center">
-              <div className="rounded-full bg-green-100 p-3">
-                <CheckCircle className="h-8 w-8 text-green-600" />
-              </div>
-            </div>
-            <CardTitle>Setup Complete</CardTitle>
-            <CardDescription>You&apos;re all set to start using Akash Console!</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2 text-sm text-muted-foreground">
-              <p>✓ Account created successfully</p>
-              <p>✓ Email verified</p>
-              <p>✓ Payment method added</p>
-              <p>✓ Free trial activated</p>
-            </div>
-            <Button onClick={handleComplete} className="w-full">
-              <Rocket className="mr-2 h-4 w-4" />
-              Start Deploying
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="space-y-3">
+        <h1 className="text-3xl font-semibold tracking-tight">Welcome to Akash Console</h1>
+        <p className="text-base text-muted-foreground">Choose a template below to launch your first app in seconds.</p>
       </div>
-    </>
+
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+        <TemplateCard
+          icon={<Image src="/images/onboarding/hello_akash.svg" alt="Hello Akash" width={100} height={100} />}
+          title="Hello Akash!"
+          description={
+            <>
+              A simple web app powered by Next.js, perfect for your first deployment on Akash. View and explore the full source code{" "}
+              <a href="https://github.com/akash-network/hello-akash-world" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                here
+              </a>
+              .
+            </>
+          }
+          onDeploy={() => handleDeployTemplate("hello-akash")}
+          disabled={isDeploying}
+          isLoading={deployingTemplate === "hello-akash"}
+        />
+        <TemplateCard
+          icon={<Image src="/images/onboarding/comfy_ui.svg" alt="ComfyUI" width={100} height={100} />}
+          title="ComfyUI"
+          description="A powerful, modular Stable Diffusion tool that lets you build and run advanced image workflows using a visual, node-based interface."
+          onDeploy={() => handleDeployTemplate("comfyui")}
+          disabled={isDeploying}
+          isLoading={deployingTemplate === "comfyui"}
+        />
+        <TemplateCard
+          icon={<Image src="/images/onboarding/llama.svg" alt="Llama" width={100} height={100} />}
+          title="Llama-3.1-8b"
+          description="A cutting-edge language model built for fast, context-aware text generation. Access a wide range of advanced language tasks."
+          onDeploy={() => handleDeployTemplate("llama-3.1-8b")}
+          disabled={isDeploying}
+          isLoading={deployingTemplate === "llama-3.1-8b"}
+        />
+      </div>
+    </div>
   );
 };
