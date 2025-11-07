@@ -1,6 +1,6 @@
 {
   "name": "@akashnetwork/log-collector",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "A log collector worker to forward logs from provider to logging services for certain deployments ",
   "keywords": [
     "logs",
