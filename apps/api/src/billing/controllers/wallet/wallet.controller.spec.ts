@@ -158,6 +158,7 @@ describe("WalletController", () => {
           address: null,
           creditAmount: 0,
           isTrialing: false,
+          createdAt: null,
           requires3DS: true,
           clientSecret: "test_client_secret",
           paymentIntentId: "test_payment_intent_id",

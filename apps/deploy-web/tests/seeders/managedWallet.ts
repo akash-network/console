@@ -9,5 +9,6 @@ export const buildManagedWallet = (overrides: Partial<ApiManagedWalletOutput> = 
   creditAmount: faker.number.int({ min: 0, max: 1000 }),
   username: "Managed Wallet" as const,
   isWalletConnected: true,
+  createdAt: faker.date.past(),
   ...overrides
 });

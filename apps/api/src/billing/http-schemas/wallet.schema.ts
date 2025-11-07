@@ -5,7 +5,8 @@ const WalletOutputSchema = z.object({
   userId: z.string().nullable().openapi({}),
   creditAmount: z.number().openapi({}),
   address: z.string().nullable().openapi({}),
-  isTrialing: z.boolean()
+  isTrialing: z.boolean(),
+  createdAt: z.coerce.date().nullable().openapi({})
 });
 
 const ThreeDSecureAuthSchema = z.object({

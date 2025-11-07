@@ -100,7 +100,8 @@ export type AnalyticsEvent =
   | "onboarding_account_created"
   | "onboarding_email_verified"
   | "onboarding_payment_method_added"
-  | "onboarding_completed";
+  | "onboarding_completed"
+  | "onboarding_back_to_console";
 
 export type AnalyticsCategory =
   | "user"

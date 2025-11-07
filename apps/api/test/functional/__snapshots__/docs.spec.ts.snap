@@ -12439,6 +12439,10 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                           "nullable": true,
                           "type": "string",
                         },
+                        "createdAt": {
+                          "nullable": true,
+                          "type": "string",
+                        },
                         "creditAmount": {
                           "type": "number",
                         },
@@ -12471,6 +12475,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                         "creditAmount",
                         "address",
                         "isTrialing",
+                        "createdAt",
                       ],
                       "type": "object",
                     },
@@ -12500,6 +12505,10 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                           "nullable": true,
                           "type": "string",
                         },
+                        "createdAt": {
+                          "nullable": true,
+                          "type": "string",
+                        },
                         "creditAmount": {
                           "type": "number",
                         },
@@ -12532,6 +12541,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                         "creditAmount",
                         "address",
                         "isTrialing",
+                        "createdAt",
                       ],
                       "type": "object",
                     },
@@ -14553,6 +14563,10 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                             "nullable": true,
                             "type": "string",
                           },
+                          "createdAt": {
+                            "nullable": true,
+                            "type": "string",
+                          },
                           "creditAmount": {
                             "type": "number",
                           },
@@ -14585,6 +14599,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                           "creditAmount",
                           "address",
                           "isTrialing",
+                          "createdAt",
                         ],
                         "type": "object",
                       },

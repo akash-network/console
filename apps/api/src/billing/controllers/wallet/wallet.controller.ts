@@ -66,6 +66,7 @@ export class WalletController {
               address: null,
               creditAmount: 0,
               isTrialing: false,
+              createdAt: null,
               requires3DS: true,
               clientSecret: validationResult.clientSecret || null,
               paymentIntentId: validationResult.paymentIntentId || null,

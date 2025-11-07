@@ -99,7 +99,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const {
     fee: { default: feeGranter }
   } = useAllowance(walletAddress as string, isManaged);
-  const [selectedNetworkId, setSelectedNetworkId] = networkStore.useSelectedNetworkIdStore({ reloadOnChange: true });
+  const [selectedNetworkId, setSelectedNetworkId] = networkStore.useSelectedNetworkIdStore();
   const isLoading = (selectedWalletType === "managed" && isManagedWalletLoading) || (selectedWalletType === "custodial" && userWallet.isWalletConnecting);
 
   useWhen(walletAddress, loadWallet);
