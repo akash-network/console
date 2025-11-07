@@ -47,7 +47,7 @@ export const TrialStatusBar: React.FC = () => {
           <div className="space-y-1">
             <div className="text-base font-semibold sm:text-lg">Free Trial Credits: ${creditsRemaining.toFixed(2)}</div>
             <div className="text-xs text-muted-foreground sm:text-sm">
-              Expires on <FormattedDate value={trialEndDate!} year="numeric" month="long" day="numeric" /> <span className="mx-1.5 hidden sm:inline">•</span>
+              Expires on <FormattedDate value={trialEndDate} year="numeric" month="long" day="numeric" /> <span className="mx-1.5 hidden sm:inline">•</span>
               <span className="block sm:inline"> {daysRemaining} days remaining</span>
             </div>
           </div>
