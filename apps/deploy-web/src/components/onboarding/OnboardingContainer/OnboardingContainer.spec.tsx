@@ -7,6 +7,7 @@ import type { Router } from "next/router";
 
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { AuthService } from "@src/services/auth/auth/auth.service";
+import type { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { UrlService } from "@src/utils/urlUtils";
 import { OnboardingContainer, OnboardingStepIndex } from "./OnboardingContainer";
 
@@ -96,13 +97,15 @@ describe("OnboardingContainer", () => {
     });
   });
 
-  it("should redirect to home and connect managed wallet when onboarding is completed", () => {
+  it("should redirect to deployment and connect managed wallet when onboarding is completed", async () => {
     const { child, mockRouter, mockConnectManagedWallet } = setup();
 
     const { onComplete } = child.mock.calls[0][0];
-    onComplete();
+    await act(async () => {
+      await onComplete("hello-akash");
+    });
 
-    expect(mockRouter.push).toHaveBeenCalledWith("/");
+    expect(mockRouter.push).toHaveBeenCalled();
     expect(mockConnectManagedWallet).toHaveBeenCalled();
   });
 
@@ -211,11 +214,27 @@ describe("OnboardingContainer", () => {
     const mockRouter = mock<Router>();
     const authService = mock<AuthService>();
     const mockConnectManagedWallet = jest.fn();
+    const mockSignAndBroadcastTx = jest.fn().mockResolvedValue({ transactionHash: "mock-hash" });
+    const mockGenNewCertificateIfLocalIsInvalid = jest.fn().mockResolvedValue(null);
+    const mockUpdateSelectedCertificate = jest.fn().mockResolvedValue(undefined);
 
     const mockUrlService = {
       ...UrlService,
       onboarding: jest.fn(() => "/onboarding"),
-      signup: jest.fn(() => "/signup")
+      signup: jest.fn(() => "/signup"),
+      newDeployment: jest.fn(() => "/deployments/new")
+    };
+
+    const mockChainApiHttpClient = {
+      get: jest.fn()
+    };
+
+    const mockDeploymentLocalStorage = {
+      update: jest.fn()
+    };
+
+    const mockAppConfig = {
+      NEXT_PUBLIC_DEFAULT_INITIAL_DEPOSIT: "5000000"
     };
 
     const mockUseUser = jest.fn().mockReturnValue(input.user || { emailVerified: false });
@@ -223,14 +242,74 @@ describe("OnboardingContainer", () => {
     const mockUseServices = jest.fn().mockReturnValue({
       analyticsService: mockAnalyticsService,
       urlService: mockUrlService,
-      authService
+      authService,
+      chainApiHttpClient: mockChainApiHttpClient,
+      deploymentLocalStorage: mockDeploymentLocalStorage,
+      appConfig: mockAppConfig
     });
     const mockUseRouter = jest.fn().mockReturnValue(mockRouter);
     const mockUseWallet = jest.fn().mockReturnValue({
       hasManagedWallet: input.wallet?.hasManagedWallet || false,
       isWalletLoading: input.wallet?.isWalletLoading || false,
-      connectManagedWallet: mockConnectManagedWallet
+      connectManagedWallet: mockConnectManagedWallet,
+      address: "akash1test",
+      signAndBroadcastTx: mockSignAndBroadcastTx
     });
+    const mockUseTemplates = jest.fn().mockReturnValue({ templates: [] });
+    const mockUseCertificate = jest.fn().mockReturnValue({
+      genNewCertificateIfLocalIsInvalid: mockGenNewCertificateIfLocalIsInvalid,
+      updateSelectedCertificate: mockUpdateSelectedCertificate
+    });
+    const mockUseSnackbar = jest.fn().mockReturnValue({
+      enqueueSnackbar: jest.fn()
+    });
+
+    const mockNewDeploymentData = jest.fn().mockResolvedValue({
+      deploymentId: { dseq: "123" },
+      hash: "mock-hash"
+    });
+
+    const mockDeploymentData = {
+      NewDeploymentData: mockNewDeploymentData,
+      getManifest: jest.fn(),
+      getManifestVersion: jest.fn(),
+      appendTrialAttribute: jest.fn(),
+      appendAuditorRequirement: jest.fn(sdl => sdl),
+      ENDPOINT_NAME_VALIDATION_REGEX: /^[a-z]+[-_\da-z]+$/,
+      TRIAL_ATTRIBUTE: "console/trials" as const,
+      TRIAL_REGISTERED_ATTRIBUTE: "console/trials-registered" as const,
+      AUDITOR: "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63" as const,
+      MANAGED_WALLET_ALLOWED_AUDITORS: ["akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63" as const]
+    };
+
+    const mockValidateDeploymentData = jest.fn();
+    const mockAppendAuditorRequirement = jest.fn(sdl => sdl);
+    const mockHelloWorldTemplate = {
+      title: "Hello World",
+      name: "Hello World",
+      code: "hello-world",
+      category: "General",
+      description: "Simple next.js web application showing hello world.",
+      githubUrl: "https://github.com/akash-network/hello-akash-world",
+      valuesToChange: [],
+      content: "mock-sdl-content"
+    };
+    const mockTransactionMessageData = {
+      prototype: {},
+      getRevokeCertificateMsg: jest.fn(),
+      getCreateCertificateMsg: jest.fn(),
+      getCreateLeaseMsg: jest.fn(),
+      getCreateDeploymentMsg: jest.fn(),
+      getUpdateDeploymentMsg: jest.fn(),
+      getDepositDeploymentMsg: jest.fn(),
+      getCloseDeploymentMsg: jest.fn(),
+      getSendTokensMsg: jest.fn(),
+      getGrantMsg: jest.fn(),
+      getRevokeDepositMsg: jest.fn(),
+      getGrantBasicAllowanceMsg: jest.fn(),
+      getRevokeAllowanceMsg: jest.fn(),
+      getUpdateProviderMsg: jest.fn()
+    };
 
     // Create dependencies object
     const dependencies = {
@@ -239,7 +318,16 @@ describe("OnboardingContainer", () => {
       useServices: mockUseServices,
       useRouter: mockUseRouter,
       useWallet: mockUseWallet,
-      localStorage: mockLocalStorage
+      useTemplates: mockUseTemplates,
+      useCertificate: mockUseCertificate,
+      useSnackbar: mockUseSnackbar,
+      localStorage: mockLocalStorage,
+      deploymentData: mockDeploymentData,
+      validateDeploymentData: mockValidateDeploymentData,
+      appendAuditorRequirement: mockAppendAuditorRequirement,
+      helloWorldTemplate: mockHelloWorldTemplate,
+      TransactionMessageData: mockTransactionMessageData as unknown as typeof TransactionMessageData,
+      UrlService
     };
 
     const mockChildren = jest.fn().mockReturnValue(<div>Test</div>);
@@ -270,6 +358,15 @@ describe("OnboardingContainer", () => {
       mockUseRouter,
       mockConnectManagedWallet,
       mockLocalStorage,
+      mockSignAndBroadcastTx,
+      mockGenNewCertificateIfLocalIsInvalid,
+      mockUpdateSelectedCertificate,
+      mockChainApiHttpClient,
+      mockDeploymentLocalStorage,
+      mockNewDeploymentData,
+      mockValidateDeploymentData,
+      mockAppendAuditorRequirement,
+      mockTransactionMessageData,
       cleanup
     };
   }

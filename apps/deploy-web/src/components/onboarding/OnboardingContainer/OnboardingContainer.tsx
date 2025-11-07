@@ -51,7 +51,13 @@ const DEPENDENCIES = {
   useTemplates,
   useCertificate,
   useSnackbar,
-  localStorage: typeof window !== "undefined" ? window.localStorage : null
+  localStorage: typeof window !== "undefined" ? window.localStorage : null,
+  deploymentData,
+  validateDeploymentData,
+  appendAuditorRequirement,
+  helloWorldTemplate,
+  TransactionMessageData,
+  UrlService
 };
 
 export const OnboardingContainer: React.FunctionComponent<OnboardingContainerProps> = ({ children, dependencies: d = DEPENDENCIES }) => {
@@ -177,7 +183,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
       try {
         const templateMap: Record<string, { id?: string; sdl: string; name: string }> = {
           "hello-akash": {
-            sdl: helloWorldTemplate.content,
+            sdl: d.helloWorldTemplate.content,
             name: "Hello Akash"
           },
           comfyui: {
@@ -207,11 +213,11 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
           sdl = template.deploy;
         }
 
-        sdl = appendAuditorRequirement(sdl);
+        sdl = d.appendAuditorRequirement(sdl);
 
         const deposit = appConfig.NEXT_PUBLIC_DEFAULT_INITIAL_DEPOSIT;
-        const dd = await deploymentData.NewDeploymentData(chainApiHttpClient, sdl, null, address, deposit);
-        validateDeploymentData(dd, null);
+        const dd = await d.deploymentData.NewDeploymentData(chainApiHttpClient, sdl, null, address, deposit);
+        d.validateDeploymentData(dd, null);
 
         if (!dd) {
           throw new Error("Failed to create deployment data");
@@ -221,10 +227,10 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
         const newCert = await genNewCertificateIfLocalIsInvalid();
 
         if (newCert) {
-          messages.push(TransactionMessageData.getCreateCertificateMsg(address, newCert.cert, newCert.publicKey));
+          messages.push(d.TransactionMessageData.getCreateCertificateMsg(address, newCert.cert, newCert.publicKey));
         }
 
-        messages.push(TransactionMessageData.getCreateDeploymentMsg(dd));
+        messages.push(d.TransactionMessageData.getCreateDeploymentMsg(dd));
         const response = await signAndBroadcastTx(messages);
 
         if (response) {
@@ -246,7 +252,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
 
           d.localStorage?.removeItem(ONBOARDING_STEP_KEY);
           connectManagedWallet();
-          router.push(UrlService.newDeployment({ step: RouteStep.createLeases, dseq: dd.deploymentId.dseq }));
+          router.push(d.UrlService.newDeployment({ step: RouteStep.createLeases, dseq: dd.deploymentId.dseq }));
         }
       } catch (error) {
         console.error("Error deploying template:", error);
@@ -255,7 +261,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
       }
     },
     [
-      d.localStorage,
+      d,
       router,
       connectManagedWallet,
       templates,
