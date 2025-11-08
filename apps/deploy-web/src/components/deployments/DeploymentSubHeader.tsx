@@ -11,7 +11,7 @@ import { PricePerMonth } from "@src/components/shared/PricePerMonth";
 import { PriceValue } from "@src/components/shared/PriceValue";
 import { StatusPill } from "@src/components/shared/StatusPill";
 import { TrialDeploymentBadge } from "@src/components/shared/TrialDeploymentBadge";
-import { browserEnvConfig } from "@src/config/browser-env.config";
+import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useDeploymentMetrics } from "@src/hooks/useDeploymentMetrics";
 import { useFlag } from "@src/hooks/useFlag";
@@ -36,13 +36,15 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
   const denomData = useDenomData(deployment.escrowAccount.state.funds[0]?.denom || "");
   const { isCustodial, isTrialing } = useWallet();
   const isAnonymousFreeTrialEnabled = useFlag("anonymous_free_trial");
+  const { appConfig } = useServices();
 
-  const trialDuration = browserEnvConfig.NEXT_PUBLIC_TRIAL_DEPLOYMENTS_DURATION_HOURS;
+  const trialDuration = appConfig.NEXT_PUBLIC_TRIAL_DEPLOYMENTS_DURATION_HOURS;
   const { timeRemainingText: trialTimeRemaining } = useTrialDeploymentTimeRemaining({
     createdHeight: deployment.createdAt,
     trialDurationHours: trialDuration,
     averageBlockTime: 6
   });
+
   return (
     <div className="grid grid-cols-2 gap-4 p-4">
       <div>
