@@ -10,8 +10,8 @@ export function ApiKeyDocsBanner() {
       <AlertTitle className="text-base font-semibold text-primary">Learn How to Use Your API Keys</AlertTitle>
       <AlertDescription>
         <p className="mb-2 text-muted-foreground">
-          Discover how to integrate the Akash API into your applications. Our comprehensive documentation covers everything from creating and managing
-          deployments.
+          Discover how to integrate the Akash API into your applications. Our comprehensive documentation covers authentication, creating deployments, managing
+          resources, and more.
         </p>
         <ExternalLink href="https://github.com/akash-network/console/wiki/Managed-wallet-API" text="View API Documentation" />
       </AlertDescription>
