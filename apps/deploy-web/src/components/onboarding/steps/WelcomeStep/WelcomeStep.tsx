@@ -27,7 +27,7 @@ export const WelcomeStep: React.FunctionComponent<WelcomeStepProps> = ({ onCompl
       });
 
       await onComplete(templateName);
-    } catch (error) {
+    } finally {
       setIsDeploying(false);
       setDeployingTemplate(null);
     }
