@@ -4,6 +4,7 @@ import type { ApiKeyResponse } from "@akashnetwork/http-sdk";
 import { Button, Popup, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import { Trash } from "iconoir-react";
 
+import { ApiKeyDocsBanner } from "@src/components/api-keys/ApiKeyDocsBanner";
 import { CreateApiKeyModal } from "@src/components/api-keys/CreateApiKeyModal";
 import { VerifiedPayingCustomerRequiredLink } from "@src/components/user/VerifiedPayingCustomerRequiredLink";
 import { useWallet } from "@src/context/WalletProvider";
@@ -111,6 +112,10 @@ export function ApiKeyList({ apiKeys, onDeleteApiKey, onDeleteClose, isDeleting,
               )}
             </TableBody>
           </Table>
+        </div>
+
+        <div className="mt-6">
+          <ApiKeyDocsBanner />
         </div>
       </div>
     </>
