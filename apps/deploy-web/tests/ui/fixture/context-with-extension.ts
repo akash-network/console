@@ -53,7 +53,7 @@ export const test = baseTest.extend<{
 
       const extPage = await getExtensionPage(context, extensionId);
 
-      await setupWallet(context, extPage);
+      await setupWallet(extPage);
       await extPage.close();
       const page = await context.newPage();
       await injectUIConfig(page);

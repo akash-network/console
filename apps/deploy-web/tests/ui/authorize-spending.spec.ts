@@ -2,8 +2,9 @@ import { shortenAddress } from "@akashnetwork/ui/components";
 import type { BrowserContext, Page } from "@playwright/test";
 
 import { expect, test } from "./fixture/context-with-extension";
+import { testEnvConfig } from "./fixture/test-env.config";
 import { clickCopyAddressButton } from "./fixture/testing-helpers";
-import { getExtensionPage } from "./fixture/wallet-setup";
+import { getExtensionPage, importSecondWallet } from "./fixture/wallet-setup";
 import type { AuthorizationListLabel, AuthorizeButtonLabel } from "./pages/AuthorizationsPage";
 import { AuthorizationsPage } from "./pages/AuthorizationsPage";
 import { LeapExt } from "./pages/LeapExt";
@@ -63,8 +64,9 @@ type SetupProps = {
 
 const setup = async ({ page, context, extensionId, buttonLabel }: SetupProps) => {
   const extension = new LeapExt(context, page);
-  const address = await clickCopyAddressButton(await getExtensionPage(context, extensionId));
-  await extension.createWallet(extensionId);
+  const extensionPage = await getExtensionPage(context, extensionId);
+  const address = await clickCopyAddressButton(extensionPage);
+  await importSecondWallet(extensionPage, testEnvConfig.AUTHORIZING_WALLET_MNEMONIC);
 
   const authorizationsPage = new AuthorizationsPage(context, page);
   await authorizationsPage.goto();
