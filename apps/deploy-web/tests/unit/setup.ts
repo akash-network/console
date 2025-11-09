@@ -1,11 +1,14 @@
 import "@testing-library/jest-dom";
 import "whatwg-fetch";
 
-import { Blob as BlobPolyfill } from "node:buffer";
+import { Blob } from "node:buffer";
 import { TextDecoder, TextEncoder } from "util";
 
-global.Blob = BlobPolyfill as unknown as typeof Blob;
-Object.assign(global, { TextDecoder, TextEncoder });
+Object.assign(global, {
+  TextDecoder,
+  TextEncoder,
+  Blob
+});
 
 beforeAll(() => {
   Object.defineProperty(window, "matchMedia", {

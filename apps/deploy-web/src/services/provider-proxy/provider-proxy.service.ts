@@ -4,8 +4,15 @@ import { NetConfig } from "@akashnetwork/net";
 import type { AxiosResponse } from "axios";
 import saveFileInBrowser from "file-saver";
 
+import { WebsocketSession } from "@src/lib/websocket/WebsocketSession";
 import type { ApiProviderList } from "@src/types/provider";
 import { wait } from "@src/utils/timer";
+import { formatK8sEvent, formatLogMessage } from "./logFormatters";
+
+// @see https://www.rfc-editor.org/rfc/rfc6455.html#page-46
+export const WS_ERRORS = {
+  VIOLATED_POLICY: 1008
+};
 
 export class ProviderProxyService {
   static readonly BEFORE_SEND_MANIFEST_DELAY = 5000;
@@ -18,7 +25,7 @@ export class ProviderProxyService {
     private readonly netConfig: NetConfig = new NetConfig()
   ) {}
 
-  fetchProviderUrl<T>(url: string, options: ProviderProxyPayload): Promise<AxiosResponse<T>> {
+  request<T>(url: string, options: ProviderProxyPayload): Promise<AxiosResponse<T>> {
     const { chainNetwork, providerIdentity, timeout, credentials, ...params } = options;
     return this.axios.post(
       "/",
@@ -55,7 +62,7 @@ export class ProviderProxyService {
       this.logger.info({ event: "ATTEMPT_SEND_MANIFEST", attempt: i, providerAddress: providerInfo.owner, dseq: options.dseq });
       try {
         if (!response) {
-          response = await this.fetchProviderUrl(`/deployment/${options.dseq}/manifest`, {
+          response = await this.request(`/deployment/${options.dseq}/manifest`, {
             method: "PUT",
             credentials: options.credentials,
             body: jsonStr,
@@ -88,53 +95,6 @@ export class ProviderProxyService {
     return response;
   }
 
-  private downloadMessages(url: string, options: DownloadMessagesOptions): Promise<DownloadMessagesResult> {
-    return new Promise(resolve => {
-      const ws = this.createWebSocket();
-      const state = { isCancelled: false, isFinished: false };
-
-      options.signal?.addEventListener(
-        "abort",
-        () => {
-          state.isCancelled = true;
-          ws.close();
-        },
-        { once: true }
-      );
-
-      ws.onmessage = event => {
-        try {
-          options.onMessage(event, state, ws);
-        } catch (error) {
-          this.logger.error({ event: "PROVIDER_DOWNLOAD_MESSAGES_ERROR", error });
-          ws.close();
-        }
-      };
-      ws.onclose = () => {
-        if (state.isCancelled) {
-          resolve({ ok: false, code: "cancelled" });
-        } else if (state.isFinished) {
-          resolve({ ok: true });
-        } else {
-          resolve({ ok: false, code: "unknown" });
-          this.logger.error({ event: "PROVIDER_DOWNLOAD_MESSAGES_ERROR", error: "websocket closed with unknown reason", url });
-        }
-      };
-      ws.onopen = () => {
-        ws.send(
-          JSON.stringify({
-            type: "websocket",
-            url,
-            auth: providerCredentialsToApiCredentials(options.providerCredentials),
-            chainNetwork: options.chainNetwork,
-            providerAddress: options.providerAddress
-          })
-        );
-      };
-      options.start?.(state, ws);
-    });
-  }
-
   async downloadLogs(input: {
     providerBaseUrl: string;
     providerAddress: string;
@@ -146,56 +106,44 @@ export class ProviderProxyService {
     chainNetwork: string;
     signal?: AbortSignal;
   }): Promise<DownloadMessagesResult> {
-    const baseUrl = `${input.providerBaseUrl}/lease/${input.dseq}/${input.gseq}/${input.oseq}`;
-    const url = input.type === "logs" ? `${baseUrl}/logs?follow=false&tail=10000000` : `${baseUrl}/kubeevents?follow=false&tail=10000000`;
-
-    let logFileContent = "";
-    let lastMessageTimestamp = Date.now();
-    const result = await this.downloadMessages(url, {
-      signal: input.signal,
-      providerAddress: input.providerAddress,
-      chainNetwork: input.chainNetwork,
-      providerCredentials: input.providerCredentials,
-      start: (state, ws) => {
-        setTimeout(function tick() {
-          const elapsed = Date.now() - lastMessageTimestamp;
-
-          if (elapsed > 3_000) {
-            state.isFinished = true;
-            if (ws.readyState !== WebSocket.CLOSED && ws.readyState !== WebSocket.CLOSING) {
-              ws.close();
-            }
-          } else {
-            setTimeout(tick, 1_000);
-          }
-        }, 1_000);
-      },
-      onMessage: event => {
-        const data = JSON.parse(event.data);
-        if (data.closed || !data.message) return;
-
-        const parsedLog = JSON.parse(data.message);
-
-        let service: string;
-        let message: string;
-        if (input.type === "logs") {
-          service = parsedLog?.name ? parsedLog?.name.split("-")[0] : "";
-          message = `[${service}]: ${parsedLog.message}`;
-        } else {
-          service = parsedLog.object?.name ? parsedLog.object?.name.split("-")[0] : "";
-          message = `[${service}]: [${parsedLog.type}] [${parsedLog.reason}] [${parsedLog.object?.kind}] ${parsedLog.note}`;
-        }
-
-        logFileContent += message + "\n";
-        lastMessageTimestamp = Date.now();
-      }
+    const abortController = new AbortController();
+    const logsStream = this.getLogsStream({
+      ...input,
+      follow: false,
+      tail: 10000000,
+      signal: input.signal ? AbortSignal.any([abortController.signal, input.signal]) : abortController.signal
     });
+    let abortTimerId: NodeJS.Timeout | undefined;
+    const scheduleAbortTimeout = () => {
+      if (abortTimerId) clearTimeout(abortTimerId);
+      abortTimerId = setTimeout(() => abortController.abort(), 3_000);
+    };
 
-    if (result.ok) {
+    scheduleAbortTimeout();
+    let logFileContent = "";
+    for await (const logEntry of logsStream) {
+      scheduleAbortTimeout();
+
+      if (logEntry.closed) {
+        clearTimeout(abortTimerId);
+        break;
+      }
+      if (!logEntry.message) continue;
+
+      const logMessage = input.type === "logs" ? formatLogMessage(logEntry.message as LogEntryMessage) : formatK8sEvent(logEntry.message as K8sEventMessage);
+      logFileContent += logMessage + "\n";
+    }
+
+    if (input.signal?.aborted) {
+      return { ok: false, code: "cancelled" };
+    }
+
+    if (logFileContent) {
       const fileName = `${input.dseq}-${input.gseq}-${input.oseq}-${input.type}-${new Date().toISOString().substring(0, 10)}.txt`;
       this.saveFile(new Blob([logFileContent], { type: "text/plain" }), fileName);
+      return { ok: true };
     }
-    return result;
+    return { ok: false, code: "unknown", message: "No log content received from server" };
   }
 
   async downloadFileFromShell(input: {
@@ -211,78 +159,174 @@ export class ProviderProxyService {
     filePath: string;
   }): Promise<DownloadMessagesResult> {
     const printCommand = "cat"; // print command on Windows is "type"
-    const command = `${printCommand} ${input.filePath}`;
-    const url = `${input.providerBaseUrl}/lease/${input.dseq}/${input.gseq}/${input.oseq}/shell?stdin=0&tty=0&podIndex=0${command
-      .split(" ")
-      .map((c, i) => `&cmd${i}=${encodeURIComponent(c.replace(" ", "+"))}`)
-      .join("")}${`&service=${input.service}`}`;
+    const session = this.connectToShell({ ...input, command: `${printCommand} ${input.filePath}` });
 
-    let fileContent: Uint8Array | null = null;
-    let errorMessage = "";
+    session.send(new Uint8Array());
 
     const textDecoder = new TextDecoder("utf-8");
-    const result = await this.downloadMessages(url, {
-      providerAddress: input.providerAddress,
-      chainNetwork: input.chainNetwork,
-      providerCredentials: input.providerCredentials,
-      signal: input.signal,
-      onMessage: (event, state, ws) => {
-        let exitCode: unknown;
-        const message = JSON.parse(event.data).message;
+    let fileContent: Uint8Array | null = null;
+    let exitCode: unknown;
+    let errorMessage = "";
 
-        const bufferData = new Uint8Array(message.data.slice(1));
-        const stringData = textDecoder.decode(bufferData).trim();
+    for await (const message of session.receive()) {
+      if (!message.message?.data) continue;
 
-        if (stringData[0] === "{" && stringData[stringData.length - 1] === "}" && stringData.includes('"exit_code"')) {
-          try {
-            const jsonData = JSON.parse(stringData);
-            exitCode = jsonData["exit_code"];
-            errorMessage = jsonData["message"];
-          } catch {
-            // empty
-          }
-        }
+      const bufferData = new Uint8Array(message.message.data.slice(1));
+      const stringData = textDecoder.decode(bufferData).trim();
 
-        if (exitCode !== undefined) {
-          if (exitCode !== 0) {
-            errorMessage = fileContent ? textDecoder.decode(fileContent!).trim() : "Did not receive file content from server";
-            fileContent = null;
-            this.logger.info({ event: "DOWNLOAD_FILE_FROM_SHELL_ERROR", error: errorMessage });
-          } else if (fileContent) {
-            this.logger.info({ event: "DOWNLOAD_FILE_FROM_SHELL_SUCCESS", length: fileContent.length });
-            state.isFinished = true;
-          }
-
-          ws.close();
-        } else {
-          if (!fileContent) {
-            this.logger.info({ event: "DOWNLOAD_FILE_FROM_SHELL_INIT" });
-            fileContent = bufferData;
-          } else {
-            this.logger.info({ event: "DOWNLOAD_FILE_FROM_SHELL_APPEND", length: fileContent.length });
-            const newFileContent = new Uint8Array(fileContent.length + bufferData.length);
-            newFileContent.set(fileContent, 0);
-            newFileContent.set(bufferData, fileContent.length);
-            fileContent = newFileContent;
-          }
+      if (stringData[0] === "{" && stringData[stringData.length - 1] === "}" && stringData.includes('"exit_code"')) {
+        try {
+          const jsonData = JSON.parse(stringData);
+          exitCode = jsonData["exit_code"];
+          errorMessage = jsonData["message"];
+        } catch {
+          // empty
         }
       }
-    });
 
-    if (result.ok && fileContent) {
+      if (exitCode !== undefined) {
+        if (exitCode !== 0) {
+          errorMessage = fileContent ? textDecoder.decode(fileContent!).trim() : "Did not receive file content from server";
+          fileContent = null;
+          this.logger.error({ event: "DOWNLOAD_FILE_FROM_SHELL_ERROR", error: errorMessage });
+        } else if (fileContent) {
+          this.logger.info({ event: "DOWNLOAD_FILE_FROM_SHELL_SUCCESS", length: fileContent.length });
+        }
+
+        session.disconnect();
+        break;
+      }
+
+      if (!fileContent) {
+        this.logger.info({ event: "DOWNLOAD_FILE_FROM_SHELL_INIT" });
+        fileContent = bufferData;
+      } else {
+        this.logger.info({ event: "DOWNLOAD_FILE_FROM_SHELL_APPEND", length: fileContent.length });
+        const newFileContent: Uint8Array = new Uint8Array(fileContent.length + bufferData.length);
+        newFileContent.set(fileContent, 0);
+        newFileContent.set(bufferData, fileContent.length);
+        fileContent = newFileContent;
+      }
+    }
+
+    if (input.signal?.aborted) {
+      return { ok: false, code: "cancelled" };
+    }
+
+    if (fileContent) {
       this.logger.info({ event: "DOWNLOAD_FILE_FROM_SHELL_SUCCESS" });
       const fileName = input.filePath.replace(/^.*[\\/]/, "");
-      this.saveFile(new Blob([fileContent]), fileName);
-      return result;
+      this.saveFile(new Blob([fileContent as BlobPart]), fileName);
+      return { ok: true };
     }
 
     if (errorMessage) {
-      this.logger.error({ event: "DOWNLOAD_FILE_FROM_SHELL_ERROR", error: "File content is empty" });
+      this.logger.error({ event: "DOWNLOAD_FILE_FROM_SHELL_ERROR", error: errorMessage });
       return { ok: false, code: "unknown", message: errorMessage };
     }
 
-    return result;
+    return { ok: false, code: "unknown", message: "No file content received from server" };
   }
+
+  async *getLogsStream<T extends "logs" | "events">(input: {
+    providerBaseUrl: string;
+    providerAddress: string;
+    providerCredentials: ProviderCredentials;
+    dseq: string;
+    gseq: number;
+    oseq: number;
+    type: T;
+    chainNetwork: string;
+    follow?: boolean;
+    tail?: number;
+    signal?: AbortSignal;
+    services?: string[];
+  }): AsyncGenerator<T extends "logs" ? ProviderProxyMessage<LogEntryMessage> : ProviderProxyMessage<K8sEventMessage>> {
+    const tail = input.tail ? `&tail=${input.tail}` : "";
+    const url = `${providerLeaseUrl(input)}?follow=${input.follow ? "true" : "false"}${tail}${input.services ? `&service=${input.services.join(",")}` : ""}`;
+
+    const session = new WebsocketSession<undefined, T extends "logs" ? ProviderProxyMessage<LogEntryMessage> : ProviderProxyMessage<K8sEventMessage>>({
+      websocketFactory: this.createWebSocket,
+      shouldRetry: error => !error.cause || !isInvalidProviderCertificate(error.cause as CloseEvent),
+      signal: input.signal,
+      transformSentMessage: () =>
+        JSON.stringify({
+          type: "websocket",
+          url,
+          auth: providerCredentialsToApiCredentials(input.providerCredentials),
+          chainNetwork: this.netConfig.mapped(input.chainNetwork),
+          providerAddress: input.providerAddress
+        }),
+      transformReceivedMessage: rawMessage => {
+        const message = JSON.parse(rawMessage as string);
+        if (!message.message) return message;
+
+        return {
+          ...message,
+          message: JSON.parse(message.message)
+        };
+      }
+    });
+
+    session.send(undefined);
+
+    return yield* session.receive();
+  }
+
+  connectToShell(input: {
+    providerBaseUrl: string;
+    providerAddress: string;
+    providerCredentials: ProviderCredentials;
+    dseq: string;
+    gseq: number;
+    oseq: number;
+    chainNetwork: string;
+    service: string;
+    useStdIn?: boolean;
+    useTTY?: boolean;
+    command?: string;
+    signal?: AbortSignal;
+  }): WebsocketSession<Uint8Array, ReceivedShellMessage> {
+    const command = (input.command || "/bin/sh")
+      .split(" ")
+      .map((c, i) => `&cmd${i}=${encodeURIComponent(c.replace(" ", "+"))}`)
+      .join("");
+    const url = `${providerLeaseUrl({ ...input, type: "shell" })}?stdin=${input.useStdIn ? "1" : "0"}&tty=${input.useTTY ? "1" : "0"}&podIndex=0&${command}&service=${encodeURIComponent(input.service)}`;
+
+    return new WebsocketSession<Uint8Array, ReceivedShellMessage>({
+      websocketFactory: this.createWebSocket,
+      shouldRetry: error => !error.cause || !isInvalidProviderCertificate(error.cause as CloseEvent),
+      signal: input.signal,
+      transformSentMessage: message => {
+        const remoteMessage: Record<string, unknown> = {
+          type: "websocket",
+          url,
+          auth: providerCredentialsToApiCredentials(input.providerCredentials),
+          chainNetwork: this.netConfig.mapped(input.chainNetwork),
+          providerAddress: input.providerAddress
+        };
+
+        if (message.length > 0) {
+          remoteMessage.data = message.toString();
+        }
+
+        return JSON.stringify(remoteMessage);
+      }
+    });
+  }
+}
+
+function providerLeaseUrl(input: { providerBaseUrl: string; dseq: string; gseq: number; oseq: number; type: "logs" | "events" | "shell" }): string {
+  const type = input.type === "events" ? "kubeevents" : input.type;
+  return `${input.providerBaseUrl}/lease/${input.dseq}/${input.gseq}/${input.oseq}/${type}`;
+}
+
+export interface ReceivedShellMessage {
+  message?: {
+    data: number[];
+  };
+  error?: string;
+  closed?: boolean;
 }
 
 export interface ProviderProxyPayload {
@@ -360,3 +404,33 @@ interface DownloadState {
 }
 
 export type DownloadMessagesResult = { ok: false; code: "cancelled" | "unknown"; message?: string } | { ok: true };
+
+function isInvalidProviderCertificate(event: Record<string, any>): boolean {
+  return "code" in event && "reason" in event && event.code === WS_ERRORS.VIOLATED_POLICY && event.reason.startsWith("invalidCertificate.");
+}
+
+export interface ProviderProxyMessage<T> {
+  closed?: boolean;
+  message?: T;
+}
+
+export interface LogEntryMessage {
+  name: string;
+  message: string;
+  service: string;
+}
+
+export interface K8sEventMessage {
+  message: string;
+  note: string;
+  reason: string;
+  type: string;
+  object?: {
+    kind: string;
+    name: string;
+    namespace: string;
+  };
+  service: string;
+  reportingController: string;
+  reportingInstance: string;
+}

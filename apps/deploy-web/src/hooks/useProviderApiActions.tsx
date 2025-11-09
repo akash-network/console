@@ -5,9 +5,11 @@ import { useSnackbar } from "notistack";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
-import type { ProviderInfo } from "@src/hooks/useProviderWebsocket";
 import type { DownloadMessagesResult } from "@src/services/provider-proxy/provider-proxy.service";
 import networkStore from "@src/store/networkStore";
+import type { ApiProviderList } from "@src/types/provider";
+
+export type ProviderInfo = Pick<ApiProviderList, "owner" | "hostUri">;
 
 type ProviderApiActions = {
   downloadLogs: (provider: ProviderInfo, dseq: string, gseq: number, oseq: number, isLogs: boolean) => Promise<void>;

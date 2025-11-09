@@ -117,7 +117,6 @@
     "react-markdown": "^8.0.3",
     "react-player": "^2.10.1",
     "react-simple-maps": "^3.0.0",
-    "react-use-websocket": "^3.0.0",
     "recharts": "^2.15.4",
     "rehype-highlight": "^6.0.0",
     "rehype-raw": "^7.0.0",

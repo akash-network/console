@@ -1,5 +1,4 @@
 "use client";
-import { useState } from "react";
 import { Checkbox } from "@akashnetwork/ui/components";
 import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
@@ -57,16 +56,15 @@ const MenuProps = {
 // }));
 
 interface Props {
-  defaultValue: string[];
   options: string[];
+  selected: string[];
   onSelectedChange: (value: string[]) => void;
   label: string;
   placeholder?: string;
   disabled?: boolean;
 }
 
-export const SelectCheckbox = ({ defaultValue, options, onSelectedChange, label, disabled }: React.PropsWithChildren<Props>) => {
-  const [selected, setSelected] = useState(defaultValue);
+export const SelectCheckbox = ({ selected = [], options, onSelectedChange, label, disabled, placeholder }: React.PropsWithChildren<Props>) => {
   const isAllSelected = options.length > 0 && selected.length === options.length;
 
   const handleChange: SelectProps<string[]>["onChange"] = event => {
@@ -76,24 +74,27 @@ export const SelectCheckbox = ({ defaultValue, options, onSelectedChange, label,
       newValue = selected.length === options.length ? [] : options;
     }
 
-    setSelected(newValue);
-    onSelectedChange(newValue);
+    onSelectedChange?.(newValue);
   };
 
   return (
     <FormControl className="w-auto min-w-[150px]">
-      <InputLabel id="mutiple-select-label">{label}</InputLabel>
+      <InputLabel id="mutiple-select-label" shrink={!!placeholder}>
+        {label}
+      </InputLabel>
       <Select
         labelId="mutiple-select-label"
         multiple
         label={label}
         value={selected}
         onChange={handleChange}
-        renderValue={selected => selected.join(", ")}
+        renderValue={selected => selected.join(", ") || placeholder}
+        displayEmpty={true}
         size="small"
         MenuProps={MenuProps}
         disabled={disabled}
         variant="outlined"
+        notched={!!placeholder}
         classes={{
           select: "py-2 px-4 text-xs"
         }}
@@ -112,7 +113,7 @@ export const SelectCheckbox = ({ defaultValue, options, onSelectedChange, label,
         {options.map(option => (
           <MenuItem key={option} value={option}>
             <ListItemIcon>
-              <Checkbox checked={selected.indexOf(option) > -1} />
+              <Checkbox checked={selected.includes(option)} />
             </ListItemIcon>
             <ListItemText primary={option} />
           </MenuItem>

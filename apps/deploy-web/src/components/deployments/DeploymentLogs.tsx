@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Checkbox, CheckboxWithLabel, DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import type { Monaco } from "@monaco-editor/react";
@@ -16,11 +16,13 @@ import ViewPanel from "@src/components/shared/ViewPanel";
 import { useServices } from "@src/context/ServicesProvider";
 import { useProviderApiActions } from "@src/hooks/useProviderApiActions";
 import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
-import { useProviderWebsocket } from "@src/hooks/useProviderWebsocket";
 import { useThrottledCallback } from "@src/hooks/useThrottle";
 import { useLeaseStatus } from "@src/queries/useLeaseQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
+import { formatK8sEvent, formatLogMessage } from "@src/services/provider-proxy/logFormatters";
+import type { K8sEventMessage, LogEntryMessage, ProviderProxyMessage } from "@src/services/provider-proxy/provider-proxy.service";
 import type { LeaseDto } from "@src/types/deployment";
+import { forEachGeneratedItem } from "@src/utils/array";
 import { CreateCredentialsButton } from "./CreateCredentialsButton/CreateCredentialsButton";
 import { LeaseSelect } from "./LeaseSelect";
 
@@ -32,15 +34,13 @@ type Props = {
 };
 
 export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selectedLogsMode }) => {
-  const { analyticsService } = useServices();
+  const { analyticsService, providerProxy, networkStore, errorHandler } = useServices();
   const [isLoadingLogs, setIsLoadingLogs] = useState(true);
-  const [canSetConnection, setCanSetConnection] = useState(false);
   const [isConnectionEstablished, setIsConnectionEstablished] = useState(false);
   // TODO Type
-  const logs = useRef<any[]>([]);
+  const logs = useRef<string[]>([]);
   const [logText, setLogText] = useState("");
   const [isDownloadingLogs, setIsDownloadingLogs] = useState(false);
-  const [services, setServices] = useState<string[]>([]);
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [stickToBottom, setStickToBottom] = useState(true);
   const [selectedLease, setSelectedLease] = useState<LeaseDto | null>(null);
@@ -59,9 +59,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
     lease: selectedLease,
     enabled: false
   });
-  const { sendJsonMessage } = useProviderWebsocket(providerInfo, {
-    onMessage: onLogReceived
-  });
+  const services = useMemo(() => (leaseStatus ? Object.keys(leaseStatus.services) : []), [leaseStatus]);
   const muiTheme = useMuiTheme();
   const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
 
@@ -87,19 +85,16 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
   }, [monacoEditorRef.current]);
 
   useEffect(() => {
-    // Set the services and default selected services
     if (leaseStatus) {
-      setServices(Object.keys(leaseStatus.services));
-      // Set all services as default
       setSelectedServices(Object.keys(leaseStatus.services));
-
-      setCanSetConnection(true);
+    } else {
+      setSelectedServices([]);
     }
   }, [leaseStatus]);
 
   const updateLogText = useThrottledCallback(
     () => {
-      const logText = logs.current.map(x => x.message).join("\n");
+      const logText = logs.current.join("\n");
       setLogText(logText);
       setIsLoadingLogs(false);
     },
@@ -120,68 +115,52 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
   }, [selectedLease, providerInfo, getLeaseStatus]);
 
   useEffect(() => {
-    if (!canSetConnection || !providerInfo || !providerCredentials.details.usable || !selectedLease || isConnectionEstablished) return;
+    if (!providerInfo || !providerCredentials.details.usable || !selectedLease || !services?.length || !selectedServices?.length) return;
 
     logs.current = [];
 
-    let url: string;
-    if (selectedLogsMode === "logs") {
-      url = `/lease/${selectedLease.dseq}/${selectedLease.gseq}/${selectedLease.oseq}/logs?follow=true&tail=100`;
-
-      if (selectedServices.length < services.length) {
-        url += "&service=" + selectedServices.join(",");
-      }
-    } else {
-      url = `/lease/${selectedLease.dseq}/${selectedLease.gseq}/${selectedLease.oseq}/kubeevents?follow=true`;
-    }
-
     setIsLoadingLogs(true);
-
-    sendJsonMessage({
-      type: "websocket",
-      url
+    const abortController = new AbortController();
+    forEachGeneratedItem(
+      providerProxy.getLogsStream({
+        providerBaseUrl: providerInfo.hostUri,
+        providerAddress: providerInfo.owner,
+        providerCredentials: providerCredentials.details,
+        dseq: selectedLease.dseq,
+        gseq: selectedLease.gseq,
+        oseq: selectedLease.oseq,
+        type: selectedLogsMode,
+        follow: true,
+        chainNetwork: networkStore.selectedNetworkId,
+        services: selectedServices.length < services.length ? selectedServices : undefined,
+        signal: abortController.signal
+      }),
+      onLogReceived
+    ).catch(error => {
+      errorHandler.reportError({
+        error,
+        tags: { category: "deployments", label: "followLogs" }
+      });
     });
-  }, [
-    providerCredentials,
-    selectedLogsMode,
-    selectedLease,
-    selectedServices,
-    services?.length,
-    updateLogText,
-    canSetConnection,
-    isConnectionEstablished,
-    providerInfo
-  ]);
 
-  function onLogReceived(event: MessageEvent) {
-    const message = JSON.parse(event.data).message;
+    return () => {
+      abortController.abort();
+    };
+  }, [providerCredentials.details, selectedLogsMode, selectedLease, selectedServices, services?.length, providerInfo?.owner, providerInfo?.hostUri]);
 
+  function onLogReceived(proxyMessage: ProviderProxyMessage<LogEntryMessage> | ProviderProxyMessage<K8sEventMessage>) {
+    if (proxyMessage.closed) return;
+
+    const message = proxyMessage.message;
     setIsLoadingLogs(true);
 
     if (logs.current.length === 0) {
       setStickToBottom(true);
     }
 
-    // TODO Type
-    let parsedLog: any = null;
-    try {
-      parsedLog = JSON.parse(message);
-      if (selectedLogsMode === "logs") {
-        parsedLog.service = parsedLog?.name ? parsedLog?.name.split("-")[0] : "";
-        parsedLog.message = `[${parsedLog.service}]: ${parsedLog.message}`;
-        // parsedLog.message = `[${format(new Date(), "yyyy-MM-dd|HH:mm:ss.SSS")}] ${parsedLog.service}: ${parsedLog.message}`;
-      } else {
-        parsedLog.service = parsedLog.object?.name ? parsedLog.object?.name.split("-")[0] : "";
-        parsedLog.message = `[${parsedLog.service}]: [${parsedLog.type}] [${parsedLog.reason}] [${parsedLog.object?.kind}] ${parsedLog.note}`;
-      }
-
-      logs.current = logs.current.concat([parsedLog]);
-
-      updateLogText();
-    } catch (error) {
-      console.log(error);
-    }
-
+    const logMessage = selectedLogsMode === "logs" ? formatLogMessage(message as LogEntryMessage) : formatK8sEvent(message as K8sEventMessage);
+    logs.current = logs.current.concat(logMessage);
+    updateLogText();
     setIsConnectionEstablished(true);
   }
 
@@ -201,10 +180,8 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
 
     if (id !== selectedLease?.id) {
       setLogText("");
-      setServices([]);
       setSelectedServices([]);
       setIsLoadingLogs(true);
-      setCanSetConnection(false);
       setIsConnectionEstablished(false);
     }
   }
@@ -213,8 +190,8 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
     setSelectedServices(selected);
 
     setLogText("");
-    setIsLoadingLogs(true);
-    setIsConnectionEstablished(false);
+    setIsLoadingLogs(selected.length > 0);
+    setIsConnectionEstablished(selected.length === 0);
   };
 
   const onDownloadLogsClick = async () => {
@@ -242,14 +219,15 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
                 <div className="flex items-center">
                   {(leases?.length || 0) > 1 && <LeaseSelect leases={leases || []} defaultValue={selectedLease.id} onSelectedChange={handleLeaseChange} />}
 
-                  {services?.length > 0 && canSetConnection && (
+                  {services?.length > 0 && (
                     <div className={cn({ ["ml-2"]: (leases?.length || 0) > 1 })}>
                       <SelectCheckbox
                         options={services}
+                        selected={selectedServices}
                         onSelectedChange={onSelectedServicesChange}
                         label="Services"
+                        placeholder="Select services"
                         disabled={selectedLogsMode !== "logs"}
-                        defaultValue={selectedServices}
                       />
                     </div>
                   )}
