@@ -33,7 +33,8 @@ type Props = {
 
 export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selectedLogsMode }) => {
   const { analyticsService } = useServices();
-  const [isLoadingLogs, setIsLoadingLogs] = useState(true);
+  const [isLoadingLogs, setIsLoadingLogs] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
   const [canSetConnection, setCanSetConnection] = useState(false);
   const [isConnectionEstablished, setIsConnectionEstablished] = useState(false);
   // TODO Type
@@ -59,7 +60,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
     lease: selectedLease,
     enabled: false
   });
-  const { sendJsonMessage } = useProviderWebsocket(providerInfo, {
+  const { sendJsonMessage, getWebSocket } = useProviderWebsocket(providerInfo, {
     onMessage: onLogReceived
   });
   const muiTheme = useMuiTheme();
@@ -120,7 +121,19 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
   }, [selectedLease, providerInfo, getLeaseStatus]);
 
   useEffect(() => {
-    if (!canSetConnection || !providerInfo || !providerCredentials.details.usable || !selectedLease || isConnectionEstablished) return;
+    if (
+      !canSetConnection ||
+      !providerInfo ||
+      !providerCredentials.details.usable ||
+      !selectedLease ||
+      isConnectionEstablished ||
+      selectedServices.length === 0 ||
+      isConnecting
+    ) {
+      return;
+    }
+
+    setIsConnecting(true);
 
     logs.current = [];
 
@@ -146,15 +159,20 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
     selectedLogsMode,
     selectedLease,
     selectedServices,
-    services?.length,
+    services.length,
     updateLogText,
     canSetConnection,
     isConnectionEstablished,
-    providerInfo
+    isConnecting,
+    sendJsonMessage
   ]);
 
   function onLogReceived(event: MessageEvent) {
+    setIsConnecting(false);
     const message = JSON.parse(event.data).message;
+    if (message === "") {
+      return;
+    }
 
     setIsLoadingLogs(true);
 
@@ -213,8 +231,11 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
     setSelectedServices(selected);
 
     setLogText("");
-    setIsLoadingLogs(true);
+    setIsLoadingLogs(false);
     setIsConnectionEstablished(false);
+    setIsConnecting(false);
+
+    getWebSocket()?.close();
   };
 
   const onDownloadLogsClick = async () => {
