@@ -55,5 +55,7 @@ export const services = createChildContainer(rootContainer, {
   appConfig: () => browserEnvConfig,
   authService: () => new AuthService(services.urlService, services.internalApiHttpClient),
   storedWalletsService: () => walletUtils,
-  deploymentLocalStorage: () => new DeploymentStorageService(localStorage, services.networkStore)
+  deploymentLocalStorage: () => new DeploymentStorageService(localStorage, services.networkStore),
+  windowLocation: () => window.location,
+  windowHistory: () => window.history
 });

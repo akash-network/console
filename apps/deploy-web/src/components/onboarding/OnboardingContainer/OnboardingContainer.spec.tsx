@@ -137,7 +137,7 @@ describe("OnboardingContainer", () => {
   });
 
   it("should handle fromSignup URL parameter", async () => {
-    const { child, mockAnalyticsService, cleanup } = setup({
+    const { child, mockAnalyticsService } = setup({
       windowLocation: {
         search: "?fromSignup=true",
         href: "http://localhost/onboarding?fromSignup=true",
@@ -159,9 +159,6 @@ describe("OnboardingContainer", () => {
 
     // The component should be on the EMAIL_VERIFICATION step after handling fromSignup
     expect(child.mock.calls[child.mock.calls.length - 1][0].currentStep).toBe(OnboardingStepIndex.EMAIL_VERIFICATION);
-
-    // Clean up window object modifications
-    cleanup();
   });
 
   function setup(
@@ -182,32 +179,24 @@ describe("OnboardingContainer", () => {
     });
 
     // Store original window objects
-    const originalLocation = window.location;
-    const originalHistory = window.history;
+    let windowLocation = window.location;
+    let windowHistory = window.history;
 
     // Mock window.location and history based on input
     if (input.windowLocation) {
-      Object.defineProperty(window, "location", {
-        value: { ...originalLocation, ...input.windowLocation },
-        writable: true
-      });
+      windowLocation = { ...windowLocation, ...input.windowLocation };
     } else if (!window.location.search) {
       // Set default values if window.location is not already mocked
-      Object.defineProperty(window, "location", {
-        value: {
-          href: "http://localhost/onboarding",
-          origin: "http://localhost",
-          search: ""
-        },
-        writable: true
-      });
+      windowLocation = {
+        ...windowLocation,
+        href: "http://localhost/onboarding",
+        origin: "http://localhost",
+        search: ""
+      };
     }
 
     if (input.windowHistory) {
-      Object.defineProperty(window, "history", {
-        value: { ...originalHistory, ...input.windowHistory },
-        writable: true
-      });
+      windowHistory = { ...windowHistory, ...input.windowHistory };
     }
 
     const mockAnalyticsService = mock<AnalyticsService>();
@@ -245,7 +234,9 @@ describe("OnboardingContainer", () => {
       authService,
       chainApiHttpClient: mockChainApiHttpClient,
       deploymentLocalStorage: mockDeploymentLocalStorage,
-      appConfig: mockAppConfig
+      appConfig: mockAppConfig,
+      windowLocation,
+      windowHistory
     });
     const mockUseRouter = jest.fn().mockReturnValue(mockRouter);
     const mockUseWallet = jest.fn().mockReturnValue({
@@ -334,18 +325,6 @@ describe("OnboardingContainer", () => {
 
     render(<OnboardingContainer dependencies={dependencies}>{mockChildren}</OnboardingContainer>);
 
-    // Return cleanup function to restore original window objects
-    const cleanup = () => {
-      Object.defineProperty(window, "location", {
-        value: originalLocation,
-        writable: true
-      });
-      Object.defineProperty(window, "history", {
-        value: originalHistory,
-        writable: true
-      });
-    };
-
     return {
       child: mockChildren,
       mockAnalyticsService,
@@ -366,8 +345,7 @@ describe("OnboardingContainer", () => {
       mockNewDeploymentData,
       mockValidateDeploymentData,
       mockAppendAuditorRequirement,
-      mockTransactionMessageData,
-      cleanup
+      mockTransactionMessageData
     };
   }
 });
