@@ -16,8 +16,8 @@ type VerificationResultProps = {
 };
 
 function VerificationResult({ isVerified }: VerificationResultProps) {
-  const gotoHome = useCallback(() => {
-    window.location.href = UrlService.home();
+  const gotoOnboarding = useCallback(() => {
+    window.location.href = UrlService.onboarding();
   }, []);
 
   return (
@@ -31,7 +31,7 @@ function VerificationResult({ isVerified }: VerificationResultProps) {
             You can continue using the application.
           </h5>
           <AutoButton
-            onClick={gotoHome}
+            onClick={gotoOnboarding}
             text={
               <>
                 Continue <ArrowRight className="ml-4" />
