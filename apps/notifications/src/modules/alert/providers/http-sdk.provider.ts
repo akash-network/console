@@ -1,5 +1,5 @@
 import type { HttpClient } from "@akashnetwork/http-sdk";
-import { createHttpClient, DeploymentHttpService, LeaseHttpService } from "@akashnetwork/http-sdk";
+import { BalanceHttpService, createHttpClient, DeploymentHttpService, LeaseHttpService } from "@akashnetwork/http-sdk";
 import type { InjectionToken, Provider } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 
@@ -22,5 +22,10 @@ export const HTTP_SDK_PROVIDERS: Provider[] = [
     provide: LeaseHttpService,
     inject: [CHAIN_API_HTTP_CLIENT_TOKEN],
     useFactory: (httpClient: HttpClient) => new LeaseHttpService(httpClient)
+  },
+  {
+    provide: BalanceHttpService,
+    inject: [ConfigService],
+    useFactory: (configService: ConfigService<AlertConfig>) => new BalanceHttpService({ baseURL: configService.getOrThrow("alert.API_NODE_ENDPOINT") })
   }
 ];

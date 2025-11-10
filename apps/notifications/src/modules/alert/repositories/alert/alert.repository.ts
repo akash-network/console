@@ -11,7 +11,7 @@ import { DRIZZLE_PROVIDER_TOKEN } from "@src/infrastructure/db/config/db.config"
 import { DrizzleAbility } from "@src/lib/drizzle-ability/drizzle-ability";
 import { NotificationChannel } from "@src/modules/notifications/model-schemas";
 import * as schema from "../../model-schemas";
-import type { DeploymentBalanceJsonFields, GeneralJsonFields } from "./alert-json-fields.schema";
+import type { DeploymentBalanceJsonFields, GeneralJsonFields, WalletBalanceJsonFields } from "./alert-json-fields.schema";
 import * as jsonFieldsSchemas from "./alert-json-fields.schema";
 
 type AbilityParams = [AnyAbility, Parameters<AnyAbility["can"]>[0]];
@@ -25,19 +25,24 @@ export type GeneralAlertOutput = Omit<InternalAlertOutput, "conditions" | "param
 export type DeploymentBalanceAlertInput = Omit<InternalAlertInput, "conditions" | "params" | "type"> & DeploymentBalanceJsonFields;
 export type DeploymentBalanceAlertOutput = Omit<InternalAlertOutput, "conditions" | "params" | "type"> & DeploymentBalanceJsonFields;
 
-export type AlertInput = GeneralAlertInput | DeploymentBalanceAlertInput;
-export type AlertOutput = GeneralAlertOutput | DeploymentBalanceAlertOutput;
+export type WalletBalanceAlertInput = Omit<InternalAlertInput, "conditions" | "params" | "type"> & WalletBalanceJsonFields;
+export type WalletBalanceAlertOutput = Omit<InternalAlertOutput, "conditions" | "params" | "type"> & WalletBalanceJsonFields;
+
+export type AlertInput = GeneralAlertInput | DeploymentBalanceAlertInput | WalletBalanceAlertInput;
+export type AlertOutput = GeneralAlertOutput | DeploymentBalanceAlertOutput | WalletBalanceAlertOutput;
 
 export type AlertType = AlertOutput["type"];
 
 export type AlertInputTypeMap = {
   DEPLOYMENT_BALANCE: DeploymentBalanceAlertInput;
+  WALLET_BALANCE: WalletBalanceAlertInput;
   CHAIN_MESSAGE: GeneralAlertInput;
   CHAIN_EVENT: GeneralAlertInput;
 };
 
 export type AlertOutputTypeMap = {
   DEPLOYMENT_BALANCE: DeploymentBalanceAlertOutput;
+  WALLET_BALANCE: WalletBalanceAlertOutput;
   CHAIN_MESSAGE: GeneralAlertOutput;
   CHAIN_EVENT: GeneralAlertOutput;
 };
@@ -300,6 +305,13 @@ export class AlertRepository {
       return {
         ...rest,
         ...jsonFieldsSchemas.deploymentBalanceJsonFieldsSchema.parse({ type, conditions, params })
+      } as AlertOutputTypeMap[T];
+    }
+
+    if (type === "WALLET_BALANCE") {
+      return {
+        ...rest,
+        ...jsonFieldsSchemas.walletBalanceJsonFieldsSchema.parse({ type, conditions, params })
       } as AlertOutputTypeMap[T];
     }
 

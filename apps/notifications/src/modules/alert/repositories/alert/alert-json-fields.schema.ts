@@ -28,7 +28,7 @@ const deploymentBalanceConditionsShape = {
   value: z.number()
 };
 
-export const deploymentBalanceConditionsSchema = toCompound(z.object(deploymentBalanceConditionsShape));
+export const balanceConditionsSchema = toCompound(z.object(deploymentBalanceConditionsShape));
 
 const dseqSchema = z.string().regex(/^\d+$/, {
   message: "Must be a numeric string"
@@ -37,6 +37,12 @@ const dseqSchema = z.string().regex(/^\d+$/, {
 export const deploymentBalanceParamsSchema = z.object({
   dseq: dseqSchema,
   owner: z.string(),
+  suppressedBySystem: z.boolean().optional()
+});
+
+export const walletBalanceParamsSchema = z.object({
+  owner: z.string(),
+  denom: z.string(),
   suppressedBySystem: z.boolean().optional()
 });
 
@@ -49,6 +55,7 @@ export const generalParamsSchema = z.object({
 export const chainMessageTypeSchema = z.literal("CHAIN_MESSAGE");
 export const chainEventTypeSchema = z.literal("CHAIN_EVENT");
 export const deploymentBalanceTypeSchema = z.literal("DEPLOYMENT_BALANCE");
+export const walletBalanceTypeSchema = z.literal("WALLET_BALANCE");
 
 export const generalJsonFieldsSchema = z.object({
   type: z.union([chainMessageTypeSchema, chainEventTypeSchema]),
@@ -59,8 +66,15 @@ export const generalJsonFieldsSchema = z.object({
 export const deploymentBalanceJsonFieldsSchema = z.object({
   type: deploymentBalanceTypeSchema,
   params: deploymentBalanceParamsSchema,
-  conditions: deploymentBalanceConditionsSchema
+  conditions: balanceConditionsSchema
+});
+
+export const walletBalanceJsonFieldsSchema = z.object({
+  type: walletBalanceTypeSchema,
+  params: walletBalanceParamsSchema,
+  conditions: balanceConditionsSchema
 });
 
 export type GeneralJsonFields = z.infer<typeof generalJsonFieldsSchema>;
 export type DeploymentBalanceJsonFields = z.infer<typeof deploymentBalanceJsonFieldsSchema>;
+export type WalletBalanceJsonFields = z.infer<typeof walletBalanceJsonFieldsSchema>;
