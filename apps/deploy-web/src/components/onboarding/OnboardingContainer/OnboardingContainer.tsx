@@ -67,7 +67,8 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
   const router = d.useRouter();
   const { user } = d.useUser();
   const { data: paymentMethods = [] } = d.usePaymentMethodsQuery({ enabled: !!user?.stripeCustomerId });
-  const { analyticsService, urlService, authService, chainApiHttpClient, deploymentLocalStorage, appConfig, errorHandler } = d.useServices();
+  const { analyticsService, urlService, authService, chainApiHttpClient, deploymentLocalStorage, appConfig, errorHandler, windowLocation, windowHistory } =
+    d.useServices();
   const { hasManagedWallet, isWalletLoading, connectManagedWallet, address, signAndBroadcastTx } = d.useWallet();
   const { templates } = d.useTemplates();
   const { genNewCertificateIfLocalIsInvalid, updateSelectedCertificate } = d.useCertificate();
@@ -89,7 +90,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
       }
     }
 
-    const urlParams = new URLSearchParams(window.location.search);
+    const urlParams = new URLSearchParams(windowLocation.search);
     const fromSignup = urlParams.get("fromSignup");
     if (fromSignup === "true") {
       analyticsService.track("onboarding_account_created", {
@@ -100,9 +101,9 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
       setCurrentStep(OnboardingStepIndex.EMAIL_VERIFICATION);
       d.localStorage?.setItem(ONBOARDING_STEP_KEY, OnboardingStepIndex.EMAIL_VERIFICATION.toString());
 
-      const newUrl = new URL(window.location.href);
+      const newUrl = new URL(windowLocation.href);
       newUrl.searchParams.delete("fromSignup");
-      window.history.replaceState({}, "", newUrl.toString());
+      windowHistory.replaceState({}, "", newUrl.toString());
     }
   }, [analyticsService, d.localStorage]);
 
@@ -163,7 +164,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
         handleStepChange(OnboardingStepIndex.EMAIL_VERIFICATION);
       }
     } else {
-      authService.signup({ returnTo: `${window.location.origin}${urlService.onboarding(true)}` });
+      authService.signup({ returnTo: `${windowLocation.origin}${urlService.onboarding(true)}` });
     }
   }, [analyticsService, handleStepComplete, urlService, user, handleStepChange, authService]);
 
