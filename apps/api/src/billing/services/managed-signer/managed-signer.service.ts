@@ -89,12 +89,12 @@ export class ManagedSignerService {
     transactionHash: string;
     rawLog: string;
   }> {
-    assert(userWallet.feeAllowance > 0, 403, "UserWallet has no fee allowance");
+    assert(userWallet.feeAllowance > 0, 403, "Not enough funds to cover the transaction fee");
 
     const hasDeploymentMessage = messages.some(message => message.typeUrl.endsWith(".MsgCreateDeployment"));
 
     if (hasDeploymentMessage) {
-      assert(userWallet.deploymentAllowance > 0, 403, "UserWallet has no deployment allowance");
+      assert(userWallet.deploymentAllowance > 0, 403, "Not enough funds to cover the deployment costs");
     }
 
     await this.anonymousValidateService.validateLeaseProvidersAuditors(messages, userWallet);

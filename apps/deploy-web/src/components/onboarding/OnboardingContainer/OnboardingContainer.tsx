@@ -271,7 +271,6 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
         }
       } catch (error) {
         enqueueSnackbar("Failed to deploy template. Please try again.", { variant: "error" });
-        throw error;
       }
     },
     [

@@ -71,7 +71,7 @@ describe(ManagedSignerService.name, () => {
         findById: jest.fn().mockResolvedValue(user)
       });
 
-      await expect(service.executeDecodedTxByUserId("user-123", [])).rejects.toThrow("UserWallet has no fee allowance");
+      await expect(service.executeDecodedTxByUserId("user-123", [])).rejects.toThrow("Not enough funds to cover the transaction fee");
     });
 
     it("throws 403 error when userWallet has no deployment allowance for deployment message", async () => {
@@ -91,7 +91,7 @@ describe(ManagedSignerService.name, () => {
         findById: jest.fn().mockResolvedValue(user)
       });
 
-      await expect(service.executeDecodedTxByUserId("user-123", [deploymentMessage])).rejects.toThrow("UserWallet has no deployment allowance");
+      await expect(service.executeDecodedTxByUserId("user-123", [deploymentMessage])).rejects.toThrow("Not enough funds to cover the deployment costs");
     });
 
     it("validates trial limits when anonymous free trial is enabled", async () => {

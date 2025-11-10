@@ -5,19 +5,21 @@ import formatDistanceToNow from "date-fns/formatDistanceToNow";
 import isValid from "date-fns/isValid";
 import { InfoCircle, WarningCircle } from "iconoir-react";
 
+import { CopyTextToClipboardButton } from "@src/components/shared/CopyTextToClipboardButton";
 import { LabelValue } from "@src/components/shared/LabelValue";
 import { PricePerMonth } from "@src/components/shared/PricePerMonth";
 import { PriceValue } from "@src/components/shared/PriceValue";
 import { StatusPill } from "@src/components/shared/StatusPill";
+import { TrialDeploymentBadge } from "@src/components/shared/TrialDeploymentBadge";
+import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useDeploymentMetrics } from "@src/hooks/useDeploymentMetrics";
 import { useFlag } from "@src/hooks/useFlag";
+import { useTrialDeploymentTimeRemaining } from "@src/hooks/useTrialDeploymentTimeRemaining";
 import { useDenomData } from "@src/hooks/useWalletBalance";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { getAvgCostPerMonth } from "@src/utils/priceUtils";
-import { TrialDeploymentBadge } from "../shared";
-import { CopyTextToClipboardButton } from "../shared/CopyTextToClipboardButton";
 
 type Props = {
   deployment: DeploymentDto;
@@ -34,6 +36,15 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
   const denomData = useDenomData(deployment.escrowAccount.state.funds[0]?.denom || "");
   const { isCustodial, isTrialing } = useWallet();
   const isAnonymousFreeTrialEnabled = useFlag("anonymous_free_trial");
+  const { appConfig } = useServices();
+
+  const trialDuration = appConfig.NEXT_PUBLIC_TRIAL_DEPLOYMENTS_DURATION_HOURS;
+  const { timeRemainingText: trialTimeRemaining } = useTrialDeploymentTimeRemaining({
+    createdHeight: deployment.createdAt,
+    trialDurationHours: trialDuration,
+    averageBlockTime: 6
+  });
+
   return (
     <div className="grid grid-cols-2 gap-4 p-4">
       <div>
@@ -137,7 +148,12 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
         <LabelValue
           label="Time left"
           labelWidth="6rem"
-          value={realTimeLeft && isValid(realTimeLeft?.timeLeft) && `~${formatDistanceToNow(realTimeLeft?.timeLeft)}`}
+          value={
+            <div className="flex items-center space-x-2">
+              {realTimeLeft && isValid(realTimeLeft?.timeLeft) && <span>~{formatDistanceToNow(realTimeLeft?.timeLeft)}</span>}
+              {!isAnonymousFreeTrialEnabled && isTrialing && trialTimeRemaining && <span className="text-xs text-primary">(Trial: {trialTimeRemaining})</span>}
+            </div>
+          }
         />
         <LabelValue
           label="DSEQ"
