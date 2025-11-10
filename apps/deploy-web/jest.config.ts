@@ -6,15 +6,15 @@ const createJestConfig = nextJest({
   dir: "./"
 });
 
-const common: Config.InitialOptions = {
+const common = {
   moduleNameMapper: {
     "^@src(.*)$": "<rootDir>/src/$1",
     "^@tests(.*)$": "<rootDir>/tests/$1"
   },
   transform: {
-    "\\.tsx?$": ["ts-jest", { tsconfig: "<rootDir>/tsconfig.spec.json" }]
+    "\\.tsx?$": ["ts-jest", { tsconfig: "<rootDir>/tsconfig.spec.json" }] as Config.TransformerConfig
   }
-};
+} satisfies Config.InitialProjectOptions;
 
 const styleMockPath = "<rootDir>/../../node_modules/next/dist/build/jest/__mocks__/styleMock.js";
 const getConfig = createJestConfig({
