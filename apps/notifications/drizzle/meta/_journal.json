@@ -36,6 +36,13 @@
       "when": 1755227368663,
       "tag": "0004_add_is_default_column_and_unique_index",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1762440232870,
+      "tag": "0005_left_magus",
+      "breakpoints": true
     }
   ]
 }

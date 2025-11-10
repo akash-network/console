@@ -5,7 +5,7 @@ import { timestamps } from "@src/lib/db/timestamps";
 import { NotificationChannel } from "@src/modules/notifications/model-schemas";
 
 export const AlertStatus = pgEnum("alert_status", ["OK", "TRIGGERED"]);
-export const AlertType = pgEnum("alert_type", ["CHAIN_MESSAGE", "DEPLOYMENT_BALANCE", "CHAIN_EVENT"]);
+export const AlertType = pgEnum("alert_type", ["CHAIN_MESSAGE", "DEPLOYMENT_BALANCE", "CHAIN_EVENT", "WALLET_BALANCE"]);
 
 export const Alert = pgTable(
   "alerts",

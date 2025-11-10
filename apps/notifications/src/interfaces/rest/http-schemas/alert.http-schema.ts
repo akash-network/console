@@ -3,13 +3,15 @@ import { z } from "zod";
 
 import { toPaginatedResponse } from "@src/lib/http-schema/http-schema";
 import {
+  balanceConditionsSchema,
   chainEventTypeSchema,
   chainMessageTypeSchema,
-  deploymentBalanceConditionsSchema,
   deploymentBalanceParamsSchema,
   deploymentBalanceTypeSchema,
   generalAlertConditionsSchema,
-  generalParamsSchema
+  generalParamsSchema,
+  walletBalanceParamsSchema,
+  walletBalanceTypeSchema
 } from "@src/modules/alert/repositories/alert/alert-json-fields.schema";
 
 export const alertCreateCommonInputSchema = z.object({
@@ -42,22 +44,31 @@ export const chainEventCreateInputSchema = generalAlertCreateInputSchema
 export const deploymentBalanceCreateInputSchema = alertCreateCommonInputSchema
   .extend({
     type: deploymentBalanceTypeSchema,
-    conditions: deploymentBalanceConditionsSchema,
+    conditions: balanceConditionsSchema,
     params: deploymentBalanceParamsSchema
+  })
+  .strict();
+
+export const walletBalanceCreateInputSchema = alertCreateCommonInputSchema
+  .extend({
+    type: walletBalanceTypeSchema,
+    conditions: balanceConditionsSchema,
+    params: walletBalanceParamsSchema
   })
   .strict();
 
 export const alertCreateInputSchema = z.discriminatedUnion("type", [
   chainMessageCreateInputSchema,
   chainEventCreateInputSchema,
-  deploymentBalanceCreateInputSchema
+  deploymentBalanceCreateInputSchema,
+  walletBalanceCreateInputSchema
 ]);
 
 export class AlertCreateInput extends createZodDto(z.object({ data: alertCreateInputSchema })) {}
 
 export const alertPatchInputSchema = alertCreateCommonInputSchema
   .extend({
-    conditions: z.union([generalAlertConditionsSchema, deploymentBalanceConditionsSchema])
+    conditions: z.union([generalAlertConditionsSchema, balanceConditionsSchema])
   })
   .partial();
 
@@ -88,11 +99,22 @@ export const chainEventOutputSchema = generalAlertOutputSchema.extend({
 
 export const deploymentBalanceOutputSchema = alertCommonOutputSchema.extend({
   type: deploymentBalanceTypeSchema,
-  conditions: deploymentBalanceConditionsSchema,
+  conditions: balanceConditionsSchema,
   params: deploymentBalanceParamsSchema
 });
 
-export const alertOutputSchema = z.discriminatedUnion("type", [chainMessageOutputSchema, deploymentBalanceOutputSchema, chainEventOutputSchema]);
+export const walletBalanceOutputSchema = alertCommonOutputSchema.extend({
+  type: walletBalanceTypeSchema,
+  conditions: balanceConditionsSchema,
+  params: walletBalanceParamsSchema
+});
+
+export const alertOutputSchema = z.discriminatedUnion("type", [
+  chainMessageOutputSchema,
+  chainEventOutputSchema,
+  deploymentBalanceOutputSchema,
+  walletBalanceOutputSchema
+]);
 
 export const alertOutputResponseSchema = z.object({ data: alertOutputSchema });
 export class AlertOutputResponse extends createZodDto(alertOutputResponseSchema) {}
