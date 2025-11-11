@@ -4,8 +4,32 @@ import { useQuery } from "@tanstack/react-query";
 import type { MarketData } from "@src/types";
 import { QueryKeys } from "./queryKeys";
 
-async function getMarketData(): Promise<any> {
-  return {};
+async function getMarketData(): Promise<MarketData> {
+  try {
+    const response = await fetch("https://api.coingecko.com/api/v3/coins/akash-network/tickers");
+    const data = await response.json();
+    const coinbasePrice = data.tickers.find((ticker: any) => ticker.market.name === "Coinbase Exchange");
+    const price = coinbasePrice ? parseFloat(coinbasePrice.converted_last.usd) : 0;
+
+    return {
+      price,
+      volume: 0,
+      marketCap: 0,
+      marketCapRank: 0,
+      priceChange24h: 0,
+      priceChangePercentage24: 0
+    };
+  } catch (error) {
+    console.error("Failed to fetch market data:", error);
+    return {
+      price: 0,
+      volume: 0,
+      marketCap: 0,
+      marketCapRank: 0,
+      priceChange24h: 0,
+      priceChangePercentage24: 0
+    };
+  }
 }
 
 export function useMarketData(options?: Omit<UseQueryOptions<MarketData, Error, any, QueryKey>, "queryKey" | "queryFn">) {
