@@ -64,4 +64,20 @@ If you're ready to contribute, follow our guidelines:
 
 Note that this process allows multiple developers to collaborate effectively and maintain high-quality code for a long-lasting entity; the project.  
 
+### AI Coding Guidelines
+
+This repository uses AI-assisted coding tools (GitHub Copilot, Cursor, Claude, etc.). To help these tools generate better code:
+
+- **CLAUDE.md**: Contains aggregated contribution guidelines extracted from approved RFCs
+- **Contribution RFCs**: Guidelines are sourced from discussions in the [Contribution RFC category](https://github.com/akash-network/console/discussions/categories/contribution-rfc)
+- **Auto-Generated**: The CLAUDE.md file is automatically generated when RFC discussions receive the `RFC:Landed` label
+
+To contribute new AI guidelines:
+1. Create a discussion in the "Contribution RFC" category
+2. Include a section titled `## AI Instructions` with guidance for AI coding assistants
+3. Once approved, add the `RFC:Landed` label
+4. The guidelines will be automatically added to CLAUDE.md
+
+See [`.contribution-guidelines/README.md`](./.contribution-guidelines/README.md) for more details.
+
 *That your commitment to following these specs will make a difference.*
