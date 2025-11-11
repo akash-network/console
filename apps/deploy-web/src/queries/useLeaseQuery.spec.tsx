@@ -293,7 +293,7 @@ describe("useLeaseQuery", () => {
     it("fetches lease status when certificate is provided", async () => {
       const provider = buildProvider();
       const providerProxy = mock<ProviderProxyService>({
-        fetchProviderUrl: jest.fn().mockResolvedValue({ data: mockLeaseStatus })
+        request: jest.fn().mockResolvedValue({ data: mockLeaseStatus })
       });
       const { result } = setupLeaseStatus({
         provider,
@@ -316,7 +316,7 @@ describe("useLeaseQuery", () => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(providerProxy.fetchProviderUrl).toHaveBeenCalledWith(
+      expect(providerProxy.request).toHaveBeenCalledWith(
         expect.stringContaining(`/lease/${mockLease.dseq}/${mockLease.gseq}/${mockLease.oseq}/status`),
         expect.objectContaining({
           method: "GET",

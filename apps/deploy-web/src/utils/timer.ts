@@ -23,10 +23,8 @@ export const Timer = (ms: number) => {
   };
 };
 
-export async function wait(time: number) {
-  return new Promise(res => {
-    setTimeout(() => {
-      res(true);
-    }, time);
+export async function wait(time: number): Promise<void> {
+  return new Promise<void>(resolve => {
+    setTimeout(resolve, time);
   });
 }

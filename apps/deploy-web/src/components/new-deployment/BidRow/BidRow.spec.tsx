@@ -105,7 +105,7 @@ describe(BidRow.name, () => {
   ) {
     const providerProxy = () =>
       ({
-        fetchProviderUrl: jest.fn(() => {
+        request: jest.fn(() => {
           return new Promise(() => {});
         })
       }) as unknown as ProviderProxyService;

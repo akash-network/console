@@ -6,7 +6,7 @@ import { useEffect, useRef } from "react";
 import React from "react";
 import { cn } from "@akashnetwork/ui/utils";
 import { useTheme } from "next-themes";
-import type { ITerminalAddon, ITerminalOptions } from "xterm";
+import type { IDisposable, ITerminalAddon, ITerminalOptions } from "xterm";
 import { Terminal } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
 
@@ -195,18 +195,6 @@ const XTerm: React.FunctionComponent<IProps> = props => {
       });
     }
 
-    // Create Listeners
-    terminalRef.current.onBinary(onBinary);
-    terminalRef.current.onCursorMove(onCursorMove);
-    terminalRef.current.onData(onData);
-    terminalRef.current.onKey(onKey);
-    terminalRef.current.onLineFeed(onLineFeed);
-    terminalRef.current.onScroll(onScroll);
-    terminalRef.current.onSelectionChange(onSelectionChange);
-    terminalRef.current.onRender(onRender);
-    terminalRef.current.onResize(onResize);
-    terminalRef.current.onTitleChange(onTitleChange);
-
     // Add Custom Key Event Handler
     if (props.customKeyEventHandler) {
       terminalRef.current.attachCustomKeyEventHandler(props.customKeyEventHandler);
@@ -223,45 +211,16 @@ const XTerm: React.FunctionComponent<IProps> = props => {
     };
   }, []);
 
-  const onBinary = (data: string) => {
-    if (props.onBinary) props.onBinary(data);
-  };
-
-  const onCursorMove = () => {
-    if (props.onCursorMove) props.onCursorMove();
-  };
-
-  const onData = (data: string) => {
-    if (props.onData) props.onData(data);
-  };
-
-  const onKey = (event: { key: string; domEvent: KeyboardEvent }) => {
-    if (props.onKey) props.onKey(event);
-  };
-
-  const onLineFeed = () => {
-    if (props.onLineFeed) props.onLineFeed();
-  };
-
-  const onScroll = (newPosition: number) => {
-    if (props.onScroll) props.onScroll(newPosition);
-  };
-
-  const onSelectionChange = () => {
-    if (props.onSelectionChange) props.onSelectionChange();
-  };
-
-  const onRender = (event: { start: number; end: number }) => {
-    if (props.onRender) props.onRender(event);
-  };
-
-  const onResize = (event: { cols: number; rows: number }) => {
-    if (props.onResize) props.onResize(event);
-  };
-
-  const onTitleChange = (newTitle: string) => {
-    if (props.onTitleChange) props.onTitleChange(newTitle);
-  };
+  useEffect(() => disposable(props.onBinary && terminalRef.current?.onBinary(props.onBinary)), [props.onBinary]);
+  useEffect(() => disposable(props.onCursorMove && terminalRef.current?.onCursorMove(props.onCursorMove)), [props.onCursorMove]);
+  useEffect(() => disposable(props.onData && terminalRef.current?.onData(props.onData)), [props.onData]);
+  useEffect(() => disposable(props.onKey && terminalRef.current?.onKey(props.onKey)), [props.onKey]);
+  useEffect(() => disposable(props.onLineFeed && terminalRef.current?.onLineFeed(props.onLineFeed)), [props.onLineFeed]);
+  useEffect(() => disposable(props.onScroll && terminalRef.current?.onScroll(props.onScroll)), [props.onScroll]);
+  useEffect(() => disposable(props.onSelectionChange && terminalRef.current?.onSelectionChange(props.onSelectionChange)), [props.onSelectionChange]);
+  useEffect(() => disposable(props.onRender && terminalRef.current?.onRender(props.onRender)), [props.onRender]);
+  useEffect(() => disposable(props.onResize && terminalRef.current?.onResize(props.onResize)), [props.onResize]);
+  useEffect(() => disposable(props.onTitleChange && terminalRef.current?.onTitleChange(props.onTitleChange)), [props.onTitleChange]);
 
   return (
     <div
@@ -273,3 +232,8 @@ const XTerm: React.FunctionComponent<IProps> = props => {
 };
 
 export default XTerm;
+
+function disposable(value: IDisposable | undefined) {
+  if (!value) return;
+  return () => value.dispose();
+}

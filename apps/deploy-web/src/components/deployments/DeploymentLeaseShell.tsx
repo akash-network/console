@@ -1,19 +1,21 @@
 "use client";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Button, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { OpenInWindow } from "iconoir-react";
 import Link from "next/link";
 
 import ViewPanel from "@src/components/shared/ViewPanel";
+import { useServices } from "@src/context/ServicesProvider";
 import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
-import { useProviderWebsocket } from "@src/hooks/useProviderWebsocket";
 import { XTerm } from "@src/lib/XTerm";
 import type { XTermRefType } from "@src/lib/XTerm/XTerm";
 import { useLeaseStatus } from "@src/queries/useLeaseQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
+import type { ReceivedShellMessage } from "@src/services/provider-proxy/provider-proxy.service";
 import type { LeaseDto } from "@src/types/deployment";
 import { LeaseShellCode } from "@src/types/shell";
+import { forEachGeneratedItem } from "@src/utils/array";
 import { UrlService } from "@src/utils/urlUtils";
 import { CreateCredentialsButton } from "./CreateCredentialsButton/CreateCredentialsButton";
 import { LeaseSelect } from "./LeaseSelect";
@@ -24,12 +26,14 @@ type Props = {
   leases: LeaseDto[] | null | undefined;
 };
 
+const textDecoder = new TextDecoder("utf-8");
+
 export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases }) => {
-  const [canSetConnection, setCanSetConnection] = useState(false);
+  const { providerProxy, networkStore, errorHandler } = useServices();
+
   const [isConnectionEstablished, setIsConnectionEstablished] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isConnectionClosed, setIsConnectionClosed] = useState(false);
-  const [services, setServices] = useState<string[]>([]);
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedLease, setSelectedLease] = useState<LeaseDto | null>(null);
   const [isShowingDownloadModal, setIsShowingDownloadModal] = useState(false);
@@ -47,24 +51,14 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
     lease: selectedLease,
     enabled: false
   });
-  const currentUrl = useRef<string | null>(null);
   const terminalRef = useRef<XTermRefType>(null);
-  const { sendJsonMessage } = useProviderWebsocket(providerInfo, {
-    setupPingPong: true,
-    onOpen: () => {
-      console.log("opened");
-    },
-    onMessage: onCommandResponseReceived
-  });
+  const isConnectionEstablishedRef = useRef(false);
+  const services = useMemo(() => (leaseStatus ? Object.keys(leaseStatus.services) : []), [leaseStatus]);
 
   useEffect(() => {
-    // Set the services and default selected service
     if (leaseStatus) {
-      setServices(Object.keys(leaseStatus.services));
       // Set the first service as default
       setSelectedService(Object.keys(leaseStatus.services)[0]);
-
-      setCanSetConnection(true);
     }
   }, [leaseStatus]);
 
@@ -80,31 +74,52 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
     getLeaseStatus();
   }, [selectedLease, providerInfo, getLeaseStatus]);
 
-  useEffect(() => {
-    if (!canSetConnection || !providerInfo || !providerCredentials.details.usable || !selectedLease || !selectedService || isConnectionEstablished) return;
+  const shellSession = useMemo(() => {
+    if (!providerInfo || !providerCredentials.details.usable || !selectedLease || !selectedService) return null;
 
-    const url = `/lease/${selectedLease.dseq}/${selectedLease.gseq}/${
-      selectedLease.oseq
-    }/shell?stdin=1&tty=1&podIndex=0&cmd0=${encodeURIComponent("/bin/sh")}&service=${selectedService}`;
-    setIsLoadingData(true);
-
-    currentUrl.current = url;
-
-    sendJsonMessage({
-      type: "websocket",
-      url: url
+    const abortController = new AbortController();
+    const conn = providerProxy.connectToShell({
+      providerBaseUrl: providerInfo.hostUri,
+      providerAddress: providerInfo.owner,
+      providerCredentials: providerCredentials.details,
+      dseq: selectedLease.dseq,
+      gseq: selectedLease.gseq,
+      oseq: selectedLease.oseq,
+      chainNetwork: networkStore.selectedNetworkId,
+      service: selectedService,
+      useStdIn: true,
+      useTTY: true,
+      signal: abortController.signal
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [providerInfo, providerCredentials.details, selectedLease, selectedService, isConnectionEstablished]);
 
-  function onCommandResponseReceived(event: MessageEvent<any>) {
-    const jsonData = JSON.parse(event.data);
+    return {
+      conn,
+      abortController
+    };
+  }, [providerInfo, providerCredentials.details, selectedLease, selectedService]);
+
+  useEffect(() => {
+    if (!shellSession) return;
+
+    setIsLoadingData(true);
+    shellSession.conn.send(new Uint8Array());
+    forEachGeneratedItem(shellSession.conn.receive(), onCommandResponseReceived).catch(error => {
+      errorHandler.reportError({
+        error,
+        tags: { category: "deployments", label: "DeploymentLeaseShell" }
+      });
+    });
+
+    return () => shellSession.abortController.abort();
+  }, [shellSession]);
+
+  function onCommandResponseReceived(jsonData: ReceivedShellMessage) {
     const message = jsonData?.message;
     const error = jsonData?.error;
     const closed = jsonData?.closed;
 
     if (message?.data) {
-      const parsedData = Buffer.from(message.data).toString("utf-8", 1);
+      const parsedData = textDecoder.decode(Uint8Array.from(message.data.slice(1)));
 
       // Check if parsedData is either ^[[A, ^[[B, ^[[C or ^[[D
       const arrowKeyPattern = /\^\[\[[A-D]/;
@@ -120,7 +135,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
         /* empty */
       }
       if (exitCode === undefined) {
-        if (!isConnectionEstablished) {
+        if (!isConnectionEstablishedRef.current) {
           // Welcome message
           terminalRef.current?.reset();
           terminalRef.current?.write("Welcome to Akash Console Shell! ☁️");
@@ -129,6 +144,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
           terminalRef.current?.write("\n\r");
           terminalRef.current?.write("\n\r");
           terminalRef.current?.focus();
+          isConnectionEstablishedRef.current = true;
         }
 
         terminalRef.current?.write(parsedData);
@@ -142,7 +158,6 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
     }
 
     if (error) {
-      console.log(error);
       terminalRef.current?.write(error);
       setIsLoadingData(false);
     }
@@ -172,27 +187,17 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
   const onTerminalKey = useCallback(
     (event: { key: string; domEvent: KeyboardEvent }) => {
       const data = getEncodedData(event.key);
-
-      sendJsonMessage({
-        type: "websocket",
-        url: currentUrl.current || "",
-        data: data.toString()
-      });
+      shellSession?.conn.send(data);
     },
-    [currentUrl.current]
+    [shellSession]
   );
 
   const onTerminalPaste = useCallback(
     (value: string) => {
       const data = getEncodedData(value);
-
-      sendJsonMessage({
-        type: "websocket",
-        url: currentUrl.current || "",
-        data: data.toString()
-      });
+      shellSession?.conn.send(data);
     },
-    [currentUrl.current]
+    [shellSession]
   );
 
   function handleLeaseChange(id: string) {
@@ -203,10 +208,9 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
       terminalRef.current?.reset();
 
       setIsChangingSocket(true);
-      setServices([]);
       setSelectedService(null);
-      setCanSetConnection(false);
       setIsConnectionEstablished(false);
+      isConnectionEstablishedRef.current = false;
     }
   }
 
@@ -219,6 +223,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
 
       setIsChangingSocket(true);
       setIsConnectionEstablished(false);
+      isConnectionEstablishedRef.current = false;
     }
   };
 

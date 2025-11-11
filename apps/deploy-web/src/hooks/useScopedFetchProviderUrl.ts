@@ -11,7 +11,7 @@ export function useScopedFetchProviderUrl(provider: ProviderIdentity | undefined
   return useCallback(
     (url, options) => {
       if (!provider) return new Promise(() => {});
-      return providerProxy.fetchProviderUrl(url, {
+      return providerProxy.request(url, {
         ...options,
         chainNetwork,
         providerIdentity: provider
