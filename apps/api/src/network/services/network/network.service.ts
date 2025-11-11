@@ -25,6 +25,11 @@ export class NetworkService {
         return Err(new NotFound("Network nodes not found"));
       }
 
+      // Handle unsupported network error from NetConfig.mapped()
+      if (error instanceof Error && error.message.includes("not supported")) {
+        return Err(new NotFound(`Network ${network} not supported`));
+      }
+
       throw error;
     }
   }
