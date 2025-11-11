@@ -1,6 +1,7 @@
 import type { NodeHttpService } from "@akashnetwork/http-sdk";
 import type { NetConfig } from "@akashnetwork/net";
 import { AxiosError } from "axios";
+import type { HttpError } from "http-errors";
 import { NotFound } from "http-errors";
 import type { MockProxy } from "jest-mock-extended";
 import { mock } from "jest-mock-extended";
@@ -14,7 +15,7 @@ describe("NetworkService", () => {
   });
 
   describe("getNodes", () => {
-    it("should return nodes for a valid network", async () => {
+    it("returns nodes for a valid network", async () => {
       const mockNodes = [
         {
           id: "node1",
@@ -30,14 +31,12 @@ describe("NetworkService", () => {
       const result = await service.getNodes("mainnet");
 
       expect(result.ok).toBe(true);
-      if (result.ok) {
-        expect(result.val).toEqual(mockNodes);
-      }
+      expect((result as { ok: true; val: typeof mockNodes }).val).toEqual(mockNodes);
       expect(netConfig.mapped).toHaveBeenCalledWith("mainnet");
       expect(nodeHttpService.getNodes).toHaveBeenCalledWith("mainnet");
     });
 
-    it("should return NotFound error for unsupported network", async () => {
+    it("returns NotFound error for unsupported network", async () => {
       const { service, netConfig, nodeHttpService } = setup();
 
       netConfig.mapped.mockImplementation(() => {
@@ -47,15 +46,13 @@ describe("NetworkService", () => {
       const result = await service.getNodes("testnet");
 
       expect(result.ok).toBe(false);
-      if (!result.ok) {
-        expect(result.val).toBeInstanceOf(NotFound);
-        expect(result.val.message).toContain("Network testnet not supported");
-      }
+      expect((result as { ok: false; val: HttpError }).val).toBeInstanceOf(NotFound);
+      expect((result as { ok: false; val: HttpError }).val.message).toContain("Network testnet not supported");
       expect(netConfig.mapped).toHaveBeenCalledWith("testnet");
       expect(nodeHttpService.getNodes).not.toHaveBeenCalled();
     });
 
-    it("should return NotFound error when node service returns 404", async () => {
+    it("returns NotFound error when node service returns 404", async () => {
       const { service, netConfig, nodeHttpService } = setup();
       const axiosError = new AxiosError("Not Found");
       axiosError.status = 404;
@@ -66,13 +63,11 @@ describe("NetworkService", () => {
       const result = await service.getNodes("mainnet");
 
       expect(result.ok).toBe(false);
-      if (!result.ok) {
-        expect(result.val).toBeInstanceOf(NotFound);
-        expect(result.val.message).toBe("Network nodes not found");
-      }
+      expect((result as { ok: false; val: HttpError }).val).toBeInstanceOf(NotFound);
+      expect((result as { ok: false; val: HttpError }).val.message).toBe("Network nodes not found");
     });
 
-    it("should throw other errors", async () => {
+    it("throws other errors", async () => {
       const { service, netConfig, nodeHttpService } = setup();
       const genericError = new Error("Some unexpected error");
 
