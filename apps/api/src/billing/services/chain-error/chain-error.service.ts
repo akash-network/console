@@ -34,6 +34,10 @@ export class ChainErrorService {
       code: 400,
       message: "Invalid deployment version"
     },
+    "invalid: deployment hash": {
+      code: 400,
+      message: "Invalid deployment hash"
+    },
     "fee allowance expired": {
       code: 400,
       message: "Console trial expired"
