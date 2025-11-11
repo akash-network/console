@@ -25,7 +25,8 @@ export const ServerAccess: React.FC<ServerAccessProps> = ({ onComplete }) => {
 
   const { walletBalances } = useWallet();
   const MIN_BALANCE = 5_000_000;
-  const hasEnoughBalance = (walletBalances?.uakt || 0) >= MIN_BALANCE;
+  const hasEnoughBalance = walletBalances !== null && (walletBalances.uakt || 0) >= MIN_BALANCE;
+  const isBalanceLoaded = walletBalances !== null;
 
   // Define calculateNodeCounts before using it in useEffect
   const calculateNodeCounts = useCallback((totalNodes: number) => {
@@ -37,10 +38,10 @@ export const ServerAccess: React.FC<ServerAccessProps> = ({ onComplete }) => {
   }, []);
 
   React.useEffect(() => {
-    if (!hasEnoughBalance) {
+    if (isBalanceLoaded && !hasEnoughBalance) {
       setShowBalancePopup(true);
     }
-  }, [hasEnoughBalance]);
+  }, [hasEnoughBalance, isBalanceLoaded]);
 
   // Initialize server configs whenever number of servers changes or we activate server form
   React.useEffect(() => {
@@ -97,12 +98,15 @@ export const ServerAccess: React.FC<ServerAccessProps> = ({ onComplete }) => {
   }, []);
 
   const handleNextClick = useCallback(() => {
+    if (!isBalanceLoaded) {
+      return;
+    }
     if (!hasEnoughBalance) {
       setShowBalancePopup(true);
       return;
     }
     setShowNodeDistribution(true);
-  }, [hasEnoughBalance]);
+  }, [hasEnoughBalance, isBalanceLoaded]);
 
   const handleDistributionNext = useCallback(() => {
     setShowNodeDistribution(false);
