@@ -1,0 +1,3 @@
+chain: sandbox
+hostNames:
+  - console-beta-provider-proxy-sandbox.akash.network
