@@ -257,11 +257,12 @@ describe("Provider HTTP proxy", () => {
     const { providerUrl } = await startProviderServer({ certPair: validCertPair });
     let isRespondedWith502 = false;
     await startChainApiServer([validCertPair.cert], {
-      interceptRequest(_, res) {
+      interceptRequest(req, res) {
         if (isRespondedWith502) return false;
         isRespondedWith502 = true;
-        res.writeHead(502);
+        res.writeHead(502, { Connection: "close" });
         res.end();
+        req.socket.destroy();
         return true;
       }
     });
