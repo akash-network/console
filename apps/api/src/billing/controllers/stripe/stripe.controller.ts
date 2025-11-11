@@ -6,7 +6,14 @@ import type { infer as ZodInfer } from "zod";
 import { AuthService, Protected } from "@src/auth/services/auth.service";
 import type { StripePricesOutputResponse } from "@src/billing";
 import { CustomerTransactionsCsvExportQuerySchema } from "@src/billing/http-schemas/stripe.schema";
-import { ApplyCouponRequest, ConfirmPaymentRequest, ConfirmPaymentResponse, Transaction } from "@src/billing/http-schemas/stripe.schema";
+import {
+  ApplyCouponRequest,
+  ConfirmPaymentRequest,
+  ConfirmPaymentResponse,
+  Transaction,
+  UpdateCustomerOrganizationRequest,
+  UpdateCustomerOrganizationResponse
+} from "@src/billing/http-schemas/stripe.schema";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
 import { StripeErrorService } from "@src/billing/services/stripe-error/stripe-error.service";
@@ -195,5 +202,16 @@ export class StripeController {
 
       throw error;
     }
+  }
+
+  @Protected([{ action: "create", subject: "StripePayment" }])
+  async updateCustomerOrganization(input: UpdateCustomerOrganizationRequest): Promise<UpdateCustomerOrganizationResponse> {
+    const { currentUser } = this.authService;
+
+    assert(currentUser.stripeCustomerId, 400, "Stripe customer ID not found");
+
+    await this.stripe.updateCustomerOrganization(currentUser.stripeCustomerId, input.organization);
+
+    return { success: true };
   }
 }

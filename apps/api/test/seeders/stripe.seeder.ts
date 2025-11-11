@@ -60,7 +60,6 @@ export function create(overrides?: Partial<StripeMockData>): StripeMockData {
       cancellation_reason: null,
       capture_method: "automatic",
       description: null,
-      invoice: null,
       last_payment_error: null,
       latest_charge: null,
       next_action: null,
@@ -71,7 +70,8 @@ export function create(overrides?: Partial<StripeMockData>): StripeMockData {
       source: null,
       statement_descriptor: null,
       statement_descriptor_suffix: null,
-      payment_method_configuration_details: null
+      payment_method_configuration_details: null,
+      excluded_payment_method_types: null
     },
     setupIntent: {
       id: "seti_123",
@@ -97,7 +97,8 @@ export function create(overrides?: Partial<StripeMockData>): StripeMockData {
       latest_attempt: null,
       on_behalf_of: null,
       payment_method_options: {},
-      payment_method_configuration_details: null
+      payment_method_configuration_details: null,
+      excluded_payment_method_types: null
     },
     checkoutSession: {
       id: "cs_123",
@@ -119,7 +120,7 @@ export function create(overrides?: Partial<StripeMockData>): StripeMockData {
       after_expiration: null,
       allow_promotion_codes: true,
       amount_subtotal: 2000,
-      automatic_tax: { enabled: false, status: null, liability: null },
+      automatic_tax: { enabled: false, status: null, liability: null, provider: null },
       billing_address_collection: null,
       client_reference_id: null,
       client_secret: null,
@@ -130,6 +131,11 @@ export function create(overrides?: Partial<StripeMockData>): StripeMockData {
       customer_details: null,
       customer_email: null,
       custom_fields: [],
+      adaptive_pricing: null,
+      collected_information: null,
+      discounts: [],
+      origin_context: null,
+      redirect_on_completion: "always",
       custom_text: {
         after_submit: {
           message: "test"
@@ -154,11 +160,12 @@ export function create(overrides?: Partial<StripeMockData>): StripeMockData {
       payment_method_configuration_details: null,
       saved_payment_method_options: null,
       phone_number_collection: { enabled: false },
+      permissions: null,
+      wallet_options: null,
       recovered_from: null,
       setup_intent: null,
       shipping_address_collection: null,
       shipping_cost: null,
-      shipping_details: null,
       shipping_options: [],
       submit_type: null,
       subscription: null,
@@ -182,22 +189,25 @@ export function create(overrides?: Partial<StripeMockData>): StripeMockData {
         minimum_amount: null,
         minimum_amount_currency: null
       },
-      coupon: {
-        id: "coupon_123",
-        object: "coupon",
-        amount_off: null,
-        created: 1234567890,
-        currency: null,
-        duration: "once",
-        duration_in_months: null,
-        livemode: false,
-        max_redemptions: null,
-        metadata: {},
-        name: "50% off",
-        percent_off: 50,
-        redeem_by: null,
-        times_redeemed: 0,
-        valid: true
+      promotion: {
+        type: "coupon",
+        coupon: {
+          id: "coupon_123",
+          object: "coupon",
+          amount_off: null,
+          created: 1234567890,
+          currency: null,
+          duration: "once",
+          duration_in_months: null,
+          livemode: false,
+          max_redemptions: null,
+          metadata: {},
+          name: "50% off",
+          percent_off: 50,
+          redeem_by: null,
+          times_redeemed: 0,
+          valid: true
+        }
       },
       times_redeemed: 0
     }

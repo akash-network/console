@@ -10,7 +10,14 @@ import { StripeService } from "./stripe.service";
 import { generateDatabasePaymentMethod } from "@test/seeders/database-payment-method.seeder";
 import { generatePaymentMethod } from "@test/seeders/payment-method.seeder";
 import { create as StripeSeederCreate } from "@test/seeders/stripe.seeder";
-import { createTestCharge, createTestCoupon, createTestPaymentIntent, createTestPromotionCode, TEST_CONSTANTS } from "@test/seeders/stripe-test-data.seeder";
+import {
+  createTestCharge,
+  createTestCoupon,
+  createTestInvoice,
+  createTestPaymentIntent,
+  createTestPromotionCode,
+  TEST_CONSTANTS
+} from "@test/seeders/stripe-test-data.seeder";
 import { createTestTransaction } from "@test/seeders/stripe-transaction-test.seeder";
 import { UserSeeder } from "@test/seeders/user.seeder";
 import { createTestUser } from "@test/seeders/user-test.seeder";
@@ -475,29 +482,69 @@ describe(StripeService.name, () => {
       const { service, refillService } = setup();
       const mockUser = createTestUser();
       const mockPromotionCode = createTestPromotionCode({
-        coupon: {
-          ...createTestCoupon(),
-          amount_off: 1000,
-          percent_off: null as any,
-          valid: true
+        promotion: {
+          type: "coupon",
+          coupon: {
+            ...createTestCoupon(),
+            amount_off: 1000,
+            percent_off: null,
+            valid: true
+          }
         }
       });
+      const mockInvoice = createTestInvoice({ id: "in_123", status: "draft" });
+      const mockFinalizedInvoice = createTestInvoice({ id: "in_123", status: "paid" });
+
       jest.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(stub(mockPromotionCode));
+      jest.spyOn(service.invoices, "create").mockResolvedValue(stub(mockInvoice));
+      jest.spyOn(service.invoices, "finalizeInvoice").mockResolvedValue(stub(mockFinalizedInvoice));
       refillService.topUpWallet.mockResolvedValue();
 
       const result = await service.applyCoupon(mockUser, mockPromotionCode.code);
 
+      expect(service.invoices.create).toHaveBeenCalledWith({
+        customer: mockUser.stripeCustomerId,
+        auto_advance: false,
+        discounts: [{ promotion_code: mockPromotionCode.id }]
+      });
+      expect(service.invoices.finalizeInvoice).toHaveBeenCalledWith(mockInvoice.id);
       expect(refillService.topUpWallet).toHaveBeenCalledWith(1000, mockUser.id);
-      expect(service.customers.update).toHaveBeenCalledTimes(2);
-      expect(service.customers.update).toHaveBeenNthCalledWith(1, TEST_CONSTANTS.CUSTOMER_ID, {
-        promotion_code: mockPromotionCode.id
-      });
-      expect(service.customers.update).toHaveBeenNthCalledWith(2, TEST_CONSTANTS.CUSTOMER_ID, {
-        promotion_code: null
-      });
       expect(result).toEqual({
         coupon: mockPromotionCode,
         amountAdded: 10 // 1000 cents = $10
+      });
+    });
+
+    it("applies coupon successfully when no promotion code found", async () => {
+      const { service, refillService } = setup();
+      const mockUser = createTestUser();
+      const mockCoupon = createTestCoupon({
+        id: "coupon_direct",
+        amount_off: 500,
+        percent_off: null,
+        valid: true
+      });
+      const mockInvoice = createTestInvoice({ id: "in_456", status: "draft" });
+      const mockFinalizedInvoice = createTestInvoice({ id: "in_456", status: "paid" });
+
+      jest.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(undefined);
+      jest.spyOn(service, "listCoupons").mockResolvedValue({ coupons: [mockCoupon] });
+      jest.spyOn(service.invoices, "create").mockResolvedValue(stub(mockInvoice));
+      jest.spyOn(service.invoices, "finalizeInvoice").mockResolvedValue(stub(mockFinalizedInvoice));
+      refillService.topUpWallet.mockResolvedValue();
+
+      const result = await service.applyCoupon(mockUser, mockCoupon.id);
+
+      expect(service.invoices.create).toHaveBeenCalledWith({
+        customer: mockUser.stripeCustomerId,
+        auto_advance: false,
+        discounts: [{ coupon: mockCoupon.id }]
+      });
+      expect(service.invoices.finalizeInvoice).toHaveBeenCalledWith(mockInvoice.id);
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(500, mockUser.id);
+      expect(result).toEqual({
+        coupon: mockCoupon,
+        amountAdded: 5 // 500 cents = $5
       });
     });
 
@@ -505,14 +552,17 @@ describe(StripeService.name, () => {
       const { service } = setup();
       const mockUser = createTestUser();
       const mockPromotionCode = createTestPromotionCode({
-        coupon: {
-          ...createTestCoupon(),
-          percent_off: 20,
-          amount_off: null as any,
-          valid: true
+        promotion: {
+          type: "coupon",
+          coupon: {
+            ...createTestCoupon(),
+            percent_off: 20,
+            amount_off: null,
+            valid: true
+          }
         }
       });
-      jest.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(mockPromotionCode as any);
+      jest.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(stub(mockPromotionCode));
 
       await expect(service.applyCoupon(mockUser, mockPromotionCode.code)).rejects.toThrow(
         "Percentage-based coupons are not supported. Only fixed amount coupons are allowed."
@@ -523,14 +573,17 @@ describe(StripeService.name, () => {
       const { service } = setup();
       const mockUser = createTestUser();
       const mockPromotionCode = createTestPromotionCode({
-        coupon: {
-          ...createTestCoupon(),
-          percent_off: null as any,
-          amount_off: null as any,
-          valid: true
+        promotion: {
+          type: "coupon",
+          coupon: {
+            ...createTestCoupon(),
+            percent_off: null,
+            amount_off: null,
+            valid: true
+          }
         }
       });
-      jest.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(mockPromotionCode as any);
+      jest.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(stub(mockPromotionCode));
 
       await expect(service.applyCoupon(mockUser, mockPromotionCode.code)).rejects.toThrow("Invalid coupon type. Only fixed amount coupons are supported.");
     });
@@ -540,11 +593,11 @@ describe(StripeService.name, () => {
       const mockUser = createTestUser();
       const mockCoupon = createTestCoupon({
         percent_off: 20,
-        amount_off: null as any,
+        amount_off: null,
         valid: true
       });
-      jest.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(null as any);
-      jest.spyOn(service, "listCoupons").mockResolvedValue({ coupons: [mockCoupon] } as any);
+      jest.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(undefined);
+      jest.spyOn(service, "listCoupons").mockResolvedValue({ coupons: [mockCoupon] });
 
       await expect(service.applyCoupon(mockUser, mockCoupon.id)).rejects.toThrow(
         "Percentage-based coupons are not supported. Only fixed amount coupons are allowed."
@@ -555,12 +608,12 @@ describe(StripeService.name, () => {
       const { service } = setup();
       const mockUser = createTestUser();
       const mockCoupon = createTestCoupon({
-        percent_off: null as any,
-        amount_off: null as any,
+        percent_off: null,
+        amount_off: null,
         valid: true
       });
-      jest.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(null as any);
-      jest.spyOn(service, "listCoupons").mockResolvedValue({ coupons: [mockCoupon] } as any);
+      jest.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(undefined);
+      jest.spyOn(service, "listCoupons").mockResolvedValue({ coupons: [mockCoupon] });
 
       await expect(service.applyCoupon(mockUser, mockCoupon.id)).rejects.toThrow("Invalid coupon type. Only fixed amount coupons are supported.");
     });
@@ -574,34 +627,38 @@ describe(StripeService.name, () => {
       await expect(service.applyCoupon(mockUser, "INVALID_CODE")).rejects.toThrow("No valid promotion code or coupon found with the provided code");
     });
 
-    it("rolls back coupon application when topUpWallet fails", async () => {
+    it("throws error when topUpWallet fails after invoice is finalized", async () => {
       const { service, refillService } = setup();
       const mockUser = createTestUser();
       const mockPromotionCode = createTestPromotionCode({
-        coupon: {
-          ...createTestCoupon(),
-          amount_off: 1000,
-          percent_off: null as number | null,
-          valid: true
+        promotion: {
+          type: "coupon",
+          coupon: {
+            ...createTestCoupon(),
+            amount_off: 1000,
+            percent_off: null,
+            valid: true
+          }
         }
       });
+      const mockInvoice = createTestInvoice({ id: "in_123", status: "draft" });
+      const mockFinalizedInvoice = createTestInvoice({ id: "in_123", status: "paid" });
 
-      jest.spyOn(service.promotionCodes, "list").mockResolvedValue({ data: [mockPromotionCode] } as any);
-      jest.spyOn(service.customers, "update").mockResolvedValue({} as any);
-
-      // Mock topUpWallet to fail
+      jest.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(stub(mockPromotionCode));
+      jest.spyOn(service.invoices, "create").mockResolvedValue(stub(mockInvoice));
+      jest.spyOn(service.invoices, "finalizeInvoice").mockResolvedValue(stub(mockFinalizedInvoice));
       refillService.topUpWallet.mockRejectedValue(new Error("Wallet top-up failed"));
 
       await expect(service.applyCoupon(mockUser, mockPromotionCode.code)).rejects.toThrow("Wallet top-up failed");
 
-      // Verify that the coupon was applied and then rolled back
-      expect(service.customers.update).toHaveBeenCalledTimes(2);
-      expect(service.customers.update).toHaveBeenNthCalledWith(1, TEST_CONSTANTS.CUSTOMER_ID, {
-        promotion_code: mockPromotionCode.id
+      // Verify that the invoice was created and finalized before the wallet top-up failed
+      expect(service.invoices.create).toHaveBeenCalledWith({
+        customer: mockUser.stripeCustomerId,
+        auto_advance: false,
+        discounts: [{ promotion_code: mockPromotionCode.id }]
       });
-      expect(service.customers.update).toHaveBeenNthCalledWith(2, TEST_CONSTANTS.CUSTOMER_ID, {
-        promotion_code: null
-      });
+      expect(service.invoices.finalizeInvoice).toHaveBeenCalledWith(mockInvoice.id);
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(1000, mockUser.id);
     });
   });
 
@@ -729,7 +786,8 @@ describe(StripeService.name, () => {
             },
             email: "Claudie27@yahoo.com",
             name: "Winifred Wiegand",
-            phone: "1-233-340-5835 x45200"
+            phone: "1-233-340-5835 x45200",
+            tax_id: null
           }
         }),
         generatePaymentMethod({
@@ -753,7 +811,8 @@ describe(StripeService.name, () => {
             },
             email: "Golda_Rodriguez95@yahoo.com",
             name: "Robin Nader V",
-            phone: "336.613.4413 x6559"
+            phone: "336.613.4413 x6559",
+            tax_id: null
           }
         })
       ];
@@ -787,7 +846,7 @@ describe(StripeService.name, () => {
 
       const result = await service.listPromotionCodes();
       expect(service.promotionCodes.list).toHaveBeenCalledWith({
-        expand: ["data.coupon"]
+        expand: ["data.promotion.coupon"]
       });
       expect(result).toEqual({ promotionCodes: mockPromotionCodes });
     });
@@ -1411,6 +1470,8 @@ function setup(
   jest.spyOn(service.setupIntents, "create").mockResolvedValue(stub(stripeData.setupIntent));
   jest.spyOn(service.checkout.sessions, "create").mockResolvedValue(stub(stripeData.checkoutSession));
   jest.spyOn(service.paymentMethods, "list").mockResolvedValue(stub({ data: [] }));
+  jest.spyOn(service.invoices, "create").mockResolvedValue(stub(createTestInvoice()));
+  jest.spyOn(service.invoices, "finalizeInvoice").mockResolvedValue(stub(createTestInvoice({ status: "paid" })));
 
   return {
     service,
