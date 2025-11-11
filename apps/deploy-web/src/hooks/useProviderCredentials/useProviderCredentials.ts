@@ -53,8 +53,11 @@ export function useProviderCredentials({ dependencies: d = DEPENDENCIES }: UsePr
         } as const);
   }, [settings.isBlockchainDown, localCert, accessToken, isLocalCertExpired, isLocalCertMatching, isTokenExpired]);
 
-  return {
-    details: credentials,
-    generate
-  };
+  return useMemo(
+    () => ({
+      details: credentials,
+      generate
+    }),
+    [credentials, generate]
+  );
 }

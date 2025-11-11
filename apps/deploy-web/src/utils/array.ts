@@ -5,3 +5,9 @@ export function createFilterUnique<T>(matcher: Matcher<T> = (a, b) => a === b): 
     return array.findIndex(other => matcher(value, other)) === index;
   };
 }
+
+export async function forEachGeneratedItem<T>(generator: AsyncGenerator<T>, onNext: (value: T) => void | Promise<void>) {
+  for await (const item of generator) {
+    await onNext(item);
+  }
+}
