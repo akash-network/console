@@ -9,7 +9,7 @@ import { mock } from "jest-mock-extended";
 import { cacheEngine } from "@src/caching/helpers";
 import { NetworkService } from "./network.service";
 
-describe("NetworkService", () => {
+describe(NetworkService.name, () => {
   afterEach(() => {
     cacheEngine.clearAllKeyInCache();
   });
