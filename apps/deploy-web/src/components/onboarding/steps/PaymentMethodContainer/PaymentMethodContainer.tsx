@@ -4,6 +4,7 @@ import type { ApiWalletWithOptional3DS } from "@akashnetwork/http-sdk/src/manage
 import type { PaymentMethod, SetupIntentResponse } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
 import { useSnackbar } from "notistack";
 
+import { useServices } from "@src/context/ServicesProvider/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { use3DSecure } from "@src/hooks/use3DSecure";
 import { useUser } from "@src/hooks/useUser";
@@ -33,7 +34,7 @@ export type PaymentMethodContainerProps = {
     isLoading: boolean;
     isRemoving: boolean;
     managedWalletError?: AppError;
-    onSuccess: () => void;
+    onSuccess: (organization?: string) => void;
     onRemovePaymentMethod: (paymentMethodId: string) => void;
     onConfirmRemovePaymentMethod: () => Promise<void>;
     onNext: () => void;
@@ -55,11 +56,12 @@ export type PaymentMethodContainerProps = {
 };
 
 export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ children, onComplete, dependencies: d = DEPENDENCIES }) => {
-  const { data: setupIntent, mutate: createSetupIntent } = d.useSetupIntentMutation();
+  const { data: setupIntent, mutate: createSetupIntent, reset: resetSetupIntent } = d.useSetupIntentMutation();
   const { data: paymentMethods = [], refetch: refetchPaymentMethods } = d.usePaymentMethodsQuery();
   const { removePaymentMethod } = d.usePaymentMutations();
   const { isWalletLoading, hasManagedWallet, managedWalletError } = d.useWallet();
   const { user } = d.useUser();
+  const { stripe, sentry } = useServices();
   const { enqueueSnackbar } = useSnackbar();
 
   const [showAddForm, setShowAddForm] = useState(false);
@@ -82,7 +84,7 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
       }
 
       try {
-        const result = await createWallet(user.id);
+        const result = await createWallet({ userId: user.id });
 
         if ("requires3DS" in result && result.requires3DS) {
           // Start another 3D Secure flow if needed
@@ -156,7 +158,15 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
     }
   }, [isConnectingWallet, managedWalletError]);
 
-  const handleSuccess = () => {
+  const handleSuccess = async (organization?: string) => {
+    if (organization) {
+      try {
+        await stripe.updateCustomerOrganization(organization);
+      } catch (error) {
+        sentry.captureException(error, { extra: { context: "Failed to update customer organization" } });
+      }
+    }
+
     setShowAddForm(false);
     refetchPaymentMethods();
   };
@@ -171,6 +181,9 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
 
     try {
       await removePaymentMethod.mutateAsync(cardToDelete);
+
+      // Reset the setupIntent to force a fresh one when form is shown
+      resetSetupIntent();
 
       setShowDeleteConfirmation(false);
       setCardToDelete(undefined);
@@ -200,7 +213,7 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
     }
 
     try {
-      const result = await createWallet(user.id);
+      const result = await createWallet({ userId: user.id });
 
       if ("requires3DS" in result && result.requires3DS) {
         if (!validateAndStart3DSecure(result)) {

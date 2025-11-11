@@ -88,6 +88,8 @@ describe("OnboardingContainer", () => {
     });
 
     const { onPaymentMethodComplete } = child.mock.calls[0][0];
+    const initialStep = child.mock.calls[0][0].currentStep;
+
     await act(async () => {
       onPaymentMethodComplete();
     });
@@ -95,6 +97,9 @@ describe("OnboardingContainer", () => {
     expect(mockAnalyticsService.track).toHaveBeenCalledWith("onboarding_payment_method_added", {
       category: "onboarding"
     });
+
+    const currentStep = child.mock.calls[child.mock.calls.length - 1][0].currentStep;
+    expect(currentStep).toBe(initialStep);
   });
 
   it("should redirect to deployment and connect managed wallet when onboarding is completed", async () => {

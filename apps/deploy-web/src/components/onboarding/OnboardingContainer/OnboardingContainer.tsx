@@ -5,6 +5,7 @@ import type { EncodeObject } from "@cosmjs/proto-signing";
 import { useRouter } from "next/navigation";
 import { useSnackbar } from "notistack";
 
+import { SuccessAnimation } from "@src/components/shared";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
@@ -63,6 +64,7 @@ const DEPENDENCIES = {
 export const OnboardingContainer: React.FunctionComponent<OnboardingContainerProps> = ({ children, dependencies: d = DEPENDENCIES }) => {
   const [currentStep, setCurrentStep] = useState(OnboardingStepIndex.FREE_TRIAL);
   const [completedSteps, setCompletedSteps] = useState<Set<OnboardingStepIndex>>(new Set());
+  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
 
   const router = d.useRouter();
   const { user } = d.useUser();
@@ -175,9 +177,14 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
       });
 
       handleStepComplete(OnboardingStepIndex.PAYMENT_METHOD);
-      handleStepChange(OnboardingStepIndex.WELCOME);
+      setShowSuccessAnimation(true);
     }
-  }, [paymentMethods.length, analyticsService, handleStepComplete, handleStepChange]);
+  }, [paymentMethods.length, analyticsService, handleStepComplete]);
+
+  const handleSuccessAnimationComplete = useCallback(() => {
+    setShowSuccessAnimation(false);
+    handleStepChange(OnboardingStepIndex.WELCOME);
+  }, [handleStepChange]);
 
   const handleComplete = useCallback(
     async (templateName: string) => {
@@ -343,6 +350,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
         onPaymentMethodComplete: handlePaymentMethodComplete,
         onComplete: handleComplete
       })}
+      <SuccessAnimation show={showSuccessAnimation} onComplete={handleSuccessAnimationComplete} />
     </>
   );
 };

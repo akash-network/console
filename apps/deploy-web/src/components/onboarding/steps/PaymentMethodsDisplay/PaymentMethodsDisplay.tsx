@@ -2,6 +2,7 @@ import React from "react";
 import type { PaymentMethod } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
 
 import { PaymentMethodsList } from "@src/components/shared/PaymentMethodsList";
+import { Title } from "@src/components/shared/Title";
 import type { AppError } from "@src/types";
 import { EmptyPaymentMethods } from "./EmptyPaymentMethods";
 import { ErrorAlert } from "./ErrorAlert";
@@ -30,7 +31,9 @@ export const PaymentMethodsDisplay: React.FC<PaymentMethodsDisplayProps> = ({
   return (
     <div className="space-y-6">
       <div className="mx-auto max-w-md">
-        <h3 className="mb-4 text-center text-lg font-semibold">Your Payment Methods</h3>
+        <Title className="mb-4 text-center" subTitle>
+          Your Payment Method
+        </Title>
 
         {paymentMethods.length === 0 ? (
           <EmptyPaymentMethods />

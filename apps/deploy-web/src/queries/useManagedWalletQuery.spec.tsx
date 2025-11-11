@@ -65,10 +65,10 @@ describe(useManagedWalletQuery.name, () => {
         }
       );
 
-      await act(async () => result.current.mutation.mutateAsync(mockData.userId));
+      await act(async () => result.current.mutation.mutateAsync({ userId: mockData.userId }));
 
       await waitFor(() => {
-        expect(mockManagedWalletService.createWallet).toHaveBeenCalledWith(mockData.userId);
+        expect(mockManagedWalletService.createWallet).toHaveBeenCalledWith(mockData.userId, undefined);
         expect(result.current.mutation.isSuccess).toBe(true);
         expect(result.current.queryClient.getQueryData(["MANAGED_WALLET", mockData.userId])).toEqual(mockData);
       });
