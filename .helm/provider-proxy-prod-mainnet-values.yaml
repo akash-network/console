@@ -1,0 +1,4 @@
+chain: mainnet
+hostNames:
+  - provider-proxy-mainnet.akash.network
+  - console-provider-proxy.akash.network # for backward compatibility

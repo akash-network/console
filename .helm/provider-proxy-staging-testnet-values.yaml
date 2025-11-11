@@ -1,0 +1,3 @@
+chain: testnet
+hostNames:
+  - provider-proxy-staging-testnet.akash.network
