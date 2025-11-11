@@ -119,6 +119,25 @@ describe(ChainErrorService.name, () => {
       expect(appErr).toBeInstanceOf(BadRequest);
       expect(appErr.message).toBe("Failed to create certificate: Invalid owner address");
     });
+
+    it("returns 400 for Invalid deployment hash error", async () => {
+      const { service } = setup();
+      const err = new Error("Query failed with (6): rpc error: code = Unknown desc = failed to execute message; message index: 0: Invalid: deployment hash");
+
+      const appErr = await service.toAppError(err, encodeMessages);
+      expect(appErr).toBeInstanceOf(BadRequest);
+      expect(appErr.message).toBe("Invalid deployment hash");
+    });
+
+    it("returns 400 for Invalid deployment hash error with message prefix", async () => {
+      const { service } = setup();
+      const err = new Error("Query failed with (6): rpc error: code = Unknown desc = failed to execute message; message index: 0: Invalid: deployment hash");
+      const messages: EncodeObject[] = [{ typeUrl: "/akash.deployment.v1beta4.MsgCreateDeployment", value: {} }];
+
+      const appErr = await service.toAppError(err, messages);
+      expect(appErr).toBeInstanceOf(BadRequest);
+      expect(appErr.message).toBe("Failed to create deployment: Invalid deployment hash");
+    });
   });
 
   function setup(): {
