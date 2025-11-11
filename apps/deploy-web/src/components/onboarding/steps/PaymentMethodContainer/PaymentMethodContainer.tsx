@@ -84,7 +84,7 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
       }
 
       try {
-        const result = await createWallet({ userId: user.id });
+        const result = await createWallet(user.id);
 
         if ("requires3DS" in result && result.requires3DS) {
           // Start another 3D Secure flow if needed
@@ -213,7 +213,7 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
     }
 
     try {
-      const result = await createWallet({ userId: user.id });
+      const result = await createWallet(user.id);
 
       if ("requires3DS" in result && result.requires3DS) {
         if (!validateAndStart3DSecure(result)) {

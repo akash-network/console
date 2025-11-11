@@ -23,7 +23,7 @@ export function useCreateManagedWalletMutation() {
   const { managedWalletService } = useServices();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ userId }: { userId: string }) => await managedWalletService.createWallet(userId),
+    mutationFn: async (userId: string) => await managedWalletService.createWallet(userId),
     onSuccess: response => {
       // Only update cache if it's a wallet response, not a 3D Secure response
       if (!response.requires3DS) {
