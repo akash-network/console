@@ -141,8 +141,11 @@ export const ServerAccess: React.FC<ServerAccessProps> = ({ onComplete }) => {
           </div>
           <div className="flex w-full justify-between">
             <div className="flex justify-start"></div>
-            <div className="flex justify-end">
-              <Button onClick={handleNextClick}>Next</Button>
+            <div className="flex flex-col items-end gap-2">
+              {!isBalanceLoaded && <p className="text-muted-foreground text-sm">Loading wallet balance...</p>}
+              <Button onClick={handleNextClick} disabled={!isBalanceLoaded}>
+                Next
+              </Button>
             </div>
           </div>
         </div>
