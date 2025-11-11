@@ -2,27 +2,14 @@ import type { NodeHttpService } from "@akashnetwork/http-sdk";
 import type { NetConfig } from "@akashnetwork/net";
 import { AxiosError } from "axios";
 import { NotFound } from "http-errors";
+import type { MockProxy } from "jest-mock-extended";
 import { mock } from "jest-mock-extended";
 
 import { cacheEngine } from "@src/caching/helpers";
 import { NetworkService } from "./network.service";
 
 describe("NetworkService", () => {
-  let networkService: NetworkService;
-  let nodeHttpService: jest.Mocked<NodeHttpService>;
-  let netConfig: jest.Mocked<NetConfig>;
-
-  beforeEach(() => {
-    // Clear cache before each test
-    cacheEngine.clearAllKeyInCache();
-    
-    nodeHttpService = mock<NodeHttpService>();
-    netConfig = mock<NetConfig>();
-    networkService = new NetworkService(nodeHttpService, netConfig);
-  });
-
   afterEach(() => {
-    // Clear cache after each test
     cacheEngine.clearAllKeyInCache();
   });
 
@@ -35,11 +22,12 @@ describe("NetworkService", () => {
           rpc: "https://rpc.akash.network"
         }
       ];
+      const { service, netConfig, nodeHttpService } = setup();
 
       netConfig.mapped.mockReturnValue("mainnet");
       nodeHttpService.getNodes.mockResolvedValue(mockNodes);
 
-      const result = await networkService.getNodes("mainnet");
+      const result = await service.getNodes("mainnet");
 
       expect(result.ok).toBe(true);
       if (result.ok) {
@@ -50,11 +38,13 @@ describe("NetworkService", () => {
     });
 
     it("should return NotFound error for unsupported network", async () => {
+      const { service, netConfig, nodeHttpService } = setup();
+
       netConfig.mapped.mockImplementation(() => {
         throw new Error("Network testnet not supported");
       });
 
-      const result = await networkService.getNodes("testnet");
+      const result = await service.getNodes("testnet");
 
       expect(result.ok).toBe(false);
       if (!result.ok) {
@@ -66,12 +56,14 @@ describe("NetworkService", () => {
     });
 
     it("should return NotFound error when node service returns 404", async () => {
-      netConfig.mapped.mockReturnValue("mainnet");
+      const { service, netConfig, nodeHttpService } = setup();
       const axiosError = new AxiosError("Not Found");
       axiosError.status = 404;
+
+      netConfig.mapped.mockReturnValue("mainnet");
       nodeHttpService.getNodes.mockRejectedValue(axiosError);
 
-      const result = await networkService.getNodes("mainnet");
+      const result = await service.getNodes("mainnet");
 
       expect(result.ok).toBe(false);
       if (!result.ok) {
@@ -81,11 +73,27 @@ describe("NetworkService", () => {
     });
 
     it("should throw other errors", async () => {
-      netConfig.mapped.mockReturnValue("mainnet");
+      const { service, netConfig, nodeHttpService } = setup();
       const genericError = new Error("Some unexpected error");
+
+      netConfig.mapped.mockReturnValue("mainnet");
       nodeHttpService.getNodes.mockRejectedValue(genericError);
 
-      await expect(networkService.getNodes("mainnet")).rejects.toThrow("Some unexpected error");
+      await expect(service.getNodes("mainnet")).rejects.toThrow("Some unexpected error");
     });
   });
+
+  function setup(): {
+    netConfig: MockProxy<NetConfig>;
+    nodeHttpService: MockProxy<NodeHttpService>;
+    service: NetworkService;
+  } {
+    cacheEngine.clearAllKeyInCache();
+
+    const nodeHttpService = mock<NodeHttpService>();
+    const netConfig = mock<NetConfig>();
+    const service = new NetworkService(nodeHttpService, netConfig);
+
+    return { netConfig, nodeHttpService, service };
+  }
 });
