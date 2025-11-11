@@ -303,11 +303,12 @@ export class ProviderProxyService {
           url,
           auth: providerCredentialsToApiCredentials(input.providerCredentials),
           chainNetwork: this.netConfig.mapped(input.chainNetwork),
-          providerAddress: input.providerAddress
+          providerAddress: input.providerAddress,
+          isBase64: true
         };
 
         if (message.length > 0) {
-          remoteMessage.data = message.toString();
+          remoteMessage.data = btoa(String.fromCharCode(...message));
         }
 
         return JSON.stringify(remoteMessage);
