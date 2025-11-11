@@ -75,8 +75,8 @@ describe("HonoErrorHandlerService", () => {
     const service = new HonoErrorHandlerService();
     const mockContext = mock<AppContext>();
 
-    mockContext.json.mockImplementation((data, options) => {
-      return new Response(JSON.stringify(data), { status: options?.status || 200 });
+    mockContext.json.mockImplementation((data: any, options?: any) => {
+      return new Response(JSON.stringify(data), { status: options?.status || 200 }) as any;
     });
 
     return {
