@@ -1,10 +1,6 @@
-import type { Context } from "hono";
 import { Hono } from "hono";
-import assert from "http-assert";
-import { container } from "tsyringe";
 import * as uuid from "uuid";
 
-import { AuthTokenService } from "@src/auth/services/auth-token/auth-token.service";
 import type { ClientInfoContextVariables } from "@src/middlewares/clientInfoMiddleware";
 import { getCurrentUserId, optionalUserMiddleware, requiredUserMiddleware } from "@src/middlewares/userMiddleware";
 import {
@@ -17,7 +13,7 @@ import {
   saveTemplate,
   saveTemplateDesc
 } from "@src/services/db/templateService";
-import { checkUsernameAvailable, getSettingsOrInit, getUserByUsername, subscribeToNewsletter, updateSettings } from "@src/services/db/userDataService";
+import { checkUsernameAvailable, getUserByUsername, subscribeToNewsletter, updateSettings } from "@src/services/db/userDataService";
 
 export const userRouter = new Hono();
 
@@ -38,39 +34,6 @@ userOptionalRouter.get("/byUsername/:username", async c => {
 
   return c.json(user);
 });
-
-/**
- * @deprecated Use /v1/register-user instead
- */
-userRequiredRouter.post("/tokenInfo", async c => {
-  const userId = getCurrentUserId(c);
-  const { wantedUsername, email, emailVerified, subscribedToNewsletter } = await c.req.json();
-
-  const settings = await getSettingsOrInit({
-    anonymousUserId: await extractAnonymousUserId(c),
-    userId: userId,
-    wantedUsername,
-    email: email,
-    emailVerified: !!emailVerified,
-    subscribedToNewsletter: subscribedToNewsletter,
-    ip: c.var.clientInfo?.ip,
-    userAgent: c.var.clientInfo?.userAgent,
-    fingerprint: c.var.clientInfo?.fingerprint
-  });
-
-  return c.json(settings);
-});
-
-async function extractAnonymousUserId(c: Context) {
-  const anonymousBearer = c.req.header("x-anonymous-authorization");
-
-  if (anonymousBearer) {
-    const anonymousUserId = await container.resolve<any>(AuthTokenService).getValidUserId(anonymousBearer);
-    assert(anonymousUserId, 401, "Invalid anonymous user token");
-
-    return anonymousUserId;
-  }
-}
 
 userRequiredRouter.put("/updateSettings", async c => {
   const userId = getCurrentUserId(c);
