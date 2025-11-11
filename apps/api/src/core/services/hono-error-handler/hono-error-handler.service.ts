@@ -1,5 +1,6 @@
 import { LoggerService } from "@akashnetwork/logging";
 import { ForbiddenError } from "@casl/ability";
+import { HTTPException } from "hono/http-exception";
 import { isHttpError } from "http-errors";
 import { ConnectionAcquireTimeoutError, ConnectionError, DatabaseError } from "sequelize";
 import { singleton } from "tsyringe";
@@ -17,6 +18,22 @@ export class HonoErrorHandlerService {
 
   async handle(error: unknown, c: AppContext): Promise<Response> {
     this.logger.error(this.toLoggableError(error));
+
+    // Handle Hono's HTTPException (e.g., malformed JSON from validators)
+    if (error instanceof HTTPException) {
+      const errorCode = this.getErrorCode({ status: error.status });
+      const errorType = this.getErrorType({ status: error.status });
+
+      return c.json(
+        {
+          error: error.name || "HTTPException",
+          message: error.message,
+          code: errorCode,
+          type: errorType
+        },
+        { status: error.status }
+      );
+    }
 
     if (isHttpError(error)) {
       const { name } = error.constructor;
