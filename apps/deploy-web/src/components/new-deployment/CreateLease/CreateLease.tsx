@@ -149,6 +149,18 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
     setNumberOfRequests(prev => ++prev);
   }, [bidsUpdatedAt]);
 
+  useEffect(() => {
+    if (bids && bids.length > 0 && numberOfRequests === 1) {
+      analyticsService.track(
+        "bids_received",
+        {
+          numberOfBids: bids.length
+        },
+        "Amplitude"
+      );
+    }
+  }, [bids, numberOfRequests, analyticsService]);
+
   const activeBid = useMemo(() => bids?.find(bid => bid.state === "active"), [bids]);
   const hasActiveBid = !!activeBid;
   const { data: deploymentDetail, refetch: getDeploymentDetail } = d.useDeploymentDetail(address, dseq, { refetchOnMount: false, enabled: false });

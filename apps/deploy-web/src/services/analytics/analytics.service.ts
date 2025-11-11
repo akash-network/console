@@ -78,6 +78,7 @@ export type AnalyticsEvent =
   | "builder_mode_btn_clk"
   | "yml_mode_btn_clk"
   | "bid_selected"
+  | "bids_received"
   | "filtered_by_favorite_providers"
   | "filtered_by_audited_providers"
   | "close_deployment_btn_clk"

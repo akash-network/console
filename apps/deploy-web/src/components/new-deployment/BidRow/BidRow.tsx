@@ -5,8 +5,8 @@ import { cn } from "@akashnetwork/ui/utils";
 import { CloudXmark, WarningTriangle } from "iconoir-react";
 
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
+import { useServices } from "@src/context/ServicesProvider";
 import { useProviderStatus } from "@src/queries/useProvidersQuery";
-import { analyticsService } from "@src/services/analytics/analytics.service";
 import type { BidDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { getGpusFromAttributes } from "@src/utils/deploymentUtils";
@@ -57,6 +57,7 @@ export const BidRow: React.FunctionComponent<Props> = ({
   isSendingManifest,
   components: c = COMPONENTS
 }) => {
+  const { analyticsService } = useServices();
   const { favoriteProviders, updateFavoriteProviders } = useLocalNotes();
   const isFavorite = provider ? favoriteProviders.some(x => provider.owner === x) : false;
   const isCurrentBid = selectedBid?.id === bid.id;
