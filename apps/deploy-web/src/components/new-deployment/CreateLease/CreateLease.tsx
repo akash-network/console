@@ -151,13 +151,9 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
 
   useEffect(() => {
     if (bids && bids.length > 0 && numberOfRequests === 1) {
-      analyticsService.track(
-        "bids_received",
-        {
-          numberOfBids: bids.length
-        },
-        "Amplitude"
-      );
+      analyticsService.track("bids_received", {
+        numberOfBids: bids.length
+      });
     }
   }, [bids, numberOfRequests, analyticsService]);
 
