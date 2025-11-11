@@ -21,8 +21,8 @@ export class HonoErrorHandlerService {
 
     // Handle Hono's HTTPException (e.g., malformed JSON from validators)
     if (error instanceof HTTPException) {
-      const errorCode = this.getErrorCode({ status: error.status });
-      const errorType = this.getErrorType({ status: error.status });
+      const errorCode = this.getErrorCode(error);
+      const errorType = this.getErrorType(error);
 
       return c.json(
         {
