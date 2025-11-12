@@ -2,6 +2,7 @@ import type { Coin } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1"
 import { CosmosHttpService } from "@akashnetwork/http-sdk/src/cosmos/cosmos-http.service";
 import { LoggerService } from "@akashnetwork/logging";
 import { asset_lists } from "@chain-registry/assets";
+import { AxiosError } from "axios";
 import { singleton } from "tsyringe";
 
 import type { GetAddressResponse } from "@src/address/http-schemas/address.schema";
@@ -32,9 +33,19 @@ export class AddressService {
     let commission = 0;
 
     if (validatorFromDb?.operatorAddress) {
-      const commissionData = await this.cosmosHttpService.getDistributionValidatorsCommissionByAddress(validatorFromDb.operatorAddress);
-      const coin = commissionData.commission.commission.find(x => x.denom === "uakt");
-      commission = coin ? parseFloat(coin.amount) : 0;
+      try {
+        const commissionData = await this.cosmosHttpService.getDistributionValidatorsCommissionByAddress(validatorFromDb.operatorAddress);
+        const coin = commissionData.commission.commission.find(x => x.denom === "uakt");
+        commission = coin ? parseFloat(coin.amount) : 0;
+      } catch (error) {
+        // If validator doesn't exist on-chain (e.g., unbonded/jailed), treat commission as 0
+        if (error instanceof AxiosError && error.response?.status === 500) {
+          logger.info(`Validator ${validatorFromDb.operatorAddress} not found on-chain, setting commission to 0`);
+          commission = 0;
+        } else {
+          throw error;
+        }
+      }
     }
 
     const assets = balancesResponse.balances.map(b => this.coinToAsset(b));
