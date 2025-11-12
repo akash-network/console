@@ -10,6 +10,7 @@ import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories";
 import { apiNodeUrl } from "@src/utils/constants";
 
+import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { DeploymentGrantResponseSeeder } from "@test/seeders/deployment-grant-response.seeder";
 import { DeploymentListResponseSeeder } from "@test/seeders/deployment-list-response.seeder";
 import { FeeAllowanceResponseSeeder } from "@test/seeders/fee-allowance-response.seeder";
@@ -63,7 +64,7 @@ describe("Balances", () => {
   it("should get balances for a specific address", async () => {
     await setup();
 
-    const differentAddress = faker.string.alphanumeric(44);
+    const differentAddress = createAkashAddress();
 
     const response = await app.request(`/v1/balances?address=${differentAddress}`, {
       method: "GET",
@@ -101,6 +102,41 @@ describe("Balances", () => {
     });
 
     expect(response.status).toBe(404);
+  });
+
+  it("should return 400 for invalid address format (UUID)", async () => {
+    await setup();
+
+    const invalidAddress = "60bb76fa-9c5d-4f7f-ae11-e4f694909b9e";
+
+    const response = await app.request(`/v1/balances?address=${invalidAddress}`, {
+      method: "GET",
+      headers: new Headers({
+        "Content-Type": "application/json"
+      })
+    });
+
+    expect(response.status).toBe(400);
+    const result = (await response.json()) as any;
+    expect(result.error).toBeDefined();
+  });
+
+  it("should return 400 for address with wrong prefix", async () => {
+    await setup();
+
+    // Valid bech32 address but with wrong prefix (cosmos instead of akash)
+    const invalidAddress = "cosmos13265twfqejnma6cc93rw5dxk4cldyz2zd2vul9";
+
+    const response = await app.request(`/v1/balances?address=${invalidAddress}`, {
+      method: "GET",
+      headers: new Headers({
+        "Content-Type": "application/json"
+      })
+    });
+
+    expect(response.status).toBe(400);
+    const result = (await response.json()) as any;
+    expect(result.error).toBeDefined();
   });
 
   async function setup(options?: SetupOptions) {
