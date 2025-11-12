@@ -262,7 +262,6 @@ describe("Provider HTTP proxy", () => {
         isRespondedWith502 = true;
         res.writeHead(502, { Connection: "close" });
         res.end();
-        req.socket.destroy();
         return true;
       }
     });

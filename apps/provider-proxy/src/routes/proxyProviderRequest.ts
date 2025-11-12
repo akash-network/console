@@ -2,6 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import type { TypedResponse } from "hono";
 import type { ClientErrorStatusCode } from "hono/utils/http-status";
 import { Readable } from "stream";
+import type { ReadableStreamDefaultReader } from "stream/web";
 
 import type { AppContext } from "../types/AppContext";
 import { canRetryOnError, httpRetry } from "../utils/retry";
@@ -166,9 +167,40 @@ export async function proxyProviderRequest(ctx: AppContext): Promise<Response | 
     return ctx.text(`Provider ${new URL(url).origin} is temporarily unavailable`, 503);
   }
 
-  return new Response(Readable.toWeb(proxyResult.response) as RequestInit["body"], {
+  const proxyStream = streamIgnoreAbortError(Readable.toWeb(proxyResult.response) as ReadableStream<any>, clientAbortSignal);
+
+  return new Response(proxyStream, {
     status: proxyResult.response.statusCode ?? 502,
     statusText: proxyResult.response.statusMessage,
     headers
+  });
+}
+
+function streamIgnoreAbortError(stream: ReadableStream<any>, clientAbortSignal: AbortSignal) {
+  const ignoreAbortError = (error: Error) => {
+    if (error && "code" in error && error.code === "ECONNRESET" && clientAbortSignal.aborted) {
+      return { done: true, value: null };
+    }
+    throw error;
+  };
+
+  let streamReader: ReadableStreamDefaultReader<any> | undefined;
+  return new ReadableStream({
+    async start(controller) {
+      streamReader = stream.getReader();
+      while (streamReader) {
+        const { done, value } = await streamReader.read().catch(ignoreAbortError);
+        if (done) break;
+        controller.enqueue(value);
+      }
+      streamReader?.releaseLock();
+      streamReader = undefined;
+      controller.close();
+    },
+    cancel() {
+      streamReader?.releaseLock();
+      streamReader = undefined;
+      stream.cancel();
+    }
   });
 }
