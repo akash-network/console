@@ -137,10 +137,10 @@ export class HonoErrorHandlerService {
 
   private toLoggableError(error: unknown) {
     if (error instanceof DatabaseError) {
-      return { error: this.serializeSafely(error), sql: error.sql };
+      return { error, sql: error.sql };
     }
 
-    return this.serializeSafely(error);
+    return error;
   }
 
   /**

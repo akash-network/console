@@ -85,13 +85,22 @@ describe(HonoErrorHandlerService.name, () => {
 
       // Verify logging was called and didn't throw
       expect(mockLogger.error).toHaveBeenCalled();
-      const loggedError = mockLogger.error.mock.calls[0][0] as {
-        data: { bigIntValue: string; normalValue: number };
-      };
+      const loggedError = mockLogger.error.mock.calls[0][0];
       expect(loggedError).toBeDefined();
-      // Verify the BigInt was converted to string
-      expect(loggedError.data.bigIntValue).toBe("9007199254740991");
+      // Logger receives raw BigInt - pino handles it natively
+      expect(loggedError.data.bigIntValue).toBe(BigInt("9007199254740991"));
       expect(loggedError.data.normalValue).toBe(123);
+
+      // Verify HTTP response has serialized data
+      expect(mockContext.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            bigIntValue: "9007199254740991", // Serialized to string
+            normalValue: 123
+          })
+        }),
+        { status: 500 }
+      );
     });
 
     it("handles errors with typed arrays", async () => {
@@ -106,14 +115,22 @@ describe(HonoErrorHandlerService.name, () => {
       await service.handle(error, mockContext);
 
       expect(mockLogger.error).toHaveBeenCalled();
-      const loggedError = mockLogger.error.mock.calls[0][0] as {
-        data: { buffer: number[]; otherValue: string };
-      };
+      const loggedError = mockLogger.error.mock.calls[0][0];
       expect(loggedError).toBeDefined();
-      // Verify typed array was converted to regular array
-      expect(Array.isArray(loggedError.data.buffer)).toBe(true);
-      expect(loggedError.data.buffer).toEqual([1, 2, 3, 4, 5]);
+      // Logger receives raw Uint8Array - pino handles it
+      expect(loggedError.data.buffer).toBeInstanceOf(Uint8Array);
       expect(loggedError.data.otherValue).toBe("test");
+
+      // Verify HTTP response has serialized data
+      expect(mockContext.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            buffer: [1, 2, 3, 4, 5], // Serialized to array
+            otherValue: "test"
+          })
+        }),
+        { status: 500 }
+      );
     });
 
     it("handles errors with large typed arrays by truncating", async () => {
@@ -127,15 +144,24 @@ describe(HonoErrorHandlerService.name, () => {
       await service.handle(error, mockContext);
 
       expect(mockLogger.error).toHaveBeenCalled();
-      const loggedError = mockLogger.error.mock.calls[0][0] as {
-        data: { largeBuffer: { type: string; length: number; preview: number[] } };
-      };
+      const loggedError = mockLogger.error.mock.calls[0][0];
       expect(loggedError).toBeDefined();
-      // Verify large array was truncated with metadata
-      expect(loggedError.data.largeBuffer).toHaveProperty("type", "Uint8Array");
-      expect(loggedError.data.largeBuffer).toHaveProperty("length", 200);
-      expect(loggedError.data.largeBuffer).toHaveProperty("preview");
-      expect(loggedError.data.largeBuffer.preview).toHaveLength(10);
+      // Logger receives raw Uint8Array
+      expect(loggedError.data.largeBuffer).toBeInstanceOf(Uint8Array);
+
+      // Verify HTTP response has truncated serialized data
+      expect(mockContext.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            largeBuffer: expect.objectContaining({
+              type: "Uint8Array",
+              length: 200,
+              preview: expect.any(Array)
+            })
+          })
+        }),
+        { status: 500 }
+      );
     });
 
     it("handles errors with circular references", async () => {
@@ -148,11 +174,22 @@ describe(HonoErrorHandlerService.name, () => {
       await service.handle(error, mockContext);
 
       expect(mockLogger.error).toHaveBeenCalled();
-      const loggedError = mockLogger.error.mock.calls[0][0] as { data: { name: string; self: string } };
+      const loggedError = mockLogger.error.mock.calls[0][0];
       expect(loggedError).toBeDefined();
-      // Verify circular reference was handled
+      // Logger receives object with circular reference - pino handles it
       expect(loggedError.data.name).toBe("test");
-      expect(loggedError.data.self).toBe("[Circular]");
+      expect(loggedError.data.self).toBe(circularObj);
+
+      // Verify HTTP response has serialized data
+      expect(mockContext.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            name: "test",
+            self: "[Circular]" // Circular reference detected and replaced
+          })
+        }),
+        { status: 500 }
+      );
     });
 
     it("handles errors with mixed problematic data", async () => {
@@ -175,24 +212,27 @@ describe(HonoErrorHandlerService.name, () => {
       await service.handle(error, mockContext);
 
       expect(mockLogger.error).toHaveBeenCalled();
-      const loggedError = mockLogger.error.mock.calls[0][0] as {
-        data: {
-          bigInt: string;
-          buffer: number[];
-          date: string;
-          func: string;
-          symbol: string;
-          nested: { value: string; bigInt: string };
-        };
-      };
+      const loggedError = mockLogger.error.mock.calls[0][0];
       expect(loggedError).toBeDefined();
-      expect(loggedError.data.bigInt).toBe("123");
-      expect(loggedError.data.buffer).toEqual([10, 20, 30]);
-      expect(loggedError.data.date).toBe("2025-01-01T00:00:00.000Z");
-      expect(loggedError.data.func).toBe("[Function]");
-      expect(loggedError.data.symbol).toMatch(/Symbol\(test\)/);
-      expect(loggedError.data.nested.value).toBe("nested");
-      expect(loggedError.data.nested.bigInt).toBe("456");
+      // Logger receives raw data types
+
+      // Verify HTTP response has serialized data
+      expect(mockContext.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            bigInt: "123",
+            buffer: [10, 20, 30],
+            date: "2025-01-01T00:00:00.000Z",
+            func: "[Function]",
+            symbol: expect.stringMatching(/Symbol\(test\)/),
+            nested: expect.objectContaining({
+              value: "nested",
+              bigInt: "456"
+            })
+          })
+        }),
+        { status: 500 }
+      );
     });
 
     it("handles errors that mimic the real-world scenario from the issue", async () => {
@@ -216,23 +256,26 @@ describe(HonoErrorHandlerService.name, () => {
       await service.handle(error, mockContext);
 
       expect(mockLogger.error).toHaveBeenCalled();
-      const loggedError = mockLogger.error.mock.calls[0][0] as {
-        data: {
-          gasUsed: string;
-          gasWanted: string;
-          height: string;
-          tx: { type: string; length: number; preview: number[] };
-        };
-      };
+      const loggedError = mockLogger.error.mock.calls[0][0];
       expect(loggedError).toBeDefined();
-      // Verify all BigInt values were serialized
-      expect(loggedError.data.gasUsed).toBe("251360");
-      expect(loggedError.data.gasWanted).toBe("249373");
-      expect(loggedError.data.height).toBe("23035326");
-      // Verify large tx buffer was truncated
-      expect(loggedError.data.tx).toHaveProperty("type", "Uint8Array");
-      expect(loggedError.data.tx).toHaveProperty("length", 300);
-      expect(loggedError.data.tx).toHaveProperty("preview");
+      // Logger receives raw BigInt and Uint8Array
+
+      // Verify HTTP response has serialized data to prevent JSON serialization errors
+      expect(mockContext.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            gasUsed: "251360", // Serialized to string
+            gasWanted: "249373",
+            height: "23035326",
+            tx: expect.objectContaining({
+              type: "Uint8Array",
+              length: 300,
+              preview: expect.any(Array)
+            })
+          })
+        }),
+        { status: 500 }
+      );
     });
   });
 
