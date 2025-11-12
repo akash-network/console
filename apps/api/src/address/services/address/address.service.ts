@@ -40,7 +40,12 @@ export class AddressService {
       } catch (error) {
         // If validator doesn't exist on-chain (e.g., unbonded/jailed), treat commission as 0
         if (error instanceof AxiosError && error.response?.status === 500) {
-          logger.info(`Validator ${validatorFromDb.operatorAddress} not found on-chain, setting commission to 0`);
+          logger.info({
+            event: "CHAIN_GET_VALIDATOR_ERROR",
+            msg: `Validator ${validatorFromDb.operatorAddress} not found on-chain, setting commission to 0`,
+            error,
+            response: error.response.data
+          });
           commission = 0;
         } else {
           throw error;
