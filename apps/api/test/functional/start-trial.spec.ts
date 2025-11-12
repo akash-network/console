@@ -6,7 +6,7 @@ import { container } from "tsyringe";
 
 import type { BillingConfig } from "@src/billing/providers";
 import { BILLING_CONFIG } from "@src/billing/providers";
-import { resolveWallet } from "@src/billing/providers/wallet.provider";
+import { MANAGED_MASTER_WALLET } from "@src/billing/providers/wallet.provider";
 import type { ApiPgDatabase } from "@src/core";
 import { POSTGRES_DB, resolveTable } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
@@ -47,7 +47,7 @@ describe("start trial", () => {
         });
         const getWalletsResponse = await app.request(`/v1/wallets?userId=${userId}`, { headers });
         const userWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, userId) });
-        const masterWalletAddress = await resolveWallet("MANAGED").getFirstAddress();
+        const masterWalletAddress = await container.resolve(MANAGED_MASTER_WALLET).getFirstAddress();
         if (!userWallet?.address) throw new Error("User wallet address is null-ish");
 
         const allowances = await Promise.all([

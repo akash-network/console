@@ -4,7 +4,7 @@ import pg from "pg";
 import { Transaction as DbTransaction } from "sequelize";
 import { Sequelize } from "sequelize-typescript";
 import type { Disposable } from "tsyringe";
-import { container } from "tsyringe";
+import { container, instancePerContainerCachingFactory } from "tsyringe";
 
 import { ChainConfigService } from "@src/chain/services/chain-config/chain-config.service";
 import { LoggerService } from "@src/core";
@@ -54,14 +54,16 @@ export async function syncUserSchema() {
 
 export const closeConnections = async () => await Promise.all([chainDb.close(), userDb.close()]).then(() => undefined);
 container.register(APP_INITIALIZER, {
-  useFactory: DisposableRegistry.registerFromFactory(
-    c =>
-      ({
-        async [ON_APP_START]() {
-          await connectUsingSequelize(c.resolve(LoggerService));
-        },
-        dispose: closeConnections
-      }) satisfies AppInitializer & Disposable
+  useFactory: instancePerContainerCachingFactory(
+    DisposableRegistry.registerFromFactory(
+      c =>
+        ({
+          async [ON_APP_START]() {
+            await connectUsingSequelize(c.resolve(LoggerService));
+          },
+          dispose: closeConnections
+        }) satisfies AppInitializer & Disposable
+    )
   )
 });
 
