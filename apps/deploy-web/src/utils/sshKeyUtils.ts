@@ -2,24 +2,28 @@ import { KEYUTIL } from "jsrsasign";
 
 import { toBase64 } from "./encoding";
 
-function numberToBytes(num: number): number[] {
-  return [(num >> 24) & 0xff, (num >> 16) & 0xff, (num >> 8) & 0xff, num & 0xff];
+function numberToBytes(num: number): Uint8Array {
+  return new Uint8Array([(num >> 24) & 0xff, (num >> 16) & 0xff, (num >> 8) & 0xff, num & 0xff]);
 }
 
-function hexToBytes(hex: string): number[] {
+function hexToBytes(hex: string): Uint8Array {
   if (hex.length % 2 !== 0) {
     hex = "0" + hex;
   }
-  const bytes: number[] = [];
+  const bytes = new Uint8Array(hex.length / 2);
   for (let i = 0; i < hex.length; i += 2) {
-    bytes.push(parseInt(hex.substr(i, 2), 16));
+    bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
   }
   return bytes;
 }
 
-function encodeLengthPrefixed(data: number[] | string): number[] {
-  const bytes = typeof data === "string" ? Array.from(new TextEncoder().encode(data)) : data;
-  return [...numberToBytes(bytes.length), ...bytes];
+function encodeLengthPrefixed(data: Uint8Array | string): Uint8Array {
+  const bytes = typeof data === "string" ? new TextEncoder().encode(data) : data;
+  const lengthBytes = numberToBytes(bytes.length);
+  const result = new Uint8Array(lengthBytes.length + bytes.length);
+  result.set(lengthBytes, 0);
+  result.set(bytes, lengthBytes.length);
+  return result;
 }
 
 export function rsaPublicKeyToOpenSSH(publicPem: string, comment = "user@host"): string {
@@ -32,13 +36,21 @@ export function rsaPublicKeyToOpenSSH(publicPem: string, comment = "user@host"):
   const eBytes = hexToBytes(eHex);
   
   const sshRsaStr = "ssh-rsa";
-  const parts: number[] = [
-    ...encodeLengthPrefixed(sshRsaStr),
-    ...encodeLengthPrefixed(eBytes),
-    ...encodeLengthPrefixed(nBytes)
+  const parts = [
+    encodeLengthPrefixed(sshRsaStr),
+    encodeLengthPrefixed(eBytes),
+    encodeLengthPrefixed(nBytes)
   ];
   
-  const base64 = toBase64(new Uint8Array(parts));
+  const totalLength = parts.reduce((sum, part) => sum + part.length, 0);
+  const result = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const part of parts) {
+    result.set(part, offset);
+    offset += part.length;
+  }
+  
+  const base64 = toBase64(result);
   
   return `${sshRsaStr} ${base64} ${comment}`;
 }
