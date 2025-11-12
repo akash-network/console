@@ -6,6 +6,22 @@ import { openApiExampleAddress } from "@src/utils/constants";
 import { AkashAddressSchema } from "@src/utils/schema";
 import { LeaseStatusResponseSchema } from "./lease.schema";
 
+// Dseq schema for validating deployment sequence numbers (uint64)
+const DseqSchema = z
+  .string()
+  .regex(/^\d+$/, "Invalid dseq, must be a positive integer")
+  .refine(
+    val => {
+      try {
+        const num = BigInt(val);
+        return num >= 0n && num <= 18446744073709551615n; // uint64 max
+      } catch {
+        return false;
+      }
+    },
+    { message: "dseq must be a valid uint64" }
+  );
+
 export const DeploymentResponseSchema = z.object({
   deployment: z.object({
     id: z.object({
@@ -77,6 +93,10 @@ export const GetDeploymentResponseSchema = z.object({
   data: DeploymentResponseSchema
 });
 
+export const GetDeploymentParamsSchema = z.object({
+  dseq: DseqSchema.describe("Deployment sequence number")
+});
+
 export const CreateDeploymentRequestSchema = z.object({
   data: z.object({
     sdl: z.string(),
@@ -93,7 +113,7 @@ export const CreateDeploymentResponseSchema = z.object({
 });
 
 export const CloseDeploymentParamsSchema = z.object({
-  dseq: z.string().describe("Deployment sequence number")
+  dseq: DseqSchema.describe("Deployment sequence number")
 });
 
 export const CloseDeploymentResponseSchema = z.object({
@@ -104,7 +124,7 @@ export const CloseDeploymentResponseSchema = z.object({
 
 export const DepositDeploymentRequestSchema = z.object({
   data: z.object({
-    dseq: z.string().describe("Deployment sequence number"),
+    dseq: DseqSchema.describe("Deployment sequence number"),
     deposit: z.number().describe("Amount to deposit in dollars (e.g. 5.5)")
   })
 });
@@ -216,7 +236,7 @@ export const GetDeploymentByOwnerDseqParamsSchema = z.object({
     description: "Owner's Address",
     example: openApiExampleAddress
   }),
-  dseq: z.string().regex(/^\d+$/, "Invalid dseq, must be a positive integer").openapi({
+  dseq: DseqSchema.openapi({
     description: "Deployment DSEQ",
     type: "integer",
     example: "1000000"

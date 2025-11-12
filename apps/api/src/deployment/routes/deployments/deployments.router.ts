@@ -13,6 +13,7 @@ import {
   DepositDeploymentResponseSchema,
   GetDeploymentByOwnerDseqParamsSchema,
   GetDeploymentByOwnerDseqResponseSchema,
+  GetDeploymentParamsSchema,
   GetDeploymentResponseSchema,
   ListDeploymentsQuerySchema,
   ListDeploymentsResponseSchema,
@@ -36,9 +37,7 @@ const getRoute = createRoute({
   summary: "Get a deployment",
   tags: ["Deployments"],
   request: {
-    params: z.object({
-      dseq: z.string()
-    })
+    params: GetDeploymentParamsSchema
   },
   responses: {
     200: {
