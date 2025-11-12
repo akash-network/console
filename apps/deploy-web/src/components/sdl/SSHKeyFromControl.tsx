@@ -10,6 +10,9 @@ import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvide
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { generateSSHKeyPair } from "@src/utils/sshKeyUtils";
 
+// Lazy load JSZip
+const JSZipPromise = import("jszip");
+
 interface SSHKeyInputProps {
   control: Control<SdlBuilderFormValuesType, any>;
   serviceIndex: number;
@@ -27,8 +30,9 @@ export const SSHKeyFormControl: FC<SSHKeyInputProps> = ({ control, serviceIndex,
     setValue(`services.${serviceIndex}.sshPubKey`, publicKey);
 
     // Lazy load JSZip
-    const JSZip = (await import("jszip")).default;
-    const zip = new JSZip();
+    const JSZipModule = await JSZipPromise;
+    const JSZip = JSZipModule.default || JSZipModule;
+    const zip = new (JSZip as any)();
     zip.file("id_rsa.pub", publicKey);
     zip.file("id_rsa", privateKey);
     const content = await zip.generateAsync({ type: "blob" });
