@@ -103,7 +103,7 @@
     "sequelize": "^6.21.3",
     "sequelize-typescript": "^2.1.5",
     "sql-formatter": "^15.3.2",
-    "stripe": "^16.8.0",
+    "stripe": "^19.3.0",
     "ts-results": "^3.3.0",
     "tsyringe": "^4.10.0",
     "unleash-client": "^6.6.0",

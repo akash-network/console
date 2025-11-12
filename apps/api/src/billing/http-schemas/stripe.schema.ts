@@ -211,6 +211,10 @@ export const ErrorResponseSchema = z.object({
   type: z.string().optional()
 });
 
+export const UpdateCustomerOrganizationRequestSchema = z.object({
+  organization: z.string()
+});
+
 export type SetupIntentResponse = z.infer<typeof SetupIntentResponseSchema>;
 export type PaymentMethod = z.infer<typeof PaymentMethodSchema>;
 export type PaymentMethodsResponse = z.infer<typeof PaymentMethodsResponseSchema>;
@@ -226,3 +230,4 @@ export type CustomerTransactionsResponse = z.infer<typeof CustomerTransactionsRe
 export type CustomerTransactionsQuery = z.infer<typeof CustomerTransactionsQuerySchema>;
 export type ValidatePaymentMethodRequest = z.infer<typeof ValidatePaymentMethodRequestSchema>;
 export type ValidatePaymentMethodResponse = z.infer<typeof ValidatePaymentMethodResponseSchema>;
+export type UpdateCustomerOrganizationRequest = z.infer<typeof UpdateCustomerOrganizationRequestSchema>;

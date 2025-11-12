@@ -1,6 +1,6 @@
 "use client";
 import type { ChangeEventHandler } from "react";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   AlertDescription,
@@ -145,9 +145,20 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
     refetchInterval: REFRESH_BIDS_INTERVAL,
     enabled: !maxRequestsReached && !isSendingManifest
   });
+  const bidsReceivedTracked = useRef(false);
+
   useEffect(() => {
     setNumberOfRequests(prev => ++prev);
   }, [bidsUpdatedAt]);
+
+  useEffect(() => {
+    if (bids && bids.length > 0 && !bidsReceivedTracked.current) {
+      bidsReceivedTracked.current = true;
+      analyticsService.track("bids_received", {
+        numberOfBids: bids.length
+      });
+    }
+  }, [bids, analyticsService]);
 
   const activeBid = useMemo(() => bids?.find(bid => bid.state === "active"), [bids]);
   const hasActiveBid = !!activeBid;

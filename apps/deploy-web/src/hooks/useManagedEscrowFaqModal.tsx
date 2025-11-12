@@ -30,7 +30,7 @@ export const useManagedEscrowFaqModal = (): {
                 <span className="text-xs text-muted-foreground">Available:</span>
                 <span className="font-bold">
                   <FormattedNumber
-                    value={walletBalance.totalDeploymentGrantsUSD - walletBalance.totalDeploymentEscrowUSD}
+                    value={walletBalance.totalDeploymentGrantsUSD}
                     // eslint-disable-next-line react/style-prop-object
                     style="currency"
                     currency="USD"

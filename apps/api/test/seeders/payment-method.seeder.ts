@@ -31,7 +31,8 @@ export function generatePaymentMethod(overrides: PaymentMethodOverrides = {}): S
       display_brand: null,
       generated_from: null,
       three_d_secure_usage: null,
-      wallet: null
+      wallet: null,
+      regulated_status: null
     },
     billing_details: {
       address: {
@@ -44,7 +45,8 @@ export function generatePaymentMethod(overrides: PaymentMethodOverrides = {}): S
       },
       email: faker.internet.email(),
       name: faker.person.fullName(),
-      phone: faker.phone.number()
+      phone: faker.phone.number(),
+      tax_id: null
     }
   };
 

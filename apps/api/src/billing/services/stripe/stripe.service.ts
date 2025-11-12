@@ -38,7 +38,7 @@ export class StripeService extends Stripe {
   ) {
     const secretKey = billingConfig.get("STRIPE_SECRET_KEY");
     super(secretKey, {
-      apiVersion: "2024-06-20"
+      apiVersion: "2025-10-29.clover"
     });
   }
 
@@ -162,16 +162,17 @@ export class StripeService extends Stripe {
 
   async listPromotionCodes() {
     const promotionCodes = await this.promotionCodes.list({
-      expand: ["data.coupon"]
+      expand: ["data.promotion.coupon"]
     });
     return { promotionCodes: promotionCodes.data };
   }
 
-  async findPromotionCodeByCode(code: string) {
+  async findPromotionCodeByCode(code: string): Promise<Stripe.PromotionCode | undefined> {
     const { data: promotionCodes } = await this.promotionCodes.list({
       code,
-      expand: ["data.coupon"]
+      expand: ["data.promotion.coupon"]
     });
+
     return promotionCodes[0];
   }
 
@@ -179,10 +180,16 @@ export class StripeService extends Stripe {
     const promotionCode = await this.findPromotionCodeByCode(couponCode);
 
     if (promotionCode) {
+      const coupon = promotionCode.promotion.coupon;
+
+      if (typeof coupon === "string" || !coupon) {
+        throw new Error("Promotion code coupon was not expanded");
+      }
+
       return this.applyCouponOrPromotionCode({
         currentUser,
         couponOrPromotion: promotionCode,
-        coupon: promotionCode.coupon,
+        coupon,
         updateField: "promotion_code",
         updateId: promotionCode.id
       });
@@ -218,6 +225,17 @@ export class StripeService extends Stripe {
     updateField: "promotion_code" | "coupon";
     updateId: string;
   }): Promise<{ coupon: Stripe.Coupon | Stripe.PromotionCode; amountAdded: number }> {
+    logger.info({
+      event: "APPLYING_COUPON",
+      couponId: coupon.id,
+      valid: coupon.valid,
+      redeem_by: coupon.redeem_by,
+      max_redemptions: coupon.max_redemptions,
+      times_redeemed: coupon.times_redeemed,
+      updateField,
+      updateId
+    });
+
     if (!coupon.valid) {
       throw new Error(updateField === "promotion_code" ? "Promotion code is invalid or expired" : "Coupon is invalid or expired");
     }
@@ -233,44 +251,56 @@ export class StripeService extends Stripe {
     assert(currentUser.stripeCustomerId, 500, "Payment account not properly configured. Please contact support.");
 
     const amountToAdd = coupon.amount_off; // amount_off is already in cents
-    let couponApplied = false;
 
     try {
-      await this.customers.update(currentUser.stripeCustomerId, {
-        [updateField]: updateId
+      // Create a $0 invoice with the promo code discount - this consumes/redeems the code
+      const invoice = await this.invoices.create({
+        customer: currentUser.stripeCustomerId,
+        auto_advance: false,
+        ...(updateField === "promotion_code" ? { discounts: [{ promotion_code: updateId }] } : { discounts: [{ coupon: updateId }] })
       });
-      couponApplied = true;
 
+      logger.info({
+        event: "INVOICE_CREATED_WITH_DISCOUNT",
+        userId: currentUser.id,
+        invoiceId: invoice.id,
+        discountType: updateField
+      });
+
+      // Finalize the invoice - this officially redeems the code and increments times_redeemed
+      // A $0 invoice is automatically paid after finalization
+      const finalizedInvoice = await this.invoices.finalizeInvoice(invoice.id);
+
+      logger.info({
+        event: "INVOICE_FINALIZED_AND_PAID",
+        userId: currentUser.id,
+        invoiceId: finalizedInvoice.id,
+        status: finalizedInvoice.status,
+        amountDue: finalizedInvoice.amount_due,
+        amountPaid: finalizedInvoice.amount_paid
+      });
+
+      // Add credit to wallet
       if (amountToAdd > 0) {
         await this.refillService.topUpWallet(amountToAdd, currentUser.id);
       }
 
-      await this.customers.update(currentUser.stripeCustomerId, {
-        [updateField]: null
+      logger.info({
+        event: "COUPON_APPLICATION_SUCCESS",
+        userId: currentUser.id,
+        couponId: updateId,
+        invoiceId: invoice.id,
+        amountAdded: amountToAdd / 100
       });
 
       return { coupon: couponOrPromotion, amountAdded: amountToAdd / 100 };
     } catch (error) {
-      if (couponApplied) {
-        try {
-          await this.customers.update(currentUser.stripeCustomerId, {
-            [updateField]: null
-          });
-          logger.info({
-            event: "COUPON_APPLICATION_ROLLBACK_SUCCESS",
-            userId: currentUser.id,
-            couponId: updateId,
-            error
-          });
-        } catch (rollbackError) {
-          logger.error({
-            event: "COUPON_APPLICATION_ROLLBACK_FAILED",
-            userId: currentUser.id,
-            couponId: updateId,
-            error: new AggregateError([error, rollbackError])
-          });
-        }
-      }
+      logger.error({
+        event: "COUPON_APPLICATION_FAILED",
+        userId: currentUser.id,
+        couponId: updateId,
+        error
+      });
 
       throw error;
     }
@@ -493,6 +523,16 @@ export class StripeService extends Stripe {
     const reloaded = await this.userRepository.findOneBy({ id: user.id });
     assert(reloaded?.stripeCustomerId, 500, "Failed to retrieve stripeCustomerId");
     return reloaded.stripeCustomerId;
+  }
+
+  async updateCustomerOrganization(customerId: string, organization: string): Promise<void> {
+    const customer = await this.customers.retrieve(customerId);
+
+    assert(!("deleted" in customer), 404, "Customer is deleted");
+
+    await this.customers.update(customerId, {
+      business_name: organization
+    });
   }
 
   async hasDuplicateTrialAccount(paymentMethods: Stripe.PaymentMethod[], currentUserId: string): Promise<boolean> {
