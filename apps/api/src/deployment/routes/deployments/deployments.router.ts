@@ -1,6 +1,5 @@
 import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
-import { z } from "zod";
 
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { DeploymentController } from "@src/deployment/controllers/deployment/deployment.controller";
