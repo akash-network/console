@@ -1,5 +1,13 @@
 
 
+## [2.3.0](https://github.com/akash-network/console/compare/notifications/v2.2.0...notifications/v2.3.0) (2025-11-12)
+
+
+### Features
+
+* **alert:** implement wallet balance alerts ([95fc847](https://github.com/akash-network/console/commit/95fc8473772027ad46f711af83da70cb6a49e38c)), closes [#1779](https://github.com/akash-network/console/issues/1779)
+* **onboarding:** improve onboarding analytics ([#2203](https://github.com/akash-network/console/issues/2203)) ([2a4070d](https://github.com/akash-network/console/commit/2a4070db69c451ece2db954f4579954debbc9eae))
+
 ## [2.2.0](https://github.com/akash-network/console/compare/notifications/v2.1.2...notifications/v2.2.0) (2025-11-07)
 
 
