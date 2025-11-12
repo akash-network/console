@@ -180,7 +180,6 @@ export class StripeService extends Stripe {
     const promotionCode = await this.findPromotionCodeByCode(couponCode);
 
     if (promotionCode) {
-      // In the new API version, coupon is nested under promotion.coupon
       const coupon = promotionCode.promotion.coupon;
 
       if (typeof coupon === "string" || !coupon) {
@@ -252,7 +251,6 @@ export class StripeService extends Stripe {
     assert(currentUser.stripeCustomerId, 500, "Payment account not properly configured. Please contact support.");
 
     const amountToAdd = coupon.amount_off; // amount_off is already in cents
-    let couponApplied = false;
 
     try {
       // Create a $0 invoice with the promo code discount - this consumes/redeems the code
@@ -272,8 +270,6 @@ export class StripeService extends Stripe {
       // Finalize the invoice - this officially redeems the code and increments times_redeemed
       // A $0 invoice is automatically paid after finalization
       const finalizedInvoice = await this.invoices.finalizeInvoice(invoice.id);
-
-      couponApplied = true;
 
       logger.info({
         event: "INVOICE_FINALIZED_AND_PAID",
@@ -299,15 +295,6 @@ export class StripeService extends Stripe {
 
       return { coupon: couponOrPromotion, amountAdded: amountToAdd / 100 };
     } catch (error) {
-      if (couponApplied) {
-        // No rollback needed — invoice is already paid
-        logger.info({
-          event: "COUPON_APPLIED_NO_ROLLBACK_NEEDED",
-          userId: currentUser.id,
-          couponId: updateId
-        });
-      }
-
       logger.error({
         event: "COUPON_APPLICATION_FAILED",
         userId: currentUser.id,
