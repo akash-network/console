@@ -46,7 +46,7 @@ export class HonoErrorHandlerService {
           message: error.message,
           code: errorCode,
           type: errorType,
-          data: error.data
+          data: error.data ? this.serializeSafely(error.data) : undefined
         },
         { status: error.status }
       );
@@ -59,7 +59,7 @@ export class HonoErrorHandlerService {
           message: "Validation error",
           code: "validation_error",
           type: "validation_error",
-          data: error.errors
+          data: this.serializeSafely(error.errors)
         },
         { status: 400 }
       );
@@ -137,9 +137,121 @@ export class HonoErrorHandlerService {
 
   private toLoggableError(error: unknown) {
     if (error instanceof DatabaseError) {
-      return { error, sql: error.sql };
+      return { error: this.serializeSafely(error), sql: error.sql };
     }
 
-    return error;
+    return this.serializeSafely(error);
+  }
+
+  /**
+   * Safely serializes an error object to ensure it can be logged without throwing serialization errors.
+   * Handles BigInt, typed arrays, circular references, and other non-serializable values.
+   */
+  private serializeSafely(value: unknown, seen = new WeakSet()): unknown {
+    // Handle primitives and null
+    if (value === null || value === undefined) {
+      return value;
+    }
+
+    const type = typeof value;
+
+    if (type === "string" || type === "number" || type === "boolean") {
+      return value;
+    }
+
+    // Handle BigInt by converting to string
+    if (type === "bigint") {
+      return value.toString();
+    }
+
+    // Handle functions - convert to string representation
+    if (type === "function") {
+      return "[Function]";
+    }
+
+    // Handle symbols
+    if (type === "symbol") {
+      return value.toString();
+    }
+
+    // Handle objects (including arrays, typed arrays, etc.)
+    if (type === "object") {
+      // Check for circular references
+      if (seen.has(value as object)) {
+        return "[Circular]";
+      }
+      seen.add(value as object);
+
+      // Handle Date
+      if (value instanceof Date) {
+        return value.toISOString();
+      }
+
+      // Handle Error objects - preserve important properties
+      if (value instanceof Error) {
+        return {
+          name: value.name,
+          message: value.message,
+          stack: value.stack,
+          ...(Object.keys(value).length > 0 && this.serializeObjectProperties(value, seen))
+        };
+      }
+
+      // Handle typed arrays (Uint8Array, etc.) - truncate if too large
+      if (ArrayBuffer.isView(value)) {
+        const typedArray = value as
+          | Uint8Array
+          | Int8Array
+          | Uint16Array
+          | Int16Array
+          | Uint32Array
+          | Int32Array
+          | Float32Array
+          | Float64Array;
+        const arr = Array.from(typedArray);
+
+        if (arr.length > 100) {
+          return {
+            type: value.constructor.name,
+            length: arr.length,
+            preview: arr.slice(0, 10),
+            note: `${arr.length - 10} items not shown`
+          };
+        }
+
+        return arr;
+      }
+
+      // Handle regular arrays
+      if (Array.isArray(value)) {
+        return value.map(item => this.serializeSafely(item, seen));
+      }
+
+      // Handle plain objects and other objects
+      return this.serializeObjectProperties(value, seen);
+    }
+
+    // Fallback for any other type
+    return String(value);
+  }
+
+  private serializeObjectProperties(obj: object, seen: WeakSet<object>): Record<string, unknown> {
+    const result: Record<string, unknown> = {};
+
+    try {
+      for (const key in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+          try {
+            result[key] = this.serializeSafely((obj as Record<string, unknown>)[key], seen);
+          } catch {
+            result[key] = "[Unserializable]";
+          }
+        }
+      }
+    } catch {
+      return { error: "[Failed to serialize object properties]" };
+    }
+
+    return result;
   }
 }
