@@ -16,7 +16,7 @@ export function startChainApiServer(certificates: X509Certificate[], options?: C
       if (options?.interceptRequest?.(req, res)) return;
 
       if (!/\/akash\/cert\/(v1|v1beta3)\/certificates\/list/.test(req.url || "")) {
-        res.writeHead(404, "Not Found");
+        res.writeHead(404, { Connection: "close" });
         res.end("");
         return;
       }
@@ -25,7 +25,7 @@ export function startChainApiServer(certificates: X509Certificate[], options?: C
       const serialNumber = BigInt(url.searchParams.get("filter.serial")!).toString(16).toUpperCase();
       const providerAddress = url.searchParams.get("filter.owner")!;
 
-      res.writeHead(200, "OK");
+      res.writeHead(200, { "Content-Type": "application/json", Connection: "close" });
       res.end(
         JSON.stringify({
           certificates: certificates
