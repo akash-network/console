@@ -1,5 +1,12 @@
 
 
+## [2.2.0](https://github.com/akash-network/console/compare/provider-proxy/v2.1.2...provider-proxy/v2.2.0) (2025-11-12)
+
+
+### Features
+
+* can accept base64 payload while proxying to provider ([#2201](https://github.com/akash-network/console/issues/2201)) ([4efd4b6](https://github.com/akash-network/console/commit/4efd4b696bf13df77b0ed9163a025b85f1f4a69c)), closes [#2178](https://github.com/akash-network/console/issues/2178)
+
 ## [2.1.2](https://github.com/akash-network/console/compare/provider-proxy/v2.1.1...provider-proxy/v2.1.2) (2025-11-06)
 
 

@@ -1,5 +1,25 @@
 
 
+## [3.3.0](https://github.com/akash-network/console/compare/console-web/v3.2.0...console-web/v3.3.0) (2025-11-12)
+
+
+### Features
+
+* **billing:** improve payment page layout ([#2214](https://github.com/akash-network/console/issues/2214)) ([7d9fbef](https://github.com/akash-network/console/commit/7d9fbeffc10da132a10d1b6eb47ce0142e2553f0))
+* can accept base64 payload while proxying to provider ([#2201](https://github.com/akash-network/console/issues/2201)) ([4efd4b6](https://github.com/akash-network/console/commit/4efd4b696bf13df77b0ed9163a025b85f1f4a69c)), closes [#2178](https://github.com/akash-network/console/issues/2178)
+* **deployment:** enable top up free trial ([#2175](https://github.com/akash-network/console/issues/2175)) ([825b24a](https://github.com/akash-network/console/commit/825b24a0e6d97df467154576933bdb906dce95a2))
+* **onboarding:** improve onboarding analytics ([#2203](https://github.com/akash-network/console/issues/2203)) ([2a4070d](https://github.com/akash-network/console/commit/2a4070db69c451ece2db954f4579954debbc9eae))
+
+
+### Bug Fixes
+
+* updates jest in deploy-web to 30.x ([#2179](https://github.com/akash-network/console/issues/2179)) ([0e607dd](https://github.com/akash-network/console/commit/0e607dd98d73982613643733550b66a248f12fc3))
+
+
+### Code Refactoring
+
+* extracts logs/events/shell logic to service layer ([#2177](https://github.com/akash-network/console/issues/2177)) ([c754b6f](https://github.com/akash-network/console/commit/c754b6f6178a6d226e19332179f9a0b45375f64c))
+
 ## [3.2.0](https://github.com/akash-network/console/compare/console-web/v3.1.2...console-web/v3.2.0) (2025-11-07)
 
 

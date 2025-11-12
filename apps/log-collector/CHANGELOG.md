@@ -1,5 +1,12 @@
 
 
+## [2.3.0](https://github.com/akash-network/console/compare/log-collector/v2.2.0...log-collector/v2.3.0) (2025-11-12)
+
+
+### Features
+
+* **onboarding:** improve onboarding analytics ([#2203](https://github.com/akash-network/console/issues/2203)) ([2a4070d](https://github.com/akash-network/console/commit/2a4070db69c451ece2db954f4579954debbc9eae))
+
 ## [2.2.0](https://github.com/akash-network/console/compare/log-collector/v2.1.0...log-collector/v2.2.0) (2025-11-07)
 
 

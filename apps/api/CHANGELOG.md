@@ -1,5 +1,22 @@
 
 
+## [3.3.0](https://github.com/akash-network/console/compare/console-api/v3.2.0...console-api/v3.3.0) (2025-11-12)
+
+
+### Features
+
+* **deployment:** enable top up free trial ([#2175](https://github.com/akash-network/console/issues/2175)) ([825b24a](https://github.com/akash-network/console/commit/825b24a0e6d97df467154576933bdb906dce95a2))
+* **onboarding:** improve onboarding analytics ([#2203](https://github.com/akash-network/console/issues/2203)) ([2a4070d](https://github.com/akash-network/console/commit/2a4070db69c451ece2db954f4579954debbc9eae))
+
+
+### Bug Fixes
+
+* handle validator commission fetch when GET validator request fails ([#2208](https://github.com/akash-network/console/issues/2208)) ([b633e97](https://github.com/akash-network/console/commit/b633e976315ad1120f33d639798d3e41a6a6686e))
+* return 400 for invalid deployment hash errors from RPC ([#2192](https://github.com/akash-network/console/issues/2192)) ([f784754](https://github.com/akash-network/console/commit/f784754f6e70bb16e2ec9cbd95280925fc0490de))
+* return 400 instead of 500 for malformed JSON in request body ([#2196](https://github.com/akash-network/console/issues/2196)) ([97203c4](https://github.com/akash-network/console/commit/97203c4e95fef3770fa17c219436847c6a4b191a))
+* return 404 for unsupported networks instead of 500 ([#2184](https://github.com/akash-network/console/issues/2184)) ([db4ed3e](https://github.com/akash-network/console/commit/db4ed3ec0f29fb14da87822097fd784bb529948c))
+* validate bech32 address format in balances endpoint ([#2195](https://github.com/akash-network/console/issues/2195)) ([a448d3d](https://github.com/akash-network/console/commit/a448d3d74e65a197debaa7b36e01320e6e80bfa2))
+
 ## [3.2.0](https://github.com/akash-network/console/compare/console-api/v3.1.3...console-api/v3.2.0) (2025-11-07)
 
 
