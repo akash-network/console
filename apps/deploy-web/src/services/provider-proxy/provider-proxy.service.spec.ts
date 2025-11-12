@@ -942,7 +942,7 @@ describe(ProviderProxyService.name, () => {
       await dispatchWsEvent(websocket, new Event("open"));
 
       const sentMessage = JSON.parse((websocket.send as jest.Mock).mock.calls[0][0]);
-      expect(sentMessage.data).toBe(encoder.encode("echo hello").toString());
+      expect(sentMessage.data).toBe("ZWNobyBoZWxsbw==");
     });
 
     it("does not include data field when message is empty", async () => {
@@ -1015,8 +1015,8 @@ describe(ProviderProxyService.name, () => {
       const firstMessage = JSON.parse((websocket.send as jest.Mock).mock.calls[0][0]);
       const secondMessage = JSON.parse((websocket.send as jest.Mock).mock.calls[1][0]);
 
-      expect(firstMessage.data).toBe(encoder.encode("first").toString());
-      expect(secondMessage.data).toBe(encoder.encode("second").toString());
+      expect(firstMessage.data).toBe("Zmlyc3Q=");
+      expect(secondMessage.data).toBe("c2Vjb25k");
     });
 
     it("receives shell messages through async iterator", async () => {
