@@ -1,3 +1,4 @@
+import type { LoggerService } from "@akashnetwork/logging";
 import { HTTPException } from "hono/http-exception";
 import { InternalServerError } from "http-errors";
 import { mock } from "jest-mock-extended";
@@ -85,7 +86,7 @@ describe(HonoErrorHandlerService.name, () => {
 
       // Verify logging was called and didn't throw
       expect(mockLogger.error).toHaveBeenCalled();
-      const loggedError = mockLogger.error.mock.calls[0][0];
+      const loggedError = mockLogger.error.mock.calls[0][0] as typeof error;
       expect(loggedError).toBeDefined();
       // Logger receives raw BigInt - pino handles it natively
       expect(loggedError.data.bigIntValue).toBe(BigInt("9007199254740991"));
@@ -115,7 +116,7 @@ describe(HonoErrorHandlerService.name, () => {
       await service.handle(error, mockContext);
 
       expect(mockLogger.error).toHaveBeenCalled();
-      const loggedError = mockLogger.error.mock.calls[0][0];
+      const loggedError = mockLogger.error.mock.calls[0][0] as typeof error;
       expect(loggedError).toBeDefined();
       // Logger receives raw Uint8Array - pino handles it
       expect(loggedError.data.buffer).toBeInstanceOf(Uint8Array);
@@ -144,7 +145,7 @@ describe(HonoErrorHandlerService.name, () => {
       await service.handle(error, mockContext);
 
       expect(mockLogger.error).toHaveBeenCalled();
-      const loggedError = mockLogger.error.mock.calls[0][0];
+      const loggedError = mockLogger.error.mock.calls[0][0] as typeof error;
       expect(loggedError).toBeDefined();
       // Logger receives raw Uint8Array
       expect(loggedError.data.largeBuffer).toBeInstanceOf(Uint8Array);
@@ -174,7 +175,7 @@ describe(HonoErrorHandlerService.name, () => {
       await service.handle(error, mockContext);
 
       expect(mockLogger.error).toHaveBeenCalled();
-      const loggedError = mockLogger.error.mock.calls[0][0];
+      const loggedError = mockLogger.error.mock.calls[0][0] as typeof error;
       expect(loggedError).toBeDefined();
       // Logger receives object with circular reference - pino handles it
       expect(loggedError.data.name).toBe("test");
@@ -212,7 +213,7 @@ describe(HonoErrorHandlerService.name, () => {
       await service.handle(error, mockContext);
 
       expect(mockLogger.error).toHaveBeenCalled();
-      const loggedError = mockLogger.error.mock.calls[0][0];
+      const loggedError = mockLogger.error.mock.calls[0][0] as typeof error;
       expect(loggedError).toBeDefined();
       // Logger receives raw data types
 
@@ -256,7 +257,7 @@ describe(HonoErrorHandlerService.name, () => {
       await service.handle(error, mockContext);
 
       expect(mockLogger.error).toHaveBeenCalled();
-      const loggedError = mockLogger.error.mock.calls[0][0];
+      const loggedError = mockLogger.error.mock.calls[0][0] as typeof error;
       expect(loggedError).toBeDefined();
       // Logger receives raw BigInt and Uint8Array
 
@@ -282,9 +283,7 @@ describe(HonoErrorHandlerService.name, () => {
   function setup() {
     const service = new HonoErrorHandlerService();
     const mockContext = mock<AppContext>();
-    const mockLogger = {
-      error: jest.fn()
-    };
+    const mockLogger = mock<LoggerService>();
 
     // Replace the logger with our mock
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

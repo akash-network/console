@@ -240,7 +240,7 @@ export class HonoErrorHandlerService {
 
     try {
       for (const key in obj) {
-        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        if (Object.hasOwn(obj, key)) {
           try {
             result[key] = this.serializeSafely((obj as Record<string, unknown>)[key], seen);
           } catch {
