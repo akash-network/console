@@ -34,8 +34,8 @@ export class StripeService extends ApiHttpService {
   }
 
   // Customers
-  async updateCustomerOrganization(organization: string): Promise<{ success: boolean }> {
-    return this.extractApiData(await this.put("/v1/stripe/customers/organization", { organization }));
+  async updateCustomerOrganization(organization: string): Promise<void> {
+    await this.put("/v1/stripe/customers/organization", { organization });
   }
 
   // Coupons

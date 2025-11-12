@@ -2,7 +2,7 @@ import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 
 import { StripeController } from "@src/billing/controllers/stripe/stripe.controller";
-import { UpdateCustomerOrganizationRequestSchema, UpdateCustomerOrganizationResponseSchema } from "@src/billing/http-schemas/stripe.schema";
+import { UpdateCustomerOrganizationRequestSchema } from "@src/billing/http-schemas/stripe.schema";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 
 const updateCustomerOrganizationRoute = createRoute({
@@ -21,13 +21,8 @@ const updateCustomerOrganizationRoute = createRoute({
     }
   },
   responses: {
-    200: {
-      description: "Organization updated successfully",
-      content: {
-        "application/json": {
-          schema: UpdateCustomerOrganizationResponseSchema
-        }
-      }
+    204: {
+      description: "Organization updated successfully"
     }
   }
 });
@@ -36,6 +31,6 @@ export const stripeCustomersRouter = new OpenApiHonoHandler();
 
 stripeCustomersRouter.openapi(updateCustomerOrganizationRoute, async function updateCustomerOrganization(c) {
   const data = c.req.valid("json");
-  const response = await container.resolve(StripeController).updateCustomerOrganization(data);
-  return c.json(response, 200);
+  await container.resolve(StripeController).updateCustomerOrganization(data);
+  return c.body(null, 204);
 });

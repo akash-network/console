@@ -61,7 +61,7 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
   const { removePaymentMethod } = d.usePaymentMutations();
   const { isWalletLoading, hasManagedWallet, managedWalletError } = d.useWallet();
   const { user } = d.useUser();
-  const { stripe, sentry } = useServices();
+  const { stripe, errorHandler } = useServices();
   const { enqueueSnackbar } = useSnackbar();
 
   const [showAddForm, setShowAddForm] = useState(false);
@@ -163,7 +163,10 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
       try {
         await stripe.updateCustomerOrganization(organization);
       } catch (error) {
-        sentry.captureException(error, { extra: { context: "Failed to update customer organization" } });
+        errorHandler.reportError({
+          error,
+          tags: { category: "onboarding" }
+        });
       }
     }
 

@@ -12735,22 +12735,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
           },
         },
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                    },
-                  },
-                  "required": [
-                    "success",
-                  ],
-                  "type": "object",
-                },
-              },
-            },
+          "204": {
             "description": "Organization updated successfully",
           },
         },

@@ -528,7 +528,7 @@ export class StripeService extends Stripe {
   async updateCustomerOrganization(customerId: string, organization: string): Promise<void> {
     const customer = await this.customers.retrieve(customerId);
 
-    assert(!("deleted" in customer), 400, "Customer is deleted");
+    assert(!("deleted" in customer), 404, "Customer is deleted");
 
     await this.customers.update(customerId, {
       business_name: organization

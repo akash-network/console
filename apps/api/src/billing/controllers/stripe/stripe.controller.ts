@@ -11,8 +11,7 @@ import {
   ConfirmPaymentRequest,
   ConfirmPaymentResponse,
   Transaction,
-  UpdateCustomerOrganizationRequest,
-  UpdateCustomerOrganizationResponse
+  UpdateCustomerOrganizationRequest
 } from "@src/billing/http-schemas/stripe.schema";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
@@ -186,7 +185,7 @@ export class StripeController {
   }): Promise<{ success: boolean }> {
     const { currentUser } = this.authService;
 
-    assert(currentUser.stripeCustomerId, 400, "Stripe customer ID not found");
+    assert(currentUser.stripeCustomerId, 400, "Payment method is not configured for this user");
 
     try {
       // Verify payment method ownership
@@ -205,13 +204,11 @@ export class StripeController {
   }
 
   @Protected([{ action: "create", subject: "StripePayment" }])
-  async updateCustomerOrganization(input: UpdateCustomerOrganizationRequest): Promise<UpdateCustomerOrganizationResponse> {
+  async updateCustomerOrganization(input: UpdateCustomerOrganizationRequest): Promise<void> {
     const { currentUser } = this.authService;
 
-    assert(currentUser.stripeCustomerId, 400, "Stripe customer ID not found");
+    assert(currentUser.stripeCustomerId, 400, "Payment method is not configured for this user");
 
     await this.stripe.updateCustomerOrganization(currentUser.stripeCustomerId, input.organization);
-
-    return { success: true };
   }
 }
