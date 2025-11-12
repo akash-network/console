@@ -29,7 +29,7 @@ jobs:
 
   deploy-beta-mainnet:
     needs: build
-    name: Deploy to beta sandbox
+    name: Deploy to beta mainnet
     uses: ./.github/workflows/reusable-deploy-k8s.yml
     secrets: inherit
     with:
