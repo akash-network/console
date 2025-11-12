@@ -1,3 +1,4 @@
+import { AxiosError } from "axios";
 import { HTTPException } from "hono/http-exception";
 import createHttpError from "http-errors";
 import { mock } from "jest-mock-extended";
@@ -105,6 +106,106 @@ describe(HonoErrorHandlerService.name, () => {
             "Content-Type": expect.stringContaining("application/json")
           }
         })
+      );
+    });
+  });
+
+  describe("when error is AxiosError instance", () => {
+    it("handles AxiosError with 422 status from provider", async () => {
+      const { service, mockContext } = setup();
+      const error = new AxiosError("Request failed with status code 422");
+      error.response = {
+        status: 422,
+        statusText: "Unprocessable Entity",
+        data: { message: "Manifest validation failed" },
+        headers: {},
+        config: {} as any
+      };
+
+      await service.handle(error, mockContext);
+
+      expect(mockContext.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          error: "ProviderError",
+          message: "Manifest validation failed",
+          code: "unprocessable_entity",
+          type: "client_error",
+          data: { message: "Manifest validation failed" }
+        }),
+        { status: 422 }
+      );
+    });
+
+    it("handles AxiosError with 400 status from provider", async () => {
+      const { service, mockContext } = setup();
+      const error = new AxiosError("Request failed with status code 400");
+      error.response = {
+        status: 400,
+        statusText: "Bad Request",
+        data: "Invalid manifest",
+        headers: {},
+        config: {} as any
+      };
+
+      await service.handle(error, mockContext);
+
+      expect(mockContext.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          error: "ProviderError",
+          message: "Invalid manifest",
+          code: "bad_request",
+          type: "client_error"
+        }),
+        { status: 400 }
+      );
+    });
+
+    it("handles AxiosError with 500 status from provider", async () => {
+      const { service, mockContext } = setup();
+      const error = new AxiosError("Request failed with status code 500");
+      error.response = {
+        status: 500,
+        statusText: "Internal Server Error",
+        data: { message: "Provider internal error" },
+        headers: {},
+        config: {} as any
+      };
+
+      await service.handle(error, mockContext);
+
+      expect(mockContext.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          error: "ProviderError",
+          message: "Provider internal error",
+          code: "unknown_error",
+          type: "server_error"
+        }),
+        { status: 500 }
+      );
+    });
+
+    it("handles AxiosError when response data is not an object", async () => {
+      const { service, mockContext } = setup();
+      const error = new AxiosError("Request failed with status code 422");
+      error.response = {
+        status: 422,
+        statusText: "Unprocessable Entity",
+        data: "Simple error message",
+        headers: {},
+        config: {} as any
+      };
+
+      await service.handle(error, mockContext);
+
+      expect(mockContext.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          error: "ProviderError",
+          message: "Simple error message",
+          code: "unprocessable_entity",
+          type: "client_error",
+          data: undefined
+        }),
+        { status: 422 }
       );
     });
   });
