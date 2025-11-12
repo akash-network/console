@@ -7,20 +7,7 @@ import { AkashAddressSchema } from "@src/utils/schema";
 import { LeaseStatusResponseSchema } from "./lease.schema";
 
 // Dseq schema for validating deployment sequence numbers (uint64)
-const DseqSchema = z
-  .string()
-  .regex(/^\d+$/, "Invalid dseq, must be a positive integer")
-  .refine(
-    val => {
-      try {
-        const num = BigInt(val);
-        return num >= 0n && num <= 18446744073709551615n; // uint64 max
-      } catch {
-        return false;
-      }
-    },
-    { message: "dseq must be a valid uint64" }
-  );
+const DseqSchema = z.string().pipe(z.coerce.bigint().positive().max(18446744073709551615n).transform(val => val.toString()));
 
 export const DeploymentResponseSchema = z.object({
   deployment: z.object({
