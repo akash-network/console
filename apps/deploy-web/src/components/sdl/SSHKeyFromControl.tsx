@@ -4,12 +4,11 @@ import type { Control, UseFormSetValue } from "react-hook-form";
 import { Button, CustomTooltip, FormField, FormInput } from "@akashnetwork/ui/components";
 import { saveAs } from "file-saver";
 import { InfoCircle, Key } from "iconoir-react";
-import JSZip from "jszip";
-import forge from "node-forge";
 
 import { CodeSnippet } from "@src/components/shared/CodeSnippet";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
 import type { SdlBuilderFormValuesType } from "@src/types";
+import { generateSSHKeyPair } from "@src/utils/sshKeyUtils";
 
 interface SSHKeyInputProps {
   control: Control<SdlBuilderFormValuesType, any>;
@@ -22,14 +21,16 @@ export const SSHKeyFormControl: FC<SSHKeyInputProps> = ({ control, serviceIndex,
   const [hasGenerated, setHasGenerated] = useState(false);
 
   const generateSSHKeys = useCallback(async () => {
-    const keys = forge.pki.rsa.generateKeyPair({ bits: 2048 });
-    const publicKey = forge.ssh.publicKeyToOpenSSH(keys.publicKey);
+    // Generate SSH key pair
+    const { publicKey, privateKey } = generateSSHKeyPair();
 
     setValue(`services.${serviceIndex}.sshPubKey`, publicKey);
 
+    // Lazy load JSZip
+    const JSZip = (await import("jszip")).default;
     const zip = new JSZip();
     zip.file("id_rsa.pub", publicKey);
-    zip.file("id_rsa", forge.ssh.privateKeyToOpenSSH(keys.privateKey));
+    zip.file("id_rsa", privateKey);
     const content = await zip.generateAsync({ type: "blob" });
 
     saveAs(content, "keypair.zip");
