@@ -27,7 +27,7 @@ function hexToBytes(hex) {
     return bytes;
 }
 function encodeLengthPrefixed(data) {
-    var bytes = typeof data === "string" ? Array.from(data).map(function (c) { return c.charCodeAt(0); }) : data;
+    var bytes = typeof data === "string" ? Array.from(new TextEncoder().encode(data)) : data;
     return __spreadArray(__spreadArray([], numberToBytes(bytes.length), true), bytes, true);
 }
 function rsaPublicKeyToOpenSSH(publicPem, comment) {

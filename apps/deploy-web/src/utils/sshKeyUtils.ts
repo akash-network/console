@@ -18,7 +18,7 @@ function hexToBytes(hex: string): number[] {
 }
 
 function encodeLengthPrefixed(data: number[] | string): number[] {
-  const bytes = typeof data === "string" ? Array.from(data).map(c => c.charCodeAt(0)) : data;
+  const bytes = typeof data === "string" ? Array.from(new TextEncoder().encode(data)) : data;
   return [...numberToBytes(bytes.length), ...bytes];
 }
 
