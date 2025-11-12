@@ -1,0 +1,91 @@
+---
+description:
+globs: **/*.spec.tsx,**/*.spec.ts
+alwaysApply: false
+---
+
+## Root Suite Description
+
+Whenever possible, use `<Subject under test>.name` in the root description. This helps to rename the subject and find all references of the subject using automated refactoring tools in your IDE. For example:
+
+### Good
+
+```ts
+import { ProviderProxyService } from './provider-proxy.service'
+
+describe(ProviderProxyService.name, () => {
+  // other tests
+})
+```
+
+### Bad
+
+Don't use the service name as a string in the root suite description because then we can't find service references in this location using automated refactoring tools
+
+```ts
+describe('ProviderProxyService', () => {
+  // other tests
+})
+```
+
+## Nested Suite Description
+
+For nested suite descriptions, use either a condition that starts with "when" or a single word representing the specific service method being tested:
+
+### Good
+
+```ts
+import { ProviderProxyService } from './provider-proxy.service'
+
+describe(ProviderProxyService.name, () => {
+  describe('sendManifestToProvider', () => {
+    // tests for sendManifestToProvider method
+  });
+
+  describe('when provider is down', () => {
+    // tests which validates behavior when provider is down, could do few retries for example
+  })
+})
+```
+
+### Bad
+
+```ts
+describe('ProviderProxyService', () => {
+  describe('sends manifest to provider', () => { // Better to use the method name here
+    // tests for sendManifestToProvider method
+  });
+
+  describe('provider is down', () => { // Missing "when" prefix for conditional descriptions
+    // tests which validate behavior when provider is down, could do few retries for example
+  })
+})
+```
+
+## Test Description
+
+Use present simple, 3rd person singular for test descriptions:
+
+### Good
+
+```ts
+import { ProviderProxyService } from './provider-proxy.service';
+
+describe(ProviderProxyService.name, () => {
+  it('is defined', () => {
+    // test implementation
+  })
+})
+```
+
+### Bad
+
+Do not prepend every test with "should" - it's redundant and makes descriptions noisy
+
+```ts
+describe('ProviderProxyService', () => {
+  it('should be defined', () => {
+    // test implementation
+  })
+})
+```
