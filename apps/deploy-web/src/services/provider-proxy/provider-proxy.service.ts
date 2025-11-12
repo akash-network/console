@@ -6,6 +6,7 @@ import saveFileInBrowser from "file-saver";
 
 import { WebsocketSession } from "@src/lib/websocket/WebsocketSession";
 import type { ApiProviderList } from "@src/types/provider";
+import { toBase64 } from "@src/utils/encoding";
 import { wait } from "@src/utils/timer";
 import { formatK8sEvent, formatLogMessage } from "./logFormatters";
 
@@ -308,12 +309,7 @@ export class ProviderProxyService {
         };
 
         if (message.length > 0) {
-          let binaryString = '';
-          for (let i = 0; i < message.length; i++) {
-            binaryString += String.fromCharCode(message[i]);
-          }
-
-          remoteMessage.data = btoa(binaryString);
+          remoteMessage.data = toBase64(message);
         }
 
         return JSON.stringify(remoteMessage);
