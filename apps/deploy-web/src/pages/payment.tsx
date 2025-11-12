@@ -259,7 +259,6 @@ const PayPage: React.FunctionComponent = () => {
 
           {paymentMethods.length > 0 && (
             <div className="mt-6">
-              <h2 className="mb-3 text-lg font-semibold">Add credits</h2>
               {settings.isBlockchainDown && (
                 <Alert variant="warning" className="mb-4">
                   <p className="font-medium">
