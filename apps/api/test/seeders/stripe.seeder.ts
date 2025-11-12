@@ -1,15 +1,26 @@
 import type { Stripe } from "stripe";
 
 export type StripeMockData = {
-  customer: Stripe.Customer;
-  paymentIntent: Stripe.PaymentIntent;
-  setupIntent: Stripe.SetupIntent;
-  checkoutSession: Stripe.Checkout.Session;
+  customer: Stripe.Response<Stripe.Customer>;
+  paymentIntent: Stripe.Response<Stripe.PaymentIntent>;
+  setupIntent: Stripe.Response<Stripe.SetupIntent>;
+  checkoutSession: Stripe.Response<Stripe.Checkout.Session>;
   promotionCode: Stripe.PromotionCode;
 };
 
+function wrapStripeResponse<T>(data: T): Stripe.Response<T> {
+  return {
+    ...data,
+    lastResponse: {
+      headers: {},
+      requestId: "req_test123",
+      statusCode: 200
+    }
+  } as Stripe.Response<T>;
+}
+
 export function create(overrides?: Partial<StripeMockData>): StripeMockData {
-  const defaultData: StripeMockData = {
+  const defaultData = {
     customer: {
       id: "cus_123",
       email: "test@example.com",
@@ -213,9 +224,19 @@ export function create(overrides?: Partial<StripeMockData>): StripeMockData {
     }
   };
 
+  // Merge overrides with defaults
+  const customer = { ...defaultData.customer, ...(overrides?.customer || {}) };
+  const paymentIntent = { ...defaultData.paymentIntent, ...(overrides?.paymentIntent || {}) };
+  const setupIntent = { ...defaultData.setupIntent, ...(overrides?.setupIntent || {}) };
+  const checkoutSession = { ...defaultData.checkoutSession, ...(overrides?.checkoutSession || {}) };
+  const promotionCode = { ...defaultData.promotionCode, ...(overrides?.promotionCode || {}) };
+
   return {
-    ...defaultData,
-    ...overrides
+    customer: wrapStripeResponse(customer as Stripe.Customer),
+    paymentIntent: wrapStripeResponse(paymentIntent as Stripe.PaymentIntent),
+    setupIntent: wrapStripeResponse(setupIntent as Stripe.SetupIntent),
+    checkoutSession: wrapStripeResponse(checkoutSession as Stripe.Checkout.Session),
+    promotionCode: promotionCode as Stripe.PromotionCode
   };
 }
 

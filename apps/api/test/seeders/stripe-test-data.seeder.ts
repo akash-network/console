@@ -11,8 +11,19 @@ export const TEST_CONSTANTS = {
   COUPON_ID: "coupon_123"
 } as const;
 
-export function createTestPaymentIntent(overrides: Partial<Stripe.PaymentIntent> = {}): Stripe.PaymentIntent {
+function wrapStripeResponse<T>(data: T): Stripe.Response<T> {
   return {
+    ...data,
+    lastResponse: {
+      headers: {},
+      requestId: "req_test123",
+      statusCode: 200
+    }
+  } as Stripe.Response<T>;
+}
+
+export function createTestPaymentIntent(overrides: Partial<Stripe.PaymentIntent> = {}): Stripe.Response<Stripe.PaymentIntent> {
+  const paymentIntent = {
     id: TEST_CONSTANTS.PAYMENT_INTENT_ID,
     status: "succeeded",
     amount: 100,
@@ -40,7 +51,6 @@ export function createTestPaymentIntent(overrides: Partial<Stripe.PaymentIntent>
     cancellation_reason: null,
     capture_method: "automatic",
     description: null,
-    invoice: null,
     last_payment_error: null,
     latest_charge: null,
     next_action: null,
@@ -53,7 +63,9 @@ export function createTestPaymentIntent(overrides: Partial<Stripe.PaymentIntent>
     statement_descriptor_suffix: null,
     payment_method_configuration_details: null,
     ...overrides
-  } as Stripe.PaymentIntent;
+  };
+
+  return wrapStripeResponse(paymentIntent as Stripe.PaymentIntent);
 }
 
 export function createTestCharge(overrides: Partial<Stripe.Charge> = {}): Stripe.Charge {
@@ -145,8 +157,8 @@ export function createTestCoupon(overrides: Partial<Stripe.Coupon> = {}): Stripe
   } as Stripe.Coupon;
 }
 
-export function createTestInvoice(overrides: Partial<Stripe.Invoice> = {}): Stripe.Invoice {
-  return {
+export function createTestInvoice(overrides: Partial<Stripe.Invoice> = {}): Stripe.Response<Stripe.Invoice> {
+  const invoice = {
     id: "in_test_123",
     object: "invoice",
     account_country: "US",
@@ -251,5 +263,7 @@ export function createTestInvoice(overrides: Partial<Stripe.Invoice> = {}): Stri
     transfer_data: null,
     webhooks_delivered_at: null,
     ...overrides
-  } as Stripe.Invoice;
+  };
+
+  return wrapStripeResponse(invoice as Stripe.Invoice);
 }

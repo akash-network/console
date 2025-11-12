@@ -1042,11 +1042,11 @@ describe(StripeService.name, () => {
 
     it("handles 3D Secure authentication requirement in trialing wallets", async () => {
       const mockUser = UserSeeder.create({ id: "user_123", stripeCustomerId: "cus_123" });
-      const mockPaymentIntent = {
+      const mockPaymentIntent = createTestPaymentIntent({
         id: "pi_test_123",
         status: "requires_action",
         client_secret: "pi_test_123_secret_abc123"
-      } as Partial<Stripe.PaymentIntent> as Stripe.PaymentIntent;
+      });
 
       const { service } = setup({
         user: mockUser,
@@ -1128,11 +1128,11 @@ describe(StripeService.name, () => {
     });
 
     it("handles user not found scenario", async () => {
-      const mockPaymentIntent = {
+      const mockPaymentIntent = createTestPaymentIntent({
         id: "pi_test_123",
         status: "succeeded",
         amount: 100
-      } as Partial<Stripe.PaymentIntent> as Stripe.PaymentIntent;
+      });
 
       const { service, paymentMethodRepository } = setup({
         user: null,
@@ -1409,7 +1409,7 @@ describe(StripeService.name, () => {
 function setup(
   params: {
     user?: ReturnType<typeof createTestUser> | null;
-    paymentIntent?: Stripe.PaymentIntent;
+    paymentIntent?: Stripe.Response<Stripe.PaymentIntent>;
     paymentMethodValidation?: any[];
   } = {}
 ) {
@@ -1462,7 +1462,7 @@ function setup(
 
   // Setup user repository mock based on parameters
   const userToReturn = "user" in params ? params.user : createTestUser();
-  jest.spyOn(userRepository, "findOneBy").mockResolvedValue(userToReturn);
+  jest.spyOn(userRepository, "findOneBy").mockResolvedValue(userToReturn ?? undefined);
 
   // Mock Stripe methods
   jest.spyOn(service.customers, "create").mockResolvedValue(stripeData.customer);
