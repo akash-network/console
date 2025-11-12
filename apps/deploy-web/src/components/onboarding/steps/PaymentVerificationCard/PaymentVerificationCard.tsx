@@ -11,7 +11,7 @@ import { usePaymentMethodsQuery } from "@src/queries/usePaymentQueries";
 
 interface PaymentVerificationCardProps {
   setupIntent?: Pick<SetupIntentResponse, "clientSecret">;
-  onSuccess: () => void;
+  onSuccess: (organization?: string) => void;
 }
 
 export const PaymentVerificationCard: React.FunctionComponent<PaymentVerificationCardProps> = ({ setupIntent, onSuccess }) => {
@@ -20,11 +20,11 @@ export const PaymentVerificationCard: React.FunctionComponent<PaymentVerificatio
     enabled: !!user?.stripeCustomerId
   });
 
-  const handleCardAdded = async () => {
+  const handleCardAdded = async (organization?: string) => {
     if (user?.stripeCustomerId) {
       await refetchPaymentMethods();
     }
-    onSuccess();
+    onSuccess(organization);
   };
 
   if (!setupIntent) {
@@ -42,7 +42,6 @@ export const PaymentVerificationCard: React.FunctionComponent<PaymentVerificatio
 
   return (
     <div className="space-y-6 text-center">
-      <Title>Add Payment Method</Title>
       <Card className="mx-auto max-w-md text-left">
         <CardHeader className="mb-2">
           <div className="mb-4 flex flex-row items-center gap-4">

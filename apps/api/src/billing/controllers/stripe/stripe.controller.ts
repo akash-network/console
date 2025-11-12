@@ -6,7 +6,13 @@ import type { infer as ZodInfer } from "zod";
 import { AuthService, Protected } from "@src/auth/services/auth.service";
 import type { StripePricesOutputResponse } from "@src/billing";
 import { CustomerTransactionsCsvExportQuerySchema } from "@src/billing/http-schemas/stripe.schema";
-import { ApplyCouponRequest, ConfirmPaymentRequest, ConfirmPaymentResponse, Transaction } from "@src/billing/http-schemas/stripe.schema";
+import {
+  ApplyCouponRequest,
+  ConfirmPaymentRequest,
+  ConfirmPaymentResponse,
+  Transaction,
+  UpdateCustomerOrganizationRequest
+} from "@src/billing/http-schemas/stripe.schema";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
 import { StripeErrorService } from "@src/billing/services/stripe-error/stripe-error.service";
@@ -179,7 +185,7 @@ export class StripeController {
   }): Promise<{ success: boolean }> {
     const { currentUser } = this.authService;
 
-    assert(currentUser.stripeCustomerId, 400, "Stripe customer ID not found");
+    assert(currentUser.stripeCustomerId, 400, "Payment method is not configured for this user");
 
     try {
       // Verify payment method ownership
@@ -195,5 +201,14 @@ export class StripeController {
 
       throw error;
     }
+  }
+
+  @Protected([{ action: "create", subject: "StripePayment" }])
+  async updateCustomerOrganization(input: UpdateCustomerOrganizationRequest): Promise<void> {
+    const { currentUser } = this.authService;
+
+    assert(currentUser.stripeCustomerId, 400, "Payment method is not configured for this user");
+
+    await this.stripe.updateCustomerOrganization(currentUser.stripeCustomerId, input.organization);
   }
 }

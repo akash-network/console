@@ -40,7 +40,10 @@ describe(UserService.name, () => {
         username: input.wantedUsername
       });
 
-      expect(analyticsService.track).toHaveBeenCalledWith(user.id, "user_registered");
+      expect(analyticsService.track).toHaveBeenCalledWith(user.id, "user_registered", {
+        username: user.username,
+        email: user.email
+      });
       expect(logger.info).toHaveBeenCalledWith({ event: "USER_REGISTERED", id: user.id, userId: user.userId });
       expect(createDefaultNotificationChannel).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -74,7 +77,10 @@ describe(UserService.name, () => {
       const reloadedUser = await container.resolve(UserRepository).findById(anonymousUser.id);
 
       expect(reloadedUser).toMatchObject(user);
-      expect(analyticsService.track).toHaveBeenCalledWith(user.id, "user_registered");
+      expect(analyticsService.track).toHaveBeenCalledWith(user.id, "user_registered", {
+        username: user.username,
+        email: user.email
+      });
       expect(logger.info).toHaveBeenCalledWith({ event: "ANONYMOUS_USER_REGISTERED", id: user.id, userId: user.userId });
     });
 
@@ -101,7 +107,10 @@ describe(UserService.name, () => {
         email: input.email,
         emailVerified: input.emailVerified
       });
-      expect(analyticsService.track).toHaveBeenCalledWith(user.id, "user_registered");
+      expect(analyticsService.track).toHaveBeenCalledWith(user.id, "user_registered", {
+        username: user.username,
+        email: user.email
+      });
       expect(logger.info).toHaveBeenCalledWith({ event: "USER_REGISTERED", id: user.id, userId: user.userId });
     });
 
@@ -130,7 +139,10 @@ describe(UserService.name, () => {
 
       expect(reloadedUser!.id).not.toBe(user.id);
       expect(reloadedUser!.userId).not.toBe(user.userId);
-      expect(analyticsService.track).toHaveBeenCalledWith(user.id, "user_registered");
+      expect(analyticsService.track).toHaveBeenCalledWith(user.id, "user_registered", {
+        username: user.username,
+        email: user.email
+      });
       expect(logger.info).toHaveBeenCalledWith({ event: "USER_REGISTERED", id: user.id, userId: user.userId });
     });
 

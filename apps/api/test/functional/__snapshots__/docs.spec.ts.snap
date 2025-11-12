@@ -12714,6 +12714,37 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/stripe/customers/organization": {
+      "put": {
+        "description": "Updates the organization/business name for the current user's Stripe customer account",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "organization": {
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "organization",
+                ],
+                "type": "object",
+              },
+            },
+          },
+        },
+        "responses": {
+          "204": {
+            "description": "Organization updated successfully",
+          },
+        },
+        "summary": "Update customer organization",
+        "tags": [
+          "Payment",
+        ],
+      },
+    },
     "/v1/stripe/payment-methods": {
       "get": {
         "description": "Retrieves all saved payment methods associated with the current user's account, including card details, validation status, and billing information.",
