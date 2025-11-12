@@ -1,5 +1,6 @@
 import { LoggerService } from "@akashnetwork/logging";
 import { ForbiddenError } from "@casl/ability";
+import { AxiosError } from "axios";
 import { HTTPException } from "hono/http-exception";
 import { isHttpError } from "http-errors";
 import { ConnectionAcquireTimeoutError, ConnectionError, DatabaseError } from "sequelize";
@@ -32,6 +33,25 @@ export class HonoErrorHandlerService {
           type: errorType
         },
         { status: error.status }
+      );
+    }
+
+    // Handle AxiosError (e.g., errors from provider-proxy)
+    if (error instanceof AxiosError && error.response) {
+      const status = error.response.status;
+      const errorCode = this.getErrorCode({ status });
+      const errorType = this.getErrorType({ status });
+      const message = error.response.data?.message || error.response.data || error.message;
+
+      return c.json(
+        {
+          error: "ProviderError",
+          message: typeof message === "string" ? message : "Provider request failed",
+          code: errorCode,
+          type: errorType,
+          data: typeof error.response.data === "object" ? error.response.data : undefined
+        },
+        { status }
       );
     }
 
@@ -115,6 +135,8 @@ export class HonoErrorHandlerService {
         return "not_found";
       case 409:
         return "conflict";
+      case 422:
+        return "unprocessable_entity";
       case 429:
         return "rate_limited";
       case 502:
