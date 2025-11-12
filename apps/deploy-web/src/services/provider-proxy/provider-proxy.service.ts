@@ -308,7 +308,12 @@ export class ProviderProxyService {
         };
 
         if (message.length > 0) {
-          remoteMessage.data = btoa(String.fromCharCode(...message));
+          let binaryString = '';
+          for (let i = 0; i < message.length; i++) {
+            binaryString += String.fromCharCode(message[i]);
+          }
+
+          remoteMessage.data = btoa(binaryString);
         }
 
         return JSON.stringify(remoteMessage);
