@@ -28,7 +28,12 @@ export const providerRequestSchema = z.object({
     .describe('Deprecated blockchain network. Use "network" instead.')
     .optional(),
   certPem: z.string().describe('Deprecated certificate. Use mtls auth type  with "auth.certPem" instead.').optional(),
-  keyPem: z.string().describe('Deprecated key. Use mtls auth type  with "auth.keyPem" instead.').optional()
+  keyPem: z.string().describe('Deprecated key. Use mtls auth type  with "auth.keyPem" instead.').optional(),
+  isBase64: z
+    .boolean()
+    .describe("Temporary field for the time when some clients are sending comma-separated data, while some are sending base64.")
+    .optional()
+    .default(false)
 });
 
 export type ProviderRequestSchema = Omit<z.infer<typeof providerRequestSchema>, "chainNetwork" | "certPem" | "keyPem">;

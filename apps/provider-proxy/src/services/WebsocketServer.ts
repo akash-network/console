@@ -234,7 +234,7 @@ export class WebsocketServer {
       return;
     }
 
-    const data = Buffer.from(message.data.split(",") as any);
+    const data = message.isBase64 ? Buffer.from(message.data, "base64") : Buffer.from(message.data.split(",") as any);
     const callback = propagateTracingContext((error?: Error) => {
       if (error) {
         this.logger?.error({

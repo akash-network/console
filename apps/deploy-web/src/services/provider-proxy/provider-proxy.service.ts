@@ -6,6 +6,7 @@ import saveFileInBrowser from "file-saver";
 
 import { WebsocketSession } from "@src/lib/websocket/WebsocketSession";
 import type { ApiProviderList } from "@src/types/provider";
+import { toBase64 } from "@src/utils/encoding";
 import { wait } from "@src/utils/timer";
 import { formatK8sEvent, formatLogMessage } from "./logFormatters";
 
@@ -303,11 +304,12 @@ export class ProviderProxyService {
           url,
           auth: providerCredentialsToApiCredentials(input.providerCredentials),
           chainNetwork: this.netConfig.mapped(input.chainNetwork),
-          providerAddress: input.providerAddress
+          providerAddress: input.providerAddress,
+          isBase64: true
         };
 
         if (message.length > 0) {
-          remoteMessage.data = message.toString();
+          remoteMessage.data = toBase64(message);
         }
 
         return JSON.stringify(remoteMessage);
