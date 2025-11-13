@@ -49,7 +49,8 @@ import {
   stripePricesRouter,
   stripeTransactionsRouter,
   stripeWebhook,
-  usageRouter
+  usageRouter,
+  walletSettingRouter
 } from "./billing";
 import { blockPredictionRouter, blocksRouter } from "./block";
 import type { AppInitializer } from "./core";
@@ -112,6 +113,7 @@ appHono.route("/deployments", deploymentRouter);
 const openApiHonoHandlers: OpenApiHonoHandler[] = [
   startTrialRouter,
   getWalletListRouter,
+  walletSettingRouter,
   signAndBroadcastTxRouter,
   checkoutRouter,
   stripeWebhook,
