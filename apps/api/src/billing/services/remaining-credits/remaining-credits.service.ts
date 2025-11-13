@@ -6,6 +6,7 @@ import { LoggerService } from "@src/core/providers/logging.provider";
 import type { Resolver } from "@src/core/providers/resolvers.provider";
 import { DATA_RESOLVER } from "@src/core/providers/resolvers.provider";
 import { UserOutput } from "@src/user/repositories";
+import { udenomToDenom } from "@src/utils/math";
 
 @injectable({ token: DATA_RESOLVER })
 export class RemainingCreditsService implements Resolver {
@@ -23,7 +24,8 @@ export class RemainingCreditsService implements Resolver {
     const userWallet = await this.userWalletRepository.findOneByUserId(user.id);
 
     if (userWallet?.address) {
-      return this.balanceService.retrieveDeploymentLimit(userWallet);
+      const limitInUusdc = await this.balanceService.retrieveDeploymentLimit(userWallet);
+      return udenomToDenom(limitInUusdc);
     } else {
       this.loggerService.warn({
         userId: user.id,
