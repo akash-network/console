@@ -4,7 +4,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
 import type { Disposable, InjectionToken } from "tsyringe";
-import { container, inject } from "tsyringe";
+import { container, inject, instancePerContainerCachingFactory } from "tsyringe";
 
 import * as authSchemas from "@src/auth/model-schemas";
 import * as billingSchemas from "@src/billing/model-schemas";
@@ -57,11 +57,13 @@ export const resolveTable = <T extends TableName>(name: T) => container.resolve<
 export const closeConnections = async () => await Promise.all([migrationClient.end(), appClient.end()]).then(() => undefined);
 
 container.register(APP_INITIALIZER, {
-  useFactory: DisposableRegistry.registerFromFactory(
-    () =>
-      ({
-        [ON_APP_START]: () => Promise.resolve(),
-        dispose: closeConnections
-      }) satisfies AppInitializer & Disposable
+  useFactory: instancePerContainerCachingFactory(
+    DisposableRegistry.registerFromFactory(
+      () =>
+        ({
+          [ON_APP_START]: () => Promise.resolve(),
+          dispose: closeConnections
+        }) satisfies AppInitializer & Disposable
+    )
   )
 });

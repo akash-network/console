@@ -3,7 +3,7 @@ import subDays from "date-fns/subDays";
 import { container } from "tsyringe";
 
 import { AuthInterceptor } from "@src/auth/services/auth.interceptor";
-import { resolveWallet } from "@src/billing/providers/wallet.provider";
+import { MANAGED_MASTER_WALLET } from "@src/billing/providers/wallet.provider";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { app } from "@src/rest-app";
 import { UserController } from "@src/user/controllers/user/user.controller";
@@ -19,7 +19,7 @@ describe("Users", () => {
   const walletService = new WalletTestingService(app);
   const controller = container.resolve(UserController);
   const authzHttpService = container.resolve(AuthzHttpService);
-  const masterWalletService = resolveWallet("MANAGED");
+  const masterWalletService = container.resolve(MANAGED_MASTER_WALLET);
   let masterAddress: string;
 
   beforeAll(async () => {
