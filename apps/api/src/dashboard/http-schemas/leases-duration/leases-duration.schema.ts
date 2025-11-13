@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 
 import { openApiExampleAddress } from "@src/utils/constants";
+import { DseqSchema } from "@src/utils/schema";
 
 export const LeasesDurationParamsSchema = z.object({
   owner: z.string().openapi({ example: openApiExampleAddress })
@@ -16,7 +17,7 @@ const DateSchema = z
 
 export const LeasesDurationQuerySchema = z
   .object({
-    dseq: z.string().regex(/^\d+$/, "Invalid dseq, must be a positive integer").optional().openapi({ type: "integer" }),
+    dseq: DseqSchema.optional(),
     startDate: DateSchema.optional().default("2000-01-01"),
     endDate: DateSchema.optional().default("2100-01-01")
   })
@@ -37,7 +38,7 @@ export const LeasesDurationResponseSchema = z.object({
   totalDurationInHours: z.number(),
   leases: z.array(
     z.object({
-      dseq: z.string(),
+      dseq: DseqSchema,
       oseq: z.number(),
       gseq: z.number(),
       provider: z.string(),

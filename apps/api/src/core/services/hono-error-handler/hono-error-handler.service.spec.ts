@@ -1,5 +1,7 @@
 import { HTTPException } from "hono/http-exception";
+import createHttpError from "http-errors";
 import { mock } from "jest-mock-extended";
+import { z } from "zod";
 
 import type { AppContext } from "../../types/app-context";
 import { HonoErrorHandlerService } from "./hono-error-handler.service";
@@ -71,9 +73,47 @@ describe(HonoErrorHandlerService.name, () => {
     });
   });
 
+  describe("when error contains non-JSON values", () => {
+    it("handles bigint values in http errors", async () => {
+      const { service, mockContext } = setup();
+      const error = createHttpError(400);
+      Object.assign(error, { data: { bigintValue: BigInt(123) } });
+
+      await expect(service.handle(error, mockContext)).resolves.toEqual(expect.any(Response));
+      expect(mockContext.body).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          status: 400,
+          headers: {
+            "Content-Type": expect.stringContaining("application/json")
+          }
+        })
+      );
+    });
+
+    it("handles bigint values in ZodError", async () => {
+      const { service, mockContext } = setup();
+      const result = z.bigint({ coerce: true }).positive().safeParse("-123");
+
+      expect(result.error).toBeDefined();
+      await expect(service.handle(result.error!, mockContext)).resolves.toEqual(expect.any(Response));
+      expect(mockContext.body).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          status: 400,
+          headers: {
+            "Content-Type": expect.stringContaining("application/json")
+          }
+        })
+      );
+    });
+  });
+
   function setup() {
     const service = new HonoErrorHandlerService();
-    const mockContext = mock<AppContext>();
+    const mockContext = mock<AppContext>({
+      body: jest.fn(() => new Response())
+    });
 
     mockContext.json.mockImplementation(((data: unknown, options?: { status?: number }) => {
       return new Response(JSON.stringify(data), { status: options?.status || 200 });

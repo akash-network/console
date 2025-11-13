@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { DseqSchema } from "@src/utils/schema";
+
 const DeploymentResource_V3 = z.object({
   cpu: z.object({
     units: z.object({
@@ -60,7 +62,7 @@ export const BidResponseSchema = z.object({
   bid: z.object({
     id: z.object({
       owner: z.string(),
-      dseq: z.string(),
+      dseq: DseqSchema,
       gseq: z.number(),
       oseq: z.number(),
       provider: z.string(),
@@ -117,7 +119,7 @@ export const BidResponseSchema = z.object({
 });
 
 export const ListBidsQuerySchema = z.object({
-  dseq: z.string()
+  dseq: DseqSchema
 });
 
 export const ListBidsResponseSchema = z.object({

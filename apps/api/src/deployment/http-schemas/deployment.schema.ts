@@ -3,17 +3,14 @@ import { z } from "zod";
 
 import { SignTxResponseOutputSchema } from "@src/billing/http-schemas/tx.schema";
 import { openApiExampleAddress } from "@src/utils/constants";
-import { AkashAddressSchema } from "@src/utils/schema";
+import { AkashAddressSchema, DseqSchema } from "@src/utils/schema";
 import { LeaseStatusResponseSchema } from "./lease.schema";
-
-// Dseq schema for validating deployment sequence numbers (uint64)
-const DseqSchema = z.string().pipe(z.coerce.bigint().positive().max(18446744073709551615n).transform(val => val.toString()));
 
 export const DeploymentResponseSchema = z.object({
   deployment: z.object({
     id: z.object({
       owner: z.string(),
-      dseq: z.string()
+      dseq: DseqSchema
     }),
     state: z.string(),
     hash: z.string(),
@@ -23,7 +20,7 @@ export const DeploymentResponseSchema = z.object({
     z.object({
       id: z.object({
         owner: z.string(),
-        dseq: z.string(),
+        dseq: DseqSchema,
         gseq: z.number(),
         oseq: z.number(),
         provider: z.string(),
@@ -93,7 +90,7 @@ export const CreateDeploymentRequestSchema = z.object({
 
 export const CreateDeploymentResponseSchema = z.object({
   data: z.object({
-    dseq: z.string(),
+    dseq: DseqSchema,
     manifest: z.string(),
     signTx: SignTxResponseOutputSchema.shape.data
   })
@@ -190,7 +187,7 @@ export const ListWithResourcesResponseSchema = z.object({
   results: z.array(
     z.object({
       owner: z.string(),
-      dseq: z.string(),
+      dseq: DseqSchema,
       status: z.string(),
       createdHeight: z.number(),
       cpuUnits: z.number(),
@@ -207,7 +204,7 @@ export const ListWithResourcesResponseSchema = z.object({
               hostUri: z.string()
             })
             .optional(),
-          dseq: z.string(),
+          dseq: DseqSchema,
           gseq: z.number(),
           oseq: z.number(),
           state: z.string(),
@@ -223,16 +220,12 @@ export const GetDeploymentByOwnerDseqParamsSchema = z.object({
     description: "Owner's Address",
     example: openApiExampleAddress
   }),
-  dseq: DseqSchema.openapi({
-    description: "Deployment DSEQ",
-    type: "integer",
-    example: "1000000"
-  })
+  dseq: DseqSchema.openapi("Deployment DSEQ")
 });
 
 export const GetDeploymentByOwnerDseqResponseSchema = z.object({
   owner: z.string(),
-  dseq: z.string(),
+  dseq: DseqSchema,
   balance: z.number(),
   denom: z.string(),
   status: z.string(),
