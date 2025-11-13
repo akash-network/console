@@ -223,7 +223,7 @@ export const WalletProvider = ({ children }) => {
       console.error(err);
 
       const transactionHash = err.txHash;
-      let errorMsg = "An error has occured";
+      let errorMsg = "An error has occurred";
 
       if (err.message?.includes("was submitted but was not yet found on the chain")) {
         errorMsg = "Transaction timeout";
