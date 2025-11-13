@@ -54,11 +54,11 @@ export class TestWalletService {
     this.saveCache();
   }
 
-  private async prepareWallets(faucetWallet: Wallet, totalDistibutionAmount: number) {
+  private async prepareWallets(faucetWallet: Wallet, totalDistributionAmount: number) {
     const specPaths = fs.readdirSync(path.join(__dirname, "../functional")).filter(spec => spec.endsWith(".spec.ts"));
     const faucetAddress = await faucetWallet.getFirstAddress();
     const totalMinAmount = Object.values(MIN_AMOUNTS).reduce((acc, curr) => acc + curr, 0);
-    const amount = (totalDistibutionAmount - totalMinAmount - totalDistibutionAmount * 0.01) / specPaths.length;
+    const amount = (totalDistributionAmount - totalMinAmount - totalDistributionAmount * 0.01) / specPaths.length;
 
     const configs = await Promise.all(
       specPaths.map(async path => {
