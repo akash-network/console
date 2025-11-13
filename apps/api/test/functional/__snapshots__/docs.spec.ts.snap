@@ -2155,6 +2155,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "name": "id",
             "required": true,
             "schema": {
+              "format": "uuid",
               "type": "string",
             },
           },

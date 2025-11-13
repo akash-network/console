@@ -6,7 +6,7 @@ import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/ope
 import { UserController } from "@src/user/controllers/user/user.controller";
 import { GetUserResponseOutputSchema } from "@src/user/schemas/user.schema";
 
-export const GetUserParamsSchema = z.object({ id: z.string() });
+export const GetUserParamsSchema = z.object({ id: z.string().uuid() });
 
 export type GetUserParams = z.infer<typeof GetUserParamsSchema>;
 

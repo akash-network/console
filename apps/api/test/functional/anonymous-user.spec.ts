@@ -61,5 +61,23 @@ describe("Users", () => {
       expect(res.status).toBe(404);
       expect(await res.json()).toMatchObject({ error: "NotFoundError", message: "Not Found" });
     });
+
+    it("should throw 400 for invalid UUID format", async () => {
+      const res = await app.request(`/v1/anonymous-users/invalid-uuid`, {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", authorization: `Bearer ${token}` })
+      });
+
+      expect(res.status).toBe(400);
+    });
+
+    it("should throw 400 for UUID with leading colon", async () => {
+      const res = await app.request(`/v1/anonymous-users/:b8a0e9f1-b0d8-41d0-8416-7ab25f81b6c5`, {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", authorization: `Bearer ${token}` })
+      });
+
+      expect(res.status).toBe(400);
+    });
   });
 });
