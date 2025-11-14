@@ -268,6 +268,32 @@ describe("Deployments API", () => {
       });
     });
 
+    it("returns 400 for invalid dseq 'undefined'", async () => {
+      const { userApiKeySecret } = await mockUser();
+
+      const response = await app.request("/v1/deployments/undefined", {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(400);
+      const result = (await response.json()) as { data: { path: string[]; message: string }[] };
+      expect(result.data.find(error => error.path.join(".") === "dseq")?.message).toContain("Expected bigint, received string");
+    });
+
+    it("returns 400 for invalid dseq with non-numeric characters", async () => {
+      const { userApiKeySecret } = await mockUser();
+
+      const response = await app.request("/v1/deployments/abc123", {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(400);
+      const result = (await response.json()) as { data: { path: string[]; message: string }[] };
+      expect(result.data.find(error => error.path.join(".") === "dseq")?.message).toContain("Expected bigint, received string");
+    });
+
     it("returns all deployments when skip and limit are not provided", async () => {
       const { userApiKeySecret, wallets } = await mockUser();
       const deployments = setupDeploymentListMock(wallets, 2);
@@ -577,6 +603,46 @@ describe("Deployments API", () => {
         code: "unauthorized",
         type: "client_error"
       });
+    });
+
+    it("should return 400 for invalid dseq 'undefined'", async () => {
+      const { userApiKeySecret } = await mockUser();
+
+      const response = await app.request("/v1/deployments/undefined", {
+        method: "DELETE",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(400);
+      const result = (await response.json()) as { data: { path: string[]; message: string }[] };
+      expect(result.data.find(error => error.path.join(".") === "dseq")?.message).toContain("Expected bigint, received string");
+    });
+
+    it("should return 400 for invalid dseq with non-numeric characters", async () => {
+      const { userApiKeySecret } = await mockUser();
+
+      const response = await app.request("/v1/deployments/abc123", {
+        method: "DELETE",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(400);
+      const result = (await response.json()) as { data: { path: string[]; message: string }[] };
+      expect(result.data.find(error => error.path.join(".") === "dseq")?.message).toContain("Expected bigint, received string");
+    });
+
+    it("should return 400 for negative dseq", async () => {
+      const { userApiKeySecret } = await mockUser();
+
+      const response = await app.request("/v1/deployments/-123", {
+        method: "DELETE",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(400);
+      const result = (await response.json()) as { data: { path: string[]; code: string }[] };
+      console.dir(result, { depth: null });
+      expect(result.data.find(error => error.path.join(".") === "dseq")?.code).toBe("too_small");
     });
   });
 

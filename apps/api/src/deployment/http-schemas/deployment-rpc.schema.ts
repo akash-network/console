@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { DseqSchema } from "@src/utils/schema";
+
 const AttributeSchema = z.object({
   key: z.string(),
   value: z.string()
@@ -11,12 +13,12 @@ const QuantitySchema = z.object({
 
 const DeploymentIdSchema = z.object({
   owner: z.string(),
-  dseq: z.string()
+  dseq: DseqSchema
 });
 
 const GroupIdSchema = z.object({
   owner: z.string(),
-  dseq: z.string(),
+  dseq: DseqSchema,
   gseq: z.number()
 });
 

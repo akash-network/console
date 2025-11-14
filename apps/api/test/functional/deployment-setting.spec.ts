@@ -31,7 +31,7 @@ describe("Deployment Settings", () => {
 
     it("should return a new deployment setting if not found", async () => {
       const { token, user } = await walletService.createUserAndWallet();
-      const dseq = faker.string.numeric();
+      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
 
       const response = await app.request(`/v1/deployment-settings/${user.id}/${dseq}`, {
         headers: {
@@ -58,7 +58,7 @@ describe("Deployment Settings", () => {
     it("should return 404 when accessing other user's deployment settings", async () => {
       const [{ user: user1 }, { token: token2 }] = await Promise.all([walletService.createUserAndWallet(), walletService.createUserAndWallet()]);
 
-      const dseq = faker.string.numeric();
+      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
       await deploymentSettingRepository.create({
         userId: user1.id,
         dseq,
@@ -82,7 +82,7 @@ describe("Deployment Settings", () => {
 
     it("should return deployment settings if found", async () => {
       const { token, user, wallet } = await walletService.createUserAndWallet();
-      const dseq = faker.string.numeric();
+      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
 
       const settings = await deploymentSettingRepository.create({
         userId: user.id,
@@ -124,7 +124,7 @@ describe("Deployment Settings", () => {
         body: JSON.stringify({
           data: {
             userId: faker.string.uuid(),
-            dseq: faker.string.numeric(),
+            dseq: faker.number.int({ min: 1, max: 1000000 }).toString(),
             autoTopUpEnabled: true
           }
         })
@@ -136,7 +136,7 @@ describe("Deployment Settings", () => {
     it("should return 403 when creating deployment settings for another user", async () => {
       const [{ user: user1 }, { token: token2 }] = await Promise.all([walletService.createUserAndWallet(), walletService.createUserAndWallet()]);
 
-      const dseq = faker.string.numeric();
+      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
 
       const response = await app.request("/v1/deployment-settings", {
         method: "POST",
@@ -164,7 +164,7 @@ describe("Deployment Settings", () => {
 
     it("should create deployment settings", async () => {
       const { token, user, wallet } = await walletService.createUserAndWallet();
-      const dseq = faker.string.numeric();
+      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
 
       const response = await app.request("/v1/deployment-settings", {
         method: "POST",
@@ -219,7 +219,7 @@ describe("Deployment Settings", () => {
 
     it("should create and return new setting if not found", async () => {
       const { token, user, wallet } = await walletService.createUserAndWallet();
-      const dseq = faker.string.numeric();
+      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
 
       const response = await app.request(`/v1/deployment-settings/${user.id}/${dseq}`, {
         method: "PATCH",
@@ -255,7 +255,7 @@ describe("Deployment Settings", () => {
     it("should return 404 when updating other user's deployment settings", async () => {
       const [{ user: user1 }, { token: token2 }] = await Promise.all([walletService.createUserAndWallet(), walletService.createUserAndWallet()]);
 
-      const dseq = faker.string.numeric();
+      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
       await deploymentSettingRepository.create({
         userId: user1.id,
         dseq,
@@ -286,7 +286,7 @@ describe("Deployment Settings", () => {
 
     it("should update deployment settings", async () => {
       const { token, user, wallet } = await walletService.createUserAndWallet();
-      const dseq = faker.string.numeric();
+      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
 
       const settings = await deploymentSettingRepository.create({
         userId: user.id,

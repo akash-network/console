@@ -40,7 +40,8 @@ export class HonoErrorHandlerService {
       const errorCode = error.data?.errorCode || this.getErrorCode(error);
       const errorType = error.data?.errorType || this.getErrorType(error);
 
-      return c.json(
+      return this.unsafeJson(
+        c,
         {
           error: name,
           message: error.message,
@@ -53,7 +54,8 @@ export class HonoErrorHandlerService {
     }
 
     if (error instanceof ZodError) {
-      return c.json(
+      return this.unsafeJson(
+        c,
         {
           error: "BadRequestError",
           message: "Validation error",
@@ -142,4 +144,22 @@ export class HonoErrorHandlerService {
 
     return error;
   }
+
+  /**
+   * c.json doesn't serialize bigint values, so we use this method to serialize the response.
+   */
+  private unsafeJson(c: AppContext, json: unknown, responseInit: Omit<ResponseInit, "headers"> & { headers?: Record<string, string> }) {
+    return c.body(JSON.stringify(json, replaceNonJsonValues), {
+      ...responseInit,
+      headers: {
+        ...responseInit.headers,
+        "Content-Type": "application/json; charset=UTF-8"
+      }
+    });
+  }
+}
+
+function replaceNonJsonValues(_: string, value: unknown): unknown {
+  if (typeof value === "bigint") return value.toString();
+  return value;
 }

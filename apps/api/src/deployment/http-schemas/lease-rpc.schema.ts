@@ -1,8 +1,10 @@
 import { z } from "zod";
 
+import { DseqSchema } from "@src/utils/schema";
+
 const LeaseIdSchema = z.object({
   owner: z.string(),
-  dseq: z.string(),
+  dseq: DseqSchema,
   gseq: z.number(),
   oseq: z.number(),
   provider: z.string(),
