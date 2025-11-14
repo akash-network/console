@@ -1,6 +1,5 @@
 import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
-import { z } from "zod";
 
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { DeploymentController } from "@src/deployment/controllers/deployment/deployment.controller";
@@ -13,6 +12,7 @@ import {
   DepositDeploymentResponseSchema,
   GetDeploymentByOwnerDseqParamsSchema,
   GetDeploymentByOwnerDseqResponseSchema,
+  GetDeploymentParamsSchema,
   GetDeploymentResponseSchema,
   ListDeploymentsQuerySchema,
   ListDeploymentsResponseSchema,
@@ -36,9 +36,7 @@ const getRoute = createRoute({
   summary: "Get a deployment",
   tags: ["Deployments"],
   request: {
-    params: z.object({
-      dseq: z.string()
-    })
+    params: GetDeploymentParamsSchema
   },
   responses: {
     200: {

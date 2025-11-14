@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { DseqSchema } from "@src/utils/schema";
+
 export const CreateLeaseRequestSchema = z.object({
   manifest: z.string(),
   certificate: z
@@ -10,7 +12,7 @@ export const CreateLeaseRequestSchema = z.object({
     .optional(),
   leases: z.array(
     z.object({
-      dseq: z.string(),
+      dseq: DseqSchema,
       gseq: z.number(),
       oseq: z.number(),
       provider: z.string()

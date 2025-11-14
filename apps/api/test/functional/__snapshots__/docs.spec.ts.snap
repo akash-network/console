@@ -71,6 +71,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                             "id": {
                               "properties": {
                                 "dseq": {
+                                  "pattern": "^d+$",
                                   "type": "string",
                                 },
                                 "owner": {
@@ -509,6 +510,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                               "id": {
                                 "properties": {
                                   "dseq": {
+                                    "pattern": "^d+$",
                                     "type": "string",
                                   },
                                   "gseq": {
@@ -650,6 +652,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                               "id": {
                                 "properties": {
                                   "dseq": {
+                                    "pattern": "^d+$",
                                     "type": "string",
                                   },
                                   "owner": {
@@ -1088,6 +1091,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                 "id": {
                                   "properties": {
                                     "dseq": {
+                                      "pattern": "^d+$",
                                       "type": "string",
                                     },
                                     "gseq": {
@@ -1397,6 +1401,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                     "type": "number",
                                   },
                                   "dseq": {
+                                    "pattern": "^d+$",
                                     "type": "string",
                                   },
                                   "gseq": {
@@ -1840,6 +1845,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                             "type": "number",
                           },
                           "dseq": {
+                            "pattern": "^d+$",
                             "type": "string",
                           },
                           "gpuUnits": {
@@ -1849,6 +1855,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                             "items": {
                               "properties": {
                                 "dseq": {
+                                  "pattern": "^d+$",
                                   "type": "string",
                                 },
                                 "gseq": {
@@ -2724,6 +2731,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "name": "dseq",
             "required": true,
             "schema": {
+              "pattern": "^d+$",
               "type": "string",
             },
           },
@@ -2748,6 +2756,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                     "type": "number",
                                   },
                                   "dseq": {
+                                    "pattern": "^d+$",
                                     "type": "string",
                                   },
                                   "gseq": {
@@ -3163,6 +3172,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "name": "dseq",
             "required": true,
             "schema": {
+              "pattern": "^d+$",
               "type": "string",
             },
           },
@@ -3187,6 +3197,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                     "type": "number",
                                   },
                                   "dseq": {
+                                    "pattern": "^d+$",
                                     "type": "string",
                                   },
                                   "gseq": {
@@ -4482,6 +4493,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                       },
                       "dseq": {
                         "description": "Deployment sequence number",
+                        "pattern": "^d+$",
                         "type": "string",
                       },
                       "userId": {
@@ -4520,6 +4532,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                           "type": "string",
                         },
                         "dseq": {
+                          "pattern": "^d+$",
                           "type": "string",
                         },
                         "estimatedTopUpAmount": {
@@ -4587,6 +4600,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "required": true,
             "schema": {
               "description": "Deployment sequence number",
+              "pattern": "^d+$",
               "type": "string",
             },
           },
@@ -4607,6 +4621,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                           "type": "string",
                         },
                         "dseq": {
+                          "pattern": "^d+$",
                           "type": "string",
                         },
                         "estimatedTopUpAmount": {
@@ -4690,6 +4705,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "required": true,
             "schema": {
               "description": "Deployment sequence number",
+              "pattern": "^d+$",
               "type": "string",
             },
           },
@@ -4736,6 +4752,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                           "type": "string",
                         },
                         "dseq": {
+                          "pattern": "^d+$",
                           "type": "string",
                         },
                         "estimatedTopUpAmount": {
@@ -4821,9 +4838,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "name": "dseq",
             "required": true,
             "schema": {
-              "description": "Deployment DSEQ",
-              "example": "1000000",
-              "type": "integer",
+              "$ref": "#/components/schemas/Deployment DSEQ",
             },
           },
         ],
@@ -4840,6 +4855,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                       "type": "string",
                     },
                     "dseq": {
+                      "pattern": "^d+$",
                       "type": "string",
                     },
                     "events": {
@@ -5521,6 +5537,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                   "id": {
                                     "properties": {
                                       "dseq": {
+                                        "pattern": "^d+$",
                                         "type": "string",
                                       },
                                       "owner": {
@@ -5680,6 +5697,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                           "type": "number",
                                         },
                                         "dseq": {
+                                          "pattern": "^d+$",
                                           "type": "string",
                                         },
                                         "gseq": {
@@ -5951,6 +5969,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                     "data": {
                       "properties": {
                         "dseq": {
+                          "pattern": "^d+$",
                           "type": "string",
                         },
                         "manifest": {
@@ -6010,6 +6029,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "required": true,
             "schema": {
               "description": "Deployment sequence number",
+              "pattern": "^d+$",
               "type": "string",
             },
           },
@@ -6050,10 +6070,13 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
       "get": {
         "parameters": [
           {
+            "description": "Deployment sequence number",
             "in": "path",
             "name": "dseq",
             "required": true,
             "schema": {
+              "description": "Deployment sequence number",
+              "pattern": "^d+$",
               "type": "string",
             },
           },
@@ -6077,6 +6100,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                             "id": {
                               "properties": {
                                 "dseq": {
+                                  "pattern": "^d+$",
                                   "type": "string",
                                 },
                                 "owner": {
@@ -6236,6 +6260,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                     "type": "number",
                                   },
                                   "dseq": {
+                                    "pattern": "^d+$",
                                     "type": "string",
                                   },
                                   "gseq": {
@@ -6444,6 +6469,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "required": true,
             "schema": {
               "description": "Deployment sequence number",
+              "pattern": "^d+$",
               "type": "string",
             },
           },
@@ -6507,6 +6533,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                             "id": {
                               "properties": {
                                 "dseq": {
+                                  "pattern": "^d+$",
                                   "type": "string",
                                 },
                                 "owner": {
@@ -6666,6 +6693,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                     "type": "number",
                                   },
                                   "dseq": {
+                                    "pattern": "^d+$",
                                     "type": "string",
                                   },
                                   "gseq": {
@@ -6881,6 +6909,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                       },
                       "dseq": {
                         "description": "Deployment sequence number",
+                        "pattern": "^d+$",
                         "type": "string",
                       },
                     },
@@ -6918,6 +6947,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                             "id": {
                               "properties": {
                                 "dseq": {
+                                  "pattern": "^d+$",
                                   "type": "string",
                                 },
                                 "owner": {
@@ -7077,6 +7107,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                     "type": "number",
                                   },
                                   "dseq": {
+                                    "pattern": "^d+$",
                                     "type": "string",
                                   },
                                   "gseq": {
@@ -7774,6 +7805,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                     "items": {
                       "properties": {
                         "dseq": {
+                          "pattern": "^d+$",
                           "type": "string",
                         },
                         "gseq": {
@@ -7828,6 +7860,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                             "id": {
                               "properties": {
                                 "dseq": {
+                                  "pattern": "^d+$",
                                   "type": "string",
                                 },
                                 "owner": {
@@ -7987,6 +8020,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                     "type": "number",
                                   },
                                   "dseq": {
+                                    "pattern": "^d+$",
                                     "type": "string",
                                   },
                                   "gseq": {
@@ -8204,7 +8238,8 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "name": "dseq",
             "required": false,
             "schema": {
-              "type": "integer",
+              "pattern": "^d+$",
+              "type": "string",
             },
           },
           {
@@ -8247,6 +8282,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                             "type": "number",
                           },
                           "dseq": {
+                            "pattern": "^d+$",
                             "type": "string",
                           },
                           "durationInBlocks": {
@@ -12126,6 +12162,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                             "type": "string",
                           },
                           "dseq": {
+                            "pattern": "^d+$",
                             "type": "string",
                           },
                           "leases": {
