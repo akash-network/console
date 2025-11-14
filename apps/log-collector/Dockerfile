@@ -1,7 +1,7 @@
 # ----------- BUILDER STAGE ----------
 # Multi-stage build to optimize final image size
 # This stage compiles TypeScript and installs all dependencies
-FROM node:20-slim AS builder
+FROM node:24.11.1-slim AS builder
 
 # Install bash for better shell scripting support
 RUN apt-get update && apt-get install -y bash
@@ -21,7 +21,7 @@ RUN npm run build -w apps/log-collector
 # ----------- PRODUCTION STAGE ----------
 # Final production image with minimal dependencies
 # Contains only runtime requirements and compiled application
-FROM node:20-slim AS production
+FROM node:24.11.1-slim AS production
 
 # Install system dependencies and Fluent Bit
 # - bash: Shell scripting support
