@@ -17,7 +17,6 @@ describe("Provider proxy ws", () => {
   });
 
   it("proxies provider websocket messages", async () => {
-    const proxyServerUrl = await startServer();
     const providerAddress = generateBech32();
     const certPair = createX509CertPair({ commonName: providerAddress });
     await startChainApiServer([certPair.cert]);
@@ -37,6 +36,7 @@ describe("Provider proxy ws", () => {
         }
       }
     });
+    const proxyServerUrl = await startServer();
     const ws = new WebSocket(`${proxyServerUrl}/ws`);
 
     await new Promise(resolve => ws.once("open", resolve));
@@ -51,7 +51,6 @@ describe("Provider proxy ws", () => {
   });
 
   it("responds to ping messages", async () => {
-    const proxyServerUrl = await startServer();
     const providerAddress = generateBech32();
     const certPair = createX509CertPair({ commonName: providerAddress });
     await startChainApiServer([certPair.cert]);
@@ -68,6 +67,7 @@ describe("Provider proxy ws", () => {
         }
       }
     });
+    const proxyServerUrl = await startServer();
     const ws = new WebSocket(`${proxyServerUrl}/ws`);
 
     await new Promise(resolve => ws.once("open", resolve));
@@ -77,7 +77,6 @@ describe("Provider proxy ws", () => {
   });
 
   it("does not connect to provider socket until 1st message is sent", async () => {
-    const proxyServerUrl = await startServer();
     const providerAddress = generateBech32();
     const certPair = createX509CertPair({ commonName: providerAddress });
     await startChainApiServer([certPair.cert]);
@@ -88,6 +87,7 @@ describe("Provider proxy ws", () => {
         onConnection: pws => pws.send("connected")
       }
     });
+    const proxyServerUrl = await startServer();
     const ws = new WebSocket(`${proxyServerUrl}/ws`);
 
     const [providerMessageOnConnect] = await Promise.all([
@@ -102,7 +102,6 @@ describe("Provider proxy ws", () => {
   });
 
   it('does not send message to provider socket if "data" property is empty', async () => {
-    const proxyServerUrl = await startServer();
     const providerAddress = generateBech32();
     const certPair = createX509CertPair({ commonName: providerAddress });
     await startChainApiServer([certPair.cert]);
@@ -116,6 +115,7 @@ describe("Provider proxy ws", () => {
           })
       }
     });
+    const proxyServerUrl = await startServer();
     const ws = new WebSocket(`${proxyServerUrl}/ws`);
 
     await new Promise(resolve => ws.once("open", resolve));
@@ -127,7 +127,6 @@ describe("Provider proxy ws", () => {
   });
 
   it("closes provider websocket when client websocket is closed", async () => {
-    const proxyServerUrl = await startServer();
     const onProviderWsClose = jest.fn();
     const providerAddress = generateBech32();
     const certPair = createX509CertPair({ commonName: providerAddress });
@@ -139,6 +138,7 @@ describe("Provider proxy ws", () => {
         onConnection: pws => pws.on("close", onProviderWsClose)
       }
     });
+    const proxyServerUrl = await startServer();
     const ws = new WebSocket(`${proxyServerUrl}/ws`);
 
     await new Promise(resolve => ws.once("open", resolve));
@@ -151,7 +151,6 @@ describe("Provider proxy ws", () => {
   });
 
   it("sends close message if provider socket has been closed", async () => {
-    const proxyServerUrl = await startServer();
     const providerAddress = generateBech32();
     const certPair = createX509CertPair({ commonName: providerAddress });
     await startChainApiServer([certPair.cert]);
@@ -167,6 +166,7 @@ describe("Provider proxy ws", () => {
           })
       }
     });
+    const proxyServerUrl = await startServer();
     const ws = new WebSocket(`${proxyServerUrl}/ws`);
 
     await new Promise(resolve => ws.once("open", resolve)), ws.send(JSON.stringify(ourMessage("please_close", providerUrl, { providerAddress })));
@@ -194,7 +194,6 @@ describe("Provider proxy ws", () => {
       }
     });
     const proxyServerUrl = await startServer();
-
     const ws = new WebSocket(`${proxyServerUrl}/ws`);
     await new Promise(resolve => ws.once("open", resolve));
 
@@ -228,7 +227,6 @@ describe("Provider proxy ws", () => {
   });
 
   it("supports mtls authentication", async () => {
-    const proxyServerUrl = await startServer();
     const providerAddress = generateBech32();
     const certPair = createX509CertPair({ commonName: providerAddress });
     await startChainApiServer([certPair.cert]);
@@ -243,6 +241,7 @@ describe("Provider proxy ws", () => {
         }
       }
     });
+    const proxyServerUrl = await startServer();
     const ws = new WebSocket(`${proxyServerUrl}/ws`);
 
     await new Promise(resolve => ws.once("open", resolve));
@@ -292,7 +291,6 @@ describe("Provider proxy ws", () => {
   });
 
   it("supports jwt authentication", async () => {
-    const proxyServerUrl = await startServer();
     const providerAddress = generateBech32();
     const certPair = createX509CertPair({ commonName: providerAddress });
     await startChainApiServer([certPair.cert]);
@@ -306,6 +304,7 @@ describe("Provider proxy ws", () => {
         }
       }
     });
+    const proxyServerUrl = await startServer();
     const ws = new WebSocket(`${proxyServerUrl}/ws`);
 
     await new Promise(resolve => ws.once("open", resolve));
