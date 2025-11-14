@@ -14,10 +14,6 @@ describe("Provider HTTP proxy", () => {
   const network: SupportedChainNetworks = "sandbox-2";
   const ONE_HOUR = 60 * 60 * 1000;
 
-  beforeAll(async () => {
-    await startServer();
-  });
-
   afterAll(async () => {
     await stopServer();
   });
@@ -32,6 +28,7 @@ describe("Provider HTTP proxy", () => {
 
     await startChainApiServer([validCertPair.cert]);
     const { providerUrl } = await startProviderServer({ certPair: validCertPair });
+    await startServer();
 
     const response = await request("/", {
       method: "POST",
@@ -56,6 +53,7 @@ describe("Provider HTTP proxy", () => {
 
     await startChainApiServer([validCertPair.cert]);
     const { providerUrl } = await startProviderServer({ certPair: validCertPair });
+    await startServer();
 
     const response = await request("/", {
       method: "POST",
@@ -81,6 +79,7 @@ describe("Provider HTTP proxy", () => {
 
     const chainServer = await startChainApiServer([validCertPair.cert]);
     const { providerUrl } = await startProviderServer({ certPair: validCertPair });
+    await startServer();
 
     let response = await request("/", {
       method: "POST",
@@ -131,6 +130,7 @@ describe("Provider HTTP proxy", () => {
           network
         })
       });
+    await startServer();
 
     let response = await requestProvider();
     expect(response.status).toBe(495);
@@ -155,6 +155,7 @@ describe("Provider HTTP proxy", () => {
 
     await startChainApiServer([createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() + ONE_HOUR) }).cert, validCertPair.cert]);
     const { providerUrl } = await startProviderServer({ certPair: validCertPair });
+    await startServer();
 
     const requestProvider = () =>
       request("/", {
@@ -189,6 +190,7 @@ describe("Provider HTTP proxy", () => {
     const { providerUrl } = await startProviderServer({
       certPair: validCertPair
     });
+    await startServer();
 
     const response = await request("/", {
       method: "POST",
@@ -228,6 +230,7 @@ describe("Provider HTTP proxy", () => {
     });
 
     const { providerUrl } = await startProviderServer({ certPair: validCertPair });
+    await startServer();
 
     process.env.TEST_CHAIN_NETWORK_URL = "http://localhost:31234";
     const responsePromise = request("/", {
@@ -265,6 +268,7 @@ describe("Provider HTTP proxy", () => {
         return true;
       }
     });
+    await startServer();
 
     const response = await request("/", {
       method: "POST",
@@ -305,6 +309,7 @@ describe("Provider HTTP proxy", () => {
       }
     });
     await startChainApiServer([validCertPair.cert]);
+    await startServer();
 
     const response = await request("/", {
       method: "POST",
@@ -349,6 +354,7 @@ describe("Provider HTTP proxy", () => {
       }
     });
     await startChainApiServer([validCertPair.cert]);
+    await startServer();
 
     const response = await request("/", {
       method: "POST",
@@ -382,6 +388,7 @@ describe("Provider HTTP proxy", () => {
       }
     });
     await startChainApiServer([validCertPair.cert]);
+    await startServer();
 
     const response = await request("/", {
       method: "POST",
@@ -405,6 +412,7 @@ describe("Provider HTTP proxy", () => {
     });
 
     await startChainApiServer([validCertPair.cert]);
+    await startServer();
     const providerUrl = `https://some-unknown-host-${Date.now()}.com/200`;
 
     const response = await request("/", {
@@ -438,6 +446,7 @@ describe("Provider HTTP proxy", () => {
       }
     });
     await startChainApiServer([validCertPair.cert]);
+    await startServer();
 
     const response = await request("/", {
       method: "POST",
@@ -469,6 +478,7 @@ describe("Provider HTTP proxy", () => {
       certPair: validCertPair
     });
     await startChainApiServer([invalidClientCertPair.cert]);
+    await startServer();
 
     const response = await request("/", {
       method: "POST",
@@ -527,6 +537,7 @@ describe("Provider HTTP proxy", () => {
         }
       }
     });
+    await startServer();
 
     const requestController = new AbortController();
     const responsePromise = request("/", {
@@ -572,6 +583,7 @@ describe("Provider HTTP proxy", () => {
         }
       }
     });
+    await startServer();
 
     const requestController = new AbortController();
     const response = await request("/", {
@@ -610,6 +622,7 @@ describe("Provider HTTP proxy", () => {
         }
       }
     });
+    await startServer();
 
     const response = await request("/", {
       method: "POST",
@@ -678,6 +691,7 @@ describe("Provider HTTP proxy", () => {
         }
       }
     });
+    await startServer();
 
     const testMnemonic =
       "body letter input area umbrella develop shuffle gentle regular gold twice truly giant dawn nerve ocean wine wonder toe melt grid leader blush few";

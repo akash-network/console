@@ -5,8 +5,24 @@ import type { BrowserEnvConfig, ServerEnvConfig } from "@src/config/env-config.s
 export class ApiUrlService {
   constructor(
     private readonly config:
-      | Pick<ServerEnvConfig, "BASE_API_MAINNET_URL" | "BASE_API_TESTNET_URL" | "BASE_API_SANDBOX_URL">
-      | Pick<BrowserEnvConfig, "NEXT_PUBLIC_BASE_API_TESTNET_URL" | "NEXT_PUBLIC_BASE_API_SANDBOX_URL" | "NEXT_PUBLIC_BASE_API_MAINNET_URL">
+      | Pick<
+          ServerEnvConfig,
+          | "BASE_API_MAINNET_URL"
+          | "BASE_API_TESTNET_URL"
+          | "BASE_API_SANDBOX_URL"
+          | "PROVIDER_PROXY_MAINNET_URL"
+          | "PROVIDER_PROXY_TESTNET_URL"
+          | "PROVIDER_PROXY_SANDBOX_URL"
+        >
+      | Pick<
+          BrowserEnvConfig,
+          | "NEXT_PUBLIC_BASE_API_TESTNET_URL"
+          | "NEXT_PUBLIC_BASE_API_SANDBOX_URL"
+          | "NEXT_PUBLIC_BASE_API_MAINNET_URL"
+          | "NEXT_PUBLIC_PROVIDER_PROXY_TESTNET_URL"
+          | "NEXT_PUBLIC_PROVIDER_PROXY_SANDBOX_URL"
+          | "NEXT_PUBLIC_PROVIDER_PROXY_MAINNET_URL"
+        >
   ) {}
 
   getBaseApiUrlFor(network: NetworkId | undefined): string {
@@ -28,6 +44,28 @@ export class ApiUrlService {
         return this.config.NEXT_PUBLIC_BASE_API_SANDBOX_URL;
       default:
         return this.config.NEXT_PUBLIC_BASE_API_MAINNET_URL;
+    }
+  }
+
+  getProviderProxyUrlFor(network: NetworkId | undefined): string {
+    if ("PROVIDER_PROXY_MAINNET_URL" in this.config) {
+      switch (network) {
+        case TESTNET_ID:
+          return this.config.PROVIDER_PROXY_TESTNET_URL;
+        case SANDBOX_ID:
+          return this.config.PROVIDER_PROXY_SANDBOX_URL;
+        default:
+          return this.config.PROVIDER_PROXY_MAINNET_URL;
+      }
+    }
+
+    switch (network) {
+      case TESTNET_ID:
+        return this.config.NEXT_PUBLIC_PROVIDER_PROXY_TESTNET_URL;
+      case SANDBOX_ID:
+        return this.config.NEXT_PUBLIC_PROVIDER_PROXY_SANDBOX_URL;
+      default:
+        return this.config.NEXT_PUBLIC_PROVIDER_PROXY_MAINNET_URL;
     }
   }
 }
