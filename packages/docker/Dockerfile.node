@@ -26,7 +26,7 @@ FROM base AS development
 
 COPY --from=prepare /app .
 
-RUN npm run safe-install -- --workspace $WORKSPACE && npm cache clean --force
+RUN --mount=type=cache,id=npm-cache,target=/root/.npm npm run safe-install -- --workspace $WORKSPACE
 COPY $WORKSPACE ./$WORKSPACE
 COPY packages ./packages
 
@@ -50,7 +50,7 @@ RUN addgroup --system --gid $APP_GROUP_ID $APP_GROUP \
 
 COPY --from=prepare /app .
 # webpack built apps are not fully bundled, so we need to install dependencies separately
-RUN npm run safe-install -- --workspace $WORKSPACE --omit=dev && npm cache clean --force
+RUN --mount=type=cache,id=npm-cache,target=/root/.npm npm run safe-install -- --workspace $WORKSPACE --omit=dev
 
 COPY --from=builder /app/package*.json /app/
 COPY --from=builder /app/$WORKSPACE/package.json /app/$WORKSPACE/
