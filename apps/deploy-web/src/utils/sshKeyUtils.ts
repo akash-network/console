@@ -1,74 +1,99 @@
-import { KEYUTIL } from "jsrsasign";
+import { fromBase64, toBase64 } from "./encoding";
 
-import { toBase64 } from "./encoding";
-
-function numberToBytes(num: number): Uint8Array {
-  return new Uint8Array([(num >> 24) & 0xff, (num >> 16) & 0xff, (num >> 8) & 0xff, num & 0xff]);
+export interface OpenSshKeyPair {
+  /** e.g. `ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQ... my-key@host` */
+  publicKey: string;
+  /** PKCS#8 PEM private key */
+  privatePem: string;
 }
 
-function hexToBytes(hex: string): Uint8Array {
-  if (hex.length % 2 !== 0) {
-    hex = "0" + hex;
-  }
-  const bytes = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < hex.length; i += 2) {
-    bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
+/**
+ * Generate a 2048-bit RSA keypair and return:
+ * - OpenSSH-formatted public key (authorized_keys style)
+ * - PKCS#8 PEM private key
+ *
+ * Requires WebCrypto (browser: window.crypto.subtle).
+ */
+export async function generateSSHKeyPair(comment = "user@host"): Promise<OpenSshKeyPair> {
+  const keyPair = await generateRsaKeyPair();
+
+  const pkcs8 = await crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
+  const pkcs8B64 = toBase64(new Uint8Array(pkcs8));
+  const privatePem = base64ToPem(pkcs8B64, "RSA PRIVATE KEY");
+
+  const jwk = await crypto.subtle.exportKey("jwk", keyPair.publicKey);
+  const publicKey = makeOpenSshPublicKeyFromJwk(jwk, comment);
+
+  return { publicKey, privatePem };
+}
+
+async function generateRsaKeyPair(): Promise<CryptoKeyPair> {
+  return crypto.subtle.generateKey(
+    {
+      name: "RSASSA-PKCS1-v1_5", // commonly used with "ssh-rsa"
+      modulusLength: 2048,
+      publicExponent: new Uint8Array([1, 0, 1]), // 65537
+      hash: "SHA-256"
+    },
+    true, // extractable
+    ["sign", "verify"]
+  );
+}
+
+function base64ToPem(b64: string, label: string): string {
+  const lines = b64.match(/.{1,64}/g) || [];
+  return [`-----BEGIN ${label}-----`, ...lines, `-----END ${label}-----`, ""].join("\n");
+}
+
+function base64UrlToUint8(base64Url: string): Uint8Array {
+  let base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+  const pad = base64.length % 4;
+  if (pad) base64 += "=".repeat(4 - pad);
+  return fromBase64(base64);
+}
+
+// SSH mpint encoding (RFC 4251)
+function toMpint(bytes: Uint8Array): Uint8Array {
+  if (bytes.length === 0) return new Uint8Array([0]);
+  // If MSB is set, prepend 0x00
+  if (bytes[0] & 0x80) {
+    const out = new Uint8Array(bytes.length + 1);
+    out[0] = 0;
+    out.set(bytes, 1);
+    return out;
   }
   return bytes;
 }
 
-function encodeLengthPrefixed(data: Uint8Array | string): Uint8Array {
-  const bytes = typeof data === "string" ? new TextEncoder().encode(data) : data;
-  const lengthBytes = numberToBytes(bytes.length);
-  const result = new Uint8Array(lengthBytes.length + bytes.length);
-  result.set(lengthBytes, 0);
-  result.set(bytes, lengthBytes.length);
-  return result;
-}
-
-export function rsaPublicKeyToOpenSSH(publicPem: string, comment = "user@host"): string {
-  const keyObj = KEYUTIL.getKey(publicPem) as unknown as { n: { toString: (radix: number) => string }; e: { toString: (radix: number) => string } };
-  
-  const nHex = keyObj.n.toString(16);
-  const eHex = keyObj.e.toString(16);
-  
-  const nBytes = hexToBytes(nHex);
-  const eBytes = hexToBytes(eHex);
-  
-  const sshRsaStr = "ssh-rsa";
-  const parts = [
-    encodeLengthPrefixed(sshRsaStr),
-    encodeLengthPrefixed(eBytes),
-    encodeLengthPrefixed(nBytes)
-  ];
-  
-  const totalLength = parts.reduce((sum, part) => sum + part.length, 0);
-  const result = new Uint8Array(totalLength);
-  let offset = 0;
-  for (const part of parts) {
-    result.set(part, offset);
-    offset += part.length;
+/**
+ * Build "ssh-rsa AAAA.... comment" from a JWK RSA public key.
+ */
+function makeOpenSshPublicKeyFromJwk(jwk: JsonWebKey, comment: string): string {
+  if (!jwk.n || !jwk.e) {
+    throw new Error("JWK is missing modulus (n) or exponent (e)");
   }
-  
-  const base64 = toBase64(result);
-  
-  return `${sshRsaStr} ${base64} ${comment}`;
-}
 
-export function generateSSHKeyPair() {
-  const kp = KEYUTIL.generateKeypair("RSA", 2048);
-  const prvKeyObj = kp.prvKeyObj;
-  const pubKeyObj = kp.pubKeyObj;
+  const encoder = new TextEncoder();
+  const type = encoder.encode("ssh-rsa");
+  const eBytes = toMpint(base64UrlToUint8(jwk.e));
+  const nBytes = toMpint(base64UrlToUint8(jwk.n));
 
-  const privatePem = KEYUTIL.getPEM(prvKeyObj, "PKCS1PRV");
-  const publicPem = KEYUTIL.getPEM(pubKeyObj);
+  const total = 4 + type.length + 4 + eBytes.length + 4 + nBytes.length;
 
-  const publicKey = rsaPublicKeyToOpenSSH(publicPem);
+  const finalKey = new Uint8Array(total);
+  const view = new DataView(finalKey.buffer);
+  let offset = 0;
 
-  return {
-    publicKey,
-    privateKey: privatePem,
-    publicPem,
-    privatePem
-  };
+  function writeField(bytes: Uint8Array) {
+    view.setUint32(offset, bytes.length); // big-endian
+    offset += 4;
+    finalKey.set(bytes, offset);
+    offset += bytes.length;
+  }
+
+  writeField(type);
+  writeField(eBytes);
+  writeField(nBytes);
+
+  return `ssh-rsa ${toBase64(finalKey)} ${comment}`;
 }

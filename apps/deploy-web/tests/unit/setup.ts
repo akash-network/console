@@ -1,13 +1,19 @@
 import "@testing-library/jest-dom";
 import "whatwg-fetch";
 
+import { webcrypto } from "crypto";
 import { Blob } from "node:buffer";
 import { TextDecoder, TextEncoder } from "util";
 
-Object.assign(global, {
+Object.assign(globalThis, {
   TextDecoder,
   TextEncoder,
   Blob
+});
+
+Object.defineProperty(globalThis, "crypto", {
+  value: webcrypto,
+  configurable: true
 });
 
 beforeAll(() => {

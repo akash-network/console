@@ -4,6 +4,7 @@ import type { Control, UseFormSetValue } from "react-hook-form";
 import { Button, CustomTooltip, FormField, FormInput } from "@akashnetwork/ui/components";
 import { saveAs } from "file-saver";
 import { InfoCircle, Key } from "iconoir-react";
+import { useSnackbar } from "notistack";
 
 import { CodeSnippet } from "@src/components/shared/CodeSnippet";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
@@ -17,11 +18,17 @@ interface SSHKeyInputProps {
 }
 
 export const SSHKeyFormControl: FC<SSHKeyInputProps> = ({ control, serviceIndex, setValue }) => {
+  const { enqueueSnackbar } = useSnackbar();
   const { imageList } = useSdlBuilder();
   const [hasGenerated, setHasGenerated] = useState(false);
 
   const generateSSHKeys = useCallback(async () => {
-    const { publicKey, privateKey } = generateSSHKeyPair();
+    if (!window.crypto?.subtle) {
+      enqueueSnackbar("Your browser doesn't support the WebCrypto API, so SSH key cannot be generated.", { variant: "error" });
+      return;
+    }
+
+    const { publicKey, privatePem } = await generateSSHKeyPair();
 
     setValue(`services.${serviceIndex}.sshPubKey`, publicKey);
 
@@ -29,7 +36,7 @@ export const SSHKeyFormControl: FC<SSHKeyInputProps> = ({ control, serviceIndex,
     const JSZip = JSZipModule.default || JSZipModule;
     const zip = new (JSZip as any)();
     zip.file("id_rsa.pub", publicKey);
-    zip.file("id_rsa", privateKey);
+    zip.file("id_rsa", privatePem);
     const content = await zip.generateAsync({ type: "blob" });
 
     saveAs(content, "keypair.zip");

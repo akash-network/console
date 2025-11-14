@@ -1,50 +1,18 @@
-import { generateSSHKeyPair, rsaPublicKeyToOpenSSH } from "./sshKeyUtils";
+import { generateSSHKeyPair } from "./sshKeyUtils";
 
 describe(generateSSHKeyPair.name, () => {
-  it("generates a valid SSH key pair", () => {
-    const { publicKey, privateKey, publicPem, privatePem } = generateSSHKeyPair();
-
-    expect(publicKey).toBeTruthy();
-    expect(privateKey).toBeTruthy();
-    expect(publicPem).toBeTruthy();
-    expect(privatePem).toBeTruthy();
+  it("generates a valid SSH key pair", async () => {
+    const { publicKey, privatePem } = await generateSSHKeyPair();
 
     expect(publicKey).toMatch(/^ssh-rsa\s+[A-Za-z0-9+/=]+\s+user@host$/);
-
-    expect(privateKey).toContain("-----BEGIN RSA PRIVATE KEY-----");
-    expect(privateKey).toContain("-----END RSA PRIVATE KEY-----");
+    expect(privatePem).toContain("-----BEGIN RSA PRIVATE KEY-----");
+    expect(privatePem).toContain("-----END RSA PRIVATE KEY-----");
   });
 
-  it("generates different keys on each call", () => {
-    const keyPair1 = generateSSHKeyPair();
-    const keyPair2 = generateSSHKeyPair();
+  it("generates different keys on each call", async () => {
+    const keys = await Promise.all([generateSSHKeyPair(), generateSSHKeyPair()]);
 
-    expect(keyPair1.publicKey).not.toBe(keyPair2.publicKey);
-    expect(keyPair1.privateKey).not.toBe(keyPair2.privateKey);
-  });
-});
-
-describe(rsaPublicKeyToOpenSSH.name, () => {
-  it("converts PEM to OpenSSH format with default comment", () => {
-    const { publicPem } = generateSSHKeyPair();
-    const opensshKey = rsaPublicKeyToOpenSSH(publicPem);
-
-    expect(opensshKey).toMatch(/^ssh-rsa\s+[A-Za-z0-9+/=]+\s+user@host$/);
-  });
-
-  it("converts PEM to OpenSSH format with custom comment", () => {
-    const { publicPem } = generateSSHKeyPair();
-    const customComment = "test@example.com";
-    const opensshKey = rsaPublicKeyToOpenSSH(publicPem, customComment);
-
-    expect(opensshKey).toMatch(new RegExp(`^ssh-rsa\\s+[A-Za-z0-9+/=]+\\s+${customComment}$`));
-  });
-
-  it("produces consistent output for the same PEM", () => {
-    const { publicPem } = generateSSHKeyPair();
-    const opensshKey1 = rsaPublicKeyToOpenSSH(publicPem);
-    const opensshKey2 = rsaPublicKeyToOpenSSH(publicPem);
-
-    expect(opensshKey1).toBe(opensshKey2);
+    expect(keys[0].publicKey).not.toBe(keys[1].publicKey);
+    expect(keys[0].privatePem).not.toBe(keys[1].privatePem);
   });
 });
