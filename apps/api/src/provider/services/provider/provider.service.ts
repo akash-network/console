@@ -4,6 +4,7 @@ import { NetConfig, SupportedChainNetworks } from "@akashnetwork/net";
 import { AxiosError } from "axios";
 import { add } from "date-fns";
 import assert from "http-assert";
+import createError from "http-errors";
 import { Op } from "sequelize";
 import { setTimeout as delay } from "timers/promises";
 import { singleton } from "tsyringe";
@@ -85,16 +86,30 @@ export class ProviderService {
         });
 
         if (result) return result;
-      } catch (err: unknown) {
+      } catch (err) {
         if (err instanceof Error && err.message?.includes("no lease for deployment") && i < this.MANIFEST_SEND_MAX_RETRIES) {
           await delay(this.MANIFEST_SEND_RETRY_DELAY);
           continue;
         }
 
-        const providerError = err instanceof AxiosError && (err.response?.data?.message || err.response?.data);
-        if (typeof providerError === "string") {
-          assert(!providerError.toLowerCase().includes("invalid manifest"), 400, providerError);
-          assert(!providerError.toLowerCase().includes("unauthorized access"), 401, providerError);
+        if (err instanceof AxiosError && err.response) {
+          const message = err.response.data?.message || err.response.data;
+          let errorMessage = typeof message === "string" ? message : "Provider request failed";
+          let status = err.response.status;
+
+          if (err.response.status === 401) {
+            status = 400;
+            errorMessage = `Invalid provider ${options.auth.type} credentials`;
+          }
+
+          if (err.response.status === 500) {
+            status = 503;
+            errorMessage = "Provider service is temporarily unavailable";
+          }
+
+          throw createError(status, errorMessage, {
+            originalError: err
+          });
         }
 
         throw err;
