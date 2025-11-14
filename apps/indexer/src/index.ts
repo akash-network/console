@@ -70,7 +70,7 @@ app.get("/status", async (req, res) => {
     res.send({ version, ...cacheSize, memory, activeNodeCount, tasks: tasksStatus, sync: syncStatus });
   } catch (err) {
     Sentry.captureException(err);
-    res.status(500).send("An error occured");
+    res.status(500).send("An error occurred");
   }
 });
 
@@ -80,7 +80,7 @@ app.get("/nodes", async (req, res) => {
     res.send(nodeStatus);
   } catch (err) {
     Sentry.captureException(err);
-    res.status(500).send("An error occured");
+    res.status(500).send("An error occurred");
   }
 });
 

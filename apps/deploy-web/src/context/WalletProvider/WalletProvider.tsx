@@ -256,7 +256,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         showTransactionSnackbar(title || message || "Error", message, "", "error");
       } else {
         const transactionHash = err.txHash;
-        let errorMsg = "An error has occured";
+        let errorMsg = "An error has occurred";
 
         if (err.message?.includes("was submitted but was not yet found on the chain")) {
           errorMsg = "Transaction timeout";

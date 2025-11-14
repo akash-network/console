@@ -22,7 +22,7 @@ profiles:
         cpu:
           units: 0.1
         memory:
-          size: 256Mi   
+          size: 256Mi
         gpu:
           units: 1
           attributes:
@@ -36,7 +36,7 @@ profiles:
   placement:
     akash:
       pricing:
-        obtaingpu: 
+        obtaingpu:
           denom: uakt
           amount: 100000
 deployment:
@@ -69,7 +69,7 @@ profiles:
         cpu:
           units: 0.1
         memory:
-          size: 256Mi   
+          size: 256Mi
         gpu:
           units: 1
           attributes:
@@ -82,7 +82,7 @@ profiles:
   placement:
     akash:
       pricing:
-        obtaingpu: 
+        obtaingpu:
           denom: uakt
           amount: 100000
 deployment:
