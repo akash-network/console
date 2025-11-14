@@ -1,5 +1,12 @@
 
 
+## [1.20.6](https://github.com/akash-network/console/compare/indexer/v1.20.5...indexer/v1.20.6) (2025-11-14)
+
+
+### Bug Fixes
+
+* correct typos and formatting issues ([#2221](https://github.com/akash-network/console/issues/2221)) ([28e7a98](https://github.com/akash-network/console/commit/28e7a98d2a9f8a8cdefb6b538307c1ec4f34cf55))
+
 ## [1.20.5](https://github.com/akash-network/console/compare/indexer/v1.20.4...indexer/v1.20.5) (2025-11-06)
 
 

@@ -1,5 +1,12 @@
 
 
+## [1.30.1](https://github.com/akash-network/console/compare/provider-console/v1.30.0...provider-console/v1.30.1) (2025-11-14)
+
+
+### Bug Fixes
+
+* correct typos and formatting issues ([#2221](https://github.com/akash-network/console/issues/2221)) ([28e7a98](https://github.com/akash-network/console/commit/28e7a98d2a9f8a8cdefb6b538307c1ec4f34cf55))
+
 ## [1.30.0](https://github.com/akash-network/console/compare/provider-console/v1.29.1...provider-console/v1.30.0) (2025-11-07)
 
 

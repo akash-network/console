@@ -1,5 +1,12 @@
 
 
+## [3.3.1](https://github.com/akash-network/console/compare/console-web/v3.3.0...console-web/v3.3.1) (2025-11-14)
+
+
+### Bug Fixes
+
+* correct typos and formatting issues ([#2221](https://github.com/akash-network/console/issues/2221)) ([28e7a98](https://github.com/akash-network/console/commit/28e7a98d2a9f8a8cdefb6b538307c1ec4f34cf55))
+
 ## [3.3.0](https://github.com/akash-network/console/compare/console-web/v3.2.0...console-web/v3.3.0) (2025-11-12)
 
 
