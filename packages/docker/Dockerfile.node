@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7-labs
 
-FROM node:22.14.0-alpine AS base
+FROM node:24.11.1-alpine AS base
 
 # see https://r1ch.net/blog/node-v20-aggregateeerror-etimedout-happy-eyeballs and https://github.com/nodejs/node/issues/54359
 ARG NODE_OPTIONS="--no-network-family-autoselection --enable-source-maps"
