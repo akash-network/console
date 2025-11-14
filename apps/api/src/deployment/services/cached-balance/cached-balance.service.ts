@@ -6,15 +6,18 @@ class CachedBalance {
   constructor(private value: number) {}
 
   public reserveSufficientAmount(desiredAmount: number) {
-    const value = Math.min(desiredAmount, this.value);
+    if (desiredAmount < 0) {
+      throw new Error(`Invalid amount: ${desiredAmount}`);
+    }
 
-    if (value <= 0) {
+    if (desiredAmount > 0 && this.value === 0) {
       throw new Error(`Insufficient balance: ${this.value} < ${desiredAmount}`);
     }
 
-    this.value -= value;
+    const reservedAmount = Math.min(desiredAmount, this.value);
+    this.value -= reservedAmount;
 
-    return value;
+    return reservedAmount;
   }
 }
 
