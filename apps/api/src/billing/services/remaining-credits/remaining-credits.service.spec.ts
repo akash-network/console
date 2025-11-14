@@ -1,4 +1,3 @@
-import { faker } from "@faker-js/faker";
 import { mock } from "jest-mock-extended";
 
 import type { UserWalletRepository } from "@src/billing/repositories";
@@ -12,19 +11,20 @@ import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
 describe(RemainingCreditsService.name, () => {
   it("returns remaining credits when user has wallet", async () => {
     const user = UserSeeder.create();
-    const remainingCredits = faker.number.int({ min: 1000, max: 10000 });
+    const remainingCreditsInUusdc = 100_000_000;
+    const expectedCreditsInUsdc = 100;
 
     const userWallet = UserWalletSeeder.create();
     const { service, userWalletRepository, balanceService } = setup({
       findOneByUserId: jest.fn().mockResolvedValue(userWallet),
-      retrieveDeploymentLimit: jest.fn().mockResolvedValue(remainingCredits)
+      retrieveDeploymentLimit: jest.fn().mockResolvedValue(remainingCreditsInUusdc)
     });
 
     const result = await service.resolve(user);
 
     expect(userWalletRepository.findOneByUserId).toHaveBeenCalledWith(user.id);
     expect(balanceService.retrieveDeploymentLimit).toHaveBeenCalledWith(userWallet);
-    expect(result).toBe(remainingCredits);
+    expect(result).toBe(expectedCreditsInUsdc);
   });
 
   it("throws error when user has no wallet", async () => {
