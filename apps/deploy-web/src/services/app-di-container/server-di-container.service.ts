@@ -14,7 +14,6 @@ import { createAppRootContainer } from "./app-di-container";
 const rootContainer = createAppRootContainer({
   ...serverEnvConfig,
   runtimeEnv: "nodejs",
-  BASE_PROVIDER_PROXY_URL: serverEnvConfig.NEXT_PUBLIC_PROVIDER_PROXY_URL,
   MANAGED_WALLET_NETWORK_ID: serverEnvConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID,
   globalRequestMiddleware: clientIpForwardingInterceptor,
   apiUrlService: () => new ApiUrlService(serverEnvConfig)

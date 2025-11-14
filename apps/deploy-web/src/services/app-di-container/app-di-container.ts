@@ -74,12 +74,15 @@ export const createAppRootContainer = (config: ServicesConfig) => {
       container.applyAxiosInterceptors(new AuthHttpService(apiConfig), {
         request: [withUserToken]
       }),
-    providerProxy: () =>
-      new ProviderProxyService(
-        container.applyAxiosInterceptors(container.createAxios({ baseURL: config.BASE_PROVIDER_PROXY_URL })),
+    providerProxy: () => {
+      const providerProxyBaseUrl = container.apiUrlService.getProviderProxyUrlFor(config.MANAGED_WALLET_NETWORK_ID);
+
+      return new ProviderProxyService(
+        container.applyAxiosInterceptors(container.createAxios({ baseURL: providerProxyBaseUrl })),
         container.logger,
-        () => new WebSocket(config.BASE_PROVIDER_PROXY_URL.replace(/^http/, "ws"))
-      ),
+        () => new WebSocket(providerProxyBaseUrl.replace(/^http/, "ws"))
+      );
+    },
     deploymentSetting: () =>
       container.applyAxiosInterceptors(new DeploymentSettingHttpService(apiConfig), {
         request: [withUserToken]
@@ -145,7 +148,6 @@ export const createAppRootContainer = (config: ServicesConfig) => {
 
 export interface ServicesConfig {
   BASE_API_MAINNET_URL: string;
-  BASE_PROVIDER_PROXY_URL: string;
   MANAGED_WALLET_NETWORK_ID: NetworkId;
   globalRequestMiddleware?: (config: InternalAxiosRequestConfig) => InternalAxiosRequestConfig;
   runtimeEnv: "nodejs" | "browser";
