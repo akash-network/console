@@ -14595,6 +14595,224 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/wallet-settings": {
+      "delete": {
+        "description": "Deletes wallet settings for a user wallet",
+        "responses": {
+          "204": {
+            "description": "Wallet settings deleted successfully",
+          },
+          "404": {
+            "description": "UserWallet Not Found",
+          },
+        },
+        "summary": "Delete wallet settings",
+        "tags": [
+          "WalletSetting",
+        ],
+      },
+      "get": {
+        "description": "Retrieves the wallet settings for the current user's wallet",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "autoReloadAmount": {
+                          "minimum": 20,
+                          "type": "number",
+                        },
+                        "autoReloadEnabled": {
+                          "type": "boolean",
+                        },
+                        "autoReloadThreshold": {
+                          "minimum": 20,
+                          "type": "number",
+                        },
+                      },
+                      "required": [
+                        "autoReloadEnabled",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Wallet settings retrieved successfully",
+          },
+          "404": {
+            "description": "UserWallet Not Found",
+          },
+        },
+        "summary": "Get wallet settings",
+        "tags": [
+          "WalletSetting",
+        ],
+      },
+      "post": {
+        "description": "Creates wallet settings for a user wallet",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "autoReloadAmount": {
+                        "minimum": 20,
+                        "type": "number",
+                      },
+                      "autoReloadEnabled": {
+                        "type": "boolean",
+                      },
+                      "autoReloadThreshold": {
+                        "minimum": 20,
+                        "type": "number",
+                      },
+                    },
+                    "required": [
+                      "autoReloadEnabled",
+                    ],
+                    "type": "object",
+                  },
+                },
+                "required": [
+                  "data",
+                ],
+                "type": "object",
+              },
+            },
+          },
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "autoReloadAmount": {
+                          "minimum": 20,
+                          "type": "number",
+                        },
+                        "autoReloadEnabled": {
+                          "type": "boolean",
+                        },
+                        "autoReloadThreshold": {
+                          "minimum": 20,
+                          "type": "number",
+                        },
+                      },
+                      "required": [
+                        "autoReloadEnabled",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Wallet settings created successfully",
+          },
+          "404": {
+            "description": "UserWallet Not Found",
+          },
+        },
+        "summary": "Create wallet settings",
+        "tags": [
+          "WalletSetting",
+        ],
+      },
+      "put": {
+        "description": "Updates wallet settings for a user wallet",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "autoReloadAmount": {
+                        "minimum": 20,
+                        "type": "number",
+                      },
+                      "autoReloadEnabled": {
+                        "type": "boolean",
+                      },
+                      "autoReloadThreshold": {
+                        "minimum": 20,
+                        "type": "number",
+                      },
+                    },
+                    "type": "object",
+                  },
+                },
+                "required": [
+                  "data",
+                ],
+                "type": "object",
+              },
+            },
+          },
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "autoReloadAmount": {
+                          "minimum": 20,
+                          "type": "number",
+                        },
+                        "autoReloadEnabled": {
+                          "type": "boolean",
+                        },
+                        "autoReloadThreshold": {
+                          "minimum": 20,
+                          "type": "number",
+                        },
+                      },
+                      "required": [
+                        "autoReloadEnabled",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Wallet settings updated successfully",
+          },
+          "404": {
+            "description": "UserWallet Not Found",
+          },
+        },
+        "summary": "Update wallet settings",
+        "tags": [
+          "WalletSetting",
+        ],
+      },
+    },
     "/v1/wallets": {
       "get": {
         "parameters": [
