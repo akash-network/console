@@ -1,3 +1,4 @@
+import type { WalletSettingsResponse } from "@src/billing/http-schemas/wallet.schema";
 import { app } from "@src/rest-app";
 
 import { WalletTestingService } from "@test/services/wallet-testing.service";
@@ -23,7 +24,7 @@ describe("wallet-settings", () => {
     });
 
     expect(createResponse.status).toBe(200);
-    const createResult = await createResponse.json();
+    const createResult = (await createResponse.json()) as WalletSettingsResponse;
 
     expect(createResult.data).toMatchObject({
       autoReloadEnabled: true,
@@ -38,7 +39,7 @@ describe("wallet-settings", () => {
     });
 
     expect(getAfterCreateResponse.status).toBe(200);
-    const getAfterCreateResult = await getAfterCreateResponse.json();
+    const getAfterCreateResult = (await getAfterCreateResponse.json()) as WalletSettingsResponse;
 
     expect(getAfterCreateResult.data).toMatchObject({
       autoReloadEnabled: true,
@@ -59,7 +60,7 @@ describe("wallet-settings", () => {
     });
 
     expect(updateResponse.status).toBe(200);
-    const updateResult = await updateResponse.json();
+    const updateResult = (await updateResponse.json()) as WalletSettingsResponse;
 
     expect(updateResult.data).toMatchObject({
       autoReloadEnabled: false,
@@ -74,7 +75,7 @@ describe("wallet-settings", () => {
     });
 
     expect(getAfterUpdateResponse.status).toBe(200);
-    const getAfterUpdateResult = await getAfterUpdateResponse.json();
+    const getAfterUpdateResult = (await getAfterUpdateResponse.json()) as WalletSettingsResponse;
 
     expect(getAfterUpdateResult.data).toMatchObject({
       autoReloadEnabled: false,

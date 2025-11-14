@@ -6,7 +6,7 @@ import type { WalletSettingService } from "@src/billing/services/wallet-settings
 import { WalletSettingController } from "./wallet-settings.controller";
 
 import { UserSeeder } from "@test/seeders/user.seeder";
-import { WalletSettingSeeder } from "@test/seeders/wallet-setting.seeder";
+import { generateWalletSetting } from "@test/seeders/wallet-setting.seeder";
 
 describe(WalletSettingController.name, () => {
   describe("getWalletSettings", () => {
@@ -91,7 +91,7 @@ describe(WalletSettingController.name, () => {
 
   function setup() {
     const user = UserSeeder.create();
-    const walletSetting = WalletSettingSeeder.create({
+    const walletSetting = generateWalletSetting({
       userId: user.id
     });
     const walletSettingService = mock<WalletSettingService>();

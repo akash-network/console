@@ -1,5 +1,6 @@
 import { createMongoAbility } from "@casl/ability";
 import { mock } from "jest-mock-extended";
+import { PostgresError } from "postgres";
 
 import type { AuthService } from "@src/auth/services/auth.service";
 import type { UserWalletRepository, WalletSettingRepository } from "@src/billing/repositories";
@@ -7,7 +8,7 @@ import { WalletSettingService } from "./wallet-settings.service";
 
 import { UserSeeder } from "@test/seeders/user.seeder";
 import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
-import { WalletSettingSeeder } from "@test/seeders/wallet-setting.seeder";
+import { generateWalletSetting } from "@test/seeders/wallet-setting.seeder";
 
 describe(WalletSettingService.name, () => {
   describe("getWalletSetting", () => {
@@ -34,7 +35,7 @@ describe(WalletSettingService.name, () => {
   describe("upsertWalletSetting", () => {
     it("updates existing wallet setting", async () => {
       const { user, walletSetting, walletSettingRepository, service } = setup();
-      const updatedSetting = WalletSettingSeeder.create({
+      const updatedSetting = generateWalletSetting({
         userId: user.id,
         autoReloadEnabled: false,
         autoReloadThreshold: 20.75
@@ -57,9 +58,38 @@ describe(WalletSettingService.name, () => {
 
     it("creates new wallet setting when not exists", async () => {
       const { user, userWalletRepository, userWallet, walletSettingRepository, service } = setup();
-      const newSetting = WalletSettingSeeder.create({ userId: user.id, walletId: userWallet.id });
+      const newSetting = generateWalletSetting({ userId: user.id, walletId: userWallet.id });
       walletSettingRepository.findByUserId.mockResolvedValue(undefined);
       walletSettingRepository.create.mockResolvedValue(newSetting);
+
+      const result = await service.upsertWalletSetting(user.id, {
+        autoReloadEnabled: true,
+        autoReloadThreshold: 10.5,
+        autoReloadAmount: 50.0
+      });
+
+      expect(result).toEqual(newSetting);
+      expect(walletSettingRepository.findByUserId).toHaveBeenCalledWith(user.id);
+      expect(userWalletRepository.findOneByUserId).toHaveBeenCalledWith(user.id);
+      expect(walletSettingRepository.create).toHaveBeenCalledWith({
+        userId: user.id,
+        walletId: userWallet.id,
+        autoReloadEnabled: true,
+        autoReloadThreshold: 10.5,
+        autoReloadAmount: 50.0
+      });
+    });
+
+    it("retries the update in case of a race condition", async () => {
+      const { user, userWalletRepository, userWallet, walletSettingRepository, service } = setup();
+      const newSetting = generateWalletSetting({ userId: user.id, walletId: userWallet.id });
+      walletSettingRepository.findByUserId.mockResolvedValueOnce(undefined).mockResolvedValueOnce(newSetting);
+      walletSettingRepository.updateById.mockResolvedValue(newSetting as any);
+      walletSettingRepository.create.mockRejectedValue(
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        new PostgresError({ message: 'duplicate key value violates unique constraint "wallet_settings_wallet_id_unique"', code: "23505" })
+      );
 
       const result = await service.upsertWalletSetting(user.id, {
         autoReloadEnabled: true,
@@ -116,7 +146,7 @@ describe(WalletSettingService.name, () => {
 
     it("updates existing setting using existing values when enabled is true and threshold and amount are not provided", async () => {
       const { user, walletSetting, walletSettingRepository, service } = setup();
-      const updatedSetting = WalletSettingSeeder.create({
+      const updatedSetting = generateWalletSetting({
         userId: user.id,
         autoReloadEnabled: true,
         autoReloadThreshold: 15.5,
@@ -140,9 +170,12 @@ describe(WalletSettingService.name, () => {
     });
 
     it("throws 400 when enabled is true and existing setting does not have threshold and amount", async () => {
-      const { user, walletSetting, walletSettingRepository, service } = setup();
-      delete walletSetting.autoReloadThreshold;
-      delete walletSetting.autoReloadAmount;
+      const {
+        user,
+        walletSetting: { autoReloadThreshold, autoReloadAmount, ...walletSetting },
+        walletSettingRepository,
+        service
+      } = setup();
       walletSettingRepository.findByUserId.mockResolvedValue(walletSetting);
 
       await expect(() =>
@@ -185,7 +218,7 @@ describe(WalletSettingService.name, () => {
     walletSettingRepository.accessibleBy.mockReturnValue(walletSettingRepository);
     const userWalletRepository = mock<UserWalletRepository>();
     userWalletRepository.findOneByUserId.mockResolvedValue(userWallet);
-    const walletSetting = WalletSettingSeeder.create({ userId: user.id });
+    const walletSetting = generateWalletSetting({ userId: user.id });
     walletSettingRepository.findByUserId.mockResolvedValue(walletSetting);
     const ability = createMongoAbility();
     const authService = mock<AuthService>({

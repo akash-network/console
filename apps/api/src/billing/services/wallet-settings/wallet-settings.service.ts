@@ -1,4 +1,5 @@
 import assert from "http-assert";
+import { PostgresError } from "postgres";
 import { singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
@@ -27,6 +28,39 @@ export class WalletSettingService {
   async upsertWalletSetting(userId: string, settings: WalletSetting): Promise<WalletSettingOutput> {
     const { ability } = this.authService;
 
+    const updatedSetting = await this.update(userId, settings);
+
+    if (updatedSetting) {
+      return updatedSetting;
+    }
+
+    this.validate(settings);
+
+    const userWallet = await this.userWalletRepository.findOneByUserId(userId);
+
+    assert(userWallet, 404, "UserWallet Not Found");
+
+    try {
+      return await this.walletSettingRepository.accessibleBy(ability, "create").create({
+        userId,
+        walletId: userWallet.id,
+        ...settings
+      });
+    } catch (error: unknown) {
+      if (this.isDuplicateError(error)) {
+        const updatedSettingRetried = await this.update(userId, settings);
+
+        assert(updatedSettingRetried, 500, "Failed to create a wallet setting");
+
+        return updatedSettingRetried;
+      }
+      throw error;
+    }
+  }
+
+  private async update(userId: string, settings: WalletSetting): Promise<WalletSettingOutput | undefined> {
+    const { ability } = this.authService;
+
     const existingSetting = await this.walletSettingRepository.accessibleBy(ability, "read").findByUserId(userId);
 
     if (existingSetting) {
@@ -37,20 +71,10 @@ export class WalletSettingService {
 
       return updatedSetting;
     }
+  }
 
-    this.validate(settings);
-
-    const userWallet = await this.userWalletRepository.findOneByUserId(userId);
-
-    assert(userWallet, 404, "UserWallet Not Found");
-
-    const newSetting = await this.walletSettingRepository.accessibleBy(ability, "create").create({
-      userId,
-      walletId: userWallet.id,
-      ...settings
-    });
-
-    return newSetting;
+  private isDuplicateError(error: unknown): error is PostgresError & { code: "23505" } {
+    return error instanceof PostgresError && error.code === "23505";
   }
 
   private validate(settings: WalletSetting, existingSetting?: WalletSettingOutput) {
@@ -58,9 +82,11 @@ export class WalletSettingService {
       const threshold = settings.autoReloadThreshold ?? existingSetting?.autoReloadThreshold;
       const amount = settings.autoReloadAmount ?? existingSetting?.autoReloadAmount;
 
-      if (threshold === undefined || amount === undefined) {
-        assert(false, 400, '"autoReloadThreshold" and "autoReloadAmount" are required when "autoReloadEnabled" is true');
-      }
+      assert(
+        typeof threshold === "number" && typeof amount === "number",
+        400,
+        '"autoReloadThreshold" and "autoReloadAmount" are required when "autoReloadEnabled" is true'
+      );
     }
   }
 
