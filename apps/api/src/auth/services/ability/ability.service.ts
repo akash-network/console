@@ -23,6 +23,7 @@ export class AbilityService {
     ],
     REGULAR_USER: [
       { action: ["create", "read", "sign"], subject: "UserWallet", conditions: { userId: "${user.id}" } },
+      { action: "manage", subject: "WalletSetting", conditions: { userId: "${user.id}" } },
       { action: "read", subject: "User", conditions: { id: "${user.id}" } },
       { action: "verify-email", subject: "User", conditions: { email: "${user.email}" } },
       { action: ["create", "read", "delete"], subject: "StripePayment" },
@@ -33,6 +34,7 @@ export class AbilityService {
     ],
     REGULAR_PAYING_USER: [
       { action: ["create", "read", "sign"], subject: "UserWallet", conditions: { userId: "${user.id}" } },
+      { action: "manage", subject: "WalletSetting", conditions: { userId: "${user.id}" } },
       { action: "read", subject: "User", conditions: { id: "${user.id}" } },
       { action: "verify-email", subject: "User", conditions: { email: "${user.email}" } },
       { action: ["create", "read", "delete"], subject: "StripePayment" },

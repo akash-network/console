@@ -53,6 +53,24 @@ export const StartTrialRequestInputSchema = z.object({
   })
 });
 
+export const WalletSettingsSchema = z.object({
+  autoReloadEnabled: z.boolean().openapi({}),
+  autoReloadThreshold: z.number().min(20).optional().openapi({}),
+  autoReloadAmount: z.number().min(20).optional().openapi({})
+});
+
+export const WalletSettingsResponseSchema = z.object({
+  data: WalletSettingsSchema
+});
+
+export const CreateWalletSettingsRequestSchema = z.object({
+  data: WalletSettingsSchema
+});
+
+export const UpdateWalletSettingsRequestSchema = z.object({
+  data: WalletSettingsSchema.partial()
+});
+
 export type WalletOutput = z.infer<typeof WalletOutputSchema>;
 export type ThreeDSecureAuth = z.infer<typeof ThreeDSecureAuthSchema>;
 export type WalletWithOptional3DS = z.infer<typeof WalletWithOptional3DSSchema>;
@@ -61,3 +79,6 @@ export type WalletResponseNo3DSOutput = z.infer<typeof WalletResponseNo3DSOutput
 export type WalletResponse3DSOutput = z.infer<typeof WalletResponse3DSOutputSchema>;
 export type WalletListOutputResponse = z.infer<typeof WalletListResponseOutputSchema>;
 export type StartTrialRequestInput = z.infer<typeof StartTrialRequestInputSchema>;
+export type WalletSettingsResponse = z.infer<typeof WalletSettingsResponseSchema>;
+export type CreateWalletSettingsRequest = z.infer<typeof CreateWalletSettingsRequestSchema>;
+export type UpdateWalletSettingsRequest = z.infer<typeof UpdateWalletSettingsRequestSchema>;
