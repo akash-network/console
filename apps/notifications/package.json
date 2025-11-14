@@ -26,7 +26,7 @@
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main",
     "test": "jest --selectProjects unit functional",
-    "test:ci-setup": "dc up:db",
+    "test:ci-setup": "dc up -d db",
     "test:ci-teardown": "dc down",
     "test:cov": "jest --selectProjects unit functional --coverage --reporters=default --reporters=jest-junit",
     "test:functional": "jest --selectProjects functional",
