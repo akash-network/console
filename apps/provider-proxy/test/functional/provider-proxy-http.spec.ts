@@ -14,12 +14,8 @@ describe("Provider HTTP proxy", () => {
   const network: SupportedChainNetworks = "sandbox-2";
   const ONE_HOUR = 60 * 60 * 1000;
 
-  afterAll(async () => {
-    await stopServer();
-  });
-
   afterEach(async () => {
-    await Promise.all([stopProviderServer(), stopChainAPIServer()]);
+    await Promise.all([stopServer(), stopProviderServer(), stopChainAPIServer()]);
   });
 
   it("proxies request if provider uses self-signed certificate which is available on chain", async () => {
@@ -232,7 +228,7 @@ describe("Provider HTTP proxy", () => {
     const { providerUrl } = await startProviderServer({ certPair: validCertPair });
     await startServer();
 
-    process.env.TEST_CHAIN_NETWORK_URL = "http://localhost:31234";
+    process.env.REST_API_NODE_URL = "http://localhost:31234";
     const responsePromise = request("/", {
       method: "POST",
       body: JSON.stringify({

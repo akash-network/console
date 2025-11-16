@@ -52,7 +52,7 @@ describe(CertificateValidator.name, () => {
     expect(getCertificate).toHaveBeenCalledWith("provider", cert.serialNumber);
   });
 
-  it("caches provider certificate per network, provider and serial number", async () => {
+  it("caches provider certificate per provider and serial number", async () => {
     const { cert } = createX509CertPair({
       validFrom: new Date(),
       validTo: new Date(Date.now() + ONE_MINUTE),

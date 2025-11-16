@@ -20,9 +20,6 @@ export const providerRequestSchema = z.object({
     .optional(),
   url: z.string().url(),
   providerAddress: z.string().refine(isValidBech32Address, "is not bech32 address").describe("Bech32 representation of provider wallet address"),
-  // Deprecated fields for backward compatibility
-  network: z.string().describe("Deprecated blockchain network parameter - no longer used").optional(),
-  chainNetwork: z.string().describe("Deprecated blockchain network parameter - no longer used").optional(),
   certPem: z.string().describe('Deprecated certificate. Use mtls auth type  with "auth.certPem" instead.').optional(),
   keyPem: z.string().describe('Deprecated key. Use mtls auth type  with "auth.keyPem" instead.').optional(),
   isBase64: z
@@ -32,13 +29,13 @@ export const providerRequestSchema = z.object({
     .default(false)
 });
 
-export type ProviderRequestSchema = Omit<z.infer<typeof providerRequestSchema>, "network" | "chainNetwork" | "certPem" | "keyPem">;
+export type ProviderRequestSchema = Omit<z.infer<typeof providerRequestSchema>, "certPem" | "keyPem">;
 
 /** this can be attached as .superRefine in zod v4 */
 export function addProviderAuthValidation<T extends z.ZodType<any>>(schema: T): z.ZodEffects<T> {
   return z
     .preprocess(data => {
-      const { certPem, keyPem, network, chainNetwork, ...normalizedData } = data as z.infer<typeof providerRequestSchema>;
+      const { certPem, keyPem, ...normalizedData } = data as z.infer<typeof providerRequestSchema>;
       if (!normalizedData.auth && (certPem || keyPem)) {
         normalizedData.auth = { type: "mtls", certPem: certPem || "", keyPem: keyPem || "" };
       }
