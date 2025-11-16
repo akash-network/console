@@ -6,6 +6,7 @@ import { Registry } from "@cosmjs/proto-signing";
 import type { Account, DeliverTxResponse, SigningStargateClient } from "@cosmjs/stargate";
 import type { IndexedTx } from "@cosmjs/stargate/build/stargateclient";
 import { faker } from "@faker-js/faker";
+import { PaymentRequired } from "http-errors";
 import { mock } from "jest-mock-extended";
 
 import { createAkashAddress } from "../../../../test/seeders";
@@ -97,6 +98,23 @@ describe(BatchSigningClientService.name, () => {
     expect(client.broadcastTxSync).toHaveBeenCalledTimes(allTestData.length - 1);
   });
 
+  it("should convert insufficient balance error to 402 Payment Required", async () => {
+    const granter = createAkashAddress();
+    const testData = createTransactionTestData(granter);
+    const insufficientBalanceError = new Error(
+      "Query failed with (6): rpc error: code = Unknown desc = failed to execute message; message index: 1: Deposit invalid: insufficient balance"
+    );
+    testData.hash = insufficientBalanceError;
+    const { service, chainErrorService } = setup([testData]);
+
+    const paymentRequiredError = new PaymentRequired("Insufficient balance");
+    chainErrorService.toAppError.mockResolvedValueOnce(paymentRequiredError);
+
+    await expect(service.signAndBroadcast(testData.messages)).rejects.toThrow(PaymentRequired);
+
+    expect(chainErrorService.toAppError).toHaveBeenCalledWith(insufficientBalanceError, testData.messages);
+  });
+
   function createTransactionTestData(granter: string): TransactionTestData {
     const signedMessage = TxRaw.fromPartial({
       bodyBytes: generateRandomBytes(faker.number.int({ min: 10, max: 100 })),
@@ -186,6 +204,6 @@ describe(BatchSigningClientService.name, () => {
 
     const service = new BatchSigningClientService(billingConfigService, wallet, registry, createClientWithSigner, chainErrorService);
 
-    return { service, client };
+    return { service, client, chainErrorService };
   }
 });

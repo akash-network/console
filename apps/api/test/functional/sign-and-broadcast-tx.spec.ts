@@ -1,10 +1,13 @@
 import { certificateManager } from "@akashnetwork/chain-sdk";
 import { MsgCreateCertificate } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import type { Registry } from "@cosmjs/proto-signing";
+import nock from "nock";
 import { container } from "tsyringe";
 
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
+import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { app } from "@src/rest-app";
+import { apiNodeUrl } from "@src/utils/constants";
 
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
@@ -16,7 +19,7 @@ describe("Tx Sign", () => {
 
   describe("POST /v1/tx", () => {
     it("should create a wallet for a user", async () => {
-      const { user, token, wallet } = await walletService.createUserAndWallet();
+      const { user, token, wallet } = await setup();
       const res = await app.request("/v1/tx", {
         method: "POST",
         body: await createMessagePayload(user.id, wallet.address),
@@ -28,7 +31,7 @@ describe("Tx Sign", () => {
     });
 
     it("should throw 401 provided no auth header", async () => {
-      const { user, wallet } = await walletService.createUserAndWallet();
+      const { user, wallet } = await setup();
       const res = await app.request("/v1/tx", {
         method: "POST",
         body: await createMessagePayload(user.id, wallet.address),
@@ -40,7 +43,7 @@ describe("Tx Sign", () => {
     });
 
     it("should throw 404 provided a different user auth header", async () => {
-      const { user, wallet } = await walletService.createUserAndWallet();
+      const { user, wallet } = await setup();
       const differentUserResponse = await app.request("/v1/anonymous-users", {
         method: "POST",
         headers: new Headers({ "Content-Type": "application/json" })
@@ -54,6 +57,28 @@ describe("Tx Sign", () => {
 
       expect(res.status).toBe(404);
       expect(await res.json()).toMatchObject({ error: "NotFoundError", message: "UserWallet Not Found" });
+    });
+
+    it("should return 402 Payment Required when blockchain returns insufficient balance error", async () => {
+      const { user, token, wallet, blockNode, unblockNode } = await setup();
+
+      try {
+        blockNode("unknown", "failed to execute message; message index: 1: Deposit invalid: insufficient balance");
+        const res = await app.request("/v1/tx", {
+          method: "POST",
+          body: await createMessagePayload(user.id, wallet.address),
+          headers: new Headers({ "Content-Type": "application/json", authorization: `Bearer ${token}` })
+        });
+
+        expect(res.status).toBe(402);
+        const responseBody = await res.json();
+        expect(responseBody).toMatchObject({
+          error: "PaymentRequiredError",
+          message: "Insufficient balance"
+        });
+      } finally {
+        unblockNode();
+      }
     });
   });
 
@@ -80,5 +105,29 @@ describe("Tx Sign", () => {
         ]
       }
     });
+  }
+
+  const setup = async () => {
+    const { user, token, wallet } = await walletService.createUserAndWallet();
+
+    return {
+      user,
+      token,
+      wallet,
+      blockNode,
+      unblockNode
+    };
+  };
+
+  function blockNode(code: string, message: string) {
+    const RPC_NODE_ENDPOINT = container.resolve(BillingConfigService).get("RPC_NODE_ENDPOINT");
+
+    nock(apiNodeUrl).persist().get(/.*/).replyWithError({ code, message }).post(/.*/).replyWithError({ code, message });
+
+    nock(RPC_NODE_ENDPOINT).persist().get(/.*/).replyWithError({ code, message }).post(/.*/).replyWithError({ code, message });
+  }
+
+  function unblockNode() {
+    nock.cleanAll();
   }
 });
