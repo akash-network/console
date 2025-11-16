@@ -16,6 +16,7 @@ import { createAppRootContainer, withInterceptors } from "./app-di-container";
 const rootContainer = createAppRootContainer({
   runtimeEnv: "browser",
   BASE_API_MAINNET_URL: browserEnvConfig.NEXT_PUBLIC_BASE_API_MAINNET_URL,
+  BASE_PROVIDER_PROXY_URL: browserEnvConfig.NEXT_PUBLIC_PROVIDER_PROXY_URL,
   MANAGED_WALLET_NETWORK_ID: browserEnvConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID,
   apiUrlService: () => new ApiUrlService(browserEnvConfig)
 });

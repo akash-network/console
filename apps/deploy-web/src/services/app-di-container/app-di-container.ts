@@ -152,6 +152,7 @@ export const createAppRootContainer = (config: ServicesConfig) => {
 export interface ServicesConfig {
   BASE_API_MAINNET_URL: string;
   BASE_PROVIDER_PROXY_URL: string;
+  MANAGED_WALLET_NETWORK_ID: NetworkId;
   globalRequestMiddleware?: (config: InternalAxiosRequestConfig) => InternalAxiosRequestConfig;
   runtimeEnv: "nodejs" | "browser";
   apiUrlService: () => ApiUrlService;
