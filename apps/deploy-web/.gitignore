@@ -15,6 +15,19 @@
 # production
 /build
 
+# PWA
+/public/sw.js
+/public/sw.js.map
+/public/workbox-*.js
+/public/workbox-*.js.map
+
+# Compiled TypeScript files (exclude from git - only .ts/.tsx should be committed)
+/src/**/*.js
+/script/**/*.js
+/tests/**/*.js
+*.config.js
+!next.config.js
+
 # misc
 .DS_Store
 *.pem
