@@ -3,7 +3,6 @@ import { requestFn } from "@openapi-qraft/react";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { ApiUrlService } from "@src/services/api-url/api-url.service";
-import networkStore from "@src/store/networkStore";
 import * as walletUtils from "@src/utils/walletUtils";
 import { AuthService } from "../auth/auth/auth.service";
 import { withAnonymousUserToken, withUserToken } from "../auth/auth/interceptors";
@@ -51,7 +50,6 @@ export const services = createChildContainer(rootContainer, {
         }
       ]
     }),
-  networkStore: () => networkStore,
   appConfig: () => browserEnvConfig,
   authService: () => new AuthService(services.urlService, services.internalApiHttpClient),
   storedWalletsService: () => walletUtils,
