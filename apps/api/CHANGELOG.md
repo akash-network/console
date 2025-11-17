@@ -1,5 +1,23 @@
 
 
+## [3.4.0](https://github.com/akash-network/console/compare/console-api/v3.3.0...console-api/v3.4.0) (2025-11-17)
+
+
+### Features
+
+* upgrade Node.js to 24.11.1 LTS ([#2223](https://github.com/akash-network/console/issues/2223)) ([d9feb09](https://github.com/akash-network/console/commit/d9feb090d45408ec9835216bfc5c6fb3f1329abc))
+* **wallet:** implements wallet setting to allow user to configure wallet ([#2218](https://github.com/akash-network/console/issues/2218)) ([f72f5c5](https://github.com/akash-network/console/commit/f72f5c534cf3750cacf9287993af28e28b20a954)), closes [#1779](https://github.com/akash-network/console/issues/1779) [#1779](https://github.com/akash-network/console/issues/1779)
+
+
+### Bug Fixes
+
+* **billing:** convert to usdc ([#2220](https://github.com/akash-network/console/issues/2220)) ([fef0945](https://github.com/akash-network/console/commit/fef094516f3800f80adfd1addab95967b6c259ff))
+* convert provider AxiosError to HTTP errors in provider service ([#2207](https://github.com/akash-network/console/issues/2207)) ([b9a6436](https://github.com/akash-network/console/commit/b9a64369ec35ba933fa097f88db8b7d1385b296a))
+* correct typos and formatting issues ([#2221](https://github.com/akash-network/console/issues/2221)) ([28e7a98](https://github.com/akash-network/console/commit/28e7a98d2a9f8a8cdefb6b538307c1ec4f34cf55))
+* proper handling of useFactory instances in console-api ([#2215](https://github.com/akash-network/console/issues/2215)) ([4b97028](https://github.com/akash-network/console/commit/4b97028dc65ba399e3a4612ead1e0691d5cbc324))
+* **user:** add UUID validation to anonymous user ID parameter ([#2205](https://github.com/akash-network/console/issues/2205)) ([57aeb43](https://github.com/akash-network/console/commit/57aeb4316e3947ace55e8b5cc38545370fe4d07b)), closes [#2204](https://github.com/akash-network/console/issues/2204)
+* validate dseq as uint64 to prevent parsing errors ([#2213](https://github.com/akash-network/console/issues/2213)) ([f2a7daf](https://github.com/akash-network/console/commit/f2a7dafeefd172391790ec3a25f94b4663a30928))
+
 ## [3.3.0](https://github.com/akash-network/console/compare/console-api/v3.2.0...console-api/v3.3.0) (2025-11-12)
 
 

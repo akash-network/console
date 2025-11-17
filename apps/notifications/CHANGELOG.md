@@ -1,5 +1,17 @@
 
 
+## [2.4.0](https://github.com/akash-network/console/compare/notifications/v2.3.0...notifications/v2.4.0) (2025-11-17)
+
+
+### Features
+
+* upgrade Node.js to 24.11.1 LTS ([#2223](https://github.com/akash-network/console/issues/2223)) ([d9feb09](https://github.com/akash-network/console/commit/d9feb090d45408ec9835216bfc5c6fb3f1329abc))
+
+
+### Bug Fixes
+
+* convert provider AxiosError to HTTP errors in provider service ([#2207](https://github.com/akash-network/console/issues/2207)) ([b9a6436](https://github.com/akash-network/console/commit/b9a64369ec35ba933fa097f88db8b7d1385b296a))
+
 ## [2.3.0](https://github.com/akash-network/console/compare/notifications/v2.2.0...notifications/v2.3.0) (2025-11-12)
 
 
