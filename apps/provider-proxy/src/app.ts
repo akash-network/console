@@ -50,7 +50,7 @@ export function createApp(container: Container): Hono<AppEnv> {
   return app;
 }
 
-export async function startAppServer(untrustedConfig: AppConfig): Promise<AppServer> {
+export async function startAppServer(untrustedConfig: Record<string, unknown> | AppConfig): Promise<AppServer> {
   let appContainer: Container | undefined;
   try {
     const container = createContainer(untrustedConfig);

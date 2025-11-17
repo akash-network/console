@@ -1,14 +1,13 @@
 import { HttpLoggerIntercepter } from "@akashnetwork/logging/hono";
 import { createOtelLogger } from "@akashnetwork/logging/otel";
 
-import type { AppConfig } from "./config/env.config";
 import { appConfigSchema } from "./config/env.config";
 import { CertificateValidator, createCertificateValidatorInstrumentation } from "./services/CertificateValidator/CertificateValidator";
 import { ProviderProxy } from "./services/ProviderProxy";
 import { ProviderService } from "./services/ProviderService/ProviderService";
 import { WebsocketStats } from "./services/WebsocketStats";
 
-export function createContainer(untrustedConfig: AppConfig) {
+export function createContainer(untrustedConfig: Record<string, unknown>) {
   const appConfig = appConfigSchema.parse(untrustedConfig);
   const isLoggingDisabled = process.env.NODE_ENV === "test";
 
