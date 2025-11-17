@@ -77,9 +77,8 @@ export class LoggerService implements Logger {
         }
       },
       serializers: {
-        err: collectFullErrorStack,
-        error: collectFullErrorStack,
-        originalError: collectFullErrorStack,
+        err: logError,
+        error: logError,
         msg: sanitizeString,
         message: sanitizeString
       },
@@ -133,53 +132,60 @@ export class LoggerService implements Logger {
   info(message: Error): void;
   info(message: unknown): void;
   info(message: unknown): void {
-    return this.pino.info(this.toLoggableInput(message));
+    return this.pino.info(message);
   }
 
   error(message: LogMessage): void;
   error(message: Error): void;
   error(message: unknown): void;
   error(message: unknown): void {
-    this.pino.error(this.toLoggableInput(message));
+    this.pino.error(message);
   }
 
   fatal(message: LogMessage): void;
   fatal(message: Error): void;
   fatal(message: unknown): void;
   fatal(message: unknown): void {
-    this.pino.fatal(this.toLoggableInput(message));
+    this.pino.fatal(message);
   }
 
   warn(message: LogMessage): void;
   warn(message: Error): void;
   warn(message: unknown): void;
   warn(message: unknown): void {
-    return this.pino.warn(this.toLoggableInput(message));
+    return this.pino.warn(message);
   }
 
   debug(message: LogMessage): void;
   debug(message: Error): void;
   debug(message: unknown): void;
   debug(message: unknown): void {
-    return this.pino.debug(this.toLoggableInput(message));
+    return this.pino.debug(message);
+  }
+}
+
+function logError(error: Error | undefined | null) {
+  if (!error) return;
+
+  if (isHttpError(error)) {
+    return {
+      // keep new line
+      status: error.status,
+      message: sanitizeString(error.message),
+      stack: collectFullErrorStack(error),
+      data: error.data,
+      originalError: error.originalError ? collectFullErrorStack(error.originalError) : undefined
+    };
   }
 
-  protected toLoggableInput(message: unknown): any {
-    if (!message) return;
-
-    if (isHttpError(message)) {
-      return {
-        // keep new line
-        status: message.status,
-        message: sanitizeString(message.message),
-        stack: collectFullErrorStack(message),
-        data: message.data,
-        originalError: message.originalError
-      };
-    }
-
-    return message;
+  if (Object.hasOwn(error, "sql")) {
+    return {
+      stack: collectFullErrorStack(error),
+      sql: (error as Error & { sql: string }).sql
+    };
   }
+
+  return collectFullErrorStack(error);
 }
 
 declare let window: unknown;

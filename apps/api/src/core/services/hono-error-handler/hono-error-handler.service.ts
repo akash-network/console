@@ -2,7 +2,7 @@ import { LoggerService } from "@akashnetwork/logging";
 import { ForbiddenError } from "@casl/ability";
 import { HTTPException } from "hono/http-exception";
 import { isHttpError } from "http-errors";
-import { ConnectionAcquireTimeoutError, ConnectionError, DatabaseError } from "sequelize";
+import { ConnectionAcquireTimeoutError, ConnectionError } from "sequelize";
 import { singleton } from "tsyringe";
 import { ZodError } from "zod";
 
@@ -17,7 +17,7 @@ export class HonoErrorHandlerService {
   }
 
   async handle(error: unknown, c: AppContext): Promise<Response> {
-    this.logger.error(this.toLoggableError(error));
+    this.logger.error(error);
 
     // Handle Hono's HTTPException (e.g., malformed JSON from validators)
     if (error instanceof HTTPException) {
@@ -135,14 +135,6 @@ export class HonoErrorHandlerService {
     }
 
     return "unknown_error";
-  }
-
-  private toLoggableError(error: unknown) {
-    if (error instanceof DatabaseError) {
-      return { error, sql: error.sql };
-    }
-
-    return error;
   }
 
   /**
