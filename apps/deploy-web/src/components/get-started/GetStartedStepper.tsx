@@ -82,8 +82,8 @@ export const GetStartedStepper: React.FunctionComponent = () => {
         <StepContent>
           {browserEnvConfig.NEXT_PUBLIC_BILLING_ENABLED && !isWalletConnected && (
             <p className="text-muted-foreground">
-              You can pay using either USD (fiat) or with crypto ($AKT or $USDC). To pay with USD click "Start Trial". To pay with crypto, click "Connect
-              Wallet"
+              You can pay using either USD (fiat) or with crypto ($AKT or $USDC). <span className="hidden">To pay with USD click "Start Trial".</span> To pay
+              with crypto, click "Connect Wallet"
             </p>
           )}
 

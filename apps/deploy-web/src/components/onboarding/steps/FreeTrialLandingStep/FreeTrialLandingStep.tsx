@@ -37,7 +37,7 @@ interface FreeTrialLandingStepProps {
 
 export const FreeTrialLandingStep: React.FunctionComponent<FreeTrialLandingStepProps> = ({ onStartTrial }) => {
   return (
-    <div className="space-y-8">
+    <div className="hidden space-y-8">
       <div className="text-center">
         <div className="mb-8 flex justify-center">
           <AkashLogo />
