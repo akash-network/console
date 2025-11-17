@@ -9,9 +9,8 @@ import { BILLING_CONFIG } from "@src/billing/providers";
 import { MANAGED_MASTER_WALLET } from "@src/billing/providers/wallet.provider";
 import type { ApiPgDatabase } from "@src/core";
 import { POSTGRES_DB, resolveTable } from "@src/core";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { app } from "@src/rest-app";
+import { WalletTestingService } from "../services/wallet-testing.service";
 
 jest.setTimeout(20000);
 
@@ -21,128 +20,94 @@ describe("start trial", () => {
   const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
   const userWalletsQuery = db.query.UserWallets;
   const authzHttpService = container.resolve(AuthzHttpService);
+  const walletTestingService = new WalletTestingService(app);
 
   afterEach(() => {
     jest.restoreAllMocks();
   });
 
   describe("POST /v1/start-trial", () => {
-    describe("when ANONYMOUS_FREE_TRIAL allowed", () => {
-      it("creates a wallet for a user", async () => {
-        const userResponse = await app.request("/v1/anonymous-users", {
-          method: "POST",
-          headers: new Headers({ "Content-Type": "application/json" })
-        });
-        const {
-          data: { id: userId },
-          token
-        } = (await userResponse.json()) as any;
-        const headers = new Headers({ "Content-Type": "application/json", authorization: `Bearer ${token}` });
+    it("creates a wallet for a registered user", async () => {
+      const { user, token } = await walletTestingService.createRegisteredUser();
+      const userId = user.id;
+      const headers = new Headers({ "Content-Type": "application/json", authorization: `Bearer ${token}` });
 
-        jest.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => flag === FeatureFlags.ANONYMOUS_FREE_TRIAL);
-        const createWalletResponse = await app.request("/v1/start-trial", {
-          method: "POST",
-          body: JSON.stringify({ data: { userId } }),
-          headers
-        });
-        const getWalletsResponse = await app.request(`/v1/wallets?userId=${userId}`, { headers });
-        const userWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, userId) });
-        const masterWalletAddress = await container.resolve(MANAGED_MASTER_WALLET).getFirstAddress();
-        if (!userWallet?.address) throw new Error("User wallet address is null-ish");
+      const createWalletResponse = await app.request("/v1/start-trial", {
+        method: "POST",
+        body: JSON.stringify({ data: { userId } }),
+        headers
+      });
+      const getWalletsResponse = await app.request(`/v1/wallets?userId=${userId}`, { headers });
+      const userWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, userId) });
+      const masterWalletAddress = await container.resolve(MANAGED_MASTER_WALLET).getFirstAddress();
+      if (!userWallet?.address) throw new Error("User wallet address is null-ish");
 
-        const allowances = await Promise.all([
-          authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee(masterWalletAddress, userWallet.address),
-          authzHttpService.getValidFeeAllowancesForGrantee(userWallet.address)
-        ]);
+      const allowances = await Promise.all([
+        authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee(masterWalletAddress, userWallet.address),
+        authzHttpService.getValidFeeAllowancesForGrantee(userWallet.address)
+      ]);
 
-        expect(createWalletResponse.status).toBe(200);
-        expect(getWalletsResponse.status).toBe(200);
-        expect(await createWalletResponse.json()).toMatchObject({
-          data: {
+      expect(createWalletResponse.status).toBe(200);
+      expect(getWalletsResponse.status).toBe(200);
+      expect(await createWalletResponse.json()).toMatchObject({
+        data: {
+          id: expect.any(Number),
+          userId,
+          creditAmount: expect.any(Number),
+          address: expect.any(String),
+          isTrialing: true
+        }
+      });
+      expect(await getWalletsResponse.json()).toMatchObject({
+        data: [
+          {
             id: expect.any(Number),
             userId,
             creditAmount: expect.any(Number),
             address: expect.any(String),
             isTrialing: true
           }
-        });
-        expect(await getWalletsResponse.json()).toMatchObject({
-          data: [
-            {
-              id: expect.any(Number),
-              userId,
-              creditAmount: expect.any(Number),
-              address: expect.any(String),
-              isTrialing: true
-            }
-          ]
-        });
-        expect(userWallet).toMatchObject({
-          id: expect.any(Number),
-          userId,
-          address: expect.any(String),
-          deploymentAllowance: `${config.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT}.00`,
-          feeAllowance: `${config.TRIAL_FEES_ALLOWANCE_AMOUNT}.00`,
-          isTrialing: true
-        });
-        expect(allowances).toMatchObject([
-          {
-            authorization: {
-              "@type": `/${DepositAuthorization.$type}`,
-              spend_limit: { denom: config.DEPLOYMENT_GRANT_DENOM, amount: String(config.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT) }
-            },
-            expiration: expect.any(String)
+        ]
+      });
+      expect(userWallet).toMatchObject({
+        id: expect.any(Number),
+        userId,
+        address: expect.any(String),
+        deploymentAllowance: `${config.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT}.00`,
+        feeAllowance: `${config.TRIAL_FEES_ALLOWANCE_AMOUNT}.00`,
+        isTrialing: true
+      });
+      expect(allowances).toMatchObject([
+        {
+          authorization: {
+            "@type": `/${DepositAuthorization.$type}`,
+            spend_limit: { denom: config.DEPLOYMENT_GRANT_DENOM, amount: String(config.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT) }
           },
-          [
-            {
-              granter: expect.any(String),
-              grantee: userWallet.address,
-              allowance: {
-                "@type": "/cosmos.feegrant.v1beta1.BasicAllowance",
-                spend_limit: [{ denom: "uakt", amount: String(config.TRIAL_FEES_ALLOWANCE_AMOUNT) }],
-                expiration: expect.any(String)
-              }
+          expiration: expect.any(String)
+        },
+        [
+          {
+            granter: expect.any(String),
+            grantee: userWallet.address,
+            allowance: {
+              "@type": "/cosmos.feegrant.v1beta1.BasicAllowance",
+              spend_limit: [{ denom: "uakt", amount: String(config.TRIAL_FEES_ALLOWANCE_AMOUNT) }],
+              expiration: expect.any(String)
             }
-          ]
-        ]);
-      });
-
-      it("should throw 401 provided no auth header ", async () => {
-        jest.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => flag === FeatureFlags.ANONYMOUS_FREE_TRIAL);
-        const createWalletResponse = await app.request("/v1/start-trial", {
-          method: "POST",
-          body: JSON.stringify({ data: { userId: faker.string.uuid() } }),
-          headers: new Headers({ "Content-Type": "application/json" })
-        });
-
-        expect(createWalletResponse.status).toBe(401);
-        expect(await createWalletResponse.json()).toMatchObject({ error: "UnauthorizedError", message: "Unauthorized" });
-      });
+          }
+        ]
+      ]);
     });
 
-    describe("when when ANONYMOUS_FREE_TRIAL disallowed", () => {
-      it("forbids anonymous users to start a trial", async () => {
-        const userResponse = await app.request("/v1/anonymous-users", {
-          method: "POST",
-          headers: new Headers({ "Content-Type": "application/json" })
-        });
-        const {
-          data: { id: userId },
-          token
-        } = (await userResponse.json()) as any;
-        const headers = new Headers({ "Content-Type": "application/json", authorization: `Bearer ${token}` });
-
-        jest.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => flag !== FeatureFlags.ANONYMOUS_FREE_TRIAL);
-        const createWalletResponse = await app.request("/v1/start-trial", {
-          method: "POST",
-          body: JSON.stringify({ data: { userId } }),
-          headers
-        });
-        const body = await createWalletResponse.json();
-
-        expect(createWalletResponse.status).toBe(400);
-        expect(body).toMatchObject({ error: "BadRequestError", message: "Email not verified" });
+    it("should throw 401 provided no auth header ", async () => {
+      const createWalletResponse = await app.request("/v1/start-trial", {
+        method: "POST",
+        body: JSON.stringify({ data: { userId: faker.string.uuid() } }),
+        headers: new Headers({ "Content-Type": "application/json" })
       });
+
+      expect(createWalletResponse.status).toBe(401);
+      expect(await createWalletResponse.json()).toMatchObject({ error: "UnauthorizedError", message: "Unauthorized" });
     });
   });
 

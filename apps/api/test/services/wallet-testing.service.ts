@@ -28,35 +28,17 @@ export class WalletTestingService<T extends Hono<any>> {
     await userRepository.updateById(wallet.id, { isTrialing: false });
   }
 
-  /** @deprecated anonymous users will not be supported in the nearest future */
-  async createAnonymousUserAndWallet() {
-    const { user, token } = await this.createUser();
-    const wallet = await this.createWallet(user);
-
-    return { user, token, wallet };
-  }
-
   private async createWallet(user: UserOutput) {
     jest.spyOn(container.resolve(DomainEventsService), "publish").mockResolvedValue(undefined);
 
     return container.resolve(ExecutionContextService).runWithContext(async () => {
       container.resolve(AuthService).currentUser = user;
-      const role = user.userId ? "REGULAR_USER" : "REGULAR_ANONYMOUS_USER";
+      const role = user.trial === false ? "REGULAR_PAYING_USER" : "REGULAR_USER";
       container.resolve(AuthService).ability = container.resolve(AbilityService).getAbilityFor(role, user);
       return (await container.resolve(WalletInitializerService).initializeAndGrantTrialLimits(user.id)) as {
         [K in keyof UserWalletOutput]: NonNullable<UserWalletOutput[K]>;
       };
     });
-  }
-
-  async createUser() {
-    const userResponse = await this.app.request("/v1/anonymous-users", {
-      method: "POST",
-      headers: new Headers({ "Content-Type": "application/json" })
-    });
-    const { data: user, token } = (await userResponse.json()) as any;
-
-    return { user, token };
   }
 
   /**

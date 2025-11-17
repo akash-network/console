@@ -1,5 +1,4 @@
-import subDays from "date-fns/subDays";
-import { and, desc, eq, isNull, lt, lte, SQL, sql } from "drizzle-orm";
+import { and, desc, eq, lt, SQL, sql } from "drizzle-orm";
 import { PgUpdateSetSource } from "drizzle-orm/pg-core";
 import { singleton } from "tsyringe";
 
@@ -40,10 +39,6 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
     return this.findUserWithWallet(eq(this.table.userId, userId!));
   }
 
-  async findAnonymousById(id: UserOutput["id"]) {
-    return await this.cursor.query.Users.findFirst({ where: this.whereAccessibleBy(and(eq(this.table.id, id), isNull(this.table.userId))) });
-  }
-
   async markAsActive(
     id: UserOutput["id"],
     options: {
@@ -69,28 +64,6 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
           lt(this.table.lastActiveAt, sql`now() - make_interval(secs => ${options.throttleTimeSeconds})`)
         )
       );
-  }
-
-  async paginateStaleAnonymousUsers(
-    { inactivityInDays, limit = 100 }: { inactivityInDays: number; limit?: number },
-    cb: (page: UserOutput[]) => Promise<void>
-  ) {
-    let lastId: string | undefined;
-
-    do {
-      const clauses = [isNull(this.table.userId), lte(this.table.lastActiveAt, subDays(new Date(), inactivityInDays))];
-
-      if (lastId) {
-        clauses.push(lt(this.table.id, lastId));
-      }
-
-      const items = this.toOutputList(await this.cursor.query.Users.findMany({ where: and(...clauses), limit, orderBy: [desc(this.table.id)] }));
-      lastId = items.at(-1)?.id;
-
-      if (items.length) {
-        await cb(items);
-      }
-    } while (lastId);
   }
 
   async upsertByUserId(data: UserInput): Promise<UserOutput> {

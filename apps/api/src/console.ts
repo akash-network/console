@@ -76,18 +76,6 @@ program
     });
   });
 
-const userConfig = container.resolve(UserConfigService);
-program
-  .command("cleanup-stale-anonymous-users")
-  .description(`Remove users that have been inactive for ${userConfig.get("STALE_ANONYMOUS_USERS_LIVE_IN_DAYS")} days`)
-  .option("-c, --concurrency <number>", "How many users are processed concurrently", value => z.number({ coerce: true }).optional().default(10).parse(value))
-  .option("-d, --dry-run", "Dry run the clean up stale anonymous users", false)
-  .action(async (options, command) => {
-    await executeCliHandler(command.name(), async () => {
-      await container.resolve(UserController).cleanUpStaleAnonymousUsers(options);
-    });
-  });
-
 const logger = LoggerService.forContext("CLI");
 
 async function executeCliHandler(name: string, handler: () => Promise<unknown>, options?: { type?: "action" | "daemon" }) {

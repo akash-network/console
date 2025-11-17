@@ -4,7 +4,6 @@ import { container as globalContainer } from "tsyringe";
 
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyAuthService } from "@src/auth/services/api-key/api-key-auth.service";
-import { AuthTokenService } from "@src/auth/services/auth-token/auth-token.service";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { UserOutput } from "@src/user/repositories/user/user.repository";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
@@ -16,10 +15,6 @@ import { AuthService } from "./auth.service";
 import { UserSeeder } from "@test/seeders/user.seeder";
 
 describe(AuthInterceptor.name, () => {
-  describe("Anonymous user", () => {
-    includeMarkUserAsActiveTests(() => UserSeeder.create({ userId: null }));
-  });
-
   describe("Regular user", () => {
     includeMarkUserAsActiveTests(() => UserSeeder.create());
   });
@@ -99,21 +94,12 @@ describe(AuthInterceptor.name, () => {
     di.registerInstance(
       UserRepository,
       mock<UserRepository>({
-        findAnonymousById: jest.fn().mockImplementation(async () => input?.user ?? UserSeeder.create()),
         findByUserId: jest.fn().mockImplementation(async () => input?.user ?? UserSeeder.create()),
         findById: jest.fn().mockImplementation(async () => input?.user ?? UserSeeder.create()),
         markAsActive: jest.fn()
       })
     );
     di.registerInstance(AuthService, mock());
-    di.registerInstance(
-      AuthTokenService,
-      mock<AuthTokenService>({
-        getValidUserId: jest.fn().mockImplementation(async () => {
-          return input?.apiKey && input?.user?.userId ? undefined : input?.user?.id;
-        })
-      })
-    );
     di.registerInstance(
       UserAuthTokenService,
       mock<UserAuthTokenService>({

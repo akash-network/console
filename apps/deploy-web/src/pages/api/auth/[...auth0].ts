@@ -12,7 +12,6 @@ import type { AppServices } from "@src/services/app-di-container/server-di-conta
 import { rewriteLocalRedirect } from "@src/services/auth/auth/rewrite-local-redirect";
 import type { SeverityLevel } from "@src/services/error-handler/error-handler.service";
 import type { UserSettings } from "@src/types/user";
-import { ANONYMOUS_HEADER_COOKIE_NAME } from "./signup";
 
 export default defineApiHandler({
   route: "/api/auth/[...auth0]",
@@ -47,12 +46,6 @@ const authHandler = once((services: AppServices) =>
                 Authorization: `Bearer ${session.accessToken}`
               });
 
-              const anonymousAuthorization = req.cookies[ANONYMOUS_HEADER_COOKIE_NAME];
-
-              if (anonymousAuthorization) {
-                headers.set("x-anonymous-authorization", decodeURIComponent(anonymousAuthorization));
-              }
-
               const userSettings = await services.consoleApiHttpClient.post<{ data: UserSettings }>(
                 `${services.apiUrlService.getBaseApiUrlFor(services.config.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID)}/v1/register-user`,
                 {
@@ -67,11 +60,6 @@ const authHandler = once((services: AppServices) =>
               );
 
               session.user = { ...session.user, ...userSettings.data.data };
-              const isSecure = services.config.NODE_ENV === "production";
-              res.setHeader(
-                "Set-Cookie",
-                `${ANONYMOUS_HEADER_COOKIE_NAME}=; Path=/api/auth/callback; HttpOnly; ${isSecure ? "Secure;" : ""} SameSite=Lax; Expires=Thu, 01 Jan 1970 00:00:00 GMT`
-              );
             } catch (error) {
               services.errorHandler.reportError({ error, tags: { category: "auth0" } });
             }
