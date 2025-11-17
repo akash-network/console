@@ -38,11 +38,15 @@ export const ConnectManagedWalletButton: React.FunctionComponent<Props> = ({ cla
     }
   }, [connectManagedWallet, allowAnonymousUserTrial, router, hasManagedWallet]);
 
+  if (!hasManagedWallet) {
+    return null;
+  }
+
   return (
     <Button
       variant="outline"
       onClick={startTrial}
-      className={cn("hidden border-primary bg-primary/10 dark:bg-primary", className)}
+      className={cn("border-primary bg-primary/10 dark:bg-primary", className)}
       {...rest}
       disabled={settings.isBlockchainDown || isWalletLoading}
     >
