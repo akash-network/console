@@ -14,9 +14,7 @@ This script is a wrapper around Docker Compose commands, specifically designed t
 #### Commands:
 - **build**: Build the Docker images using the `docker-compose.build.yml` file.
 - **down**: Bring down the services and remove containers.
-- **up:db**: Bring up only the database service, unless `--no-db` is specified.
-- **up:dev**: Bring up development services with Docker Compose.
-- **up:prod**: Bring up production services with Docker Compose.
+- **up**: Bring up development services with Docker Compose. Use `--no-db` option to exclude db service from starting
 
 #### Options:
 - `--no-db`: Exclude the DB service from being started.
