@@ -1,5 +1,12 @@
 
 
+## [3.4.3](https://github.com/akash-network/console/compare/console-web/v3.4.2...console-web/v3.4.3) (2025-11-17)
+
+
+### Bug Fixes
+
+* tests ([#2237](https://github.com/akash-network/console/issues/2237)) ([dcc594d](https://github.com/akash-network/console/commit/dcc594d832f28b6c2bccaba05c6a7ca398d3158c))
+
 ## [3.4.2](https://github.com/akash-network/console/compare/console-web/v3.4.1...console-web/v3.4.2) (2025-11-17)
 
 
