@@ -15,10 +15,6 @@ export function collectFullErrorStack(error: string | Error | AggregateError | E
     stack.push("\nCaused by:", collectFullErrorStack(currentError.cause as Error, indent + 2));
   }
 
-  if ("originalError" in currentError && currentError.originalError) {
-    stack.push("\nOriginal error:", collectFullErrorStack(currentError.originalError, indent + 2));
-  }
-
   if ("errors" in currentError && currentError.errors?.length) {
     const errorStacks = currentError.errors.map(error => collectFullErrorStack(error, indent + 2));
     stack.push("\nErrors:", ...errorStacks);
