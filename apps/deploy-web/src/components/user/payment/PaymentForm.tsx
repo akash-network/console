@@ -27,6 +27,9 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
   onPayment,
   isApplyingCoupon
 }) => {
+  const disabled = true || !amount || parseFloat(amount) <= 0 || processing || !selectedPaymentMethodId || !!amountError;
+  const disabledCoupon = true || !coupon || processing || isApplyingCoupon;
+
   return (
     <div className="space-y-6">
       <Card>
@@ -54,7 +57,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
             loading={processing}
             className="w-full"
             onClick={() => selectedPaymentMethodId && onPayment(selectedPaymentMethodId)}
-            disabled={!amount || parseFloat(amount) <= 0 || processing || !selectedPaymentMethodId || !!amountError}
+            disabled={disabled}
           >
             {processing ? (
               "Processing..."
@@ -87,7 +90,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
             />
           </div>
 
-          <LoadingButton className="w-full" loading={isApplyingCoupon} onClick={onClaimCoupon} disabled={!coupon || processing || isApplyingCoupon}>
+          <LoadingButton className="w-full" loading={isApplyingCoupon} onClick={onClaimCoupon} disabled={disabledCoupon}>
             Claim coupon
           </LoadingButton>
         </CardContent>

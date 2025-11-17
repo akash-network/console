@@ -94,6 +94,8 @@ const exportTransactionsCsvRoute = createRoute({
 export const stripeTransactionsRouter = new OpenApiHonoHandler();
 
 stripeTransactionsRouter.openapi(confirmPaymentRoute, async function confirmPayment(c) {
+  throw new Error("Payment confirmation is temporarily disabled");
+
   const { data } = c.req.valid("json");
   const result = await container.resolve(StripeController).confirmPayment({
     userId: data.userId,
