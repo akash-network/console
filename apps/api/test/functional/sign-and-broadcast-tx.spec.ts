@@ -41,15 +41,11 @@ describe("Tx Sign", () => {
 
     it("should throw 404 provided a different user auth header", async () => {
       const { user, wallet } = await walletService.createUserAndWallet();
-      const differentUserResponse = await app.request("/v1/anonymous-users", {
-        method: "POST",
-        headers: new Headers({ "Content-Type": "application/json" })
-      });
-      const { token } = (await differentUserResponse.json()) as any;
+      const { token: differentToken } = await walletService.createRegisteredUser();
       const res = await app.request("/v1/tx", {
         method: "POST",
         body: await createMessagePayload(user.id, wallet.address),
-        headers: new Headers({ "Content-Type": "application/json", authorization: `Bearer ${token}` })
+        headers: new Headers({ "Content-Type": "application/json", authorization: `Bearer ${differentToken}` })
       });
 
       expect(res.status).toBe(404);
