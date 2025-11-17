@@ -50,7 +50,6 @@
     "@types/uuid": "^9.0.0",
     "@types/ws": "^8.5.4",
     "@typescript-eslint/eslint-plugin": "^7.12.0",
-    "dotenv": "^17.2.3",
     "esbuild": "^0.24.2",
     "eslint": "^8.57.0",
     "eslint-config-next": "^14.2.3",
