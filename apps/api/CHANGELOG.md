@@ -1,5 +1,12 @@
 
 
+## [3.4.1](https://github.com/akash-network/console/compare/console-api/v3.4.0...console-api/v3.4.1) (2025-11-17)
+
+
+### Bug Fixes
+
+* surface 402 on insufficient balance error ([#2227](https://github.com/akash-network/console/issues/2227)) ([1631a33](https://github.com/akash-network/console/commit/1631a33d4afbc1f4d117025ed64c047d2e7168c5)), closes [#2185](https://github.com/akash-network/console/issues/2185)
+
 ## [3.4.0](https://github.com/akash-network/console/compare/console-api/v3.3.0...console-api/v3.4.0) (2025-11-17)
 
 
