@@ -1,5 +1,12 @@
 
 
+## [3.4.2](https://github.com/akash-network/console/compare/console-api/v3.4.1...console-api/v3.4.2) (2025-11-17)
+
+
+### Bug Fixes
+
+* **billing:** disable payments ([#2239](https://github.com/akash-network/console/issues/2239)) ([6e41f25](https://github.com/akash-network/console/commit/6e41f25c1fe42d25863cd2d0f3b649fe87e7e8e1))
+
 ## [3.4.1](https://github.com/akash-network/console/compare/console-api/v3.4.0...console-api/v3.4.1) (2025-11-17)
 
 
