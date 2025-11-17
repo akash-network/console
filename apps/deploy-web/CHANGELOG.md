@@ -1,5 +1,12 @@
 
 
+## [3.4.2](https://github.com/akash-network/console/compare/console-web/v3.4.1...console-web/v3.4.2) (2025-11-17)
+
+
+### Bug Fixes
+
+* **billing:** keep connect managed button ([#2235](https://github.com/akash-network/console/issues/2235)) ([9fadab4](https://github.com/akash-network/console/commit/9fadab44e8753a207c74cdc3da9ea0faf3baaeb6))
+
 ## [3.4.1](https://github.com/akash-network/console/compare/console-web/v3.4.0...console-web/v3.4.1) (2025-11-17)
 
 
