@@ -16,6 +16,7 @@ import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 import type { Axios, AxiosInstance, AxiosResponse, CreateAxiosDefaults, InternalAxiosRequestConfig } from "axios";
 
 import { analyticsService } from "@src/services/analytics/analytics.service";
+import networkStore from "@src/store/networkStore";
 import { registry } from "@src/utils/customRegistry";
 import { UrlService } from "@src/utils/urlUtils";
 import type { ApiUrlService } from "../api-url/api-url.service";
@@ -74,12 +75,17 @@ export const createAppRootContainer = (config: ServicesConfig) => {
       container.applyAxiosInterceptors(new AuthHttpService(apiConfig), {
         request: [withUserToken]
       }),
-    providerProxy: () =>
-      new ProviderProxyService(
-        container.applyAxiosInterceptors(container.createAxios({ baseURL: config.BASE_PROVIDER_PROXY_URL })),
+    networkStore: () => networkStore,
+    providerProxy: () => {
+      const getBaseUrl = () => config.BASE_PROVIDER_PROXY_URL.replace("%{NETWORK}", container.networkStore.selectedNetworkId);
+      return new ProviderProxyService(
+        container.applyAxiosInterceptors(container.createAxios({ baseURL: "/" }), {
+          request: [config => ({ ...config, baseURL: getBaseUrl() })]
+        }),
         container.logger,
-        () => new WebSocket(config.BASE_PROVIDER_PROXY_URL.replace(/^http/, "ws"))
-      ),
+        () => new WebSocket(getBaseUrl().replace(/^http/, "ws"))
+      );
+    },
     deploymentSetting: () =>
       container.applyAxiosInterceptors(new DeploymentSettingHttpService(apiConfig), {
         request: [withUserToken]

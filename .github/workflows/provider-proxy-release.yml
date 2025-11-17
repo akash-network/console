@@ -28,12 +28,24 @@ jobs:
     with:
       tag: ${{ needs.release.outputs.git_tag }}
 
-  deploy-beta:
+  deploy-beta-mainnet:
     needs: build
-    name: Deploy to beta
+    name: Deploy to beta mainnet
     uses: ./.github/workflows/reusable-deploy-k8s.yml
     secrets: inherit
     with:
       app: provider-proxy
       appVersion: ${{ needs.build.outputs.image_tag }}
       environment: staging
+      chain: mainnet
+
+  deploy-beta-sandbox:
+    needs: build
+    name: Deploy to beta sandbox
+    uses: ./.github/workflows/reusable-deploy-k8s.yml
+    secrets: inherit
+    with:
+      app: provider-proxy
+      appVersion: ${{ needs.build.outputs.image_tag }}
+      environment: staging
+      chain: sandbox
