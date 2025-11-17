@@ -4,7 +4,7 @@ import { Button } from "@akashnetwork/ui/components";
 import { Xmark } from "iconoir-react";
 
 import { useWallet } from "@src/context/WalletProvider/WalletProvider";
-import { useChainMaintenanceDetails, useTopBanner } from "@src/hooks/useTopBanner";
+import { useChainMaintenanceDetails, useGenericBannerDetails, useTopBanner } from "@src/hooks/useTopBanner";
 import { ConnectManagedWalletButton } from "../wallet/ConnectManagedWalletButton";
 
 function CreditCardBanner() {
@@ -73,10 +73,21 @@ function MaintenanceBanner({ onClose }: { onClose: () => void }) {
   );
 }
 
+function GenericBanner() {
+  const { message } = useGenericBannerDetails();
+
+  return (
+    <div className="fixed top-0 z-10 flex h-[40px] w-full items-center justify-center bg-primary px-3 py-2 md:space-x-4">
+      <span className="text-xs font-semibold text-white md:text-sm">{message}</span>
+    </div>
+  );
+}
+
 export function TopBanner() {
   const {
     isMaintenanceBannerOpen: isMaintananceBannerOpen,
     setIsMaintenanceBannerOpen: setIsMaintananceBannerOpen,
+    isGenericBannerOpen,
     isBlockchainDown,
     hasCreditCardBanner
   } = useTopBanner();
@@ -87,6 +98,10 @@ export function TopBanner() {
 
   if (isMaintananceBannerOpen) {
     return <MaintenanceBanner onClose={() => setIsMaintananceBannerOpen(false)} />;
+  }
+
+  if (isGenericBannerOpen) {
+    return <GenericBanner />;
   }
 
   if (hasCreditCardBanner) {
