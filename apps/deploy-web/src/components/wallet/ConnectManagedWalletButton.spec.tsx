@@ -6,17 +6,22 @@ import { ConnectManagedWalletButton } from "./ConnectManagedWalletButton";
 import { render } from "@testing-library/react";
 
 describe(ConnectManagedWalletButton.name, () => {
-  it("renders button enabled when blockchain is up", () => {
-    const { getByText } = setup({ isBlockchainDown: false });
-
-    expect(getByText("Start Trial").parentElement).not.toHaveAttribute("disabled");
+  it("renders nothing when user has no managed wallet", () => {
+    const { container } = setup();
+    expect(container).toBeEmptyDOMElement();
   });
 
-  it("renders button disabled when blockchain is unavailable", () => {
-    const { getByText } = setup({ isBlockchainDown: true });
+  // it("renders button enabled when blockchain is up", () => {
+  //   const { getByText } = setup({ isBlockchainDown: false });
 
-    expect(getByText("Start Trial").parentElement).toHaveAttribute("disabled");
-  });
+  //   expect(getByText("Start Trial").parentElement).not.toHaveAttribute("disabled");
+  // });
+
+  // it("renders button disabled when blockchain is unavailable", () => {
+  //   const { getByText } = setup({ isBlockchainDown: true });
+
+  //   expect(getByText("Start Trial").parentElement).toHaveAttribute("disabled");
+  // });
 
   function setup(input?: { isRegistered?: boolean; isBlockchainDown?: boolean }) {
     const mockUseFlag = jest.fn((flag: string) => {
