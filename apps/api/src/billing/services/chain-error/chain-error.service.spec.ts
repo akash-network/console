@@ -1,6 +1,6 @@
 import type { BalanceHttpService } from "@akashnetwork/http-sdk";
 import type { EncodeObject } from "@cosmjs/proto-signing";
-import { BadRequest, ServiceUnavailable } from "http-errors";
+import { BadRequest, PaymentRequired, ServiceUnavailable } from "http-errors";
 import type { MockProxy } from "jest-mock-extended";
 import { mock } from "jest-mock-extended";
 
@@ -137,6 +137,38 @@ describe(ChainErrorService.name, () => {
       const appErr = await service.toAppError(err, messages);
       expect(appErr).toBeInstanceOf(BadRequest);
       expect(appErr.message).toBe("Failed to create deployment: Invalid deployment hash");
+    });
+
+    it("returns 402 for insufficient balance error", async () => {
+      const { service } = setup();
+      const err = new Error(
+        "Query failed with (6): rpc error: code = Unknown desc = failed to execute message; message index: 1: Deposit invalid: insufficient balance"
+      );
+
+      const appErr = await service.toAppError(err, encodeMessages);
+      expect(appErr).toBeInstanceOf(PaymentRequired);
+      expect(appErr.message).toBe("Insufficient balance");
+    });
+
+    it("returns 402 for insufficient balance error with message prefix", async () => {
+      const { service } = setup();
+      const err = new Error(
+        "Query failed with (6): rpc error: code = Unknown desc = failed to execute message; message index: 0: Deposit invalid: insufficient balance"
+      );
+      const messages: EncodeObject[] = [{ typeUrl: "/akash.deployment.v1beta4.MsgCreateDeployment", value: {} }];
+
+      const appErr = await service.toAppError(err, messages);
+      expect(appErr).toBeInstanceOf(PaymentRequired);
+      expect(appErr.message).toBe("Failed to create deployment: Insufficient balance");
+    });
+
+    it("returns 402 for simple insufficient balance message", async () => {
+      const { service } = setup();
+      const err = new Error("insufficient balance");
+
+      const appErr = await service.toAppError(err, encodeMessages);
+      expect(appErr).toBeInstanceOf(PaymentRequired);
+      expect(appErr.message).toBe("Insufficient balance");
     });
   });
 
