@@ -1,7 +1,8 @@
 import { z } from "zod";
 
-export const envSchema = z.object({
-  REST_API_NODE_URL: z.string().url()
+export const appConfigSchema = z.object({
+  REST_API_NODE_URL: z.string().url(),
+  PORT: z.number().default(3040).optional()
 });
 
-export type EnvConfig = z.infer<typeof envSchema>;
+export type AppConfig = z.infer<typeof appConfigSchema>;

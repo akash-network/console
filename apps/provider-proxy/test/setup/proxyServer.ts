@@ -1,10 +1,11 @@
 import type { AppServer } from "../../src/app";
 import { startAppServer } from "../../src/app";
+import type { AppConfig } from "../../src/config/env.config";
 
 let server: AppServer | undefined;
 
-export async function startServer(): Promise<string> {
-  server = await startAppServer(0);
+export async function startServer(untrustedConfig: AppConfig): Promise<string> {
+  server = await startAppServer({ ...untrustedConfig, PORT: 0 });
   return server.host;
 }
 

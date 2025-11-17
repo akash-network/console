@@ -1,19 +1,20 @@
 import { HttpLoggerIntercepter } from "@akashnetwork/logging/hono";
 import { createOtelLogger } from "@akashnetwork/logging/otel";
 
-import { envSchema } from "./config/env.config";
+import type { AppConfig } from "./config/env.config";
+import { appConfigSchema } from "./config/env.config";
 import { CertificateValidator, createCertificateValidatorInstrumentation } from "./services/CertificateValidator/CertificateValidator";
 import { ProviderProxy } from "./services/ProviderProxy";
 import { ProviderService } from "./services/ProviderService/ProviderService";
 import { WebsocketStats } from "./services/WebsocketStats";
 
-export function createContainer() {
-  const envConfig = envSchema.parse(process.env);
+export function createContainer(untrustedConfig: AppConfig) {
+  const appConfig = appConfigSchema.parse(untrustedConfig);
   const isLoggingDisabled = process.env.NODE_ENV === "test";
 
   const wsStats = new WebsocketStats();
   const appLogger = isLoggingDisabled ? undefined : createOtelLogger({ name: "app" });
-  const providerService = new ProviderService(envConfig.REST_API_NODE_URL, fetch, appLogger);
+  const providerService = new ProviderService(appConfig.REST_API_NODE_URL, fetch, appLogger);
   const certificateValidator = new CertificateValidator(
     Date.now,
     providerService,
@@ -32,7 +33,8 @@ export function createContainer() {
     httpLoggerInterceptor,
     wsLogger,
     appLogger,
-    providerService
+    providerService,
+    appConfig
   };
 }
 

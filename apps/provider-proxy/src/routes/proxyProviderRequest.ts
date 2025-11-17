@@ -12,7 +12,7 @@ const RequestPayload = addProviderAuthValidation(
   providerRequestSchema.extend({
     method: z.enum(["GET", "POST", "PUT", "DELETE"]),
     body: z.string().optional(),
-    timeout: z.number().optional()
+    timeout: z.number().default(10_000).optional()
   })
 );
 
@@ -52,7 +52,6 @@ export const proxyRoute = createRoute({
   }
 });
 
-const DEFAULT_TIMEOUT = 10_000;
 export async function proxyProviderRequest(ctx: AppContext): Promise<Response | TypedResponse<string>> {
   const { method, body, url, providerAddress, timeout, auth } = ctx.req.valid("json" as never) as z.infer<typeof RequestPayload>;
 
@@ -71,7 +70,7 @@ export async function proxyProviderRequest(ctx: AppContext): Promise<Response | 
         body,
         auth,
         providerAddress,
-        timeout: Number(timeout || DEFAULT_TIMEOUT) || DEFAULT_TIMEOUT,
+        timeout,
         signal: clientAbortSignal
       }),
     {
