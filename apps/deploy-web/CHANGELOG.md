@@ -1,5 +1,13 @@
 
 
+## [3.4.1](https://github.com/akash-network/console/compare/console-web/v3.4.0...console-web/v3.4.1) (2025-11-17)
+
+
+### Bug Fixes
+
+* disable ([#2234](https://github.com/akash-network/console/issues/2234)) ([13ce5ee](https://github.com/akash-network/console/commit/13ce5ee50bc39665b0b5c261cfa6e315944c61c7))
+* drop deprecated prop so no JS error is shown ([#2228](https://github.com/akash-network/console/issues/2228)) ([7efc4a7](https://github.com/akash-network/console/commit/7efc4a750714c491721cd922ee748472dc951f9b)), closes [#2105](https://github.com/akash-network/console/issues/2105)
+
 ## [3.4.0](https://github.com/akash-network/console/compare/console-web/v3.3.0...console-web/v3.4.0) (2025-11-17)
 
 
