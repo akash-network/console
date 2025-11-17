@@ -1,5 +1,17 @@
 
 
+## [1.31.0](https://github.com/akash-network/console/compare/provider-console/v1.30.0...provider-console/v1.31.0) (2025-11-17)
+
+
+### Features
+
+* upgrade Node.js to 24.11.1 LTS ([#2223](https://github.com/akash-network/console/issues/2223)) ([d9feb09](https://github.com/akash-network/console/commit/d9feb090d45408ec9835216bfc5c6fb3f1329abc))
+
+
+### Bug Fixes
+
+* correct typos and formatting issues ([#2221](https://github.com/akash-network/console/issues/2221)) ([28e7a98](https://github.com/akash-network/console/commit/28e7a98d2a9f8a8cdefb6b538307c1ec4f34cf55))
+
 ## [1.30.0](https://github.com/akash-network/console/compare/provider-console/v1.29.1...provider-console/v1.30.0) (2025-11-07)
 
 

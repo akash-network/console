@@ -1,5 +1,24 @@
 
 
+## [3.4.0](https://github.com/akash-network/console/compare/console-web/v3.3.0...console-web/v3.4.0) (2025-11-17)
+
+
+### Features
+
+* upgrade Node.js to 24.11.1 LTS ([#2223](https://github.com/akash-network/console/issues/2223)) ([d9feb09](https://github.com/akash-network/console/commit/d9feb090d45408ec9835216bfc5c6fb3f1329abc))
+
+
+### Bug Fixes
+
+* convert provider AxiosError to HTTP errors in provider service ([#2207](https://github.com/akash-network/console/issues/2207)) ([b9a6436](https://github.com/akash-network/console/commit/b9a64369ec35ba933fa097f88db8b7d1385b296a))
+* correct typos and formatting issues ([#2221](https://github.com/akash-network/console/issues/2221)) ([28e7a98](https://github.com/akash-network/console/commit/28e7a98d2a9f8a8cdefb6b538307c1ec4f34cf55))
+* separate deployments for each provider proxy env/network ([#2211](https://github.com/akash-network/console/issues/2211)) ([728f449](https://github.com/akash-network/console/commit/728f449758e46ebf1359838440d9d114ebfee18b)), closes [#2190](https://github.com/akash-network/console/issues/2190)
+
+
+### Code Refactoring
+
+* **deployment:** replace node-forge with webcrypto for SSH key generation ([#2209](https://github.com/akash-network/console/issues/2209)) ([d621045](https://github.com/akash-network/console/commit/d621045b50a567267e9e3feb633cf5e5ddf29b2d))
+
 ## [3.3.0](https://github.com/akash-network/console/compare/console-web/v3.2.0...console-web/v3.3.0) (2025-11-12)
 
 
