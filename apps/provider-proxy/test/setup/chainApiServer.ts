@@ -14,7 +14,7 @@ export function startChainApiServer(
   certificates: X509Certificate[],
   options?: ChainApiOptions
 ): Promise<{
-  close: http.Server["close"];
+  close: () => Promise<void>;
   url: string;
 }> {
   return new Promise(resolve => {
@@ -51,7 +51,7 @@ export function startChainApiServer(
       chainServer = server;
       resolve({
         url: `http://localhost:${(server.address() as AddressInfo).port}`,
-        close: () => server.close()
+        close: () => new Promise<void>((resolve, reject) => server.close(err => (err ? reject(err) : resolve())))
       });
     });
   });

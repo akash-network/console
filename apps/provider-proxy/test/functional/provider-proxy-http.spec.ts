@@ -86,7 +86,7 @@ describe("Provider HTTP proxy", () => {
         network
       })
     });
-    chainServer.close();
+    await chainServer.close();
 
     response = await request("/", {
       method: "POST",
@@ -231,7 +231,7 @@ describe("Provider HTTP proxy", () => {
     const { providerUrl } = await startProviderServer({ certPair: validCertPair });
     // start server early to reserve port
     const chainServer = await startChainApiServer([validCertPair.cert]);
-    chainServer.close();
+    await chainServer.close();
 
     await startServer({ REST_API_NODE_URL: chainServer.url });
 
