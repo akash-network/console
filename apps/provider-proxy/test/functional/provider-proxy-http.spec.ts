@@ -14,24 +14,17 @@ describe("Provider HTTP proxy", () => {
   const network: SupportedChainNetworks = "sandbox-2";
   const ONE_HOUR = 60 * 60 * 1000;
 
-  beforeAll(async () => {
-    await startServer();
-  });
-
-  afterAll(async () => {
-    await stopServer();
-  });
-
   afterEach(async () => {
-    await Promise.all([stopProviderServer(), stopChainAPIServer()]);
+    await Promise.all([stopServer(), stopProviderServer(), stopChainAPIServer()]);
   });
 
   it("proxies request if provider uses self-signed certificate which is available on chain", async () => {
     const providerAddress = generateBech32();
     const validCertPair = createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
 
-    await startChainApiServer([validCertPair.cert]);
+    const chainServer = await startChainApiServer([validCertPair.cert]);
     const { providerUrl } = await startProviderServer({ certPair: validCertPair });
+    await startServer({ REST_API_NODE_URL: chainServer.url });
 
     const response = await request("/", {
       method: "POST",
@@ -54,8 +47,9 @@ describe("Provider HTTP proxy", () => {
     const providerAddress = generateBech32();
     const validCertPair = createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
 
-    await startChainApiServer([validCertPair.cert]);
+    const chainServer = await startChainApiServer([validCertPair.cert]);
     const { providerUrl } = await startProviderServer({ certPair: validCertPair });
+    await startServer({ REST_API_NODE_URL: chainServer.url });
 
     const response = await request("/", {
       method: "POST",
@@ -81,6 +75,7 @@ describe("Provider HTTP proxy", () => {
 
     const chainServer = await startChainApiServer([validCertPair.cert]);
     const { providerUrl } = await startProviderServer({ certPair: validCertPair });
+    await startServer({ REST_API_NODE_URL: chainServer.url });
 
     let response = await request("/", {
       method: "POST",
@@ -91,7 +86,7 @@ describe("Provider HTTP proxy", () => {
         network
       })
     });
-    chainServer.close();
+    await chainServer.close();
 
     response = await request("/", {
       method: "POST",
@@ -113,7 +108,7 @@ describe("Provider HTTP proxy", () => {
     const providerAddress = generateBech32();
     const validCertPair = createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
 
-    await startChainApiServer([
+    const chainServer = await startChainApiServer([
       createX509CertPair({
         commonName: providerAddress,
         validFrom: new Date(Date.now() + ONE_HOUR),
@@ -131,6 +126,7 @@ describe("Provider HTTP proxy", () => {
           network
         })
       });
+    await startServer({ REST_API_NODE_URL: chainServer.url });
 
     let response = await requestProvider();
     expect(response.status).toBe(495);
@@ -153,8 +149,12 @@ describe("Provider HTTP proxy", () => {
       validTo: new Date(Date.now() - ONE_HOUR)
     });
 
-    await startChainApiServer([createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() + ONE_HOUR) }).cert, validCertPair.cert]);
+    const chainServer = await startChainApiServer([
+      createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() + ONE_HOUR) }).cert,
+      validCertPair.cert
+    ]);
     const { providerUrl } = await startProviderServer({ certPair: validCertPair });
+    await startServer({ REST_API_NODE_URL: chainServer.url });
 
     const requestProvider = () =>
       request("/", {
@@ -185,10 +185,11 @@ describe("Provider HTTP proxy", () => {
     const providerAddress = generateBech32();
     const validCertPair = createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
 
-    await startChainApiServer([validCertPair.cert]);
+    const chainServer = await startChainApiServer([validCertPair.cert]);
     const { providerUrl } = await startProviderServer({
       certPair: validCertPair
     });
+    await startServer({ REST_API_NODE_URL: chainServer.url });
 
     const response = await request("/", {
       method: "POST",
@@ -228,8 +229,12 @@ describe("Provider HTTP proxy", () => {
     });
 
     const { providerUrl } = await startProviderServer({ certPair: validCertPair });
+    // start server early to reserve port
+    const chainServer = await startChainApiServer([validCertPair.cert]);
+    await chainServer.close();
 
-    process.env.TEST_CHAIN_NETWORK_URL = "http://localhost:31234";
+    await startServer({ REST_API_NODE_URL: chainServer.url });
+
     const responsePromise = request("/", {
       method: "POST",
       body: JSON.stringify({
@@ -239,8 +244,10 @@ describe("Provider HTTP proxy", () => {
         network
       })
     });
-    await wait(200);
-    await startChainApiServer([validCertPair.cert]);
+    await wait(200); // intentional delay to ensure retry logic works
+    const chainServerUrl = new URL(chainServer.url);
+    await startChainApiServer([validCertPair.cert], { port: Number(chainServerUrl.port) });
+
     const response = await responsePromise;
 
     expect(response.status).toBe(200);
@@ -256,7 +263,7 @@ describe("Provider HTTP proxy", () => {
 
     const { providerUrl } = await startProviderServer({ certPair: validCertPair });
     let isRespondedWith502 = false;
-    await startChainApiServer([validCertPair.cert], {
+    const chainServer = await startChainApiServer([validCertPair.cert], {
       interceptRequest(req, res) {
         if (isRespondedWith502) return false;
         isRespondedWith502 = true;
@@ -265,6 +272,7 @@ describe("Provider HTTP proxy", () => {
         return true;
       }
     });
+    await startServer({ REST_API_NODE_URL: chainServer.url });
 
     const response = await request("/", {
       method: "POST",
@@ -304,7 +312,8 @@ describe("Provider HTTP proxy", () => {
         }
       }
     });
-    await startChainApiServer([validCertPair.cert]);
+    const chainServer = await startChainApiServer([validCertPair.cert]);
+    await startServer({ REST_API_NODE_URL: chainServer.url });
 
     const response = await request("/", {
       method: "POST",
@@ -348,7 +357,8 @@ describe("Provider HTTP proxy", () => {
         }
       }
     });
-    await startChainApiServer([validCertPair.cert]);
+    const chainServer = await startChainApiServer([validCertPair.cert]);
+    await startServer({ REST_API_NODE_URL: chainServer.url });
 
     const response = await request("/", {
       method: "POST",
@@ -381,7 +391,8 @@ describe("Provider HTTP proxy", () => {
         }
       }
     });
-    await startChainApiServer([validCertPair.cert]);
+    const chainServer = await startChainApiServer([validCertPair.cert]);
+    await startServer({ REST_API_NODE_URL: chainServer.url });
 
     const response = await request("/", {
       method: "POST",
@@ -404,7 +415,8 @@ describe("Provider HTTP proxy", () => {
       commonName: providerAddress
     });
 
-    await startChainApiServer([validCertPair.cert]);
+    const chainServer = await startChainApiServer([validCertPair.cert]);
+    await startServer({ REST_API_NODE_URL: chainServer.url });
     const providerUrl = `https://some-unknown-host-${Date.now()}.com/200`;
 
     const response = await request("/", {
@@ -437,7 +449,8 @@ describe("Provider HTTP proxy", () => {
         }
       }
     });
-    await startChainApiServer([validCertPair.cert]);
+    const chainServer = await startChainApiServer([validCertPair.cert]);
+    await startServer({ REST_API_NODE_URL: chainServer.url });
 
     const response = await request("/", {
       method: "POST",
@@ -468,7 +481,8 @@ describe("Provider HTTP proxy", () => {
     const { providerUrl } = await startProviderServer({
       certPair: validCertPair
     });
-    await startChainApiServer([invalidClientCertPair.cert]);
+    const chainServer = await startChainApiServer([invalidClientCertPair.cert]);
+    await startServer({ REST_API_NODE_URL: chainServer.url });
 
     const response = await request("/", {
       method: "POST",
@@ -506,7 +520,7 @@ describe("Provider HTTP proxy", () => {
     const validCertPair = createX509CertPair({
       commonName: providerAddress
     });
-    await startChainApiServer([validCertPair.cert]);
+    const chainServer = await startChainApiServer([validCertPair.cert]);
 
     const providerStreamingBegun = Promise.withResolvers<void>();
     const providerResponseEnded = jest.fn();
@@ -527,6 +541,7 @@ describe("Provider HTTP proxy", () => {
         }
       }
     });
+    await startServer({ REST_API_NODE_URL: chainServer.url });
 
     const requestController = new AbortController();
     const responsePromise = request("/", {
@@ -555,7 +570,7 @@ describe("Provider HTTP proxy", () => {
     const validCertPair = createX509CertPair({
       commonName: providerAddress
     });
-    await startChainApiServer([validCertPair.cert]);
+    const chainServer = await startChainApiServer([validCertPair.cert]);
 
     const { providerUrl } = await startProviderServer({
       certPair: validCertPair,
@@ -572,6 +587,7 @@ describe("Provider HTTP proxy", () => {
         }
       }
     });
+    await startServer({ REST_API_NODE_URL: chainServer.url });
 
     const requestController = new AbortController();
     const response = await request("/", {
@@ -598,7 +614,7 @@ describe("Provider HTTP proxy", () => {
     const validCertPair = createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
     const clientCertPair = createX509CertPair({ commonName: generateBech32() });
 
-    await startChainApiServer([validCertPair.cert]);
+    const chainServer = await startChainApiServer([validCertPair.cert]);
     const { providerUrl } = await startProviderServer({
       certPair: validCertPair,
       requireClientCertificate: true,
@@ -610,6 +626,7 @@ describe("Provider HTTP proxy", () => {
         }
       }
     });
+    await startServer({ REST_API_NODE_URL: chainServer.url });
 
     const response = await request("/", {
       method: "POST",
@@ -667,7 +684,7 @@ describe("Provider HTTP proxy", () => {
     const providerAddress = generateBech32();
     const validCertPair = createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
 
-    await startChainApiServer([validCertPair.cert]);
+    const chainServer = await startChainApiServer([validCertPair.cert]);
     const { providerUrl } = await startProviderServer({
       certPair: validCertPair,
       requireClientCertificate: true,
@@ -678,6 +695,7 @@ describe("Provider HTTP proxy", () => {
         }
       }
     });
+    await startServer({ REST_API_NODE_URL: chainServer.url });
 
     const testMnemonic =
       "body letter input area umbrella develop shuffle gentle regular gold twice truly giant dawn nerve ocean wine wonder toe melt grid leader blush few";

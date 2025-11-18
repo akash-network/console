@@ -12,7 +12,7 @@ const RequestPayload = addProviderAuthValidation(
   providerRequestSchema.extend({
     method: z.enum(["GET", "POST", "PUT", "DELETE"]),
     body: z.string().optional(),
-    timeout: z.number().optional()
+    timeout: z.number().max(10_000).min(0).default(9_000).optional()
   })
 );
 
@@ -52,15 +52,13 @@ export const proxyRoute = createRoute({
   }
 });
 
-const DEFAULT_TIMEOUT = 10_000;
 export async function proxyProviderRequest(ctx: AppContext): Promise<Response | TypedResponse<string>> {
-  const { method, body, url, network, providerAddress, timeout, auth } = ctx.req.valid("json" as never) as z.infer<typeof RequestPayload>;
+  const { method, body, url, providerAddress, timeout, auth } = ctx.req.valid("json" as never) as z.infer<typeof RequestPayload>;
 
   ctx.get("container").appLogger?.info({
     event: "PROXY_REQUEST",
     url,
     method,
-    network,
     providerAddress,
     timeout
   });
@@ -71,9 +69,8 @@ export async function proxyProviderRequest(ctx: AppContext): Promise<Response | 
         method,
         body,
         auth,
-        network,
         providerAddress,
-        timeout: Number(timeout || DEFAULT_TIMEOUT) || DEFAULT_TIMEOUT,
+        timeout,
         signal: clientAbortSignal
       }),
     {
@@ -103,7 +100,6 @@ export async function proxyProviderRequest(ctx: AppContext): Promise<Response | 
       event: "PROXY_REQUEST_ERROR",
       url,
       method,
-      network,
       providerAddress,
       error: proxyResult.error
     });
@@ -156,7 +152,6 @@ export async function proxyProviderRequest(ctx: AppContext): Promise<Response | 
       event: "PROXY_REQUEST_ERROR",
       url,
       method,
-      network,
       providerAddress,
       httpResponse: {
         status: proxyResult.response.statusCode,

@@ -1,5 +1,4 @@
 import type { LoggerService } from "@akashnetwork/logging";
-import type { SupportedChainNetworks } from "@akashnetwork/net";
 import { X509Certificate } from "crypto";
 
 import { httpRetry } from "../../utils/retry";
@@ -8,12 +7,12 @@ export class ProviderService {
   private certApiModuleVersion = "v1";
 
   constructor(
-    private readonly getChainBaseUrl: (network: SupportedChainNetworks) => string,
+    private readonly chainBaseUrl: string,
     private readonly fetch: typeof global.fetch,
     private readonly logger?: LoggerService
   ) {}
 
-  async getCertificate(network: SupportedChainNetworks, providerAddress: string, serialNumber: string): Promise<X509Certificate | null> {
+  async getCertificate(providerAddress: string, serialNumber: string): Promise<X509Certificate | null> {
     const queryParams = new URLSearchParams({
       "filter.state": "valid",
       "filter.owner": providerAddress,
@@ -21,12 +20,7 @@ export class ProviderService {
       "pagination.limit": "1"
     });
 
-    const baseUrl = this.getChainBaseUrl(network);
-    if (!baseUrl) {
-      throw new Error(`No API URL provided for network ${network}`);
-    }
-
-    const response = await this.fetchCertificate(baseUrl, queryParams);
+    const response = await this.fetchCertificate(this.chainBaseUrl, queryParams);
 
     if (response.status >= 200 && response.status < 300) {
       const body = (await response.json()) as KnownCertificatesResponseBody;
