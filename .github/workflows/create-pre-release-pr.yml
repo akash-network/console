@@ -14,7 +14,6 @@ permissions:
   pull-requests: write
 
 env:
-  NODE_VERSION: 24.11.1
   RELEASE_BRANCH: release/bumps
   BASE_BRANCH: main
 
@@ -61,9 +60,7 @@ jobs:
           echo "base_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
+        uses: volta-cli/action@v4
 
       - name: Restore Dependencies Cache
         uses: actions/cache@v4
@@ -75,7 +72,9 @@ jobs:
 
       - name: Install Dependencies
         if: steps.deps-cache.outputs.cache-hit != 'true'
-        run: npm run safe-install -- -w packages/releaser
+        run: |
+          npm run safe-install -- -w packages/releaser
+          g diff package-lock.json
 
       - name: Generate Release Changes
         run: |
@@ -90,6 +89,7 @@ jobs:
 
           # update package-lock.json with new versions
           npm install --package-lock-only
+          g diff package-lock.json
 
       - name: Check Existing PR
         id: check-pr
