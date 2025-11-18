@@ -4,8 +4,7 @@ import groupBy from "lodash/groupBy";
 import { Err, Ok, Result } from "ts-results";
 import { singleton } from "tsyringe";
 
-import { InjectWallet } from "@src/billing/providers/wallet.provider";
-import { DepositDeploymentMsgOptions, RpcMessageService, Wallet } from "@src/billing/services";
+import { DepositDeploymentMsgOptions, RpcMessageService } from "@src/billing/services";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
@@ -32,7 +31,6 @@ export class TopUpManagedDeploymentsService implements DeploymentsRefiller {
     private readonly managedSignerService: ManagedSignerService,
     private readonly billingConfig: BillingConfigService,
     private readonly drainingDeploymentService: DrainingDeploymentService,
-    @InjectWallet("MANAGED") private readonly managedMasterWallet: Wallet,
     private readonly rpcClientService: RpcMessageService,
     private readonly cachedBalanceService: CachedBalanceService,
     private readonly blockHttpService: BlockHttpService,
