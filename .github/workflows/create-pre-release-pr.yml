@@ -74,7 +74,8 @@ jobs:
         if: steps.deps-cache.outputs.cache-hit != 'true'
         run: |
           npm run safe-install -- -w packages/releaser
-          git diff package-lock.json
+          git status
+          git diff --staged package-lock.json
 
       - name: Generate Release Changes
         run: |
@@ -89,7 +90,8 @@ jobs:
 
           # update package-lock.json with new versions
           npm install --package-lock-only
-          git diff package-lock.json
+          git status
+          git diff --staged package-lock.json
 
       - name: Check Existing PR
         id: check-pr
