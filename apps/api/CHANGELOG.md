@@ -1,5 +1,12 @@
 
 
+## [3.4.3](https://github.com/akash-network/console/compare/console-api/v3.4.2...console-api/v3.4.3) (2025-11-18)
+
+
+### Code Refactoring
+
+* **billing:** cleans up top up master wallets  ([2e24537](https://github.com/akash-network/console/commit/2e24537eed3418c3db6b451cc065049b3bd716fb))
+
 ## [3.4.2](https://github.com/akash-network/console/compare/console-api/v3.4.1...console-api/v3.4.2) (2025-11-17)
 
 
