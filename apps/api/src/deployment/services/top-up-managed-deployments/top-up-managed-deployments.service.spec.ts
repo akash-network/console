@@ -5,7 +5,6 @@ import { LoggerService } from "@akashnetwork/logging";
 import { faker } from "@faker-js/faker";
 import type { MockProxy } from "jest-mock-extended";
 
-import type { Wallet } from "@src/billing/services";
 import { RpcMessageService } from "@src/billing/services";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
@@ -34,7 +33,6 @@ describe(TopUpManagedDeploymentsService.name, () => {
   let managedSignerService: jest.Mocked<ManagedSignerService>;
   let billingConfig: MockProxy<BillingConfigService>;
   let drainingDeploymentService: jest.Mocked<DrainingDeploymentService>;
-  let managedMasterWallet: jest.Mocked<Wallet>;
   let rpcMessageService: RpcMessageService;
   let cachedBalanceService: jest.Mocked<CachedBalanceService>;
   let blockHttpService: jest.Mocked<BlockHttpService>;
@@ -42,7 +40,6 @@ describe(TopUpManagedDeploymentsService.name, () => {
   let service: TopUpManagedDeploymentsService;
   let logger: jest.Mocked<LoggerService>;
 
-  const MANAGED_MASTER_WALLET_ADDRESS = createAkashAddress();
   const DEPLOYMENT_GRANT_DENOM = "ibc/170C677610AC31DF0904FFE09CD3B5C657492170E7E52372E48756B71E56F2F1";
   const CURRENT_BLOCK_HEIGHT = 7481457;
 
@@ -59,7 +56,6 @@ describe(TopUpManagedDeploymentsService.name, () => {
       paginate: jest.fn(),
       calculateTopUpAmount: jest.fn()
     });
-    managedMasterWallet = stub<Wallet>({ getFirstAddress: jest.fn().mockResolvedValue(MANAGED_MASTER_WALLET_ADDRESS) });
     rpcMessageService = new RpcMessageService();
     cachedBalanceService = stub<CachedBalanceService>({ get: jest.fn() });
     blockHttpService = stub<BlockHttpService>({ getCurrentHeight: jest.fn().mockResolvedValue(CURRENT_BLOCK_HEIGHT) });
@@ -72,7 +68,6 @@ describe(TopUpManagedDeploymentsService.name, () => {
       managedSignerService,
       billingConfig,
       drainingDeploymentService,
-      managedMasterWallet,
       rpcMessageService,
       cachedBalanceService,
       blockHttpService,
