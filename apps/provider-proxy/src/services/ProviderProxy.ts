@@ -1,4 +1,3 @@
-import type { SupportedChainNetworks } from "@akashnetwork/net";
 import { createHash } from "crypto";
 import type { IncomingMessage, OutgoingHttpHeaders } from "http";
 import type { RequestOptions } from "https";
@@ -58,9 +57,9 @@ export class ProviderProxy {
             // will receive certificate for every request
             const didHandshake = !!serverCert;
 
-            if (didHandshake && options.network && options.providerAddress) {
+            if (didHandshake && options.providerAddress) {
               res.pause();
-              const validationResult = await this.certificateValidator.validate(serverCert, options.network, options.providerAddress);
+              const validationResult = await this.certificateValidator.validate(serverCert, options.providerAddress);
 
               if (validationResult.ok === false) {
                 // remove agent from cache to destroy TLS session to force TLS handshake on the next call
@@ -124,7 +123,7 @@ export class ProviderProxy {
         ...options.headers
       },
       timeout: options.timeout,
-      agentCacheKey: `${options.network}:${options.providerAddress}`
+      agentCacheKey: options.providerAddress
     };
     const agentOptions: https.AgentOptions = {
       timeout: options.timeout,
@@ -165,7 +164,6 @@ export interface ProxyConnectOptions {
   auth?: z.infer<typeof providerRequestSchema>["auth"];
   body?: RequestInit["body"];
   headers?: Record<string, string>;
-  network: SupportedChainNetworks;
   timeout?: number;
   /** provider wallet address */
   providerAddress: string;
