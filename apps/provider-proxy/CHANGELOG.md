@@ -1,5 +1,12 @@
 
 
+## [2.4.0](https://github.com/akash-network/console/compare/provider-proxy/v2.3.0...provider-proxy/v2.4.0) (2025-11-18)
+
+
+### Features
+
+* provider-proxy accepts REST_API_NODE_URL ([#2225](https://github.com/akash-network/console/issues/2225)) ([5ef9bce](https://github.com/akash-network/console/commit/5ef9bce8d00132b029429c73e301468fa0719927)), closes [#2189](https://github.com/akash-network/console/issues/2189)
+
 ## [2.3.0](https://github.com/akash-network/console/compare/provider-proxy/v2.2.0...provider-proxy/v2.3.0) (2025-11-17)
 
 
