@@ -7,6 +7,10 @@ import { GraphDataController } from "@src/dashboard/controllers/graph-data/graph
 import { GraphDataParamsSchema, GraphDataResponseSchema } from "@src/dashboard/http-schemas/graph-data/graph-data.schema";
 import { isValidGraphDataName } from "@src/services/db/statsService";
 
+const logger = LoggerService.forContext("GraphDataRouter");
+
+export const graphDataRouter = new OpenApiHonoHandler();
+
 const route = createRoute({
   method: "get",
   path: "/v1/graph-data/{dataName}",
@@ -28,11 +32,6 @@ const route = createRoute({
     }
   }
 });
-
-const logger = LoggerService.forContext("GraphDataRouter");
-
-export const graphDataRouter = new OpenApiHonoHandler();
-
 graphDataRouter.openapi(route, async function routeGraphData(c) {
   const { dataName } = c.req.valid("param");
 

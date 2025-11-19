@@ -6,6 +6,8 @@ import { CreateWalletSettingsRequestSchema, UpdateWalletSettingsRequestSchema, W
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
 
+export const walletSettingRouter = new OpenApiHonoHandler();
+
 const getWalletSettingsRoute = createRoute({
   method: "get",
   path: "/v1/wallet-settings",
@@ -27,6 +29,9 @@ const getWalletSettingsRoute = createRoute({
       description: "UserWallet Not Found"
     }
   }
+});
+walletSettingRouter.openapi(getWalletSettingsRoute, async function getWalletSettings(c) {
+  return c.json(await container.resolve(WalletSettingController).getWalletSettings(), 200);
 });
 
 const createWalletSettingsRoute = createRoute({
@@ -59,6 +64,9 @@ const createWalletSettingsRoute = createRoute({
     }
   }
 });
+walletSettingRouter.openapi(createWalletSettingsRoute, async function createWalletSettings(c) {
+  return c.json(await container.resolve(WalletSettingController).createWalletSettings(c.req.valid("json")), 200);
+});
 
 const updateWalletSettingsRoute = createRoute({
   method: "put",
@@ -90,6 +98,9 @@ const updateWalletSettingsRoute = createRoute({
     }
   }
 });
+walletSettingRouter.openapi(updateWalletSettingsRoute, async function updateWalletSettings(c) {
+  return c.json(await container.resolve(WalletSettingController).updateWalletSettings(c.req.valid("json")), 200);
+});
 
 const deleteWalletSettingsRoute = createRoute({
   method: "delete",
@@ -108,21 +119,6 @@ const deleteWalletSettingsRoute = createRoute({
     }
   }
 });
-
-export const walletSettingRouter = new OpenApiHonoHandler();
-
-walletSettingRouter.openapi(getWalletSettingsRoute, async function getWalletSettings(c) {
-  return c.json(await container.resolve(WalletSettingController).getWalletSettings(), 200);
-});
-
-walletSettingRouter.openapi(createWalletSettingsRoute, async function createWalletSettings(c) {
-  return c.json(await container.resolve(WalletSettingController).createWalletSettings(c.req.valid("json")), 200);
-});
-
-walletSettingRouter.openapi(updateWalletSettingsRoute, async function updateWalletSettings(c) {
-  return c.json(await container.resolve(WalletSettingController).updateWalletSettings(c.req.valid("json")), 200);
-});
-
 walletSettingRouter.openapi(deleteWalletSettingsRoute, async function deleteWalletSettings(c) {
   await container.resolve(WalletSettingController).deleteWalletSettings();
   return c.body(null, 204);

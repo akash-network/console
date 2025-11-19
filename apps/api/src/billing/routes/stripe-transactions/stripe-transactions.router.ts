@@ -13,6 +13,8 @@ import {
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
 
+export const stripeTransactionsRouter = new OpenApiHonoHandler();
+
 const confirmPaymentRoute = createRoute({
   method: "post",
   path: "/v1/stripe/transactions/confirm",
@@ -49,6 +51,22 @@ const confirmPaymentRoute = createRoute({
     }
   }
 });
+stripeTransactionsRouter.openapi(confirmPaymentRoute, async function confirmPayment(c) {
+  const { data } = c.req.valid("json");
+  const result = await container.resolve(StripeController).confirmPayment({
+    userId: data.userId,
+    paymentMethodId: data.paymentMethodId,
+    amount: data.amount,
+    currency: data.currency
+  });
+
+  // Check if 3D Secure is required
+  if (result.data.requiresAction) {
+    return c.json(result, 202);
+  }
+
+  return c.json(result, 200);
+});
 
 const getCustomerTransactionsRoute = createRoute({
   method: "get",
@@ -69,6 +87,17 @@ const getCustomerTransactionsRoute = createRoute({
       }
     }
   }
+});
+stripeTransactionsRouter.openapi(getCustomerTransactionsRoute, async function getCustomerTransactions(c) {
+  const { limit, startingAfter, endingBefore, startDate, endDate } = c.req.valid("query");
+  const response = await container.resolve(StripeController).getCustomerTransactions({
+    limit,
+    startingAfter,
+    endingBefore,
+    startDate,
+    endDate
+  });
+  return c.json(response, 200);
 });
 
 const exportTransactionsCsvRoute = createRoute({
@@ -94,38 +123,6 @@ const exportTransactionsCsvRoute = createRoute({
     }
   }
 });
-
-export const stripeTransactionsRouter = new OpenApiHonoHandler();
-
-stripeTransactionsRouter.openapi(confirmPaymentRoute, async function confirmPayment(c) {
-  const { data } = c.req.valid("json");
-  const result = await container.resolve(StripeController).confirmPayment({
-    userId: data.userId,
-    paymentMethodId: data.paymentMethodId,
-    amount: data.amount,
-    currency: data.currency
-  });
-
-  // Check if 3D Secure is required
-  if (result.data.requiresAction) {
-    return c.json(result, 202);
-  }
-
-  return c.json(result, 200);
-});
-
-stripeTransactionsRouter.openapi(getCustomerTransactionsRoute, async function getCustomerTransactions(c) {
-  const { limit, startingAfter, endingBefore, startDate, endDate } = c.req.valid("query");
-  const response = await container.resolve(StripeController).getCustomerTransactions({
-    limit,
-    startingAfter,
-    endingBefore,
-    startDate,
-    endDate
-  });
-  return c.json(response, 200);
-});
-
 stripeTransactionsRouter.openapi(exportTransactionsCsvRoute, async function exportTransactionsCsv(c) {
   const { startDate, endDate, timezone } = c.req.valid("query");
 

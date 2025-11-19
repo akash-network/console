@@ -6,6 +6,8 @@ import { ApplyCouponRequestSchema, ApplyCouponResponseSchema } from "@src/billin
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
 
+export const stripeCouponsRouter = new OpenApiHonoHandler();
+
 const applyCouponRoute = createRoute({
   method: "post",
   path: "/v1/stripe/coupons/apply",
@@ -32,9 +34,6 @@ const applyCouponRoute = createRoute({
     }
   }
 });
-
-export const stripeCouponsRouter = new OpenApiHonoHandler();
-
 stripeCouponsRouter.openapi(applyCouponRoute, async function applyCoupon(c) {
   const { data } = c.req.valid("json");
   const response = await container.resolve(StripeController).applyCoupon(data);

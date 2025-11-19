@@ -5,6 +5,8 @@ import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/ope
 import { PricingController } from "@src/pricing/controllers/pricing/pricing.controller";
 import { PricingBodySchema, PricingResponseSchema } from "@src/pricing/http-schemas/pricing.schema";
 
+export const pricingRouter = new OpenApiHonoHandler();
+
 const postPricingRoute = createRoute({
   method: "post",
   path: "/v1/pricing",
@@ -35,8 +37,6 @@ const postPricingRoute = createRoute({
     }
   }
 });
-export const pricingRouter = new OpenApiHonoHandler();
-
 pricingRouter.openapi(postPricingRoute, async function routePostPricing(c) {
   const body = PricingBodySchema.parse(await c.req.json());
   const pricing = container.resolve(PricingController).getPricing(body);

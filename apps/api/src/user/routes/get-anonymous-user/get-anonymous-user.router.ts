@@ -11,6 +11,8 @@ export const GetUserParamsSchema = z.object({ id: z.string().uuid() });
 
 export type GetUserParams = z.infer<typeof GetUserParamsSchema>;
 
+export const getAnonymousUserRouter = new OpenApiHonoHandler();
+
 const route = createRoute({
   method: "get",
   path: "/v1/anonymous-users/:id",
@@ -33,8 +35,6 @@ const route = createRoute({
     }
   }
 });
-export const getAnonymousUserRouter = new OpenApiHonoHandler();
-
 getAnonymousUserRouter.openapi(route, async function routeWallet(c) {
   return c.json(await container.resolve(UserController).getById(c.req.valid("param")), 200);
 });

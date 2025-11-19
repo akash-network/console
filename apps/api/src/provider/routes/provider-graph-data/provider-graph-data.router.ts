@@ -7,6 +7,8 @@ import { ProviderGraphDataController } from "@src/provider/controllers/provider-
 import { authorizedDataNames, ProviderGraphDataParamsSchema, ProviderGraphDataResponseSchema } from "@src/provider/http-schemas/provider-graph-data.schema";
 import type { ProviderStatsKey } from "@src/types";
 
+export const providerGraphDataRouter = new OpenApiHonoHandler();
+
 const providerGraphDataRoute = createRoute({
   method: "get",
   path: "/v1/provider-graph-data/{dataName}",
@@ -28,9 +30,6 @@ const providerGraphDataRoute = createRoute({
     }
   }
 });
-
-export const providerGraphDataRouter = new OpenApiHonoHandler();
-
 providerGraphDataRouter.openapi(providerGraphDataRoute, async function routeProviderGraphData(c: Context) {
   const dataName = c.req.param("dataName");
 

@@ -5,6 +5,8 @@ import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/ope
 import { ProviderRegionsController } from "@src/provider/controllers/provider-regions/provider-regions.controller";
 import { ProviderRegionsResponseSchema } from "@src/provider/http-schemas/provider-regions.schema";
 
+export const providerRegionsRouter = new OpenApiHonoHandler();
+
 const route = createRoute({
   method: "get",
   path: "/v1/provider-regions",
@@ -21,9 +23,6 @@ const route = createRoute({
     }
   }
 });
-
-export const providerRegionsRouter = new OpenApiHonoHandler();
-
 providerRegionsRouter.openapi(route, async function routeProviderRegions(c) {
   const response = await container.resolve(ProviderRegionsController).getProviderRegions();
   return c.json(response);

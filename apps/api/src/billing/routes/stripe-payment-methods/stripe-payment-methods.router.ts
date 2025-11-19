@@ -11,6 +11,8 @@ import {
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
 
+export const stripePaymentMethodsRouter = new OpenApiHonoHandler();
+
 const setupIntentRoute = createRoute({
   method: "post",
   path: "/v1/stripe/payment-methods/setup",
@@ -30,6 +32,10 @@ const setupIntentRoute = createRoute({
       }
     }
   }
+});
+stripePaymentMethodsRouter.openapi(setupIntentRoute, async function createSetupIntent(c) {
+  const response = await container.resolve(StripeController).createSetupIntent();
+  return c.json(response, 200);
 });
 
 const paymentMethodsRoute = createRoute({
@@ -51,6 +57,10 @@ const paymentMethodsRoute = createRoute({
       }
     }
   }
+});
+stripePaymentMethodsRouter.openapi(paymentMethodsRoute, async function getPaymentMethods(c) {
+  const response = await container.resolve(StripeController).getPaymentMethods();
+  return c.json(response, 200);
 });
 
 const removePaymentMethodRoute = createRoute({
@@ -76,6 +86,11 @@ const removePaymentMethodRoute = createRoute({
       description: "Payment method removed successfully"
     }
   }
+});
+stripePaymentMethodsRouter.openapi(removePaymentMethodRoute, async function removePaymentMethod(c) {
+  const { paymentMethodId } = c.req.param();
+  await container.resolve(StripeController).removePaymentMethod(paymentMethodId);
+  return c.body(null, 204);
 });
 
 const validatePaymentMethodRoute = createRoute({
@@ -106,25 +121,6 @@ const validatePaymentMethodRoute = createRoute({
     }
   }
 });
-
-export const stripePaymentMethodsRouter = new OpenApiHonoHandler();
-
-stripePaymentMethodsRouter.openapi(setupIntentRoute, async function createSetupIntent(c) {
-  const response = await container.resolve(StripeController).createSetupIntent();
-  return c.json(response, 200);
-});
-
-stripePaymentMethodsRouter.openapi(paymentMethodsRoute, async function getPaymentMethods(c) {
-  const response = await container.resolve(StripeController).getPaymentMethods();
-  return c.json(response, 200);
-});
-
-stripePaymentMethodsRouter.openapi(removePaymentMethodRoute, async function removePaymentMethod(c) {
-  const { paymentMethodId } = c.req.param();
-  await container.resolve(StripeController).removePaymentMethod(paymentMethodId);
-  return c.body(null, 204);
-});
-
 stripePaymentMethodsRouter.openapi(validatePaymentMethodRoute, async function validatePaymentMethod(c) {
   return c.json(await container.resolve(StripeController).validatePaymentMethodAfter3DS(c.req.valid("json")), 200);
 });

@@ -6,6 +6,8 @@ import { SignTxRequestInputSchema, SignTxResponseOutputSchema } from "@src/billi
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
 
+export const signAndBroadcastTxRouter = new OpenApiHonoHandler();
+
 const route = createRoute({
   method: "post",
   path: "/v1/tx",
@@ -32,9 +34,6 @@ const route = createRoute({
     }
   }
 });
-
-export const signAndBroadcastTxRouter = new OpenApiHonoHandler();
-
 signAndBroadcastTxRouter.openapi(route, async function routeSignTx(c) {
   const payload = await container.resolve(WalletController).signTx(c.req.valid("json"));
   return c.json(payload, 200);

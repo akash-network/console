@@ -8,6 +8,8 @@ import { GetDeploymentResponseSchema } from "@src/deployment/http-schemas/deploy
 import { CreateLeaseRequestSchema } from "@src/deployment/http-schemas/lease.schema";
 import { FallbackLeaseListQuerySchema, FallbackLeaseListResponseSchema } from "@src/deployment/http-schemas/lease-rpc.schema";
 
+export const leasesRouter = new OpenApiHonoHandler();
+
 const createLeaseRoute = createRoute({
   method: "post",
   path: "/v1/leases",
@@ -34,6 +36,11 @@ const createLeaseRoute = createRoute({
     }
   }
 });
+leasesRouter.openapi(createLeaseRoute, async function routeCreateLease(c) {
+  const input = c.req.valid("json");
+  const result = await container.resolve(LeaseController).createLeasesAndSendManifest(input);
+  return c.json(result, 200);
+});
 
 const fallbackListRoute = createRoute({
   method: "get",
@@ -54,15 +61,6 @@ const fallbackListRoute = createRoute({
     }
   }
 });
-
-export const leasesRouter = new OpenApiHonoHandler();
-
-leasesRouter.openapi(createLeaseRoute, async function routeCreateLease(c) {
-  const input = c.req.valid("json");
-  const result = await container.resolve(LeaseController).createLeasesAndSendManifest(input);
-  return c.json(result, 200);
-});
-
 leasesRouter.openapi(fallbackListRoute, async function routeFallbackListLeases(c) {
   const query = c.req.valid("query");
   const result = await container.resolve(LeaseController).listLeasesFallback({

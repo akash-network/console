@@ -6,6 +6,8 @@ import { CheckoutController } from "@src/billing/controllers/checkout/checkout.c
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
 
+export const checkoutRouter = new OpenApiHonoHandler();
+
 const route = createRoute({
   method: "get",
   path: "/v1/checkout",
@@ -23,9 +25,6 @@ const route = createRoute({
     }
   }
 });
-
-export const checkoutRouter = new OpenApiHonoHandler();
-
 checkoutRouter.openapi(route, async function routeCheckout(c) {
   return await container.resolve(CheckoutController).checkout(c);
 });

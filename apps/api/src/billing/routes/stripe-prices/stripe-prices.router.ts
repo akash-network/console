@@ -18,6 +18,8 @@ export const StripePricesResponseOutputSchema = z.object({
 
 export type StripePricesOutputResponse = z.infer<typeof StripePricesResponseOutputSchema>;
 
+export const stripePricesRouter = new OpenApiHonoHandler();
+
 const route = createRoute({
   method: "get",
   path: "/v1/stripe/prices",
@@ -37,9 +39,6 @@ const route = createRoute({
     }
   }
 });
-
-export const stripePricesRouter = new OpenApiHonoHandler();
-
 stripePricesRouter.openapi(route, async function routeStripePrices(c) {
   await container.resolve(StripeController).findPrices();
   return c.json(await container.resolve(StripeController).findPrices(), 200);

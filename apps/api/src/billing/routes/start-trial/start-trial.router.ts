@@ -5,6 +5,8 @@ import { WalletController } from "@src/billing/controllers/wallet/wallet.control
 import { StartTrialRequestInputSchema, WalletResponse3DSOutputSchema, WalletResponseNo3DSOutputSchema } from "@src/billing/http-schemas/wallet.schema";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 
+export const startTrialRouter = new OpenApiHonoHandler();
+
 const route = createRoute({
   method: "post",
   path: "/v1/start-trial",
@@ -40,9 +42,6 @@ const route = createRoute({
     }
   }
 });
-
-export const startTrialRouter = new OpenApiHonoHandler();
-
 startTrialRouter.openapi(route, async function routeStartTrial(c) {
   const result = await container.resolve(WalletController).create(c.req.valid("json"));
 
