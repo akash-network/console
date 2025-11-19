@@ -1,5 +1,12 @@
 
 
+## [2.4.1](https://github.com/akash-network/console/compare/provider-proxy/v2.4.0...provider-proxy/v2.4.1) (2025-11-19)
+
+
+### Bug Fixes
+
+* ensure provider-proxy coerse the PORT variable ([#2247](https://github.com/akash-network/console/issues/2247)) ([fc9c42c](https://github.com/akash-network/console/commit/fc9c42c0f9f11a8125728b66422622009af59dac))
+
 ## [2.4.0](https://github.com/akash-network/console/compare/provider-proxy/v2.3.0...provider-proxy/v2.4.0) (2025-11-18)
 
 
