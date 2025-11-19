@@ -1,6 +1,5 @@
 import type { HttpClient } from "@akashnetwork/http-sdk";
 import type { LoggerService } from "@akashnetwork/logging";
-import { NetConfig } from "@akashnetwork/net";
 import type { AxiosResponse } from "axios";
 import saveFileInBrowser from "file-saver";
 
@@ -22,12 +21,11 @@ export class ProviderProxyService {
     private readonly axios: HttpClient,
     private readonly logger: LoggerService,
     private readonly createWebSocket: () => WebSocket,
-    private readonly saveFile: (data: Blob | string, filename?: string) => void = saveFileInBrowser,
-    private readonly netConfig: NetConfig = new NetConfig()
+    private readonly saveFile: (data: Blob | string, filename?: string) => void = saveFileInBrowser
   ) {}
 
   request<T>(url: string, options: ProviderProxyPayload): Promise<AxiosResponse<T>> {
-    const { chainNetwork, providerIdentity, timeout, credentials, ...params } = options;
+    const { providerIdentity, timeout, credentials, ...params } = options;
     return this.axios.post(
       "/",
       {
@@ -35,7 +33,6 @@ export class ProviderProxyService {
         method: options.method || "GET",
         url: providerIdentity.hostUri + url,
         providerAddress: providerIdentity.owner,
-        network: this.netConfig.mapped(options.chainNetwork),
         auth: credentials ? providerCredentialsToApiCredentials(credentials) : undefined
       },
       { timeout }
@@ -68,8 +65,7 @@ export class ProviderProxyService {
             credentials: options.credentials,
             body: jsonStr,
             timeout: 60_000,
-            providerIdentity: providerInfo,
-            chainNetwork: options.chainNetwork
+            providerIdentity: providerInfo
           });
           this.logger.info({ event: "SEND_MANIFEST_SUCCESS", response, providerAddress: providerInfo.owner, dseq: options.dseq });
         }
@@ -104,7 +100,6 @@ export class ProviderProxyService {
     gseq: number;
     oseq: number;
     type: "logs" | "events";
-    chainNetwork: string;
     signal?: AbortSignal;
   }): Promise<DownloadMessagesResult> {
     const abortController = new AbortController();
@@ -154,7 +149,6 @@ export class ProviderProxyService {
     dseq: string;
     gseq: number;
     oseq: number;
-    chainNetwork: string;
     signal?: AbortSignal;
     service: string;
     filePath: string;
@@ -237,7 +231,6 @@ export class ProviderProxyService {
     gseq: number;
     oseq: number;
     type: T;
-    chainNetwork: string;
     follow?: boolean;
     tail?: number;
     signal?: AbortSignal;
@@ -255,7 +248,6 @@ export class ProviderProxyService {
           type: "websocket",
           url,
           auth: providerCredentialsToApiCredentials(input.providerCredentials),
-          chainNetwork: this.netConfig.mapped(input.chainNetwork),
           providerAddress: input.providerAddress
         }),
       transformReceivedMessage: rawMessage => {
@@ -281,7 +273,6 @@ export class ProviderProxyService {
     dseq: string;
     gseq: number;
     oseq: number;
-    chainNetwork: string;
     service: string;
     useStdIn?: boolean;
     useTTY?: boolean;
@@ -303,7 +294,6 @@ export class ProviderProxyService {
           type: "websocket",
           url,
           auth: providerCredentialsToApiCredentials(input.providerCredentials),
-          chainNetwork: this.netConfig.mapped(input.chainNetwork),
           providerAddress: input.providerAddress,
           isBase64: true
         };
@@ -336,7 +326,6 @@ export interface ProviderProxyPayload {
   credentials?: ProviderCredentials | null;
   body?: string;
   timeout?: number;
-  chainNetwork: string;
   providerIdentity: ProviderIdentity;
 }
 
@@ -348,7 +337,6 @@ export interface ProviderIdentity {
 export interface SendManifestToProviderOptions {
   dseq: string;
   credentials?: ProviderCredentials | null;
-  chainNetwork: string;
 }
 
 export type ProviderCredentials =
@@ -389,20 +377,6 @@ export function providerCredentialsToApiCredentials(credentials: ProviderCredent
     type: credentials.type,
     token: credentials.value
   };
-}
-
-export interface DownloadMessagesOptions {
-  providerAddress: string;
-  providerCredentials: ProviderCredentials;
-  chainNetwork: string;
-  onMessage(event: MessageEvent<string>, state: DownloadState, ws: WebSocket): void;
-  start?(state: DownloadState, ws: WebSocket): void;
-  signal?: AbortSignal;
-}
-
-interface DownloadState {
-  isFinished: boolean;
-  isCancelled: boolean;
 }
 
 export type DownloadMessagesResult = { ok: false; code: "cancelled" | "unknown"; message?: string } | { ok: true };
