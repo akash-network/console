@@ -14,11 +14,9 @@ const route = createRoute({
   responses: {
     200: {
       description: "Returns a created anonymous user",
-      body: {
-        content: {
-          "application/json": {
-            schema: AnonymousUserResponseOutputSchema
-          }
+      content: {
+        "application/json": {
+          schema: AnonymousUserResponseOutputSchema
         }
       }
     }

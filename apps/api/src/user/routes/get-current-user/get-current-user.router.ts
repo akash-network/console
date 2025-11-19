@@ -15,11 +15,9 @@ const route = createRoute({
   responses: {
     200: {
       description: "Returns the logged in user",
-      body: {
-        content: {
-          "application/json": {
-            schema: GetUserResponseOutputSchema
-          }
+      content: {
+        "application/json": {
+          schema: GetUserResponseOutputSchema
         }
       }
     }
