@@ -23,32 +23,50 @@ jobs:
         with:
           app: ${{ inputs.app }}
 
-      - name: Show Node + ESLint versions
-        run: |
-          which node
-          node -v
-          npm -v
-          npm list eslint --depth 0 || true
-          npm list eslint-plugin-import-x --depth 0 || true
-
       - name: Run static code analysis
         if: github.event_name == 'pull_request'
-        run: npm run lint -w apps/${{ inputs.app }} -- --quiet
+        run: |
+          npm list eslint --depth 0 || true
+          npm list eslint-plugin-import-x --depth 0 || true
+          npm run lint -w apps/${{ inputs.app }} -- --quiet
 
-      - name: Run tests
-        id: run_tests
+      - name: Check whether app has tests
+        id: tests_details
         run: |
           has_tests=$(node -p "require('./apps/${{ inputs.app }}/package.json').scripts['test:cov'] ? 'true' : 'false'")
+          requires_env_setup=$(node -p "require('./apps/${{ inputs.app }}/package.json').scripts['test:ci-setup'] ? 'true' : 'false'")
           echo "has_tests=$has_tests" >> "$GITHUB_OUTPUT"
+          echo "requires_env_setup=$requires_env_setup" >> "$GITHUB_OUTPUT"
 
-          if [[ "$has_tests" == "true" ]]; then
-            npm run --if-present --workspace=apps/${{ inputs.app }} test:ci-setup
-            npm run test:cov --workspace=apps/${{ inputs.app }}
-            npm run --if-present --workspace=apps/${{ inputs.app }} test:ci-teardown
-          fi
+      - uses: docker/setup-buildx-action@v3
+        if: ${{ steps.tests_details.outputs.requires_env_setup == 'true' }}
+
+      - name: Normalize branch name
+        if: ${{ steps.tests_details.outputs.requires_env_setup == 'true' }}
+        run: |
+          BRANCH_NAME_SAFE="${GITHUB_REF_NAME//\//-}"
+          echo "BRANCH_NAME_SAFE=${BRANCH_NAME_SAFE:-main}" >> "$GITHUB_ENV"
+
+      - name: Prepare tests environment
+        if: ${{ steps.tests_details.outputs.requires_env_setup == 'true' }}
+        env:
+          USE_DOCKER_BUILDKIT: 1
+          DOCKER_BUILDKIT_CACHE_SCOPE: ${{ github.workflow }}-${{ inputs.app }}
+          DOCKER_BUILDKIT_CACHE_FALLBACK_SCOPE: ${{ github.workflow }}-${{ inputs.app }}-${{ env.BRANCH_NAME_SAFE }}
+          BUILDX_BAKE_ENTITLEMENTS_FS: 0
+        run: |
+          npm run --if-present --workspace=apps/${{ inputs.app }} test:ci-setup
+
+      - name: Run tests
+        if: ${{ steps.tests_details.outputs.has_tests == 'true' }}
+        run: npm run test:cov --workspace=apps/${{ inputs.app }}
+
+      - name: Teardown tests environment
+        if: ${{ always() && steps.tests_details.outputs.requires_env_setup == 'true' }}
+        run: npm run --if-present --workspace=apps/${{ inputs.app }} test:ci-teardown
 
       - name: Upload test results to Codecov
-        if: ${{ !cancelled() && steps.run_tests.outputs.has_tests == 'true' }}
+        if: ${{ !cancelled() && steps.tests_details.outputs.has_tests == 'true' }}
         uses: codecov/test-results-action@v1
         with:
           files: ./junit.xml
@@ -57,7 +75,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Upload Test Coverage
-        if: steps.run_tests.outputs.has_tests == 'true'
+        if: steps.tests_details.outputs.has_tests == 'true'
         uses: codecov/codecov-action@v5
         with:
           fail_ci_if_error: true
