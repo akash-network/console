@@ -1,24 +1,17 @@
 import "reflect-metadata";
 import "@akashnetwork/env-loader";
 
-import { LoggerService } from "@akashnetwork/logging";
 import { fork } from "child_process";
+
+import { type RawAppConfig } from "./core/providers/raw-app-config.provider";
 
 const SUPPORTED_INTERFACES = ["rest", "background-jobs"];
 
-// TODO: this is temp solution to prevent the app from crashing when an unhandled rejection or exception occurs
-const logger = LoggerService.forContext("SERVER");
-process.on("unhandledRejection", (reason, promise) => {
-  logger.error({ event: "UNHANDLED_REJECTION", reason, promise });
-});
-process.on("uncaughtException", error => {
-  logger.error({ event: "UNCAUGHT_EXCEPTION", error });
-});
+bootstrap(process.env as RawAppConfig);
 
-bootstrap(process.env);
-
-async function bootstrap({ PORT = "3080", INTERFACE = "all" }: Record<string, string | undefined>): Promise<void> {
-  const port = parseInt(PORT, 10) || 3080;
+async function bootstrap(rawAppConfig: RawAppConfig): Promise<void> {
+  const INTERFACE = rawAppConfig.INTERFACE || "all";
+  const port = parseInt(rawAppConfig.PORT?.toString() || "3080", 10) || 3080;
 
   if (INTERFACE === "all") {
     const boostrapList = SUPPORTED_INTERFACES.map((interfaceName, index) => bootstrapInChildProcess({ PORT: String(port + index), INTERFACE: interfaceName }));
@@ -26,33 +19,33 @@ async function bootstrap({ PORT = "3080", INTERFACE = "all" }: Record<string, st
     return;
   }
 
-  let appModule: { bootstrap: (port: number) => Promise<void> };
+  let appModule: { bootstrap: () => Promise<void> };
   switch (INTERFACE) {
     case "rest":
-      appModule = await import("./rest-app.ts");
+      appModule = await import("./rest-app");
       break;
     case "background-jobs":
-      appModule = await import("./background-jobs-app.ts");
+      appModule = await import("./background-jobs-app");
       break;
     default:
       throw new Error(`Received invalid interface: ${INTERFACE}. Valid values: ${SUPPORTED_INTERFACES.join(", ")}`);
   }
 
-  await appModule.bootstrap(port);
+  await appModule.bootstrap();
   if (process.send) {
     process.on("disconnect", () => process.exit(0));
     process.send("ready");
   }
 }
 
-function bootstrapInChildProcess({ PORT, INTERFACE }: Record<string, string>): Promise<void> {
+function bootstrapInChildProcess({ PORT, INTERFACE }: RawAppConfig): Promise<void> {
   return new Promise((resolve, reject) => {
     const child = fork(__filename, {
       stdio: ["inherit", "inherit", "inherit", "ipc"],
       env: {
         ...process.env,
-        PORT,
-        INTERFACE
+        PORT: String(PORT),
+        INTERFACE: String(INTERFACE)
       },
       execArgv: process.execArgv
     });

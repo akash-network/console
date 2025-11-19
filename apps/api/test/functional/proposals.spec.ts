@@ -1,10 +1,12 @@
 import nock from "nock";
+import { container } from "tsyringe";
 
+import { CORE_CONFIG } from "@src/core/providers/config.provider";
 import type { GetProposalByIdResponse, GetProposalListResponse } from "@src/proposal/http-schemas/proposal.schema";
 import { app } from "@src/rest-app";
-import { apiNodeUrl } from "@src/utils/constants";
 
 describe("Proposals", () => {
+  const apiNodeUrl = container.resolve(CORE_CONFIG).REST_API_NODE_URL;
   afterAll(() => {
     nock.cleanAll();
   });

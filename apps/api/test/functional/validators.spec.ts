@@ -1,13 +1,15 @@
 import type { Validator } from "@akashnetwork/database/dbSchemas/base";
 import nock from "nock";
+import { container } from "tsyringe";
 
+import { CORE_CONFIG } from "@src/core/providers/config.provider";
 import { app } from "@src/rest-app";
-import { apiNodeUrl } from "@src/utils/constants";
 
 import { createValidator } from "@test/seeders";
 
 describe("Validators API", () => {
   let validators: Validator[];
+  const apiNodeUrl = container.resolve(CORE_CONFIG).REST_API_NODE_URL;
 
   beforeAll(async () => {
     validators = await Promise.all([

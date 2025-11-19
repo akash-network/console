@@ -3,12 +3,14 @@ import { AddressReference, Day, Transaction, Validator } from "@akashnetwork/dat
 import { faker } from "@faker-js/faker";
 import { format } from "date-fns";
 import nock from "nock";
+import { container } from "tsyringe";
 
 import type { GetAddressTransactionsResponse } from "@src/address/http-schemas/address.schema";
-import { closeConnections, connectUsingSequelize } from "@src/db/dbConnection";
+import { CORE_CONFIG } from "@src/core/providers/config.provider";
+import { connectUsingSequelize } from "@src/db/dbConnection";
 import type { ListWithResourcesResponse } from "@src/deployment/http-schemas/deployment.schema";
 import { app } from "@src/rest-app";
-import { apiNodeUrl, deploymentVersion, marketVersion } from "@src/utils/constants";
+import { deploymentVersion, marketVersion } from "@src/utils/constants";
 
 import { createAddressReferenceInDatabase } from "@test/seeders/address-reference.seeder";
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
@@ -23,6 +25,8 @@ import { createTransaction } from "@test/seeders/transaction.seeder";
 import { createValidator } from "@test/seeders/validator.seeder";
 
 describe("Addresses API", () => {
+  const apiNodeUrl = container.resolve(CORE_CONFIG).REST_API_NODE_URL;
+
   afterEach(async () => {
     await AddressReference.destroy({ where: {} });
     await AkashMessage.destroy({ where: {} });
@@ -37,7 +41,6 @@ describe("Addresses API", () => {
   });
 
   afterAll(async () => {
-    await closeConnections();
     jest.restoreAllMocks();
     nock.cleanAll();
   });

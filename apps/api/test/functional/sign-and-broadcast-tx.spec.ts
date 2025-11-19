@@ -6,8 +6,8 @@ import { container } from "tsyringe";
 
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { CORE_CONFIG } from "@src/core/providers/config.provider";
 import { app } from "@src/rest-app";
-import { apiNodeUrl } from "@src/utils/constants";
 
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
@@ -16,6 +16,7 @@ jest.setTimeout(30000);
 describe("Tx Sign", () => {
   const registry = container.resolve<Registry>(TYPE_REGISTRY);
   const walletService = new WalletTestingService(app);
+  const apiNodeUrl = container.resolve(CORE_CONFIG).REST_API_NODE_URL;
 
   describe("POST /v1/tx", () => {
     it("should create a wallet for a user", async () => {

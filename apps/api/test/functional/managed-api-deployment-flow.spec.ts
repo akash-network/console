@@ -20,8 +20,8 @@ import type {
 import type { ListDeploymentsResponseSchema } from "@src/deployment/http-schemas/deployment.schema";
 
 type ListDeploymentsResponse = z.infer<typeof ListDeploymentsResponseSchema>;
+import { CORE_CONFIG } from "@src/core/providers/config.provider";
 import { app } from "@src/rest-app";
-import { apiNodeUrl } from "@src/utils/constants";
 
 import { createDeployment as createDeploymentSeed, createDeploymentGroup, createLease as createLeaseSeed, createProvider } from "@test/seeders";
 import { AppHttpService } from "@test/services/app-http.service";
@@ -34,6 +34,7 @@ type AuthType = "mTLS" | "JWT";
 
 describe("Managed Wallet API Deployment Flow", () => {
   const http = new AppHttpService(app);
+  const apiNodeUrl = container.resolve(CORE_CONFIG).REST_API_NODE_URL;
 
   /**
    * Authentication types supported by the test.
@@ -569,6 +570,7 @@ describe("Managed Wallet API Deployment Flow", () => {
     });
 
     if (!data?.data?.leases) {
+      console.error("Cannot create lease", data);
       return undefined;
     }
 

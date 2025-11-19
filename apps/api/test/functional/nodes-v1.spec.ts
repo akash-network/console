@@ -1,22 +1,19 @@
 import { netConfig } from "@akashnetwork/net";
 import mcache from "memory-cache";
 import nock from "nock";
+import { container } from "tsyringe";
 
-import { closeConnections } from "@src/db/dbConnection";
+import { CORE_CONFIG } from "@src/core";
 import { app, initDb } from "@src/rest-app";
-import { env } from "@src/utils/env";
 
 import { NodeSeeder } from "@test/seeders/node.seeder";
 
 describe("Nodes API", () => {
-  const interceptor = nock(env.NODE_API_BASE_PATH);
-
   beforeAll(async () => {
     await initDb();
   });
 
   afterAll(async () => {
-    await closeConnections();
     mcache.clear();
   });
 
@@ -27,7 +24,7 @@ describe("Nodes API", () => {
   describe("GET /nodes/{network}", () => {
     it.each(["mainnet", "sandbox"])("should return %s node", async network => {
       const node = NodeSeeder.create();
-      interceptor
+      nock(container.resolve(CORE_CONFIG).NODE_API_BASE_PATH)
         .get(`/console/main/config/${netConfig.mapped(network)}-nodes.json`)
         .times(1)
         .reply(200, node);

@@ -1,11 +1,12 @@
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
-import { envSchema } from "../../config/env.config";
+import { CoreConfig, envSchema } from "../../config/env.config";
+import { CORE_CONFIG } from "../../providers/config.provider";
 import { ConfigService } from "../config/config.service";
 
 @singleton()
 export class CoreConfigService extends ConfigService<typeof envSchema> {
-  constructor() {
-    super({ envSchema });
+  constructor(@inject(CORE_CONFIG) config: CoreConfig) {
+    super({ config });
   }
 }

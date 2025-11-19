@@ -3,7 +3,6 @@ import { format, subDays } from "date-fns";
 import mcache from "memory-cache";
 import nock from "nock";
 
-import { closeConnections } from "@src/db/dbConnection";
 import type { ProviderEarningsResponse } from "@src/provider/http-schemas/provider-earnings.schema";
 import { app, initDb } from "@src/rest-app";
 
@@ -35,7 +34,6 @@ describe("Provider Earnings API", () => {
   });
 
   afterAll(async () => {
-    await closeConnections();
     mcache.clear();
   });
 

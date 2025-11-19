@@ -5,10 +5,10 @@ import { container } from "tsyringe";
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
 import { UserWalletRepository } from "@src/billing/repositories";
+import { CORE_CONFIG } from "@src/core/providers/config.provider";
 import type { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories";
-import { apiNodeUrl } from "@src/utils/constants";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { DeploymentGrantResponseSeeder } from "@test/seeders/deployment-grant-response.seeder";
@@ -22,6 +22,7 @@ jest.setTimeout(20000);
 describe("Balances", () => {
   const mockMasterWalletAddress = "akash1testmasterwalletaddress";
   const mockDeploymentGrantDenom = "uakt";
+  const apiNodeUrl = container.resolve(CORE_CONFIG).REST_API_NODE_URL;
 
   afterEach(() => {
     jest.restoreAllMocks();
