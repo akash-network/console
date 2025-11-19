@@ -1,9 +1,9 @@
 <div align="left">
-  
+
   <a href="https://aimeos.org/">
     <img src="./apps/deploy-web/public/android-chrome-192x192.png" alt="Akash logo" title="Akash Console" align="left" height="40" />
   </a>
-  
+
   # Akash Console
 
 **Akash Console** is a powerful application that allows you to deploy any [Docker container](https://www.docker.com/) on the [Akash Network](https://akash.network) with just a few clicks. 🚀
@@ -80,7 +80,6 @@ Some commands are added to package.json for convenience.
 
 ```shell
 npm run dc:build # Build the production images
-npm run dc:up:prod # Run the services in production mode
 npm run dc:up:dev # Run the services in development mode
 npm run dc:down # Stop the services referencing any possible service
 ```

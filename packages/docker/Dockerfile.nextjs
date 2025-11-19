@@ -40,7 +40,7 @@ RUN apk add --no-cache libc6-compat
 
 COPY --from=prepare /app .
 
-RUN npm run safe-install && npm cache clean --force
+RUN --mount=type=cache,id=npm-cache,target=/root/.npm npm run safe-install
 
 COPY $WORKSPACE ./$WORKSPACE
 COPY /packages /app/packages
