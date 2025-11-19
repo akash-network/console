@@ -1,5 +1,12 @@
 
 
+## [3.4.4](https://github.com/akash-network/console/compare/console-api/v3.4.3...console-api/v3.4.4) (2025-11-19)
+
+
+### Bug Fixes
+
+* **billing:** clear all anon ([#2257](https://github.com/akash-network/console/issues/2257)) ([872c3e7](https://github.com/akash-network/console/commit/872c3e7d3cbb5d92d8cdd1f1f5c2c73e79c70f84))
+
 ## [3.4.3](https://github.com/akash-network/console/compare/console-api/v3.4.2...console-api/v3.4.3) (2025-11-18)
 
 
