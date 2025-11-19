@@ -12,6 +12,8 @@ import {
   UpdateDeploymentSettingRequestSchema
 } from "@src/deployment/http-schemas/deployment-setting.schema";
 
+export const deploymentSettingRouter = new OpenApiHonoHandler();
+
 const getRoute = createOpenApiRoute({
   method: "get",
   path: "/v1/deployment-settings/{userId}/{dseq}",
@@ -42,6 +44,12 @@ const getRoute = createOpenApiRoute({
     }
   }
 });
+deploymentSettingRouter.openapi(getRoute, async function routeGetDeploymentSettings(c) {
+  const params = c.req.valid("param");
+  const result = await container.resolve(DeploymentSettingController).findOrCreateByUserIdAndDseq(params);
+
+  return c.json(result, 200);
+});
 
 const postRoute = createOpenApiRoute({
   method: "post",
@@ -68,6 +76,11 @@ const postRoute = createOpenApiRoute({
       }
     }
   }
+});
+deploymentSettingRouter.openapi(postRoute, async function routeCreateDeploymentSettings(c) {
+  const { data } = c.req.valid("json");
+  const result = await container.resolve(DeploymentSettingController).create(data);
+  return c.json(result, 201);
 });
 
 const patchRoute = createOpenApiRoute({
@@ -107,22 +120,6 @@ const patchRoute = createOpenApiRoute({
     }
   }
 });
-
-export const deploymentSettingRouter = new OpenApiHonoHandler();
-
-deploymentSettingRouter.openapi(getRoute, async function routeGetDeploymentSettings(c) {
-  const params = c.req.valid("param");
-  const result = await container.resolve(DeploymentSettingController).findOrCreateByUserIdAndDseq(params);
-
-  return c.json(result, 200);
-});
-
-deploymentSettingRouter.openapi(postRoute, async function routeCreateDeploymentSettings(c) {
-  const { data } = c.req.valid("json");
-  const result = await container.resolve(DeploymentSettingController).create(data);
-  return c.json(result, 201);
-});
-
 deploymentSettingRouter.openapi(patchRoute, async function routeUpdateDeploymentSettings(c) {
   const params = c.req.valid("param");
   const { data } = c.req.valid("json");

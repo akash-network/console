@@ -10,6 +10,8 @@ import {
 } from "@src/block/http-schemas/block.schema";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 
+export const blocksRouter = new OpenApiHonoHandler();
+
 const listBlocksRoute = createRoute({
   method: "get",
   path: "/v1/blocks",
@@ -28,6 +30,12 @@ const listBlocksRoute = createRoute({
       }
     }
   }
+});
+blocksRouter.openapi(listBlocksRoute, async function routeListBlocks(c) {
+  const { limit } = c.req.valid("query");
+  const blocks = await container.resolve(BlockController).getBlocks(limit);
+
+  return c.json(blocks);
 });
 
 const getBlockByHeightRoute = createRoute({
@@ -55,16 +63,6 @@ const getBlockByHeightRoute = createRoute({
     }
   }
 });
-
-export const blocksRouter = new OpenApiHonoHandler();
-
-blocksRouter.openapi(listBlocksRoute, async function routeListBlocks(c) {
-  const { limit } = c.req.valid("query");
-  const blocks = await container.resolve(BlockController).getBlocks(limit);
-
-  return c.json(blocks);
-});
-
 blocksRouter.openapi(getBlockByHeightRoute, async function routeGetBlockByHeight(c) {
   const { height } = c.req.valid("param");
 

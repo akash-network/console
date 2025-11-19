@@ -13,6 +13,8 @@ export const GetWalletRequestQuerySchema = z.object({
 });
 export type GetWalletQuery = z.infer<typeof GetWalletRequestQuerySchema>;
 
+export const getWalletListRouter = new OpenApiHonoHandler();
+
 const route = createRoute({
   method: "get",
   path: "/v1/wallets",
@@ -33,8 +35,6 @@ const route = createRoute({
     }
   }
 });
-export const getWalletListRouter = new OpenApiHonoHandler();
-
 getWalletListRouter.openapi(route, async function routeGetWallet(c) {
   return c.json(await container.resolve(WalletController).getWallets(c.req.valid("query")), 200);
 });

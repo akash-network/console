@@ -28,7 +28,6 @@ const listRoute = createRoute({
     }
   }
 });
-
 bidsRouter.openapi(listRoute, async function routeListBids(c) {
   const { dseq } = c.req.valid("query");
   const result = await container.resolve(BidController).list(dseq);
@@ -55,7 +54,6 @@ const listByDseqRoute = createRoute({
     }
   }
 });
-
 bidsRouter.openapi(listByDseqRoute, async function routeListBids(c) {
   const { dseq } = c.req.valid("param");
   const result = await container.resolve(BidController).list(dseq);

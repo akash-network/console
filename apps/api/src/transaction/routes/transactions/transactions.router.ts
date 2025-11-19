@@ -10,6 +10,8 @@ import {
   ListTransactionsResponseSchema
 } from "@src/transaction/http-schemas/transaction.schema";
 
+export const transactionsRouter = new OpenApiHonoHandler();
+
 const listTransactionsRoute = createRoute({
   method: "get",
   path: "/v1/transactions",
@@ -28,6 +30,12 @@ const listTransactionsRoute = createRoute({
       }
     }
   }
+});
+transactionsRouter.openapi(listTransactionsRoute, async function routeListTransactions(c) {
+  const { limit } = c.req.valid("query");
+  const transactions = await container.resolve(TransactionController).getTransactions(limit);
+
+  return c.json(transactions);
 });
 
 const getTransactionByHashRoute = createRoute({
@@ -52,16 +60,6 @@ const getTransactionByHashRoute = createRoute({
     }
   }
 });
-
-export const transactionsRouter = new OpenApiHonoHandler();
-
-transactionsRouter.openapi(listTransactionsRoute, async function routeListTransactions(c) {
-  const { limit } = c.req.valid("query");
-  const transactions = await container.resolve(TransactionController).getTransactions(limit);
-
-  return c.json(transactions);
-});
-
 transactionsRouter.openapi(getTransactionByHashRoute, async function routeGetTransactionByHash(c) {
   const { hash } = c.req.valid("param");
 

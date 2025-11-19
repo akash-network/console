@@ -6,6 +6,8 @@ import { UpdateCustomerOrganizationRequestSchema } from "@src/billing/http-schem
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
 
+export const stripeCustomersRouter = new OpenApiHonoHandler();
+
 const updateCustomerOrganizationRoute = createRoute({
   method: "put",
   path: "/v1/stripe/customers/organization",
@@ -28,9 +30,6 @@ const updateCustomerOrganizationRoute = createRoute({
     }
   }
 });
-
-export const stripeCustomersRouter = new OpenApiHonoHandler();
-
 stripeCustomersRouter.openapi(updateCustomerOrganizationRoute, async function updateCustomerOrganization(c) {
   const data = c.req.valid("json");
   await container.resolve(StripeController).updateCustomerOrganization(data);

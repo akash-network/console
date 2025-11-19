@@ -33,7 +33,6 @@ const listRoute = createRoute({
     }
   }
 });
-
 apiKeysRouter.openapi(listRoute, async function routeListApiKeys(c) {
   const result = await container.resolve(ApiKeyController).findAll();
   return c.json(result, 200);
@@ -69,7 +68,6 @@ const getRoute = createRoute({
     }
   }
 });
-
 apiKeysRouter.openapi(getRoute, async function routeGetApiKey(c) {
   const { id } = c.req.valid("param");
   const result = await container.resolve(ApiKeyController).findById(id);
@@ -102,7 +100,6 @@ const postRoute = createRoute({
     }
   }
 });
-
 apiKeysRouter.openapi(postRoute, async function routeCreateApiKey(c) {
   const { data } = c.req.valid("json");
   const result = await container.resolve(ApiKeyController).create(data);
@@ -146,7 +143,6 @@ const patchRoute = createRoute({
     }
   }
 });
-
 apiKeysRouter.openapi(patchRoute, async function routeUpdateApiKey(c) {
   const { id } = c.req.valid("param");
   const { data } = c.req.valid("json");
@@ -179,7 +175,6 @@ const deleteRoute = createRoute({
     }
   }
 });
-
 apiKeysRouter.openapi(deleteRoute, async function routeDeleteApiKey(c) {
   const { id } = c.req.valid("param");
   await container.resolve(ApiKeyController).delete(id);

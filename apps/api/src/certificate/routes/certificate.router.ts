@@ -6,6 +6,8 @@ import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/open
 import { CertificateController } from "../controllers/certificate.controller";
 import { CreateCertificateResponseSchema } from "../http-schemas/create-certificate.schema";
 
+export const certificateRouter = new OpenApiHonoHandler();
+
 const createCertificateRoute = createRoute({
   method: "post",
   path: "/v1/certificates",
@@ -23,9 +25,6 @@ const createCertificateRoute = createRoute({
     }
   }
 });
-
-export const certificateRouter = new OpenApiHonoHandler();
-
 certificateRouter.openapi(createCertificateRoute, async function routeCreateCertificate(c) {
   const result = await container.resolve(CertificateController).create();
   return c.json(result, 200);
