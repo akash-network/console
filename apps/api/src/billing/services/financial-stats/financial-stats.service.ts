@@ -1,33 +1,29 @@
 import { Provider } from "@akashnetwork/database/dbSchemas/akash";
-import { CosmosDistributionCommunityPoolResponse, CosmosHttpService } from "@akashnetwork/http-sdk";
-import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
-import axios from "axios";
+import { CosmosHttpService } from "@akashnetwork/http-sdk";
 import { Op, QueryTypes } from "sequelize";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import { USDC_IBC_DENOMS } from "@src/billing/config/network.config";
-import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
+import type { Wallet } from "@src/billing/lib/wallet/wallet";
+import { MANAGED_MASTER_WALLET } from "@src/billing/providers/wallet.provider";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { chainDb } from "@src/db/dbConnection";
-import { apiNodeUrl } from "@src/utils/constants";
 
 @singleton()
 export class FinancialStatsService {
   constructor(
-    @InjectBillingConfig() private readonly config: BillingConfig,
     private readonly userWalletRepository: UserWalletRepository,
-    private readonly cosmosHttpService: CosmosHttpService
+    private readonly cosmosHttpService: CosmosHttpService,
+    @inject(MANAGED_MASTER_WALLET) private readonly managedMasterWallet: Wallet
   ) {}
 
   async getPayingUserCount() {
     return this.userWalletRepository.payingUserCount();
   }
 
-  async getMasterWalletBalanceUsdc() {
-    const wallet = await DirectSecp256k1HdWallet.fromMnemonic(this.config.MASTER_WALLET_MNEMONIC, { prefix: "akash" });
-    const [account] = await wallet.getAccounts();
-
-    return this.getWalletBalances(account.address, USDC_IBC_DENOMS.mainnetId);
+  async getMasterWalletBalanceUsdc(): Promise<number> {
+    const address = await this.managedMasterWallet.getFirstAddress();
+    return this.getWalletBalances(address, USDC_IBC_DENOMS.mainnetId);
   }
 
   private async getWalletBalances(address: string, denom: string) {
@@ -52,9 +48,9 @@ export class FinancialStatsService {
     return balances;
   }
 
-  async getCommunityPoolUsdc() {
-    const communityPoolData = await axios.get<CosmosDistributionCommunityPoolResponse>(`${apiNodeUrl}/cosmos/distribution/v1beta1/community_pool`);
-    return parseFloat(communityPoolData.data.pool.find(x => x.denom === USDC_IBC_DENOMS.mainnetId)?.amount || "0");
+  async getCommunityPoolUsdc(): Promise<number> {
+    const pool = await this.cosmosHttpService.getCommunityPool();
+    return parseFloat(pool.find(x => x.denom === USDC_IBC_DENOMS.mainnetId)?.amount || "0");
   }
 
   async getProviderRevenues() {

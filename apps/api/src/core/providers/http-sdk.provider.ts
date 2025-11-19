@@ -16,18 +16,33 @@ import {
 import type { InjectionToken } from "tsyringe";
 import { container, instancePerContainerCachingFactory } from "tsyringe";
 
-import { apiNodeUrl, nodeApiBasePath } from "@src/utils/constants";
+import { nodeApiBasePath } from "@src/utils/constants";
+import { CoreConfigService } from "../services/core-config/core-config.service";
 
 export const CHAIN_API_HTTP_CLIENT: InjectionToken<HttpClient> = Symbol("CHAIN_API_HTTP_CLIENT");
 
 container.register(CHAIN_API_HTTP_CLIENT, {
-  useFactory: instancePerContainerCachingFactory(() => createHttpClient({ baseURL: apiNodeUrl }))
+  useFactory: instancePerContainerCachingFactory(c =>
+    createHttpClient({
+      baseURL: c.resolve(CoreConfigService).get("REST_API_NODE_URL")
+    })
+  )
 });
 
-const SERVICES = [BalanceHttpService, BlockHttpService, BidHttpService, ProviderHttpService];
-SERVICES.forEach(Service => container.register(Service, { useValue: new Service({ baseURL: apiNodeUrl }) }));
+const SERVICES = [BalanceHttpService, BidHttpService, ProviderHttpService];
+SERVICES.forEach(Service =>
+  container.register(Service as InjectionToken<unknown>, {
+    useFactory: instancePerContainerCachingFactory(c => new Service({ baseURL: c.resolve(CoreConfigService).get("REST_API_NODE_URL") }))
+  })
+);
 
-const NON_AXIOS_SERVICES: Array<new (httpClient: HttpClient) => unknown> = [DeploymentHttpService, LeaseHttpService, CosmosHttpService, AuthzHttpService];
+const NON_AXIOS_SERVICES: Array<new (httpClient: HttpClient) => unknown> = [
+  DeploymentHttpService,
+  LeaseHttpService,
+  CosmosHttpService,
+  AuthzHttpService,
+  BlockHttpService
+];
 NON_AXIOS_SERVICES.forEach(Service =>
   container.register(Service, { useFactory: instancePerContainerCachingFactory(c => new Service(c.resolve(CHAIN_API_HTTP_CLIENT))) })
 );

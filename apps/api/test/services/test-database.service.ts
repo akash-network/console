@@ -44,12 +44,14 @@ export class TestDatabaseService {
     const pgMigrationDatabase = drizzle(migrationClient);
     const migrationsFolder = path.resolve(process.cwd(), "../indexer/drizzle");
 
-    await migrate(pgMigrationDatabase, { migrationsFolder });
+    try {
+      await migrate(pgMigrationDatabase, { migrationsFolder });
+    } finally {
+      await migrationClient.end();
+    }
   }
 
   async teardown(): Promise<void> {
-    await this.postgres.closeConnections();
-
     console.log(`Dropping test databases: ${this.dbName}, ${this.indexerDbName}`);
     const sql = postgres(this.postgresUri);
 
