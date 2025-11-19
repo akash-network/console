@@ -1,1 +1,3 @@
+deploymentEnv: staging
+
 hostName: console-beta.akash.network
