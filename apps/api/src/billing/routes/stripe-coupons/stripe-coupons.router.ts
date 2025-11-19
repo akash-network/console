@@ -4,12 +4,14 @@ import { container } from "tsyringe";
 import { StripeController } from "@src/billing/controllers/stripe/stripe.controller";
 import { ApplyCouponRequestSchema, ApplyCouponResponseSchema } from "@src/billing/http-schemas/stripe.schema";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
 
 const applyCouponRoute = createRoute({
   method: "post",
   path: "/v1/stripe/coupons/apply",
   summary: "Apply a coupon to the current user",
   tags: ["Payment"],
+  security: SECURITY_BEARER_OR_API_KEY,
   request: {
     body: {
       content: {

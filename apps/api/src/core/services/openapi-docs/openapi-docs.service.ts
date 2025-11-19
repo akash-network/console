@@ -17,7 +17,22 @@ export class OpenApiDocsService {
         version: version
       },
       paths: {},
-      components: {}
+      components: {
+        securitySchemes: {
+          BearerAuth: {
+            type: "http",
+            scheme: "bearer",
+            bearerFormat: "JWT",
+            description: 'JWT token for authenticated users, sent in "Authorization: Bearer %token" header.'
+          },
+          ApiKeyAuth: {
+            type: "apiKey",
+            in: "header",
+            name: "x-api-key",
+            description: "API key for programmatic access."
+          }
+        }
+      }
     };
 
     for (const handler of handlers) {

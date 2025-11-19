@@ -2,6 +2,7 @@ import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
 import { CertificateController } from "../controllers/certificate.controller";
 import { CreateCertificateResponseSchema } from "../http-schemas/create-certificate.schema";
 
@@ -10,6 +11,7 @@ const createCertificateRoute = createRoute({
   path: "/v1/certificates",
   summary: "Create certificate",
   tags: ["Certificate"],
+  security: SECURITY_BEARER_OR_API_KEY,
   responses: {
     200: {
       description: "Certificate created",

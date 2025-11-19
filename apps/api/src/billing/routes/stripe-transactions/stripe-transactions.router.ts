@@ -11,6 +11,7 @@ import {
   CustomerTransactionsResponseSchema
 } from "@src/billing/http-schemas/stripe.schema";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
 
 const confirmPaymentRoute = createRoute({
   method: "post",
@@ -19,6 +20,7 @@ const confirmPaymentRoute = createRoute({
   description:
     "Processes a payment using a previously saved payment method. This endpoint handles wallet top-ups and may require 3D Secure authentication for certain payment methods or amounts.",
   tags: ["Payment"],
+  security: SECURITY_BEARER_OR_API_KEY,
   request: {
     body: {
       content: {
@@ -53,6 +55,7 @@ const getCustomerTransactionsRoute = createRoute({
   path: "/v1/stripe/transactions",
   summary: "Get transaction history for the current customer",
   tags: ["Payment"],
+  security: SECURITY_BEARER_OR_API_KEY,
   request: {
     query: CustomerTransactionsQuerySchema
   },
@@ -73,6 +76,7 @@ const exportTransactionsCsvRoute = createRoute({
   path: "/v1/stripe/transactions/export",
   summary: "Export transaction history as CSV for the current customer",
   tags: ["Payment"],
+  security: SECURITY_BEARER_OR_API_KEY,
   request: {
     query: CustomerTransactionsCsvExportQuerySchema
   },

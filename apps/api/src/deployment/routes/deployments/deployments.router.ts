@@ -2,6 +2,7 @@ import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
 import { DeploymentController } from "@src/deployment/controllers/deployment/deployment.controller";
 import {
   CloseDeploymentParamsSchema,
@@ -35,6 +36,7 @@ const getRoute = createRoute({
   path: "/v1/deployments/{dseq}",
   summary: "Get a deployment",
   tags: ["Deployments"],
+  security: SECURITY_BEARER_OR_API_KEY,
   request: {
     params: GetDeploymentParamsSchema
   },
@@ -55,6 +57,7 @@ const postRoute = createRoute({
   path: "/v1/deployments",
   summary: "Create new deployment",
   tags: ["Deployments"],
+  security: SECURITY_BEARER_OR_API_KEY,
   request: {
     body: {
       content: {
@@ -81,6 +84,7 @@ const deleteRoute = createRoute({
   path: "/v1/deployments/{dseq}",
   summary: "Close a deployment",
   tags: ["Deployments"],
+  security: SECURITY_BEARER_OR_API_KEY,
   request: {
     params: CloseDeploymentParamsSchema
   },
@@ -101,6 +105,7 @@ const depositRoute = createRoute({
   path: "/v1/deposit-deployment",
   summary: "Deposit into a deployment",
   tags: ["Deployments"],
+  security: SECURITY_BEARER_OR_API_KEY,
   request: {
     body: {
       content: {
@@ -127,6 +132,7 @@ const updateRoute = createRoute({
   path: "/v1/deployments/{dseq}",
   summary: "Update a deployment",
   tags: ["Deployments"],
+  security: SECURITY_BEARER_OR_API_KEY,
   request: {
     params: CloseDeploymentParamsSchema,
     body: {
@@ -154,6 +160,7 @@ const listRoute = createRoute({
   path: "/v1/deployments",
   summary: "List deployments with pagination and filtering",
   tags: ["Deployments"],
+  security: SECURITY_BEARER_OR_API_KEY,
   request: {
     query: ListDeploymentsQuerySchema
   },

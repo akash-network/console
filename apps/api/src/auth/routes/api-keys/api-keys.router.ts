@@ -12,6 +12,7 @@ import {
 } from "@src/auth/http-schemas/api-key.schema";
 import { ListApiKeysResponseSchema } from "@src/auth/http-schemas/api-key.schema";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
 
 export const apiKeysRouter = new OpenApiHonoHandler();
 
@@ -20,6 +21,7 @@ const listRoute = createRoute({
   path: "/v1/api-keys",
   summary: "List all API keys",
   tags: ["API Keys"],
+  security: SECURITY_BEARER_OR_API_KEY,
   responses: {
     200: {
       description: "Returns list of API keys",
@@ -42,6 +44,7 @@ const getRoute = createRoute({
   path: "/v1/api-keys/{id}",
   summary: "Get API key by ID",
   tags: ["API Keys"],
+  security: SECURITY_BEARER_OR_API_KEY,
   request: {
     params: FindApiKeyParamsSchema
   },
@@ -78,6 +81,7 @@ const postRoute = createRoute({
   path: "/v1/api-keys",
   summary: "Create new API key",
   tags: ["API Keys"],
+  security: SECURITY_BEARER_OR_API_KEY,
   request: {
     body: {
       content: {
@@ -110,6 +114,7 @@ const patchRoute = createRoute({
   path: "/v1/api-keys/{id}",
   summary: "Update API key",
   tags: ["API Keys"],
+  security: SECURITY_BEARER_OR_API_KEY,
   request: {
     params: FindApiKeyParamsSchema,
     body: {
@@ -154,6 +159,7 @@ const deleteRoute = createRoute({
   path: "/v1/api-keys/{id}",
   summary: "Delete API key",
   tags: ["API Keys"],
+  security: SECURITY_BEARER_OR_API_KEY,
   request: {
     params: FindApiKeyParamsSchema
   },
