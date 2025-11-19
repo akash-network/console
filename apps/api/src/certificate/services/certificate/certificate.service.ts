@@ -31,7 +31,7 @@ export class CertificateService {
     const createCertificateMsg = this.rpcMessageService.getCreateCertificateMsg(userWallet.address, crtpem, pubpem);
     const messages = [createCertificateMsg];
 
-    await this.managedSignerService.executeDecodedTxByUserId(userWallet.userId, messages);
+    await this.managedSignerService.executeDerivedDecodedTxByUserId(userWallet.userId, messages);
 
     return {
       certPem: crtpem,

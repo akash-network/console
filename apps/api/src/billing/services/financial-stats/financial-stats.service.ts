@@ -1,22 +1,21 @@
 import { Provider } from "@akashnetwork/database/dbSchemas/akash";
 import { CosmosDistributionCommunityPoolResponse, CosmosHttpService } from "@akashnetwork/http-sdk";
-import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import axios from "axios";
 import { Op, QueryTypes } from "sequelize";
 import { singleton } from "tsyringe";
 
 import { USDC_IBC_DENOMS } from "@src/billing/config/network.config";
-import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { chainDb } from "@src/db/dbConnection";
 import { apiNodeUrl } from "@src/utils/constants";
+import { TxManagerService } from "../tx-manager/tx-manager.service";
 
 @singleton()
 export class FinancialStatsService {
   constructor(
-    @InjectBillingConfig() private readonly config: BillingConfig,
     private readonly userWalletRepository: UserWalletRepository,
-    private readonly cosmosHttpService: CosmosHttpService
+    private readonly cosmosHttpService: CosmosHttpService,
+    private readonly txManagerService: TxManagerService
   ) {}
 
   async getPayingUserCount() {
@@ -24,10 +23,7 @@ export class FinancialStatsService {
   }
 
   async getMasterWalletBalanceUsdc() {
-    const wallet = await DirectSecp256k1HdWallet.fromMnemonic(this.config.MASTER_WALLET_MNEMONIC, { prefix: "akash" });
-    const [account] = await wallet.getAccounts();
-
-    return this.getWalletBalances(account.address, USDC_IBC_DENOMS.mainnetId);
+    return this.getWalletBalances(await this.txManagerService.getFundingWalletAddress(), USDC_IBC_DENOMS.mainnetId);
   }
 
   private async getWalletBalances(address: string, denom: string) {

@@ -111,7 +111,7 @@ export class WalletController {
   @Protected([{ action: "sign", subject: "UserWallet" }])
   async signTx({ data: { userId, messages } }: SignTxRequestInput): Promise<SignTxResponseOutput> {
     return {
-      data: (await this.signerService.executeEncodedTxByUserId(userId, messages as EncodeObject[])) as SignTxResponseOutput["data"]
+      data: (await this.signerService.executeDerivedEncodedTxByUserId(userId, messages as EncodeObject[])) as SignTxResponseOutput["data"]
     };
   }
 

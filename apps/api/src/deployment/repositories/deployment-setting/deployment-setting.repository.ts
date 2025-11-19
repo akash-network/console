@@ -50,8 +50,8 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
       const items = await this.pg
         .select({
           id: this.table.id,
-          walletId: UserWallets.id,
           dseq: this.table.dseq,
+          walletId: UserWallets.id,
           address: UserWallets.address
         })
         .from(this.table)

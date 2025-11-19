@@ -4,9 +4,7 @@ import { Err, Ok, Result } from "ts-results";
 import { inject, singleton } from "tsyringe";
 import * as uuid from "uuid";
 
-import { WalletFactory } from "@src/billing/lib/wallet/wallet";
-import { WALLET_FACTORY } from "@src/billing/providers/wallet.provider";
-import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { Memoize } from "@src/caching/helpers";
 import { JWT_MODULE, JWTModule } from "@src/provider/providers/jwt.provider";
 
@@ -29,8 +27,7 @@ type AccessScope = Extract<Extract<JwtTokenPayload["leases"], { access: "granula
 export class ProviderJwtTokenService {
   constructor(
     @inject(JWT_MODULE) private readonly jwtModule: JWTModule,
-    private readonly billingConfigService: BillingConfigService,
-    @inject(WALLET_FACTORY) private readonly walletFactory: WalletFactory
+    private readonly txManagerService: TxManagerService
   ) {}
 
   async generateJwtToken({ walletId, leases, ttl = JWT_TOKEN_TTL_IN_SECONDS }: GenerateJwtTokenParams): Promise<Result<string, string[]>> {
@@ -54,7 +51,7 @@ export class ProviderJwtTokenService {
 
   @Memoize({ ttlInSeconds: minutesToSeconds(5) })
   private async getJwtToken(walletId: number): Promise<JwtTokenWithAddress> {
-    const wallet = this.walletFactory(this.billingConfigService.get("MASTER_WALLET_MNEMONIC"), walletId);
+    const wallet = this.txManagerService.getDerivedWallet(walletId);
     const jwtTokenManager = new this.jwtModule.JwtTokenManager(wallet);
     const address = await wallet.getFirstAddress();
 

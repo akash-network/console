@@ -15,7 +15,6 @@ import { Err, Ok } from "ts-results";
 import type { CreateSigningStargateClient } from "@src/billing/lib/signing-stargate-client-factory/signing-stargate-client.factory";
 import type { Wallet } from "@src/billing/lib/wallet/wallet";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
-import type { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import { memoizeAsync } from "@src/caching/helpers";
 import { withSpan } from "@src/core/services/tracing/tracing.service";
 
@@ -145,7 +144,6 @@ export class BatchSigningClientService {
    * @param wallet - The wallet used to sign transactions.
    * @param registry - Protocol buffer registry for encoding/decoding messages.
    * @param createClientWithSigner - Factory function to create a SyncSigningStargateClient.
-   * @param chainErrorService - Service for converting chain errors to application errors.
    * @param loggerContext - Context name for logging (defaults to class name).
    */
   constructor(
@@ -153,7 +151,6 @@ export class BatchSigningClientService {
     private readonly wallet: Wallet,
     private readonly registry: Registry,
     createClientWithSigner: CreateSigningStargateClient,
-    private readonly chainErrorService: ChainErrorService,
     private readonly loggerContext = BatchSigningClientService.name
   ) {
     this.client = createClientWithSigner(this.config.get("RPC_NODE_ENDPOINT"), this.wallet, {
@@ -190,7 +187,7 @@ export class BatchSigningClientService {
         event: "SIGN_AND_BROADCAST_ERROR",
         error: result.val
       });
-      throw await this.chainErrorService.toAppError(result.val as Error, messages);
+      throw result.val;
     }
 
     const tx = await this.getTx(result.val);

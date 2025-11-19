@@ -3,8 +3,8 @@ import subDays from "date-fns/subDays";
 import { container } from "tsyringe";
 
 import { AuthInterceptor } from "@src/auth/services/auth.interceptor";
-import { MANAGED_MASTER_WALLET } from "@src/billing/providers/wallet.provider";
 import { UserWalletRepository } from "@src/billing/repositories";
+import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { app } from "@src/rest-app";
 import { UserController } from "@src/user/controllers/user/user.controller";
 import { UserRepository } from "@src/user/repositories";
@@ -19,11 +19,11 @@ describe("Users", () => {
   const walletService = new WalletTestingService(app);
   const controller = container.resolve(UserController);
   const authzHttpService = container.resolve(AuthzHttpService);
-  const masterWalletService = container.resolve(MANAGED_MASTER_WALLET);
-  let masterAddress: string;
+  const txManagerService = container.resolve(TxManagerService);
+  let fundingMasterWallet: string;
 
   beforeAll(async () => {
-    masterAddress = await masterWalletService.getFirstAddress();
+    fundingMasterWallet = await txManagerService.getFundingWalletAddress();
   });
 
   describe("stale anonymous users cleanup", () => {
@@ -67,16 +67,16 @@ describe("Users", () => {
       );
 
       await Promise.all([
-        expect(authzHttpService.hasFeeAllowance(recent.wallet.address, masterAddress)).resolves.toBeFalsy(),
-        expect(authzHttpService.hasDepositDeploymentGrant(recent.wallet.address, masterAddress)).resolves.toBeFalsy(),
+        expect(authzHttpService.hasFeeAllowance(recent.wallet.address, fundingMasterWallet)).resolves.toBeFalsy(),
+        expect(authzHttpService.hasDepositDeploymentGrant(recent.wallet.address, fundingMasterWallet)).resolves.toBeFalsy(),
 
-        expect(authzHttpService.hasValidFeeAllowance(reactivated.wallet.address, masterAddress)).resolves.toBeFalsy(),
-        expect(authzHttpService.hasDepositDeploymentGrant(reactivated.wallet.address, masterAddress)).resolves.toBeFalsy(),
+        expect(authzHttpService.hasValidFeeAllowance(reactivated.wallet.address, fundingMasterWallet)).resolves.toBeFalsy(),
+        expect(authzHttpService.hasDepositDeploymentGrant(reactivated.wallet.address, fundingMasterWallet)).resolves.toBeFalsy(),
 
         ...staleUsers
           .map(user => [
-            expect(authzHttpService.hasFeeAllowance(user.wallet.address, masterAddress)).resolves.toBeFalsy(),
-            expect(authzHttpService.hasDepositDeploymentGrant(user.wallet.address, masterAddress)).resolves.toBeFalsy()
+            expect(authzHttpService.hasFeeAllowance(user.wallet.address, fundingMasterWallet)).resolves.toBeFalsy(),
+            expect(authzHttpService.hasDepositDeploymentGrant(user.wallet.address, fundingMasterWallet)).resolves.toBeFalsy()
           ])
           .flat()
       ]);

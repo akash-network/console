@@ -44,7 +44,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
   const CURRENT_BLOCK_HEIGHT = 7481457;
 
   beforeEach(() => {
-    managedSignerService = stub<ManagedSignerService>({ executeManagedTx: jest.fn() });
+    managedSignerService = stub<ManagedSignerService>({ executeDerivedTx: jest.fn() });
     billingConfig = mockConfigService<BillingConfigService>({
       DEPLOYMENT_GRANT_DENOM,
       USDC_IBC_DENOMS: {
@@ -105,9 +105,9 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
       await service.topUpDeployments({ concurrency: 10, dryRun: false });
 
-      expect(managedSignerService.executeManagedTx).toHaveBeenCalledTimes(deployments.length);
+      expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(deployments.length);
       deployments.forEach((deployment, index) => {
-        expect(managedSignerService.executeManagedTx).toHaveBeenCalledWith(deployment.walletId, [
+        expect(managedSignerService.executeDerivedTx).toHaveBeenCalledWith(deployment.walletId, [
           {
             typeUrl: "/akash.escrow.v1.MsgAccountDeposit",
             value: {
@@ -207,7 +207,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
       await service.topUpDeployments({ concurrency: 10, dryRun: false });
 
-      expect(managedSignerService.executeManagedTx).toHaveBeenCalledTimes(1);
+      expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(1);
     });
 
     it("should not execute transactions in dry run mode", async () => {
@@ -234,7 +234,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
       await service.topUpDeployments({ concurrency: 10, dryRun: true });
 
-      expect(managedSignerService.executeManagedTx).not.toHaveBeenCalled();
+      expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
     });
 
     it("should not execute transactions if no draining deployments", async () => {
@@ -242,7 +242,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
       await service.topUpDeployments({ concurrency: 10, dryRun: false });
 
-      expect(managedSignerService.executeManagedTx).not.toHaveBeenCalled();
+      expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
     });
 
     it("should top up draining deployments for the same owner in the same tx", async () => {
@@ -274,8 +274,8 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
       await service.topUpDeployments({ concurrency: 10, dryRun: false });
 
-      expect(managedSignerService.executeManagedTx).toHaveBeenCalledTimes(1);
-      expect(managedSignerService.executeManagedTx).toHaveBeenCalledWith(walletId, [
+      expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(1);
+      expect(managedSignerService.executeDerivedTx).toHaveBeenCalledWith(walletId, [
         {
           typeUrl: "/akash.escrow.v1.MsgAccountDeposit",
           value: {
@@ -376,7 +376,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
       const error = new Error(`insufficient funds: 10uakt is smaller than 20uakt`);
 
       (chainErrorService.isMasterWalletInsufficientFundsError as jest.Mock).mockResolvedValueOnce(true);
-      (managedSignerService.executeManagedTx as jest.Mock).mockRejectedValueOnce(error);
+      (managedSignerService.executeDerivedTx as jest.Mock).mockRejectedValueOnce(error);
       (drainingDeploymentService.calculateTopUpAmount as jest.Mock).mockResolvedValue(1000000);
       (drainingDeploymentService.paginate as jest.Mock).mockImplementation((_params: { limit: number }) =>
         (async function* () {
@@ -404,7 +404,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
         })
       );
 
-      expect(managedSignerService.executeManagedTx).toHaveBeenCalledTimes(3);
+      expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(3);
       expect(logger.error).toHaveBeenCalledWith(
         expect.objectContaining({
           event: "MASTER_WALLET_INSUFFICIENT_FUNDS",
@@ -439,7 +439,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
       const error = new Error(`insufficient funds: 10uakt is smaller than 20uakt`);
 
       (chainErrorService.isMasterWalletInsufficientFundsError as jest.Mock).mockResolvedValue(false);
-      (managedSignerService.executeManagedTx as jest.Mock).mockRejectedValueOnce(error).mockResolvedValueOnce(undefined).mockResolvedValueOnce(undefined);
+      (managedSignerService.executeDerivedTx as jest.Mock).mockRejectedValueOnce(error).mockResolvedValueOnce(undefined).mockResolvedValueOnce(undefined);
       (drainingDeploymentService.calculateTopUpAmount as jest.Mock).mockResolvedValue(1000000);
       (drainingDeploymentService.paginate as jest.Mock).mockImplementation((_params: { limit: number }) =>
         (async function* () {
@@ -461,7 +461,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
       await service.topUpDeployments({ concurrency: 10, dryRun: false });
 
-      expect(managedSignerService.executeManagedTx).toHaveBeenCalledTimes(3);
+      expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(3);
       expect(logger.error).toHaveBeenCalledWith(
         expect.objectContaining({
           event: "TOP_UP_DEPLOYMENTS_ERROR",

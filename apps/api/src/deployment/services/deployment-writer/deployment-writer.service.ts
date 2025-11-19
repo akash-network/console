@@ -2,8 +2,6 @@ import { BlockHttpService } from "@akashnetwork/http-sdk";
 import assert from "http-assert";
 import { singleton } from "tsyringe";
 
-import { Wallet } from "@src/billing/lib/wallet/wallet";
-import { InjectWallet } from "@src/billing/providers/wallet.provider";
 import { UserWalletOutput } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
@@ -26,7 +24,6 @@ export class DeploymentWriterService {
   constructor(
     private readonly blockHttpService: BlockHttpService,
     private readonly signerService: ManagedSignerService,
-    @InjectWallet("MANAGED") private readonly masterWallet: Wallet,
     private readonly rpcMessageService: RpcMessageService,
     private readonly sdlService: SdlService,
     private readonly billingConfig: BillingConfigService,
@@ -60,7 +57,7 @@ export class DeploymentWriterService {
       hash: manifestVersion
     });
 
-    const result = await this.signerService.executeDecodedTxByUserId(wallet.userId, [message]);
+    const result = await this.signerService.executeDerivedDecodedTxByUserId(wallet.userId, [message]);
     return {
       dseq: dseq.toString(),
       manifest,
@@ -92,7 +89,7 @@ export class DeploymentWriterService {
       signer: wallet.address
     });
 
-    await this.signerService.executeDecodedTxByUserId(wallet.userId, [message]);
+    await this.signerService.executeDerivedDecodedTxByUserId(wallet.userId, [message]);
 
     return await this.deploymentReaderService.findByWalletAndDseq(wallet, options.dseq);
   }
@@ -127,7 +124,7 @@ export class DeploymentWriterService {
         hash: manifestVersion
       });
 
-      await this.signerService.executeDecodedTxByUserId(wallet.userId, [message]);
+      await this.signerService.executeDerivedDecodedTxByUserId(wallet.userId, [message]);
     }
   }
 

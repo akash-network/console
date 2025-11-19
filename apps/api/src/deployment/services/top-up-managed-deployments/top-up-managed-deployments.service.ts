@@ -146,7 +146,7 @@ export class TopUpManagedDeploymentsService implements DeploymentsRefiller {
 
     try {
       if (!options.dryRun) {
-        await this.managedSignerService.executeManagedTx(
+        await this.managedSignerService.executeDerivedTx(
           walletId,
           ownerInputs.map(i => i.message)
         );

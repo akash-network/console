@@ -6,7 +6,7 @@ import { container } from "tsyringe";
 
 import type { BillingConfig } from "@src/billing/providers";
 import { BILLING_CONFIG } from "@src/billing/providers";
-import { MANAGED_MASTER_WALLET } from "@src/billing/providers/wallet.provider";
+import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import type { ApiPgDatabase } from "@src/core";
 import { POSTGRES_DB, resolveTable } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
@@ -47,11 +47,11 @@ describe("start trial", () => {
         });
         const getWalletsResponse = await app.request(`/v1/wallets?userId=${userId}`, { headers });
         const userWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, userId) });
-        const masterWalletAddress = await container.resolve(MANAGED_MASTER_WALLET).getFirstAddress();
+        const fundingWalletAddress = await container.resolve(TxManagerService).getFundingWalletAddress();
         if (!userWallet?.address) throw new Error("User wallet address is null-ish");
 
         const allowances = await Promise.all([
-          authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee(masterWalletAddress, userWallet.address),
+          authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee(fundingWalletAddress, userWallet.address),
           authzHttpService.getValidFeeAllowancesForGrantee(userWallet.address)
         ]);
 
