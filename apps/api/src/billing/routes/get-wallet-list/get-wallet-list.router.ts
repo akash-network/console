@@ -5,6 +5,7 @@ import { z } from "zod";
 import { WalletController } from "@src/billing/controllers/wallet/wallet.controller";
 import { WalletListResponseOutputSchema } from "@src/billing/http-schemas/wallet.schema";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
 
 export const GetWalletRequestQuerySchema = z.object({
   userId: z.string().openapi({}),
@@ -17,6 +18,7 @@ const route = createRoute({
   path: "/v1/wallets",
   summary: "Get a list of wallets",
   tags: ["Wallet"],
+  security: SECURITY_BEARER_OR_API_KEY,
   request: {
     query: GetWalletRequestQuerySchema
   },

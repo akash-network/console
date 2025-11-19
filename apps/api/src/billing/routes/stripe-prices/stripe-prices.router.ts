@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { StripeController } from "@src/billing/controllers/stripe/stripe.controller";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
 
 const StripePricesOutputSchema = z.object({
   currency: z.string().openapi({}),
@@ -23,6 +24,7 @@ const route = createRoute({
   summary: "Get available Stripe pricing options",
   description: "Retrieves the list of available pricing options for wallet top-ups, including custom amounts and standard pricing tiers",
   tags: ["Payment"],
+  security: SECURITY_BEARER_OR_API_KEY,
   request: {},
   responses: {
     200: {

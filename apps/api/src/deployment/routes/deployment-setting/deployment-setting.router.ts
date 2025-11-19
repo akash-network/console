@@ -3,6 +3,7 @@ import { container } from "tsyringe";
 import { z } from "zod";
 
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
 import { DeploymentSettingController } from "@src/deployment/controllers/deployment-setting/deployment-setting.controller";
 import {
   CreateDeploymentSettingRequestSchema,
@@ -16,6 +17,7 @@ const getRoute = createOpenApiRoute({
   path: "/v1/deployment-settings/{userId}/{dseq}",
   summary: "Get deployment settings by user ID and dseq",
   tags: ["Deployment Settings"],
+  security: SECURITY_BEARER_OR_API_KEY,
   request: {
     params: FindDeploymentSettingParamsSchema
   },
@@ -46,6 +48,7 @@ const postRoute = createOpenApiRoute({
   path: "/v1/deployment-settings",
   summary: "Create deployment settings",
   tags: ["Deployment Settings"],
+  security: SECURITY_BEARER_OR_API_KEY,
   request: {
     body: {
       content: {
@@ -72,6 +75,7 @@ const patchRoute = createOpenApiRoute({
   path: "/v1/deployment-settings/{userId}/{dseq}",
   summary: "Update deployment settings",
   tags: ["Deployment Settings"],
+  security: SECURITY_BEARER_OR_API_KEY,
   request: {
     params: FindDeploymentSettingParamsSchema,
     body: {

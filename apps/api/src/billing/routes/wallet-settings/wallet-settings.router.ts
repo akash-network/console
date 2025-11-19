@@ -4,6 +4,7 @@ import { container } from "tsyringe";
 import { WalletSettingController } from "@src/billing/controllers/wallet-settings/wallet-settings.controller";
 import { CreateWalletSettingsRequestSchema, UpdateWalletSettingsRequestSchema, WalletSettingsResponseSchema } from "@src/billing/http-schemas/wallet.schema";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
 
 const getWalletSettingsRoute = createRoute({
   method: "get",
@@ -11,6 +12,7 @@ const getWalletSettingsRoute = createRoute({
   summary: "Get wallet settings",
   description: "Retrieves the wallet settings for the current user's wallet",
   tags: ["WalletSetting"],
+  security: SECURITY_BEARER_OR_API_KEY,
   request: {},
   responses: {
     200: {
@@ -33,6 +35,7 @@ const createWalletSettingsRoute = createRoute({
   summary: "Create wallet settings",
   description: "Creates wallet settings for a user wallet",
   tags: ["WalletSetting"],
+  security: SECURITY_BEARER_OR_API_KEY,
   request: {
     body: {
       content: {
@@ -63,6 +66,7 @@ const updateWalletSettingsRoute = createRoute({
   summary: "Update wallet settings",
   description: "Updates wallet settings for a user wallet",
   tags: ["WalletSetting"],
+  security: SECURITY_BEARER_OR_API_KEY,
   request: {
     body: {
       content: {
@@ -93,6 +97,7 @@ const deleteWalletSettingsRoute = createRoute({
   summary: "Delete wallet settings",
   description: "Deletes wallet settings for a user wallet",
   tags: ["WalletSetting"],
+  security: SECURITY_BEARER_OR_API_KEY,
   request: {},
   responses: {
     204: {
