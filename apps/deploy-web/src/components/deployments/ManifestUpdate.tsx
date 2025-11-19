@@ -14,7 +14,6 @@ import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import { useProviderList } from "@src/queries/useProvidersQuery";
-import networkStore from "@src/store/networkStore";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { deploymentData } from "@src/utils/deploymentData";
@@ -121,13 +120,11 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
     window.open("https://akash.network/docs/deployments/akash-cli/installation/#update-the-deployment", "_blank");
   }
 
-  const chainNetwork = networkStore.useSelectedNetworkId();
   async function sendManifest(providerInfo: ApiProviderList, manifest: any) {
     try {
       return await providerProxy.sendManifest(providerInfo, manifest, {
         dseq: deployment.dseq,
-        credentials: providerCredentials.details,
-        chainNetwork
+        credentials: providerCredentials.details
       });
     } catch (err) {
       enqueueSnackbar(<ManifestErrorSnackbar err={err} />, { variant: "error", autoHideDuration: null });
