@@ -1,5 +1,12 @@
 
 
+## [3.5.0](https://github.com/akash-network/console/compare/console-api/v3.4.4...console-api/v3.5.0) (2025-11-20)
+
+
+### Features
+
+* **billing:** splits master wallets and consolidates them in a single place  ([d590fb0](https://github.com/akash-network/console/commit/d590fb0f992879620225c7972aab394d06b4bc8a))
+
 ## [3.4.4](https://github.com/akash-network/console/compare/console-api/v3.4.3...console-api/v3.4.4) (2025-11-19)
 
 
