@@ -3,7 +3,7 @@ import { useIntl } from "react-intl";
 import { Button } from "@akashnetwork/ui/components";
 import { Xmark } from "iconoir-react";
 
-import { useChainMaintenanceDetails, useTopBanner } from "@/hooks/useTopBanner";
+import { useChainMaintenanceDetails, useGenericBannerDetails, useTopBanner } from "@/hooks/useTopBanner";
 
 function NetworkDownBanner() {
   const { date } = useChainMaintenanceDetails();
@@ -57,8 +57,23 @@ function MaintenanceBanner({ onClose }: { onClose: () => void }) {
   );
 }
 
+function GenericBanner() {
+  const { message, statsMessage } = useGenericBannerDetails();
+
+  return (
+    <div className="flex h-[40px] w-full items-center justify-center bg-primary px-3 py-2 md:space-x-4">
+      <span className="text-xs font-semibold text-white md:text-sm">{statsMessage || message}</span>
+    </div>
+  );
+}
+
 export function TopBanner() {
-  const { isMaintenanceBannerOpen: isMaintananceBannerOpen, setIsMaintenanceBannerOpen: setIsMaintananceBannerOpen, isBlockchainDown } = useTopBanner();
+  const {
+    isMaintenanceBannerOpen: isMaintananceBannerOpen,
+    setIsMaintenanceBannerOpen: setIsMaintananceBannerOpen,
+    isBlockchainDown,
+    isGenericBannerOpen
+  } = useTopBanner();
 
   if (isBlockchainDown) {
     return <NetworkDownBanner />;
@@ -66,6 +81,10 @@ export function TopBanner() {
 
   if (isMaintananceBannerOpen) {
     return <MaintenanceBanner onClose={() => setIsMaintananceBannerOpen(false)} />;
+  }
+
+  if (isGenericBannerOpen) {
+    return <GenericBanner />;
   }
 
   return null;
