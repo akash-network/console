@@ -83,7 +83,7 @@ export class TopUpManagedDeploymentsService implements DeploymentsRefiller {
           this.summarizer.ensurePredictedClosedHeight(predictedClosedHeight);
 
           const [balance, desiredAmount] = await Promise.all([
-            this.cachedBalanceService.get(address),
+            this.cachedBalanceService.get(address, deployment.isOldWallet ?? false),
             this.drainingDeploymentService.calculateTopUpAmount(deployment)
           ]);
           if (desiredAmount <= 0) {
