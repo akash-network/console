@@ -34,7 +34,7 @@ type Props = {
 };
 
 export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selectedLogsMode }) => {
-  const { analyticsService, providerProxy, networkStore, errorHandler } = useServices();
+  const { analyticsService, providerProxy, errorHandler } = useServices();
   const [isLoadingLogs, setIsLoadingLogs] = useState(true);
   const [isConnectionEstablished, setIsConnectionEstablished] = useState(false);
   // TODO Type
@@ -131,7 +131,6 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
         oseq: selectedLease.oseq,
         type: selectedLogsMode,
         follow: true,
-        chainNetwork: networkStore.selectedNetworkId,
         services: selectedServices.length < services.length ? selectedServices : undefined,
         signal: abortController.signal
       }),

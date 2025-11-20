@@ -29,7 +29,7 @@ type Props = {
 const textDecoder = new TextDecoder("utf-8");
 
 export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases }) => {
-  const { providerProxy, networkStore, errorHandler } = useServices();
+  const { providerProxy, errorHandler } = useServices();
 
   const [isConnectionEstablished, setIsConnectionEstablished] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
@@ -85,7 +85,6 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
       dseq: selectedLease.dseq,
       gseq: selectedLease.gseq,
       oseq: selectedLease.oseq,
-      chainNetwork: networkStore.selectedNetworkId,
       service: selectedService,
       useStdIn: true,
       useTTY: true,
