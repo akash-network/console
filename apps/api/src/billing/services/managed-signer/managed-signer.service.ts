@@ -53,9 +53,9 @@ export class ManagedSignerService {
     }
   }
 
-  async executeFundingTx(messages: readonly EncodeObject[]) {
+  async executeFundingTx(messages: readonly EncodeObject[], useOldWallet: boolean = false) {
     try {
-      return await this.txManagerService.signAndBroadcastWithFundingWallet(messages);
+      return await this.txManagerService.signAndBroadcastWithFundingWallet(messages, useOldWallet);
     } catch (error: any) {
       throw await this.chainErrorService.toAppError(error, messages);
     }
