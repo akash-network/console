@@ -31,5 +31,5 @@ export function useHasCreditCardBanner() {
     }
   }, [shouldShowBanner]);
 
-  return false && isBannerVisible;
+  return isBannerVisible;
 }
