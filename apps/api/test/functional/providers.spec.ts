@@ -5,7 +5,6 @@ import map from "lodash/map";
 import mcache from "memory-cache";
 import nock from "nock";
 
-import { closeConnections } from "@src/db/dbConnection";
 import { AUDITOR, TRIAL_ATTRIBUTE } from "@src/deployment/config/provider.config";
 import { app, initDb } from "@src/rest-app";
 
@@ -77,7 +76,6 @@ describe("Providers", () => {
   });
 
   afterAll(async () => {
-    await closeConnections();
     mcache.clear();
   });
 

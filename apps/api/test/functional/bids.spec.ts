@@ -1,8 +1,10 @@
 import { faker } from "@faker-js/faker";
 import nock from "nock";
+import { container } from "tsyringe";
 
+import { CORE_CONFIG } from "@src/core/providers/config.provider";
 import { app } from "@src/rest-app";
-import { apiNodeUrl, marketVersion } from "@src/utils/constants";
+import { marketVersion } from "@src/utils/constants";
 
 import { createAkashAddress, createProvider } from "@test/seeders";
 import { BidSeeder } from "@test/seeders/bid.seeder";
@@ -11,6 +13,8 @@ import { WalletTestingService } from "@test/services/wallet-testing.service";
 jest.setTimeout(20000);
 
 describe("Bids API", () => {
+  const apiNodeUrl = container.resolve(CORE_CONFIG).REST_API_NODE_URL;
+
   describe.each(["/v1/bids/:dseq", "/v1/bids?dseq=:dseq"])("GET %s", path => {
     it("should respond with bids list", async () => {
       const { dseq, user, providers } = await setup();

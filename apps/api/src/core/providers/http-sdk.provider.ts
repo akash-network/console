@@ -16,16 +16,20 @@ import {
 import type { InjectionToken } from "tsyringe";
 import { container, instancePerContainerCachingFactory } from "tsyringe";
 
-import { apiNodeUrl, nodeApiBasePath } from "@src/utils/constants";
+import { CORE_CONFIG } from "./config.provider";
 
 export const CHAIN_API_HTTP_CLIENT: InjectionToken<HttpClient> = Symbol("CHAIN_API_HTTP_CLIENT");
 
 container.register(CHAIN_API_HTTP_CLIENT, {
-  useFactory: instancePerContainerCachingFactory(() => createHttpClient({ baseURL: apiNodeUrl }))
+  useFactory: instancePerContainerCachingFactory(c => createHttpClient({ baseURL: c.resolve(CORE_CONFIG).REST_API_NODE_URL }))
 });
 
 const SERVICES = [BalanceHttpService, BlockHttpService, BidHttpService, ProviderHttpService];
-SERVICES.forEach(Service => container.register(Service, { useValue: new Service({ baseURL: apiNodeUrl }) }));
+SERVICES.forEach(Service =>
+  container.register(Service as InjectionToken<unknown>, {
+    useFactory: instancePerContainerCachingFactory(c => new Service({ baseURL: c.resolve(CORE_CONFIG).REST_API_NODE_URL }))
+  })
+);
 
 const NON_AXIOS_SERVICES: Array<new (httpClient: HttpClient) => unknown> = [DeploymentHttpService, LeaseHttpService, CosmosHttpService, AuthzHttpService];
 NON_AXIOS_SERVICES.forEach(Service =>
@@ -37,5 +41,5 @@ container.register(CoinGeckoHttpService, {
   useFactory: instancePerContainerCachingFactory(() => new CoinGeckoHttpService(createHttpClient({ baseURL: "https://api.coingecko.com" })))
 });
 container.register(NodeHttpService, {
-  useFactory: instancePerContainerCachingFactory(() => new NodeHttpService(createHttpClient({ baseURL: nodeApiBasePath })))
+  useFactory: instancePerContainerCachingFactory(c => new NodeHttpService(createHttpClient({ baseURL: c.resolve(CORE_CONFIG).NODE_API_BASE_PATH })))
 });

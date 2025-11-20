@@ -1,18 +1,18 @@
 import assert from "http-assert";
-import { injectable } from "tsyringe";
+import { inject, injectable } from "tsyringe";
 
 import { TemplateGalleryService } from "@src/services/external/templates/template-gallery.service";
 import { GetTemplatesListResponseSchema } from "@src/template/http-schemas/template.schema";
+import { TEMPLATE_CONFIG, type TemplateConfig } from "@src/template/providers/config.provider";
 import { dataFolderPath } from "@src/utils/constants";
-import { env } from "@src/utils/env";
 
 @injectable()
 export class TemplateController {
   private readonly templateGalleryService: TemplateGalleryService;
 
-  constructor() {
+  constructor(@inject(TEMPLATE_CONFIG) templateConfig: TemplateConfig) {
     this.templateGalleryService = new TemplateGalleryService({
-      githubPAT: env.GITHUB_PAT,
+      githubPAT: templateConfig.GITHUB_PAT,
       dataFolderPath
     });
   }

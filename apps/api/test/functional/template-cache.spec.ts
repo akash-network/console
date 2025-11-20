@@ -3,7 +3,6 @@ import * as path from "node:path";
 
 import { TemplateGalleryService } from "@src/services/external/templates/template-gallery.service";
 import { dataFolderPath } from "@src/utils/constants";
-import { env } from "@src/utils/env";
 
 const fakeHeaders = {
   headers: {
@@ -11,7 +10,7 @@ const fakeHeaders = {
   }
 };
 
-env.GITHUB_PAT = "ghp_1234567890";
+process.env.GITHUB_PAT = "ghp_1234567890";
 const sha = "generated-sha";
 
 jest.mock("@octokit/rest", () => {

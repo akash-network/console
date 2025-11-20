@@ -1,7 +1,8 @@
 import type { Context } from "hono";
+import { container } from "tsyringe";
 
+import { AuthConfigService } from "@src/auth/services/auth-config/auth-config.service";
 import { cacheEngine } from "@src/caching/helpers";
-import { env } from "@src/utils/env";
 import { getPayloadFromContext, verifyRsaJwt } from "../verify-rsa-jwt-cloudflare-worker-main";
 
 export const kvStore = {
@@ -21,12 +22,12 @@ export const kvStore = {
 };
 
 export const requiredUserMiddleware = verifyRsaJwt({
-  jwksUri: env.AUTH0_JWKS_URI,
+  jwksUri: () => container.resolve(AuthConfigService).get("AUTH0_JWKS_URI"),
   kvStore: kvStore
 });
 
 export const optionalUserMiddleware = verifyRsaJwt({
-  jwksUri: env.AUTH0_JWKS_URI,
+  jwksUri: () => container.resolve(AuthConfigService).get("AUTH0_JWKS_URI"),
   kvStore: kvStore,
   optional: true
 });

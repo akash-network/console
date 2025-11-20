@@ -3,7 +3,6 @@ import map from "lodash/map";
 import mcache from "memory-cache";
 import nock from "nock";
 
-import { closeConnections } from "@src/db/dbConnection";
 import { app, initDb } from "@src/rest-app";
 
 import { createAkashBlock, createDay, createDeployment, createDeploymentGroup, createLease, createProvider } from "@test/seeders";
@@ -111,7 +110,6 @@ describe("Provider deployments", () => {
   });
 
   afterAll(async () => {
-    await closeConnections();
     mcache.clear();
   });
 

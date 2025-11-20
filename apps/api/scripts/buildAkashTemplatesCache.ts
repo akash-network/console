@@ -1,6 +1,7 @@
 import "@akashnetwork/env-loader";
 
 import { TemplateGalleryService } from "../src/services/external/templates/template-gallery.service";
+import { dataFolderPath } from "../src/utils/constants";
 
 console.log("Warming up Akash templates cache...");
 const githubPAT = process.env.GITHUB_PAT;
@@ -11,7 +12,7 @@ if (!githubPAT) {
 
 const templateGalleryService = new TemplateGalleryService({
   githubPAT,
-  dataFolderPath: "./dist/.data"
+  dataFolderPath
 });
 
 templateGalleryService.getTemplateGallery().catch(err => {

@@ -1,19 +1,20 @@
 import { certificateManager } from "@akashnetwork/chain-sdk";
 import { SDL } from "@akashnetwork/chain-sdk";
 import { Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
+import { BlockHttpService } from "@akashnetwork/http-sdk";
 import type { Registry } from "@cosmjs/proto-signing";
-import axios from "axios";
 import nock from "nock";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { container } from "tsyringe";
 
-import { config } from "@src/billing/config";
+import { BILLING_CONFIG } from "@src/billing/providers";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
+import { CORE_CONFIG } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { app } from "@src/rest-app";
-import { apiNodeUrl, certVersion, deploymentVersion } from "@src/utils/constants";
+import { certVersion, deploymentVersion } from "@src/utils/constants";
 
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
@@ -35,7 +36,7 @@ describe("Tx Sign", () => {
       jest.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => flag !== FeatureFlags.ANONYMOUS_FREE_TRIAL);
 
       const { user, token, wallet } = await walletService.createUserAndWallet();
-      nock(apiNodeUrl, { allowUnmocked: true })
+      nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL, { allowUnmocked: true })
         .get(
           `/akash/deployment/${deploymentVersion}/deployments/list?filters.owner=${wallet.address}&pagination.offset=0&pagination.limit=1&pagination.count_total=true&pagination.reverse=false`
         )
@@ -70,7 +71,7 @@ describe("Tx Sign", () => {
     const { cert, publicKey } = await certificateManager.generatePEM(address);
 
     const sdl = SDL.fromString(yml, "beta3", "sandbox");
-    const currentHeight = await getCurrentHeight();
+    const currentHeight = await container.resolve(BlockHttpService).getCurrentHeight();
 
     const messages = [
       {
@@ -90,7 +91,7 @@ describe("Tx Sign", () => {
           },
           groups: sdl.groups(),
           hash: await sdl.manifestVersion(),
-          deposit: { amount: { denom: config.DEPLOYMENT_GRANT_DENOM, amount: "5000000" }, sources: [Source.grant] }
+          deposit: { amount: { denom: container.resolve(BILLING_CONFIG).DEPLOYMENT_GRANT_DENOM, amount: "5000000" }, sources: [Source.grant] }
         }
       }
     ];
@@ -101,14 +102,5 @@ describe("Tx Sign", () => {
         messages: messages.map(message => ({ typeUrl: message.typeUrl, value: Buffer.from(registry.encode(message)).toString("base64") }))
       }
     });
-  }
-
-  async function getCurrentHeight() {
-    const response = await axios.get(`${apiNodeUrl}/cosmos/base/tendermint/v1beta1/blocks/latest`);
-    const height = parseInt(response.data.block.header.height);
-
-    if (isNaN(height)) throw new Error("Failed to get current height");
-
-    return height;
   }
 });

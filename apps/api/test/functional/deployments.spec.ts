@@ -11,13 +11,14 @@ import { ApiKeyAuthService } from "@src/auth/services/api-key/api-key-auth.servi
 import type { UserWalletOutput } from "@src/billing/repositories";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { ManagedSignerService } from "@src/billing/services";
+import { CORE_CONFIG } from "@src/core/providers/config.provider";
 import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { app } from "@src/rest-app";
 import type { RestAkashDeploymentInfoResponse } from "@src/types/rest";
 import type { UserOutput } from "@src/user/repositories";
 import { UserRepository } from "@src/user/repositories";
-import { apiNodeUrl, deploymentVersion, marketVersion } from "@src/utils/constants";
+import { deploymentVersion, marketVersion } from "@src/utils/constants";
 
 import { ApiKeySeeder } from "@test/seeders/api-key.seeder";
 import { DeploymentInfoSeeder } from "@test/seeders/deployment-info.seeder";
@@ -36,6 +37,7 @@ describe("Deployments API", () => {
   const blockHttpService = container.resolve(BlockHttpService);
   const signerService = container.resolve(ManagedSignerService);
   const deploymentReaderService = container.resolve(DeploymentReaderService);
+  const apiNodeUrl = container.resolve(CORE_CONFIG).REST_API_NODE_URL;
 
   let currentUser: UserOutput;
   let knownUsers: Record<string, UserOutput>;

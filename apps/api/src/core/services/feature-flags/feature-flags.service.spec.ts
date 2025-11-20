@@ -1,7 +1,7 @@
 import { mock } from "jest-mock-extended";
 import type { Unleash, UnleashConfig } from "unleash-client";
 
-import type { envConfig } from "@src/core/config/env.config";
+import type { CoreConfig } from "@src/core/providers";
 import type { ClientInfoContextVariables } from "@src/middlewares/clientInfoMiddleware";
 import type { CoreConfigService } from "../core-config/core-config.service";
 import type { ExecutionContextService } from "../execution-context/execution-context.service";
@@ -164,7 +164,7 @@ describe(FeatureFlagsService.name, () => {
   });
 
   async function setup(input: {
-    config?: Partial<typeof envConfig>;
+    config?: Partial<CoreConfig>;
     createClient?: (config: UnleashConfig) => Unleash;
     currentUser?: { id: string };
     httpClientInfo?: ClientInfoContextVariables["clientInfo"];

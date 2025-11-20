@@ -1,7 +1,6 @@
 import { Provider } from "@akashnetwork/database/dbSchemas/akash";
-import { CosmosDistributionCommunityPoolResponse, CosmosHttpService } from "@akashnetwork/http-sdk";
+import { CosmosHttpService } from "@akashnetwork/http-sdk";
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
-import axios from "axios";
 import { Op, QueryTypes } from "sequelize";
 import { singleton } from "tsyringe";
 
@@ -9,7 +8,6 @@ import { USDC_IBC_DENOMS } from "@src/billing/config/network.config";
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { chainDb } from "@src/db/dbConnection";
-import { apiNodeUrl } from "@src/utils/constants";
 
 @singleton()
 export class FinancialStatsService {
@@ -52,9 +50,9 @@ export class FinancialStatsService {
     return balances;
   }
 
-  async getCommunityPoolUsdc() {
-    const communityPoolData = await axios.get<CosmosDistributionCommunityPoolResponse>(`${apiNodeUrl}/cosmos/distribution/v1beta1/community_pool`);
-    return parseFloat(communityPoolData.data.pool.find(x => x.denom === USDC_IBC_DENOMS.mainnetId)?.amount || "0");
+  async getCommunityPoolUsdc(): Promise<number> {
+    const communityPoolData = await this.cosmosHttpService.getCommunityPool();
+    return parseFloat(communityPoolData.find(x => x.denom === USDC_IBC_DENOMS.mainnetId)?.amount || "0");
   }
 
   async getProviderRevenues() {
