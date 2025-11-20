@@ -148,6 +148,13 @@
       "when": 1763055197096,
       "tag": "0020_absent_timeslip",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1763661418431,
+      "tag": "0021_brave_warpath",
+      "breakpoints": true
     }
   ]
 }

@@ -39,7 +39,7 @@ export class StaleAnonymousUsersCleanerService {
         const revokeAll = wallets.map(async wallet => {
           userIdsWithWallets.push(wallet.userId!);
           try {
-            const result = await this.managedUserWalletService.revokeAll(wallet.address!, "USER_INACTIVITY", options);
+            const result = await this.managedUserWalletService.revokeAll(wallet.address!, "USER_INACTIVITY", options, wallet.isOldWallet ?? false);
             if (result.feeAllowance) {
               summary.inc("feeAllowanceRevokeCount");
             }
