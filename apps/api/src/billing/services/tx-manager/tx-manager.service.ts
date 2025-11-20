@@ -17,7 +17,7 @@ const FUNDING_WALLET: InjectionToken<Wallet> = Symbol("FUNDING_WALLET");
 container.register(FUNDING_WALLET, {
   useFactory: instancePerContainerCachingFactory(c => {
     const config = c.resolve(BillingConfigService);
-    return new Wallet(config.get("FUNDING_WALLET_MNEMONIC"), 1);
+    return new Wallet(config.get("FUNDING_WALLET_MNEMONIC"), config.get("FUNDING_WALLET_INDEX"));
   })
 });
 

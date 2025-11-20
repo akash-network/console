@@ -1,9 +1,13 @@
+import dotenv from "dotenv";
 import { z } from "zod";
 
 import { AUDITOR } from "@src/deployment/config/provider.config";
 
+dotenv.config({ path: "env/.env.funding-wallet-index" });
+
 export const envSchema = z.object({
   FUNDING_WALLET_MNEMONIC: z.string(),
+  FUNDING_WALLET_INDEX: z.number({ coerce: true }),
   DERIVATION_WALLET_MNEMONIC: z.string(),
   NETWORK: z.enum(["mainnet", "testnet", "sandbox"]),
   RPC_NODE_ENDPOINT: z.string(),
