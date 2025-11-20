@@ -3,7 +3,8 @@ import { z } from "zod";
 import { AUDITOR } from "@src/deployment/config/provider.config";
 
 export const envSchema = z.object({
-  MASTER_WALLET_MNEMONIC: z.string(),
+  FUNDING_WALLET_MNEMONIC: z.string(),
+  DERIVATION_WALLET_MNEMONIC: z.string(),
   NETWORK: z.enum(["mainnet", "testnet", "sandbox"]),
   RPC_NODE_ENDPOINT: z.string(),
   TRIAL_ALLOWANCE_EXPIRATION_DAYS: z.number({ coerce: true }).default(30),

@@ -1,0 +1,107 @@
+import { EncodeObject } from "@cosmjs/proto-signing";
+import { container, inject, type InjectionToken, instancePerContainerCachingFactory, singleton } from "tsyringe";
+
+import { BatchSigningClientService, SignAndBroadcastOptions } from "@src/billing/lib/batch-signing-client/batch-signing-client.service";
+import { createSigningStargateClient } from "@src/billing/lib/signing-stargate-client-factory/signing-stargate-client.factory";
+import { Wallet } from "@src/billing/lib/wallet/wallet";
+import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
+import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { LoggerService } from "@src/core";
+
+type CachedClient = {
+  address: string;
+  client: BatchSigningClientService;
+};
+
+const FUNDING_WALLET: InjectionToken<Wallet> = Symbol("FUNDING_WALLET");
+container.register(FUNDING_WALLET, {
+  useFactory: instancePerContainerCachingFactory(c => {
+    const config = c.resolve(BillingConfigService);
+    return new Wallet(config.get("FUNDING_WALLET_MNEMONIC"), 1);
+  })
+});
+
+export type WalletFactory = (walletIndex?: number) => Wallet;
+const DERIVED_WALLET_FACTORY: InjectionToken<WalletFactory> = Symbol("DERIVED_WALLET_FACTORY");
+container.register(DERIVED_WALLET_FACTORY, {
+  useFactory: c => {
+    return (walletIndex: number) => new Wallet(c.resolve(BillingConfigService).get("DERIVATION_WALLET_MNEMONIC"), walletIndex);
+  }
+});
+
+export type BatchSigningClientServiceFactory = (wallet: Wallet, loggerContext?: string) => BatchSigningClientService;
+const BATCH_SIGNING_CLIENT_FACTORY: InjectionToken<BatchSigningClientServiceFactory> = Symbol("BATCH_SIGNING_CLIENT_FACTORY");
+container.register(BATCH_SIGNING_CLIENT_FACTORY, {
+  useFactory: c => {
+    return (wallet: Wallet, loggerContext?: string) => {
+      return new BatchSigningClientService(c.resolve(BillingConfigService), wallet, c.resolve(TYPE_REGISTRY), createSigningStargateClient, loggerContext);
+    };
+  }
+});
+
+const FUNDING_SIGNING_CLIENT: InjectionToken<BatchSigningClientService> = Symbol("FUNDING_SIGNING_CLIENT");
+container.register(FUNDING_SIGNING_CLIENT, {
+  useFactory: instancePerContainerCachingFactory(c => {
+    const factory = c.resolve<BatchSigningClientServiceFactory>(BATCH_SIGNING_CLIENT_FACTORY);
+    return factory(c.resolve(FUNDING_WALLET), "FUNDING_SIGNING_CLIENT");
+  })
+});
+
+@singleton()
+export class TxManagerService {
+  readonly #clientsByAddress: Map<string, CachedClient> = new Map();
+
+  constructor(
+    @inject(FUNDING_WALLET) private readonly fundingWallet: Wallet,
+    @inject(FUNDING_SIGNING_CLIENT) private readonly fundingSigningClient: BatchSigningClientService,
+    @inject(DERIVED_WALLET_FACTORY) private readonly walletFactory: WalletFactory,
+    @inject(BATCH_SIGNING_CLIENT_FACTORY) private readonly batchSigningClientServiceFactory: BatchSigningClientServiceFactory,
+    private readonly logger: LoggerService
+  ) {
+    this.logger.setContext(TxManagerService.name);
+  }
+
+  async signAndBroadcastWithFundingWallet(messages: readonly EncodeObject[]) {
+    return await this.fundingSigningClient.signAndBroadcast(messages);
+  }
+
+  async getFundingWalletAddress() {
+    return await this.fundingWallet.getFirstAddress();
+  }
+
+  async signAndBroadcastWithDerivedWallet(derivationIndex: number, messages: readonly EncodeObject[], options?: SignAndBroadcastOptions) {
+    const { client, address } = await this.#getClient(derivationIndex);
+
+    try {
+      return await client.signAndBroadcast(messages, options);
+    } finally {
+      if (!client.hasPendingTransactions && this.#clientsByAddress.has(address)) {
+        this.logger.debug({ event: "DEDUPE_SIGNING_CLIENT_CLEAN_UP", address });
+        this.#clientsByAddress.delete(address);
+      }
+    }
+  }
+
+  async getDerivedWalletAddress(index: number) {
+    return await this.getDerivedWallet(index).getFirstAddress();
+  }
+
+  async #getClient(derivationIndex: number): Promise<CachedClient> {
+    const wallet = this.getDerivedWallet(derivationIndex);
+    const address = await wallet.getFirstAddress();
+
+    if (!this.#clientsByAddress.has(address)) {
+      this.logger.debug({ event: "DERIVED_SIGNING_CLIENT_CREATE", address });
+      this.#clientsByAddress.set(address, {
+        address,
+        client: this.batchSigningClientServiceFactory(wallet)
+      });
+    }
+
+    return this.#clientsByAddress.get(address)!;
+  }
+
+  getDerivedWallet(index: number) {
+    return this.walletFactory(index);
+  }
+}

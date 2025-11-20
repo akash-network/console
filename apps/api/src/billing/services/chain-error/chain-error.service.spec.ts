@@ -4,8 +4,8 @@ import { BadRequest, PaymentRequired, ServiceUnavailable } from "http-errors";
 import type { MockProxy } from "jest-mock-extended";
 import { mock } from "jest-mock-extended";
 
-import type { Wallet } from "@src/billing/lib/wallet/wallet";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import type { TxManagerService } from "../tx-manager/tx-manager.service";
 import { ChainErrorService } from "./chain-error.service";
 
 const USDC_IBC_DENOMS = {
@@ -175,12 +175,12 @@ describe(ChainErrorService.name, () => {
   function setup(): {
     balanceHttpService: MockProxy<BalanceHttpService>;
     billingConfigService: MockProxy<BillingConfigService>;
-    masterWallet: MockProxy<Wallet>;
+    txManagerService: MockProxy<TxManagerService>;
     service: ChainErrorService;
   } {
     const balanceHttpService = mock<BalanceHttpService>();
     const billingConfigService = mock<BillingConfigService>();
-    const masterWallet = mock<Wallet>();
+    const txManagerService = mock<TxManagerService>();
 
     (billingConfigService.get as jest.Mock).mockImplementation((key: string) => {
       if (key === "USDC_IBC_DENOMS") return USDC_IBC_DENOMS;
@@ -188,10 +188,10 @@ describe(ChainErrorService.name, () => {
       return undefined;
     });
 
-    masterWallet.getFirstAddress.mockResolvedValue("test-address");
+    txManagerService.getFundingWalletAddress.mockResolvedValue("test-address");
 
-    const service = new ChainErrorService(balanceHttpService, billingConfigService, masterWallet);
+    const service = new ChainErrorService(balanceHttpService, billingConfigService, txManagerService);
 
-    return { balanceHttpService, billingConfigService, masterWallet, service };
+    return { balanceHttpService, billingConfigService, txManagerService, service };
   }
 });

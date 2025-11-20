@@ -37,7 +37,7 @@ export class LeaseService {
       })
     );
 
-    await this.signerService.executeDecodedTxByUserId(wallet.userId, leaseMessages);
+    await this.signerService.executeDerivedDecodedTxByUserId(wallet.userId, leaseMessages);
 
     for (const lease of leases) {
       const commonParams = {

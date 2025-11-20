@@ -62,7 +62,7 @@ export class StaleManagedDeploymentsCleanerService {
     this.logger.info({ event: "DEPLOYMENT_CLEAN_UP", owner: wallet.address });
 
     try {
-      await this.managedSignerService.executeManagedTx(wallet.id, messages);
+      await this.managedSignerService.executeDerivedTx(wallet.id, messages);
       this.logger.info({ event: "DEPLOYMENT_CLEAN_UP_SUCCESS", owner: wallet.address });
     } catch (error: any) {
       if (error.message.includes("not allowed to pay fees")) {
@@ -73,7 +73,7 @@ export class StaleManagedDeploymentsCleanerService {
           }
         });
 
-        await this.managedSignerService.executeManagedTx(wallet.id, messages);
+        await this.managedSignerService.executeDerivedTx(wallet.id, messages);
         this.logger.info({ event: "DEPLOYMENT_CLEAN_UP_SUCCESS", owner: wallet.address });
       } else {
         throw error;

@@ -87,7 +87,7 @@ describe("Deployments API", () => {
 
     jest.spyOn(userWalletRepository, "accessibleBy").mockReturnValue(fakeWalletRepository);
 
-    jest.spyOn(signerService, "executeDecodedTxByUserId").mockResolvedValue({
+    jest.spyOn(signerService, "executeDerivedDecodedTxByUserId").mockResolvedValue({
       code: 200,
       transactionHash: "fake-transaction-hash",
       hash: "fake-transaction-hash",
@@ -659,7 +659,7 @@ describe("Deployments API", () => {
         rawLog: "success"
       };
 
-      jest.spyOn(signerService, "executeDecodedTxByUserId").mockResolvedValueOnce(mockTxResult);
+      jest.spyOn(signerService, "executeDerivedDecodedTxByUserId").mockResolvedValueOnce(mockTxResult);
 
       const response = await app.request(`/v1/deposit-deployment`, {
         method: "POST",
@@ -755,7 +755,7 @@ describe("Deployments API", () => {
         rawLog: "success"
       };
 
-      jest.spyOn(signerService, "executeDecodedTxByUserId").mockResolvedValueOnce(mockTxResult);
+      jest.spyOn(signerService, "executeDerivedDecodedTxByUserId").mockResolvedValueOnce(mockTxResult);
 
       const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
 
@@ -790,7 +790,7 @@ describe("Deployments API", () => {
         rawLog: "success"
       };
 
-      jest.spyOn(signerService, "executeDecodedTxByUserId").mockResolvedValueOnce(mockTxResult);
+      jest.spyOn(signerService, "executeDerivedDecodedTxByUserId").mockResolvedValueOnce(mockTxResult);
 
       const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
 

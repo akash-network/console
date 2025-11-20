@@ -3,9 +3,8 @@ import type { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import { faker } from "@faker-js/faker";
 import { mock } from "jest-mock-extended";
 
-import { mockConfigService } from "../../../../test/mocks/config-service.mock";
 import type { Wallet } from "../../../billing/lib/wallet/wallet";
-import type { BillingConfigService } from "../../../billing/services/billing-config/billing-config.service";
+import type { TxManagerService } from "../../../billing/services/tx-manager/tx-manager.service";
 import type { JWTModule } from "../../providers/jwt.provider";
 import { ProviderJwtTokenService } from "./provider-jwt-token.service";
 
@@ -14,13 +13,12 @@ import { createAkashAddress } from "@test/seeders";
 describe(ProviderJwtTokenService.name, () => {
   describe("generateJwtToken", () => {
     it("should generate a JWT token successfully", async () => {
-      const { providerJwtTokenService, walletId, accessRules, jwtTokenValue, jwtToken, walletFactory, masterWalletMnemonic, jwtModule, address, wallet } =
-        setup();
+      const { providerJwtTokenService, walletId, accessRules, jwtTokenValue, jwtToken, txManagerService, jwtModule, address, wallet } = setup();
 
       const result = await providerJwtTokenService.generateJwtToken({ walletId, leases: accessRules });
 
       expect(result.unwrap()).toEqual(jwtTokenValue);
-      expect(walletFactory).toHaveBeenCalledWith(masterWalletMnemonic, walletId);
+      expect(txManagerService.getDerivedWallet).toHaveBeenCalledWith(walletId);
       expect(jwtModule.JwtTokenManager).toHaveBeenCalledWith(wallet);
       expect(jwtToken.generateToken).toHaveBeenCalledWith({
         version: "v1",
@@ -34,12 +32,12 @@ describe(ProviderJwtTokenService.name, () => {
     });
 
     it("memoizes JWT Token generation", async () => {
-      const { providerJwtTokenService, walletId, accessRules, walletFactory, jwtModule } = setup();
+      const { providerJwtTokenService, walletId, accessRules, txManagerService, jwtModule } = setup();
 
       await providerJwtTokenService.generateJwtToken({ walletId, leases: accessRules });
       await providerJwtTokenService.generateJwtToken({ walletId, leases: accessRules });
 
-      expect(walletFactory).toHaveBeenCalledTimes(1);
+      expect(txManagerService.getDerivedWallet).toHaveBeenCalledTimes(1);
       expect(jwtModule.JwtTokenManager).toHaveBeenCalledTimes(1);
     });
 
@@ -67,7 +65,6 @@ describe(ProviderJwtTokenService.name, () => {
   function setup() {
     const walletId = faker.number.int({ min: 1, max: 10000 });
     const address = createAkashAddress();
-    const masterWalletMnemonic = "test walk nut penalty hip pave soap entry language right filter choice";
     const jwtTokenValue = faker.string.alphanumeric();
 
     const directSecp256k1HdWallet = mock<DirectSecp256k1HdWallet>();
@@ -92,13 +89,11 @@ describe(ProviderJwtTokenService.name, () => {
       JwtTokenManager: jest.fn(() => jwtToken)
     });
 
-    const billingConfigService = mockConfigService<BillingConfigService>({
-      MASTER_WALLET_MNEMONIC: masterWalletMnemonic
+    const txManagerService = mock<TxManagerService>({
+      getDerivedWallet: jest.fn().mockReturnValue(wallet)
     });
 
-    const walletFactory = jest.fn(() => wallet);
-
-    const providerJwtTokenService = new ProviderJwtTokenService(jwtModule, billingConfigService, walletFactory);
+    const providerJwtTokenService = new ProviderJwtTokenService(jwtModule, txManagerService);
 
     const accessRules: JwtTokenPayload["leases"] = {
       access: "granular",
@@ -115,13 +110,11 @@ describe(ProviderJwtTokenService.name, () => {
       walletId,
       accessRules,
       jwtTokenValue,
-      masterWalletMnemonic,
       jwtModule,
       jwtToken,
       address,
-      walletFactory,
-      billingConfigService,
-      wallet
+      wallet,
+      txManagerService
     };
   }
 });

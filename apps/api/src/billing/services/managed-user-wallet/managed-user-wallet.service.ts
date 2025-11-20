@@ -1,13 +1,11 @@
 import { AuthzHttpService } from "@akashnetwork/http-sdk";
 import { LoggerService } from "@akashnetwork/logging";
-import { stringToPath } from "@cosmjs/crypto";
-import { DirectSecp256k1HdWallet, EncodeObject } from "@cosmjs/proto-signing";
+import { EncodeObject } from "@cosmjs/proto-signing";
 import add from "date-fns/add";
 import { singleton } from "tsyringe";
 
-import { Wallet } from "@src/billing/lib/wallet/wallet";
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
-import { InjectWallet } from "@src/billing/providers/wallet.provider";
+import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import type { DryRunOptions } from "@src/core/types/console";
 import { ManagedSignerService } from "../managed-signer/managed-signer.service";
 import { RpcMessageService, SpendingAuthorizationMsgOptions } from "../rpc-message-service/rpc-message.service";
@@ -35,14 +33,15 @@ export class ManagedUserWalletService {
 
   constructor(
     @InjectBillingConfig() private readonly config: BillingConfig,
-    @InjectWallet("MANAGED") private readonly masterWallet: Wallet,
+    private readonly txManagerService: TxManagerService,
     private readonly managedSignerService: ManagedSignerService,
     private readonly rpcMessageService: RpcMessageService,
     private readonly authzHttpService: AuthzHttpService
   ) {}
 
   async createAndAuthorizeTrialSpending({ addressIndex }: { addressIndex: number }) {
-    const { address } = await this.createWallet({ addressIndex });
+    const address = await this.txManagerService.getDerivedWalletAddress(addressIndex);
+
     const limits = {
       deployment: this.config.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT,
       fees: this.config.TRIAL_FEES_ALLOWANCE_AMOUNT
@@ -57,21 +56,16 @@ export class ManagedUserWalletService {
   }
 
   async createWallet({ addressIndex }: { addressIndex: number }) {
-    const hdPath = stringToPath(`${this.HD_PATH}/${addressIndex}`);
-    const wallet = await DirectSecp256k1HdWallet.fromMnemonic(this.config.MASTER_WALLET_MNEMONIC, {
-      prefix: this.PREFIX,
-      hdPaths: [hdPath]
-    });
-    const [account] = await wallet.getAccounts();
-    this.logger.debug({ event: "WALLET_CREATED", address: account.address });
+    const address = await this.txManagerService.getDerivedWalletAddress(addressIndex);
+    this.logger.debug({ event: "WALLET_CREATED", address });
 
-    return { address: account.address };
+    return { address };
   }
 
   async authorizeSpending(options: SpendingAuthorizationOptions) {
-    const masterWalletAddress = await this.masterWallet.getFirstAddress();
+    const fundingWalletAddress = await this.txManagerService.getFundingWalletAddress();
     const msgOptions = {
-      granter: masterWalletAddress,
+      granter: fundingWalletAddress,
       grantee: options.address,
       expiration: options.expiration
     };
@@ -102,17 +96,17 @@ export class ManagedUserWalletService {
 
     messages.push(this.rpcMessageService.getFeesAllowanceGrantMsg(options));
 
-    return await this.managedSignerService.executeRootTx(messages);
+    return await this.managedSignerService.executeFundingTx(messages);
   }
 
   private async authorizeDeploymentSpending(options: SpendingAuthorizationMsgOptions) {
     const deploymentAllowanceMsg = this.rpcMessageService.getDepositDeploymentGrantMsg(options);
-    return await this.managedSignerService.executeRootTx([deploymentAllowanceMsg]);
+    return await this.managedSignerService.executeFundingTx([deploymentAllowanceMsg]);
   }
 
   async revokeAll(grantee: string, reason?: string, options?: DryRunOptions) {
-    const masterWalletAddress = await this.masterWallet.getFirstAddress();
-    const params = { granter: masterWalletAddress, grantee };
+    const fundingWalletAddress = await this.txManagerService.getFundingWalletAddress();
+    const params = { granter: fundingWalletAddress, grantee };
     const messages: EncodeObject[] = [];
     const revokeSummary = {
       feeAllowance: false,
@@ -134,7 +128,7 @@ export class ManagedUserWalletService {
     }
 
     if (!options?.dryRun) {
-      await this.managedSignerService.executeRootTx(messages);
+      await this.managedSignerService.executeFundingTx(messages);
     }
 
     this.logger.info({ event: "SPENDING_REVOKED", address: params.grantee, revokeSummary, reason });

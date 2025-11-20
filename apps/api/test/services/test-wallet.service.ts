@@ -62,7 +62,7 @@ export class TestWalletService {
 
     const configs = await Promise.all(
       specPaths.map(async path => {
-        const wallet = new Wallet();
+        const wallet = new Wallet(undefined, 1);
         const address = await wallet.getFirstAddress();
         const fileName = this.getFileName(path);
         const coinAmount = MIN_AMOUNTS[fileName] || amount;

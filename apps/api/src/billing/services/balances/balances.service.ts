@@ -2,10 +2,9 @@ import { AuthzHttpService, DeploymentHttpService, DeploymentInfo } from "@akashn
 import { singleton } from "tsyringe";
 
 import type { GetBalancesResponseOutput } from "@src/billing/http-schemas/balance.schema";
-import { Wallet } from "@src/billing/lib/wallet/wallet";
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
-import { InjectWallet } from "@src/billing/providers/wallet.provider";
 import { type UserWalletInput, type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
+import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { Memoize } from "@src/caching/helpers";
 import { averageBlockTime } from "@src/utils/constants";
 
@@ -14,7 +13,7 @@ export class BalancesService {
   constructor(
     @InjectBillingConfig() private readonly config: BillingConfig,
     private readonly userWalletRepository: UserWalletRepository,
-    @InjectWallet("MANAGED") private readonly masterWallet: Wallet,
+    private txManagerService: TxManagerService,
     private readonly authzHttpService: AuthzHttpService,
     private readonly deploymentHttpService: DeploymentHttpService
   ) {}
@@ -54,8 +53,8 @@ export class BalancesService {
   }
 
   private async retrieveAndCalcFeeLimit(userWallet: Pick<UserWalletOutput, "address">): Promise<number> {
-    const masterWalletAddress = await this.masterWallet.getFirstAddress();
-    const feeAllowance = await this.authzHttpService.getFeeAllowanceForGranterAndGrantee(masterWalletAddress, userWallet.address!);
+    const fundingWalletAddress = await this.txManagerService.getFundingWalletAddress();
+    const feeAllowance = await this.authzHttpService.getFeeAllowanceForGranterAndGrantee(fundingWalletAddress, userWallet.address!);
 
     if (!feeAllowance) {
       return 0;
@@ -65,8 +64,8 @@ export class BalancesService {
   }
 
   async retrieveDeploymentLimit(userWallet: Pick<UserWalletOutput, "address">): Promise<number> {
-    const masterWalletAddress = await this.masterWallet.getFirstAddress();
-    const depositDeploymentGrant = await this.authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee(masterWalletAddress, userWallet.address!);
+    const fundingWalletAddress = await this.txManagerService.getFundingWalletAddress();
+    const depositDeploymentGrant = await this.authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee(fundingWalletAddress, userWallet.address!);
 
     if (!depositDeploymentGrant || depositDeploymentGrant.authorization.spend_limit.denom !== this.config.DEPLOYMENT_GRANT_DENOM) {
       return 0;
@@ -91,6 +90,7 @@ export class BalancesService {
       return total + parseFloat(escrowAccount.state.funds.reduce((sum, { amount }) => sum + parseFloat(amount), 0).toFixed(18));
     }, 0);
   }
+
   @Memoize({ ttlInSeconds: averageBlockTime })
   async getFullBalance(address: string): Promise<GetBalancesResponseOutput> {
     const [balanceData, deploymentEscrowBalance] = await Promise.all([this.getFreshLimits({ address }), this.calculateDeploymentEscrowBalance(address)]);

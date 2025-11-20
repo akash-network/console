@@ -56,7 +56,7 @@ export class ProviderCleanupService {
 
       try {
         if (!options.dryRun) {
-          await this.managedSignerService.executeManagedTx(wallet.id, [message]);
+          await this.managedSignerService.executeDerivedTx(wallet.id, [message]);
           this.logger.info({ event: "PROVIDER_CLEAN_UP_SUCCESS" });
         }
       } catch (error: any) {
@@ -68,7 +68,7 @@ export class ProviderCleanupService {
                 fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT
               }
             });
-            await this.managedSignerService.executeManagedTx(wallet.id, [message]);
+            await this.managedSignerService.executeDerivedTx(wallet.id, [message]);
             this.logger.info({ event: "PROVIDER_CLEAN_UP_SUCCESS" });
           }
         } else {

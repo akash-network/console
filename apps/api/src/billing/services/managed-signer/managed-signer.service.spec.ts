@@ -9,35 +9,34 @@ import Long from "long";
 
 import type { AuthService } from "@src/auth/services/auth.service";
 import { TrialDeploymentLeaseCreated } from "@src/billing/events/trial-deployment-lease-created";
-import type { BatchSigningClientService } from "@src/billing/lib/batch-signing-client/batch-signing-client.service";
 import type { UserWalletRepository } from "@src/billing/repositories";
 import type { BalancesService } from "@src/billing/services/balances/balances.service";
-import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
-import type { DedupeSigningClientService } from "@src/billing/services/dedupe-signing-client/dedupe-signing-client.service";
 import type { TrialValidationService } from "@src/billing/services/trial-validation/trial-validation.service";
 import type { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import type { FeatureFlagValue } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { UserOutput, UserRepository } from "@src/user/repositories";
+import { createAkashAddress } from "../../../../test/seeders";
+import type { TxManagerService } from "../tx-manager/tx-manager.service";
 import { ManagedSignerService } from "./managed-signer.service";
 
 import { UserSeeder } from "@test/seeders/user.seeder";
 import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
 
 describe(ManagedSignerService.name, () => {
-  describe("executeDecodedTxByUserId", () => {
+  describe("executeDerivedDecodedTxByUserId", () => {
     it("throws 404 error when userId is null", async () => {
       const { service } = setup();
 
-      await expect(service.executeDecodedTxByUserId(null as any, [])).rejects.toThrow("User Not Found");
+      await expect(service.executeDerivedDecodedTxByUserId(null as any, [])).rejects.toThrow("User Not Found");
     });
 
     it("throws 404 error when userId is undefined", async () => {
       const { service } = setup();
 
-      await expect(service.executeDecodedTxByUserId(undefined as any, [])).rejects.toThrow("User Not Found");
+      await expect(service.executeDerivedDecodedTxByUserId(undefined as any, [])).rejects.toThrow("User Not Found");
     });
 
     it("throws 404 error when userWallet is not found", async () => {
@@ -45,7 +44,7 @@ describe(ManagedSignerService.name, () => {
         findOneByUserId: jest.fn().mockResolvedValue(null)
       });
 
-      await expect(service.executeDecodedTxByUserId("user-123", [])).rejects.toThrow("UserWallet Not Found");
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [])).rejects.toThrow("UserWallet Not Found");
 
       expect(userWalletRepository.accessibleBy).toHaveBeenCalledWith(authService.ability, "sign");
       expect(userWalletRepository.findOneByUserId).toHaveBeenCalledWith("user-123");
@@ -58,7 +57,7 @@ describe(ManagedSignerService.name, () => {
         findById: jest.fn().mockResolvedValue(null)
       });
 
-      await expect(service.executeDecodedTxByUserId("user-456", [])).rejects.toThrow("User Not Found");
+      await expect(service.executeDerivedDecodedTxByUserId("user-456", [])).rejects.toThrow("User Not Found");
 
       expect(userRepository.findById).toHaveBeenCalledWith("user-456");
     });
@@ -71,7 +70,7 @@ describe(ManagedSignerService.name, () => {
         findById: jest.fn().mockResolvedValue(user)
       });
 
-      await expect(service.executeDecodedTxByUserId("user-123", [])).rejects.toThrow("Not enough funds to cover the transaction fee");
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [])).rejects.toThrow("Not enough funds to cover the transaction fee");
     });
 
     it("throws 403 error when userWallet has no deployment allowance for deployment message", async () => {
@@ -91,7 +90,7 @@ describe(ManagedSignerService.name, () => {
         findById: jest.fn().mockResolvedValue(user)
       });
 
-      await expect(service.executeDecodedTxByUserId("user-123", [deploymentMessage])).rejects.toThrow("Not enough funds to cover the deployment costs");
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [deploymentMessage])).rejects.toThrow("Not enough funds to cover the deployment costs");
     });
 
     it("validates trial limits when anonymous free trial is enabled", async () => {
@@ -118,7 +117,7 @@ describe(ManagedSignerService.name, () => {
         enabledFeatures: [FeatureFlags.ANONYMOUS_FREE_TRIAL],
         validateLeaseProviders: jest.fn().mockResolvedValue(undefined),
         validateTrialLimit: jest.fn().mockResolvedValue(undefined),
-        executeManagedTx: jest.fn().mockResolvedValue({
+        signAndBroadcastWithDerivedWallet: jest.fn().mockResolvedValue({
           code: 0,
           hash: "tx-hash",
           rawLog: "success"
@@ -126,7 +125,7 @@ describe(ManagedSignerService.name, () => {
         refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined)
       });
 
-      await service.executeDecodedTxByUserId("user-123", messages);
+      await service.executeDerivedDecodedTxByUserId("user-123", messages);
 
       expect(featureFlagsService.isEnabled).toHaveBeenCalledWith(FeatureFlags.ANONYMOUS_FREE_TRIAL);
       expect(anonymousValidateService.validateLeaseProviders).toHaveBeenCalledWith(messages[0], wallet, user);
@@ -155,7 +154,7 @@ describe(ManagedSignerService.name, () => {
         findOneByUserId: jest.fn().mockResolvedValue(wallet),
         findById: jest.fn().mockResolvedValue(user),
         enabledFeatures: [],
-        executeManagedTx: jest.fn().mockResolvedValue({
+        signAndBroadcastWithDerivedWallet: jest.fn().mockResolvedValue({
           code: 0,
           hash: "tx-hash",
           rawLog: "success"
@@ -163,7 +162,7 @@ describe(ManagedSignerService.name, () => {
         refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined)
       });
 
-      await service.executeDecodedTxByUserId("user-123", messages);
+      await service.executeDerivedDecodedTxByUserId("user-123", messages);
 
       expect(featureFlagsService.isEnabled).toHaveBeenCalledWith(FeatureFlags.ANONYMOUS_FREE_TRIAL);
       expect(anonymousValidateService.validateLeaseProviders).not.toHaveBeenCalled();
@@ -195,21 +194,16 @@ describe(ManagedSignerService.name, () => {
         transactionHash: "tx-hash-123"
       };
 
-      const { service, dedupeSigningClientService, balancesService } = setup({
+      const { service, txManagerService, balancesService } = setup({
         findOneByUserId: jest.fn().mockResolvedValue(wallet),
         findById: jest.fn().mockResolvedValue(user),
-        executeManagedTx: jest.fn().mockResolvedValue(txResult),
+        signAndBroadcastWithDerivedWallet: jest.fn().mockResolvedValue(txResult),
         refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined)
       });
 
-      const result = await service.executeDecodedTxByUserId("user-123", messages);
+      const result = await service.executeDerivedDecodedTxByUserId("user-123", messages);
 
-      expect(dedupeSigningClientService.executeManagedTx).toHaveBeenCalledWith(
-        expect.any(String), // MASTER_WALLET_MNEMONIC
-        wallet.id,
-        messages,
-        { fee: { granter: expect.any(String) } }
-      );
+      expect(txManagerService.signAndBroadcastWithDerivedWallet).toHaveBeenCalledWith(wallet.id, messages, { fee: { granter: expect.any(String) } });
       expect(balancesService.refreshUserWalletLimits).toHaveBeenCalledWith(wallet);
       expect(result).toEqual({
         code: 0,
@@ -245,7 +239,7 @@ describe(ManagedSignerService.name, () => {
         findOneByUserId: jest.fn().mockResolvedValue(wallet),
         findById: jest.fn().mockResolvedValue(user),
         enabledFeatures: [],
-        executeManagedTx: jest.fn().mockResolvedValue({
+        signAndBroadcastWithDerivedWallet: jest.fn().mockResolvedValue({
           code: 0,
           hash: "tx-hash",
           rawLog: "success"
@@ -256,7 +250,7 @@ describe(ManagedSignerService.name, () => {
       });
 
       hasLeases.mockResolvedValue(false);
-      await service.executeDecodedTxByUserId("user-123", [deploymentMessage]);
+      await service.executeDerivedDecodedTxByUserId("user-123", [deploymentMessage]);
 
       expect(domainEvents.publish).toHaveBeenCalledWith(expect.any(TrialDeploymentLeaseCreated));
       const publishedEvent = (domainEvents.publish as jest.Mock).mock.lastCall?.[0] as TrialDeploymentLeaseCreated;
@@ -268,7 +262,7 @@ describe(ManagedSignerService.name, () => {
       });
 
       hasLeases.mockResolvedValue(true);
-      await service.executeDecodedTxByUserId("user-123", [deploymentMessage]);
+      await service.executeDerivedDecodedTxByUserId("user-123", [deploymentMessage]);
       expect(domainEvents.publish).toHaveBeenCalledWith(expect.any(TrialDeploymentLeaseCreated));
       const anotherPublishedEvent = (domainEvents.publish as jest.Mock).mock.lastCall?.[0] as TrialDeploymentLeaseCreated;
       expect(anotherPublishedEvent.data).toEqual({
@@ -301,7 +295,7 @@ describe(ManagedSignerService.name, () => {
         findOneByUserId: jest.fn().mockResolvedValue(wallet),
         findById: jest.fn().mockResolvedValue(user),
         enabledFeatures: [FeatureFlags.ANONYMOUS_FREE_TRIAL],
-        executeManagedTx: jest.fn().mockResolvedValue({
+        signAndBroadcastWithDerivedWallet: jest.fn().mockResolvedValue({
           code: 0,
           hash: "tx-hash",
           rawLog: "success"
@@ -310,7 +304,7 @@ describe(ManagedSignerService.name, () => {
         publish: jest.fn().mockResolvedValue(undefined)
       });
 
-      await service.executeDecodedTxByUserId("user-123", [deploymentMessage]);
+      await service.executeDerivedDecodedTxByUserId("user-123", [deploymentMessage]);
 
       expect(domainEvents.publish).not.toHaveBeenCalled();
     });
@@ -337,11 +331,11 @@ describe(ManagedSignerService.name, () => {
       const { service, chainErrorService } = setup({
         findOneByUserId: jest.fn().mockResolvedValue(wallet),
         findById: jest.fn().mockResolvedValue(user),
-        executeManagedTx: jest.fn().mockRejectedValue(chainError),
+        signAndBroadcastWithDerivedWallet: jest.fn().mockRejectedValue(chainError),
         transformChainError: jest.fn().mockResolvedValue(new Error("App error"))
       });
 
-      await expect(service.executeDecodedTxByUserId("user-123", messages)).rejects.toThrow("App error");
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", messages)).rejects.toThrow("App error");
 
       expect(chainErrorService.toAppError).toHaveBeenCalledWith(chainError, messages);
     });
@@ -363,7 +357,7 @@ describe(ManagedSignerService.name, () => {
       const { service, userRepository } = setup({
         findOneByUserId: jest.fn().mockResolvedValue(wallet),
         currentUser,
-        executeManagedTx: jest.fn().mockResolvedValue({
+        signAndBroadcastWithDerivedWallet: jest.fn().mockResolvedValue({
           code: 0,
           hash: "tx-hash",
           rawLog: "success"
@@ -371,7 +365,7 @@ describe(ManagedSignerService.name, () => {
         refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined)
       });
 
-      await service.executeDecodedTxByUserId("user-123", messages);
+      await service.executeDerivedDecodedTxByUserId("user-123", messages);
 
       expect(userRepository.findById).not.toHaveBeenCalled();
     });
@@ -400,7 +394,7 @@ describe(ManagedSignerService.name, () => {
         findOneByUserId: jest.fn().mockResolvedValue(wallet),
         findById: jest.fn().mockResolvedValue(user),
         validateLeaseProvidersAuditors: jest.fn().mockResolvedValue(undefined),
-        executeManagedTx: jest.fn().mockResolvedValue({
+        signAndBroadcastWithDerivedWallet: jest.fn().mockResolvedValue({
           code: 0,
           hash: "tx-hash",
           rawLog: "success"
@@ -408,7 +402,7 @@ describe(ManagedSignerService.name, () => {
         refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined)
       });
 
-      await service.executeDecodedTxByUserId("user-123", messages);
+      await service.executeDerivedDecodedTxByUserId("user-123", messages);
 
       expect(anonymousValidateService.validateLeaseProvidersAuditors).toHaveBeenCalledWith(messages, wallet);
     });
@@ -437,7 +431,7 @@ describe(ManagedSignerService.name, () => {
         findOneByUserId: jest.fn().mockResolvedValue(wallet),
         findById: jest.fn().mockResolvedValue(user),
         validateLeaseProvidersAuditors: jest.fn().mockResolvedValue(undefined),
-        executeManagedTx: jest.fn().mockResolvedValue({
+        signAndBroadcastWithDerivedWallet: jest.fn().mockResolvedValue({
           code: 0,
           hash: "tx-hash",
           rawLog: "success"
@@ -445,7 +439,7 @@ describe(ManagedSignerService.name, () => {
         refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined)
       });
 
-      await service.executeDecodedTxByUserId("user-123", messages);
+      await service.executeDerivedDecodedTxByUserId("user-123", messages);
 
       expect(anonymousValidateService.validateLeaseProvidersAuditors).toHaveBeenCalledWith(messages, wallet);
     });
@@ -477,7 +471,7 @@ describe(ManagedSignerService.name, () => {
         validateLeaseProvidersAuditors: jest.fn().mockResolvedValue(undefined),
         validateLeaseProviders: jest.fn().mockResolvedValue(undefined),
         validateTrialLimit: jest.fn().mockResolvedValue(undefined),
-        executeManagedTx: jest.fn().mockResolvedValue({
+        signAndBroadcastWithDerivedWallet: jest.fn().mockResolvedValue({
           code: 0,
           hash: "tx-hash",
           rawLog: "success"
@@ -485,7 +479,7 @@ describe(ManagedSignerService.name, () => {
         refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined)
       });
 
-      await service.executeDecodedTxByUserId("user-123", messages);
+      await service.executeDerivedDecodedTxByUserId("user-123", messages);
 
       expect(anonymousValidateService.validateLeaseProvidersAuditors).toHaveBeenCalledWith(messages, wallet);
       expect(anonymousValidateService.validateLeaseProviders).toHaveBeenCalledWith(messages[0], wallet, user);
@@ -501,21 +495,13 @@ describe(ManagedSignerService.name, () => {
     validateLeaseProviders?: TrialValidationService["validateLeaseProviders"];
     validateTrialLimit?: TrialValidationService["validateTrialLimit"];
     validateLeaseProvidersAuditors?: TrialValidationService["validateLeaseProvidersAuditors"];
-    executeManagedTx?: DedupeSigningClientService["executeManagedTx"];
+    signAndBroadcastWithDerivedWallet?: TxManagerService["signAndBroadcastWithDerivedWallet"];
     refreshUserWalletLimits?: BalancesService["refreshUserWalletLimits"];
     publish?: DomainEventsService["publish"];
     transformChainError?: ChainErrorService["toAppError"];
     hasLeases?: LeaseHttpService["hasLeases"];
   }) {
     const mocks = {
-      config: mock<BillingConfigService>({
-        get: jest.fn().mockImplementation(
-          (key: string) =>
-            ({
-              MASTER_WALLET_MNEMONIC: "audit ugly common mean place token hover dirt drive side rookie wheel"
-            })[key]
-        )
-      }),
       userWalletRepository: mock<UserWalletRepository>({
         accessibleBy: jest.fn().mockReturnThis(),
         findOneByUserId: input?.findOneByUserId ?? jest.fn()
@@ -541,9 +527,9 @@ describe(ManagedSignerService.name, () => {
       featureFlagsService: mock<FeatureFlagsService>({
         isEnabled: jest.fn().mockImplementation(flag => !!input?.enabledFeatures?.includes(flag))
       }),
-      masterSigningClientService: mock<BatchSigningClientService>(),
-      dedupeSigningClientService: mock<DedupeSigningClientService>({
-        executeManagedTx: input?.executeManagedTx ?? jest.fn()
+      txManagerService: mock<TxManagerService>({
+        signAndBroadcastWithDerivedWallet: input?.signAndBroadcastWithDerivedWallet ?? jest.fn(),
+        getFundingWalletAddress: jest.fn().mockResolvedValue(createAkashAddress())
       }),
       domainEvents: mock<DomainEventsService>({
         publish: input?.publish ?? jest.fn()
@@ -554,7 +540,6 @@ describe(ManagedSignerService.name, () => {
     };
 
     const service = new ManagedSignerService(
-      mocks.config,
       mock<Registry>(),
       mocks.userWalletRepository,
       mocks.userRepository,
@@ -563,8 +548,7 @@ describe(ManagedSignerService.name, () => {
       mocks.chainErrorService,
       mocks.anonymousValidateService,
       mocks.featureFlagsService,
-      mocks.masterSigningClientService,
-      mocks.dedupeSigningClientService,
+      mocks.txManagerService,
       mocks.domainEvents,
       mocks.leaseHttpService
     );

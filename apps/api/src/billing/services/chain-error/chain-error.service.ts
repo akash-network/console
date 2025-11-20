@@ -3,9 +3,8 @@ import type { EncodeObject } from "@cosmjs/proto-signing";
 import createError from "http-errors";
 import { singleton } from "tsyringe";
 
-import { Wallet } from "@src/billing/lib/wallet/wallet";
-import { InjectWallet } from "@src/billing/providers/wallet.provider";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 
 @singleton()
 export class ChainErrorService {
@@ -73,7 +72,7 @@ export class ChainErrorService {
   constructor(
     private readonly balanceHttpService: BalanceHttpService,
     private readonly billingConfigService: BillingConfigService,
-    @InjectWallet("MANAGED") private readonly masterWallet: Wallet
+    private readonly txManagerService: TxManagerService
   ) {}
 
   public async toAppError(error: Error, messages: readonly EncodeObject[]) {
@@ -96,7 +95,7 @@ export class ChainErrorService {
   public async isMasterWalletInsufficientFundsError(error: Error) {
     if (!error.message.toLowerCase().includes("insufficient funds")) return false;
 
-    const masterWalletAddress = await this.masterWallet.getFirstAddress();
+    const masterWalletAddress = await this.txManagerService.getFundingWalletAddress();
     const masterWalletBalance = await this.balanceHttpService.getBalance(masterWalletAddress, this.billingConfigService.get("DEPLOYMENT_GRANT_DENOM"));
     const insufficientFundsErrorData = this.parseInsufficientFundsErrorMessage(error.message);
 

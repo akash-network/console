@@ -1,13 +1,12 @@
 import { certificateManager } from "@akashnetwork/chain-sdk";
 import { MsgCreateCertificate } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import type { Registry } from "@cosmjs/proto-signing";
-import nock from "nock";
+import fetchMock from "fetch-mock";
 import { container } from "tsyringe";
 
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { app } from "@src/rest-app";
-import { apiNodeUrl } from "@src/utils/constants";
 
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
@@ -121,13 +120,10 @@ describe("Tx Sign", () => {
 
   function blockNode(code: string, message: string) {
     const RPC_NODE_ENDPOINT = container.resolve(BillingConfigService).get("RPC_NODE_ENDPOINT");
-
-    nock(apiNodeUrl).persist().get(/.*/).replyWithError({ code, message }).post(/.*/).replyWithError({ code, message });
-
-    nock(RPC_NODE_ENDPOINT).persist().get(/.*/).replyWithError({ code, message }).post(/.*/).replyWithError({ code, message });
+    fetchMock.mockGlobal().route(RPC_NODE_ENDPOINT, { code, message });
   }
 
   function unblockNode() {
-    nock.cleanAll();
+    fetchMock.hardReset();
   }
 });
