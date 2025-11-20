@@ -38,10 +38,6 @@ export const ConnectManagedWalletButton: React.FunctionComponent<Props> = ({ cla
     }
   }, [connectManagedWallet, allowAnonymousUserTrial, router, hasManagedWallet]);
 
-  if (!hasManagedWallet) {
-    return null;
-  }
-
   return (
     <Button
       variant="outline"
