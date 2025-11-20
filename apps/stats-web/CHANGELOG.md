@@ -1,5 +1,12 @@
 
 
+## [1.4.0](https://github.com/akash-network/console/compare/stats-web/v1.3.0...stats-web/v1.4.0) (2025-11-20)
+
+
+### Features
+
+* adds generic banner to stats-web ([#2265](https://github.com/akash-network/console/issues/2265)) ([d63afef](https://github.com/akash-network/console/commit/d63afef1dbb1c7ceeac227d2a2ded3eb02ba99d9))
+
 ## [1.3.0](https://github.com/akash-network/console/compare/stats-web/v1.2.0...stats-web/v1.3.0) (2025-11-17)
 
 
