@@ -1,12 +1,10 @@
-import { EncodeObject, Registry } from "@cosmjs/proto-signing";
-import { inject, singleton } from "tsyringe";
+import { EncodeObject } from "@cosmjs/proto-signing";
+import { container, inject, type InjectionToken, instancePerContainerCachingFactory, singleton } from "tsyringe";
 
 import { BatchSigningClientService, SignAndBroadcastOptions } from "@src/billing/lib/batch-signing-client/batch-signing-client.service";
 import { createSigningStargateClient } from "@src/billing/lib/signing-stargate-client-factory/signing-stargate-client.factory";
-import { Wallet, WalletFactory } from "@src/billing/lib/wallet/wallet";
-import { FUNDING_SIGNING_CLIENT } from "@src/billing/providers/signing-client.provider";
+import { Wallet } from "@src/billing/lib/wallet/wallet";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
-import { FUNDING_WALLET, WALLET_FACTORY } from "@src/billing/providers/wallet.provider";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { LoggerService } from "@src/core";
 
@@ -15,6 +13,40 @@ type CachedClient = {
   client: BatchSigningClientService;
 };
 
+const FUNDING_WALLET: InjectionToken<Wallet> = Symbol("FUNDING_WALLET");
+container.register(FUNDING_WALLET, {
+  useFactory: instancePerContainerCachingFactory(c => {
+    const config = c.resolve(BillingConfigService);
+    return new Wallet(config.get("FUNDING_WALLET_MNEMONIC"), 1);
+  })
+});
+
+export type WalletFactory = (walletIndex?: number) => Wallet;
+const DERIVED_WALLET_FACTORY: InjectionToken<WalletFactory> = Symbol("DERIVED_WALLET_FACTORY");
+container.register(DERIVED_WALLET_FACTORY, {
+  useFactory: c => {
+    return (walletIndex: number) => new Wallet(c.resolve(BillingConfigService).get("DERIVATION_WALLET_MNEMONIC"), walletIndex);
+  }
+});
+
+export type BatchSigningClientServiceFactory = (wallet: Wallet, loggerContext?: string) => BatchSigningClientService;
+const BATCH_SIGNING_CLIENT_FACTORY: InjectionToken<BatchSigningClientServiceFactory> = Symbol("BATCH_SIGNING_CLIENT_FACTORY");
+container.register(BATCH_SIGNING_CLIENT_FACTORY, {
+  useFactory: c => {
+    return (wallet: Wallet, loggerContext?: string) => {
+      return new BatchSigningClientService(c.resolve(BillingConfigService), wallet, c.resolve(TYPE_REGISTRY), createSigningStargateClient, loggerContext);
+    };
+  }
+});
+
+const FUNDING_SIGNING_CLIENT: InjectionToken<BatchSigningClientService> = Symbol("FUNDING_SIGNING_CLIENT");
+container.register(FUNDING_SIGNING_CLIENT, {
+  useFactory: instancePerContainerCachingFactory(c => {
+    const factory = c.resolve<BatchSigningClientServiceFactory>(BATCH_SIGNING_CLIENT_FACTORY);
+    return factory(c.resolve(FUNDING_WALLET), "FUNDING_SIGNING_CLIENT");
+  })
+});
+
 @singleton()
 export class TxManagerService {
   readonly #clientsByAddress: Map<string, CachedClient> = new Map();
@@ -22,9 +54,8 @@ export class TxManagerService {
   constructor(
     @inject(FUNDING_WALLET) private readonly fundingWallet: Wallet,
     @inject(FUNDING_SIGNING_CLIENT) private readonly fundingSigningClient: BatchSigningClientService,
-    @inject(WALLET_FACTORY) private readonly walletFactory: WalletFactory,
-    @inject(TYPE_REGISTRY) private readonly typeRegistry: Registry,
-    private readonly billingConfigService: BillingConfigService,
+    @inject(DERIVED_WALLET_FACTORY) private readonly walletFactory: WalletFactory,
+    @inject(BATCH_SIGNING_CLIENT_FACTORY) private readonly batchSigningClientServiceFactory: BatchSigningClientServiceFactory,
     private readonly logger: LoggerService
   ) {
     this.logger.setContext(TxManagerService.name);
@@ -63,7 +94,7 @@ export class TxManagerService {
       this.logger.debug({ event: "DERIVED_SIGNING_CLIENT_CREATE", address });
       this.#clientsByAddress.set(address, {
         address,
-        client: new BatchSigningClientService(this.billingConfigService, wallet, this.typeRegistry, createSigningStargateClient)
+        client: this.batchSigningClientServiceFactory(wallet)
       });
     }
 
@@ -71,11 +102,6 @@ export class TxManagerService {
   }
 
   getDerivedWallet(index: number) {
-    const mnemonic = this.billingConfigService.get("DERIVATION_WALLET_MNEMONIC");
-    if (!mnemonic) {
-      throw new Error(`DERIVATION_WALLET_MNEMONIC is empty, failed to derive a wallet for index ${index}`);
-    }
-
-    return this.walletFactory(mnemonic, index);
+    return this.walletFactory(index);
   }
 }
