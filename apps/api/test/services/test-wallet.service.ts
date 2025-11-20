@@ -20,7 +20,7 @@ const MIN_AMOUNTS: Record<string, number> = {
 
 export class TestWalletService {
   private readonly balanceHttpService = new BalanceHttpService({
-    baseURL: config!.API_NODE_ENDPOINT
+    baseURL: config!.REST_API_NODE_URL
   });
 
   private mnemonics: Record<string, string> = {};
