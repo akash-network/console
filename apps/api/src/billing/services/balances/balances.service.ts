@@ -92,9 +92,9 @@ export class BalancesService {
   }
 
   @Memoize({ ttlInSeconds: averageBlockTime })
-  async getFullBalance(address: string): Promise<GetBalancesResponseOutput> {
+  async getFullBalance(address: string, isOldWallet: boolean = false): Promise<GetBalancesResponseOutput> {
     const [balanceData, deploymentEscrowBalance] = await Promise.all([
-      this.getFreshLimits({ address, isOldWallet: false }),
+      this.getFreshLimits({ address, isOldWallet }),
       this.calculateDeploymentEscrowBalance(address)
     ]);
 
