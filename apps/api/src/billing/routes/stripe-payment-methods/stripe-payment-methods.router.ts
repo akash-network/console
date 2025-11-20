@@ -9,6 +9,9 @@ import {
   ValidatePaymentMethodResponseSchema
 } from "@src/billing/http-schemas/stripe.schema";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
+
+export const stripePaymentMethodsRouter = new OpenApiHonoHandler();
 
 const setupIntentRoute = createRoute({
   method: "post",
@@ -17,6 +20,7 @@ const setupIntentRoute = createRoute({
   description:
     "Creates a Stripe SetupIntent that allows users to securely add payment methods to their account. The SetupIntent provides a client secret that can be used with Stripe's frontend SDKs to collect payment method details.",
   tags: ["Payment"],
+  security: SECURITY_BEARER_OR_API_KEY,
   request: {},
   responses: {
     200: {
@@ -29,6 +33,10 @@ const setupIntentRoute = createRoute({
     }
   }
 });
+stripePaymentMethodsRouter.openapi(setupIntentRoute, async function createSetupIntent(c) {
+  const response = await container.resolve(StripeController).createSetupIntent();
+  return c.json(response, 200);
+});
 
 const paymentMethodsRoute = createRoute({
   method: "get",
@@ -37,6 +45,7 @@ const paymentMethodsRoute = createRoute({
   description:
     "Retrieves all saved payment methods associated with the current user's account, including card details, validation status, and billing information.",
   tags: ["Payment"],
+  security: SECURITY_BEARER_OR_API_KEY,
   request: {},
   responses: {
     200: {
@@ -49,6 +58,10 @@ const paymentMethodsRoute = createRoute({
     }
   }
 });
+stripePaymentMethodsRouter.openapi(paymentMethodsRoute, async function getPaymentMethods(c) {
+  const response = await container.resolve(StripeController).getPaymentMethods();
+  return c.json(response, 200);
+});
 
 const removePaymentMethodRoute = createRoute({
   method: "delete",
@@ -56,6 +69,7 @@ const removePaymentMethodRoute = createRoute({
   summary: "Remove a payment method",
   description: "Permanently removes a saved payment method from the user's account. This action cannot be undone.",
   tags: ["Payment"],
+  security: SECURITY_BEARER_OR_API_KEY,
   parameters: [
     {
       name: "paymentMethodId",
@@ -73,6 +87,11 @@ const removePaymentMethodRoute = createRoute({
     }
   }
 });
+stripePaymentMethodsRouter.openapi(removePaymentMethodRoute, async function removePaymentMethod(c) {
+  const { paymentMethodId } = c.req.param();
+  await container.resolve(StripeController).removePaymentMethod(paymentMethodId);
+  return c.body(null, 204);
+});
 
 const validatePaymentMethodRoute = createRoute({
   method: "post",
@@ -81,6 +100,7 @@ const validatePaymentMethodRoute = createRoute({
   description:
     "Completes the validation process for a payment method that required 3D Secure authentication. This endpoint should be called after the user completes the 3D Secure challenge.",
   tags: ["Payment"],
+  security: SECURITY_BEARER_OR_API_KEY,
   request: {
     body: {
       content: {
@@ -101,25 +121,6 @@ const validatePaymentMethodRoute = createRoute({
     }
   }
 });
-
-export const stripePaymentMethodsRouter = new OpenApiHonoHandler();
-
-stripePaymentMethodsRouter.openapi(setupIntentRoute, async function createSetupIntent(c) {
-  const response = await container.resolve(StripeController).createSetupIntent();
-  return c.json(response, 200);
-});
-
-stripePaymentMethodsRouter.openapi(paymentMethodsRoute, async function getPaymentMethods(c) {
-  const response = await container.resolve(StripeController).getPaymentMethods();
-  return c.json(response, 200);
-});
-
-stripePaymentMethodsRouter.openapi(removePaymentMethodRoute, async function removePaymentMethod(c) {
-  const { paymentMethodId } = c.req.param();
-  await container.resolve(StripeController).removePaymentMethod(paymentMethodId);
-  return c.body(null, 204);
-});
-
 stripePaymentMethodsRouter.openapi(validatePaymentMethodRoute, async function validatePaymentMethod(c) {
   return c.json(await container.resolve(StripeController).validatePaymentMethodAfter3DS(c.req.valid("json")), 200);
 });

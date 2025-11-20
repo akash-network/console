@@ -2,6 +2,7 @@ import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
 import { UserController } from "@src/user/controllers/user/user.controller";
 import { GetUserResponseOutputSchema } from "@src/user/schemas/user.schema";
 
@@ -10,14 +11,13 @@ const route = createRoute({
   path: "/v1/user/me",
   summary: "Retrieves the logged in user",
   tags: ["Users"],
+  security: SECURITY_BEARER_OR_API_KEY,
   responses: {
     200: {
       description: "Returns the logged in user",
-      body: {
-        content: {
-          "application/json": {
-            schema: GetUserResponseOutputSchema
-          }
+      content: {
+        "application/json": {
+          schema: GetUserResponseOutputSchema
         }
       }
     }

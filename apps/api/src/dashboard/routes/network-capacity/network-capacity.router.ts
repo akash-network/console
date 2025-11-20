@@ -5,6 +5,8 @@ import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/ope
 import { NetworkCapacityController } from "@src/dashboard/controllers/network-capacity/network-capacity.controller";
 import { NetworkCapacityResponseSchema } from "@src/dashboard/http-schemas/network-capacity/network-capacity.schema";
 
+export const networkCapacityRouter = new OpenApiHonoHandler();
+
 const route = createRoute({
   method: "get",
   path: "/v1/network-capacity",
@@ -20,9 +22,6 @@ const route = createRoute({
     }
   }
 });
-
-export const networkCapacityRouter = new OpenApiHonoHandler();
-
 networkCapacityRouter.openapi(route, async function routeNetworkCapacity(c) {
   const response = await container.resolve(NetworkCapacityController).getNetworkCapacity();
   return c.json(response);

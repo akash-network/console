@@ -5,6 +5,8 @@ import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/ope
 import { ProviderVersionsController } from "@src/provider/controllers/provider-versions/provider-versions.controller";
 import { ProviderVersionsResponseSchema } from "@src/provider/http-schemas/provider-versions.schema";
 
+export const providerVersionsRouter = new OpenApiHonoHandler();
+
 const route = createRoute({
   method: "get",
   path: "/v1/provider-versions",
@@ -21,9 +23,6 @@ const route = createRoute({
     }
   }
 });
-
-export const providerVersionsRouter = new OpenApiHonoHandler();
-
 providerVersionsRouter.openapi(route, async function routeProviderVersions(c) {
   const providerVersions = await container.resolve(ProviderVersionsController).getProviderVersions();
 
