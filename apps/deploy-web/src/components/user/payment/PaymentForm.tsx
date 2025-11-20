@@ -27,8 +27,8 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
   onPayment,
   isApplyingCoupon
 }) => {
-  const disabled = true || !amount || parseFloat(amount) <= 0 || processing || !selectedPaymentMethodId || !!amountError;
-  const disabledCoupon = true || !coupon || processing || isApplyingCoupon;
+  const disabled = !amount || parseFloat(amount) <= 0 || processing || !selectedPaymentMethodId || !!amountError;
+  const disabledCoupon = !coupon || processing || isApplyingCoupon;
 
   return (
     <div className="space-y-6">
