@@ -17,6 +17,7 @@ export const ActivityLogDetails: React.FC<{ actionId: string | null }> = ({ acti
   const [taskLogs, setTaskLogs] = useState<TaskLogs>({});
   const [loadingLogs, setLoadingLogs] = useState<{ [taskId: string]: boolean }>({});
   const [elapsedTimes, setElapsedTimes] = useState<{ [taskId: string]: string }>({});
+  const [followScroll, setFollowScroll] = useState<{ [taskId: string]: boolean }>({});
   const logStreams = useRef<{ [taskId: string]: EventSourcePolyfill | null }>({});
   const { data: actionDetails, isLoading } = useProviderActionStatus(actionId);
 
@@ -184,16 +185,29 @@ export const ActivityLogDetails: React.FC<{ actionId: string | null }> = ({ acti
 
     try {
       const sanitizedLogs = logs.trim();
+      const shouldFollow = followScroll[taskId] !== false; // Default to true, but allow user to disable
 
       return (
         <div className="mt-4" style={{ height: 200 }}>
           <ScrollFollow
-            startFollowing={true}
+            startFollowing={shouldFollow}
             render={({ follow, onScroll }) => (
               <LazyLog
                 text={sanitizedLogs}
                 follow={follow}
-                onScroll={onScroll}
+                onScroll={({ scrollTop, scrollHeight, clientHeight }) => {
+                  // Check if user has scrolled to the bottom
+                  const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10; // 10px threshold
+
+                  // Update follow state based on scroll position
+                  setFollowScroll(prev => ({
+                    ...prev,
+                    [taskId]: isAtBottom
+                  }));
+
+                  // Call the original onScroll handler
+                  onScroll({ scrollTop, scrollHeight, clientHeight });
+                }}
                 highlight={[]}
                 extraLines={1}
                 ansi
@@ -206,7 +220,6 @@ export const ActivityLogDetails: React.FC<{ actionId: string | null }> = ({ acti
                   backgroundColor: "var(--log-background, #1e1e1e)",
                   color: "var(--log-text, #ffffff)"
                 }}
-                key={`${taskId}-${sanitizedLogs.length}`}
               />
             )}
           />
