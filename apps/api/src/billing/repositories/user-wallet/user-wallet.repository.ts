@@ -55,7 +55,7 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
     this.ability?.throwUnlessCanExecute(input);
     const [newWallet] = await this.cursor
       .insert(this.table)
-      .values(input)
+      .values({ ...input, isOldWallet: false })
       .onConflictDoNothing({
         target: [this.table.userId]
       })
@@ -76,7 +76,8 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
   async create(input: Pick<UserWalletInput, "userId" | "address">) {
     const value = {
       userId: input.userId,
-      address: input.address
+      address: input.address,
+      isOldWallet: false
     };
 
     this.ability?.throwUnlessCanExecute(value);
