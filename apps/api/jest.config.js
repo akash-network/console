@@ -37,7 +37,7 @@ const config = {
   ]
 };
 
-if (localConfig.MASTER_WALLET_MNEMONIC) {
+if (localConfig.FUNDING_WALLET_MNEMONIC) {
   config.maxWorkers = 1;
 }
 

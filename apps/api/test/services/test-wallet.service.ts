@@ -48,13 +48,13 @@ export class TestWalletService {
     return fileName ? this.mnemonics[fileName] : undefined;
   }
 
-  async init() {
+  async init(walletIndex: number) {
     const { wallet: faucetWallet, amount: faucetAmount } = await this.prepareFaucetWallet();
-    this.mnemonics = await this.prepareWallets(faucetWallet, faucetAmount!);
+    this.mnemonics = await this.prepareWallets(faucetWallet, faucetAmount!, walletIndex);
     this.saveCache();
   }
 
-  private async prepareWallets(faucetWallet: Wallet, totalDistributionAmount: number) {
+  private async prepareWallets(faucetWallet: Wallet, totalDistributionAmount: number, walletIndex: number) {
     const specPaths = fs.readdirSync(path.join(__dirname, "../functional")).filter(spec => spec.endsWith(".spec.ts"));
     const faucetAddress = await faucetWallet.getFirstAddress();
     const totalMinAmount = Object.values(MIN_AMOUNTS).reduce((acc, curr) => acc + curr, 0);
@@ -62,7 +62,7 @@ export class TestWalletService {
 
     const configs = await Promise.all(
       specPaths.map(async path => {
-        const wallet = new Wallet(undefined, 1);
+        const wallet = new Wallet(undefined, walletIndex);
         const address = await wallet.getFirstAddress();
         const fileName = this.getFileName(path);
         const coinAmount = MIN_AMOUNTS[fileName] || amount;
