@@ -697,9 +697,7 @@ describe("Provider HTTP proxy", () => {
     });
     await startServer({ REST_API_NODE_URL: chainServer.url });
 
-    const testMnemonic =
-      "body letter input area umbrella develop shuffle gentle regular gold twice truly giant dawn nerve ocean wine wonder toe melt grid leader blush few";
-    const wallet = await Secp256k1HdWallet.fromMnemonic(testMnemonic, { prefix: "akash" });
+    const wallet = await Secp256k1HdWallet.generate(24, { prefix: "akash" });
     const tokenManager = new JwtTokenManager(wallet);
     const token = await tokenManager.generateToken({
       iss: (await wallet.getAccounts())[0].address,
