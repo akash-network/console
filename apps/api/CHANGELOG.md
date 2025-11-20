@@ -1,5 +1,12 @@
 
 
+## [3.5.1](https://github.com/akash-network/console/compare/console-api/v3.5.0...console-api/v3.5.1) (2025-11-20)
+
+
+### Bug Fixes
+
+* **billing:** uses the correct funding wallet index  ([f7f3c9f](https://github.com/akash-network/console/commit/f7f3c9f7b668aca579e85aea8011c322efd04e05))
+
 ## [3.5.0](https://github.com/akash-network/console/compare/console-api/v3.4.4...console-api/v3.5.0) (2025-11-20)
 
 
