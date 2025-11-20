@@ -19,6 +19,7 @@ type GenerateJwtTokenParams = {
   walletId: number;
   leases: JwtTokenPayload["leases"];
   ttl?: number;
+  useOldWallet?: boolean;
 };
 
 type AccessScope = Extract<Extract<JwtTokenPayload["leases"], { access: "granular" }>["permissions"][number], { access: "scoped" }>["scope"][number];
@@ -30,8 +31,13 @@ export class ProviderJwtTokenService {
     private readonly txManagerService: TxManagerService
   ) {}
 
-  async generateJwtToken({ walletId, leases, ttl = JWT_TOKEN_TTL_IN_SECONDS }: GenerateJwtTokenParams): Promise<Result<string, string[]>> {
-    const { jwtTokenManager, address } = await this.getJwtToken(walletId);
+  async generateJwtToken({
+    walletId,
+    leases,
+    ttl = JWT_TOKEN_TTL_IN_SECONDS,
+    useOldWallet = false
+  }: GenerateJwtTokenParams): Promise<Result<string, string[]>> {
+    const { jwtTokenManager, address } = await this.getJwtToken(walletId, useOldWallet);
     const now = Math.floor(Date.now() / 1000);
     const payload: JwtTokenPayload = {
       version: "v1",
@@ -50,8 +56,8 @@ export class ProviderJwtTokenService {
   }
 
   @Memoize({ ttlInSeconds: minutesToSeconds(5) })
-  private async getJwtToken(walletId: number): Promise<JwtTokenWithAddress> {
-    const wallet = this.txManagerService.getDerivedWallet(walletId);
+  private async getJwtToken(walletId: number, useOldWallet: boolean = false): Promise<JwtTokenWithAddress> {
+    const wallet = this.txManagerService.getDerivedWallet(walletId, useOldWallet);
     const jwtTokenManager = new this.jwtModule.JwtTokenManager(wallet);
     const address = await wallet.getFirstAddress();
 

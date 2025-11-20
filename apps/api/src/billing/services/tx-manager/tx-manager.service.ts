@@ -21,11 +21,26 @@ container.register(FUNDING_WALLET, {
   })
 });
 
+const OLD_MASTER_WALLET: InjectionToken<Wallet> = Symbol("OLD_MASTER_WALLET");
+container.register(OLD_MASTER_WALLET, {
+  useFactory: instancePerContainerCachingFactory(c => {
+    const config = c.resolve(BillingConfigService);
+    return new Wallet(config.get("OLD_MASTER_WALLET_MNEMONIC"), 0);
+  })
+});
+
 export type WalletFactory = (walletIndex?: number) => Wallet;
 const DERIVED_WALLET_FACTORY: InjectionToken<WalletFactory> = Symbol("DERIVED_WALLET_FACTORY");
 container.register(DERIVED_WALLET_FACTORY, {
   useFactory: c => {
     return (walletIndex: number) => new Wallet(c.resolve(BillingConfigService).get("DERIVATION_WALLET_MNEMONIC"), walletIndex);
+  }
+});
+
+const OLD_DERIVED_WALLET_FACTORY: InjectionToken<WalletFactory> = Symbol("OLD_DERIVED_WALLET_FACTORY");
+container.register(OLD_DERIVED_WALLET_FACTORY, {
+  useFactory: c => {
+    return (walletIndex: number) => new Wallet(c.resolve(BillingConfigService).get("OLD_MASTER_WALLET_MNEMONIC"), walletIndex);
   }
 });
 
@@ -47,6 +62,14 @@ container.register(FUNDING_SIGNING_CLIENT, {
   })
 });
 
+const OLD_MASTER_SIGNING_CLIENT: InjectionToken<BatchSigningClientService> = Symbol("OLD_MASTER_SIGNING_CLIENT");
+container.register(OLD_MASTER_SIGNING_CLIENT, {
+  useFactory: instancePerContainerCachingFactory(c => {
+    const factory = c.resolve<BatchSigningClientServiceFactory>(BATCH_SIGNING_CLIENT_FACTORY);
+    return factory(c.resolve(OLD_MASTER_WALLET), "OLD_MASTER_SIGNING_CLIENT");
+  })
+});
+
 @singleton()
 export class TxManagerService {
   readonly #clientsByAddress: Map<string, CachedClient> = new Map();
@@ -54,23 +77,33 @@ export class TxManagerService {
   constructor(
     @inject(FUNDING_WALLET) private readonly fundingWallet: Wallet,
     @inject(FUNDING_SIGNING_CLIENT) private readonly fundingSigningClient: BatchSigningClientService,
+    @inject(OLD_MASTER_WALLET) private readonly oldMasterWallet: Wallet,
+    @inject(OLD_MASTER_SIGNING_CLIENT) private readonly oldMasterSigningClient: BatchSigningClientService,
     @inject(DERIVED_WALLET_FACTORY) private readonly walletFactory: WalletFactory,
+    @inject(OLD_DERIVED_WALLET_FACTORY) private readonly oldWalletFactory: WalletFactory,
     @inject(BATCH_SIGNING_CLIENT_FACTORY) private readonly batchSigningClientServiceFactory: BatchSigningClientServiceFactory,
     private readonly logger: LoggerService
   ) {
     this.logger.setContext(TxManagerService.name);
   }
 
-  async signAndBroadcastWithFundingWallet(messages: readonly EncodeObject[]) {
-    return await this.fundingSigningClient.signAndBroadcast(messages);
+  async signAndBroadcastWithFundingWallet(messages: readonly EncodeObject[], useOldWallet: boolean = false) {
+    const client = useOldWallet ? this.oldMasterSigningClient : this.fundingSigningClient;
+    return await client.signAndBroadcast(messages);
   }
 
-  async getFundingWalletAddress() {
-    return await this.fundingWallet.getFirstAddress();
+  async getFundingWalletAddress(useOldWallet: boolean = false) {
+    const wallet = useOldWallet ? this.oldMasterWallet : this.fundingWallet;
+    return await wallet.getFirstAddress();
   }
 
-  async signAndBroadcastWithDerivedWallet(derivationIndex: number, messages: readonly EncodeObject[], options?: SignAndBroadcastOptions) {
-    const { client, address } = await this.#getClient(derivationIndex);
+  async signAndBroadcastWithDerivedWallet(
+    derivationIndex: number,
+    messages: readonly EncodeObject[],
+    options?: SignAndBroadcastOptions,
+    useOldWallet: boolean = false
+  ) {
+    const { client, address } = await this.#getClient(derivationIndex, useOldWallet);
 
     try {
       return await client.signAndBroadcast(messages, options);
@@ -82,12 +115,12 @@ export class TxManagerService {
     }
   }
 
-  async getDerivedWalletAddress(index: number) {
-    return await this.getDerivedWallet(index).getFirstAddress();
+  async getDerivedWalletAddress(index: number, useOldWallet: boolean = false) {
+    return await this.getDerivedWallet(index, useOldWallet).getFirstAddress();
   }
 
-  async #getClient(derivationIndex: number): Promise<CachedClient> {
-    const wallet = this.getDerivedWallet(derivationIndex);
+  async #getClient(derivationIndex: number, useOldWallet: boolean = false): Promise<CachedClient> {
+    const wallet = this.getDerivedWallet(derivationIndex, useOldWallet);
     const address = await wallet.getFirstAddress();
 
     if (!this.#clientsByAddress.has(address)) {
@@ -101,7 +134,8 @@ export class TxManagerService {
     return this.#clientsByAddress.get(address)!;
   }
 
-  getDerivedWallet(index: number) {
-    return this.walletFactory(index);
+  getDerivedWallet(index: number, useOldWallet: boolean = false) {
+    const factory = useOldWallet ? this.oldWalletFactory : this.walletFactory;
+    return factory(index);
   }
 }
