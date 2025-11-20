@@ -11,10 +11,12 @@ interface ITopBannerContext {
   setIsMaintenanceBannerOpen: (isMaintenanceBannerOpen: boolean) => void;
   isMaintenanceBannerOpen: boolean;
   isBlockchainDown: boolean;
+  isGenericBannerOpen: boolean;
 }
 
 const IS_MAINTENANCE_ATOM = atom(false);
 const IS_BLOCKCHAIN_DOWN_ATOM = atom(false);
+const IS_GENERIC_BANNER_ATOM = atom(false);
 
 export function useTopBanner(): ITopBannerContext {
   const maintenanceBannerFlag = useVariant("maintenance_banner");
@@ -23,11 +25,20 @@ export function useTopBanner(): ITopBannerContext {
   const [isMaintenanceBannerOpen, setIsMaintenanceBannerOpen] = useAtom(IS_MAINTENANCE_ATOM);
   const [isBlockchainDown, setIsBlockchainDown] = useAtom(IS_BLOCKCHAIN_DOWN_ATOM);
 
+  const genericBannerFlag = useVariant("generic_banner");
+  const [isGenericBannerOpen, setIsGenericBannerOpen] = useAtom(IS_GENERIC_BANNER_ATOM);
+
   useEffect(() => {
     if (maintenanceBannerFlag.enabled) {
       setIsMaintenanceBannerOpen(true);
     }
   }, [maintenanceBannerFlag.enabled]);
+
+  useEffect(() => {
+    if (genericBannerFlag.enabled) {
+      setIsGenericBannerOpen(true);
+    }
+  }, [genericBannerFlag.enabled]);
 
   let timeoutId: NodeJS.Timeout | undefined;
   useEffect(() => {
@@ -51,16 +62,15 @@ export function useTopBanner(): ITopBannerContext {
     };
   }, [networkId]);
 
-  const hasBanner = useMemo(() => isMaintenanceBannerOpen || isBlockchainDown, [isMaintenanceBannerOpen, isBlockchainDown]);
-
   return useMemo(
     () => ({
-      hasBanner,
+      hasBanner: isMaintenanceBannerOpen || isBlockchainDown || isGenericBannerOpen,
       isMaintenanceBannerOpen,
       setIsMaintenanceBannerOpen,
-      isBlockchainDown
+      isBlockchainDown,
+      isGenericBannerOpen
     }),
-    [hasBanner, isMaintenanceBannerOpen, isBlockchainDown]
+    [isMaintenanceBannerOpen, isBlockchainDown, isGenericBannerOpen]
   );
 }
 
@@ -76,5 +86,17 @@ export function useChainMaintenanceDetails(): ChainMaintenanceDetails {
     return details;
   } catch {
     return { date: "" };
+  }
+}
+
+export type GenericBannerDetails = { message: string; statsMessage?: string };
+export function useGenericBannerDetails(): GenericBannerDetails {
+  const genericBannerFlag = useVariant("generic_banner");
+
+  try {
+    const details = genericBannerFlag?.enabled ? (JSON.parse(genericBannerFlag.payload?.value as string) as GenericBannerDetails) : { message: "" };
+    return details;
+  } catch (error) {
+    return { message: "" };
   }
 }
