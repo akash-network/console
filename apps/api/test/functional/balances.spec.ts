@@ -5,10 +5,10 @@ import { container } from "tsyringe";
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
 import { UserWalletRepository } from "@src/billing/repositories";
+import { CORE_CONFIG } from "@src/core";
 import type { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories";
-import { apiNodeUrl } from "@src/utils/constants";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { DeploymentGrantResponseSeeder } from "@test/seeders/deployment-grant-response.seeder";
@@ -196,7 +196,7 @@ describe("Balances", () => {
       jest.spyOn(userWalletRepository, "accessibleBy").mockReturnValue(userWalletRepository);
       jest.spyOn(userWalletRepository, "findOneByUserId").mockImplementation(findOneByUserIdMock);
 
-      nock(apiNodeUrl)
+      nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
         .persist()
         .get(/\/cosmos\/feegrant\/v1beta1\/allowance\/.*\/.*/)
         .reply(
@@ -208,7 +208,7 @@ describe("Balances", () => {
           })
         );
 
-      nock(apiNodeUrl)
+      nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
         .persist()
         .get(/\/cosmos\/authz\/v1beta1\/grants\?.*/)
         .reply(
@@ -220,7 +220,7 @@ describe("Balances", () => {
           })
         );
 
-      nock(apiNodeUrl)
+      nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
         .persist()
         .get(/\/akash\/deployment\/v1beta4\/deployments\/list\?.*/)
         .reply(

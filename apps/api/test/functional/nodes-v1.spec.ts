@@ -1,8 +1,8 @@
 import { netConfig } from "@akashnetwork/net";
 import mcache from "memory-cache";
 import nock from "nock";
+import { container } from "tsyringe";
 
-import { closeConnections } from "@src/db/dbConnection";
 import { app, initDb } from "@src/rest-app";
 import { env } from "@src/utils/env";
 
@@ -16,7 +16,7 @@ describe("Nodes API", () => {
   });
 
   afterAll(async () => {
-    await closeConnections();
+    await container.dispose();
     mcache.clear();
   });
 

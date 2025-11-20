@@ -1,6 +1,6 @@
 import { BalanceHttpService } from "@akashnetwork/http-sdk";
 import type { EncodeObject } from "@cosmjs/proto-signing";
-import { coins } from "@cosmjs/proto-signing";
+import { coins, DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import { calculateFee, GasPrice, SigningStargateClient } from "@cosmjs/stargate";
 import dotenv from "dotenv";
 import dotenvExpand from "dotenv-expand";
@@ -9,7 +9,7 @@ import path from "path";
 import { sep as FOLDER_SEP } from "path";
 import { setTimeout as delay } from "timers/promises";
 
-import { Wallet } from "../../src/billing/lib/wallet/wallet";
+import { Wallet, WALLET_ADDRESS_PREFIX } from "../../src/billing/lib/wallet/wallet";
 
 const { parsed: config } = dotenvExpand.expand(dotenv.config({ path: "env/.env.functional.test" }));
 
@@ -62,7 +62,8 @@ export class TestWalletService {
 
     const configs = await Promise.all(
       specPaths.map(async path => {
-        const wallet = new Wallet();
+        const hdWallet = await DirectSecp256k1HdWallet.generate(24, { prefix: WALLET_ADDRESS_PREFIX });
+        const wallet = new Wallet(hdWallet.mnemonic);
         const address = await wallet.getFirstAddress();
         const fileName = this.getFileName(path);
         const coinAmount = MIN_AMOUNTS[fileName] || amount;
@@ -70,7 +71,7 @@ export class TestWalletService {
 
         return {
           path,
-          mnemonic: await wallet.getMnemonic(),
+          mnemonic: hdWallet.mnemonic,
           address,
           message: {
             typeUrl: "/cosmos.bank.v1beta1.MsgSend",

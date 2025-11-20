@@ -1,7 +1,6 @@
 import { AuthzHttpService } from "@akashnetwork/http-sdk";
 import { LoggerService } from "@akashnetwork/logging";
-import { stringToPath } from "@cosmjs/crypto";
-import { DirectSecp256k1HdWallet, EncodeObject } from "@cosmjs/proto-signing";
+import { EncodeObject } from "@cosmjs/proto-signing";
 import add from "date-fns/add";
 import { singleton } from "tsyringe";
 
@@ -27,10 +26,6 @@ interface SpendingAuthorizationOptions {
 
 @singleton()
 export class ManagedUserWalletService {
-  private readonly PREFIX = "akash";
-
-  private readonly HD_PATH = "m/44'/118'/0'/0";
-
   private readonly logger = LoggerService.forContext(ManagedUserWalletService.name);
 
   constructor(
@@ -56,16 +51,12 @@ export class ManagedUserWalletService {
     return { address, limits };
   }
 
-  async createWallet({ addressIndex }: { addressIndex: number }) {
-    const hdPath = stringToPath(`${this.HD_PATH}/${addressIndex}`);
-    const wallet = await DirectSecp256k1HdWallet.fromMnemonic(this.config.MASTER_WALLET_MNEMONIC, {
-      prefix: this.PREFIX,
-      hdPaths: [hdPath]
-    });
-    const [account] = await wallet.getAccounts();
-    this.logger.debug({ event: "WALLET_CREATED", address: account.address });
+  async createWallet(input: { addressIndex: number }): Promise<{ address: string }> {
+    const wallet = await this.masterWallet.createDerivedWallet(input.addressIndex);
+    const address = await wallet.getFirstAddress();
+    this.logger.debug({ event: "WALLET_CREATED", address });
 
-    return { address: account.address };
+    return { address };
   }
 
   async authorizeSpending(options: SpendingAuthorizationOptions) {
