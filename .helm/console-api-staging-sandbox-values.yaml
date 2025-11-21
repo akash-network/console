@@ -1,3 +1,5 @@
+deploymentEnv: staging
+
 chain: sandbox
 hostNames:
   - console-api-sandbox-staging.akash.network

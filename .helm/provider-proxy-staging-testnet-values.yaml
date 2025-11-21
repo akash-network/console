@@ -1,1 +1,3 @@
+deploymentEnv: staging
+
 chain: testnet

@@ -1,2 +1,4 @@
+deploymentEnv: production
+
 chain: sandbox
 nodePort: 30000
