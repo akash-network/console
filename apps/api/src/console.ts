@@ -16,8 +16,6 @@ import { chainDb } from "@src/db/dbConnection";
 import { TopUpDeploymentsController } from "@src/deployment/controllers/deployment/top-up-deployments.controller";
 import { GpuBotController } from "@src/deployment/controllers/gpu-bot/gpu-bot.controller";
 import { ProviderController } from "@src/provider/controllers/provider/provider.controller";
-import { UserController } from "@src/user/controllers/user/user.controller";
-import { UserConfigService } from "@src/user/services/user-config/user-config.service";
 import { APP_INITIALIZER, ON_APP_START } from "./core/providers/app-initializer";
 
 const program = new Command();
@@ -73,18 +71,6 @@ program
   .action(async (options, command) => {
     await executeCliHandler(command.name(), async () => {
       await container.resolve(GpuBotController).createGpuBids();
-    });
-  });
-
-const userConfig = container.resolve(UserConfigService);
-program
-  .command("cleanup-stale-anonymous-users")
-  .description(`Remove users that have been inactive for ${userConfig.get("STALE_ANONYMOUS_USERS_LIVE_IN_DAYS")} days`)
-  .option("-c, --concurrency <number>", "How many users are processed concurrently", value => z.number({ coerce: true }).optional().default(10).parse(value))
-  .option("-d, --dry-run", "Dry run the clean up stale anonymous users", false)
-  .action(async (options, command) => {
-    await executeCliHandler(command.name(), async () => {
-      await container.resolve(UserController).cleanUpStaleAnonymousUsers(options);
     });
   });
 
