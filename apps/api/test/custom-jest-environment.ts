@@ -26,5 +26,11 @@ export default class CustomJestEnvironment extends NodeEnvironment {
     } else {
       this.global.process.env.DERIVATION_WALLET_MNEMONIC = await new Wallet().getMnemonic();
     }
+
+    if (localConfig.OLD_MASTER_WALLET_MNEMONIC) {
+      this.global.process.env.OLD_MASTER_WALLET_MNEMONIC = localConfig.OLD_MASTER_WALLET_MNEMONIC;
+    } else {
+      this.global.process.env.OLD_MASTER_WALLET_MNEMONIC = await new Wallet().getMnemonic();
+    }
   }
 }
