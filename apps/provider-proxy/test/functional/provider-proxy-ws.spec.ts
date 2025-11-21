@@ -5,21 +5,19 @@ import type { TLSSocket } from "tls";
 import WebSocket from "ws";
 
 import { createX509CertPair } from "../seeders/createX509CertPair";
-import { generateBech32, startGrpcServer, stopGrpcServer } from "../setup/grpcServer";
+import { generateBech32, startChainApiServer, stopChainApiServer } from "../setup/chainApiServer";
 import { startProviderServer, stopProviderServer } from "../setup/providerServer";
 import { startServer, stopServer } from "../setup/proxyServer";
 
 describe("Provider proxy ws", () => {
-  afterEach(() => {
-    stopProviderServer();
-    stopServer();
-    stopGrpcServer();
+  afterEach(async () => {
+    await Promise.all([stopServer(), stopProviderServer(), stopChainApiServer()]);
   });
 
   it("proxies provider websocket messages", async () => {
     const providerAddress = generateBech32();
     const certPair = createX509CertPair({ commonName: providerAddress });
-    const chainServer = await startGrpcServer([certPair.cert]);
+    const chainServer = await startChainApiServer([certPair.cert]);
     const { providerUrl } = await startProviderServer({
       certPair,
       websocketServer: {
@@ -53,7 +51,7 @@ describe("Provider proxy ws", () => {
   it("responds to ping messages", async () => {
     const providerAddress = generateBech32();
     const certPair = createX509CertPair({ commonName: providerAddress });
-    const chainServer = await startGrpcServer([certPair.cert]);
+    const chainServer = await startChainApiServer([certPair.cert]);
     await startProviderServer({
       certPair,
       websocketServer: {
@@ -79,7 +77,7 @@ describe("Provider proxy ws", () => {
   it("does not connect to provider socket until 1st message is sent", async () => {
     const providerAddress = generateBech32();
     const certPair = createX509CertPair({ commonName: providerAddress });
-    const chainServer = await startGrpcServer([certPair.cert]);
+    const chainServer = await startChainApiServer([certPair.cert]);
     const { providerUrl } = await startProviderServer({
       certPair,
       websocketServer: {
@@ -104,7 +102,7 @@ describe("Provider proxy ws", () => {
   it('does not send message to provider socket if "data" property is empty', async () => {
     const providerAddress = generateBech32();
     const certPair = createX509CertPair({ commonName: providerAddress });
-    const chainServer = await startGrpcServer([certPair.cert]);
+    const chainServer = await startChainApiServer([certPair.cert]);
     const { providerUrl } = await startProviderServer({
       certPair,
       websocketServer: {
@@ -130,7 +128,7 @@ describe("Provider proxy ws", () => {
     const onProviderWsClose = jest.fn();
     const providerAddress = generateBech32();
     const certPair = createX509CertPair({ commonName: providerAddress });
-    const chainServer = await startGrpcServer([certPair.cert]);
+    const chainServer = await startChainApiServer([certPair.cert]);
     const { providerUrl } = await startProviderServer({
       certPair,
       websocketServer: {
@@ -153,7 +151,7 @@ describe("Provider proxy ws", () => {
   it("sends close message if provider socket has been closed", async () => {
     const providerAddress = generateBech32();
     const certPair = createX509CertPair({ commonName: providerAddress });
-    const chainServer = await startGrpcServer([certPair.cert]);
+    const chainServer = await startChainApiServer([certPair.cert]);
     const { providerUrl } = await startProviderServer({
       certPair,
       websocketServer: {
@@ -182,7 +180,7 @@ describe("Provider proxy ws", () => {
   it('validates server certificate if "chainNetwork" and "providerAddress" are provided', async () => {
     const providerAddress = generateBech32();
     const validCertPair = createX509CertPair({ commonName: providerAddress });
-    const chainServer = await startGrpcServer([validCertPair.cert]);
+    const chainServer = await startChainApiServer([validCertPair.cert]);
     const { providerUrl } = await startProviderServer({
       certPair: validCertPair,
       websocketServer: {
@@ -229,7 +227,7 @@ describe("Provider proxy ws", () => {
   it("supports mtls authentication", async () => {
     const providerAddress = generateBech32();
     const certPair = createX509CertPair({ commonName: providerAddress });
-    const chainServer = await startGrpcServer([certPair.cert]);
+    const chainServer = await startChainApiServer([certPair.cert]);
     const { providerUrl } = await startProviderServer({
       certPair,
       requireClientCertificate: true,
@@ -293,7 +291,7 @@ describe("Provider proxy ws", () => {
   it("supports jwt authentication", async () => {
     const providerAddress = generateBech32();
     const certPair = createX509CertPair({ commonName: providerAddress });
-    const chainServer = await startGrpcServer([certPair.cert]);
+    const chainServer = await startChainApiServer([certPair.cert]);
     const { providerUrl } = await startProviderServer({
       certPair,
       requireClientCertificate: true,

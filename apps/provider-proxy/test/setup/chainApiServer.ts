@@ -47,7 +47,7 @@ function encodePageResponse(total: number): Buffer {
   return encodeField(5, 0, encodeVarint(total));
 }
 
-export function startGrpcServer(
+export function startChainApiServer(
   certificates: X509Certificate[],
   options?: GrpcServerOptions
 ): Promise<{
@@ -180,7 +180,7 @@ export function startGrpcServer(
   });
 }
 
-export async function stopGrpcServer(): Promise<void> {
+export async function stopChainApiServer(): Promise<void> {
   if (!grpcServer?.listening) {
     return;
   }
@@ -209,7 +209,7 @@ export function generateBech32() {
   const addressData = new Uint8Array(20);
 
   for (let i = 0; i < 20; i++) {
-    addressData[i] = Math.floor(Math.random() * 255);
+    addressData[i] = Math.floor(Math.random() * 256);
   }
 
   return toBech32("akash", addressData);

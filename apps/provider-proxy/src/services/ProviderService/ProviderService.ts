@@ -1,10 +1,8 @@
-import type { createChainNodeSDK } from "@akashnetwork/chain-sdk";
+import type { createChainNodeSDK, QueryInput } from "@akashnetwork/chain-sdk";
 import type { QueryCertificatesRequest, QueryCertificatesResponse } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import type { LoggerService } from "@akashnetwork/logging";
 import { ExponentialBackoff, handleWhen, retry } from "cockatiel";
-import type { DeepPartial } from "cosmjs-types/helpers";
 import { X509Certificate } from "crypto";
-import Long from "long";
 
 type ChainNodeSDK = ReturnType<typeof createChainNodeSDK>;
 
@@ -38,28 +36,32 @@ export class ProviderService {
   ) {}
 
   async getCertificate(providerAddress: string, serialNumber: string): Promise<X509Certificate | null> {
-    const queryParams: DeepPartial<QueryCertificatesRequest> = {
+    const queryParams: QueryInput<QueryCertificatesRequest> = {
       filter: {
         state: "valid",
         owner: providerAddress,
         serial: BigInt(`0x${serialNumber}`).toString(10)
       },
       pagination: {
-        limit: Long.fromNumber(1)
+        limit: 1
       }
     };
 
     try {
       const response = await this.fetchCertificate(queryParams);
-      return response.certificates.length === 1 ? new X509Certificate(response.certificates[0].certificate!.cert) : null;
+      if (response.certificates.length === 1) {
+        const cert = response.certificates[0]?.certificate?.cert;
+        return cert ? new X509Certificate(cert) : null;
+      }
+
+      return null;
     } catch (error: any) {
-      const { code } = error;
-      this.logger?.error({ event: "CERTIFICATE_FETCH_ERROR", providerAddress, serialNumber, code });
+      this.logger?.error({ event: "CERTIFICATE_FETCH_ERROR", providerAddress, serialNumber, error });
       return null;
     }
   }
 
-  private async fetchCertificate(getCertificatesParams: DeepPartial<QueryCertificatesRequest>): Promise<QueryCertificatesResponse> {
+  private async fetchCertificate(getCertificatesParams: QueryInput<QueryCertificatesRequest>): Promise<QueryCertificatesResponse> {
     return this.retryPolicy.execute(async () => {
       return await this.chainSdkClient.akash.cert.v1.getCertificates(getCertificatesParams as QueryCertificatesRequest);
     });
