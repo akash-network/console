@@ -107,25 +107,29 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
       expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(deployments.length);
       deployments.forEach((deployment, index) => {
-        expect(managedSignerService.executeDerivedTx).toHaveBeenCalledWith(deployment.walletId, [
-          {
-            typeUrl: "/akash.escrow.v1.MsgAccountDeposit",
-            value: {
-              signer: deployment.address,
-              id: {
-                scope: Scope.deployment,
-                xid: `${deployment.address}/${deployment.dseq}`
-              },
-              deposit: {
-                amount: {
-                  denom: DEPLOYMENT_GRANT_DENOM,
-                  amount: sufficientAmount.toString()
+        expect(managedSignerService.executeDerivedTx).toHaveBeenCalledWith(
+          deployment.walletId,
+          [
+            {
+              typeUrl: "/akash.escrow.v1.MsgAccountDeposit",
+              value: {
+                signer: deployment.address,
+                id: {
+                  scope: Scope.deployment,
+                  xid: `${deployment.address}/${deployment.dseq}`
                 },
-                sources: [Source.grant]
+                deposit: {
+                  amount: {
+                    denom: DEPLOYMENT_GRANT_DENOM,
+                    amount: sufficientAmount.toString()
+                  },
+                  sources: [Source.grant]
+                }
               }
             }
-          }
-        ]);
+          ],
+          false
+        );
         expect(logger.info).toHaveBeenCalledWith(
           expect.objectContaining({
             event: "TOP_UP_DEPLOYMENTS_SUCCESS",
@@ -275,42 +279,46 @@ describe(TopUpManagedDeploymentsService.name, () => {
       await service.topUpDeployments({ concurrency: 10, dryRun: false });
 
       expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(1);
-      expect(managedSignerService.executeDerivedTx).toHaveBeenCalledWith(walletId, [
-        {
-          typeUrl: "/akash.escrow.v1.MsgAccountDeposit",
-          value: {
-            signer: owner,
-            id: {
-              scope: Scope.deployment,
-              xid: `${owner}/${deployments[0].dseq}`
-            },
-            deposit: {
-              amount: {
-                denom: DEPLOYMENT_GRANT_DENOM,
-                amount: sufficientAmount.toString()
+      expect(managedSignerService.executeDerivedTx).toHaveBeenCalledWith(
+        walletId,
+        [
+          {
+            typeUrl: "/akash.escrow.v1.MsgAccountDeposit",
+            value: {
+              signer: owner,
+              id: {
+                scope: Scope.deployment,
+                xid: `${owner}/${deployments[0].dseq}`
               },
-              sources: [Source.grant]
+              deposit: {
+                amount: {
+                  denom: DEPLOYMENT_GRANT_DENOM,
+                  amount: sufficientAmount.toString()
+                },
+                sources: [Source.grant]
+              }
+            }
+          },
+          {
+            typeUrl: "/akash.escrow.v1.MsgAccountDeposit",
+            value: {
+              signer: owner,
+              id: {
+                scope: Scope.deployment,
+                xid: `${owner}/${deployments[1].dseq}`
+              },
+              deposit: {
+                amount: {
+                  denom: DEPLOYMENT_GRANT_DENOM,
+                  amount: sufficientAmount.toString()
+                },
+                sources: [Source.grant]
+              }
             }
           }
-        },
-        {
-          typeUrl: "/akash.escrow.v1.MsgAccountDeposit",
-          value: {
-            signer: owner,
-            id: {
-              scope: Scope.deployment,
-              xid: `${owner}/${deployments[1].dseq}`
-            },
-            deposit: {
-              amount: {
-                denom: DEPLOYMENT_GRANT_DENOM,
-                amount: sufficientAmount.toString()
-              },
-              sources: [Source.grant]
-            }
-          }
-        }
-      ]);
+        ],
+        false
+      );
     });
 
     it("should log errors when message preparation fails", async () => {

@@ -8,6 +8,7 @@ dotenv.config({ path: "env/.env.funding-wallet-index" });
 export const envSchema = z.object({
   FUNDING_WALLET_MNEMONIC: z.string(),
   FUNDING_WALLET_INDEX: z.number({ coerce: true }),
+  OLD_MASTER_WALLET_MNEMONIC: z.string(),
   DERIVATION_WALLET_MNEMONIC: z.string(),
   NETWORK: z.enum(["mainnet", "testnet", "sandbox"]),
   RPC_NODE_ENDPOINT: z.string(),

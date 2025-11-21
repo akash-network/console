@@ -97,15 +97,17 @@ export class WalletController {
 
   async getBalances(address?: string): Promise<GetBalancesResponseOutput> {
     let currentAddress = address;
+    let isOldWallet = false;
 
     if (!currentAddress) {
       const { currentUser, ability } = this.authService;
       const userWallet = await this.userWalletRepository.accessibleBy(ability, "read").findOneByUserId(currentUser.id);
       assert(userWallet?.address, 404, "UserWallet Not Found");
       currentAddress = userWallet.address;
+      isOldWallet = userWallet.isOldWallet ?? false;
     }
 
-    return this.balancesService.getFullBalance(currentAddress);
+    return this.balancesService.getFullBalance(currentAddress, isOldWallet);
   }
 
   @Protected([{ action: "sign", subject: "UserWallet" }])

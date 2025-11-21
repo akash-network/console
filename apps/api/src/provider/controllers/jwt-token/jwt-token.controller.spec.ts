@@ -31,7 +31,8 @@ describe(JwtTokenController.name, () => {
       expect(providerJwtTokenService.generateJwtToken).toHaveBeenCalledWith({
         walletId: wallet.id,
         leases: payload.leases,
-        ttl: payload.ttl
+        ttl: payload.ttl,
+        useOldWallet: false
       });
     });
 
