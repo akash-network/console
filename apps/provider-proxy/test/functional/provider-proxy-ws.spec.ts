@@ -5,15 +5,13 @@ import type { TLSSocket } from "tls";
 import WebSocket from "ws";
 
 import { createX509CertPair } from "../seeders/createX509CertPair";
-import { generateBech32, startChainApiServer, stopChainAPIServer } from "../setup/chainApiServer";
+import { generateBech32, startChainApiServer, stopChainApiServer } from "../setup/chainApiServer";
 import { startProviderServer, stopProviderServer } from "../setup/providerServer";
 import { startServer, stopServer } from "../setup/proxyServer";
 
 describe("Provider proxy ws", () => {
-  afterEach(() => {
-    stopProviderServer();
-    stopServer();
-    stopChainAPIServer();
+  afterEach(async () => {
+    await Promise.all([stopServer(), stopProviderServer(), stopChainApiServer()]);
   });
 
   it("proxies provider websocket messages", async () => {
@@ -36,7 +34,7 @@ describe("Provider proxy ws", () => {
         }
       }
     });
-    const proxyServerUrl = await startServer({ REST_API_NODE_URL: chainServer.url });
+    const proxyServerUrl = await startServer({ GRPC_NODE_URL: chainServer.url });
     const ws = new WebSocket(`${proxyServerUrl}/ws`);
 
     await new Promise(resolve => ws.once("open", resolve));
@@ -67,7 +65,7 @@ describe("Provider proxy ws", () => {
         }
       }
     });
-    const proxyServerUrl = await startServer({ REST_API_NODE_URL: chainServer.url });
+    const proxyServerUrl = await startServer({ GRPC_NODE_URL: chainServer.url });
     const ws = new WebSocket(`${proxyServerUrl}/ws`);
 
     await new Promise(resolve => ws.once("open", resolve));
@@ -87,7 +85,7 @@ describe("Provider proxy ws", () => {
         onConnection: pws => pws.send("connected")
       }
     });
-    const proxyServerUrl = await startServer({ REST_API_NODE_URL: chainServer.url });
+    const proxyServerUrl = await startServer({ GRPC_NODE_URL: chainServer.url });
     const ws = new WebSocket(`${proxyServerUrl}/ws`);
 
     const [providerMessageOnConnect] = await Promise.all([
@@ -115,7 +113,7 @@ describe("Provider proxy ws", () => {
           })
       }
     });
-    const proxyServerUrl = await startServer({ REST_API_NODE_URL: chainServer.url });
+    const proxyServerUrl = await startServer({ GRPC_NODE_URL: chainServer.url });
     const ws = new WebSocket(`${proxyServerUrl}/ws`);
 
     await new Promise(resolve => ws.once("open", resolve));
@@ -138,7 +136,7 @@ describe("Provider proxy ws", () => {
         onConnection: pws => pws.on("close", onProviderWsClose)
       }
     });
-    const proxyServerUrl = await startServer({ REST_API_NODE_URL: chainServer.url });
+    const proxyServerUrl = await startServer({ GRPC_NODE_URL: chainServer.url });
     const ws = new WebSocket(`${proxyServerUrl}/ws`);
 
     await new Promise(resolve => ws.once("open", resolve));
@@ -166,7 +164,7 @@ describe("Provider proxy ws", () => {
           })
       }
     });
-    const proxyServerUrl = await startServer({ REST_API_NODE_URL: chainServer.url });
+    const proxyServerUrl = await startServer({ GRPC_NODE_URL: chainServer.url });
     const ws = new WebSocket(`${proxyServerUrl}/ws`);
 
     await new Promise(resolve => ws.once("open", resolve)), ws.send(JSON.stringify(ourMessage("please_close", providerUrl, { providerAddress })));
@@ -193,7 +191,7 @@ describe("Provider proxy ws", () => {
         }
       }
     });
-    const proxyServerUrl = await startServer({ REST_API_NODE_URL: chainServer.url });
+    const proxyServerUrl = await startServer({ GRPC_NODE_URL: chainServer.url });
     const ws = new WebSocket(`${proxyServerUrl}/ws`);
     await new Promise(resolve => ws.once("open", resolve));
 
@@ -241,7 +239,7 @@ describe("Provider proxy ws", () => {
         }
       }
     });
-    const proxyServerUrl = await startServer({ REST_API_NODE_URL: chainServer.url });
+    const proxyServerUrl = await startServer({ GRPC_NODE_URL: chainServer.url });
     const ws = new WebSocket(`${proxyServerUrl}/ws`);
 
     await new Promise(resolve => ws.once("open", resolve));
@@ -304,7 +302,7 @@ describe("Provider proxy ws", () => {
         }
       }
     });
-    const proxyServerUrl = await startServer({ REST_API_NODE_URL: chainServer.url });
+    const proxyServerUrl = await startServer({ GRPC_NODE_URL: chainServer.url });
     const ws = new WebSocket(`${proxyServerUrl}/ws`);
 
     await new Promise(resolve => ws.once("open", resolve));
