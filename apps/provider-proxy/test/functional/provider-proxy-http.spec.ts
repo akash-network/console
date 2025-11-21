@@ -5,7 +5,7 @@ import { setTimeout as wait } from "timers/promises";
 import type { TLSSocket } from "tls";
 
 import { createX509CertPair } from "../seeders/createX509CertPair";
-import { generateBech32, startGrpcServer, stopGrpcServer } from "../setup/grpcServer";
+import { generateBech32, startChainApiServer, stopChainApiServer } from "../setup/chainApiServer";
 import { startProviderServer, stopProviderServer } from "../setup/providerServer";
 import { request } from "../setup/proxyServer";
 import { startServer, stopServer } from "../setup/proxyServer";
@@ -15,14 +15,14 @@ describe("Provider HTTP proxy", () => {
   const ONE_HOUR = 60 * 60 * 1000;
 
   afterEach(async () => {
-    await Promise.all([stopServer(), stopProviderServer(), stopGrpcServer()]);
+    await Promise.all([stopServer(), stopProviderServer(), stopChainApiServer()]);
   });
 
   it("proxies request if provider uses self-signed certificate which is available on chain", async () => {
     const providerAddress = generateBech32();
     const validCertPair = createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
 
-    const grpcServer = await startGrpcServer([validCertPair.cert]);
+    const grpcServer = await startChainApiServer([validCertPair.cert]);
     const { providerUrl } = await startProviderServer({ certPair: validCertPair });
     await startServer({ GRPC_NODE_URL: grpcServer.url });
 
@@ -47,7 +47,7 @@ describe("Provider HTTP proxy", () => {
     const providerAddress = generateBech32();
     const validCertPair = createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
 
-    const grpcServer = await startGrpcServer([validCertPair.cert]);
+    const grpcServer = await startChainApiServer([validCertPair.cert]);
     const { providerUrl } = await startProviderServer({ certPair: validCertPair });
     await startServer({ GRPC_NODE_URL: grpcServer.url });
 
@@ -73,7 +73,7 @@ describe("Provider HTTP proxy", () => {
     const providerAddress = generateBech32();
     const validCertPair = createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
 
-    const grpcServer = await startGrpcServer([validCertPair.cert]);
+    const grpcServer = await startChainApiServer([validCertPair.cert]);
     const { providerUrl } = await startProviderServer({ certPair: validCertPair });
     await startServer({ GRPC_NODE_URL: grpcServer.url });
 
@@ -86,7 +86,7 @@ describe("Provider HTTP proxy", () => {
         network
       })
     });
-    await stopGrpcServer();
+    await stopChainApiServer();
 
     response = await request("/", {
       method: "POST",
@@ -108,7 +108,7 @@ describe("Provider HTTP proxy", () => {
     const providerAddress = generateBech32();
     const validCertPair = createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
 
-    const grpcServer = await startGrpcServer([
+    const grpcServer = await startChainApiServer([
       createX509CertPair({
         commonName: providerAddress,
         validFrom: new Date(Date.now() + ONE_HOUR),
@@ -149,7 +149,7 @@ describe("Provider HTTP proxy", () => {
       validTo: new Date(Date.now() - ONE_HOUR)
     });
 
-    const grpcServer = await startGrpcServer([
+    const grpcServer = await startChainApiServer([
       createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() + ONE_HOUR) }).cert,
       validCertPair.cert
     ]);
@@ -185,7 +185,7 @@ describe("Provider HTTP proxy", () => {
     const providerAddress = generateBech32();
     const validCertPair = createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
 
-    const grpcServer = await startGrpcServer([validCertPair.cert]);
+    const grpcServer = await startChainApiServer([validCertPair.cert]);
     const { providerUrl } = await startProviderServer({
       certPair: validCertPair
     });
@@ -233,8 +233,8 @@ describe("Provider HTTP proxy", () => {
 
     const { providerUrl } = await startProviderServer({ certPair: validCertPair });
     // start server early to reserve port
-    const grpcServer = await startGrpcServer([validCertPair.cert]);
-    await stopGrpcServer();
+    const grpcServer = await startChainApiServer([validCertPair.cert]);
+    await stopChainApiServer();
 
     await startServer({ GRPC_NODE_URL: grpcServer.url });
 
@@ -249,7 +249,7 @@ describe("Provider HTTP proxy", () => {
     });
     await wait(200); // intentional delay to ensure retry logic works
     const grpcServerUrl = new URL(grpcServer.url);
-    await startGrpcServer([validCertPair.cert], { port: Number(grpcServerUrl.port) });
+    await startChainApiServer([validCertPair.cert], { port: Number(grpcServerUrl.port) });
 
     const response = await responsePromise;
 
@@ -266,7 +266,7 @@ describe("Provider HTTP proxy", () => {
 
     const { providerUrl } = await startProviderServer({ certPair: validCertPair });
     let isRespondedWithGrpc14 = false;
-    const grpcServer = await startGrpcServer([validCertPair.cert], {
+    const grpcServer = await startChainApiServer([validCertPair.cert], {
       interceptRequest() {
         if (isRespondedWithGrpc14) {
           return false;
@@ -316,7 +316,7 @@ describe("Provider HTTP proxy", () => {
         }
       }
     });
-    const grpcServer = await startGrpcServer([validCertPair.cert]);
+    const grpcServer = await startChainApiServer([validCertPair.cert]);
     await startServer({ GRPC_NODE_URL: grpcServer.url });
 
     const response = await request("/", {
@@ -361,7 +361,7 @@ describe("Provider HTTP proxy", () => {
         }
       }
     });
-    const grpcServer = await startGrpcServer([validCertPair.cert]);
+    const grpcServer = await startChainApiServer([validCertPair.cert]);
     await startServer({ GRPC_NODE_URL: grpcServer.url });
 
     const response = await request("/", {
@@ -395,7 +395,7 @@ describe("Provider HTTP proxy", () => {
         }
       }
     });
-    const grpcServer = await startGrpcServer([validCertPair.cert]);
+    const grpcServer = await startChainApiServer([validCertPair.cert]);
     await startServer({ GRPC_NODE_URL: grpcServer.url });
 
     const response = await request("/", {
@@ -419,7 +419,7 @@ describe("Provider HTTP proxy", () => {
       commonName: providerAddress
     });
 
-    const grpcServer = await startGrpcServer([validCertPair.cert]);
+    const grpcServer = await startChainApiServer([validCertPair.cert]);
     await startServer({ GRPC_NODE_URL: grpcServer.url });
     const providerUrl = `https://some-unknown-host-${Date.now()}.com/200`;
 
@@ -453,7 +453,7 @@ describe("Provider HTTP proxy", () => {
         }
       }
     });
-    const grpcServer = await startGrpcServer([validCertPair.cert]);
+    const grpcServer = await startChainApiServer([validCertPair.cert]);
     await startServer({ GRPC_NODE_URL: grpcServer.url });
 
     const response = await request("/", {
@@ -485,7 +485,7 @@ describe("Provider HTTP proxy", () => {
     const { providerUrl } = await startProviderServer({
       certPair: validCertPair
     });
-    const grpcServer = await startGrpcServer([invalidClientCertPair.cert]);
+    const grpcServer = await startChainApiServer([invalidClientCertPair.cert]);
     await startServer({ GRPC_NODE_URL: grpcServer.url });
 
     const response = await request("/", {
@@ -527,7 +527,7 @@ describe("Provider HTTP proxy", () => {
     const validCertPair = createX509CertPair({
       commonName: providerAddress
     });
-    const grpcServer = await startGrpcServer([validCertPair.cert]);
+    const grpcServer = await startChainApiServer([validCertPair.cert]);
 
     const providerStreamingBegun = Promise.withResolvers<void>();
     const providerResponseEnded = jest.fn();
@@ -580,7 +580,7 @@ describe("Provider HTTP proxy", () => {
     const validCertPair = createX509CertPair({
       commonName: providerAddress
     });
-    const grpcServer = await startGrpcServer([validCertPair.cert]);
+    const grpcServer = await startChainApiServer([validCertPair.cert]);
 
     const { providerUrl } = await startProviderServer({
       certPair: validCertPair,
@@ -627,7 +627,7 @@ describe("Provider HTTP proxy", () => {
     const validCertPair = createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
     const clientCertPair = createX509CertPair({ commonName: generateBech32() });
 
-    const grpcServer = await startGrpcServer([validCertPair.cert]);
+    const grpcServer = await startChainApiServer([validCertPair.cert]);
     const { providerUrl } = await startProviderServer({
       certPair: validCertPair,
       requireClientCertificate: true,
@@ -697,7 +697,7 @@ describe("Provider HTTP proxy", () => {
     const providerAddress = generateBech32();
     const validCertPair = createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
 
-    const grpcServer = await startGrpcServer([validCertPair.cert]);
+    const grpcServer = await startChainApiServer([validCertPair.cert]);
     const { providerUrl } = await startProviderServer({
       certPair: validCertPair,
       requireClientCertificate: true,

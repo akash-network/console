@@ -1,5 +1,4 @@
 import { type createChainNodeSDK, SDKError } from "@akashnetwork/chain-sdk";
-import Long from "long";
 
 import type { CertificateOptions } from "../../../test/seeders/createX509CertPair";
 import { createX509CertPair } from "../../../test/seeders/createX509CertPair";
@@ -23,7 +22,7 @@ describe(ProviderService.name, () => {
           serial: "1691156354324274790"
         },
         pagination: {
-          limit: Long.fromNumber(1)
+          limit: 1
         }
       });
       expect(result).toBe(null);
