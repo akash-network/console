@@ -198,12 +198,20 @@ describe(TxManagerService.name, () => {
       getFirstAddress: jest.fn().mockResolvedValue(fundingWalletAddress)
     });
 
+    const oldMasterWallet = mock<Wallet>({
+      getFirstAddress: jest.fn().mockResolvedValue(createAkashAddress())
+    });
+
     const derivedWallet = mock<Wallet>({
       getFirstAddress: jest.fn().mockResolvedValue(derivedWalletAddress)
     });
 
     const fundingSigningClient = mock<BatchSigningClientService>({
       signAndBroadcast: input?.fundingSignAndBroadcast ?? jest.fn()
+    });
+
+    const oldMasterSigningClient = mock<BatchSigningClientService>({
+      signAndBroadcast: jest.fn()
     });
 
     const derivedSigningClient = mock<BatchSigningClientService>({
@@ -215,20 +223,36 @@ describe(TxManagerService.name, () => {
       return derivedWallet;
     });
 
+    const oldWalletFactory = jest.fn().mockImplementation((_index: number) => {
+      return derivedWallet;
+    });
+
     const batchSigningClientServiceFactory = jest.fn().mockImplementation((_wallet: Wallet) => {
       return derivedSigningClient;
     });
 
     const logger = mock<LoggerService>();
 
-    const service = new TxManagerService(fundingWallet, fundingSigningClient, walletFactory, batchSigningClientServiceFactory, logger);
+    const service = new TxManagerService(
+      fundingWallet,
+      fundingSigningClient,
+      oldMasterWallet,
+      oldMasterSigningClient,
+      walletFactory,
+      oldWalletFactory,
+      batchSigningClientServiceFactory,
+      logger
+    );
 
     return {
       service,
       walletFactory,
+      oldWalletFactory,
       fundingWallet,
+      oldMasterWallet,
       derivedWallet,
       fundingSigningClient,
+      oldMasterSigningClient,
       derivedSigningClient,
       batchSigningClientServiceFactory,
       logger

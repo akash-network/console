@@ -23,7 +23,8 @@ export class UserWalletSeeder {
       isTrialing,
       creditAmount: deploymentAllowance,
       createdAt,
-      updatedAt
+      updatedAt,
+      isOldWallet: false
     };
   }
 }
