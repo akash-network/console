@@ -10,6 +10,7 @@ import { setTimeout as delay } from "timers/promises";
 import { singleton } from "tsyringe";
 
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { DerivationOptions } from "@src/billing/services/tx-manager/tx-manager.service";
 import { LeaseStatusResponse } from "@src/deployment/http-schemas/lease.schema";
 import { ProviderRepository } from "@src/provider/repositories/provider/provider.repository";
 import { ProviderAuth, ProviderIdentity, ProviderMtlsAuth, ProviderProxyService } from "@src/provider/services/provider/provider-proxy.service";
@@ -52,10 +53,10 @@ export class ProviderService {
     return await this.sendManifestToProvider({ dseq: options.dseq, manifest, auth: options.auth, providerIdentity });
   }
 
-  async toProviderAuth(auth: Omit<ProviderMtlsAuth, "type"> | { walletId: number; provider: string }): Promise<ProviderAuth> {
-    if ("walletId" in auth) {
+  async toProviderAuth(auth: Omit<ProviderMtlsAuth, "type"> | (DerivationOptions & { provider: string })): Promise<ProviderAuth> {
+    if ("id" in auth) {
       const result = await this.jwtTokenService.generateJwtToken({
-        walletId: auth.walletId,
+        derivationOptions: auth,
         leases: this.jwtTokenService.getGranularLeases({
           provider: auth.provider,
           scope: ["send-manifest"]

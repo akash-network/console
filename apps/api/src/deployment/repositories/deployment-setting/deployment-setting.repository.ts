@@ -19,6 +19,8 @@ export type DeploymentSettingsOutput = Omit<DeploymentSettingsDbOutput, "created
 export type AutoTopUpDeployment = {
   id: string;
   walletId: number;
+  derivedFrom: string;
+  fundedBy: string;
   dseq: string;
   address: string;
   isOldWallet: boolean | null;
@@ -54,7 +56,8 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
           dseq: this.table.dseq,
           walletId: UserWallets.id,
           address: UserWallets.address,
-          isOldWallet: UserWallets.isOldWallet
+          derivedFrom: UserWallets.derivedFrom,
+          fundedBy: UserWallets.fundedBy
         })
         .from(this.table)
         .leftJoin(Users, eq(this.table.userId, Users.id))

@@ -10,7 +10,7 @@ import { AuthService } from "@src/auth/services/auth.service";
 import { TrialDeploymentLeaseCreated } from "@src/billing/events/trial-deployment-lease-created";
 import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provider";
 import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
-import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
+import { DerivationOptions, FundingOptions, TxManagerService, UserWalletOptions } from "@src/billing/services/tx-manager/tx-manager.service";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
@@ -37,25 +37,20 @@ export class ManagedSignerService {
     private readonly leaseHttpService: LeaseHttpService
   ) {}
 
-  async executeDerivedTx(walletIndex: number, messages: readonly EncodeObject[], useOldWallet: boolean = false) {
+  async executeDerivedTx(options: DerivationOptions & FundingOptions, messages: readonly EncodeObject[]) {
     try {
-      const granter = await this.txManagerService.getFundingWalletAddress(useOldWallet);
-      return await this.txManagerService.signAndBroadcastWithDerivedWallet(
-        walletIndex,
-        messages,
-        {
-          fee: { granter }
-        },
-        useOldWallet
-      );
+      const granter = await this.txManagerService.getFundingWalletAddress(options);
+      return await this.txManagerService.signAndBroadcastWithDerivedWallet(options, messages, {
+        fee: { granter }
+      });
     } catch (error: any) {
       throw await this.chainErrorService.toAppError(error, messages);
     }
   }
 
-  async executeFundingTx(messages: readonly EncodeObject[], useOldWallet: boolean = false) {
+  async executeFundingTx(userWallet: FundingOptions, messages: readonly EncodeObject[]) {
     try {
-      return await this.txManagerService.signAndBroadcastWithFundingWallet(messages, useOldWallet);
+      return await this.txManagerService.signAndBroadcastWithFundingWallet(userWallet, messages);
     } catch (error: any) {
       throw await this.chainErrorService.toAppError(error, messages);
     }
@@ -121,7 +116,7 @@ export class ManagedSignerService {
     const hasCreateTrialLeaseMessage = userWallet.isTrialing && !!createLeaseMessage && !this.featureFlagsService.isEnabled(FeatureFlags.ANONYMOUS_FREE_TRIAL);
     const hasLeases = hasCreateTrialLeaseMessage ? await this.leaseHttpService.hasLeases(userWallet.address!) : null;
 
-    const tx = await this.executeDerivedTx(userWallet.id, messages, userWallet.isOldWallet ?? false);
+    const tx = await this.executeDerivedTx(userWallet, messages);
 
     if (hasCreateTrialLeaseMessage) {
       await this.domainEvents.publish(

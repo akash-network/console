@@ -34,7 +34,12 @@ export class ProviderCleanupService {
             event: "PROVIDER_CLEAN_UP_ERROR",
             context: ProviderCleanupService.name
           },
-          () => this.cleanUpForWallet(wallet, options, summary)
+          async () => {
+            const { address } = wallet;
+            if (address) {
+              await this.cleanUpForWallet({ ...wallet, address }, options, summary);
+            }
+          }
         );
       });
 
@@ -44,7 +49,11 @@ export class ProviderCleanupService {
     this.logger.info({ event: "PROVIDER_CLEAN_UP_SUMMARY", summary: summary.summarize(), dryRun: options.dryRun });
   }
 
-  private async cleanUpForWallet(wallet: UserWalletOutput, options: ProviderCleanupParams, summary: ProviderCleanupSummarizer) {
+  private async cleanUpForWallet(
+    wallet: Omit<UserWalletOutput, "address"> & { address: string },
+    options: ProviderCleanupParams,
+    summary: ProviderCleanupSummarizer
+  ) {
     const deployments = await this.deploymentRepository.findDeploymentsForProvider({
       owner: wallet.address!,
       provider: options.provider
@@ -56,22 +65,18 @@ export class ProviderCleanupService {
 
       try {
         if (!options.dryRun) {
-          await this.managedSignerService.executeDerivedTx(wallet.id, [message], wallet.isOldWallet ?? false);
+          await this.managedSignerService.executeDerivedTx(wallet, [message]);
           this.logger.info({ event: "PROVIDER_CLEAN_UP_SUCCESS" });
         }
       } catch (error: any) {
         if (error.message.includes("not allowed to pay fees")) {
           if (!options.dryRun) {
-            await this.managedUserWalletService.authorizeSpending(
-              {
-                address: wallet.address!,
-                limits: {
-                  fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT
-                }
-              },
-              wallet.isOldWallet ?? false
-            );
-            await this.managedSignerService.executeDerivedTx(wallet.id, [message], wallet.isOldWallet ?? false);
+            await this.managedUserWalletService.authorizeSpending(wallet, {
+              limits: {
+                fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT
+              }
+            });
+            await this.managedSignerService.executeDerivedTx(wallet, [message]);
             this.logger.info({ event: "PROVIDER_CLEAN_UP_SUCCESS" });
           }
         } else {

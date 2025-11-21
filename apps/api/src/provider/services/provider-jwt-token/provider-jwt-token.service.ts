@@ -4,7 +4,7 @@ import { Err, Ok, Result } from "ts-results";
 import { inject, singleton } from "tsyringe";
 import * as uuid from "uuid";
 
-import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
+import { DerivationOptions, TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { Memoize } from "@src/caching/helpers";
 import { JWT_MODULE, JWTModule } from "@src/provider/providers/jwt.provider";
 
@@ -16,10 +16,9 @@ type JwtTokenWithAddress = {
 };
 
 type GenerateJwtTokenParams = {
-  walletId: number;
+  derivationOptions: DerivationOptions;
   leases: JwtTokenPayload["leases"];
   ttl?: number;
-  useOldWallet?: boolean;
 };
 
 type AccessScope = Extract<Extract<JwtTokenPayload["leases"], { access: "granular" }>["permissions"][number], { access: "scoped" }>["scope"][number];
@@ -31,13 +30,8 @@ export class ProviderJwtTokenService {
     private readonly txManagerService: TxManagerService
   ) {}
 
-  async generateJwtToken({
-    walletId,
-    leases,
-    ttl = JWT_TOKEN_TTL_IN_SECONDS,
-    useOldWallet = false
-  }: GenerateJwtTokenParams): Promise<Result<string, string[]>> {
-    const { jwtTokenManager, address } = await this.getJwtToken(walletId, useOldWallet);
+  async generateJwtToken({ derivationOptions, leases, ttl = JWT_TOKEN_TTL_IN_SECONDS }: GenerateJwtTokenParams): Promise<Result<string, string[]>> {
+    const { jwtTokenManager, address } = await this.getJwtToken(derivationOptions);
     const now = Math.floor(Date.now() / 1000);
     const payload: JwtTokenPayload = {
       version: "v1",
@@ -56,8 +50,8 @@ export class ProviderJwtTokenService {
   }
 
   @Memoize({ ttlInSeconds: minutesToSeconds(5) })
-  private async getJwtToken(walletId: number, useOldWallet: boolean = false): Promise<JwtTokenWithAddress> {
-    const wallet = this.txManagerService.getDerivedWallet(walletId, useOldWallet);
+  private async getJwtToken(derivationOptions: DerivationOptions): Promise<JwtTokenWithAddress> {
+    const wallet = await this.txManagerService.getDerivedWallet(derivationOptions);
     const jwtTokenManager = new this.jwtModule.JwtTokenManager(wallet);
     const address = await wallet.getFirstAddress();
 

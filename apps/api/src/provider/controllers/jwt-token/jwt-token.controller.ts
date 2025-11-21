@@ -23,10 +23,9 @@ export class JwtTokenController {
     if (!wallet) return Err(new BadRequest("User does not have a wallet"));
 
     const result = await this.providerJwtTokenService.generateJwtToken({
-      walletId: wallet.id,
+      derivationOptions: wallet,
       leases: payload.leases as JwtTokenPayload["leases"],
-      ttl: payload.ttl,
-      useOldWallet: wallet.isOldWallet ?? false
+      ttl: payload.ttl
     });
 
     return result.map(token => ({ token })).mapErr(errors => new BadRequest(errors.join(".\n")));

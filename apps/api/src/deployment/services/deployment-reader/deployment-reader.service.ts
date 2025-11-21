@@ -68,7 +68,7 @@ export class DeploymentReaderService {
             lease.id.dseq,
             lease.id.gseq,
             lease.id.oseq,
-            await this.providerService.toProviderAuth(options?.certificate || { walletId: wallet.id, provider: lease.id.provider })
+            await this.providerService.toProviderAuth(options?.certificate || { id: wallet.id, derivedFrom: wallet.derivedFrom, provider: lease.id.provider })
           );
           return {
             lease,

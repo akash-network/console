@@ -22,9 +22,10 @@ export class RemainingCreditsService implements Resolver {
 
   async resolve(user: UserOutput) {
     const userWallet = await this.userWalletRepository.findOneByUserId(user.id);
+    const { address } = userWallet || {};
 
-    if (userWallet?.address) {
-      const limitInUusdc = await this.balanceService.retrieveDeploymentLimit(userWallet);
+    if (userWallet && address) {
+      const limitInUusdc = await this.balanceService.retrieveDeploymentLimit({ ...userWallet, address });
       return udenomToDenom(limitInUusdc);
     } else {
       this.loggerService.warn({
