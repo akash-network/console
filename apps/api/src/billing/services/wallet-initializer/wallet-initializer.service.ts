@@ -2,7 +2,7 @@ import { singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
 import { TrialStarted } from "@src/billing/events/trial-started";
-import { UserWalletInput, UserWalletPublicOutput, UserWalletRepository } from "@src/billing/repositories";
+import { UserWalletInput, type UserWalletOutput, UserWalletPublicOutput, UserWalletRepository } from "@src/billing/repositories";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
@@ -25,13 +25,13 @@ export class WalletInitializerService {
 
     let isTrialSpendingAuthorized = false;
     try {
-      const wallet = await this.walletManager.createAndAuthorizeTrialSpending({ addressIndex: userWallet.id, useOldWallet: false });
+      const wallet = await this.walletManager.createAndAuthorizeTrialSpending({ addressIndex: userWallet.id });
       userWallet = await this.userWalletRepository.updateById(
         userWallet.id,
         {
-          address: wallet.address,
           deploymentAllowance: wallet.limits.deployment,
-          feeAllowance: wallet.limits.fees
+          feeAllowance: wallet.limits.fees,
+          ...wallet.addresses
         },
         { returning: true }
       );
@@ -50,15 +50,9 @@ export class WalletInitializerService {
     return walletOutput;
   }
 
-  async initialize(userId: UserWalletInput["userId"]) {
+  async initialize(userId: UserWalletInput["userId"]): Promise<Omit<UserWalletOutput, "address"> & { address: string }> {
     const { id } = await this.userWalletRepository.create({ userId });
-    const wallet = await this.walletManager.createWallet({ addressIndex: id, useOldWallet: false });
-    return await this.userWalletRepository.updateById(
-      id,
-      {
-        address: wallet.address
-      },
-      { returning: true }
-    );
+    const wallet = await this.walletManager.createWallet({ addressIndex: id });
+    return await this.userWalletRepository.updateById(id, wallet, { returning: true });
   }
 }

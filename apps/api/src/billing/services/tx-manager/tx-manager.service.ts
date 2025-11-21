@@ -5,6 +5,7 @@ import { BatchSigningClientService, SignAndBroadcastOptions } from "@src/billing
 import { createSigningStargateClient } from "@src/billing/lib/signing-stargate-client-factory/signing-stargate-client.factory";
 import { Wallet } from "@src/billing/lib/wallet/wallet";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
+import { UserWalletOutput } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { LoggerService } from "@src/core";
 
@@ -13,35 +14,20 @@ type CachedClient = {
   client: BatchSigningClientService;
 };
 
-const FUNDING_WALLET: InjectionToken<Wallet> = Symbol("FUNDING_WALLET");
-container.register(FUNDING_WALLET, {
+const FUNDING_WALLETS: InjectionToken<Wallet[]> = Symbol("FUNDING_WALLETS");
+container.register(FUNDING_WALLETS, {
   useFactory: instancePerContainerCachingFactory(c => {
     const config = c.resolve(BillingConfigService);
-    return new Wallet(config.get("FUNDING_WALLET_MNEMONIC"), config.get("FUNDING_WALLET_INDEX"));
+    return config.get("FUNDING_WALLET_MNEMONICS").map(mnemonic => new Wallet(mnemonic));
   })
 });
 
-const OLD_MASTER_WALLET: InjectionToken<Wallet> = Symbol("OLD_MASTER_WALLET");
-container.register(OLD_MASTER_WALLET, {
+const DERIVATION_WALLETS: InjectionToken<Wallet[]> = Symbol("DERIVATION_WALLETS");
+container.register(DERIVATION_WALLETS, {
   useFactory: instancePerContainerCachingFactory(c => {
     const config = c.resolve(BillingConfigService);
-    return new Wallet(config.get("OLD_MASTER_WALLET_MNEMONIC"), 0);
+    return config.get("DERIVATION_WALLET_MNEMONICS").map(mnemonic => new Wallet(mnemonic));
   })
-});
-
-export type WalletFactory = (walletIndex?: number) => Wallet;
-const DERIVED_WALLET_FACTORY: InjectionToken<WalletFactory> = Symbol("DERIVED_WALLET_FACTORY");
-container.register(DERIVED_WALLET_FACTORY, {
-  useFactory: c => {
-    return (walletIndex: number) => new Wallet(c.resolve(BillingConfigService).get("DERIVATION_WALLET_MNEMONIC"), walletIndex);
-  }
-});
-
-const OLD_DERIVED_WALLET_FACTORY: InjectionToken<WalletFactory> = Symbol("OLD_DERIVED_WALLET_FACTORY");
-container.register(OLD_DERIVED_WALLET_FACTORY, {
-  useFactory: c => {
-    return (walletIndex: number) => new Wallet(c.resolve(BillingConfigService).get("OLD_MASTER_WALLET_MNEMONIC"), walletIndex);
-  }
 });
 
 export type BatchSigningClientServiceFactory = (wallet: Wallet, loggerContext?: string) => BatchSigningClientService;
@@ -54,56 +40,102 @@ container.register(BATCH_SIGNING_CLIENT_FACTORY, {
   }
 });
 
-const FUNDING_SIGNING_CLIENT: InjectionToken<BatchSigningClientService> = Symbol("FUNDING_SIGNING_CLIENT");
-container.register(FUNDING_SIGNING_CLIENT, {
-  useFactory: instancePerContainerCachingFactory(c => {
-    const factory = c.resolve<BatchSigningClientServiceFactory>(BATCH_SIGNING_CLIENT_FACTORY);
-    return factory(c.resolve(FUNDING_WALLET), "FUNDING_SIGNING_CLIENT");
-  })
-});
+export type UserWalletOptions = Pick<UserWalletOutput, "id" | "address" | "fundedBy" | "derivedFrom">;
 
-const OLD_MASTER_SIGNING_CLIENT: InjectionToken<BatchSigningClientService> = Symbol("OLD_MASTER_SIGNING_CLIENT");
-container.register(OLD_MASTER_SIGNING_CLIENT, {
-  useFactory: instancePerContainerCachingFactory(c => {
-    const factory = c.resolve<BatchSigningClientServiceFactory>(BATCH_SIGNING_CLIENT_FACTORY);
-    return factory(c.resolve(OLD_MASTER_WALLET), "OLD_MASTER_SIGNING_CLIENT");
-  })
-});
+export type FundingOptions = Pick<UserWalletOptions, "fundedBy">;
+export type DerivationOptions = Pick<UserWalletOptions, "id" | "derivedFrom">;
 
 @singleton()
 export class TxManagerService {
+  readonly #derivationAddressMnemonics: Map<string, string> = new Map();
+
+  readonly #fundingWalletsByAddress: Map<string, Wallet> = new Map();
+
+  readonly #fundingClientsByAddress: Map<string, BatchSigningClientService> = new Map();
+
   readonly #clientsByAddress: Map<string, CachedClient> = new Map();
 
+  #primaryDerivingWalletAddress: string | undefined;
+
+  #primaryFundingWalletAddress: string | undefined;
+
+  #isInitialized: Promise<void>;
+
   constructor(
-    @inject(FUNDING_WALLET) private readonly fundingWallet: Wallet,
-    @inject(FUNDING_SIGNING_CLIENT) private readonly fundingSigningClient: BatchSigningClientService,
-    @inject(OLD_MASTER_WALLET) private readonly oldMasterWallet: Wallet,
-    @inject(OLD_MASTER_SIGNING_CLIENT) private readonly oldMasterSigningClient: BatchSigningClientService,
-    @inject(DERIVED_WALLET_FACTORY) private readonly walletFactory: WalletFactory,
-    @inject(OLD_DERIVED_WALLET_FACTORY) private readonly oldWalletFactory: WalletFactory,
+    @inject(FUNDING_WALLETS) private readonly fundingWallets: Wallet[],
+    @inject(DERIVATION_WALLETS) private readonly derivationWallets: Wallet[],
     @inject(BATCH_SIGNING_CLIENT_FACTORY) private readonly batchSigningClientServiceFactory: BatchSigningClientServiceFactory,
+    private readonly billingConfigService: BillingConfigService,
     private readonly logger: LoggerService
   ) {
     this.logger.setContext(TxManagerService.name);
+
+    this.#isInitialized = this.#init();
   }
 
-  async signAndBroadcastWithFundingWallet(messages: readonly EncodeObject[], useOldWallet: boolean = false) {
-    const client = useOldWallet ? this.oldMasterSigningClient : this.fundingSigningClient;
+  async #init() {
+    if (this.fundingWallets.length === 0) {
+      throw new Error("At least one funding wallet is required");
+    }
+
+    if (this.derivationWallets.length === 0) {
+      throw new Error("At least one derivation wallet is required");
+    }
+
+    await Promise.all(
+      this.fundingWallets.map(async (wallet, index) => {
+        const address = await wallet.getFirstAddress();
+        this.#fundingWalletsByAddress.set(address, wallet);
+        this.#fundingClientsByAddress.set(address, this.batchSigningClientServiceFactory(wallet, `FUNDING_SIGNING_CLIENT_${address}`));
+
+        if (index === 0) {
+          this.#primaryFundingWalletAddress = address;
+        }
+      })
+    );
+
+    await Promise.all(
+      this.derivationWallets.map(async (wallet, index) => {
+        const address = await wallet.getFirstAddress();
+        this.#derivationAddressMnemonics.set(address, await wallet.getMnemonic());
+
+        if (index === 0) {
+          this.#primaryDerivingWalletAddress = address;
+        }
+      })
+    );
+  }
+
+  async signAndBroadcastWithFundingWallet(fundingOptions: FundingOptions, messages: readonly EncodeObject[]) {
+    await this.#isInitialized;
+    const client = this.#fundingClientsByAddress.get(fundingOptions.fundedBy ?? this.billingConfigService.get("FALLBACK_FUNDING_WALLET_ADDRESS"));
+
+    if (!client) {
+      throw new Error(`Funding client not found for address: ${fundingOptions.fundedBy ?? this.billingConfigService.get("FALLBACK_FUNDING_WALLET_ADDRESS")}`);
+    }
+
     return await client.signAndBroadcast(messages);
   }
 
-  async getFundingWalletAddress(useOldWallet: boolean = false) {
-    const wallet = useOldWallet ? this.oldMasterWallet : this.fundingWallet;
-    return await wallet.getFirstAddress();
+  async getFundingWalletAddress(fundingOptions: FundingOptions) {
+    await this.#isInitialized;
+    const address = fundingOptions.fundedBy ?? this.billingConfigService.get("FALLBACK_FUNDING_WALLET_ADDRESS");
+    const wallet = this.#fundingWalletsByAddress.get(address);
+
+    if (!wallet) {
+      throw new Error(`Funding wallet not found for address: ${address}`);
+    }
+
+    return address;
   }
 
-  async signAndBroadcastWithDerivedWallet(
-    derivationIndex: number,
-    messages: readonly EncodeObject[],
-    options?: SignAndBroadcastOptions,
-    useOldWallet: boolean = false
-  ) {
-    const { client, address } = await this.#getClient(derivationIndex, useOldWallet);
+  async getPrimaryFundingWalletAddress() {
+    await this.#isInitialized;
+    return this.#primaryFundingWalletAddress!;
+  }
+
+  async signAndBroadcastWithDerivedWallet(derivationOptions: DerivationOptions, messages: readonly EncodeObject[], options?: SignAndBroadcastOptions) {
+    const { client, address } = await this.#getClient(derivationOptions);
 
     try {
       return await client.signAndBroadcast(messages, options);
@@ -115,12 +147,26 @@ export class TxManagerService {
     }
   }
 
-  async getDerivedWalletAddress(index: number, useOldWallet: boolean = false) {
-    return await this.getDerivedWallet(index, useOldWallet).getFirstAddress();
+  async getDerivedWalletAddress(derivationOptions: DerivationOptions) {
+    const wallet = await this.getDerivedWallet(derivationOptions);
+    return await wallet.getFirstAddress();
   }
 
-  async #getClient(derivationIndex: number, useOldWallet: boolean = false): Promise<CachedClient> {
-    const wallet = this.getDerivedWallet(derivationIndex, useOldWallet);
+  async initDerivedWalletAddress(derivationOptions: Pick<DerivationOptions, "id">) {
+    await this.#isInitialized;
+    const derivedFrom = this.#primaryDerivingWalletAddress!;
+    const fundedBy = this.#primaryFundingWalletAddress!;
+    const wallet = await this.getDerivedWallet({ ...derivationOptions, derivedFrom });
+
+    return {
+      address: await wallet.getFirstAddress(),
+      fundedBy,
+      derivedFrom
+    };
+  }
+
+  async #getClient(derivationOptions: DerivationOptions): Promise<CachedClient> {
+    const wallet = await this.getDerivedWallet(derivationOptions);
     const address = await wallet.getFirstAddress();
 
     if (!this.#clientsByAddress.has(address)) {
@@ -134,8 +180,16 @@ export class TxManagerService {
     return this.#clientsByAddress.get(address)!;
   }
 
-  getDerivedWallet(index: number, useOldWallet: boolean = false) {
-    const factory = useOldWallet ? this.oldWalletFactory : this.walletFactory;
-    return factory(index);
+  async getDerivedWallet(derivationOptions: DerivationOptions) {
+    await this.#isInitialized;
+
+    const address = derivationOptions.derivedFrom ?? this.billingConfigService.get("FALLBACK_DERIVATION_WALLET_ADDRESS");
+    const mnemonic = this.#derivationAddressMnemonics.get(address);
+
+    if (!mnemonic) {
+      throw new Error(`Derivation wallet not found for address: ${address}`);
+    }
+
+    return new Wallet(mnemonic);
   }
 }

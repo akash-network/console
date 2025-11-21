@@ -142,14 +142,13 @@ export class TopUpManagedDeploymentsService implements DeploymentsRefiller {
       deployment,
       input
     }));
-    const walletId = ownerInputs[0].deployment.walletId;
+    const { walletId, derivedFrom, fundedBy } = ownerInputs[0].deployment;
 
     try {
       if (!options.dryRun) {
         await this.managedSignerService.executeDerivedTx(
-          walletId,
-          ownerInputs.map(i => i.message),
-          ownerInputs[0].deployment.isOldWallet ?? false
+          { id: walletId, derivedFrom, fundedBy },
+          ownerInputs.map(i => i.message)
         );
       }
 

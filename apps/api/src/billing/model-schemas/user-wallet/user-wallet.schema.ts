@@ -11,7 +11,8 @@ export const UserWallets = pgTable("user_wallets", {
   deploymentAllowance: allowance("deployment_allowance"),
   feeAllowance: allowance("fee_allowance"),
   isTrialing: boolean("trial").default(true),
-  isOldWallet: boolean("is_old_wallet").default(true),
+  fundedBy: varchar("funded_by"),
+  derivedFrom: varchar("derived_from"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow()
 });

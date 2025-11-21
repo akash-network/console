@@ -1,15 +1,16 @@
 import dotenv from "dotenv";
 import { z } from "zod";
 
+import { ValidationSchemaService } from "@src/core/services/validation-schema/validation-schema.service";
 import { AUDITOR } from "@src/deployment/config/provider.config";
 
 dotenv.config({ path: "env/.env.funding-wallet-index" });
 
 export const envSchema = z.object({
-  FUNDING_WALLET_MNEMONIC: z.string(),
-  FUNDING_WALLET_INDEX: z.number({ coerce: true }),
-  OLD_MASTER_WALLET_MNEMONIC: z.string(),
-  DERIVATION_WALLET_MNEMONIC: z.string(),
+  FUNDING_WALLET_MNEMONICS: ValidationSchemaService.json(z.array(z.string()).min(1)),
+  DERIVATION_WALLET_MNEMONICS: ValidationSchemaService.json(z.array(z.string()).min(1)),
+  FALLBACK_FUNDING_WALLET_ADDRESS: z.string(),
+  FALLBACK_DERIVATION_WALLET_ADDRESS: z.string(),
   NETWORK: z.enum(["mainnet", "testnet", "sandbox"]),
   RPC_NODE_ENDPOINT: z.string(),
   TRIAL_ALLOWANCE_EXPIRATION_DAYS: z.number({ coerce: true }).default(30),

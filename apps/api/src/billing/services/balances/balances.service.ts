@@ -4,7 +4,8 @@ import { singleton } from "tsyringe";
 import type { GetBalancesResponseOutput } from "@src/billing/http-schemas/balance.schema";
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { type UserWalletInput, type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
-import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
+import { FullFundingOptions } from "@src/billing/services";
+import { FundingOptions, TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { Memoize } from "@src/caching/helpers";
 import { averageBlockTime } from "@src/utils/constants";
 
@@ -63,9 +64,12 @@ export class BalancesService {
     return feeAllowance.allowance.spend_limit.reduce((acc, { denom, amount }) => (denom === "uakt" ? acc + parseInt(amount) : acc), 0);
   }
 
-  async retrieveDeploymentLimit(userWallet: Pick<UserWalletOutput, "address" | "isOldWallet">): Promise<number> {
-    const fundingWalletAddress = await this.txManagerService.getFundingWalletAddress(userWallet.isOldWallet ?? false);
-    const depositDeploymentGrant = await this.authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee(fundingWalletAddress, userWallet.address!);
+  async retrieveDeploymentLimit(fundingOptions: FullFundingOptions): Promise<number> {
+    const fundingWalletAddress = await this.txManagerService.getFundingWalletAddress(fundingOptions);
+    const depositDeploymentGrant = await this.authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee(
+      fundingWalletAddress,
+      fundingOptions.address!
+    );
 
     if (!depositDeploymentGrant || depositDeploymentGrant.authorization.spend_limit.denom !== this.config.DEPLOYMENT_GRANT_DENOM) {
       return 0;

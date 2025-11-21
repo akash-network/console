@@ -41,22 +41,18 @@ export class RefillService {
     }
   }
 
-  private async refillWalletFees(userWallet: UserWalletOutput) {
+  private async refillWalletFees(userWallet: Omit<UserWalletOutput, "address"> & { address: string }) {
     const trialWindowStart = subDays(new Date(), this.config.TRIAL_ALLOWANCE_EXPIRATION_DAYS);
     const isInTrialWindow = userWallet.isTrialing && userWallet.createdAt && userWallet.createdAt > trialWindowStart;
 
     const expiration = isInTrialWindow && userWallet.createdAt ? addDays(userWallet.createdAt, this.config.TRIAL_ALLOWANCE_EXPIRATION_DAYS) : undefined;
 
-    await this.managedUserWalletService.authorizeSpending(
-      {
-        address: userWallet.address!,
-        limits: {
-          fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT
-        },
-        expiration
+    await this.managedUserWalletService.authorizeSpending(userWallet, {
+      limits: {
+        fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT
       },
-      userWallet.isOldWallet ?? false
-    );
+      expiration
+    });
     await this.balancesService.refreshUserWalletLimits(userWallet);
   }
 
@@ -87,6 +83,7 @@ export class RefillService {
   @Semaphore()
   private async getOrCreateUserWallet(userId: UserWalletOutput["userId"]) {
     const userWallet = await this.userWalletRepository.findOneBy({ userId });
+
     if (userWallet) {
       return userWallet;
     }
