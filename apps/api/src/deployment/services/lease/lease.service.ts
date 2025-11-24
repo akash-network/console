@@ -4,7 +4,6 @@ import { ManagedSignerService, RpcMessageService } from "@src/billing/services";
 import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import { GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import { CreateLeaseRequest } from "@src/deployment/http-schemas/lease.schema";
-import { LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { DeploymentReaderService } from "../deployment-reader/deployment-reader.service";
 
@@ -15,7 +14,6 @@ export class LeaseService {
     private readonly rpcMessageService: RpcMessageService,
     private readonly providerService: ProviderService,
     private readonly deploymentReaderService: DeploymentReaderService,
-    private readonly leaseRepository: LeaseRepository,
     private readonly walletReaderService: WalletReaderService
   ) {}
 
@@ -47,7 +45,7 @@ export class LeaseService {
       };
       await this.providerService.sendManifest({
         ...commonParams,
-        auth: await this.providerService.toProviderAuth(certificate || { walletId: wallet.id, provider: lease.provider })
+        auth: await this.providerService.toProviderAuth(certificate || { id: wallet.id, derivedFrom: wallet.derivedFrom, provider: lease.provider })
       });
     }
 

@@ -23,7 +23,7 @@ export class FinancialStatsService {
   }
 
   async getMasterWalletBalanceUsdc() {
-    return this.getWalletBalances(await this.txManagerService.getFundingWalletAddress(), USDC_IBC_DENOMS.mainnetId);
+    return this.getWalletBalances(await this.txManagerService.getPrimaryFundingWalletAddress(), USDC_IBC_DENOMS.mainnetId);
   }
 
   private async getWalletBalances(address: string, denom: string) {

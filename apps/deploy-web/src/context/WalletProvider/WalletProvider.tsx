@@ -221,7 +221,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           });
         };
         setLoadingState("waitingForApproval");
-        const estimatedFees = await userWallet.estimateFee(msgs);
+        const estimatedFees = await userWallet.estimateFee(msgs, undefined, undefined, 1.5);
         const txRaw = await userWallet.sign(msgs, {
           ...estimatedFees,
           granter: feeGranter

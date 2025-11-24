@@ -95,7 +95,7 @@ export class ChainErrorService {
   public async isMasterWalletInsufficientFundsError(error: Error) {
     if (!error.message.toLowerCase().includes("insufficient funds")) return false;
 
-    const masterWalletAddress = await this.txManagerService.getFundingWalletAddress();
+    const masterWalletAddress = await this.txManagerService.getPrimaryFundingWalletAddress();
     const masterWalletBalance = await this.balanceHttpService.getBalance(masterWalletAddress, this.billingConfigService.get("DEPLOYMENT_GRANT_DENOM"));
     const insufficientFundsErrorData = this.parseInsufficientFundsErrorMessage(error.message);
 
