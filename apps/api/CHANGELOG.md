@@ -1,5 +1,17 @@
 
 
+## [3.6.0](https://github.com/akash-network/console/compare/console-api/v3.5.1...console-api/v3.6.0) (2025-11-24)
+
+
+### Features
+
+* **billing:** support old mnemonic ([#2264](https://github.com/akash-network/console/issues/2264)) ([6fe9d5f](https://github.com/akash-network/console/commit/6fe9d5fe03d411fe77829d76d039358be820e248))
+
+
+### Bug Fixes
+
+* remove stale anonymous cleaner job ([#2269](https://github.com/akash-network/console/issues/2269)) ([c0c2b5d](https://github.com/akash-network/console/commit/c0c2b5d6864262c1454f78578c61b6ce0b9807fe))
+
 ## [3.5.1](https://github.com/akash-network/console/compare/console-api/v3.5.0...console-api/v3.5.1) (2025-11-20)
 
 
