@@ -10,6 +10,7 @@ export class AutoTopUpDeploymentSeeder {
       walletId: faker.number.int(),
       dseq: faker.string.numeric(),
       address: createAkashAddress(),
+      isOldWallet: false,
       ...overrides
     };
   }

@@ -37,20 +37,25 @@ export class ManagedSignerService {
     private readonly leaseHttpService: LeaseHttpService
   ) {}
 
-  async executeDerivedTx(walletIndex: number, messages: readonly EncodeObject[]) {
+  async executeDerivedTx(walletIndex: number, messages: readonly EncodeObject[], useOldWallet: boolean = false) {
     try {
-      const granter = await this.txManagerService.getFundingWalletAddress();
-      return await this.txManagerService.signAndBroadcastWithDerivedWallet(walletIndex, messages, {
-        fee: { granter }
-      });
+      const granter = await this.txManagerService.getFundingWalletAddress(useOldWallet);
+      return await this.txManagerService.signAndBroadcastWithDerivedWallet(
+        walletIndex,
+        messages,
+        {
+          fee: { granter }
+        },
+        useOldWallet
+      );
     } catch (error: any) {
       throw await this.chainErrorService.toAppError(error, messages);
     }
   }
 
-  async executeFundingTx(messages: readonly EncodeObject[]) {
+  async executeFundingTx(messages: readonly EncodeObject[], useOldWallet: boolean = false) {
     try {
-      return await this.txManagerService.signAndBroadcastWithFundingWallet(messages);
+      return await this.txManagerService.signAndBroadcastWithFundingWallet(messages, useOldWallet);
     } catch (error: any) {
       throw await this.chainErrorService.toAppError(error, messages);
     }
@@ -116,7 +121,7 @@ export class ManagedSignerService {
     const hasCreateTrialLeaseMessage = userWallet.isTrialing && !!createLeaseMessage && !this.featureFlagsService.isEnabled(FeatureFlags.ANONYMOUS_FREE_TRIAL);
     const hasLeases = hasCreateTrialLeaseMessage ? await this.leaseHttpService.hasLeases(userWallet.address!) : null;
 
-    const tx = await this.executeDerivedTx(userWallet.id, messages);
+    const tx = await this.executeDerivedTx(userWallet.id, messages, userWallet.isOldWallet ?? false);
 
     if (hasCreateTrialLeaseMessage) {
       await this.domainEvents.publish(

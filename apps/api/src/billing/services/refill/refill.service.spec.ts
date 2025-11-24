@@ -26,10 +26,13 @@ describe(RefillService.name, () => {
       await service.topUpWallet(amountUsd, userId);
 
       expect(userWalletRepository.findOneBy).toHaveBeenCalledWith({ userId });
-      expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith({
-        address: existingWallet.address,
-        limits: { deployment: 1005000, fees: 1000 }
-      });
+      expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith(
+        {
+          address: existingWallet.address,
+          limits: { deployment: 1005000, fees: 1000 }
+        },
+        false
+      );
       expect(balancesService.retrieveDeploymentLimit).toHaveBeenCalledWith(existingWallet);
       expect(balancesService.refreshUserWalletLimits).toHaveBeenCalledWith(existingWallet, { endTrial: true });
       expect(walletInitializerService.initialize).not.toHaveBeenCalled();
@@ -48,10 +51,13 @@ describe(RefillService.name, () => {
       await service.topUpWallet(amountUsd, userId);
 
       expect(userWalletRepository.findOneBy).toHaveBeenCalledWith({ userId });
-      expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith({
-        address: newWallet.address,
-        limits: { deployment: 1000000, fees: 1000 }
-      });
+      expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith(
+        {
+          address: newWallet.address,
+          limits: { deployment: 1000000, fees: 1000 }
+        },
+        false
+      );
       expect(balancesService.refreshUserWalletLimits).toHaveBeenCalledWith(newWallet, { endTrial: true });
       expect(walletInitializerService.initialize).toHaveBeenCalledWith(userId);
       expect(analyticsService.track).toHaveBeenCalledWith(userId, "balance_top_up");
@@ -73,14 +79,20 @@ describe(RefillService.name, () => {
 
       expect(userWalletRepository.findOneBy).toHaveBeenCalledWith({ userId });
       expect(userWalletRepository.findOneBy).toHaveBeenCalledTimes(2);
-      expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith({
-        address: existingWallet.address,
-        limits: { deployment: 1000000, fees: 1000 }
-      });
-      expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith({
-        address: existingWallet.address,
-        limits: { deployment: 2 * 1000000, fees: 1000 }
-      });
+      expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith(
+        {
+          address: existingWallet.address,
+          limits: { deployment: 1000000, fees: 1000 }
+        },
+        false
+      );
+      expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith(
+        {
+          address: existingWallet.address,
+          limits: { deployment: 2 * 1000000, fees: 1000 }
+        },
+        false
+      );
       expect(balancesService.refreshUserWalletLimits).toHaveBeenCalledWith(existingWallet, { endTrial: true });
       expect(walletInitializerService.initialize).toHaveBeenCalledWith(userId);
       expect(walletInitializerService.initialize).toHaveBeenCalledTimes(1);
