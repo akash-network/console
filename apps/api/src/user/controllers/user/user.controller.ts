@@ -10,10 +10,6 @@ import { UserRepository } from "@src/user/repositories";
 import type { GetUserParams } from "@src/user/routes/get-anonymous-user/get-anonymous-user.router";
 import type { RegisterUserInput, RegisterUserResponse } from "@src/user/routes/register-user/register-user.router";
 import { AnonymousUserResponseOutput, GetUserResponseOutput, UserSchema } from "@src/user/schemas/user.schema";
-import {
-  StaleAnonymousUsersCleanerOptions,
-  StaleAnonymousUsersCleanerService
-} from "@src/user/services/stale-anonymous-users-cleaner/stale-anonymous-users-cleaner.service";
 import { UserService } from "@src/user/services/user/user.service";
 
 @singleton()
@@ -22,7 +18,6 @@ export class UserController {
     private readonly userRepository: UserRepository,
     private readonly authService: AuthService,
     private readonly anonymousUserAuthService: AuthTokenService,
-    private readonly staleAnonymousUsersCleanerService: StaleAnonymousUsersCleanerService,
     private readonly executionContextService: ExecutionContextService,
     private readonly userService: UserService,
     private readonly userAuthTokenService: UserAuthTokenService
@@ -51,10 +46,6 @@ export class UserController {
     assert(user, 404);
 
     return { data: user };
-  }
-
-  async cleanUpStaleAnonymousUsers(options: StaleAnonymousUsersCleanerOptions) {
-    await this.staleAnonymousUsersCleanerService.cleanUpStaleAnonymousUsers(options);
   }
 
   async registerUser(data: RegisterUserInput): Promise<RegisterUserResponse> {
