@@ -9,6 +9,8 @@ import {
   GetValidatorListResponseSchema
 } from "@src/validator/http-schemas/validator.schema";
 
+export const validatorsRouter = new OpenApiHonoHandler();
+
 const getValidatorListRoute = createRoute({
   method: "get",
   path: "/v1/validators",
@@ -23,6 +25,11 @@ const getValidatorListRoute = createRoute({
       }
     }
   }
+});
+validatorsRouter.openapi(getValidatorListRoute, async function routeGetValidatorList(c) {
+  const validators = await container.resolve(ValidatorController).getValidatorList();
+
+  return c.json(validators);
 });
 
 const getValidatorByAddressRoute = createRoute({
@@ -49,15 +56,6 @@ const getValidatorByAddressRoute = createRoute({
     }
   }
 });
-
-export const validatorsRouter = new OpenApiHonoHandler();
-
-validatorsRouter.openapi(getValidatorListRoute, async function routeGetValidatorList(c) {
-  const validators = await container.resolve(ValidatorController).getValidatorList();
-
-  return c.json(validators);
-});
-
 validatorsRouter.openapi(getValidatorByAddressRoute, async function routeGetValidatorByAddress(c) {
   const { address } = c.req.valid("param");
   const validator = await container.resolve(ValidatorController).getValidatorByAddress(address);

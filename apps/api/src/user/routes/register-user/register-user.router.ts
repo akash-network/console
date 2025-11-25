@@ -36,11 +36,9 @@ const route = createRoute({
   responses: {
     200: {
       description: "Returns the registered user",
-      body: {
-        content: {
-          "application/json": {
-            schema: registerUserResponseSchema
-          }
+      content: {
+        "application/json": {
+          schema: registerUserResponseSchema
         }
       }
     }
