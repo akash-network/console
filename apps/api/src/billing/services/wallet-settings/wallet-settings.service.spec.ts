@@ -1,23 +1,30 @@
 import { createMongoAbility } from "@casl/ability";
+import { faker } from "@faker-js/faker";
 import { mock } from "jest-mock-extended";
 import { PostgresError } from "postgres";
+import { v4 as uuidv4 } from "uuid";
 
 import type { AuthService } from "@src/auth/services/auth.service";
+import { WalletBalanceReloadCheck } from "@src/billing/events/wallet-balance-reload-check";
 import type { UserWalletRepository, WalletSettingRepository } from "@src/billing/repositories";
+import type { JobQueueService } from "@src/core";
 import { WalletSettingService } from "./wallet-settings.service";
 
 import { UserSeeder } from "@test/seeders/user.seeder";
 import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
 import { generateWalletSetting } from "@test/seeders/wallet-setting.seeder";
 
+jest.mock("uuid");
+const uuidMock = uuidv4 as jest.MockedFn<typeof uuidv4>;
+
 describe(WalletSettingService.name, () => {
   describe("getWalletSetting", () => {
     it("returns wallet setting when found", async () => {
-      const { user, walletSetting, walletSettingRepository, service } = setup();
+      const { user, publicSetting, walletSettingRepository, service } = setup();
 
       const result = await service.getWalletSetting(user.id);
 
-      expect(result).toEqual(walletSetting);
+      expect(result).toEqual(publicSetting);
       expect(walletSettingRepository.findByUserId).toHaveBeenCalledWith(user.id);
     });
 
@@ -34,12 +41,13 @@ describe(WalletSettingService.name, () => {
 
   describe("upsertWalletSetting", () => {
     it("updates existing wallet setting", async () => {
-      const { user, walletSetting, walletSettingRepository, service } = setup();
+      const { user, publicSetting, walletSetting, walletSettingRepository, service } = setup();
       const updatedSetting = generateWalletSetting({
-        userId: user.id,
+        ...walletSetting,
         autoReloadEnabled: false,
         autoReloadThreshold: 20.75
       });
+      walletSettingRepository.findByUserId.mockResolvedValue(walletSetting as any);
       walletSettingRepository.updateById.mockResolvedValue(updatedSetting as any);
 
       const result = await service.upsertWalletSetting(user.id, {
@@ -47,20 +55,29 @@ describe(WalletSettingService.name, () => {
         autoReloadThreshold: 20.75
       });
 
-      expect(result).toEqual(updatedSetting);
+      const { autoReloadJobId, ...publicUpdatedSetting } = updatedSetting;
+
+      expect(result).toEqual(publicUpdatedSetting);
       expect(walletSettingRepository.findByUserId).toHaveBeenCalledWith(user.id);
       expect(walletSettingRepository.updateById).toHaveBeenCalledWith(
-        walletSetting.id,
+        publicSetting.id,
         { autoReloadEnabled: false, autoReloadThreshold: 20.75 },
         { returning: true }
       );
     });
 
     it("creates new wallet setting when not exists", async () => {
-      const { user, userWalletRepository, userWallet, walletSettingRepository, service } = setup();
-      const newSetting = generateWalletSetting({ userId: user.id, walletId: userWallet.id });
+      const { user, userWalletRepository, userWallet, walletSettingRepository, jobQueueService, jobId, service } = setup();
+      const newSetting = generateWalletSetting({
+        userId: user.id,
+        walletId: userWallet.id,
+        autoReloadEnabled: true,
+        autoReloadThreshold: 10.5,
+        autoReloadAmount: 50.0
+      });
       walletSettingRepository.findByUserId.mockResolvedValue(undefined);
       walletSettingRepository.create.mockResolvedValue(newSetting);
+      jobQueueService.enqueue.mockResolvedValue(jobId);
 
       const result = await service.upsertWalletSetting(user.id, {
         autoReloadEnabled: true,
@@ -68,7 +85,9 @@ describe(WalletSettingService.name, () => {
         autoReloadAmount: 50.0
       });
 
-      expect(result).toEqual(newSetting);
+      const { autoReloadJobId, ...publicSetting } = newSetting;
+
+      expect(result).toEqual(publicSetting);
       expect(walletSettingRepository.findByUserId).toHaveBeenCalledWith(user.id);
       expect(userWalletRepository.findOneByUserId).toHaveBeenCalledWith(user.id);
       expect(walletSettingRepository.create).toHaveBeenCalledWith({
@@ -78,6 +97,11 @@ describe(WalletSettingService.name, () => {
         autoReloadThreshold: 10.5,
         autoReloadAmount: 50.0
       });
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(expect.any(WalletBalanceReloadCheck), {
+        singletonKey: `WalletBalanceReloadCheck.${user.id}`,
+        id: jobId
+      });
+      expect(walletSettingRepository.updateById).toHaveBeenCalledWith(newSetting.id, { autoReloadJobId: jobId });
     });
 
     it("retries the update in case of a race condition", async () => {
@@ -96,8 +120,9 @@ describe(WalletSettingService.name, () => {
         autoReloadThreshold: 10.5,
         autoReloadAmount: 50.0
       });
+      const { autoReloadJobId, ...newPublicSetting } = newSetting;
 
-      expect(result).toEqual(newSetting);
+      expect(result).toEqual(newPublicSetting);
       expect(walletSettingRepository.findByUserId).toHaveBeenCalledWith(user.id);
       expect(userWalletRepository.findOneByUserId).toHaveBeenCalledWith(user.id);
       expect(walletSettingRepository.create).toHaveBeenCalledWith({
@@ -145,28 +170,65 @@ describe(WalletSettingService.name, () => {
     });
 
     it("updates existing setting using existing values when enabled is true and threshold and amount are not provided", async () => {
-      const { user, walletSetting, walletSettingRepository, service } = setup();
+      const { user, walletSetting, walletSettingRepository, jobQueueService, jobId, service } = setup();
+      const existingSetting = { ...walletSetting, autoReloadEnabled: false, autoReloadThreshold: 15.5, autoReloadAmount: 25.0 };
       const updatedSetting = generateWalletSetting({
         userId: user.id,
         autoReloadEnabled: true,
         autoReloadThreshold: 15.5,
         autoReloadAmount: 25.0
       });
-      walletSettingRepository.findByUserId.mockResolvedValue(walletSetting);
+      walletSettingRepository.findByUserId.mockResolvedValue(existingSetting);
       walletSettingRepository.updateById.mockResolvedValue(updatedSetting as any);
+      jobQueueService.enqueue.mockResolvedValue(jobId);
 
       const result = await service.upsertWalletSetting(user.id, {
         autoReloadEnabled: true
       });
+      const { autoReloadJobId, ...publicUpdatedSetting } = updatedSetting;
 
-      expect(result).toEqual(updatedSetting);
+      expect(result).toEqual(publicUpdatedSetting);
       expect(walletSettingRepository.updateById).toHaveBeenCalledWith(
-        walletSetting.id,
+        existingSetting.id,
         {
           autoReloadEnabled: true
         },
         { returning: true }
       );
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(expect.any(WalletBalanceReloadCheck), {
+        singletonKey: `WalletBalanceReloadCheck.${user.id}`,
+        id: jobId
+      });
+      expect(walletSettingRepository.updateById).toHaveBeenCalledWith(updatedSetting.id, { autoReloadJobId: jobId });
+    });
+
+    it("cancels job when auto-reload is disabled", async () => {
+      const { user, walletSetting, walletSettingRepository, jobQueueService, service } = setup();
+      const existingJobId = faker.string.uuid();
+      const existingSetting = { ...walletSetting, autoReloadEnabled: true, autoReloadJobId: existingJobId };
+      const updatedSetting = {
+        ...walletSetting,
+        id: walletSetting.id,
+        autoReloadEnabled: false,
+        autoReloadJobId: existingJobId
+      };
+      walletSettingRepository.findByUserId.mockResolvedValue(existingSetting);
+      walletSettingRepository.updateById.mockResolvedValue(updatedSetting as any);
+
+      const result = await service.upsertWalletSetting(user.id, {
+        autoReloadEnabled: false
+      });
+      const { autoReloadJobId, ...publicUpdatedSetting } = updatedSetting;
+
+      expect(result).toEqual(publicUpdatedSetting);
+      expect(walletSettingRepository.updateById).toHaveBeenCalledWith(
+        walletSetting.id,
+        {
+          autoReloadEnabled: false
+        },
+        { returning: true }
+      );
+      expect(jobQueueService.cancel).toHaveBeenCalledWith(WalletBalanceReloadCheck.name, existingJobId);
     });
 
     it("throws 400 when enabled is true and existing setting does not have threshold and amount", async () => {
@@ -225,15 +287,24 @@ describe(WalletSettingService.name, () => {
       currentUser: user,
       ability
     });
-    const service = new WalletSettingService(walletSettingRepository, userWalletRepository, authService);
+    const jobId = faker.string.uuid();
+    uuidMock.mockReturnValue(jobId);
+    const jobQueueService = mock<JobQueueService>({
+      cancel: jest.fn().mockResolvedValue(undefined)
+    });
+    const service = new WalletSettingService(walletSettingRepository, userWalletRepository, authService, jobQueueService);
+    const { autoReloadJobId, ...publicSetting } = walletSetting;
 
     return {
       user,
       userWallet,
       walletSetting,
+      publicSetting,
       walletSettingRepository,
       userWalletRepository,
       authService,
+      jobQueueService,
+      jobId,
       service
     };
   }

@@ -1,5 +1,6 @@
 import { container } from "tsyringe";
 
+import { WalletBalanceReloadCheckHandler } from "@src/billing/services/wallet-balance-reload-check/wallet-balance-reload-check.handler";
 import type { AppInitializer } from "@src/core/providers/app-initializer";
 import { APP_INITIALIZER, ON_APP_START } from "@src/core/providers/app-initializer";
 import { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
@@ -14,11 +15,11 @@ container.register(APP_INITIALIZER, {
       const jobQueueManager = container.resolve(JobQueueService);
       await jobQueueManager.setup();
       await jobQueueManager.registerHandlers([
-        // keep new lines
         container.resolve(TrialStartedHandler),
         container.resolve(NotificationHandler),
         container.resolve(CloseTrialDeploymentHandler),
-        container.resolve(TrialDeploymentLeaseCreatedHandler)
+        container.resolve(TrialDeploymentLeaseCreatedHandler),
+        container.resolve(WalletBalanceReloadCheckHandler)
       ]);
     }
   } satisfies AppInitializer
