@@ -20,7 +20,6 @@ export class StripeService extends ApiHttpService {
     super(config);
   }
 
-  // Payment Methods
   async createSetupIntent(config?: AxiosRequestConfig): Promise<SetupIntentResponse> {
     return this.extractApiData(await this.post("/v1/stripe/payment-methods/setup", {}, config));
   }
@@ -33,12 +32,10 @@ export class StripeService extends ApiHttpService {
     return this.extractApiData(await this.delete(`/v1/stripe/payment-methods/${paymentMethodId}`));
   }
 
-  // Customers
   async updateCustomerOrganization(organization: string): Promise<void> {
     await this.put("/v1/stripe/customers/organization", { organization });
   }
 
-  // Coupons
   async applyCoupon(couponId: string, userId: string): Promise<CouponResponse> {
     return this.extractApiData(await this.post("/v1/stripe/coupons/apply", { data: { couponId, userId } }));
   }
@@ -47,7 +44,6 @@ export class StripeService extends ApiHttpService {
     return this.extractApiData(await this.get("/v1/stripe/coupons/customer-discounts"));
   }
 
-  // Transactions
   async confirmPayment(params: ConfirmPaymentParams): Promise<ConfirmPaymentResponse> {
     return this.extractApiData(await this.post("/v1/stripe/transactions/confirm", { data: params }));
   }
@@ -92,7 +88,6 @@ export class StripeService extends ApiHttpService {
     );
   }
 
-  // Prices (legacy endpoint)
   async findPrices(config?: AxiosRequestConfig): Promise<StripePrice[]> {
     return this.extractApiData(await this.get("/v1/stripe/prices", config));
   }

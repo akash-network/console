@@ -8,15 +8,21 @@ import { type ApiPgDatabase, type ApiPgTables, InjectPg } from "@src/core/provid
 
 type TxType = "PG_TX";
 
+export type ApiTransaction = PgTransaction<PostgresJsQueryResultHKT, ApiPgTables, ExtractTablesWithRelations<ApiPgTables>>;
+
 @singleton()
 export class TxService {
-  private readonly storage = new AsyncLocalStorage<
-    Map<TxType, PgTransaction<PostgresJsQueryResultHKT, ApiPgTables, ExtractTablesWithRelations<ApiPgTables>>>
-  >();
+  private readonly storage = new AsyncLocalStorage<Map<TxType, ApiTransaction>>();
 
   constructor(@InjectPg() private readonly pg: ApiPgDatabase) {}
 
   async transaction<T>(cb: () => Promise<T>) {
+    const existingTx = this.storage.getStore()?.get("PG_TX");
+
+    if (existingTx) {
+      return await cb();
+    }
+
     return await this.pg.transaction(async tx => {
       return this.storage.run(new Map(), async () => {
         this.storage.getStore()?.set("PG_TX", tx);

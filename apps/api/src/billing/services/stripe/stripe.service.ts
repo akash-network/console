@@ -1,3 +1,4 @@
+import type { AnyAbility } from "@casl/ability";
 import { stringify } from "csv-stringify";
 import assert from "http-assert";
 import orderBy from "lodash/orderBy";
@@ -9,9 +10,11 @@ import { PaymentIntentResult, PaymentMethodValidationResult, Transaction } from 
 import { PaymentMethodRepository } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { RefillService } from "@src/billing/services/refill/refill.service";
+import { WithTransaction } from "@src/core";
 import { LoggerService } from "@src/core/providers/logging.provider";
 import { TransactionCsvRow } from "@src/types/transactions";
 import { UserOutput, UserRepository } from "@src/user/repositories/user/user.repository";
+import { PayingUser } from "../paying-user/paying-user";
 
 const logger = LoggerService.forContext("StripeService");
 
@@ -26,6 +29,9 @@ interface StripePrices {
   isCustom: boolean;
   currency: string;
 }
+
+export type PaymentMethod = Stripe.PaymentMethod & { validated: boolean };
+
 @singleton()
 export class StripeService extends Stripe {
   readonly isProduction = this.billingConfig.get("STRIPE_SECRET_KEY").startsWith("sk_live");
@@ -97,7 +103,7 @@ export class StripeService extends Stripe {
     return orderBy(responsePrices, ["isCustom", "unitAmount"], ["asc", "asc"]) as StripePrices[];
   }
 
-  async getPaymentMethods(userId: string, customerId: string): Promise<(Stripe.PaymentMethod & { validated: boolean })[]> {
+  async getPaymentMethods(userId: string, customerId: string): Promise<PaymentMethod[]> {
     const [paymentMethods, dbPaymentMethods] = await Promise.all([
       this.paymentMethods.list({
         customer: customerId
@@ -113,6 +119,66 @@ export class StripeService extends Stripe {
       .sort((a, b) => b.created - a.created);
   }
 
+  async getDefaultPaymentMethod(user: PayingUser, ability: AnyAbility): Promise<PaymentMethod> {
+    const [customer, local] = await Promise.all([
+      this.customers.retrieve(user.stripeCustomerId, {
+        expand: ["invoice_settings.default_payment_method"]
+      }),
+      this.paymentMethodRepository.accessibleBy(ability, "read").findDefaultByUserId(user.id)
+    ]);
+
+    assert(!customer.deleted, 402, "Payment account has been deleted");
+
+    const remote = customer.invoice_settings.default_payment_method as Stripe.PaymentMethod;
+
+    assert(local, 404, "Default payment method not found", { source: "database" });
+    assert(remote, 404, "Default payment method not found", { source: "stripe" });
+
+    return { ...remote, validated: local.isValidated };
+  }
+
+  async hasPaymentMethod(paymentMethodId: string, user: UserOutput): Promise<boolean> {
+    const paymentMethod = await this.paymentMethods.retrieve(paymentMethodId);
+    const customerId = typeof paymentMethod.customer === "string" ? paymentMethod.customer : paymentMethod.customer?.id;
+
+    return customerId === user.stripeCustomerId;
+  }
+
+  @WithTransaction()
+  async markPaymentMethodAsDefault(paymentMethodId: string, user: PayingUser, ability: AnyAbility): Promise<PaymentMethod> {
+    const [local, remote] = await Promise.all([
+      this.paymentMethodRepository.accessibleBy(ability, "update").markAsDefault(paymentMethodId),
+      this.paymentMethods.retrieve(paymentMethodId)
+    ]);
+
+    assert(remote, 404, "Payment method not found", { source: "stripe" });
+
+    if (local) {
+      await this.markRemotePaymentMethodAsDefault(paymentMethodId, user);
+      return { ...remote, validated: local.isValidated };
+    }
+
+    const fingerprint = remote.card?.fingerprint;
+
+    assert(fingerprint, 403, "Payment method fingerprint is missing");
+
+    const newLocal = await this.paymentMethodRepository.accessibleBy(ability, "create").createAsDefault({
+      userId: user.id,
+      fingerprint,
+      paymentMethodId
+    });
+
+    await this.markRemotePaymentMethodAsDefault(paymentMethodId, user);
+
+    return { ...remote, validated: newLocal.isValidated };
+  }
+
+  async markRemotePaymentMethodAsDefault(paymentMethodId: string, user: PayingUser): Promise<void> {
+    await this.customers.update(user.stripeCustomerId, {
+      invoice_settings: { default_payment_method: paymentMethodId }
+    });
+  }
+
   async createPaymentIntent(params: {
     customer: string;
     payment_method: string;
@@ -120,22 +186,30 @@ export class StripeService extends Stripe {
     currency: string;
     confirm: boolean;
     metadata?: Record<string, string>;
+    idempotencyKey?: string;
   }): Promise<PaymentIntentResult> {
-    // Convert amount to cents for stripe
-    const amountCents = Math.round(params.amount * 100);
+    const amountInCents = Math.round(params.amount * 100);
 
-    const paymentIntent = await this.paymentIntents.create({
-      customer: params.customer,
-      payment_method: params.payment_method,
-      amount: amountCents,
-      currency: params.currency,
-      confirm: params.confirm,
-      metadata: params.metadata,
-      automatic_payment_methods: {
-        enabled: true,
-        allow_redirects: "never"
+    const createOptions: Parameters<Stripe["paymentIntents"]["create"]> = [
+      {
+        customer: params.customer,
+        payment_method: params.payment_method,
+        amount: amountInCents,
+        currency: params.currency,
+        confirm: params.confirm,
+        metadata: params.metadata,
+        automatic_payment_methods: {
+          enabled: true,
+          allow_redirects: "never"
+        }
       }
-    });
+    ];
+
+    if (params.idempotencyKey) {
+      createOptions.push({ idempotencyKey: params.idempotencyKey });
+    }
+
+    const paymentIntent = await this.paymentIntents.create(...createOptions);
 
     switch (paymentIntent.status) {
       case "succeeded":
@@ -314,8 +388,7 @@ export class StripeService extends Stripe {
   }
 
   async getCoupon(couponId: string) {
-    const coupon = await this.coupons.retrieve(couponId);
-    return coupon;
+    return await this.coupons.retrieve(couponId);
   }
 
   async getCustomerTransactions(

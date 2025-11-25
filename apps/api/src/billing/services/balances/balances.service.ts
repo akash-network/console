@@ -6,6 +6,7 @@ import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers"
 import { type UserWalletInput, type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { Memoize } from "@src/caching/helpers";
+import { StatsService } from "@src/dashboard/services/stats/stats.service";
 import { averageBlockTime } from "@src/utils/constants";
 
 @singleton()
@@ -15,7 +16,8 @@ export class BalancesService {
     private readonly userWalletRepository: UserWalletRepository,
     private txManagerService: TxManagerService,
     private readonly authzHttpService: AuthzHttpService,
-    private readonly deploymentHttpService: DeploymentHttpService
+    private readonly deploymentHttpService: DeploymentHttpService,
+    private readonly statsService: StatsService
   ) {}
 
   async refreshUserWalletLimits(userWallet: UserWalletOutput, options?: { endTrial: boolean }): Promise<void> {
@@ -105,5 +107,25 @@ export class BalancesService {
         total: balanceData.deployment + deploymentEscrowBalance
       }
     };
+  }
+
+  @Memoize({ ttlInSeconds: averageBlockTime })
+  async getFullBalanceInFiat(address: string, isOldWallet: boolean = false): Promise<GetBalancesResponseOutput["data"]> {
+    const coin = this.config.DEPLOYMENT_GRANT_DENOM === "uakt" ? "akash-network" : "usd-coin";
+    const [fullBalance, stats] = await Promise.all([this.getFullBalance(address, isOldWallet), this.statsService.getMarketData(coin)]);
+
+    const balance = this.#toFiatAmount(fullBalance.data.balance * stats.price);
+    const deployments = this.#toFiatAmount(fullBalance.data.deployments * stats.price);
+    const total = this.#formatFiatAmount(balance + deployments);
+
+    return { balance, deployments, total };
+  }
+
+  #toFiatAmount(uTokenAmount: number) {
+    return this.#formatFiatAmount(uTokenAmount / 1_000_000);
+  }
+
+  #formatFiatAmount(amount: number) {
+    return parseFloat(amount.toFixed(2));
   }
 }

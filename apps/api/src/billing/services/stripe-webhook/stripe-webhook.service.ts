@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { singleton } from "tsyringe";
 
 import { CheckoutSessionRepository, PaymentMethodRepository } from "@src/billing/repositories";
+import { assertIsPayingUser } from "@src/billing/services/paying-user/paying-user";
 import { RefillService } from "@src/billing/services/refill/refill.service";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
 import { WithTransaction } from "@src/core";
@@ -140,17 +141,26 @@ export class StripeWebhookService {
       return;
     }
 
-    await this.paymentMethodRepository.create({
-      userId: user.id,
-      fingerprint,
-      paymentMethodId: paymentMethod.id
-    });
+    const count = await this.paymentMethodRepository.countByUserId(user.id);
+    const isDefault = count === 0;
+
+    assertIsPayingUser(user);
+
+    await Promise.all([
+      this.paymentMethodRepository.create({
+        userId: user.id,
+        fingerprint,
+        paymentMethodId: paymentMethod.id,
+        isDefault
+      }),
+      ...(isDefault ? [this.stripe.markRemotePaymentMethodAsDefault(paymentMethod.id, user)] : [])
+    ]);
 
     this.logger.info({
       event: "PAYMENT_METHOD_ATTACHED",
       paymentMethodId: paymentMethod.id,
       userId: user.id,
-      fingerprint
+      isDefault
     });
   }
 

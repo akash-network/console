@@ -7,9 +7,12 @@ import { v4 as uuidv4 } from "uuid";
 import type { AuthService } from "@src/auth/services/auth.service";
 import { WalletBalanceReloadCheck } from "@src/billing/events/wallet-balance-reload-check";
 import type { UserWalletRepository, WalletSettingRepository } from "@src/billing/repositories";
-import type { JobQueueService } from "@src/core";
+import type { PaymentMethod, StripeService } from "@src/billing/services/stripe/stripe.service";
+import type { JobQueueService, TxService } from "@src/core";
+import type { UserRepository } from "@src/user/repositories";
 import { WalletSettingService } from "./wallet-settings.service";
 
+import { generatePaymentMethod } from "@test/seeders/payment-method.seeder";
 import { UserSeeder } from "@test/seeders/user.seeder";
 import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
 import { generateWalletSetting } from "@test/seeders/wallet-setting.seeder";
@@ -47,7 +50,7 @@ describe(WalletSettingService.name, () => {
         autoReloadEnabled: false,
         autoReloadThreshold: 20.75
       });
-      walletSettingRepository.findByUserId.mockResolvedValue(walletSetting as any);
+      walletSettingRepository.findByUserId.mockResolvedValue(walletSetting);
       walletSettingRepository.updateById.mockResolvedValue(updatedSetting as any);
 
       const result = await service.upsertWalletSetting(user.id, {
@@ -275,11 +278,18 @@ describe(WalletSettingService.name, () => {
 
   function setup() {
     const user = UserSeeder.create();
+    const userWithStripe = { ...user, stripeCustomerId: faker.string.uuid() };
     const userWallet = UserWalletSeeder.create({ userId: user.id });
     const walletSettingRepository = mock<WalletSettingRepository>();
     walletSettingRepository.accessibleBy.mockReturnValue(walletSettingRepository);
     const userWalletRepository = mock<UserWalletRepository>();
     userWalletRepository.findOneByUserId.mockResolvedValue(userWallet);
+    const userRepository = mock<UserRepository>();
+    userRepository.findById.mockResolvedValue(userWithStripe);
+    const paymentMethod = { ...generatePaymentMethod(), validated: true };
+    const stripeService = mock<StripeService>({
+      getDefaultPaymentMethod: jest.fn().mockResolvedValue(paymentMethod as PaymentMethod)
+    });
     const walletSetting = generateWalletSetting({ userId: user.id });
     walletSettingRepository.findByUserId.mockResolvedValue(walletSetting);
     const ability = createMongoAbility();
@@ -292,16 +302,29 @@ describe(WalletSettingService.name, () => {
     const jobQueueService = mock<JobQueueService>({
       cancel: jest.fn().mockResolvedValue(undefined)
     });
-    const service = new WalletSettingService(walletSettingRepository, userWalletRepository, authService, jobQueueService);
+    const txService = mock<TxService>({
+      transaction: jest.fn(async <T>(cb: () => Promise<T>) => await cb()) as TxService["transaction"]
+    });
+    const service = new WalletSettingService(
+      walletSettingRepository,
+      userWalletRepository,
+      userRepository,
+      stripeService,
+      authService,
+      jobQueueService,
+      txService
+    );
     const { autoReloadJobId, ...publicSetting } = walletSetting;
 
     return {
-      user,
+      user: userWithStripe,
       userWallet,
       walletSetting,
       publicSetting,
       walletSettingRepository,
       userWalletRepository,
+      userRepository,
+      stripeService,
       authService,
       jobQueueService,
       jobId,
