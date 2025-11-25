@@ -5,7 +5,7 @@ import type { PgTableWithColumns } from "drizzle-orm/pg-core";
 import type { SQL } from "drizzle-orm/sql/sql";
 import { PostgresError } from "postgres";
 
-import type { ApiPgDatabase, ApiPgTables, TxService } from "@src/core";
+import type { ApiPgDatabase, ApiPgTables, ApiTransaction, TxService } from "@src/core";
 import { DrizzleAbility } from "@src/lib/drizzle-ability/drizzle-ability";
 
 export type AbilityParams = [AnyAbility, Parameters<AnyAbility["can"]>[0]];
@@ -55,6 +55,16 @@ export abstract class BaseRepository<
   }
 
   abstract accessibleBy(...abilityParams: AbilityParams): this;
+
+  protected async ensureTransaction<T>(cb: (tx: ApiTransaction) => Promise<T>) {
+    const txCursor = this.txManager.getPgTx();
+
+    if (txCursor) {
+      return await cb(txCursor);
+    }
+
+    return await this.pg.transaction(async tx => await cb(tx));
+  }
 
   async create(input: Input): Promise<Output> {
     this.ability?.throwUnlessCanExecute(input);

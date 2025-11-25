@@ -6,7 +6,8 @@ import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@
 import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
 import { TxService } from "@src/core/services";
 
-export type DbUserWalletInput = Partial<ApiPgTables["UserWallets"]["$inferInsert"]>;
+export type DbCreateUserWalletInput = ApiPgTables["UserWallets"]["$inferInsert"];
+export type DbUserWalletInput = Partial<DbCreateUserWalletInput>;
 export type UserWalletInput = Partial<
   Omit<DbUserWalletInput, "deploymentAllowance" | "feeAllowance"> & {
     deploymentAllowance: number;
@@ -19,11 +20,6 @@ export type UserWalletOutput = Omit<DbUserWalletOutput, "feeAllowance" | "deploy
   deploymentAllowance: number;
   feeAllowance: number;
 };
-
-export interface ListOptions {
-  limit?: number;
-  offset?: number;
-}
 
 export interface UserWalletPublicOutput {
   id: UserWalletOutput["id"];
@@ -73,7 +69,7 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
     return { wallet: wallet!, isNew: false };
   }
 
-  async create(input: Pick<UserWalletInput, "userId" | "address">) {
+  async create(input: Pick<DbCreateUserWalletInput, "userId" | "address">) {
     const value = {
       userId: input.userId,
       address: input.address,

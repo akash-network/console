@@ -7,6 +7,12 @@ export const SetupIntentResponseSchema = z.object({
   })
 });
 
+export const PaymentMethodMarkAsDefaultInputSchema = z.object({
+  data: z.object({
+    id: z.string()
+  })
+});
+
 export const PaymentMethodSchema = z.object({
   type: z.string(),
   validated: z.boolean().optional(),
@@ -227,6 +233,7 @@ export const RemovePaymentMethodParamsSchema = z.object({
 });
 
 export type SetupIntentResponse = z.infer<typeof SetupIntentResponseSchema>;
+export type PaymentMethodMarkAsDefaultInput = z.infer<typeof PaymentMethodMarkAsDefaultInputSchema>;
 export type PaymentMethod = z.infer<typeof PaymentMethodSchema>;
 export type PaymentMethodsResponse = z.infer<typeof PaymentMethodsResponseSchema>;
 export type ConfirmPaymentRequest = z.infer<typeof ConfirmPaymentRequestSchema>;
@@ -235,10 +242,5 @@ export type PaymentMethodValidationResult = z.infer<typeof PaymentMethodValidati
 export type ConfirmPaymentResponse = z.infer<typeof ConfirmPaymentResponseSchema>;
 export type ApplyCouponRequest = z.infer<typeof ApplyCouponRequestSchema>;
 export type Coupon = z.infer<typeof CouponSchema>;
-export type ApplyCouponResponse = z.infer<typeof ApplyCouponResponseSchema>;
 export type Transaction = z.infer<typeof TransactionSchema>;
-export type CustomerTransactionsResponse = z.infer<typeof CustomerTransactionsResponseSchema>;
-export type CustomerTransactionsQuery = z.infer<typeof CustomerTransactionsQuerySchema>;
-export type ValidatePaymentMethodRequest = z.infer<typeof ValidatePaymentMethodRequestSchema>;
-export type ValidatePaymentMethodResponse = z.infer<typeof ValidatePaymentMethodResponseSchema>;
 export type UpdateCustomerOrganizationRequest = z.infer<typeof UpdateCustomerOrganizationRequestSchema>;

@@ -16,6 +16,7 @@ export const PaymentMethods = pgTable(
     fingerprint: varchar("fingerprint", { length: 255 }).notNull(),
     paymentMethodId: varchar("payment_method_id", { length: 255 }).notNull(),
     isValidated: boolean("is_validated").default(false).notNull(),
+    isDefault: boolean("is_default").default(false).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull()
   },

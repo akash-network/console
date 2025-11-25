@@ -6,7 +6,8 @@ export const UserWallets = pgTable("user_wallets", {
   id: serial("id").primaryKey(),
   userId: uuid("user_id")
     .references(() => Users.id, { onDelete: "cascade" })
-    .unique(),
+    .unique()
+    .notNull(),
   address: varchar("address").unique(),
   deploymentAllowance: allowance("deployment_allowance"),
   feeAllowance: allowance("fee_allowance"),
