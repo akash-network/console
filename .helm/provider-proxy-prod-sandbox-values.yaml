@@ -1,1 +1,3 @@
+deploymentEnv: production
+
 chain: sandbox

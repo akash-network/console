@@ -1,1 +1,3 @@
+deploymentEnv: production
+
 hostName: console.akash.network

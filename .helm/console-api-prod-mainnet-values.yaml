@@ -1,3 +1,5 @@
+deploymentEnv: production
+
 chain: mainnet
 hostNames:
   - console-api-mainnet.akash.network
