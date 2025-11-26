@@ -19,12 +19,12 @@ const logger = LoggerService.forContext("POSTGRES");
 
 const APP_PG_CLIENT = Symbol("appPgClient") as InjectionToken<postgres.Sql>;
 container.register(APP_PG_CLIENT, {
-  useFactory: instancePerContainerCachingFactory(
-    DisposableRegistry.registerFromFactory(c => {
-      const config = c.resolve(CORE_CONFIG);
-      return postgres(config.POSTGRES_DB_URI, { max: config.POSTGRES_MAX_CONNECTIONS, onnotice: logger.info.bind(logger) });
-    })
-  )
+  useFactory: instancePerContainerCachingFactory(c => {
+    const config = c.resolve(CORE_CONFIG);
+    const client = postgres(config.POSTGRES_DB_URI, { max: config.POSTGRES_MAX_CONNECTIONS, onnotice: logger.info.bind(logger) });
+    c.resolve(DisposableRegistry).register({ dispose: () => client.end() });
+    return client;
+  })
 });
 
 const schema = { ...userSchemas, ...billingSchemas, ...deploymentSchemas, ...authSchemas };
