@@ -1,7 +1,8 @@
-import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 
+import { createRoute } from "@src/core/lib/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 import { ProviderDeploymentsController } from "@src/provider/controllers/provider-deployments/provider-deployments.controller";
 import {
   ProviderDeploymentsParamsSchema,
@@ -14,6 +15,7 @@ const route = createRoute({
   path: "/v1/providers/{provider}/deployments/{skip}/{limit}",
   summary: "Get a list of deployments for a provider.",
   tags: ["Providers", "Deployments"],
+  security: SECURITY_NONE,
   request: {
     params: ProviderDeploymentsParamsSchema,
     query: ProviderDeploymentsQuerySchema

@@ -1,7 +1,8 @@
-import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 
+import { createRoute } from "@src/core/lib/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 import { ValidatorController } from "@src/validator/controllers/validator/validator.controller";
 import {
   GetValidatorByAddressParamsSchema,
@@ -15,6 +16,7 @@ const getValidatorListRoute = createRoute({
   method: "get",
   path: "/v1/validators",
   tags: ["Validators"],
+  security: SECURITY_NONE,
   responses: {
     200: {
       description: "Returns validators",
@@ -36,6 +38,7 @@ const getValidatorByAddressRoute = createRoute({
   method: "get",
   path: "/v1/validators/{address}",
   tags: ["Validators"],
+  security: SECURITY_NONE,
   request: {
     params: GetValidatorByAddressParamsSchema
   },

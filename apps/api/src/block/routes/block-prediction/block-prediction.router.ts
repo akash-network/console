@@ -1,4 +1,3 @@
-import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 
 import { BlockPredictionController } from "@src/block/controllers/block-prediction/block-prediction.controller";
@@ -9,7 +8,9 @@ import {
   GetPredictedDateHeightResponseSchema,
   GetPredictionQuerySchema
 } from "@src/block/http-schemas/block-prediction.schema";
+import { createRoute } from "@src/core/lib/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 
 export const blockPredictionRouter = new OpenApiHonoHandler();
 
@@ -18,6 +19,7 @@ const getPredictedBlockDateRoute = createRoute({
   path: "/v1/predicted-block-date/{height}",
   summary: "Get the estimated date of a future block.",
   tags: ["Blocks"],
+  security: SECURITY_NONE,
   request: {
     params: GetPredictedBlockDateParamsSchema,
     query: GetPredictionQuerySchema
@@ -49,6 +51,7 @@ const getPredictedDateHeightRoute = createRoute({
   path: "/v1/predicted-date-height/{timestamp}",
   summary: "Get the estimated height of a future date and time.",
   tags: ["Blocks"],
+  security: SECURITY_NONE,
   request: {
     params: GetPredictedDateHeightParamsSchema,
     query: GetPredictionQuerySchema

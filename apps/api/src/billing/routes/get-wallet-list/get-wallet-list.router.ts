@@ -1,9 +1,9 @@
-import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 import { z } from "zod";
 
 import { WalletController } from "@src/billing/controllers/wallet/wallet.controller";
 import { WalletListResponseOutputSchema } from "@src/billing/http-schemas/wallet.schema";
+import { createRoute } from "@src/core/lib/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
 

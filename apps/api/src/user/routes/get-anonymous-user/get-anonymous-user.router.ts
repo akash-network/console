@@ -1,7 +1,7 @@
-import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 import { z } from "zod";
 
+import { createRoute } from "@src/core/lib/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
 import { UserController } from "@src/user/controllers/user/user.controller";
@@ -15,7 +15,7 @@ export const getAnonymousUserRouter = new OpenApiHonoHandler();
 
 const route = createRoute({
   method: "get",
-  path: "/v1/anonymous-users/:id",
+  path: "/v1/anonymous-users/{id}",
   summary: "Retrieves an anonymous user by id",
   tags: ["Users"],
   security: SECURITY_BEARER_OR_API_KEY,

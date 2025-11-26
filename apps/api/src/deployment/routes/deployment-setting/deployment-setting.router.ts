@@ -1,7 +1,7 @@
-import { createRoute as createOpenApiRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 import { z } from "zod";
 
+import { createRoute } from "@src/core/lib/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
 import { DeploymentSettingController } from "@src/deployment/controllers/deployment-setting/deployment-setting.controller";
@@ -14,7 +14,7 @@ import {
 
 export const deploymentSettingRouter = new OpenApiHonoHandler();
 
-const getRoute = createOpenApiRoute({
+const getRoute = createRoute({
   method: "get",
   path: "/v1/deployment-settings/{userId}/{dseq}",
   summary: "Get deployment settings by user ID and dseq",
@@ -51,7 +51,7 @@ deploymentSettingRouter.openapi(getRoute, async function routeGetDeploymentSetti
   return c.json(result, 200);
 });
 
-const postRoute = createOpenApiRoute({
+const postRoute = createRoute({
   method: "post",
   path: "/v1/deployment-settings",
   summary: "Create deployment settings",
@@ -83,7 +83,7 @@ deploymentSettingRouter.openapi(postRoute, async function routeCreateDeploymentS
   return c.json(result, 201);
 });
 
-const patchRoute = createOpenApiRoute({
+const patchRoute = createRoute({
   method: "patch",
   path: "/v1/deployment-settings/{userId}/{dseq}",
   summary: "Update deployment settings",

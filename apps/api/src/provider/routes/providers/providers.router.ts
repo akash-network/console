@@ -1,7 +1,8 @@
-import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 
+import { createRoute } from "@src/core/lib/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 import { ProviderController } from "@src/provider/controllers/provider/provider.controller";
 import {
   ProviderActiveLeasesGraphDataParamsSchema,
@@ -19,6 +20,7 @@ const providerListRoute = createRoute({
   path: "/v1/providers",
   summary: "Get a list of providers.",
   tags: ["Providers"],
+  security: SECURITY_NONE,
   request: {
     query: ProviderListQuerySchema
   },
@@ -45,6 +47,7 @@ const providerRoute = createRoute({
   path: "/v1/providers/{address}",
   summary: "Get a provider details.",
   tags: ["Providers"],
+  security: SECURITY_NONE,
   request: {
     params: ProviderParamsSchema
   },
@@ -84,6 +87,7 @@ const activeLeasesGraphDataRoute = createRoute({
   method: "get",
   path: "/v1/providers/{providerAddress}/active-leases-graph-data",
   tags: ["Analytics", "Providers"],
+  security: SECURITY_NONE,
   request: {
     params: ProviderActiveLeasesGraphDataParamsSchema
   },

@@ -1,13 +1,14 @@
-import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 
 import { StripeController } from "@src/billing/controllers/stripe/stripe.controller";
 import {
   PaymentMethodsResponseSchema,
+  RemovePaymentMethodParamsSchema,
   SetupIntentResponseSchema,
   ValidatePaymentMethodRequestSchema,
   ValidatePaymentMethodResponseSchema
 } from "@src/billing/http-schemas/stripe.schema";
+import { createRoute } from "@src/core/lib/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
 
@@ -65,22 +66,14 @@ stripePaymentMethodsRouter.openapi(paymentMethodsRoute, async function getPaymen
 
 const removePaymentMethodRoute = createRoute({
   method: "delete",
-  path: "/v1/stripe/payment-methods/:paymentMethodId",
+  path: "/v1/stripe/payment-methods/{paymentMethodId}",
   summary: "Remove a payment method",
   description: "Permanently removes a saved payment method from the user's account. This action cannot be undone.",
   tags: ["Payment"],
   security: SECURITY_BEARER_OR_API_KEY,
-  parameters: [
-    {
-      name: "paymentMethodId",
-      in: "path",
-      required: true,
-      schema: {
-        type: "string"
-      },
-      description: "The unique identifier of the payment method to remove"
-    }
-  ],
+  request: {
+    params: RemovePaymentMethodParamsSchema
+  },
   responses: {
     204: {
       description: "Payment method removed successfully"
@@ -88,7 +81,7 @@ const removePaymentMethodRoute = createRoute({
   }
 });
 stripePaymentMethodsRouter.openapi(removePaymentMethodRoute, async function removePaymentMethod(c) {
-  const { paymentMethodId } = c.req.param();
+  const { paymentMethodId } = c.req.valid("param");
   await container.resolve(StripeController).removePaymentMethod(paymentMethodId);
   return c.body(null, 204);
 });

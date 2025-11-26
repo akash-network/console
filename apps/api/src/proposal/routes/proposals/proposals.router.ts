@@ -1,7 +1,8 @@
-import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 
+import { createRoute } from "@src/core/lib/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 import { ProposalController } from "@src/proposal/controllers/proposal/proposal.controller";
 import { GetProposalByIdParamsSchema, GetProposalByIdResponseSchema, GetProposalListResponseSchema } from "@src/proposal/http-schemas/proposal.schema";
 
@@ -11,6 +12,7 @@ const getProposalsRoute = createRoute({
   method: "get",
   path: "/v1/proposals",
   tags: ["Proposals"],
+  security: SECURITY_NONE,
   responses: {
     200: {
       description: "Returns a list of proposals",
@@ -32,6 +34,7 @@ const getProposalByIdRoute = createRoute({
   method: "get",
   path: "/v1/proposals/{id}",
   tags: ["Proposals"],
+  security: SECURITY_NONE,
   request: {
     params: GetProposalByIdParamsSchema
   },

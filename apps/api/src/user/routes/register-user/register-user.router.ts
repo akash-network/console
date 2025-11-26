@@ -1,8 +1,9 @@
-import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 import { z } from "zod";
 
+import { createRoute } from "@src/core/lib/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 import { UserController } from "@src/user/controllers/user/user.controller";
 import { UserSchema } from "@src/user/schemas/user.schema";
 
@@ -24,6 +25,7 @@ const route = createRoute({
   path: "/v1/register-user",
   summary: "Registers a new user",
   tags: ["Users"],
+  security: SECURITY_NONE,
   request: {
     body: {
       content: {
