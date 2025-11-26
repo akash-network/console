@@ -1,7 +1,8 @@
-import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 
+import { createRoute } from "@src/core/services/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 import { ProviderAttributesSchemaController } from "@src/provider/controllers/provider-attributes-schema/provider-attributes-schema.controller";
 import { ProviderAttributesSchemaResponseSchema } from "@src/provider/http-schemas/provider-attributes-schema.schema";
 
@@ -10,6 +11,7 @@ const route = createRoute({
   path: "/v1/provider-attributes-schema",
   summary: "Get the provider attributes schema",
   tags: ["Providers"],
+  security: SECURITY_NONE,
   responses: {
     200: {
       description: "Return the provider attributes schema",

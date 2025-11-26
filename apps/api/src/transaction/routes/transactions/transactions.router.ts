@@ -1,7 +1,8 @@
-import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 
+import { createRoute } from "@src/core/services/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 import { TransactionController } from "@src/transaction/controllers/transaction/transaction.controller";
 import {
   GetTransactionByHashParamsSchema,
@@ -17,6 +18,7 @@ const listTransactionsRoute = createRoute({
   path: "/v1/transactions",
   summary: "Get a list of transactions.",
   tags: ["Transactions"],
+  security: SECURITY_NONE,
   request: {
     query: ListTransactionsQuerySchema
   },
@@ -43,6 +45,7 @@ const getTransactionByHashRoute = createRoute({
   path: "/v1/transactions/{hash}",
   summary: "Get a transaction by hash.",
   tags: ["Transactions"],
+  security: SECURITY_NONE,
   request: {
     params: GetTransactionByHashParamsSchema
   },

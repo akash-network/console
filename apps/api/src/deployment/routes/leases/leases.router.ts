@@ -1,8 +1,8 @@
-import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 
+import { createRoute } from "@src/core/services/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
-import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
+import { SECURITY_BEARER_OR_API_KEY, SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 import { LeaseController } from "@src/deployment/controllers/lease/lease.controller";
 import { GetDeploymentResponseSchema } from "@src/deployment/http-schemas/deployment.schema";
 import { CreateLeaseRequestSchema } from "@src/deployment/http-schemas/lease.schema";
@@ -47,6 +47,7 @@ const fallbackListRoute = createRoute({
   path: "/akash/market/{version}/leases/list",
   summary: "List leases (database fallback)",
   tags: ["Leases"],
+  security: SECURITY_NONE,
   request: {
     query: FallbackLeaseListQuerySchema
   },

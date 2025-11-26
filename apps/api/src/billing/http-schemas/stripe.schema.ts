@@ -215,6 +215,17 @@ export const UpdateCustomerOrganizationRequestSchema = z.object({
   organization: z.string()
 });
 
+export const RemovePaymentMethodParamsSchema = z.object({
+  paymentMethodId: z.string().openapi({
+    param: {
+      name: "paymentMethodId",
+      in: "path"
+    },
+    description: "The unique identifier of the payment method to remove",
+    example: "pm_1234567890"
+  })
+});
+
 export type SetupIntentResponse = z.infer<typeof SetupIntentResponseSchema>;
 export type PaymentMethod = z.infer<typeof PaymentMethodSchema>;
 export type PaymentMethodsResponse = z.infer<typeof PaymentMethodsResponseSchema>;

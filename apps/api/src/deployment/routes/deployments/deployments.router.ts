@@ -1,8 +1,8 @@
-import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 
+import { createRoute } from "@src/core/services/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
-import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
+import { SECURITY_BEARER_OR_API_KEY, SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 import { DeploymentController } from "@src/deployment/controllers/deployment/deployment.controller";
 import {
   CloseDeploymentParamsSchema,
@@ -214,6 +214,7 @@ const listWithResourcesRoute = createRoute({
   path: "/v1/addresses/{address}/deployments/{skip}/{limit}",
   summary: "Get a list of deployments by owner address.",
   tags: ["Addresses", "Deployments"],
+  security: SECURITY_NONE,
   request: {
     params: ListWithResourcesParamsSchema,
     query: ListWithResourcesQuerySchema
@@ -251,6 +252,7 @@ const getByOwnerAndDseqRoute = createRoute({
   path: "/v1/deployment/{owner}/{dseq}",
   summary: "Get deployment details",
   tags: ["Deployments"],
+  security: SECURITY_NONE,
   request: {
     params: GetDeploymentByOwnerDseqParamsSchema
   },
@@ -287,6 +289,7 @@ const fallbackListRoute = createRoute({
   path: "/akash/deployment/{version}/deployments/list",
   summary: "List deployments (database fallback)",
   tags: ["Deployments"],
+  security: SECURITY_NONE,
   request: {
     query: FallbackDeploymentListQuerySchema
   },
@@ -323,6 +326,7 @@ const fallbackInfoRoute = createRoute({
   path: "/akash/deployment/{version}/deployments/info",
   summary: "Get deployment info (database fallback)",
   tags: ["Deployments"],
+  security: SECURITY_NONE,
   request: {
     query: FallbackDeploymentInfoQuerySchema
   },

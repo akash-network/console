@@ -1,8 +1,9 @@
 import { LoggerService } from "@akashnetwork/logging";
-import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 
+import { createRoute } from "@src/core/services/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 import { GraphDataController } from "@src/dashboard/controllers/graph-data/graph-data.controller";
 import { GraphDataParamsSchema, GraphDataResponseSchema } from "@src/dashboard/http-schemas/graph-data/graph-data.schema";
 import { isValidGraphDataName } from "@src/services/db/statsService";
@@ -15,6 +16,7 @@ const route = createRoute({
   method: "get",
   path: "/v1/graph-data/{dataName}",
   tags: ["Analytics"],
+  security: SECURITY_NONE,
   request: {
     params: GraphDataParamsSchema
   },

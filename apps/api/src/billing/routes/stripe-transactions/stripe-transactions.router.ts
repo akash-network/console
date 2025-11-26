@@ -1,4 +1,3 @@
-import { createRoute } from "@hono/zod-openapi";
 import { Readable } from "stream";
 import { container } from "tsyringe";
 
@@ -10,6 +9,7 @@ import {
   CustomerTransactionsQuerySchema,
   CustomerTransactionsResponseSchema
 } from "@src/billing/http-schemas/stripe.schema";
+import { createRoute } from "@src/core/services/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
 

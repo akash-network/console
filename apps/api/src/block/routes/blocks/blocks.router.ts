@@ -1,4 +1,3 @@
-import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 
 import { BlockController } from "@src/block/controllers/block/block.controller";
@@ -8,7 +7,9 @@ import {
   ListBlocksQuerySchema,
   ListBlocksResponseSchema
 } from "@src/block/http-schemas/block.schema";
+import { createRoute } from "@src/core/services/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 
 export const blocksRouter = new OpenApiHonoHandler();
 
@@ -17,6 +18,7 @@ const listBlocksRoute = createRoute({
   path: "/v1/blocks",
   summary: "Get a list of recent blocks.",
   tags: ["Blocks"],
+  security: SECURITY_NONE,
   request: {
     query: ListBlocksQuerySchema
   },
@@ -43,6 +45,7 @@ const getBlockByHeightRoute = createRoute({
   path: "/v1/blocks/{height}",
   summary: "Get a block by height.",
   tags: ["Blocks"],
+  security: SECURITY_NONE,
   request: {
     params: GetBlockByHeightParamsSchema
   },

@@ -1,8 +1,10 @@
-import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
+import { OpenAPIHono } from "@hono/zod-openapi";
 import type { Context, Env } from "hono";
 import { container } from "tsyringe";
 
+import { createRoute } from "@src/core/services/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 import type { AppEnv } from "@src/core/types/app-context";
 import { GpuController } from "@src/gpu/controllers/gpu.controller";
 import {
@@ -22,6 +24,7 @@ const listGpusRoute = createRoute({
   path: "/v1/gpu",
   summary: "Get a list of gpu models and their availability.",
   tags: ["Gpu"],
+  security: SECURITY_NONE,
   request: {
     query: ListGpuQuerySchema
   },
@@ -90,6 +93,7 @@ const listGpuModelsRoute = createRoute({
   summary:
     "Get a list of gpu models per vendor. Based on the content from https://raw.githubusercontent.com/akash-network/provider-configs/main/devices/pcie/gpus.json.",
   tags: ["Gpu"],
+  security: SECURITY_NONE,
   responses: {
     200: {
       description: "List of gpu models per.",
@@ -126,6 +130,7 @@ const gpuBreakdownRoute = createRoute({
   method: "get",
   path: "/v1/gpu-breakdown",
   tags: ["Gpu"],
+  security: SECURITY_NONE,
   summary: "Gets gpu analytics breakdown by vendor and model. If no vendor or model is provided, all GPUs are returned.",
   request: {
     query: GpuBreakdownQuerySchema
@@ -153,6 +158,7 @@ const getGpuPricesRoute = createRoute({
   path: "/v1/gpu-prices",
   summary: "Get a list of gpu models with their availability and pricing.",
   tags: ["Gpu"],
+  security: SECURITY_NONE,
   responses: {
     200: {
       description: "List of gpu models with their availability and pricing.",

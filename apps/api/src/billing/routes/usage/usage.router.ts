@@ -1,15 +1,18 @@
-import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 
 import { UsageController } from "@src/billing/controllers/usage/usage.controller";
 import { GetUsageHistoryQuerySchema, UsageHistoryResponseSchema, UsageHistoryStatsResponseSchema } from "@src/billing/http-schemas/usage.schema";
+import { createRoute } from "@src/core/services/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 
 const getUsageHistoryRoute = createRoute({
   method: "get",
   path: "/v1/usage/history",
   summary: "Get historical data of billing and usage for a wallet address.",
   tags: ["Billing"],
+  security: SECURITY_NONE,
+
   request: {
     query: GetUsageHistoryQuerySchema
   },
@@ -33,6 +36,7 @@ const getUsageHistoryStatsRoute = createRoute({
   path: "/v1/usage/history/stats",
   summary: "Get historical usage stats for a wallet address.",
   tags: ["Billing"],
+  security: SECURITY_NONE,
   request: {
     query: GetUsageHistoryQuerySchema
   },

@@ -1,7 +1,8 @@
-import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 
+import { createRoute } from "@src/core/services/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 import { ProviderVersionsController } from "@src/provider/controllers/provider-versions/provider-versions.controller";
 import { ProviderVersionsResponseSchema } from "@src/provider/http-schemas/provider-versions.schema";
 
@@ -12,6 +13,7 @@ const route = createRoute({
   path: "/v1/provider-versions",
   summary: "Get providers grouped by version.",
   tags: ["Providers"],
+  security: SECURITY_NONE,
   responses: {
     200: {
       description: "List of providers grouped by version.",

@@ -1,7 +1,8 @@
-import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 
+import { createRoute } from "@src/core/services/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 import { PricingController } from "@src/pricing/controllers/pricing/pricing.controller";
 import { PricingBodySchema, PricingResponseSchema } from "@src/pricing/http-schemas/pricing.schema";
 
@@ -11,6 +12,7 @@ const postPricingRoute = createRoute({
   method: "post",
   path: "/v1/pricing",
   tags: ["Other"],
+  security: SECURITY_NONE,
   summary: "Estimate the price of a deployment on akash and other cloud providers.",
   request: {
     body: {

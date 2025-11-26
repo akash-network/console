@@ -574,6 +574,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Deployment not found",
           },
         },
+        "security": [],
         "summary": "Get deployment info (database fallback)",
         "tags": [
           "Deployments",
@@ -1175,6 +1176,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Returns paginated list of deployments from database",
           },
         },
+        "security": [],
         "summary": "List deployments (database fallback)",
         "tags": [
           "Deployments",
@@ -1510,6 +1512,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Returns paginated list of leases from database",
           },
         },
+        "security": [],
         "summary": "List leases (database fallback)",
         "tags": [
           "Leases",
@@ -1773,6 +1776,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Invalid address",
           },
         },
+        "security": [],
         "summary": "Get address details",
         "tags": [
           "Addresses",
@@ -1975,6 +1979,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Invalid address",
           },
         },
+        "security": [],
         "summary": "Get a list of deployments by owner address.",
         "tags": [
           "Addresses",
@@ -2123,6 +2128,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Invalid address or parameters",
           },
         },
+        "security": [],
         "summary": "Get a list of transactions for a given address.",
         "tags": [
           "Addresses",
@@ -2164,13 +2170,14 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Returns a created anonymous user",
           },
         },
+        "security": [],
         "summary": "Creates an anonymous user",
         "tags": [
           "Users",
         ],
       },
     },
-    "/v1/anonymous-users/:id": {
+    "/v1/anonymous-users/{id}": {
       "get": {
         "parameters": [
           {
@@ -2722,6 +2729,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "List of auditors",
           },
         },
+        "security": [],
         "summary": "Get a list of auditors.",
         "tags": [
           "Providers",
@@ -2778,6 +2786,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Returns user balances",
           },
         },
+        "security": [],
         "summary": "Get user balances",
         "tags": [
           "Wallet",
@@ -3759,6 +3768,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Returns block list",
           },
         },
+        "security": [],
         "summary": "Get a list of recent blocks.",
         "tags": [
           "Blocks",
@@ -3899,6 +3909,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Block not found",
           },
         },
+        "security": [],
         "summary": "Get a block by height.",
         "tags": [
           "Blocks",
@@ -4573,6 +4584,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Returns dashboard data",
           },
         },
+        "security": [],
         "tags": [
           "Analytics",
         ],
@@ -5610,6 +5622,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Deployment not found",
           },
         },
+        "security": [],
         "summary": "Get deployment details",
         "tags": [
           "Deployments",
@@ -7594,6 +7607,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Invalid provider parameter, should be a valid akash address or host uri",
           },
         },
+        "security": [],
         "summary": "Get a list of gpu models and their availability.",
         "tags": [
           "Gpu",
@@ -7671,6 +7685,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Gets gpu analytics breakdown by vendor and model. If no vendor or model is provided, all GPUs are returned.",
           },
         },
+        "security": [],
         "summary": "Gets gpu analytics breakdown by vendor and model. If no vendor or model is provided, all GPUs are returned.",
         "tags": [
           "Gpu",
@@ -7731,6 +7746,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "List of gpu models per.",
           },
         },
+        "security": [],
         "summary": "Get a list of gpu models per vendor. Based on the content from https://raw.githubusercontent.com/akash-network/provider-configs/main/devices/pcie/gpus.json.",
         "tags": [
           "Gpu",
@@ -7864,6 +7880,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "List of gpu models with their availability and pricing.",
           },
         },
+        "security": [],
         "summary": "Get a list of gpu models with their availability and pricing.",
         "tags": [
           "Gpu",
@@ -7947,6 +7964,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Graph data not found",
           },
         },
+        "security": [],
         "tags": [
           "Analytics",
         ],
@@ -8531,6 +8549,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Invalid start date, must be in the following format: YYYY-MM-DD",
           },
         },
+        "security": [],
         "summary": "Get leases durations.",
         "tags": [
           "Analytics",
@@ -8595,6 +8614,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Returns market stats",
           },
         },
+        "security": [],
         "tags": [
           "Analytics",
         ],
@@ -8710,6 +8730,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Returns network capacity stats",
           },
         },
+        "security": [],
         "tags": [
           "Analytics",
         ],
@@ -8763,6 +8784,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "List of nodes",
           },
         },
+        "security": [],
         "summary": "Get a list of nodes (api/rpc) for a specific network.",
         "tags": [
           "Chain",
@@ -8827,6 +8849,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Invalid height or block window",
           },
         },
+        "security": [],
         "summary": "Get the estimated date of a future block.",
         "tags": [
           "Blocks",
@@ -8892,6 +8915,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Invalid timestamp or block window",
           },
         },
+        "security": [],
         "summary": "Get the estimated height of a future date and time.",
         "tags": [
           "Blocks",
@@ -9093,6 +9117,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Invalid parameters",
           },
         },
+        "security": [],
         "summary": "Estimate the price of a deployment on akash and other cloud providers.",
         "tags": [
           "Other",
@@ -9148,6 +9173,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Returns a list of proposals",
           },
         },
+        "security": [],
         "tags": [
           "Proposals",
         ],
@@ -9272,6 +9298,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Proposal not found",
           },
         },
+        "security": [],
         "tags": [
           "Proposals",
         ],
@@ -10726,6 +10753,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Return the provider attributes schema",
           },
         },
+        "security": [],
         "summary": "Get the provider attributes schema",
         "tags": [
           "Providers",
@@ -10916,6 +10944,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Provider not found",
           },
         },
+        "security": [],
         "summary": "Get dashboard data for provider console.",
         "tags": [
           "Providers",
@@ -10997,6 +11026,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Provider not found",
           },
         },
+        "security": [],
         "summary": "Get earnings data for provider console.",
         "tags": [
           "Providers",
@@ -11135,6 +11165,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Graph data not found",
           },
         },
+        "security": [],
         "tags": [
           "Analytics",
         ],
@@ -11179,6 +11210,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Return a list of provider regions",
           },
         },
+        "security": [],
         "summary": "Get a list of provider regions",
         "tags": [
           "Providers",
@@ -11225,6 +11257,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "List of providers grouped by version.",
           },
         },
+        "security": [],
         "summary": "Get providers grouped by version.",
         "tags": [
           "Providers",
@@ -11630,6 +11663,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Returns a list of providers",
           },
         },
+        "security": [],
         "summary": "Get a list of providers.",
         "tags": [
           "Providers",
@@ -12169,6 +12203,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Provider not found",
           },
         },
+        "security": [],
         "summary": "Get a provider details.",
         "tags": [
           "Providers",
@@ -12262,6 +12297,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Invalid address",
           },
         },
+        "security": [],
         "tags": [
           "Analytics",
           "Providers",
@@ -12499,6 +12535,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Invalid status filter",
           },
         },
+        "security": [],
         "summary": "Get a list of deployments for a provider.",
         "tags": [
           "Providers",
@@ -12604,6 +12641,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Returns the registered user",
           },
         },
+        "security": [],
         "summary": "Registers a new user",
         "tags": [
           "Users",
@@ -12644,6 +12682,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Returns a created wallet",
           },
         },
+        "security": [],
         "summary": "Resends a verification email",
         "tags": [
           "Users",
@@ -12812,6 +12851,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "3D Secure authentication required to complete trial setup",
           },
         },
+        "security": [],
         "summary": "Start a trial period for a user",
         "tags": [
           "Wallet",
@@ -12853,6 +12893,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Stripe signature is required",
           },
         },
+        "security": [],
         "summary": "Stripe Webhook Handler",
         "tags": [
           "Payment",
@@ -13171,39 +13212,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
         ],
       },
     },
-    "/v1/stripe/payment-methods/:paymentMethodId": {
-      "delete": {
-        "description": "Permanently removes a saved payment method from the user's account. This action cannot be undone.",
-        "parameters": [
-          {
-            "description": "The unique identifier of the payment method to remove",
-            "in": "path",
-            "name": "paymentMethodId",
-            "required": true,
-            "schema": {
-              "type": "string",
-            },
-          },
-        ],
-        "responses": {
-          "204": {
-            "description": "Payment method removed successfully",
-          },
-        },
-        "security": [
-          {
-            "BearerAuth": [],
-          },
-          {
-            "ApiKeyAuth": [],
-          },
-        ],
-        "summary": "Remove a payment method",
-        "tags": [
-          "Payment",
-        ],
-      },
-    },
     "/v1/stripe/payment-methods/setup": {
       "post": {
         "description": "Creates a Stripe SetupIntent that allows users to securely add payment methods to their account. The SetupIntent provides a client secret that can be used with Stripe's frontend SDKs to collect payment method details.",
@@ -13311,6 +13319,40 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
           },
         ],
         "summary": "Validates a payment method after 3D Secure authentication",
+        "tags": [
+          "Payment",
+        ],
+      },
+    },
+    "/v1/stripe/payment-methods/{paymentMethodId}": {
+      "delete": {
+        "description": "Permanently removes a saved payment method from the user's account. This action cannot be undone.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "paymentMethodId",
+            "required": true,
+            "schema": {
+              "description": "The unique identifier of the payment method to remove",
+              "example": "pm_1234567890",
+              "type": "string",
+            },
+          },
+        ],
+        "responses": {
+          "204": {
+            "description": "Payment method removed successfully",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Remove a payment method",
         "tags": [
           "Payment",
         ],
@@ -13917,6 +13959,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Returns a list of deployment templates grouped by categories",
           },
         },
+        "security": [],
         "tags": [
           "Other",
         ],
@@ -14015,6 +14058,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Returns a list of deployment templates grouped by categories",
           },
         },
+        "security": [],
         "tags": [
           "Other",
         ],
@@ -14110,6 +14154,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Template not found",
           },
         },
+        "security": [],
         "tags": [
           "Other",
         ],
@@ -14211,6 +14256,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Returns transaction list",
           },
         },
+        "security": [],
         "summary": "Get a list of transactions.",
         "tags": [
           "Transactions",
@@ -14328,6 +14374,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Transaction not found",
           },
         },
+        "security": [],
         "summary": "Get a transaction by hash.",
         "tags": [
           "Transactions",
@@ -14546,6 +14593,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Invalid address format",
           },
         },
+        "security": [],
         "summary": "Get historical data of billing and usage for a wallet address.",
         "tags": [
           "Billing",
@@ -14632,6 +14680,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Invalid address format",
           },
         },
+        "security": [],
         "summary": "Get historical usage stats for a wallet address.",
         "tags": [
           "Billing",
@@ -14736,6 +14785,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Returns validators",
           },
         },
+        "security": [],
         "tags": [
           "Validators",
         ],
@@ -14832,6 +14882,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Validator not found",
           },
         },
+        "security": [],
         "tags": [
           "Validators",
         ],
@@ -14900,6 +14951,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "User not found",
           },
         },
+        "security": [],
         "summary": "Checks if the email is verified",
         "tags": [
           "Users",

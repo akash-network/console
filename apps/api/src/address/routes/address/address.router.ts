@@ -1,4 +1,3 @@
-import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 
 import { AddressController } from "@src/address/controllers/address/address.controller";
@@ -8,7 +7,9 @@ import {
   GetAddressTransactionsParamsSchema,
   GetAddressTransactionsResponseSchema
 } from "@src/address/http-schemas/address.schema";
+import { createRoute } from "@src/core/services/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 
 export const addressRouter = new OpenApiHonoHandler();
 
@@ -17,6 +18,7 @@ const getAddressRoute = createRoute({
   path: "/v1/addresses/{address}",
   summary: "Get address details",
   tags: ["Addresses"],
+  security: SECURITY_NONE,
   request: {
     params: GetAddressParamsSchema
   },
@@ -46,6 +48,7 @@ const getAddressTransactionsRoute = createRoute({
   path: "/v1/addresses/{address}/transactions/{skip}/{limit}",
   summary: "Get a list of transactions for a given address.",
   tags: ["Addresses", "Transactions"],
+  security: SECURITY_NONE,
   request: {
     params: GetAddressTransactionsParamsSchema
   },

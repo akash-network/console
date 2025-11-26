@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "@hono/zod-openapi";
 
 const WalletOutputSchema = z.object({
   id: z.number().nullable().openapi({}),

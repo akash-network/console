@@ -1,10 +1,11 @@
 import { VerifyEmailResponseSchema } from "@akashnetwork/http-sdk";
-import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 
 import { AuthController } from "@src/auth/controllers/auth/auth.controller";
 import { VerifyEmailRequestSchema } from "@src/auth/http-schemas/verify-email.schema";
+import { createRoute } from "@src/core/services/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 
 export const verifyEmailRouter = new OpenApiHonoHandler();
 
@@ -13,6 +14,7 @@ const route = createRoute({
   path: "/v1/verify-email",
   summary: "Checks if the email is verified",
   tags: ["Users"],
+  security: SECURITY_NONE,
   request: {
     body: {
       required: true,
