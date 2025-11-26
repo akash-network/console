@@ -37,7 +37,7 @@ export class WalletTestingService<T extends Hono<any>> {
   }
 
   private async createWallet(user: UserOutput) {
-    jest.spyOn(container.resolve(DomainEventsService), "publish").mockResolvedValue(undefined);
+    jest.spyOn(container.resolve(DomainEventsService), "publish").mockResolvedValue(null);
 
     return container.resolve(ExecutionContextService).runWithContext(async () => {
       container.resolve(AuthService).currentUser = user;

@@ -26,6 +26,7 @@ export const WalletSetting = pgTable(
       precision: 20,
       scale: 2
     }),
+    autoReloadJobId: uuid("auto_reload_job_id"),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow()
   },

@@ -16,7 +16,7 @@ export class TxService {
 
   constructor(@InjectPg() private readonly pg: ApiPgDatabase) {}
 
-  async transaction(cb: () => Promise<void>) {
+  async transaction<T>(cb: () => Promise<T>) {
     return await this.pg.transaction(async tx => {
       return this.storage.run(new Map(), async () => {
         this.storage.getStore()?.set("PG_TX", tx);

@@ -40,7 +40,8 @@ export class JobQueueService implements Disposable {
         name: queueName,
         retryLimit: 5,
         retryBackoff: true,
-        retryDelayMax: 5 * 60
+        retryDelayMax: 5 * 60,
+        policy: handler.policy
       });
     });
     await Promise.all(promises);
@@ -88,6 +89,15 @@ export class JobQueueService implements Disposable {
       name: job.name,
       data: { ...job.data, version: job.version },
       options
+    });
+  }
+
+  async cancel(name: string, id: string): Promise<void> {
+    await this.pgBoss.cancel(name, id);
+    this.logger.info({
+      event: "JOB_CANCELLED",
+      id,
+      name
     });
   }
 
@@ -195,6 +205,7 @@ export type JobType<T extends Job> = {
 export interface JobHandler<T extends Job> {
   accepts: JobType<T>;
   concurrency?: ProcessOptions["concurrency"];
+  policy?: PgBoss.Queue["policy"];
   handle(payload: JobPayload<T>): Promise<void>;
 }
 

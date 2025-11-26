@@ -1,3 +1,4 @@
+import { faker } from "@faker-js/faker";
 import { mock, mockDeep } from "jest-mock-extended";
 import type PgBoss from "pg-boss";
 
@@ -101,6 +102,23 @@ describe(JobQueueService.name, () => {
         options: undefined
       });
       expect(result).toBe("job-id-456");
+    });
+  });
+
+  describe("cancel", () => {
+    it("cancels a job", async () => {
+      const { service, pgBoss, logger } = setup();
+      const jobId = faker.string.uuid();
+      jest.spyOn(pgBoss, "cancel").mockResolvedValue();
+
+      await service.cancel("test", jobId);
+
+      expect(pgBoss.cancel).toHaveBeenCalledWith("test", jobId);
+      expect(logger.info).toHaveBeenCalledWith({
+        event: "JOB_CANCELLED",
+        name: "test",
+        id: jobId
+      });
     });
   });
 
