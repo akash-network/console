@@ -8,7 +8,7 @@ module.exports = {
           {
             name: "@hono/zod-openapi",
             importNames: ["createRoute"],
-            message: "Import createRoute from '@src/core/services/create-route/create-route' instead to enforce security declaration."
+            message: "Import createRoute from '@src/core/lib/create-route/create-route' instead to enforce security declaration."
           }
         ]
       }

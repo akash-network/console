@@ -8,7 +8,7 @@ import {
   ValidatePaymentMethodRequestSchema,
   ValidatePaymentMethodResponseSchema
 } from "@src/billing/http-schemas/stripe.schema";
-import { createRoute } from "@src/core/services/create-route/create-route";
+import { createRoute } from "@src/core/lib/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
 

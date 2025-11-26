@@ -2,7 +2,7 @@ import { OpenAPIHono, z } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 
 import { FinancialStatsService } from "@src/billing/services/financial-stats/financial-stats.service";
-import { createRoute } from "@src/core/services/create-route/create-route";
+import { createRoute } from "@src/core/lib/create-route/create-route";
 import { SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 
 const route = createRoute({

@@ -2,7 +2,7 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import type { Context, Env } from "hono";
 import { container } from "tsyringe";
 
-import { createRoute } from "@src/core/services/create-route/create-route";
+import { createRoute } from "@src/core/lib/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 import type { AppEnv } from "@src/core/types/app-context";
