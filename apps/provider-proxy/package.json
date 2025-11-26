@@ -1,6 +1,6 @@
 {
   "name": "@akashnetwork/provider-proxy",
-  "version": "2.4.1",
+  "version": "2.5.0",
   "description": "Proxy that allows communication between the Web UI and providers",
   "license": "Apache-2.0",
   "author": "Akash Network",
@@ -61,6 +61,7 @@
     "nodemon": "^3.1.9",
     "prettier": "^3.3.0",
     "prettier-plugin-tailwindcss": "^0.6.1",
+    "ts-node": "^10.9.2",
     "typescript": "~5.8.2"
   }
 }

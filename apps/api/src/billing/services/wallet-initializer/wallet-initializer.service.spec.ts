@@ -36,7 +36,7 @@ describe(WalletInitializerService.name, () => {
       await di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(userId);
 
       expect(getOrCreateWallet).toHaveBeenCalledWith({ userId });
-      expect(createAndAuthorizeTrialSpending).toHaveBeenCalledWith({ addressIndex: newWallet.id });
+      expect(createAndAuthorizeTrialSpending).toHaveBeenCalledWith({ addressIndex: newWallet.id, useOldWallet: false });
       expect(updateWalletById).toHaveBeenCalledWith(
         newWallet.id,
         {
@@ -81,7 +81,7 @@ describe(WalletInitializerService.name, () => {
       });
 
       await expect(di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(userId)).rejects.toThrow("Failed to authorize trial");
-      expect(createAndAuthorizeTrialSpending).toHaveBeenCalledWith({ addressIndex: newWallet.id });
+      expect(createAndAuthorizeTrialSpending).toHaveBeenCalledWith({ addressIndex: newWallet.id, useOldWallet: false });
       expect(deleteWalletById).toHaveBeenCalledWith(newWallet.id);
       expect(di.resolve(DomainEventsService).publish).not.toHaveBeenCalled();
     });

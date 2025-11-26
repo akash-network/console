@@ -24,9 +24,8 @@ export class DisposableRegistry implements Disposable {
     return container.resolve(DisposableRegistry).registerFromFactory(factory);
   }
 
-  private isDisposed = false;
-
-  private readonly disposes: Array<() => Promise<void> | void> = [];
+  #isDisposed = false;
+  readonly #disposables: Disposable[] = [];
 
   /**
    * Wraps a factory function to automatically register disposable instances.
@@ -41,13 +40,16 @@ export class DisposableRegistry implements Disposable {
   registerFromFactory<T>(factory: FactoryProvider<T>["useFactory"]): FactoryProvider<T>["useFactory"] {
     return container => {
       const value = factory(container);
-
       if (this.isDisposable(value)) {
-        this.disposes.push(() => value.dispose());
+        this.register(value as Disposable);
       }
 
       return value;
     };
+  }
+
+  register(item: Disposable): void {
+    this.#disposables.push(item);
   }
 
   /**
@@ -65,17 +67,17 @@ export class DisposableRegistry implements Disposable {
    * @returns A promise that resolves when all dispose operations complete successfully.
    * @throws AggregateError if any dispose operations failed, containing all failure reasons.
    */
-  async dispose() {
-    if (this.isDisposed) {
+  async dispose(): Promise<void> {
+    if (this.#isDisposed) {
       return;
     }
 
-    this.isDisposed = true;
+    this.#isDisposed = true;
 
-    const results = await Promise.allSettled(this.disposes.map(dispose => dispose()));
+    const results = await Promise.allSettled(this.#disposables.map(item => item.dispose()));
     const errors = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
 
-    this.disposes.length = 0;
+    this.#disposables.length = 0;
 
     if (errors.length > 0) {
       throw new AggregateError(

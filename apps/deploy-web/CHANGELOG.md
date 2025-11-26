@@ -1,5 +1,12 @@
 
 
+## [3.5.0](https://github.com/akash-network/console/compare/console-web/v3.4.4...console-web/v3.5.0) (2025-11-24)
+
+
+### Features
+
+* **billing:** support old mnemonic ([#2264](https://github.com/akash-network/console/issues/2264)) ([6fe9d5f](https://github.com/akash-network/console/commit/6fe9d5fe03d411fe77829d76d039358be820e248))
+
 ## [3.4.4](https://github.com/akash-network/console/compare/console-web/v3.4.3...console-web/v3.4.4) (2025-11-17)
 
 

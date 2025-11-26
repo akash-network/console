@@ -45,7 +45,7 @@ export class DeploymentRepository {
     return await Deployment.count({
       where: {
         owner,
-        closedHeight: { [Op.not]: null },
+        closedHeight: null,
         ...(startDate && { "$createdBlock.datetime$": { [Op.gte]: startDate } }),
         ...(endDate && { "$closedBlock.datetime$": { [Op.lte]: endDate } })
       },

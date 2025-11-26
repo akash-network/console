@@ -18,7 +18,7 @@ describe(ProviderJwtTokenService.name, () => {
       const result = await providerJwtTokenService.generateJwtToken({ walletId, leases: accessRules });
 
       expect(result.unwrap()).toEqual(jwtTokenValue);
-      expect(txManagerService.getDerivedWallet).toHaveBeenCalledWith(walletId);
+      expect(txManagerService.getDerivedWallet).toHaveBeenCalledWith(walletId, false);
       expect(jwtModule.JwtTokenManager).toHaveBeenCalledWith(wallet);
       expect(jwtToken.generateToken).toHaveBeenCalledWith({
         version: "v1",
@@ -71,7 +71,6 @@ describe(ProviderJwtTokenService.name, () => {
     directSecp256k1HdWallet.getAccounts.mockResolvedValue([{ address, pubkey: new Uint8Array([1, 2, 3]), algo: "secp256k1" }]);
 
     const wallet = mock<Wallet>({
-      getInstance: jest.fn().mockResolvedValue(directSecp256k1HdWallet),
       getFirstAddress: jest.fn().mockResolvedValue(address),
       signAmino: jest.fn().mockResolvedValue({
         signature: {

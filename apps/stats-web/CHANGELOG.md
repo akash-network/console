@@ -1,5 +1,12 @@
 
 
+## [1.5.0](https://github.com/akash-network/console/compare/stats-web/v1.4.0...stats-web/v1.5.0) (2025-11-23)
+
+
+### Features
+
+* add maintenance page stats app ([#2270](https://github.com/akash-network/console/issues/2270)) ([1678bba](https://github.com/akash-network/console/commit/1678bba791c9e8af903e2c1451362e0c31211cc8))
+
 ## [1.4.0](https://github.com/akash-network/console/compare/stats-web/v1.3.0...stats-web/v1.4.0) (2025-11-20)
 
 

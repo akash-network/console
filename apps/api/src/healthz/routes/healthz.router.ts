@@ -1,8 +1,9 @@
-import { createRoute as createOpenApiRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 import { z } from "zod";
 
+import { createRoute } from "@src/core/lib/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 import { HealthzController } from "@src/healthz/controllers/healthz/healthz.controller";
 
 const healthzResponseSchema = z.object({
@@ -15,11 +16,12 @@ const healthzResponseSchema = z.object({
 export type HealthzResponse = z.infer<typeof healthzResponseSchema>;
 
 const createHealthzRoute = (path: string, type: "readiness" | "liveness") =>
-  createOpenApiRoute({
+  createRoute({
     method: "get",
     path,
     summary: `Get ${type}`,
     tags: ["Healthz"],
+    security: SECURITY_NONE,
     request: {},
     responses: {
       200: {

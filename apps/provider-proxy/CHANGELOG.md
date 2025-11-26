@@ -1,5 +1,12 @@
 
 
+## [2.5.0](https://github.com/akash-network/console/compare/provider-proxy/v2.4.1...provider-proxy/v2.5.0) (2025-11-24)
+
+
+### Features
+
+* **billing:** support old mnemonic ([#2264](https://github.com/akash-network/console/issues/2264)) ([6fe9d5f](https://github.com/akash-network/console/commit/6fe9d5fe03d411fe77829d76d039358be820e248))
+
 ## [2.4.1](https://github.com/akash-network/console/compare/provider-proxy/v2.4.0...provider-proxy/v2.4.1) (2025-11-19)
 
 

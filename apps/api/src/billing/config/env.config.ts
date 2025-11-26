@@ -8,6 +8,7 @@ dotenv.config({ path: "env/.env.funding-wallet-index" });
 export const envSchema = z.object({
   FUNDING_WALLET_MNEMONIC: z.string(),
   FUNDING_WALLET_INDEX: z.number({ coerce: true }),
+  OLD_MASTER_WALLET_MNEMONIC: z.string(),
   DERIVATION_WALLET_MNEMONIC: z.string(),
   NETWORK: z.enum(["mainnet", "testnet", "sandbox"]),
   RPC_NODE_ENDPOINT: z.string(),
@@ -17,7 +18,7 @@ export const envSchema = z.object({
   TRIAL_DEPLOYMENT_CLEANUP_HOURS: z.number({ coerce: true }).default(24),
   DEPLOYMENT_GRANT_DENOM: z.string(),
   GAS_SAFETY_MULTIPLIER: z.number({ coerce: true }).default(1.8),
-  AVERAGE_GAS_PRICE: z.number({ coerce: true }).default(0.0025),
+  AVERAGE_GAS_PRICE: z.number({ coerce: true }).default(0.025),
   FEE_ALLOWANCE_REFILL_THRESHOLD: z.number({ coerce: true }),
   FEE_ALLOWANCE_REFILL_AMOUNT: z.number({ coerce: true }),
   DEPLOYMENT_ALLOWANCE_REFILL_AMOUNT: z.number({ coerce: true }),
@@ -35,4 +36,4 @@ export const envSchema = z.object({
     .transform(val => (val ? val.split(",").map(addr => addr.trim()) : []))
 });
 
-export const envConfig = envSchema.parse(process.env);
+export type BillingConfig = z.infer<typeof envSchema>;

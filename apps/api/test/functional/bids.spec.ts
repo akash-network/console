@@ -1,8 +1,10 @@
 import { faker } from "@faker-js/faker";
 import nock from "nock";
+import { container } from "tsyringe";
 
+import { CORE_CONFIG } from "@src/core";
 import { app } from "@src/rest-app";
-import { apiNodeUrl, marketVersion } from "@src/utils/constants";
+import { marketVersion } from "@src/utils/constants";
 
 import { createAkashAddress, createProvider } from "@test/seeders";
 import { BidSeeder } from "@test/seeders/bid.seeder";
@@ -45,7 +47,7 @@ describe("Bids API", () => {
 
     await Promise.all(providers.map(async provider => createProvider(provider)));
 
-    nock(apiNodeUrl, { allowUnmocked: true })
+    nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL, { allowUnmocked: true })
       .get(`/akash/market/${marketVersion}/bids/list`)
       .query({
         "filters.owner": user.wallet.address,

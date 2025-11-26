@@ -1,23 +1,46 @@
 import { LoggerService } from "@akashnetwork/logging";
+import { inject, singleton } from "tsyringe";
 
-import { env } from "@src/utils/env";
+import { CORE_CONFIG, CoreConfig } from "@src/core/providers/config.provider";
 import type { OpenApiHonoHandler } from "../open-api-hono-handler/open-api-hono-handler";
 
 const logger = LoggerService.forContext("OpenApiDocsService");
 
+@singleton()
 export class OpenApiDocsService {
+  readonly #serverOrigin: string;
+
+  constructor(@inject(CORE_CONFIG) coreConfig: CoreConfig) {
+    this.#serverOrigin = coreConfig.SERVER_ORIGIN;
+  }
+
   generateDocs(handlers: OpenApiHonoHandler[]) {
     const version = "v1";
     const docs = {
       openapi: "3.0.0",
-      servers: [{ url: env.SERVER_ORIGIN }],
+      servers: [{ url: this.#serverOrigin }],
       info: {
         title: "Akash Network Console API",
         description: "API providing data to the Akash Network Console",
         version: version
       },
       paths: {},
-      components: {}
+      components: {
+        securitySchemes: {
+          BearerAuth: {
+            type: "http",
+            scheme: "bearer",
+            bearerFormat: "JWT",
+            description: 'JWT token for authenticated users, sent in "Authorization: Bearer %token" header.'
+          },
+          ApiKeyAuth: {
+            type: "apiKey",
+            in: "header",
+            name: "x-api-key",
+            description: "API key for programmatic access."
+          }
+        }
+      }
     };
 
     for (const handler of handlers) {

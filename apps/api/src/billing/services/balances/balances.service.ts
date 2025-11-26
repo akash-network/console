@@ -47,13 +47,13 @@ export class BalancesService {
     return update;
   }
 
-  async getFreshLimits(userWallet: Pick<UserWalletOutput, "address">): Promise<{ fee: number; deployment: number }> {
+  async getFreshLimits(userWallet: Pick<UserWalletOutput, "address" | "isOldWallet">): Promise<{ fee: number; deployment: number }> {
     const [fee, deployment] = await Promise.all([this.retrieveAndCalcFeeLimit(userWallet), this.retrieveDeploymentLimit(userWallet)]);
     return { fee, deployment };
   }
 
-  private async retrieveAndCalcFeeLimit(userWallet: Pick<UserWalletOutput, "address">): Promise<number> {
-    const fundingWalletAddress = await this.txManagerService.getFundingWalletAddress();
+  private async retrieveAndCalcFeeLimit(userWallet: Pick<UserWalletOutput, "address" | "isOldWallet">): Promise<number> {
+    const fundingWalletAddress = await this.txManagerService.getFundingWalletAddress(userWallet.isOldWallet ?? false);
     const feeAllowance = await this.authzHttpService.getFeeAllowanceForGranterAndGrantee(fundingWalletAddress, userWallet.address!);
 
     if (!feeAllowance) {
@@ -63,8 +63,8 @@ export class BalancesService {
     return feeAllowance.allowance.spend_limit.reduce((acc, { denom, amount }) => (denom === "uakt" ? acc + parseInt(amount) : acc), 0);
   }
 
-  async retrieveDeploymentLimit(userWallet: Pick<UserWalletOutput, "address">): Promise<number> {
-    const fundingWalletAddress = await this.txManagerService.getFundingWalletAddress();
+  async retrieveDeploymentLimit(userWallet: Pick<UserWalletOutput, "address" | "isOldWallet">): Promise<number> {
+    const fundingWalletAddress = await this.txManagerService.getFundingWalletAddress(userWallet.isOldWallet ?? false);
     const depositDeploymentGrant = await this.authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee(fundingWalletAddress, userWallet.address!);
 
     if (!depositDeploymentGrant || depositDeploymentGrant.authorization.spend_limit.denom !== this.config.DEPLOYMENT_GRANT_DENOM) {
@@ -92,8 +92,11 @@ export class BalancesService {
   }
 
   @Memoize({ ttlInSeconds: averageBlockTime })
-  async getFullBalance(address: string): Promise<GetBalancesResponseOutput> {
-    const [balanceData, deploymentEscrowBalance] = await Promise.all([this.getFreshLimits({ address }), this.calculateDeploymentEscrowBalance(address)]);
+  async getFullBalance(address: string, isOldWallet: boolean = false): Promise<GetBalancesResponseOutput> {
+    const [balanceData, deploymentEscrowBalance] = await Promise.all([
+      this.getFreshLimits({ address, isOldWallet }),
+      this.calculateDeploymentEscrowBalance(address)
+    ]);
 
     return {
       data: {

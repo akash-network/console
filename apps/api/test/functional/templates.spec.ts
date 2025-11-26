@@ -3,7 +3,6 @@ import * as path from "node:path";
 
 import { app } from "@src/rest-app";
 import type { GetTemplateByIdResponse, GetTemplatesFullResponse, GetTemplatesListResponse } from "@src/template/http-schemas/template.schema";
-import { env } from "@src/utils/env";
 
 const fakeHeaders = {
   headers: {
@@ -11,7 +10,7 @@ const fakeHeaders = {
   }
 };
 
-env.GITHUB_PAT = "ghp_1234567890";
+process.env.GITHUB_PAT = "ghp_1234567890";
 const sha = "cached-sha";
 
 jest.mock("@octokit/rest", () => {

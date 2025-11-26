@@ -25,7 +25,8 @@ export class JwtTokenController {
     const result = await this.providerJwtTokenService.generateJwtToken({
       walletId: wallet.id,
       leases: payload.leases as JwtTokenPayload["leases"],
-      ttl: payload.ttl
+      ttl: payload.ttl,
+      useOldWallet: wallet.isOldWallet ?? false
     });
 
     return result.map(token => ({ token })).mapErr(errors => new BadRequest(errors.join(".\n")));

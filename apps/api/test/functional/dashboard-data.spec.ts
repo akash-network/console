@@ -1,7 +1,6 @@
 import type { AkashBlock, Provider, ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash";
 import { format, subHours } from "date-fns";
 
-import { closeConnections } from "@src/core";
 import { app, initDb } from "@src/rest-app";
 
 import { createAkashBlock, createDay, createProvider, createProviderSnapshot } from "@test/seeders";
@@ -192,10 +191,6 @@ describe("Dashboard Data", () => {
         isProcessed: true
       })
     ]);
-  });
-
-  afterAll(async () => {
-    await closeConnections();
   });
 
   describe("GET /v1/dashboard-data", () => {

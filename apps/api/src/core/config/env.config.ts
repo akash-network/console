@@ -1,3 +1,4 @@
+import { netConfig } from "@akashnetwork/net";
 import { z } from "zod";
 
 export const envSchema = z
@@ -23,7 +24,16 @@ export const envSchema = z
     FEATURE_FLAGS_ENABLE_ALL: z
       .string()
       .default("false")
-      .transform(value => value === "true")
+      .transform(value => value === "true"),
+    REST_API_NODE_URL: z
+      .string()
+      .url()
+      .default(() => netConfig.getBaseAPIUrl(process.env.NETWORK || "mainnet")),
+    PORT: z.number({ coerce: true }).optional().default(3080),
+    NODE_API_BASE_PATH: z.string().optional().default("https://raw.githubusercontent.com/akash-network"),
+    CORS_WEBSITE_URLS: z.string().default(["http://localhost:3000", "http://localhost:3001"].join(",")),
+    SECRET_TOKEN: z.string().optional(), // private api token
+    SERVER_ORIGIN: z.string().default("http://localhost:3080")
   })
   .superRefine((value, ctx) => {
     if (!value.FEATURE_FLAGS_ENABLE_ALL && (!value.UNLEASH_SERVER_API_URL || !value.UNLEASH_SERVER_API_TOKEN)) {
@@ -34,4 +44,4 @@ export const envSchema = z
     }
   });
 
-export const envConfig = envSchema.parse(process.env);
+export type CoreConfig = z.infer<typeof envSchema>;
