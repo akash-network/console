@@ -1,3 +1,4 @@
+import { QueryCertificatesRequest } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { toBech32 } from "@cosmjs/encoding";
 import type { X509Certificate } from "crypto";
 import http2 from "http2";
@@ -91,22 +92,14 @@ export function startChainApiServer(
       stream.on("end", () => {
         const requestData = Buffer.concat(chunks);
 
-        let requestedOwner: string | null = null;
-        let requestedSerial: string | null = null;
+        let requestedOwner: string | undefined;
+        let requestedSerial: string | undefined;
 
         if (requestData.length > 5) {
           const protoData = requestData.slice(5);
-          const dataStr = protoData.toString("utf8");
-
-          const ownerMatches = dataStr.match(/akash[a-z0-9]{39,}/g);
-          if (ownerMatches && ownerMatches.length > 0) {
-            requestedOwner = ownerMatches[0];
-          }
-
-          const serialMatches = dataStr.match(/\d{10,}/g);
-          if (serialMatches && serialMatches.length > 0) {
-            requestedSerial = serialMatches[0];
-          }
+          const certRequest = QueryCertificatesRequest.decode(protoData);
+          requestedOwner = certRequest.filter?.owner;
+          requestedSerial = certRequest.filter?.serial;
         }
 
         let cert: X509Certificate | undefined;

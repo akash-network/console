@@ -63,7 +63,7 @@ export class ProviderService {
 
   private async fetchCertificate(getCertificatesParams: QueryInput<QueryCertificatesRequest>): Promise<QueryCertificatesResponse> {
     return this.retryPolicy.execute(async () => {
-      return await this.chainSdkClient.akash.cert.v1.getCertificates(getCertificatesParams as QueryCertificatesRequest);
+      return await this.chainSdkClient.akash.cert.v1.getCertificates(getCertificatesParams);
     });
   }
 
