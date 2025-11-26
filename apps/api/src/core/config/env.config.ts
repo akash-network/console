@@ -1,3 +1,4 @@
+import { netConfig } from "@akashnetwork/net";
 import { z } from "zod";
 
 export const envSchema = z
@@ -23,7 +24,11 @@ export const envSchema = z
     FEATURE_FLAGS_ENABLE_ALL: z
       .string()
       .default("false")
-      .transform(value => value === "true")
+      .transform(value => value === "true"),
+    REST_API_NODE_URL: z
+      .string()
+      .url()
+      .default(() => netConfig.getBaseAPIUrl(process.env.NETWORK || "mainnet"))
   })
   .superRefine((value, ctx) => {
     if (!value.FEATURE_FLAGS_ENABLE_ALL && (!value.UNLEASH_SERVER_API_URL || !value.UNLEASH_SERVER_API_TOKEN)) {
@@ -34,4 +39,4 @@ export const envSchema = z
     }
   });
 
-export const envConfig = envSchema.parse(process.env);
+export type CoreConfig = z.infer<typeof envSchema>;

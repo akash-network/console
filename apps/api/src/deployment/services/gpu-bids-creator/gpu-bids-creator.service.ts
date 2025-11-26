@@ -6,15 +6,14 @@ import { BidHttpService } from "@akashnetwork/http-sdk";
 import { LoggerService } from "@akashnetwork/logging";
 import { DirectSecp256k1HdWallet, EncodeObject, Registry } from "@cosmjs/proto-signing";
 import { calculateFee, SigningStargateClient } from "@cosmjs/stargate";
-import axios from "axios";
 import pick from "lodash/pick";
 import { setTimeout as sleep } from "timers/promises";
 import { singleton } from "tsyringe";
 
 import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provider";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import { GpuService } from "@src/gpu/services/gpu.service";
-import { apiNodeUrl } from "@src/utils/constants";
 import { env } from "@src/utils/env";
 import { sdlTemplateWithRam, sdlTemplateWithRamAndInterface } from "./sdl-templates";
 
@@ -26,6 +25,7 @@ export class GpuBidsCreatorService {
     private readonly config: BillingConfigService,
     private readonly bidHttpService: BidHttpService,
     private readonly gpuService: GpuService,
+    private readonly blockHttpService: BlockHttpService,
     @InjectTypeRegistry() private readonly typeRegistry: Registry
   ) {}
 
@@ -180,11 +180,8 @@ export class GpuBidsCreatorService {
   }
 
   private async getCurrentHeight() {
-    const response = await axios.get(`${apiNodeUrl}/cosmos/base/tendermint/v1beta1/blocks/latest`);
-
-    const height = parseInt(response.data.block.header.height);
-
-    if (isNaN(height)) throw new Error("Failed to get current height");
+    const height = await this.blockHttpService.getCurrentHeight();
+    if (Number.isNaN(height)) throw new Error("Failed to get current height");
 
     return height;
   }

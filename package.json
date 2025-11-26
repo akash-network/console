@@ -76,12 +76,12 @@
   },
   "packageManager": "npm@11.2.0",
   "engines": {
-    "node": "24.11.1",
-    "npm": "^11.2.0"
+    "node": "^24.11.1",
+    "npm": "^11.6.2"
   },
   "volta": {
     "node": "24.11.1",
-    "npm": "11.2.0"
+    "npm": "11.6.2"
   },
   "trustedDependencies": [
     "esbuild@0.24.2",

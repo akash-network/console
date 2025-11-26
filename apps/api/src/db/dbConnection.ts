@@ -52,7 +52,6 @@ export async function syncUserSchema() {
   await TemplateFavorite.sync();
 }
 
-export const closeConnections = async () => await Promise.all([chainDb.close(), userDb.close()]).then(() => undefined);
 container.register(APP_INITIALIZER, {
   useFactory: instancePerContainerCachingFactory(
     DisposableRegistry.registerFromFactory(
@@ -61,7 +60,9 @@ container.register(APP_INITIALIZER, {
           async [ON_APP_START]() {
             await connectUsingSequelize(c.resolve(LoggerService));
           },
-          dispose: closeConnections
+          async dispose() {
+            await Promise.all([chainDb.close(), userDb.close()]);
+          }
         }) satisfies AppInitializer & Disposable
     )
   )

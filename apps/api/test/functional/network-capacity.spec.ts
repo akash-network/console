@@ -1,7 +1,7 @@
 import type { Provider, ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash";
 import { format, subHours } from "date-fns";
+import { container } from "tsyringe";
 
-import { closeConnections } from "@src/core";
 import { app, initDb } from "@src/rest-app";
 
 import { createAkashBlock, createDay, createProvider, createProviderSnapshot } from "@test/seeders";
@@ -193,7 +193,7 @@ describe("Network Capacity", () => {
   });
 
   afterAll(async () => {
-    await closeConnections();
+    await container.dispose();
   });
 
   describe("GET /v1/network-capacity", () => {

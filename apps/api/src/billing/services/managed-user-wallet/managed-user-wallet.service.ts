@@ -25,10 +25,6 @@ interface SpendingAuthorizationOptions {
 
 @singleton()
 export class ManagedUserWalletService {
-  private readonly PREFIX = "akash";
-
-  private readonly HD_PATH = "m/44'/118'/0'/0";
-
   private readonly logger = LoggerService.forContext(ManagedUserWalletService.name);
 
   constructor(

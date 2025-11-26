@@ -20,8 +20,8 @@ import type {
 import type { ListDeploymentsResponseSchema } from "@src/deployment/http-schemas/deployment.schema";
 
 type ListDeploymentsResponse = z.infer<typeof ListDeploymentsResponseSchema>;
+import { CORE_CONFIG } from "@src/core";
 import { app } from "@src/rest-app";
-import { apiNodeUrl } from "@src/utils/constants";
 
 import { createDeployment as createDeploymentSeed, createDeploymentGroup, createLease as createLeaseSeed, createProvider } from "@test/seeders";
 import { AppHttpService } from "@test/services/app-http.service";
@@ -341,10 +341,9 @@ describe("Managed Wallet API Deployment Flow", () => {
    */
   function blockNode() {
     const RPC_NODE_ENDPOINT = container.resolve(BillingConfigService).get("RPC_NODE_ENDPOINT");
-    const nodeUrl = apiNodeUrl;
     const errorType = process.env.NODE_OUTAGE_ERROR_TYPE || "ECONNRESET";
 
-    nock(nodeUrl)
+    nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
       .persist()
       .get(/.*/)
       .replyWithError({ code: errorType, message: errorType })
