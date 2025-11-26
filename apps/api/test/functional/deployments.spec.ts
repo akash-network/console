@@ -11,13 +11,14 @@ import { ApiKeyAuthService } from "@src/auth/services/api-key/api-key-auth.servi
 import type { UserWalletOutput } from "@src/billing/repositories";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { ManagedSignerService } from "@src/billing/services";
+import { CORE_CONFIG } from "@src/core";
 import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { app } from "@src/rest-app";
 import type { RestAkashDeploymentInfoResponse } from "@src/types/rest";
 import type { UserOutput } from "@src/user/repositories";
 import { UserRepository } from "@src/user/repositories";
-import { apiNodeUrl, deploymentVersion, marketVersion } from "@src/utils/constants";
+import { deploymentVersion, marketVersion } from "@src/utils/constants";
 
 import { ApiKeySeeder } from "@test/seeders/api-key.seeder";
 import { DeploymentInfoSeeder } from "@test/seeders/deployment-info.seeder";
@@ -104,6 +105,7 @@ describe("Deployments API", () => {
   });
 
   afterAll(async () => {
+    await container.dispose();
     jest.restoreAllMocks();
     nock.cleanAll();
   });
@@ -133,24 +135,27 @@ describe("Deployments API", () => {
         dseq
       });
 
-    nock(apiNodeUrl)
+    nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
       .persist()
       .get(`/akash/deployment/${deploymentVersion}/deployments/list?filters.owner=${address}`)
       .reply(200, {
         deployments: [defaultDeploymentInfo]
       });
 
-    nock(apiNodeUrl)
+    nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
       .persist()
       .get(`/akash/deployment/${deploymentVersion}/deployments/info?id.owner=${address}&id.dseq=${dseq}`)
       .reply(200, defaultDeploymentInfo);
 
-    nock(apiNodeUrl).persist().get(`/akash/deployment/${deploymentVersion}/deployments/info?id.owner=${address}&id.dseq=9876`).reply(404, {
-      code: 404,
-      message: "Deployment not found"
-    });
+    nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
+      .persist()
+      .get(`/akash/deployment/${deploymentVersion}/deployments/info?id.owner=${address}&id.dseq=9876`)
+      .reply(404, {
+        code: 404,
+        message: "Deployment not found"
+      });
 
-    nock(apiNodeUrl)
+    nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
       .persist()
       .get(
         `/akash/deployment/${deploymentVersion}/deployments/list?filters.owner=${address}&pagination.offset=0&pagination.limit=1&pagination.count_total=true&pagination.reverse=false`
@@ -169,17 +174,29 @@ describe("Deployments API", () => {
       state: "active"
     });
 
-    nock(apiNodeUrl).persist().get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.dseq=${dseq}`).reply(200, { leases });
-    nock(apiNodeUrl)
+    nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
+      .persist()
+      .get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.dseq=${dseq}`)
+      .reply(200, { leases });
+    nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
       .persist()
       .get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.dseq=${dseq}&pagination.limit=1000`)
       .reply(200, { leases });
-    nock(apiNodeUrl).persist().get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.dseq=9876&pagination.limit=1000`).reply(404, {
-      code: 404,
-      message: "Leases not found"
-    });
-    nock(apiNodeUrl).persist().get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.state=active`).reply(200, { leases });
-    nock(apiNodeUrl).persist().get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.state=active`).reply(200, { leases });
+    nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
+      .persist()
+      .get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.dseq=9876&pagination.limit=1000`)
+      .reply(404, {
+        code: 404,
+        message: "Leases not found"
+      });
+    nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
+      .persist()
+      .get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.state=active`)
+      .reply(200, { leases });
+    nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
+      .persist()
+      .get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.state=active`)
+      .reply(200, { leases });
 
     return defaultDeploymentInfo;
   }
@@ -198,7 +215,9 @@ describe("Deployments API", () => {
 
       deployments.push(deploymentInfo);
 
-      nock(apiNodeUrl).get(`/akash/deployment/${deploymentVersion}/deployments/info?id.owner=${address}&id.dseq=${dseq}`).reply(200, deploymentInfo);
+      nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
+        .get(`/akash/deployment/${deploymentVersion}/deployments/info?id.owner=${address}&id.dseq=${dseq}`)
+        .reply(200, deploymentInfo);
 
       const leases = LeaseApiResponseSeeder.createMany(2, {
         owner: address!,
@@ -206,7 +225,9 @@ describe("Deployments API", () => {
         state: "active"
       });
 
-      nock(apiNodeUrl).get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.dseq=${dseq}`).reply(200, { leases });
+      nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
+        .get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.dseq=${dseq}`)
+        .reply(200, { leases });
     }
 
     return deployments;
@@ -298,7 +319,7 @@ describe("Deployments API", () => {
       const { userApiKeySecret, wallets } = await mockUser();
       const deployments = setupDeploymentListMock(wallets, 2);
 
-      nock(apiNodeUrl)
+      nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
         .persist()
         .get(/\/akash\/deployment\/v1beta4\/deployments\/list\?.*/)
         .reply(200, {
@@ -337,7 +358,7 @@ describe("Deployments API", () => {
       const { userApiKeySecret, wallets } = await mockUser();
       const deployments = setupDeploymentListMock(wallets, 2, "active");
 
-      nock(apiNodeUrl)
+      nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
         .persist()
         .get(/\/akash\/deployment\/v1beta4\/deployments\/list\?.*/)
         .reply(200, {
@@ -398,7 +419,7 @@ describe("Deployments API", () => {
       const { userApiKeySecret, wallets } = await mockUser();
       const deployments = setupDeploymentListMock(wallets, 1, "active");
 
-      nock(apiNodeUrl)
+      nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
         .persist()
         .get(/\/akash\/deployment\/v1beta4\/deployments\/list\?.*/)
         .reply(200, {

@@ -105,10 +105,7 @@ async function executeCliHandler(name: string, handler: () => Promise<unknown>, 
 }
 
 const shutdown = once(async () => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { closeConnections } = require("./core/providers/postgres.provider");
-
-  await Promise.all([closeConnections(), chainDb.close(), container.dispose()]);
+  await container.dispose();
 });
 process.on("SIGTERM", shutdown);
 process.on("SIGINT", shutdown);

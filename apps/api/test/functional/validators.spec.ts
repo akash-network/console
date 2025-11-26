@@ -1,8 +1,9 @@
 import type { Validator } from "@akashnetwork/database/dbSchemas/base";
 import nock from "nock";
+import { container } from "tsyringe";
 
+import { CORE_CONFIG } from "@src/core";
 import { app } from "@src/rest-app";
-import { apiNodeUrl } from "@src/utils/constants";
 
 import { createValidator } from "@test/seeders";
 
@@ -22,7 +23,7 @@ describe("Validators API", () => {
       })
     ]);
 
-    nock(apiNodeUrl)
+    nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
       .persist()
       .get(`/cosmos/staking/v1beta1/validators?status=BOND_STATUS_BONDED&pagination.limit=1000`)
       .reply(200, {
@@ -121,7 +122,7 @@ describe("Validators API", () => {
         }
       });
 
-    nock(apiNodeUrl)
+    nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
       .persist()
       .get(`/cosmos/staking/v1beta1/validators/${validators[0].operatorAddress}`)
       .reply(200, {
@@ -156,7 +157,7 @@ describe("Validators API", () => {
         }
       });
 
-    nock(apiNodeUrl).persist().get(`/cosmos/staking/v1beta1/validators/${validators[1].operatorAddress}`).reply(404);
+    nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL).persist().get(`/cosmos/staking/v1beta1/validators/${validators[1].operatorAddress}`).reply(404);
   });
 
   afterAll(async () => {

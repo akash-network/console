@@ -1,6 +1,5 @@
-import type { AxiosRequestConfig } from "axios";
-
-import { HttpService } from "../http/http.service";
+import { extractData } from "../http/http.service";
+import type { HttpClient } from "../utils/httpClient";
 
 interface BlockResponse {
   block: {
@@ -10,13 +9,11 @@ interface BlockResponse {
   };
 }
 
-export class BlockHttpService extends HttpService {
-  constructor(config?: Pick<AxiosRequestConfig, "baseURL">) {
-    super(config);
-  }
+export class BlockHttpService {
+  constructor(private readonly httpClient: HttpClient) {}
 
-  async getCurrentHeight() {
-    const response = this.extractData(await this.get<BlockResponse>("cosmos/base/tendermint/v1beta1/blocks/latest"));
+  async getCurrentHeight(): Promise<number> {
+    const response = extractData(await this.httpClient.get<BlockResponse>("cosmos/base/tendermint/v1beta1/blocks/latest"));
 
     return parseInt(response.block.header.height);
   }
