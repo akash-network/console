@@ -41,28 +41,24 @@ export interface Props {
 const NetworkCapacity: React.FunctionComponent<Props> = props => {
   const {
     activeCPU,
-    pendingCPU,
     totalCPU,
     activeGPU,
-    pendingGPU,
     totalGPU,
     activeMemory,
-    pendingMemory,
     totalMemory,
     activeStorage,
-    pendingStorage,
     totalStorage
   } = props;
-  const activeMemoryBytes = activeMemory + pendingMemory;
-  const availableMemoryBytes = totalMemory - (activeMemory + pendingMemory);
-  const activeStorageBytes = activeStorage + pendingStorage;
+  const activeMemoryBytes = activeMemory;
+  const availableMemoryBytes = totalMemory - activeMemory;
+  const activeStorageBytes = activeStorage;
   const _activeMemory = bytesToShrink(activeMemoryBytes);
   const _totalMemory = bytesToShrink(totalMemory);
   const _availableMemory = bytesToShrink(availableMemoryBytes);
   const _activeStorage = bytesToShrink(activeStorageBytes);
   const _totalStorage = bytesToShrink(totalStorage);
-  const cpuData = useData(activeCPU + pendingCPU, totalCPU - activeCPU - pendingCPU);
-  const gpuData = useData(activeGPU + pendingGPU, totalGPU - activeGPU - pendingGPU);
+  const cpuData = useData(activeCPU, totalCPU - activeCPU);
+  const gpuData = useData(activeGPU, totalGPU - activeGPU);
   const memoryData = useData(activeMemoryBytes, availableMemoryBytes);
   const storageData = useStorageData(props);
   const pieTheme = usePieTheme();
@@ -73,7 +69,7 @@ const NetworkCapacity: React.FunctionComponent<Props> = props => {
       <div className="basis-1/4">
         <p className="font-bold leading-4 tracking-tight">CPU</p>
         <p className="text-sm text-muted-foreground">
-          {Math.round(activeCPU + pendingCPU)}&nbsp;CPU&nbsp;/&nbsp;{Math.round(totalCPU)}&nbsp;CPU
+          {Math.round(activeCPU)}&nbsp;CPU&nbsp;/&nbsp;{Math.round(totalCPU)}&nbsp;CPU
         </p>
         <div className="flex h-[200px] w-[200px] items-center justify-center">
           <ResponsivePie
@@ -107,7 +103,7 @@ const NetworkCapacity: React.FunctionComponent<Props> = props => {
       <div className="basis-1/4">
         <p className="font-bold leading-4 tracking-tight">GPU</p>
         <p className="text-sm text-muted-foreground">
-          {Math.round(activeGPU + pendingGPU)}&nbsp;GPU&nbsp;/&nbsp;{Math.round(totalGPU)}&nbsp;GPU
+          {Math.round(activeGPU)}&nbsp;GPU&nbsp;/&nbsp;{Math.round(totalGPU)}&nbsp;GPU
         </p>
         <div className="flex h-[200px] w-[200px] items-center justify-center">
           <ResponsivePie
@@ -232,25 +228,25 @@ function useStorageData(props: Props): NetworkCapacityDatum[] {
       id: "active-ephemeral",
       label: "Active emphemeral",
       color: tw.theme.colors["primary"].DEFAULT,
-      value: props.activeEphemeralStorage + props.pendingEphemeralStorage
+      value: props.activeEphemeralStorage
     },
     {
       id: "active-persistent",
       label: "Active persistent",
       color: tw.theme.colors["primary"].visited,
-      value: props.activePersistentStorage + props.pendingPersistentStorage
+      value: props.activePersistentStorage
     },
     {
       id: "available-emphemeral",
       label: "Available emphemeral",
       color: resolvedTheme === "dark" ? tw.theme.colors.neutral[800] : tw.theme.colors.neutral[500],
-      value: props.availableEphemeralStorage
+      value: props.availableEphemeralStorage + props.pendingEphemeralStorage
     },
     {
       id: "available-persistent",
       label: "Available persistent",
       color: resolvedTheme === "dark" ? tw.theme.colors.neutral[600] : tw.theme.colors.neutral[300],
-      value: props.availablePersistentStorage
+      value: props.availablePersistentStorage + props.pendingPersistentStorage
     }
   ];
 }
