@@ -18,7 +18,6 @@ import { useWallet } from "@src/context/WalletProvider";
 import { useImportSimpleSdl } from "@src/hooks/useImportSimpleSdl";
 import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom";
 import { useWhen } from "@src/hooks/useWhen";
-import { useDeploymentList } from "@src/queries/useDeploymentQuery";
 import { useDepositParams } from "@src/queries/useSaveSettings";
 import sdlStore from "@src/store/sdlStore";
 import type { TemplateCreation } from "@src/types";
@@ -68,7 +67,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
 
   const { analyticsService, chainApiHttpClient, appConfig, deploymentLocalStorage } = useServices();
   const { settings } = useSettings();
-  const { address, signAndBroadcastTx, isManaged, isTrialing, isOnboarding } = useWallet();
+  const { address, signAndBroadcastTx, isManaged, isTrialing } = useWallet();
   const router = useRouter();
   const { updateSelectedCertificate, genNewCertificateIfLocalIsInvalid } = useCertificate();
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
@@ -287,8 +286,6 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
 
     setSelectedSdlEditMode(mode);
   };
-
-  const { data: deployments } = useDeploymentList(address);
 
   return (
     <>
