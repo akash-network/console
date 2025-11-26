@@ -18,7 +18,7 @@ export const envSchema = z.object({
   TRIAL_DEPLOYMENT_CLEANUP_HOURS: z.number({ coerce: true }).default(24),
   DEPLOYMENT_GRANT_DENOM: z.string(),
   GAS_SAFETY_MULTIPLIER: z.number({ coerce: true }).default(1.8),
-  AVERAGE_GAS_PRICE: z.number({ coerce: true }).default(0.0025),
+  AVERAGE_GAS_PRICE: z.number({ coerce: true }).default(0.025),
   FEE_ALLOWANCE_REFILL_THRESHOLD: z.number({ coerce: true }),
   FEE_ALLOWANCE_REFILL_AMOUNT: z.number({ coerce: true }),
   DEPLOYMENT_ALLOWANCE_REFILL_AMOUNT: z.number({ coerce: true }),
