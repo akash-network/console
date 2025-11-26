@@ -11,6 +11,7 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useUser } from "@src/hooks/useUser";
 import { usePaymentMethodsQuery } from "@src/queries/usePaymentQueries";
+import { useDepositParams } from "@src/queries/useSaveSettings";
 import { useTemplates } from "@src/queries/useTemplateQuery";
 import { ONBOARDING_STEP_KEY } from "@src/services/storage/keys";
 import { RouteStep } from "@src/types/route-steps.type";
@@ -46,6 +47,7 @@ export type OnboardingContainerProps = {
 const DEPENDENCIES = {
   useUser,
   usePaymentMethodsQuery,
+  useDepositParams,
   useServices,
   useRouter,
   useWallet,
@@ -69,6 +71,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
   const router = d.useRouter();
   const { user } = d.useUser();
   const { data: paymentMethods = [] } = d.usePaymentMethodsQuery({ enabled: !!user?.stripeCustomerId });
+  const { data: depositParams } = d.useDepositParams();
   const { analyticsService, urlService, authService, chainApiHttpClient, deploymentLocalStorage, appConfig, errorHandler, windowLocation, windowHistory } =
     d.useServices();
   const { hasManagedWallet, isWalletLoading, connectManagedWallet, address, signAndBroadcastTx } = d.useWallet();
@@ -237,7 +240,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
 
         sdl = d.appendAuditorRequirement(sdl);
 
-        const deposit = appConfig.NEXT_PUBLIC_DEFAULT_INITIAL_DEPOSIT;
+        const deposit = depositParams || appConfig.NEXT_PUBLIC_DEFAULT_INITIAL_DEPOSIT;
         const dd = await d.deploymentData.NewDeploymentData(chainApiHttpClient, sdl, null, address, deposit);
         d.validateDeploymentData(dd, null);
 
@@ -288,6 +291,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
       chainApiHttpClient,
       address,
       appConfig,
+      depositParams,
       genNewCertificateIfLocalIsInvalid,
       signAndBroadcastTx,
       updateSelectedCertificate,

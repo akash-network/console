@@ -233,6 +233,11 @@ describe("OnboardingContainer", () => {
 
     const mockUseUser = jest.fn().mockReturnValue(input.user || { emailVerified: false });
     const mockUsePaymentMethodsQuery = jest.fn().mockReturnValue({ data: input.paymentMethods || [] });
+    const mockUseDepositParams = jest.fn().mockReturnValue({ data: undefined });
+    const mockErrorHandler = {
+      reportError: jest.fn()
+    };
+
     const mockUseServices = jest.fn().mockReturnValue({
       analyticsService: mockAnalyticsService,
       urlService: mockUrlService,
@@ -240,6 +245,7 @@ describe("OnboardingContainer", () => {
       chainApiHttpClient: mockChainApiHttpClient,
       deploymentLocalStorage: mockDeploymentLocalStorage,
       appConfig: mockAppConfig,
+      errorHandler: mockErrorHandler,
       windowLocation,
       windowHistory
     });
@@ -311,6 +317,7 @@ describe("OnboardingContainer", () => {
     const dependencies = {
       useUser: mockUseUser,
       usePaymentMethodsQuery: mockUsePaymentMethodsQuery,
+      useDepositParams: mockUseDepositParams,
       useServices: mockUseServices,
       useRouter: mockUseRouter,
       useWallet: mockUseWallet,
@@ -338,6 +345,7 @@ describe("OnboardingContainer", () => {
       authService,
       mockUseUser,
       mockUsePaymentMethodsQuery,
+      mockUseDepositParams,
       mockUseServices,
       mockUseRouter,
       mockConnectManagedWallet,
