@@ -69,7 +69,6 @@ describe(ProviderProxyService.name, () => {
           method: "PUT",
           url: `${provider.hostUri}/deployment/${dseq}/manifest`,
           providerAddress: provider.owner,
-          network: "mainnet",
           auth: {
             type: "mtls",
             certPem: credentials.value?.cert,
@@ -106,8 +105,6 @@ describe(ProviderProxyService.name, () => {
         { timeout: expect.any(Number) }
       );
       expect(result).toBe(response);
-
-      jest.useRealTimers();
     });
   });
 

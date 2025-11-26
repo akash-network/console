@@ -1,6 +1,6 @@
 export const netConfigData = {
   mainnet: {
-    version: "v1.0.0",
+    version: "v1.1.0",
     faucetUrl: null,
     apiUrls: [
       "https://rest-akash.ecostake.com",
@@ -29,7 +29,7 @@ export const netConfigData = {
     ]
   },
   "sandbox-2": {
-    version: "v1.0.0",
+    version: "v1.1.0",
     faucetUrl: "http://faucet.sandbox-2.aksh.pw/",
     apiUrls: ["https://api.sandbox-2.aksh.pw:443"],
     rpcUrls: ["https://rpc.sandbox-2.aksh.pw:443"]
