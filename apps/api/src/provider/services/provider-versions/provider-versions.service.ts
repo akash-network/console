@@ -1,16 +1,22 @@
 import { sub } from "date-fns";
 import * as semver from "semver";
 import { QueryTypes } from "sequelize";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import { chainDb } from "@src/db/dbConnection";
 import { ProviderVersionsResponse } from "@src/provider/http-schemas/provider-versions.schema";
+import { PROVIDER_CONFIG, ProviderConfig } from "@src/provider/providers/config.provider";
 import { toUTC } from "@src/utils";
-import { env } from "@src/utils/env";
 import { round } from "@src/utils/math";
 
 @singleton()
 export class ProviderVersionsService {
+  readonly #providerConfig: ProviderConfig;
+
+  constructor(@inject(PROVIDER_CONFIG) providerConfig: ProviderConfig) {
+    this.#providerConfig = providerConfig;
+  }
+
   async getProviderVersions(): Promise<ProviderVersionsResponse> {
     const providers = await chainDb.query<{ hostUri: string; akashVersion: string }>(
       `
@@ -22,7 +28,7 @@ export class ProviderVersionsService {
       {
         type: QueryTypes.SELECT,
         replacements: {
-          grace_date: toUTC(sub(new Date(), { minutes: env.PROVIDER_UPTIME_GRACE_PERIOD_MINUTES }))
+          grace_date: toUTC(sub(new Date(), { minutes: this.#providerConfig.PROVIDER_UPTIME_GRACE_PERIOD_MINUTES }))
         }
       }
     );

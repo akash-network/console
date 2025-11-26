@@ -6,16 +6,16 @@ import { differenceInSeconds, minutesToSeconds, sub, subHours } from "date-fns";
 import { cloneDeep } from "lodash";
 import uniqBy from "lodash/uniqBy";
 import { Op, QueryTypes } from "sequelize";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import { Memoize } from "@src/caching/helpers";
 import { GraphDataResponse } from "@src/dashboard/http-schemas/graph-data/graph-data.schema";
 import { LeasesDurationParams, LeasesDurationQuery, LeasesDurationResponse } from "@src/dashboard/http-schemas/leases-duration/leases-duration.schema";
 import { MarketDataParams } from "@src/dashboard/http-schemas/market-data/market-data.schema";
+import { DASHBOARD_CONFIG, DashboardConfig } from "@src/dashboard/providers/config.provider";
 import { chainDb } from "@src/db/dbConnection";
 import { AuthorizedGraphDataName } from "@src/services/db/statsService";
 import { toUTC } from "@src/utils";
-import { env } from "@src/utils/env";
 import { createLoggingExecutor } from "@src/utils/logging";
 
 const numberOrZero: (x: number | undefined | null) => number = (x: number | undefined | null) => (typeof x === "number" ? x : 0);
@@ -61,10 +61,15 @@ export const emptyNetworkCapacity = {
 
 @singleton()
 export class StatsService {
+  readonly #dashboardConfig: DashboardConfig;
+
   constructor(
+    @inject(DASHBOARD_CONFIG) dashboardConfig: DashboardConfig,
     private readonly cosmosHttpService: CosmosHttpService,
     private readonly coinGeckoHttpService: CoinGeckoHttpService
-  ) {}
+  ) {
+    this.#dashboardConfig = dashboardConfig;
+  }
 
   async getDashboardData() {
     const latestBlockStats = await Block.findOne({
@@ -331,7 +336,7 @@ export class StatsService {
           required: true,
           model: ProviderSnapshot,
           as: "lastSuccessfulSnapshot",
-          where: { checkDate: { [Op.gte]: toUTC(sub(new Date(), { minutes: env.PROVIDER_UPTIME_GRACE_PERIOD_MINUTES })) } }
+          where: { checkDate: { [Op.gte]: toUTC(sub(new Date(), { minutes: this.#dashboardConfig.PROVIDER_UPTIME_GRACE_PERIOD_MINUTES })) } }
         }
       ]
     });

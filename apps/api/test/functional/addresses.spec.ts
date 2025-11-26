@@ -39,7 +39,6 @@ describe("Addresses API", () => {
   });
 
   afterAll(async () => {
-    await container.dispose();
     jest.restoreAllMocks();
     nock.cleanAll();
   });

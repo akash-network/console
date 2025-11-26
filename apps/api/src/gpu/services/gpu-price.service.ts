@@ -1,7 +1,7 @@
 import { MsgCreateBid as MsgCreateBidV4 } from "@akashnetwork/akash-api/akash/market/v1beta4";
 import { MsgCreateBid as MsgCreateBidV5 } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 import { addDays, minutesToSeconds } from "date-fns";
-import { injectable } from "tsyringe";
+import { inject, injectable } from "tsyringe";
 
 import { AkashBlockRepository } from "@src/block/repositories/akash-block/akash-block.repository";
 import { Memoize } from "@src/caching/helpers";
@@ -9,19 +9,25 @@ import { DeploymentRepository } from "@src/deployment/repositories/deployment/de
 import { GpuRepository } from "@src/gpu/repositories/gpu.repository";
 import type { GpuBidType, GpuProviderType, GpuWithPricesType, ProviderWithBestBid } from "@src/gpu/types/gpu.type";
 import { averageBlockCountInAMonth, averageBlockCountInAnHour } from "@src/utils/constants";
-import { env } from "@src/utils/env";
 import { average, median, round, weightedAverage } from "@src/utils/math";
 import { decodeMsg, uint8arrayToString } from "@src/utils/protobuf";
+import { GpuConfig } from "../config/env.config";
+import { GPU_CONFIG } from "../providers/config.provider";
 import { DayRepository } from "../repositories/day.repository";
 
 @injectable()
 export class GpuPriceService {
+  readonly #gpuConfig: GpuConfig;
+
   constructor(
     private readonly gpuRepository: GpuRepository,
     private readonly deploymentRepository: DeploymentRepository,
     private readonly akashBlockRepository: AkashBlockRepository,
-    private readonly dayRepository: DayRepository
-  ) {}
+    private readonly dayRepository: DayRepository,
+    @inject(GPU_CONFIG) gpuConfig: GpuConfig
+  ) {
+    this.#gpuConfig = gpuConfig;
+  }
 
   /**
    * Get a list of gpu models with their availability and pricing.
@@ -139,7 +145,7 @@ export class GpuPriceService {
             const providerBids = x.prices.filter(b => b.provider === p.owner);
             const providerBidsLast14d = providerBids.filter(x => x.datetime > addDays(new Date(), -14));
 
-            const pricingBotAddress = env.PRICING_BOT_ADDRESS;
+            const pricingBotAddress = this.#gpuConfig.PRICING_BOT_ADDRESS;
             const bidsFromPricingBot = providerBids.filter(x => x.deployment.owner === pricingBotAddress && x.deployment.cpuUnits === 100);
 
             let bestBid = null;

@@ -1,14 +1,21 @@
 import { Lease } from "@akashnetwork/database/dbSchemas/akash";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import { USDC_IBC_DENOMS } from "@src/billing/config/network.config";
+import { CORE_CONFIG, CoreConfig } from "@src/core/providers/config.provider";
 import { type FallbackLeaseListResponse } from "@src/deployment/http-schemas/lease-rpc.schema";
 import { DatabaseLeaseListParams, LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
-import { env } from "@src/utils/env";
 
 @singleton()
 export class FallbackLeaseReaderService {
-  constructor(private readonly leaseRepository: LeaseRepository) {}
+  readonly #coreConfig: CoreConfig;
+
+  constructor(
+    private readonly leaseRepository: LeaseRepository,
+    @inject(CORE_CONFIG) coreConfig: CoreConfig
+  ) {
+    this.#coreConfig = coreConfig;
+  }
 
   public async list(params: DatabaseLeaseListParams): Promise<FallbackLeaseListResponse> {
     const { skip = 0, limit = 100, key, countTotal = true } = params;
@@ -89,7 +96,7 @@ export class FallbackLeaseReaderService {
 
   private mapDenom(denom: string): string {
     if (denom === "uusdc") {
-      const network = env.NETWORK;
+      const network = this.#coreConfig.NETWORK;
       if (network === "mainnet") {
         return USDC_IBC_DENOMS.mainnetId;
       } else if (network === "sandbox") {

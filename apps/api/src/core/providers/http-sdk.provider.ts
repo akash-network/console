@@ -16,7 +16,6 @@ import {
 import type { InjectionToken } from "tsyringe";
 import { container, instancePerContainerCachingFactory } from "tsyringe";
 
-import { nodeApiBasePath } from "@src/utils/constants";
 import { CoreConfigService } from "../services/core-config/core-config.service";
 
 export const CHAIN_API_HTTP_CLIENT: InjectionToken<HttpClient> = Symbol("CHAIN_API_HTTP_CLIENT");
@@ -52,5 +51,7 @@ container.register(CoinGeckoHttpService, {
   useFactory: instancePerContainerCachingFactory(() => new CoinGeckoHttpService(createHttpClient({ baseURL: "https://api.coingecko.com" })))
 });
 container.register(NodeHttpService, {
-  useFactory: instancePerContainerCachingFactory(() => new NodeHttpService(createHttpClient({ baseURL: nodeApiBasePath })))
+  useFactory: instancePerContainerCachingFactory(
+    c => new NodeHttpService(createHttpClient({ baseURL: c.resolve(CoreConfigService).get("NODE_API_BASE_PATH") }))
+  )
 });

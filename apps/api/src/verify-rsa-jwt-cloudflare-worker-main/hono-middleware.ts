@@ -5,7 +5,7 @@ import { type GeneralKeyValueStore, useKVStore } from "./use-kv-store";
 import { type VerificationResult, verify } from "./verify";
 
 export type VerifyRsaJwtConfig = {
-  jwksUri?: string;
+  jwksUri?: string | (() => string | undefined | null);
   kvStore?: GeneralKeyValueStore;
   payloadValidator?: (payload: VerificationResult, ctx: Context) => void;
   verbose?: boolean;
@@ -23,7 +23,7 @@ export function verifyRsaJwt(config?: VerifyRsaJwtConfig): MiddlewareHandler {
       }
 
       const jwks = await getJwks(
-        config?.jwksUri || ctx.env.JWKS_URI,
+        getJwksUri(config?.jwksUri) || ctx.env.JWKS_URI,
         useKVStore(config?.kvStore || ctx.env?.VERIFY_RSA_JWT),
         ctx.env?.VERIFY_RSA_JWT_JWKS_CACHE_KEY
       );
@@ -52,4 +52,8 @@ export function verifyRsaJwt(config?: VerifyRsaJwtConfig): MiddlewareHandler {
 
 export function getPayloadFromContext(ctx: Context) {
   return ctx.get(PAYLOAD_KEY);
+}
+
+function getJwksUri(jwksUri?: VerifyRsaJwtConfig["jwksUri"]) {
+  return typeof jwksUri === "function" ? jwksUri() : jwksUri;
 }

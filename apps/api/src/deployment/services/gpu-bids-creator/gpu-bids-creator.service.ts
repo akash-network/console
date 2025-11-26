@@ -8,32 +8,36 @@ import { DirectSecp256k1HdWallet, EncodeObject, Registry } from "@cosmjs/proto-s
 import { calculateFee, SigningStargateClient } from "@cosmjs/stargate";
 import pick from "lodash/pick";
 import { setTimeout as sleep } from "timers/promises";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provider";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
+import { DEPLOYMENT_CONFIG, DeploymentConfig } from "@src/deployment/config/config.provider";
 import { GpuService } from "@src/gpu/services/gpu.service";
-import { env } from "@src/utils/env";
 import { sdlTemplateWithRam, sdlTemplateWithRamAndInterface } from "./sdl-templates";
 
 @singleton()
 export class GpuBidsCreatorService {
   private readonly logger = LoggerService.forContext(GpuBidsCreatorService.name);
+  readonly #deploymentConfig: DeploymentConfig;
 
   constructor(
     private readonly config: BillingConfigService,
     private readonly bidHttpService: BidHttpService,
     private readonly gpuService: GpuService,
     private readonly blockHttpService: BlockHttpService,
-    @InjectTypeRegistry() private readonly typeRegistry: Registry
-  ) {}
+    @InjectTypeRegistry() private readonly typeRegistry: Registry,
+    @inject(DEPLOYMENT_CONFIG) deploymentConfig: DeploymentConfig
+  ) {
+    this.#deploymentConfig = deploymentConfig;
+  }
 
   async createGpuBids() {
-    if (!env.GPU_BOT_WALLET_MNEMONIC) throw new Error("The env variable GPU_BOT_WALLET_MNEMONIC is not set.");
+    if (!this.#deploymentConfig.GPU_BOT_WALLET_MNEMONIC) throw new Error("The env variable GPU_BOT_WALLET_MNEMONIC is not set.");
     if (!this.config.get("RPC_NODE_ENDPOINT")) throw new Error("The env variable RPC_NODE_ENDPOINT is not set.");
 
-    const wallet = await DirectSecp256k1HdWallet.fromMnemonic(env.GPU_BOT_WALLET_MNEMONIC, { prefix: "akash" });
+    const wallet = await DirectSecp256k1HdWallet.fromMnemonic(this.#deploymentConfig.GPU_BOT_WALLET_MNEMONIC, { prefix: "akash" });
     const [account] = await wallet.getAccounts();
 
     this.logger.info({ event: "CREATING_GPU_BIDS", address: account.address });
