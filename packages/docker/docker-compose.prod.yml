@@ -27,6 +27,8 @@ services:
     restart: always
     environment:
       PORT: 3000
+    env_file:
+      - .env.sandbox.docker-compose-dev
     ports:
       - '3040:3000'
 
