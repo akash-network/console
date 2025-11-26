@@ -1,4 +1,5 @@
-import { env } from "./env";
+// !!! DO NOT IMPORT here anything that is not a constant
+// this file is used by scripts/buildAkashTemplatesCache.ts
 
 export const averageBlockTime = 6;
 export const averageDaysInMonth = 30.437;
@@ -17,4 +18,3 @@ export const openApiExampleValidatorAddress = "akashvaloper14mt78hz73d9tdwpdvkd5
 export const certVersion = "v1";
 export const deploymentVersion = "v1beta4";
 export const marketVersion = "v1beta5";
-export const nodeApiBasePath = env.NODE_API_BASE_PATH;

@@ -1,6 +1,5 @@
 import type { AkashBlock, Provider, ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash";
 import { format, subHours } from "date-fns";
-import { container } from "tsyringe";
 
 import { app, initDb } from "@src/rest-app";
 
@@ -192,10 +191,6 @@ describe("Dashboard Data", () => {
         isProcessed: true
       })
     ]);
-  });
-
-  afterAll(async () => {
-    await container.dispose();
   });
 
   describe("GET /v1/dashboard-data", () => {

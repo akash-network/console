@@ -36,4 +36,4 @@ export const envSchema = z.object({
     .transform(val => (val ? val.split(",").map(addr => addr.trim()) : []))
 });
 
-export const envConfig = envSchema.parse(process.env);
+export type BillingConfig = z.infer<typeof envSchema>;

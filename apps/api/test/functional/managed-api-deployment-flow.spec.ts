@@ -568,6 +568,7 @@ describe("Managed Wallet API Deployment Flow", () => {
     });
 
     if (!data?.data?.leases) {
+      console.error("Cannot create lease", data);
       return undefined;
     }
 

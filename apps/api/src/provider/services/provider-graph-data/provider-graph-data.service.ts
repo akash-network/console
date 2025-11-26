@@ -1,12 +1,12 @@
 import { isSameDay, minutesToSeconds } from "date-fns";
 import { cloneDeep } from "lodash";
 import { QueryTypes } from "sequelize";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import { Memoize } from "@src/caching/helpers";
 import { chainDb } from "@src/db/dbConnection";
+import { PROVIDER_CONFIG, ProviderConfig } from "@src/provider/providers/config.provider";
 import { type ProviderStats, type ProviderStatsKey } from "@src/types";
-import { env } from "@src/utils/env";
 
 export const emptyProviderGraphData = {
   currentValue: 0,
@@ -33,6 +33,12 @@ export const emptyProviderGraphData = {
 
 @singleton()
 export class ProviderGraphDataService {
+  readonly #providerConfig: ProviderConfig;
+
+  constructor(@inject(PROVIDER_CONFIG) providerConfig: ProviderConfig) {
+    this.#providerConfig = providerConfig;
+  }
+
   @Memoize({ ttlInSeconds: minutesToSeconds(5) })
   async getProviderGraphData(dataName: ProviderStatsKey) {
     const getter = (block: ProviderStats) => (typeof block[dataName] === "number" ? (block[dataName] as number) : parseInt(block[dataName] as string) || 0);
@@ -62,7 +68,7 @@ export class ProviderGraphDataService {
         {
           type: QueryTypes.SELECT,
           replacements: {
-            grace_duration: env.PROVIDER_UPTIME_GRACE_PERIOD_MINUTES
+            grace_duration: this.#providerConfig.PROVIDER_UPTIME_GRACE_PERIOD_MINUTES
           }
         }
       )

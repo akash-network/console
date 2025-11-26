@@ -3,7 +3,6 @@ import * as path from "node:path";
 
 import { TemplateGalleryService } from "@src/services/external/templates/template-gallery.service";
 import { dataFolderPath } from "@src/utils/constants";
-import { env } from "@src/utils/env";
 
 const fakeHeaders = {
   headers: {
@@ -11,7 +10,6 @@ const fakeHeaders = {
   }
 };
 
-env.GITHUB_PAT = "ghp_1234567890";
 const sha = "generated-sha";
 
 jest.mock("@octokit/rest", () => {
@@ -61,7 +59,7 @@ describe("Template cache generation", () => {
   describe("Generating cache", () => {
     it("creates files as expected", async () => {
       const templateGalleryService = new TemplateGalleryService({
-        githubPAT: env.GITHUB_PAT,
+        githubPAT: "ghp_1234567890",
         dataFolderPath
       });
 

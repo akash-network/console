@@ -10,7 +10,6 @@ import { faker } from "@faker-js/faker";
 import { format, setHours, setMinutes, setSeconds } from "date-fns";
 import Long from "long";
 import nock from "nock";
-import { container } from "tsyringe";
 
 import type { ListGpuResponse } from "@src/gpu/http-schemas/gpu.schema";
 import { app, initDb } from "@src/rest-app";
@@ -34,7 +33,6 @@ describe("GPU API", () => {
   const date = format(now, "yyyy-MM-dd");
 
   afterAll(async () => {
-    await container.dispose();
     nock.cleanAll();
   });
 

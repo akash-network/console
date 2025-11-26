@@ -8,7 +8,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { container } from "tsyringe";
 
-import { config } from "@src/billing/config";
+import { BILLING_CONFIG } from "@src/billing/providers";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { CORE_CONFIG } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
@@ -91,7 +91,7 @@ describe("Tx Sign", () => {
           },
           groups: sdl.groups(),
           hash: await sdl.manifestVersion(),
-          deposit: { amount: { denom: config.DEPLOYMENT_GRANT_DENOM, amount: "5000000" }, sources: [Source.grant] }
+          deposit: { amount: { denom: container.resolve(BILLING_CONFIG).DEPLOYMENT_GRANT_DENOM, amount: "5000000" }, sources: [Source.grant] }
         }
       }
     ];

@@ -1,18 +1,25 @@
 import { Deployment, DeploymentGroup, DeploymentGroupResource } from "@akashnetwork/database/dbSchemas/akash";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import { USDC_IBC_DENOMS } from "@src/billing/config/network.config";
+import { CORE_CONFIG, CoreConfig } from "@src/core/providers/config.provider";
 import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import { DatabaseDeploymentListParams } from "@src/deployment/repositories/deployment/deployment.repository";
 import { RestAkashDeploymentInfoResponse } from "@src/types/rest/akashDeploymentInfoResponse";
 import { RestAkashDeploymentListResponse } from "@src/types/rest/akashDeploymentListResponse";
-import { env } from "@src/utils/env";
 
 export const UNKNOWN_DB_PLACEHOLDER = "unknown_value";
 
 @singleton()
 export class FallbackDeploymentReaderService {
-  constructor(private readonly deploymentRepository: DeploymentRepository) {}
+  readonly #coreConfig: CoreConfig;
+
+  constructor(
+    private readonly deploymentRepository: DeploymentRepository,
+    @inject(CORE_CONFIG) coreConfig: CoreConfig
+  ) {
+    this.#coreConfig = coreConfig;
+  }
 
   async findAll(params: DatabaseDeploymentListParams): Promise<RestAkashDeploymentListResponse> {
     const { skip = 0, limit = 100, key, countTotal = true } = params;
@@ -213,7 +220,7 @@ export class FallbackDeploymentReaderService {
 
   private mapDenom(denom: string): string {
     if (denom === "uusdc") {
-      const network = env.NETWORK;
+      const network = this.#coreConfig.NETWORK;
       if (network === "mainnet") {
         return USDC_IBC_DENOMS.mainnetId;
       } else if (network === "sandbox") {

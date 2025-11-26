@@ -33,7 +33,6 @@ import { internalRouter } from "./routers/internalRouter";
 import { legacyRouter } from "./routers/legacyRouter";
 import { userRouter } from "./routers/userRouter";
 import { web3IndexRouter } from "./routers/web3indexRouter";
-import { env } from "./utils/env";
 import { bytesToHumanReadableSize } from "./utils/files";
 import { addressRouter } from "./address";
 import { apiKeysRouter, sendVerificationEmailRouter } from "./auth";
@@ -53,8 +52,7 @@ import {
   walletSettingRouter
 } from "./billing";
 import { blockPredictionRouter, blocksRouter } from "./block";
-import type { AppInitializer } from "./core";
-import { APP_INITIALIZER, migratePG, ON_APP_START } from "./core";
+import { CORE_CONFIG, migratePG } from "./core";
 import { dashboardDataRouter, graphDataRouter, leasesDurationRouter, marketDataRouter, networkCapacityRouter } from "./dashboard";
 import { gpuRouter } from "./gpu";
 import { networkRouter } from "./network";
@@ -72,7 +70,6 @@ import {
   providersRouter,
   providerVersionsRouter
 } from "./provider";
-import { Scheduler } from "./scheduler";
 import { templatesRouter } from "./template";
 import { transactionsRouter } from "./transaction";
 import { createAnonymousUserRouter, getAnonymousUserRouter, getCurrentUserRouter, registerUserRouter } from "./user";
@@ -84,18 +81,14 @@ appHono.use(
   "/*",
   cors({
     allowMethods: ["GET", "HEAD", "PUT", "POST", "DELETE", "PATCH", "OPTIONS"],
-    origin: env.CORS_WEBSITE_URLS?.split(",") || ["http://localhost:3000", "http://localhost:3001"],
+    origin: origin => {
+      const origins = container.resolve(CORE_CONFIG).CORS_WEBSITE_URLS?.split(",") || [];
+      return origins.includes(origin) ? origin : null;
+    },
     credentials: true,
     exposeHeaders: ["cf-mitigated"]
   })
 );
-
-const scheduler = new Scheduler({
-  healthchecksEnabled: env.HEALTHCHECKS_ENABLED === "true",
-  errorHandler: (task, error) => {
-    console.error(`Task "${task.name}" failed: ${error}`);
-  }
-});
 
 appHono.use(container.resolve(HttpLoggerIntercepter).intercept());
 appHono.use(container.resolve(RequestContextInterceptor).intercept());
@@ -172,7 +165,6 @@ appHono.route("/", healthzRouter);
 
 appHono.get("/status", c => {
   const version = packageJson.version;
-  const tasksStatus = scheduler.getTasksStatus();
   const memoryInBytes = process.memoryUsage();
   const memory = {
     rss: bytesToHumanReadableSize(memoryInBytes.rss),
@@ -181,7 +173,7 @@ appHono.get("/status", c => {
     external: bytesToHumanReadableSize(memoryInBytes.external)
   };
 
-  return c.json({ version, memory, tasks: tasksStatus });
+  return c.json({ version, memory });
 });
 
 appHono.get("/v1/doc", c => {
@@ -191,19 +183,11 @@ appHono.get("/v1/swagger", swaggerUI({ url: "/v1/doc" }));
 
 appHono.onError(container.resolve(HonoErrorHandlerService).handle);
 
-container.register(APP_INITIALIZER, {
-  useValue: {
-    async [ON_APP_START]() {
-      scheduler.start();
-    }
-  } satisfies AppInitializer
-});
-
 export { appHono as app, connectUsingSequelize as initDb };
 
-export async function bootstrap(port: number) {
+export async function bootstrap(): Promise<void> {
   await startServer(appHono, LoggerService.forContext("APP"), process, {
-    port,
+    port: container.resolve(CORE_CONFIG).PORT,
     beforeStart: migratePG
   });
 }

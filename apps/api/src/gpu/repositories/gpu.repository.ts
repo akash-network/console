@@ -1,15 +1,22 @@
 import { sub } from "date-fns";
 import { QueryTypes } from "sequelize";
-import { injectable } from "tsyringe";
+import { inject, injectable } from "tsyringe";
 
 import { chainDb } from "@src/db/dbConnection";
 import { GpuBreakdownQuery } from "@src/gpu/http-schemas/gpu.schema";
 import type { GpuType } from "@src/gpu/types/gpu.type";
 import { toUTC } from "@src/utils";
-import { env } from "@src/utils/env";
+import { GpuConfig } from "../config/env.config";
+import { GPU_CONFIG } from "../providers/config.provider";
 
 @injectable()
 export class GpuRepository {
+  readonly #gpuConfig: GpuConfig;
+
+  constructor(@inject(GPU_CONFIG) gpuConfig: GpuConfig) {
+    this.#gpuConfig = gpuConfig;
+  }
+
   async getGpuList({
     providerAddress,
     providerHostUri,
@@ -63,7 +70,7 @@ export class GpuRepository {
           memory_size: memorySize ?? null,
           provider_address: providerAddress ?? null,
           provider_hosturi: providerHostUri ?? null,
-          grace_date: toUTC(sub(new Date(), { minutes: env.PROVIDER_UPTIME_GRACE_PERIOD_MINUTES }))
+          grace_date: toUTC(sub(new Date(), { minutes: this.#gpuConfig.PROVIDER_UPTIME_GRACE_PERIOD_MINUTES }))
         }
       }
     );
@@ -182,7 +189,7 @@ export class GpuRepository {
       {
         type: QueryTypes.SELECT,
         replacements: {
-          grace_date: toUTC(sub(new Date(), { minutes: env.PROVIDER_UPTIME_GRACE_PERIOD_MINUTES }))
+          grace_date: toUTC(sub(new Date(), { minutes: this.#gpuConfig.PROVIDER_UPTIME_GRACE_PERIOD_MINUTES }))
         }
       }
     );
