@@ -1,7 +1,8 @@
-import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 
+import { createRoute } from "@src/core/lib/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 import { TemplateController } from "@src/template/controllers/template/template.controller";
 import {
   GetTemplateByIdParamsSchema,
@@ -16,6 +17,7 @@ const getTemplatesFullRoute = createRoute({
   method: "get",
   path: "/v1/templates",
   tags: ["Other"],
+  security: SECURITY_NONE,
   responses: {
     200: {
       description: "Returns a list of deployment templates grouped by categories",
@@ -37,6 +39,7 @@ const getTemplatesListRoute = createRoute({
   method: "get",
   path: "/v1/templates-list",
   tags: ["Other"],
+  security: SECURITY_NONE,
   responses: {
     200: {
       description: "Returns a list of deployment templates grouped by categories",
@@ -58,6 +61,7 @@ const getTemplateByIdRoute = createRoute({
   method: "get",
   path: "/v1/templates/{id}",
   tags: ["Other"],
+  security: SECURITY_NONE,
   request: {
     params: GetTemplateByIdParamsSchema
   },

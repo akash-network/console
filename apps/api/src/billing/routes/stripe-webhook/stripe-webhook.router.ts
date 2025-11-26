@@ -1,15 +1,19 @@
-import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 import { z } from "zod";
 
 import { CheckoutController } from "@src/billing/controllers/checkout/checkout.controller";
+import { createRoute } from "@src/core/lib/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
+
+export const stripeWebhook = new OpenApiHonoHandler();
 
 const route = createRoute({
   method: "post",
   path: "/v1/stripe-webhook",
   summary: "Stripe Webhook Handler",
   tags: ["Payment"],
+  security: SECURITY_NONE,
   request: {
     body: {
       content: {
@@ -36,9 +40,6 @@ const route = createRoute({
     }
   }
 });
-
-export const stripeWebhook = new OpenApiHonoHandler();
-
 stripeWebhook.openapi(route, async function routeStripeWebhook(c) {
   const sig = c.req.header("stripe-signature");
   if (!sig) {

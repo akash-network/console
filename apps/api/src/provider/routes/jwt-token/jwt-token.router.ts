@@ -1,8 +1,9 @@
-import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 import { z } from "zod";
 
+import { createRoute } from "@src/core/lib/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
 import { JwtTokenController } from "@src/provider/controllers/jwt-token/jwt-token.controller";
 import { CreateJwtTokenRequestSchema, CreateJwtTokenResponseSchema } from "@src/provider/http-schemas/jwt-token.schema";
 
@@ -14,6 +15,7 @@ providerJwtTokenRouter.openapi(
     path: "/v1/create-jwt-token",
     summary: "Create new JWT token for managed wallet",
     tags: ["JWT Token"],
+    security: SECURITY_BEARER_OR_API_KEY,
     request: {
       body: {
         content: {

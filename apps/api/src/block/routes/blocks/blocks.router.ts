@@ -1,4 +1,3 @@
-import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 
 import { BlockController } from "@src/block/controllers/block/block.controller";
@@ -8,13 +7,18 @@ import {
   ListBlocksQuerySchema,
   ListBlocksResponseSchema
 } from "@src/block/http-schemas/block.schema";
+import { createRoute } from "@src/core/lib/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
+
+export const blocksRouter = new OpenApiHonoHandler();
 
 const listBlocksRoute = createRoute({
   method: "get",
   path: "/v1/blocks",
   summary: "Get a list of recent blocks.",
   tags: ["Blocks"],
+  security: SECURITY_NONE,
   request: {
     query: ListBlocksQuerySchema
   },
@@ -29,12 +33,19 @@ const listBlocksRoute = createRoute({
     }
   }
 });
+blocksRouter.openapi(listBlocksRoute, async function routeListBlocks(c) {
+  const { limit } = c.req.valid("query");
+  const blocks = await container.resolve(BlockController).getBlocks(limit);
+
+  return c.json(blocks);
+});
 
 const getBlockByHeightRoute = createRoute({
   method: "get",
   path: "/v1/blocks/{height}",
   summary: "Get a block by height.",
   tags: ["Blocks"],
+  security: SECURITY_NONE,
   request: {
     params: GetBlockByHeightParamsSchema
   },
@@ -55,16 +66,6 @@ const getBlockByHeightRoute = createRoute({
     }
   }
 });
-
-export const blocksRouter = new OpenApiHonoHandler();
-
-blocksRouter.openapi(listBlocksRoute, async function routeListBlocks(c) {
-  const { limit } = c.req.valid("query");
-  const blocks = await container.resolve(BlockController).getBlocks(limit);
-
-  return c.json(blocks);
-});
-
 blocksRouter.openapi(getBlockByHeightRoute, async function routeGetBlockByHeight(c) {
   const { height } = c.req.valid("param");
 

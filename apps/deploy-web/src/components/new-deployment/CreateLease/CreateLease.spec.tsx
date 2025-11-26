@@ -206,7 +206,6 @@ describe(CreateLease.name, () => {
         ]);
         expect(sendManifest).toHaveBeenCalledWith(selectedProvider, expect.any(Array), {
           dseq,
-          chainNetwork: "mainnet",
           credentials: {
             type: "mtls",
             value: {
@@ -263,7 +262,6 @@ describe(CreateLease.name, () => {
         );
         expect(sendManifest).toHaveBeenCalledWith(selectedProvider, expect.any(Array), {
           dseq,
-          chainNetwork: "mainnet",
           credentials: {
             type: "mtls",
             value: {
@@ -326,7 +324,6 @@ describe(CreateLease.name, () => {
         ]);
         expect(sendManifest).toHaveBeenCalledWith(selectedProvider, expect.any(Array), {
           dseq,
-          chainNetwork: "mainnet",
           credentials: {
             type: "mtls",
             value: {

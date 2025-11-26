@@ -1,8 +1,9 @@
 import nock from "nock";
+import { container } from "tsyringe";
 
+import { CORE_CONFIG } from "@src/core";
 import type { GetProposalByIdResponse, GetProposalListResponse } from "@src/proposal/http-schemas/proposal.schema";
 import { app } from "@src/rest-app";
-import { apiNodeUrl } from "@src/utils/constants";
 
 describe("Proposals", () => {
   afterAll(() => {
@@ -95,7 +96,7 @@ describe("Proposals", () => {
   });
 
   const setup = () => {
-    nock(apiNodeUrl)
+    nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
       .persist()
       .get("/cosmos/gov/v1beta1/proposals?pagination.limit=1000")
       .reply(200, {
@@ -222,7 +223,7 @@ describe("Proposals", () => {
         ]
       });
 
-    nock(apiNodeUrl)
+    nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
       .persist()
       .get("/cosmos/gov/v1beta1/proposals/2")
       .reply(200, {
@@ -260,7 +261,7 @@ describe("Proposals", () => {
         }
       });
 
-    nock(apiNodeUrl)
+    nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
       .persist()
       .get("/cosmos/gov/v1beta1/proposals/2/tally")
       .reply(200, {
@@ -272,6 +273,6 @@ describe("Proposals", () => {
         }
       });
 
-    nock(apiNodeUrl).persist().get("/cosmos/gov/v1beta1/proposals/999").reply(404);
+    nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL).persist().get("/cosmos/gov/v1beta1/proposals/999").reply(404);
   };
 });

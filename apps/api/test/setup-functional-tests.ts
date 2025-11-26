@@ -1,5 +1,7 @@
 import "reflect-metadata";
 
+import { container } from "tsyringe";
+
 import { cacheEngine } from "@src/caching/helpers";
 import { TestDatabaseService } from "./services/test-database.service";
 
@@ -36,6 +38,11 @@ beforeAll(async () => {
 }, 20000);
 
 afterAll(async () => {
+  try {
+    await container.dispose();
+  } catch {
+    // could be disposed in tests
+  }
   await dbService.teardown();
   cacheEngine.clearAllKeyInCache();
 }, 20000);

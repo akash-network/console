@@ -16,7 +16,7 @@ describe(ProviderProxyService.name, () => {
   describe("sendManifest", () => {
     it("does nothing if provider is undefined", () => {
       const { service, httpClient } = setup();
-      service.sendManifest(undefined, {}, { dseq: "1", chainNetwork: "akash" });
+      service.sendManifest(undefined, {}, { dseq: "1" });
       expect(httpClient.post).not.toHaveBeenCalled();
     });
 
@@ -59,7 +59,7 @@ describe(ProviderProxyService.name, () => {
         }
       ];
       const credentials: ProviderCredentials = { type: "mtls", value: { cert: "certPem", key: "keyPem" } };
-      const promise = service.sendManifest(provider, manifest, { dseq, chainNetwork: "mainnet", credentials });
+      const promise = service.sendManifest(provider, manifest, { dseq, credentials });
 
       const [result] = await Promise.all([promise, jest.runAllTimersAsync()]);
 
@@ -69,7 +69,6 @@ describe(ProviderProxyService.name, () => {
           method: "PUT",
           url: `${provider.hostUri}/deployment/${dseq}/manifest`,
           providerAddress: provider.owner,
-          network: "mainnet",
           auth: {
             type: "mtls",
             certPem: credentials.value?.cert,
@@ -106,8 +105,6 @@ describe(ProviderProxyService.name, () => {
         { timeout: expect.any(Number) }
       );
       expect(result).toBe(response);
-
-      jest.useRealTimers();
     });
   });
 
@@ -119,7 +116,6 @@ describe(ProviderProxyService.name, () => {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
         providerCredentials: { type: "mtls" as const, value: { cert: "cert", key: "key" } },
-        chainNetwork: "mainnet",
         dseq: "123",
         gseq: 1,
         oseq: 1
@@ -175,8 +171,7 @@ describe(ProviderProxyService.name, () => {
         dseq: "456",
         gseq: 2,
         oseq: 3,
-        type: "events" as const,
-        chainNetwork: "testnet"
+        type: "events" as const
       };
 
       const promise = service.downloadLogs(input);
@@ -219,7 +214,6 @@ describe(ProviderProxyService.name, () => {
         gseq: 1,
         oseq: 1,
         type: "logs" as const,
-        chainNetwork: "mainnet",
         signal: abortController.signal
       };
 
@@ -244,8 +238,7 @@ describe(ProviderProxyService.name, () => {
         dseq: "111",
         gseq: 1,
         oseq: 1,
-        type: "logs" as const,
-        chainNetwork: "mainnet"
+        type: "logs" as const
       };
 
       const promise = service.downloadLogs(input);
@@ -287,8 +280,7 @@ describe(ProviderProxyService.name, () => {
         dseq: "222",
         gseq: 1,
         oseq: 1,
-        type: "logs" as const,
-        chainNetwork: "mainnet"
+        type: "logs" as const
       };
 
       const promise = service.downloadLogs(input);
@@ -314,8 +306,7 @@ describe(ProviderProxyService.name, () => {
         dseq: "111",
         gseq: 1,
         oseq: 1,
-        type: "logs" as const,
-        chainNetwork: "mainnet"
+        type: "logs" as const
       };
 
       const promise = service.downloadLogs(input);
@@ -343,7 +334,6 @@ describe(ProviderProxyService.name, () => {
         dseq: "123",
         gseq: 1,
         oseq: 1,
-        chainNetwork: "mainnet",
         service: "web",
         filePath: "/app/config.json"
       };
@@ -387,7 +377,6 @@ describe(ProviderProxyService.name, () => {
         dseq: "456",
         gseq: 2,
         oseq: 3,
-        chainNetwork: "testnet",
         service: "api",
         filePath: "/data/largefile.txt"
       };
@@ -427,7 +416,6 @@ describe(ProviderProxyService.name, () => {
         dseq: "789",
         gseq: 1,
         oseq: 1,
-        chainNetwork: "mainnet",
         service: "web",
         filePath: "/nonexistent/file.txt"
       };
@@ -461,7 +449,6 @@ describe(ProviderProxyService.name, () => {
         dseq: "999",
         gseq: 1,
         oseq: 1,
-        chainNetwork: "mainnet",
         service: "web",
         filePath: "/app/file.txt",
         signal: abortController.signal
@@ -488,7 +475,6 @@ describe(ProviderProxyService.name, () => {
         dseq: "111",
         gseq: 1,
         oseq: 1,
-        chainNetwork: "mainnet",
         service: "web",
         filePath: "/app/file.txt"
       };
@@ -522,7 +508,6 @@ describe(ProviderProxyService.name, () => {
         dseq: "222",
         gseq: 1,
         oseq: 1,
-        chainNetwork: "mainnet",
         service: "web",
         filePath: "/very/long/path/to/myfile.log"
       };
@@ -564,8 +549,7 @@ describe(ProviderProxyService.name, () => {
         dseq: "123",
         gseq: 1,
         oseq: 1,
-        type: "logs" as const,
-        chainNetwork: "mainnet"
+        type: "logs" as const
       };
 
       const stream = service.getLogsStream(input);
@@ -609,8 +593,7 @@ describe(ProviderProxyService.name, () => {
         dseq: "456",
         gseq: 2,
         oseq: 3,
-        type: "events" as const,
-        chainNetwork: "testnet"
+        type: "events" as const
       };
 
       const stream = service.getLogsStream(input);
@@ -656,8 +639,7 @@ describe(ProviderProxyService.name, () => {
         dseq: "789",
         gseq: 1,
         oseq: 1,
-        type: "logs" as const,
-        chainNetwork: "mainnet"
+        type: "logs" as const
       };
 
       const stream = service.getLogsStream(input);
@@ -712,7 +694,6 @@ describe(ProviderProxyService.name, () => {
         gseq: 1,
         oseq: 1,
         type: "logs" as const,
-        chainNetwork: "mainnet",
         signal: abortController.signal
       };
 
@@ -736,7 +717,6 @@ describe(ProviderProxyService.name, () => {
         gseq: 1,
         oseq: 1,
         type: "logs" as const,
-        chainNetwork: "mainnet",
         tail: 200,
         services: ["web", "api"],
         follow: true
@@ -763,8 +743,7 @@ describe(ProviderProxyService.name, () => {
         dseq: "111",
         gseq: 1,
         oseq: 1,
-        type: "logs" as const,
-        chainNetwork: "mainnet"
+        type: "logs" as const
       };
 
       const stream = service.getLogsStream(input);
@@ -791,7 +770,6 @@ describe(ProviderProxyService.name, () => {
         dseq: "100",
         gseq: 2,
         oseq: 3,
-        chainNetwork: "mainnet",
         service: "web-service"
       };
 
@@ -812,7 +790,6 @@ describe(ProviderProxyService.name, () => {
         dseq: "456",
         gseq: 1,
         oseq: 1,
-        chainNetwork: "mainnet",
         service: "api",
         command: "cat /app/config.json"
       };
@@ -835,7 +812,6 @@ describe(ProviderProxyService.name, () => {
         dseq: "789",
         gseq: 1,
         oseq: 1,
-        chainNetwork: "mainnet",
         service: "web",
         useStdIn: true,
         useTTY: true
@@ -859,7 +835,6 @@ describe(ProviderProxyService.name, () => {
         dseq: "333",
         gseq: 1,
         oseq: 1,
-        chainNetwork: "mainnet",
         service: "web",
         command: "ls -la /app"
       };
@@ -883,7 +858,6 @@ describe(ProviderProxyService.name, () => {
         dseq: "444",
         gseq: 1,
         oseq: 1,
-        chainNetwork: "mainnet",
         service: "web"
       };
 
@@ -908,7 +882,6 @@ describe(ProviderProxyService.name, () => {
         dseq: "555",
         gseq: 1,
         oseq: 1,
-        chainNetwork: "mainnet",
         service: "web"
       };
 
@@ -932,7 +905,6 @@ describe(ProviderProxyService.name, () => {
         dseq: "666",
         gseq: 1,
         oseq: 1,
-        chainNetwork: "mainnet",
         service: "web"
       };
 
@@ -954,7 +926,6 @@ describe(ProviderProxyService.name, () => {
         dseq: "777",
         gseq: 1,
         oseq: 1,
-        chainNetwork: "mainnet",
         service: "web"
       };
 
@@ -976,7 +947,6 @@ describe(ProviderProxyService.name, () => {
         dseq: "888",
         gseq: 1,
         oseq: 1,
-        chainNetwork: "mainnet",
         service: "web",
         signal: abortController.signal
       };
@@ -999,7 +969,6 @@ describe(ProviderProxyService.name, () => {
         dseq: "1000",
         gseq: 1,
         oseq: 1,
-        chainNetwork: "mainnet",
         service: "web"
       };
 
@@ -1028,7 +997,6 @@ describe(ProviderProxyService.name, () => {
         dseq: "1111",
         gseq: 1,
         oseq: 1,
-        chainNetwork: "mainnet",
         service: "web"
       };
 
@@ -1070,7 +1038,6 @@ describe(ProviderProxyService.name, () => {
         dseq: "1111",
         gseq: 1,
         oseq: 1,
-        chainNetwork: "mainnet",
         service: "web"
       };
 

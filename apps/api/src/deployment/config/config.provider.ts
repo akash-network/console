@@ -1,11 +1,16 @@
-import { container, inject } from "tsyringe";
+import type { InjectionToken } from "tsyringe";
+import { container, inject, instancePerContainerCachingFactory } from "tsyringe";
 
-import { config } from "@src/deployment/config";
+import { RAW_APP_CONFIG } from "@src/core/providers/raw-app-config.provider";
+import type { DeploymentConfig } from "./env.config";
+import { envSchema } from "./env.config";
 
-export const DEPLOYMENT_CONFIG = "DEPLOYMENT_CONFIG";
+export const DEPLOYMENT_CONFIG: InjectionToken<DeploymentConfig> = Symbol("DEPLOYMENT_CONFIG");
 
-container.register(DEPLOYMENT_CONFIG, { useValue: config });
-
-export type DeploymentConfig = typeof config;
+container.register(DEPLOYMENT_CONFIG, {
+  useFactory: instancePerContainerCachingFactory(c => envSchema.parse(c.resolve(RAW_APP_CONFIG)))
+});
 
 export const InjectDeploymentConfig = () => inject(DEPLOYMENT_CONFIG);
+
+export type { DeploymentConfig };

@@ -2,7 +2,22 @@
 
 exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
 {
-  "components": {},
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "description": "API key for programmatic access.",
+        "in": "header",
+        "name": "x-api-key",
+        "type": "apiKey",
+      },
+      "BearerAuth": {
+        "bearerFormat": "JWT",
+        "description": "JWT token for authenticated users, sent in "Authorization: Bearer %token" header.",
+        "scheme": "bearer",
+        "type": "http",
+      },
+    },
+  },
   "info": {
     "description": "API providing data to the Akash Network Console",
     "title": "Akash Network Console API",
@@ -559,6 +574,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Deployment not found",
           },
         },
+        "security": [],
         "summary": "Get deployment info (database fallback)",
         "tags": [
           "Deployments",
@@ -1160,6 +1176,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Returns paginated list of deployments from database",
           },
         },
+        "security": [],
         "summary": "List deployments (database fallback)",
         "tags": [
           "Deployments",
@@ -1495,6 +1512,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Returns paginated list of leases from database",
           },
         },
+        "security": [],
         "summary": "List leases (database fallback)",
         "tags": [
           "Leases",
@@ -1758,6 +1776,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Invalid address",
           },
         },
+        "security": [],
         "summary": "Get address details",
         "tags": [
           "Addresses",
@@ -1960,6 +1979,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Invalid address",
           },
         },
+        "security": [],
         "summary": "Get a list of deployments by owner address.",
         "tags": [
           "Addresses",
@@ -2108,6 +2128,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Invalid address or parameters",
           },
         },
+        "security": [],
         "summary": "Get a list of transactions for a given address.",
         "tags": [
           "Addresses",
@@ -2119,42 +2140,44 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
       "post": {
         "responses": {
           "200": {
-            "body": {
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "_cached": null,
-                    "_def": {
-                      "catchall": {
-                        "_def": {
-                          "typeName": "ZodNever",
-                        },
-                        "~standard": {
-                          "vendor": "zod",
-                          "version": 1,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "id": {
+                          "type": "string",
                         },
                       },
-                      "typeName": "ZodObject",
-                      "unknownKeys": "strip",
+                      "required": [
+                        "id",
+                      ],
+                      "type": "object",
                     },
-                    "~standard": {
-                      "vendor": "zod",
-                      "version": 1,
+                    "token": {
+                      "type": "string",
                     },
                   },
+                  "required": [
+                    "data",
+                    "token",
+                  ],
+                  "type": "object",
                 },
               },
             },
             "description": "Returns a created anonymous user",
           },
         },
+        "security": [],
         "summary": "Creates an anonymous user",
         "tags": [
           "Users",
         ],
       },
     },
-    "/v1/anonymous-users/:id": {
+    "/v1/anonymous-users/{id}": {
       "get": {
         "parameters": [
           {
@@ -2169,35 +2192,40 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
         ],
         "responses": {
           "200": {
-            "body": {
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "_cached": null,
-                    "_def": {
-                      "catchall": {
-                        "_def": {
-                          "typeName": "ZodNever",
-                        },
-                        "~standard": {
-                          "vendor": "zod",
-                          "version": 1,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "id": {
+                          "type": "string",
                         },
                       },
-                      "typeName": "ZodObject",
-                      "unknownKeys": "strip",
-                    },
-                    "~standard": {
-                      "vendor": "zod",
-                      "version": 1,
+                      "required": [
+                        "id",
+                      ],
+                      "type": "object",
                     },
                   },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
                 },
               },
             },
             "description": "Returns an anonymous user",
           },
         },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
         "summary": "Retrieves an anonymous user by id",
         "tags": [
           "Users",
@@ -2268,6 +2296,14 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Returns list of API keys",
           },
         },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
         "summary": "List all API keys",
         "tags": [
           "API Keys",
@@ -2366,6 +2402,14 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "API key created successfully",
           },
         },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
         "summary": "Create new API key",
         "tags": [
           "API Keys",
@@ -2408,6 +2452,14 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "API key not found",
           },
         },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
         "summary": "Delete API key",
         "tags": [
           "API Keys",
@@ -2502,6 +2554,14 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "API key not found",
           },
         },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
         "summary": "Get API key by ID",
         "tags": [
           "API Keys",
@@ -2618,6 +2678,14 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "API key not found",
           },
         },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
         "summary": "Update API key",
         "tags": [
           "API Keys",
@@ -2661,6 +2729,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "List of auditors",
           },
         },
+        "security": [],
         "summary": "Get a list of auditors.",
         "tags": [
           "Providers",
@@ -2717,6 +2786,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Returns user balances",
           },
         },
+        "security": [],
         "summary": "Get user balances",
         "tags": [
           "Wallet",
@@ -3158,6 +3228,14 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "List of bids",
           },
         },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
         "summary": "List bids",
         "tags": [
           "Bids",
@@ -3599,6 +3677,14 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "List of bids",
           },
         },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
         "summary": "List bids by dseq",
         "tags": [
           "Bids",
@@ -3682,6 +3768,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Returns block list",
           },
         },
+        "security": [],
         "summary": "Get a list of recent blocks.",
         "tags": [
           "Blocks",
@@ -3822,6 +3909,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Block not found",
           },
         },
+        "security": [],
         "summary": "Get a block by height.",
         "tags": [
           "Blocks",
@@ -3869,6 +3957,14 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Certificate created",
           },
         },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
         "summary": "Create certificate",
         "tags": [
           "Certificate",
@@ -3892,6 +3988,14 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Redirects to the checkout page",
           },
         },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
         "summary": "Creates a stripe checkout session and redirects to checkout",
         "tags": [
           "Wallet",
@@ -3962,6 +4066,14 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "JWT token created successfully",
           },
         },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
         "summary": "Create new JWT token for managed wallet",
         "tags": [
           "JWT Token",
@@ -4472,6 +4584,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Returns dashboard data",
           },
         },
+        "security": [],
         "tags": [
           "Analytics",
         ],
@@ -4576,6 +4689,14 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Deployment settings created successfully",
           },
         },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
         "summary": "Create deployment settings",
         "tags": [
           "Deployment Settings",
@@ -4683,6 +4804,14 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Deployment settings not found",
           },
         },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
         "summary": "Get deployment settings by user ID and dseq",
         "tags": [
           "Deployment Settings",
@@ -4814,6 +4943,14 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Deployment settings not found",
           },
         },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
         "summary": "Update deployment settings",
         "tags": [
           "Deployment Settings",
@@ -5485,6 +5622,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Deployment not found",
           },
         },
+        "security": [],
         "summary": "Get deployment details",
         "tags": [
           "Deployments",
@@ -5924,6 +6062,14 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Returns paginated list of deployments",
           },
         },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
         "summary": "List deployments with pagination and filtering",
         "tags": [
           "Deployments",
@@ -6013,6 +6159,14 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Create deployment successfully",
           },
         },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
         "summary": "Create new deployment",
         "tags": [
           "Deployments",
@@ -6062,6 +6216,14 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Deployment closed successfully",
           },
         },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
         "summary": "Close a deployment",
         "tags": [
           "Deployments",
@@ -6455,6 +6617,14 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Returns deployment info",
           },
         },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
         "summary": "Get a deployment",
         "tags": [
           "Deployments",
@@ -6888,6 +7058,14 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Deployment updated successfully",
           },
         },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
         "summary": "Update a deployment",
         "tags": [
           "Deployments",
@@ -7302,6 +7480,14 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Deposit successful",
           },
         },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
         "summary": "Deposit into a deployment",
         "tags": [
           "Deployments",
@@ -7421,6 +7607,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Invalid provider parameter, should be a valid akash address or host uri",
           },
         },
+        "security": [],
         "summary": "Get a list of gpu models and their availability.",
         "tags": [
           "Gpu",
@@ -7498,6 +7685,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Gets gpu analytics breakdown by vendor and model. If no vendor or model is provided, all GPUs are returned.",
           },
         },
+        "security": [],
         "summary": "Gets gpu analytics breakdown by vendor and model. If no vendor or model is provided, all GPUs are returned.",
         "tags": [
           "Gpu",
@@ -7558,6 +7746,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "List of gpu models per.",
           },
         },
+        "security": [],
         "summary": "Get a list of gpu models per vendor. Based on the content from https://raw.githubusercontent.com/akash-network/provider-configs/main/devices/pcie/gpus.json.",
         "tags": [
           "Gpu",
@@ -7691,6 +7880,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "List of gpu models with their availability and pricing.",
           },
         },
+        "security": [],
         "summary": "Get a list of gpu models with their availability and pricing.",
         "tags": [
           "Gpu",
@@ -7774,6 +7964,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Graph data not found",
           },
         },
+        "security": [],
         "tags": [
           "Analytics",
         ],
@@ -8215,6 +8406,14 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Leases created and manifest sent",
           },
         },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
         "summary": "Create leases and send manifest",
         "tags": [
           "Leases",
@@ -8350,6 +8549,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Invalid start date, must be in the following format: YYYY-MM-DD",
           },
         },
+        "security": [],
         "summary": "Get leases durations.",
         "tags": [
           "Analytics",
@@ -8414,6 +8614,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Returns market stats",
           },
         },
+        "security": [],
         "tags": [
           "Analytics",
         ],
@@ -8529,6 +8730,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Returns network capacity stats",
           },
         },
+        "security": [],
         "tags": [
           "Analytics",
         ],
@@ -8582,6 +8784,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "List of nodes",
           },
         },
+        "security": [],
         "summary": "Get a list of nodes (api/rpc) for a specific network.",
         "tags": [
           "Chain",
@@ -8646,6 +8849,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Invalid height or block window",
           },
         },
+        "security": [],
         "summary": "Get the estimated date of a future block.",
         "tags": [
           "Blocks",
@@ -8711,6 +8915,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Invalid timestamp or block window",
           },
         },
+        "security": [],
         "summary": "Get the estimated height of a future date and time.",
         "tags": [
           "Blocks",
@@ -8912,6 +9117,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Invalid parameters",
           },
         },
+        "security": [],
         "summary": "Estimate the price of a deployment on akash and other cloud providers.",
         "tags": [
           "Other",
@@ -8967,6 +9173,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Returns a list of proposals",
           },
         },
+        "security": [],
         "tags": [
           "Proposals",
         ],
@@ -9091,6 +9298,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Proposal not found",
           },
         },
+        "security": [],
         "tags": [
           "Proposals",
         ],
@@ -10545,6 +10753,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Return the provider attributes schema",
           },
         },
+        "security": [],
         "summary": "Get the provider attributes schema",
         "tags": [
           "Providers",
@@ -10735,6 +10944,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Provider not found",
           },
         },
+        "security": [],
         "summary": "Get dashboard data for provider console.",
         "tags": [
           "Providers",
@@ -10816,6 +11026,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Provider not found",
           },
         },
+        "security": [],
         "summary": "Get earnings data for provider console.",
         "tags": [
           "Providers",
@@ -10954,6 +11165,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Graph data not found",
           },
         },
+        "security": [],
         "tags": [
           "Analytics",
         ],
@@ -10998,6 +11210,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Return a list of provider regions",
           },
         },
+        "security": [],
         "summary": "Get a list of provider regions",
         "tags": [
           "Providers",
@@ -11044,6 +11257,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "List of providers grouped by version.",
           },
         },
+        "security": [],
         "summary": "Get providers grouped by version.",
         "tags": [
           "Providers",
@@ -11449,6 +11663,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Returns a list of providers",
           },
         },
+        "security": [],
         "summary": "Get a list of providers.",
         "tags": [
           "Providers",
@@ -11988,6 +12203,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Provider not found",
           },
         },
+        "security": [],
         "summary": "Get a provider details.",
         "tags": [
           "Providers",
@@ -12081,6 +12297,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Invalid address",
           },
         },
+        "security": [],
         "tags": [
           "Analytics",
           "Providers",
@@ -12318,6 +12535,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Invalid status filter",
           },
         },
+        "security": [],
         "summary": "Get a list of deployments for a provider.",
         "tags": [
           "Providers",
@@ -12357,35 +12575,73 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
         },
         "responses": {
           "200": {
-            "body": {
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "_cached": null,
-                    "_def": {
-                      "catchall": {
-                        "_def": {
-                          "typeName": "ZodNever",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "bio": {
+                          "nullable": true,
+                          "type": "string",
                         },
-                        "~standard": {
-                          "vendor": "zod",
-                          "version": 1,
+                        "email": {
+                          "type": "string",
+                        },
+                        "emailVerified": {
+                          "type": "boolean",
+                        },
+                        "githubUsername": {
+                          "nullable": true,
+                          "type": "string",
+                        },
+                        "id": {
+                          "type": "string",
+                        },
+                        "stripeCustomerId": {
+                          "nullable": true,
+                          "type": "string",
+                        },
+                        "subscribedToNewsletter": {
+                          "type": "boolean",
+                        },
+                        "twitterUsername": {
+                          "nullable": true,
+                          "type": "string",
+                        },
+                        "userId": {
+                          "type": "string",
+                        },
+                        "username": {
+                          "type": "string",
+                        },
+                        "youtubeUsername": {
+                          "nullable": true,
+                          "type": "string",
                         },
                       },
-                      "typeName": "ZodObject",
-                      "unknownKeys": "strip",
-                    },
-                    "~standard": {
-                      "vendor": "zod",
-                      "version": 1,
+                      "required": [
+                        "id",
+                        "userId",
+                        "username",
+                        "email",
+                        "emailVerified",
+                        "subscribedToNewsletter",
+                      ],
+                      "type": "object",
                     },
                   },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
                 },
               },
             },
             "description": "Returns the registered user",
           },
         },
+        "security": [],
         "summary": "Registers a new user",
         "tags": [
           "Users",
@@ -12426,6 +12682,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Returns a created wallet",
           },
         },
+        "security": [],
         "summary": "Resends a verification email",
         "tags": [
           "Users",
@@ -12594,6 +12851,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "3D Secure authentication required to complete trial setup",
           },
         },
+        "security": [],
         "summary": "Start a trial period for a user",
         "tags": [
           "Wallet",
@@ -12635,6 +12893,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Stripe signature is required",
           },
         },
+        "security": [],
         "summary": "Stripe Webhook Handler",
         "tags": [
           "Payment",
@@ -12746,6 +13005,14 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Coupon applied successfully",
           },
         },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
         "summary": "Apply a coupon to the current user",
         "tags": [
           "Payment",
@@ -12777,6 +13044,14 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Organization updated successfully",
           },
         },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
         "summary": "Update customer organization",
         "tags": [
           "Payment",
@@ -12923,32 +13198,15 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Payment methods retrieved successfully",
           },
         },
-        "summary": "Get all payment methods for the current user",
-        "tags": [
-          "Payment",
-        ],
-      },
-    },
-    "/v1/stripe/payment-methods/:paymentMethodId": {
-      "delete": {
-        "description": "Permanently removes a saved payment method from the user's account. This action cannot be undone.",
-        "parameters": [
+        "security": [
           {
-            "description": "The unique identifier of the payment method to remove",
-            "in": "path",
-            "name": "paymentMethodId",
-            "required": true,
-            "schema": {
-              "type": "string",
-            },
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
           },
         ],
-        "responses": {
-          "204": {
-            "description": "Payment method removed successfully",
-          },
-        },
-        "summary": "Remove a payment method",
+        "summary": "Get all payment methods for the current user",
         "tags": [
           "Payment",
         ],
@@ -12986,6 +13244,14 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "SetupIntent created successfully with client secret",
           },
         },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
         "summary": "Create a Stripe SetupIntent for adding a payment method",
         "tags": [
           "Payment",
@@ -13044,7 +13310,49 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Payment method validated successfully",
           },
         },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
         "summary": "Validates a payment method after 3D Secure authentication",
+        "tags": [
+          "Payment",
+        ],
+      },
+    },
+    "/v1/stripe/payment-methods/{paymentMethodId}": {
+      "delete": {
+        "description": "Permanently removes a saved payment method from the user's account. This action cannot be undone.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "paymentMethodId",
+            "required": true,
+            "schema": {
+              "description": "The unique identifier of the payment method to remove",
+              "example": "pm_1234567890",
+              "type": "string",
+            },
+          },
+        ],
+        "responses": {
+          "204": {
+            "description": "Payment method removed successfully",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Remove a payment method",
         "tags": [
           "Payment",
         ],
@@ -13092,6 +13400,14 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Available pricing options retrieved successfully",
           },
         },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
         "summary": "Get available Stripe pricing options",
         "tags": [
           "Payment",
@@ -13354,6 +13670,14 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Customer transactions retrieved successfully",
           },
         },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
         "summary": "Get transaction history for the current customer",
         "tags": [
           "Payment",
@@ -13473,6 +13797,14 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "3D Secure authentication required to complete payment",
           },
         },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
         "summary": "Confirm a payment using a saved payment method",
         "tags": [
           "Payment",
@@ -13528,6 +13860,14 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "CSV file with transaction data",
           },
         },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
         "summary": "Export transaction history as CSV for the current customer",
         "tags": [
           "Payment",
@@ -13619,6 +13959,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Returns a list of deployment templates grouped by categories",
           },
         },
+        "security": [],
         "tags": [
           "Other",
         ],
@@ -13717,6 +14058,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Returns a list of deployment templates grouped by categories",
           },
         },
+        "security": [],
         "tags": [
           "Other",
         ],
@@ -13812,6 +14154,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Template not found",
           },
         },
+        "security": [],
         "tags": [
           "Other",
         ],
@@ -13913,6 +14256,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Returns transaction list",
           },
         },
+        "security": [],
         "summary": "Get a list of transactions.",
         "tags": [
           "Transactions",
@@ -14030,6 +14374,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Transaction not found",
           },
         },
+        "security": [],
         "summary": "Get a transaction by hash.",
         "tags": [
           "Transactions",
@@ -14127,6 +14472,14 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Returns a signed transaction",
           },
         },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
         "summary": "Signs a transaction via a user managed wallet",
         "tags": [
           "Wallet",
@@ -14240,6 +14593,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Invalid address format",
           },
         },
+        "security": [],
         "summary": "Get historical data of billing and usage for a wallet address.",
         "tags": [
           "Billing",
@@ -14326,6 +14680,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Invalid address format",
           },
         },
+        "security": [],
         "summary": "Get historical usage stats for a wallet address.",
         "tags": [
           "Billing",
@@ -14336,35 +14691,40 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
       "get": {
         "responses": {
           "200": {
-            "body": {
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "_cached": null,
-                    "_def": {
-                      "catchall": {
-                        "_def": {
-                          "typeName": "ZodNever",
-                        },
-                        "~standard": {
-                          "vendor": "zod",
-                          "version": 1,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "id": {
+                          "type": "string",
                         },
                       },
-                      "typeName": "ZodObject",
-                      "unknownKeys": "strip",
-                    },
-                    "~standard": {
-                      "vendor": "zod",
-                      "version": 1,
+                      "required": [
+                        "id",
+                      ],
+                      "type": "object",
                     },
                   },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
                 },
               },
             },
             "description": "Returns the logged in user",
           },
         },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
         "summary": "Retrieves the logged in user",
         "tags": [
           "Users",
@@ -14425,6 +14785,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Returns validators",
           },
         },
+        "security": [],
         "tags": [
           "Validators",
         ],
@@ -14521,6 +14882,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Validator not found",
           },
         },
+        "security": [],
         "tags": [
           "Validators",
         ],
@@ -14589,6 +14951,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "User not found",
           },
         },
+        "security": [],
         "summary": "Checks if the email is verified",
         "tags": [
           "Users",
@@ -14606,6 +14969,14 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "UserWallet Not Found",
           },
         },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
         "summary": "Delete wallet settings",
         "tags": [
           "WalletSetting",
@@ -14652,6 +15023,14 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "UserWallet Not Found",
           },
         },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
         "summary": "Get wallet settings",
         "tags": [
           "WalletSetting",
@@ -14731,6 +15110,14 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "UserWallet Not Found",
           },
         },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
         "summary": "Create wallet settings",
         "tags": [
           "WalletSetting",
@@ -14807,6 +15194,14 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "UserWallet Not Found",
           },
         },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
         "summary": "Update wallet settings",
         "tags": [
           "WalletSetting",
@@ -14903,6 +15298,14 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "Returns a created wallet",
           },
         },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
         "summary": "Get a list of wallets",
         "tags": [
           "Wallet",

@@ -1,6 +1,5 @@
-import { netConfig } from "@akashnetwork/net";
-
-import { env } from "./env";
+// !!! DO NOT IMPORT here anything that is not a constant
+// this file is used by scripts/buildAkashTemplatesCache.ts
 
 export const averageBlockTime = 6;
 export const averageDaysInMonth = 30.437;
@@ -16,8 +15,6 @@ export const openApiExampleProviderAddress = "akash18ga02jzaq8cw52anyhzkwta5wygu
 export const openApiExampleTransactionHash = "A19F1950D97E576F0D7B591D71A8D0366AA8BA0A7F3DA76F44769188644BE9EB";
 export const openApiExampleValidatorAddress = "akashvaloper14mt78hz73d9tdwpdvkd59ne9509kxw8yj7qy8f";
 
-export const apiNodeUrl = env.REST_API_NODE_URL ?? netConfig.getBaseAPIUrl(env.NETWORK) ?? netConfig.getBaseAPIUrl("mainnet");
 export const certVersion = "v1";
 export const deploymentVersion = "v1beta4";
 export const marketVersion = "v1beta5";
-export const nodeApiBasePath = env.NODE_API_BASE_PATH;

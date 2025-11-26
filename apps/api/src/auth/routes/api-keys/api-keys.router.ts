@@ -1,4 +1,3 @@
-import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 import { z } from "zod";
 
@@ -11,7 +10,9 @@ import {
   UpdateApiKeyRequestSchema
 } from "@src/auth/http-schemas/api-key.schema";
 import { ListApiKeysResponseSchema } from "@src/auth/http-schemas/api-key.schema";
+import { createRoute } from "@src/core/lib/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
 
 export const apiKeysRouter = new OpenApiHonoHandler();
 
@@ -20,6 +21,7 @@ const listRoute = createRoute({
   path: "/v1/api-keys",
   summary: "List all API keys",
   tags: ["API Keys"],
+  security: SECURITY_BEARER_OR_API_KEY,
   responses: {
     200: {
       description: "Returns list of API keys",
@@ -31,7 +33,6 @@ const listRoute = createRoute({
     }
   }
 });
-
 apiKeysRouter.openapi(listRoute, async function routeListApiKeys(c) {
   const result = await container.resolve(ApiKeyController).findAll();
   return c.json(result, 200);
@@ -42,6 +43,7 @@ const getRoute = createRoute({
   path: "/v1/api-keys/{id}",
   summary: "Get API key by ID",
   tags: ["API Keys"],
+  security: SECURITY_BEARER_OR_API_KEY,
   request: {
     params: FindApiKeyParamsSchema
   },
@@ -66,7 +68,6 @@ const getRoute = createRoute({
     }
   }
 });
-
 apiKeysRouter.openapi(getRoute, async function routeGetApiKey(c) {
   const { id } = c.req.valid("param");
   const result = await container.resolve(ApiKeyController).findById(id);
@@ -78,6 +79,7 @@ const postRoute = createRoute({
   path: "/v1/api-keys",
   summary: "Create new API key",
   tags: ["API Keys"],
+  security: SECURITY_BEARER_OR_API_KEY,
   request: {
     body: {
       content: {
@@ -98,7 +100,6 @@ const postRoute = createRoute({
     }
   }
 });
-
 apiKeysRouter.openapi(postRoute, async function routeCreateApiKey(c) {
   const { data } = c.req.valid("json");
   const result = await container.resolve(ApiKeyController).create(data);
@@ -110,6 +111,7 @@ const patchRoute = createRoute({
   path: "/v1/api-keys/{id}",
   summary: "Update API key",
   tags: ["API Keys"],
+  security: SECURITY_BEARER_OR_API_KEY,
   request: {
     params: FindApiKeyParamsSchema,
     body: {
@@ -141,7 +143,6 @@ const patchRoute = createRoute({
     }
   }
 });
-
 apiKeysRouter.openapi(patchRoute, async function routeUpdateApiKey(c) {
   const { id } = c.req.valid("param");
   const { data } = c.req.valid("json");
@@ -154,6 +155,7 @@ const deleteRoute = createRoute({
   path: "/v1/api-keys/{id}",
   summary: "Delete API key",
   tags: ["API Keys"],
+  security: SECURITY_BEARER_OR_API_KEY,
   request: {
     params: FindApiKeyParamsSchema
   },
@@ -173,7 +175,6 @@ const deleteRoute = createRoute({
     }
   }
 });
-
 apiKeysRouter.openapi(deleteRoute, async function routeDeleteApiKey(c) {
   const { id } = c.req.valid("param");
   await container.resolve(ApiKeyController).delete(id);

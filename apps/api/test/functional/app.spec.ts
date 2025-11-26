@@ -16,7 +16,6 @@ describe("app", () => {
           heapUsed: expect.stringMatching(/^[0-9.]+ (M|G)B$/),
           rss: expect.stringMatching(/^[0-9.]+ (M|G)B$/)
         },
-        tasks: [],
         version: expect.stringMatching(/^[0-9]+.[0-9]+.[0-9]+(-beta\.[0-9]+)?$/)
       });
     });

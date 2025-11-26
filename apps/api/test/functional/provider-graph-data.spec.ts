@@ -1,7 +1,7 @@
 import type { Provider, ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash";
 import { format, subDays } from "date-fns";
+import { container } from "tsyringe";
 
-import { closeConnections } from "@src/core";
 import { app, initDb } from "@src/rest-app";
 
 import { createAkashBlock, createDay, createProvider, createProviderSnapshot } from "@test/seeders";
@@ -195,7 +195,7 @@ describe("Provider Graph Data", () => {
   });
 
   afterAll(async () => {
-    await closeConnections();
+    await container.dispose();
   });
 
   describe("GET /v1/provider-graph-data/{dataName}", () => {
