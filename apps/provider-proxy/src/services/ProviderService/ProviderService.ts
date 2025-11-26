@@ -55,7 +55,7 @@ export class ProviderService {
       }
 
       return null;
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.logger?.error({ event: "CERTIFICATE_FETCH_ERROR", providerAddress, serialNumber, error });
       return null;
     }

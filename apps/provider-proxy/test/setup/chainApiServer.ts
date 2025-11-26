@@ -17,8 +17,8 @@ export function startChainApiServer(
   return new Promise(resolve => {
     const server = http2.createServer();
 
-    server.on("session", x => {
-      sessions.push(x);
+    server.on("session", session => {
+      sessions.push(session);
     });
 
     server.on("stream", (stream, headers) => {
@@ -84,9 +84,7 @@ export function startChainApiServer(
         url: `http://localhost:${(server.address() as AddressInfo).port}`,
         close: () =>
           new Promise<void>((resolve, reject) => {
-            sessions.forEach(session => {
-              session.destroy();
-            });
+            destroyAllSessions();
 
             server.close(error => {
               error ? reject(error) : resolve();
@@ -103,9 +101,7 @@ export async function stopChainApiServer(): Promise<void> {
   }
 
   return new Promise<void>((resolve, reject) => {
-    sessions.forEach(session => {
-      session.destroy();
-    });
+    destroyAllSessions();
 
     grpcServer?.close(error => {
       if (error) {
@@ -130,6 +126,13 @@ export function generateBech32() {
   }
 
   return toBech32("akash", addressData);
+}
+
+function destroyAllSessions() {
+  let session;
+  while ((session = sessions.pop())) {
+    session.destroy();
+  }
 }
 
 function getCertificates(cert?: X509Certificate) {
