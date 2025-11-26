@@ -16,7 +16,6 @@ import { usePricing } from "@src/context/PricingProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useUsdcDenom } from "@src/hooks/useDenom";
-import { useFlag } from "@src/hooks/useFlag";
 import useTailwind from "@src/hooks/useTailwind";
 import type { WalletBalance } from "@src/hooks/useWalletBalance";
 import sdlStore from "@src/store/sdlStore";
@@ -59,7 +58,6 @@ export const YourAccount: React.FunctionComponent<Props> = ({ isLoadingBalances,
   const _storage = bytesToShrink(totalStorage);
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const { price, isLoaded } = usePricing();
-  const isAnonymousFreeTrialEnabled = useFlag("anonymous_free_trial");
   const colors: Record<string, string> = {
     balance_akt: customColors.akashRed,
     balance_usdc: customColors.akashRed,
@@ -161,7 +159,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ isLoadingBalances,
       <CardHeader>
         <CardTitle className="text-2xl font-bold">Your Account</CardTitle>
 
-        {!isAnonymousFreeTrialEnabled && isTrialing && <TrialDeploymentBadge />}
+        {isTrialing && <TrialDeploymentBadge />}
       </CardHeader>
 
       <CardContent>

@@ -25,7 +25,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { useWallet } from "@src/context/WalletProvider";
-import { useFlag } from "@src/hooks/useFlag";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import { useRealTimeLeft } from "@src/hooks/useRealTimeLeft";
@@ -94,7 +93,6 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
   const provider = providersByOwner[lease?.provider || ""];
   const providerCredentials = useProviderCredentials();
   const { data: leaseStatus } = useLeaseStatus({ provider, lease, enabled: !!(provider && lease && providerCredentials.details.usable) });
-  const isAnonymousFreeTrialEnabled = useFlag("anonymous_free_trial");
 
   const viewDeployment = useCallback(() => {
     router.push(UrlService.deploymentDetails(deployment.dseq));
@@ -195,7 +193,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
             <DeploymentName deployment={deployment} deploymentServices={leaseStatus?.services} providerHostUri={provider?.hostUri} />
           </Link>
 
-          {!isAnonymousFreeTrialEnabled && isTrialing && (
+          {isTrialing && (
             <div className="mt-2">
               <TrialDeploymentBadge createdHeight={deployment.createdAt} />
             </div>

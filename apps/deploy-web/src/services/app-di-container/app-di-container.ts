@@ -47,15 +47,7 @@ export const createAppRootContainer = (config: ServicesConfig) => {
     },
     user: () =>
       container.applyAxiosInterceptors(new UserHttpService(apiConfig), {
-        request: [withUserToken],
-        response: [
-          response => {
-            if (response.config.url?.startsWith("/v1/anonymous-users") && response.config.method === "post" && response.status === 200) {
-              container.analyticsService.track("anonymous_user_created", { category: "user", label: "Anonymous User Created" });
-            }
-            return response;
-          }
-        ]
+        request: [withUserToken]
       }),
     stripe: () =>
       container.applyAxiosInterceptors(new HttpStripeService(apiConfig), {
