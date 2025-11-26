@@ -118,7 +118,7 @@ const TRIAL_SIGNUP_WARNING_TIMEOUT = 33_000;
 
 export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies: d = DEPENDENCIES }) => {
   const { settings } = d.useSettings();
-  const { providerProxy, analyticsService, errorHandler, networkStore, urlService, deploymentLocalStorage } = d.useServices();
+  const { providerProxy, analyticsService, errorHandler, urlService, deploymentLocalStorage } = d.useServices();
 
   const [isSendingManifest, setIsSendingManifest] = useState(false);
   const [isFilteringFavorites, setIsFilteringFavorites] = useState(false);
@@ -189,7 +189,6 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
     }
   });
 
-  const chainNetwork = networkStore.useSelectedNetworkId();
   const sendManifest = useCallback(
     async (cert: LocalCert) => {
       setIsSendingManifest(true);
@@ -224,8 +223,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
               cert: cert.certPem,
               key: cert.keyPem
             }
-          },
-          chainNetwork
+          }
         };
 
         for (let i = 0; i < bidKeys.length; i++) {
@@ -274,7 +272,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
         setIsSendingManifest(false);
       }
     },
-    [selectedBids, dseq, providers, isManaged, enqueueSnackbar, closeSnackbar, router, chainNetwork, address, deploymentLocalStorage]
+    [selectedBids, dseq, providers, isManaged, enqueueSnackbar, closeSnackbar, router, address, deploymentLocalStorage]
   );
 
   // Filter bids

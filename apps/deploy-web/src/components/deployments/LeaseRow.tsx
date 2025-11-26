@@ -23,7 +23,6 @@ import { useBidInfo } from "@src/queries/useBidQuery";
 import type { LeaseStatusDto } from "@src/queries/useLeaseQuery";
 import { useLeaseStatus } from "@src/queries/useLeaseQuery";
 import { useProviderStatus } from "@src/queries/useProvidersQuery";
-import networkStore from "@src/store/networkStore";
 import type { LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { copyTextToClipboard } from "@src/utils/copyClipboard";
@@ -116,13 +115,12 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
       loadLeaseStatus();
     }, [lease, provider, providerCredentials.details, loadLeaseStatus]);
 
-    const chainNetwork = networkStore.useSelectedNetworkId();
     async function sendManifest() {
       setIsSendingManifest(true);
       try {
         const manifest = deploymentData.getManifest(parsedManifest, true);
 
-        await providerProxy.sendManifest(provider, manifest, { dseq, credentials: providerCredentials.details, chainNetwork });
+        await providerProxy.sendManifest(provider, manifest, { dseq, credentials: providerCredentials.details });
 
         enqueueSnackbar(<Snackbar title="Manifest sent!" iconVariant="success" />, { variant: "success", autoHideDuration: 10_000 });
 
