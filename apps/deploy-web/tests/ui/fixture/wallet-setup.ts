@@ -20,15 +20,21 @@ export async function getExtensionPage(context: BrowserContext, extensionId: str
     extPage = await context.newPage();
     await extPage.goto(extUrl);
     await extPage.waitForLoadState("domcontentloaded");
-    await context.waitForEvent("page", { timeout: 5_000 }).catch(() => null);
+    await context.waitForEvent("page", { timeout: 10_000 }).catch(() => null);
   }
 
   return extPage;
 }
 
-export async function setupWallet(context: BrowserContext, page: Page) {
-  const wallet = await importWalletToLeap(context, page);
+export async function setupWallet(page: Page) {
+  const wallet = await importWalletToLeap(page);
   await restoreExtensionStorage(page);
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await topUpWallet(wallet);
+}
+
+export async function importSecondWallet(page: Page, mnemonic: string) {
+  const wallet = await importSecondWalletToLeap(page, mnemonic);
   await page.reload({ waitUntil: "domcontentloaded" });
   await topUpWallet(wallet);
 }
@@ -57,10 +63,7 @@ export async function connectWalletViaLeap(context: BrowserContext, page: Page) 
 }
 
 export async function awaitWalletAndApprove(context: BrowserContext, page: Page, extensionId: string) {
-  const popupPage = await Promise.race([
-    context.waitForEvent("page", { timeout: 5_000 }),
-    getExtensionPage(context, extensionId),
-  ]);
+  const popupPage = await Promise.race([context.waitForEvent("page", { timeout: 5_000 }), getExtensionPage(context, extensionId)]);
   await approveWalletOperation(popupPage);
   await isWalletConnected(page);
 }
@@ -94,7 +97,7 @@ export async function approveWalletOperation(popupPage: Page | null) {
   }
 }
 
-async function importWalletToLeap(context: BrowserContext, page: Page) {
+async function importWalletToLeap(page: Page) {
   const mnemonic = testEnvConfig.TEST_WALLET_MNEMONIC;
   if (!mnemonic) {
     throw new Error("TEST_WALLET_MNEMONIC is not set");
@@ -133,6 +136,36 @@ async function importWalletToLeap(context: BrowserContext, page: Page) {
     // Reset test id attribute for console
     selectors.setTestIdAttribute("data-testid");
   }
+}
+
+async function importSecondWalletToLeap(page: Page, mnemonic: string) {
+  if (!mnemonic) {
+    throw new Error("mnemonic is not set");
+  }
+  const mnemonicArray = mnemonic.trim().split(" ");
+
+  if (mnemonicArray.length !== 12) {
+    throw new Error("mnemonic should have 12 words");
+  }
+
+  await page.getByRole("button", { name: /wallet/i }).click();
+  await page.getByText(/create \/ import wallet/i).click();
+  await page.getByText(/import using recovery phrase/i).click();
+
+  await page.getByRole("button", { name: /12 words/i }).click();
+  const inputs = page.locator('input[type="text"], input[type="password"]');
+  await inputs.first().waitFor({ state: "visible" });
+  for (let index = 0; index < mnemonicArray.length; index++) {
+    await inputs.nth(index).click();
+    await inputs.nth(index).fill(mnemonicArray[index]);
+  }
+
+  await page.getByRole("button", { name: /import wallet/i }).click();
+  await page.waitForLoadState("domcontentloaded");
+
+  return await DirectSecp256k1HdWallet.fromMnemonic(mnemonic, {
+    prefix: "akash"
+  });
 }
 
 async function topUpWallet(wallet: DirectSecp256k1HdWallet) {
