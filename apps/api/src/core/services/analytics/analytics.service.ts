@@ -21,6 +21,19 @@ export class AnalyticsService {
     this.samplingRate = this.validateSamplingRate();
   }
 
+  identify(userId: string, userProperties: Record<string, unknown> = {}) {
+    if (this.shouldSampleUser(userId)) {
+      const identifyObj = new this.amplitude.Identify();
+      Object.entries(userProperties).forEach(([key, value]) => {
+        identifyObj.set(key, value as string | number | boolean | string[] | number[]);
+      });
+      this.amplitude.identify(identifyObj, {
+        user_id: userId
+      });
+      this.loggerService.debug({ event: "ANALYTICS_USER_IDENTIFIED", userId });
+    }
+  }
+
   track(userId: string, eventName: AnalyticsEvent, eventProperties: Record<string, unknown> = {}) {
     if (this.shouldSampleUser(userId)) {
       const amplitudeProperties = eventProperties as Record<string, unknown>;
