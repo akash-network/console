@@ -40,7 +40,7 @@ describe(UserService.name, () => {
         username: input.wantedUsername
       });
 
-      expect(analyticsService.track).toHaveBeenCalledWith(user.id, "user_registered", {
+      expect(analyticsService.identify).toHaveBeenCalledWith(user.id, {
         username: user.username,
         email: user.email
       });
@@ -77,7 +77,7 @@ describe(UserService.name, () => {
       const reloadedUser = await container.resolve(UserRepository).findById(anonymousUser.id);
 
       expect(reloadedUser).toMatchObject(user);
-      expect(analyticsService.track).toHaveBeenCalledWith(user.id, "user_registered", {
+      expect(analyticsService.identify).toHaveBeenCalledWith(user.id, {
         username: user.username,
         email: user.email
       });
@@ -107,7 +107,7 @@ describe(UserService.name, () => {
         email: input.email,
         emailVerified: input.emailVerified
       });
-      expect(analyticsService.track).toHaveBeenCalledWith(user.id, "user_registered", {
+      expect(analyticsService.identify).toHaveBeenCalledWith(user.id, {
         username: user.username,
         email: user.email
       });
@@ -139,7 +139,7 @@ describe(UserService.name, () => {
 
       expect(reloadedUser!.id).not.toBe(user.id);
       expect(reloadedUser!.userId).not.toBe(user.userId);
-      expect(analyticsService.track).toHaveBeenCalledWith(user.id, "user_registered", {
+      expect(analyticsService.identify).toHaveBeenCalledWith(user.id, {
         username: user.username,
         email: user.email
       });
