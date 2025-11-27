@@ -8,12 +8,16 @@ export const createMockPaymentMethod = (overrides = {}) => ({
     last4: faker.string.numeric(4),
     exp_month: faker.number.int({ min: 1, max: 12 }),
     exp_year: faker.number.int({ min: 2024, max: 2030 }),
-    fingerprint: faker.string.alphanumeric(16)
+    fingerprint: faker.string.alphanumeric(16),
+    funding: faker.helpers.arrayElement(["credit", "debit"])
   },
   billing_details: {
     name: faker.person.fullName(),
     email: faker.internet.email()
   },
+  created: new Date().getTime(),
+  validated: true,
+  isDefault: false,
   ...overrides
 });
 
@@ -47,6 +51,11 @@ export const createMockSetupIntent = (overrides = {}) => ({
   status: "requires_payment_method",
   payment_method_types: ["card"],
   created: faker.date.past().getTime(),
+  ...overrides
+});
+
+export const createMockSetupIntentResponse = (overrides = {}) => ({
+  clientSecret: `seti_${faker.string.alphanumeric(24)}_secret_${faker.string.alphanumeric(9)}`,
   ...overrides
 });
 
