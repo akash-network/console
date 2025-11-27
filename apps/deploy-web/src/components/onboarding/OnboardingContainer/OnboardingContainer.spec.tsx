@@ -166,6 +166,21 @@ describe("OnboardingContainer", () => {
     expect(child.mock.calls[child.mock.calls.length - 1][0].currentStep).toBe(OnboardingStepIndex.EMAIL_VERIFICATION);
   });
 
+  it("replaces uakt with managed denom when completing onboarding", async () => {
+    const { child, mockUseManagedWalletDenom, mockNewDeploymentData } = setup();
+
+    mockUseManagedWalletDenom.mockReturnValue("ibc/usdc");
+
+    const { onComplete } = child.mock.calls[0][0];
+    await act(async () => {
+      await onComplete("hello-akash");
+    });
+
+    const sdlArgument = mockNewDeploymentData.mock.calls[0][1];
+    expect(sdlArgument).not.toContain("uakt");
+    expect(mockUseManagedWalletDenom).toHaveBeenCalled();
+  });
+
   function setup(
     input: {
       paymentMethods?: Array<{ id: string; type: string }>;
@@ -263,6 +278,7 @@ describe("OnboardingContainer", () => {
     const mockUseSnackbar = jest.fn().mockReturnValue({
       enqueueSnackbar: jest.fn()
     });
+    const mockUseManagedWalletDenom = jest.fn().mockReturnValue("uakt");
 
     const mockNewDeploymentData = jest.fn().mockResolvedValue({
       deploymentId: { dseq: "123" },
@@ -322,6 +338,7 @@ describe("OnboardingContainer", () => {
       useTemplates: mockUseTemplates,
       useCertificate: mockUseCertificate,
       useSnackbar: mockUseSnackbar,
+      useManagedWalletDenom: mockUseManagedWalletDenom,
       localStorage: mockLocalStorage,
       deploymentData: mockDeploymentData,
       validateDeploymentData: mockValidateDeploymentData,
@@ -356,7 +373,8 @@ describe("OnboardingContainer", () => {
       mockNewDeploymentData,
       mockValidateDeploymentData,
       mockAppendAuditorRequirement,
-      mockTransactionMessageData
+      mockTransactionMessageData,
+      mockUseManagedWalletDenom
     };
   }
 });

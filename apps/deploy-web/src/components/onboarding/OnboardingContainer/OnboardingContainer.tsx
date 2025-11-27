@@ -9,6 +9,7 @@ import { SuccessAnimation } from "@src/components/shared";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom";
 import { useUser } from "@src/hooks/useUser";
 import { usePaymentMethodsQuery } from "@src/queries/usePaymentQueries";
 import { useDepositParams } from "@src/queries/useSaveSettings";
@@ -54,6 +55,7 @@ const DEPENDENCIES = {
   useTemplates,
   useCertificate,
   useSnackbar,
+  useManagedWalletDenom,
   localStorage: typeof window !== "undefined" ? window.localStorage : null,
   deploymentData,
   validateDeploymentData,
@@ -78,6 +80,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
   const { templates } = d.useTemplates();
   const { genNewCertificateIfLocalIsInvalid, updateSelectedCertificate } = d.useCertificate();
   const { enqueueSnackbar } = d.useSnackbar();
+  const managedDenom = d.useManagedWalletDenom();
 
   useEffect(() => {
     const savedStep = d.localStorage?.getItem(ONBOARDING_STEP_KEY);
@@ -239,6 +242,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
         }
 
         sdl = d.appendAuditorRequirement(sdl);
+        sdl = sdl.replace(/uakt/g, managedDenom);
 
         const deposit = depositParams || appConfig.NEXT_PUBLIC_DEFAULT_INITIAL_DEPOSIT;
         const dd = await d.deploymentData.NewDeploymentData(chainApiHttpClient, sdl, null, address, deposit);
@@ -298,7 +302,8 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
       deploymentLocalStorage,
       analyticsService,
       enqueueSnackbar,
-      errorHandler
+      errorHandler,
+      managedDenom
     ]
   );
 
