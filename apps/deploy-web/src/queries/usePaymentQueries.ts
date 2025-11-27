@@ -103,10 +103,21 @@ export const usePaymentMutations = () => {
     }
   });
 
+  const setPaymentMethodAsDefault = useMutation({
+    mutationFn: async (paymentMethodId: string) => {
+      const response = await stripe.setPaymentMethodAsDefault({ id: paymentMethodId });
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QueryKeys.getPaymentMethodsKey() });
+    }
+  });
+
   return {
     confirmPayment,
     validatePaymentMethodAfter3DS,
     applyCoupon,
-    removePaymentMethod
+    removePaymentMethod,
+    setPaymentMethodAsDefault
   };
 };
