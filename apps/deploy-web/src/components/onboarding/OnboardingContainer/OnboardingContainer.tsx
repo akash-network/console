@@ -242,7 +242,9 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
         }
 
         sdl = d.appendAuditorRequirement(sdl);
-        sdl = sdl.replace(/uakt/g, managedDenom);
+        if (managedDenom && managedDenom !== "uakt") {
+          sdl = sdl.replace(/uakt/g, managedDenom);
+        }
 
         const deposit = depositParams || appConfig.NEXT_PUBLIC_DEFAULT_INITIAL_DEPOSIT;
         const dd = await d.deploymentData.NewDeploymentData(chainApiHttpClient, sdl, null, address, deposit);

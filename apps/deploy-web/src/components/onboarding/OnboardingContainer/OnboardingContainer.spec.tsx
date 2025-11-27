@@ -7,6 +7,7 @@ import type { Router } from "next/router";
 
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { AuthService } from "@src/services/auth/auth/auth.service";
+import type { ErrorHandlerService } from "@src/services/error-handler/error-handler.service";
 import type { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { UrlService } from "@src/utils/urlUtils";
 import { OnboardingContainer, OnboardingStepIndex } from "./OnboardingContainer";
@@ -181,6 +182,37 @@ describe("OnboardingContainer", () => {
     expect(mockUseManagedWalletDenom).toHaveBeenCalled();
   });
 
+  it("does not replace uakt when managed denom is uakt", async () => {
+    const { child, mockUseManagedWalletDenom, mockNewDeploymentData } = setup();
+
+    mockUseManagedWalletDenom.mockReturnValue("uakt");
+
+    const { onComplete } = child.mock.calls[0][0];
+    await act(async () => {
+      await onComplete("hello-akash");
+    });
+
+    const sdlArgument = mockNewDeploymentData.mock.calls[0][1];
+    expect(sdlArgument).toBe("mock-sdl-content");
+    expect(mockUseManagedWalletDenom).toHaveBeenCalled();
+  });
+
+  it("does not corrupt SDL when managed denom is undefined", async () => {
+    const { child, mockUseManagedWalletDenom, mockNewDeploymentData } = setup();
+
+    mockUseManagedWalletDenom.mockReturnValue(undefined);
+
+    const { onComplete } = child.mock.calls[0][0];
+    await act(async () => {
+      await onComplete("hello-akash");
+    });
+
+    const sdlArgument = mockNewDeploymentData.mock.calls[0][1];
+    expect(sdlArgument).toBe("mock-sdl-content");
+    expect(sdlArgument).not.toContain("undefined");
+    expect(mockUseManagedWalletDenom).toHaveBeenCalled();
+  });
+
   function setup(
     input: {
       paymentMethods?: Array<{ id: string; type: string }>;
@@ -249,7 +281,7 @@ describe("OnboardingContainer", () => {
     const mockUseUser = jest.fn().mockReturnValue(input.user || { emailVerified: false });
     const mockUsePaymentMethodsQuery = jest.fn().mockReturnValue({ data: input.paymentMethods || [] });
     const mockUseDepositParams = jest.fn().mockReturnValue({ data: undefined });
-    const mockErrorHandler = mock<ErrorHandler>();
+    const mockErrorHandler = mock<ErrorHandlerService>();
 
     const mockUseServices = jest.fn().mockReturnValue({
       analyticsService: mockAnalyticsService,
