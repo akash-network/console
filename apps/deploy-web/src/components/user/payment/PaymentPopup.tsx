@@ -55,13 +55,19 @@ export const PaymentPopup: React.FC<PaymentPopupProps> = ({ open, onClose, selec
   const onPayment = async (paymentMethodId: string) => {
     if (!amount) return;
 
+    if (!user?.id) {
+      console.error("Payment attempted without a user id");
+      setError("Unable to process payment. Please refresh the page and try again.");
+      return;
+    }
+
     // Capture the submitted amount before starting the payment flow
     submittedAmountRef.current = amount;
     clearError();
 
     try {
       const response = await confirmPayment({
-        userId: user?.id || "",
+        userId: user.id,
         paymentMethodId,
         amount: parseFloat(amount),
         currency: "usd"
@@ -153,9 +159,9 @@ export const PaymentPopup: React.FC<PaymentPopupProps> = ({ open, onClose, selec
     clearError();
   };
 
-  const isProcessing = isConfirmingPayment || isPolling;
+  const isProcessing = isConfirmingPayment || isPolling || isApplyingCoupon;
   const disabled = !amount || parseFloat(amount) <= 0 || isProcessing || !selectedPaymentMethodId || !!amountError;
-  const disabledCoupon = !coupon || isProcessing || isApplyingCoupon;
+  const disabledCoupon = !coupon || isProcessing;
 
   return (
     <Popup

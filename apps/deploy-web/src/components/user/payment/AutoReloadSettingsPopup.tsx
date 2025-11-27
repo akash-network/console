@@ -36,8 +36,14 @@ export const AutoReloadSettingsPopup: React.FC<AutoReloadSettingsPopupProps> = (
     }
   }, [walletSettings]);
 
-  const validateThreshold = (value: number): boolean => {
-    if (isNaN(value) || value < MIN_THRESHOLD) {
+  const validateThreshold = (value: string): boolean => {
+    if (value === "") {
+      setThresholdError("Threshold is required");
+      return false;
+    }
+
+    const parsed = parseFloat(value);
+    if (isNaN(parsed) || parsed < MIN_THRESHOLD) {
       setThresholdError(`Minimum threshold is $${MIN_THRESHOLD}`);
       return false;
     }
@@ -46,8 +52,19 @@ export const AutoReloadSettingsPopup: React.FC<AutoReloadSettingsPopupProps> = (
     return true;
   };
 
-  const validateReloadAmount = (value: number): boolean => {
-    if (isNaN(value) || value < MIN_RELOAD_AMOUNT) {
+  const onThresholdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    validateThreshold(e.target.value);
+    setThreshold(parseFloat(e.target.value));
+  };
+
+  const validateReloadAmount = (value: string): boolean => {
+    if (value === "") {
+      setReloadAmountError("Reload amount is required");
+      return false;
+    }
+
+    const parsed = parseFloat(value);
+    if (isNaN(parsed) || parsed < MIN_RELOAD_AMOUNT) {
       setReloadAmountError(`Minimum reload amount is $${MIN_RELOAD_AMOUNT}`);
       return false;
     }
@@ -56,16 +73,9 @@ export const AutoReloadSettingsPopup: React.FC<AutoReloadSettingsPopupProps> = (
     return true;
   };
 
-  const handleThresholdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseFloat(e.target.value);
-    setThreshold(value);
-    validateThreshold(value);
-  };
-
-  const handleReloadAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseFloat(e.target.value);
-    setReloadAmount(value);
-    validateReloadAmount(value);
+  const onReloadAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    validateReloadAmount(e.target.value);
+    setReloadAmount(parseFloat(e.target.value));
   };
 
   const handleToggleChange = (checked: boolean) => {
@@ -85,10 +95,8 @@ export const AutoReloadSettingsPopup: React.FC<AutoReloadSettingsPopupProps> = (
   }, [walletSettings, autoReloadEnabled, threshold, reloadAmount]);
 
   const handleSave = async () => {
-    if (autoReloadEnabled) {
-      if (!validateThreshold(threshold) || !validateReloadAmount(reloadAmount)) {
-        return;
-      }
+    if (thresholdError !== "" || reloadAmountError !== "") {
+      return;
     }
 
     const settings: WalletSettings = {
@@ -115,14 +123,6 @@ export const AutoReloadSettingsPopup: React.FC<AutoReloadSettingsPopupProps> = (
 
   const isPending = updateWalletSettings.isPending || createWalletSettings.isPending;
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
-    );
-  }
-
   return (
     <Popup
       open={open}
@@ -145,72 +145,78 @@ export const AutoReloadSettingsPopup: React.FC<AutoReloadSettingsPopupProps> = (
         }
       ]}
     >
-      <div className="space-y-4">
-        <div className="">
-          <div className="flex">
-            <Label htmlFor="reloadEnabled" className="mr-4 self-center">
-              Enable Auto Reload
-            </Label>
-            <Switch id="reloadEnabled" checked={autoReloadEnabled} onCheckedChange={handleToggleChange} disabled={isPending} />
-          </div>
-          <p className="mt-1 text-xs text-muted-foreground">You can enable or disable this at any time.</p>
+      {isLoading ? (
+        <div className="flex items-center justify-center py-8">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
         </div>
-
-        <div className="grid gap-4 sm:grid-cols-1">
-          <div className="space-y-2">
-            <Label htmlFor="threshold-input">
-              When credit balance goes below
-              <span className="ml-1 text-muted-foreground">(minimum ${MIN_THRESHOLD})</span>
-            </Label>
+      ) : (
+        <div className="space-y-4">
+          <div className="">
             <div className="flex">
-              <span className="self-center text-muted-foreground">$</span>
-              <Input
-                id="threshold"
-                type="number"
-                min={MIN_THRESHOLD}
-                step="1"
-                value={threshold}
-                onChange={handleThresholdChange}
-                disabled={isPending}
-                className="flex-grow pl-2"
-                placeholder={DEFAULT_THRESHOLD.toString()}
-              />
+              <Label htmlFor="reloadEnabled" className="mr-4 self-center">
+                Enable Auto Reload
+              </Label>
+              <Switch id="reloadEnabled" checked={autoReloadEnabled} onCheckedChange={handleToggleChange} disabled={isPending} />
             </div>
-            {thresholdError && <p className="text-xs text-destructive">{thresholdError}</p>}
-            <p className="text-xs text-muted-foreground">
-              If your current balance is below or equal to the threshold you set, your reload will immediately kick in once you click save.
-            </p>
+            <p className="mt-1 text-xs text-muted-foreground">You can enable or disable this at any time.</p>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="reloadAmount-input">
-              Reload Credit Balance to
-              <span className="ml-1 text-muted-foreground">(minimum ${MIN_RELOAD_AMOUNT})</span>
-            </Label>
-            <div className="flex">
-              <span className="self-center text-muted-foreground">$</span>
-              <Input
-                id="reloadAmount"
-                type="number"
-                min={MIN_RELOAD_AMOUNT}
-                step="1"
-                value={reloadAmount}
-                onChange={handleReloadAmountChange}
-                disabled={isPending}
-                className="flex-grow pl-2"
-                placeholder={DEFAULT_RELOAD_AMOUNT.toString()}
-              />
+          <div className="grid gap-4 sm:grid-cols-1">
+            <div className="space-y-2">
+              <Label htmlFor="threshold-input">
+                When credit balance goes below
+                <span className="ml-1 text-muted-foreground">(minimum ${MIN_THRESHOLD})</span>
+              </Label>
+              <div className="flex">
+                <span className="self-center text-muted-foreground">$</span>
+                <Input
+                  id="threshold"
+                  type="number"
+                  min={MIN_THRESHOLD}
+                  step="1"
+                  value={threshold}
+                  onChange={onThresholdChange}
+                  disabled={isPending}
+                  className="flex-grow pl-2"
+                  placeholder={DEFAULT_THRESHOLD.toString()}
+                />
+              </div>
+              {thresholdError && <p className="text-xs text-destructive">{thresholdError}</p>}
+              <p className="text-xs text-muted-foreground">
+                If your current balance is below or equal to the threshold you set, your reload will immediately kick in once you click save.
+              </p>
             </div>
-            {reloadAmountError && <p className="text-xs text-destructive">{reloadAmountError}</p>}
+
+            <div className="space-y-2">
+              <Label htmlFor="reloadAmount-input">
+                Reload Credit Balance to
+                <span className="ml-1 text-muted-foreground">(minimum ${MIN_RELOAD_AMOUNT})</span>
+              </Label>
+              <div className="flex">
+                <span className="self-center text-muted-foreground">$</span>
+                <Input
+                  id="reloadAmount"
+                  type="number"
+                  min={MIN_RELOAD_AMOUNT}
+                  step="1"
+                  value={reloadAmount}
+                  onChange={onReloadAmountChange}
+                  disabled={isPending}
+                  className="flex-grow pl-2"
+                  placeholder={DEFAULT_RELOAD_AMOUNT.toString()}
+                />
+              </div>
+              {reloadAmountError && <p className="text-xs text-destructive">{reloadAmountError}</p>}
+            </div>
+            <Alert variant="default">
+              <AlertTitle>How it works</AlertTitle>
+              <AlertDescription>
+                When your balance drops below ${threshold}, we'll automatically charge ${reloadAmount} to your selected card.
+              </AlertDescription>
+            </Alert>
           </div>
-          <Alert variant="default">
-            <AlertTitle>How it works</AlertTitle>
-            <AlertDescription>
-              When your balance drops below ${threshold}, we'll automatically charge ${reloadAmount} to your selected card.
-            </AlertDescription>
-          </Alert>
         </div>
-      </div>
+      )}
     </Popup>
   );
 };

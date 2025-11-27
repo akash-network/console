@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FormattedNumber } from "react-intl";
 import { Alert, Button, Snackbar, Spinner, Switch } from "@akashnetwork/ui/components";
 import { EditPencil, Plus, Xmark } from "iconoir-react";
@@ -40,7 +40,7 @@ type HalfBoxProps = {
   title: string;
   children: ReactNode;
   icon: ReactNode;
-  buttonVariant?: any;
+  buttonVariant?: "default" | "secondary" | "destructive" | "outline" | "ghost" | "link";
   buttonDisabled?: boolean;
   onClick: () => void;
 };
@@ -273,27 +273,36 @@ const PayPage: React.FunctionComponent = () => {
     clearError();
   };
 
-  const handleReloadChange = useCallback(
+  const onReloadChange = useCallback(
     async (autoReloadEnabled: boolean) => {
-      const settings = {
-        autoReloadEnabled,
-        autoReloadThreshold: walletSettings?.autoReloadThreshold || DEFAULT_THRESHOLD,
-        autoReloadAmount: walletSettings?.autoReloadAmount || DEFAULT_RELOAD_AMOUNT
-      };
+      try {
+        const settings = {
+          autoReloadEnabled,
+          autoReloadThreshold: walletSettings?.autoReloadThreshold || DEFAULT_THRESHOLD,
+          autoReloadAmount: walletSettings?.autoReloadAmount || DEFAULT_RELOAD_AMOUNT
+        };
 
-      if (walletSettings) {
-        await updateWalletSettings.mutateAsync(settings);
-      } else {
-        await createWalletSettings.mutateAsync(settings);
+        if (walletSettings) {
+          await updateWalletSettings.mutateAsync(settings);
+        } else {
+          await createWalletSettings.mutateAsync(settings);
+        }
+
+        enqueueSnackbar(<Snackbar title={`Auto Reload ${autoReloadEnabled ? "enabled" : "disabled"}`} iconVariant="success" />, {
+          variant: "success",
+          autoHideDuration: 3000
+        });
+      } catch (error: unknown) {
+        console.error("Failed to update auto-reload settings:", error);
+        enqueueSnackbar(<Snackbar title="Failed to update Auto Reload settings" iconVariant="error" />, { variant: "error" });
       }
-
-      enqueueSnackbar(<Snackbar title={`Auto Reload ${autoReloadEnabled ? "enabled" : "disabled"}`} iconVariant="success" />, {
-        variant: "success",
-        autoHideDuration: 3000
-      });
     },
     [createWalletSettings, enqueueSnackbar, updateWalletSettings, walletSettings]
   );
+
+  const isReloadChangeDisabled = useMemo(() => {
+    return paymentMethods.length === 0 || updateWalletSettings.isPending || createWalletSettings.isPending;
+  }, [updateWalletSettings.isPending, createWalletSettings.isPending, paymentMethods.length]);
 
   if (isLoading) {
     return (
@@ -342,7 +351,7 @@ const PayPage: React.FunctionComponent = () => {
             >
               <div>
                 <div className="pt-4">
-                  <Switch checked={walletSettings?.autoReloadEnabled} onCheckedChange={handleReloadChange} disabled={paymentMethods.length === 0} />
+                  <Switch checked={walletSettings?.autoReloadEnabled ?? false} onCheckedChange={onReloadChange} disabled={isReloadChangeDisabled} />
                 </div>
                 <div className="pt-2 text-sm">
                   Reload ${walletSettings?.autoReloadAmount || DEFAULT_RELOAD_AMOUNT} when &lt; ${walletSettings?.autoReloadThreshold || DEFAULT_THRESHOLD}
