@@ -5,7 +5,7 @@ import { browserEnvConfig } from "@src/config/browser-env.config";
 import { ApiUrlService } from "@src/services/api-url/api-url.service";
 import * as walletUtils from "@src/utils/walletUtils";
 import { AuthService } from "../auth/auth/auth.service";
-import { withAnonymousUserToken, withUserToken } from "../auth/auth/interceptors";
+import { withUserToken } from "../auth/auth/interceptors";
 import { createChildContainer } from "../container/createContainer";
 import { DeploymentStorageService } from "../deployment-storage/deployment-storage.service";
 import { BitbucketService } from "../remote-deploy/bitbucket-http.service";
@@ -31,10 +31,7 @@ export const services = createChildContainer(rootContainer, {
   githubService: () => new GitHubService(services.internalApiHttpClient, services.createAxios),
   bitbucketService: () => new BitbucketService(services.internalApiHttpClient, services.createAxios),
   gitlabService: () => new GitLabService(services.internalApiHttpClient, services.createAxios),
-  internalApiHttpClient: () =>
-    withInterceptors(services.createAxios(), {
-      request: [withAnonymousUserToken]
-    }),
+  internalApiHttpClient: () => withInterceptors(services.createAxios()),
   consoleApiHttpClient: () =>
     services.applyAxiosInterceptors(services.createAxios({ baseURL: services.appConfig.NEXT_PUBLIC_BASE_API_MAINNET_URL }), {
       request: [withUserToken]

@@ -1,4 +1,4 @@
-import { and, eq, isNull, lt, SQL, sql } from "drizzle-orm";
+import { and, eq, lt, SQL, sql } from "drizzle-orm";
 import { PgUpdateSetSource } from "drizzle-orm/pg-core";
 import { singleton } from "tsyringe";
 
@@ -37,10 +37,6 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
 
   async findByUserId(userId: UserOutput["userId"]): Promise<UserOutput | undefined> {
     return this.findUserWithWallet(eq(this.table.userId, userId!));
-  }
-
-  async findAnonymousById(id: UserOutput["id"]) {
-    return await this.cursor.query.Users.findFirst({ where: this.whereAccessibleBy(and(eq(this.table.id, id), isNull(this.table.userId))) });
   }
 
   async markAsActive(

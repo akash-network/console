@@ -17,7 +17,6 @@ import { Nav } from "./Nav";
 import { Sidebar } from "./Sidebar";
 import { TopBanner } from "./TopBanner";
 import { TrackingScripts } from "./TrackingScripts";
-import { WelcomeToTrialModal } from "./WelcomeToTrialModal";
 
 type Props = {
   isLoading?: boolean;
@@ -128,7 +127,6 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
                 ) : (
                   <Loading text="Loading settings..." />
                 )}
-                <WelcomeToTrialModal />
               </ErrorBoundary>
             </div>
           </div>
