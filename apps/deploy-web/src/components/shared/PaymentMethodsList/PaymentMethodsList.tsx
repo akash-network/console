@@ -15,6 +15,7 @@ interface PaymentMethodsListProps {
   // Display mode props
   showValidationBadge?: boolean;
   isTrialing?: boolean;
+  displayOnCard?: boolean;
 }
 
 export const PaymentMethodsList: React.FC<PaymentMethodsListProps> = ({
@@ -25,35 +26,40 @@ export const PaymentMethodsList: React.FC<PaymentMethodsListProps> = ({
   selectedPaymentMethodId,
   onPaymentMethodSelect,
   showValidationBadge = true,
-  isTrialing = false
+  isTrialing = false,
+  displayOnCard = true
 }) => {
   if (paymentMethods.length === 0) {
     return <p className="text-gray-500">No payment methods added yet.</p>;
   }
 
+  const paymentMethodRadioGroup = (
+    <RadioGroup value={selectedPaymentMethodId} onValueChange={onPaymentMethodSelect} className="space-y-2">
+      {paymentMethods.map(method => (
+        <PaymentMethodCard
+          key={method.id}
+          method={method}
+          isRemoving={isRemoving}
+          onRemove={onRemovePaymentMethod}
+          isSelectable={true}
+          isSelected={selectedPaymentMethodId === method.id}
+          onSelect={onPaymentMethodSelect}
+          isTrialing={isTrialing}
+        />
+      ))}
+    </RadioGroup>
+  );
+
   if (isSelectable) {
     // Selection mode - used in payment page
-    return (
+    return displayOnCard ? (
       <div className="space-y-3">
         <Card className="rounded-lg border shadow-sm">
-          <CardContent className="flex flex-col gap-4 pt-4">
-            <RadioGroup value={selectedPaymentMethodId} onValueChange={onPaymentMethodSelect} className="space-y-2">
-              {paymentMethods.map(method => (
-                <PaymentMethodCard
-                  key={method.id}
-                  method={method}
-                  isRemoving={isRemoving}
-                  onRemove={onRemovePaymentMethod}
-                  isSelectable={true}
-                  isSelected={selectedPaymentMethodId === method.id}
-                  onSelect={onPaymentMethodSelect}
-                  isTrialing={isTrialing}
-                />
-              ))}
-            </RadioGroup>
-          </CardContent>
+          <CardContent className="flex flex-col gap-4 pt-4">{paymentMethodRadioGroup}</CardContent>
         </Card>
       </div>
+    ) : (
+      <div className="space-y-3">{paymentMethodRadioGroup}</div>
     );
   }
 

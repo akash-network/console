@@ -5,3 +5,4 @@ export * from "./useManagedWalletQuery";
 export * from "./useApiKeysQuery";
 export * from "./usePaymentQueries";
 export * from "./useUsageQuery";
+export * from "./useWalletSettingsQueries";

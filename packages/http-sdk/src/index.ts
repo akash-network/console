@@ -22,5 +22,6 @@ export * from "./cosmos";
 export * from "./coin-gecko";
 export * from "./node";
 export * from "./certificates/certificates.service";
+export * from "./wallet-settings/wallet-settings-http.service";
 export { getAllItems } from "./utils/pagination.utils";
 export { createHttpClient, type HttpClient, type HttpClientOptions } from "./utils/httpClient";
