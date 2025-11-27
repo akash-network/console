@@ -234,9 +234,7 @@ describe("OnboardingContainer", () => {
     const mockUseUser = jest.fn().mockReturnValue(input.user || { emailVerified: false });
     const mockUsePaymentMethodsQuery = jest.fn().mockReturnValue({ data: input.paymentMethods || [] });
     const mockUseDepositParams = jest.fn().mockReturnValue({ data: undefined });
-    const mockErrorHandler = {
-      reportError: jest.fn()
-    };
+    const mockErrorHandler = mock<ErrorHandler>();
 
     const mockUseServices = jest.fn().mockReturnValue({
       analyticsService: mockAnalyticsService,
