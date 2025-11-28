@@ -7,6 +7,7 @@ import type { Router } from "next/router";
 
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { AuthService } from "@src/services/auth/auth/auth.service";
+import type { ErrorHandlerService } from "@src/services/error-handler/error-handler.service";
 import type { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { UrlService } from "@src/utils/urlUtils";
 import { OnboardingContainer, OnboardingStepIndex } from "./OnboardingContainer";
@@ -166,6 +167,52 @@ describe("OnboardingContainer", () => {
     expect(child.mock.calls[child.mock.calls.length - 1][0].currentStep).toBe(OnboardingStepIndex.EMAIL_VERIFICATION);
   });
 
+  it("replaces uakt with managed denom when completing onboarding", async () => {
+    const { child, mockUseManagedWalletDenom, mockNewDeploymentData } = setup();
+
+    mockUseManagedWalletDenom.mockReturnValue("ibc/usdc");
+
+    const { onComplete } = child.mock.calls[0][0];
+    await act(async () => {
+      await onComplete("hello-akash");
+    });
+
+    const sdlArgument = mockNewDeploymentData.mock.calls[0][1];
+    expect(sdlArgument).not.toContain("uakt");
+    expect(mockUseManagedWalletDenom).toHaveBeenCalled();
+  });
+
+  it("does not replace uakt when managed denom is uakt", async () => {
+    const { child, mockUseManagedWalletDenom, mockNewDeploymentData } = setup();
+
+    mockUseManagedWalletDenom.mockReturnValue("uakt");
+
+    const { onComplete } = child.mock.calls[0][0];
+    await act(async () => {
+      await onComplete("hello-akash");
+    });
+
+    const sdlArgument = mockNewDeploymentData.mock.calls[0][1];
+    expect(sdlArgument).toBe("mock-sdl-content");
+    expect(mockUseManagedWalletDenom).toHaveBeenCalled();
+  });
+
+  it("does not corrupt SDL when managed denom is undefined", async () => {
+    const { child, mockUseManagedWalletDenom, mockNewDeploymentData } = setup();
+
+    mockUseManagedWalletDenom.mockReturnValue(undefined);
+
+    const { onComplete } = child.mock.calls[0][0];
+    await act(async () => {
+      await onComplete("hello-akash");
+    });
+
+    const sdlArgument = mockNewDeploymentData.mock.calls[0][1];
+    expect(sdlArgument).toBe("mock-sdl-content");
+    expect(sdlArgument).not.toContain("undefined");
+    expect(mockUseManagedWalletDenom).toHaveBeenCalled();
+  });
+
   function setup(
     input: {
       paymentMethods?: Array<{ id: string; type: string }>;
@@ -233,6 +280,9 @@ describe("OnboardingContainer", () => {
 
     const mockUseUser = jest.fn().mockReturnValue(input.user || { emailVerified: false });
     const mockUsePaymentMethodsQuery = jest.fn().mockReturnValue({ data: input.paymentMethods || [] });
+    const mockUseDepositParams = jest.fn().mockReturnValue({ data: undefined });
+    const mockErrorHandler = mock<ErrorHandlerService>();
+
     const mockUseServices = jest.fn().mockReturnValue({
       analyticsService: mockAnalyticsService,
       urlService: mockUrlService,
@@ -240,6 +290,7 @@ describe("OnboardingContainer", () => {
       chainApiHttpClient: mockChainApiHttpClient,
       deploymentLocalStorage: mockDeploymentLocalStorage,
       appConfig: mockAppConfig,
+      errorHandler: mockErrorHandler,
       windowLocation,
       windowHistory
     });
@@ -259,6 +310,7 @@ describe("OnboardingContainer", () => {
     const mockUseSnackbar = jest.fn().mockReturnValue({
       enqueueSnackbar: jest.fn()
     });
+    const mockUseManagedWalletDenom = jest.fn().mockReturnValue("uakt");
 
     const mockNewDeploymentData = jest.fn().mockResolvedValue({
       deploymentId: { dseq: "123" },
@@ -311,12 +363,14 @@ describe("OnboardingContainer", () => {
     const dependencies = {
       useUser: mockUseUser,
       usePaymentMethodsQuery: mockUsePaymentMethodsQuery,
+      useDepositParams: mockUseDepositParams,
       useServices: mockUseServices,
       useRouter: mockUseRouter,
       useWallet: mockUseWallet,
       useTemplates: mockUseTemplates,
       useCertificate: mockUseCertificate,
       useSnackbar: mockUseSnackbar,
+      useManagedWalletDenom: mockUseManagedWalletDenom,
       localStorage: mockLocalStorage,
       deploymentData: mockDeploymentData,
       validateDeploymentData: mockValidateDeploymentData,
@@ -338,6 +392,7 @@ describe("OnboardingContainer", () => {
       authService,
       mockUseUser,
       mockUsePaymentMethodsQuery,
+      mockUseDepositParams,
       mockUseServices,
       mockUseRouter,
       mockConnectManagedWallet,
@@ -350,7 +405,8 @@ describe("OnboardingContainer", () => {
       mockNewDeploymentData,
       mockValidateDeploymentData,
       mockAppendAuditorRequirement,
-      mockTransactionMessageData
+      mockTransactionMessageData,
+      mockUseManagedWalletDenom
     };
   }
 });

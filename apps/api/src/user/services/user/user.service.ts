@@ -74,7 +74,7 @@ export class UserService {
 
     const event = isAnonymous ? "ANONYMOUS_USER_REGISTERED" : "USER_REGISTERED";
     this.logger.info({ event, id: user.id, userId: user.userId });
-    this.analyticsService.track(user.id, "user_registered", {
+    this.analyticsService.identify(user.id, {
       username: user.username,
       email: user.email
     });

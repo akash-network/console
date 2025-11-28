@@ -15,4 +15,6 @@ container.register(AMPLITUDE, {
 
 export type Amplitude = {
   track: typeof amplitude.track;
+  identify: typeof amplitude.identify;
+  Identify: typeof amplitude.Identify;
 };
