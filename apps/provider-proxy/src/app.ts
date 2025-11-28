@@ -7,7 +7,7 @@ import { RegExpRouter } from "hono/router/reg-exp-router";
 import type http from "http";
 import type { AddressInfo } from "net";
 
-import type { AppConfig } from "./config/env.config";
+import type { AppConfigInput } from "./config/env.config";
 import { getAppStatus, statusRoute } from "./routes/getAppStatus";
 import { proxyProviderRequest, proxyRoute } from "./routes/proxyProviderRequest";
 import { HonoErrorHandlerService } from "./services/HonoErrorHandlerService/HonoErrorHandlerService";
@@ -50,7 +50,7 @@ export function createApp(container: Container): Hono<AppEnv> {
   return app;
 }
 
-export async function startAppServer(untrustedConfig: Record<string, unknown> | AppConfig): Promise<AppServer> {
+export async function startAppServer(untrustedConfig: Record<string, unknown> | AppConfigInput): Promise<AppServer> {
   let appContainer: Container | undefined;
   try {
     const container = createContainer(untrustedConfig);

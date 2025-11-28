@@ -60,7 +60,8 @@ export async function proxyProviderRequest(ctx: AppContext): Promise<Response | 
     url,
     method,
     providerAddress,
-    timeout
+    timeout,
+    authenticationType: auth?.type
   });
   const clientAbortSignal = ctx.req.raw.signal;
   const proxyResult = await httpRetry(

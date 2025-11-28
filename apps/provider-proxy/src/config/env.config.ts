@@ -6,3 +6,4 @@ export const appConfigSchema = z.object({
 });
 
 export type AppConfig = z.infer<typeof appConfigSchema>;
+export type AppConfigInput = z.input<typeof appConfigSchema>;
