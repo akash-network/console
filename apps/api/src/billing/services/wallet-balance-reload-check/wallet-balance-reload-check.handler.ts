@@ -15,7 +15,7 @@ import { isPayingUser, PayingUser } from "../paying-user/paying-user";
 type ValidationError = {
   event: string;
   message: string;
-  source?: string;
+  error?: unknown;
 };
 
 type Require<T, K extends keyof T> = Omit<T, K> & {
@@ -160,7 +160,7 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
         return Err({
           event: "ERROR_RETRIEVING_DEFAULT_PAYMENT_METHOD",
           message: error.message,
-          source: error.source
+          error
         });
       }
 
@@ -219,7 +219,19 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
     });
 
     if (jobId) {
-      await this.walletSettingRepository.updateById(resources.walletSetting.id, { autoReloadJobId: jobId });
+      try {
+        await this.walletSettingRepository.updateById(resources.walletSetting.id, { autoReloadJobId: jobId });
+      } catch (error) {
+        this.loggerService.error({
+          event: "ERROR_UPDATING_AUTO_RELOAD_JOB_ID",
+          error: error
+        });
+      }
+    } else {
+      this.loggerService.info({
+        event: "FAILED_OBTAINING_NEXT_JOB_ID",
+        walletAddress: resources.wallet.address
+      });
     }
   }
 

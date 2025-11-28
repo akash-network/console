@@ -148,7 +148,7 @@ export class StripeService extends Stripe {
   async markPaymentMethodAsDefault(paymentMethodId: string, user: PayingUser, ability: AnyAbility): Promise<PaymentMethod> {
     const [local, remote] = await Promise.all([
       this.paymentMethodRepository.accessibleBy(ability, "update").markAsDefault(paymentMethodId),
-      this.paymentMethods.retrieve(paymentMethodId)
+      this.paymentMethods.retrieve(paymentMethodId, undefined, { timeout: 3_000 })
     ]);
 
     assert(remote, 404, "Payment method not found", { source: "stripe" });
@@ -174,9 +174,13 @@ export class StripeService extends Stripe {
   }
 
   async markRemotePaymentMethodAsDefault(paymentMethodId: string, user: PayingUser): Promise<void> {
-    await this.customers.update(user.stripeCustomerId, {
-      invoice_settings: { default_payment_method: paymentMethodId }
-    });
+    await this.customers.update(
+      user.stripeCustomerId,
+      {
+        invoice_settings: { default_payment_method: paymentMethodId }
+      },
+      { timeout: 3_000 }
+    );
   }
 
   async createPaymentIntent(params: {
