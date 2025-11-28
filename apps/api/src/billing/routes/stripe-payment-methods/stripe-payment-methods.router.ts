@@ -3,6 +3,7 @@ import { container } from "tsyringe";
 import { StripeController } from "@src/billing/controllers/stripe/stripe.controller";
 import {
   PaymentMethodMarkAsDefaultInputSchema,
+  PaymentMethodResponseSchema,
   PaymentMethodsResponseSchema,
   RemovePaymentMethodParamsSchema,
   SetupIntentResponseSchema,
@@ -41,7 +42,7 @@ stripePaymentMethodsRouter.openapi(setupIntentRoute, async function createSetupI
   return c.json(response, 200);
 });
 
-const updateRoute = createRoute({
+const markAsDefaultRoute = createRoute({
   method: "post",
   path: `/v1/stripe/payment-methods/default`,
   summary: "Marks a payment method as the default.",
@@ -63,9 +64,38 @@ const updateRoute = createRoute({
   }
 });
 
-stripePaymentMethodsRouter.openapi(updateRoute, async function markAsDefault(c) {
+stripePaymentMethodsRouter.openapi(markAsDefaultRoute, async function markAsDefault(c) {
   await container.resolve(StripeController).markAsDefault(c.req.valid("json"));
   return c.json(undefined, 200);
+});
+
+const getDefaultPaymentMethodRoute = createRoute({
+  method: "get",
+  path: "/v1/stripe/payment-methods/default",
+  summary: "Get the default payment method for the current user",
+  description:
+    "Retrieves the default payment method associated with the current user's account, including card details, validation status, and billing information.",
+  tags: ["Payment"],
+  security: SECURITY_BEARER_OR_API_KEY,
+  request: {},
+  responses: {
+    200: {
+      description: "Default payment method retrieved successfully",
+      content: {
+        "application/json": {
+          schema: PaymentMethodResponseSchema
+        }
+      }
+    },
+    404: {
+      description: "Default payment method not found"
+    }
+  }
+});
+
+stripePaymentMethodsRouter.openapi(getDefaultPaymentMethodRoute, async function getDefaultPaymentMethod(c) {
+  const response = await container.resolve(StripeController).getDefaultPaymentMethod();
+  return c.json(response, 200);
 });
 
 const paymentMethodsRoute = createRoute({
