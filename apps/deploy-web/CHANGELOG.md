@@ -1,5 +1,20 @@
 
 
+## [3.5.1](https://github.com/akash-network/console/compare/console-web/v3.5.0...console-web/v3.5.1) (2025-11-28)
+
+
+### Bug Fixes
+
+*  remove pending from active in provider page ([#2278](https://github.com/akash-network/console/issues/2278)) ([74a2415](https://github.com/akash-network/console/commit/74a2415bb2d32238eadfe64e19e198648e14ede8))
+* make StripeInput work on light theme ([#2280](https://github.com/akash-network/console/issues/2280)) ([6512106](https://github.com/akash-network/console/commit/6512106b273b29a452bfa78749ce5aded7bd28a4)), closes [#1779](https://github.com/akash-network/console/issues/1779)
+* onboarding create deployment ([#2279](https://github.com/akash-network/console/issues/2279)) ([1ea91ae](https://github.com/akash-network/console/commit/1ea91aef50bd9f75142c56422a9bc6ae8a22b04e))
+
+
+### Code Refactoring
+
+* improves encapsulation of console-api ([#2249](https://github.com/akash-network/console/issues/2249)) ([6462ef1](https://github.com/akash-network/console/commit/6462ef1159f79ba0fc901f6c752358ce18e2b43c))
+* removes chainNetwork parameter when communicate to provider-proxy ([#2250](https://github.com/akash-network/console/issues/2250)) ([e8fdcfb](https://github.com/akash-network/console/commit/e8fdcfb55cfa178c505b7e6872681fe9e7572f98)), closes [#2189](https://github.com/akash-network/console/issues/2189)
+
 ## [3.5.0](https://github.com/akash-network/console/compare/console-web/v3.4.4...console-web/v3.5.0) (2025-11-24)
 
 

@@ -1,5 +1,12 @@
 
 
+## [2.4.1](https://github.com/akash-network/console/compare/log-collector/v2.4.0...log-collector/v2.4.1) (2025-11-28)
+
+
+### Code Refactoring
+
+* improves encapsulation of console-api ([#2249](https://github.com/akash-network/console/issues/2249)) ([6462ef1](https://github.com/akash-network/console/commit/6462ef1159f79ba0fc901f6c752358ce18e2b43c))
+
 ## [2.4.0](https://github.com/akash-network/console/compare/log-collector/v2.3.0...log-collector/v2.4.0) (2025-11-17)
 
 

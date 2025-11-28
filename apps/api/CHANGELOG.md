@@ -1,5 +1,26 @@
 
 
+## [3.7.0](https://github.com/akash-network/console/compare/console-api/v3.6.0...console-api/v3.7.0) (2025-11-28)
+
+
+### Features
+
+* **billing:** adds balance check job managing ([eeac563](https://github.com/akash-network/console/commit/eeac56398b9ad8529acf75318723026394ae2bcc)), closes [#1779](https://github.com/akash-network/console/issues/1779)
+
+
+### Bug Fixes
+
+* enforce stating security in routing ([#2276](https://github.com/akash-network/console/issues/2276)) ([c9a777f](https://github.com/akash-network/console/commit/c9a777f5a27eb93fcde256bafc1f2ecfb115a033)), closes [#1701](https://github.com/akash-network/console/issues/1701)
+* onboarding create deployment ([#2279](https://github.com/akash-network/console/issues/2279)) ([1ea91ae](https://github.com/akash-network/console/commit/1ea91aef50bd9f75142c56422a9bc6ae8a22b04e))
+
+
+### Code Refactoring
+
+* changes default value for AVERAGE_GAS_PRICE ([#2252](https://github.com/akash-network/console/issues/2252)) ([e541a25](https://github.com/akash-network/console/commit/e541a2585fa0bd2c832b8a942ac465a141b386ee))
+* improves encapsulation of console-api ([#2249](https://github.com/akash-network/console/issues/2249)) ([6462ef1](https://github.com/akash-network/console/commit/6462ef1159f79ba0fc901f6c752358ce18e2b43c))
+* reduces usage of process.env ([#2255](https://github.com/akash-network/console/issues/2255)) ([335d094](https://github.com/akash-network/console/commit/335d094558875a2bec2f03434ed278db5fa26e9f))
+* removes chainNetwork parameter when communicate to provider-proxy ([#2250](https://github.com/akash-network/console/issues/2250)) ([e8fdcfb](https://github.com/akash-network/console/commit/e8fdcfb55cfa178c505b7e6872681fe9e7572f98)), closes [#2189](https://github.com/akash-network/console/issues/2189)
+
 ## [3.6.0](https://github.com/akash-network/console/compare/console-api/v3.5.1...console-api/v3.6.0) (2025-11-24)
 
 
