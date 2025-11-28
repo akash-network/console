@@ -1,50 +1,68 @@
+import type { createChainNodeSDK, QueryInput } from "@akashnetwork/chain-sdk";
+import { SDKErrorCode } from "@akashnetwork/chain-sdk";
+import type { QueryCertificatesRequest, QueryCertificatesResponse } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import type { LoggerService } from "@akashnetwork/logging";
+import { ExponentialBackoff, handleWhen, retry } from "cockatiel";
 import { X509Certificate } from "crypto";
 
-import { httpRetry } from "../../utils/retry";
+type ChainNodeSDK = ReturnType<typeof createChainNodeSDK>;
+
+const RETRIABLE_ERROR_CODES = [SDKErrorCode.Internal, SDKErrorCode.Unavailable];
+
+interface ErrorWithCode {
+  code?: number;
+}
+
+function hasErrorCode(error: unknown): error is ErrorWithCode {
+  return typeof error === "object" && error !== null && "code" in error;
+}
 
 export class ProviderService {
-  private certApiModuleVersion = "v1";
+  private retryPolicy = retry(
+    handleWhen(error => {
+      return hasErrorCode(error) && RETRIABLE_ERROR_CODES.includes(error.code!);
+    }),
+    {
+      maxAttempts: 3,
+      backoff: new ExponentialBackoff()
+    }
+  );
 
   constructor(
-    private readonly chainBaseUrl: string,
-    private readonly fetch: typeof global.fetch,
+    private readonly chainSdkClient: ChainNodeSDK,
     private readonly logger?: LoggerService
   ) {}
 
   async getCertificate(providerAddress: string, serialNumber: string): Promise<X509Certificate | null> {
-    const queryParams = new URLSearchParams({
-      "filter.state": "valid",
-      "filter.owner": providerAddress,
-      "filter.serial": BigInt(`0x${serialNumber}`).toString(10),
-      "pagination.limit": "1"
-    });
+    const queryParams: QueryInput<QueryCertificatesRequest> = {
+      filter: {
+        state: "valid",
+        owner: providerAddress,
+        serial: BigInt(`0x${serialNumber}`).toString(10)
+      },
+      pagination: {
+        limit: 1
+      }
+    };
 
-    const response = await this.fetchCertificate(this.chainBaseUrl, queryParams);
+    try {
+      const response = await this.fetchCertificate(queryParams);
+      if (response.certificates.length === 1) {
+        const cert = response.certificates[0]?.certificate?.cert;
+        return cert ? new X509Certificate(cert) : null;
+      }
 
-    if (response.status >= 200 && response.status < 300) {
-      const body = (await response.json()) as KnownCertificatesResponseBody;
-      return body.certificates.length === 1 ? new X509Certificate(atob(body.certificates[0].certificate.cert)) : null;
+      return null;
+    } catch (error: unknown) {
+      this.logger?.error({ event: "CERTIFICATE_FETCH_ERROR", providerAddress, serialNumber, error });
+      return null;
     }
-
-    return null;
   }
 
-  private async fetchCertificate(baseUrl: string, queryParams: URLSearchParams): Promise<Response> {
-    const response = await httpRetry(
-      () => this.fetch(`${baseUrl}/akash/cert/${this.certApiModuleVersion}/certificates/list?${queryParams}`, { signal: AbortSignal.timeout(5_000) }),
-      {
-        retryIf: response => response.status !== 501 && response.status >= 500,
-        logger: this.logger
-      }
-    );
-
-    if (response.status === 501) {
-      this.certApiModuleVersion = this.certApiModuleVersion === "v1" ? "v1beta3" : "v1";
-      return this.fetchCertificate(baseUrl, queryParams);
-    }
-
-    return response;
+  private async fetchCertificate(getCertificatesParams: QueryInput<QueryCertificatesRequest>): Promise<QueryCertificatesResponse> {
+    return this.retryPolicy.execute(async () => {
+      return await this.chainSdkClient.akash.cert.v1.getCertificates(getCertificatesParams);
+    });
   }
 
   isValidationServerError(rawBody: unknown): boolean {
@@ -52,12 +70,4 @@ export class ProviderService {
     const body = rawBody.trim();
     return body.startsWith("manifest cross-validation error:") || body.startsWith("hostname not allowed:") || body.includes("validation failed");
   }
-}
-
-interface KnownCertificatesResponseBody {
-  certificates: Array<{
-    certificate: {
-      cert: string;
-    };
-  }>;
 }
