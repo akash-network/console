@@ -19,6 +19,7 @@
     "eslint": "^8.57.0",
     "eslint-config-next": "^14.2.3",
     "eslint-import-resolver-typescript": "^4.4.4",
+    "eslint-plugin-akash": "file:./eslint-plugin-akash",
     "eslint-plugin-import-x": "4.10.0",
     "eslint-plugin-simple-import-sort": "^12.1.0",
     "prettier": "^3.3.0",
