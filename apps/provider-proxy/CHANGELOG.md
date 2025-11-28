@@ -1,5 +1,12 @@
 
 
+## [2.5.2](https://github.com/akash-network/console/compare/provider-proxy/v2.5.1...provider-proxy/v2.5.2) (2025-11-28)
+
+
+### Code Refactoring
+
+* removes legacy format for auth in provider-proxy ([#2283](https://github.com/akash-network/console/issues/2283)) ([2a35102](https://github.com/akash-network/console/commit/2a351025a95570ddd99157d096f4f3b63a655138))
+
 ## [2.5.1](https://github.com/akash-network/console/compare/provider-proxy/v2.5.0...provider-proxy/v2.5.1) (2025-11-28)
 
 
