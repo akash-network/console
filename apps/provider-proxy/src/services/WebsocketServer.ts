@@ -132,8 +132,7 @@ export class WebsocketServer {
               attributes.providerUrl = message.url;
               attributes.providerAddress = message.providerAddress;
               attributes.function = getWebSocketUsage(message);
-              attributes.authenticated =
-                (message.auth?.type === "mtls" && message.auth.certPem && message.auth.keyPem) || (message.auth?.type === "jwt" && message.auth.token);
+              attributes.authenticationType = message.auth?.type;
             }
 
             span.setAttributes(attributes);

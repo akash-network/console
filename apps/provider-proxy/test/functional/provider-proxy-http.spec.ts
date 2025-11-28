@@ -198,8 +198,11 @@ describe("Provider HTTP proxy", () => {
         url: `${providerUrl}/200.txt`,
         providerAddress,
         network,
-        certPem: "-----BEGIN CERTIFICATE-----\r\ninvalid  certificate\r\n-----END CERTIFICATE-----\r\n",
-        keyPem: "-----BEGIN PRIVATE KEY-----\r\ninvalid private key\r\n-----END PRIVATE KEY-----\r\n"
+        auth: {
+          type: "mtls",
+          certPem: "-----BEGIN CERTIFICATE-----\r\ninvalid  certificate\r\n-----END CERTIFICATE-----\r\n",
+          keyPem: "-----BEGIN PRIVATE KEY-----\r\ninvalid private key\r\n-----END PRIVATE KEY-----\r\n"
+        }
       })
     });
 
@@ -491,8 +494,11 @@ describe("Provider HTTP proxy", () => {
         url: `${providerUrl}/200.txt`,
         providerAddress,
         network,
-        certPem: invalidClientCertPair.cert.toString(),
-        keyPem: invalidClientCertPair.key
+        auth: {
+          type: "mtls",
+          certPem: invalidClientCertPair.cert.toString(),
+          keyPem: invalidClientCertPair.key
+        }
       })
     });
 
@@ -551,8 +557,11 @@ describe("Provider HTTP proxy", () => {
         url: `${providerUrl}/long-response`,
         providerAddress,
         network,
-        certPem: validCertPair.cert.toString(),
-        keyPem: validCertPair.key
+        auth: {
+          type: "mtls",
+          certPem: validCertPair.cert.toString(),
+          keyPem: validCertPair.key
+        }
       }),
       signal: requestController.signal
     }).catch(error => ({ error }));
@@ -597,8 +606,11 @@ describe("Provider HTTP proxy", () => {
         url: `${providerUrl}/long-response`,
         providerAddress,
         network,
-        certPem: validCertPair.cert.toString(),
-        keyPem: validCertPair.key
+        auth: {
+          type: "mtls",
+          certPem: validCertPair.cert.toString(),
+          keyPem: validCertPair.key
+        }
       }),
       signal: requestController.signal
     });
