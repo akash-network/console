@@ -1,4 +1,5 @@
 import type { createChainNodeSDK, QueryInput } from "@akashnetwork/chain-sdk";
+import { SDKErrorCode } from "@akashnetwork/chain-sdk";
 import type { QueryCertificatesRequest, QueryCertificatesResponse } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import type { LoggerService } from "@akashnetwork/logging";
 import { ExponentialBackoff, handleWhen, retry } from "cockatiel";
@@ -6,10 +7,7 @@ import { X509Certificate } from "crypto";
 
 type ChainNodeSDK = ReturnType<typeof createChainNodeSDK>;
 
-const RETRIABLE_ERROR_CODES = [
-  13, // internal
-  14 // unavailable
-];
+const RETRIABLE_ERROR_CODES = [SDKErrorCode.Internal, SDKErrorCode.Unavailable];
 
 interface ErrorWithCode {
   code?: number;
