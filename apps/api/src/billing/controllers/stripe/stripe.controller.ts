@@ -5,7 +5,12 @@ import type { infer as ZodInfer } from "zod";
 
 import { AuthService, Protected } from "@src/auth/services/auth.service";
 import type { StripePricesOutputResponse } from "@src/billing";
-import { CustomerTransactionsCsvExportQuerySchema, PaymentMethodMarkAsDefaultInput, PaymentMethodsResponse } from "@src/billing/http-schemas/stripe.schema";
+import {
+  CustomerTransactionsCsvExportQuerySchema,
+  PaymentMethodMarkAsDefaultInput,
+  PaymentMethodResponse,
+  PaymentMethodsResponse
+} from "@src/billing/http-schemas/stripe.schema";
 import {
   ApplyCouponRequest,
   ConfirmPaymentRequest,
@@ -48,6 +53,15 @@ export class StripeController {
     const currentUser = this.authService.getCurrentPayingUser();
 
     await this.stripe.markPaymentMethodAsDefault(input.data.id, currentUser, ability);
+  }
+
+  @Protected([{ action: "read", subject: "StripePayment" }])
+  async getDefaultPaymentMethod(): Promise<PaymentMethodResponse> {
+    const { ability } = this.authService;
+    const currentUser = this.authService.getCurrentPayingUser();
+    const paymentMethod = await this.stripe.getDefaultPaymentMethod(currentUser, ability);
+
+    return { data: paymentMethod };
   }
 
   @Protected([{ action: "read", subject: "StripePayment" }])
