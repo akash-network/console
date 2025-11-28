@@ -11,7 +11,7 @@ module.exports = {
             node,
             message:
               "Hardcoded mnemonic phrase detected. " +
-              "Don't hardcode mnemonic phrases because it's impossible to distinguish whether its production or test mnemonic. " +
+              "Don't hardcode mnemonic phrases because it's impossible to distinguish whether it's production or test mnemonic. " +
               "Use generated mnemonic for test purposes and hide production mnemonic in secret store."
           });
         }
