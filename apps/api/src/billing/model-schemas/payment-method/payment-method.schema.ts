@@ -22,6 +22,9 @@ export const PaymentMethods = pgTable(
   },
   table => ({
     fingerprintPaymentMethodIdUnique: uniqueIndex("payment_methods_fingerprint_payment_method_id_unique").on(table.fingerprint, table.paymentMethodId),
+    userIdIsDefaultUnique: uniqueIndex("payment_methods_user_id_is_default_unique")
+      .on(table.userId, table.isDefault)
+      .where(sql`${table.isDefault} = true`),
     fingerprintIdx: index("payment_methods_fingerprint_idx").on(table.fingerprint),
     userIdIdx: index("payment_methods_user_id_idx").on(table.userId),
     userIdIsValidatedIdx: index("payment_methods_user_id_is_validated_idx").on(table.userId, table.isValidated),

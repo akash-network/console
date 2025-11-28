@@ -1,1 +1,0 @@
-ALTER TABLE "payment_methods" ADD COLUMN "is_default" boolean DEFAULT false NOT NULL;
