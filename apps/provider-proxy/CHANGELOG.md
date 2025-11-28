@@ -1,5 +1,13 @@
 
 
+## [2.5.1](https://github.com/akash-network/console/compare/provider-proxy/v2.5.0...provider-proxy/v2.5.1) (2025-11-28)
+
+
+### Code Refactoring
+
+* improves encapsulation of console-api ([#2249](https://github.com/akash-network/console/issues/2249)) ([6462ef1](https://github.com/akash-network/console/commit/6462ef1159f79ba0fc901f6c752358ce18e2b43c))
+* removes chainNetwork parameter when communicate to provider-proxy ([#2250](https://github.com/akash-network/console/issues/2250)) ([e8fdcfb](https://github.com/akash-network/console/commit/e8fdcfb55cfa178c505b7e6872681fe9e7572f98)), closes [#2189](https://github.com/akash-network/console/issues/2189)
+
 ## [2.5.0](https://github.com/akash-network/console/compare/provider-proxy/v2.4.1...provider-proxy/v2.5.0) (2025-11-24)
 
 

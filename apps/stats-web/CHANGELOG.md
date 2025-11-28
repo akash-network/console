@@ -1,5 +1,12 @@
 
 
+## [1.5.1](https://github.com/akash-network/console/compare/stats-web/v1.5.0...stats-web/v1.5.1) (2025-11-28)
+
+
+### Code Refactoring
+
+* removes chainNetwork parameter when communicate to provider-proxy ([#2250](https://github.com/akash-network/console/issues/2250)) ([e8fdcfb](https://github.com/akash-network/console/commit/e8fdcfb55cfa178c505b7e6872681fe9e7572f98)), closes [#2189](https://github.com/akash-network/console/issues/2189)
+
 ## [1.5.0](https://github.com/akash-network/console/compare/stats-web/v1.4.0...stats-web/v1.5.0) (2025-11-23)
 
 
