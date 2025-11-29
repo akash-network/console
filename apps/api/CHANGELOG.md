@@ -1,5 +1,12 @@
 
 
+## [3.8.0](https://github.com/akash-network/console/compare/console-api/v3.7.0...console-api/v3.8.0) (2025-11-29)
+
+
+### Features
+
+* adds CF-Ray to our application logging ([#2288](https://github.com/akash-network/console/issues/2288)) ([b2e8f53](https://github.com/akash-network/console/commit/b2e8f53df36468021743ca041e2430eb021b437a))
+
 ## [3.7.0](https://github.com/akash-network/console/compare/console-api/v3.6.0...console-api/v3.7.0) (2025-11-28)
 
 

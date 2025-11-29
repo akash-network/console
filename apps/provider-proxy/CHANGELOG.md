@@ -1,5 +1,13 @@
 
 
+## [2.6.0](https://github.com/akash-network/console/compare/provider-proxy/v2.5.2...provider-proxy/v2.6.0) (2025-11-29)
+
+
+### Features
+
+* adds CF-Ray to our application logging ([#2288](https://github.com/akash-network/console/issues/2288)) ([b2e8f53](https://github.com/akash-network/console/commit/b2e8f53df36468021743ca041e2430eb021b437a))
+* load certificate from gRPC ([#2256](https://github.com/akash-network/console/issues/2256)) ([8018303](https://github.com/akash-network/console/commit/801830391682088c2a8001d4ac74b62b7df4f360)), closes [#2188](https://github.com/akash-network/console/issues/2188)
+
 ## [2.5.2](https://github.com/akash-network/console/compare/provider-proxy/v2.5.1...provider-proxy/v2.5.2) (2025-11-28)
 
 
