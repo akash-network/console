@@ -13212,6 +13212,52 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/stripe/payment-methods/default": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "id",
+                    ],
+                    "type": "object",
+                  },
+                },
+                "required": [
+                  "data",
+                ],
+                "type": "object",
+              },
+            },
+          },
+        },
+        "responses": {
+          "200": {
+            "description": "Payment method is marked as the default successfully.",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Marks a payment method as the default.",
+        "tags": [
+          "Payment",
+        ],
+      },
+    },
     "/v1/stripe/payment-methods/setup": {
       "post": {
         "description": "Creates a Stripe SetupIntent that allows users to securely add payment methods to their account. The SetupIntent provides a client secret that can be used with Stripe's frontend SDKs to collect payment method details.",

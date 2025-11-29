@@ -19,8 +19,9 @@ describe(JobQueueService.name, () => {
       expect(pgBoss.createQueue).toHaveBeenCalledWith("test", {
         name: "test",
         retryBackoff: true,
-        retryDelayMax: 300,
-        retryLimit: 5
+        retryDelayMax: 5 * 60,
+        retryLimit: 5,
+        policy: undefined
       });
     });
 
@@ -51,15 +52,27 @@ describe(JobQueueService.name, () => {
       expect(pgBoss.createQueue).toHaveBeenCalledWith("test", {
         name: "test",
         retryBackoff: true,
-        retryDelayMax: 300,
-        retryLimit: 5
+        retryDelayMax: 5 * 60,
+        retryLimit: 5,
+        policy: undefined
       });
       expect(pgBoss.createQueue).toHaveBeenCalledWith("another", {
         name: "another",
         retryBackoff: true,
-        retryDelayMax: 300,
-        retryLimit: 5
+        retryDelayMax: 5 * 60,
+        retryLimit: 5,
+        policy: undefined
       });
+    });
+
+    it("throws error when multiple handlers register for the same queue", async () => {
+      const handleFn1 = jest.fn().mockResolvedValue(undefined);
+      const handleFn2 = jest.fn().mockResolvedValue(undefined);
+      const handler1 = new TestHandler(handleFn1);
+      const handler2 = new TestHandler(handleFn2);
+      const { service } = setup();
+
+      await expect(service.registerHandlers([handler1, handler2])).rejects.toThrow("JobQueue does not support multiple handlers for the same queue: test");
     });
   });
 
@@ -74,14 +87,15 @@ describe(JobQueueService.name, () => {
 
       const result = await service.enqueue(job, { startAfter: new Date() });
 
-      expect(logger.info).toHaveBeenCalledWith({
-        event: "JOB_ENQUEUED",
-        job
-      });
       expect(pgBoss.send).toHaveBeenCalledWith({
         name: job.name,
         data: { ...job.data, version: job.version },
         options: { startAfter: expect.any(Date) }
+      });
+      expect(logger.info).toHaveBeenCalledWith({
+        event: "JOB_ENQUEUED",
+        job,
+        jobId: "job-id-123"
       });
       expect(result).toBe("job-id-123");
     });
@@ -116,8 +130,8 @@ describe(JobQueueService.name, () => {
       expect(pgBoss.cancel).toHaveBeenCalledWith("test", jobId);
       expect(logger.info).toHaveBeenCalledWith({
         event: "JOB_CANCELLED",
-        name: "test",
-        id: jobId
+        id: jobId,
+        name: "test"
       });
     });
   });
@@ -134,10 +148,10 @@ describe(JobQueueService.name, () => {
       const handler = new TestHandler(handleFn);
       const { service, pgBoss, logger } = setup();
 
-      const jobs = [{ id: "1", data: { message: "Job 1", userId: "user-1" } }];
+      const job = { id: "1", data: { message: "Job 1", userId: "user-1" } };
 
-      jest.spyOn(pgBoss, "work").mockImplementation(async (queueName: string, options: any, processFn: (jobs: any[]) => Promise<void>) => {
-        await processFn(jobs);
+      jest.spyOn(pgBoss, "work").mockImplementation(async (queueName: string, options: unknown, processFn: PgBoss.WorkHandler<unknown>) => {
+        await processFn([job as PgBoss.Job<unknown>]);
         return "work-id";
       });
 
@@ -147,20 +161,21 @@ describe(JobQueueService.name, () => {
       expect(pgBoss.createQueue).toHaveBeenCalledWith("test", {
         name: "test",
         retryBackoff: true,
-        retryDelayMax: 300,
-        retryLimit: 5
+        retryDelayMax: 5 * 60,
+        retryLimit: 5,
+        policy: undefined
       });
       expect(pgBoss.work).toHaveBeenCalledTimes(5);
       expect(pgBoss.work).toHaveBeenCalledWith("test", { batchSize: 1 }, expect.any(Function));
       expect(logger.info).toHaveBeenCalledWith({
         event: "JOB_STARTED",
-        jobId: jobs[0].id
+        jobId: job.id
       });
       expect(handleFn).toHaveBeenCalledTimes(5);
-      expect(handleFn).toHaveBeenCalledWith({ message: "Job 1", userId: "user-1" });
+      expect(handleFn).toHaveBeenCalledWith({ message: "Job 1", userId: "user-1" }, { id: job.id });
       expect(logger.info).toHaveBeenCalledWith({
         event: "JOB_DONE",
-        jobId: jobs[0].id
+        jobId: job.id
       });
     });
 
@@ -170,10 +185,10 @@ describe(JobQueueService.name, () => {
       const handler = new TestHandler(handleFn);
       const { service, pgBoss, logger } = setup();
 
-      const jobs = [{ id: "1", data: { message: "Job 1", userId: "user-1" } }];
+      const job = { id: "1", data: { message: "Job 1", userId: "user-1" } };
 
-      jest.spyOn(pgBoss, "work").mockImplementation(async (queueName: string, options: any, processFn: (jobs: any[]) => Promise<void>) => {
-        await processFn(jobs);
+      jest.spyOn(pgBoss, "work").mockImplementation(async (queueName: string, options: unknown, processFn: PgBoss.WorkHandler<unknown>) => {
+        await processFn([job as PgBoss.Job<unknown>]);
         return "work-id";
       });
 
@@ -184,27 +199,31 @@ describe(JobQueueService.name, () => {
       expect((result as PromiseRejectedResult).reason).toBe(error);
       expect(logger.error).toHaveBeenCalledWith({
         event: "JOB_FAILED",
-        jobId: jobs[0].id,
+        jobId: job.id,
         error: (result as PromiseRejectedResult).reason
       });
       expect(handleFn).toHaveBeenCalledTimes(1);
+      expect(handleFn).toHaveBeenCalledWith({ message: "Job 1", userId: "user-1" }, { id: job.id });
     });
 
     it("uses default options when none provided", async () => {
       const handleFn = jest.fn().mockResolvedValue(undefined);
       const handler = new TestHandler(handleFn);
       const { service, pgBoss } = setup();
+      const job = { id: "1", data: { message: "Job 1", userId: "user-1" } };
 
-      jest.spyOn(pgBoss, "work").mockImplementation(async (queueName: string, options: any, processFn: (jobs: any[]) => Promise<void>) => {
-        await processFn([{ id: "1", data: { message: "Job 1", userId: "user-1" } }]);
+      jest.spyOn(pgBoss, "work").mockImplementation(async (queueName: string, options: unknown, processFn: PgBoss.WorkHandler<unknown>) => {
+        await processFn([job as PgBoss.Job<unknown>]);
         return "work-id";
       });
 
       await service.registerHandlers([handler]);
       await service.startWorkers();
 
-      expect(handleFn).toHaveBeenCalledTimes(2);
+      expect(pgBoss.work).toHaveBeenCalledTimes(2);
       expect(pgBoss.work).toHaveBeenCalledWith("test", { batchSize: 1 }, expect.any(Function));
+      expect(handleFn).toHaveBeenCalledTimes(2);
+      expect(handleFn).toHaveBeenCalledWith({ message: "Job 1", userId: "user-1" }, { id: job.id });
     });
   });
 
@@ -279,7 +298,7 @@ describe(JobQueueService.name, () => {
         }),
       executionContextService: mock<ExecutionContextService>({
         set: jest.fn().mockResolvedValue(undefined),
-        runWithContext: jest.fn(async (cb: () => Promise<any>) => await cb())
+        runWithContext: jest.fn(async (cb: () => Promise<unknown>) => await cb()) as ExecutionContextService["runWithContext"]
       })
     };
 

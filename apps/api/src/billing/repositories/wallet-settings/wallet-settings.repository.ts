@@ -35,12 +35,37 @@ export class WalletSettingRepository extends BaseRepository<Table, WalletSetting
     return new WalletSettingRepository(this.pg, this.table, this.txManager).withAbility(...abilityParams) as this;
   }
 
-  async findByUserId(userId: WalletSettingOutput["userId"]) {
+  async findByUserId(userId: WalletSettingOutput["userId"]): Promise<WalletSettingOutput | undefined> {
     const walletSetting = await this.cursor.query.WalletSetting.findFirst({
       where: this.whereAccessibleBy(eq(this.table.userId, userId))
     });
+
     if (!walletSetting) return undefined;
+
     return this.toOutput(walletSetting);
+  }
+
+  async findInternalByUserIdWithRelations(userId: WalletSettingOutput["userId"]) {
+    const walletSetting = await this.cursor.query.WalletSetting.findFirst({
+      where: this.whereAccessibleBy(eq(this.table.userId, userId)),
+      with: {
+        wallet: {
+          columns: {
+            address: true,
+            isOldWallet: true
+          }
+        },
+        user: true
+      }
+    });
+
+    if (!walletSetting) return undefined;
+
+    return {
+      ...walletSetting,
+      autoReloadThreshold: walletSetting.autoReloadThreshold === null ? undefined : parseFloat(walletSetting.autoReloadThreshold),
+      autoReloadAmount: walletSetting.autoReloadAmount === null ? undefined : parseFloat(walletSetting.autoReloadAmount)
+    };
   }
 
   protected toOutput(dbOutput: Partial<DbWalletSettingOutput>): WalletSettingOutput {

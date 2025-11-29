@@ -6,8 +6,9 @@ import { singleton } from "tsyringe";
 
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
-import { ManagedUserWalletService, WalletInitializerService } from "@src/billing/services";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
+import { ManagedUserWalletService } from "@src/billing/services/managed-user-wallet/managed-user-wallet.service";
+import { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
 import { Semaphore } from "@src/core/lib/semaphore.decorator";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 
