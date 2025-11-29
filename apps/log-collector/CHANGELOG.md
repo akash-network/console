@@ -1,5 +1,12 @@
 
 
+## [2.5.0](https://github.com/akash-network/console/compare/log-collector/v2.4.1...log-collector/v2.5.0) (2025-11-29)
+
+
+### Features
+
+* adds CF-Ray to our application logging ([#2288](https://github.com/akash-network/console/issues/2288)) ([b2e8f53](https://github.com/akash-network/console/commit/b2e8f53df36468021743ca041e2430eb021b437a))
+
 ## [2.4.1](https://github.com/akash-network/console/compare/log-collector/v2.4.0...log-collector/v2.4.1) (2025-11-28)
 
 
