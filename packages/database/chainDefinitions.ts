@@ -46,12 +46,11 @@ export const chainDefinitions: { [key: string]: ChainDef } = {
     code: "akash",
     rpcNodes: [
       "http://akash.c29r3.xyz/rpc",
-      "https://akash-rpc.lavenderfive.com",
       "https://rpc-akash.ecostake.com",
       "https://akash-rpc.polkachu.com",
       "https://akash-mainnet-rpc.cosmonautstakes.com",
-      "https://rpc-akash-ia.cosmosia.notional.ventures",
-      "https://akash-rpc.kleomedes.network"
+      "https://akash-rpc.kleomedes.network",
+      "https://rpc.akt.dev/rpc"
     ],
     cosmosDirectoryId: "akash",
     connectionString: process.env.AKASH_DATABASE_CS,
