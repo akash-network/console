@@ -12,6 +12,7 @@ type HttpRequestLog = {
     protocol?: string;
     remoteIp?: string;
     duration: string;
+    cfRay?: string;
   };
   fingerprint?: string;
   userId?: string;
@@ -44,6 +45,7 @@ export class HttpLoggerIntercepter {
         if (clientInfo) {
           log.httpRequest.userAgent = clientInfo.userAgent;
           log.httpRequest.remoteIp = clientInfo.ip;
+          log.httpRequest.cfRay = c.req.header("cf-ray");
           log.fingerprint = clientInfo.fingerprint;
         }
 
