@@ -1,5 +1,12 @@
 
 
+## [3.9.0](https://github.com/akash-network/console/compare/console-api/v3.8.0...console-api/v3.9.0) (2025-11-29)
+
+
+### Features
+
+* **indexer:** add Cosmos authz message handling to AkashStatsIndexer ([#2287](https://github.com/akash-network/console/issues/2287)) ([104fa88](https://github.com/akash-network/console/commit/104fa88f9ad70bc83d32075ff44f3584047cb4f8))
+
 ## [3.8.0](https://github.com/akash-network/console/compare/console-api/v3.7.0...console-api/v3.8.0) (2025-11-29)
 
 
