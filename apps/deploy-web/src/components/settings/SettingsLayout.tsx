@@ -18,10 +18,11 @@ type Props = {
   page: SettingsTabs;
   children?: ReactNode;
   title: string;
+  titleId?: string;
   headerActions?: ReactNode;
 };
 
-export const SettingsLayout: React.FunctionComponent<Props> = ({ children, page, title, headerActions }) => {
+export const SettingsLayout: React.FunctionComponent<Props> = ({ children, page, title, titleId, headerActions }) => {
   const router = useRouter();
 
   const handleTabChange = (newValue: string) => {
@@ -48,7 +49,7 @@ export const SettingsLayout: React.FunctionComponent<Props> = ({ children, page,
       </TabsList>
 
       <div className="mt-4 flex flex-wrap items-center py-4">
-        <Title>{title}</Title>
+        <Title id={titleId}>{title}</Title>
         {headerActions}
       </div>
 

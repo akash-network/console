@@ -45,15 +45,9 @@ export const test = baseTest.extend<{
   },
   page: [
     async ({ context, extensionId }, use) => {
-      try {
-        await context.waitForEvent("page", { timeout: 5000 });
-      } catch {
-        // ignore timeout error
-      }
-
       const extPage = await getExtensionPage(context, extensionId);
 
-      await setupWallet(context, extPage);
+      await setupWallet(extPage);
       await extPage.close();
       const page = await context.newPage();
       await injectUIConfig(page);
@@ -63,8 +57,11 @@ export const test = baseTest.extend<{
           await page.goto(testEnvConfig.BASE_URL);
           await connectWalletViaLeap(context, page);
           await selectChainNetwork(page, testEnvConfig.NETWORK_ID);
+          await page.waitForLoadState("load");
           await connectWalletViaLeap(context, page);
-        } catch {
+        } catch (error) {
+          console.log("the default network is non-functional, uses fallback");
+          console.error(error);
           // Fallback in case the default network is non-functional.
           //  E.g., during network upgrade when sandbox is already on a different version from mainnet
           await page.goto(`${testEnvConfig.BASE_URL}?network=${testEnvConfig.NETWORK_ID}`);
