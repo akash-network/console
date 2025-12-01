@@ -1,5 +1,12 @@
 
 
+## [3.6.2](https://github.com/akash-network/console/compare/console-web/v3.6.1...console-web/v3.6.2) (2025-12-01)
+
+
+### Bug Fixes
+
+* removes AUTHORIZING_WALLET_MNEMONIC env var from UI tests ([#2292](https://github.com/akash-network/console/issues/2292)) ([1e0826d](https://github.com/akash-network/console/commit/1e0826dff03b18381d8eafd6c935dcbc903f2d3a))
+
 ## [3.6.1](https://github.com/akash-network/console/compare/console-web/v3.6.0...console-web/v3.6.1) (2025-12-01)
 
 
