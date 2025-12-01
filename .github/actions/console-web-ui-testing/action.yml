@@ -38,7 +38,6 @@ runs:
         TEST_WALLET_MNEMONIC: ${{ inputs.test-wallet-mnemonic }}
         BASE_URL: ${{ inputs.url }}
         UI_CONFIG_SIGNATURE_PRIVATE_KEY: ${{ inputs.ui-config-signature-private-key }}
-        DEBUG: "pw:browser"
         CI: "true"
       shell: bash
       continue-on-error: true
