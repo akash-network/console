@@ -9,12 +9,17 @@ export async function selectChainNetwork(page: Page, networkId = "sandbox") {
   const selectNetworkButton = await waitForLocator(page.getByLabel("Select Network"));
   await selectNetworkButton.click();
 
-  await page.getByLabel(new RegExp(networkId, "i")).click();
+  const networkRadioLocator = page.getByLabel(new RegExp(networkId, "i"));
 
-  const popupPromise = page.context().waitForEvent("page", { timeout: 5000 });
-  await page.getByRole("button", { name: "Save" }).click();
+  if (!(await networkRadioLocator.isChecked())) {
+    await networkRadioLocator.click();
+    const popupPromise = page
+      .context()
+      .waitForEvent("page", { timeout: 5000 })
+      .catch(() => null);
+    await page.getByRole("button", { name: "Save" }).click();
 
-  const popupPage = await popupPromise;
-
-  await approveWalletOperation(popupPage);
+    const popupPage = await popupPromise;
+    await approveWalletOperation(popupPage);
+  }
 }

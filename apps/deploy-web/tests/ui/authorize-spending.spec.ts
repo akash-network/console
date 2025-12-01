@@ -1,82 +1,78 @@
 import { shortenAddress } from "@akashnetwork/ui/components";
+import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import type { BrowserContext, Page } from "@playwright/test";
 
 import { expect, test } from "./fixture/context-with-extension";
-import { testEnvConfig } from "./fixture/test-env.config";
-import { clickCopyAddressButton } from "./fixture/testing-helpers";
-import { getExtensionPage, importSecondWallet } from "./fixture/wallet-setup";
-import type { AuthorizationListLabel, AuthorizeButtonLabel } from "./pages/AuthorizationsPage";
+import { topUpWallet } from "./fixture/wallet-setup";
+import type { AuthorizationType } from "./pages/AuthorizationsPage";
 import { AuthorizationsPage } from "./pages/AuthorizationsPage";
 import { LeapExt } from "./pages/LeapExt";
 
-type TestProps = {
-  name: string;
-  buttonLabel: AuthorizeButtonLabel;
-  listLabel: AuthorizationListLabel;
-};
+test.describe("Deployment Authorizations", () => {
+  includeAuthorizationTests({ authType: "deployment" });
+});
 
-const runAuthorizationTest = ({ name, buttonLabel, listLabel }: TestProps) => {
-  test.describe(`${name} Authorizations`, () => {
-    test("can authorize spending", async ({ page, context, extensionId }) => {
-      test.setTimeout(5 * 60 * 1000);
+test.describe("Tx Fee Authorizations", () => {
+  includeAuthorizationTests({ authType: "tx_fee" });
+});
 
-      const { authorizationsPage, address } = await setup({ page, context, extensionId, buttonLabel });
-
-      const shortenedAddress = shortenAddress(address);
-      const grantList = authorizationsPage.page.getByLabel(listLabel);
-      await expect(grantList.locator("tr", { hasText: shortenedAddress })).toBeVisible();
-    });
-
-    test("can edit spending", async ({ page, context, extensionId }) => {
-      test.setTimeout(5 * 60 * 1000);
-
-      const { authorizationsPage, address, extension } = await setup({ page, context, extensionId, buttonLabel });
-      await authorizationsPage.editSpending(address, listLabel);
-      await extension.acceptTransaction(context);
-
-      const grantList = authorizationsPage.page.getByLabel(listLabel);
-      await expect(grantList.locator("tr", { hasText: "10.000000 AKT" })).toBeVisible();
-    });
-
-    test("can revoke spending", async ({ page, context, extensionId }) => {
-      test.setTimeout(5 * 60 * 1000);
-
-      const { authorizationsPage, address, extension } = await setup({ page, context, extensionId, buttonLabel });
-      await authorizationsPage.revokeSpending(address, listLabel);
-      await extension.acceptTransaction(context);
-
-      const shortenedAddress = shortenAddress(address);
-      const grantList = authorizationsPage.page.getByLabel(listLabel);
-      await expect(grantList.locator("tr", { hasText: shortenedAddress })).not.toBeVisible();
-    });
+function includeAuthorizationTests(input: { authType: AuthorizationType }) {
+  test.beforeAll(async ({ page, context }) => {
+    const authorizationsPage = new AuthorizationsPage(context, page);
+    await authorizationsPage.goto();
+    await authorizationsPage.revokeAll(input.authType);
   });
-};
 
-runAuthorizationTest({ name: "Deployment", buttonLabel: "Authorize Spend", listLabel: "Deployment Authorization List" });
-runAuthorizationTest({ name: "Tx Fee", buttonLabel: "Authorize Fee Spend", listLabel: "Tx Fee Authorization List" });
+  test.afterAll(async ({ page, context }) => {
+    const authorizationsPage = new AuthorizationsPage(context, page);
+    await authorizationsPage.goto();
+    await authorizationsPage.revokeAll(input.authType);
+  });
 
-type SetupProps = {
-  page: Page;
-  context: BrowserContext;
-  extensionId: string;
-  buttonLabel: AuthorizeButtonLabel;
-};
+  test("can authorize spending", async ({ page, context, extensionId }) => {
+    const { authorizationsPage, anotherWalletAddress: address } = await setup({ page, context, extensionId, ...input });
 
-const setup = async ({ page, context, extensionId, buttonLabel }: SetupProps) => {
+    const shortenedAddress = shortenAddress(address);
+    const grantList = authorizationsPage.getListLocator(input.authType);
+
+    await expect(grantList.locator("td", { hasText: shortenedAddress })).toBeVisible({ timeout: 10_000 });
+  });
+
+  test("can edit spending", async ({ page, context, extensionId }) => {
+    const { authorizationsPage, anotherWalletAddress: address, extension } = await setup({ page, context, extensionId, ...input });
+    await authorizationsPage.editSpending(input.authType, address);
+    await Promise.all([extension.waitForTransaction("success"), extension.acceptTransaction(context)]);
+
+    const grantList = authorizationsPage.getListLocator(input.authType);
+    await expect(grantList.locator("tr", { hasText: /10(\.0+?) AKT/ })).toBeVisible({ timeout: 10_000 });
+  });
+
+  test("can revoke spending", async ({ page, context, extensionId }) => {
+    const { authorizationsPage, anotherWalletAddress: address, extension } = await setup({ page, context, extensionId, ...input });
+
+    await authorizationsPage.revokeSpending(input.authType, address);
+    await Promise.all([extension.waitForTransaction("success"), extension.acceptTransaction(context)]);
+
+    const shortenedAddress = shortenAddress(address);
+    const grantList = authorizationsPage.getListLocator(input.authType);
+    await expect(grantList.locator("tr", { hasText: shortenedAddress })).not.toBeVisible({ timeout: 10_000 });
+  });
+}
+
+async function setup({ page, context, authType }: { page: Page; context: BrowserContext; extensionId: string; authType: AuthorizationType }) {
   const extension = new LeapExt(context, page);
-  const extensionPage = await getExtensionPage(context, extensionId);
-  const address = await clickCopyAddressButton(extensionPage);
-  await importSecondWallet(extensionPage, testEnvConfig.AUTHORIZING_WALLET_MNEMONIC);
+  const anotherWallet = await DirectSecp256k1HdWallet.generate(12, { prefix: "akash" });
+  const [anotherWalletAccounts] = await Promise.all([await anotherWallet.getAccounts(), topUpWallet(anotherWallet)]);
 
   const authorizationsPage = new AuthorizationsPage(context, page);
   await authorizationsPage.goto();
 
-  await authorizationsPage.authorizeSpending(address, buttonLabel);
-  await extension.acceptTransaction(context);
+  await authorizationsPage.authorizeSpending(authType, anotherWalletAccounts[0].address);
+  await Promise.all([extension.waitForTransaction("success"), extension.acceptTransaction(context)]);
 
   return {
     authorizationsPage,
-    address,
+    anotherWalletAddress: anotherWalletAccounts[0].address,
     extension
   };
-};
+}

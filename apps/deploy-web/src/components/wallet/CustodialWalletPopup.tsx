@@ -38,7 +38,14 @@ export const CustodialWalletPopup: React.FC<CustodialWalletPopupProps> = ({ wall
   return (
     <div className="w-[300px] p-2">
       <div className="mb-4">
-        <Address address={address} isCopyable disableTooltip className="flex items-center justify-between text-sm font-bold text-foreground" showIcon />
+        <Address
+          address={address}
+          isCopyable
+          disableTooltip
+          showIcon
+          className="flex items-center justify-between text-sm font-bold text-foreground"
+          aria-label="wallet address"
+        />
       </div>
 
       <div className="mb-1 text-xs text-muted-foreground">Wallet Balance</div>

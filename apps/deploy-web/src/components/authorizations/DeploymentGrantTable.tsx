@@ -164,7 +164,7 @@ export const DeploymentGrantTable: React.FC<Props> = ({
 
   return (
     <div>
-      <Table aria-label="Deployment Authorization List">
+      <Table>
         <TableHeader>
           {table.getHeaderGroups().map(headerGroup => (
             <TableRow key={headerGroup.id}>
