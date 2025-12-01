@@ -1,5 +1,12 @@
 
 
+## [3.6.1](https://github.com/akash-network/console/compare/console-web/v3.6.0...console-web/v3.6.1) (2025-12-01)
+
+
+### Bug Fixes
+
+* fixing e2e test for authorizations ([#2176](https://github.com/akash-network/console/issues/2176)) ([7ba2f4e](https://github.com/akash-network/console/commit/7ba2f4edd83c17e86e82bdc5b9a01f757ea7f184))
+
 ## [3.6.0](https://github.com/akash-network/console/compare/console-web/v3.5.1...console-web/v3.6.0) (2025-11-29)
 
 
