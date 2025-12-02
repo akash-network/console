@@ -135,7 +135,7 @@ export class GpuBidsCreatorService {
 
     const manifestVersion = await sdl.manifestVersion();
     const message = {
-      typeUrl: `${MsgCreateDeployment.$type}`,
+      typeUrl: `/${MsgCreateDeployment.$type}`,
       value: MsgCreateDeployment.fromPartial({
         id: {
           owner: owner,
@@ -158,7 +158,7 @@ export class GpuBidsCreatorService {
 
   private async closeDeployment(client: SigningStargateClient, owner: string, dseq: string) {
     const message = {
-      typeUrl: `${MsgCloseDeployment.$type}`,
+      typeUrl: `/${MsgCloseDeployment.$type}`,
       value: MsgCloseDeployment.fromPartial({
         id: {
           owner: owner,
