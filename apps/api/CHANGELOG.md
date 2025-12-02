@@ -1,5 +1,12 @@
 
 
+## [3.9.1](https://github.com/akash-network/console/compare/console-api/v3.9.0...console-api/v3.9.1) (2025-12-02)
+
+
+### Bug Fixes
+
+* uses proper msg typeUrl in GpuBidScript ([#2308](https://github.com/akash-network/console/issues/2308)) ([9b1eaca](https://github.com/akash-network/console/commit/9b1eacace7bc55d479ed0817092d5914ad4bcc62))
+
 ## [3.9.0](https://github.com/akash-network/console/compare/console-api/v3.8.0...console-api/v3.9.0) (2025-11-29)
 
 
