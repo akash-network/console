@@ -40,8 +40,10 @@ export class StripeService extends Stripe {
     private readonly billingConfig: BillingConfigService,
     private readonly userRepository: UserRepository,
     private readonly refillService: RefillService,
-    private readonly paymentMethodRepository: PaymentMethodRepository
+    private readonly paymentMethodRepository: PaymentMethodRepository,
+    private readonly loggerService: LoggerService
   ) {
+    loggerService.setContext(StripeService.name);
     const secretKey = billingConfig.get("STRIPE_SECRET_KEY");
     super(secretKey, {
       apiVersion: "2025-10-29.clover"
@@ -133,6 +135,11 @@ export class StripeService extends Stripe {
 
     if (typeof remote === "object" && remote && local) {
       return { ...remote, validated: local.isValidated };
+    } else if (!local || !remote) {
+      this.loggerService.error({
+        event: "STRIPE_PAYMENT_METHOD_OUT_OF_SYNC",
+        userId: user.id
+      });
     }
   }
 
