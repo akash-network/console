@@ -24,3 +24,9 @@ jobs:
       - node
       - dist/console.js
       - cleanup-stale-deployments
+  - name: gpu-pricing-bot
+    schedule: "0 12 * * *"
+    command:
+      - node
+      - dist/console.js
+      - gpu-pricing-bot
