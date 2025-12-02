@@ -94,6 +94,10 @@ export class BalancesService {
   }
 
   @Memoize({ ttlInSeconds: averageBlockTime })
+  async getFullBalanceMemoized(address: string, isOldWallet: boolean = false): Promise<GetBalancesResponseOutput> {
+    return this.getFullBalance(address, isOldWallet);
+  }
+
   async getFullBalance(address: string, isOldWallet: boolean = false): Promise<GetBalancesResponseOutput> {
     const [balanceData, deploymentEscrowBalance] = await Promise.all([
       this.getFreshLimits({ address, isOldWallet }),
@@ -110,8 +114,12 @@ export class BalancesService {
   }
 
   @Memoize({ ttlInSeconds: averageBlockTime })
+  async getFullBalanceInFiatMemoized(address: string, isOldWallet: boolean = false): Promise<GetBalancesResponseOutput["data"]> {
+    return this.getFullBalanceInFiat(address, isOldWallet);
+  }
+
   async getFullBalanceInFiat(address: string, isOldWallet: boolean = false): Promise<GetBalancesResponseOutput["data"]> {
-    const { data } = await this.getFullBalance(address, isOldWallet);
+    const { data } = await this.getFullBalanceMemoized(address, isOldWallet);
 
     const balance = await this.toFiatAmount(data.balance);
     const deployments = await this.toFiatAmount(data.deployments);

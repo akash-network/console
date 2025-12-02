@@ -129,18 +129,26 @@ export class StripeService extends Stripe {
 
     assert(!customer.deleted, 402, "Payment account has been deleted");
 
-    const remote = customer.invoice_settings.default_payment_method as Stripe.PaymentMethod;
+    const remote = customer.invoice_settings.default_payment_method;
 
-    if (remote && local) {
+    if (typeof remote === "object" && remote && local) {
       return { ...remote, validated: local.isValidated };
     }
   }
 
   async hasPaymentMethod(paymentMethodId: string, user: UserOutput): Promise<boolean> {
-    const paymentMethod = await this.paymentMethods.retrieve(paymentMethodId);
-    const customerId = typeof paymentMethod.customer === "string" ? paymentMethod.customer : paymentMethod.customer?.id;
+    try {
+      const paymentMethod = await this.paymentMethods.retrieve(paymentMethodId);
+      const customerId = typeof paymentMethod.customer === "string" ? paymentMethod.customer : paymentMethod.customer?.id;
 
-    return customerId === user.stripeCustomerId;
+      return customerId === user.stripeCustomerId;
+    } catch (error: unknown) {
+      if (error instanceof Stripe.errors.StripeInvalidRequestError && error.code === "resource_missing") {
+        return false;
+      }
+
+      throw error;
+    }
   }
 
   @WithTransaction()

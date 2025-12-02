@@ -107,7 +107,7 @@ export class WalletController {
       isOldWallet = userWallet.isOldWallet ?? false;
     }
 
-    return this.balancesService.getFullBalance(currentAddress, isOldWallet);
+    return this.balancesService.getFullBalanceMemoized(currentAddress, isOldWallet);
   }
 
   @Protected([{ action: "sign", subject: "UserWallet" }])
