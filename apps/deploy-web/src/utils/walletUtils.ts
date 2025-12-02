@@ -81,7 +81,15 @@ export function updateStorageManagedWallet(
 
   const key = getManagedWalletsStorageKey(networkId);
   const walletsMapStr = localStorage.getItem(key);
-  const walletsMap: Record<string, ManagedLocalWallet> = walletsMapStr ? JSON.parse(walletsMapStr) : {};
+  let walletsMap: Record<string, ManagedLocalWallet> = {};
+
+  if (walletsMapStr) {
+    try {
+      walletsMap = JSON.parse(walletsMapStr);
+    } catch (error) {
+      console.debug("Failed to parse managed wallets from localStorage, using empty object", error);
+    }
+  }
 
   walletsMap[wallet.userId] = next;
   localStorage.setItem(key, JSON.stringify(walletsMap));
@@ -101,12 +109,17 @@ export function deleteManagedWalletFromStorage(userId: string, networkId?: Netwo
     const walletsMapStr = localStorage.getItem(key);
 
     if (walletsMapStr) {
-      const walletsMap: Record<string, ManagedLocalWallet> = JSON.parse(walletsMapStr);
-      delete walletsMap[userId];
+      try {
+        const walletsMap: Record<string, ManagedLocalWallet> = JSON.parse(walletsMapStr);
+        delete walletsMap[userId];
 
-      if (Object.keys(walletsMap).length > 0) {
-        localStorage.setItem(key, JSON.stringify(walletsMap));
-      } else {
+        if (Object.keys(walletsMap).length > 0) {
+          localStorage.setItem(key, JSON.stringify(walletsMap));
+        } else {
+          localStorage.removeItem(key);
+        }
+      } catch (error) {
+        console.debug("Failed to parse managed wallets from localStorage, removing key", error);
         localStorage.removeItem(key);
       }
     }
@@ -174,7 +187,15 @@ export function updateStorageWallets(wallets: LocalWallet[], networkId?: Network
   if (managedWallets.length > 0) {
     const managedWalletsKey = getManagedWalletsStorageKey(selectedNetworkId);
     const existingMapStr = localStorage.getItem(managedWalletsKey);
-    const existingMap: Record<string, ManagedLocalWallet> = existingMapStr ? JSON.parse(existingMapStr) : {};
+    let existingMap: Record<string, ManagedLocalWallet> = {};
+
+    if (existingMapStr) {
+      try {
+        existingMap = JSON.parse(existingMapStr);
+      } catch (error) {
+        console.debug("Failed to parse managed wallets from localStorage, using empty object", error);
+      }
+    }
 
     managedWallets.forEach(wallet => {
       existingMap[wallet.userId] = wallet;
