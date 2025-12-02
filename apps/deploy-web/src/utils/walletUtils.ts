@@ -37,11 +37,7 @@ export function getSelectedStorageWallet() {
 }
 
 export function getStorageManagedWallet(userId?: string, networkId?: NetworkId): ManagedLocalWallet | undefined {
-  if (!userId) {
-    return undefined;
-  }
-
-  if (typeof window === "undefined") {
+  if (!userId || typeof window === "undefined") {
     return undefined;
   }
 
