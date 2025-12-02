@@ -1,12 +1,11 @@
 import assert from "http-assert";
 import { singleton } from "tsyringe";
-import { v4 as uuidv4 } from "uuid";
 
 import { AuthService } from "@src/auth/services/auth.service";
-import { WalletBalanceReloadCheck } from "@src/billing/events/wallet-balance-reload-check";
 import { UserWalletRepository, type WalletSettingOutput, WalletSettingRepository } from "@src/billing/repositories";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
-import { JobQueueService, TxService, WithTransaction } from "@src/core";
+import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
+import { WithTransaction } from "@src/core";
 import { isUniqueViolation } from "@src/core/repositories/base.repository";
 import { UserOutput, UserRepository } from "@src/user/repositories";
 
@@ -24,8 +23,7 @@ export class WalletSettingService {
     private readonly userRepository: UserRepository,
     private readonly stripeService: StripeService,
     private readonly authService: AuthService,
-    private readonly jobQueueService: JobQueueService,
-    private readonly txService: TxService
+    private readonly walletReloadJobService: WalletReloadJobService
   ) {}
 
   async getWalletSetting(userId: string): Promise<Omit<WalletSettingOutput, "autoReloadJobId"> | undefined> {
@@ -134,32 +132,12 @@ export class WalletSettingService {
 
   async #arrangeSchedule(prev?: WalletSettingOutput, next?: WalletSettingOutput) {
     if (!prev?.autoReloadEnabled && next?.autoReloadEnabled) {
-      await this.#schedule(next);
+      await this.walletReloadJobService.scheduleForWalletSetting(next);
     }
 
     if (!next?.autoReloadEnabled && next?.autoReloadJobId) {
-      await this.jobQueueService.cancel(WalletBalanceReloadCheck.name, next.autoReloadJobId);
+      await this.walletReloadJobService.cancel(next.userId, next.autoReloadJobId);
     }
-  }
-
-  async #schedule(walletSetting: WalletSettingOutput) {
-    return await this.txService.transaction(async () => {
-      if (walletSetting.autoReloadJobId) {
-        await this.jobQueueService.cancel(WalletBalanceReloadCheck.name, walletSetting.autoReloadJobId);
-      }
-
-      const jobId = uuidv4();
-      await this.walletSettingRepository.updateById(walletSetting.id, { autoReloadJobId: jobId });
-
-      const createdJobId = await this.jobQueueService.enqueue(new WalletBalanceReloadCheck({ userId: walletSetting.userId }), {
-        singletonKey: `${WalletBalanceReloadCheck.name}.${walletSetting.userId}`,
-        id: jobId
-      });
-
-      assert(createdJobId, 500, "Failed to schedule wallet balance reload check");
-
-      return jobId;
-    });
   }
 
   async deleteWalletSetting(userId: string): Promise<void> {
@@ -170,7 +148,7 @@ export class WalletSettingService {
 
     await Promise.all([
       this.walletSettingRepository.accessibleBy(ability, "delete").deleteBy({ userId }),
-      ...(walletSetting.autoReloadJobId ? [this.jobQueueService.cancel(WalletBalanceReloadCheck.name, walletSetting.autoReloadJobId)] : [])
+      ...(walletSetting.autoReloadJobId ? [this.walletReloadJobService.cancel(userId, walletSetting.autoReloadJobId)] : [])
     ]);
   }
 }

@@ -89,7 +89,8 @@ export class JobQueueService implements Disposable {
     this.logger.info({
       event: "JOB_ENQUEUED",
       job,
-      jobId
+      jobId,
+      options
     });
 
     return jobId;
@@ -99,6 +100,15 @@ export class JobQueueService implements Disposable {
     await this.pgBoss.cancel(name, id);
     this.logger.info({
       event: "JOB_CANCELLED",
+      id,
+      name
+    });
+  }
+
+  async complete(name: string, id: string): Promise<void> {
+    await this.pgBoss.complete(name, id);
+    this.logger.info({
+      event: "JOB_COMPLETED",
       id,
       name
     });
@@ -211,7 +221,7 @@ export interface JobHandler<T extends Job> {
   accepts: JobType<T>;
   concurrency?: ProcessOptions["concurrency"];
   policy?: PgBoss.Queue["policy"];
-  handle(payload: JobPayload<T>, job: JobMeta): Promise<void>;
+  handle(payload: JobPayload<T>, job?: JobMeta): Promise<void>;
 }
 
 export type EnqueueOptions = PgBoss.SendOptions;

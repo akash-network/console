@@ -47,7 +47,7 @@ export class StripeController {
     return { data: { clientSecret: setupIntent.client_secret } };
   }
 
-  @Protected([{ action: "update", subject: "StripePayment" }])
+  @Protected([{ action: "update", subject: "PaymentMethod" }])
   async markAsDefault(input: PaymentMethodMarkAsDefaultInput): Promise<void> {
     const { ability } = this.authService;
     const currentUser = this.authService.getCurrentPayingUser();
@@ -55,16 +55,18 @@ export class StripeController {
     await this.stripe.markPaymentMethodAsDefault(input.data.id, currentUser, ability);
   }
 
-  @Protected([{ action: "read", subject: "StripePayment" }])
+  @Protected([{ action: "read", subject: "PaymentMethod" }])
   async getDefaultPaymentMethod(): Promise<PaymentMethodResponse> {
     const { ability } = this.authService;
     const currentUser = this.authService.getCurrentPayingUser();
     const paymentMethod = await this.stripe.getDefaultPaymentMethod(currentUser, ability);
 
+    assert(paymentMethod, 404, "PaymentMethod not found");
+
     return { data: paymentMethod };
   }
 
-  @Protected([{ action: "read", subject: "StripePayment" }])
+  @Protected([{ action: "read", subject: "PaymentMethod" }])
   async getPaymentMethods(): Promise<PaymentMethodsResponse> {
     const currentUser = this.authService.getCurrentPayingUser({ strict: false });
 

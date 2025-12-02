@@ -1,5 +1,5 @@
 {
-  "id": "f69cc97f-10fa-44c0-932f-5b33cd1c67fa",
+  "id": "f7545314-c294-4889-b79e-89b21973f7f0",
   "prevId": "f58c7d88-f343-43f6-a7eb-ab36c3ad191c",
   "version": "7",
   "dialect": "postgresql",
@@ -396,18 +396,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": false
-        },
-        "auto_reload_threshold": {
-          "name": "auto_reload_threshold",
-          "type": "numeric(20, 2)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "auto_reload_amount": {
-          "name": "auto_reload_amount",
-          "type": "numeric(20, 2)",
-          "primaryKey": false,
-          "notNull": false
         },
         "auto_reload_job_id": {
           "name": "auto_reload_job_id",

@@ -1,6 +1,8 @@
 import "@test/mocks/logger-service.mock";
 
 import { faker } from "@faker-js/faker";
+import { addWeeks } from "date-fns";
+import { mock } from "jest-mock-extended";
 
 import type { UserWalletRepository } from "@src/billing/repositories";
 import type { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
@@ -10,6 +12,7 @@ import { averageBlockCountInAnHour } from "@src/utils/constants";
 import type { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 import { DrainingDeploymentService } from "./draining-deployment.service";
 
+import { mockConfigService } from "@test/mocks/config-service.mock";
 import { createAkashAddress } from "@test/seeders";
 import { AutoTopUpDeploymentSeeder } from "@test/seeders/auto-top-up-deployment.seeder";
 import { DrainingDeploymentSeeder } from "@test/seeders/draining-deployment.seeder";
@@ -18,47 +21,6 @@ import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
 jest.mock("@akashnetwork/logging");
 
 describe(DrainingDeploymentService.name, () => {
-  let blockHttpService: jest.Mocked<BlockHttpService>;
-  let leaseRepository: jest.Mocked<LeaseRepository>;
-  let userWalletRepository: jest.Mocked<UserWalletRepository>;
-  let deploymentSettingRepository: jest.Mocked<DeploymentSettingRepository>;
-  let service: DrainingDeploymentService;
-  let config: jest.Mocked<DeploymentConfigService>;
-  const CURRENT_BLOCK_HEIGHT = 7481457;
-
-  beforeEach(() => {
-    blockHttpService = {
-      getCurrentHeight: jest.fn().mockResolvedValue(CURRENT_BLOCK_HEIGHT),
-      getFutureBlockHeight: jest.fn()
-    } as Partial<jest.Mocked<BlockHttpService>> as jest.Mocked<BlockHttpService>;
-
-    leaseRepository = {
-      findManyByDseqAndOwner: jest.fn(),
-      findOneByDseqAndOwner: jest.fn()
-    } as Partial<jest.Mocked<LeaseRepository>> as jest.Mocked<LeaseRepository>;
-
-    userWalletRepository = {
-      findOneByUserId: jest.fn()
-    } as Partial<jest.Mocked<UserWalletRepository>> as jest.Mocked<UserWalletRepository>;
-
-    deploymentSettingRepository = {
-      paginateAutoTopUpDeployments: jest.fn(),
-      updateManyById: jest.fn()
-    } as Partial<jest.Mocked<DeploymentSettingRepository>> as jest.Mocked<DeploymentSettingRepository>;
-
-    const configValues = {
-      AUTO_TOP_UP_JOB_INTERVAL_IN_H: 1,
-      AUTO_TOP_UP_DEPLOYMENT_INTERVAL_IN_H: 3
-    };
-
-    config = {
-      get: jest.fn().mockImplementation((key: keyof typeof configValues) => configValues[key]),
-      config: configValues
-    } as unknown as jest.Mocked<DeploymentConfigService>;
-
-    service = new DrainingDeploymentService(blockHttpService, leaseRepository, userWalletRepository, deploymentSettingRepository, config);
-  });
-
   describe("paginate", () => {
     const CURRENT_HEIGHT = 1000000;
     const LIMIT = 10;
@@ -67,11 +29,10 @@ describe(DrainingDeploymentService.name, () => {
     const PREDICTED_CLOSURE_OFFSET_1 = 100;
     const PREDICTED_CLOSURE_OFFSET_2 = 200;
 
-    beforeEach(() => {
-      (blockHttpService.getCurrentHeight as jest.Mock).mockResolvedValue(CURRENT_HEIGHT);
-    });
-
-    it("should paginate draining deployments and mark closed ones as such", async () => {
+    it("paginates draining deployments and marks closed ones as such", async () => {
+      const { service, blockHttpService, leaseRepository, deploymentSettingRepository, config } = setup({
+        currentHeight: CURRENT_HEIGHT
+      });
       const deploymentSettings = AutoTopUpDeploymentSeeder.createMany(4);
       const addresses = deploymentSettings.map(s => s.address);
       const dseqs = deploymentSettings.map(s => Number(s.dseq));
@@ -98,13 +59,13 @@ describe(DrainingDeploymentService.name, () => {
         })
       ];
 
-      (deploymentSettingRepository.paginateAutoTopUpDeployments as jest.Mock).mockImplementation((_params: { limit: number }) =>
+      deploymentSettingRepository.paginateAutoTopUpDeployments.mockImplementation((_params: { address?: string; limit: number }) =>
         (async function* () {
           yield deploymentSettings;
         })()
       );
 
-      (leaseRepository.findManyByDseqAndOwner as jest.Mock).mockResolvedValue(drainingDeployments);
+      leaseRepository.findManyByDseqAndOwner.mockResolvedValue(drainingDeployments);
 
       const callback = jest.fn();
       for await (const result of service.paginate({ limit: LIMIT })) {
@@ -146,10 +107,14 @@ describe(DrainingDeploymentService.name, () => {
       expect(callback.mock.calls[0][0]).toHaveLength(2);
     });
 
-    it("should not call callback if no draining deployments found", async () => {
-      (deploymentSettingRepository.paginateAutoTopUpDeployments as jest.Mock).mockImplementation((_params: { limit: number }) => (async function* () {})());
+    it("does not call callback when no draining deployments found", async () => {
+      const { service, deploymentSettingRepository, leaseRepository } = setup({
+        currentHeight: CURRENT_HEIGHT
+      });
 
-      (leaseRepository.findManyByDseqAndOwner as jest.Mock).mockResolvedValue([]);
+      deploymentSettingRepository.paginateAutoTopUpDeployments.mockImplementation((_params: { address?: string; limit: number }) => (async function* () {})());
+
+      leaseRepository.findManyByDseqAndOwner.mockResolvedValue([]);
 
       const callback = jest.fn();
       for await (const result of service.paginate({ limit: LIMIT })) {
@@ -162,42 +127,32 @@ describe(DrainingDeploymentService.name, () => {
   });
 
   describe("calculateTopUpAmount", () => {
-    const TEST_CASES = [
-      {
-        name: "should calculate amount for integer block rate",
-        input: { blockRate: 50 },
-        expected: 90000
-      },
-      {
-        name: "should floor decimal block rate",
-        input: { blockRate: 10.7 },
-        expected: 19260
-      }
-    ];
+    it("calculates amount for integer block rate", async () => {
+      const { service } = setup();
+      const result = await service.calculateTopUpAmount({ blockRate: 50 });
+      expect(result).toBe(90000);
+    });
 
-    TEST_CASES.forEach(testCase => {
-      it(testCase.name, async () => {
-        const result = await service.calculateTopUpAmount(testCase.input);
-        expect(result).toBe(testCase.expected);
-      });
+    it("floors decimal block rate", async () => {
+      const { service } = setup();
+      const result = await service.calculateTopUpAmount({ blockRate: 10.7 });
+      expect(result).toBe(19260);
     });
   });
 
   describe("calculateTopUpAmountForDseqAndUserId", () => {
-    const userId = faker.string.uuid();
-    const dseq = faker.string.numeric(6);
-    const address = createAkashAddress();
-    const userWallet = UserWalletSeeder.create({ address });
-    const expectedTopUpAmount = 100000;
-
-    beforeEach(() => {
-      userWalletRepository.findOneByUserId.mockResolvedValue(userWallet);
-      jest.spyOn(service, "calculateTopUpAmount").mockResolvedValue(expectedTopUpAmount);
-    });
-
-    it("should calculate top up amount for valid deployment", async () => {
+    it("calculates top up amount for valid deployment", async () => {
+      const userId = faker.string.uuid();
+      const dseq = faker.string.numeric(6);
+      const address = createAkashAddress();
+      const userWallet = UserWalletSeeder.create({ address });
       const deployment = DrainingDeploymentSeeder.create();
+      const expectedTopUpAmount = 100000;
+
+      const { service, userWalletRepository, leaseRepository } = setup();
+      userWalletRepository.findOneByUserId.mockResolvedValue(userWallet);
       leaseRepository.findOneByDseqAndOwner.mockResolvedValue(deployment);
+      jest.spyOn(service, "calculateTopUpAmount").mockResolvedValue(expectedTopUpAmount);
 
       const amount = await service.calculateTopUpAmountForDseqAndUserId(dseq, userId);
 
@@ -207,26 +162,222 @@ describe(DrainingDeploymentService.name, () => {
       expect(amount).toBe(expectedTopUpAmount);
     });
 
-    it("should return 0 if user wallet not found", async () => {
+    it("returns 0 when user wallet not found", async () => {
+      const userId = faker.string.uuid();
+      const dseq = faker.string.numeric(6);
+      const { service, userWalletRepository, leaseRepository } = setup();
       userWalletRepository.findOneByUserId.mockResolvedValue(undefined);
 
       const amount = await service.calculateTopUpAmountForDseqAndUserId(dseq, userId);
 
       expect(userWalletRepository.findOneByUserId).toHaveBeenCalledWith(userId);
       expect(leaseRepository.findOneByDseqAndOwner).not.toHaveBeenCalled();
-      expect(service.calculateTopUpAmount).not.toHaveBeenCalled();
       expect(amount).toBe(0);
     });
 
-    it("should return 0 if lease not found", async () => {
+    it("returns 0 when lease not found", async () => {
+      const userId = faker.string.uuid();
+      const dseq = faker.string.numeric(6);
+      const address = createAkashAddress();
+      const userWallet = UserWalletSeeder.create({ address });
+      const { service, userWalletRepository, leaseRepository } = setup();
+      userWalletRepository.findOneByUserId.mockResolvedValue(userWallet);
       leaseRepository.findOneByDseqAndOwner.mockResolvedValue(null);
 
       const amount = await service.calculateTopUpAmountForDseqAndUserId(dseq, userId);
 
       expect(userWalletRepository.findOneByUserId).toHaveBeenCalledWith(userId);
       expect(leaseRepository.findOneByDseqAndOwner).toHaveBeenCalledWith(dseq, address);
-      expect(service.calculateTopUpAmount).not.toHaveBeenCalled();
       expect(amount).toBe(0);
     });
   });
+
+  describe("calculateAllDeploymentCostUntilDate", () => {
+    const CURRENT_HEIGHT = 1000000;
+    const BLOCK_RATE_1 = 50;
+    const BLOCK_RATE_2 = 75;
+
+    it("calculates total cost for deployments closing within target date", async () => {
+      // Given: 2 deployments that will close before target date
+      // - Deployment 1: closes at height 1000100 (100 blocks from now), blockRate 50
+      // - Deployment 2: closes at height 1000200 (200 blocks from now), blockRate 75
+      // Target date is 1 week from now
+      // The method calculates blocksNeeded = targetHeight - currentHeight for all deployments
+      // Expected: blocksNeeded = targetHeight - currentHeight
+      //           amount1 = 50 * blocksNeeded, amount2 = 75 * blocksNeeded
+      //           total = (50 + 75) * blocksNeeded = 125 * blocksNeeded
+      const deployments = [
+        { predictedClosedHeight: CURRENT_HEIGHT + 100, blockRate: BLOCK_RATE_1 },
+        { predictedClosedHeight: CURRENT_HEIGHT + 200, blockRate: BLOCK_RATE_2 }
+      ];
+
+      const { service, address, targetDate } = await setupCalculateCost({
+        currentHeight: CURRENT_HEIGHT,
+        deployments
+      });
+
+      const result = await service.calculateAllDeploymentCostUntilDate(address, targetDate);
+
+      // Calculate expected: blocksNeeded = targetHeight - currentHeight
+      // For 1 week: targetHeight = currentHeight + averageBlockCountInAnHour * (7 * 24)
+      // blocksNeeded = averageBlockCountInAnHour * 168
+      const hoursInWeek = 7 * 24;
+      const expectedBlocksNeeded = Math.floor(averageBlockCountInAnHour * hoursInWeek);
+      const expectedTotal = (BLOCK_RATE_1 + BLOCK_RATE_2) * expectedBlocksNeeded;
+
+      // Allow for small differences in date calculations (±2 blocks = ±250 with total rate of 125)
+      expect(result).toBeGreaterThanOrEqual(expectedTotal - 250);
+      expect(result).toBeLessThanOrEqual(expectedTotal + 250);
+    });
+
+    it("returns 0 when user wallet not found", async () => {
+      const deployments = [{ predictedClosedHeight: CURRENT_HEIGHT + 100, blockRate: BLOCK_RATE_1 }];
+
+      const { service, address, targetDate } = await setupCalculateCost({
+        userWallet: undefined,
+        deployments
+      });
+
+      const result = await service.calculateAllDeploymentCostUntilDate(address, targetDate);
+
+      expect(result).toBe(0);
+    });
+
+    it("returns 0 when user wallet has no address", async () => {
+      const deployments = [{ predictedClosedHeight: CURRENT_HEIGHT + 100, blockRate: BLOCK_RATE_1 }];
+
+      const { service, address, targetDate } = await setupCalculateCost({
+        userWallet: UserWalletSeeder.create({ address: null }),
+        deployments
+      });
+
+      const result = await service.calculateAllDeploymentCostUntilDate(address, targetDate);
+
+      expect(result).toBe(0);
+    });
+
+    it("returns 0 when no deployments found", async () => {
+      const { service, address, targetDate } = await setupCalculateCost({
+        currentHeight: CURRENT_HEIGHT,
+        deployments: []
+      });
+
+      const result = await service.calculateAllDeploymentCostUntilDate(address, targetDate);
+
+      expect(result).toBe(0);
+    });
+
+    it("excludes deployments with null predictedClosedHeight", async () => {
+      const deployments = [{ predictedClosedHeight: null as unknown as number, blockRate: BLOCK_RATE_1 }];
+
+      const { service, address, targetDate } = await setupCalculateCost({
+        currentHeight: CURRENT_HEIGHT,
+        deployments
+      });
+
+      const result = await service.calculateAllDeploymentCostUntilDate(address, targetDate);
+
+      expect(result).toBe(0);
+    });
+
+    it("excludes deployments closing before currentHeight", async () => {
+      // Given: deployment closes 100 blocks before current height
+      const deployments = [{ predictedClosedHeight: CURRENT_HEIGHT - 100, blockRate: BLOCK_RATE_1 }];
+
+      const { service, address, targetDate } = await setupCalculateCost({
+        currentHeight: CURRENT_HEIGHT,
+        deployments
+      });
+
+      const result = await service.calculateAllDeploymentCostUntilDate(address, targetDate);
+
+      expect(result).toBe(0);
+    });
+
+    it("excludes deployments closing after targetHeight", async () => {
+      // Given: deployment closes way after target date (2M blocks later)
+      const deployments = [{ predictedClosedHeight: CURRENT_HEIGHT + 2000000, blockRate: BLOCK_RATE_1 }];
+
+      const { service, address, targetDate } = await setupCalculateCost({
+        currentHeight: CURRENT_HEIGHT,
+        deployments
+      });
+
+      const result = await service.calculateAllDeploymentCostUntilDate(address, targetDate);
+
+      expect(result).toBe(0);
+    });
+
+    async function setupCalculateCost(input: {
+      currentHeight?: number;
+      userWallet?: ReturnType<typeof UserWalletSeeder.create> | undefined;
+      deployments: Array<{ predictedClosedHeight: number | null; blockRate: number }>;
+    }) {
+      const currentHeight = input.currentHeight ?? CURRENT_HEIGHT;
+      const address = createAkashAddress();
+      const userWallet = "userWallet" in input ? input.userWallet : UserWalletSeeder.create({ address });
+      const now = new Date();
+      const targetDate = addWeeks(now, 1);
+
+      const baseSetup = setup({ currentHeight });
+      baseSetup.userWalletRepository.findOneBy.mockResolvedValue(userWallet);
+
+      const deployments = input.deployments;
+      const deploymentSettings = AutoTopUpDeploymentSeeder.createMany(deployments.length, { address });
+
+      const drainingDeployments = deploymentSettings.map((setting, idx) => {
+        const deployment = deployments[idx];
+        const predictedClosedHeight = deployment?.predictedClosedHeight ?? undefined;
+        return DrainingDeploymentSeeder.create({
+          dseq: Number(setting.dseq),
+          owner: address,
+          predictedClosedHeight: predictedClosedHeight === null ? undefined : predictedClosedHeight,
+          blockRate: deployment?.blockRate ?? 0
+        });
+      });
+
+      baseSetup.deploymentSettingRepository.paginateAutoTopUpDeployments.mockImplementation((_params: { address?: string; limit: number }) =>
+        (async function* () {
+          yield deploymentSettings;
+        })()
+      );
+
+      baseSetup.leaseRepository.findManyByDseqAndOwner.mockResolvedValue(drainingDeployments);
+
+      return {
+        ...baseSetup,
+        address,
+        targetDate
+      };
+    }
+  });
+
+  function setup(input?: { currentHeight?: number }) {
+    const CURRENT_BLOCK_HEIGHT = 7481457;
+    const currentHeight = input?.currentHeight ?? CURRENT_BLOCK_HEIGHT;
+
+    const blockHttpService = mock<BlockHttpService>();
+    blockHttpService.getCurrentHeight.mockResolvedValue(currentHeight);
+
+    const leaseRepository = mock<LeaseRepository>();
+    const userWalletRepository = mock<UserWalletRepository>();
+    userWalletRepository.findOneBy.mockResolvedValue(undefined);
+    const deploymentSettingRepository = mock<DeploymentSettingRepository>();
+
+    const config = mockConfigService<DeploymentConfigService>({
+      AUTO_TOP_UP_JOB_INTERVAL_IN_H: 1,
+      AUTO_TOP_UP_DEPLOYMENT_INTERVAL_IN_H: 3
+    });
+
+    const service = new DrainingDeploymentService(blockHttpService, leaseRepository, userWalletRepository, deploymentSettingRepository, config);
+
+    return {
+      service,
+      blockHttpService,
+      leaseRepository,
+      userWalletRepository,
+      deploymentSettingRepository,
+      config
+    };
+  }
 });

@@ -61,34 +61,6 @@ export class WalletSettingRepository extends BaseRepository<Table, WalletSetting
 
     if (!walletSetting) return undefined;
 
-    return {
-      ...walletSetting,
-      autoReloadThreshold: walletSetting.autoReloadThreshold === null ? undefined : parseFloat(walletSetting.autoReloadThreshold),
-      autoReloadAmount: walletSetting.autoReloadAmount === null ? undefined : parseFloat(walletSetting.autoReloadAmount)
-    };
-  }
-
-  protected toOutput(dbOutput: Partial<DbWalletSettingOutput>): WalletSettingOutput {
-    const output = dbOutput as DbWalletSettingOutput;
-    return {
-      ...output,
-      autoReloadThreshold: output.autoReloadThreshold === null ? undefined : parseFloat(output.autoReloadThreshold),
-      autoReloadAmount: output.autoReloadAmount === null ? undefined : parseFloat(output.autoReloadAmount)
-    } as WalletSettingOutput;
-  }
-
-  protected toInput(payload: Partial<WalletSettingInput>): Partial<DbWalletSettingInput> {
-    const { autoReloadThreshold, autoReloadAmount, ...input } = payload;
-    const dbInput: Partial<DbWalletSettingInput> = input as Partial<DbWalletSettingInput>;
-
-    if (autoReloadThreshold !== undefined) {
-      dbInput.autoReloadThreshold = autoReloadThreshold.toString();
-    }
-
-    if (autoReloadAmount !== undefined) {
-      dbInput.autoReloadAmount = autoReloadAmount.toString();
-    }
-
-    return dbInput;
+    return walletSetting;
   }
 }

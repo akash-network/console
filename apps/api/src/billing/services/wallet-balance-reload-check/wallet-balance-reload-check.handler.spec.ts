@@ -1,12 +1,14 @@
 import { faker } from "@faker-js/faker";
-import createHttpError from "http-errors";
+import { addMilliseconds, millisecondsInHour } from "date-fns";
 import { mock } from "jest-mock-extended";
 
 import { WalletBalanceReloadCheck } from "@src/billing/events/wallet-balance-reload-check";
 import type { WalletSettingRepository } from "@src/billing/repositories";
 import type { BalancesService } from "@src/billing/services/balances/balances.service";
 import type { StripeService } from "@src/billing/services/stripe/stripe.service";
-import type { JobMeta, JobQueueService, LoggerService } from "@src/core";
+import type { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
+import type { JobMeta, LoggerService } from "@src/core";
+import type { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import type { JobPayload } from "../../../core";
 import { WalletBalanceReloadCheckHandler } from "./wallet-balance-reload-check.handler";
 
@@ -18,34 +20,44 @@ import { generateWalletSetting } from "@test/seeders/wallet-setting.seeder";
 
 describe(WalletBalanceReloadCheckHandler.name, () => {
   describe("handle", () => {
-    it("triggers reload when balance is below threshold", async () => {
-      const {
-        handler,
-        walletSettingRepository,
-        balancesService,
-        stripeService,
-        jobQueueService,
-        loggerService,
-        walletSettingWithWallet,
-        walletSetting,
-        wallet,
-        job,
-        jobMeta
-      } = setup();
-      const paymentMethod = generatePaymentMethod();
-      const balance = generateBalance({ balance: 15.0, deployments: 0, total: 15.0 });
-      walletSettingRepository.findInternalByUserIdWithRelations.mockResolvedValue(walletSettingWithWallet);
-      balancesService.getFullBalanceInFiat.mockResolvedValue(balance);
-      stripeService.getDefaultPaymentMethod.mockResolvedValue(paymentMethod);
-      jobQueueService.enqueue.mockResolvedValue(faker.string.uuid());
+    it("triggers reload when balance is below 25% of cost", async () => {
+      // Given: balance = $10, costUntilTargetDate = $50
+      // Expected: 25% threshold = $12.50, balance ($10) < threshold → reload
+      // Expected: reload amount = max($50 - $10, $20) = $40
+      // Expected: calculates cost for 7 days, schedules next check in 1 day
+      const balance = 10.0;
+      const costUntilTargetDateInDenom = 50_000_000; // 50 USD in udenom
+      const costUntilTargetDateInFiat = 50.0;
+      const expectedReloadAmount = 40.0; // max(50 - 10, 20) = 40
+
+      const { handler, drainingDeploymentService, stripeService, loggerService, walletReloadJobService, job, jobMeta } = setup({
+        balance: { total: balance },
+        weeklyCostInDenom: costUntilTargetDateInDenom,
+        weeklyCostInFiat: costUntilTargetDateInFiat
+      });
 
       await handler.handle(job, jobMeta);
 
-      expect(walletSettingRepository.findInternalByUserIdWithRelations).toHaveBeenCalledWith(job.userId);
+      // Verify calculateAllDeploymentCostUntilDate is called with 7 days
+      expect(drainingDeploymentService.calculateAllDeploymentCostUntilDate).toHaveBeenCalled();
+      const calculateCall = drainingDeploymentService.calculateAllDeploymentCostUntilDate.mock.calls[0];
+      const reloadTargetDate = calculateCall[1];
+      const millisecondsInDay = 24 * millisecondsInHour;
+      const expectedReloadDate = addMilliseconds(new Date(), 7 * millisecondsInDay);
+      expect(reloadTargetDate.getTime()).toBeCloseTo(expectedReloadDate.getTime(), -3);
+
+      // Verify next check is scheduled for 1 day
+      expect(walletReloadJobService.scheduleForWalletSetting).toHaveBeenCalled();
+      const scheduleCall = walletReloadJobService.scheduleForWalletSetting.mock.calls[0];
+      const scheduledDate = scheduleCall[1]?.startAfter;
+      expect(scheduledDate).toBeInstanceOf(Date);
+      const expectedNextCheckDate = addMilliseconds(new Date(), millisecondsInDay);
+      expect((scheduledDate as Date).getTime()).toBeCloseTo(expectedNextCheckDate.getTime(), -3);
+
       expect(stripeService.createPaymentIntent).toHaveBeenCalledWith({
-        customer: walletSettingWithWallet.user.stripeCustomerId,
-        payment_method: paymentMethod.id,
-        amount: walletSetting.autoReloadAmount,
+        customer: expect.any(String),
+        payment_method: expect.any(String),
+        amount: expectedReloadAmount,
         currency: "usd",
         confirm: true,
         idempotencyKey: `${WalletBalanceReloadCheck.name}.${jobMeta.id}`
@@ -53,102 +65,148 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       expect(loggerService.info).toHaveBeenCalledWith(
         expect.objectContaining({
           event: "WALLET_BALANCE_RELOADED",
-          walletAddress: wallet.address,
-          balance: 15.0,
-          threshold: 30.0,
-          amount: 100.0
+          balance,
+          costUntilTargetDateInFiat
         })
       );
     });
 
-    it("triggers reload when balance equals threshold", async () => {
-      const { handler, walletSettingRepository, balancesService, stripeService, jobQueueService, walletSettingWithWallet, walletSetting, job, jobMeta } =
-        setup();
-      const paymentMethod = generatePaymentMethod();
-      const balance = generateBalance({ balance: 30.0, deployments: 0, total: 30.0 });
-      walletSettingRepository.findInternalByUserIdWithRelations.mockResolvedValue(walletSettingWithWallet);
-      balancesService.getFullBalanceInFiat.mockResolvedValue(balance);
-      stripeService.getDefaultPaymentMethod.mockResolvedValue(paymentMethod);
-      jobQueueService.enqueue.mockResolvedValue(faker.string.uuid());
+    it("triggers reload with minimum amount when needed amount is below minimum", async () => {
+      // Given: balance = $4, costUntilTargetDate = $20
+      // Expected: 25% threshold = $5, balance ($4) < threshold → reload
+      // Expected: reload amount = max($20 - $4, $20) = $20 (minimum)
+      const balance = 4.0;
+      const costUntilTargetDateInDenom = 20_000_000; // 20 USD in udenom
+      const costUntilTargetDateInFiat = 20.0;
+      const expectedReloadAmount = 20.0; // max(20 - 4, 20) = 20
+
+      const { handler, stripeService, job, jobMeta } = setup({
+        balance: { total: balance },
+        weeklyCostInDenom: costUntilTargetDateInDenom,
+        weeklyCostInFiat: costUntilTargetDateInFiat
+      });
 
       await handler.handle(job, jobMeta);
 
-      expect(walletSettingRepository.findInternalByUserIdWithRelations).toHaveBeenCalledWith(job.userId);
       expect(stripeService.createPaymentIntent).toHaveBeenCalledWith({
-        customer: walletSettingWithWallet.user.stripeCustomerId,
-        payment_method: paymentMethod.id,
-        amount: walletSetting.autoReloadAmount,
+        customer: expect.any(String),
+        payment_method: expect.any(String),
+        amount: expectedReloadAmount,
         currency: "usd",
         confirm: true,
         idempotencyKey: `${WalletBalanceReloadCheck.name}.${jobMeta.id}`
       });
-      expect(jobQueueService.enqueue).toHaveBeenCalled();
     });
 
-    it("does not trigger reload when balance is above threshold", async () => {
-      const { handler, walletSettingRepository, balancesService, stripeService, jobQueueService, loggerService, walletSettingWithWallet, job, jobMeta } =
-        setup();
-      const balance = generateBalance({ balance: 50.0, deployments: 0, total: 50.0 });
-      walletSettingRepository.findInternalByUserIdWithRelations.mockResolvedValue(walletSettingWithWallet);
-      balancesService.getFullBalanceInFiat.mockResolvedValue(balance);
-      stripeService.getDefaultPaymentMethod.mockResolvedValue(generatePaymentMethod());
-      jobQueueService.enqueue.mockResolvedValue(faker.string.uuid());
+    it("does not trigger reload when balance equals 25% of cost", async () => {
+      // Given: balance = $12.50, costUntilTargetDate = $50
+      // Expected: 25% threshold = $12.50, balance ($12.50) >= threshold → no reload
+      const balance = 12.5;
+      const costUntilTargetDateInDenom = 50_000_000;
+      const costUntilTargetDateInFiat = 50.0;
+
+      const { handler, stripeService, loggerService, job, jobMeta } = setup({
+        balance: { total: balance },
+        weeklyCostInDenom: costUntilTargetDateInDenom,
+        weeklyCostInFiat: costUntilTargetDateInFiat
+      });
 
       await handler.handle(job, jobMeta);
 
-      expect(walletSettingRepository.findInternalByUserIdWithRelations).toHaveBeenCalledWith(job.userId);
       expect(stripeService.createPaymentIntent).not.toHaveBeenCalled();
       expect(loggerService.info).toHaveBeenCalledWith(
         expect.objectContaining({
-          event: "WALLET_BALANCE_RELOAD_SKIPPED"
+          event: "WALLET_BALANCE_RELOAD_SKIPPED",
+          balance,
+          costUntilTargetDateInFiat
         })
       );
-      expect(jobQueueService.enqueue).toHaveBeenCalled();
     });
 
-    it("re-enqueues next check and updates job ID", async () => {
-      const { handler, walletSettingRepository, balancesService, stripeService, jobQueueService, walletSettingWithWallet, walletSetting, job, jobMeta } =
-        setup();
-      const jobId = faker.string.uuid();
-      const balance = generateBalance({ balance: 50.0, deployments: 0, total: 50.0 });
-      walletSettingRepository.findInternalByUserIdWithRelations.mockResolvedValue(walletSettingWithWallet);
-      balancesService.getFullBalanceInFiat.mockResolvedValue(balance);
-      stripeService.getDefaultPaymentMethod.mockResolvedValue(generatePaymentMethod());
-      jobQueueService.enqueue.mockResolvedValue(jobId);
+    it("does not trigger reload when balance is above 25% of cost", async () => {
+      // Given: balance = $50, costUntilTargetDate = $50
+      // Expected: 25% threshold = $12.50, balance ($50) >= threshold → no reload
+      const balance = 50.0;
+      const costUntilTargetDateInDenom = 50_000_000;
+      const costUntilTargetDateInFiat = 50.0;
+
+      const { handler, stripeService, loggerService, job, jobMeta } = setup({
+        balance: { total: balance },
+        weeklyCostInDenom: costUntilTargetDateInDenom,
+        weeklyCostInFiat: costUntilTargetDateInFiat
+      });
 
       await handler.handle(job, jobMeta);
 
-      expect(walletSettingRepository.findInternalByUserIdWithRelations).toHaveBeenCalledWith(job.userId);
-      expect(jobQueueService.enqueue).toHaveBeenCalledWith(
-        expect.any(WalletBalanceReloadCheck),
+      expect(stripeService.createPaymentIntent).not.toHaveBeenCalled();
+      expect(loggerService.info).toHaveBeenCalledWith(
         expect.objectContaining({
-          singletonKey: `WalletBalanceReloadCheck.${job.userId}`
+          event: "WALLET_BALANCE_RELOAD_SKIPPED",
+          balance,
+          costUntilTargetDateInFiat
         })
       );
-      expect(walletSettingRepository.updateById).toHaveBeenCalledWith(walletSetting.id, { autoReloadJobId: jobId });
     });
 
-    it("does not update job ID when enqueue returns null", async () => {
-      const { handler, walletSettingRepository, balancesService, stripeService, jobQueueService, walletSettingWithWallet, job, jobMeta } = setup();
-      const balance = generateBalance({ balance: 50.0, deployments: 0, total: 50.0 });
-      walletSettingRepository.findInternalByUserIdWithRelations.mockResolvedValue(walletSettingWithWallet);
-      balancesService.getFullBalanceInFiat.mockResolvedValue(balance);
-      stripeService.getDefaultPaymentMethod.mockResolvedValue(generatePaymentMethod());
-      jobQueueService.enqueue.mockResolvedValue(null);
+    it("schedules next check and updates job ID", async () => {
+      const jobId = faker.string.uuid();
+      const balance = 50.0;
+      const weeklyCostInDenom = 50_000_000;
+      const weeklyCostInFiat = 50.0;
+
+      const { handler, walletReloadJobService, walletSetting, job, jobMeta } = setup({
+        balance: { total: balance },
+        weeklyCostInDenom,
+        weeklyCostInFiat,
+        jobId
+      });
 
       await handler.handle(job, jobMeta);
 
-      expect(walletSettingRepository.findInternalByUserIdWithRelations).toHaveBeenCalledWith(job.userId);
-      expect(walletSettingRepository.updateById).not.toHaveBeenCalled();
+      expect(walletReloadJobService.scheduleForWalletSetting).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: walletSetting.id,
+          userId: job.userId
+        }),
+        expect.objectContaining({
+          startAfter: expect.any(Date),
+          prevAction: "complete"
+        })
+      );
+    });
+
+    it("logs error and throws when scheduling next check fails", async () => {
+      const balance = 50.0;
+      const weeklyCostInDenom = 50_000_000;
+      const weeklyCostInFiat = 50.0;
+      const error = new Error("Failed to schedule");
+
+      const { handler, walletReloadJobService, loggerService, job, jobMeta } = setup({
+        balance: { total: balance },
+        weeklyCostInDenom,
+        weeklyCostInFiat
+      });
+      walletReloadJobService.scheduleForWalletSetting.mockRejectedValue(error);
+
+      await expect(handler.handle(job, jobMeta)).rejects.toThrow(error);
+
+      expect(loggerService.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: "ERROR_SCHEDULING_NEXT_CHECK",
+          walletAddress: expect.any(String),
+          error
+        })
+      );
     });
 
     it("logs validation error when wallet setting not found", async () => {
-      const { handler, walletSettingRepository, loggerService, job, jobMeta } = setup();
-      walletSettingRepository.findInternalByUserIdWithRelations.mockResolvedValue(undefined);
+      const { handler, walletSettingRepository, loggerService, job, jobMeta } = setup({
+        walletSettingNotFound: true
+      });
 
       await handler.handle(job, jobMeta);
 
-      expect(loggerService.info).toHaveBeenCalledWith({
+      expect(loggerService.error).toHaveBeenCalledWith({
         event: "WALLET_SETTING_NOT_FOUND",
         message: "Wallet setting not found. Skipping wallet balance reload check.",
         userId: job.userId
@@ -157,60 +215,29 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     });
 
     it("logs validation error when auto reload is disabled", async () => {
-      const { handler, walletSettingRepository, loggerService, walletSettingWithWallet, job, jobMeta } = setup();
-      const disabledSetting = { ...walletSettingWithWallet, autoReloadEnabled: false };
-      walletSettingRepository.findInternalByUserIdWithRelations.mockResolvedValue(disabledSetting);
+      const { handler, walletSettingRepository, loggerService, job, jobMeta } = setup({
+        autoReloadEnabled: false
+      });
 
       await handler.handle(job, jobMeta);
 
       expect(walletSettingRepository.findInternalByUserIdWithRelations).toHaveBeenCalledWith(job.userId);
-      expect(loggerService.info).toHaveBeenCalledWith({
+      expect(loggerService.error).toHaveBeenCalledWith({
         event: "AUTO_RELOAD_DISABLED",
         message: "Auto reload disabled. Skipping wallet balance reload check.",
         userId: job.userId
       });
     });
 
-    it("logs validation error when auto reload threshold is not set", async () => {
-      const { handler, walletSettingRepository, loggerService, walletSettingWithWallet, job, jobMeta } = setup();
-      const invalidSetting = { ...walletSettingWithWallet, autoReloadThreshold: undefined };
-      walletSettingRepository.findInternalByUserIdWithRelations.mockResolvedValue(invalidSetting);
-
-      await handler.handle(job, jobMeta);
-
-      expect(walletSettingRepository.findInternalByUserIdWithRelations).toHaveBeenCalledWith(job.userId);
-      expect(loggerService.info).toHaveBeenCalledWith({
-        event: "AUTO_RELOAD_THRESHOLD_NOT_SET",
-        message: "Auto reload threshold not set. Skipping wallet balance reload check.",
-        userId: job.userId
-      });
-    });
-
-    it("logs validation error when auto reload amount is not set", async () => {
-      const { handler, walletSettingRepository, loggerService, walletSettingWithWallet, job, jobMeta } = setup();
-      const invalidSetting = { ...walletSettingWithWallet, autoReloadAmount: undefined };
-      walletSettingRepository.findInternalByUserIdWithRelations.mockResolvedValue(invalidSetting);
-
-      await handler.handle(job, jobMeta);
-
-      expect(walletSettingRepository.findInternalByUserIdWithRelations).toHaveBeenCalledWith(job.userId);
-      expect(loggerService.info).toHaveBeenCalledWith({
-        event: "AUTO_RELOAD_AMOUNT_NOT_SET",
-        message: "Auto reload amount not set. Skipping wallet balance reload check.",
-        userId: job.userId
-      });
-    });
-
     it("logs validation error when wallet is not initialized", async () => {
-      const { handler, walletSettingRepository, loggerService, walletSettingWithWallet, job, jobMeta } = setup();
-      const walletWithoutAddress = UserWalletSeeder.create({ address: null });
-      const settingWithUninitializedWallet = { ...walletSettingWithWallet, wallet: walletWithoutAddress };
-      walletSettingRepository.findInternalByUserIdWithRelations.mockResolvedValue(settingWithUninitializedWallet);
+      const { handler, walletSettingRepository, loggerService, job, jobMeta } = setup({
+        wallet: UserWalletSeeder.create({ address: null })
+      });
 
       await handler.handle(job, jobMeta);
 
       expect(walletSettingRepository.findInternalByUserIdWithRelations).toHaveBeenCalledWith(job.userId);
-      expect(loggerService.info).toHaveBeenCalledWith({
+      expect(loggerService.error).toHaveBeenCalledWith({
         event: "WALLET_NOT_INITIALIZED",
         message: "Wallet not initialized. Skipping wallet balance reload check.",
         userId: job.userId
@@ -218,15 +245,16 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     });
 
     it("logs validation error when user stripe customer ID is not set", async () => {
-      const { handler, walletSettingRepository, loggerService, walletSettingWithWallet, job, jobMeta } = setup();
-      const userWithoutStripe = { ...walletSettingWithWallet.user, stripeCustomerId: null };
-      const settingWithoutStripe = { ...walletSettingWithWallet, user: userWithoutStripe };
-      walletSettingRepository.findInternalByUserIdWithRelations.mockResolvedValue(settingWithoutStripe);
+      const userWithoutStripe = UserSeeder.create();
+      const userWithNullStripe = { ...userWithoutStripe, stripeCustomerId: null };
+      const { handler, walletSettingRepository, loggerService, job, jobMeta } = setup({
+        user: userWithNullStripe
+      });
 
       await handler.handle(job, jobMeta);
 
       expect(walletSettingRepository.findInternalByUserIdWithRelations).toHaveBeenCalledWith(job.userId);
-      expect(loggerService.info).toHaveBeenCalledWith({
+      expect(loggerService.error).toHaveBeenCalledWith({
         event: "USER_STRIPE_CUSTOMER_ID_NOT_SET",
         message: "User stripe customer ID not set. Skipping wallet balance reload check.",
         userId: job.userId
@@ -234,35 +262,47 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     });
 
     it("logs validation error when default payment method cannot be retrieved", async () => {
-      const { handler, walletSettingRepository, balancesService, stripeService, loggerService, walletSettingWithWallet, job, jobMeta } = setup();
-      const balance = generateBalance({ balance: 15.0, deployments: 0, total: 15.0 });
-      walletSettingRepository.findInternalByUserIdWithRelations.mockResolvedValue(walletSettingWithWallet);
-      balancesService.getFullBalanceInFiat.mockResolvedValue(balance);
-      const error = createHttpError(404, "Default payment method not found", { source: "stripe" });
-      stripeService.getDefaultPaymentMethod.mockRejectedValue(error);
+      const balance = 15.0;
+
+      const { handler, loggerService, stripeService, job, jobMeta } = setup({
+        balance: { total: balance }
+      });
+      stripeService.getDefaultPaymentMethod.mockResolvedValue(undefined);
 
       await handler.handle(job, jobMeta);
 
-      expect(walletSettingRepository.findInternalByUserIdWithRelations).toHaveBeenCalledWith(job.userId);
-      expect(loggerService.info).toHaveBeenCalledWith({
-        event: "ERROR_RETRIEVING_DEFAULT_PAYMENT_METHOD",
+      expect(loggerService.error).toHaveBeenCalledWith({
+        event: "DEFAULT_PAYMENT_METHOD_NOT_FOUND",
         message: "Default payment method not found",
-        source: "stripe",
         userId: job.userId
       });
     });
   });
 
-  function setup() {
-    const user = UserSeeder.create();
-    const userWithStripe = { ...user, stripeCustomerId: faker.string.uuid() };
-    const wallet = UserWalletSeeder.create({ userId: user.id });
+  function setup(input?: {
+    balance?: { total: number };
+    weeklyCostInDenom?: number;
+    weeklyCostInFiat?: number;
+    jobId?: string | null;
+    walletSettingNotFound?: boolean;
+    autoReloadEnabled?: boolean;
+    wallet?: ReturnType<typeof UserWalletSeeder.create>;
+    user?: ReturnType<typeof UserSeeder.create>;
+  }) {
+    const user = input?.user ?? UserSeeder.create();
+    const userWithStripe =
+      input?.user && input.user.stripeCustomerId === null
+        ? user
+        : input?.user && input.user.stripeCustomerId
+          ? user
+          : user.stripeCustomerId
+            ? user
+            : { ...user, stripeCustomerId: faker.string.uuid() };
+    const wallet = input?.wallet ?? UserWalletSeeder.create({ userId: user.id });
     const walletSetting = generateWalletSetting({
       userId: user.id,
       walletId: wallet.id,
-      autoReloadEnabled: true,
-      autoReloadThreshold: 30.0,
-      autoReloadAmount: 100.0
+      autoReloadEnabled: input?.autoReloadEnabled ?? true
     });
     const walletSettingWithWallet = {
       ...walletSetting,
@@ -282,19 +322,47 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
 
     const walletSettingRepository = mock<WalletSettingRepository>();
     const balancesService = mock<BalancesService>();
+    const walletReloadJobService = mock<WalletReloadJobService>();
+    const drainingDeploymentService = mock<DrainingDeploymentService>();
     const stripeService = mock<StripeService>();
-    stripeService.getDefaultPaymentMethod.mockResolvedValue(generatePaymentMethod());
-    const jobQueueService = mock<JobQueueService>();
     const loggerService = mock<LoggerService>();
 
-    const handler = new WalletBalanceReloadCheckHandler(walletSettingRepository, balancesService, jobQueueService, stripeService, loggerService);
+    const balance = input?.balance ?? { total: 50.0 };
+    const weeklyCostInDenom = input?.weeklyCostInDenom ?? 50_000_000;
+    const weeklyCostInFiat = input?.weeklyCostInFiat ?? 50.0;
+    const jobId = input?.jobId ?? faker.string.uuid();
+
+    if (input?.walletSettingNotFound) {
+      walletSettingRepository.findInternalByUserIdWithRelations.mockResolvedValue(undefined);
+    } else {
+      walletSettingRepository.findInternalByUserIdWithRelations.mockResolvedValue(walletSettingWithWallet);
+    }
+
+    if (!input?.walletSettingNotFound && userWithStripe.stripeCustomerId) {
+      balancesService.getFullBalanceInFiat.mockResolvedValue(generateBalance(balance));
+      balancesService.toFiatAmount.mockResolvedValue(weeklyCostInFiat);
+      drainingDeploymentService.calculateAllDeploymentCostUntilDate.mockResolvedValue(weeklyCostInDenom);
+      stripeService.getDefaultPaymentMethod.mockResolvedValue(generatePaymentMethod());
+    }
+
+    walletReloadJobService.scheduleForWalletSetting.mockResolvedValue(jobId);
+
+    const handler = new WalletBalanceReloadCheckHandler(
+      walletSettingRepository,
+      balancesService,
+      walletReloadJobService,
+      stripeService,
+      drainingDeploymentService,
+      loggerService
+    );
 
     return {
       handler,
       walletSettingRepository,
       balancesService,
+      walletReloadJobService,
+      drainingDeploymentService,
       stripeService,
-      jobQueueService,
       loggerService,
       walletSetting,
       walletSettingWithWallet,

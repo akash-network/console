@@ -95,7 +95,8 @@ describe(JobQueueService.name, () => {
       expect(logger.info).toHaveBeenCalledWith({
         event: "JOB_ENQUEUED",
         job,
-        jobId: "job-id-123"
+        jobId: "job-id-123",
+        options: { startAfter: expect.any(Date) }
       });
       expect(result).toBe("job-id-123");
     });

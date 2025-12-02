@@ -1,3 +1,4 @@
+import { MsgAccountDeposit } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { MsgCreateLease } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 import type { LeaseHttpService } from "@akashnetwork/http-sdk";
@@ -13,6 +14,7 @@ import type { UserWalletRepository } from "@src/billing/repositories";
 import type { BalancesService } from "@src/billing/services/balances/balances.service";
 import type { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import type { TrialValidationService } from "@src/billing/services/trial-validation/trial-validation.service";
+import type { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import type { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import type { FeatureFlagValue } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
@@ -487,6 +489,94 @@ describe(ManagedSignerService.name, () => {
     });
   });
 
+  describe("executeDerivedEncodedTxByUserId", () => {
+    it("executes transaction and calls scheduleImmediate when transaction contains MsgCreateDeployment", async () => {
+      const wallet = UserWalletSeeder.create({
+        userId: "user-123",
+        feeAllowance: 100,
+        deploymentAllowance: 100
+      });
+      const user = UserSeeder.create({ userId: "user-123" });
+      const deploymentMessage = {
+        typeUrl: MsgCreateDeployment.$type,
+        value: Buffer.from(JSON.stringify({ id: { dseq: "123", owner: wallet.address } })).toString("base64")
+      };
+
+      const { service, walletReloadJobService } = setup({
+        findOneByUserId: jest.fn().mockResolvedValue(wallet),
+        findById: jest.fn().mockResolvedValue(user),
+        signAndBroadcastWithDerivedWallet: jest.fn().mockResolvedValue({
+          code: 0,
+          hash: "tx-hash",
+          rawLog: "success"
+        }),
+        refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined),
+        decode: jest.fn().mockReturnValue({ id: { dseq: "123", owner: wallet.address } })
+      });
+
+      await service.executeDerivedEncodedTxByUserId("user-123", [deploymentMessage]);
+
+      expect(walletReloadJobService.scheduleImmediate).toHaveBeenCalledWith("user-123");
+    });
+
+    it("executes transaction and calls scheduleImmediate when transaction contains MsgAccountDeposit", async () => {
+      const wallet = UserWalletSeeder.create({
+        userId: "user-123",
+        feeAllowance: 100
+      });
+      const user = UserSeeder.create({ userId: "user-123" });
+      const depositMessage = {
+        typeUrl: MsgAccountDeposit.$type,
+        value: Buffer.from(JSON.stringify({ owner: wallet.address, amount: "1000" })).toString("base64")
+      };
+
+      const { service, walletReloadJobService } = setup({
+        findOneByUserId: jest.fn().mockResolvedValue(wallet),
+        findById: jest.fn().mockResolvedValue(user),
+        signAndBroadcastWithDerivedWallet: jest.fn().mockResolvedValue({
+          code: 0,
+          hash: "tx-hash",
+          rawLog: "success"
+        }),
+        refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined),
+        decode: jest.fn().mockReturnValue({ owner: wallet.address, amount: "1000" })
+      });
+
+      await service.executeDerivedEncodedTxByUserId("user-123", [depositMessage]);
+
+      expect(walletReloadJobService.scheduleImmediate).toHaveBeenCalledWith("user-123");
+    });
+
+    it("executes transaction and does not call scheduleImmediate when transaction does not contain spending messages", async () => {
+      const wallet = UserWalletSeeder.create({
+        userId: "user-123",
+        feeAllowance: 100,
+        deploymentAllowance: 100
+      });
+      const user = UserSeeder.create({ userId: "user-123" });
+      const leaseMessage = {
+        typeUrl: MsgCreateLease.$type,
+        value: Buffer.from(JSON.stringify({ bidId: { dseq: "123" } })).toString("base64")
+      };
+
+      const { service, walletReloadJobService } = setup({
+        findOneByUserId: jest.fn().mockResolvedValue(wallet),
+        findById: jest.fn().mockResolvedValue(user),
+        signAndBroadcastWithDerivedWallet: jest.fn().mockResolvedValue({
+          code: 0,
+          hash: "tx-hash",
+          rawLog: "success"
+        }),
+        refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined),
+        decode: jest.fn().mockReturnValue({ bidId: { dseq: "123" } })
+      });
+
+      await service.executeDerivedEncodedTxByUserId("user-123", [leaseMessage]);
+
+      expect(walletReloadJobService.scheduleImmediate).not.toHaveBeenCalled();
+    });
+  });
+
   function setup(input?: {
     findOneByUserId?: UserWalletRepository["findOneByUserId"];
     findById?: UserRepository["findById"];
@@ -500,6 +590,7 @@ describe(ManagedSignerService.name, () => {
     publish?: DomainEventsService["publish"];
     transformChainError?: ChainErrorService["toAppError"];
     hasLeases?: LeaseHttpService["hasLeases"];
+    decode?: Registry["decode"];
   }) {
     const mocks = {
       userWalletRepository: mock<UserWalletRepository>({
@@ -536,11 +627,18 @@ describe(ManagedSignerService.name, () => {
       }),
       leaseHttpService: mock<LeaseHttpService>({
         hasLeases: input?.hasLeases ?? jest.fn(async () => false)
+      }),
+      walletReloadJobService: mock<WalletReloadJobService>({
+        scheduleImmediate: jest.fn()
       })
     };
 
+    const registryMock = mock<Registry>({
+      decode: input?.decode ?? jest.fn()
+    });
+
     const service = new ManagedSignerService(
-      mock<Registry>(),
+      registryMock,
       mocks.userWalletRepository,
       mocks.userRepository,
       mocks.balancesService,
@@ -550,9 +648,10 @@ describe(ManagedSignerService.name, () => {
       mocks.featureFlagsService,
       mocks.txManagerService,
       mocks.domainEvents,
-      mocks.leaseHttpService
+      mocks.leaseHttpService,
+      mocks.walletReloadJobService
     );
 
-    return { service, ...mocks };
+    return { service, registry: registryMock, ...mocks };
   }
 });

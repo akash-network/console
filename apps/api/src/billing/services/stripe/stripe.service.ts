@@ -119,7 +119,7 @@ export class StripeService extends Stripe {
       .sort((a, b) => b.created - a.created);
   }
 
-  async getDefaultPaymentMethod(user: PayingUser, ability: AnyAbility): Promise<PaymentMethod> {
+  async getDefaultPaymentMethod(user: PayingUser, ability: AnyAbility): Promise<PaymentMethod | undefined> {
     const [customer, local] = await Promise.all([
       this.customers.retrieve(user.stripeCustomerId, {
         expand: ["invoice_settings.default_payment_method"]
@@ -131,10 +131,9 @@ export class StripeService extends Stripe {
 
     const remote = customer.invoice_settings.default_payment_method as Stripe.PaymentMethod;
 
-    assert(local, 404, "Default payment method not found", { source: "database" });
-    assert(remote, 404, "Default payment method not found", { source: "stripe" });
-
-    return { ...remote, validated: local.isValidated };
+    if (remote && local) {
+      return { ...remote, validated: local.isValidated };
+    }
   }
 
   async hasPaymentMethod(paymentMethodId: string, user: UserOutput): Promise<boolean> {

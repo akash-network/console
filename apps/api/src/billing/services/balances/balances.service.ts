@@ -111,21 +111,25 @@ export class BalancesService {
 
   @Memoize({ ttlInSeconds: averageBlockTime })
   async getFullBalanceInFiat(address: string, isOldWallet: boolean = false): Promise<GetBalancesResponseOutput["data"]> {
-    const coin = this.config.DEPLOYMENT_GRANT_DENOM === "uakt" ? "akash-network" : "usd-coin";
-    const [fullBalance, stats] = await Promise.all([this.getFullBalance(address, isOldWallet), this.statsService.getMarketData(coin)]);
+    const { data } = await this.getFullBalance(address, isOldWallet);
 
-    const balance = this.#toFiatAmount(fullBalance.data.balance * stats.price);
-    const deployments = this.#toFiatAmount(fullBalance.data.deployments * stats.price);
-    const total = this.#formatFiatAmount(balance + deployments);
+    const balance = await this.toFiatAmount(data.balance);
+    const deployments = await this.toFiatAmount(data.deployments);
+    const total = this.ensure2floatingDigits(balance + deployments);
 
     return { balance, deployments, total };
   }
 
-  #toFiatAmount(uTokenAmount: number) {
-    return this.#formatFiatAmount(uTokenAmount / 1_000_000);
+  async toFiatAmount(uTokenAmount: number) {
+    return this.ensure2floatingDigits(await this.#convertToFiatAmount(uTokenAmount / 1_000_000));
   }
 
-  #formatFiatAmount(amount: number) {
+  async #convertToFiatAmount(amount: number): Promise<number> {
+    const coin = this.config.DEPLOYMENT_GRANT_DENOM === "uakt" ? "akash-network" : "usd-coin";
+    return await this.statsService.convertToFiatAmount(amount, coin);
+  }
+
+  ensure2floatingDigits(amount: number) {
     return parseFloat(amount.toFixed(2));
   }
 }

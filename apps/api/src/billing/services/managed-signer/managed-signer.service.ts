@@ -1,3 +1,5 @@
+import { MsgAccountDeposit } from "@akashnetwork/chain-sdk/private-types/akash.v1";
+import { MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { MsgCreateLease } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 import { LeaseHttpService } from "@akashnetwork/http-sdk";
 import { EncodeObject, Registry } from "@cosmjs/proto-signing";
@@ -11,6 +13,7 @@ import { TrialDeploymentLeaseCreated } from "@src/billing/events/trial-deploymen
 import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provider";
 import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
+import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
@@ -34,7 +37,8 @@ export class ManagedSignerService {
     private readonly featureFlagsService: FeatureFlagsService,
     private readonly txManagerService: TxManagerService,
     private readonly domainEvents: DomainEventsService,
-    private readonly leaseHttpService: LeaseHttpService
+    private readonly leaseHttpService: LeaseHttpService,
+    private readonly walletReloadJobService: WalletReloadJobService
   ) {}
 
   async executeDerivedTx(walletIndex: number, messages: readonly EncodeObject[], useOldWallet: boolean = false) {
@@ -62,7 +66,16 @@ export class ManagedSignerService {
   }
 
   async executeDerivedEncodedTxByUserId(userId: UserWalletOutput["userId"], messages: StringifiedEncodeObject[]) {
-    return this.executeDerivedDecodedTxByUserId(userId, this.decodeMessages(messages));
+    const decoded = this.decodeMessages(messages);
+    const result = await this.executeDerivedDecodedTxByUserId(userId, decoded);
+
+    const hasSpendingTx = decoded.some(message => message.typeUrl.endsWith(MsgCreateDeployment.$type) || message.typeUrl.endsWith(MsgAccountDeposit.$type));
+
+    if (hasSpendingTx) {
+      await this.walletReloadJobService.scheduleImmediate(userId);
+    }
+
+    return result;
   }
 
   async executeDerivedDecodedTxByUserId(

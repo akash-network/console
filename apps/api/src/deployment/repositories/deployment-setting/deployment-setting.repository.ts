@@ -38,7 +38,7 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     return new DeploymentSettingRepository(this.pg, this.table, this.txManager).withAbility(...abilityParams) as this;
   }
 
-  async *paginateAutoTopUpDeployments(options: { limit: number }): AsyncGenerator<AutoTopUpDeployment[]> {
+  async *paginateAutoTopUpDeployments(options: { address?: string; limit: number }): AsyncGenerator<AutoTopUpDeployment[]> {
     let lastId: string | undefined;
 
     do {
@@ -46,6 +46,10 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
 
       if (lastId) {
         clauses.push(lt(this.table.id, lastId));
+      }
+
+      if (options.address) {
+        clauses.push(eq(UserWallets.address, options.address));
       }
 
       const items = await this.pg
