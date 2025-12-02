@@ -1,5 +1,12 @@
 
 
+## [3.9.2](https://github.com/akash-network/console/compare/console-api/v3.9.1...console-api/v3.9.2) (2025-12-02)
+
+
+### Bug Fixes
+
+* uses non-cached getCurrentHeight ([#2310](https://github.com/akash-network/console/issues/2310)) ([1868e35](https://github.com/akash-network/console/commit/1868e3586a60b1abb605d4704d7f6a2874b50c7a))
+
 ## [3.9.1](https://github.com/akash-network/console/compare/console-api/v3.9.0...console-api/v3.9.1) (2025-12-02)
 
 
