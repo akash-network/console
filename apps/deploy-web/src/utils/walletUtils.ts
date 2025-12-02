@@ -26,6 +26,10 @@ interface CustodialLocalWallet extends BaseLocalWallet {
 }
 export type LocalWallet = ManagedLocalWallet | CustodialLocalWallet;
 
+function getManagedWalletsStorageKey(networkId: NetworkId): string {
+  return `${networkId}/managed-wallets`;
+}
+
 export function getSelectedStorageWallet() {
   const wallets = getStorageWallets();
 
@@ -42,7 +46,7 @@ export function getStorageManagedWallet(userId?: string, networkId?: NetworkId):
   }
 
   const selectedNetworkId: NetworkId = networkId || browserEnvConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID;
-  const key = `${selectedNetworkId}/managed-wallets`;
+  const key = getManagedWalletsStorageKey(selectedNetworkId);
   const walletsMapStr = localStorage.getItem(key);
 
   if (!walletsMapStr) {
@@ -75,7 +79,7 @@ export function updateStorageManagedWallet(
     return next;
   }
 
-  const key = `${networkId}/managed-wallets`;
+  const key = getManagedWalletsStorageKey(networkId);
   const walletsMapStr = localStorage.getItem(key);
   const walletsMap: Record<string, ManagedLocalWallet> = walletsMapStr ? JSON.parse(walletsMapStr) : {};
 
@@ -93,7 +97,7 @@ export function deleteManagedWalletFromStorage(userId: string, networkId?: Netwo
   const wallet = getStorageManagedWallet(userId, networkId);
   if (wallet) {
     const selectedNetworkId: NetworkId = networkId || browserEnvConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID;
-    const key = `${selectedNetworkId}/managed-wallets`;
+    const key = getManagedWalletsStorageKey(selectedNetworkId);
     const walletsMapStr = localStorage.getItem(key);
 
     if (walletsMapStr) {
@@ -119,7 +123,7 @@ export function getStorageWallets(networkId?: NetworkId) {
   const selectedNetworkId: NetworkId = networkId || networkStore.selectedNetworkId;
   const wallets = JSON.parse(localStorage.getItem(`${selectedNetworkId}/wallets`) || "[]") as LocalWallet[];
 
-  const managedWalletsKey = `${selectedNetworkId}/managed-wallets`;
+  const managedWalletsKey = getManagedWalletsStorageKey(selectedNetworkId);
   const managedWalletsMapStr = localStorage.getItem(managedWalletsKey);
 
   if (managedWalletsMapStr) {
@@ -161,14 +165,14 @@ export function updateWallet(address: string, func: (w: LocalWallet) => LocalWal
   }
 }
 
-export function updateStorageWallets(wallets: LocalWallet[], networkId?: string) {
+export function updateStorageWallets(wallets: LocalWallet[], networkId?: NetworkId) {
   const selectedNetworkId = networkId || networkStore.selectedNetworkId;
 
   const managedWallets = wallets.filter(w => w.isManaged) as ManagedLocalWallet[];
   const custodialWallets = wallets.filter(w => !w.isManaged);
 
   if (managedWallets.length > 0) {
-    const managedWalletsKey = `${selectedNetworkId}/managed-wallets`;
+    const managedWalletsKey = getManagedWalletsStorageKey(selectedNetworkId);
     const existingMapStr = localStorage.getItem(managedWalletsKey);
     const existingMap: Record<string, ManagedLocalWallet> = existingMapStr ? JSON.parse(existingMapStr) : {};
 
