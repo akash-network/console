@@ -7,7 +7,7 @@ import { useSelectedChain } from "@src/context/CustomChainProvider";
 import { useUser } from "@src/hooks/useUser";
 import { useCreateManagedWalletMutation, useManagedWalletQuery } from "@src/queries/useManagedWalletQuery";
 import walletStore from "@src/store/walletStore";
-import { deleteManagedWalletFromStorage, ensureUserManagedWalletOwnership, getSelectedStorageWallet, updateStorageManagedWallet } from "@src/utils/walletUtils";
+import { ensureUserManagedWalletOwnership, getSelectedStorageWallet, updateStorageManagedWallet } from "@src/utils/walletUtils";
 import { useCustomUser } from "./useCustomUser";
 
 const { NEXT_PUBLIC_BILLING_ENABLED } = browserEnvConfig;
@@ -18,7 +18,7 @@ export const useManagedWallet = () => {
   const { user: signedInUser } = useCustomUser();
   const userWallet = useSelectedChain();
   const [selectedWalletType, setSelectedWalletType] = useAtom(walletStore.selectedWalletType);
-  const { data: queried, isFetched, isLoading: isInitialLoading, isFetching, refetch } = useManagedWalletQuery(isBillingEnabled ? user?.id : undefined);
+  const { data: queried, isLoading: isInitialLoading, isFetching, refetch } = useManagedWalletQuery(isBillingEnabled ? user?.id : undefined);
   const { mutate: create, data: created, isPending: isCreating, isSuccess: isCreated, error: createError } = useCreateManagedWalletMutation();
   const wallet = useMemo(() => (queried || created) as ApiManagedWalletOutput, [queried, created]);
   const isLoading = isInitialLoading || isCreating;
@@ -44,12 +44,10 @@ export const useManagedWallet = () => {
 
     if (wallet && isCreated) {
       updateStorageManagedWallet({ ...wallet, selected: true });
-    } else if (isFetched && !wallet) {
-      deleteManagedWalletFromStorage();
     } else if (wallet) {
       updateStorageManagedWallet(wallet);
     }
-  }, [isFetched, isCreated, wallet]);
+  }, [isCreated, wallet]);
 
   useEffect(() => {
     if (user?.id && !user.userId) {

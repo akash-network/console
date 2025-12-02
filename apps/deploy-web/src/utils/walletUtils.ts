@@ -32,53 +32,81 @@ export function getSelectedStorageWallet() {
   return wallets.find(w => w.selected) ?? wallets[0] ?? null;
 }
 
-export function getStorageManagedWallet(networkId?: NetworkId): ManagedLocalWallet | undefined {
-  return getStorageWallets(networkId).find(wallet => wallet.isManaged) as ManagedLocalWallet | undefined;
+export function getStorageManagedWallet(userId?: string, networkId?: NetworkId): ManagedLocalWallet | undefined {
+  if (!userId) {
+    return undefined;
+  }
+
+  if (typeof window === "undefined") {
+    return undefined;
+  }
+
+  const selectedNetworkId: NetworkId = networkId || browserEnvConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID;
+  const key = `${selectedNetworkId}/managed-wallets`;
+  const walletsMapStr = localStorage.getItem(key);
+
+  if (!walletsMapStr) {
+    return undefined;
+  }
+
+  try {
+    const walletsMap = JSON.parse(walletsMapStr) as Record<string, ManagedLocalWallet>;
+    return walletsMap[userId];
+  } catch {
+    return undefined;
+  }
 }
 
 export function updateStorageManagedWallet(
   wallet: Pick<ManagedLocalWallet, "address" | "cert" | "certKey" | "userId" | "creditAmount" | "isTrialing"> & { selected?: boolean }
 ): ManagedLocalWallet {
   const networkId = browserEnvConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID;
-  const wallets = getStorageWallets(networkId);
-  const prevIndex = wallets.findIndex(({ isManaged }) => isManaged);
-  const prev = wallets[prevIndex];
+  const prev = getStorageManagedWallet(wallet.userId, networkId);
 
   const next: ManagedLocalWallet = {
     ...prev,
     ...wallet,
     name: "Managed Wallet",
     isManaged: true,
-    selected: typeof wallet.selected === "boolean" ? wallet.selected : typeof prev?.selected === "boolean" ? prev.selected : false
+    selected: typeof wallet.selected === "boolean" ? wallet.selected : prev?.selected ?? false
   };
 
   if (isEqual(prev, next)) {
     return next;
   }
 
-  if (prev && prev?.address !== next.address) {
-    deleteManagedWalletFromStorage();
-  }
+  const key = `${networkId}/managed-wallets`;
+  const walletsMapStr = localStorage.getItem(key);
+  const walletsMap: Record<string, ManagedLocalWallet> = walletsMapStr ? JSON.parse(walletsMapStr) : {};
 
-  if (next.selected && !prev?.selected) {
-    wallets.forEach(item => {
-      item.selected = false;
-    });
-  }
-
-  if (prevIndex !== -1) {
-    wallets.splice(prevIndex, 1, next);
-  } else {
-    wallets.push(next);
-  }
-  updateStorageWallets(wallets, networkId);
+  walletsMap[wallet.userId] = next;
+  localStorage.setItem(key, JSON.stringify(walletsMap));
 
   return next;
 }
 
-export function deleteManagedWalletFromStorage(networkId?: NetworkId) {
-  const wallet = getStorageManagedWallet(networkId);
+export function deleteManagedWalletFromStorage(userId: string, networkId?: NetworkId) {
+  if (!userId) {
+    return;
+  }
+
+  const wallet = getStorageManagedWallet(userId, networkId);
   if (wallet) {
+    const selectedNetworkId: NetworkId = networkId || browserEnvConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID;
+    const key = `${selectedNetworkId}/managed-wallets`;
+    const walletsMapStr = localStorage.getItem(key);
+
+    if (walletsMapStr) {
+      const walletsMap: Record<string, ManagedLocalWallet> = JSON.parse(walletsMapStr);
+      delete walletsMap[userId];
+
+      if (Object.keys(walletsMap).length > 0) {
+        localStorage.setItem(key, JSON.stringify(walletsMap));
+      } else {
+        localStorage.removeItem(key);
+      }
+    }
+
     deleteWalletFromStorage(wallet.address, true, networkId);
   }
 }
@@ -91,7 +119,34 @@ export function getStorageWallets(networkId?: NetworkId) {
   const selectedNetworkId: NetworkId = networkId || networkStore.selectedNetworkId;
   const wallets = JSON.parse(localStorage.getItem(`${selectedNetworkId}/wallets`) || "[]") as LocalWallet[];
 
-  return wallets || [];
+  const managedWalletsKey = `${selectedNetworkId}/managed-wallets`;
+  const managedWalletsMapStr = localStorage.getItem(managedWalletsKey);
+
+  if (managedWalletsMapStr) {
+    try {
+      const managedWalletsMap = JSON.parse(managedWalletsMapStr) as Record<string, ManagedLocalWallet>;
+      const managedWallets = Object.values(managedWalletsMap);
+
+      const managedWalletAddresses = new Set(managedWallets.map(w => w.address));
+      const custodialWallets = wallets.filter(w => !w.isManaged || !managedWalletAddresses.has(w.address));
+
+      const selectedManagedWallet = managedWallets.find(w => w.selected);
+      const mergedWallets = [...custodialWallets, ...managedWallets];
+
+      if (selectedManagedWallet) {
+        return mergedWallets.map(w => ({
+          ...w,
+          selected: w.address === selectedManagedWallet.address && w.isManaged
+        }));
+      }
+
+      return mergedWallets;
+    } catch {
+      return wallets;
+    }
+  }
+
+  return wallets;
 }
 
 export function updateWallet(address: string, func: (w: LocalWallet) => LocalWallet, networkId?: NetworkId) {
@@ -108,7 +163,23 @@ export function updateWallet(address: string, func: (w: LocalWallet) => LocalWal
 
 export function updateStorageWallets(wallets: LocalWallet[], networkId?: string) {
   const selectedNetworkId = networkId || networkStore.selectedNetworkId;
-  localStorage.setItem(`${selectedNetworkId}/wallets`, JSON.stringify(wallets));
+
+  const managedWallets = wallets.filter(w => w.isManaged) as ManagedLocalWallet[];
+  const custodialWallets = wallets.filter(w => !w.isManaged);
+
+  if (managedWallets.length > 0) {
+    const managedWalletsKey = `${selectedNetworkId}/managed-wallets`;
+    const existingMapStr = localStorage.getItem(managedWalletsKey);
+    const existingMap: Record<string, ManagedLocalWallet> = existingMapStr ? JSON.parse(existingMapStr) : {};
+
+    managedWallets.forEach(wallet => {
+      existingMap[wallet.userId] = wallet;
+    });
+
+    localStorage.setItem(managedWalletsKey, JSON.stringify(existingMap));
+  }
+
+  localStorage.setItem(`${selectedNetworkId}/wallets`, JSON.stringify(custodialWallets));
 }
 
 export function deleteWalletFromStorage(address: string, deleteDeployments: boolean, networkId?: NetworkId) {
@@ -136,9 +207,15 @@ export function useSelectedWalletFromStorage() {
 }
 
 export function ensureUserManagedWalletOwnership(userId: string) {
-  const wallet = getStorageManagedWallet();
+  const networkId = browserEnvConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID;
+  const wallet = getStorageManagedWallet(userId, networkId);
 
-  if (wallet?.userId !== userId) {
-    deleteManagedWalletFromStorage();
+  if (wallet) {
+    updateStorageManagedWallet({ ...wallet, selected: true });
+
+    const wallets = getStorageWallets(networkId);
+    const updatedWallets = wallets.filter(w => !w.isManaged).map(w => ({ ...w, selected: false }));
+
+    updateStorageWallets(updatedWallets, networkId);
   }
 }
