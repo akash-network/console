@@ -2,6 +2,7 @@ import type { NetworkId } from "@akashnetwork/chain-sdk/web";
 import { isEqual } from "lodash";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
+import { services } from "@src/services/app-di-container/browser-di-container";
 import networkStore from "@src/store/networkStore";
 
 interface BaseLocalWallet {
@@ -83,7 +84,12 @@ export function updateStorageManagedWallet(
     try {
       walletsMap = JSON.parse(walletsMapStr);
     } catch (error) {
-      console.debug("Failed to parse managed wallets from localStorage, using empty object", error);
+      services.errorHandler.reportError({
+        error,
+        severity: "warning",
+        tags: { context: "walletUtils.updateStorageManagedWallet" },
+        walletsMapStr
+      });
     }
   }
 
@@ -115,7 +121,13 @@ export function deleteManagedWalletFromStorage(userId: string, networkId?: Netwo
           localStorage.removeItem(key);
         }
       } catch (error) {
-        console.debug("Failed to parse managed wallets from localStorage, removing key", error);
+        services.errorHandler.reportError({
+          error,
+          severity: "warning",
+          tags: { context: "walletUtils.deleteManagedWalletFromStorage" },
+          walletsMapStr,
+          userId
+        });
         localStorage.removeItem(key);
       }
     }
@@ -189,7 +201,12 @@ export function updateStorageWallets(wallets: LocalWallet[], networkId?: Network
       try {
         existingMap = JSON.parse(existingMapStr);
       } catch (error) {
-        console.debug("Failed to parse managed wallets from localStorage, using empty object", error);
+        services.errorHandler.reportError({
+          error,
+          severity: "warning",
+          tags: { context: "walletUtils.updateStorageWallets" },
+          existingMapStr
+        });
       }
     }
 
