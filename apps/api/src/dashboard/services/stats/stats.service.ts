@@ -394,6 +394,11 @@ export class StatsService {
     };
   }
 
+  async convertToFiatAmount(amount: number, denom: MarketDataParams["coin"]): Promise<number> {
+    const marketData = await this.getMarketData(denom);
+    return amount * marketData.price;
+  }
+
   async getLeasesDuration(owner: LeasesDurationParams["owner"], query: LeasesDurationQuery): Promise<LeasesDurationResponse> {
     const { dseq, startDate, endDate } = query;
     const closedLeases = await Lease.findAll({

@@ -1,4 +1,4 @@
-import { and, desc, eq, lt } from "drizzle-orm";
+import { and, desc, eq, isNotNull, lt } from "drizzle-orm";
 import { last } from "lodash";
 import { singleton } from "tsyringe";
 
@@ -38,7 +38,7 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     return new DeploymentSettingRepository(this.pg, this.table, this.txManager).withAbility(...abilityParams) as this;
   }
 
-  async *paginateAutoTopUpDeployments(options: { limit: number }): AsyncGenerator<AutoTopUpDeployment[]> {
+  async *paginateAutoTopUpDeployments(options: { address?: string; limit: number }): AsyncGenerator<AutoTopUpDeployment[]> {
     let lastId: string | undefined;
 
     do {
@@ -48,7 +48,7 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
         clauses.push(lt(this.table.id, lastId));
       }
 
-      const items = await this.pg
+      const query = this.pg
         .select({
           id: this.table.id,
           dseq: this.table.dseq,
@@ -57,8 +57,17 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
           isOldWallet: UserWallets.isOldWallet
         })
         .from(this.table)
-        .leftJoin(Users, eq(this.table.userId, Users.id))
-        .leftJoin(UserWallets, eq(Users.id, UserWallets.userId))
+        .leftJoin(Users, eq(this.table.userId, Users.id));
+
+      if (options.address) {
+        query.innerJoin(UserWallets, eq(Users.id, UserWallets.userId));
+        clauses.push(eq(UserWallets.address, options.address));
+      } else {
+        query.leftJoin(UserWallets, eq(Users.id, UserWallets.userId));
+        clauses.push(isNotNull(UserWallets.address));
+      }
+
+      const items = await query
         .where(and(...clauses))
         .limit(options.limit)
         .orderBy(desc(this.table.id));
@@ -66,7 +75,6 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
       lastId = last(items)?.id;
 
       if (items.length) {
-        // BUGALERT: walletId may be null because of LEFT JOIN. should be INNER JOIN?
         yield items as AutoTopUpDeployment[];
       }
     } while (lastId);

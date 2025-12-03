@@ -5,7 +5,12 @@ import type { infer as ZodInfer } from "zod";
 
 import { AuthService, Protected } from "@src/auth/services/auth.service";
 import type { StripePricesOutputResponse } from "@src/billing";
-import { CustomerTransactionsCsvExportQuerySchema } from "@src/billing/http-schemas/stripe.schema";
+import {
+  CustomerTransactionsCsvExportQuerySchema,
+  PaymentMethodMarkAsDefaultInput,
+  PaymentMethodResponse,
+  PaymentMethodsResponse
+} from "@src/billing/http-schemas/stripe.schema";
 import {
   ApplyCouponRequest,
   ConfirmPaymentRequest,
@@ -42,30 +47,46 @@ export class StripeController {
     return { data: { clientSecret: setupIntent.client_secret } };
   }
 
-  @Protected([{ action: "read", subject: "StripePayment" }])
-  async getPaymentMethods(): Promise<{ data: Stripe.PaymentMethod[] }> {
-    const { currentUser } = this.authService;
+  @Protected([{ action: "update", subject: "PaymentMethod" }])
+  async markAsDefault(input: PaymentMethodMarkAsDefaultInput): Promise<void> {
+    const { ability } = this.authService;
+    const currentUser = this.authService.getCurrentPayingUser();
 
-    if (!currentUser.stripeCustomerId) {
-      return { data: [] };
+    await this.stripe.markPaymentMethodAsDefault(input.data.id, currentUser, ability);
+  }
+
+  @Protected([{ action: "read", subject: "PaymentMethod" }])
+  async getDefaultPaymentMethod(): Promise<PaymentMethodResponse> {
+    const { ability } = this.authService;
+    const currentUser = this.authService.getCurrentPayingUser();
+    const paymentMethod = await this.stripe.getDefaultPaymentMethod(currentUser, ability);
+
+    assert(paymentMethod, 404, "PaymentMethod not found");
+
+    return { data: paymentMethod };
+  }
+
+  @Protected([{ action: "read", subject: "PaymentMethod" }])
+  async getPaymentMethods(): Promise<PaymentMethodsResponse> {
+    const currentUser = this.authService.getCurrentPayingUser({ strict: false });
+
+    if (currentUser) {
+      const paymentMethods = await this.stripe.getPaymentMethods(currentUser.id, currentUser.stripeCustomerId);
+      return { data: paymentMethods };
     }
 
-    const paymentMethods = await this.stripe.getPaymentMethods(currentUser.id, currentUser.stripeCustomerId);
-    return { data: paymentMethods };
+    return { data: [] };
   }
 
   @Semaphore()
   @Protected([{ action: "create", subject: "StripePayment" }])
   async confirmPayment(params: ConfirmPaymentRequest["data"]): Promise<ConfirmPaymentResponse> {
-    const { currentUser } = this.authService;
+    const currentUser = this.authService.getCurrentPayingUser({ strict: false });
 
-    assert(currentUser.stripeCustomerId, 500, "Payment account not properly configured. Please contact support.");
+    assert(currentUser, 500, "Payment account not properly configured. Please contact support.");
 
     try {
-      // Verify payment method ownership
-      const paymentMethod = await this.stripe.paymentMethods.retrieve(params.paymentMethodId);
-      const customerId = typeof paymentMethod.customer === "string" ? paymentMethod.customer : paymentMethod.customer?.id;
-      assert(customerId === currentUser.stripeCustomerId, 403, "Payment method does not belong to the user");
+      assert(await this.stripe.hasPaymentMethod(params.paymentMethodId, currentUser), 403, "Payment method does not belong to the user");
 
       const result = await this.stripe.createPaymentIntent({
         customer: currentUser.stripeCustomerId,

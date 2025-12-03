@@ -1,5 +1,5 @@
-import { sql } from "drizzle-orm";
-import { boolean, index, integer, numeric, pgTable, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import { relations, sql } from "drizzle-orm";
+import { boolean, index, integer, pgTable, timestamp, unique, uuid } from "drizzle-orm/pg-core";
 
 import { UserWallets } from "@src/billing/model-schemas/user-wallet/user-wallet.schema";
 import { Users } from "@src/user/model-schemas";
@@ -18,14 +18,6 @@ export const WalletSetting = pgTable(
       .references(() => Users.id, { onDelete: "cascade" })
       .notNull(),
     autoReloadEnabled: boolean("auto_reload_enabled").default(false).notNull(),
-    autoReloadThreshold: numeric("auto_reload_threshold", {
-      precision: 20,
-      scale: 2
-    }),
-    autoReloadAmount: numeric("auto_reload_amount", {
-      precision: 20,
-      scale: 2
-    }),
     autoReloadJobId: uuid("auto_reload_job_id"),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow()
@@ -35,3 +27,14 @@ export const WalletSetting = pgTable(
     userIdIdx: index("wallet_settings_user_id_idx").on(table.userId)
   })
 );
+
+export const WalletSettingRelations = relations(WalletSetting, ({ one }) => ({
+  user: one(Users, {
+    fields: [WalletSetting.userId],
+    references: [Users.id]
+  }),
+  wallet: one(UserWallets, {
+    fields: [WalletSetting.walletId],
+    references: [UserWallets.id]
+  })
+}));

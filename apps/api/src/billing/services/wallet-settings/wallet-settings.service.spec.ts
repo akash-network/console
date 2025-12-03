@@ -2,20 +2,18 @@ import { createMongoAbility } from "@casl/ability";
 import { faker } from "@faker-js/faker";
 import { mock } from "jest-mock-extended";
 import { PostgresError } from "postgres";
-import { v4 as uuidv4 } from "uuid";
 
 import type { AuthService } from "@src/auth/services/auth.service";
-import { WalletBalanceReloadCheck } from "@src/billing/events/wallet-balance-reload-check";
 import type { UserWalletRepository, WalletSettingRepository } from "@src/billing/repositories";
-import type { JobQueueService } from "@src/core";
+import type { PaymentMethod, StripeService } from "@src/billing/services/stripe/stripe.service";
+import type { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
+import type { UserRepository } from "@src/user/repositories";
 import { WalletSettingService } from "./wallet-settings.service";
 
+import { generatePaymentMethod } from "@test/seeders/payment-method.seeder";
 import { UserSeeder } from "@test/seeders/user.seeder";
 import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
 import { generateWalletSetting } from "@test/seeders/wallet-setting.seeder";
-
-jest.mock("uuid");
-const uuidMock = uuidv4 as jest.MockedFn<typeof uuidv4>;
 
 describe(WalletSettingService.name, () => {
   describe("getWalletSetting", () => {
@@ -47,7 +45,7 @@ describe(WalletSettingService.name, () => {
         autoReloadEnabled: false,
         autoReloadThreshold: 20.75
       });
-      walletSettingRepository.findByUserId.mockResolvedValue(walletSetting as any);
+      walletSettingRepository.findByUserId.mockResolvedValue(walletSetting);
       walletSettingRepository.updateById.mockResolvedValue(updatedSetting as any);
 
       const result = await service.upsertWalletSetting(user.id, {
@@ -67,7 +65,7 @@ describe(WalletSettingService.name, () => {
     });
 
     it("creates new wallet setting when not exists", async () => {
-      const { user, userWalletRepository, userWallet, walletSettingRepository, jobQueueService, jobId, service } = setup();
+      const { user, userWalletRepository, userWallet, walletSettingRepository, walletReloadJobService, jobId, service } = setup();
       const newSetting = generateWalletSetting({
         userId: user.id,
         walletId: userWallet.id,
@@ -77,7 +75,7 @@ describe(WalletSettingService.name, () => {
       });
       walletSettingRepository.findByUserId.mockResolvedValue(undefined);
       walletSettingRepository.create.mockResolvedValue(newSetting);
-      jobQueueService.enqueue.mockResolvedValue(jobId);
+      walletReloadJobService.scheduleForWalletSetting.mockResolvedValue(jobId);
 
       const result = await service.upsertWalletSetting(user.id, {
         autoReloadEnabled: true,
@@ -97,11 +95,12 @@ describe(WalletSettingService.name, () => {
         autoReloadThreshold: 10.5,
         autoReloadAmount: 50.0
       });
-      expect(jobQueueService.enqueue).toHaveBeenCalledWith(expect.any(WalletBalanceReloadCheck), {
-        singletonKey: `WalletBalanceReloadCheck.${user.id}`,
-        id: jobId
-      });
-      expect(walletSettingRepository.updateById).toHaveBeenCalledWith(newSetting.id, { autoReloadJobId: jobId });
+      expect(walletReloadJobService.scheduleForWalletSetting).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: newSetting.id,
+          userId: user.id
+        })
+      );
     });
 
     it("retries the update in case of a race condition", async () => {
@@ -170,7 +169,7 @@ describe(WalletSettingService.name, () => {
     });
 
     it("updates existing setting using existing values when enabled is true and threshold and amount are not provided", async () => {
-      const { user, walletSetting, walletSettingRepository, jobQueueService, jobId, service } = setup();
+      const { user, walletSetting, walletSettingRepository, walletReloadJobService, jobId, service } = setup();
       const existingSetting = { ...walletSetting, autoReloadEnabled: false, autoReloadThreshold: 15.5, autoReloadAmount: 25.0 };
       const updatedSetting = generateWalletSetting({
         userId: user.id,
@@ -180,7 +179,7 @@ describe(WalletSettingService.name, () => {
       });
       walletSettingRepository.findByUserId.mockResolvedValue(existingSetting);
       walletSettingRepository.updateById.mockResolvedValue(updatedSetting as any);
-      jobQueueService.enqueue.mockResolvedValue(jobId);
+      walletReloadJobService.scheduleForWalletSetting.mockResolvedValue(jobId);
 
       const result = await service.upsertWalletSetting(user.id, {
         autoReloadEnabled: true
@@ -195,15 +194,16 @@ describe(WalletSettingService.name, () => {
         },
         { returning: true }
       );
-      expect(jobQueueService.enqueue).toHaveBeenCalledWith(expect.any(WalletBalanceReloadCheck), {
-        singletonKey: `WalletBalanceReloadCheck.${user.id}`,
-        id: jobId
-      });
-      expect(walletSettingRepository.updateById).toHaveBeenCalledWith(updatedSetting.id, { autoReloadJobId: jobId });
+      expect(walletReloadJobService.scheduleForWalletSetting).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: updatedSetting.id,
+          userId: user.id
+        })
+      );
     });
 
     it("cancels job when auto-reload is disabled", async () => {
-      const { user, walletSetting, walletSettingRepository, jobQueueService, service } = setup();
+      const { user, walletSetting, walletSettingRepository, walletReloadJobService, service } = setup();
       const existingJobId = faker.string.uuid();
       const existingSetting = { ...walletSetting, autoReloadEnabled: true, autoReloadJobId: existingJobId };
       const updatedSetting = {
@@ -228,7 +228,7 @@ describe(WalletSettingService.name, () => {
         },
         { returning: true }
       );
-      expect(jobQueueService.cancel).toHaveBeenCalledWith(WalletBalanceReloadCheck.name, existingJobId);
+      expect(walletReloadJobService.cancel).toHaveBeenCalledWith(user.id, existingJobId);
     });
 
     it("throws 400 when enabled is true and existing setting does not have threshold and amount", async () => {
@@ -275,11 +275,18 @@ describe(WalletSettingService.name, () => {
 
   function setup() {
     const user = UserSeeder.create();
+    const userWithStripe = { ...user, stripeCustomerId: faker.string.uuid() };
     const userWallet = UserWalletSeeder.create({ userId: user.id });
     const walletSettingRepository = mock<WalletSettingRepository>();
     walletSettingRepository.accessibleBy.mockReturnValue(walletSettingRepository);
     const userWalletRepository = mock<UserWalletRepository>();
     userWalletRepository.findOneByUserId.mockResolvedValue(userWallet);
+    const userRepository = mock<UserRepository>();
+    userRepository.findById.mockResolvedValue(userWithStripe);
+    const paymentMethod = { ...generatePaymentMethod(), validated: true };
+    const stripeService = mock<StripeService>({
+      getDefaultPaymentMethod: jest.fn().mockResolvedValue(paymentMethod as PaymentMethod)
+    });
     const walletSetting = generateWalletSetting({ userId: user.id });
     walletSettingRepository.findByUserId.mockResolvedValue(walletSetting);
     const ability = createMongoAbility();
@@ -288,22 +295,24 @@ describe(WalletSettingService.name, () => {
       ability
     });
     const jobId = faker.string.uuid();
-    uuidMock.mockReturnValue(jobId);
-    const jobQueueService = mock<JobQueueService>({
+    const walletReloadJobService = mock<WalletReloadJobService>({
+      scheduleForWalletSetting: jest.fn().mockResolvedValue(jobId),
       cancel: jest.fn().mockResolvedValue(undefined)
     });
-    const service = new WalletSettingService(walletSettingRepository, userWalletRepository, authService, jobQueueService);
+    const service = new WalletSettingService(walletSettingRepository, userWalletRepository, userRepository, stripeService, authService, walletReloadJobService);
     const { autoReloadJobId, ...publicSetting } = walletSetting;
 
     return {
-      user,
+      user: userWithStripe,
       userWallet,
       walletSetting,
       publicSetting,
       walletSettingRepository,
       userWalletRepository,
+      userRepository,
+      stripeService,
       authService,
-      jobQueueService,
+      walletReloadJobService,
       jobId,
       service
     };

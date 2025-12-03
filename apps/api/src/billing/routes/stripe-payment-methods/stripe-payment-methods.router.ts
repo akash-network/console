@@ -2,6 +2,8 @@ import { container } from "tsyringe";
 
 import { StripeController } from "@src/billing/controllers/stripe/stripe.controller";
 import {
+  PaymentMethodMarkAsDefaultInputSchema,
+  PaymentMethodResponseSchema,
   PaymentMethodsResponseSchema,
   RemovePaymentMethodParamsSchema,
   SetupIntentResponseSchema,
@@ -34,8 +36,65 @@ const setupIntentRoute = createRoute({
     }
   }
 });
+
 stripePaymentMethodsRouter.openapi(setupIntentRoute, async function createSetupIntent(c) {
   const response = await container.resolve(StripeController).createSetupIntent();
+  return c.json(response, 200);
+});
+
+const markAsDefaultRoute = createRoute({
+  method: "post",
+  path: `/v1/stripe/payment-methods/default`,
+  summary: "Marks a payment method as the default.",
+  tags: ["Payment"],
+  security: SECURITY_BEARER_OR_API_KEY,
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: PaymentMethodMarkAsDefaultInputSchema
+        }
+      }
+    }
+  },
+  responses: {
+    200: {
+      description: "Payment method is marked as the default successfully."
+    }
+  }
+});
+
+stripePaymentMethodsRouter.openapi(markAsDefaultRoute, async function markAsDefault(c) {
+  await container.resolve(StripeController).markAsDefault(c.req.valid("json"));
+  return c.json(undefined, 200);
+});
+
+const getDefaultPaymentMethodRoute = createRoute({
+  method: "get",
+  path: "/v1/stripe/payment-methods/default",
+  summary: "Get the default payment method for the current user",
+  description:
+    "Retrieves the default payment method associated with the current user's account, including card details, validation status, and billing information.",
+  tags: ["Payment"],
+  security: SECURITY_BEARER_OR_API_KEY,
+  request: {},
+  responses: {
+    200: {
+      description: "Default payment method retrieved successfully",
+      content: {
+        "application/json": {
+          schema: PaymentMethodResponseSchema
+        }
+      }
+    },
+    404: {
+      description: "Default payment method not found"
+    }
+  }
+});
+
+stripePaymentMethodsRouter.openapi(getDefaultPaymentMethodRoute, async function getDefaultPaymentMethod(c) {
+  const response = await container.resolve(StripeController).getDefaultPaymentMethod();
   return c.json(response, 200);
 });
 
@@ -59,6 +118,7 @@ const paymentMethodsRoute = createRoute({
     }
   }
 });
+
 stripePaymentMethodsRouter.openapi(paymentMethodsRoute, async function getPaymentMethods(c) {
   const response = await container.resolve(StripeController).getPaymentMethods();
   return c.json(response, 200);
@@ -80,6 +140,7 @@ const removePaymentMethodRoute = createRoute({
     }
   }
 });
+
 stripePaymentMethodsRouter.openapi(removePaymentMethodRoute, async function removePaymentMethod(c) {
   const { paymentMethodId } = c.req.valid("param");
   await container.resolve(StripeController).removePaymentMethod(paymentMethodId);
@@ -114,6 +175,7 @@ const validatePaymentMethodRoute = createRoute({
     }
   }
 });
+
 stripePaymentMethodsRouter.openapi(validatePaymentMethodRoute, async function validatePaymentMethod(c) {
   return c.json(await container.resolve(StripeController).validatePaymentMethodAfter3DS(c.req.valid("json")), 200);
 });

@@ -40,6 +40,7 @@ const route = createRoute({
     }
   }
 });
+
 stripeWebhook.openapi(route, async function routeStripeWebhook(c) {
   const sig = c.req.header("stripe-signature");
   if (!sig) {

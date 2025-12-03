@@ -80,22 +80,35 @@ export class JobQueueService implements Disposable {
    * @param options - The custom options to enqueue the job with.
    */
   async enqueue(job: Job, options?: EnqueueOptions): Promise<string | null> {
-    this.logger.info({
-      event: "JOB_ENQUEUED",
-      job
-    });
-
-    return await this.pgBoss.send({
+    const jobId = await this.pgBoss.send({
       name: job.name,
       data: { ...job.data, version: job.version },
       options
     });
+
+    this.logger.info({
+      event: "JOB_ENQUEUED",
+      job,
+      jobId,
+      options
+    });
+
+    return jobId;
   }
 
   async cancel(name: string, id: string): Promise<void> {
     await this.pgBoss.cancel(name, id);
     this.logger.info({
       event: "JOB_CANCELLED",
+      id,
+      name
+    });
+  }
+
+  async complete(name: string, id: string): Promise<void> {
+    await this.pgBoss.complete(name, id);
+    this.logger.info({
+      event: "JOB_COMPLETED",
       id,
       name
     });
@@ -139,7 +152,7 @@ export class JobQueueService implements Disposable {
               jobId: job.id
             });
             try {
-              await handler.handle(job.data);
+              await handler.handle(job.data, { id: job.id });
               this.logger.info({
                 event: "JOB_DONE",
                 jobId: job.id
@@ -202,11 +215,13 @@ export type JobType<T extends Job> = {
   [JOB_NAME]: string;
 };
 
+export type JobMeta = Pick<PgBoss.Job, "id">;
+
 export interface JobHandler<T extends Job> {
   accepts: JobType<T>;
   concurrency?: ProcessOptions["concurrency"];
   policy?: PgBoss.Queue["policy"];
-  handle(payload: JobPayload<T>): Promise<void>;
+  handle(payload: JobPayload<T>, job?: JobMeta): Promise<void>;
 }
 
 export type EnqueueOptions = PgBoss.SendOptions;

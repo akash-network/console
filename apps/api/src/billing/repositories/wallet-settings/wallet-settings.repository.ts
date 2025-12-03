@@ -35,35 +35,32 @@ export class WalletSettingRepository extends BaseRepository<Table, WalletSetting
     return new WalletSettingRepository(this.pg, this.table, this.txManager).withAbility(...abilityParams) as this;
   }
 
-  async findByUserId(userId: WalletSettingOutput["userId"]) {
+  async findByUserId(userId: WalletSettingOutput["userId"]): Promise<WalletSettingOutput | undefined> {
     const walletSetting = await this.cursor.query.WalletSetting.findFirst({
       where: this.whereAccessibleBy(eq(this.table.userId, userId))
     });
+
     if (!walletSetting) return undefined;
+
     return this.toOutput(walletSetting);
   }
 
-  protected toOutput(dbOutput: Partial<DbWalletSettingOutput>): WalletSettingOutput {
-    const output = dbOutput as DbWalletSettingOutput;
-    return {
-      ...output,
-      autoReloadThreshold: output.autoReloadThreshold === null ? undefined : parseFloat(output.autoReloadThreshold),
-      autoReloadAmount: output.autoReloadAmount === null ? undefined : parseFloat(output.autoReloadAmount)
-    } as WalletSettingOutput;
-  }
+  async findInternalByUserIdWithRelations(userId: WalletSettingOutput["userId"]) {
+    const walletSetting = await this.cursor.query.WalletSetting.findFirst({
+      where: this.whereAccessibleBy(eq(this.table.userId, userId)),
+      with: {
+        wallet: {
+          columns: {
+            address: true,
+            isOldWallet: true
+          }
+        },
+        user: true
+      }
+    });
 
-  protected toInput(payload: Partial<WalletSettingInput>): Partial<DbWalletSettingInput> {
-    const { autoReloadThreshold, autoReloadAmount, ...input } = payload;
-    const dbInput: Partial<DbWalletSettingInput> = input as Partial<DbWalletSettingInput>;
+    if (!walletSetting) return undefined;
 
-    if (autoReloadThreshold !== undefined) {
-      dbInput.autoReloadThreshold = autoReloadThreshold.toString();
-    }
-
-    if (autoReloadAmount !== undefined) {
-      dbInput.autoReloadAmount = autoReloadAmount.toString();
-    }
-
-    return dbInput;
+    return walletSetting;
   }
 }

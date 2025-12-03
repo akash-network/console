@@ -6,6 +6,7 @@ import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers"
 import { type UserWalletInput, type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { Memoize } from "@src/caching/helpers";
+import { StatsService } from "@src/dashboard/services/stats/stats.service";
 import { averageBlockTime } from "@src/utils/constants";
 
 @singleton()
@@ -15,7 +16,8 @@ export class BalancesService {
     private readonly userWalletRepository: UserWalletRepository,
     private txManagerService: TxManagerService,
     private readonly authzHttpService: AuthzHttpService,
-    private readonly deploymentHttpService: DeploymentHttpService
+    private readonly deploymentHttpService: DeploymentHttpService,
+    private readonly statsService: StatsService
   ) {}
 
   async refreshUserWalletLimits(userWallet: UserWalletOutput, options?: { endTrial: boolean }): Promise<void> {
@@ -92,6 +94,10 @@ export class BalancesService {
   }
 
   @Memoize({ ttlInSeconds: averageBlockTime })
+  async getFullBalanceMemoized(address: string, isOldWallet: boolean = false): Promise<GetBalancesResponseOutput> {
+    return this.getFullBalance(address, isOldWallet);
+  }
+
   async getFullBalance(address: string, isOldWallet: boolean = false): Promise<GetBalancesResponseOutput> {
     const [balanceData, deploymentEscrowBalance] = await Promise.all([
       this.getFreshLimits({ address, isOldWallet }),
@@ -105,5 +111,33 @@ export class BalancesService {
         total: balanceData.deployment + deploymentEscrowBalance
       }
     };
+  }
+
+  @Memoize({ ttlInSeconds: averageBlockTime })
+  async getFullBalanceInFiatMemoized(address: string, isOldWallet: boolean = false): Promise<GetBalancesResponseOutput["data"]> {
+    return this.getFullBalanceInFiat(address, isOldWallet);
+  }
+
+  async getFullBalanceInFiat(address: string, isOldWallet: boolean = false): Promise<GetBalancesResponseOutput["data"]> {
+    const { data } = await this.getFullBalance(address, isOldWallet);
+
+    const balance = await this.toFiatAmount(data.balance);
+    const deployments = await this.toFiatAmount(data.deployments);
+    const total = this.ensure2floatingDigits(balance + deployments);
+
+    return { balance, deployments, total };
+  }
+
+  async toFiatAmount(uTokenAmount: number) {
+    return this.ensure2floatingDigits(await this.#convertToFiatAmount(uTokenAmount / 1_000_000));
+  }
+
+  async #convertToFiatAmount(amount: number): Promise<number> {
+    const coin = this.config.DEPLOYMENT_GRANT_DENOM === "uakt" ? "akash-network" : "usd-coin";
+    return await this.statsService.convertToFiatAmount(amount, coin);
+  }
+
+  ensure2floatingDigits(amount: number) {
+    return parseFloat(amount.toFixed(2));
   }
 }

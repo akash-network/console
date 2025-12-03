@@ -84,4 +84,52 @@ export class DrainingDeploymentService {
   async calculateTopUpAmount(deployment: Pick<DrainingDeploymentOutput, "blockRate">): Promise<number> {
     return Math.floor(deployment.blockRate * (averageBlockCountInAnHour * this.config.get("AUTO_TOP_UP_DEPLOYMENT_INTERVAL_IN_H")));
   }
+
+  /**
+   * Calculates the total cost for all deployments that would close before the target date.
+   * This is based on each deployment's block rate and the number of blocks needed to keep them running until the target date.
+   *
+   * @param address - The address to calculate the deployment costs for
+   * @param targetDate - The target date to calculate the costs until
+   * @returns The total cost (in credits) needed to keep all draining deployments running until the target date
+   */
+  async calculateAllDeploymentCostUntilDate(address: string, targetDate: Date): Promise<number> {
+    const userWallet = await this.userWalletRepository.findOneBy({ address });
+
+    if (!userWallet || !userWallet.address) {
+      return 0;
+    }
+
+    const currentHeight = await this.blockHttpService.getCurrentHeight();
+    const now = new Date();
+    const hoursUntilTarget = (targetDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+    const targetHeight = Math.floor(currentHeight + averageBlockCountInAnHour * hoursUntilTarget);
+
+    let totalAmount = 0;
+
+    for await (const deploymentSettings of this.deploymentSettingRepository.paginateAutoTopUpDeployments({ address, limit: 100 })) {
+      if (deploymentSettings.length === 0) {
+        continue;
+      }
+
+      const drainingDeployments = await this.leaseRepository.findManyByDseqAndOwner(
+        targetHeight,
+        deploymentSettings.map(deployment => ({ dseq: deployment.dseq, owner: deployment.address }))
+      );
+
+      if (drainingDeployments.length === 0) {
+        continue;
+      }
+
+      for (const { predictedClosedHeight, blockRate } of drainingDeployments) {
+        if (predictedClosedHeight && predictedClosedHeight >= currentHeight && predictedClosedHeight <= targetHeight) {
+          const blocksNeeded = targetHeight - currentHeight;
+          const amountNeeded = Math.floor(blockRate * blocksNeeded);
+          totalAmount += amountNeeded;
+        }
+      }
+    }
+
+    return totalAmount;
+  }
 }

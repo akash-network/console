@@ -9,13 +9,6 @@ const WalletOutputSchema = z.object({
   createdAt: z.coerce.date().nullable().openapi({})
 });
 
-const ThreeDSecureAuthSchema = z.object({
-  requires3DS: z.boolean(),
-  clientSecret: z.string(),
-  paymentIntentId: z.string(),
-  paymentMethodId: z.string()
-});
-
 const WalletWithOptional3DSSchema = WalletOutputSchema.extend({
   requires3DS: z.boolean().optional(),
   clientSecret: z.string().nullable().optional(),
@@ -71,12 +64,7 @@ export const UpdateWalletSettingsRequestSchema = z.object({
   data: WalletSettingsSchema.partial()
 });
 
-export type WalletOutput = z.infer<typeof WalletOutputSchema>;
-export type ThreeDSecureAuth = z.infer<typeof ThreeDSecureAuthSchema>;
-export type WalletWithOptional3DS = z.infer<typeof WalletWithOptional3DSSchema>;
 export type WalletOutputResponse = z.infer<typeof WalletResponseOutputSchema>;
-export type WalletResponseNo3DSOutput = z.infer<typeof WalletResponseNo3DSOutputSchema>;
-export type WalletResponse3DSOutput = z.infer<typeof WalletResponse3DSOutputSchema>;
 export type WalletListOutputResponse = z.infer<typeof WalletListResponseOutputSchema>;
 export type StartTrialRequestInput = z.infer<typeof StartTrialRequestInputSchema>;
 export type WalletSettingsResponse = z.infer<typeof WalletSettingsResponseSchema>;

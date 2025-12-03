@@ -4,6 +4,7 @@ import type Stripe from "stripe";
 import type { PaymentMethodRepository } from "@src/billing/repositories";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { RefillService } from "@src/billing/services/refill/refill.service";
+import type { LoggerService } from "@src/core/providers/logging.provider";
 import type { UserRepository } from "@src/user/repositories";
 import { StripeService } from "./stripe.service";
 
@@ -1418,7 +1419,7 @@ function setup(
   const refillService = mock<RefillService>();
   const paymentMethodRepository = mock<PaymentMethodRepository>();
 
-  const service = new StripeService(billingConfig, userRepository, refillService, paymentMethodRepository);
+  const service = new StripeService(billingConfig, userRepository, refillService, paymentMethodRepository, mock<LoggerService>());
   const stripeData = StripeSeederCreate();
 
   // Store the last user for correct mocking

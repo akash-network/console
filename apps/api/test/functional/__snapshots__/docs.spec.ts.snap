@@ -13212,6 +13212,204 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/stripe/payment-methods/default": {
+      "get": {
+        "description": "Retrieves the default payment method associated with the current user's account, including card details, validation status, and billing information.",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "billing_details": {
+                          "properties": {
+                            "address": {
+                              "nullable": true,
+                              "properties": {
+                                "city": {
+                                  "nullable": true,
+                                  "type": "string",
+                                },
+                                "country": {
+                                  "nullable": true,
+                                  "type": "string",
+                                },
+                                "line1": {
+                                  "nullable": true,
+                                  "type": "string",
+                                },
+                                "line2": {
+                                  "nullable": true,
+                                  "type": "string",
+                                },
+                                "postal_code": {
+                                  "nullable": true,
+                                  "type": "string",
+                                },
+                                "state": {
+                                  "nullable": true,
+                                  "type": "string",
+                                },
+                              },
+                              "required": [
+                                "city",
+                                "country",
+                                "line1",
+                                "line2",
+                                "postal_code",
+                                "state",
+                              ],
+                              "type": "object",
+                            },
+                            "email": {
+                              "nullable": true,
+                              "type": "string",
+                            },
+                            "name": {
+                              "nullable": true,
+                              "type": "string",
+                            },
+                            "phone": {
+                              "nullable": true,
+                              "type": "string",
+                            },
+                          },
+                          "type": "object",
+                        },
+                        "card": {
+                          "nullable": true,
+                          "properties": {
+                            "brand": {
+                              "nullable": true,
+                              "type": "string",
+                            },
+                            "country": {
+                              "nullable": true,
+                              "type": "string",
+                            },
+                            "exp_month": {
+                              "type": "number",
+                            },
+                            "exp_year": {
+                              "type": "number",
+                            },
+                            "funding": {
+                              "nullable": true,
+                              "type": "string",
+                            },
+                            "last4": {
+                              "nullable": true,
+                              "type": "string",
+                            },
+                            "network": {
+                              "nullable": true,
+                              "type": "string",
+                            },
+                            "three_d_secure_usage": {
+                              "nullable": true,
+                              "properties": {
+                                "supported": {
+                                  "nullable": true,
+                                  "type": "boolean",
+                                },
+                              },
+                              "type": "object",
+                            },
+                          },
+                          "required": [
+                            "brand",
+                            "last4",
+                            "exp_month",
+                            "exp_year",
+                          ],
+                          "type": "object",
+                        },
+                        "type": {
+                          "type": "string",
+                        },
+                        "validated": {
+                          "type": "boolean",
+                        },
+                      },
+                      "required": [
+                        "type",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Default payment method retrieved successfully",
+          },
+          "404": {
+            "description": "Default payment method not found",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Get the default payment method for the current user",
+        "tags": [
+          "Payment",
+        ],
+      },
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "id",
+                    ],
+                    "type": "object",
+                  },
+                },
+                "required": [
+                  "data",
+                ],
+                "type": "object",
+              },
+            },
+          },
+        },
+        "responses": {
+          "200": {
+            "description": "Payment method is marked as the default successfully.",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Marks a payment method as the default.",
+        "tags": [
+          "Payment",
+        ],
+      },
+    },
     "/v1/stripe/payment-methods/setup": {
       "post": {
         "description": "Creates a Stripe SetupIntent that allows users to securely add payment methods to their account. The SetupIntent provides a client secret that can be used with Stripe's frontend SDKs to collect payment method details.",
