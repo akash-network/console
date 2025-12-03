@@ -1,5 +1,12 @@
 
 
+## [2.6.1](https://github.com/akash-network/console/compare/notifications/v2.6.0...notifications/v2.6.1) (2025-12-03)
+
+
+### Code Refactoring
+
+* **billing:** adds default flag to payment methods ([26e2cb6](https://github.com/akash-network/console/commit/26e2cb601fd2b3598c2bf9af8eff0493c170ed8e)), closes [#1779](https://github.com/akash-network/console/issues/1779)
+
 ## [2.6.0](https://github.com/akash-network/console/compare/notifications/v2.5.0...notifications/v2.6.0) (2025-12-03)
 
 

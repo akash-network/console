@@ -1,5 +1,17 @@
 
 
+## [3.7.1](https://github.com/akash-network/console/compare/console-web/v3.7.0...console-web/v3.7.1) (2025-12-03)
+
+
+### Bug Fixes
+
+* **wallet:** local storage managed wallet bug + support multiple managed ([#2307](https://github.com/akash-network/console/issues/2307)) ([f771e34](https://github.com/akash-network/console/commit/f771e3418694ad549e7f1c9f5ab55f834e8dce49))
+
+
+### Code Refactoring
+
+* **billing:** adds default flag to payment methods ([26e2cb6](https://github.com/akash-network/console/commit/26e2cb601fd2b3598c2bf9af8eff0493c170ed8e)), closes [#1779](https://github.com/akash-network/console/issues/1779)
+
 ## [3.7.0](https://github.com/akash-network/console/compare/console-web/v3.6.2...console-web/v3.7.0) (2025-12-03)
 
 
