@@ -248,7 +248,7 @@ describe("WalletController", () => {
         isProduction: true,
         getPaymentMethods: jest.fn(async () => {
           if (!input?.hasPaymentMethods) return [];
-          return [{ ...generatePaymentMethod(), validated: true }];
+          return [{ ...generatePaymentMethod(), validated: true, isDefault: false }];
         }),
         hasDuplicateTrialAccount: jest.fn().mockResolvedValue(input?.hasDuplicateTrialAccount ?? false),
         validatePaymentMethodForTrial: jest.fn().mockImplementation(() => {

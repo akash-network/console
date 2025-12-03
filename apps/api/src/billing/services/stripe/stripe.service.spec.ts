@@ -1,3 +1,4 @@
+import { createMongoAbility } from "@casl/ability";
 import { mock } from "jest-mock-extended";
 import type Stripe from "stripe";
 
@@ -830,7 +831,11 @@ describe(StripeService.name, () => {
         .mockResolvedValue({ data: mockPaymentMethods } as unknown as Stripe.Response<Stripe.ApiList<Stripe.PaymentMethod>>);
       paymentMethodRepository.findByUserId.mockResolvedValue([]);
 
-      const result = await service.getPaymentMethods(TEST_CONSTANTS.USER_ID, TEST_CONSTANTS.CUSTOMER_ID);
+      const result = await service.getPaymentMethods(
+        TEST_CONSTANTS.USER_ID,
+        TEST_CONSTANTS.CUSTOMER_ID,
+        createMongoAbility([{ action: "read", subject: "PaymentMethod" }])
+      );
       expect(service.paymentMethods.list).toHaveBeenCalledWith({
         customer: TEST_CONSTANTS.CUSTOMER_ID
       });
@@ -838,11 +843,13 @@ describe(StripeService.name, () => {
       expect(result).toEqual([
         {
           ...mockPaymentMethods[0],
-          validated: false
+          validated: false,
+          isDefault: false
         },
         {
           ...mockPaymentMethods[1],
-          validated: false
+          validated: false,
+          isDefault: false
         }
       ]);
     });
@@ -1460,6 +1467,7 @@ function setup(
   paymentMethodRepository.findValidatedByUserId.mockResolvedValue(validationToReturn);
   paymentMethodRepository.markAsValidated.mockResolvedValue(undefined);
   paymentMethodRepository.findOthersTrialingByFingerprint.mockResolvedValue(undefined);
+  paymentMethodRepository.accessibleBy.mockReturnValue(paymentMethodRepository);
 
   // Setup user repository mock based on parameters
   const userToReturn = "user" in params ? params.user : createTestUser();

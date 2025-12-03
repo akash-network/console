@@ -55,7 +55,7 @@ export function generatePaymentMethod(overrides: PaymentMethodOverrides = {}): S
   return merge({}, basePaymentMethod, overrides);
 }
 
-export function generateMergedPaymentMethod(overrides: PaymentMethodOverrides & { validated?: boolean } = {}): PaymentMethod {
-  const { validated, ...stripeOverrides } = overrides;
-  return merge({ validated: !!validated }, generatePaymentMethod(stripeOverrides));
+export function generateMergedPaymentMethod(overrides: PaymentMethodOverrides & { validated?: boolean; isDefault?: boolean } = {}): PaymentMethod {
+  const { validated, isDefault, ...stripeOverrides } = overrides;
+  return merge({ validated: !!validated, isDefault: !!isDefault }, generatePaymentMethod(stripeOverrides));
 }

@@ -16,6 +16,7 @@ export const PaymentMethodMarkAsDefaultInputSchema = z.object({
 export const PaymentMethodSchema = z.object({
   type: z.string(),
   validated: z.boolean().optional(),
+  isDefault: z.boolean().optional(),
   card: z
     .object({
       brand: z.string().nullable(),
@@ -213,12 +214,6 @@ export const ValidatePaymentMethodRequestSchema = z.object({
 
 export const ValidatePaymentMethodResponseSchema = z.object({
   success: z.boolean()
-});
-
-export const ErrorResponseSchema = z.object({
-  message: z.string(),
-  code: z.string().optional(),
-  type: z.string().optional()
 });
 
 export const UpdateCustomerOrganizationRequestSchema = z.object({
