@@ -39,20 +39,28 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       await handler.handle(job, jobMeta);
 
       // Verify calculateAllDeploymentCostUntilDate is called with 7 days
-      expect(drainingDeploymentService.calculateAllDeploymentCostUntilDate).toHaveBeenCalled();
-      const calculateCall = drainingDeploymentService.calculateAllDeploymentCostUntilDate.mock.calls[0];
-      const reloadTargetDate = calculateCall[1];
       const millisecondsInDay = 24 * millisecondsInHour;
       const expectedReloadDate = addMilliseconds(new Date(), 7 * millisecondsInDay);
+      expect(drainingDeploymentService.calculateAllDeploymentCostUntilDate).toHaveBeenCalledWith(expect.any(String), expect.any(Date));
+      const calculateCall = drainingDeploymentService.calculateAllDeploymentCostUntilDate.mock.calls[0];
+      const reloadTargetDate = calculateCall[1] as Date;
       expect(reloadTargetDate.getTime()).toBeCloseTo(expectedReloadDate.getTime(), -3);
 
       // Verify next check is scheduled for 1 day
-      expect(walletReloadJobService.scheduleForWalletSetting).toHaveBeenCalled();
-      const scheduleCall = walletReloadJobService.scheduleForWalletSetting.mock.calls[0];
-      const scheduledDate = scheduleCall[1]?.startAfter;
-      expect(scheduledDate).toBeInstanceOf(Date);
       const expectedNextCheckDate = addMilliseconds(new Date(), millisecondsInDay);
-      expect((scheduledDate as Date).getTime()).toBeCloseTo(expectedNextCheckDate.getTime(), -3);
+      expect(walletReloadJobService.scheduleForWalletSetting).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: expect.any(String),
+          userId: expect.any(String)
+        }),
+        expect.objectContaining({
+          startAfter: expect.any(String),
+          prevAction: "complete"
+        })
+      );
+      const scheduleCall = walletReloadJobService.scheduleForWalletSetting.mock.calls[0];
+      const scheduledDate = new Date(scheduleCall[1]?.startAfter as string);
+      expect(scheduledDate.getTime()).toBeCloseTo(expectedNextCheckDate.getTime(), -3);
 
       expect(stripeService.createPaymentIntent).toHaveBeenCalledWith({
         customer: expect.any(String),
@@ -148,8 +156,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       );
     });
 
-    it("schedules next check and updates job ID", async () => {
-      const jobId = faker.string.uuid();
+    it("schedules next check", async () => {
       const balance = 50.0;
       const weeklyCostInDenom = 50_000_000;
       const weeklyCostInFiat = 50.0;
@@ -157,8 +164,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       const { handler, walletReloadJobService, walletSetting, job, jobMeta } = setup({
         balance: { total: balance },
         weeklyCostInDenom,
-        weeklyCostInFiat,
-        jobId
+        weeklyCostInFiat
       });
 
       await handler.handle(job, jobMeta);
@@ -169,7 +175,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
           userId: job.userId
         }),
         expect.objectContaining({
-          startAfter: expect.any(Date),
+          startAfter: expect.any(String),
           prevAction: "complete"
         })
       );

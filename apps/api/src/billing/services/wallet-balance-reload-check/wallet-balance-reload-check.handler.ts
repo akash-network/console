@@ -211,7 +211,7 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
   async #scheduleNextCheck(resources: Resources): Promise<void> {
     try {
       await this.walletReloadJobService.scheduleForWalletSetting(resources.walletSetting, {
-        startAfter: this.#calculateNextCheckDate(),
+        startAfter: this.#calculateNextCheckDate().toISOString(),
         prevAction: "complete"
       });
     } catch (error) {
