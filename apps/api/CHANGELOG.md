@@ -1,5 +1,12 @@
 
 
+## [3.10.0](https://github.com/akash-network/console/compare/console-api/v3.9.2...console-api/v3.10.0) (2025-12-03)
+
+
+### Features
+
+* **billing:** adds balance check job handler, default payment method ([#2274](https://github.com/akash-network/console/issues/2274)) ([de10e23](https://github.com/akash-network/console/commit/de10e238bca02bbfa6e6a099a0f607a8ba402271)), closes [#1779](https://github.com/akash-network/console/issues/1779)
+
 ## [3.9.2](https://github.com/akash-network/console/compare/console-api/v3.9.1...console-api/v3.9.2) (2025-12-02)
 
 
