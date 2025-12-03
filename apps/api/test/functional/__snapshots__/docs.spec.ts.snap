@@ -13173,6 +13173,9 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                             ],
                             "type": "object",
                           },
+                          "isDefault": {
+                            "type": "boolean",
+                          },
                           "type": {
                             "type": "string",
                           },
@@ -13325,6 +13328,9 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                             "exp_year",
                           ],
                           "type": "object",
+                        },
+                        "isDefault": {
+                          "type": "boolean",
                         },
                         "type": {
                           "type": "string",
@@ -13817,6 +13823,9 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                       "exp_year",
                                     ],
                                     "type": "object",
+                                  },
+                                  "isDefault": {
+                                    "type": "boolean",
                                   },
                                   "type": {
                                     "type": "string",

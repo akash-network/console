@@ -1,6 +1,8 @@
 import type { AnyAbility } from "@casl/ability";
 import { stringify } from "csv-stringify";
 import assert from "http-assert";
+import difference from "lodash/difference";
+import keyBy from "lodash/keyBy";
 import orderBy from "lodash/orderBy";
 import { Readable } from "stream";
 import Stripe from "stripe";
@@ -30,7 +32,7 @@ interface StripePrices {
   currency: string;
 }
 
-export type PaymentMethod = Stripe.PaymentMethod & { validated: boolean };
+export type PaymentMethod = Stripe.PaymentMethod & { validated: boolean; isDefault: boolean };
 
 @singleton()
 export class StripeService extends Stripe {
@@ -105,20 +107,37 @@ export class StripeService extends Stripe {
     return orderBy(responsePrices, ["isCustom", "unitAmount"], ["asc", "asc"]) as StripePrices[];
   }
 
-  async getPaymentMethods(userId: string, customerId: string): Promise<PaymentMethod[]> {
-    const [paymentMethods, dbPaymentMethods] = await Promise.all([
-      this.paymentMethods.list({
-        customer: customerId
-      }),
-      this.paymentMethodRepository.findByUserId(userId)
+  async getPaymentMethods(userId: string, customerId: string, ability: AnyAbility): Promise<PaymentMethod[]> {
+    const [remotes, locals] = await Promise.all([
+      this.paymentMethods.list({ customer: customerId }),
+      this.paymentMethodRepository.accessibleBy(ability, "read").findByUserId(userId)
     ]);
 
-    return paymentMethods.data
-      .map(paymentMethod => ({
-        ...paymentMethod,
-        validated: dbPaymentMethods?.some(pm => pm.paymentMethodId === paymentMethod.id && pm.isValidated)
-      }))
+    const localById = keyBy(locals, "paymentMethodId");
+    const remoteIds: string[] = [];
+
+    const merged = remotes.data
+      .map(remote => {
+        remoteIds.push(remote.id);
+        return {
+          ...remote,
+          validated: !!localById[remote.id]?.isValidated,
+          isDefault: !!localById[remote.id]?.isDefault
+        };
+      })
       .sort((a, b) => b.created - a.created);
+
+    const outOfSyncIds = difference(remoteIds, Object.keys(localById));
+
+    if (outOfSyncIds.length) {
+      this.loggerService.warn({
+        event: "STRIPE_PAYMENT_METHOD_OUT_OF_SYNC",
+        userId,
+        outOfSyncIds
+      });
+    }
+
+    return merged;
   }
 
   async getDefaultPaymentMethod(user: PayingUser, ability: AnyAbility): Promise<PaymentMethod | undefined> {
@@ -134,11 +153,13 @@ export class StripeService extends Stripe {
     const remote = customer.invoice_settings.default_payment_method;
 
     if (typeof remote === "object" && remote && local) {
-      return { ...remote, validated: local.isValidated };
-    } else if (!local || !remote) {
-      this.loggerService.error({
+      return { ...remote, validated: local.isValidated, isDefault: local.isDefault };
+    } else {
+      this.loggerService.warn({
         event: "STRIPE_PAYMENT_METHOD_OUT_OF_SYNC",
-        userId: user.id
+        userId: user.id,
+        remoteId: typeof remote === "string" ? remote : remote?.id,
+        localId: local?.paymentMethodId
       });
     }
   }
@@ -169,7 +190,7 @@ export class StripeService extends Stripe {
 
     if (local) {
       await this.markRemotePaymentMethodAsDefault(paymentMethodId, user);
-      return { ...remote, validated: local.isValidated };
+      return { ...remote, validated: local.isValidated, isDefault: local.isDefault };
     }
 
     const fingerprint = remote.card?.fingerprint;
@@ -184,7 +205,7 @@ export class StripeService extends Stripe {
 
     await this.markRemotePaymentMethodAsDefault(paymentMethodId, user);
 
-    return { ...remote, validated: newLocal.isValidated };
+    return { ...remote, validated: newLocal.isValidated, isDefault: newLocal.isDefault };
   }
 
   async markRemotePaymentMethodAsDefault(paymentMethodId: string, user: PayingUser): Promise<void> {

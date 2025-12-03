@@ -41,7 +41,7 @@ export class WalletController {
       assert(currentUser.emailVerified, 400, "Email not verified");
       assert(currentUser.stripeCustomerId, 400, "Stripe customer ID not found");
 
-      const paymentMethods = await this.stripeService.getPaymentMethods(currentUser.id, currentUser.stripeCustomerId);
+      const paymentMethods = await this.stripeService.getPaymentMethods(currentUser.id, currentUser.stripeCustomerId, this.authService.ability);
       assert(paymentMethods.length > 0, 400, "You must have a payment method to start a trial.");
 
       if (this.stripeService.isProduction) {
