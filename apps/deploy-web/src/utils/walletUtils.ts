@@ -1,9 +1,13 @@
 import type { NetworkId } from "@akashnetwork/chain-sdk/web";
+import { LoggerService } from "@akashnetwork/logging";
 import { isEqual } from "lodash";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
-import { services } from "@src/services/app-di-container/browser-di-container";
+import { ErrorHandlerService } from "@src/services/error-handler/error-handler.service";
 import networkStore from "@src/store/networkStore";
+
+const logger = new LoggerService({ name: "walletUtils" });
+const errorHandler = new ErrorHandlerService(logger);
 
 interface BaseLocalWallet {
   address: string;
@@ -53,7 +57,14 @@ export function getStorageManagedWallet(userId?: string, networkId?: NetworkId):
   try {
     const walletsMap = JSON.parse(walletsMapStr) as Record<string, ManagedLocalWallet>;
     return walletsMap[userId];
-  } catch {
+  } catch (error) {
+    errorHandler.reportError({
+      error,
+      severity: "warning",
+      tags: { context: "walletUtils.getStorageManagedWallet" },
+      walletsMapStr,
+      userId
+    });
     return undefined;
   }
 }
@@ -84,7 +95,7 @@ export function updateStorageManagedWallet(
     try {
       walletsMap = JSON.parse(walletsMapStr);
     } catch (error) {
-      services.errorHandler.reportError({
+      errorHandler.reportError({
         error,
         severity: "warning",
         tags: { context: "walletUtils.updateStorageManagedWallet" },
@@ -121,7 +132,7 @@ export function deleteManagedWalletFromStorage(userId: string, networkId?: Netwo
           localStorage.removeItem(key);
         }
       } catch (error) {
-        services.errorHandler.reportError({
+        errorHandler.reportError({
           error,
           severity: "warning",
           tags: { context: "walletUtils.deleteManagedWalletFromStorage" },
@@ -142,7 +153,21 @@ export function getStorageWallets(networkId?: NetworkId) {
   }
 
   const selectedNetworkId: NetworkId = networkId || networkStore.selectedNetworkId;
-  const wallets = JSON.parse(localStorage.getItem(`${selectedNetworkId}/wallets`) || "[]") as LocalWallet[];
+  let wallets: LocalWallet[] = [];
+
+  const custodialWalletsStr = localStorage.getItem(`${selectedNetworkId}/wallets`);
+  if (custodialWalletsStr) {
+    try {
+      wallets = JSON.parse(custodialWalletsStr) as LocalWallet[];
+    } catch (error) {
+      errorHandler.reportError({
+        error,
+        severity: "warning",
+        tags: { context: "walletUtils.getStorageWallets" },
+        custodialWalletsStr
+      });
+    }
+  }
 
   const managedWalletsKey = getManagedWalletsStorageKey(selectedNetworkId);
   const managedWalletsMapStr = localStorage.getItem(managedWalletsKey);
@@ -166,7 +191,13 @@ export function getStorageWallets(networkId?: NetworkId) {
       }
 
       return mergedWallets;
-    } catch {
+    } catch (error) {
+      errorHandler.reportError({
+        error,
+        severity: "warning",
+        tags: { context: "walletUtils.getStorageWallets.managedWallets" },
+        managedWalletsMapStr
+      });
       return wallets;
     }
   }
@@ -201,7 +232,7 @@ export function updateStorageWallets(wallets: LocalWallet[], networkId?: Network
       try {
         existingMap = JSON.parse(existingMapStr);
       } catch (error) {
-        services.errorHandler.reportError({
+        errorHandler.reportError({
           error,
           severity: "warning",
           tags: { context: "walletUtils.updateStorageWallets" },
