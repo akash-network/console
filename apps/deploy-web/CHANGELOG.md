@@ -1,5 +1,17 @@
 
 
+## [3.7.0](https://github.com/akash-network/console/compare/console-web/v3.6.2...console-web/v3.7.0) (2025-12-03)
+
+
+### Features
+
+* **billing:** adds balance check job handler, default payment method ([#2274](https://github.com/akash-network/console/issues/2274)) ([de10e23](https://github.com/akash-network/console/commit/de10e238bca02bbfa6e6a099a0f607a8ba402271)), closes [#1779](https://github.com/akash-network/console/issues/1779)
+
+
+### Bug Fixes
+
+* show usdc for managed deposit ([#2312](https://github.com/akash-network/console/issues/2312)) ([21553a8](https://github.com/akash-network/console/commit/21553a8103bd45adff3590a64b45faa17a4d6683))
+
 ## [3.6.2](https://github.com/akash-network/console/compare/console-web/v3.6.1...console-web/v3.6.2) (2025-12-01)
 
 
