@@ -119,7 +119,7 @@ export class BalancesService {
   }
 
   async getFullBalanceInFiat(address: string, isOldWallet: boolean = false): Promise<GetBalancesResponseOutput["data"]> {
-    const { data } = await this.getFullBalanceMemoized(address, isOldWallet);
+    const { data } = await this.getFullBalance(address, isOldWallet);
 
     const balance = await this.toFiatAmount(data.balance);
     const deployments = await this.toFiatAmount(data.deployments);
