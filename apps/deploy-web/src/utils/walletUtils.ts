@@ -249,10 +249,13 @@ export function ensureUserManagedWalletOwnership(userId: string) {
   const wallet = getStorageManagedWallet(userId, networkId);
 
   if (wallet) {
-    updateStorageManagedWallet({ ...wallet, selected: true });
-
     const wallets = getStorageWallets(networkId);
-    const updatedWallets = wallets.filter(w => !w.isManaged).map(w => ({ ...w, selected: false }));
+    const updatedWallets = wallets.map(w => {
+      if (w.isManaged) {
+        return { ...w, selected: w.userId === userId };
+      }
+      return { ...w, selected: false };
+    });
 
     updateStorageWallets(updatedWallets, networkId);
   }
