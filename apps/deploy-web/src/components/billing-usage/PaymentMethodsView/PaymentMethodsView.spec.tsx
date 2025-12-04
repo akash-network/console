@@ -43,6 +43,11 @@ const MockCardFooter = ({ children, className }: any) => <div className={classNa
 const MockSpinner = () => <div data-testid="spinner">Loading...</div>;
 const MockTable = ({ children }: any) => <table>{children}</table>;
 const MockTableBody = ({ children }: any) => <tbody>{children}</tbody>;
+const MockButton = ({ children, onClick, className }: any) => (
+  <button data-testid="button" onClick={onClick} className={className}>
+    {children}
+  </button>
+);
 
 const mockDependencies: any = {
   useTheme: mockUseTheme,
@@ -54,7 +59,8 @@ const mockDependencies: any = {
   CardFooter: MockCardFooter,
   Spinner: MockSpinner,
   Table: MockTable,
-  TableBody: MockTableBody
+  TableBody: MockTableBody,
+  Button: MockButton
 };
 
 describe(PaymentMethodsView.name, () => {

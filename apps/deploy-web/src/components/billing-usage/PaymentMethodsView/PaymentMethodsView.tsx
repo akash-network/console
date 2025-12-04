@@ -16,7 +16,8 @@ export const DEPENDENCIES = {
   CardFooter,
   Spinner,
   Table,
-  TableBody
+  TableBody,
+  Button
 };
 
 export type PaymentMethodsViewProps = {
@@ -84,9 +85,9 @@ export const PaymentMethodsView: React.FC<PaymentMethodsViewProps> = ({
         <d.CardFooter className="flex py-2">
           <div className="flex-grow text-gray-500">At most, 3 cards can be used at once.</div>
           <div>
-            <Button onClick={onAddPaymentMethod} className="mb-4 mt-4">
+            <d.Button onClick={onAddPaymentMethod} className="mb-4 mt-4">
               Add Payment Method
-            </Button>
+            </d.Button>
           </div>
         </d.CardFooter>
       </d.Card>
