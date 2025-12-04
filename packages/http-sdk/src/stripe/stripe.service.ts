@@ -29,6 +29,10 @@ export class StripeService extends ApiHttpService {
     return this.extractApiData(await this.get("/v1/stripe/payment-methods"));
   }
 
+  async getDefaultPaymentMethod(): Promise<PaymentMethod> {
+    return this.extractApiData(await this.get("/v1/stripe/payment-methods/default"));
+  }
+
   async removePaymentMethod(paymentMethodId: string): Promise<void> {
     return this.extractApiData(await this.delete(`/v1/stripe/payment-methods/${paymentMethodId}`));
   }

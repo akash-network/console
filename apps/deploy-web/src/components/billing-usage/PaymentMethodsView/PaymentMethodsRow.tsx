@@ -35,11 +35,11 @@ export const PaymentMethodsRow: React.FC<PaymentMethodsRowProps> = ({
 }) => {
   const [open, setOpen] = useState(false);
 
-  function handleMenuClick() {
+  function openMenu() {
     setOpen(true);
   }
 
-  const handleMenuClose = () => {
+  const closeMenu = () => {
     setOpen(false);
   };
 
@@ -75,12 +75,12 @@ export const PaymentMethodsRow: React.FC<PaymentMethodsRowProps> = ({
 
   const setPaymentAsDefault = useCallback(() => {
     onSetPaymentMethodAsDefault(paymentMethod.id);
-    handleMenuClose();
+    closeMenu();
   }, [onSetPaymentMethodAsDefault, paymentMethod.id]);
 
   const removePaymentMethod = useCallback(() => {
     onRemovePaymentMethod(paymentMethod.id);
-    handleMenuClose();
+    closeMenu();
   }, [onRemovePaymentMethod, paymentMethod.id]);
 
   return (
@@ -94,7 +94,7 @@ export const PaymentMethodsRow: React.FC<PaymentMethodsRowProps> = ({
           {!paymentMethod.isDefault && (
             <d.DropdownMenu modal={false} open={open}>
               <d.DropdownMenuTrigger asChild>
-                <d.Button onClick={handleMenuClick} size="icon" variant="ghost" className="rounded-full">
+                <d.Button onClick={openMenu} size="icon" variant="ghost" className="rounded-full">
                   <MoreHoriz />
                 </d.Button>
               </d.DropdownMenuTrigger>

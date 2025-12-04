@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { FormattedNumber } from "react-intl";
 import { Button, Card, CardContent, CardFooter, CardHeader, CardTitle, Snackbar, Switch } from "@akashnetwork/ui/components";
 import { LinearProgress } from "@mui/material";
@@ -10,31 +10,24 @@ import Layout from "@src/components/layout/Layout";
 import { Title } from "@src/components/shared/Title";
 import { PaymentSuccessAnimation } from "@src/components/user/payment/PaymentSuccessAnimation";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
-import { usePaymentMethodsQuery, useWalletSettingsMutations, useWalletSettingsQuery } from "@src/queries";
+import { useDefaultPaymentMethodQuery, useWalletSettingsMutations, useWalletSettingsQuery } from "@src/queries";
 
 export const AccountOverview: React.FunctionComponent = () => {
-  const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string | undefined>();
   const [showPaymentPopup, setShowPaymentPopup] = useState(false);
   const [showPaymentSuccess, setShowPaymentSuccess] = useState<{ amount: string; show: boolean }>({ amount: "", show: false });
   const { enqueueSnackbar } = useSnackbar();
-  const { data: paymentMethods = [], isLoading: isLoadingPaymentMethods } = usePaymentMethodsQuery();
+  const { data: defaultPaymentMethod, isLoading: isLoadingDefaultPaymentMethod } = useDefaultPaymentMethodQuery();
   const { balance: walletBalance, isLoading: isWalletBalanceLoading } = useWalletBalance();
   const { data: walletSettings } = useWalletSettingsQuery();
   const { updateWalletSettings, createWalletSettings } = useWalletSettingsMutations();
 
-  const isLoading = isLoadingPaymentMethods;
+  const isLoading = isLoadingDefaultPaymentMethod;
 
-  useEffect(() => {
-    if (paymentMethods.length > 0) {
-      const defaultPaymentMethod = paymentMethods.find(method => method.isDefault);
+  const defaultPaymentMethodId = useMemo(() => {
+    return defaultPaymentMethod?.id;
+  }, [defaultPaymentMethod]);
 
-      if (defaultPaymentMethod) {
-        setSelectedPaymentMethodId(defaultPaymentMethod.id);
-      }
-    }
-  }, [paymentMethods, selectedPaymentMethodId]);
-
-  const onReloadChange = useCallback(
+  const toggleAutoReload = useCallback(
     async (autoReloadEnabled: boolean) => {
       try {
         const settings = {
@@ -52,7 +45,6 @@ export const AccountOverview: React.FunctionComponent = () => {
           autoHideDuration: 3000
         });
       } catch (error: unknown) {
-        console.error("Failed to update auto-reload settings:", error);
         enqueueSnackbar(<Snackbar title="Failed to update Auto Reload settings" iconVariant="error" />, { variant: "error" });
       }
     },
@@ -60,8 +52,8 @@ export const AccountOverview: React.FunctionComponent = () => {
   );
 
   const isReloadChangeDisabled = useMemo(() => {
-    return paymentMethods.length === 0 || updateWalletSettings.isPending || createWalletSettings.isPending;
-  }, [updateWalletSettings.isPending, createWalletSettings.isPending, paymentMethods.length]);
+    return !defaultPaymentMethod || updateWalletSettings.isPending || createWalletSettings.isPending;
+  }, [defaultPaymentMethod, updateWalletSettings.isPending, createWalletSettings.isPending]);
 
   if (isLoading) {
     return (
@@ -103,7 +95,7 @@ export const AccountOverview: React.FunctionComponent = () => {
                     size="icon"
                     className="h-8 w-8 text-xs"
                     onClick={() => setShowPaymentPopup(true)}
-                    disabled={isWalletBalanceLoading || !selectedPaymentMethodId}
+                    disabled={isWalletBalanceLoading || !defaultPaymentMethod}
                   >
                     <Plus />
                   </Button>
@@ -118,7 +110,7 @@ export const AccountOverview: React.FunctionComponent = () => {
             <CardContent className="pt-2">
               <div>
                 <div className="pt-4">
-                  <Switch checked={walletSettings?.autoReloadEnabled ?? false} onCheckedChange={onReloadChange} disabled={isReloadChangeDisabled} />
+                  <Switch checked={walletSettings?.autoReloadEnabled ?? false} onCheckedChange={toggleAutoReload} disabled={isReloadChangeDisabled} />
                 </div>
                 <div className="pt-2 text-sm">Add funds automatically</div>
               </div>
@@ -137,7 +129,7 @@ export const AccountOverview: React.FunctionComponent = () => {
         <PaymentPopup
           open={showPaymentPopup}
           onClose={() => setShowPaymentPopup(false)}
-          selectedPaymentMethodId={selectedPaymentMethodId}
+          selectedPaymentMethodId={defaultPaymentMethodId}
           setShowPaymentSuccess={setShowPaymentSuccess}
         />
       )}

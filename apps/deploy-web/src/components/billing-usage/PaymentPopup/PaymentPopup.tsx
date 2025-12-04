@@ -27,6 +27,33 @@ import { useUser } from "@src/hooks/useUser";
 import { usePaymentMutations } from "@src/queries";
 import { handleCouponError, handleStripeError } from "@src/utils/stripeErrorHandler";
 
+export const DEPENDENCIES = {
+  Popup,
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardDescription,
+  Form,
+  FormField,
+  FormInput,
+  LoadingButton,
+  FormattedNumber,
+  Alert,
+  Button,
+  Xmark,
+  Snackbar,
+  useForm,
+  zodResolver,
+  useSnackbar,
+  usePaymentPolling,
+  use3DSecure,
+  useUser,
+  usePaymentMutations,
+  handleCouponError,
+  handleStripeError
+};
+
 const MINIMUM_PAYMENT_AMOUNT = 20;
 
 const paymentFormSchema = z.object({
@@ -42,41 +69,48 @@ const couponFormSchema = z.object({
   coupon: z.string().min(1, "Coupon code is required")
 });
 
-interface PaymentPopupProps {
+export interface PaymentPopupProps {
   open: boolean;
   onClose: () => void;
   selectedPaymentMethodId?: string;
   setShowPaymentSuccess: ({ amount, show }: { amount: string; show: boolean }) => void;
+  dependencies?: typeof DEPENDENCIES;
 }
 
-export const PaymentPopup: React.FC<PaymentPopupProps> = ({ open, onClose, selectedPaymentMethodId, setShowPaymentSuccess }) => {
-  const { enqueueSnackbar } = useSnackbar();
+export const PaymentPopup: React.FC<PaymentPopupProps> = ({
+  open,
+  onClose,
+  selectedPaymentMethodId,
+  setShowPaymentSuccess,
+  dependencies: d = DEPENDENCIES
+}) => {
+  const { enqueueSnackbar } = d.useSnackbar();
 
   const [error, setError] = useState<string>();
   const [errorAction, setErrorAction] = useState<string>();
   const submittedAmountRef = useRef<string>("");
-  const { user } = useUser();
+  const { user } = d.useUser();
   const {
     confirmPayment: { isPending: isConfirmingPayment, mutateAsync: confirmPayment },
     applyCoupon: { isPending: isApplyingCoupon, mutateAsync: applyCoupon }
-  } = usePaymentMutations();
-  const { pollForPayment, isPolling } = usePaymentPolling();
+  } = d.usePaymentMutations();
+  const { pollForPayment, isPolling } = d.usePaymentPolling();
 
-  const paymentForm = useForm<z.infer<typeof paymentFormSchema>>({
+  const paymentForm = d.useForm<z.infer<typeof paymentFormSchema>>({
     defaultValues: {
       amount: 0
     },
-    resolver: zodResolver(paymentFormSchema)
+    resolver: d.zodResolver(paymentFormSchema)
   });
 
-  const couponForm = useForm<z.infer<typeof couponFormSchema>>({
+  const couponForm = d.useForm<z.infer<typeof couponFormSchema>>({
     defaultValues: {
       coupon: ""
     },
-    resolver: zodResolver(couponFormSchema)
+    resolver: d.zodResolver(couponFormSchema)
   });
 
-  const threeDSecure = use3DSecure({
+  const threeDSecure = d.use3DSecure({
     onSuccess: () => {
       pollForPayment();
       setShowPaymentSuccess({ amount: submittedAmountRef.current, show: true });
@@ -133,13 +167,11 @@ export const PaymentPopup: React.FC<PaymentPopupProps> = ({ open, onClose, selec
         throw new Error("Payment failed");
       }
     } catch (error: unknown) {
-      console.error("Payment confirmation failed:", error);
-
-      const errorInfo = handleStripeError(error);
+      const errorInfo = d.handleStripeError(error);
 
       setError(errorInfo.message);
       setErrorAction(errorInfo.userAction);
-      enqueueSnackbar(<Snackbar title={errorInfo.message} iconVariant="error" />, { variant: "error" });
+      enqueueSnackbar(<d.Snackbar title={errorInfo.message} iconVariant="error" />, { variant: "error" });
     }
   };
 
@@ -147,15 +179,15 @@ export const PaymentPopup: React.FC<PaymentPopupProps> = ({ open, onClose, selec
     try {
       if (!user?.id) {
         console.error("Coupon application attempted without a user id");
-        enqueueSnackbar(<Snackbar title="Unable to apply coupon. Please refresh the page and try again." iconVariant="error" />, { variant: "error" });
+        enqueueSnackbar(<d.Snackbar title="Unable to apply coupon. Please refresh the page and try again." iconVariant="error" />, { variant: "error" });
         return;
       }
 
       const response = await applyCoupon({ coupon, userId: user.id });
 
       if (response.error) {
-        const errorInfo = handleCouponError(response);
-        enqueueSnackbar(<Snackbar title={errorInfo.message} iconVariant="error" />, { variant: "error" });
+        const errorInfo = d.handleCouponError(response);
+        enqueueSnackbar(<d.Snackbar title={errorInfo.message} iconVariant="error" />, { variant: "error" });
         return;
       }
 
@@ -164,12 +196,12 @@ export const PaymentPopup: React.FC<PaymentPopupProps> = ({ open, onClose, selec
         setShowPaymentSuccess({ amount: response.amountAdded.toString(), show: true });
       }
 
-      enqueueSnackbar(<Snackbar title="Coupon applied successfully!" iconVariant="success" />, { variant: "success", autoHideDuration: 5_000 });
+      enqueueSnackbar(<d.Snackbar title="Coupon applied successfully!" iconVariant="success" />, { variant: "success", autoHideDuration: 5_000 });
       couponForm.reset();
       onClose();
     } catch (error: unknown) {
-      const errorInfo = handleStripeError(error);
-      enqueueSnackbar(<Snackbar title={errorInfo.message} iconVariant="error" />, { variant: "error" });
+      const errorInfo = d.handleStripeError(error);
+      enqueueSnackbar(<d.Snackbar title={errorInfo.message} iconVariant="error" />, { variant: "error" });
       console.error("Coupon application error:", error);
     }
   };
@@ -179,7 +211,7 @@ export const PaymentPopup: React.FC<PaymentPopupProps> = ({ open, onClose, selec
   const disabled = isProcessing || !selectedPaymentMethodId;
 
   return (
-    <Popup
+    <d.Popup
       open={open}
       onClose={onClose}
       title="Add Funds"
@@ -194,18 +226,18 @@ export const PaymentPopup: React.FC<PaymentPopupProps> = ({ open, onClose, selec
       ]}
     >
       <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Add credits</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Form {...paymentForm}>
+        <d.Card>
+          <d.CardHeader>
+            <d.CardTitle className="text-lg">Add credits</d.CardTitle>
+          </d.CardHeader>
+          <d.CardContent className="space-y-4">
+            <d.Form {...paymentForm}>
               <form onSubmit={paymentForm.handleSubmit(onPayment)} className="space-y-4">
-                <FormField
+                <d.FormField
                   control={paymentForm.control}
                   name="amount"
                   render={({ field }) => (
-                    <FormInput
+                    <d.FormInput
                       {...field}
                       type="number"
                       min="0"
@@ -220,23 +252,23 @@ export const PaymentPopup: React.FC<PaymentPopupProps> = ({ open, onClose, selec
                   )}
                 />
 
-                <LoadingButton loading={isProcessing} className="w-full" type="submit" disabled={disabled}>
+                <d.LoadingButton loading={isProcessing} className="w-full" type="submit" disabled={disabled}>
                   {isConfirmingPayment || isPolling ? (
                     "Processing..."
                   ) : (
                     <>
-                      Pay <FormattedNumber value={amount || 0} style="currency" currency="USD" />
+                      Pay <d.FormattedNumber value={amount || 0} style="currency" currency="USD" />
                     </>
                   )}
-                </LoadingButton>
+                </d.LoadingButton>
               </form>
-            </Form>
+            </d.Form>
 
             {!selectedPaymentMethodId && <p className="text-center text-sm text-muted-foreground">Please select a payment method above</p>}
 
             {error && (
               <div className="mx-auto mt-6 max-w-md">
-                <Alert variant="destructive" className="mb-4">
+                <d.Alert variant="destructive" className="mb-4">
                   <p className="font-medium">Payment Error</p>
                   <p className="text-sm">{error}</p>
                   {errorAction && (
@@ -244,29 +276,29 @@ export const PaymentPopup: React.FC<PaymentPopupProps> = ({ open, onClose, selec
                       <strong>Suggestion:</strong> {errorAction}
                     </p>
                   )}
-                  <Button onClick={clearError} variant="default" size="sm" className="mt-2">
-                    <Xmark className="mr-2 h-4 w-4" />
+                  <d.Button onClick={clearError} variant="default" size="sm" className="mt-2">
+                    <d.Xmark className="mr-2 h-4 w-4" />
                     Clear Error
-                  </Button>
-                </Alert>
+                  </d.Button>
+                </d.Alert>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </d.CardContent>
+        </d.Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Have a coupon code?</CardTitle>
-            <CardDescription>Enter your coupon code to claim credits</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Form {...couponForm}>
+        <d.Card>
+          <d.CardHeader>
+            <d.CardTitle className="text-lg">Have a coupon code?</d.CardTitle>
+            <d.CardDescription>Enter your coupon code to claim credits</d.CardDescription>
+          </d.CardHeader>
+          <d.CardContent className="space-y-4">
+            <d.Form {...couponForm}>
               <form onSubmit={couponForm.handleSubmit(onClaimCoupon)} className="space-y-4">
-                <FormField
+                <d.FormField
                   control={couponForm.control}
                   name="coupon"
                   render={({ field }) => (
-                    <FormInput
+                    <d.FormInput
                       {...field}
                       type="text"
                       placeholder="Enter coupon code"
@@ -279,14 +311,14 @@ export const PaymentPopup: React.FC<PaymentPopupProps> = ({ open, onClose, selec
                   )}
                 />
 
-                <LoadingButton className="w-full" loading={isApplyingCoupon} type="submit">
+                <d.LoadingButton className="w-full" loading={isApplyingCoupon} type="submit">
                   Claim coupon
-                </LoadingButton>
+                </d.LoadingButton>
               </form>
-            </Form>
-          </CardContent>
-        </Card>
+            </d.Form>
+          </d.CardContent>
+        </d.Card>
       </div>
-    </Popup>
+    </d.Popup>
   );
 };
