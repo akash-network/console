@@ -21,7 +21,7 @@ export function coinToUDenom(coin: Coin) {
   const usdcDenom = getUsdcDenom();
 
   if (coin.denom === "akt") {
-    value = denomToUdenom(parseFloat(coin.amount));
+    value = denomToUdenom(coin.amount);
   } else if (coin.denom === UAKT_DENOM || coin.denom === usdcDenom) {
     value = parseFloat(coin.amount);
   } else {

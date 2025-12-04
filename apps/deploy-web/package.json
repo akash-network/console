@@ -35,6 +35,7 @@
     "@amplitude/analytics-browser": "^2.11.11",
     "@auth0/nextjs-auth0": "^3.5.0",
     "@cosmjs/encoding": "~0.36.1",
+    "@cosmjs/math": "~0.36.1",
     "@cosmjs/proto-signing": "~0.36.1",
     "@cosmjs/stargate": "~0.36.1",
     "@cosmos-kit/core": "^2.16.6",
