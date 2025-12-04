@@ -34,7 +34,7 @@ describe(PaymentMethodsContainer.name, () => {
 
     child.onSetPaymentMethodAsDefault(paymentMethodId);
 
-    expect(mockSetPaymentMethodAsDefault.mutateAsync).toHaveBeenCalledWith(paymentMethodId);
+    expect(mockSetPaymentMethodAsDefault.mutate).toHaveBeenCalledWith(paymentMethodId);
   });
 
   it("calls removePaymentMethod mutation when onRemovePaymentMethod is invoked", async () => {
@@ -43,7 +43,7 @@ describe(PaymentMethodsContainer.name, () => {
 
     child.onRemovePaymentMethod(paymentMethodId);
 
-    expect(mockRemovePaymentMethod.mutateAsync).toHaveBeenCalledWith(paymentMethodId);
+    expect(mockRemovePaymentMethod.mutate).toHaveBeenCalledWith(paymentMethodId);
   });
 
   it("initializes showAddPaymentMethod as false", async () => {
@@ -132,10 +132,10 @@ describe(PaymentMethodsContainer.name, () => {
 
     const mockRefetchPaymentMethods = jest.fn();
     const mockSetPaymentMethodAsDefault = {
-      mutateAsync: jest.fn()
+      mutate: jest.fn()
     };
     const mockRemovePaymentMethod = {
-      mutateAsync: jest.fn()
+      mutate: jest.fn()
     };
     const mockCreateSetupIntent = jest.fn();
     const mockResetSetupIntent = jest.fn();

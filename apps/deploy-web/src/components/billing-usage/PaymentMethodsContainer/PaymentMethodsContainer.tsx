@@ -16,22 +16,22 @@ type PaymentMethodsContainerProps = {
 
 export const PaymentMethodsContainer: React.FC<PaymentMethodsContainerProps> = ({ children, dependencies: d = DEPENDENCIES }) => {
   const { data: paymentMethods = [], isLoading: isLoadingPaymentMethods, refetch: refetchPaymentMethods } = d.usePaymentMethodsQuery();
-  const { setPaymentMethodAsDefault, removePaymentMethod } = d.usePaymentMutations();
+  const paymentMutations = d.usePaymentMutations();
   const { data: setupIntent, mutate: createSetupIntent, reset: resetSetupIntent } = d.useSetupIntentMutation();
   const [showAddPaymentMethod, setShowAddPaymentMethod] = useState(false);
 
   const onSetPaymentMethodAsDefault = useCallback(
     (id: string) => {
-      setPaymentMethodAsDefault.mutateAsync(id);
+      paymentMutations.setPaymentMethodAsDefault.mutate(id);
     },
-    [setPaymentMethodAsDefault]
+    [paymentMutations.setPaymentMethodAsDefault]
   );
 
   const onRemovePaymentMethod = useCallback(
     (id: string) => {
-      removePaymentMethod.mutateAsync(id);
+      paymentMutations.removePaymentMethod.mutate(id);
     },
-    [removePaymentMethod]
+    [paymentMutations.removePaymentMethod]
   );
 
   const onAddCardSuccess = async () => {

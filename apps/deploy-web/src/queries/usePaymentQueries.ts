@@ -24,6 +24,18 @@ export const usePaymentMethodsQuery = (options?: Omit<UseQueryOptions<PaymentMet
   });
 };
 
+export const useDefaultPaymentMethodQuery = (options?: Omit<UseQueryOptions<PaymentMethod>, "queryKey" | "queryFn">) => {
+  const { stripe } = useServices();
+  return useQuery<PaymentMethod>({
+    ...options,
+    queryKey: QueryKeys.getDefaultPaymentMethodKey(),
+    queryFn: async () => {
+      const response = await stripe.getDefaultPaymentMethod();
+      return response;
+    }
+  });
+};
+
 export interface UsePaymentTransactionsOptions {
   limit?: number;
   startingAfter?: string | null;
@@ -110,6 +122,7 @@ export const usePaymentMutations = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QueryKeys.getPaymentMethodsKey() });
+      queryClient.invalidateQueries({ queryKey: QueryKeys.getDefaultPaymentMethodKey() });
     }
   });
 
