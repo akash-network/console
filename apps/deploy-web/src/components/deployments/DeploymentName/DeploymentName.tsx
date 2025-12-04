@@ -1,11 +1,13 @@
 import { useMemo } from "react";
-import { CustomTooltip } from "@akashnetwork/ui/components";
+import { buttonVariants, CustomTooltip } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import { OpenInWindow } from "iconoir-react";
 import Link from "next/link";
 
 import { LabelValueOld } from "@src/components/shared/LabelValueOld";
 import type { LeaseServiceStatus } from "@src/queries/useLeaseQuery";
 import { getShortText } from "@src/utils/stringUtils";
+import { UrlService } from "@src/utils/urlUtils";
 
 export const COMPONENTS = {
   CustomTooltip,
@@ -63,7 +65,9 @@ export const DeploymentName: React.FunctionComponent<Props> = ({ deployment, dep
         </div>
       }
     >
-      <div className="truncate text-sm">{deploymentName.short && <strong>{deploymentName.short}</strong>}</div>
+      <c.Link className={cn(buttonVariants({ variant: "text" }))} href={UrlService.deploymentDetails(deployment.dseq)}>
+        <div className="truncate text-sm">{deploymentName.short && <strong>{deploymentName.short}</strong>}</div>
+      </c.Link>
     </c.CustomTooltip>
   );
 };

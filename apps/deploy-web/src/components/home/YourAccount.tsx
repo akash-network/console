@@ -49,6 +49,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ isLoadingBalances,
   const usdcIbcDenom = useUsdcDenom();
   const [selectedDataId, setSelectedDataId] = useState<string | null>(null);
   const [costPerMonth, setCostPerMonth] = useState<number | null>(null);
+  const [costPerHour, setCostPerHour] = useState<number | null>(null);
   const [userProviders, setUserProviders] = useState<{ owner: string; name: string }[] | null>(null);
   const hasBalance = !!walletBalance && walletBalance.totalUsd > 0;
   const totalCpu = activeDeployments.map(d => d.cpuAmount).reduce((a, b) => a + b, 0);
@@ -138,7 +139,9 @@ export const YourAccount: React.FunctionComponent<Props> = ({ isLoadingBalances,
           return { owner: provider?.owner || "", name: provider?.name || "Unknown" };
         });
 
-      setCostPerMonth(getAvgCostPerMonth(totalCostPerBlock));
+      const monthlyAvg = getAvgCostPerMonth(totalCostPerBlock);
+      setCostPerMonth(monthlyAvg);
+      setCostPerHour(monthlyAvg / (30.437 * 24));
       setUserProviders(_userProviders);
     }
   }, [leases, providers, price, isLoaded]);
@@ -201,16 +204,25 @@ export const YourAccount: React.FunctionComponent<Props> = ({ isLoadingBalances,
                   <div className="mt-8">
                     <p className="mb-4 text-sm text-muted-foreground">Total cost</p>
 
-                    <div className="flex items-center">
+                    <div className="flex flex-col gap-1">
                       <p>
                         <strong>
                           <FormattedNumber
-                            value={costPerMonth || 0}
+                            value={costPerHour || 0}
                             // eslint-disable-next-line react/style-prop-object
                             style="currency"
                             currency="USD"
                           />
                         </strong>{" "}
+                        / hour
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        <FormattedNumber
+                          value={costPerMonth || 0}
+                          // eslint-disable-next-line react/style-prop-object
+                          style="currency"
+                          currency="USD"
+                        />{" "}
                         / month
                       </p>
                     </div>
