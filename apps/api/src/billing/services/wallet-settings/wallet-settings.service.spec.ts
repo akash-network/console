@@ -42,26 +42,20 @@ describe(WalletSettingService.name, () => {
       const { user, publicSetting, walletSetting, walletSettingRepository, service } = setup();
       const updatedSetting = generateWalletSetting({
         ...walletSetting,
-        autoReloadEnabled: false,
-        autoReloadThreshold: 20.75
+        autoReloadEnabled: false
       });
       walletSettingRepository.findByUserId.mockResolvedValue(walletSetting);
       walletSettingRepository.updateById.mockResolvedValue(updatedSetting as any);
 
       const result = await service.upsertWalletSetting(user.id, {
-        autoReloadEnabled: false,
-        autoReloadThreshold: 20.75
+        autoReloadEnabled: false
       });
 
       const { autoReloadJobId, ...publicUpdatedSetting } = updatedSetting;
 
       expect(result).toEqual(publicUpdatedSetting);
       expect(walletSettingRepository.findByUserId).toHaveBeenCalledWith(user.id);
-      expect(walletSettingRepository.updateById).toHaveBeenCalledWith(
-        publicSetting.id,
-        { autoReloadEnabled: false, autoReloadThreshold: 20.75 },
-        { returning: true }
-      );
+      expect(walletSettingRepository.updateById).toHaveBeenCalledWith(publicSetting.id, { autoReloadEnabled: false }, { returning: true });
     });
 
     it("creates new wallet setting when not exists", async () => {
@@ -69,18 +63,14 @@ describe(WalletSettingService.name, () => {
       const newSetting = generateWalletSetting({
         userId: user.id,
         walletId: userWallet.id,
-        autoReloadEnabled: true,
-        autoReloadThreshold: 10.5,
-        autoReloadAmount: 50.0
+        autoReloadEnabled: true
       });
       walletSettingRepository.findByUserId.mockResolvedValue(undefined);
       walletSettingRepository.create.mockResolvedValue(newSetting);
       walletReloadJobService.scheduleForWalletSetting.mockResolvedValue(jobId);
 
       const result = await service.upsertWalletSetting(user.id, {
-        autoReloadEnabled: true,
-        autoReloadThreshold: 10.5,
-        autoReloadAmount: 50.0
+        autoReloadEnabled: true
       });
 
       const { autoReloadJobId, ...publicSetting } = newSetting;
@@ -91,9 +81,7 @@ describe(WalletSettingService.name, () => {
       expect(walletSettingRepository.create).toHaveBeenCalledWith({
         userId: user.id,
         walletId: userWallet.id,
-        autoReloadEnabled: true,
-        autoReloadThreshold: 10.5,
-        autoReloadAmount: 50.0
+        autoReloadEnabled: true
       });
       expect(walletReloadJobService.scheduleForWalletSetting).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -115,9 +103,7 @@ describe(WalletSettingService.name, () => {
       );
 
       const result = await service.upsertWalletSetting(user.id, {
-        autoReloadEnabled: true,
-        autoReloadThreshold: 10.5,
-        autoReloadAmount: 50.0
+        autoReloadEnabled: true
       });
       const { autoReloadJobId, ...newPublicSetting } = newSetting;
 
@@ -127,55 +113,16 @@ describe(WalletSettingService.name, () => {
       expect(walletSettingRepository.create).toHaveBeenCalledWith({
         userId: user.id,
         walletId: userWallet.id,
-        autoReloadEnabled: true,
-        autoReloadThreshold: 10.5,
-        autoReloadAmount: 50.0
+        autoReloadEnabled: true
       });
     });
 
-    it("throws 400 when enabled is true and threshold and amount are not provided during create", async () => {
-      const { user, walletSettingRepository, service } = setup();
-      walletSettingRepository.findByUserId.mockResolvedValue(undefined);
-
-      await expect(() =>
-        service.upsertWalletSetting(user.id, {
-          autoReloadEnabled: true
-        })
-      ).rejects.toThrow('"autoReloadThreshold" and "autoReloadAmount" are required when "autoReloadEnabled" is true');
-    });
-
-    it("throws 400 when enabled is true and only threshold is provided during create", async () => {
-      const { user, walletSettingRepository, service } = setup();
-      walletSettingRepository.findByUserId.mockResolvedValue(undefined);
-
-      await expect(() =>
-        service.upsertWalletSetting(user.id, {
-          autoReloadEnabled: true,
-          autoReloadThreshold: 15.5
-        })
-      ).rejects.toThrow('"autoReloadThreshold" and "autoReloadAmount" are required when "autoReloadEnabled" is true');
-    });
-
-    it("throws 400 when enabled is true and only amount is provided during create", async () => {
-      const { user, walletSettingRepository, service } = setup();
-      walletSettingRepository.findByUserId.mockResolvedValue(undefined);
-
-      await expect(() =>
-        service.upsertWalletSetting(user.id, {
-          autoReloadEnabled: true,
-          autoReloadAmount: 25.0
-        })
-      ).rejects.toThrow('"autoReloadThreshold" and "autoReloadAmount" are required when "autoReloadEnabled" is true');
-    });
-
-    it("updates existing setting using existing values when enabled is true and threshold and amount are not provided", async () => {
+    it("updates existing setting when enabled is true", async () => {
       const { user, walletSetting, walletSettingRepository, walletReloadJobService, jobId, service } = setup();
-      const existingSetting = { ...walletSetting, autoReloadEnabled: false, autoReloadThreshold: 15.5, autoReloadAmount: 25.0 };
+      const existingSetting = { ...walletSetting, autoReloadEnabled: false };
       const updatedSetting = generateWalletSetting({
         userId: user.id,
-        autoReloadEnabled: true,
-        autoReloadThreshold: 15.5,
-        autoReloadAmount: 25.0
+        autoReloadEnabled: true
       });
       walletSettingRepository.findByUserId.mockResolvedValue(existingSetting);
       walletSettingRepository.updateById.mockResolvedValue(updatedSetting as any);
@@ -231,22 +178,6 @@ describe(WalletSettingService.name, () => {
       expect(walletReloadJobService.cancel).toHaveBeenCalledWith(user.id, existingJobId);
     });
 
-    it("throws 400 when enabled is true and existing setting does not have threshold and amount", async () => {
-      const {
-        user,
-        walletSetting: { autoReloadThreshold, autoReloadAmount, ...walletSetting },
-        walletSettingRepository,
-        service
-      } = setup();
-      walletSettingRepository.findByUserId.mockResolvedValue(walletSetting);
-
-      await expect(() =>
-        service.upsertWalletSetting(user.id, {
-          autoReloadEnabled: true
-        })
-      ).rejects.toThrow('"autoReloadThreshold" and "autoReloadAmount" are required when "autoReloadEnabled" is true');
-    });
-
     it("throws 404 when user wallet not found during create", async () => {
       const { user, userWalletRepository, walletSettingRepository, service } = setup();
       walletSettingRepository.findByUserId.mockResolvedValue(undefined);
@@ -254,9 +185,7 @@ describe(WalletSettingService.name, () => {
 
       await expect(() =>
         service.upsertWalletSetting(user.id, {
-          autoReloadEnabled: true,
-          autoReloadThreshold: 20,
-          autoReloadAmount: 20
+          autoReloadEnabled: true
         })
       ).rejects.toThrow("UserWallet Not Found");
     });
@@ -270,6 +199,20 @@ describe(WalletSettingService.name, () => {
       await service.deleteWalletSetting(user.id);
 
       expect(walletSettingRepository.deleteBy).toHaveBeenCalledWith({ userId: user.id });
+    });
+
+    it("deletes wallet setting and cancels job when autoReloadJobId exists", async () => {
+      const { user, walletSetting, walletSettingRepository, walletReloadJobService, service } = setup();
+      const existingJobId = faker.string.uuid();
+      const settingWithJob = { ...walletSetting, autoReloadJobId: existingJobId };
+      walletSettingRepository.findByUserId.mockResolvedValue(settingWithJob);
+      walletSettingRepository.deleteBy.mockResolvedValue(undefined);
+
+      await service.deleteWalletSetting(user.id);
+
+      expect(walletSettingRepository.findByUserId).toHaveBeenCalledWith(user.id);
+      expect(walletSettingRepository.deleteBy).toHaveBeenCalledWith({ userId: user.id });
+      expect(walletReloadJobService.cancel).toHaveBeenCalledWith(user.id, existingJobId);
     });
   });
 

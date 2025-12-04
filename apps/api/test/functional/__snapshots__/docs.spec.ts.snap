@@ -15199,16 +15199,8 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                   "properties": {
                     "data": {
                       "properties": {
-                        "autoReloadAmount": {
-                          "minimum": 20,
-                          "type": "number",
-                        },
                         "autoReloadEnabled": {
                           "type": "boolean",
-                        },
-                        "autoReloadThreshold": {
-                          "minimum": 20,
-                          "type": "number",
                         },
                       },
                       "required": [
@@ -15252,16 +15244,8 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                 "properties": {
                   "data": {
                     "properties": {
-                      "autoReloadAmount": {
-                        "minimum": 20,
-                        "type": "number",
-                      },
                       "autoReloadEnabled": {
                         "type": "boolean",
-                      },
-                      "autoReloadThreshold": {
-                        "minimum": 20,
-                        "type": "number",
                       },
                     },
                     "required": [
@@ -15286,16 +15270,8 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                   "properties": {
                     "data": {
                       "properties": {
-                        "autoReloadAmount": {
-                          "minimum": 20,
-                          "type": "number",
-                        },
                         "autoReloadEnabled": {
                           "type": "boolean",
-                        },
-                        "autoReloadThreshold": {
-                          "minimum": 20,
-                          "type": "number",
                         },
                       },
                       "required": [
@@ -15339,18 +15315,13 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                 "properties": {
                   "data": {
                     "properties": {
-                      "autoReloadAmount": {
-                        "minimum": 20,
-                        "type": "number",
-                      },
                       "autoReloadEnabled": {
                         "type": "boolean",
                       },
-                      "autoReloadThreshold": {
-                        "minimum": 20,
-                        "type": "number",
-                      },
                     },
+                    "required": [
+                      "autoReloadEnabled",
+                    ],
                     "type": "object",
                   },
                 },
@@ -15370,16 +15341,8 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                   "properties": {
                     "data": {
                       "properties": {
-                        "autoReloadAmount": {
-                          "minimum": 20,
-                          "type": "number",
-                        },
                         "autoReloadEnabled": {
                           "type": "boolean",
-                        },
-                        "autoReloadThreshold": {
-                          "minimum": 20,
-                          "type": "number",
                         },
                       },
                       "required": [

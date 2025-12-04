@@ -64,7 +64,7 @@ export class WalletSettingService {
       return {};
     }
 
-    await this.#validate({ next: settings, prev, userId });
+    await this.#validate({ next: settings, userId });
     const next = await this.walletSettingRepository.accessibleBy(ability, "update").updateById(prev.id, settings, { returning: true });
 
     if (!next) {
@@ -104,17 +104,8 @@ export class WalletSettingService {
     }
   }
 
-  async #validate({ prev, next, userId }: { next: WalletSettingInput; prev?: WalletSettingOutput; userId: string }) {
+  async #validate({ next, userId }: { next: WalletSettingInput; userId: string }) {
     if (next.autoReloadEnabled) {
-      const threshold = next.autoReloadThreshold ?? prev?.autoReloadThreshold;
-      const amount = next.autoReloadAmount ?? prev?.autoReloadAmount;
-
-      assert(
-        typeof threshold === "number" && typeof amount === "number",
-        400,
-        '"autoReloadThreshold" and "autoReloadAmount" are required when "autoReloadEnabled" is true'
-      );
-
       const user = await this.userRepository.findById(userId);
       assert(user, 404, "User Not Found");
 

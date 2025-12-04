@@ -44,7 +44,7 @@ stripePaymentMethodsRouter.openapi(setupIntentRoute, async function createSetupI
 
 const markAsDefaultRoute = createRoute({
   method: "post",
-  path: `/v1/stripe/payment-methods/default`,
+  path: "/v1/stripe/payment-methods/default",
   summary: "Marks a payment method as the default.",
   tags: ["Payment"],
   security: SECURITY_BEARER_OR_API_KEY,

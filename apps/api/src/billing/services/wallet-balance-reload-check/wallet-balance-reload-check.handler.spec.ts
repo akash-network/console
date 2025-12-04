@@ -327,7 +327,9 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     };
 
     const walletSettingRepository = mock<WalletSettingRepository>();
-    const balancesService = mock<BalancesService>();
+    const balancesService = mock<BalancesService>({
+      ensure2floatingDigits: jest.fn().mockImplementation((amount: number) => amount)
+    });
     const walletReloadJobService = mock<WalletReloadJobService>();
     const drainingDeploymentService = mock<DrainingDeploymentService>();
     const stripeService = mock<StripeService>();
