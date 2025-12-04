@@ -36,10 +36,7 @@ export function WalletStatus() {
               <DropdownMenu modal={false} open={open}>
                 <DropdownMenuTrigger asChild>
                   <div
-                    className={cn("flex items-center justify-center rounded-md border px-4 py-2 text-sm", {
-                      "border-primary bg-primary/10 text-primary dark:bg-primary dark:text-primary-foreground": isManaged,
-                      "bg-background text-foreground": !isManaged
-                    })}
+                    className={cn("flex items-center justify-center rounded-md border bg-accent px-4 py-2 text-sm hover:bg-accent/80")}
                     onMouseOver={() => setOpen(true)}
                   >
                     <div className="flex items-center space-x-2" aria-label="Connected wallet name and balance">
@@ -56,7 +53,7 @@ export function WalletStatus() {
                       )}
                     </div>
 
-                    {walletBalance && ((isManaged && isTrialing) || !isManaged) && <div className="px-2">|</div>}
+                    {walletBalance && ((isManaged && isTrialing) || !isManaged) && <div className="px-2 text-muted-foreground">|</div>}
 
                     <div className="text-xs">
                       {walletBalance && (
