@@ -17,7 +17,6 @@ describe(JobQueueService.name, () => {
       await service.registerHandlers([handler]);
 
       expect(pgBoss.createQueue).toHaveBeenCalledWith("test", {
-        name: "test",
         retryBackoff: true,
         retryDelayMax: 5 * 60,
         retryLimit: 5,
@@ -50,14 +49,12 @@ describe(JobQueueService.name, () => {
 
       expect(pgBoss.createQueue).toHaveBeenCalledTimes(2);
       expect(pgBoss.createQueue).toHaveBeenCalledWith("test", {
-        name: "test",
         retryBackoff: true,
         retryDelayMax: 5 * 60,
         retryLimit: 5,
         policy: undefined
       });
       expect(pgBoss.createQueue).toHaveBeenCalledWith("another", {
-        name: "another",
         retryBackoff: true,
         retryDelayMax: 5 * 60,
         retryLimit: 5,
@@ -160,7 +157,6 @@ describe(JobQueueService.name, () => {
       await service.startWorkers({ concurrency: 5 });
 
       expect(pgBoss.createQueue).toHaveBeenCalledWith("test", {
-        name: "test",
         retryBackoff: true,
         retryDelayMax: 5 * 60,
         retryLimit: 5,
