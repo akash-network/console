@@ -314,8 +314,8 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
           data-testid="sidebar-deploy-button"
           aria-disabled={settings.isBlockchainDown}
         >
+          <Rocket className={cn("rotate-45", { ["mr-4"]: isNavOpen })} fontSize="small" />
           {isNavOpen && "Deploy "}
-          <Rocket className={cn("rotate-45", { ["ml-4"]: isNavOpen })} fontSize="small" />
         </Link>
 
         {routeGroups.map((g, i) => (

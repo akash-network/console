@@ -1,17 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import {
-  Avatar,
-  AvatarFallback,
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger
-} from "@akashnetwork/ui/components";
+import { Avatar, AvatarFallback, Button, Card, CardContent, Collapsible, CollapsibleContent, CollapsibleTrigger } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { Learning, NavArrowDown, Rocket, SearchEngine } from "iconoir-react";
 import Link from "next/link";
@@ -23,23 +12,22 @@ export const WelcomePanel: React.FC = () => {
 
   return (
     <Collapsible open={expanded} onOpenChange={setExpanded}>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-2xl font-bold">Welcome to Akash Console!</CardTitle>
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-2xl font-bold">Welcome to Akash Console!</h2>
+        <CollapsibleTrigger asChild>
+          <Button size="icon" variant="ghost" className="!m-0 rounded-full" onClick={() => setExpanded(prev => !prev)}>
+            <NavArrowDown fontSize="1rem" className={cn("transition-all duration-100", { ["rotate-180"]: expanded })} />
+          </Button>
+        </CollapsibleTrigger>
+      </div>
 
-          <CollapsibleTrigger asChild>
-            <Button size="icon" variant="ghost" className="!m-0 rounded-full" onClick={() => setExpanded(prev => !prev)}>
-              <NavArrowDown fontSize="1rem" className={cn("transition-all duration-100", { ["rotate-180"]: expanded })} />
-            </Button>
-          </CollapsibleTrigger>
-        </CardHeader>
-
-        <CollapsibleContent>
-          <CardContent>
+      <CollapsibleContent>
+        <Card>
+          <CardContent className="pt-6">
             <ul className="space-y-6">
               <li className="flex items-center space-x-4">
-                <Avatar className="h-12 w-12">
-                  <AvatarFallback>
+                <Avatar className="h-12 w-12 rounded-md">
+                  <AvatarFallback className="rounded-md">
                     <Rocket className="rotate-45" />
                   </AvatarFallback>
                 </Avatar>
@@ -51,8 +39,8 @@ export const WelcomePanel: React.FC = () => {
               </li>
 
               <li className="flex items-center">
-                <Avatar className="h-12 w-12">
-                  <AvatarFallback>
+                <Avatar className="h-12 w-12 rounded-md">
+                  <AvatarFallback className="rounded-md">
                     <SearchEngine />
                   </AvatarFallback>
                 </Avatar>
@@ -66,8 +54,8 @@ export const WelcomePanel: React.FC = () => {
               </li>
 
               <li className="flex items-center">
-                <Avatar className="h-12 w-12">
-                  <AvatarFallback>
+                <Avatar className="h-12 w-12 rounded-md">
+                  <AvatarFallback className="rounded-md">
                     <Learning />
                   </AvatarFallback>
                 </Avatar>
@@ -81,8 +69,8 @@ export const WelcomePanel: React.FC = () => {
               </li>
             </ul>
           </CardContent>
-        </CollapsibleContent>
-      </Card>
+        </Card>
+      </CollapsibleContent>
     </Collapsible>
   );
 };
