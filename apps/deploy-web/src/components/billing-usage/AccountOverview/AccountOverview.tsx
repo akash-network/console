@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FormattedNumber } from "react-intl";
 import { Button, Card, CardContent, CardFooter, CardHeader, CardTitle, Snackbar, Switch } from "@akashnetwork/ui/components";
-import {} from "@akashnetwork/ui/components";
 import { LinearProgress } from "@mui/material";
 import { Plus } from "iconoir-react";
 import { useSnackbar } from "notistack";

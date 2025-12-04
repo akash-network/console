@@ -57,7 +57,7 @@ const mockDependencies: any = {
   TableBody: MockTableBody
 };
 
-describe("PaymentMethodsView", () => {
+describe(PaymentMethodsView.name, () => {
   describe("Loading State", () => {
     it("renders loading spinner when isLoadingPaymentMethods is true", () => {
       setup({ isLoadingPaymentMethods: true });

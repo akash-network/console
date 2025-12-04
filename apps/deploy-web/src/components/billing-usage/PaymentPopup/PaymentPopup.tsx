@@ -145,7 +145,13 @@ export const PaymentPopup: React.FC<PaymentPopupProps> = ({ open, onClose, selec
 
   const onClaimCoupon = async ({ coupon }: z.infer<typeof couponFormSchema>) => {
     try {
-      const response = await applyCoupon({ coupon, userId: user?.id || "" });
+      if (!user?.id) {
+        console.error("Coupon application attempted without a user id");
+        enqueueSnackbar(<Snackbar title="Unable to apply coupon. Please refresh the page and try again." iconVariant="error" />, { variant: "error" });
+        return;
+      }
+
+      const response = await applyCoupon({ coupon, userId: user.id });
 
       if (response.error) {
         const errorInfo = handleCouponError(response);
@@ -231,7 +237,7 @@ export const PaymentPopup: React.FC<PaymentPopupProps> = ({ open, onClose, selec
             {error && (
               <div className="mx-auto mt-6 max-w-md">
                 <Alert variant="destructive" className="mb-4">
-                  <p className="font-medium">Error Loading Payment Information</p>
+                  <p className="font-medium">Payment Error</p>
                   <p className="text-sm">{error}</p>
                   {errorAction && (
                     <p className="mt-2 text-sm text-muted-foreground">

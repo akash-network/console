@@ -1,14 +1,6 @@
 import React, { useCallback, useMemo, useState } from "react";
 import type { PaymentMethod } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
-import {
-  Badge,
-  Button,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-  TableCell,
-  TableRow
-} from "@akashnetwork/ui/components";
+import { Badge, Button, DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, TableCell, TableRow } from "@akashnetwork/ui/components";
 import { ClickAwayListener } from "@mui/material";
 import { BadgeCheck, CheckCircle, MoreHoriz, Trash } from "iconoir-react";
 
@@ -84,12 +76,12 @@ export const PaymentMethodsRow: React.FC<PaymentMethodsRowProps> = ({
   const setPaymentAsDefault = useCallback(() => {
     onSetPaymentMethodAsDefault(paymentMethod.id);
     handleMenuClose();
-  }, []);
+  }, [onSetPaymentMethodAsDefault, paymentMethod.id]);
 
   const removePaymentMethod = useCallback(() => {
     onRemovePaymentMethod(paymentMethod.id);
     handleMenuClose();
-  }, []);
+  }, [onRemovePaymentMethod, paymentMethod.id]);
 
   return (
     <d.TableRow className="flex py-3">
