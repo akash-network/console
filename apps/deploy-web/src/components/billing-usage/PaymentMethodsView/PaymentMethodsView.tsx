@@ -58,7 +58,7 @@ export const PaymentMethodsView: React.FC<PaymentMethodsViewProps> = ({
 
   return (
     <div className="space-y-2">
-      <d.Card>
+      <d.Card className="overflow-hidden">
         <d.CardHeader>
           <div className="text-2xl font-bold">Payment Methods</div>
           <div className="text-gray-500">All payments to add credits will be made using your default card.</div>
@@ -82,7 +82,7 @@ export const PaymentMethodsView: React.FC<PaymentMethodsViewProps> = ({
             </d.Table>
           )}
         </d.CardContent>
-        <d.CardFooter className="flex py-2">
+        <d.CardFooter className="flex bg-muted py-2">
           <div className="flex-grow text-gray-500">At most, 3 cards can be used at once.</div>
           <div>
             <d.Button onClick={onAddPaymentMethod} className="mb-4 mt-4">
