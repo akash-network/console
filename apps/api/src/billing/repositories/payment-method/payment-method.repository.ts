@@ -82,34 +82,38 @@ export class PaymentMethodRepository extends BaseRepository<Table, PaymentMethod
 
   async markAsDefault(paymentMethodId: string) {
     return this.ensureTransaction(async tx => {
+      const nextDefaultQuery = this.queryToWhere({ paymentMethodId });
+      const nextDefault = await tx.query.PaymentMethods.findFirst({ where: nextDefaultQuery, columns: { id: true } });
+
+      if (!nextDefault) {
+        return;
+      }
+
+      await this.#unmarkAsDefaultExcluding(nextDefault.id, tx);
+
       const [output] = await tx
         .update(this.table)
         .set({
           isDefault: true,
           updatedAt: sql`now()`
         })
-        .where(this.queryToWhere({ paymentMethodId }))
+        .where(nextDefaultQuery)
         .returning();
 
-      if (output) {
-        await this.#unmarkAsDefaultExcluding(output.id, tx);
-
-        return this.toOutput(output);
-      }
+      return output ? this.toOutput(output) : undefined;
     });
   }
 
   async createAsDefault(input: Omit<PaymentMethodInput, "id" | "isDefault">) {
     return this.ensureTransaction(async tx => {
       const id = uuidv4();
-      const [output] = await Promise.all([
-        this.create({
-          ...input,
-          isDefault: true,
-          id
-        }),
-        this.#unmarkAsDefaultExcluding(id, tx)
-      ]);
+      await this.#unmarkAsDefaultExcluding(id, tx);
+
+      const output = await this.create({
+        ...input,
+        isDefault: true,
+        id
+      });
 
       return this.toOutput(output);
     });

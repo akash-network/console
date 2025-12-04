@@ -11,6 +11,12 @@ import { averageBlockTime } from "@src/utils/constants";
 
 @singleton()
 export class BalancesService {
+  #currencyFormatter = new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+    useGrouping: false
+  });
+
   constructor(
     @InjectBillingConfig() private readonly config: BillingConfig,
     private readonly userWalletRepository: UserWalletRepository,
@@ -138,6 +144,6 @@ export class BalancesService {
   }
 
   ensure2floatingDigits(amount: number) {
-    return parseFloat(amount.toFixed(2));
+    return Number(this.#currencyFormatter.format(amount));
   }
 }

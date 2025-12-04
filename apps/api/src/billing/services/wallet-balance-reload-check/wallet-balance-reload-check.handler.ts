@@ -166,7 +166,7 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
     const reloadTargetDate = addMilliseconds(new Date(), this.#RELOAD_COVERAGE_PERIOD_IN_MS);
     const costUntilTargetDateInDenom = await this.drainingDeploymentService.calculateAllDeploymentCostUntilDate(resources.wallet.address, reloadTargetDate);
     const costUntilTargetDateInFiat = await this.balancesService.toFiatAmount(costUntilTargetDateInDenom);
-    const threshold = this.#MIN_COVERAGE_PERCENTAGE * costUntilTargetDateInFiat;
+    const threshold = this.balancesService.ensure2floatingDigits(this.#MIN_COVERAGE_PERCENTAGE * costUntilTargetDateInFiat);
     const log = {
       walletAddress: resources.wallet.address,
       balance: resources.balance,

@@ -38,9 +38,7 @@ describe(WalletSettingController.name, () => {
 
       const result = await controller.createWalletSettings({
         data: {
-          autoReloadEnabled: true,
-          autoReloadThreshold: 10.5,
-          autoReloadAmount: 50.0
+          autoReloadEnabled: true
         }
       });
 
@@ -48,9 +46,7 @@ describe(WalletSettingController.name, () => {
         data: walletSetting
       });
       expect(walletSettingService.upsertWalletSetting).toHaveBeenCalledWith(user.id, {
-        autoReloadEnabled: true,
-        autoReloadThreshold: 10.5,
-        autoReloadAmount: 50.0
+        autoReloadEnabled: true
       });
     });
   });
@@ -63,8 +59,7 @@ describe(WalletSettingController.name, () => {
 
       const result = await controller.updateWalletSettings({
         data: {
-          autoReloadEnabled: false,
-          autoReloadThreshold: 20.75
+          autoReloadEnabled: false
         }
       });
 
@@ -72,8 +67,7 @@ describe(WalletSettingController.name, () => {
         data: walletSetting
       });
       expect(walletSettingService.upsertWalletSetting).toHaveBeenCalledWith(user.id, {
-        autoReloadEnabled: false,
-        autoReloadThreshold: 20.75
+        autoReloadEnabled: false
       });
     });
   });

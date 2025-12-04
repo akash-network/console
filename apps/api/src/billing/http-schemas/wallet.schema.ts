@@ -47,9 +47,7 @@ export const StartTrialRequestInputSchema = z.object({
 });
 
 export const WalletSettingsSchema = z.object({
-  autoReloadEnabled: z.boolean().openapi({}),
-  autoReloadThreshold: z.number().min(20).optional().openapi({}),
-  autoReloadAmount: z.number().min(20).optional().openapi({})
+  autoReloadEnabled: z.boolean().openapi({})
 });
 
 export const WalletSettingsResponseSchema = z.object({
@@ -61,7 +59,7 @@ export const CreateWalletSettingsRequestSchema = z.object({
 });
 
 export const UpdateWalletSettingsRequestSchema = z.object({
-  data: WalletSettingsSchema.partial()
+  data: WalletSettingsSchema
 });
 
 export type WalletOutputResponse = z.infer<typeof WalletResponseOutputSchema>;
