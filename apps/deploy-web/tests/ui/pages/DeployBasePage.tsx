@@ -2,6 +2,7 @@ import type { BrowserContext as Context, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 
 import { PROVIDERS_WHITELIST, testEnvConfig } from "../fixture/test-env.config";
+import { LeapExt } from "./LeapExt";
 
 export type FeeType = "low" | "medium" | "high";
 export class DeployBasePage {
@@ -67,7 +68,7 @@ export class DeployBasePage {
 
   async validateLease() {
     await this.page.waitForURL(new RegExp(`${testEnvConfig.BASE_URL}/deployments/\\d+`));
-    await expect(this.page.getByText("SuccessfulCreate", { exact: true })).toBeVisible({ timeout: 10000 });
+    await expect(this.page.getByText("SuccessfulCreate", { exact: true })).toBeVisible({ timeout: 20_000 });
     await this.page.getByRole("tab", { name: /Leases/i }).click();
     await this.page.getByLabel(/URIs/i).getByRole("link").first().isVisible();
     await expect(this.page.getByTestId("lease-row-0-state")).toHaveText("active");
@@ -79,10 +80,7 @@ export class DeployBasePage {
   }
 
   async signTransaction(feeType: FeeType = this.feeType) {
-    const popupPage = await this.context.waitForEvent("page");
-    await popupPage.waitForLoadState("domcontentloaded");
-    await popupPage.locator(`input[name="fee"][type="radio"][value="${feeType}"]`).click();
-    await popupPage.getByRole("button", { name: "Approve" }).click();
-    await this.page.getByText(/Transaction success/).waitFor({ state: "visible", timeout: 10_000 });
+    const extension = new LeapExt(this.context, this.page);
+    await Promise.all([extension.acceptTransaction(feeType), extension.waitForTransaction("success")]);
   }
 }

@@ -40,8 +40,7 @@ function includeAuthorizationTests(input: { authType: AuthorizationType }) {
 
   test("can edit spending", async ({ page, context, extensionId }) => {
     const { authorizationsPage, anotherWalletAddress: address, extension } = await setup({ page, context, extensionId, ...input });
-    await authorizationsPage.editSpending(input.authType, address);
-    await Promise.all([extension.waitForTransaction("success"), extension.acceptTransaction(context)]);
+    await Promise.all([extension.waitForTransaction("success"), extension.acceptTransaction(), authorizationsPage.editSpending(input.authType, address)]);
 
     const grantList = authorizationsPage.getListLocator(input.authType);
     await expect(grantList.locator("tr", { hasText: /10(\.0+?) AKT/ })).toBeVisible({ timeout: 10_000 });
@@ -50,8 +49,7 @@ function includeAuthorizationTests(input: { authType: AuthorizationType }) {
   test("can revoke spending", async ({ page, context, extensionId }) => {
     const { authorizationsPage, anotherWalletAddress: address, extension } = await setup({ page, context, extensionId, ...input });
 
-    await authorizationsPage.revokeSpending(input.authType, address);
-    await Promise.all([extension.waitForTransaction("success"), extension.acceptTransaction(context)]);
+    await Promise.all([extension.waitForTransaction("success"), extension.acceptTransaction(), authorizationsPage.revokeSpending(input.authType, address)]);
 
     const shortenedAddress = shortenAddress(address);
     const grantList = authorizationsPage.getListLocator(input.authType);
@@ -67,8 +65,11 @@ async function setup({ page, context, authType }: { page: Page; context: Browser
   const authorizationsPage = new AuthorizationsPage(context, page);
   await authorizationsPage.goto();
 
-  await authorizationsPage.authorizeSpending(authType, anotherWalletAccounts[0].address);
-  await Promise.all([extension.waitForTransaction("success"), extension.acceptTransaction(context)]);
+  await Promise.all([
+    extension.waitForTransaction("success"),
+    extension.acceptTransaction(),
+    authorizationsPage.authorizeSpending(authType, anotherWalletAccounts[0].address)
+  ]);
 
   return {
     authorizationsPage,
