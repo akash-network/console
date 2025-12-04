@@ -1,12 +1,11 @@
-import type { Locator, Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
 
 export const clickWalletSelectorDropdown = async (page: Page) => {
   return await page.getByLabel("wallet dropdown")?.click();
 };
 
 export const clickConnectWalletButton = async (page: Page) => {
-  const button = await waitForLocator(page.getByRole("button", { name: /connect button/i }));
-  return await button.click();
+  await page.getByRole("button", { name: /connect button/i }).click({ timeout: 20_000 });
 };
 
 export const clickCopyAddressButton = async (page: Page) => {
@@ -17,9 +16,4 @@ export const clickCopyAddressButton = async (page: Page) => {
   });
 
   return clipboardContents;
-};
-
-export const waitForLocator = async (locator: Locator) => {
-  await locator.waitFor({ state: "visible", timeout: 20_000 });
-  return locator;
 };

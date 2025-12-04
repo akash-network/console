@@ -79,12 +79,10 @@ export async function awaitWalletAndApprove(context: BrowserContext, page: Page,
 
 export async function approveWalletOperation(popupPage: Page | null) {
   if (!popupPage) return;
-  const buttonsSelector = ['button:has-text("Approve")', 'button:has-text("Unlock wallet")', 'button:has-text("Connect")'].join(",");
+  const buttonLocator = popupPage.locator("button", { hasText: /^\s*(Approve|Unlock wallet|Connect)\s*$/i });
+  await buttonLocator.waitFor({ state: "visible", timeout: 5_000 });
 
-  await popupPage.waitForSelector(buttonsSelector, { state: "visible", timeout: 5_000 });
-
-  const visibleButton = await popupPage.waitForSelector(buttonsSelector, { state: "visible" });
-  const buttonText = await visibleButton.textContent();
+  const buttonText = await buttonLocator.textContent();
 
   switch (buttonText?.trim()) {
     case "Approve": {
@@ -97,16 +95,19 @@ export async function approveWalletOperation(popupPage: Page | null) {
 
       const value = Number(await gasInput.inputValue());
       await gasInput.fill(String(value + 20_000));
-      await visibleButton.click();
+      await buttonLocator.click();
       break;
     }
     case "Unlock wallet":
       await popupPage.locator("input").fill(WALLET_PASSWORD);
-      await visibleButton.click();
-      await popupPage.waitForSelector('button:has-text("Connect")', { state: "visible" }).then(button => button.click());
+      await buttonLocator.click();
+      await popupPage
+        .getByRole("button", { name: /Connect/i })
+        .or(popupPage.getByLabel("wallet dropdown"))
+        .click();
       break;
     case "Connect":
-      await visibleButton.click();
+      await buttonLocator.click();
       break;
     default:
       throw new Error("Unexpected state in wallet popup");

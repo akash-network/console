@@ -1,12 +1,11 @@
 import type { BrowserContext, Page } from "@playwright/test";
 import { chromium } from "@playwright/test";
-import { nanoid } from "nanoid";
 import path from "path";
 
 import { selectChainNetwork } from "../actions/selectChainNetwork";
 import { injectUIConfig, test as baseTest } from "./base-test";
 import { testEnvConfig } from "./test-env.config";
-import { awaitWalletAndApprove, connectWalletViaLeap, getExtensionPage, setupWallet } from "./wallet-setup";
+import { approveWalletOperation, awaitWalletAndApprove, connectWalletViaLeap, getExtensionPage } from "./wallet-setup";
 
 // @see https://playwright.dev/docs/chrome-extensions
 export const test = baseTest.extend<{
@@ -17,15 +16,13 @@ export const test = baseTest.extend<{
   // eslint-disable-next-line no-empty-pattern
   context: async ({}, use) => {
     const pathToExtension = path.join(__dirname, "Leap");
-    const contextName = nanoid();
-    const userDataDir = path.join(__dirname, "testdata", "tmp", contextName);
     const args = [
       // keep new line
       `--disable-extensions-except=${pathToExtension}`,
       `--load-extension=${pathToExtension}`
     ];
 
-    const context = await chromium.launchPersistentContext(userDataDir, {
+    const context = await chromium.launchPersistentContext(testEnvConfig.USER_DATA_DIR, {
       channel: "chromium",
       args,
       permissions: ["clipboard-read", "clipboard-write"]
@@ -47,9 +44,8 @@ export const test = baseTest.extend<{
     async ({ context, extensionId }, use) => {
       const extPage = await getExtensionPage(context, extensionId);
 
-      await setupWallet(extPage);
-      await extPage.close();
-      const page = await context.newPage();
+      await approveWalletOperation(extPage);
+      const [page] = await Promise.all([context.newPage(), extPage.close()]);
       await injectUIConfig(page);
 
       if (testEnvConfig.NETWORK_ID !== "mainnet") {
@@ -70,6 +66,10 @@ export const test = baseTest.extend<{
       }
 
       await use(page);
+      await page.evaluate(networkId => {
+        localStorage.clear();
+        localStorage.setItem("selectedNetworkId", networkId);
+      }, testEnvConfig.NETWORK_ID);
     },
     { scope: "test", timeout: 5 * 60 * 1000 }
   ]

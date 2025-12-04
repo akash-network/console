@@ -38,18 +38,25 @@ export class LeapExt {
     await this.page.reload({ waitUntil: "networkidle" });
   }
 
-  async acceptTransaction(context: BrowserContext, feeType: FeeType = "low") {
-    const popupPage = await context.waitForEvent("page", { timeout: 5_000 });
+  async acceptTransaction(feeType: FeeType = "low"): Promise<void> {
+    const popupPage = await this.context.waitForEvent("page");
+    await popupPage.waitForLoadState("domcontentloaded");
     const feeTypeLocator = getFeeTypeLocator(popupPage, feeType);
-    await feeTypeLocator.waitFor({ state: "visible" });
-    await feeTypeLocator.click();
+    await feeTypeLocator.click({ timeout: 20_000 });
     await approveWalletOperation(popupPage);
     await this.page.waitForLoadState("networkidle");
   }
 
-  async waitForTransaction(type: "success" | "error") {
-    const text = type === "success" ? /Transaction success/i : /Transaction has failed/i;
-    await this.page.getByText(text).waitFor({ state: "visible", timeout: 20_000 });
+  async waitForTransaction(type: "success" | "error"): Promise<void> {
+    const MESSAGES = {
+      success: /Transaction success/i,
+      error: /Transaction has failed/i
+    };
+    const resultLocator = this.page.getByText(MESSAGES.success).or(this.page.getByText(MESSAGES.error));
+    const text = await resultLocator.textContent({ timeout: 25_000 });
+    if (!text || !MESSAGES[type].test(text)) {
+      throw new Error(`Expected transaction "${type}" but got "${text}"`);
+    }
   }
 }
 
