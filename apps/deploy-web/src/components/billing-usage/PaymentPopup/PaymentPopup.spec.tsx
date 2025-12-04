@@ -230,7 +230,7 @@ describe(PaymentPopup.name, () => {
     });
 
     it("does not submit when user is not authenticated", async () => {
-      const { mockConfirmPayment, mockUseForm, paymentSubmitHandler, consoleErrorSpy } = setup({
+      const { mockConfirmPayment, mockUseForm, paymentSubmitHandler, mockErrorHandler } = setup({
         open: true,
         selectedPaymentMethodId: "pm_test123",
         userId: undefined
@@ -248,7 +248,12 @@ describe(PaymentPopup.name, () => {
 
       expect(mockConfirmPayment).not.toHaveBeenCalled();
       // Should show an error instead
-      expect(consoleErrorSpy).toHaveBeenCalledWith("Payment attempted without a user id");
+      expect(mockErrorHandler.reportError).toHaveBeenCalledWith({
+        message: "Payment attempted without a user id",
+        tags: {
+          category: "payment"
+        }
+      });
     });
 
     it("shows success and closes popup on successful payment", async () => {
@@ -382,7 +387,7 @@ describe(PaymentPopup.name, () => {
     });
 
     it("does not submit coupon when user is not authenticated", async () => {
-      const { mockApplyCoupon, mockUseForm, couponSubmitHandler, consoleErrorSpy } = setup({
+      const { mockApplyCoupon, mockUseForm, couponSubmitHandler, mockErrorHandler } = setup({
         open: true,
         userId: undefined
       });
@@ -398,7 +403,10 @@ describe(PaymentPopup.name, () => {
       });
 
       expect(mockApplyCoupon).not.toHaveBeenCalled();
-      expect(consoleErrorSpy).toHaveBeenCalledWith("Coupon application attempted without a user id");
+      expect(mockErrorHandler.reportError).toHaveBeenCalledWith({
+        message: "Coupon application attempted without a user id",
+        tags: { category: "payment" }
+      });
     });
 
     it("handles successful coupon application", async () => {
@@ -454,7 +462,7 @@ describe(PaymentPopup.name, () => {
 
     it("handles coupon exception", async () => {
       const mockError = new Error("Coupon application failed");
-      const { mockUseForm, mockHandleStripeError, couponSubmitHandler, consoleErrorSpy } = setup({
+      const { mockUseForm, mockHandleStripeError, couponSubmitHandler, mockErrorHandler } = setup({
         open: true,
         userId: "user_123",
         applyCouponError: mockError
@@ -471,7 +479,11 @@ describe(PaymentPopup.name, () => {
       });
 
       expect(mockHandleStripeError).toHaveBeenCalledWith(mockError);
-      expect(consoleErrorSpy).toHaveBeenCalledWith("Coupon application error:", mockError);
+      expect(mockErrorHandler.reportError).toHaveBeenCalledWith({
+        error: mockError,
+        message: "Coupon application error",
+        tags: { category: "payment" }
+      });
     });
   });
 
@@ -776,9 +788,6 @@ function setup(
     mockUse3DSecure?: jest.Mock;
   } = {}
 ) {
-  // Spy on console.error to allow verification while suppressing output
-  const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
-
   const mockOnClose = input.onClose || jest.fn();
   const mockSetShowPaymentSuccess = input.setShowPaymentSuccess || jest.fn();
   const mockConfirmPayment = jest.fn().mockImplementation(async () => {
@@ -869,6 +878,10 @@ function setup(
       start3DSecure: mockStart3DSecure
     });
 
+  const mockErrorHandler = {
+    reportError: jest.fn()
+  };
+
   const dependencies = {
     Popup: MockPopup,
     Card: MockCard,
@@ -907,7 +920,8 @@ function setup(
       }
     })),
     handleCouponError: mockHandleCouponError,
-    handleStripeError: mockHandleStripeError
+    handleStripeError: mockHandleStripeError,
+    useServices: jest.fn(() => ({ errorHandler: mockErrorHandler }))
   };
 
   const props: React.ComponentProps<typeof PaymentPopup> = {
@@ -936,6 +950,6 @@ function setup(
     mockUse3DSecure,
     paymentSubmitHandler: () => paymentSubmitHandler,
     couponSubmitHandler: () => couponSubmitHandler,
-    consoleErrorSpy
+    mockErrorHandler,
   };
 }
