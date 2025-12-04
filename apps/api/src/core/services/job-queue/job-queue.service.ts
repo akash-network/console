@@ -1,4 +1,5 @@
 import { createMongoAbility, MongoAbility } from "@casl/ability";
+import { context, propagation, SpanStatusCode, trace } from "@opentelemetry/api";
 import PgBoss from "pg-boss";
 import { Disposable, inject, InjectionToken, singleton } from "tsyringe";
 
@@ -12,6 +13,7 @@ export const PG_BOSS_TOKEN: InjectionToken<PgBoss> = Symbol("pgBoss");
 export class JobQueueService implements Disposable {
   private readonly pgBoss: PgBoss;
   private handlers?: JobHandler<Job>[];
+  private readonly tracer = trace.getTracer("job-queue");
 
   constructor(
     private readonly logger: LoggerService,
@@ -126,45 +128,47 @@ export class JobQueueService implements Disposable {
       const queueName = handler.accepts[JOB_NAME];
       const workersPromises = Array.from({ length: handler.concurrency ?? concurrency ?? 2 }).map(() =>
         this.pgBoss.work<JobPayload<Job>>(queueName, workerOptions, async ([job]) => {
-          await this.executionContextService.runWithContext(async () => {
-            this.executionContextService.set("CURRENT_USER", {
-              id: "bg-job-user",
-              bio: "",
-              email: "bg-job-user@akash.network",
-              emailVerified: false,
-              stripeCustomerId: "",
-              subscribedToNewsletter: false,
-              createdAt: new Date(),
-              lastActiveAt: new Date(),
-              lastIp: null,
-              lastUserAgent: null,
-              lastFingerprint: null,
-              youtubeUsername: null,
-              twitterUsername: null,
-              githubUsername: null,
-              userId: "system:bg-job-user",
-              username: "___bg_job_user___",
-              trial: false
-            });
-            this.executionContextService.set("ABILITY", createMongoAbility<MongoAbility>());
-            this.logger.info({
-              event: "JOB_STARTED",
-              jobId: job.id
-            });
-            try {
-              await handler.handle(job.data, { id: job.id });
+          await this.#executeWithOtelContext(queueName, job.id, async () => {
+            await this.executionContextService.runWithContext(async () => {
+              this.executionContextService.set("CURRENT_USER", {
+                id: "bg-job-user",
+                bio: "",
+                email: "bg-job-user@akash.network",
+                emailVerified: false,
+                stripeCustomerId: "",
+                subscribedToNewsletter: false,
+                createdAt: new Date(),
+                lastActiveAt: new Date(),
+                lastIp: null,
+                lastUserAgent: null,
+                lastFingerprint: null,
+                youtubeUsername: null,
+                twitterUsername: null,
+                githubUsername: null,
+                userId: "system:bg-job-user",
+                username: "___bg_job_user___",
+                trial: false
+              });
+              this.executionContextService.set("ABILITY", createMongoAbility<MongoAbility>());
               this.logger.info({
-                event: "JOB_DONE",
+                event: "JOB_STARTED",
                 jobId: job.id
               });
-            } catch (error) {
-              this.logger.error({
-                event: "JOB_FAILED",
-                jobId: job.id,
-                error
-              });
-              throw error;
-            }
+              try {
+                await handler.handle(job.data, { id: job.id });
+                this.logger.info({
+                  event: "JOB_DONE",
+                  jobId: job.id
+                });
+              } catch (error) {
+                this.logger.error({
+                  event: "JOB_FAILED",
+                  jobId: job.id,
+                  error
+                });
+                throw error;
+              }
+            });
           });
         })
       );
@@ -173,6 +177,34 @@ export class JobQueueService implements Disposable {
     });
 
     await Promise.all(jobs);
+  }
+
+  async #executeWithOtelContext<T>(queueName: string, jobId: string, handler: () => Promise<T>): Promise<T> {
+    const span = this.tracer.startSpan(`job.${queueName}`);
+    span.setAttribute("job.id", jobId);
+    span.setAttribute("job.name", queueName);
+
+    const activeContext = context.active();
+    const baggage = propagation.createBaggage().setEntry("job.id", { value: jobId });
+    const contextWithBaggage = propagation.setBaggage(activeContext, baggage);
+    const contextWithSpan = trace.setSpan(contextWithBaggage, span);
+
+    try {
+      const result = await context.with(contextWithSpan, async () => {
+        return await handler();
+      });
+      span.setStatus({ code: SpanStatusCode.OK });
+      return result;
+    } catch (error) {
+      span.setStatus({
+        code: SpanStatusCode.ERROR,
+        message: error instanceof Error ? error.message : String(error)
+      });
+      span.recordException(error instanceof Error ? error : new Error(String(error)));
+      throw error;
+    } finally {
+      span.end();
+    }
   }
 
   async dispose(): Promise<void> {
