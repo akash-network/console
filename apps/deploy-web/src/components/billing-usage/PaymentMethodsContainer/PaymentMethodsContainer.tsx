@@ -20,13 +20,19 @@ export const PaymentMethodsContainer: React.FC<PaymentMethodsContainerProps> = (
   const { data: setupIntent, mutate: createSetupIntent, reset: resetSetupIntent } = d.useSetupIntentMutation();
   const [showAddPaymentMethod, setShowAddPaymentMethod] = useState(false);
 
-  const onSetPaymentMethodAsDefault = useCallback((id: string) => {
-    setPaymentMethodAsDefault.mutateAsync(id);
-  }, []);
+  const onSetPaymentMethodAsDefault = useCallback(
+    (id: string) => {
+      setPaymentMethodAsDefault.mutateAsync(id);
+    },
+    [setPaymentMethodAsDefault]
+  );
 
-  const onRemovePaymentMethod = useCallback((id: string) => {
-    removePaymentMethod.mutateAsync(id);
-  }, []);
+  const onRemovePaymentMethod = useCallback(
+    (id: string) => {
+      removePaymentMethod.mutateAsync(id);
+    },
+    [removePaymentMethod]
+  );
 
   const onAddCardSuccess = async () => {
     setShowAddPaymentMethod(false);
@@ -37,7 +43,7 @@ export const PaymentMethodsContainer: React.FC<PaymentMethodsContainerProps> = (
     resetSetupIntent();
     createSetupIntent();
     setShowAddPaymentMethod(true);
-  }, []);
+  }, [createSetupIntent, resetSetupIntent]);
 
   return (
     <>

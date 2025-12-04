@@ -36,7 +36,7 @@ export interface PaymentMethod {
   card?: {
     brand: string;
     last4: string;
-    funding: string;
+    funding: "credit" | "debit" | "prepaid" | "unknown";
     exp_month: number;
     exp_year: number;
   };

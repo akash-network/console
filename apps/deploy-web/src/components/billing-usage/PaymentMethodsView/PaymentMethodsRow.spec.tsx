@@ -72,10 +72,6 @@ const mockDependencies: any = {
 };
 
 describe(PaymentMethodsRow.name, () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
   describe("Rendering", () => {
     it("renders payment method with card details", () => {
       setup({
@@ -430,7 +426,13 @@ function setup(
     onRemovePaymentMethod: mockOnRemovePaymentMethod
   };
 
-  const renderResult = render(<table><tbody><PaymentMethodsRow {...props} /></tbody></table>);
+  const renderResult = render(
+    <table>
+      <tbody>
+        <PaymentMethodsRow {...props} />
+      </tbody>
+    </table>
+  );
 
   return {
     ...renderResult,
