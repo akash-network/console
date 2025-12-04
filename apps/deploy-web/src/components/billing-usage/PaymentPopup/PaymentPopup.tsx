@@ -22,6 +22,7 @@ import { useSnackbar } from "notistack";
 import { z } from "zod";
 
 import { usePaymentPolling } from "@src/context/PaymentPollingProvider";
+import { useServices } from "@src/context/ServicesProvider";
 import { use3DSecure } from "@src/hooks/use3DSecure";
 import { useUser } from "@src/hooks/useUser";
 import { usePaymentMutations } from "@src/queries";
@@ -51,7 +52,8 @@ export const DEPENDENCIES = {
   useUser,
   usePaymentMutations,
   handleCouponError,
-  handleStripeError
+  handleStripeError,
+  useServices,
 };
 
 const MINIMUM_PAYMENT_AMOUNT = 20;
@@ -84,6 +86,7 @@ export const PaymentPopup: React.FC<PaymentPopupProps> = ({
   setShowPaymentSuccess,
   dependencies: d = DEPENDENCIES
 }) => {
+  const { errorHandler } = d.useServices();
   const { enqueueSnackbar } = d.useSnackbar();
 
   const [error, setError] = useState<string>();
@@ -130,7 +133,10 @@ export const PaymentPopup: React.FC<PaymentPopupProps> = ({
 
   const onPayment = async ({ amount }: z.infer<typeof paymentFormSchema>) => {
     if (!user?.id) {
-      console.error("Payment attempted without a user id");
+      errorHandler.reportError({
+        message: "Payment attempted without a user id",
+        tags: { category: "payment" }
+      });
       setError("Unable to process payment. Please refresh the page and try again.");
       return;
     }
@@ -178,7 +184,11 @@ export const PaymentPopup: React.FC<PaymentPopupProps> = ({
   const onClaimCoupon = async ({ coupon }: z.infer<typeof couponFormSchema>) => {
     try {
       if (!user?.id) {
-        console.error("Coupon application attempted without a user id");
+        errorHandler.reportError({
+          message: "Coupon application attempted without a user id",
+          tags: { category: "payment" }
+        });
+
         enqueueSnackbar(<d.Snackbar title="Unable to apply coupon. Please refresh the page and try again." iconVariant="error" />, { variant: "error" });
         return;
       }
@@ -202,7 +212,11 @@ export const PaymentPopup: React.FC<PaymentPopupProps> = ({
     } catch (error: unknown) {
       const errorInfo = d.handleStripeError(error);
       enqueueSnackbar(<d.Snackbar title={errorInfo.message} iconVariant="error" />, { variant: "error" });
-      console.error("Coupon application error:", error);
+      errorHandler.reportError({
+        error,
+        message: "Coupon application error",
+        tags: { category: "payment" }
+      });
     }
   };
 
