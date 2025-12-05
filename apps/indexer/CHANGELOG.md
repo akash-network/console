@@ -1,5 +1,12 @@
 
 
+## [1.22.2](https://github.com/akash-network/console/compare/indexer/v1.22.1...indexer/v1.22.2) (2025-12-05)
+
+
+### Bug Fixes
+
+* indexer memory ([#2327](https://github.com/akash-network/console/issues/2327)) ([68a1da0](https://github.com/akash-network/console/commit/68a1da0a2ed3dbd5b308a6a73cd5859b4dbaa36d))
+
 ## [1.22.1](https://github.com/akash-network/console/compare/indexer/v1.22.0...indexer/v1.22.1) (2025-12-05)
 
 
