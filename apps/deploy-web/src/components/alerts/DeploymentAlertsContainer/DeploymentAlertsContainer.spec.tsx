@@ -11,8 +11,8 @@ import merge from "lodash/merge";
 import type { ChildrenProps, ContainerInput, Props } from "@src/components/alerts/DeploymentAlertsContainer/DeploymentAlertsContainer";
 import { DeploymentAlertsContainer } from "@src/components/alerts/DeploymentAlertsContainer/DeploymentAlertsContainer";
 import { UAKT_DENOM, USDC_IBC_DENOMS } from "@src/config/denom.config";
-import type { usePricing } from "@src/context/PricingProvider";
 import { ServicesProvider } from "@src/context/ServicesProvider";
+import type { usePricing } from "@src/hooks/usePricing/usePricing";
 import { queryClient } from "@src/queries";
 import { deploymentToDto } from "@src/utils/deploymentDetailUtils";
 
