@@ -4,7 +4,6 @@ import { useCallback, useMemo, useState } from "react";
 import {
   Badge,
   Button,
-  buttonVariants,
   Checkbox,
   CustomTooltip,
   DropdownMenu,
@@ -14,14 +13,12 @@ import {
   TableCell,
   TableRow
 } from "@akashnetwork/ui/components";
-import { cn } from "@akashnetwork/ui/utils";
 import ClickAwayListener from "@mui/material/ClickAwayListener";
 import differenceInCalendarDays from "date-fns/differenceInCalendarDays";
 import formatDistanceToNow from "date-fns/formatDistanceToNow";
 import isValid from "date-fns/isValid";
 import { CalendarArrowDown, Coins, Edit, MoreHoriz, NavArrowRight, Plus, Upload, WarningTriangle, XmarkSquare } from "iconoir-react";
 import { keyBy } from "lodash";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { useWallet } from "@src/context/WalletProvider";
@@ -42,7 +39,8 @@ import { useLocalNotes } from "../../context/LocalNoteProvider";
 import { TrialDeploymentBadge } from "../shared";
 import { CopyTextToClipboardButton } from "../shared/CopyTextToClipboardButton";
 import { CustomDropdownLinkItem } from "../shared/CustomDropdownLinkItem";
-import { PricePerMonth } from "../shared/PricePerMonth";
+import { PriceEstimateTooltip } from "../shared/PriceEstimateTooltip";
+import { PricePerTimeUnit } from "../shared/PricePerTimeUnit";
 import { PriceValue } from "../shared/PriceValue";
 import { SpecDetailList } from "../shared/SpecDetailList";
 import { DeploymentName } from "./DeploymentName/DeploymentName";
@@ -73,6 +71,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
   const hasActiveLeases = hasLeases && filteredLeases?.some(l => l.state === "active");
   const isAllLeasesClosed = hasLeases && !filteredLeases?.some(l => l.state === "active");
   const deploymentCost = hasLeases ? filteredLeases?.reduce((prev, current) => prev + parseFloat(current.price.amount), 0) : 0;
+  const hasGpu = Boolean(deployment.gpuAmount && deployment.gpuAmount > 0);
   const timeLeft = getTimeLeft(deploymentCost || 0, deployment.escrowBalance);
   const realTimeLeft = useRealTimeLeft(
     deploymentCost || 0,
@@ -191,9 +190,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
           </div>
         </TableCell>
         <TableCell className="max-w-[100px] text-center">
-          <Link className={cn(buttonVariants({ variant: "text" }))} href={UrlService.deploymentDetails(deployment.dseq)}>
-            <DeploymentName deployment={deployment} deploymentServices={leaseStatus?.services} providerHostUri={provider?.hostUri} />
-          </Link>
+          <DeploymentName deployment={deployment} deploymentServices={leaseStatus?.services} providerHostUri={provider?.hostUri} />
 
           {!isAnonymousFreeTrialEnabled && isTrialing && (
             <div className="mt-2">
@@ -220,11 +217,13 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
               >
                 <div className={`flex items-center ${isManagedWallet ? "" : "cursor-help"}`}>
                   <CalendarArrowDown className="mr-2 text-xs" />
-                  <PricePerMonth
+                  <PricePerTimeUnit
                     denom={deployment.escrowAccount.state.funds[0]?.denom || ""}
                     perBlockValue={udenomToDenom(deploymentCost, 10)}
                     className="whitespace-nowrap"
+                    showAsHourly={hasGpu}
                   />
+                  <PriceEstimateTooltip denom={deployment.escrowAccount.state.funds[0]?.denom || ""} value={deploymentCost} showAsHourly={hasGpu} />
                 </div>
               </CustomTooltip>
             )}

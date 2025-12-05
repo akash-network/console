@@ -10,16 +10,21 @@ interface IProps {
   denom: string;
   className?: string;
   children?: ReactNode;
+  showAsHourly?: boolean;
 }
 
-export const PricePerMonth: React.FunctionComponent<IProps> = ({ perBlockValue, denom, className, ...rest }) => {
-  const value = perBlockValue * (60 / averageBlockTime) * 60 * 24 * averageDaysInMonth;
+export const PricePerTimeUnit: React.FunctionComponent<IProps> = ({ perBlockValue, denom, className, showAsHourly = false, ...rest }) => {
+  const hourlyValue = perBlockValue * (60 / averageBlockTime) * 60;
+  const monthlyValue = hourlyValue * 24 * averageDaysInMonth;
+  const value = showAsHourly ? hourlyValue : monthlyValue;
+  const timeUnit = showAsHourly ? "hour" : "month";
+
   return (
     <span className={className} {...rest}>
       <strong>
         <PriceValue value={value} denom={denom} />
       </strong>{" "}
-      / month
+      / {timeUnit}
     </span>
   );
 };
