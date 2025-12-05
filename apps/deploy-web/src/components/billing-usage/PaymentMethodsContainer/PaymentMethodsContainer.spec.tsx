@@ -118,24 +118,66 @@ describe(PaymentMethodsContainer.name, () => {
     expect(child.showAddPaymentMethod).toBe(false);
   });
 
+  it("sets isInProgress to false when no operations are in progress", async () => {
+    const { child } = await setup();
+    expect(child.isInProgress).toBe(false);
+  });
+
+  it("sets isInProgress to true when isLoadingPaymentMethods is true", async () => {
+    const { child } = await setup({ isLoadingPaymentMethods: true });
+    expect(child.isInProgress).toBe(true);
+  });
+
+  it("sets isInProgress to true when isRefetchingPaymentMethods is true", async () => {
+    const { child } = await setup({ isRefetchingPaymentMethods: true });
+    expect(child.isInProgress).toBe(true);
+  });
+
+  it("sets isInProgress to true when setPaymentMethodAsDefault mutation is pending", async () => {
+    const { child } = await setup({ isSetPaymentMethodAsDefaultPending: true });
+    expect(child.isInProgress).toBe(true);
+  });
+
+  it("sets isInProgress to true when removePaymentMethod mutation is pending", async () => {
+    const { child } = await setup({ isRemovePaymentMethodPending: true });
+    expect(child.isInProgress).toBe(true);
+  });
+
+  it("sets isInProgress to true when multiple operations are in progress", async () => {
+    const { child } = await setup({
+      isLoadingPaymentMethods: true,
+      isRefetchingPaymentMethods: true,
+      isSetPaymentMethodAsDefaultPending: true
+    });
+    expect(child.isInProgress).toBe(true);
+  });
+
   async function setup(
     overrides: Partial<{
       paymentMethods: PaymentMethod[] | undefined;
       isLoadingPaymentMethods: boolean;
+      isRefetchingPaymentMethods: boolean;
+      isSetPaymentMethodAsDefaultPending: boolean;
+      isRemovePaymentMethodPending: boolean;
       setupIntent: SetupIntentResponse;
     }> = {}
   ) {
     const useDefaultPaymentMethods = !Object.prototype.hasOwnProperty.call(overrides, "paymentMethods");
     const paymentMethods = useDefaultPaymentMethods ? [createMockPaymentMethod()] : overrides.paymentMethods;
     const isLoadingPaymentMethods = overrides.isLoadingPaymentMethods ?? false;
+    const isRefetchingPaymentMethods = overrides.isRefetchingPaymentMethods ?? false;
+    const isSetPaymentMethodAsDefaultPending = overrides.isSetPaymentMethodAsDefaultPending ?? false;
+    const isRemovePaymentMethodPending = overrides.isRemovePaymentMethodPending ?? false;
     const setupIntent = overrides.setupIntent;
 
     const mockRefetchPaymentMethods = jest.fn();
     const mockSetPaymentMethodAsDefault = {
-      mutate: jest.fn()
+      mutate: jest.fn(),
+      isPending: isSetPaymentMethodAsDefaultPending
     };
     const mockRemovePaymentMethod = {
-      mutate: jest.fn()
+      mutate: jest.fn(),
+      isPending: isRemovePaymentMethodPending
     };
     const mockCreateSetupIntent = jest.fn();
     const mockResetSetupIntent = jest.fn();
@@ -143,6 +185,7 @@ describe(PaymentMethodsContainer.name, () => {
     const mockedUsePaymentMethodsQuery = jest.fn(() => ({
       data: paymentMethods,
       isLoading: isLoadingPaymentMethods,
+      isRefetching: isRefetchingPaymentMethods,
       refetch: mockRefetchPaymentMethods
     })) as unknown as jest.MockedFunction<typeof usePaymentMethodsQuery>;
 

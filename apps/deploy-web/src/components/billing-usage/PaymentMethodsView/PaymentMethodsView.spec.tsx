@@ -49,6 +49,12 @@ const MockButton = ({ children, onClick, className }: any) => (
   </button>
 );
 
+const MockCircularProgress = ({ color }: any) => (
+  <div data-testid="circular-progress" data-color={color}>
+    Loading...
+  </div>
+);
+
 const mockDependencies: any = {
   useTheme: mockUseTheme,
   PaymentMethodsRow: MockPaymentMethodsRow,
@@ -60,7 +66,8 @@ const mockDependencies: any = {
   Spinner: MockSpinner,
   Table: MockTable,
   TableBody: MockTableBody,
-  Button: MockButton
+  Button: MockButton,
+  CircularProgress: MockCircularProgress
 };
 
 describe(PaymentMethodsView.name, () => {
@@ -89,7 +96,7 @@ describe(PaymentMethodsView.name, () => {
       setup({ data: [] });
 
       expect(screen.getByText("Payment Methods")).toBeInTheDocument();
-      expect(screen.getByText("At most, 3 cards can be used at once.")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Add Payment Method" })).toBeInTheDocument();
     });
 
     it("renders add payment method button when no payment methods exist", () => {
@@ -115,12 +122,6 @@ describe(PaymentMethodsView.name, () => {
       expect(screen.getByTestId("payment-method-row-pm_456")).toBeInTheDocument();
       expect(screen.getByText("4242")).toBeInTheDocument();
       expect(screen.getByText("5555")).toBeInTheDocument();
-    });
-
-    it("renders card limit message in footer", () => {
-      setup();
-
-      expect(screen.getByText("At most, 3 cards can be used at once.")).toBeInTheDocument();
     });
 
     it("renders add payment method button", () => {
@@ -262,6 +263,20 @@ describe(PaymentMethodsView.name, () => {
     });
   });
 
+  describe("Progress Overlay", () => {
+    it("does not show progress overlay when isInProgress is false", () => {
+      setup({ isInProgress: false });
+
+      expect(screen.queryByTestId("circular-progress")).not.toBeInTheDocument();
+    });
+
+    it("shows progress overlay when isInProgress is true", () => {
+      setup({ isInProgress: true });
+
+      expect(screen.queryByTestId("circular-progress")).toBeInTheDocument();
+    });
+  });
+
   describe("Edge Cases", () => {
     it("handles empty payment methods array", () => {
       setup({ data: [] });
@@ -345,7 +360,7 @@ describe(PaymentMethodsView.name, () => {
       // Card should contain header, content, and footer
       expect(screen.getByText("Payment Methods")).toBeInTheDocument();
       expect(screen.getByText("All payments to add credits will be made using your default card.")).toBeInTheDocument();
-      expect(screen.getByText("At most, 3 cards can be used at once.")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Add Payment Method" })).toBeInTheDocument();
     });
   });
 });
@@ -388,6 +403,7 @@ function setup(
     setShowAddPaymentMethod?: jest.Mock;
     setupIntent?: SetupIntentResponse;
     onAddCardSuccess?: jest.Mock;
+    isInProgress?: boolean;
     dependencies?: typeof DEPENDENCIES;
   } = {}
 ) {
@@ -401,6 +417,7 @@ function setup(
     setShowAddPaymentMethod: jest.fn(),
     setupIntent: undefined,
     onAddCardSuccess: jest.fn(),
+    isInProgress: false,
     dependencies: mockDependencies
   };
 
