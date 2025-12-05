@@ -82,13 +82,10 @@ export const PaymentMethodsView: React.FC<PaymentMethodsViewProps> = ({
             </d.Table>
           )}
         </d.CardContent>
-        <d.CardFooter className="flex bg-muted py-2">
-          <div className="flex-grow text-gray-500">At most, 3 cards can be used at once.</div>
-          <div>
-            <d.Button onClick={onAddPaymentMethod} className="mb-4 mt-4">
-              Add Payment Method
-            </d.Button>
-          </div>
+        <d.CardFooter className="flex justify-end bg-muted py-2">
+          <d.Button onClick={onAddPaymentMethod} className="mb-4 mt-4">
+            Add Payment Method
+          </d.Button>
         </d.CardFooter>
       </d.Card>
 
