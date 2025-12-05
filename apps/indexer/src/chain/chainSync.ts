@@ -200,6 +200,10 @@ async function insertBlocks(startHeight: number, endHeight: number) {
       const decodedTx = decodeTxRaw(fromBase64(tx));
       const msgs = decodedTx.body.messages;
 
+      // Check if transaction only contains MsgMultiSend to skip events/attributes later
+      const hasOnlyMultiSend = msgs.length > 0 && msgs.every(msg => msg.typeUrl === "/cosmos.bank.v1beta1.MsgMultiSend");
+
+      // Index all messages including MsgMultiSend
       for (let msgIndex = 0; msgIndex < msgs.length; ++msgIndex) {
         const msg = msgs[msgIndex];
 
@@ -231,24 +235,27 @@ async function insertBlocks(startHeight: number, endHeight: number) {
         gasWanted: parseInt(txJson.gas_wanted)
       });
 
-      for (const [index, event] of blockResults.txs_results[txIndex].events.entries()) {
-        const eventId = uuid.v4();
-        txsEventsToAdd.push({
-          id: eventId,
-          height: i,
-          txId: txId,
-          index: index,
-          type: event.type
-        });
+      // Skip events and attributes for MsgMultiSend-only transactions to prevent memory issues
+      if (!hasOnlyMultiSend) {
+        for (const [index, event] of blockResults.txs_results[txIndex].events.entries()) {
+          const eventId = uuid.v4();
+          txsEventsToAdd.push({
+            id: eventId,
+            height: i,
+            txId: txId,
+            index: index,
+            type: event.type
+          });
 
-        txsEventAttributesToAdd.push(
-          ...event.attributes.map((attr, i) => ({
-            transactionEventId: eventId,
-            index: i,
-            key: decodeIfBase64(attr.key),
-            value: attr.value ? decodeIfBase64(attr.value) : attr.value
-          }))
-        );
+          txsEventAttributesToAdd.push(
+            ...event.attributes.map((attr, i) => ({
+              transactionEventId: eventId,
+              index: i,
+              key: decodeIfBase64(attr.key),
+              value: attr.value ? decodeIfBase64(attr.value) : attr.value
+            }))
+          );
+        }
       }
     }
 
