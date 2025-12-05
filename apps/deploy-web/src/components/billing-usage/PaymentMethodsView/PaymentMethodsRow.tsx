@@ -84,7 +84,7 @@ export const PaymentMethodsRow: React.FC<PaymentMethodsRowProps> = ({
   }, [onRemovePaymentMethod, paymentMethod.id]);
 
   return (
-    <d.TableRow className="flex py-3">
+    <d.TableRow className="flex border-0 py-2 hover:bg-transparent">
       <d.TableCell className="flex items-center">
         {card(paymentMethod)} {defaultBadge}
       </d.TableCell>

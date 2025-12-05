@@ -15,7 +15,12 @@ type PaymentMethodsContainerProps = {
 };
 
 export const PaymentMethodsContainer: React.FC<PaymentMethodsContainerProps> = ({ children, dependencies: d = DEPENDENCIES }) => {
-  const { data: paymentMethods = [], isLoading: isLoadingPaymentMethods, refetch: refetchPaymentMethods } = d.usePaymentMethodsQuery();
+  const {
+    data: paymentMethods = [],
+    isLoading: isLoadingPaymentMethods,
+    refetch: refetchPaymentMethods,
+    isRefetching: isRefetchingPaymentMethods
+  } = d.usePaymentMethodsQuery();
   const paymentMutations = d.usePaymentMutations();
   const { data: setupIntent, mutate: createSetupIntent, reset: resetSetupIntent } = d.useSetupIntentMutation();
   const [showAddPaymentMethod, setShowAddPaymentMethod] = useState(false);
@@ -45,6 +50,12 @@ export const PaymentMethodsContainer: React.FC<PaymentMethodsContainerProps> = (
     setShowAddPaymentMethod(true);
   }, [createSetupIntent, resetSetupIntent]);
 
+  const isInProgress =
+    isLoadingPaymentMethods ||
+    isRefetchingPaymentMethods ||
+    paymentMutations.setPaymentMethodAsDefault.isPending ||
+    paymentMutations.removePaymentMethod.isPending;
+
   return (
     <>
       {children({
@@ -56,7 +67,8 @@ export const PaymentMethodsContainer: React.FC<PaymentMethodsContainerProps> = (
         showAddPaymentMethod,
         setShowAddPaymentMethod,
         setupIntent,
-        onAddCardSuccess
+        onAddCardSuccess,
+        isInProgress
       })}
     </>
   );
