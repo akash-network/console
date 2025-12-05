@@ -21,7 +21,7 @@
     "lint": "eslint .",
     "migration:exec": "drizzle-kit migrate",
     "migration:pull": "drizzle-kit pull",
-    "prod": "node dist/server.js",
+    "prod": "node --max-old-space-size=8192 dist/server.js",
     "release": "release-it",
     "start": "webpack --mode development --config webpack.dev.js --watch",
     "test": "jest"
