@@ -1,5 +1,17 @@
 
 
+## [3.8.0](https://github.com/akash-network/console/compare/console-web/v3.7.1...console-web/v3.8.0) (2025-12-05)
+
+
+### Features
+
+* **observability:** wraps jobs handlers into otel context and logs jobId ([1f55f3f](https://github.com/akash-network/console/commit/1f55f3fefb7c6a88d66cc58ad6f8807d5bc10558))
+
+
+### Bug Fixes
+
+* uses Decimal to convert denom to udenom value ([#2318](https://github.com/akash-network/console/issues/2318)) ([d41dbbe](https://github.com/akash-network/console/commit/d41dbbe341ddbddddcdeb3a31a998131abff7075))
+
 ## [3.7.1](https://github.com/akash-network/console/compare/console-web/v3.7.0...console-web/v3.7.1) (2025-12-03)
 
 

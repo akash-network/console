@@ -1,6 +1,6 @@
 {
   "name": "@akashnetwork/console-api",
-  "version": "3.10.1",
+  "version": "3.11.0",
   "description": "Api providing data to the deploy tool",
   "repository": {
     "type": "git",
