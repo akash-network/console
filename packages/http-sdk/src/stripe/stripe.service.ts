@@ -10,6 +10,7 @@ import type {
   CustomerTransactionsResponse,
   ExportTransactionsCsvParams,
   PaymentMethod,
+  SetPaymentMethodAsDefaultParams,
   SetupIntentResponse,
   StripePrice,
   ThreeDSecureAuthParams
@@ -26,6 +27,10 @@ export class StripeService extends ApiHttpService {
 
   async getPaymentMethods(): Promise<PaymentMethod[]> {
     return this.extractApiData(await this.get("/v1/stripe/payment-methods"));
+  }
+
+  async getDefaultPaymentMethod(): Promise<PaymentMethod> {
+    return this.extractApiData(await this.get("/v1/stripe/payment-methods/default"));
   }
 
   async removePaymentMethod(paymentMethodId: string): Promise<void> {
@@ -50,6 +55,10 @@ export class StripeService extends ApiHttpService {
 
   async validatePaymentMethodAfter3DS(params: ThreeDSecureAuthParams): Promise<{ success: boolean }> {
     return this.extractApiData(await this.post("/v1/stripe/payment-methods/validate", { data: params }));
+  }
+
+  async setPaymentMethodAsDefault(params: SetPaymentMethodAsDefaultParams): Promise<PaymentMethod[]> {
+    return this.extractApiData(await this.post("/v1/stripe/payment-methods/default", { data: params }));
   }
 
   async getCustomerTransactions(options?: CustomerTransactionsParams): Promise<CustomerTransactionsResponse> {

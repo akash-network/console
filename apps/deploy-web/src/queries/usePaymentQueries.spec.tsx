@@ -1,7 +1,14 @@
 import type { StripeService } from "@akashnetwork/http-sdk/src/stripe/stripe.service";
+import { QueryClient } from "@tanstack/react-query";
 import { mock } from "jest-mock-extended";
 
-import { usePaymentMethodsQuery, usePaymentMutations, usePaymentTransactionsQuery, useSetupIntentMutation } from "./usePaymentQueries";
+import {
+  useDefaultPaymentMethodQuery,
+  usePaymentMethodsQuery,
+  usePaymentMutations,
+  usePaymentTransactionsQuery,
+  useSetupIntentMutation
+} from "./usePaymentQueries";
 
 import { act, waitFor } from "@testing-library/react";
 import {
@@ -13,7 +20,30 @@ import {
   createMockSetupIntent,
   createMockTransaction
 } from "@tests/seeders/payment";
-import { setupQuery } from "@tests/unit/query-client";
+import { type RenderAppHookOptions, setupQuery } from "@tests/unit/query-client";
+
+// Helper to setup query with access to queryClient for spy verification
+function setupQueryWithClient<T>(hook: () => T, options?: RenderAppHookOptions) {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false
+      }
+    }
+  });
+
+  const hookResult = setupQuery(hook, {
+    ...options,
+    services: {
+      ...options?.services,
+      queryClient: () => queryClient
+    }
+  });
+
+  return { ...hookResult, queryClient };
+}
 
 describe("usePaymentQueries", () => {
   it("fetches payment methods", async () => {
@@ -28,6 +58,21 @@ describe("usePaymentQueries", () => {
       expect(stripeService.getPaymentMethods).toHaveBeenCalled();
       expect(result.current.isSuccess).toBe(true);
       expect(result.current.data).toEqual(mockMethods);
+    });
+  });
+
+  it("fetches default payment method", async () => {
+    const mockDefaultMethod = createMockPaymentMethod({ isDefault: true });
+    const stripeService = mock<StripeService>({
+      getDefaultPaymentMethod: jest.fn().mockResolvedValue(mockDefaultMethod)
+    });
+    const { result } = setupQuery(() => useDefaultPaymentMethodQuery(), {
+      services: { stripe: () => stripeService }
+    });
+    await waitFor(() => {
+      expect(stripeService.getDefaultPaymentMethod).toHaveBeenCalled();
+      expect(result.current.isSuccess).toBe(true);
+      expect(result.current.data).toEqual(mockDefaultMethod);
     });
   });
 
@@ -131,9 +176,11 @@ describe("usePaymentQueries", () => {
       const stripeService = mock<StripeService>({
         removePaymentMethod: jest.fn().mockResolvedValue(mockRemovedPaymentMethod)
       });
-      const { result } = setupQuery(() => usePaymentMutations(), {
+      const { result, queryClient } = setupQueryWithClient(() => usePaymentMutations(), {
         services: { stripe: () => stripeService }
       });
+
+      const invalidateQueriesSpy = jest.spyOn(queryClient, "invalidateQueries");
 
       await act(async () => {
         await result.current.removePaymentMethod.mutateAsync(mockRemovedPaymentMethod.id);
@@ -141,6 +188,56 @@ describe("usePaymentQueries", () => {
 
       await waitFor(() => {
         expect(stripeService.removePaymentMethod).toHaveBeenCalledWith(mockRemovedPaymentMethod.id);
+        expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: ["PAYMENT_METHODS"] });
+      });
+    });
+
+    it("validates payment method after 3DS and invalidates queries", async () => {
+      const mockValidationResponse = { success: true };
+      const stripeService = mock<StripeService>({
+        validatePaymentMethodAfter3DS: jest.fn().mockResolvedValue(mockValidationResponse)
+      });
+      const { result, queryClient } = setupQueryWithClient(() => usePaymentMutations(), {
+        services: { stripe: () => stripeService }
+      });
+
+      const invalidateQueriesSpy = jest.spyOn(queryClient, "invalidateQueries");
+
+      await act(async () => {
+        await result.current.validatePaymentMethodAfter3DS.mutateAsync({
+          paymentMethodId: "pm_123",
+          paymentIntentId: "pi_123"
+        });
+      });
+
+      await waitFor(() => {
+        expect(stripeService.validatePaymentMethodAfter3DS).toHaveBeenCalledWith({
+          paymentMethodId: "pm_123",
+          paymentIntentId: "pi_123"
+        });
+        expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: ["PAYMENT_METHODS"] });
+      });
+    });
+
+    it("sets payment method as default and invalidates queries", async () => {
+      const mockPaymentMethod = createMockPaymentMethod({ isDefault: true });
+      const stripeService = mock<StripeService>({
+        setPaymentMethodAsDefault: jest.fn().mockResolvedValue(mockPaymentMethod)
+      });
+      const { result, queryClient } = setupQueryWithClient(() => usePaymentMutations(), {
+        services: { stripe: () => stripeService }
+      });
+
+      const invalidateQueriesSpy = jest.spyOn(queryClient, "invalidateQueries");
+
+      await act(async () => {
+        await result.current.setPaymentMethodAsDefault.mutateAsync("pm_123");
+      });
+
+      await waitFor(() => {
+        expect(stripeService.setPaymentMethodAsDefault).toHaveBeenCalledWith({ id: "pm_123" });
+        expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: ["PAYMENT_METHODS"] });
+        expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: ["DEFAULT_PAYMENT_METHOD"] });
       });
     });
   });
