@@ -1,6 +1,6 @@
 {
   "name": "@akashnetwork/indexer",
-  "version": "1.22.0",
+  "version": "1.22.1",
   "description": "Indexer for any Cosmos based blockchain",
   "homepage": "https://github.com/akash-network/console",
   "bugs": {

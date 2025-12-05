@@ -1,5 +1,22 @@
 
 
+## [3.11.0](https://github.com/akash-network/console/compare/console-api/v3.10.1...console-api/v3.11.0) (2025-12-05)
+
+
+### Features
+
+* **observability:** wraps jobs handlers into otel context and logs jobId ([1f55f3f](https://github.com/akash-network/console/commit/1f55f3fefb7c6a88d66cc58ad6f8807d5bc10558))
+
+
+### Bug Fixes
+
+* ignore multi send tx events ([#2326](https://github.com/akash-network/console/issues/2326)) ([498245d](https://github.com/akash-network/console/commit/498245d3d739d9595dcca1d10134bd9454c74825))
+
+
+### Code Refactoring
+
+* **billing:** removes autoReloadThreshold and autoReloadAmount from wallet settings ([081eda0](https://github.com/akash-network/console/commit/081eda035341d210ae76ae5904b03a8318a6aab6)), closes [#1779](https://github.com/akash-network/console/issues/1779)
+
 ## [3.10.1](https://github.com/akash-network/console/compare/console-api/v3.10.0...console-api/v3.10.1) (2025-12-03)
 
 
