@@ -1,5 +1,12 @@
 
 
+## [3.9.0](https://github.com/akash-network/console/compare/console-web/v3.8.0...console-web/v3.9.0) (2025-12-05)
+
+
+### Features
+
+* **deployment:** show price per hour for gpu workloads ([#2322](https://github.com/akash-network/console/issues/2322)) ([24957e7](https://github.com/akash-network/console/commit/24957e781973517bdecf9fca3c879700db470e63))
+
 ## [3.8.0](https://github.com/akash-network/console/compare/console-web/v3.7.1...console-web/v3.8.0) (2025-12-05)
 
 
