@@ -4,7 +4,7 @@ import { FormattedNumber } from "react-intl";
 import { Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 
-import { usePricing } from "@src/context/PricingProvider";
+import { usePricing } from "@src/hooks/usePricing/usePricing";
 import { ceilDecimal } from "@src/utils/mathHelpers";
 
 type Props = {

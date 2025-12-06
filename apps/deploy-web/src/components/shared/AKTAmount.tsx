@@ -2,7 +2,7 @@
 import React from "react";
 import { FormattedNumber, FormattedNumberParts } from "react-intl";
 
-import { usePricing } from "@src/context/PricingProvider";
+import { usePricing } from "@src/hooks/usePricing/usePricing";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { AKTLabel } from "./AKTLabel";
 

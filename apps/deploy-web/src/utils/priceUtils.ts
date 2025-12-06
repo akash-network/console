@@ -1,12 +1,17 @@
 import type { Coin } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
+import type { NetworkId } from "@akashnetwork/chain-sdk/web";
 import add from "date-fns/add";
 
-import { READABLE_DENOMS, UAKT_DENOM } from "@src/config/denom.config";
-import { getUsdcDenom } from "@src/hooks/useDenom";
+import { READABLE_DENOMS, UAKT_DENOM, USDC_IBC_DENOMS } from "@src/config/denom.config";
+import networkStore from "@src/store/networkStore";
 import { averageDaysInMonth } from "./dateUtils";
 import { denomToUdenom } from "./mathHelpers";
 
 export const averageBlockTime = 6.098;
+
+export const getUsdcDenom = (networkId?: NetworkId): string => {
+  return USDC_IBC_DENOMS[networkId ?? (networkStore.selectedNetworkId as keyof typeof USDC_IBC_DENOMS)] as string;
+};
 
 export function uaktToAKT(amount: number, precision: number = 3) {
   return Math.round((amount / 1000000 + Number.EPSILON) * Math.pow(10, precision)) / Math.pow(10, precision);

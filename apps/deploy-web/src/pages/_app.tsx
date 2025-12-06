@@ -31,7 +31,6 @@ import { ColorModeProvider } from "@src/context/CustomThemeContext";
 import { FlagProvider } from "@src/context/FlagProvider/FlagProvider";
 import { LocalNoteProvider } from "@src/context/LocalNoteProvider";
 import { PaymentPollingProvider } from "@src/context/PaymentPollingProvider";
-import { PricingProvider } from "@src/context/PricingProvider/PricingProvider";
 import { ServicesProvider } from "@src/context/ServicesProvider";
 import { RootContainerProvider, useRootContainer } from "@src/context/ServicesProvider/RootContainerProvider";
 import { SettingsProvider } from "@src/context/SettingsProvider";
@@ -110,17 +109,15 @@ function AppRoot(props: Props & { children: React.ReactNode }) {
                     <CustomSnackbarProvider>
                       <TooltipProvider>
                         <PopupProvider>
-                          <PricingProvider>
-                            <SettingsProvider>
-                              <ServicesProvider>
-                                <CustomChainProvider>
-                                  <ChainParamProvider>
-                                    <LocalNoteProvider>{props.children}</LocalNoteProvider>
-                                  </ChainParamProvider>
-                                </CustomChainProvider>
-                              </ServicesProvider>
-                            </SettingsProvider>
-                          </PricingProvider>
+                          <SettingsProvider>
+                            <ServicesProvider>
+                              <CustomChainProvider>
+                                <ChainParamProvider>
+                                  <LocalNoteProvider>{props.children}</LocalNoteProvider>
+                                </ChainParamProvider>
+                              </CustomChainProvider>
+                            </ServicesProvider>
+                          </SettingsProvider>
                         </PopupProvider>
                       </TooltipProvider>
                     </CustomSnackbarProvider>

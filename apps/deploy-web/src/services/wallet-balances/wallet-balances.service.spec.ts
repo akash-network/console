@@ -101,7 +101,7 @@ describe(WalletBalancesService.name, () => {
             return Promise.resolve({
               data: input.getBalances?.() || {
                 balances: [
-                  { denom: USDC_IBC_DENOMS.sandbox, amount: "49944457" },
+                  { denom: USDC_IBC_DENOMS.sandbox, amount: "0" },
                   { denom: UAKT_DENOM, amount: "73477804" }
                 ]
               }
@@ -111,7 +111,10 @@ describe(WalletBalancesService.name, () => {
           return Promise.reject(new Error("Not implemented"));
         }
       }) as unknown as AxiosInstance,
-      input.masterWalletAddress || "akash1234"
+      {
+        uakt: UAKT_DENOM,
+        usdc: USDC_IBC_DENOMS.sandbox!
+      }
     );
   }
 });
