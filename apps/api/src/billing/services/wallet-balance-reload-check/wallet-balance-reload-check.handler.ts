@@ -9,10 +9,11 @@ import { UserWalletOutput, WalletSettingOutput, WalletSettingRepository } from "
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { PaymentMethod, StripeService } from "@src/billing/services/stripe/stripe.service";
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
-import { JobHandler, JobMeta, JobPayload, LoggerService } from "@src/core";
+import { JobHandler, JobMeta, JobPayload } from "@src/core";
 import type { Require } from "@src/core/types/require.type";
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { isPayingUser, PayingUser } from "../paying-user/paying-user";
+import { WalletBalanceReloadCheckInstrumentationService } from "./wallet-balance-reload-check-instrumentation.service";
 
 type ValidationError = {
   event: string;
@@ -53,19 +54,27 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
     private readonly walletReloadJobService: WalletReloadJobService,
     private readonly stripeService: StripeService,
     private readonly drainingDeploymentService: DrainingDeploymentService,
-    private readonly loggerService: LoggerService
-  ) {
-    this.loggerService.setContext(WalletBalanceReloadCheckHandler.name);
-  }
+    private readonly instrumentationService: WalletBalanceReloadCheckInstrumentationService
+  ) {}
 
   async handle(payload: JobPayload<WalletBalanceReloadCheck>, job: JobMeta): Promise<void> {
-    const resourcesResult = await this.#collectResources(payload);
+    const startTime = Date.now();
+    let success = false;
 
-    if (resourcesResult.ok) {
-      await this.#tryToReload({ ...resourcesResult.val, job });
-      await this.#scheduleNextCheck(resourcesResult.val);
-    } else {
-      return this.#finishWithValidationError(resourcesResult.val, payload.userId);
+    try {
+      const resourcesResult = await this.#collectResources(payload);
+
+      if (resourcesResult.ok) {
+        await this.#tryToReload({ ...resourcesResult.val, job });
+        await this.#scheduleNextCheck(resourcesResult.val);
+        success = true;
+      } else {
+        this.instrumentationService.recordValidationError(resourcesResult.val.event, resourcesResult.val, payload.userId);
+        return;
+      }
+    } finally {
+      const durationMs = Date.now() - startTime;
+      this.instrumentationService.recordJobExecution(durationMs, success, payload.userId);
     }
   }
 
@@ -155,13 +164,6 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
     });
   }
 
-  #finishWithValidationError(error: ValidationError, userId: JobPayload<WalletBalanceReloadCheck>["userId"]): void {
-    this.loggerService.error({
-      ...error,
-      userId: userId
-    });
-  }
-
   async #tryToReload(resources: AllResources & { job: JobMeta }): Promise<void> {
     const reloadTargetDate = addMilliseconds(new Date(), this.#RELOAD_COVERAGE_PERIOD_IN_MS);
     const costUntilTargetDateInDenom = await this.drainingDeploymentService.calculateAllDeploymentCostUntilDate(resources.wallet.address, reloadTargetDate);
@@ -174,17 +176,19 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
       threshold
     };
 
-    if (costUntilTargetDateInFiat === 0 || resources.balance >= threshold) {
-      this.loggerService.info({
-        ...log,
-        event: "WALLET_BALANCE_RELOAD_SKIPPED"
-      });
+    if (costUntilTargetDateInFiat === 0) {
+      this.instrumentationService.recordReloadSkipped(resources.balance, threshold, costUntilTargetDateInFiat, "zero_cost", log);
       return;
     }
 
-    try {
-      const reloadAmountInFiat = Math.max(costUntilTargetDateInFiat - resources.balance, this.#MIN_RELOAD_AMOUNT_IN_USD);
+    if (resources.balance >= threshold) {
+      this.instrumentationService.recordReloadSkipped(resources.balance, threshold, costUntilTargetDateInFiat, "sufficient_balance", log);
+      return;
+    }
 
+    const reloadAmountInFiat = Math.max(costUntilTargetDateInFiat - resources.balance, this.#MIN_RELOAD_AMOUNT_IN_USD);
+
+    try {
       await this.stripeService.createPaymentIntent({
         customer: resources.user.stripeCustomerId,
         payment_method: resources.paymentMethod.id,
@@ -193,17 +197,9 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
         confirm: true,
         idempotencyKey: `${WalletBalanceReloadCheck.name}.${resources.job.id}`
       });
-      this.loggerService.info({
-        ...log,
-        amount: reloadAmountInFiat,
-        event: "WALLET_BALANCE_RELOADED"
-      });
+      this.instrumentationService.recordReloadTriggered(reloadAmountInFiat, resources.balance, threshold, costUntilTargetDateInFiat, log);
     } catch (error) {
-      this.loggerService.error({
-        ...log,
-        event: "WALLET_BALANCE_RELOAD_FAILED",
-        error: error
-      });
+      this.instrumentationService.recordReloadFailed(reloadAmountInFiat, error, log);
       throw error;
     }
   }
@@ -215,11 +211,7 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
         prevAction: "complete"
       });
     } catch (error) {
-      this.loggerService.error({
-        event: "ERROR_SCHEDULING_NEXT_CHECK",
-        walletAddress: resources.wallet.address,
-        error: error
-      });
+      this.instrumentationService.recordSchedulingError(resources.wallet.address, error);
       throw error;
     }
   }
