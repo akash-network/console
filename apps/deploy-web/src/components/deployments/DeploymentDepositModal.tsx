@@ -9,9 +9,9 @@ import { useRouter } from "next/navigation";
 import { z } from "zod";
 
 import { UAKT_DENOM } from "@src/config/denom.config";
-import { usePricing } from "@src/context/PricingProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useAddFundsVerifiedLoginRequiredEventHandler } from "@src/hooks/useAddFundsVerifiedLoginRequiredEventHandler";
+import { usePricing } from "@src/hooks/usePricing/usePricing";
 import { useDenomData, useWalletBalance } from "@src/hooks/useWalletBalance";
 import { analyticsService } from "@src/services/analytics/analytics.service";
 import type { ServiceType } from "@src/types";
