@@ -1,6 +1,7 @@
 import type { v2Manifest, v2Sdl, v3Manifest } from "@akashnetwork/akashjs/build/sdl/types";
 import type { NetworkId } from "@akashnetwork/chain-sdk";
 import { SDL } from "@akashnetwork/chain-sdk";
+import yaml from "js-yaml";
 import { singleton } from "tsyringe";
 
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
@@ -56,5 +57,37 @@ export class SdlService {
     } catch {
       return false;
     }
+  }
+
+  public appendAuditorRequirement(yamlStr: string, allowedAuditors: string[]): string {
+    const sdl = this.getSdl(yamlStr, "beta3");
+    const sdlData = sdl.data as v2Sdl;
+    const placementData = sdlData?.profiles?.placement || {};
+
+    for (const [, value] of Object.entries(placementData)) {
+      if (!value.signedBy?.anyOf || !value.signedBy?.allOf) {
+        value.signedBy = {
+          anyOf: value.signedBy?.anyOf || [],
+          allOf: value.signedBy?.allOf || []
+        };
+      }
+
+      for (const auditor of allowedAuditors) {
+        if (!value.signedBy.anyOf.includes(auditor)) {
+          value.signedBy.anyOf.push(auditor);
+        }
+      }
+    }
+
+    const result = yaml.dump(sdlData, {
+      indent: 2,
+      quotingType: '"',
+      styles: {
+        "!!null": "empty"
+      }
+    });
+
+    return `---
+${result}`;
   }
 }

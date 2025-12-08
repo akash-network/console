@@ -43,6 +43,11 @@ export class DeploymentWriterService {
       sdl = sdl.replace(/uakt/g, deploymentGrantDenom);
     }
 
+    const allowedAuditors = this.billingConfig.get("MANAGED_WALLET_LEASE_ALLOWED_AUDITORS");
+    if (allowedAuditors && allowedAuditors.length > 0) {
+      sdl = this.sdlService.appendAuditorRequirement(sdl, allowedAuditors);
+    }
+
     const dseq = await this.blockHttpService.getCurrentHeight();
     const groups = this.sdlService.getDeploymentGroups(sdl, "beta3");
     const manifestVersion = await this.sdlService.getManifestVersion(sdl, "beta3");
