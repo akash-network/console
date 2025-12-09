@@ -28,7 +28,7 @@ export const CurrentProviders: React.FC<Props> = ({ providers }) => {
         <div className="flex flex-wrap gap-2">
           {providers.map(p => (
             <Link key={p.owner} href={p.owner ? UrlService.providerDetailLeases(p.owner) : "#"}>
-              <Badge variant="default" className="bg-primary/60 hover:bg-primary/80">
+              <Badge variant="default" className="rounded-md bg-muted-foreground">
                 {p.name}
               </Badge>
             </Link>

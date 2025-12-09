@@ -17,7 +17,7 @@ type Props = {
 export const AccountHeader: React.FC<Props> = ({ isManagedWallet, onDeployClick, isBlockchainDown }) => {
   return (
     <div className="flex items-center justify-between">
-      <h3 className="text-xl font-bold">Your account</h3>
+      <h3 className="text-xl font-semibold">Your account</h3>
       <div className="flex gap-2">
         {isManagedWallet && (
           <AddFundsLink className={cn(buttonVariants({ variant: "outline" }), "flex items-center gap-2")} href={UrlService.payment()}>

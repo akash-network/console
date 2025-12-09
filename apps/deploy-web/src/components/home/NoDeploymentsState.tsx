@@ -21,7 +21,7 @@ export const NoDeploymentsState: React.FC<Props> = ({ onDeployClick }) => {
         <p className="mb-6 text-center text-muted-foreground">
           Use one of our most popular templates below or create your first deployment using our SDL builder.
         </p>
-        <div className="flex gap-2">
+        <div className="flex gap-4">
           <Button onClick={onDeployClick} asChild>
             <Link href={UrlService.newDeployment()}>
               <Rocket className="mr-2 h-4 w-4 rotate-45" />
