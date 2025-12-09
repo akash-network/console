@@ -1,5 +1,12 @@
 
 
+## [1.32.0](https://github.com/akash-network/console/compare/provider-console/v1.31.0...provider-console/v1.32.0) (2025-12-09)
+
+
+### Features
+
+* account overview, auto reload, and separate payment method page  ([46b0a99](https://github.com/akash-network/console/commit/46b0a99e66be7beab0e1908f687cece6880aa268)), closes [#1779](https://github.com/akash-network/console/issues/1779)
+
 ## [1.31.0](https://github.com/akash-network/console/compare/provider-console/v1.30.0...provider-console/v1.31.0) (2025-11-17)
 
 
