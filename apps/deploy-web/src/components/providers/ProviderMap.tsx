@@ -101,7 +101,7 @@ export const ProviderMap: React.FunctionComponent<Props> = ({ providers, initial
                 <Geography
                   key={geo.rsmKey}
                   geography={geo}
-                  className="fill-neutral-500 dark:fill-neutral-800"
+                  className="fill-neutral-400"
                   style={{
                     default: { outline: "none" },
                     hover: { outline: "none" },
@@ -125,7 +125,7 @@ export const ProviderMap: React.FunctionComponent<Props> = ({ providers, initial
                       </div>
                     }
                   >
-                    <circle className="cursor-pointer fill-primary" stroke="#FFF" strokeWidth={dotSize.w} r={dotSize.r} />
+                    <circle className="cursor-pointer fill-akash" stroke="#FFF" strokeWidth={dotSize.w} r={dotSize.r} />
                   </CustomNoDivTooltip>
                 </Marker>
               </Link>

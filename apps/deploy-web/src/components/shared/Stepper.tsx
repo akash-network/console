@@ -40,7 +40,7 @@ export const Stepper: React.FunctionComponent<StepperProps> = ({ steps, activeSt
               >
                 <span className="flex items-center px-6 py-4 text-sm font-medium">
                   <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary group-hover:bg-primary/80">
-                    <Check className="h-6 w-6 text-white" aria-hidden="true" />
+                    <Check className="h-6 w-6 text-primary-foreground" aria-hidden="true" />
                   </span>
                   <span className="ml-4 text-sm font-medium text-neutral-900 dark:text-neutral-500">{step.name}</span>
                 </span>
