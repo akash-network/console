@@ -49,3 +49,19 @@ export const createProvider = async (overrides: Partial<CreationAttributes<Provi
 
   return provider;
 };
+
+export const createProviderWithAttributeSignatures = (auditor: string): Provider => {
+  const providerSeed = createProviderSeed();
+  return {
+    ...providerSeed,
+    providerAttributeSignatures: [
+      {
+        provider: providerSeed.owner,
+        auditor,
+        key: "region",
+        value: "us-west"
+      }
+    ] as any,
+    providerAttributes: [] as any
+  } as Provider;
+};
