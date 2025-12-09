@@ -38,6 +38,7 @@ export class UrlService {
   static userFavorites = () => `/user/settings/favorites`;
   static userProfile = (username: string) => `/profile/${username}`;
   static usage = () => "/usage";
+  static paymentMethods = () => "/payment-methods";
   static billing = () => "/billing";
   static login = (returnUrl?: string) => {
     let from = "/";

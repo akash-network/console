@@ -36,6 +36,7 @@ export interface PaymentMethod {
   card?: {
     brand: string;
     last4: string;
+    funding: "credit" | "debit" | "prepaid" | "unknown";
     exp_month: number;
     exp_year: number;
   };
@@ -112,4 +113,8 @@ export interface ConfirmPaymentResponse {
 export interface ThreeDSecureAuthParams {
   paymentMethodId: string;
   paymentIntentId: string;
+}
+
+export interface SetPaymentMethodAsDefaultParams {
+  id: string;
 }
