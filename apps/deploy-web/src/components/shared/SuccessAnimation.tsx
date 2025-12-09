@@ -64,7 +64,7 @@ export function SuccessAnimation({ show, onComplete }: SuccessAnimationProps) {
                   transition={{ delay: 0.4, type: "spring", damping: 10, stiffness: 100 }}
                   className="relative rounded-full bg-primary p-4 text-white"
                 >
-                  <CheckCircle className="h-16 w-16" strokeWidth={1.5} />
+                  <CheckCircle className="h-16 w-16 text-akash" strokeWidth={1.5} />
                 </motion.div>
               </motion.div>
 

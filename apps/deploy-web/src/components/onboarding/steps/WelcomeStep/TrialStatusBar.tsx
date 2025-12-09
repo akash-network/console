@@ -41,8 +41,8 @@ export const TrialStatusBar: React.FC = () => {
     <Card className="border-border bg-card/50 backdrop-blur-sm">
       <div className="space-y-4 p-4 sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4 md:gap-6">
-          <div className="rounded-md bg-green-500/10 px-3 py-1.5">
-            <span className="whitespace-nowrap text-sm font-semibold text-green-500">Trial Active</span>
+          <div className="rounded-md bg-akash/10 px-3 py-1.5">
+            <span className="whitespace-nowrap text-sm font-semibold text-akash">Trial Active</span>
           </div>
           <div className="space-y-1">
             <div className="text-base font-semibold sm:text-lg">Free Trial Credits: ${creditsRemaining.toFixed(2)}</div>
