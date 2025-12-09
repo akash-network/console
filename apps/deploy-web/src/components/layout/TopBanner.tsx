@@ -11,7 +11,7 @@ function CreditCardBanner() {
   const { hasManagedWallet } = useWallet();
 
   return (
-    <div className="fixed top-0 z-10 flex h-[40px] w-full items-center justify-center bg-primary px-3 py-2 md:space-x-4">
+    <div className="fixed top-0 z-10 flex h-[40px] w-full items-center justify-center bg-akash px-3 py-2 md:space-x-4">
       <span className="text-xs font-semibold text-white md:text-sm">Credit Card payments are now available!</span>
 
       {!hasManagedWallet && <ConnectManagedWalletButton className="flex-shrink-0 text-white hover:text-white" size="sm" variant="text" />}
@@ -42,7 +42,7 @@ function NetworkDownBanner() {
   }, [date]);
 
   return (
-    <div className="fixed top-0 z-10 flex h-[40px] w-full items-center justify-center bg-primary px-3 py-2 md:space-x-4">
+    <div className="fixed top-0 z-10 flex h-[40px] w-full items-center justify-center bg-akash px-3 py-2 md:space-x-4">
       <span className="text-xs font-semibold text-white md:text-sm">
         {isUpgrading
           ? "We are upgrading the blockchain. Console operations are temporarily restricted to read-only."
@@ -62,7 +62,7 @@ function MaintenanceBanner({ onClose }: { onClose: () => void }) {
   );
 
   return (
-    <div className="fixed top-0 z-10 flex h-[40px] w-full items-center justify-center bg-primary px-3 py-2 md:space-x-4">
+    <div className="fixed top-0 z-10 flex h-[40px] w-full items-center justify-center bg-akash px-3 py-2 md:space-x-4">
       <span className="text-xs font-semibold text-white md:text-sm">
         Network upgrade scheduled{upgradeAt ? ` at ${upgradeAt}` : ""}. Console will switch to read-only mode during the upgrade.
       </span>
@@ -77,7 +77,7 @@ function GenericBanner({ onClose }: { onClose: () => void }) {
   const { message } = useGenericBannerDetails();
 
   return (
-    <div className="fixed top-0 z-10 flex h-[40px] w-full items-center justify-center bg-primary px-3 py-2 md:space-x-4">
+    <div className="fixed top-0 z-10 flex h-[40px] w-full items-center justify-center bg-akash px-3 py-2 md:space-x-4">
       <span className="text-xs font-semibold text-white md:text-sm">{message}</span>
       <Button variant="text" className="rounded-full text-white hover:text-white" size="icon" onClick={onClose}>
         <Xmark />

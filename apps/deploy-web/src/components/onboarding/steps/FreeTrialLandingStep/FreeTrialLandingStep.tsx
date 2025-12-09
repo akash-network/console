@@ -67,26 +67,28 @@ export const FreeTrialLandingStep: React.FunctionComponent<FreeTrialLandingStepP
           </p>
         </div>
 
-        <div className="mx-auto max-w-2xl rounded-lg bg-muted/50 p-6">
-          <ul className="space-y-2 text-left" role="list" aria-label="Free trial benefits">
-            <li className="flex items-center gap-2" role="listitem">
-              <Check className="h-4 w-4 text-green-600" aria-hidden="true" />
-              <span>100$ of free credits</span>
-            </li>
-            <li className="flex items-center gap-2" role="listitem">
-              <Check className="h-4 w-4 text-green-600" aria-hidden="true" />
-              <span>30 days of free credits</span>
-            </li>
-            <li className="flex items-center gap-2" role="listitem">
-              <Check className="h-4 w-4 text-green-600" aria-hidden="true" />
-              <span>Deployments last up to 24 hours</span>
-            </li>
-            <li className="flex items-center gap-2" role="listitem">
-              <Check className="h-4 w-4 text-green-600" aria-hidden="true" />
-              <span>Keep unused free credits if you purchase credits</span>
-            </li>
-          </ul>
-        </div>
+        <Card className="mx-auto max-w-2xl">
+          <CardContent className="pt-6">
+            <ul className="space-y-2 text-left" role="list" aria-label="Free trial benefits">
+              <li className="flex items-center gap-2" role="listitem">
+                <Check className="h-4 w-4 text-green-600" aria-hidden="true" />
+                <span>100$ of free credits</span>
+              </li>
+              <li className="flex items-center gap-2" role="listitem">
+                <Check className="h-4 w-4 text-green-600" aria-hidden="true" />
+                <span>30 days of free credits</span>
+              </li>
+              <li className="flex items-center gap-2" role="listitem">
+                <Check className="h-4 w-4 text-green-600" aria-hidden="true" />
+                <span>Deployments last up to 24 hours</span>
+              </li>
+              <li className="flex items-center gap-2" role="listitem">
+                <Check className="h-4 w-4 text-green-600" aria-hidden="true" />
+                <span>Keep unused free credits if you purchase credits</span>
+              </li>
+            </ul>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="mx-auto max-w-2xl">
