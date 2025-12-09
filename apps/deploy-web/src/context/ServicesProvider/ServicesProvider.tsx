@@ -1,6 +1,7 @@
 import React, { useContext } from "react";
 import { AuthzHttpService, CertificatesService } from "@akashnetwork/http-sdk";
 
+import { UAKT_DENOM, USDC_IBC_DENOMS } from "@src/config/denom.config";
 import { withInterceptors } from "@src/services/app-di-container/app-di-container";
 import { services as rootContainer } from "@src/services/app-di-container/browser-di-container";
 import type { DIContainer, Factories } from "@src/services/container/createContainer";
@@ -35,7 +36,11 @@ const neverResolvedPromise = new Promise<never>(() => {});
 function createAppContainer<T extends Factories>(settingsState: SettingsContextType, services: T) {
   const di = createChildContainer(rootContainer, {
     authzHttpService: () => new AuthzHttpService(di.chainApiHttpClient),
-    walletBalancesService: () => new WalletBalancesService(di.authzHttpService, di.chainApiHttpClient, di.appConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS),
+    walletBalancesService: () =>
+      new WalletBalancesService(di.authzHttpService, di.chainApiHttpClient, {
+        uakt: UAKT_DENOM,
+        usdc: USDC_IBC_DENOMS[rootContainer.networkStore.selectedNetworkId]
+      }),
     certificatesService: () => new CertificatesService(di.chainApiHttpClient),
     chainApiHttpClient: () => {
       let inflightPingRequest: Promise<{ isBlockchainDown: boolean }> | undefined;

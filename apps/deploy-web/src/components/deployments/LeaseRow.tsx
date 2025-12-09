@@ -13,7 +13,7 @@ import { CodeSnippet } from "@src/components/shared/CodeSnippet";
 import { FavoriteButton } from "@src/components/shared/FavoriteButton";
 import { LabelValueOld } from "@src/components/shared/LabelValueOld";
 import { PriceEstimateTooltip } from "@src/components/shared/PriceEstimateTooltip";
-import { PricePerMonth } from "@src/components/shared/PricePerMonth";
+import { PricePerTimeUnit } from "@src/components/shared/PricePerTimeUnit";
 import { SpecDetail } from "@src/components/shared/SpecDetail";
 import { StatusPill } from "@src/components/shared/StatusPill";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
@@ -206,8 +206,13 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
               label="Price:"
               value={
                 <div className="flex items-center">
-                  <PricePerMonth denom={lease.price.denom} perBlockValue={udenomToDenom(lease.price.amount, 10)} className="text-lg" />
-                  <PriceEstimateTooltip denom={lease.price.denom} value={lease.price.amount} />
+                  <PricePerTimeUnit
+                    denom={lease.price.denom}
+                    perBlockValue={udenomToDenom(lease.price.amount, 10)}
+                    className="text-lg"
+                    showAsHourly={!!lease.gpuAmount && lease.gpuAmount > 0}
+                  />
+                  <PriceEstimateTooltip denom={lease.price.denom} value={lease.price.amount} showAsHourly={!!lease.gpuAmount && lease.gpuAmount > 0} />
                 </div>
               }
             />

@@ -48,7 +48,6 @@ export const chainDefinitions: { [key: string]: ChainDef } = {
       "http://akash.c29r3.xyz/rpc",
       "https://rpc-akash.ecostake.com",
       "https://akash-rpc.polkachu.com",
-      "https://akash-mainnet-rpc.cosmonautstakes.com",
       "https://akash-rpc.kleomedes.network",
       "https://rpc.akt.dev/rpc"
     ],

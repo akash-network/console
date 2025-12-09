@@ -7,7 +7,7 @@ import { InfoCircle, WarningCircle } from "iconoir-react";
 
 import { CopyTextToClipboardButton } from "@src/components/shared/CopyTextToClipboardButton";
 import { LabelValue } from "@src/components/shared/LabelValue";
-import { PricePerMonth } from "@src/components/shared/PricePerMonth";
+import { PricePerTimeUnit } from "@src/components/shared/PricePerTimeUnit";
 import { PriceValue } from "@src/components/shared/PriceValue";
 import { StatusPill } from "@src/components/shared/StatusPill";
 import { TrialDeploymentBadge } from "@src/components/shared/TrialDeploymentBadge";
@@ -33,6 +33,7 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
   const isActive = deployment.state === "active";
   const hasLeases = !!leases && leases.length > 0;
   const hasActiveLeases = hasLeases && leases.some(l => l.state === "active");
+  const hasGpu = leases?.some(l => l.state === "active" && l.gpuAmount && l.gpuAmount > 0);
   const denomData = useDenomData(deployment.escrowAccount.state.funds[0]?.denom || "");
   const { isCustodial, isTrialing } = useWallet();
   const isAnonymousFreeTrialEnabled = useFlag("anonymous_free_trial");
@@ -88,7 +89,11 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
           value={
             !!deploymentCost && (
               <div className="flex items-center space-x-2">
-                <PricePerMonth denom={deployment.escrowAccount.state.funds[0]?.denom || ""} perBlockValue={udenomToDenom(deploymentCost, 10)} />
+                <PricePerTimeUnit
+                  denom={deployment.escrowAccount.state.funds[0]?.denom || ""}
+                  perBlockValue={udenomToDenom(deploymentCost, 10)}
+                  showAsHourly={hasGpu}
+                />
 
                 {isCustodial && (
                   <CustomTooltip

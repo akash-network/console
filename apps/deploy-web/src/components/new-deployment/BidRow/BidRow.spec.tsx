@@ -29,7 +29,7 @@ describe(BidRow.name, () => {
       provider: provider.owner
     });
     const components = {
-      PricePerMonth: jest.fn(),
+      PricePerTimeUnit: jest.fn(),
       ProviderName: jest.fn(),
       Uptime: jest.fn(),
       RadioGroupItem: jest.fn() as unknown as typeof RadioGroupItem
@@ -40,7 +40,7 @@ describe(BidRow.name, () => {
       components
     });
 
-    expect(components.PricePerMonth).toHaveBeenCalledWith(
+    expect(components.PricePerTimeUnit).toHaveBeenCalledWith(
       expect.objectContaining({
         denom: bid.price.denom,
         perBlockValue: udenomToDenom(bid.price.amount, 10)

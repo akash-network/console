@@ -14,10 +14,12 @@ type Props = {
   value: number | string;
   denom: string;
   children?: ReactNode;
+  showAsHourly?: boolean;
 };
 
-export const PriceEstimateTooltip: React.FunctionComponent<Props> = ({ value, denom }) => {
+export const PriceEstimateTooltip: React.FunctionComponent<Props> = ({ value, denom, showAsHourly = false }) => {
   const _value = udenomToDenom(typeof value === "string" ? parseFloat(value) : value, 10);
+  const perHourValue = _value * (60 / averageBlockTime) * 60;
   const perDayValue = _value * (60 / averageBlockTime) * 60 * 24;
   const perMonthValue = _value * (60 / averageBlockTime) * 60 * 24 * averageDaysInMonth;
   const denomData = useDenomData(denom);
@@ -34,6 +36,15 @@ export const PriceEstimateTooltip: React.FunctionComponent<Props> = ({ value, de
             </strong>
             &nbsp; per block (~{averageBlockTime}sec.)
           </div>
+
+          {showAsHourly && (
+            <div>
+              <strong>
+                <PriceValue value={perHourValue} denom={denom} />
+              </strong>
+              &nbsp; per hour
+            </div>
+          )}
 
           <div>
             <strong>

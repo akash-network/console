@@ -1,5 +1,5 @@
 import { chromium } from "@playwright/test";
-import { rmdir } from "fs/promises";
+import { rm } from "fs/promises";
 import path from "path";
 
 import { testEnvConfig } from "../fixture/test-env.config";
@@ -14,7 +14,7 @@ export default async () => {
   ];
 
   console.log("Configuring user data directory for tests");
-  await rmdir(testEnvConfig.USER_DATA_DIR, { recursive: true });
+  await rm(testEnvConfig.USER_DATA_DIR, { recursive: true, force: true });
   const context = await chromium.launchPersistentContext(testEnvConfig.USER_DATA_DIR, {
     channel: "chromium",
     args,

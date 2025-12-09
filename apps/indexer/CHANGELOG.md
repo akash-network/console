@@ -1,5 +1,19 @@
 
 
+## [1.22.2](https://github.com/akash-network/console/compare/indexer/v1.22.1...indexer/v1.22.2) (2025-12-05)
+
+
+### Bug Fixes
+
+* indexer memory ([#2327](https://github.com/akash-network/console/issues/2327)) ([68a1da0](https://github.com/akash-network/console/commit/68a1da0a2ed3dbd5b308a6a73cd5859b4dbaa36d))
+
+## [1.22.1](https://github.com/akash-network/console/compare/indexer/v1.22.0...indexer/v1.22.1) (2025-12-05)
+
+
+### Bug Fixes
+
+* ignore multi send tx events ([#2326](https://github.com/akash-network/console/issues/2326)) ([498245d](https://github.com/akash-network/console/commit/498245d3d739d9595dcca1d10134bd9454c74825))
+
 ## [1.22.0](https://github.com/akash-network/console/compare/indexer/v1.21.0...indexer/v1.22.0) (2025-11-29)
 
 

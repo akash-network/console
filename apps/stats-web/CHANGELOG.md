@@ -1,5 +1,12 @@
 
 
+## [1.7.0](https://github.com/akash-network/console/compare/stats-web/v1.6.0...stats-web/v1.7.0) (2025-12-05)
+
+
+### Features
+
+* **observability:** wraps jobs handlers into otel context and logs jobId ([1f55f3f](https://github.com/akash-network/console/commit/1f55f3fefb7c6a88d66cc58ad6f8807d5bc10558))
+
 ## [1.6.0](https://github.com/akash-network/console/compare/stats-web/v1.5.1...stats-web/v1.6.0) (2025-11-29)
 
 

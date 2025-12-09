@@ -24,12 +24,12 @@ import { z } from "zod";
 import { LinkTo } from "@src/components/shared/LinkTo";
 import { UAKT_DENOM } from "@src/config/denom.config";
 import { useWallet } from "@src/context/WalletProvider";
-import { getUsdcDenom, useUsdcDenom } from "@src/hooks/useDenom";
+import { useUsdcDenom } from "@src/hooks/useDenom";
 import { useDenomData } from "@src/hooks/useWalletBalance";
 import { analyticsService } from "@src/services/analytics/analytics.service";
 import type { GrantType } from "@src/types/grant";
 import { denomToUdenom } from "@src/utils/mathHelpers";
-import { aktToUakt, coinToDenom } from "@src/utils/priceUtils";
+import { aktToUakt, coinToDenom, getUsdcDenom } from "@src/utils/priceUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { handleDocClick } from "@src/utils/urlUtils";
 
