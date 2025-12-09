@@ -1,6 +1,6 @@
 import React from "react";
 import { FormattedNumber } from "react-intl";
-import { Button, buttonVariants, Separator } from "@akashnetwork/ui/components";
+import { Button, buttonVariants, Card, CardContent, Separator } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { CoinsSwap, HandCard } from "iconoir-react";
 
@@ -28,9 +28,9 @@ export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBa
           <p className="text-center">Free Trial</p>
         </div>
       )}
-      <div className="rounded-md border border-primary/50 bg-primary/10 p-2 text-primary dark:bg-primary dark:text-foreground">
-        {(walletBalance && (
-          <>
+      <Card>
+        {walletBalance ? (
+          <CardContent className="space-y-2 p-4">
             <div className="flex items-center justify-between space-x-2">
               <span className="text-xs">Credits Remaining:</span>
               <span>
@@ -43,7 +43,7 @@ export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBa
               </span>
             </div>
 
-            <Separator className="my-2 bg-primary/50 dark:bg-white/20" />
+            <Separator />
 
             <div className="flex items-center justify-between space-x-2">
               <span className="text-xs">Deposits:</span>
@@ -56,9 +56,11 @@ export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBa
                 />
               </span>
             </div>
-          </>
-        )) || <div className="space-x-2 text-xs text-white">Wallet Balance is unknown because the blockchain is unavailable</div>}
-      </div>
+          </CardContent>
+        ) : (
+          <CardContent className="p-4 text-xs">Wallet Balance is unknown because the blockchain is unavailable</CardContent>
+        )}
+      </Card>
       <div className="mb-2 mt-1 flex items-center justify-end">
         <LinkTo className="text-xs text-foreground no-underline" onClick={() => showManagedEscrowFaqModal()}>
           What's this?

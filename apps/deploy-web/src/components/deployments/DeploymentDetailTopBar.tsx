@@ -243,7 +243,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
                 >
                   <span className="cursor-help text-muted-foreground">ⓘ</span>
                 </CustomTooltip>
-                {deploymentSetting.isLoading && <Spinner />}
+                {deploymentSetting.isLoading && <Spinner size="small" />}
               </div>
             )}
           </div>

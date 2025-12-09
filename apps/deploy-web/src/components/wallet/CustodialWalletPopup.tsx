@@ -1,6 +1,6 @@
 import React from "react";
 import { FormattedNumber } from "react-intl";
-import { Address, Button, buttonVariants, Separator } from "@akashnetwork/ui/components";
+import { Address, Button, buttonVariants, Card, CardContent, Separator } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { Bank, LogOut } from "iconoir-react";
 import { useAtom } from "jotai";
@@ -49,9 +49,9 @@ export const CustodialWalletPopup: React.FC<CustodialWalletPopupProps> = ({ wall
       </div>
 
       <div className="mb-1 text-xs text-muted-foreground">Wallet Balance</div>
-      <div className="mb-4 rounded-md border border-success/10 bg-success/10 p-2 text-success dark:border-success/80 dark:bg-success/80 dark:text-foreground">
-        {(walletBalance && (
-          <>
+      <Card className="mb-4">
+        {walletBalance ? (
+          <CardContent className="space-y-2 p-4">
             <div className="flex items-center justify-between space-x-2">
               <span className="text-xs">AKT</span>
               <span className="flex items-center space-x-1">
@@ -60,7 +60,7 @@ export const CustodialWalletPopup: React.FC<CustodialWalletPopupProps> = ({ wall
               </span>
             </div>
 
-            <Separator className="my-2 bg-success/10 dark:bg-white/20" />
+            <Separator />
 
             <div className="flex items-center justify-between space-x-2">
               <span className="text-xs">USDC</span>
@@ -68,9 +68,11 @@ export const CustodialWalletPopup: React.FC<CustodialWalletPopupProps> = ({ wall
                 <FormattedNumber value={udenomToDenom(walletBalance.totalUUSDC, 2)} style="currency" currency="USD" />
               </span>
             </div>
-          </>
-        )) || <div className="space-x-2 text-xs text-white">Wallet Balance is unknown because the blockchain is unavailable</div>}
-      </div>
+          </CardContent>
+        ) : (
+          <CardContent className="p-4 text-xs">Wallet Balance is unknown because the blockchain is unavailable</CardContent>
+        )}
+      </Card>
 
       <div className="text-xs text-muted-foreground">Wallet Actions</div>
 

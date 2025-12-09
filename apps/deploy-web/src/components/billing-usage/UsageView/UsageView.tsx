@@ -92,7 +92,7 @@ export const UsageView = ({
           <Label>Filter by Date:</Label>
           <DateRangePicker date={dateRange} onChange={onDateRangeChange} className="w-full" minDate={oneYearAgo} maxDate={endOfToday()} maxRangeInDays={366} />
         </div>
-        <Button variant="secondary" onClick={exportCsv} size="sm">
+        <Button variant="outline" onClick={exportCsv} size="sm">
           <Download width={16} className="mr-2" />
           Export CSV
         </Button>

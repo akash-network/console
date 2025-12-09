@@ -26,6 +26,7 @@
     --warning-foreground: 0 0% 98%;
     --destructive: 0 84% 58%;
     --destructive-foreground: 0 0% 100%;
+    --akash: 355 100% 62%;
     --border: 0 0% 90%;
     --input: 0 0% 90%;
     --ring: 0 0% 9%;
@@ -60,6 +61,7 @@
     --warning-foreground: 0 0% 98%;
     --destructive: 0 84% 58%;
     --destructive-foreground: 0 0% 98.5%;
+    --akash: 355 100% 62%;
     --border: 0 0% 20%;
     --input: 0 0% 16%;
     --ring: 0 0% 56%;
