@@ -1,5 +1,12 @@
 
 
+## [1.8.0](https://github.com/akash-network/console/compare/stats-web/v1.7.0...stats-web/v1.8.0) (2025-12-09)
+
+
+### Features
+
+* account overview, auto reload, and separate payment method page  ([46b0a99](https://github.com/akash-network/console/commit/46b0a99e66be7beab0e1908f687cece6880aa268)), closes [#1779](https://github.com/akash-network/console/issues/1779)
+
 ## [1.7.0](https://github.com/akash-network/console/compare/stats-web/v1.6.0...stats-web/v1.7.0) (2025-12-05)
 
 
