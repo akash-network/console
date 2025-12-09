@@ -1,3 +1,4 @@
+import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
 import type { BidHttpService } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
 import { mock } from "jest-mock-extended";
@@ -23,10 +24,10 @@ describe(BidService.name, () => {
       const userWallet = { address: faker.finance.ethereumAddress(), userId: 1 };
       const mockBids = [BidSeeder.create(), BidSeeder.create(), BidSeeder.create()];
 
-      authService.ability = {} as any;
+      authService.ability = {} as unknown as AuthService["ability"];
       userWalletRepository.accessibleBy.mockReturnValue({
         findFirst: jest.fn().mockResolvedValue(userWallet)
-      } as any);
+      } as unknown as ReturnType<UserWalletRepository["accessibleBy"]>);
       bidHttpService.list.mockResolvedValue(mockBids);
 
       const result = await service.list("123456");
@@ -44,7 +45,11 @@ describe(BidService.name, () => {
       const userWallet = { address: faker.finance.ethereumAddress(), userId: 1 };
       const auditedProvider1 = createProviderWithAttributeSignatures(auditor);
       const auditedProvider2 = createProviderWithAttributeSignatures(auditor);
-      const unauditedProvider = { ...createProviderSeed(), providerAttributeSignatures: [], providerAttributes: [] } as any;
+      const unauditedProvider = {
+        ...createProviderSeed(),
+        providerAttributeSignatures: [],
+        providerAttributes: []
+      } as unknown as Provider;
 
       const mockBids = [
         BidSeeder.create({ provider: auditedProvider1.owner }),
@@ -52,10 +57,10 @@ describe(BidService.name, () => {
         BidSeeder.create({ provider: unauditedProvider.owner })
       ];
 
-      authService.ability = {} as any;
+      authService.ability = {} as unknown as AuthService["ability"];
       userWalletRepository.accessibleBy.mockReturnValue({
         findFirst: jest.fn().mockResolvedValue(userWallet)
-      } as any);
+      } as unknown as ReturnType<UserWalletRepository["accessibleBy"]>);
       bidHttpService.list.mockResolvedValue(mockBids);
       providerRepository.getProvidersByAddressesWithAttributes.mockResolvedValue([auditedProvider1, auditedProvider2, unauditedProvider]);
 
@@ -77,15 +82,23 @@ describe(BidService.name, () => {
       });
 
       const userWallet = { address: faker.finance.ethereumAddress(), userId: 1 };
-      const unauditedProvider1 = { ...createProviderSeed(), providerAttributeSignatures: [], providerAttributes: [] } as any;
-      const unauditedProvider2 = { ...createProviderSeed(), providerAttributeSignatures: [], providerAttributes: [] } as any;
+      const unauditedProvider1 = {
+        ...createProviderSeed(),
+        providerAttributeSignatures: [],
+        providerAttributes: []
+      } as unknown as Provider;
+      const unauditedProvider2 = {
+        ...createProviderSeed(),
+        providerAttributeSignatures: [],
+        providerAttributes: []
+      } as unknown as Provider;
 
       const mockBids = [BidSeeder.create({ provider: unauditedProvider1.owner }), BidSeeder.create({ provider: unauditedProvider2.owner })];
 
-      authService.ability = {} as any;
+      authService.ability = {} as unknown as AuthService["ability"];
       userWalletRepository.accessibleBy.mockReturnValue({
         findFirst: jest.fn().mockResolvedValue(userWallet)
-      } as any);
+      } as unknown as ReturnType<UserWalletRepository["accessibleBy"]>);
       bidHttpService.list.mockResolvedValue(mockBids);
       providerRepository.getProvidersByAddressesWithAttributes.mockResolvedValue([unauditedProvider1, unauditedProvider2]);
 
@@ -97,10 +110,10 @@ describe(BidService.name, () => {
     it("throws error when user wallet not found", async () => {
       const { service, userWalletRepository, authService } = setup({});
 
-      authService.ability = {} as any;
+      authService.ability = {} as unknown as AuthService["ability"];
       userWalletRepository.accessibleBy.mockReturnValue({
         findFirst: jest.fn().mockResolvedValue(null)
-      } as any);
+      } as unknown as ReturnType<UserWalletRepository["accessibleBy"]>);
 
       await expect(service.list("123456")).rejects.toMatchObject({
         status: 404,
@@ -116,10 +129,10 @@ describe(BidService.name, () => {
 
       const userWallet = { address: faker.finance.ethereumAddress(), userId: 1 };
 
-      authService.ability = {} as any;
+      authService.ability = {} as unknown as AuthService["ability"];
       userWalletRepository.accessibleBy.mockReturnValue({
         findFirst: jest.fn().mockResolvedValue(userWallet)
-      } as any);
+      } as unknown as ReturnType<UserWalletRepository["accessibleBy"]>);
       bidHttpService.list.mockResolvedValue([]);
 
       const result = await service.list("123456");

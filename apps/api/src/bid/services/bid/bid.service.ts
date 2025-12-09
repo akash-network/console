@@ -51,7 +51,8 @@ export class BidService {
     const auditedProviderAddresses = new Set(
       providers
         .filter(provider => {
-          const providerAuditors = provider.providerAttributeSignatures.map(signature => signature.auditor);
+          const signatures = provider.providerAttributeSignatures ?? [];
+          const providerAuditors = signatures.map(signature => signature.auditor);
           return providerAuditors.some(auditor => allowedAuditors.includes(auditor));
         })
         .map(provider => provider.owner)

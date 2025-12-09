@@ -1,3 +1,4 @@
+import type { v2Sdl } from "@akashnetwork/akashjs/build/sdl/types";
 import yaml from "js-yaml";
 
 import type { BillingConfig } from "@src/billing/providers";
@@ -48,7 +49,7 @@ deployment:
 `;
 
       const result = service.appendAuditorRequirement(inputSdl, [auditor]);
-      const parsedResult = yaml.load(result) as any;
+      const parsedResult = yaml.load(result) as v2Sdl;
 
       expect(parsedResult.profiles.placement.westcoast.signedBy.anyOf).toContain(auditor);
     });
@@ -99,7 +100,7 @@ deployment:
 `;
 
       const result = service.appendAuditorRequirement(inputSdl, [auditor]);
-      const parsedResult = yaml.load(result) as any;
+      const parsedResult = yaml.load(result) as v2Sdl;
 
       const anyOfCount = parsedResult.profiles.placement.westcoast.signedBy.anyOf.filter((a: string) => a === auditor).length;
       expect(anyOfCount).toBe(1);
@@ -149,7 +150,7 @@ deployment:
 `;
 
       const result = service.appendAuditorRequirement(inputSdl, [auditor1, auditor2]);
-      const parsedResult = yaml.load(result) as any;
+      const parsedResult = yaml.load(result) as v2Sdl;
 
       expect(parsedResult.profiles.placement.westcoast.signedBy.anyOf).toContain(auditor1);
       expect(parsedResult.profiles.placement.westcoast.signedBy.anyOf).toContain(auditor2);
@@ -202,7 +203,7 @@ deployment:
 `;
 
       const result = service.appendAuditorRequirement(inputSdl, [auditor]);
-      const parsedResult = yaml.load(result) as any;
+      const parsedResult = yaml.load(result) as v2Sdl;
 
       expect(parsedResult.profiles.placement.westcoast.signedBy.anyOf).toContain(auditor);
       expect(parsedResult.profiles.placement.westcoast.signedBy.allOf).toContain(existingAllOf);
@@ -283,7 +284,7 @@ deployment:
 `;
 
       const result = service.appendAuditorRequirement(inputSdl, [auditor]);
-      const parsedResult = yaml.load(result) as any;
+      const parsedResult = yaml.load(result) as v2Sdl;
 
       expect(parsedResult.profiles.placement.westcoast.signedBy.anyOf).toContain(auditor);
       expect(parsedResult.profiles.placement.eastcoast.signedBy.anyOf).toContain(auditor);
