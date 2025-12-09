@@ -38,11 +38,7 @@ export class BidService {
   private async filterBidsByAuditedProviders(bids: Bid[]): Promise<Bid[]> {
     const allowedAuditors = this.billingConfig.get("MANAGED_WALLET_LEASE_ALLOWED_AUDITORS");
 
-    if (!allowedAuditors || allowedAuditors.length === 0) {
-      return bids;
-    }
-
-    if (bids.length === 0) {
+    if (!allowedAuditors || allowedAuditors.length === 0 || bids.length === 0) {
       return bids;
     }
 
