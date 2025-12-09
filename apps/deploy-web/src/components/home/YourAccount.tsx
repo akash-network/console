@@ -87,7 +87,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ isLoadingBalances,
   return (
     <>
       {address && (
-        <div className="space-y-6">
+        <div className="space-y-4">
           <AccountHeader isManagedWallet={isManagedWallet} onDeployClick={onDeployClick} isBlockchainDown={settings.isBlockchainDown} />
 
           {isLoadingBalances && !walletBalance ? (

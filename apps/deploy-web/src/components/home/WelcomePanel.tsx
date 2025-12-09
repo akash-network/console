@@ -24,7 +24,7 @@ export const WelcomePanel: React.FC = () => {
       <CollapsibleContent>
         <Card>
           <CardContent className="pt-6">
-            <ul className="space-y-6">
+            <ul className="space-y-4">
               <li className="flex items-center space-x-4">
                 <Avatar className="h-12 w-12 rounded-md">
                   <AvatarFallback className="rounded-md">
@@ -33,7 +33,9 @@ export const WelcomePanel: React.FC = () => {
                 </Avatar>
 
                 <div className="flex flex-col">
-                  <Link href={UrlService.getStarted()}>Getting started with Akash Console</Link>
+                  <Link href={UrlService.getStarted()} className="font-semibold">
+                    Getting started with Akash Console
+                  </Link>
                   <span className="text-sm text-muted-foreground">Learn how to deploy your first docker container on Akash in a few clicks using Console.</span>
                 </div>
               </li>
@@ -46,7 +48,9 @@ export const WelcomePanel: React.FC = () => {
                 </Avatar>
 
                 <div className="ml-4 flex flex-col">
-                  <Link href={UrlService.templates()}>Explore the marketplace</Link>
+                  <Link href={UrlService.templates()} className="font-semibold">
+                    Explore the marketplace
+                  </Link>
                   <span className="text-sm text-muted-foreground">
                     Browse through the marketplace of pre-made solutions with categories like blogs, blockchain nodes and more!
                   </span>
@@ -61,7 +65,7 @@ export const WelcomePanel: React.FC = () => {
                 </Avatar>
 
                 <div className="ml-4 flex flex-col">
-                  <Link href="https://akash.network/docs/" target="_blank">
+                  <Link href="https://akash.network/docs/" target="_blank" className="font-semibold">
                     Learn more about Akash
                   </Link>
                   <span className="text-sm text-muted-foreground">Want to know about the advantages of using a decentralized cloud compute marketplace?</span>
