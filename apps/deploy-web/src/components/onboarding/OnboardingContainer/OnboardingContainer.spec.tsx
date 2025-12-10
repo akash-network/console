@@ -66,7 +66,7 @@ describe("OnboardingContainer", () => {
   });
 
   it("should track analytics and redirect when starting trial", async () => {
-    const { child, mockAnalyticsService, mockUrlService, authService } = setup();
+    const { child, mockAnalyticsService, mockUrlService, mockRouter } = setup();
 
     (mockUrlService.onboarding as jest.Mock).mockReturnValue("/onboarding");
     (mockUrlService.signup as jest.Mock).mockReturnValue("/signup");
@@ -79,8 +79,7 @@ describe("OnboardingContainer", () => {
     expect(mockAnalyticsService.track).toHaveBeenCalledWith("onboarding_free_trial_started", {
       category: "onboarding"
     });
-    expect(mockUrlService.onboarding).toHaveBeenCalledWith(true);
-    expect(authService.loginViaOauth).toHaveBeenCalledWith({ returnTo: expect.stringContaining("/onboarding") });
+    expect(mockRouter.push).toHaveBeenCalledWith(expect.stringContaining(`/login?from=${encodeURIComponent("/onboarding")}`));
   });
 
   it("should track analytics when payment method is completed", async () => {

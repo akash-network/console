@@ -1,8 +1,6 @@
 import type { RadioGroupItem } from "@akashnetwork/ui/components";
-import { QueryClientProvider } from "@tanstack/react-query";
 
 import { LocalNoteProvider } from "@src/context/LocalNoteProvider/LocalNoteContext";
-import { ServicesProvider } from "@src/context/ServicesProvider/ServicesProvider";
 import { queryClient } from "@src/queries/queryClient";
 import type { ProviderProxyService } from "@src/services/provider-proxy/provider-proxy.service";
 import type { BidDto } from "@src/types/deployment";
@@ -14,6 +12,7 @@ import { render } from "@testing-library/react";
 import { buildDeploymentBid } from "@tests/seeders/deploymentBid";
 import { buildProvider } from "@tests/seeders/provider";
 import { MockComponents } from "@tests/unit/mocks";
+import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe(BidRow.name, () => {
   it("displays bid details", () => {
@@ -110,21 +109,19 @@ describe(BidRow.name, () => {
         })
       }) as unknown as ProviderProxyService;
     return render(
-      <ServicesProvider services={{ providerProxy }}>
-        <QueryClientProvider client={queryClient}>
-          <LocalNoteProvider>
-            <BidRow
-              bid={props?.bid ?? buildDeploymentBid()}
-              selectedBid={props?.selectedBid}
-              handleBidSelected={props?.handleBidSelected || (() => {})}
-              disabled={props?.disabled ?? false}
-              provider={props?.provider ?? buildProvider()}
-              isSendingManifest={props?.isSendingManifest ?? false}
-              components={MockComponents(COMPONENTS, props?.components)}
-            />
-          </LocalNoteProvider>
-        </QueryClientProvider>
-      </ServicesProvider>
+      <TestContainerProvider services={{ providerProxy, queryClient: () => queryClient }}>
+        <LocalNoteProvider>
+          <BidRow
+            bid={props?.bid ?? buildDeploymentBid()}
+            selectedBid={props?.selectedBid}
+            handleBidSelected={props?.handleBidSelected || (() => {})}
+            disabled={props?.disabled ?? false}
+            provider={props?.provider ?? buildProvider()}
+            isSendingManifest={props?.isSendingManifest ?? false}
+            components={MockComponents(COMPONENTS, props?.components)}
+          />
+        </LocalNoteProvider>
+      </TestContainerProvider>
     );
   }
 });

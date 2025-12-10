@@ -4,16 +4,15 @@ import React from "react";
 import { createAPIClient } from "@akashnetwork/react-query-sdk/notifications";
 import { CustomSnackbarProvider } from "@akashnetwork/ui/context";
 import type { RequestFn, RequestFnResponse } from "@openapi-qraft/tanstack-query-react-types";
-import { QueryClientProvider } from "@tanstack/react-query";
 
 import { NotificationChannelsListContainer } from "@src/components/alerts/NotificationChannelsListContainer/NotificationChannelsListContainer";
 import type { NotificationChannelsListViewProps } from "@src/components/alerts/NotificationChannelsListView/NotificationChannelsListView";
-import { ServicesProvider } from "@src/context/ServicesProvider";
 import { queryClient } from "@src/queries";
 
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { buildNotificationChannel } from "@tests/seeders/notificationChannel";
 import { createContainerTestingChildCapturer } from "@tests/unit/container-testing-child-capturer";
+import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe("NotificationChannelsListContainer", () => {
   it("renders notification channels list with data", async () => {
@@ -84,6 +83,7 @@ describe("NotificationChannelsListContainer", () => {
         }) as Promise<RequestFnResponse<typeof mockData, unknown>>
     );
     const services = {
+      queryClient: () => queryClient,
       notificationsApi: () =>
         createAPIClient({
           requestFn: requestFn as RequestFn<any, Error>,
@@ -95,11 +95,9 @@ describe("NotificationChannelsListContainer", () => {
 
     render(
       <CustomSnackbarProvider>
-        <ServicesProvider services={services}>
-          <QueryClientProvider client={queryClient}>
-            <NotificationChannelsListContainer>{childCapturer.renderChild}</NotificationChannelsListContainer>
-          </QueryClientProvider>
-        </ServicesProvider>
+        <TestContainerProvider services={services}>
+          <NotificationChannelsListContainer>{childCapturer.renderChild}</NotificationChannelsListContainer>
+        </TestContainerProvider>
       </CustomSnackbarProvider>
     );
 

@@ -317,7 +317,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
             <AlertDescription className="space-y-1 dark:text-white/90">
               <p>
                 You have reached the limit of {TRIAL_DEPLOYMENT_LIMIT} trial deployments.{" "}
-                <Link href={UrlService.login()} className="font-bold underline">
+                <Link href={UrlService.newLogin()} passHref prefetch={false} className="font-bold underline">
                   Sign in
                 </Link>{" "}
                 or <SignUpButton className="font-bold underline" /> to add funds and continue deploying.

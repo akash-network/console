@@ -5,16 +5,15 @@ import { type components, createAPIClient } from "@akashnetwork/react-query-sdk/
 import { CustomSnackbarProvider } from "@akashnetwork/ui/context";
 import { faker } from "@faker-js/faker";
 import type { RequestFnResponse } from "@openapi-qraft/react/src/lib/requestFn";
-import { QueryClientProvider } from "@tanstack/react-query";
 
 import type { ChildrenProps } from "@src/components/alerts/NotificationChannelEditContainer/NotificationChannelEditContainer";
 import { NotificationChannelEditContainer } from "@src/components/alerts/NotificationChannelEditContainer/NotificationChannelEditContainer";
-import { ServicesProvider } from "@src/context/ServicesProvider";
 import { queryClient } from "@src/queries";
 
 import { render, screen, waitFor } from "@testing-library/react";
 import { buildNotificationChannel } from "@tests/seeders/notificationChannel";
 import { createContainerTestingChildCapturer } from "@tests/unit/container-testing-child-capturer";
+import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe("NotificationChannelEditContainer", () => {
   it("triggers notification channel patch endpoint with the correct values", async () => {
@@ -94,6 +93,7 @@ describe("NotificationChannelEditContainer", () => {
         }) as Promise<RequestFnResponse<components["schemas"]["NotificationChannelOutput"]["data"], unknown>>
     );
     const services = {
+      queryClient: () => queryClient,
       notificationsApi: () =>
         createAPIClient({
           requestFn,
@@ -105,13 +105,11 @@ describe("NotificationChannelEditContainer", () => {
 
     render(
       <CustomSnackbarProvider>
-        <ServicesProvider services={services}>
-          <QueryClientProvider client={queryClient}>
-            <NotificationChannelEditContainer id={input.id} onEditSuccess={jest.fn()}>
-              {childCapturer.renderChild}
-            </NotificationChannelEditContainer>
-          </QueryClientProvider>
-        </ServicesProvider>
+        <TestContainerProvider services={services}>
+          <NotificationChannelEditContainer id={input.id} onEditSuccess={jest.fn()}>
+            {childCapturer.renderChild}
+          </NotificationChannelEditContainer>
+        </TestContainerProvider>
       </CustomSnackbarProvider>
     );
 
