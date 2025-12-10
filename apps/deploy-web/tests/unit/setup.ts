@@ -2,13 +2,15 @@ import "@testing-library/jest-dom";
 import "whatwg-fetch";
 
 import { webcrypto } from "crypto";
+import { mock } from "jest-mock-extended";
 import { Blob } from "node:buffer";
 import { TextDecoder, TextEncoder } from "util";
 
 Object.assign(globalThis, {
   TextDecoder,
   TextEncoder,
-  Blob
+  Blob,
+  ResizeObserver: jest.fn().mockImplementation(() => mock<ResizeObserver>())
 });
 
 Object.defineProperty(globalThis, "crypto", {
