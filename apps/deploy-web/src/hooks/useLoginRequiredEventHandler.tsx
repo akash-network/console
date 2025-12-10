@@ -32,7 +32,7 @@ export const useLoginRequiredEventHandler = (): ((messageOtherwise: string) => (
               side: "right",
               size: "lg",
               onClick: () => {
-                authService.signup();
+                authService.loginViaOauth();
               }
             }
           ]

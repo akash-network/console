@@ -3,7 +3,7 @@ import type { Session } from "@auth0/nextjs-auth0";
 import { AccessTokenError, AccessTokenErrorCode, ProfileHandlerError } from "@auth0/nextjs-auth0";
 import { handleAuth, handleCallback, handleLogin, handleLogout, handleProfile } from "@auth0/nextjs-auth0";
 import type { AxiosError } from "axios";
-import { AxiosHeaders, isAxiosError } from "axios";
+import { isAxiosError } from "axios";
 import { once } from "lodash";
 import type { NextApiRequest, NextApiResponse } from "next";
 
@@ -11,7 +11,6 @@ import { defineApiHandler } from "@src/lib/nextjs/defineApiHandler/defineApiHand
 import type { AppServices } from "@src/services/app-di-container/server-di-container.service";
 import { rewriteLocalRedirect } from "@src/services/auth/auth/rewrite-local-redirect";
 import type { SeverityLevel } from "@src/services/error-handler/error-handler.service";
-import type { UserSettings } from "@src/types/user";
 import { ANONYMOUS_HEADER_COOKIE_NAME } from "./signup";
 
 export default defineApiHandler({
@@ -33,7 +32,8 @@ const authHandler = once((services: AppServices) =>
         returnTo: returnUrl,
         // Reduce the scope to minimize session data
         authorizationParams: {
-          scope: "openid profile email offline_access"
+          scope: "openid profile email offline_access",
+          connection: req.query.connection as string | undefined
         }
       });
     },
@@ -42,31 +42,8 @@ const authHandler = once((services: AppServices) =>
         await handleCallback(req, res, {
           afterCallback: async (req: NextApiRequest, res: NextApiResponse, session: Session) => {
             try {
-              const user_metadata = session.user["https://console.akash.network/user_metadata"];
-              const headers = new AxiosHeaders({
-                Authorization: `Bearer ${session.accessToken}`
-              });
-
-              const anonymousAuthorization = req.cookies[ANONYMOUS_HEADER_COOKIE_NAME];
-
-              if (anonymousAuthorization) {
-                headers.set("x-anonymous-authorization", decodeURIComponent(anonymousAuthorization));
-              }
-
-              const userSettings = await services.consoleApiHttpClient.post<{ data: UserSettings }>(
-                `${services.apiUrlService.getBaseApiUrlFor(services.config.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID)}/v1/register-user`,
-                {
-                  wantedUsername: session.user.nickname,
-                  email: session.user.email,
-                  emailVerified: session.user.email_verified,
-                  subscribedToNewsletter: user_metadata?.subscribedToNewsletter === "true"
-                },
-                {
-                  headers: headers.toJSON()
-                }
-              );
-
-              session.user = { ...session.user, ...userSettings.data.data };
+              const userSettings = await services.sessionService.createLocalUser(session);
+              session.user = { ...session.user, ...userSettings };
               const isSecure = services.config.NODE_ENV === "production";
               res.setHeader(
                 "Set-Cookie",
@@ -104,18 +81,8 @@ const authHandler = once((services: AppServices) =>
           refetch: true,
           afterRefetch: async (req, res, session) => {
             try {
-              const headers = new AxiosHeaders({
-                Authorization: `Bearer ${session.accessToken}`
-              });
-
-              const userSettings = await services.consoleApiHttpClient.get<{ data: UserSettings }>(
-                `${services.apiUrlService.getBaseApiUrlFor(services.config.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID)}/v1/user/me`,
-                {
-                  headers: headers.toJSON()
-                }
-              );
-
-              session.user = { ...session.user, ...userSettings.data.data };
+              const userSettings = await services.sessionService.getLocalUserDetails(session);
+              session.user = { ...session.user, ...userSettings };
             } catch (error) {
               services.errorHandler.reportError({ error, tags: { category: "auth0" } });
             }

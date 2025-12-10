@@ -37,7 +37,8 @@ export default defineApiHandler({
           // you want to always show the authentication page or you want to skip
           // if there's an existing session.
           //screen_hint: "signup" // <== New Universal Signup
-          action: "signup" // <== Classic Universal Login
+          action: "signup", // <== Classic Universal Login
+          connection: req.query.connection as string | undefined
         }
       });
     } catch (error: any) {

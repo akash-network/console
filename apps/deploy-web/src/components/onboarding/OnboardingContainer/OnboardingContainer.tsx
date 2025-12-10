@@ -172,7 +172,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
         handleStepChange(OnboardingStepIndex.EMAIL_VERIFICATION);
       }
     } else {
-      authService.signup({ returnTo: `${windowLocation.origin}${urlService.onboarding(true)}` });
+      authService.loginViaOauth({ returnTo: `${windowLocation.origin}${urlService.onboarding(true)}` });
     }
   }, [analyticsService, handleStepComplete, urlService, user, handleStepChange, authService]);
 

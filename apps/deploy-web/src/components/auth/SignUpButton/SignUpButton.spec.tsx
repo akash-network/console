@@ -45,7 +45,7 @@ describe(SignUpButton.name, () => {
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
 
-  it("calls authService.signup when clicked on link", async () => {
+  it("calls authService.loginViaOauth when clicked on link", async () => {
     const signup = jest.fn(() => Promise.resolve());
     setup({ signup });
 
@@ -57,7 +57,7 @@ describe(SignUpButton.name, () => {
     });
   });
 
-  it("calls authService.signup when clicked on button", async () => {
+  it("calls authService.loginViaOauth when clicked on button", async () => {
     const signup = jest.fn(() => Promise.resolve());
     setup({ wrapper: "button", signup });
 
@@ -73,9 +73,9 @@ describe(SignUpButton.name, () => {
     signup,
     ...props
   }: Partial<React.ComponentProps<typeof SignUpButton>> & {
-    signup?: AuthService["signup"];
+    signup?: AuthService["loginViaOauth"];
   } = {}) {
-    const authService = mock<AuthService>({ signup });
+    const authService = mock<AuthService>({ loginViaOauth: signup });
 
     render(
       <TestContainerProvider services={{ authService: () => authService }}>
