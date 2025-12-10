@@ -7,7 +7,7 @@ const DEFAULT_BACKOFF_OPTIONS: BackoffOptions = {
   maxDelay: 5_000,
   startingDelay: 500,
   timeMultiple: 2,
-  numOfAttempts: 10
+  numOfAttempts: 5
 };
 
 @singleton()

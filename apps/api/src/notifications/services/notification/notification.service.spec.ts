@@ -143,7 +143,7 @@ describe(NotificationService.name, () => {
       expect(result.status).toBe("rejected");
       expect((result as PromiseRejectedResult).reason.cause).toBe(error);
       expect(api.v1.createDefaultChannel).not.toHaveBeenCalled();
-      expect(api.v1.createNotification).toHaveBeenCalledTimes(10);
+      expect(api.v1.createNotification).toHaveBeenCalledTimes(5);
     });
 
     it("fails after 10 attempts if notification service is not available and logs an error", async () => {
@@ -163,7 +163,7 @@ describe(NotificationService.name, () => {
 
       expect(result.status).toBe("rejected");
       expect((result as PromiseRejectedResult).reason.cause).toBe(error);
-      expect(api.v1.createNotification).toHaveBeenCalledTimes(10);
+      expect(api.v1.createNotification).toHaveBeenCalledTimes(5);
     });
   });
 

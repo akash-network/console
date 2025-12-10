@@ -1,0 +1,50 @@
+import { z } from "zod";
+
+import { setSession } from "@src/lib/auth0/setSession/setSession";
+import { defineApiHandler } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
+
+const LOWER_LETTER_REGEX = /\p{Ll}/u;
+const UPPER_LETTER_REGEX = /\p{Lu}/u;
+const DIGIT_REGEX = /\p{Nd}/u;
+const SPECIAL_CHAR_REGEX = /[^\p{L}\p{N}]/u;
+
+export default defineApiHandler({
+  route: "/api/auth/password-signup",
+  schema: z.object({
+    body: z.object({
+      email: z.string().email(),
+      password: z.string().refine(
+        password => {
+          return (
+            password.length >= 8 &&
+            UPPER_LETTER_REGEX.test(password) &&
+            LOWER_LETTER_REGEX.test(password) &&
+            DIGIT_REGEX.test(password) &&
+            SPECIAL_CHAR_REGEX.test(password)
+          );
+        },
+        {
+          message:
+            "Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one digit and one special character"
+        }
+      ),
+      termsAndConditions: z.boolean().refine(value => value, {
+        message: "Please accept the terms and conditions"
+      })
+    })
+  }),
+  async handler({ res, req, services }) {
+    const result = await services.sessionService.signUp({
+      email: req.body.email,
+      password: req.body.password
+    });
+
+    if (result.ok) {
+      await setSession(req, res, result.val);
+      res.status(204).json(null);
+      return;
+    }
+
+    return res.status(400).json(result.val);
+  }
+});

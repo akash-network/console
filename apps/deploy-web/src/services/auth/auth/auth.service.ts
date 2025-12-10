@@ -12,9 +12,10 @@ export class AuthService {
     private readonly localStorage = window.localStorage
   ) {}
 
-  async signup(options?: { returnTo?: string }): Promise<void> {
+  async loginViaOauth(options?: { returnTo?: string; connection?: string }): Promise<void> {
     const params = new URLSearchParams();
     if (options?.returnTo) params.append("returnTo", options.returnTo);
+    if (options?.connection) params.append("connection", options.connection);
 
     // send http request to store anonymous user token in a cookie
     // this is is needed only when anonymous free trial is enabled
@@ -26,6 +27,21 @@ export class AuthService {
     const queryParams = params.toString();
     // redirect user to the same url because it's impossible to read Location header in browser
     this.location.assign(this.urlService.signup() + (queryParams ? `?${queryParams}` : ""));
+  }
+
+  async login(input: { email: string; password: string }): Promise<void> {
+    await this.internalApiHttpClient.post<void>("/api/auth/password-login", {
+      email: input.email,
+      password: input.password
+    });
+  }
+
+  async signup(input: { email: string; password: string; termsAndConditions: boolean }): Promise<void> {
+    await this.internalApiHttpClient.post<void>("/api/auth/password-signup", {
+      email: input.email,
+      password: input.password,
+      termsAndConditions: input.termsAndConditions
+    });
   }
 
   logout() {

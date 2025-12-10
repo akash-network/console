@@ -80,7 +80,7 @@ describe("OnboardingContainer", () => {
       category: "onboarding"
     });
     expect(mockUrlService.onboarding).toHaveBeenCalledWith(true);
-    expect(authService.signup).toHaveBeenCalledWith({ returnTo: expect.stringContaining("/onboarding") });
+    expect(authService.loginViaOauth).toHaveBeenCalledWith({ returnTo: expect.stringContaining("/onboarding") });
   });
 
   it("should track analytics when payment method is completed", async () => {
