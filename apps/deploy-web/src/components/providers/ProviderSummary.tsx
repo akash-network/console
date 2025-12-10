@@ -35,7 +35,7 @@ export const ProviderSummary: React.FunctionComponent<Props> = ({ provider }) =>
           <div className="flex-grow-1 p-4">
             {provider.name && <LabelValue label="Name" value={provider.name} />}
             <LabelValue label="Uri" value={provider.hostUri} />
-            <LabelValue label="Address" value={<Address address={provider.owner as string} isCopyable />} />
+            <LabelValue label="Address" value={<Address address={provider.owner} isCopyable />} />
             <LabelValue label="Region" value={provider.ipRegion && provider.ipCountry && `${provider.ipRegion}, ${provider.ipCountry}`} />
             <LabelValue label="Active leases" value={provider.leaseCount} />
             <LabelValue
