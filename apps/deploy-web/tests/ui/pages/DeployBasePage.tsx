@@ -81,6 +81,7 @@ export class DeployBasePage {
 
   async signTransaction(feeType: FeeType = this.feeType) {
     const extension = new LeapExt(this.context, this.page);
-    await Promise.all([extension.acceptTransaction(feeType), extension.waitForTransaction("success")]);
+    await extension.acceptTransaction(feeType);
+    await extension.waitForTransaction("success");
   }
 }

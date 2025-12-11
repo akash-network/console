@@ -1,7 +1,7 @@
 import { type Page } from "@playwright/test";
 
 export const clickWalletSelectorDropdown = async (page: Page) => {
-  return await page.getByLabel("wallet dropdown")?.click();
+  return await page.getByLabel("wallet dropdown").click();
 };
 
 export const clickConnectWalletButton = async (page: Page) => {
