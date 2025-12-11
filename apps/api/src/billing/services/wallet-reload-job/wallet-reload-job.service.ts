@@ -16,11 +16,11 @@ export class WalletReloadJobService {
   async scheduleImmediate(userId: string): Promise<void> {
     const walletSetting = await this.walletSettingRepository.findByUserId(userId);
 
-    if (!walletSetting || !walletSetting.userId) {
+    if (!walletSetting || !walletSetting.userId || !walletSetting.autoReloadEnabled) {
       return;
     }
 
-    await this.scheduleForWalletSetting(walletSetting);
+    await this.scheduleForWalletSetting(walletSetting, { prevAction: "cancel" });
   }
 
   async scheduleForWalletSetting(

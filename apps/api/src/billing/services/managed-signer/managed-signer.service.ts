@@ -24,6 +24,8 @@ import { TrialValidationService } from "../trial-validation/trial-validation.ser
 
 type StringifiedEncodeObject = Omit<EncodeObject, "value"> & { value: string };
 
+const SPENDING_TXS = [MsgCreateDeployment, MsgAccountDeposit];
+
 @singleton()
 export class ManagedSignerService {
   constructor(
@@ -69,7 +71,7 @@ export class ManagedSignerService {
     const decoded = this.decodeMessages(messages);
     const result = await this.executeDerivedDecodedTxByUserId(userId, decoded);
 
-    const hasSpendingTx = decoded.some(message => message.typeUrl.endsWith(MsgCreateDeployment.$type) || message.typeUrl.endsWith(MsgAccountDeposit.$type));
+    const hasSpendingTx = decoded.some(message => SPENDING_TXS.some(msg => message.typeUrl.endsWith(msg.$type)));
 
     if (hasSpendingTx) {
       await this.walletReloadJobService.scheduleImmediate(userId);
