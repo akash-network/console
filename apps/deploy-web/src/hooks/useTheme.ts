@@ -5,7 +5,11 @@ import { useTheme } from "next-themes";
  */
 const useCookieTheme = (): string => {
   const { resolvedTheme } = useTheme();
-  return resolvedTheme ?? (document.documentElement.classList.contains("dark") ? "dark" : "light");
+
+  if (resolvedTheme) return resolvedTheme;
+  if (typeof document === "undefined") return "system";
+
+  return document.documentElement.classList.contains("dark") ? "dark" : "light";
 };
 
 export default useCookieTheme;

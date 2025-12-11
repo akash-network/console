@@ -1,7 +1,7 @@
 import { useForm } from "react-hook-form";
 import { Button, Checkbox, Form, FormField, FormInput, FormMessage, Spinner } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, UserPlus } from "iconoir-react";
+import { LogIn, Undo2 } from "lucide-react";
 import Link from "next/link";
 import { z } from "zod";
 
@@ -29,7 +29,7 @@ const formSchema = z.object({
         "Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one digit and one special character"
     }
   ),
-  termsAndConditions: z.boolean().default(false).refine(Boolean, {
+  termsAndConditions: z.boolean().refine(Boolean, {
     message: "You must accept the terms and conditions"
   })
 });
@@ -46,7 +46,8 @@ export function SignUpForm(props: Props) {
     resolver: zodResolver(formSchema),
     defaultValues: {
       email: "",
-      password: ""
+      password: "",
+      termsAndConditions: false
     }
   });
   const goBack = useBackNav("/");
@@ -107,11 +108,11 @@ export function SignUpForm(props: Props) {
 
         <div className="flex flex-col gap-5 self-stretch sm:flex-row">
           <Button type="button" onClick={goBack} variant="outline" className="h-9 flex-1 border-neutral-200 dark:border-neutral-800">
-            <ArrowLeft className="mr-2 h-4 w-4" />
+            <Undo2 className="mr-2 h-4 w-4" />
             Go Back
           </Button>
           <Button disabled={!!props.isLoading} type="submit" className="h-9 flex-1">
-            <UserPlus className="mr-2 h-4 w-4" />
+            <LogIn className="mr-2 h-4 w-4" />
             {props.isLoading ? <Spinner size="small" /> : "Sign up"}
           </Button>
         </div>

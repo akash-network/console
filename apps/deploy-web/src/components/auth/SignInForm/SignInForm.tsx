@@ -1,7 +1,7 @@
 import { useForm } from "react-hook-form";
 import { Button, Form, FormField, FormInput, Spinner } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, LogIn } from "iconoir-react";
+import { LogIn, Undo2 } from "lucide-react";
 import { z } from "zod";
 
 import { useBackNav } from "@src/hooks/useBackNav";
@@ -64,7 +64,7 @@ export function SignInForm(props: Props) {
         </div>
         <div className="flex flex-col gap-5 self-stretch sm:flex-row">
           <Button type="button" onClick={goBack} variant="outline" className="h-9 flex-1 border-neutral-200 dark:border-neutral-800">
-            <ArrowLeft className="mr-2 h-4 w-4" />
+            <Undo2 className="mr-2 h-4 w-4" />
             Go Back
           </Button>
 

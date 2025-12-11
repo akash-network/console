@@ -28,7 +28,7 @@ describe(SocialAuth.name, () => {
   });
 
   it("matches snapshot when rendered without a button prefix", () => {
-    const { container } = setup({ buttonPrefix: "Continue with" });
+    const { container } = setup();
 
     expect(container).toMatchSnapshot();
   });
