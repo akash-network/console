@@ -101,12 +101,12 @@ export const GetStartedStepper: React.FunctionComponent = () => {
             </p>
           )}
 
-          <div className="my-4 flex items-center space-x-4">
+          <div className="flex items-center space-x-4">
             {isManagedWallet && (
               <div className="flex items-start gap-2">
                 <AddFundsLink className={cn("hover:no-underline", buttonVariants({ variant: "default" }))} href={UrlService.payment()}>
-                  <HandCard className="text-xs text-accent-foreground" />
-                  <span className="m-2 whitespace-nowrap text-accent-foreground">Add Funds</span>
+                  <HandCard className="text-xs" />
+                  <span className="m-2 whitespace-nowrap">Add Funds</span>
                 </AddFundsLink>
               </div>
             )}
@@ -236,13 +236,13 @@ export const GetStartedStepper: React.FunctionComponent = () => {
               className={cn("space-x-2", buttonVariants({ variant: "default" }))}
               href={UrlService.newDeployment({ templateId: "hello-world", step: RouteStep.editDeployment })}
             >
-              <span>Deploy!</span>
               <Rocket className="rotate-45" />
+              <span>Deploy!</span>
             </Link>
 
             <Button onClick={handleReset} className="space-x-2" variant="ghost">
-              <span>Reset</span>
               <MdRestartAlt />
+              <span>Reset</span>
             </Button>
           </div>
         </StepContent>

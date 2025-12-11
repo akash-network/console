@@ -126,8 +126,8 @@ export const TemplateGallery: React.FunctionComponent = () => {
         description="Explore all the templates made by the community to easily deploy any docker container on the Akash Network."
       />
 
-      <div className="mb-6 text-center sm:mb-8 md:mb-12">
-        <Title className="mb-2 text-2xl font-bold sm:text-3xl md:text-4xl">Find your Template</Title>
+      <div className="mb-6 sm:mb-8 md:mb-12">
+        <Title className="mb-2">Find your Template</Title>
 
         <Title subTitle className="text-base font-normal text-muted-foreground sm:text-lg">
           Jumpstart your app development process with our pre-built solutions.
@@ -212,7 +212,7 @@ export const TemplateGallery: React.FunctionComponent = () => {
             </div>
           )}
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3">
             {shownTemplates.map((template, id) => (
               <TemplateBox key={`${template.id}_${id}`} template={template} />
             ))}

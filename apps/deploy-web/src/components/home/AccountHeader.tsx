@@ -18,16 +18,16 @@ export const AccountHeader: React.FC<Props> = ({ isManagedWallet, onDeployClick,
   return (
     <div className="flex items-center justify-between">
       <h3 className="text-xl font-semibold">Your account</h3>
-      <div className="flex gap-2">
+      <div className="flex gap-4">
         {isManagedWallet && (
-          <AddFundsLink className={cn(buttonVariants({ variant: "outline" }), "flex items-center gap-2")} href={UrlService.payment()}>
+          <AddFundsLink className={cn(buttonVariants({ variant: "outline", size: "sm" }), "flex items-center gap-2")} href={UrlService.payment()}>
             <Plus className="h-4 w-4" />
             <span className="whitespace-nowrap">Add Funds</span>
           </AddFundsLink>
         )}
         <Link
           href={UrlService.newDeployment()}
-          className={cn(buttonVariants({ variant: "default" }), "flex items-center gap-2")}
+          className={cn(buttonVariants({ variant: "default", size: "sm" }), "flex items-center gap-2")}
           onClick={onDeployClick}
           aria-disabled={isBlockchainDown}
         >

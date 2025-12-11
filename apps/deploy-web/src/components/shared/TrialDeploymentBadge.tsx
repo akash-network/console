@@ -37,6 +37,7 @@ export function TrialDeploymentBadge({ createdHeight, trialDurationHours, averag
       title={
         <d.TrialDeploymentTooltip createdHeight={createdHeight} isExpired={isExpired} timeRemainingText={timeRemainingText} trialDuration={trialDuration} />
       }
+      className="p-6"
     >
       <div className="inline-flex items-center gap-1">
         <d.Badge variant={isExpired ? "destructive" : "default"} className={cn("inline-flex cursor-help items-center gap-1", className)}>

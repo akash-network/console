@@ -72,7 +72,7 @@ export const PaymentMethodCard: React.FC<PaymentMethodCardProps> = ({
   // Display mode - used in onboarding
   return (
     <Card className="relative">
-      <CardHeader className="pb-3">
+      <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="rounded-full bg-primary/10 p-2">

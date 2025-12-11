@@ -306,8 +306,8 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
     >
       <div className={cn("flex w-full flex-col items-center justify-between", { ["p-2"]: isNavOpen, ["pb-2 pt-2"]: !isNavOpen })}>
         <Link
-          className={cn(buttonVariants({ variant: "default", size: isNavOpen ? "lg" : "icon" }), "h-[36px] w-full leading-4", {
-            ["h-[36px] w-[36px] min-w-0 pb-2 pt-2"]: !isNavOpen
+          className={cn(buttonVariants({ variant: "default", size: isNavOpen ? "lg" : "icon" }), "h-9 w-full leading-4", {
+            ["h-9 w-9 min-w-0 pb-2 pt-2"]: !isNavOpen
           })}
           href={UrlService.newDeployment()}
           onClick={onDeployClick}

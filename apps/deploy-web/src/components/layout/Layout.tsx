@@ -121,7 +121,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
               <ErrorBoundary FallbackComponent={ErrorFallback}>
                 {!isUsingSettings || isSettingsInit ? (
                   !isUsingWallet || isWalletLoaded ? (
-                    <div className={cn({ ["container pb-8 pt-4"]: !disableContainer }, containerClassName)}>{children}</div>
+                    <div className={cn({ ["container p-6 pb-8"]: !disableContainer }, containerClassName)}>{children}</div>
                   ) : (
                     <Loading text="Loading wallet..." />
                   )

@@ -1,5 +1,5 @@
 "use client";
-import { Avatar, AvatarFallback, AvatarImage, cardClasses, CardContent, CardHeader } from "@akashnetwork/ui/components";
+import { Avatar, AvatarFallback, AvatarImage, cardClasses, CardContent, CardHeader, CustomTooltip } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { MediaImage } from "iconoir-react";
 import Link from "next/link";
@@ -30,10 +30,14 @@ export const TemplateBox: React.FunctionComponent<Props> = ({ template, linkHref
             </AvatarFallback>
           </Avatar>
 
-          <div className="ml-4 truncate text-nowrap font-bold tracking-tight">{template.name}</div>
+          <div className="ml-4 min-w-0 flex-1 font-bold tracking-tight">
+            <CustomTooltip title={template.name}>
+              <div className="truncate text-nowrap">{template.name}</div>
+            </CustomTooltip>
+          </div>
         </div>
       </CardHeader>
-      <CardContent className="pb-4 pt-0">
+      <CardContent className="pt-0">
         <p className="text-xs text-muted-foreground">{getShortText(template.summary, 80)}</p>
       </CardContent>
     </Link>

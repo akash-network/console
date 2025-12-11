@@ -181,12 +181,12 @@ export const DeploymentList: React.FunctionComponent = () => {
             {(filteredDeployments?.length || 0) > 0 && (
               <Link
                 href={UrlService.newDeployment()}
-                className={cn("ml-auto", buttonVariants({ variant: "default", size: "sm" }))}
+                className={cn("ml-auto space-x-2", buttonVariants({ variant: "default", size: "sm" }))}
                 aria-disabled={settings.isBlockchainDown}
                 onClick={onDeployClick}
               >
-                Deploy
-                <Rocket className="ml-4 rotate-45 text-sm" />
+                <Rocket className="rotate-45 text-sm" />
+                <span className="whitespace-nowrap">Deploy</span>
               </Link>
             )}
           </>
@@ -225,12 +225,12 @@ export const DeploymentList: React.FunctionComponent = () => {
               {isWalletConnected ? (
                 <Link
                   href={UrlService.newDeployment()}
-                  className={cn(buttonVariants({ variant: "default", size: "lg" }), "mt-4")}
+                  className={cn(buttonVariants({ variant: "default" }), "mt-4 space-x-2")}
                   onClick={onDeployClick}
                   aria-disabled={settings.isBlockchainDown}
                 >
-                  Deploy
-                  <Rocket className="ml-4 rotate-45 text-sm" />
+                  <Rocket className="rotate-45 text-sm" />
+                  <span className="whitespace-nowrap">Deploy</span>
                 </Link>
               ) : (
                 <div className="mt-8 flex items-center justify-center space-x-2">

@@ -171,7 +171,7 @@ export function Popup(props: React.PropsWithChildren<PopupProps>) {
   } else {
     component.push(
       <ScrollArea key="dialog-content" className="-mx-4 max-h-[75vh]">
-        <div className="p-4">
+        <div className="px-4">
           {props.variant === "prompt" ? (
             <div>
               <Label>{props.message}</Label>
@@ -311,7 +311,7 @@ export function Popup(props: React.PropsWithChildren<PopupProps>) {
     <Dialog key="Dialog" {...dialogProps} onOpenChange={handleOnClose}>
       <ErrorBoundary FallbackComponent={ErrorFallback}>
         <DialogContent
-          className={cn("z-[999] m-0 p-4", {
+          className={cn("z-[999] m-0 p-6", {
             ["sm:max-w-[400px]"]: props.maxWidth === "xs",
             ["sm:max-w-[600px]"]: props.maxWidth === "sm",
             ["sm:max-w-[750px]"]: props.maxWidth === "md",

@@ -18,7 +18,6 @@ import { bytesToShrink } from "@src/utils/unitUtils";
 import { ConnectWallet } from "../shared/ConnectWallet";
 import { AccountHeader } from "./AccountHeader";
 import { AccountStatsCards } from "./AccountStatsCards";
-import { CurrentProviders } from "./CurrentProviders";
 import { NoDeploymentsState } from "./NoDeploymentsState";
 import { ResourceStatsGrid } from "./ResourceStatsGrid";
 
@@ -87,7 +86,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ isLoadingBalances,
   return (
     <>
       {address && (
-        <div className="space-y-4">
+        <div className="space-y-6">
           <AccountHeader isManagedWallet={isManagedWallet} onDeployClick={onDeployClick} isBlockchainDown={settings.isBlockchainDown} />
 
           {isLoadingBalances && !walletBalance ? (
@@ -104,10 +103,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ isLoadingBalances,
           )}
 
           {hasActiveDeployments && (
-            <>
-              <CurrentProviders providers={userProviders} />
-              <ResourceStatsGrid totalCpu={totalCpu} totalGpu={totalGpu || 0} memory={_ram} storage={_storage} />
-            </>
+            <ResourceStatsGrid providers={userProviders} totalCpu={totalCpu} totalGpu={totalGpu || 0} memory={_ram} storage={_storage} />
           )}
 
           {!hasActiveDeployments && address && <NoDeploymentsState onDeployClick={onDeployClick} />}
