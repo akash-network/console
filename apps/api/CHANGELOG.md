@@ -1,5 +1,12 @@
 
 
+## [3.13.1](https://github.com/akash-network/console/compare/console-api/v3.13.0...console-api/v3.13.1) (2025-12-11)
+
+
+### Bug Fixes
+
+* **billing:** properly cancels a wallet balance check job ([064acf9](https://github.com/akash-network/console/commit/064acf9baebfecd1423beecc766af1ca7031d1c5)), closes [#1779](https://github.com/akash-network/console/issues/1779)
+
 ## [3.13.0](https://github.com/akash-network/console/compare/console-api/v3.12.0...console-api/v3.13.0) (2025-12-11)
 
 
