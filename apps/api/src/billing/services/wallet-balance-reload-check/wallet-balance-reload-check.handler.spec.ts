@@ -7,10 +7,11 @@ import type { WalletSettingRepository } from "@src/billing/repositories";
 import type { BalancesService } from "@src/billing/services/balances/balances.service";
 import type { StripeService } from "@src/billing/services/stripe/stripe.service";
 import type { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
-import type { JobMeta, LoggerService } from "@src/core";
+import type { JobMeta } from "@src/core";
 import type { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import type { JobPayload } from "../../../core";
 import { WalletBalanceReloadCheckHandler } from "./wallet-balance-reload-check.handler";
+import type { WalletBalanceReloadCheckInstrumentationService } from "./wallet-balance-reload-check-instrumentation.service";
 
 import { generateBalance } from "@test/seeders/balance.seeder";
 import { generateMergedPaymentMethod as generatePaymentMethod } from "@test/seeders/payment-method.seeder";
@@ -30,7 +31,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       const costUntilTargetDateInFiat = 50.0;
       const expectedReloadAmount = 40.0; // max(50 - 10, 20) = 40
 
-      const { handler, drainingDeploymentService, stripeService, loggerService, walletReloadJobService, job, jobMeta } = setup({
+      const { handler, drainingDeploymentService, stripeService, instrumentationService, walletReloadJobService, job, jobMeta } = setup({
         balance: { total: balance },
         weeklyCostInDenom: costUntilTargetDateInDenom,
         weeklyCostInFiat: costUntilTargetDateInFiat
@@ -70,9 +71,13 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
         confirm: true,
         idempotencyKey: `${WalletBalanceReloadCheck.name}.${jobMeta.id}`
       });
-      expect(loggerService.info).toHaveBeenCalledWith(
+      expect(instrumentationService.recordReloadTriggered).toHaveBeenCalledWith(
+        expectedReloadAmount,
+        balance,
+        expect.any(Number),
+        costUntilTargetDateInFiat,
         expect.objectContaining({
-          event: "WALLET_BALANCE_RELOADED",
+          walletAddress: expect.any(String),
           balance,
           costUntilTargetDateInFiat
         })
@@ -113,7 +118,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       const costUntilTargetDateInDenom = 50_000_000;
       const costUntilTargetDateInFiat = 50.0;
 
-      const { handler, stripeService, loggerService, job, jobMeta } = setup({
+      const { handler, stripeService, instrumentationService, job, jobMeta } = setup({
         balance: { total: balance },
         weeklyCostInDenom: costUntilTargetDateInDenom,
         weeklyCostInFiat: costUntilTargetDateInFiat
@@ -122,9 +127,13 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       await handler.handle(job, jobMeta);
 
       expect(stripeService.createPaymentIntent).not.toHaveBeenCalled();
-      expect(loggerService.info).toHaveBeenCalledWith(
+      expect(instrumentationService.recordReloadSkipped).toHaveBeenCalledWith(
+        balance,
+        expect.any(Number),
+        costUntilTargetDateInFiat,
+        "sufficient_balance",
         expect.objectContaining({
-          event: "WALLET_BALANCE_RELOAD_SKIPPED",
+          walletAddress: expect.any(String),
           balance,
           costUntilTargetDateInFiat
         })
@@ -138,7 +147,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       const costUntilTargetDateInDenom = 50_000_000;
       const costUntilTargetDateInFiat = 50.0;
 
-      const { handler, stripeService, loggerService, job, jobMeta } = setup({
+      const { handler, stripeService, instrumentationService, job, jobMeta } = setup({
         balance: { total: balance },
         weeklyCostInDenom: costUntilTargetDateInDenom,
         weeklyCostInFiat: costUntilTargetDateInFiat
@@ -147,9 +156,13 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       await handler.handle(job, jobMeta);
 
       expect(stripeService.createPaymentIntent).not.toHaveBeenCalled();
-      expect(loggerService.info).toHaveBeenCalledWith(
+      expect(instrumentationService.recordReloadSkipped).toHaveBeenCalledWith(
+        balance,
+        expect.any(Number),
+        costUntilTargetDateInFiat,
+        "sufficient_balance",
         expect.objectContaining({
-          event: "WALLET_BALANCE_RELOAD_SKIPPED",
+          walletAddress: expect.any(String),
           balance,
           costUntilTargetDateInFiat
         })
@@ -187,7 +200,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       const weeklyCostInFiat = 50.0;
       const error = new Error("Failed to schedule");
 
-      const { handler, walletReloadJobService, loggerService, job, jobMeta } = setup({
+      const { handler, walletReloadJobService, instrumentationService, job, jobMeta } = setup({
         balance: { total: balance },
         weeklyCostInDenom,
         weeklyCostInFiat
@@ -196,92 +209,101 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
 
       await expect(handler.handle(job, jobMeta)).rejects.toThrow(error);
 
-      expect(loggerService.error).toHaveBeenCalledWith(
-        expect.objectContaining({
-          event: "ERROR_SCHEDULING_NEXT_CHECK",
-          walletAddress: expect.any(String),
-          error
-        })
-      );
+      expect(instrumentationService.recordSchedulingError).toHaveBeenCalledWith(expect.any(String), error);
     });
 
     it("logs validation error when wallet setting not found", async () => {
-      const { handler, walletSettingRepository, loggerService, job, jobMeta } = setup({
+      const { handler, walletSettingRepository, instrumentationService, job, jobMeta } = setup({
         walletSettingNotFound: true
       });
 
       await handler.handle(job, jobMeta);
 
-      expect(loggerService.error).toHaveBeenCalledWith({
-        event: "WALLET_SETTING_NOT_FOUND",
-        message: "Wallet setting not found. Skipping wallet balance reload check.",
-        userId: job.userId
-      });
+      expect(instrumentationService.recordValidationError).toHaveBeenCalledWith(
+        "WALLET_SETTING_NOT_FOUND",
+        {
+          event: "WALLET_SETTING_NOT_FOUND",
+          message: "Wallet setting not found. Skipping wallet balance reload check."
+        },
+        job.userId
+      );
       expect(walletSettingRepository.findInternalByUserIdWithRelations).toHaveBeenCalledWith(job.userId);
     });
 
     it("logs validation error when auto reload is disabled", async () => {
-      const { handler, walletSettingRepository, loggerService, job, jobMeta } = setup({
+      const { handler, walletSettingRepository, instrumentationService, job, jobMeta } = setup({
         autoReloadEnabled: false
       });
 
       await handler.handle(job, jobMeta);
 
       expect(walletSettingRepository.findInternalByUserIdWithRelations).toHaveBeenCalledWith(job.userId);
-      expect(loggerService.error).toHaveBeenCalledWith({
-        event: "AUTO_RELOAD_DISABLED",
-        message: "Auto reload disabled. Skipping wallet balance reload check.",
-        userId: job.userId
-      });
+      expect(instrumentationService.recordValidationError).toHaveBeenCalledWith(
+        "AUTO_RELOAD_DISABLED",
+        {
+          event: "AUTO_RELOAD_DISABLED",
+          message: "Auto reload disabled. Skipping wallet balance reload check."
+        },
+        job.userId
+      );
     });
 
     it("logs validation error when wallet is not initialized", async () => {
-      const { handler, walletSettingRepository, loggerService, job, jobMeta } = setup({
+      const { handler, walletSettingRepository, instrumentationService, job, jobMeta } = setup({
         wallet: UserWalletSeeder.create({ address: null })
       });
 
       await handler.handle(job, jobMeta);
 
       expect(walletSettingRepository.findInternalByUserIdWithRelations).toHaveBeenCalledWith(job.userId);
-      expect(loggerService.error).toHaveBeenCalledWith({
-        event: "WALLET_NOT_INITIALIZED",
-        message: "Wallet not initialized. Skipping wallet balance reload check.",
-        userId: job.userId
-      });
+      expect(instrumentationService.recordValidationError).toHaveBeenCalledWith(
+        "WALLET_NOT_INITIALIZED",
+        {
+          event: "WALLET_NOT_INITIALIZED",
+          message: "Wallet not initialized. Skipping wallet balance reload check."
+        },
+        job.userId
+      );
     });
 
     it("logs validation error when user stripe customer ID is not set", async () => {
       const userWithoutStripe = UserSeeder.create();
       const userWithNullStripe = { ...userWithoutStripe, stripeCustomerId: null };
-      const { handler, walletSettingRepository, loggerService, job, jobMeta } = setup({
+      const { handler, walletSettingRepository, instrumentationService, job, jobMeta } = setup({
         user: userWithNullStripe
       });
 
       await handler.handle(job, jobMeta);
 
       expect(walletSettingRepository.findInternalByUserIdWithRelations).toHaveBeenCalledWith(job.userId);
-      expect(loggerService.error).toHaveBeenCalledWith({
-        event: "USER_STRIPE_CUSTOMER_ID_NOT_SET",
-        message: "User stripe customer ID not set. Skipping wallet balance reload check.",
-        userId: job.userId
-      });
+      expect(instrumentationService.recordValidationError).toHaveBeenCalledWith(
+        "USER_STRIPE_CUSTOMER_ID_NOT_SET",
+        {
+          event: "USER_STRIPE_CUSTOMER_ID_NOT_SET",
+          message: "User stripe customer ID not set. Skipping wallet balance reload check."
+        },
+        job.userId
+      );
     });
 
     it("logs validation error when default payment method cannot be retrieved", async () => {
       const balance = 15.0;
 
-      const { handler, loggerService, stripeService, job, jobMeta } = setup({
+      const { handler, instrumentationService, stripeService, job, jobMeta } = setup({
         balance: { total: balance }
       });
       stripeService.getDefaultPaymentMethod.mockResolvedValue(undefined);
 
       await handler.handle(job, jobMeta);
 
-      expect(loggerService.error).toHaveBeenCalledWith({
-        event: "DEFAULT_PAYMENT_METHOD_NOT_FOUND",
-        message: "Default payment method not found",
-        userId: job.userId
-      });
+      expect(instrumentationService.recordValidationError).toHaveBeenCalledWith(
+        "DEFAULT_PAYMENT_METHOD_NOT_FOUND",
+        {
+          event: "DEFAULT_PAYMENT_METHOD_NOT_FOUND",
+          message: "Default payment method not found"
+        },
+        job.userId
+      );
     });
   });
 
@@ -333,7 +355,14 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     const walletReloadJobService = mock<WalletReloadJobService>();
     const drainingDeploymentService = mock<DrainingDeploymentService>();
     const stripeService = mock<StripeService>();
-    const loggerService = mock<LoggerService>();
+    const instrumentationService = mock<WalletBalanceReloadCheckInstrumentationService>({
+      recordJobExecution: jest.fn(),
+      recordReloadTriggered: jest.fn(),
+      recordReloadSkipped: jest.fn(),
+      recordReloadFailed: jest.fn(),
+      recordValidationError: jest.fn(),
+      recordSchedulingError: jest.fn()
+    });
 
     const balance = input?.balance ?? { total: 50.0 };
     const weeklyCostInDenom = input?.weeklyCostInDenom ?? 50_000_000;
@@ -361,7 +390,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       walletReloadJobService,
       stripeService,
       drainingDeploymentService,
-      loggerService
+      instrumentationService
     );
 
     return {
@@ -371,7 +400,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       walletReloadJobService,
       drainingDeploymentService,
       stripeService,
-      loggerService,
+      instrumentationService,
       walletSetting,
       walletSettingWithWallet,
       wallet,
