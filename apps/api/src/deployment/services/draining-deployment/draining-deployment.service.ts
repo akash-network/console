@@ -14,6 +14,13 @@ export type DrainingDeployment = AutoTopUpDeployment & {
   predictedClosedHeight: number;
   blockRate: number;
 };
+
+export type RpcDeploymentInfo = {
+  dseq: string;
+  escrowBalance: number;
+  createdHeight: number;
+};
+
 @singleton()
 export class DrainingDeploymentService {
   constructor(
@@ -33,7 +40,7 @@ export class DrainingDeploymentService {
     const currentHeight = await this.blockHttpService.getCurrentHeight();
     const expectedClosureHeight = Math.floor(currentHeight + averageBlockCountInAnHour * 2 * this.config.get("AUTO_TOP_UP_JOB_INTERVAL_IN_H"));
 
-    for await (const { address, deploymentSettings } of this.deploymentSettingRepository.findAutoTopUpDeploymentsByOwner()) {
+    for await (const { address, deploymentSettings } of this.deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively()) {
       if (deploymentSettings.length === 0) {
         continue;
       }
@@ -69,7 +76,9 @@ export class DrainingDeploymentService {
           await this.deploymentSettingRepository.updateManyById(missingIds, { closed: true });
         }
 
-        yield { address, deployments: active };
+        if (active.length) {
+          yield { address, deployments: active };
+        }
       }
     }
   }
@@ -116,26 +125,24 @@ export class DrainingDeploymentService {
 
     let totalAmount = 0;
 
-    for await (const deploymentSettings of this.deploymentSettingRepository.paginateAutoTopUpDeployments({ address, limit: 100 })) {
-      if (deploymentSettings.length === 0) {
-        continue;
-      }
+    const deploymentSettings = await this.deploymentSettingRepository.findAutoTopUpDeploymentsByOwner(address);
 
-      const owner = deploymentSettings[0].address;
-      const dseqs = deploymentSettings.map(deployment => deployment.dseq);
+    if (deploymentSettings.length === 0) {
+      return totalAmount;
+    }
 
-      const drainingDeployments = await this.leaseRepository.findManyByDseqAndOwner(targetHeight, owner, dseqs);
+    const dseqs = deploymentSettings.map(deployment => deployment.dseq);
+    const drainingDeployments = await this.#findLeases(targetHeight, address, dseqs);
 
-      if (drainingDeployments.length === 0) {
-        continue;
-      }
+    if (drainingDeployments.length === 0) {
+      return totalAmount;
+    }
 
-      for (const { predictedClosedHeight, blockRate } of drainingDeployments) {
-        if (predictedClosedHeight && predictedClosedHeight >= currentHeight && predictedClosedHeight <= targetHeight) {
-          const blocksNeeded = targetHeight - currentHeight;
-          const amountNeeded = Math.floor(blockRate * blocksNeeded);
-          totalAmount += amountNeeded;
-        }
+    for (const { predictedClosedHeight, blockRate } of drainingDeployments) {
+      if (predictedClosedHeight && predictedClosedHeight >= currentHeight && predictedClosedHeight <= targetHeight) {
+        const blocksNeeded = targetHeight - currentHeight;
+        const amountNeeded = Math.floor(blockRate * blocksNeeded);
+        totalAmount += amountNeeded;
       }
     }
 
@@ -143,12 +150,8 @@ export class DrainingDeploymentService {
   }
 
   async #findLeases(closureHeight: number, owner: string, dseqs: string[]): Promise<DrainingDeploymentOutput[]> {
-    if (!dseqs.length) {
-      return [];
-    }
-
     try {
-      return await this.#queryLeasesFromRpc(closureHeight, owner, dseqs);
+      return dseqs.length ? await this.#queryLeasesFromRpc(closureHeight, owner, dseqs) : [];
     } catch (error) {
       this.loggerService.error({
         event: "LEASE_RPC_QUERY_FAILED_FALLBACK_TO_DB",
@@ -164,8 +167,8 @@ export class DrainingDeploymentService {
     const dseqSet = new Set(dseqs);
     const [leases, deployments] = await Promise.all([this.#fetchAndFilterLeases(owner, dseqSet), this.#fetchAndFilterDeployments(owner, dseqSet)]);
     const leaseMap = this.#createDrainingDeploymentMap(leases);
-    const deploymentBalanceMap = this.#createDeploymentBalanceMap(deployments);
-    const outputs = await this.#addPredictedClosedHeight(leaseMap, deploymentBalanceMap);
+    const deploymentMap = this.#createDeploymentMap(deployments);
+    const outputs = this.#addPredictedClosedHeight(leaseMap, deploymentMap);
 
     return outputs.filter(output => output.predictedClosedHeight <= closureHeight);
   }
@@ -188,8 +191,8 @@ export class DrainingDeploymentService {
     return allItems;
   }
 
-  async #fetchAndFilterDeployments(owner: string, dseqSet: Set<string>): Promise<{ dseq: string; escrowBalance: number }[]> {
-    const allItems: { dseq: string; escrowBalance: number }[] = [];
+  async #fetchAndFilterDeployments(owner: string, dseqSet: Set<string>): Promise<RpcDeploymentInfo[]> {
+    const allItems: RpcDeploymentInfo[] = [];
     let nextKey: string | null = null;
 
     do {
@@ -202,7 +205,8 @@ export class DrainingDeploymentService {
         .filter(deployment => dseqSet.has(deployment.deployment.id.dseq))
         .map(deployment => ({
           dseq: deployment.deployment.id.dseq,
-          escrowBalance: deployment.escrow_account.state.funds.reduce((sum, fund) => sum + parseFloat(fund.amount), 0)
+          createdHeight: Number(deployment.deployment.created_at),
+          escrowBalance: this.#sumAmounts(deployment.escrow_account.state.funds) + this.#sumAmounts(deployment.escrow_account.state.transferred)
         }));
 
       allItems.push(...filteredItems);
@@ -210,6 +214,10 @@ export class DrainingDeploymentService {
     } while (nextKey);
 
     return allItems;
+  }
+
+  #sumAmounts(items: Array<{ amount: string }>): number {
+    return items.reduce((sum, item) => sum + parseFloat(item.amount), 0);
   }
 
   #createDrainingDeploymentMap(rpcLeases: RpcLease[]): Map<string, Omit<DrainingDeploymentOutput, "predictedClosedHeight">> {
@@ -239,29 +247,54 @@ export class DrainingDeploymentService {
     return leaseMap;
   }
 
-  #createDeploymentBalanceMap(deployments: { dseq: string; escrowBalance: number }[]): Map<string, number> {
-    const deploymentBalanceMap = new Map<string, number>();
+  #createDeploymentMap(deployments: RpcDeploymentInfo[]): Map<string, RpcDeploymentInfo> {
+    const deploymentMap = new Map<string, RpcDeploymentInfo>();
 
     for (const deployment of deployments) {
       const key = deployment.dseq;
-      deploymentBalanceMap.set(key, deployment.escrowBalance);
+      deploymentMap.set(key, deployment);
     }
 
-    return deploymentBalanceMap;
+    return deploymentMap;
   }
 
-  async #addPredictedClosedHeight(
+  #addPredictedClosedHeight(
     leaseMap: Map<string, Omit<DrainingDeploymentOutput, "predictedClosedHeight">>,
-    deploymentBalanceMap: Map<string, number>
-  ): Promise<DrainingDeploymentOutput[]> {
-    const currentHeight = await this.blockHttpService.getCurrentHeight();
-    return Array.from(leaseMap.values()).map(drainingDeployment => {
-      const deploymentBalance = deploymentBalanceMap.get(drainingDeployment.dseq.toString()) ?? 0;
+    deploymentMap: Map<string, RpcDeploymentInfo>
+  ): DrainingDeploymentOutput[] {
+    return Array.from(leaseMap.values()).reduce((acc, drainingDeployment) => {
+      const deployment = deploymentMap.get(drainingDeployment.dseq.toString());
 
-      const predictedClosedHeight =
-        drainingDeployment.blockRate > 0 && deploymentBalance > 0 ? Math.ceil(currentHeight + deploymentBalance / drainingDeployment.blockRate) : currentHeight;
+      if (!deployment) {
+        this.loggerService.warn({
+          event: "DEPLOYMENT_NOT_FOUND",
+          dseq: drainingDeployment.dseq,
+          owner: drainingDeployment.owner
+        });
+        return acc;
+      }
 
-      return { ...drainingDeployment, predictedClosedHeight };
-    });
+      if (deployment.escrowBalance <= 0) {
+        this.loggerService.warn({
+          event: "DEPLOYMENT_HAS_NO_BALANCE",
+          dseq: drainingDeployment.dseq,
+          owner: drainingDeployment.owner
+        });
+        return acc;
+      }
+
+      if (drainingDeployment.blockRate <= 0) {
+        this.loggerService.warn({
+          event: "DEPLOYMENT_BLOCK_RATE_INVALID",
+          dseq: drainingDeployment.dseq,
+          owner: drainingDeployment.owner
+        });
+        return acc;
+      }
+
+      const predictedClosedHeight = Math.ceil(deployment.createdHeight + deployment.escrowBalance / drainingDeployment.blockRate);
+
+      return [...acc, { ...drainingDeployment, predictedClosedHeight }];
+    }, [] as DrainingDeploymentOutput[]);
   }
 }

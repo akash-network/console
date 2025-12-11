@@ -21,8 +21,6 @@ import { DrainingDeploymentSeeder } from "@test/seeders/draining-deployment.seed
 import { LeaseApiResponseSeeder } from "@test/seeders/lease-api-response.seeder";
 import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
 
-jest.mock("@akashnetwork/logging");
-
 describe(DrainingDeploymentService.name, () => {
   describe("findDrainingDeploymentsByOwner", () => {
     const CURRENT_HEIGHT = 1000000;
@@ -67,11 +65,16 @@ describe(DrainingDeploymentService.name, () => {
         })
       ];
 
+      const CREATED_HEIGHT_1 = CURRENT_HEIGHT - 5000;
+      const CREATED_HEIGHT_2 = CURRENT_HEIGHT - 3000;
+      const CREATED_HEIGHT_3 = CURRENT_HEIGHT - 4000;
       const deploymentBalances = [
-        { dseq: String(dseqs[0]), escrowBalance: 60000 },
-        { dseq: String(dseqs[1]), escrowBalance: 85000 },
-        { dseq: String(dseqs[3]), escrowBalance: 60000 }
+        { dseq: String(dseqs[0]), funds: 40000, transferred: 20000, createdHeight: CREATED_HEIGHT_1 },
+        { dseq: String(dseqs[1]), funds: 50000, transferred: 35000, createdHeight: CREATED_HEIGHT_2 },
+        { dseq: String(dseqs[3]), funds: 30000, transferred: 30000, createdHeight: CREATED_HEIGHT_3 }
       ];
+      const expectedPredictedHeight1 = 996200; // Math.ceil(995000 + 60000 / 50)
+      const expectedPredictedHeight3 = 997200; // Math.ceil(996000 + 60000 / 50)
 
       leaseHttpService.list.mockImplementation(params => {
         const ownerLeases = rpcLeases.filter(l => l.lease.id.owner === params.owner);
@@ -88,21 +91,23 @@ describe(DrainingDeploymentService.name, () => {
             deployment: {
               id: {
                 dseq: d.dseq
-              }
+              },
+              created_at: String(d.createdHeight)
             },
             escrow_account: {
               state: {
-                funds: [{ denom: "uakt", amount: String(d.escrowBalance) }]
+                funds: [{ denom: "uakt", amount: String(d.funds) }],
+                transferred: [{ denom: "uakt", amount: String(d.transferred) }]
               }
             }
           }));
         return Promise.resolve({
           deployments: ownerDeployments,
           pagination: { next_key: null, total: String(ownerDeployments.length) }
-        } as DeploymentListResponse);
+        } as unknown as DeploymentListResponse);
       });
 
-      deploymentSettingRepository.findAutoTopUpDeploymentsByOwner.mockImplementation(() =>
+      deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively.mockImplementation(() =>
         (async function* () {
           const byAddress = deploymentSettings.reduce(
             (acc, deployment) => {
@@ -126,8 +131,8 @@ describe(DrainingDeploymentService.name, () => {
         callback(result);
       }
 
-      expect(blockHttpService.getCurrentHeight).toHaveBeenCalled();
-      expect(deploymentSettingRepository.findAutoTopUpDeploymentsByOwner).toHaveBeenCalled();
+      expect(blockHttpService.getCurrentHeight).toHaveBeenCalledTimes(1);
+      expect(deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively).toHaveBeenCalled();
       expect(leaseHttpService.list).toHaveBeenCalledWith({
         owner: addresses[0],
         pagination: { limit: 1000, key: undefined }
@@ -138,7 +143,7 @@ describe(DrainingDeploymentService.name, () => {
       expect(deploymentSettingRepository.updateManyById).toHaveBeenCalledWith(expect.arrayContaining([deploymentSettings[1].id]), { closed: true });
       expect(deploymentHttpService.findAll).toHaveBeenCalled();
 
-      expect(callback).toHaveBeenCalledTimes(3);
+      expect(callback).toHaveBeenCalledTimes(2);
       expect(callback).toHaveBeenNthCalledWith(
         1,
         expect.objectContaining({
@@ -147,7 +152,7 @@ describe(DrainingDeploymentService.name, () => {
             expect.objectContaining({
               dseq: dseqs[0].toString(),
               address: addresses[0],
-              predictedClosedHeight: expect.any(Number),
+              predictedClosedHeight: expectedPredictedHeight1,
               blockRate: BLOCK_RATE_1
             })
           ])
@@ -156,19 +161,12 @@ describe(DrainingDeploymentService.name, () => {
       expect(callback).toHaveBeenNthCalledWith(
         2,
         expect.objectContaining({
-          address: addresses[1],
-          deployments: []
-        })
-      );
-      expect(callback).toHaveBeenNthCalledWith(
-        3,
-        expect.objectContaining({
           address: addresses[3],
           deployments: expect.arrayContaining([
             expect.objectContaining({
               dseq: dseqs[3].toString(),
               address: addresses[3],
-              predictedClosedHeight: expect.any(Number),
+              predictedClosedHeight: expectedPredictedHeight3,
               blockRate: BLOCK_RATE_1
             })
           ])
@@ -209,7 +207,7 @@ describe(DrainingDeploymentService.name, () => {
       const rpcError = new Error("RPC error");
       leaseHttpService.list.mockRejectedValue(rpcError);
 
-      deploymentSettingRepository.findAutoTopUpDeploymentsByOwner.mockImplementation(() =>
+      deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively.mockImplementation(() =>
         (async function* () {
           const byAddress = deploymentSettings.reduce(
             (acc, deployment) => {
@@ -239,8 +237,8 @@ describe(DrainingDeploymentService.name, () => {
 
       const expectedClosureHeight = Math.floor(CURRENT_HEIGHT + averageBlockCountInAnHour * 2 * config.get("AUTO_TOP_UP_JOB_INTERVAL_IN_H"));
 
-      expect(blockHttpService.getCurrentHeight).toHaveBeenCalled();
-      expect(deploymentSettingRepository.findAutoTopUpDeploymentsByOwner).toHaveBeenCalled();
+      expect(blockHttpService.getCurrentHeight).toHaveBeenCalledTimes(1);
+      expect(deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively).toHaveBeenCalled();
       expect(leaseHttpService.list).toHaveBeenCalled();
       expect(leaseRepository.findManyByDseqAndOwner).toHaveBeenCalledWith(expectedClosureHeight, addresses[0], expect.arrayContaining([String(dseqs[0])]));
       expect(loggerService.error).toHaveBeenCalledWith(
@@ -254,7 +252,7 @@ describe(DrainingDeploymentService.name, () => {
 
       expect(deploymentSettingRepository.updateManyById).toHaveBeenCalledWith(expect.arrayContaining([deploymentSettings[1].id]), { closed: true });
 
-      expect(callback).toHaveBeenCalledTimes(3);
+      expect(callback).toHaveBeenCalledTimes(2);
       expect(callback).toHaveBeenNthCalledWith(
         1,
         expect.objectContaining({
@@ -271,13 +269,6 @@ describe(DrainingDeploymentService.name, () => {
       );
       expect(callback).toHaveBeenNthCalledWith(
         2,
-        expect.objectContaining({
-          address: addresses[1],
-          deployments: []
-        })
-      );
-      expect(callback).toHaveBeenNthCalledWith(
-        3,
         expect.objectContaining({
           address: addresses[3],
           deployments: expect.arrayContaining([
@@ -503,12 +494,9 @@ describe(DrainingDeploymentService.name, () => {
         });
       });
 
-      baseSetup.deploymentSettingRepository.paginateAutoTopUpDeployments.mockImplementation(() =>
-        (async function* () {
-          yield deploymentSettings;
-        })()
-      );
+      baseSetup.deploymentSettingRepository.findAutoTopUpDeploymentsByOwner.mockResolvedValue(deploymentSettings);
 
+      baseSetup.leaseHttpService.list.mockRejectedValue(new Error("RPC error"));
       baseSetup.leaseRepository.findManyByDseqAndOwner.mockImplementation((_closureHeight, _owner, _dseqs) => Promise.resolve(drainingDeployments));
 
       return {

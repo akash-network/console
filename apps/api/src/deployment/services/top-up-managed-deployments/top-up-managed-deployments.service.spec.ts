@@ -20,8 +20,6 @@ import { createAkashAddress } from "@test/seeders";
 import { AutoTopUpDeploymentSeeder } from "@test/seeders/auto-top-up-deployment.seeder";
 import { DrainingDeploymentSeeder } from "@test/seeders/draining-deployment.seeder";
 
-jest.mock("@akashnetwork/logging");
-
 describe(TopUpManagedDeploymentsService.name, () => {
   const DEPLOYMENT_GRANT_DENOM = "ibc/170C677610AC31DF0904FFE09CD3B5C657492170E7E52372E48756B71E56F2F1";
   const CURRENT_BLOCK_HEIGHT = 7481457;

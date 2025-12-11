@@ -1,5 +1,4 @@
-import { and, desc, eq, isNotNull, lt } from "drizzle-orm";
-import { last } from "lodash";
+import { and, desc, eq, isNotNull } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { UserWallets } from "@src/billing/model-schemas";
@@ -38,49 +37,7 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     return new DeploymentSettingRepository(this.pg, this.table, this.txManager).withAbility(...abilityParams) as this;
   }
 
-  async *paginateAutoTopUpDeployments(options: { address?: string; limit: number }): AsyncGenerator<AutoTopUpDeployment[]> {
-    let lastId: string | undefined;
-
-    do {
-      const clauses = [eq(this.table.autoTopUpEnabled, true), eq(this.table.closed, false)];
-
-      if (lastId) {
-        clauses.push(lt(this.table.id, lastId));
-      }
-
-      const query = this.pg
-        .select({
-          id: this.table.id,
-          dseq: this.table.dseq,
-          walletId: UserWallets.id,
-          address: UserWallets.address,
-          isOldWallet: UserWallets.isOldWallet
-        })
-        .from(this.table)
-        .leftJoin(Users, eq(this.table.userId, Users.id));
-
-      if (options.address) {
-        query.innerJoin(UserWallets, eq(Users.id, UserWallets.userId));
-        clauses.push(eq(UserWallets.address, options.address));
-      } else {
-        query.leftJoin(UserWallets, eq(Users.id, UserWallets.userId));
-        clauses.push(isNotNull(UserWallets.address));
-      }
-
-      const items = await query
-        .where(and(...clauses))
-        .limit(options.limit)
-        .orderBy(desc(this.table.id));
-
-      lastId = last(items)?.id;
-
-      if (items.length) {
-        yield items as AutoTopUpDeployment[];
-      }
-    } while (lastId);
-  }
-
-  async *findAutoTopUpDeploymentsByOwner(options?: { address?: string }): AsyncGenerator<{ address: string; deploymentSettings: AutoTopUpDeployment[] }> {
+  async *findAutoTopUpDeploymentsByOwnerIteratively(): AsyncGenerator<{ address: string; deploymentSettings: AutoTopUpDeployment[] }> {
     const baseClauses = [eq(this.table.autoTopUpEnabled, true), eq(this.table.closed, false)];
 
     const distinctOwnersQuery = this.pg
@@ -92,9 +49,6 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
       .leftJoin(UserWallets, eq(Users.id, UserWallets.userId));
 
     const distinctClauses = [...baseClauses, isNotNull(UserWallets.address)];
-    if (options?.address) {
-      distinctClauses.push(eq(UserWallets.address, options.address));
-    }
 
     const distinctOwners = await distinctOwnersQuery.where(and(...distinctClauses));
 
@@ -103,26 +57,32 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
         continue;
       }
 
-      const clauses = [...baseClauses, eq(UserWallets.address, address)];
-
-      const deployments = await this.pg
-        .select({
-          id: this.table.id,
-          dseq: this.table.dseq,
-          walletId: UserWallets.id,
-          address: UserWallets.address,
-          isOldWallet: UserWallets.isOldWallet
-        })
-        .from(this.table)
-        .leftJoin(Users, eq(this.table.userId, Users.id))
-        .innerJoin(UserWallets, eq(Users.id, UserWallets.userId))
-        .where(and(...clauses))
-        .orderBy(desc(this.table.id));
+      const deployments = await this.findAutoTopUpDeploymentsByOwner(address);
 
       if (deployments.length > 0) {
         yield { address, deploymentSettings: deployments as AutoTopUpDeployment[] };
       }
     }
+  }
+
+  async findAutoTopUpDeploymentsByOwner(address: string): Promise<AutoTopUpDeployment[]> {
+    const clauses = [eq(this.table.autoTopUpEnabled, true), eq(this.table.closed, false), eq(UserWallets.address, address)];
+
+    const deployments = await this.pg
+      .select({
+        id: this.table.id,
+        dseq: this.table.dseq,
+        walletId: UserWallets.id,
+        address: UserWallets.address,
+        isOldWallet: UserWallets.isOldWallet
+      })
+      .from(this.table)
+      .leftJoin(Users, eq(this.table.userId, Users.id))
+      .innerJoin(UserWallets, eq(Users.id, UserWallets.userId))
+      .where(and(...clauses))
+      .orderBy(desc(this.table.id));
+
+    return deployments as AutoTopUpDeployment[];
   }
 
   protected toInput(payload: Partial<DeploymentSettingsInput>): Partial<DeploymentSettingsInput> {
