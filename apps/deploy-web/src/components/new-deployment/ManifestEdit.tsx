@@ -445,7 +445,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
           denom={sdlDenom}
           title="Confirm deployment creation?"
           infoText={
-            <Alert className="mb-4 text-xs" variant="default">
+            <Alert className="mb-6 text-xs" variant="default">
               <DeploymentMinimumEscrowAlertText />
               <LinkTo onClick={ev => handleDocClick(ev, "https://akash.network/docs/getting-started/intro-to-akash/payments/#escrow-accounts")}>
                 <strong>Learn more.</strong>

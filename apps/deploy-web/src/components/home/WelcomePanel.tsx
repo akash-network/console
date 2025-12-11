@@ -23,8 +23,8 @@ export const WelcomePanel: React.FC = () => {
 
       <CollapsibleContent>
         <Card>
-          <CardContent className="pt-6">
-            <ul className="space-y-4">
+          <CardContent className="p-6">
+            <ul className="space-y-6">
               <li className="flex items-center space-x-4">
                 <Avatar className="h-12 w-12 rounded-md">
                   <AvatarFallback className="rounded-md">

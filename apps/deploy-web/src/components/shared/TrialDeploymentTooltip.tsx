@@ -68,9 +68,9 @@ const AddFunds = ({ dependencies: d = DEPENDENCIES }: { dependencies: typeof DEP
   return (
     <div className="flex flex-col gap-2">
       <p className="text-xs">Add funds to activate your account.</p>
-      <d.AddFundsLink className={cn("w-full hover:no-underline", buttonVariants({ variant: "default" }))} href={urlService.payment()}>
+      <d.AddFundsLink className={cn("w-full space-x-2 hover:no-underline", buttonVariants({ variant: "default" }))} href={urlService.payment()}>
+        <HandCard className="text-xs" />
         <span className="whitespace-nowrap">Add Funds</span>
-        <HandCard className="ml-2 text-xs" />
       </d.AddFundsLink>
     </div>
   );

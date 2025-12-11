@@ -15,7 +15,7 @@ type Props = {
 
 export const AccountStatsCards: React.FC<Props> = ({ walletBalance, activeDeploymentsCount, costPerMonth, costPerHour }) => {
   return (
-    <div className="grid gap-4 md:grid-cols-3">
+    <div className="grid gap-6 md:grid-cols-3">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <h3 className="text-sm font-medium text-muted-foreground">Available Balance</h3>

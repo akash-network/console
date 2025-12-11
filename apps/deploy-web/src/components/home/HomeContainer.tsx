@@ -74,7 +74,7 @@ export function HomeContainer() {
       isLoading={isLoadingDeployments || isLoadingBalances || isLoadingProviders || isLoadingLeases}
     >
       <div>
-        <div className="mb-4">
+        <div className="mb-6">
           <WelcomePanel />
         </div>
         {isSettingsInit && !!address && (

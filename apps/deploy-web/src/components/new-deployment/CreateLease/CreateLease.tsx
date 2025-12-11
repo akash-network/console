@@ -633,9 +633,12 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
                 <p>Add funds to activate your account and remove this limitation.</p>
 
                 <div className="pt-2">
-                  <d.AddFundsLink className={cn("hover:no-underline", buttonVariants({ variant: "default" }))} href={urlService.payment()}>
+                  <d.AddFundsLink
+                    className={cn("space-x-2 hover:no-underline", buttonVariants({ variant: "default", size: "sm" }))}
+                    href={urlService.payment()}
+                  >
+                    <HandCard className="text-xs" />
                     <span className="whitespace-nowrap">Add Funds</span>
-                    <HandCard className="ml-2 text-xs" />
                   </d.AddFundsLink>
                 </div>
               </d.AlertDescription>

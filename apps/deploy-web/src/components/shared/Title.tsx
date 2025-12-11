@@ -16,7 +16,7 @@ export const Title: React.FunctionComponent<Props> = ({ children, subTitle, id, 
       {children}
     </h3>
   ) : (
-    <h1 className={cn("text-2xl font-bold tracking-tight sm:text-4xl", className)} id={id}>
+    <h1 className={cn("text-3xl font-semibold", className)} id={id}>
       {children}
     </h1>
   );
