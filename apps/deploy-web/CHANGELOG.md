@@ -1,5 +1,12 @@
 
 
+## [3.10.1](https://github.com/akash-network/console/compare/console-web/v3.10.0...console-web/v3.10.1) (2025-12-11)
+
+
+### Bug Fixes
+
+* fixes application navigation ([#2341](https://github.com/akash-network/console/issues/2341)) ([2eb3d42](https://github.com/akash-network/console/commit/2eb3d42d48c5bb8a52183becd08bb2bb06a8224a))
+
 ## [3.10.0](https://github.com/akash-network/console/compare/console-web/v3.9.0...console-web/v3.10.0) (2025-12-11)
 
 
