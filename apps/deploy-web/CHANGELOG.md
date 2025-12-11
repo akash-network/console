@@ -1,5 +1,13 @@
 
 
+## [3.10.0](https://github.com/akash-network/console/compare/console-web/v3.9.0...console-web/v3.10.0) (2025-12-11)
+
+
+### Features
+
+* adds api for password authentication via auth0 ([#2333](https://github.com/akash-network/console/issues/2333)) ([f8d2a9a](https://github.com/akash-network/console/commit/f8d2a9a9136c688bc07d503e4042687bb54c3949))
+* adds embedded login feature flag ([#2334](https://github.com/akash-network/console/issues/2334)) ([1cf3a36](https://github.com/akash-network/console/commit/1cf3a36e4c62177d9cca7b8d7dba057c13c30c14))
+
 ## [3.9.0](https://github.com/akash-network/console/compare/console-web/v3.8.0...console-web/v3.9.0) (2025-12-09)
 
 

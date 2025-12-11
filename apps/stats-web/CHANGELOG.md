@@ -1,5 +1,12 @@
 
 
+## [1.9.0](https://github.com/akash-network/console/compare/stats-web/v1.8.0...stats-web/v1.9.0) (2025-12-11)
+
+
+### Features
+
+* adds api for password authentication via auth0 ([#2333](https://github.com/akash-network/console/issues/2333)) ([f8d2a9a](https://github.com/akash-network/console/commit/f8d2a9a9136c688bc07d503e4042687bb54c3949))
+
 ## [1.8.0](https://github.com/akash-network/console/compare/stats-web/v1.7.0...stats-web/v1.8.0) (2025-12-09)
 
 
