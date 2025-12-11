@@ -18,6 +18,7 @@ export default async () => {
   const context = await chromium.launchPersistentContext(testEnvConfig.USER_DATA_DIR, {
     channel: "chromium",
     args,
+    headless: process.env.CI === "true",
     permissions: ["clipboard-read", "clipboard-write"]
   });
 
@@ -33,7 +34,15 @@ export default async () => {
   console.log("Detected wallet extension id", extensionId);
   const extPage = await getExtensionPage(context, extensionId);
   console.log("Importing test wallet to Leap and top up...");
-  await setupWallet(extPage);
+
+  try {
+    await setupWallet(extPage);
+  } catch (error) {
+    console.error("❌ Error setting up wallet. Retrying...", error);
+    await extPage.reload({ waitUntil: "load" });
+    await setupWallet(extPage);
+  }
+
   console.log("🚀🚀🚀 Wallet setup complete");
 
   await context.close();

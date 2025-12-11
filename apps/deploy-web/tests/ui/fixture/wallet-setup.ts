@@ -2,8 +2,6 @@ import { netConfig } from "@akashnetwork/net";
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import type { BrowserContext, Page } from "@playwright/test";
 import { selectors } from "@playwright/test";
-import fs from "fs";
-import path from "path";
 import { setTimeout as wait } from "timers/promises";
 
 import { isWalletConnected } from "../uiState/isWalletConnected";
@@ -29,7 +27,6 @@ export async function getExtensionPage(context: BrowserContext, extensionId: str
 
 export async function setupWallet(page: Page) {
   const wallet = await importWalletToLeap(page, testEnvConfig.TEST_WALLET_MNEMONIC);
-  await restoreExtensionStorage(page);
   await page.reload({ waitUntil: "domcontentloaded" });
   await topUpWallet(wallet);
 }
@@ -94,7 +91,7 @@ export async function approveWalletOperation(popupPage: Page | null) {
         .locator("input");
 
       const value = Number(await gasInput.inputValue());
-      await gasInput.fill(String(value + 20_000));
+      await gasInput.fill(Math.ceil(1.5 * value).toString());
       await buttonLocator.click();
       break;
     }
@@ -102,7 +99,7 @@ export async function approveWalletOperation(popupPage: Page | null) {
       await popupPage.locator("input").fill(WALLET_PASSWORD);
       await buttonLocator.click();
       await popupPage
-        .getByRole("button", { name: /Connect/i })
+        .getByRole("button", { name: /connect button in approve connection flow/i })
         .or(popupPage.getByLabel("wallet dropdown"))
         .click();
       break;
@@ -152,7 +149,7 @@ async function fillInMnemonic(page: Page, mnemonic: string) {
   }
 }
 
-export async function topUpWallet(wallet: DirectSecp256k1HdWallet) {
+export async function topUpWallet(wallet: DirectSecp256k1HdWallet, attempt = 0) {
   try {
     const accounts = await wallet.getAccounts();
     const balance = await getBalance(accounts[0].address);
@@ -180,8 +177,15 @@ export async function topUpWallet(wallet: DirectSecp256k1HdWallet) {
       body: `address=${encodeURIComponent(accounts[0].address)}`
     });
     if (response.status >= 300) {
+      const error = await response.text();
       console.error(`Unexpected faucet response status: ${response.status}`);
-      console.error("Faucet response:", await response.text());
+      console.error(error);
+
+      if (error.includes("account sequence mismatch") && attempt < 10) {
+        console.log("retrying top up attempt...", attempt + 1);
+        await topUpWallet(wallet, attempt + 1);
+        return;
+      }
     }
   } catch (error) {
     console.error("Unable to top up wallet");
@@ -193,28 +197,4 @@ async function getBalance(address: string) {
   const response = await fetch(`${netConfig.getBaseAPIUrl(testEnvConfig.NETWORK_ID)}/cosmos/bank/v1beta1/balances/${address}`);
   const data = await response.json();
   return data.balances.find((balance: Record<string, string>) => balance.denom === "uakt")?.amount || 0;
-}
-
-/**
- * To get the extension storage, follow these steps:
- * 1. Open Chrome with Leap extension installed
- * 2. Open DevTools (F12) on Leap extension page
- * 3. Run this in the script:
- *    ```js
- *    chrome.storage.local.get(null, (data) => {
- *      const json = JSON.stringify(data, null, 2);
- *      const blob = new Blob([json], {type: 'application/json'});
- *      const url = URL.createObjectURL(blob);
- *      const a = document.createElement('a');
- *      a.href = url;
- *      a.download = 'leapExtensionLocalStorage.json';
- *      a.click();
- *    });
- *    ```
- *
- * @see https://github.com/microsoft/playwright/issues/14949
- */
-export async function restoreExtensionStorage(page: Page): Promise<void> {
-  const extensionStorage = JSON.parse(fs.readFileSync(path.join(__dirname, "leapExtensionLocalStorage.json"), "utf8"));
-  await page.evaluate(data => chrome.storage.local.set(data), extensionStorage);
 }

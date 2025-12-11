@@ -75,7 +75,8 @@ export class AuthorizationsPage {
         )
     ]);
     if (hasGrants) {
-      await Promise.all([this.page.getByRole("button", { name: "Confirm" }).click(), extension.acceptTransaction(), extension.waitForTransaction("success")]);
+      await Promise.all([this.page.getByRole("button", { name: "Confirm" }).click(), extension.acceptTransaction("high")]);
+      await extension.waitForTransaction("success");
     }
   }
 

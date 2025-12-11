@@ -1,8 +1,6 @@
 import type { NetworkId } from "@akashnetwork/chain-sdk";
 import type { Page } from "@playwright/test";
 
-import { approveWalletOperation } from "../fixture/wallet-setup";
-
 export async function selectChainNetwork(page: Page, networkId: NetworkId = "sandbox") {
   await page.getByRole("link", { name: "App Settings" }).click();
   const selectNetworkButton = page.getByLabel("Select Network");
@@ -15,11 +13,10 @@ export async function selectChainNetwork(page: Page, networkId: NetworkId = "san
   await networkRadioLocator.click();
   const popupPromise = page
     .context()
-    .waitForEvent("page", { timeout: 3_000 })
+    .waitForEvent("page", { timeout: 5_000 })
     .catch(() => null);
   await page.getByRole("button", { name: "Save" }).click();
 
-  // if page doesn't show up after networkidle load state, approval is not needed
-  const popupPage = await Promise.race([popupPromise, page.waitForLoadState("networkidle").then(() => null)]);
-  await approveWalletOperation(popupPage);
+  const popupPage = await popupPromise;
+  await popupPage?.getByRole("button", { name: /Approve/i }).click();
 }

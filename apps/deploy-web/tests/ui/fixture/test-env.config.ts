@@ -18,5 +18,6 @@ export const testEnvConfig = testEnvSchema.parse({
 
 export const PROVIDERS_WHITELIST = {
   mainnet: ["provider.hurricane.akash.pub", "provider.europlots.com"],
-  sandbox: ["provider.provider-02.sandbox-01.aksh.pw", "provider.europlots-sandbox.com"]
-} satisfies Record<"mainnet" | "sandbox", string[]>;
+  sandbox: ["provider.provider-02.sandbox-01.aksh.pw", "provider.europlots-sandbox.com"],
+  testnet: []
+} satisfies Record<"mainnet" | "sandbox" | "testnet", string[]>;
