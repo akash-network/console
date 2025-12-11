@@ -21,7 +21,7 @@ export const OnboardingPage: FC = () => {
 
   return (
     <div>
-      <CustomNextSeo title="Free Trial Onboarding" url={`${domainName}${UrlService.signup()}`} />
+      <CustomNextSeo title="Free Trial Onboarding" url={`${domainName}${UrlService.newSignup()}`} />
       <div className="container mx-auto px-4 py-12">
         <OnboardingContainer>{props => <OnboardingView {...props} />}</OnboardingContainer>
 

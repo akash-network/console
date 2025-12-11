@@ -17,7 +17,7 @@ export function withCustomPageAuthRequired(opts: WithPageAuthRequiredPageRouterO
         return {
           redirect: {
             permanent: false,
-            destination: UrlService.login(params.req.url)
+            destination: UrlService.newLogin({ from: params.req.url })
           }
         };
       }

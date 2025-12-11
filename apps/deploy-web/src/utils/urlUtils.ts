@@ -40,6 +40,7 @@ export class UrlService {
   static usage = () => "/usage";
   static paymentMethods = () => "/payment-methods";
   static billing = () => "/billing";
+  /** @deprecated use .newLogin instead */
   static login = (returnUrl?: string) => {
     let from = "/";
     if (returnUrl) {
@@ -49,8 +50,21 @@ export class UrlService {
     }
     return `/api/auth/login${appendSearchParams({ from: from })}`;
   };
-  static logout = () => "/api/auth/logout";
+  /** @deprecated use .newSignup instead */
   static signup = (returnTo?: string) => `/api/auth/signup${appendSearchParams({ returnTo })}`;
+  static newLogin = (input?: { from?: string }) =>
+    `/login${appendSearchParams({
+      from: typeof window === "undefined" ? undefined : window.location.pathname,
+      tab: "login",
+      ...input
+    })}`;
+  static newSignup = (input?: { from?: string }) =>
+    `/login${appendSearchParams({
+      from: typeof window === "undefined" ? undefined : window.location.pathname,
+      tab: "signup",
+      ...input
+    })}`;
+  static logout = () => "/api/auth/logout";
   static onboarding = (fromSignup?: boolean) => `/signup${appendSearchParams({ fromSignup })}`;
   static template = (id: string) => `/template/${id}`;
   static payment = () => "/payment";

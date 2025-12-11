@@ -1,5 +1,7 @@
 import React, { useContext } from "react";
+import type { NetworkId } from "@akashnetwork/chain-sdk";
 import { AuthzHttpService, CertificatesService } from "@akashnetwork/http-sdk";
+import { useRouter } from "next/router";
 
 import { UAKT_DENOM, USDC_IBC_DENOMS } from "@src/config/denom.config";
 import { withInterceptors } from "@src/services/app-di-container/app-di-container";
@@ -22,8 +24,10 @@ export type AppDIContainer = ReturnType<typeof createAppContainer>;
 
 export const ServicesProvider: React.FC<Props> = ({ children, services }) => {
   const settingsState = useSettings();
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const router = services?.router ? undefined : useRouter(); // used condition to let tests pass router mock
 
-  const childContainer = createAppContainer(settingsState, services as Factories);
+  const childContainer = createAppContainer(settingsState, { router: () => router, ...services });
 
   return <ServicesContext.Provider value={childContainer}>{children}</ServicesContext.Provider>;
 };
@@ -39,7 +43,7 @@ function createAppContainer<T extends Factories>(settingsState: SettingsContextT
     walletBalancesService: () =>
       new WalletBalancesService(di.authzHttpService, di.chainApiHttpClient, {
         uakt: UAKT_DENOM,
-        usdc: USDC_IBC_DENOMS[rootContainer.networkStore.selectedNetworkId]
+        usdc: USDC_IBC_DENOMS[rootContainer.networkStore.selectedNetworkId as NetworkId]
       }),
     certificatesService: () => new CertificatesService(di.chainApiHttpClient),
     chainApiHttpClient: () => {

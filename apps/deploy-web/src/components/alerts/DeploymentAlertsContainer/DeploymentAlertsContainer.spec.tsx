@@ -5,13 +5,11 @@ import type { components } from "@akashnetwork/react-query-sdk/notifications";
 import { createAPIClient } from "@akashnetwork/react-query-sdk/notifications";
 import { CustomSnackbarProvider } from "@akashnetwork/ui/context";
 import type { RequestFn, RequestFnResponse } from "@openapi-qraft/tanstack-query-react-types";
-import { QueryClientProvider } from "@tanstack/react-query";
 import merge from "lodash/merge";
 
 import type { ChildrenProps, ContainerInput, Props } from "@src/components/alerts/DeploymentAlertsContainer/DeploymentAlertsContainer";
 import { DeploymentAlertsContainer } from "@src/components/alerts/DeploymentAlertsContainer/DeploymentAlertsContainer";
 import { UAKT_DENOM, USDC_IBC_DENOMS } from "@src/config/denom.config";
-import { ServicesProvider } from "@src/context/ServicesProvider";
 import type { usePricing } from "@src/hooks/usePricing/usePricing";
 import { queryClient } from "@src/queries";
 import { deploymentToDto } from "@src/utils/deploymentDetailUtils";
@@ -20,6 +18,7 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import { buildRpcDeployment } from "@tests/seeders/deployment";
 import { buildNotificationChannel } from "@tests/seeders/notificationChannel";
 import { createContainerTestingChildCapturer } from "@tests/unit/container-testing-child-capturer";
+import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe(DeploymentAlertsContainer.name, () => {
   [
@@ -221,6 +220,7 @@ describe(DeploymentAlertsContainer.name, () => {
     );
 
     const services = {
+      queryClient: () => queryClient,
       notificationsApi: () =>
         createAPIClient({
           requestFn: requestFn as RequestFn<any, Error>,
@@ -249,13 +249,11 @@ describe(DeploymentAlertsContainer.name, () => {
 
     render(
       <CustomSnackbarProvider>
-        <ServicesProvider services={services}>
-          <QueryClientProvider client={queryClient}>
-            <DeploymentAlertsContainer deployment={deployment} dependencies={dependencies}>
-              {childCapturer.renderChild}
-            </DeploymentAlertsContainer>
-          </QueryClientProvider>
-        </ServicesProvider>
+        <TestContainerProvider services={services}>
+          <DeploymentAlertsContainer deployment={deployment} dependencies={dependencies}>
+            {childCapturer.renderChild}
+          </DeploymentAlertsContainer>
+        </TestContainerProvider>
       </CustomSnackbarProvider>
     );
 
