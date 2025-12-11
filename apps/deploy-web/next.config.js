@@ -9,6 +9,7 @@ const withPWA = require("next-pwa")({
   disable: isDev
 });
 const { withSentryConfig } = require("@sentry/nextjs");
+const path = require("path");
 
 try {
   const { browserEnvSchema } = require("./env-config.schema");
@@ -20,7 +21,7 @@ try {
   }
 }
 
-const transpilePackages = ["geist", "@akashnetwork/ui"];
+const transpilePackages = ["geist", "@akashnetwork/ui", "@auth0/nextjs-auth0"];
 
 if (process.env.NODE_ENV === "test") {
   transpilePackages.push("nanoid", "uint8arrays", "multiformats", "@marsidev/react-turnstile", "@panva/hkdf", "jose");
@@ -57,12 +58,25 @@ const nextConfig = {
     locales: ["en-US"],
     defaultLocale: "en-US"
   },
-  webpack: config => {
+  /**
+   *
+   * @param {import('webpack').Configuration} config
+   * @param {import('next').NextConfig} nextConfig
+   * @returns
+   */
+  webpack: (config, options) => {
     // Fixes npm packages that depend on `node:crypto` module
     config.externals.push({
       "node:crypto": "crypto"
     });
     config.externals.push("pino-pretty");
+
+    if (options.isServer) {
+      // see ./src/lib/auth0/setSession/setSession.ts for more details
+      config.resolve.alias["@auth0/nextjs-auth0/session"] = path.join(require.resolve("@auth0/nextjs-auth0"), "..", "session", "index.js");
+      config.resolve.alias["@auth0/nextjs-auth0/update-session"] = path.join(require.resolve("@auth0/nextjs-auth0"), "..", "session", "update-session.js");
+    }
+
     return config;
   },
   redirects: async () => {

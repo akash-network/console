@@ -43,6 +43,11 @@ export class DeploymentWriterService {
       sdl = sdl.replace(/uakt/g, deploymentGrantDenom);
     }
 
+    const allowedAuditors = this.billingConfig.get("MANAGED_WALLET_LEASE_ALLOWED_AUDITORS");
+    if (allowedAuditors && allowedAuditors.length > 0) {
+      sdl = this.sdlService.appendAuditorRequirement(sdl, allowedAuditors);
+    }
+
     const dseq = await this.blockHttpService.getCurrentHeight();
     const groups = this.sdlService.getDeploymentGroups(sdl, "beta3");
     const manifestVersion = await this.sdlService.getManifestVersion(sdl, "beta3");
@@ -96,9 +101,15 @@ export class DeploymentWriterService {
 
   public async updateByUserIdAndDseq(userId: string, dseq: string, input: UpdateDeploymentRequest["data"]): Promise<GetDeploymentResponse["data"]> {
     const wallet = await this.walletReaderService.getWalletByUserId(userId);
-    const { sdl, certificate } = input;
+    let sdl = input.sdl;
+    const { certificate } = input;
 
     assert(this.sdlService.validateSdl(sdl), 400, "Invalid SDL");
+
+    const allowedAuditors = this.billingConfig.get("MANAGED_WALLET_LEASE_ALLOWED_AUDITORS");
+    if (allowedAuditors && allowedAuditors.length > 0) {
+      sdl = this.sdlService.appendAuditorRequirement(sdl, allowedAuditors);
+    }
 
     const deployment = await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq);
     const manifestVersion = await this.sdlService.getManifestVersion(sdl, "beta3");

@@ -19,3 +19,9 @@ export function fromBase64(data: string): Uint8Array {
 
   return cosmjsFromBase64(data);
 }
+
+export function fromBase64Url(data: string): Uint8Array {
+  let value = data.replace(/-/g, "+").replace(/_/g, "/");
+  value = value.padEnd(value.length + ((4 - (value.length % 4)) % 4), "=");
+  return fromBase64(value);
+}

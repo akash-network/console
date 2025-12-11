@@ -1,5 +1,18 @@
 
 
+## [3.9.0](https://github.com/akash-network/console/compare/console-web/v3.8.0...console-web/v3.9.0) (2025-12-09)
+
+
+### Features
+
+* account overview, auto reload, and separate payment method page  ([46b0a99](https://github.com/akash-network/console/commit/46b0a99e66be7beab0e1908f687cece6880aa268)), closes [#1779](https://github.com/akash-network/console/issues/1779)
+* **deployment:** show price per hour for gpu workloads ([#2322](https://github.com/akash-network/console/issues/2322)) ([24957e7](https://github.com/akash-network/console/commit/24957e781973517bdecf9fca3c879700db470e63))
+
+
+### Code Refactoring
+
+* converts PricingProvider into a hook ([#2325](https://github.com/akash-network/console/issues/2325)) ([9be49eb](https://github.com/akash-network/console/commit/9be49ebafb8fd68f3fb1e9a77b7b21f2fee0bdcd))
+
 ## [3.8.0](https://github.com/akash-network/console/compare/console-web/v3.7.1...console-web/v3.8.0) (2025-12-05)
 
 

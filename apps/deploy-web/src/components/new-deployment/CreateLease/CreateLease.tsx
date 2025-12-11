@@ -614,7 +614,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
               <d.AlertDescription className="space-y-1 text-center dark:text-white/90">
                 <p>You are using a free trial and are limited to only a few providers on the network.</p>
                 <p>
-                  <Link href={UrlService.login()} className="font-bold underline">
+                  <Link href={UrlService.newLogin()} passHref prefetch={false} className="font-bold underline">
                     Sign in
                   </Link>{" "}
                   or <d.SignUpButton className="font-bold underline" /> and buy credits to unlock all providers.

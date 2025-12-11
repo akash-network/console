@@ -18,7 +18,6 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useFlag } from "@src/hooks/useFlag";
-import { UrlService } from "@src/utils/urlUtils";
 import { CustomDropdownLinkItem } from "../shared/CustomDropdownLinkItem";
 
 export function AccountMenu() {
@@ -28,7 +27,7 @@ export function AccountMenu() {
   const router = useRouter();
   const isBillingUsageEnabled = useFlag("billing_usage");
   const wallet = useWallet();
-  const { authService } = useServices();
+  const { authService, urlService } = useServices();
 
   return (
     <React.Fragment>
@@ -44,7 +43,7 @@ export function AccountMenu() {
                 <Button
                   size="icon"
                   variant="ghost"
-                  onClick={() => (username ? router.push(UrlService.userProfile(username)) : null)}
+                  onClick={() => (username ? router.push(urlService.userProfile(username)) : null)}
                   onMouseOver={() => setOpen(true)}
                 >
                   <Avatar className="h-[2rem] w-[2rem]">
@@ -69,7 +68,7 @@ export function AccountMenu() {
                       <div className="w-full">
                         {username && (
                           <CustomDropdownLinkItem
-                            onClick={() => router.push(UrlService.userProfile(username))}
+                            onClick={() => router.push(urlService.userProfile(username))}
                             icon={
                               <Avatar className="h-4 w-4">
                                 <AvatarFallback className="text-xs">{username ? username[0].toUpperCase() : <User />}</AvatarFallback>
@@ -80,22 +79,22 @@ export function AccountMenu() {
                           </CustomDropdownLinkItem>
                         )}
                         <DropdownMenuSeparator />
-                        <CustomDropdownLinkItem onClick={() => router.push(UrlService.userSettings())} icon={<Settings />}>
+                        <CustomDropdownLinkItem onClick={() => router.push(urlService.userSettings())} icon={<Settings />}>
                           Profile Settings
                         </CustomDropdownLinkItem>
-                        <CustomDropdownLinkItem onClick={() => router.push(UrlService.userApiKeys())} icon={<Key />}>
+                        <CustomDropdownLinkItem onClick={() => router.push(urlService.userApiKeys())} icon={<Key />}>
                           API Keys
                         </CustomDropdownLinkItem>
                         {username && (
-                          <CustomDropdownLinkItem onClick={() => router.push(UrlService.userProfile(username))} icon={<MultiplePages />}>
+                          <CustomDropdownLinkItem onClick={() => router.push(urlService.userProfile(username))} icon={<MultiplePages />}>
                             Templates
                           </CustomDropdownLinkItem>
                         )}
-                        <CustomDropdownLinkItem onClick={() => router.push(UrlService.userFavorites())} icon={<Star />}>
+                        <CustomDropdownLinkItem onClick={() => router.push(urlService.userFavorites())} icon={<Star />}>
                           Favorites
                         </CustomDropdownLinkItem>
                         {isBillingUsageEnabled && user?.userId && wallet.isManaged && (
-                          <CustomDropdownLinkItem onClick={() => router.push(UrlService.billing())} icon={<GraphUp />}>
+                          <CustomDropdownLinkItem onClick={() => router.push(urlService.billing())} icon={<GraphUp />}>
                             Billing & Usage
                           </CustomDropdownLinkItem>
                         )}
@@ -108,11 +107,11 @@ export function AccountMenu() {
                       <div className="w-full space-y-1">
                         <CustomDropdownLinkItem
                           className="justify-center bg-primary p-2 !text-white hover:bg-primary/80 hover:text-white focus:bg-primary/80"
-                          onClick={() => authService.signup()}
+                          onClick={() => router.push(urlService.newSignup())}
                         >
                           Sign up
                         </CustomDropdownLinkItem>
-                        <CustomDropdownLinkItem onClick={() => router.push(UrlService.login())} className="justify-center p-2">
+                        <CustomDropdownLinkItem onClick={() => router.push(urlService.newLogin())} className="justify-center p-2">
                           Sign in
                         </CustomDropdownLinkItem>
                       </div>

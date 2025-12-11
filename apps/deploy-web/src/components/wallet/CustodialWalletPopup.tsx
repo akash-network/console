@@ -88,7 +88,7 @@ export const CustodialWalletPopup: React.FC<CustodialWalletPopupProps> = ({ wall
             <Separator className="my-4" />
 
             {isSignedInWithTrial && !user ? (
-              <Link className={cn(buttonVariants({ variant: "outline" }), "w-full space-x-2")} href={UrlService.login()}>
+              <Link className={cn(buttonVariants({ variant: "outline" }), "w-full space-x-2")} href={UrlService.newLogin()}>
                 Sign in for USD Payments
               </Link>
             ) : (

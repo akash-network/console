@@ -16,7 +16,7 @@ describe(AuthService.name, () => {
     it("calls signup URL without returnTo parameter", async () => {
       const { service, httpClient, location } = setup();
 
-      await service.signup();
+      await service.loginViaOauth();
 
       expect(httpClient.get).toHaveBeenCalledWith(mockSignupUrl, expect.any(Object));
       expect(location.assign).toHaveBeenCalledWith(mockSignupUrl);
@@ -26,7 +26,7 @@ describe(AuthService.name, () => {
       const { service, httpClient, location } = setup();
       const returnTo = "/dashboard";
 
-      await service.signup({ returnTo });
+      await service.loginViaOauth({ returnTo });
 
       expect(httpClient.get).toHaveBeenCalledWith(mockSignupUrl, expect.any(Object));
       expect(location.assign).toHaveBeenCalledWith(`${mockSignupUrl}?returnTo=${encodeURIComponent(returnTo)}`);

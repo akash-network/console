@@ -235,7 +235,7 @@ export const DeploymentList: React.FunctionComponent = () => {
               ) : (
                 <div className="mt-8 flex items-center justify-center space-x-2">
                   <ConnectWalletButton />
-                  <Link className={cn(buttonVariants({ variant: "outline" }))} href={UrlService.login()}>
+                  <Link className={cn(buttonVariants({ variant: "outline" }))} href={UrlService.newLogin()} passHref prefetch={false}>
                     Sign in
                   </Link>
                 </div>

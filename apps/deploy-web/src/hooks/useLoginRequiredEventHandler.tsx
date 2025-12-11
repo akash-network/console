@@ -4,12 +4,11 @@ import { usePopup } from "@akashnetwork/ui/context";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useUser } from "@src/hooks/useUser";
-import { UrlService } from "@src/utils/urlUtils";
 
 export const useLoginRequiredEventHandler = (): ((messageOtherwise: string) => (callback: MouseEventHandler) => MouseEventHandler) => {
   const { requireAction } = usePopup();
   const { user } = useUser();
-  const { authService } = useServices();
+  const { urlService, router } = useServices();
 
   return useCallback(
     (messageOtherwise: string) => (handler: MouseEventHandler) => {
@@ -24,7 +23,7 @@ export const useLoginRequiredEventHandler = (): ((messageOtherwise: string) => (
               size: "lg",
               variant: "secondary",
               onClick: () => {
-                window.location.href = UrlService.login();
+                router.push(urlService.newLogin());
               }
             },
             {
@@ -32,7 +31,7 @@ export const useLoginRequiredEventHandler = (): ((messageOtherwise: string) => (
               side: "right",
               size: "lg",
               onClick: () => {
-                authService.signup();
+                router.push(urlService.newSignup());
               }
             }
           ]

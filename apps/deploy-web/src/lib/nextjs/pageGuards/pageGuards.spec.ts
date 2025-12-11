@@ -4,6 +4,7 @@ import { faker } from "@faker-js/faker";
 import { mock } from "jest-mock-extended";
 
 import type { FeatureFlagService } from "@src/services/feature-flag/feature-flag.service";
+import { UrlService } from "@src/utils/urlUtils";
 import type { AppTypedContext } from "../defineServerSideProps/defineServerSideProps";
 import { isAuthenticated, isFeatureEnabled, redirectIfAccessTokenExpired } from "./pageGuards";
 
@@ -85,7 +86,7 @@ describe("pageGuards", () => {
 
       expect(result).toEqual({
         redirect: {
-          destination: expect.stringMatching(/^\/api\/auth\/login/),
+          destination: expect.stringMatching(/^\/login/),
           permanent: false
         }
       });
@@ -100,7 +101,8 @@ function setup(input?: { enabledFeatures?: string[]; session?: Partial<Session> 
       featureFlagService: mock<FeatureFlagService>({
         isEnabledForCtx: jest.fn(async featureName => !!input?.enabledFeatures?.includes(featureName))
       }),
-      logger: mock<LoggerService>()
+      logger: mock<LoggerService>(),
+      urlService: UrlService
     }
   });
 }

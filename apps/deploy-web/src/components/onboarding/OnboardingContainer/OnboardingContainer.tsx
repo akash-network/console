@@ -74,8 +74,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
   const { user } = d.useUser();
   const { data: paymentMethods = [] } = d.usePaymentMethodsQuery({ enabled: !!user?.stripeCustomerId });
   const { data: depositParams } = d.useDepositParams();
-  const { analyticsService, urlService, authService, chainApiHttpClient, deploymentLocalStorage, appConfig, errorHandler, windowLocation, windowHistory } =
-    d.useServices();
+  const { analyticsService, urlService, chainApiHttpClient, deploymentLocalStorage, appConfig, errorHandler, windowLocation, windowHistory } = d.useServices();
   const { hasManagedWallet, isWalletLoading, connectManagedWallet, address, signAndBroadcastTx } = d.useWallet();
   const { templates } = d.useTemplates();
   const { genNewCertificateIfLocalIsInvalid, updateSelectedCertificate } = d.useCertificate();
@@ -172,9 +171,9 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
         handleStepChange(OnboardingStepIndex.EMAIL_VERIFICATION);
       }
     } else {
-      authService.signup({ returnTo: `${windowLocation.origin}${urlService.onboarding(true)}` });
+      router.push(urlService.newSignup({ from: urlService.onboarding(true) }));
     }
-  }, [analyticsService, handleStepComplete, urlService, user, handleStepChange, authService]);
+  }, [analyticsService, handleStepComplete, urlService, user, handleStepChange, router]);
 
   const handlePaymentMethodComplete = useCallback(() => {
     if (paymentMethods.length > 0) {

@@ -1,5 +1,17 @@
 
 
+## [3.12.0](https://github.com/akash-network/console/compare/console-api/v3.11.0...console-api/v3.12.0) (2025-12-09)
+
+
+### Features
+
+* account overview, auto reload, and separate payment method page  ([46b0a99](https://github.com/akash-network/console/commit/46b0a99e66be7beab0e1908f687cece6880aa268)), closes [#1779](https://github.com/akash-network/console/issues/1779)
+
+
+### Bug Fixes
+
+* **deployment:** filter audited bids for managed wallets ([#2330](https://github.com/akash-network/console/issues/2330)) ([695610c](https://github.com/akash-network/console/commit/695610ccd25b52875d305a8a34c53a992ed78d11))
+
 ## [3.11.0](https://github.com/akash-network/console/compare/console-api/v3.10.1...console-api/v3.11.0) (2025-12-05)
 
 

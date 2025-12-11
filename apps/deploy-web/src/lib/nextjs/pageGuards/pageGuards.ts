@@ -1,6 +1,5 @@
 import type { Redirect } from "next";
 
-import { UrlService } from "@src/utils/urlUtils";
 import type { AppTypedContext } from "../defineServerSideProps/defineServerSideProps";
 
 export async function isFeatureEnabled(featureName: string, context: AppTypedContext): Promise<boolean> {
@@ -19,7 +18,7 @@ export async function redirectIfAccessTokenExpired(context: AppTypedContext): Pr
     return {
       redirect: {
         permanent: false,
-        destination: UrlService.login(context.req.url)
+        destination: context.services.urlService.newLogin({ from: context.req.url })
       }
     };
   }

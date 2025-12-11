@@ -5,17 +5,16 @@ import { createAPIClient } from "@akashnetwork/react-query-sdk/notifications";
 import { CustomSnackbarProvider } from "@akashnetwork/ui/context";
 import { faker } from "@faker-js/faker";
 import type { RequestFnResponse } from "@openapi-qraft/react/src/lib/requestFn";
-import { QueryClientProvider } from "@tanstack/react-query";
 
 import { AlertsListContainer } from "@src/components/alerts/AlertsListContainer/AlertsListContainer";
 import type { AlertsListViewProps } from "@src/components/alerts/AlertsListView/AlertsListView";
 import { LocalNoteProvider } from "@src/context/LocalNoteProvider";
-import { ServicesProvider } from "@src/context/ServicesProvider";
 import { queryClient } from "@src/queries";
 
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { buildAlert } from "@tests/seeders/alert";
 import { createContainerTestingChildCapturer } from "@tests/unit/container-testing-child-capturer";
+import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe(AlertsListContainer.name, () => {
   it("renders alerts list with data", async () => {
@@ -86,6 +85,7 @@ describe(AlertsListContainer.name, () => {
         }) as Promise<RequestFnResponse<typeof mockData, unknown>>
     );
     const services = {
+      queryClient: () => queryClient,
       notificationsApi: () =>
         createAPIClient({
           requestFn,
@@ -97,13 +97,11 @@ describe(AlertsListContainer.name, () => {
 
     render(
       <CustomSnackbarProvider>
-        <ServicesProvider services={services}>
-          <QueryClientProvider client={queryClient}>
-            <LocalNoteProvider>
-              <AlertsListContainer>{childCapturer.renderChild}</AlertsListContainer>
-            </LocalNoteProvider>
-          </QueryClientProvider>
-        </ServicesProvider>
+        <TestContainerProvider services={services}>
+          <LocalNoteProvider>
+            <AlertsListContainer>{childCapturer.renderChild}</AlertsListContainer>
+          </LocalNoteProvider>
+        </TestContainerProvider>
       </CustomSnackbarProvider>
     );
 

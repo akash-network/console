@@ -147,7 +147,7 @@ export const GetStartedStepper: React.FunctionComponent = () => {
                 <ConnectWalletButton />
 
                 {isSignedInWithTrial && !user && (
-                  <Link className={cn(buttonVariants({ variant: "outline" }))} href={UrlService.login()}>
+                  <Link className={cn(buttonVariants({ variant: "outline" }))} href={UrlService.newLogin()} passHref prefetch={false}>
                     Sign in
                   </Link>
                 )}

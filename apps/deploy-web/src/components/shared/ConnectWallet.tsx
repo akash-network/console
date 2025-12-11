@@ -27,7 +27,7 @@ export const ConnectWallet: React.FunctionComponent<Props> = ({ text }) => {
       <div className="flex items-center justify-center gap-2">
         <WalletStatus />
         {isSignedInWithTrial && (
-          <Link className={cn(buttonVariants({ variant: "outline" }))} href={UrlService.login()}>
+          <Link className={cn(buttonVariants({ variant: "outline" }))} href={UrlService.newLogin()}>
             Sign in
           </Link>
         )}
