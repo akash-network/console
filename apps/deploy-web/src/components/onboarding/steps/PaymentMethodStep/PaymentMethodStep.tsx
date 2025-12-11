@@ -92,8 +92,8 @@ export const PaymentMethodStep: React.FunctionComponent<PaymentMethodStepProps> 
                   appearance: {
                     theme: isDarkMode ? "night" : "stripe",
                     variables: {
-                      colorPrimary: "#ff424c",
-                      colorSuccess: "#ff424c"
+                      colorPrimary: isDarkMode ? "#e3e3e3" : "#171717",
+                      colorSuccess: "#16a34a"
                     }
                   }
                 }}

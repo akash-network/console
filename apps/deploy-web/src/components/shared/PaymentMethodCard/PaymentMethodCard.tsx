@@ -47,9 +47,9 @@ export const PaymentMethodCard: React.FC<PaymentMethodCardProps> = ({
         }`}
         onClick={handleCardClick}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           <RadioGroupItem value={method.id} id={method.id} />
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <div>
               <div className="text-base font-medium">
                 {method.card?.brand?.toUpperCase()} •••• {method.card?.last4}
