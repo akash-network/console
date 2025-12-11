@@ -9,11 +9,11 @@ interface Props {
 
 export function AuthLayout({ sidebar, children }: Props) {
   const theme = useCookieTheme();
-  const inversedClass = theme === "dark" ? "" : "dark";
+  const inversedClass = theme === "dark" ? "bg-[#171717]" : "dark";
   return (
     <div className="relative flex h-screen">
       <div
-        className={`absolute flex h-full w-full items-center justify-center overflow-y-auto lg:relative lg:w-1/2 ${inversedClass} bg-[hsl(var(--background))]`}
+        className={`absolute flex h-full w-full items-center justify-center overflow-y-auto bg-[hsl(var(--background))] lg:relative lg:w-1/2 ${inversedClass}`}
         style={{
           backgroundImage: "radial-gradient(circle, rgba(255, 255, 255, 0.07) 2px, transparent 2px)",
           backgroundSize: "24px 24px",

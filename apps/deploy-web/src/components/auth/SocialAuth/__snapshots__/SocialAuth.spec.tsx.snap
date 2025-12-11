@@ -116,7 +116,6 @@ exports[`SocialAuth matches snapshot when rendered without a button prefix 1`] =
       <span
         class="hidden sm:inline"
       >
-        Continue with 
         GitHub
       </span>
       <span
@@ -171,7 +170,6 @@ exports[`SocialAuth matches snapshot when rendered without a button prefix 1`] =
       <span
         class="hidden sm:inline"
       >
-        Continue with 
         Google
       </span>
       <span

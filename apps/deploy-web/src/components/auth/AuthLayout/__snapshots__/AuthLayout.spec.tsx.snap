@@ -12,7 +12,7 @@ exports[`AuthLayout renders dark theme layout 1`] = `
       class="relative flex h-screen"
     >
       <div
-        class="absolute flex h-full w-full items-center justify-center overflow-y-auto lg:relative lg:w-1/2  bg-[hsl(var(--background))]"
+        class="absolute flex h-full w-full items-center justify-center overflow-y-auto bg-[hsl(var(--background))] lg:relative lg:w-1/2 bg-[#171717]"
         style="background-image: radial-gradient(circle, rgba(255, 255, 255, 0.07) 2px, transparent 2px); background-size: 24px 24px; color: hsl(var(--foreground));"
       >
         <div>
@@ -43,7 +43,7 @@ exports[`AuthLayout renders light theme layout 1`] = `
       class="relative flex h-screen"
     >
       <div
-        class="absolute flex h-full w-full items-center justify-center overflow-y-auto lg:relative lg:w-1/2 dark bg-[hsl(var(--background))]"
+        class="absolute flex h-full w-full items-center justify-center overflow-y-auto bg-[hsl(var(--background))] lg:relative lg:w-1/2 dark"
         style="background-image: radial-gradient(circle, rgba(255, 255, 255, 0.07) 2px, transparent 2px); background-size: 24px 24px; color: hsl(var(--foreground));"
       >
         <div>
