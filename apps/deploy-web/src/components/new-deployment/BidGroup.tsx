@@ -61,7 +61,7 @@ export const BidGroup: React.FunctionComponent<Props> = ({
     }
   }, [deploymentDetail, gseq]);
   return (
-    <FormPaper className="mb-4 rounded-none" contentClassName="p-0">
+    <FormPaper className="mb-6 rounded-none" contentClassName="p-0">
       <div className="sticky top-0 z-[100] -mt-1 flex items-center justify-between border-b border-t bg-popover px-4 py-2 leading-8">
         <div className="flex items-center">
           <h6 className="text-xs">

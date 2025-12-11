@@ -400,7 +400,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
     <>
       <d.CustomNextSeo title="Create Deployment - Create Lease" url={`${domainName}${UrlService.newDeployment({ step: RouteStep.createLeases })}`} />
 
-      <div className="mt-4">
+      <div className="mt-6">
         {!isLoadingBids && (bids?.length || 0) > 0 && !allClosed && (
           <div className="flex flex-col items-end justify-between py-2 md:flex-row">
             <div className="flex w-full flex-grow items-end md:w-auto">
@@ -470,7 +470,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
         )}
 
         {settings.isBlockchainDown && (
-          <div className="pt-4">
+          <div className="pt-6">
             <d.Alert variant="warning">Blockchain is unavailable. Please try to refresh the page or try again later.</d.Alert>
           </div>
         )}
@@ -482,10 +482,10 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
         )}
 
         {!settings.isBlockchainDown && !zeroBidsForTrialWarningDisplayed && warningRequestsReached && !maxRequestsReached && (bids?.length || 0) === 0 && (
-          <div className="pt-4">
+          <div className="pt-6">
             <d.Alert variant="warning">
               There should be bids by now... You can wait longer in case a bid shows up or close the deployment and try again with a different configuration.
-              <div className="pt-4">
+              <div className="pt-6">
                 <d.Button variant="default" color="secondary" onClick={handleCloseDeployment} size="sm" disabled={settings.isBlockchainDown}>
                   Close Deployment
                 </d.Button>
@@ -499,14 +499,14 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
           !maxRequestsReached &&
           !isSendingManifest &&
           !zeroBidsForTrialWarningDisplayed && (
-            <div className="flex flex-col items-center justify-center pt-4 text-center">
+            <div className="flex flex-col items-center justify-center pt-6 text-center">
               <d.Spinner size="large" />
-              <div className="pt-4">Waiting for bids...</div>
+              <div className="pt-6">Waiting for bids...</div>
             </div>
           )}
 
         {!settings.isBlockchainDown && !zeroBidsForTrialWarningDisplayed && maxRequestsReached && (bids?.length || 0) === 0 && (
-          <div className="pt-4">
+          <div className="pt-6">
             <d.Alert variant="warning">
               There's no bid for the current deployment. You can close the deployment and try again with a different configuration.
             </d.Alert>
@@ -648,7 +648,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
       )}
 
       {zeroBidsForTrialWarningDisplayed && isAnonymousFreeTrialEnabled && (
-        <div className="pt-4">
+        <div className="pt-6">
           <d.Card>
             <d.CardContent>
               <div className="px-16 pb-4 pt-6 text-center">

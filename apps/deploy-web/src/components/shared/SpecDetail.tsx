@@ -39,7 +39,7 @@ export function SpecDetail({
       className={cn("flex flex-col items-start space-y-1 sm:flex-row sm:items-center sm:space-y-0", {
         ["sm:space-x-1"]: gutterSize === "small",
         ["sm:space-x-2"]: gutterSize === "medium",
-        ["sm:space-x-3"]: gutterSize === "large"
+        ["sm:space-x-4"]: gutterSize === "large"
       })}
     >
       <Badge className={badgeClasses} variant="outline">

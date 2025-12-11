@@ -44,7 +44,7 @@ export const Nav = ({
         </div>
 
         <div style={{ height: `${ACCOUNT_BAR_HEIGHT}px` }} className={`hidden items-center md:flex`}>
-          <div className="flex items-center">
+          <div className="flex items-center gap-2">
             <div className="ml-4 flex items-center gap-2">
               <WalletStatus />
 

@@ -36,7 +36,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
         <CardHeader>
           <CardTitle className="text-lg">Add credits</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-6">
           <div>
             <Input
               error={!!amountError}
@@ -76,7 +76,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
           <CardTitle className="text-lg">Have a coupon code?</CardTitle>
           <CardDescription>Enter your coupon code to claim credits</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-6">
           <div>
             <Input
               type="text"

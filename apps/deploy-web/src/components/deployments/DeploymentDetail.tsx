@@ -281,7 +281,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
               </div>
             )}
             {activeTab === "LEASES" && (
-              <div className="py-4">
+              <div className="py-6">
                 {leases && !providerCredentials.details.usable && <CreateCredentialsButton containerClassName="mb-4" afterCreate={loadDeploymentDetail} />}
 
                 {leases &&
