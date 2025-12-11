@@ -1,5 +1,5 @@
 "use client";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 
 import { UAKT_DENOM } from "@src/config/denom.config";
 import { useUsdcDenom } from "@src/hooks/useDenom";
@@ -10,7 +10,9 @@ import { uaktToAKT } from "@src/utils/priceUtils";
 export function usePricing(): PricingContext {
   const { data: marketData, isLoading } = useMarketData({
     refetchInterval: 60_000,
-    refetchOnWindowFocus: false
+    refetchOnWindowFocus: false,
+    staleTime: 60_000,
+    networkMode: "offlineFirst"
   });
   const usdcIbcDenom = useUsdcDenom();
 
@@ -57,16 +59,19 @@ export function usePricing(): PricingContext {
     [marketData?.price, usdcIbcDenom]
   );
 
-  return {
-    isLoaded: !!marketData,
-    isLoading,
-    price: marketData?.price,
-    uaktToUSD,
-    aktToUSD,
-    usdToAkt,
-    getPriceForDenom,
-    udenomToUsd
-  };
+  return useMemo(
+    () => ({
+      isLoaded: !!marketData,
+      isLoading,
+      price: marketData?.price,
+      uaktToUSD,
+      aktToUSD,
+      usdToAkt,
+      getPriceForDenom,
+      udenomToUsd
+    }),
+    [isLoading, marketData?.price, usdcIbcDenom]
+  );
 }
 
 export type PricingContext = {
