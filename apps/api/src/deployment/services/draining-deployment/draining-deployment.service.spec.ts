@@ -1,11 +1,13 @@
 import "@test/mocks/logger-service.mock";
 
+import type { DeploymentHttpService, DeploymentListResponse, LeaseHttpService } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
 import { addWeeks } from "date-fns";
 import { mock } from "jest-mock-extended";
 
 import type { UserWalletRepository } from "@src/billing/repositories";
 import type { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
+import type { LoggerService } from "@src/core";
 import type { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
 import { averageBlockCountInAnHour } from "@src/utils/constants";
@@ -16,21 +18,166 @@ import { mockConfigService } from "@test/mocks/config-service.mock";
 import { createAkashAddress } from "@test/seeders";
 import { AutoTopUpDeploymentSeeder } from "@test/seeders/auto-top-up-deployment.seeder";
 import { DrainingDeploymentSeeder } from "@test/seeders/draining-deployment.seeder";
+import { LeaseApiResponseSeeder } from "@test/seeders/lease-api-response.seeder";
 import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
 
 jest.mock("@akashnetwork/logging");
 
 describe(DrainingDeploymentService.name, () => {
-  describe("paginate", () => {
+  describe("findDrainingDeploymentsByOwner", () => {
     const CURRENT_HEIGHT = 1000000;
-    const LIMIT = 10;
     const BLOCK_RATE_1 = 50;
     const BLOCK_RATE_2 = 75;
     const PREDICTED_CLOSURE_OFFSET_1 = 100;
     const PREDICTED_CLOSURE_OFFSET_2 = 200;
 
-    it("paginates draining deployments and marks closed ones as such", async () => {
-      const { service, blockHttpService, leaseRepository, deploymentSettingRepository, config } = setup({
+    it("paginates draining deployments by owner and marks closed ones as such", async () => {
+      const { service, blockHttpService, leaseHttpService, deploymentSettingRepository, loggerService, leaseRepository, deploymentHttpService } = setup({
+        currentHeight: CURRENT_HEIGHT
+      });
+      const deploymentSettings = AutoTopUpDeploymentSeeder.createMany(4);
+      const addresses = deploymentSettings.map(s => s.address);
+      const dseqs = deploymentSettings.map(s => Number(s.dseq));
+
+      const rpcLeases = [
+        LeaseApiResponseSeeder.create({
+          owner: addresses[0],
+          dseq: String(dseqs[0]),
+          gseq: 0,
+          oseq: 0,
+          state: "active",
+          price: { denom: "uakt", amount: String(BLOCK_RATE_1) }
+        }),
+        LeaseApiResponseSeeder.create({
+          owner: addresses[1],
+          dseq: String(dseqs[1]),
+          gseq: 0,
+          oseq: 0,
+          state: "closed",
+          price: { denom: "uakt", amount: String(BLOCK_RATE_2) },
+          closed_on: String(CURRENT_HEIGHT - 100)
+        }),
+        LeaseApiResponseSeeder.create({
+          owner: addresses[3],
+          dseq: String(dseqs[3]),
+          gseq: 0,
+          oseq: 0,
+          state: "active",
+          price: { denom: "uakt", amount: String(BLOCK_RATE_1) }
+        })
+      ];
+
+      const deploymentBalances = [
+        { dseq: String(dseqs[0]), escrowBalance: 60000 },
+        { dseq: String(dseqs[1]), escrowBalance: 85000 },
+        { dseq: String(dseqs[3]), escrowBalance: 60000 }
+      ];
+
+      leaseHttpService.list.mockImplementation(params => {
+        const ownerLeases = rpcLeases.filter(l => l.lease.id.owner === params.owner);
+        return Promise.resolve({
+          leases: ownerLeases,
+          pagination: { next_key: null, total: String(ownerLeases.length) }
+        });
+      });
+
+      deploymentHttpService.findAll.mockImplementation(params => {
+        const ownerDeployments = deploymentBalances
+          .filter(d => deploymentSettings.some(s => s.dseq === d.dseq && s.address === params.owner))
+          .map(d => ({
+            deployment: {
+              id: {
+                dseq: d.dseq
+              }
+            },
+            escrow_account: {
+              state: {
+                funds: [{ denom: "uakt", amount: String(d.escrowBalance) }]
+              }
+            }
+          }));
+        return Promise.resolve({
+          deployments: ownerDeployments,
+          pagination: { next_key: null, total: String(ownerDeployments.length) }
+        } as DeploymentListResponse);
+      });
+
+      deploymentSettingRepository.findAutoTopUpDeploymentsByOwner.mockImplementation(() =>
+        (async function* () {
+          const byAddress = deploymentSettings.reduce(
+            (acc, deployment) => {
+              if (!acc[deployment.address]) {
+                acc[deployment.address] = [];
+              }
+              acc[deployment.address].push(deployment);
+              return acc;
+            },
+            {} as Record<string, typeof deploymentSettings>
+          );
+
+          for (const [address, settings] of Object.entries(byAddress)) {
+            yield { address, deploymentSettings: settings };
+          }
+        })()
+      );
+
+      const callback = jest.fn();
+      for await (const result of service.findDrainingDeploymentsByOwner()) {
+        callback(result);
+      }
+
+      expect(blockHttpService.getCurrentHeight).toHaveBeenCalled();
+      expect(deploymentSettingRepository.findAutoTopUpDeploymentsByOwner).toHaveBeenCalled();
+      expect(leaseHttpService.list).toHaveBeenCalledWith({
+        owner: addresses[0],
+        pagination: { limit: 1000, key: undefined }
+      });
+
+      expect(leaseRepository.findManyByDseqAndOwner).not.toHaveBeenCalled();
+      expect(loggerService.error).not.toHaveBeenCalled();
+      expect(deploymentSettingRepository.updateManyById).toHaveBeenCalledWith(expect.arrayContaining([deploymentSettings[1].id]), { closed: true });
+      expect(deploymentHttpService.findAll).toHaveBeenCalled();
+
+      expect(callback).toHaveBeenCalledTimes(3);
+      expect(callback).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          address: addresses[0],
+          deployments: expect.arrayContaining([
+            expect.objectContaining({
+              dseq: dseqs[0].toString(),
+              address: addresses[0],
+              predictedClosedHeight: expect.any(Number),
+              blockRate: BLOCK_RATE_1
+            })
+          ])
+        })
+      );
+      expect(callback).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          address: addresses[1],
+          deployments: []
+        })
+      );
+      expect(callback).toHaveBeenNthCalledWith(
+        3,
+        expect.objectContaining({
+          address: addresses[3],
+          deployments: expect.arrayContaining([
+            expect.objectContaining({
+              dseq: dseqs[3].toString(),
+              address: addresses[3],
+              predictedClosedHeight: expect.any(Number),
+              blockRate: BLOCK_RATE_1
+            })
+          ])
+        })
+      );
+    });
+
+    it("paginates draining deployments by owner using database fallback when RPC fails", async () => {
+      const { service, blockHttpService, leaseRepository, deploymentSettingRepository, config, leaseHttpService, loggerService } = setup({
         currentHeight: CURRENT_HEIGHT
       });
       const deploymentSettings = AutoTopUpDeploymentSeeder.createMany(4);
@@ -59,70 +206,90 @@ describe(DrainingDeploymentService.name, () => {
         })
       ];
 
-      deploymentSettingRepository.paginateAutoTopUpDeployments.mockImplementation((_params: { address?: string; limit: number }) =>
+      const rpcError = new Error("RPC error");
+      leaseHttpService.list.mockRejectedValue(rpcError);
+
+      deploymentSettingRepository.findAutoTopUpDeploymentsByOwner.mockImplementation(() =>
         (async function* () {
-          yield deploymentSettings;
+          const byAddress = deploymentSettings.reduce(
+            (acc, deployment) => {
+              if (!acc[deployment.address]) {
+                acc[deployment.address] = [];
+              }
+              acc[deployment.address].push(deployment);
+              return acc;
+            },
+            {} as Record<string, typeof deploymentSettings>
+          );
+
+          for (const [address, settings] of Object.entries(byAddress)) {
+            yield { address, deploymentSettings: settings };
+          }
         })()
       );
 
-      leaseRepository.findManyByDseqAndOwner.mockResolvedValue(drainingDeployments);
+      leaseRepository.findManyByDseqAndOwner.mockImplementation((_closureHeight, owner, dseqs) => {
+        return Promise.resolve(drainingDeployments.filter(d => d.owner === owner && dseqs.includes(String(d.dseq))));
+      });
 
       const callback = jest.fn();
-      for await (const result of service.paginate({ limit: LIMIT })) {
+      for await (const result of service.findDrainingDeploymentsByOwner()) {
         callback(result);
       }
 
       const expectedClosureHeight = Math.floor(CURRENT_HEIGHT + averageBlockCountInAnHour * 2 * config.get("AUTO_TOP_UP_JOB_INTERVAL_IN_H"));
 
       expect(blockHttpService.getCurrentHeight).toHaveBeenCalled();
-      expect(deploymentSettingRepository.paginateAutoTopUpDeployments).toHaveBeenCalled();
-      expect(leaseRepository.findManyByDseqAndOwner).toHaveBeenCalledWith(
-        expectedClosureHeight,
-        expect.arrayContaining([
-          { dseq: String(dseqs[0]), owner: addresses[0] },
-          { dseq: String(dseqs[1]), owner: addresses[1] },
-          { dseq: String(dseqs[2]), owner: addresses[2] },
-          { dseq: String(dseqs[3]), owner: addresses[3] }
-        ])
+      expect(deploymentSettingRepository.findAutoTopUpDeploymentsByOwner).toHaveBeenCalled();
+      expect(leaseHttpService.list).toHaveBeenCalled();
+      expect(leaseRepository.findManyByDseqAndOwner).toHaveBeenCalledWith(expectedClosureHeight, addresses[0], expect.arrayContaining([String(dseqs[0])]));
+      expect(loggerService.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: "LEASE_RPC_QUERY_FAILED_FALLBACK_TO_DB",
+          message: expect.stringContaining("RPC query failed for owner"),
+          owner: addresses[0],
+          error: rpcError
+        })
       );
 
       expect(deploymentSettingRepository.updateManyById).toHaveBeenCalledWith(expect.arrayContaining([deploymentSettings[1].id]), { closed: true });
 
-      expect(callback).toHaveBeenCalledWith(
-        expect.arrayContaining([
-          expect.objectContaining({
-            dseq: dseqs[0].toString(),
-            address: addresses[0],
-            predictedClosedHeight: CURRENT_HEIGHT + PREDICTED_CLOSURE_OFFSET_1,
-            blockRate: BLOCK_RATE_1
-          }),
-          expect.objectContaining({
-            dseq: dseqs[3].toString(),
-            address: addresses[3],
-            predictedClosedHeight: CURRENT_HEIGHT + PREDICTED_CLOSURE_OFFSET_1,
-            blockRate: BLOCK_RATE_1
-          })
-        ])
+      expect(callback).toHaveBeenCalledTimes(3);
+      expect(callback).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          address: addresses[0],
+          deployments: expect.arrayContaining([
+            expect.objectContaining({
+              dseq: dseqs[0].toString(),
+              address: addresses[0],
+              predictedClosedHeight: CURRENT_HEIGHT + PREDICTED_CLOSURE_OFFSET_1,
+              blockRate: BLOCK_RATE_1
+            })
+          ])
+        })
       );
-      expect(callback.mock.calls[0][0]).toHaveLength(2);
-    });
-
-    it("does not call callback when no draining deployments found", async () => {
-      const { service, deploymentSettingRepository, leaseRepository } = setup({
-        currentHeight: CURRENT_HEIGHT
-      });
-
-      deploymentSettingRepository.paginateAutoTopUpDeployments.mockImplementation((_params: { address?: string; limit: number }) => (async function* () {})());
-
-      leaseRepository.findManyByDseqAndOwner.mockResolvedValue([]);
-
-      const callback = jest.fn();
-      for await (const result of service.paginate({ limit: LIMIT })) {
-        callback(result);
-      }
-
-      expect(callback).not.toHaveBeenCalled();
-      expect(deploymentSettingRepository.updateManyById).not.toHaveBeenCalled();
+      expect(callback).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          address: addresses[1],
+          deployments: []
+        })
+      );
+      expect(callback).toHaveBeenNthCalledWith(
+        3,
+        expect.objectContaining({
+          address: addresses[3],
+          deployments: expect.arrayContaining([
+            expect.objectContaining({
+              dseq: dseqs[3].toString(),
+              address: addresses[3],
+              predictedClosedHeight: CURRENT_HEIGHT + PREDICTED_CLOSURE_OFFSET_1,
+              blockRate: BLOCK_RATE_1
+            })
+          ])
+        })
+      );
     });
   });
 
@@ -336,13 +503,13 @@ describe(DrainingDeploymentService.name, () => {
         });
       });
 
-      baseSetup.deploymentSettingRepository.paginateAutoTopUpDeployments.mockImplementation((_params: { address?: string; limit: number }) =>
+      baseSetup.deploymentSettingRepository.paginateAutoTopUpDeployments.mockImplementation(() =>
         (async function* () {
           yield deploymentSettings;
         })()
       );
 
-      baseSetup.leaseRepository.findManyByDseqAndOwner.mockResolvedValue(drainingDeployments);
+      baseSetup.leaseRepository.findManyByDseqAndOwner.mockImplementation((_closureHeight, _owner, _dseqs) => Promise.resolve(drainingDeployments));
 
       return {
         ...baseSetup,
@@ -363,13 +530,35 @@ describe(DrainingDeploymentService.name, () => {
     const userWalletRepository = mock<UserWalletRepository>();
     userWalletRepository.findOneBy.mockResolvedValue(undefined);
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
+    const leaseHttpService = mock<LeaseHttpService>();
+    const deploymentHttpService = mock<DeploymentHttpService>();
+    const loggerService = mock<LoggerService>();
+
+    leaseHttpService.list.mockResolvedValue({
+      leases: [],
+      pagination: { next_key: null, total: "0" }
+    });
+
+    deploymentHttpService.findAll.mockResolvedValue({
+      deployments: [],
+      pagination: { next_key: null, total: "0" }
+    });
 
     const config = mockConfigService<DeploymentConfigService>({
       AUTO_TOP_UP_JOB_INTERVAL_IN_H: 1,
       AUTO_TOP_UP_DEPLOYMENT_INTERVAL_IN_H: 3
     });
 
-    const service = new DrainingDeploymentService(blockHttpService, leaseRepository, userWalletRepository, deploymentSettingRepository, config);
+    const service = new DrainingDeploymentService(
+      blockHttpService,
+      leaseRepository,
+      userWalletRepository,
+      deploymentSettingRepository,
+      config,
+      leaseHttpService,
+      loggerService,
+      deploymentHttpService
+    );
 
     return {
       service,
@@ -377,6 +566,9 @@ describe(DrainingDeploymentService.name, () => {
       leaseRepository,
       userWalletRepository,
       deploymentSettingRepository,
+      leaseHttpService,
+      deploymentHttpService,
+      loggerService,
       config
     };
   }

@@ -80,6 +80,51 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     } while (lastId);
   }
 
+  async *findAutoTopUpDeploymentsByOwner(options?: { address?: string }): AsyncGenerator<{ address: string; deploymentSettings: AutoTopUpDeployment[] }> {
+    const baseClauses = [eq(this.table.autoTopUpEnabled, true), eq(this.table.closed, false)];
+
+    const distinctOwnersQuery = this.pg
+      .selectDistinct({
+        address: UserWallets.address
+      })
+      .from(this.table)
+      .leftJoin(Users, eq(this.table.userId, Users.id))
+      .leftJoin(UserWallets, eq(Users.id, UserWallets.userId));
+
+    const distinctClauses = [...baseClauses, isNotNull(UserWallets.address)];
+    if (options?.address) {
+      distinctClauses.push(eq(UserWallets.address, options.address));
+    }
+
+    const distinctOwners = await distinctOwnersQuery.where(and(...distinctClauses));
+
+    for (const { address } of distinctOwners) {
+      if (!address) {
+        continue;
+      }
+
+      const clauses = [...baseClauses, eq(UserWallets.address, address)];
+
+      const deployments = await this.pg
+        .select({
+          id: this.table.id,
+          dseq: this.table.dseq,
+          walletId: UserWallets.id,
+          address: UserWallets.address,
+          isOldWallet: UserWallets.isOldWallet
+        })
+        .from(this.table)
+        .leftJoin(Users, eq(this.table.userId, Users.id))
+        .innerJoin(UserWallets, eq(Users.id, UserWallets.userId))
+        .where(and(...clauses))
+        .orderBy(desc(this.table.id));
+
+      if (deployments.length > 0) {
+        yield { address, deploymentSettings: deployments as AutoTopUpDeployment[] };
+      }
+    }
+  }
+
   protected toInput(payload: Partial<DeploymentSettingsInput>): Partial<DeploymentSettingsInput> {
     if (!payload.updatedAt) {
       payload.updatedAt = new Date();

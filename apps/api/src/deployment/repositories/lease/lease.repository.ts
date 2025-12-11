@@ -42,15 +42,14 @@ export class LeaseRepository {
     return null;
   }
 
-  async findManyByDseqAndOwner(closureHeight: number, pairs: { dseq: string; owner: string }[]): Promise<DrainingDeploymentOutput[]> {
-    if (!pairs.length) return [];
+  async findManyByDseqAndOwner(closureHeight: number, owner: string, dseqs: string[]): Promise<DrainingDeploymentOutput[]> {
+    if (!dseqs.length) return [];
 
     const leaseOrLeases = await Lease.findAll({
       where: {
         predictedClosedHeight: { [Op.lte]: closureHeight },
-        [Op.or]: pairs.map(({ dseq, owner }) => ({
-          [Op.and]: [{ dseq, owner }]
-        }))
+        owner,
+        dseq: { [Op.in]: dseqs }
       },
       attributes: [
         "dseq",
