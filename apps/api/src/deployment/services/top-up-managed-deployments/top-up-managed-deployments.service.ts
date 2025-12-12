@@ -45,6 +45,15 @@ export class TopUpManagedDeploymentsService {
     for await (const { address, deployments } of this.drainingDeploymentService.findDrainingDeploymentsByOwner()) {
       try {
         const messageInputs = await this.collectMessages(deployments, options);
+        if (!messageInputs.length) {
+          this.logger.info({
+            event: "TOP_UP_SKIPPED_NOTHING_TO_TOP_UP",
+            owner: address,
+            deploymentCount: deployments.length,
+            dryRun: options.dryRun
+          });
+          continue;
+        }
         await this.topUpForOwner(address, messageInputs, options);
       } catch (error: unknown) {
         errors.push(error);
