@@ -2,6 +2,7 @@ import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 
 import type { MachineInformation } from "@src/types/machineAccess";
+import { createWalletScopedStorage } from "@src/utils/walletScopedStorage";
 
 interface ProviderSteps {
   serverAccess: boolean;
@@ -43,34 +44,38 @@ interface ProviderProcess {
   actionId: string | null;
 }
 
-const providerProcessAtom = atomWithStorage<ProviderProcess>("providerProcess", {
-  machines: [],
-  storeInformation: false,
-  config: {
-    domain: "",
-    organization: "",
-    email: ""
+const providerProcessAtom = atomWithStorage<ProviderProcess>(
+  "providerProcess",
+  {
+    machines: [],
+    storeInformation: false,
+    config: {
+      domain: "",
+      organization: "",
+      email: ""
+    },
+    process: {
+      serverAccess: false,
+      providerConfig: false,
+      providerAttribute: false,
+      providerPricing: false,
+      portsAndDNS: false,
+      walletImport: false
+    },
+    pricing: {
+      cpu: 1.6,
+      memory: 0.8,
+      storage: 0.02,
+      gpu: 100,
+      persistentStorage: 0.3,
+      ipScalePrice: 5,
+      endpointBidPrice: 0.5
+    },
+    attributes: [],
+    actionId: null
   },
-  process: {
-    serverAccess: false,
-    providerConfig: false,
-    providerAttribute: false,
-    providerPricing: false,
-    portsAndDNS: false,
-    walletImport: false
-  },
-  pricing: {
-    cpu: 1.6,
-    memory: 0.8,
-    storage: 0.02,
-    gpu: 100,
-    persistentStorage: 0.3,
-    ipScalePrice: 5,
-    endpointBidPrice: 0.5
-  },
-  attributes: [],
-  actionId: null
-});
+  createWalletScopedStorage<ProviderProcess>("providerProcess")
+);
 
 const resetProviderProcess = atom(null, (get, set) => {
   set(providerProcessAtom, {
