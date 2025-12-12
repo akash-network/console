@@ -4,12 +4,12 @@
       a = new e.Error().stack;
     a &&
       ((e._sentryDebugIds = e._sentryDebugIds || {}),
-      (e._sentryDebugIds[a] = "f497816c-84ce-4600-a813-7211f42e17c1"),
-      (e._sentryDebugIdIdentifier = "sentry-dbid-f497816c-84ce-4600-a813-7211f42e17c1"));
+      (e._sentryDebugIds[a] = "3a4b12de-2585-411c-8f70-bba72f431b68"),
+      (e._sentryDebugIdIdentifier = "sentry-dbid-3a4b12de-2585-411c-8f70-bba72f431b68"));
   } catch (e) {}
 })();
 var _global = "undefined" != typeof window ? window : "undefined" != typeof global ? global : "undefined" != typeof self ? self : {};
-_global.SENTRY_RELEASE = { id: "0.22.9" };
+_global.SENTRY_RELEASE = { id: "0.23.1" };
 ("use strict");
 (self.webpackChunk_leap_cosmos_extension = self.webpackChunk_leap_cosmos_extension || []).push([
   ["2871"],
@@ -28,13 +28,13 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             m = t(2784),
             u = t(10289),
             x = t(11218),
-            h = e([d]);
-          d = (h.then ? (await h)() : h)[0];
+            p = e([d]);
+          d = (p.then ? (await p)() : p)[0];
           let f = e => {
             let { disableWalletButton: a, onBackClick: t } = e,
               r = (0, u.s0)(),
-              h = (0, c.v)(),
-              [f, p] = (0, m.useState)(!1),
+              p = (0, c.v)(),
+              [f, h] = (0, m.useState)(!1),
               [g, b] = (0, m.useState)(!1),
               y = (0, m.useCallback)(() => b(!0), []);
             return (0, l.jsxs)(l.Fragment, {
@@ -53,14 +53,14 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                       showDropdown: !0,
                       showWalletAvatar: !0,
                       className: "absolute top-1/2 right-1/2 translate-x-1/2 -translate-y-1/2",
-                      walletName: h.walletName,
-                      walletAvatar: h.walletAvatar,
-                      handleDropdownClick: () => p(!a)
+                      walletName: p.walletName,
+                      walletAvatar: p.walletAvatar,
+                      handleDropdownClick: () => h(!a)
                     }),
                     (0, l.jsx)(n.k, { size: 20, className: "text-muted-foreground hover:text-foreground cursor-pointer shrink-0 mr-2", onClick: y })
                   ]
                 }),
-                (0, l.jsx)(d.Z, { isVisible: f, onClose: () => p(!1), title: "Your Wallets" }),
+                (0, l.jsx)(d.Z, { isVisible: f, onClose: () => h(!1), title: "Your Wallets" }),
                 (0, l.jsx)(x.k, { isOpen: g, onClose: () => b(!1) })
               ]
             });
@@ -85,10 +85,10 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             m = t(48735),
             u = t(67430),
             x = t(47125),
-            h = t(44777),
+            p = t(44777),
             f = t(21430),
-            p = t(74993),
-            g = e([p, u, m]);
+            h = t(74993),
+            g = e([h, u, m]);
           function b() {
             let [e, a] = (0, c.useState)(!0),
               t = (0, s._2_)(),
@@ -129,7 +129,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               : (0, l.jsxs)("div", {
                   className: "flex flex-col gap-4",
                   children: [
-                    (0, l.jsx)(p.Z, {}),
+                    (0, l.jsx)(h.Z, {}),
                     r
                       ? (0, l.jsx)(u.Z, {
                           className: "h-[340px] justify-center",
@@ -139,11 +139,11 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                           }),
                           showRetryButton: !0
                         })
-                      : (0, l.jsxs)(l.Fragment, { children: [(0, l.jsx)(m.Z, {}), (0, l.jsx)(x.Z, {}), (0, l.jsx)(h.Z, {}), (0, l.jsx)(f.Z, {})] })
+                      : (0, l.jsxs)(l.Fragment, { children: [(0, l.jsx)(m.Z, {}), (0, l.jsx)(x.Z, {}), (0, l.jsx)(p.Z, {}), (0, l.jsx)(f.Z, {})] })
                   ]
                 });
           }
-          ([p, u, m] = g.then ? (await g)() : g), r();
+          ([h, u, m] = g.then ? (await g)() : g), r();
         } catch (e) {
           r(e);
         }
@@ -152,7 +152,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
     48735: function (e, a, t) {
       t.a(e, async function (e, r) {
         try {
-          t.d(a, { Z: () => p });
+          t.d(a, { Z: () => h });
           var l = t(52322),
             s = t(41172),
             n = t(89187),
@@ -164,14 +164,14 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             m = t(70514),
             u = t(48534),
             x = t(71198),
-            h = t(67430),
-            f = e([h]);
-          function p() {
+            p = t(67430),
+            f = e([p]);
+          function h() {
             let e = (0, s._2_)() || {},
               a = Object.values(e).filter(e => (null == e ? void 0 : e.isEligible) && !(null == e ? void 0 : e.isHidden)),
               t = (0, d.s0)();
             return a.length < 1
-              ? (0, l.jsx)(h.Z, {
+              ? (0, l.jsx)(p.Z, {
                   title: "No eligible Airdrops",
                   subTitle: (0, l.jsxs)(l.Fragment, {
                     children: ["You can change your wallet or ", (0, l.jsx)("br", {}), " check all airdrops on Leapboard."]
@@ -218,7 +218,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   ]
                 });
           }
-          (h = (f.then ? (await f)() : f)[0]), r();
+          (p = (f.then ? (await f)() : f)[0]), r();
         } catch (e) {
           r(e);
         }
@@ -238,9 +238,9 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             m = t(69816),
             u = t(26571),
             x = t(17643),
-            h = t(30464),
+            p = t(30464),
             f = t(24542),
-            p = t.n(f),
+            h = t.n(f),
             g = t(2784),
             b = t(11653),
             y = e([x]);
@@ -251,7 +251,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               Z = (0, x.u)(),
               N = () => {
                 try {
-                  p().track(u.B_.ButtonClick, {
+                  h().track(u.B_.ButtonClick, {
                     buttonType: u.L$.AIRDROPS,
                     buttonName: u.$S.RETRY_AIRDROP,
                     redirectURL: "",
@@ -259,7 +259,17 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     time: Date.now() / 1e3
                   });
                 } catch (e) {
-                  (0, i.Tb)(e);
+                  (0, i.Tb)(e, {
+                    tags: {
+                      errorType: "empty_airdrops_error",
+                      source: "empty_airdrops",
+                      severity: "error",
+                      errorName: e instanceof Error ? e.name : "EmptyAirdropsError"
+                    },
+                    fingerprint: ["empty_airdrops", "empty_airdrops_error"],
+                    level: "error",
+                    contexts: { transaction: { type: "empty_airdrops", errorMessage: e instanceof Error ? e.message : String(e) } }
+                  });
                 }
               };
             return (0, l.jsxs)("div", {
@@ -272,7 +282,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     })
                   : (0, l.jsxs)(l.Fragment, {
                       children: [
-                        (0, l.jsx)("img", { src: h.r.Misc.FrogSad, alt: "FrogSad", className: "mb-6" }),
+                        (0, l.jsx)("img", { src: p.r.Misc.FrogSad, alt: "FrogSad", className: "mb-6" }),
                         (0, l.jsx)(m.Z, { size: "sm", className: "font-bold mb-1", children: a }),
                         (0, l.jsx)(m.Z, { size: "xs", color: "text-gray-800 dark:text-gray-200", className: "font-medium text-center !leading-5", children: t })
                       ]
@@ -444,14 +454,14 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         m = Object.prototype.hasOwnProperty,
         u = Object.prototype.propertyIsEnumerable,
         x = (e, a, t) => (a in e ? i(e, a, { enumerable: !0, configurable: !0, writable: !0, value: t }) : (e[a] = t)),
-        h = (e, a) => {
+        p = (e, a) => {
           for (var t in a || (a = {})) m.call(a, t) && x(e, t, a[t]);
           if (d) for (var t of d(a)) u.call(a, t) && x(e, t, a[t]);
           return e;
         },
         f = (e, a) => o(e, c(a));
-      let p = (0, l.forwardRef)((e, a) => l.createElement(s.Z, f(h({ ref: a }, e), { weights: n })));
-      p.displayName = "RocketLaunch";
+      let h = (0, l.forwardRef)((e, a) => l.createElement(s.Z, f(p({ ref: a }, e), { weights: n })));
+      h.displayName = "RocketLaunch";
       var g = t(92642),
         b = t(72779),
         y = t.n(b),
@@ -478,7 +488,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           children: [
             (0, r.jsx)("img", { src: "https://assets.leapwallet.io/Leapboard.png", alt: "leapboard_logo", width: 16, height: 16 }),
             (0, r.jsx)(j.Z, { size: "xs", className: "font-bold", children: "Go to Leap Dashboard" }),
-            (0, r.jsx)(p, { size: 16, className: "text-black-100 dark:text-white-100" })
+            (0, r.jsx)(h, { size: 16, className: "text-black-100 dark:text-white-100" })
           ]
         });
       }
@@ -762,8 +772,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           if (c) for (var t of c(a)) m.call(a, t) && u(e, t, a[t]);
           return e;
         },
-        h = (e, a) => i(e, o(a));
-      let f = (0, r.forwardRef)((e, a) => r.createElement(l.Z, h(x({ ref: a }, e), { weights: s })));
+        p = (e, a) => i(e, o(a));
+      let f = (0, r.forwardRef)((e, a) => r.createElement(l.Z, p(x({ ref: a }, e), { weights: s })));
       f.displayName = "ArrowCounterClockwise";
     }
   }

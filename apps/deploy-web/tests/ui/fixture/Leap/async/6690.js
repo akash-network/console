@@ -4,12 +4,12 @@
       n = new e.Error().stack;
     n &&
       ((e._sentryDebugIds = e._sentryDebugIds || {}),
-      (e._sentryDebugIds[n] = "0b8ef3ff-f6be-4c37-929d-981f82035c78"),
-      (e._sentryDebugIdIdentifier = "sentry-dbid-0b8ef3ff-f6be-4c37-929d-981f82035c78"));
+      (e._sentryDebugIds[n] = "38180bab-b858-4c64-80fd-8dfcfd3a969c"),
+      (e._sentryDebugIdIdentifier = "sentry-dbid-38180bab-b858-4c64-80fd-8dfcfd3a969c"));
   } catch (e) {}
 })();
 var _global = "undefined" != typeof window ? window : "undefined" != typeof global ? global : "undefined" != typeof self ? self : {};
-_global.SENTRY_RELEASE = { id: "0.22.9" };
+_global.SENTRY_RELEASE = { id: "0.23.1" };
 ("use strict");
 (self.webpackChunk_leap_cosmos_extension = self.webpackChunk_leap_cosmos_extension || []).push([
   ["6690"],
@@ -17,19 +17,19 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
     79215: function (e, n, t) {
       t.d(n, { og: () => f });
       var a = t(52322),
-        s = t(26793),
-        o = t(89187),
+        o = t(26793),
+        s = t(89187),
         i = t(16283),
-        l = t(85027),
-        r = t(86240),
+        r = t(85027),
+        l = t(86240),
         d = t(65953);
       t(2784);
       var c = t(70514),
         u = t(49409);
       let m = e => {
           let { activeIndex: n, setActiveIndex: t, limit: d } = e,
-            { walletAvatar: u, walletName: m } = (0, r.v)();
-          return (0, a.jsxs)(l.m, {
+            { walletAvatar: u, walletName: m } = (0, l.v)();
+          return (0, a.jsxs)(r.m, {
             className: "bg-secondary-50 border-b border-secondary-100",
             children: [
               (0, a.jsx)("div", { className: "w-[72px]" }),
@@ -43,7 +43,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   (0, a.jsxs)("div", {
                     className: "flex items-center rounded-full bg-secondary-200 p-2 justify-between",
                     children: [
-                      (0, a.jsx)(s.W, {
+                      (0, a.jsx)(o.W, {
                         size: 14,
                         className: (0, c.cn)("", { "text-muted-foreground": 0 === n, "text-foreground cursor-pointer": 0 !== n }),
                         onClick: () => {
@@ -51,7 +51,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                         }
                       }),
                       (0, a.jsxs)("p", { className: "text-sm font-bold text-foreground", children: [n + 1, "/", d] }),
-                      (0, a.jsx)(o.T, {
+                      (0, a.jsx)(s.T, {
                         size: 14,
                         className: (0, c.cn)("", { "text-muted-foreground": n === d - 1, "text-foreground cursor-pointer": n !== d - 1 }),
                         onClick: () => {
@@ -93,22 +93,22 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           });
     },
     57767: function (e, n, t) {
-      t.d(n, { Z: () => l });
+      t.d(n, { Z: () => r });
       var a = t(52322),
-        s = t(14281);
+        o = t(14281);
       t(2784);
-      var o = t(86376),
+      var s = t(86376),
         i = t(69816);
-      function l(e) {
+      function r(e) {
         let { showLedgerPopup: n, onClose: t } = e;
-        return (0, a.jsx)(s.Z, {
+        return (0, a.jsx)(o.Z, {
           isOpen: n,
           onClose: t,
           title: "Confirm on Ledger",
           children: (0, a.jsxs)("div", {
             className: "flex flex-col items-center",
             children: [
-              (0, a.jsx)("div", { className: "my-10", children: (0, a.jsx)(o.Z, {}) }),
+              (0, a.jsx)("div", { className: "my-10", children: (0, a.jsx)(s.Z, {}) }),
               (0, a.jsx)(i.Z, { size: "md", className: "font-bold mb-7", children: "Approve transaction on your hardware wallet" })
             ]
           })
@@ -116,9 +116,9 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
       }
     },
     74703: function (e, n, t) {
-      t.d(n, { u: () => s });
+      t.d(n, { u: () => o });
       var a,
-        s =
+        o =
           (((a = {}).signResponse = "sign-response"),
           (a.signingPopupOpen = "signing-popup-open"),
           (a.signTransaction = "sign-transaction"),
@@ -127,9 +127,9 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           a);
     },
     91128: function (e, n, t) {
-      t.d(n, { R: () => s });
+      t.d(n, { R: () => o });
       var a = t(56594);
-      function s(e, n) {
+      function o(e, n) {
         return (0, a.calculateFee)(parseInt(e), n);
       }
     },
@@ -137,11 +137,11 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
       t.a(e, async function (e, a) {
         try {
           t.r(n), t.d(n, { default: () => J });
-          var s = t(52322),
-            o = t(41172),
+          var o = t(52322),
+            s = t(41172),
             i = t(15969),
-            l = t(59458),
-            r = t(7835),
+            r = t(59458),
+            l = t(7835),
             d = t(92642),
             c = t(6391),
             u = t.n(c),
@@ -158,113 +158,113 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             N = t(53108),
             S = t(79533),
             j = t(74229),
-            D = t(76131),
-            T = t(10706),
-            E = t(78935),
-            k = t(65027),
-            I = t(75958),
-            _ = t(70734),
+            _ = t(76131),
+            D = t(10706),
+            T = t(78935),
+            E = t(65027),
+            k = t(75958),
+            I = t(70734),
             C = t(2784),
-            A = t(10289),
-            M = t(42799),
-            L = t(39713),
-            F = t(48346),
+            M = t(10289),
+            A = t(42799),
+            F = t(39713),
+            L = t(48346),
             P = t(46103),
             O = t(44818),
             G = t(48534),
             B = t(72565),
             R = t.n(B),
-            z = t(99895),
-            U = t(64241),
+            U = t(99895),
+            z = t(64241),
             Z = t(26738),
-            $ = e([k, T, L, D, p, Z, F]);
-          [k, T, L, D, p, Z, F] = $.then ? (await $)() : $;
-          let W = k.w.useGetWallet,
-            X = k.w.useSolanaSigner,
-            q = (0, I.Pi)(e => {
+            $ = e([E, D, F, _, p, Z, L]);
+          [E, D, F, _, p, Z, L] = $.then ? (await $)() : $;
+          let W = E.w.useGetWallet,
+            X = E.w.useSolanaSigner,
+            q = (0, k.Pi)(e => {
               let { data: n, chainId: t, rootBalanceStore: a, rootDenomsStore: c, activeChain: m } = e,
                 S = (0, C.useRef)(!1),
+                E = (0, C.useRef)(!1),
                 k = (0, C.useRef)(!1),
-                I = (0, C.useRef)(!1),
-                [M, F] = (0, C.useState)(!1),
+                [A, L] = (0, C.useState)(!1),
                 [B, $] = (0, C.useState)(null),
                 [q] = (0, C.useState)(null),
                 [J, H] = (0, C.useState)(null),
-                [K, Q] = (0, C.useState)([]),
+                [Q, K] = (0, C.useState)([]),
                 [V, Y] = (0, C.useState)(void 0),
-                ee = (0, o.dco)(),
-                en = (0, o._ty)(m),
+                ee = (0, s.dco)(),
+                en = (0, s._ty)(m),
                 et = (0, C.useMemo)(() => {
                   var e;
                   return parseInt((((null === (e = ee[m]) || void 0 === e ? void 0 : e.DEFAULT_GAS_IBC) ?? i.N7W.DEFAULT_GAS_IBC) * en).toString());
                 }, [m, ee, en]),
-                [ea, es] = (0, C.useState)(!1),
-                [eo, ei] = (0, C.useState)(0),
-                [el, er] = (0, C.useState)(""),
+                [ea, eo] = (0, C.useState)(!1),
+                [es, ei] = (0, C.useState)(0),
+                [er, el] = (0, C.useState)(""),
                 [ed, ec] = (0, C.useState)(0),
                 [eu, em] = (0, C.useState)(!1),
                 eg = ["101", "103"],
-                ef = (0, o.rTu)(),
+                ef = (0, s.rTu)(),
                 ev = X(),
                 ep = W(m),
-                ex = (0, A.s0)(),
-                { chains: eh } = (0, o._IL)(),
-                eb = (0, T.Af)(),
+                ex = (0, M.s0)(),
+                { chains: eh } = (0, s._IL)(),
+                eb = (0, D.Af)(),
                 ew = (0, C.useMemo)(() => ("solana:devnet" === t ? "testnet" : "mainnet"), [t]),
                 ey = c.allDenoms,
                 eN = (0, p.e7)(ey, { activeChain: m }),
-                eS = (0, o.bkk)(ey, m, ew),
-                ej = o.rNU.useLogCosmosDappTx(),
-                eD = (0, C.useRef)(!1),
-                [eT, eE] = (0, C.useState)(null),
-                [ek, eI] = (0, C.useState)(!1),
-                e_ = (0, o.FmJ)(),
-                { lcdUrl: eC, rpcUrl: eA } = (0, o.U9i)(m, ew),
-                eM = L.zT.getStore(m, ew, !1),
-                eL = null == eM ? void 0 : eM.data,
-                eF = (0, C.useRef)(null);
+                eS = (0, s.bkk)(ey, m, ew),
+                ej = s.rNU.useLogCosmosDappTx(),
+                e_ = (0, C.useRef)(!1),
+                [eD, eT] = (0, C.useState)(null),
+                [eE, ek] = (0, C.useState)(!1),
+                eI = (0, s.FmJ)(),
+                { lcdUrl: eC, rpcUrl: eM } = (0, s.U9i)(m, ew),
+                eA = F.zT.getStore(m, ew, !1),
+                eF = null == eA ? void 0 : eA.data,
+                eL = (0, C.useRef)(null);
               (0, C.useEffect)(() => {
                 !(async function () {
-                  if (!ef || I.current) return;
+                  if (!ef || k.current) return;
                   let e = ["solana"].filter(e => {
-                    var n, t, a, s;
-                    let o = null == K ? void 0 : null === (t = K[0]) || void 0 === t ? void 0 : null === (n = t.addresses) || void 0 === n ? void 0 : n[e],
-                      i = null == K ? void 0 : null === (s = K[0]) || void 0 === s ? void 0 : null === (a = s.pubKeys) || void 0 === a ? void 0 : a[e];
-                    return (eh[e] && !o) || !i;
+                    var n, t, a, o;
+                    let s = null == Q ? void 0 : null === (t = Q[0]) || void 0 === t ? void 0 : null === (n = t.addresses) || void 0 === n ? void 0 : n[e],
+                      i = null == Q ? void 0 : null === (o = Q[0]) || void 0 === o ? void 0 : null === (a = o.pubKeys) || void 0 === a ? void 0 : a[e];
+                    return (eh[e] && !s) || !i;
                   });
                   if (!(null == e ? void 0 : e.length)) return;
                   let n = {};
                   for await (let t of e) n[t] = eh[t];
                   let t = await eb(ef, e, "UPDATE", void 0, n);
-                  I.current = !0;
-                  let a = K.map(e => {
+                  k.current = !0;
+                  let a = Q.map(e => {
                     if (!t) return e;
                     let n = t[e.id];
                     return n || e;
                   });
-                  Q(a);
+                  K(a);
                 })();
               }, []);
               let eP = (0, C.useMemo)(async () => {
                 let e = await ev(m);
-                return await i.MPm.getSolanaClient(eA ?? "", e, ew);
-              }, [m, eA, ev, ew]);
+                return await i.MPm.getSolanaClient(eM ?? "", e, ew);
+              }, [m, eM, ev, ew]);
               (0, C.useEffect)(() => {
-                !eT &&
-                  eF.current &&
+                !eD &&
+                  eL.current &&
                   setTimeout(() => {
-                    eF.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                    eL.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
                   }, 10);
-              }, [eT]),
+              }, [eD]),
                 (0, C.useEffect)(() => {
                   a.loadBalances(m, ew);
                 }, [m, ew]);
-              let [eO, eG] = (0, C.useState)({ gasPrice: eN.gasPrice, option: o.j1p.LOW });
+              let [eO, eG] = (0, C.useState)({ gasPrice: eN.gasPrice, option: s.j1p.LOW });
               (0, O.h)(null !== ef, "activeWallet is null");
               let {
                   shouldSubmit: eB,
                   isSignMessage: eR,
-                  signOptions: ez
+                  signOptions: eU
                 } = (0, C.useMemo)(() => {
                   let e = null == n ? void 0 : n.submit,
                     t = null == n ? void 0 : n.isSignMessage,
@@ -272,7 +272,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   return { shouldSubmit: e, isSignMessage: t, signOptions: a };
                 }, [n]),
                 {
-                  allowSetFee: eU,
+                  allowSetFee: ez,
                   message: eZ,
                   signDoc: e$,
                   fee: eW,
@@ -286,21 +286,21 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     allowSetFee: e,
                     updatedSignDoc: t,
                     updatedFee: a,
-                    defaultFee: s
-                  } = (0, z.I1)({ signRequestData: n, gasPrice: eO.gasPrice, gasLimit: el, isGasOptionSelected: eD.current, nativeFeeDenom: eS });
-                  return { allowSetFee: e, message: "", signDoc: t, fee: a, defaultFee: s };
-                }, [eR, n, eO.gasPrice, el, eS, ef.addresses, m]),
+                    defaultFee: o
+                  } = (0, U.I1)({ signRequestData: n, gasPrice: eO.gasPrice, gasLimit: er, isGasOptionSelected: e_.current, nativeFeeDenom: eS });
+                  return { allowSetFee: e, message: "", signDoc: t, fee: a, defaultFee: o };
+                }, [eR, n, eO.gasPrice, er, eS, ef.addresses, m]),
                 eq = null == n ? void 0 : n.origin,
-                eJ = (0, E.G)(eq),
+                eJ = (0, T.G)(eq),
                 eH = (0, j.a1)(),
-                eK = (0, C.useCallback)(() => {
+                eQ = (0, C.useCallback)(() => {
                   setTimeout(() => {
                     a.refetchBalances(m, ew);
                   }, 3e3);
                 }, [m, a, ew]),
-                eQ = (0, C.useCallback)(async () => {
+                eK = (0, C.useCallback)(async () => {
                   S.current ||
-                    k.current ||
+                    E.current ||
                     ((S.current = !0),
                     await R().runtime.sendMessage({ type: y.u.signResponse, payload: { status: "error", data: "Transaction cancelled by the user." } }),
                     (0, G.oj)()
@@ -318,7 +318,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   return eN.gasPrice.denom;
                 }, [eX, eN.gasPrice]),
                 eY = (0, C.useCallback)(async () => {
-                  var e, n, a, s, l, r, c, g, f, v;
+                  var e, n, a, o, r, l, c, g, f, v;
                   let p = ef.addresses[m];
                   if (!m || !e$ || !p) return;
                   let x = await eP;
@@ -332,7 +332,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                           t = eq || "";
                         if (!n.some(e => e.origin === t && e.walletIds.includes(ef.id) && e.chainIds.includes("101") && e.chainIds.includes("103")) && t) {
                           let e = [ef.id];
-                          await (0, _.E)(["101", "103"], e, t);
+                          await (0, I.E)(["101", "103"], e, t);
                         }
                         R().runtime.sendMessage({ type: y.u.signResponse, payload: { status: "success", data: { signedTxData: e, activeAddress: p } } });
                       } catch (e) {
@@ -340,7 +340,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                       }
                       em(!1),
                         (0, G.oj)()
-                          ? (eK(), ex("/home"))
+                          ? (eQ(), ex("/home"))
                           : setTimeout(async () => {
                               window.close();
                             }, 10);
@@ -354,17 +354,17 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                           ? new (u())(eW.amount[0].amount).plus(5e3).toString()
                           : null == eW
                             ? void 0
-                            : null === (s = eW.amount) || void 0 === s
+                            : null === (o = eW.amount) || void 0 === o
                               ? void 0
-                              : null === (a = s[0]) || void 0 === a
+                              : null === (a = o[0]) || void 0 === a
                                 ? void 0
                                 : a.amount;
                       await ej({
                         txHash: f,
-                        txType: o.pb0.Dapp,
-                        metadata: { ...e_, dapp_url: eq },
+                        txType: s.pb0.Dapp,
+                        metadata: { ...eI, dapp_url: eq },
                         feeQuantity: i,
-                        feeDenomination: (null == eW ? void 0 : null === (l = eW.amount[0]) || void 0 === l ? void 0 : l.denom) ?? "lamports",
+                        feeDenomination: (null == eW ? void 0 : null === (r = eW.amount[0]) || void 0 === r ? void 0 : r.denom) ?? "lamports",
                         chain: m,
                         chainId: t,
                         address: p,
@@ -383,7 +383,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                         fingerprint: ["solana_dapp_transaction", "solana_dapp_transaction_error"],
                         level: "error",
                         extra: {
-                          feeQuantity: null == eW ? void 0 : null === (r = eW.amount[0]) || void 0 === r ? void 0 : r.amount.toString(),
+                          feeQuantity: null == eW ? void 0 : null === (l = eW.amount[0]) || void 0 === l ? void 0 : l.amount.toString(),
                           feeDenomination: (null == eW ? void 0 : null === (c = eW.amount[0]) || void 0 === c ? void 0 : c.denom) ?? "lamports",
                           chain: m,
                           chainId: t,
@@ -402,7 +402,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                         eg.every(async t => {
                           if (!e.some(e => e.origin === n && e.walletIds.includes(ef.id) && e.chainIds.includes(t)) && n) {
                             let e = [ef.id];
-                            await (0, _.E)([t], e, n);
+                            await (0, I.E)([t], e, n);
                           }
                         }),
                           R().runtime.sendMessage({ type: y.u.signResponse, payload: { status: "success", data: g } });
@@ -411,7 +411,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                       }
                       em(!1),
                         (0, G.oj)()
-                          ? (eK(), ex("/home"))
+                          ? (eQ(), ex("/home"))
                           : setTimeout(async () => {
                               window.close();
                             }, 10);
@@ -423,7 +423,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                         n = eq || "";
                       if (!e.some(e => e.origin === n && e.walletIds.includes(ef.id) && e.chainIds.includes("101")) && n) {
                         let e = [ef.id];
-                        await (0, _.E)(["101", "103"], e, n);
+                        await (0, I.E)(["101", "103"], e, n);
                       }
                       R().runtime.sendMessage({ type: y.u.signResponse, payload: { status: "success", data: v } });
                     } catch {
@@ -431,7 +431,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     }
                     em(!1),
                       (0, G.oj)()
-                        ? (eK(), ex("/home"))
+                        ? (eQ(), ex("/home"))
                         : setTimeout(async () => {
                             window.close();
                           }, 10);
@@ -468,41 +468,41 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                         $(null);
                       }, 3e3);
                   }
-                }, [ef.addresses, ew, m, eK, e$, ep, eq, eW, ej, eQ, eC]);
+                }, [ef.addresses, ew, m, eQ, e$, ep, eq, eW, ej, eK, eC]);
               (0, C.useEffect)(
                 () => (
-                  window.addEventListener("beforeunload", eQ),
+                  window.addEventListener("beforeunload", eK),
                   R().storage.local.remove(N.u1),
                   () => {
-                    window.removeEventListener("beforeunload", eQ);
+                    window.removeEventListener("beforeunload", eK);
                   }
                 ),
-                [eQ]
+                [eK]
               ),
                 (0, C.useEffect)(() => {
                   (async function () {
                     if (!eR)
                       try {
-                        es(!0);
+                        eo(!0);
                         let e = et,
                           n = await ev(m),
-                          t = await i.MPm.getSolanaClient(eA ?? "", n, ew, m),
+                          t = await i.MPm.getSolanaClient(eM ?? "", n, ew, m),
                           { error: a } = await t.simulateTx(e$);
                         a && ($("Simulation failed. This transaction will likely fail if submitted. "), Y(JSON.stringify(a)));
-                        let { limit: s, price: o } = (0, z.kS)(e$);
-                        s && (e = Number(s)), o && ec(o), ei(e);
+                        let { limit: o, price: s } = (0, U.kS)(e$);
+                        o && (e = Number(o)), s && ec(s), ei(e);
                       } catch (e) {
                         ei(et);
                       } finally {
-                        es(!1);
+                        eo(!1);
                       }
                   })();
-                }, [m, null == ef ? void 0 : ef.pubKeys, et, eA]);
+                }, [m, null == ef ? void 0 : ef.pubKeys, et, eM]);
               let e0 = (0, C.useMemo)(
-                  () => !!(null == eW ? void 0 : eW.granter) || !!(null == eW ? void 0 : eW.payer) || !!(null == ez ? void 0 : ez.disableBalanceCheck),
-                  [null == eW ? void 0 : eW.granter, null == eW ? void 0 : eW.payer, null == ez ? void 0 : ez.disableBalanceCheck]
+                  () => !!(null == eW ? void 0 : eW.granter) || !!(null == eW ? void 0 : eW.payer) || !!(null == eU ? void 0 : eU.disableBalanceCheck),
+                  [null == eW ? void 0 : eW.granter, null == eW ? void 0 : eW.payer, null == eU ? void 0 : eU.disableBalanceCheck]
                 ),
-                e1 = !eV || !!B || !!J || (!1 === eT && !ek) || ea || eu,
+                e1 = !eV || !!B || !!J || (!1 === eD && !eE) || ea || eu,
                 e2 = (0, C.useMemo)(
                   () => ({
                     page: "sign-solana-transaction",
@@ -517,8 +517,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                           dappFeeDenom: eV,
                           signingError: !!B,
                           gasPriceError: !!J,
-                          isFeesValid: !!eT,
-                          highFeeAccepted: ek,
+                          isFeesValid: !!eD,
+                          highFeeAccepted: eE,
                           isSigning: eu,
                           isLoadingGasLimit: ea
                         },
@@ -526,35 +526,35 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                       }
                     }
                   }),
-                  [e1, eV, B, J, eT, ek, eu, ea]
+                  [e1, eV, B, J, eD, eE, eu, ea]
                 );
               return (
-                (0, D.$)(e2),
-                (0, s.jsxs)("div", {
+                (0, _.$)(e2),
+                (0, o.jsxs)("div", {
                   className: "h-full",
                   children: [
-                    (0, s.jsxs)(f.og, {
+                    (0, o.jsxs)(f.og, {
                       className: "bg-secondary-50",
                       subTitle: eq || "Unknown site",
                       logo: eJ || eH,
                       title: "Approve transaction",
                       children: [
                         eR
-                          ? (0, s.jsx)("pre", {
+                          ? (0, o.jsx)("pre", {
                               className: g()(
                                 "text-xs text-gray-900 dark:text-white-100 dark:bg-gray-900 bg-white-100 p-4 w-full overflow-x-auto rounded-2xl whitespace-pre-line break-words"
                               ),
                               children: eZ
                             })
-                          : (0, s.jsx)(p.ZP, {
+                          : (0, o.jsx)(p.ZP, {
                               className: "flex flex-col gap-6",
                               initialFeeDenom: eV,
-                              gasLimit: el || String(eo),
-                              setGasLimit: e => er(e.toString()),
-                              recommendedGasLimit: String(eo),
-                              gasPriceOption: eD.current || eU ? eO : { ...eO, option: "" },
+                              gasLimit: er || String(es),
+                              setGasLimit: e => el(e.toString()),
+                              recommendedGasLimit: String(es),
+                              gasPriceOption: e_.current || ez ? eO : { ...eO, option: "" },
                               onGasPriceOptionChange: e => {
-                                (eD.current = !0), eG(e);
+                                (e_.current = !0), eG(e);
                               },
                               error: J,
                               setError: H,
@@ -566,20 +566,42 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                               validateFee: !0,
                               onInvalidFees: (e, n) => {
                                 try {
-                                  !1 === n && eE(!1);
+                                  !1 === n && eT(!1);
                                 } catch (e) {
-                                  (0, d.Tb)(e);
+                                  var a, o;
+                                  (0, d.Tb)(e, {
+                                    tags: {
+                                      errorType: "solana_transaction_fee_error",
+                                      source: "sign_solana_transaction",
+                                      severity: "error",
+                                      errorName: e instanceof Error ? e.name : "SolanaTransactionFeeError",
+                                      transactionType: "solana_dapp_transaction"
+                                    },
+                                    fingerprint: ["solana_dapp_transaction", "solana_dapp_transaction_error"],
+                                    level: "error",
+                                    contexts: { transaction: { type: "solana", errorMessage: e instanceof Error ? e.message : String(e) } },
+                                    extra: {
+                                      feeQuantity: null == eW ? void 0 : null === (a = eW.amount[0]) || void 0 === a ? void 0 : a.amount.toString(),
+                                      feeDenomination: (null == eW ? void 0 : null === (o = eW.amount[0]) || void 0 === o ? void 0 : o.denom) ?? "lamports",
+                                      chain: m,
+                                      chainId: t,
+                                      address: null == ef ? void 0 : ef.addresses[m],
+                                      network: ew,
+                                      isSolana: !0,
+                                      appUrl: eq
+                                    }
+                                  });
                                 }
                               },
-                              hasUserTouchedFees: !!(null == eD ? void 0 : eD.current),
-                              notUpdateInitialGasPrice: !eU,
+                              hasUserTouchedFees: !!(null == e_ ? void 0 : e_.current),
+                              notUpdateInitialGasPrice: !ez,
                               rootDenomsStore: c,
                               rootBalanceStore: a,
-                              children: (0, s.jsx)(Z.t, {
+                              children: (0, o.jsx)(Z.t, {
                                 gasPriceError: J,
-                                txData: (0, z.AX)(e$, !0).signDoc,
-                                allowSetFee: eU,
-                                staticFee: (0, s.jsx)(U.Z, {
+                                txData: (0, U.AX)(e$, !0).signDoc,
+                                allowSetFee: ez,
+                                staticFee: (0, o.jsx)(z.Z, {
                                   fee: eW,
                                   error: J,
                                   setError: H,
@@ -587,61 +609,61 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                                   rootBalanceStore: a,
                                   activeChain: m,
                                   selectedNetwork: ew,
-                                  feeTokensList: eL,
-                                  computedGas: eo * ed
+                                  feeTokensList: eF,
+                                  computedGas: es * ed
                                 })
                               })
                             }),
-                        B ?? q ? (0, s.jsx)(v._, { text: B ?? q ?? "", disableSentryCapture: !0, errorLog: V ?? void 0 }) : null,
-                        (0, s.jsx)(x.Z, {
-                          showLedgerPopup: M,
+                        B ?? q ? (0, o.jsx)(v._, { text: B ?? q ?? "", disableSentryCapture: !0, errorLog: V ?? void 0 }) : null,
+                        (0, o.jsx)(x.Z, {
+                          showLedgerPopup: A,
                           onClose: () => {
-                            F(!1);
+                            L(!1);
                           }
                         })
                       ]
                     }),
-                    (0, s.jsxs)("div", {
+                    (0, o.jsxs)("div", {
                       className: "flex flex-col p-6 bg-secondary-50 justify-center w-full gap-2 mt-auto [&>*]:flex-1 sticky bottom-0",
                       children: [
-                        !1 === eT &&
-                          (0, s.jsxs)("div", {
+                        !1 === eD &&
+                          (0, o.jsxs)("div", {
                             className: "flex flex-row items-center rounded-lg p-[4px]",
-                            ref: eF,
+                            ref: eL,
                             children: [
-                              (0, s.jsx)("div", {
+                              (0, o.jsx)("div", {
                                 className: "mr-2",
-                                onClick: () => eI(!ek),
-                                children: ek
-                                  ? (0, s.jsx)(r.l, { size: 20, className: "cursor-pointer", color: P.w.green600 })
-                                  : (0, s.jsx)(l.b, { size: 20, className: "text-green-600" })
+                                onClick: () => ek(!eE),
+                                children: eE
+                                  ? (0, o.jsx)(l.l, { size: 20, className: "cursor-pointer", color: P.w.green600 })
+                                  : (0, o.jsx)(r.b, { size: 20, className: "text-green-600" })
                               }),
-                              (0, s.jsx)(b.Z, {
+                              (0, o.jsx)(b.Z, {
                                 size: "xs",
                                 color: "dark:text-gray-400 text-gray-600",
                                 children: "The selected fee amount is unusually high. I confirm and agree to proceed"
                               })
                             ]
                           }),
-                        (0, s.jsxs)("div", {
+                        (0, o.jsxs)("div", {
                           className: "flex items-center justify-center w-full gap-3 mt-auto [&>*]:flex-1",
                           children: [
-                            (0, s.jsx)(w.zx, {
+                            (0, o.jsx)(w.zx, {
                               variant: "mono",
-                              onClick: eQ,
-                              children: (0, s.jsx)("span", {
+                              onClick: eK,
+                              children: (0, o.jsx)("span", {
                                 "aria-label": "sign solana transaction page reject button text in sign solana transaction flow",
                                 children: "Reject"
                               })
                             }),
-                            (0, s.jsx)(w.zx, {
+                            (0, o.jsx)(w.zx, {
                               onClick: eY,
                               disabled: e1,
                               className: `${e1 ? "cursor-not-allowed opacity-50" : ""}`,
                               "aria-label": "sign solana transaction page approve button in sign solana transaction flow",
                               children: eu
-                                ? (0, s.jsx)(h.T, { color: "white" })
-                                : (0, s.jsx)("span", {
+                                ? (0, o.jsx)(h.T, { color: "white" })
+                                : (0, o.jsx)("span", {
                                     "aria-label": "sign solana transaction page approve button text in sign solana transaction flow",
                                     children: "Approve"
                                   })
@@ -657,21 +679,21 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             J = (e => {
               let n = () => {
                 let [n, t] = (0, C.useState)(),
-                  [a, o] = (0, C.useState)(i.NOo),
-                  [l, r] = (0, C.useState)(null),
+                  [a, s] = (0, C.useState)(i.NOo),
+                  [r, l] = (0, C.useState)(null),
                   [c, u] = (0, C.useState)(),
                   [m] = (0, C.useState)(null),
-                  g = (0, A.s0)();
+                  g = (0, M.s0)();
                 (0, C.useEffect)(() => {
-                  (0, S._d)().then(o).catch(d.Tb);
+                  (0, S._d)().then(s).catch(d.Tb);
                 }, []);
                 let f = (e, n) => {
                   if (n.id === R().runtime.id && e.type === y.u.signTransaction) {
                     let n = e.payload,
-                      s = n.chainId ? n.chainId : "101",
-                      o = s ? a["101"] : void 0;
-                    if (!o) {
-                      R().runtime.sendMessage({ type: y.u.signResponse, payload: { status: "error", data: `Invalid chainId rggfgsfgsfgsgsg ${s}` } }),
+                      o = n.chainId ? n.chainId : "101",
+                      s = o ? a["101"] : void 0;
+                    if (!s) {
+                      R().runtime.sendMessage({ type: y.u.signResponse, payload: { status: "error", data: `Invalid chainId rggfgsfgsfgsgsg ${o}` } }),
                         (0, G.oj)()
                           ? g("/home")
                           : setTimeout(async () => {
@@ -679,7 +701,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                             }, 10);
                       return;
                     }
-                    t(o), u(s), r(n);
+                    t(s), u(o), l(n);
                   }
                 };
                 if (
@@ -693,24 +715,24 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     ),
                     []
                   ),
-                  n && l && c)
+                  n && r && c)
                 )
-                  return (0, s.jsx)(e, { data: l, chainId: c, activeChain: n, rootDenomsStore: M.gb, rootBalanceStore: F.jZ });
+                  return (0, o.jsx)(e, { data: r, chainId: c, activeChain: n, rootDenomsStore: A.gb, rootBalanceStore: L.jZ });
                 if (m) {
                   var v;
                   let e = ((v = m.code), "no-data" === v ? "No Transaction Data" : "Something Went Wrong");
-                  return (0, s.jsxs)("div", {
+                  return (0, o.jsxs)("div", {
                     className: "h-full w-full flex flex-col gap-4 items-center justify-center",
                     children: [
-                      (0, s.jsx)("h1", { className: "text-red-300 text-2xl font-bold px-4 text-center", children: e }),
-                      (0, s.jsx)("p", { className: "text-black-100 dark:text-white-100 text-sm font-medium px-4 text-center", children: m.message }),
-                      (0, s.jsx)("button", {
+                      (0, o.jsx)("h1", { className: "text-red-300 text-2xl font-bold px-4 text-center", children: e }),
+                      (0, o.jsx)("p", { className: "text-black-100 dark:text-white-100 text-sm font-medium px-4 text-center", children: m.message }),
+                      (0, o.jsx)("button", {
                         className: "mt-8 py-1 px-4 text-center text-sm font-medium dark:text-white-100 text-black-100 bg-indigo-300 rounded-full",
                         onClick: () => {
                           (0, G.oj)() ? g("/home") : window.close();
                         },
                         "aria-label": "sign solana transaction page close wallet button in sign solana transaction flow",
-                        children: (0, s.jsx)("span", {
+                        children: (0, o.jsx)("span", {
                           "aria-label": "sign solana transaction page close wallet button text in sign solana transaction flow",
                           children: "Close Wallet"
                         })
@@ -718,9 +740,9 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     ]
                   });
                 }
-                return (0, s.jsx)("div", {
+                return (0, o.jsx)("div", {
                   className: "h-full w-full flex flex-col gap-4 items-center justify-center",
-                  children: (0, s.jsx)(h.T, { color: "white" })
+                  children: (0, o.jsx)(h.T, { color: "white" })
                 });
               };
               return (n.displayName = `withTxnSigningRequest(${e.displayName})`), n;
@@ -734,29 +756,29 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
     64241: function (e, n, t) {
       t.d(n, { Z: () => g });
       var a = t(52322),
-        s = t(41172),
-        o = t(15969),
+        o = t(41172),
+        s = t(15969),
         i = t(60431),
-        l = t(6391),
-        r = t.n(l),
+        r = t(6391),
+        l = t.n(r),
         d = t(6401),
         c = t(75958),
         u = t(2784);
       let m = (e, n, t) => {
           var a;
-          let { amount: s } = e,
-            i = (null === (a = s[0]) || void 0 === a ? void 0 : a.amount) ?? "",
-            l = (0, o.t7o)(new (r())(t).toString(), n),
-            d = (0, o.t7o)(new (r())(i).toString(), n),
-            c = d.plus(l),
-            u = c.toFormat(5, r().ROUND_DOWN),
+          let { amount: o } = e,
+            i = (null === (a = o[0]) || void 0 === a ? void 0 : a.amount) ?? "",
+            r = (0, s.t7o)(new (l())(t).toString(), n),
+            d = (0, s.t7o)(new (l())(i).toString(), n),
+            c = d.plus(r),
+            u = c.toFormat(5, l().ROUND_DOWN),
             m = c.isLessThan("0.00001");
           return { amount: c, formattedAmount: m && !d.isEqualTo(0) ? "< 0.00001" : u };
         },
         g = (0, c.Pi)(e => {
-          var n, t, o;
+          var n, t, s;
           let {
-              fee: l,
+              fee: r,
               error: c,
               setError: g,
               disableBalanceCheck: f,
@@ -766,18 +788,18 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               feeTokensList: h,
               computedGas: b
             } = e,
-            w = (0, s.dco)(),
-            [y] = (0, s.X$P)(),
+            w = (0, o.dco)(),
+            [y] = (0, o.X$P)(),
             N = v.getSpendableBalancesForChain(p, x, void 0),
             S = v.getLoadingStatusForChain(p, x),
             j = (0, u.useMemo)(() => (S ? "loading" : "success"), [S]),
-            D = (0, s.xxU)(),
-            [T] = (0, d.nB)(),
-            E = (0, u.useMemo)(() => {
+            _ = (0, o.xxU)(),
+            [D] = (0, d.nB)(),
+            T = (0, u.useMemo)(() => {
               var e, n;
-              let t = null == l ? void 0 : null === (e = l.amount[0]) || void 0 === e ? void 0 : e.denom,
+              let t = null == r ? void 0 : null === (e = r.amount[0]) || void 0 === e ? void 0 : e.denom,
                 a = null == h ? void 0 : h.find(e => (e.ibcDenom ? e.ibcDenom === t : e.denom.coinMinimalDenom === t)),
-                s =
+                o =
                   null ===
                     (n = N.find(e => {
                       var n;
@@ -788,39 +810,39 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     })) || void 0 === n
                     ? void 0
                     : n.amount;
-              return { ...a, amount: s };
-            }, [N, null == l ? void 0 : l.amount, h]),
-            { data: k } = (0, i.useQuery)(
-              ["fee-token-fiat-value", null == E ? void 0 : null === (n = E.denom) || void 0 === n ? void 0 : n.coinDenom],
+              return { ...a, amount: o };
+            }, [N, null == r ? void 0 : r.amount, h]),
+            { data: E } = (0, i.useQuery)(
+              ["fee-token-fiat-value", null == T ? void 0 : null === (n = T.denom) || void 0 === n ? void 0 : n.coinDenom],
               async () => {
                 var e, n, t;
-                return (0, s.knL)(
+                return (0, o.knL)(
                   "1",
-                  (null == E ? void 0 : null === (e = E.denom) || void 0 === e ? void 0 : e.coinGeckoId) ?? "",
-                  null == E ? void 0 : null === (n = E.denom) || void 0 === n ? void 0 : n.chain,
-                  s.r95[y].currencyPointer,
-                  `${D}-${null == E ? void 0 : null === (t = E.denom) || void 0 === t ? void 0 : t.coinMinimalDenom}`
+                  (null == T ? void 0 : null === (e = T.denom) || void 0 === e ? void 0 : e.coinGeckoId) ?? "",
+                  null == T ? void 0 : null === (n = T.denom) || void 0 === n ? void 0 : n.chain,
+                  o.r95[y].currencyPointer,
+                  `${_}-${null == T ? void 0 : null === (t = T.denom) || void 0 === t ? void 0 : t.coinMinimalDenom}`
                 );
               }
             ),
-            I = (0, u.useMemo)(() => {
+            k = (0, u.useMemo)(() => {
               var e;
-              return l ? m(l, (null == E ? void 0 : null === (e = E.denom) || void 0 === e ? void 0 : e.coinDecimals) ?? 0, b) : null;
-            }, [p, w, l, null == E ? void 0 : null === (t = E.denom) || void 0 === t ? void 0 : t.coinDecimals, b]);
+              return r ? m(r, (null == T ? void 0 : null === (e = T.denom) || void 0 === e ? void 0 : e.coinDecimals) ?? 0, b) : null;
+            }, [p, w, r, null == T ? void 0 : null === (t = T.denom) || void 0 === t ? void 0 : t.coinDecimals, b]);
           return (
             (0, u.useEffect)(() => {
               var e, n;
-              let t = null == I ? void 0 : null === (e = I.amount) || void 0 === e ? void 0 : e.toString();
+              let t = null == k ? void 0 : null === (e = k.amount) || void 0 === e ? void 0 : e.toString();
               !f &&
                 t &&
                 "loading" !== j &&
-                (new (r())(t).isGreaterThan((null == E ? void 0 : E.amount) ?? 0)
-                  ? g(`You don't have enough ${null == E ? void 0 : null === (n = E.denom) || void 0 === n ? void 0 : n.coinDenom} to pay the gas fee`)
+                (new (l())(t).isGreaterThan((null == T ? void 0 : T.amount) ?? 0)
+                  ? g(`You don't have enough ${null == T ? void 0 : null === (n = T.denom) || void 0 === n ? void 0 : n.coinDenom} to pay the gas fee`)
                   : g(null));
-            }, [E, I, j, f]),
+            }, [T, k, j, f]),
             (0, a.jsx)("div", {
               className: "mt-3",
-              children: I
+              children: k
                 ? (0, a.jsx)("div", {
                     className: "rounded-lg bg-secondary-100 border border-secondary-200",
                     children: (0, a.jsxs)("div", {
@@ -833,11 +855,11 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                         (0, a.jsxs)("p", {
                           className: "font-medium text-foreground text-sm mt-3 list-none ml-0",
                           children: [
-                            I.formattedAmount,
+                            k.formattedAmount,
                             " ",
-                            null == E ? void 0 : null === (o = E.denom) || void 0 === o ? void 0 : o.coinDenom,
+                            null == T ? void 0 : null === (s = T.denom) || void 0 === s ? void 0 : s.coinDenom,
                             " ",
-                            k ? T(new (r())((null == I ? void 0 : I.amount) ?? 0).multipliedBy(k)) : null
+                            E ? D(new (l())((null == k ? void 0 : k.amount) ?? 0).multipliedBy(E)) : null
                           ]
                         }),
                         c ? (0, a.jsx)("p", { className: "font-medium text-destructive-400 text-sm mt-3 list-none ml-0", children: c }) : null
@@ -853,18 +875,18 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
       t.a(e, async function (e, a) {
         try {
           t.d(n, { t: () => x });
-          var s = t(52322),
-            o = t(58885),
+          var o = t(52322),
+            s = t(58885),
             i = t(4370),
-            l = t(14981),
-            r = t(25053),
+            r = t(14981),
+            l = t(25053),
             d = t(2784),
             c = t(42799),
             u = t(48346),
             m = t(46338),
             g = t(43963),
-            f = e([o, u]);
-          [o, u] = f.then ? (await f)() : f;
+            f = e([s, u]);
+          [s, u] = f.then ? (await f)() : f;
           let v = [
               { id: "fees", label: "Fees" },
               { id: "details", label: "Details" }
@@ -872,11 +894,11 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             p = { transform: "translateX(0px) scaleX(0.161044)" },
             x = e => {
               let [n, t] = (0, d.useState)(v[0]);
-              return (0, s.jsxs)(s.Fragment, {
+              return (0, o.jsxs)(o.Fragment, {
                 children: [
-                  (0, s.jsx)("div", {
+                  (0, o.jsx)("div", {
                     className: "border-b border-secondary-300",
-                    children: (0, s.jsx)(r.z, {
+                    children: (0, o.jsx)(l.z, {
                       buttons: v,
                       setSelectedTab: t,
                       selectedIndex: v.findIndex(e => {
@@ -888,14 +910,14 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                       indicatorDefaultScale: p
                     })
                   }),
-                  (0, s.jsx)("div", {
+                  (0, o.jsx)("div", {
                     className: "flex flex-col gap-6",
-                    children: (0, s.jsxs)(l.M, {
+                    children: (0, o.jsxs)(r.M, {
                       mode: "wait",
                       initial: !1,
                       children: [
                         "fees" === n.id &&
-                          (0, s.jsx)(
+                          (0, o.jsx)(
                             i.E.div,
                             {
                               className: "flex flex-col gap-7",
@@ -905,18 +927,18 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                               animate: "animate",
                               exit: "exit",
                               children: e.allowSetFee
-                                ? (0, s.jsxs)(s.Fragment, {
+                                ? (0, o.jsxs)(o.Fragment, {
                                     children: [
-                                      (0, s.jsx)(o.ZP.Selector, {}),
-                                      (0, s.jsxs)("div", {
+                                      (0, o.jsx)(s.ZP.Selector, {}),
+                                      (0, o.jsxs)("div", {
                                         className: "border border-border-bottom rounded-xl ",
                                         children: [
-                                          (0, s.jsx)(o.ZP.AdditionalSettingsToggle, {}),
-                                          (0, s.jsx)(o.ZP.AdditionalSettings, { showGasLimitWarning: !0, rootBalanceStore: u.jZ, rootDenomsStore: c.gb })
+                                          (0, o.jsx)(s.ZP.AdditionalSettingsToggle, {}),
+                                          (0, o.jsx)(s.ZP.AdditionalSettings, { showGasLimitWarning: !0, rootBalanceStore: u.jZ, rootDenomsStore: c.gb })
                                         ]
                                       }),
                                       !!e.gasPriceError &&
-                                        (0, s.jsx)("p", { className: "text-destructive-100 text-sm font-medium px-1", children: e.gasPriceError }),
+                                        (0, o.jsx)("p", { className: "text-destructive-100 text-sm font-medium px-1", children: e.gasPriceError }),
                                       " "
                                     ]
                                   })
@@ -925,11 +947,11 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                             "fees"
                           ),
                         "details" === n.id &&
-                          (0, s.jsxs)("div", {
+                          (0, o.jsxs)("div", {
                             className: "flex flex-col gap-3 p-4 rounded-xl border border-secondary-200 bg-secondary-50",
                             children: [
-                              (0, s.jsx)("span", { className: "text-muted-foreground text-xs font-medium", children: "Data" }),
-                              (0, s.jsx)(
+                              (0, o.jsx)("span", { className: "text-muted-foreground text-xs font-medium", children: "Data" }),
+                              (0, o.jsx)(
                                 i.E.pre,
                                 {
                                   transition: m._M,
@@ -959,18 +981,18 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
     99895: function (e, n, t) {
       t.d(n, { AX: () => c, I1: () => m, kS: () => u });
       var a = t(56594),
-        s = t(15969),
-        o = t(62101),
+        o = t(15969),
+        s = t(62101),
         i = t(6391),
-        l = t.n(i),
-        r = t(91128),
+        r = t.n(i),
+        l = t(91128),
         d = t(48834).Buffer;
       function c(e) {
         let n = arguments.length > 1 && void 0 !== arguments[1] && arguments[1],
-          t = o.GS.deserialize(e);
+          t = s.GS.deserialize(e);
         if (n) {
           let n = new Uint8Array(d.from(e, "base64"));
-          return { signDoc: o.GS.deserialize(n), signOptions: {} };
+          return { signDoc: s.GS.deserialize(n), signOptions: {} };
         }
         return { signDoc: t, signOptions: {} };
       }
@@ -978,39 +1000,39 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         let n = 0,
           t = 0,
           a = new Uint8Array(d.from(e, "base64")),
-          s = o.GS.deserialize(a);
-        for (let [e, a] of s.message.compiledInstructions.entries())
-          if (s.message.staticAccountKeys[a.programIdIndex].equals(o.Lb.programId)) {
+          o = s.GS.deserialize(a);
+        for (let [e, a] of o.message.compiledInstructions.entries())
+          if (o.message.staticAccountKeys[a.programIdIndex].equals(s.Lb.programId)) {
             let e = d.from(a.data),
-              s = e[0];
-            2 === s && (n = e.readUInt32LE(1)), 3 === s && (t = Number(e.readBigUInt64LE(1)) / 1e6);
+              o = e[0];
+            2 === o && (n = e.readUInt32LE(1)), 3 === o && (t = Number(e.readBigUInt64LE(1)) / 1e6);
           }
         return { limit: n, price: t };
       }
       function m(e) {
-        let { signRequestData: n, gasPrice: t, gasLimit: o, isGasOptionSelected: i, nativeFeeDenom: d } = e,
+        let { signRequestData: n, gasPrice: t, gasLimit: s, isGasOptionSelected: i, nativeFeeDenom: d } = e,
           { signOptions: u } = c(n.signDoc),
-          m = (function (e, n, t, a, s) {
-            let o = new (l())(n),
-              i = (null == s ? void 0 : s.preferNoSetFee) && !a ? e : (0, r.R)(!o.isNaN() && o.isGreaterThan(0) ? o.toString() : e.gas, t);
-            return (i.amount[0].amount = new (l())(i.amount[0].amount).plus(5e3).toString()), i;
-          })((0, a.calculateFee)(Number(5e3), s.DB5.fromString(`0${d.coinMinimalDenom}`)), o, t, i, u);
+          m = (function (e, n, t, a, o) {
+            let s = new (r())(n),
+              i = (null == o ? void 0 : o.preferNoSetFee) && !a ? e : (0, l.R)(!s.isNaN() && s.isGreaterThan(0) ? s.toString() : e.gas, t);
+            return (i.amount[0].amount = new (r())(i.amount[0].amount).plus(5e3).toString()), i;
+          })((0, a.calculateFee)(Number(5e3), o.DB5.fromString(`0${d.coinMinimalDenom}`)), s, t, i, u);
         return { updatedSignDoc: n.signDoc, updatedFee: m, allowSetFee: !1, defaultFee: m, defaultMemo: "" };
       }
     },
     25053: function (e, n, t) {
       t.d(n, { z: () => c });
       var a = t(52322),
-        s = t(91486),
-        o = t(65903),
+        o = t(91486),
+        s = t(65903),
         i = t(2784),
-        l = t(70514);
-      let r = (0, i.forwardRef)((e, n) =>
+        r = t(70514);
+      let l = (0, i.forwardRef)((e, n) =>
         (0, a.jsx)("button", {
           ref: n,
-          className: (0, l.cn)(
+          className: (0, r.cn)(
             "text-sm font-medium text-foreground transition-colors capitalize pb-3.5 rounded-full",
-            s.YV,
+            o.YV,
             e.active ? "text-accent-green" : "text-secondary-700 hover:text-foreground",
             e.className
           ),
@@ -1019,22 +1041,22 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           children: (0, a.jsx)("span", { "aria-label": `tab button text in stake v2 flow ${e.children}`, children: e.children })
         })
       );
-      r.displayName = "TabButton";
+      l.displayName = "TabButton";
       let d = { transform: "translateX(0px) scaleX(0.441654)" },
         c = e => {
           var n;
-          let { setSelectedTab: t, selectedIndex: s, buttons: i, buttonClassName: c, className: u, indicatorDefaultScale: m } = e,
-            { containerRef: g, indicatorRef: f, childRefs: v } = (0, o.r)({ navItems: i, activeLabel: null === (n = i[s]) || void 0 === n ? void 0 : n.label });
+          let { setSelectedTab: t, selectedIndex: o, buttons: i, buttonClassName: c, className: u, indicatorDefaultScale: m } = e,
+            { containerRef: g, indicatorRef: f, childRefs: v } = (0, s.r)({ navItems: i, activeLabel: null === (n = i[o]) || void 0 === n ? void 0 : n.label });
           return (0, a.jsxs)("div", {
             ref: g,
-            className: (0, l.cn)("relative flex items-center isolate gap-7", u),
+            className: (0, r.cn)("relative flex items-center isolate gap-7", u),
             children: [
               i.map((e, n) =>
                 (0, a.jsx)(
-                  r,
+                  l,
                   {
                     ref: e => v.current.set(n, e),
-                    active: n === s,
+                    active: n === o,
                     onClick: () => t(e),
                     className: c,
                     "aria-label": `tab button in stake v2 flow ${e.label}`,

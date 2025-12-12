@@ -1,6 +1,8 @@
 import type { NetworkId } from "@akashnetwork/chain-sdk";
 import type { Page } from "@playwright/test";
 
+import { isWalletConnected } from "../uiState/isWalletConnected";
+
 export async function selectChainNetwork(page: Page, networkId: NetworkId = "sandbox") {
   await page.getByRole("link", { name: "App Settings" }).click();
   const selectNetworkButton = page.getByLabel("Select Network");
@@ -17,6 +19,12 @@ export async function selectChainNetwork(page: Page, networkId: NetworkId = "san
     .catch(() => null);
   await page.getByRole("button", { name: "Save" }).click();
 
-  const popupPage = await popupPromise;
+  const popupPage = await Promise.race([
+    popupPromise,
+    isWalletConnected(page).then(
+      () => null,
+      () => null
+    )
+  ]);
   await popupPage?.getByRole("button", { name: /Approve/i }).click();
 }

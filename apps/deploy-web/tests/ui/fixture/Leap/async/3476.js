@@ -4,12 +4,12 @@
       t = new e.Error().stack;
     t &&
       ((e._sentryDebugIds = e._sentryDebugIds || {}),
-      (e._sentryDebugIds[t] = "72c9b255-3aa1-4d23-be81-72531d46a75d"),
-      (e._sentryDebugIdIdentifier = "sentry-dbid-72c9b255-3aa1-4d23-be81-72531d46a75d"));
+      (e._sentryDebugIds[t] = "bae048a7-5631-4e72-9251-0851f68b6d2d"),
+      (e._sentryDebugIdIdentifier = "sentry-dbid-bae048a7-5631-4e72-9251-0851f68b6d2d"));
   } catch (e) {}
 })();
 var _global = "undefined" != typeof window ? window : "undefined" != typeof global ? global : "undefined" != typeof self ? self : {};
-_global.SENTRY_RELEASE = { id: "0.22.9" };
+_global.SENTRY_RELEASE = { id: "0.23.1" };
 ("use strict");
 (self.webpackChunk_leap_cosmos_extension = self.webpackChunk_leap_cosmos_extension || []).push([
   ["3476"],
@@ -119,10 +119,11 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 isPriceImpactChecked: v,
                 reviewBtnDisabled: k,
                 onReviewClick: S,
-                isLedgerDisconnectedError: C
+                isLedgerDisconnectedError: C,
+                isNoRoutesAvailable: j
               } = e,
-              j = (0, i.rTu)(),
-              y = (0, d.U)(),
+              y = (0, i.rTu)(),
+              N = (0, d.U)(),
               I = (0, h.useMemo)(
                 () =>
                   t
@@ -131,14 +132,14 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                       ? "Insufficient balance"
                       : (0, g.qo)(u)
                         ? "No transaction routes available"
-                        : "evmos" === p.J.activeChain && (null == j ? void 0 : j.walletType) === i._KQ.LEDGER
+                        : "evmos" === p.J.activeChain && (null == y ? void 0 : y.walletType) === i._KQ.LEDGER
                           ? "Not supported using Ledger wallet"
-                          : x || (f ? "Enter amount" : C ? "Connect Ledger" : "Review Transfer"),
-                [null == j ? void 0 : j.walletType, a, f, u, t, x, C]
+                          : x || (f ? "Enter amount" : C ? "Connect Ledger" : j ? "No routes available" : "Review Transfer"),
+                [null == y ? void 0 : y.walletType, a, f, u, t, x, C, j]
               ),
-              N = (0, h.useMemo)(
-                () => ("evmos" === p.J.activeChain && (null == j ? void 0 : j.walletType) === i._KQ.LEDGER) || k || b || (w && !v),
-                [null == j ? void 0 : j.walletType, w, v, b, k]
+              D = (0, h.useMemo)(
+                () => ("evmos" === p.J.activeChain && (null == y ? void 0 : y.walletType) === i._KQ.LEDGER) || k || b || (w && !v),
+                [null == y ? void 0 : y.walletType, w, v, b, k]
               );
             return (0, s.jsx)("div", {
               className: "sticky bottom-0 left-0 z-[2] right-0 bg-secondary-100 px-5 py-4",
@@ -163,14 +164,14 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                         "!bg-primary": !(t || a || (0, g.qo)(u) || x),
                         "!bg-destructive-100/40": t || a || (0, g.qo)(u) || !!x
                       }),
-                      disabled: N,
+                      disabled: D,
                       style: { boxShadow: "none" },
                       onClick: () => {
                         if (C) {
-                          y();
+                          N();
                           return;
                         }
-                        (null == j ? void 0 : j.watchWallet) ? m.o.setShowPopup(!0) : S(!0);
+                        (null == y ? void 0 : y.watchWallet) ? m.o.setShowPopup(!0) : S(!0);
                       },
                       "aria-label": "review button in swaps v2 flow",
                       children: I
@@ -476,13 +477,13 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             C = a(19126),
             j = a.n(C),
             y = a(2784),
-            I = a(10289),
-            N = a(78344),
+            N = a(10289),
+            I = a(78344),
             D = a(81354),
             T = a(26245),
             E = a(42799),
-            P = a(70514),
-            A = a(12499),
+            A = a(70514),
+            P = a(12499),
             F = a(23222),
             B = a(52516),
             L = a(52173),
@@ -496,14 +497,14 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           [g, M, m, $, q, B, L, S, F, p, O, T, U] = R.then ? (await R)() : R;
           let Z = (0, k.Pi)(() => {
               var e;
-              let t = (0, I.s0)(),
+              let t = (0, N.s0)(),
                 a = (0, b.a)(),
                 n = (0, y.useRef)(0),
                 o = (0, y.useRef)(),
                 r = (0, i.rTu)(),
                 [c, p] = (0, y.useState)(!1),
                 [w, k] = (0, y.useState)("source"),
-                [C, N] = (0, y.useState)(!1),
+                [C, I] = (0, y.useState)(!1),
                 [T, U] = (0, y.useState)(!1),
                 [R, Z] = (0, y.useState)(!1),
                 [V, G] = (0, y.useState)(!1),
@@ -539,13 +540,13 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   sourceChain: eC,
                   sourceTokenBalanceStatus: ej,
                   handleInAmountChange: ey,
-                  sourceAssets: eI,
-                  loadingChains: eN,
+                  sourceAssets: eN,
+                  loadingChains: eI,
                   chainsToShow: eD,
                   invalidAmount: eT,
                   amountExceedsBalance: eE,
-                  amountOut: eP,
-                  destinationToken: eA,
+                  amountOut: eA,
+                  destinationToken: eP,
                   destinationChain: eF,
                   loadingDestinationAssets: eB,
                   destinationTokenBalancesStatus: eL,
@@ -579,10 +580,10 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   destinationAssetUSDValue: e9,
                   sourceAssetUSDValue: e8
                 } = (0, y.useMemo)(
-                  () => (0, _.i_)(null == eQ ? void 0 : eQ.route, ek, eA, E.gb.allDenoms),
-                  [null == eQ ? void 0 : eQ.route, ek, eA, E.gb.allDenoms]
+                  () => (0, _.i_)(null == eQ ? void 0 : eQ.route, ek, eP, E.gb.allDenoms),
+                  [null == eQ ? void 0 : eQ.route, ek, eP, E.gb.allDenoms]
                 ),
-                e6 = (0, y.useMemo)(() => "request-confirmation" === (0, _.Us)(eQ.route, ek, eA, E.gb.allDenoms), [eQ.route, ek, eA]);
+                e6 = (0, y.useMemo)(() => "request-confirmation" === (0, _.Us)(eQ.route, ek, eP, E.gb.allDenoms), [eQ.route, ek, eP]);
               (0, y.useEffect)(() => {
                 e6 ? Z(!1) : Z(!0);
               }, [e6]);
@@ -591,14 +592,14 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               }, []);
               (0, y.useEffect)(
                 () => (
-                  Number(eP) && ![W, K, c, Q, T].includes(!0)
+                  Number(eA) && ![W, K, c, Q, T].includes(!0)
                     ? (o.current = setInterval(async () => {
                         if (10 === n.current) {
-                          (n.current = 0), N(!0), te();
+                          (n.current = 0), I(!0), te();
                           try {
                             await eV();
                           } catch (e) {}
-                          N(!1);
+                          I(!1);
                           return;
                         }
                         n.current += 1;
@@ -606,7 +607,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     : (n.current = 0),
                   () => clearInterval(o.current)
                 ),
-                [eP, eV, W, K, c, Q, T, te]
+                [eA, eV, W, K, c, Q, T, te]
               );
               let tt = (0, y.useMemo)(() => {
                 var e;
@@ -617,11 +618,11 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     ev &&
                     !isNaN(parseFloat(ev)) &&
                     (t = parseFloat(null == ek ? void 0 : ek.usdPrice) * parseFloat(ev)),
-                  (null == eA ? void 0 : eA.usdPrice) &&
-                    !isNaN(parseFloat(null == eA ? void 0 : eA.usdPrice)) &&
-                    eP &&
-                    !isNaN(parseFloat(eP)) &&
-                    (a = parseFloat(eA.usdPrice) * parseFloat(eP)),
+                  (null == eP ? void 0 : eP.usdPrice) &&
+                    !isNaN(parseFloat(null == eP ? void 0 : eP.usdPrice)) &&
+                    eA &&
+                    !isNaN(parseFloat(eA)) &&
+                    (a = parseFloat(eP.usdPrice) * parseFloat(eA)),
                   {
                     pageName: h.q.SwapsQuoteReady,
                     priceImpactPercent: null == e4 ? void 0 : e4.toNumber(),
@@ -631,7 +632,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     fromToken: null == ek ? void 0 : ek.symbol,
                     fromTokenAmount: t,
                     fromChain: (null == eC ? void 0 : eC.chainName) ?? "",
-                    toToken: null == eA ? void 0 : eA.symbol,
+                    toToken: null == eP ? void 0 : eP.symbol,
                     toChain: null == eF ? void 0 : eF.chainName,
                     toTokenAmount: a,
                     transactionCount: null == eQ ? void 0 : null === (e = eQ.route) || void 0 === e ? void 0 : e.transactionCount
@@ -639,11 +640,11 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 );
               }, [
                 eE,
-                eP,
+                eA,
                 e6,
                 null == eF ? void 0 : eF.chainName,
-                null == eA ? void 0 : eA.symbol,
-                null == eA ? void 0 : eA.usdPrice,
+                null == eP ? void 0 : eP.symbol,
+                null == eP ? void 0 : eP.usdPrice,
                 ev,
                 e4,
                 null == eQ ? void 0 : eQ.route,
@@ -660,17 +661,17 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               }, [tt, er, ed]),
                 (0, y.useEffect)(() => {
                   eu(!1);
-                }, [ev, ek, eA]),
+                }, [ev, ek, eP]),
                 (0, y.useEffect)(() => {
-                  parseFloat(ev) > 0 && !eK && ((0, M.qo)(eW) || ((null == eQ ? void 0 : eQ.route) && parseFloat(eP) > 0)) ? ec(!0) : ec(!1);
-                }, [ev, eK, null == eQ ? void 0 : eQ.route, e4, e6, eE, eP, eW]),
+                  parseFloat(ev) > 0 && !eK && ((0, M.qo)(eW) || ((null == eQ ? void 0 : eQ.route) && parseFloat(eA) > 0)) ? ec(!0) : ec(!1);
+                }, [ev, eK, null == eQ ? void 0 : eQ.route, e4, e6, eE, eA, eW]),
                 (0, y.useEffect)(() => {
                   D.K5.resetUpdateCount();
                 }, [
                   null == ek ? void 0 : ek.ibcDenom,
                   null == ek ? void 0 : ek.coinMinimalDenom,
-                  null == eA ? void 0 : eA.ibcDenom,
-                  null == eA ? void 0 : eA.coinMinimalDenom
+                  null == eP ? void 0 : eP.ibcDenom,
+                  null == eP ? void 0 : eP.coinMinimalDenom
                 ]);
               let ta = (0, y.useMemo)(
                   () =>
@@ -683,7 +684,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   [r, eD]
                 ),
                 { _destinationChainsToShow: tn, _destinationAssets: ts } = (0, y.useMemo)(() => {
-                  let e = e$.filter(e => e.skipAsset.symbol === (null == eA ? void 0 : eA.skipAsset.symbol)),
+                  let e = e$.filter(e => e.skipAsset.symbol === (null == eP ? void 0 : eP.skipAsset.symbol)),
                     t = [];
                   return (
                     e.forEach(e => {
@@ -693,9 +694,9 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     }),
                     { _destinationAssets: e, _destinationChainsToShow: t }
                   );
-                }, [ta, eA, e$]),
-                ti = (0, y.useMemo)(() => (0, A.h)(ea), [ea]),
-                tl = (0, y.useMemo)(() => eN || eS || (!!eY && (null == ek ? void 0 : ek.amount) === "0" && "loading" === ej), [eY, eN, eS, ek, ej]),
+                }, [ta, eP, e$]),
+                ti = (0, y.useMemo)(() => (0, P.h)(ea), [ea]),
+                tl = (0, y.useMemo)(() => eI || eS || (!!eY && (null == ek ? void 0 : ek.amount) === "0" && "loading" === ej), [eY, eI, eS, ek, ej]),
                 to = (0, y.useCallback)(e => {
                   try {
                     v().track(h.B_.DropdownOpened, { dropdownType: e });
@@ -805,10 +806,10 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 ty = (0, y.useCallback)(() => {
                   J(!1);
                 }, [J]),
-                tI = (0, y.useCallback)(() => {
+                tN = (0, y.useCallback)(() => {
                   z(!1);
                 }, [z]),
-                tN = (0, y.useCallback)(
+                tI = (0, y.useCallback)(
                   e => {
                     U(e);
                   },
@@ -834,7 +835,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   },
                   [t, ez, Y, eV]
                 ),
-                tP = (0, y.useCallback)(
+                tA = (0, y.useCallback)(
                   e => {
                     en(e), e && Y(!1);
                   },
@@ -860,7 +861,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                             })
                           }),
                         (0, s.jsxs)("div", {
-                          className: (0, P.cn)("flex flex-col w-full gap-3 relative px-6", el ? "pt-3" : "pt-6"),
+                          className: (0, A.cn)("flex flex-col w-full gap-3 relative px-6", el ? "pt-3" : "pt-6"),
                           children: [
                             (0, s.jsxs)("div", {
                               className: "w-full flex flex-col items-center gap-y-1",
@@ -872,11 +873,11 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                                   token: ek,
                                   balanceStatus: ej,
                                   loadingAssets: tl,
-                                  loadingChains: eN,
+                                  loadingChains: eI,
                                   chainName: null == eC ? void 0 : eC.chainName,
                                   chainLogo: (null == eC ? void 0 : eC.icon) ?? a,
                                   onChange: tc,
-                                  selectTokenDisabled: 0 === eI.length || !eC,
+                                  selectTokenDisabled: 0 === eN.length || !eC,
                                   selectChainDisabled: 0 === ta.length,
                                   onTokenSelectSheet: td,
                                   onChainSelectSheet: tu,
@@ -896,11 +897,11 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                                   readOnly: !0,
                                   isInputInUSDC: es,
                                   setIsInputInUSDC: ei,
-                                  value: eP ? Number(eP).toFixed(6) : eP,
-                                  token: eA,
+                                  value: eA ? Number(eA).toFixed(6) : eA,
+                                  token: eP,
                                   balanceStatus: eL,
-                                  loadingChains: eN,
-                                  loadingAssets: eN || eB,
+                                  loadingChains: eI,
+                                  loadingAssets: eI || eB,
                                   chainName: null == eF ? void 0 : eF.chainName,
                                   chainLogo: (null == eF ? void 0 : eF.icon) ?? a,
                                   selectTokenDisabled: 0 === e$.length || !eF,
@@ -935,18 +936,19 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                           isPriceImpactChecked: R,
                           reviewBtnDisabled: eq,
                           inAmountEmpty: !ev || 0 === parseFloat(ev),
-                          onReviewClick: tN,
-                          isLedgerDisconnectedError: ti
+                          onReviewClick: tI,
+                          isLedgerDisconnectedError: ti,
+                          isNoRoutesAvailable: !(null == eQ ? void 0 : eQ.route) && !eK
                         })
                       ]
                     }),
                     (0, s.jsx)(F.nS, {
                       isOpen: c,
-                      sourceAssets: eI,
+                      sourceAssets: eN,
                       destinationAssets: e$,
                       sourceToken: ek,
                       selectedChain: "source" === w ? eC : eF,
-                      destinationToken: eA,
+                      destinationToken: eP,
                       showFor: w,
                       onClose: tw,
                       onTokenSelect: tk,
@@ -954,32 +956,32 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                       whitelistedFactorTokenStore: E.he,
                       isChainAbstractionView: eY,
                       loadingTokens: "source" === w ? eS : eB,
-                      loadingChains: eN
+                      loadingChains: eI
                     }),
                     eY
                       ? (0, s.jsx)(F.Aq, {
                           title: "Select Destination Chain",
                           isOpen: W,
                           chainsToShow: tn,
-                          loadingChains: eN,
+                          loadingChains: eI,
                           onClose: () => {
                             H(!1), k("");
                           },
                           selectedChain: eF,
-                          selectedToken: eA,
+                          selectedToken: eP,
                           onChainSelect: tb,
                           destinationAssets: ts
                         })
                       : (0, s.jsx)(F.Aq, {
                           isOpen: W,
                           chainsToShow: ta.map(e => ({ chain: e })),
-                          loadingChains: eN,
+                          loadingChains: eI,
                           onClose: tm,
                           selectedChain: "source" === w ? eC : eF,
-                          selectedToken: "source" === w ? ek : eA,
+                          selectedToken: "source" === w ? ek : eP,
                           onChainSelect: tx
                         }),
-                    (0, s.jsx)(F.p6, { isOpen: X, onClose: tI, onSlippageInfoClick: tC, setShowFeesSettingSheet: G }),
+                    (0, s.jsx)(F.p6, { isOpen: X, onClose: tN, onSlippageInfoClick: tC, setShowFeesSettingSheet: G }),
                     (0, s.jsx)(F.Yc, { isOpen: K, onClose: ty, onSlippageInfoClick: tC }),
                     (0, s.jsx)(F.qm, { isOpen: ee, onClose: tj }),
                     (0, s.jsx)(F.Bv, {
@@ -1004,7 +1006,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                         skipUpdatingActiveChain: !0,
                         successCallback: tS
                       }),
-                    Q ? (0, s.jsx)(F.J9, { onClose: tE, setLedgerError: tP, ledgerError: ea }) : null
+                    Q ? (0, s.jsx)(F.J9, { onClose: tE, setLedgerError: tA, ledgerError: ea }) : null
                   ]
                 })
               );
@@ -1012,7 +1014,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             V = (0, k.Pi)(e => {
               let { rootBalanceStore: t } = e,
                 a = (0, f.Z)(),
-                n = (0, I.TH)(),
+                n = (0, N.TH)(),
                 i = (0, y.useMemo)(() => {
                   var e;
                   return null ===
@@ -1060,7 +1062,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 (0, s.jsx)(O.Ok, {
                   rootDenomsStore: E.gb,
                   rootBalanceStore: t,
-                  activeChainStore: N.J,
+                  activeChainStore: I.J,
                   autoFetchedCW20DenomsStore: E.PZ,
                   betaCW20DenomsStore: E.Xy,
                   cw20DenomsStore: E.Sg,

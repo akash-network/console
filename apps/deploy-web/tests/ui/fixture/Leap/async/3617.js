@@ -4,27 +4,28 @@
       t = new e.Error().stack;
     t &&
       ((e._sentryDebugIds = e._sentryDebugIds || {}),
-      (e._sentryDebugIds[t] = "e816f4c5-d7ce-427f-9f6c-96308bc0f802"),
-      (e._sentryDebugIdIdentifier = "sentry-dbid-e816f4c5-d7ce-427f-9f6c-96308bc0f802"));
+      (e._sentryDebugIds[t] = "13185e90-f3b3-461f-8fac-4cef1a67aec1"),
+      (e._sentryDebugIdIdentifier = "sentry-dbid-13185e90-f3b3-461f-8fac-4cef1a67aec1"));
   } catch (e) {}
 })();
 var _global = "undefined" != typeof window ? window : "undefined" != typeof global ? global : "undefined" != typeof self ? self : {};
-_global.SENTRY_RELEASE = { id: "0.22.9" };
+_global.SENTRY_RELEASE = { id: "0.23.1" };
 ("use strict");
 (self.webpackChunk_leap_cosmos_extension = self.webpackChunk_leap_cosmos_extension || []).push([
   ["3617"],
   {
     64690: function (e, t, s) {
-      s.d(t, { Z: () => S });
+      s.d(t, { Z: () => _ });
       var a = s(52322),
+        r = s(92642),
         n = s(91486),
-        r = s(94562),
-        i = s(28144),
-        l = s(29195),
-        o = s(14981),
-        c = s(4370),
-        d = s(2784);
-      let u = e =>
+        i = s(94562),
+        l = s(28144),
+        o = s(29195),
+        c = s(14981),
+        d = s(4370),
+        u = s(2784);
+      let h = e =>
         (0, a.jsxs)("svg", {
           width: "24",
           height: "24",
@@ -47,118 +48,129 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             })
           ]
         });
-      var h = s(91729),
-        f = s(46338),
-        x = s(64366),
-        p = s(27783),
-        m = s(28058),
-        g = s(51343);
+      var f = s(91729),
+        x = s(46338),
+        p = s(64366),
+        m = s(27783),
+        g = s(28058),
+        w = s(51343);
       let v = {
-        dictionary: { ...p.Z.dictionary, ...g.Z.dictionary, ...m.Z.dictionary },
-        graphs: p.Z.adjacencyGraphs,
+        dictionary: { ...m.Z.dictionary, ...w.Z.dictionary, ...g.Z.dictionary },
+        graphs: m.Z.adjacencyGraphs,
         useLevenshteinDistance: !0,
-        translations: g.Z.translations
+        translations: w.Z.translations
       };
-      x.Mu.setOptions(v);
-      let w = e => (0, x.tu)(e).score;
-      var j = s(10588);
-      let y = { duration: 0.2 },
-        b = { hidden: { opacity: 0, transition: y }, animate: { opacity: 1, transition: y } },
-        C = e => {
+      p.Mu.setOptions(v);
+      let j = e => (0, p.tu)(e).score;
+      var y = s(10588);
+      let b = { duration: 0.2 },
+        C = { hidden: { opacity: 0, transition: b }, animate: { opacity: 1, transition: b } },
+        N = e => {
           let { score: t } = e;
-          return (0, a.jsx)(o.M, {
-            children: (0, a.jsxs)(c.E.div, {
+          return (0, a.jsx)(c.M, {
+            children: (0, a.jsxs)(d.E.div, {
               className: "flex justify-center items-center font-bold text-sm",
-              variants: b,
+              variants: C,
               initial: "hidden",
               animate: "animate",
               exit: "hidden",
               children: [
                 4 === t &&
                   (0, a.jsx)(
-                    c.E.span,
-                    { className: "text-accent-success", variants: b, initial: "hidden", animate: "animate", exit: "hidden", children: "Strong" },
+                    d.E.span,
+                    { className: "text-accent-success", variants: C, initial: "hidden", animate: "animate", exit: "hidden", children: "Strong" },
                     t
                   ),
                 3 === t &&
                   (0, a.jsx)(
-                    c.E.span,
-                    { className: "text-accent-warning", variants: b, initial: "hidden", animate: "animate", exit: "hidden", children: "Medium" },
+                    d.E.span,
+                    { className: "text-accent-warning", variants: C, initial: "hidden", animate: "animate", exit: "hidden", children: "Medium" },
                     t
                   ),
                 null !== t &&
                   t < 3 &&
                   (0, a.jsx)(
-                    c.E.span,
-                    { className: "text-destructive-100", variants: b, initial: "hidden", animate: "animate", exit: "hidden", children: "Weak" },
+                    d.E.span,
+                    { className: "text-destructive-100", variants: C, initial: "hidden", animate: "animate", exit: "hidden", children: "Weak" },
                     t < 3 ? "weak" : null
                   )
               ]
             })
           });
         },
-        N = { hidden: { height: 0 }, visible: { height: "2rem" } };
-      function S(e) {
+        S = { hidden: { height: 0 }, visible: { height: "2rem" } };
+      function _(e) {
         let { onProceed: t, entry: s } = e,
-          [x, p] = (0, d.useState)(!1),
-          [m, g] = (0, d.useState)(null),
-          [v, y] = (0, d.useState)(!0),
-          [b, S] = (0, d.useState)(""),
-          [k, _] = (0, d.useState)({ pass1: "", pass2: "" }),
-          [Z, M] = (0, d.useState)({ pass1: "", pass2: "" }),
-          E = (0, d.useCallback)(
-            () => (M({ pass1: "", pass2: "" }), !(k.pass1.length < 8) || (M(e => ({ ...e, pass1: "Password must be at least 8 characters" })), !1)),
+          [p, m] = (0, u.useState)(!1),
+          [g, w] = (0, u.useState)(null),
+          [v, b] = (0, u.useState)(!0),
+          [C, _] = (0, u.useState)(""),
+          [k, M] = (0, u.useState)({ pass1: "", pass2: "" }),
+          [Z, E] = (0, u.useState)({ pass1: "", pass2: "" }),
+          P = (0, u.useCallback)(
+            () => (E({ pass1: "", pass2: "" }), !(k.pass1.length < 8) || (E(e => ({ ...e, pass1: "Password must be at least 8 characters" })), !1)),
             [k.pass1.length]
           ),
-          P = (0, d.useCallback)(
-            () => (k.pass1 != k.pass2 ? (M(e => ({ ...e, pass2: "Passwords do not match" })), !1) : !Z.pass1 && !Z.pass2 && !!E()),
-            [Z.pass1, Z.pass2, k.pass1, k.pass2, E]
+          L = (0, u.useCallback)(
+            () => (k.pass1 != k.pass2 ? (E(e => ({ ...e, pass2: "Passwords do not match" })), !1) : !Z.pass1 && !Z.pass2 && !!P()),
+            [Z.pass1, Z.pass2, k.pass1, k.pass2, P]
           ),
-          L = async e => {
-            e ? g(w(e)) : g(null);
+          z = async e => {
+            e ? w(j(e)) : w(null);
           },
-          z = () => {
+          H = () => {
             try {
-              p(!0);
+              m(!0);
               let e = new TextEncoder().encode(k.pass1);
               t(e);
             } catch (e) {
-              S(null == e ? void 0 : e.message);
+              (0, r.Tb)(e, {
+                tags: {
+                  errorType: "choose_password_error",
+                  source: "choose_password_view",
+                  severity: "error",
+                  errorName: e instanceof Error ? e.name : "ChoosePasswordError"
+                },
+                fingerprint: ["choose_password", "choose_password_error"],
+                level: "error",
+                contexts: { transaction: { type: "choose_password", errorMessage: e instanceof Error ? e.message : String(e) } }
+              }),
+                _(null == e ? void 0 : e.message);
             } finally {
-              p(!1);
+              m(!1);
             }
           },
-          H = e => {
+          T = e => {
             let { name: t, value: s } = e.target;
-            b && S(""), Z[t] && (delete Z[t], M(Z)), _({ ...k, [t]: s });
+            C && _(""), Z[t] && (delete Z[t], E(Z)), M({ ...k, [t]: s });
           },
           D = e => {
             if ("enter" === e.key.toLowerCase()) {
               let t = e.target;
-              "pass2" === t.name && P() && z();
+              "pass2" === t.name && L() && H();
               let s = t.form,
                 a = [...s].indexOf(t);
               s.elements[a + 1].focus(), e.preventDefault();
             }
           },
           I = !!Z.pass1 || !!Z.pass2 || !k.pass1 || !k.pass2;
-        return ((0, d.useEffect)(() => {
+        return ((0, u.useEffect)(() => {
           let e = setTimeout(() => {
-            L(k.pass1);
+            z(k.pass1);
           }, 500);
           return () => {
             clearTimeout(e);
           };
         }, [k.pass1]),
-        x)
-          ? (0, a.jsx)(j.T_, {})
+        p)
+          ? (0, a.jsx)(y.T_, {})
           : (0, a.jsx)("form", {
               onSubmit: e => {
-                e.preventDefault(), P() && z();
+                e.preventDefault(), L() && H();
               },
               className: "flex flex-col h-full",
-              children: (0, a.jsxs)(h.n, {
-                headerIcon: (0, a.jsx)(u, { className: "size-6" }),
+              children: (0, a.jsxs)(f.n, {
+                headerIcon: (0, a.jsx)(h, { className: "size-6" }),
                 entry: s,
                 heading: "Create your password",
                 subHeading: "Choose a password to secure & lock your wallet",
@@ -170,26 +182,26 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                       (0, a.jsxs)("div", {
                         className: "relative flex flex-col w-full",
                         children: [
-                          (0, a.jsx)(i.I, {
+                          (0, a.jsx)(l.I, {
                             autoFocus: !0,
                             placeholder: "Enter password",
                             type: "password",
                             name: "pass1",
                             onKeyDown: D,
-                            onBlur: E,
+                            onBlur: P,
                             status: Z.pass1 || Z.pass2 ? "error" : void 0,
                             value: k.pass1,
-                            onChange: H,
+                            onChange: T,
                             "data-testing-id": "input-password",
                             className: "h-[3.625rem]",
-                            trailingElement: (0, a.jsx)(C, { score: m })
+                            trailingElement: (0, a.jsx)(N, { score: g })
                           }),
-                          (0, a.jsx)(o.M, {
+                          (0, a.jsx)(c.M, {
                             children:
                               Z.pass1 &&
-                              (0, a.jsx)(c.E.span, {
+                              (0, a.jsx)(d.E.span, {
                                 className: "flex items-end justify-center text-destructive-100 text-xs text-center font-medium overflow-hidden",
-                                variants: N,
+                                variants: S,
                                 initial: "hidden",
                                 animate: "visible",
                                 exit: "hidden",
@@ -201,27 +213,27 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                       (0, a.jsxs)("div", {
                         className: "relative flex flex-col gap-y-5 w-full",
                         children: [
-                          (0, a.jsx)(l.W, {
+                          (0, a.jsx)(o.W, {
                             name: "pass2",
                             value: k.pass2,
                             placeholder: "Confirm password",
                             onKeyDown: D,
                             className: "h-[3.625rem]",
-                            onChange: H,
+                            onChange: T,
                             status: Z.pass2 ? "error" : void 0,
                             "data-testing-id": "input-confirm-password"
                           }),
-                          (0, a.jsx)(o.M, {
+                          (0, a.jsx)(c.M, {
                             children:
-                              (Z.pass2 || b) &&
-                              (0, a.jsx)(c.E.span, {
+                              (Z.pass2 || C) &&
+                              (0, a.jsx)(d.E.span, {
                                 className: "text-destructive-100 text-xs text-center font-medium",
                                 "data-testing-id": "password-error-ele",
-                                variants: f.HJ,
+                                variants: x.HJ,
                                 initial: "hidden",
                                 animate: "visible",
                                 exit: "hidden",
-                                children: Z.pass2 || b
+                                children: Z.pass2 || C
                               })
                           })
                         ]
@@ -232,14 +244,14 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     htmlFor: "terms",
                     className: "flex flex-row justify-center items-center mt-auto",
                     children: [
-                      (0, a.jsx)(r.X, {
+                      (0, a.jsx)(i.X, {
                         id: "terms",
                         name: "terms",
                         value: "terms",
                         className: "cursor-pointer mr-2 h-4 w-4 accent-accent-foreground",
                         checked: v,
                         onCheckedChange: e => {
-                          y(!!e);
+                          b(!!e);
                         }
                       }),
                       (0, a.jsxs)("p", {
@@ -258,7 +270,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                       })
                     ]
                   }),
-                  (0, a.jsx)(n.zx, { className: "w-full mt-5", "data-testing-id": "btn-password-proceed", disabled: I || x || !v, children: "Set Password" })
+                  (0, a.jsx)(n.zx, { className: "w-full mt-5", "data-testing-id": "btn-password-proceed", disabled: I || p || !v, children: "Set Password" })
                 ]
               })
             });
@@ -267,43 +279,43 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
     94562: function (e, t, s) {
       s.d(t, { X: () => o });
       var a = s(52322),
-        n = s(62695),
-        r = s(15256),
+        r = s(62695),
+        n = s(15256),
         i = s(2784),
         l = s(70514);
       let o = i.forwardRef((e, t) => {
         let { className: s, ...i } = e;
-        return (0, a.jsx)(r.fC, {
+        return (0, a.jsx)(n.fC, {
           ref: t,
           className: (0, l.cn)(
             "peer h-4 w-4 shrink-0 rounded-sm data-[state=checked]:border border-accent-green shadow focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:!bg-accent-green data-[state=checked]:text-accent-green !bg-secondary-300",
             s
           ),
           ...i,
-          children: (0, a.jsx)(r.z$, {
+          children: (0, a.jsx)(n.z$, {
             className: "flex items-center justify-center text-current",
-            children: (0, a.jsx)(n.J, { className: "h-4 w-4 text-secondary-300" })
+            children: (0, a.jsx)(r.J, { className: "h-4 w-4 text-secondary-300" })
           })
         });
       });
-      o.displayName = r.fC.displayName;
+      o.displayName = n.fC.displayName;
     },
     19003: function (e, t, s) {
       s.d(t, { Z: () => i });
       var a = s(52322),
-        n = s(2784),
-        r = s(70514);
+        r = s(2784),
+        n = s(70514);
       let i = e => {
         let { currentStep: t, totalSteps: s, className: i, moveToStep: l } = e,
-          o = (0, n.useMemo)(() => Array.from({ length: s }, (e, t) => t + 1), [s]);
+          o = (0, r.useMemo)(() => Array.from({ length: s }, (e, t) => t + 1), [s]);
         return (0, a.jsx)("div", {
-          className: (0, r.cn)("flex flex-row items-center justify-center align-center gap-3", i),
+          className: (0, n.cn)("flex flex-row items-center justify-center align-center gap-3", i),
           children: o.map(e =>
             (0, a.jsx)(
               "div",
               {
                 onClick: () => (null == l ? void 0 : l(e)),
-                className: (0, r.cn)("h-1 w-[1.125rem] rounded-full transition-colors duration-500", e === t ? "bg-accent-green" : "bg-secondary-300")
+                className: (0, n.cn)("h-1 w-[1.125rem] rounded-full transition-colors duration-500", e === t ? "bg-accent-green" : "bg-secondary-300")
               },
               e
             )
@@ -312,10 +324,10 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
       };
     },
     39775: function (e, t, s) {
-      s.d(t, { u: () => n });
+      s.d(t, { u: () => r });
       var a = s(52322);
       s(2784);
-      let n = e =>
+      let r = e =>
         (0, a.jsxs)("svg", {
           width: "24",
           height: "24",
@@ -343,8 +355,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
       s.a(e, async function (e, a) {
         try {
           s.d(t, { H: () => m, Z: () => g });
-          var n = s(52322),
-            r = s(15969),
+          var r = s(52322),
+            n = s(15969),
             i = s(51416),
             l = s(47013),
             o = s(2784),
@@ -361,15 +373,15 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 { mnemonic: s, onOnboardingComplete: a } = (0, i.k)(),
                 [u, x] = (0, o.useState)(1),
                 [m, g] = (0, o.useState)(!1),
-                v = (0, l.D)(u) || 1,
-                w = (0, c.s0)(),
+                w = (0, l.D)(u) || 1,
+                v = (0, c.s0)(),
                 j = async e => {
                   g(!0), await a(s, e, { 0: !0 }, "create");
                   let t = f.from(e).toString("base64");
                   h().runtime.sendMessage({ type: "unlock", data: { password: t } }),
                     d.M8.setPassword(e),
-                    await (0, r._vH)(2e3),
-                    w("/onboardingSuccess"),
+                    await (0, n._vH)(2e3),
+                    v("/onboardingSuccess"),
                     g(!1);
                 },
                 y = e => {
@@ -378,12 +390,12 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     return;
                   }
                   if (e < 1) {
-                    w(-1);
+                    v(-1);
                     return;
                   }
                   x(e);
                 };
-              return (0, n.jsx)(p.Provider, {
+              return (0, r.jsx)(p.Provider, {
                 value: {
                   mnemonic: s,
                   onOnboardingCompleted: j,
@@ -394,7 +406,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     y(u - 1);
                   },
                   currentStep: u,
-                  prevStep: v,
+                  prevStep: w,
                   totalSteps: 3,
                   loading: m
                 },
@@ -416,8 +428,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
       s.a(e, async function (e, a) {
         try {
           s.r(t), s.d(t, { default: () => m });
-          var n = s(52322),
-            r = s(64690),
+          var r = s(52322),
+            n = s(64690),
             i = s(14981),
             l = s(75958);
           s(2784);
@@ -431,18 +443,18 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           [f, h, c, u] = x.then ? (await x)() : x;
           let p = (0, l.Pi)(function () {
               let { onOnboardingCompleted: e, currentStep: t, loading: s, prevStep: a } = (0, c.Z)();
-              return (0, n.jsxs)(i.M, {
+              return (0, r.jsxs)(i.M, {
                 mode: "wait",
                 presenceAffectsLayout: !0,
                 children: [
-                  s && (0, n.jsx)(d.T_, {}, "creating-wallet-loader"),
-                  1 === t && !s && (0, n.jsx)(f.W, {}, "seed-phrase-view"),
-                  2 === t && !s && (0, n.jsx)(h.V, {}, "confirm-secret-phrase-view"),
-                  3 === t && !s && !o.M8.password && (0, n.jsx)(r.Z, { entry: a <= t ? "right" : "left", onProceed: e }, "choose-password-view")
+                  s && (0, r.jsx)(d.T_, {}, "creating-wallet-loader"),
+                  1 === t && !s && (0, r.jsx)(f.W, {}, "seed-phrase-view"),
+                  2 === t && !s && (0, r.jsx)(h.V, {}, "confirm-secret-phrase-view"),
+                  3 === t && !s && !o.M8.password && (0, r.jsx)(n.Z, { entry: a <= t ? "right" : "left", onProceed: e }, "choose-password-view")
                 ]
               });
             }),
-            m = (0, l.Pi)(() => (0, n.jsx)(c.H, { children: (0, n.jsx)(u.s, { children: (0, n.jsx)(p, {}) }) }));
+            m = (0, l.Pi)(() => (0, r.jsx)(c.H, { children: (0, r.jsx)(u.s, { children: (0, r.jsx)(p, {}) }) }));
           a();
         } catch (e) {
           a(e);
@@ -453,8 +465,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
       s.a(e, async function (e, a) {
         try {
           s.d(t, { s: () => f });
-          var n = s(52322),
-            r = s(43166),
+          var r = s(52322),
+            n = s(43166),
             i = s(91486),
             l = s(19003);
           s(2784);
@@ -465,19 +477,19 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           d = (u.then ? (await u)() : u)[0];
           let h = () => {
               let { backToPreviousStep: e, currentStep: t, totalSteps: s } = (0, d.Z)();
-              return (0, n.jsxs)("div", {
+              return (0, r.jsxs)("div", {
                 className: "flex flex-row items-center justify-between align-center w-full relative -m-1",
                 children: [
-                  (0, n.jsx)(i.zx, { variant: "secondary", size: "icon", onClick: e, children: (0, n.jsx)(r.X, { className: "size-4" }) }),
-                  t > 0 && (0, n.jsx)(l.Z, { currentStep: t, totalSteps: s, className: "mx-auto h-9" }),
-                  (0, n.jsx)("div", { className: "size-9 shrink-0" })
+                  (0, r.jsx)(i.zx, { variant: "secondary", size: "icon", onClick: e, children: (0, r.jsx)(n.X, { className: "size-4" }) }),
+                  t > 0 && (0, r.jsx)(l.Z, { currentStep: t, totalSteps: s, className: "mx-auto h-9" }),
+                  (0, r.jsx)("div", { className: "size-9 shrink-0" })
                 ]
               });
             },
             f = e =>
-              (0, n.jsxs)(c.z, {
+              (0, r.jsxs)(c.z, {
                 className: (0, o.cn)("flex flex-col items-stretch gap-7 p-7 overflow-auto border-secondary-300", e.className),
-                children: [(0, n.jsx)(h, {}, "nav-header"), e.children]
+                children: [(0, r.jsx)(h, {}, "nav-header"), e.children]
               });
           a();
         } catch (e) {
@@ -489,8 +501,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
       s.a(e, async function (e, a) {
         try {
           s.d(t, { V: () => j });
-          var n = s(52322),
-            r = s(48085),
+          var r = s(52322),
+            n = s(48085),
             i = s(91486),
             l = s(14981),
             o = s(4370),
@@ -503,22 +515,22 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             p = s(65339),
             m = e([p]);
           p = (m.then ? (await m)() : m)[0];
-          let v = { error: "outline-destructive-100", success: "outline-accent-success", default: "focus-within:outline-foreground" },
-            w = e => {
-              let { value: t, onChange: s, onBlur: a, name: r, prefixNumber: i, className: l, status: o, ...c } = e;
-              return (0, n.jsxs)("div", {
+          let w = { error: "outline-destructive-100", success: "outline-accent-success", default: "focus-within:outline-foreground" },
+            v = e => {
+              let { value: t, onChange: s, onBlur: a, name: n, prefixNumber: i, className: l, status: o, ...c } = e;
+              return (0, r.jsxs)("div", {
                 className: (0, u.cn)(
                   "w-[100px] h-7 rounded-lg bg-secondary text-center flex items-center justify-center outline outline-transparent outline-1 px-2 gap-4 transition-[outline-color]",
-                  v[o] ?? v.default,
+                  w[o] ?? w.default,
                   l
                 ),
                 children: [
-                  (0, n.jsx)("span", { className: "text-muted-foreground", children: i }),
-                  (0, n.jsx)("input", {
+                  (0, r.jsx)("span", { className: "text-muted-foreground", children: i }),
+                  (0, r.jsx)("input", {
                     className: "bg-inherit border-none outline-none w-full h-full",
                     type: "text",
                     value: t ?? "",
-                    name: r ?? "",
+                    name: n ?? "",
                     onChange: s,
                     onBlur: a,
                     autoComplete: "off",
@@ -541,56 +553,56 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             function g(e) {
               c({ ...a, [e.target.name]: "" }), x(t => ({ ...t, [e.target.name]: e.target.value }));
             }
-            let v = (e, s) => {
-              let n = (0, h.S)(t, e),
-                r = u[s].trim();
-              c({ ...a, [s]: r && n !== r ? "error" : r ? "success" : "" });
+            let w = (e, s) => {
+              let r = (0, h.S)(t, e),
+                n = u[s].trim();
+              c({ ...a, [s]: n && r !== n ? "error" : n ? "success" : "" });
             };
-            return (0, n.jsxs)(n.Fragment, {
+            return (0, r.jsxs)(r.Fragment, {
               children: [
-                (0, n.jsxs)("div", {
+                (0, r.jsxs)("div", {
                   className: "space-y-6",
                   children: [
-                    (0, n.jsxs)("div", {
+                    (0, r.jsxs)("div", {
                       className: "relative rounded-2xl bg-secondary-200 text-xs font-medium box-border h-[184px] w-[376px] p-5",
                       children: [
-                        (0, n.jsx)(r.Q, { height: 144, width: 346, text: m, noSpace: !1 }),
-                        (0, n.jsx)(w, {
+                        (0, r.jsx)(n.Q, { height: 144, width: 346, text: m, noSpace: !1 }),
+                        (0, r.jsx)(v, {
                           name: "four",
                           prefixNumber: 4,
                           value: u.four,
                           onChange: g,
                           className: "absolute top-[56px] left-[28px]",
                           "data-testing-id": "input-fourth-word",
-                          onBlur: () => v(4, "four"),
+                          onBlur: () => w(4, "four"),
                           status: a.four
                         }),
-                        (0, n.jsx)(w, {
+                        (0, r.jsx)(v, {
                           name: "eight",
                           prefixNumber: 8,
                           value: u.eight,
                           onChange: g,
                           className: "absolute top-[91px] left-[144px]",
                           "data-testing-id": "input-eighth-word",
-                          onBlur: () => v(8, "eight"),
+                          onBlur: () => w(8, "eight"),
                           status: a.eight
                         }),
-                        (0, n.jsx)(w, {
+                        (0, r.jsx)(v, {
                           name: "tweleve",
                           prefixNumber: 12,
                           value: u.tweleve,
                           onChange: g,
                           className: "absolute top-[127] left-[259px]",
                           "data-testing-id": "input-tweleveth-word",
-                          onBlur: () => v(12, "tweleve"),
+                          onBlur: () => w(12, "tweleve"),
                           status: a.tweleve
                         })
                       ]
                     }),
-                    (0, n.jsx)(l.M, {
+                    (0, r.jsx)(l.M, {
                       children:
                         p &&
-                        (0, n.jsx)(o.E.span, {
+                        (0, r.jsx)(o.E.span, {
                           className: "text-xs text-destructive-100 font-medium text-center mt-4 block",
                           "data-testing-id": "error-text-ele",
                           variants: f.HJ,
@@ -602,7 +614,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     })
                   ]
                 }),
-                (0, n.jsx)(i.zx, {
+                (0, r.jsx)(i.zx, {
                   className: "w-full mt-auto",
                   onClick: function () {
                     if ((0, h.S)(t, 4) !== u.four.trim()) {
@@ -622,7 +634,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   disabled: !!(p || Object.values(u).includes("")),
                   "data-testing-id": "confirm-phrase-btn",
                   "aria-label": "confirm and continue button in confirm secret phrase flow",
-                  children: (0, n.jsx)("span", {
+                  children: (0, r.jsx)("span", {
                     "aria-label": "confirm and continue button text in confirm secret phrase flow",
                     children: "Confirm and continue"
                   })
@@ -632,17 +644,17 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           }
           let j = () => {
             let { prevStep: e, currentStep: t, mnemonic: s, moveToNextStep: a } = (0, p.Z)();
-            return (0, n.jsx)("form", {
+            return (0, r.jsx)("form", {
               onSubmit: e => e.preventDefault(),
               className: "flex flex-col h-full",
-              children: (0, n.jsx)(x.n, {
-                headerIcon: (0, n.jsx)(c.u, { className: "size-6" }),
+              children: (0, r.jsx)(x.n, {
+                headerIcon: (0, r.jsx)(c.u, { className: "size-6" }),
                 entry: e <= t ? "right" : "left",
                 heading: "Verify your recovery phrase",
-                subHeading: (0, n.jsxs)(n.Fragment, {
-                  children: ["Select the 4th, 6th and 8th words of your recovery ", (0, n.jsx)("br", {}), "phrase in that same order."]
+                subHeading: (0, r.jsxs)(r.Fragment, {
+                  children: ["Select the 4th, 6th and 8th words of your recovery ", (0, r.jsx)("br", {}), "phrase in that same order."]
                 }),
-                children: (0, n.jsx)(g, { mnemonic: s, onProceed: a })
+                children: (0, r.jsx)(g, { mnemonic: s, onProceed: a })
               })
             });
           };
@@ -656,8 +668,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
       s.a(e, async function (e, a) {
         try {
           s.d(t, { W: () => f });
-          var n = s(52322),
-            r = s(48085),
+          var r = s(52322),
+            n = s(48085),
             i = s(91486),
             l = s(92930),
             o = s(39775);
@@ -669,26 +681,26 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           u = (h.then ? (await h)() : h)[0];
           let f = () => {
             let { prevStep: e, currentStep: t, mnemonic: s, moveToNextStep: a } = (0, u.Z)();
-            return (0, n.jsxs)(d.n, {
-              headerIcon: (0, n.jsx)(o.u, { className: "size-6" }),
+            return (0, r.jsxs)(d.n, {
+              headerIcon: (0, r.jsx)(o.u, { className: "size-6" }),
               entry: e <= t ? "right" : "left",
               heading: "Your secret recovery phrase",
-              subHeading: (0, n.jsxs)(n.Fragment, {
+              subHeading: (0, r.jsxs)(r.Fragment, {
                 children: [
                   "Write down these words, your secret recovery phrase ",
-                  (0, n.jsx)("br", {}),
+                  (0, r.jsx)("br", {}),
                   " is the",
                   " ",
-                  (0, n.jsx)("span", { className: "text-warning", children: " only way to recover " }),
+                  (0, r.jsx)("span", { className: "text-warning", children: " only way to recover " }),
                   " your wallet and funds!"
                 ]
               }),
               children: [
-                (0, n.jsxs)("div", {
+                (0, r.jsxs)("div", {
                   className: "flex flex-col gap-3 justify-center",
                   children: [
-                    (0, n.jsx)(r.Z, { text: s, noSpace: !1 }),
-                    (0, n.jsx)(l.q, {
+                    (0, r.jsx)(n.Z, { text: s, noSpace: !1 }),
+                    (0, r.jsx)(l.q, {
                       className: "mx-auto",
                       "data-testing-id": "mnemonic-copy-to-clipboard",
                       onClick: () => {
@@ -698,13 +710,13 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     })
                   ]
                 }),
-                (0, n.jsx)(i.zx, {
+                (0, r.jsx)(i.zx, {
                   disabled: 0 === s.length,
                   className: "w-full mt-auto",
                   onClick: a,
                   "data-testing-id": "saved-mnemonic-btn",
                   "aria-label": "i have saved my recovery phrase button in seed phrase flow",
-                  children: (0, n.jsx)("span", {
+                  children: (0, r.jsx)("span", {
                     "aria-label": "i have saved my recovery phrase button text in seed phrase flow",
                     children: "I have saved my recovery phrase"
                   })

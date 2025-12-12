@@ -4,12 +4,12 @@
       n = new e.Error().stack;
     n &&
       ((e._sentryDebugIds = e._sentryDebugIds || {}),
-      (e._sentryDebugIds[n] = "7aa113db-2e43-4ded-9d99-a07433f0461c"),
-      (e._sentryDebugIdIdentifier = "sentry-dbid-7aa113db-2e43-4ded-9d99-a07433f0461c"));
+      (e._sentryDebugIds[n] = "5b21b99a-52f6-4e87-91e2-5fe4a6c7233b"),
+      (e._sentryDebugIdIdentifier = "sentry-dbid-5b21b99a-52f6-4e87-91e2-5fe4a6c7233b"));
   } catch (e) {}
 })();
 var _global = "undefined" != typeof window ? window : "undefined" != typeof global ? global : "undefined" != typeof self ? self : {};
-_global.SENTRY_RELEASE = { id: "0.22.9" };
+_global.SENTRY_RELEASE = { id: "0.23.1" };
 ("use strict");
 (self.webpackChunk_leap_cosmos_extension = self.webpackChunk_leap_cosmos_extension || []).push([
   ["1108"],
@@ -177,14 +177,15 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
     46836: function (e, n, t) {
       t.a(e, async function (e, l) {
         try {
-          t.d(n, { A: () => c, L: () => u });
+          t.d(n, { A: () => u, L: () => m });
           var s = t(59145),
-            a = t(14506),
-            i = t(76147),
-            o = t(2784),
-            r = e([i]);
-          i = (r.then ? (await r)() : r)[0];
-          let d = e => {
+            a = t(92642),
+            i = t(14506),
+            o = t(76147),
+            r = t(2784),
+            d = e([o]);
+          o = (d.then ? (await d)() : d)[0];
+          let c = e => {
               if (e) {
                 if ("bitcoin" === e.chain || "bitcoinSignet" === e.chain) return "btc";
                 if (e.isEvm) return "evm";
@@ -193,35 +194,47 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 if (e.isSui) return "sui";
               }
             },
-            c = (e, n) => {
-              let [t, l] = (0, o.useState)({}),
-                [r, c] = (0, o.useState)(!0),
-                { debounce: u } = (0, a.S)(),
-                m = (0, o.useRef)(""),
-                { selectedToken: h } = (0, i.GE)(),
-                v = (0, o.useCallback)(
+            u = (e, n) => {
+              let [t, l] = (0, r.useState)({}),
+                [d, u] = (0, r.useState)(!0),
+                { debounce: m } = (0, i.S)(),
+                h = (0, r.useRef)(""),
+                { selectedToken: v } = (0, o.GE)(),
+                x = (0, r.useCallback)(
                   async e => {
-                    m.current = e;
+                    h.current = e;
                     try {
-                      c(!0), s.i_.setNetwork(n);
-                      let t = await s.i_.resolveAll(e, { allowedTopLevelDomains: s.L, paymentIdEcosystem: e.includes("@") ? d(h) : void 0 });
-                      m.current === e && l(t);
-                    } catch (e) {
+                      u(!0), s.i_.setNetwork(n);
+                      let t = await s.i_.resolveAll(e, { allowedTopLevelDomains: s.L, paymentIdEcosystem: e.includes("@") ? c(v) : void 0 });
+                      h.current === e && l(t);
+                    } catch (t) {
+                      (0, a.Tb)(t, {
+                        tags: {
+                          errorType: "name_service_resolver_error",
+                          source: "name_service_resolver",
+                          severity: "error",
+                          errorName: t instanceof Error ? t.name : "NameServiceResolverError"
+                        },
+                        fingerprint: ["name_service_resolver", "name_service_resolver_error"],
+                        level: "error",
+                        contexts: { transaction: { type: "name_service_resolver", errorMessage: t instanceof Error ? t.message : String(t) } },
+                        extra: { queryAddress: e, network: n }
+                      });
                     } finally {
-                      m.current === e && c(!1);
+                      h.current === e && u(!1);
                     }
                   },
-                  [n, h]
+                  [n, v]
                 ),
-                x = u(v, 200);
+                f = m(x, 200);
               return (
-                (0, o.useEffect)(() => {
-                  e && x(e);
+                (0, r.useEffect)(() => {
+                  e && f(e);
                 }, [e]),
-                [r, t]
+                [d, t]
               );
             },
-            u = {
+            m = {
               ibcDomains: "IBC Domains",
               icns: "Interchain Name Service",
               stargazeNames: "Stargaze Names",
@@ -492,11 +505,11 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             g = t(75958),
             p = t(2784),
             b = t(10289),
-            w = t(85019),
-            y = t(48346),
+            y = t(85019),
+            w = t(48346),
             j = t(71198),
-            N = e([y, w]);
-          [y, w] = N.then ? (await N)() : N;
+            N = e([w, y]);
+          [w, y] = N.then ? (await N)() : N;
           var C = (((s = {}).SEND = "Send"), (s.NFTSEND = "NFTSend"), s);
           let k = (0, g.Pi)(e => {
             let { isOpen: n, onClose: t, txType: l } = e,
@@ -507,13 +520,13 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               { txStatus: k, txHash: S, sourceChain: I, sourceNetwork: D, toAddress: M, toChain: A, sentAmount: T, sentTokenInfo: E } = g ?? {},
               O = (0, o.a74)(),
               B = (0, p.useMemo)(() => I || O, [O, I]),
-              L = (0, o.obn)(),
-              _ = (0, p.useMemo)(() => D || L, [L, D]),
-              z = (0, o.xxU)(B, _),
+              _ = (0, o.obn)(),
+              L = (0, p.useMemo)(() => D || _, [_, D]),
+              z = (0, o.xxU)(B, L),
               Z = (0, o.SFn)(B),
               F = (0, p.useCallback)(() => {
-                y.jZ.refetchBalances(B, _), M && y.jZ.refetchBalances(A ?? B, _, { [A ?? B]: M });
-              }, [B, _, M, A]),
+                w.jZ.refetchBalances(B, L), M && w.jZ.refetchBalances(A ?? B, L, { [A ?? B]: M });
+              }, [B, L, M, A]),
               P = (0, p.useMemo)(() => {
                 switch (l) {
                   case "Send":
@@ -540,7 +553,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               }, [T, M, k, l]);
             (0, p.useEffect)(() => {
               let e = () => {
-                F(), w.s.invalidateActivity(B);
+                F(), y.s.invalidateActivity(B);
               };
               g &&
                 g.promise &&
@@ -569,7 +582,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                           feeDenomination: g.feeDenomination,
                           amount: g.txnLogAmount,
                           forceChain: B,
-                          forceNetwork: _,
+                          forceNetwork: L,
                           forceWalletAddress: Z,
                           chainId: z,
                           isSolana: !0
@@ -599,7 +612,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                         feeDenomination: g.feeDenomination,
                         amount: g.txnLogAmount,
                         forceChain: B,
-                        forceNetwork: _,
+                        forceNetwork: L,
                         forceWalletAddress: Z,
                         chainId: z
                       })),
@@ -608,11 +621,11 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   .catch(() => {
                     "cw20TokenTransfer" === g.txType ? N({ ...g, txStatus: "failed" }) : "send" === g.txType && N({ ...g, txStatus: "failed" }), e();
                   });
-            }, [B, Z, _, z]),
+            }, [B, Z, L, z]),
               (0, p.useEffect)(() => {
                 S && u(S);
               }, [S]);
-            let { explorerTxnUrl: U } = (0, o.xGX)({ forceTxHash: d, forceChain: B, forceNetwork: _ }),
+            let { explorerTxnUrl: U } = (0, o.xGX)({ forceTxHash: d, forceChain: B, forceNetwork: L }),
               W = (0, p.useMemo)(() => {
                 if (d) return U;
               }, [U, d]);
@@ -729,8 +742,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             g = t(10706),
             p = t(38313),
             b = t(36400),
-            w = t(11081),
-            y = t(65027),
+            y = t(11081),
+            w = t(65027),
             j = t(30464),
             N = t(75958),
             C = t(76147),
@@ -738,22 +751,22 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             S = t(26245),
             I = t(36321),
             D = t(70514),
-            M = e([g, b, p, C, y, S]);
-          [g, b, p, C, y, S] = M.then ? (await M)() : M;
+            M = e([g, b, p, C, w, S]);
+          [g, b, p, C, w, S] = M.then ? (await M)() : M;
           let E = (0, N.Pi)(e => {
             let { isOpen: n, onClose: t, chainList: l, wallet: c, address: u, forceName: v, setSelectedAddress: f } = e,
               [g, b] = (0, k.useState)(""),
-              w = (0, p.ob)(),
-              y = I.Ui.chainInfos,
+              y = (0, p.ob)(),
+              w = I.Ui.chainInfos,
               N = (0, k.useMemo)(() => {
                 let e = [];
                 e = l || Object.keys((null == c ? void 0 : c.addresses) ?? {});
-                let n = "testnet" === w;
+                let n = "testnet" === y;
                 return (e = e.filter(e => {
-                  let t = y[e];
+                  let t = w[e];
                   return !!t && !!t.enabled && (n ? !!t.testnetChainId : !t.testnetChainId || t.chainId !== t.testnetChainId);
-                })).filter(e => y[e].chainName.toLowerCase().includes(g.toLowerCase()));
-              }, [l, w, null == c ? void 0 : c.addresses, y, g]);
+                })).filter(e => w[e].chainName.toLowerCase().includes(g.toLowerCase()));
+              }, [l, y, null == c ? void 0 : c.addresses, w, g]);
             return (0, s.jsx)(h.Z, {
               isOpen: n,
               onClose: t,
@@ -777,7 +790,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                         ? N.map((e, n) => {
                             var t;
                             N.length;
-                            let l = y[e],
+                            let l = w[e],
                               o =
                                 u ||
                                 ((null == l ? void 0 : l.evmOnlyChain)
@@ -846,7 +859,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           });
           function A(e) {
             let { setSelectedAddress: n } = e,
-              t = y.w.useWallets(),
+              t = w.w.useWallets(),
               [l, i] = (0, k.useState)(null),
               { activeWallet: o } = (0, g.ZP)(),
               [r, c] = (0, k.useState)(!1),
@@ -956,7 +969,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           function T(e) {
             let { handleContactSelect: n, editContact: t, minitiaChains: l } = e,
               [i, o] = (0, k.useState)(!1),
-              r = (0, w.Z)(),
+              r = (0, y.Z)(),
               u = (0, b.pb)(),
               { setMemo: m } = (0, C.GE)(),
               h = (0, f.a1)(),
@@ -979,7 +992,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               p = (0, k.useCallback)(() => {
                 x(null), o(!1);
               }, [x, o]),
-              y = (0, k.useCallback)(
+              w = (0, k.useCallback)(
                 e => {
                   n({ ...e, selectionType: "saved" }), o(!1);
                 },
@@ -1084,17 +1097,17 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                           ]
                         })
                 }),
-                (0, s.jsx)(E, { isOpen: i, onClose: p, chainList: l, address: null == v ? void 0 : v.address, setSelectedAddress: y })
+                (0, s.jsx)(E, { isOpen: i, onClose: p, chainList: l, address: null == v ? void 0 : v.address, setSelectedAddress: w })
               ]
             });
           }
           let O = (0, N.Pi)(e => {
             let { isOpen: n, onClose: t, editContact: l, postSelectRecipient: a } = e,
               [i, o] = (0, k.useState)("contacts"),
-              { contacts: r, loading: d } = (0, w.g)(),
+              { contacts: r, loading: d } = (0, y.g)(),
               c = (0, p.ob)(),
               { setEthAddress: u, selectedAddress: m, setSelectedAddress: x, setAddressError: f, setMemo: g, setCustomIbcChannelId: b } = (0, C.GE)(),
-              j = y.w.useWallets(),
+              j = w.w.useWallets(),
               N = (0, k.useMemo)(
                 () =>
                   j
@@ -1129,7 +1142,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 },
                 [f, u, x, t, a]
               ),
-              L = (0, k.useCallback)(
+              _ = (0, k.useCallback)(
                 e => {
                   f(void 0), x(e), u(e.ethAddress ?? ""), g(""), a(), t();
                 },
@@ -1187,7 +1200,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                                 ]
                               }),
                         "wallets" === i
-                          ? (0, s.jsx)(A, { setSelectedAddress: L })
+                          ? (0, s.jsx)(A, { setSelectedAddress: _ })
                           : (0, s.jsx)(T, { handleContactSelect: B, editContact: l, minitiaChains: O.map(e => e.key) })
                       ]
                     })
@@ -1220,7 +1233,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             let { options: n, selectedOption: t, onChange: l, className: i, isAddChannel: m, hasChannelId: h, targetChain: v, themeColor: x } = e,
               [f, g] = (0, c.useState)(""),
               [p, b] = (0, c.useState)("idle"),
-              [w, y] = (0, c.useState)(""),
+              [y, w] = (0, c.useState)(""),
               j = "" !== f && "success" === p,
               { sendActiveChain: N } = (0, d.GE)(),
               { chains: C } = (0, a._IL)(),
@@ -1230,16 +1243,16 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   b("loading");
                   try {
                     let n = await u.MQ.addCustomChannel(N, v, e);
-                    n.success ? (l(n.channel), b("success")) : b("error"), y(n.message);
+                    n.success ? (l(n.channel), b("success")) : b("error"), w(n.message);
                   } catch (e) {
-                    b("error"), y("Something went wrong");
+                    b("error"), w("Something went wrong");
                   }
                 },
                 [l, N, v]
               );
             return (
               (0, c.useEffect)(() => {
-                f ? S(f) : (b("idle"), y(""));
+                f ? S(f) : (b("idle"), w(""));
               }, [f]),
               (0, s.jsxs)("fieldset", {
                 className: o()("flex flex-col", i),
@@ -1311,7 +1324,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                               (0, s.jsx)(r.a, {
                                 value: f,
                                 onChange: e => {
-                                  g(e.target.value), "error" === p && (b("idle"), y(""));
+                                  g(e.target.value), "error" === p && (b("idle"), w(""));
                                 },
                                 type: "number",
                                 onClear: () => g(""),
@@ -1336,8 +1349,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                               k.chainName
                             ]
                           }),
-                          "error" === p ? (0, s.jsx)("p", { className: "text-xs mt-2 text-red-300 font-medium", children: w }) : null,
-                          "success" === p ? (0, s.jsx)("p", { className: "text-xs mt-2 text-green-300 font-medium", children: w }) : null
+                          "error" === p ? (0, s.jsx)("p", { className: "text-xs mt-2 text-red-300 font-medium", children: y }) : null,
+                          "success" === p ? (0, s.jsx)("p", { className: "text-xs mt-2 text-green-300 font-medium", children: y }) : null
                         ]
                       })
                     })
@@ -1371,8 +1384,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             g = t(96217),
             p = t(69816),
             b = t(76147),
-            w = t(2784),
-            y = t(74713),
+            y = t(2784),
+            w = t(74713),
             j = t(46103),
             N = t(41325),
             C = e([b, N]);
@@ -1380,47 +1393,47 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           let k = e => {
             var n;
             let { targetChain: t, sourceChain: l } = e,
-              [m, C] = (0, w.useState)(!1),
-              [k, S] = (0, w.useState)(null),
-              [I, D] = (0, w.useState)(!1),
-              [M, A] = (0, w.useState)(!1),
-              [T, E] = (0, w.useState)(),
+              [m, C] = (0, y.useState)(!1),
+              [k, S] = (0, y.useState)(null),
+              [I, D] = (0, y.useState)(!1),
+              [M, A] = (0, y.useState)(!1),
+              [T, E] = (0, y.useState)(),
               { theme: O } = (0, o.useTheme)(),
               { chains: B } = (0, a._IL)(),
-              L = B[l],
-              _ = B[t],
-              z = y.MQ.getCustomChannels(l),
-              Z = y.MQ.getSourceChainChannelId(l, t),
+              _ = B[l],
+              L = B[t],
+              z = w.MQ.getCustomChannels(l),
+              Z = w.MQ.getSourceChainChannelId(l, t),
               { transferData: F, setIsIbcUnwindingDisabled: P, customIbcChannelId: U, setCustomIbcChannelId: W } = (0, b.GE)(),
-              G = (0, w.useMemo)(
+              G = (0, y.useMemo)(
                 () =>
                   (null == F ? void 0 : F.isSkipTransfer) && (null == F ? void 0 : F.routeResponse)
                     ? { ...(null == F ? void 0 : F.routeResponse), messages: null == F ? void 0 : F.messages }
                     : { operations: [], messages: [], sourceAsset: { denom: null } },
                 [null == F ? void 0 : F.isSkipTransfer, null == F ? void 0 : F.messages, null == F ? void 0 : F.routeResponse]
               ),
-              { groupedTransactions: H } = (0, i.nC)(G),
-              R = [];
-            null === (n = Object.values(H)) ||
+              { groupedTransactions: R } = (0, i.nC)(G),
+              H = [];
+            null === (n = Object.values(R)) ||
               void 0 === n ||
               n.forEach((e, n) => {
                 e.forEach((e, t) => {
-                  0 == n && 0 == t && R.push(e.sourceChain), R.push(e.destinationChain);
+                  0 == n && 0 == t && H.push(e.sourceChain), H.push(e.destinationChain);
                 });
               }),
-              (0, w.useEffect)(() => {
+              (0, y.useEffect)(() => {
                 Z ? S(Z) : S(void 0);
               }, [Z]);
-            let $ = (0, w.useCallback)(() => {
+            let $ = (0, y.useCallback)(() => {
                 C(e => !e);
               }, [C]),
-              V = (0, w.useCallback)(
+              V = (0, y.useCallback)(
                 e => {
                   e === T && void 0 !== T ? E(void 0) : E(e);
                 },
                 [T, E]
               ),
-              K = (0, w.useMemo)(
+              K = (0, y.useMemo)(
                 () =>
                   z
                     .filter(e => {
@@ -1434,9 +1447,9 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     .sort((e, n) => e.title.localeCompare(n.title)),
                 [z, t]
               ),
-              J = (0, w.useMemo)(() => (k ? [{ title: k, subTitle: "Prefetched from Cosmos directory registry", value: k }, ...K] : K), [K, k]),
+              J = (0, y.useMemo)(() => (k ? [{ title: k, subTitle: "Prefetched from Cosmos directory registry", value: k }, ...K] : K), [K, k]),
               Q = J.length > 0,
-              q = (0, w.useCallback)(() => {
+              q = (0, y.useCallback)(() => {
                 Q && (A(e => !e), E(void 0));
               }, [Q, A]);
             return (0, s.jsxs)(s.Fragment, {
@@ -1491,10 +1504,10 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                                     className: "text-gray-500 dark:text-gray-100 text-sm",
                                     children: [
                                       "ID of the channel that will relay your tokens from ",
-                                      L.chainName,
+                                      _.chainName,
                                       " ",
                                       "to ",
-                                      null == _ ? void 0 : _.chainName,
+                                      null == L ? void 0 : L.chainName,
                                       "."
                                     ]
                                   }),
@@ -1534,7 +1547,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                                 size: "xs",
                                 color: "text-secondary-800",
                                 className: "font-bold capitalize",
-                                children: [L.chainName, " to ", null == _ ? void 0 : _.chainName, " channels"]
+                                children: [_.chainName, " to ", null == L ? void 0 : L.chainName, " channels"]
                               }),
                               null === k
                                 ? (0, s.jsx)("div", { className: "flex justify-center items-center my-3", children: (0, s.jsx)(f.T, { color: "white" }) })
@@ -1619,8 +1632,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             g = t(74229),
             p = t(6401),
             b = t(57124),
-            w = t(30464),
-            y = t(75958),
+            y = t(30464),
+            w = t(75958),
             j = t(2784),
             N = t(84994),
             C = t(53221),
@@ -1632,21 +1645,21 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             A = t(24074),
             T = e([M]);
           M = (T.then ? (await T)() : T)[0];
-          let E = (0, y.Pi)(function (e) {
+          let E = (0, w.Pi)(function (e) {
             let {
                 onTokenSelect: n,
                 token: t,
                 isSelected: l,
                 verified: u = !1,
                 hideAmount: h = !1,
-                showRedirection: y = !1,
+                showRedirection: w = !1,
                 selectedChain: T,
                 isChainAbstractionView: E,
                 marketDataStore: O,
                 isFirst: B = !1,
-                isLast: L = !1
+                isLast: _ = !1
               } = e,
-              _ = (0, i.a74)(),
+              L = (0, i.a74)(),
               [z] = (0, p.nB)(),
               [Z] = (0, p.X$)(),
               F = (0, b.a)(),
@@ -1654,8 +1667,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               { sendSelectedNetwork: U } = (0, M.GE)(),
               W = (0, g.os)(),
               G = (0, i.DI5)(),
-              { data: H } = (0, o.C$)(),
-              R = (0, j.useMemo)(() => {
+              { data: R } = (0, o.C$)(),
+              H = (0, j.useMemo)(() => {
                 if (t.ibcChainInfo)
                   return (
                     Object.values(G).find(e => {
@@ -1672,29 +1685,29 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                         e.testnetChainId === (null === (l = t.ibcChainInfo) || void 0 === l ? void 0 : l.name)
                       );
                     }) ??
-                    (null == H
+                    (null == R
                       ? void 0
-                      : H.find(e => {
+                      : R.find(e => {
                           var n;
                           return e.chainId === (null === (n = t.ibcChainInfo) || void 0 === n ? void 0 : n.name);
                         }))
                   );
-              }, [G, W, H, t.ibcChainInfo]),
+              }, [G, W, R, t.ibcChainInfo]),
               $ = N.J.formatHideBalance(t.usdValue ? z(new (m())(t.usdValue)) : "-"),
               { getExplorerAccountUrl: V, explorerAccountUrl: K } = (0, i.JVF)({ forceChain: null == T ? void 0 : T.key }),
               [J, Q] = (0, j.useState)(!1),
               [q, Y] = (0, j.useMemo)(() => {
-                let e = y && T;
+                let e = w && T;
                 return e && t.coinMinimalDenom.toLowerCase().startsWith("factory/") && !(null == K ? void 0 : K.toLowerCase().includes("mintscan"))
                   ? [!1, !0]
                   : [e, !1];
-              }, [K, T, y, t.coinMinimalDenom]),
+              }, [K, T, w, t.coinMinimalDenom]),
               X = (0, j.useMemo)(() => {
                 var e;
                 return t.ibcChainInfo
                   ? `${t.ibcChainInfo.pretty_name} / ${(0, D.MD)((null === (e = t.ibcChainInfo) || void 0 === e ? void 0 : e.channelId) ?? "", 7, 5)}`
                   : "";
-              }, [R]),
+              }, [H]),
               ee = (0, j.useCallback)(
                 e => {
                   if ((e.stopPropagation(), t.coinMinimalDenom.toLowerCase().startsWith("factory/"))) {
@@ -1730,7 +1743,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               children: [
                 (0, s.jsx)("div", {
                   onClick: et,
-                  className: v()("flex flex-1 items-center w-full", L ? "mb-4" : "mb-3"),
+                  className: v()("flex flex-1 items-center w-full", _ ? "mb-4" : "mb-3"),
                   children: (0, s.jsxs)("div", {
                     className: (0, k.cn)(
                       "flex items-center flex-1 flex-row justify-between w-full gap-2 rounded-xl pl-3 py-3 pr-4 border border-transparent",
@@ -1753,7 +1766,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                                   className: "absolute group -bottom-[3px] -right-[6px]",
                                   children: [
                                     (0, s.jsx)("img", {
-                                      src: P === r.ThemeName.DARK ? w.r.Misc.VerifiedWithBgStarDark : w.r.Misc.VerifiedWithBgStar,
+                                      src: P === r.ThemeName.DARK ? y.r.Misc.VerifiedWithBgStarDark : y.r.Misc.VerifiedWithBgStar,
                                       alt: "verified-token",
                                       className: "h-5 w-5",
                                       "aria-label": "verified token"
@@ -1784,7 +1797,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                                         (0, s.jsx)(x.Z, {
                                           size: "md",
                                           className: v()("font-bold !leading-[21.6px]", {
-                                            "items-center justify-center gap-1": (_ === f.HW || E) && (null == t ? void 0 : t.ibcChainInfo)
+                                            "items-center justify-center gap-1": (L === f.HW || E) && (null == t ? void 0 : t.ibcChainInfo)
                                           }),
                                           "data-testing-id": `switch-token-${el.toLowerCase()}-ele`,
                                           "aria-label": "token name",
@@ -1846,7 +1859,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     ]
                   })
                 }),
-                L && (0, s.jsx)("div", { className: "h-1 bg-transparent" })
+                _ && (0, s.jsx)("div", { className: "h-1 bg-transparent" })
               ]
             });
           });
@@ -1876,8 +1889,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             g = t(76147),
             p = t(2784),
             b = t(86874),
-            w = t(81354),
-            y = t(84994),
+            y = t(81354),
+            w = t(84994),
             j = t(49409),
             N = e([g]);
           g = (N.then ? (await N)() : N)[0];
@@ -1900,7 +1913,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               A = (0, a.DI5)(),
               T = (0, x.a)(),
               [E, O] = (0, p.useState)(null == l ? void 0 : l.toString()),
-              { selectedAddress: B, addressError: L, fee: _, l2DataBufferFee: z } = (0, g.GE)(),
+              { selectedAddress: B, addressError: _, fee: L, l2DataBufferFee: z } = (0, g.GE)(),
               Z = (0, p.useMemo)(() => {
                 if (c && c.usdPrice && "0" !== c.usdPrice) return c.usdPrice;
               }, [c]);
@@ -1912,15 +1925,15 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 return "" === l || (l && isNaN(parseFloat(l)))
                   ? { formattedDollarAmount: "" }
                   : (c && c.usdPrice && l && (e = String(parseFloat(c.usdPrice) * parseFloat(l))),
-                    { formattedDollarAmount: y.J.formatHideBalance(M(new (u())(e))) });
+                    { formattedDollarAmount: w.J.formatHideBalance(M(new (u())(e))) });
               }, [M, c, l]),
               P = (0, p.useMemo)(
-                () => y.J.formatHideBalance((0, a.LHZ)(l ?? "0", (0, a.MDB)((null == c ? void 0 : c.symbol) ?? "", 4, 4), 3, "en-US")),
+                () => w.J.formatHideBalance((0, a.LHZ)(l ?? "0", (0, a.MDB)((null == c ? void 0 : c.symbol) ?? "", 4, 4), 3, "en-US")),
                 [l, null == c ? void 0 : c.symbol]
               ),
               U = (0, p.useMemo)(
                 () =>
-                  y.J.formatHideBalance(
+                  w.J.formatHideBalance(
                     (0, a.LHZ)((null == c ? void 0 : c.amount) ?? "0", (0, a.MDB)((null == c ? void 0 : c.symbol) ?? "", 4, 4), 3, "en-US")
                   ),
                 [null == c ? void 0 : c.amount, null == c ? void 0 : c.symbol]
@@ -1943,7 +1956,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               (0, p.useEffect)(() => {
                 D && O("");
               }, [D]);
-            let H = (0, p.useCallback)(() => {
+            let R = (0, p.useCallback)(() => {
               if (n) {
                 if (!Z) throw "USD price is not available";
                 let e = new (u())((null == c ? void 0 : c.amount) ?? "0").multipliedBy(Z);
@@ -1952,13 +1965,13 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 let e = (null == c ? void 0 : c.coinDecimals) || 6;
                 O(new (u())((null == c ? void 0 : c.amount) ?? 0).toFixed(e, u().ROUND_DOWN));
               }
-              w.K5.allowUpdateInput();
+              y.K5.allowUpdateInput();
             }, [n, Z, null == c ? void 0 : c.amount, null == c ? void 0 : c.coinDecimals]);
             (0, p.useEffect)(() => {
               var e, t, s, a;
               if (
-                !w.K5.updateAllowed() ||
-                !_ ||
+                !y.K5.updateAllowed() ||
+                !L ||
                 !(null == c ? void 0 : c.amount) ||
                 !l ||
                 ((null == c ? void 0 : c.coinMinimalDenom) === "mist" && "sui" === S)
@@ -1967,16 +1980,16 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               let o = new (u())(l ?? 0),
                 r = new (u())((null == c ? void 0 : c.amount) ?? 0);
               if (o.lte(0)) return;
-              let d = null == _ ? void 0 : null === (t = _.amount) || void 0 === t ? void 0 : null === (e = t[0]) || void 0 === e ? void 0 : e.denom,
+              let d = null == L ? void 0 : null === (t = L.amount) || void 0 === t ? void 0 : null === (e = t[0]) || void 0 === e ? void 0 : e.denom,
                 m =
                   (null == c ? void 0 : c.ibcDenom) || (null == d ? void 0 : d.startsWith("ibc/"))
                     ? (null == c ? void 0 : c.ibcDenom) === d
                     : (null == c ? void 0 : c.coinMinimalDenom) === d,
-                h = w.K5.shouldTerminate(),
+                h = y.K5.shouldTerminate(),
                 v = (null == c ? void 0 : c.coinDecimals) || 6,
                 x = new (u())(
                   (0, i.TGo)(
-                    (null == _ ? void 0 : null === (a = _.amount) || void 0 === a ? void 0 : null === (s = a[0]) || void 0 === s ? void 0 : s.amount) ?? "0",
+                    (null == L ? void 0 : null === (a = L.amount) || void 0 === a ? void 0 : null === (s = a[0]) || void 0 === s ? void 0 : s.amount) ?? "0",
                     v
                   )
                 );
@@ -1991,10 +2004,10 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   let e = f.multipliedBy(Z);
                   O(e.toString());
                 } else O(g);
-                w.K5.incrementUpdateCount();
+                y.K5.incrementUpdateCount();
               }
             }, [
-              _,
+              L,
               l,
               n,
               null == c ? void 0 : c.amount,
@@ -2003,7 +2016,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               null == c ? void 0 : c.ibcDenom,
               Z
             ]);
-            let R = (0, p.useCallback)(() => {
+            let H = (0, p.useCallback)(() => {
                 if (n) {
                   if (!Z) throw "USD price is not available";
                   let e = new (u())((null == c ? void 0 : c.amount) ?? "0").dividedBy(2).multipliedBy(Z);
@@ -2012,7 +2025,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   let e = new (u())((null == c ? void 0 : c.amount) ?? "0").dividedBy(2).toFixed(6, 1);
                   O(e);
                 }
-                w.K5.disableUpdateInput();
+                y.K5.disableUpdateInput();
               }, [n, Z, null == c ? void 0 : c.amount, O]),
               $ = (0, p.useCallback)(() => {
                 if (!Z) throw "USD price is not available";
@@ -2030,7 +2043,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 () => ((null == c ? void 0 : c.tokenBalanceOnChain) ? (null == A ? void 0 : A[c.tokenBalanceOnChain]) : null),
                 [null == c ? void 0 : c.tokenBalanceOnChain, A]
               ),
-              K = (L || "").includes("IBC transfers are not supported"),
+              K = (_ || "").includes("IBC transfers are not supported"),
               J = (0, p.useMemo)(() => {
                 var e, n;
                 return (0, i.KPM)(S) ||
@@ -2076,7 +2089,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                                       placeholder: "0",
                                       value: n ? E : l,
                                       onChange: e => {
-                                        O(e.target.value), w.K5.disableUpdateInput();
+                                        O(e.target.value), y.K5.disableUpdateInput();
                                       },
                                       "aria-label": "token input"
                                     })
@@ -2162,14 +2175,14 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                                 : (0, s.jsxs)(s.Fragment, {
                                     children: [
                                       (0, s.jsx)("button", {
-                                        onClick: R,
+                                        onClick: H,
                                         className:
                                           "rounded-full bg-secondary-200 px-[6px] font-medium text-xs hover:bg-secondary-300 dark:hover:text-white-100 hover:text-black-100 !leading-[19.2px] text-muted-foreground",
                                         "aria-label": "send 50% button in send flow",
                                         children: (0, s.jsx)("span", { "aria-label": "send 50% button text in send flow", children: "50%" })
                                       }),
                                       (0, s.jsx)("button", {
-                                        onClick: H,
+                                        onClick: R,
                                         className:
                                           "rounded-full bg-secondary-200 px-[6px] font-medium text-xs hover:bg-secondary-300 dark:hover:text-white-100 hover:text-black-100 !leading-[19.2px] text-muted-foreground",
                                         "aria-label": "send max button in send flow",
@@ -2181,7 +2194,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                           })
                         ]
                       }),
-                      !K && L && B
+                      !K && _ && B
                         ? (0, s.jsxs)("div", {
                             className: "text-left text-xs text-destructive-100 font-medium !leading-[16px]",
                             children: ["You can only send ", null == c ? void 0 : c.symbol, " on ", J, "."]
@@ -2203,7 +2216,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
     96281: function (e, n, t) {
       t.a(e, async function (e, l) {
         try {
-          t.d(n, { e: () => w });
+          t.d(n, { e: () => y });
           var s = t(52322),
             a = t(15969),
             i = t(6391),
@@ -2221,7 +2234,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             p = t(25664),
             b = e([u, h, g, d, p]);
           [u, h, g, d, p] = b.then ? (await b)() : b;
-          let w = (0, m.Pi)(e => {
+          let y = (0, m.Pi)(e => {
             let {
                 isAllAssetsLoading: n,
                 rootBalanceStore: t,
@@ -2229,8 +2242,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 rootCW20DenomsStore: o,
                 rootERC20DenomsStore: m,
                 resetForm: b,
-                setShowTokenSelectSheet: w,
-                isTokenStatusSuccess: y,
+                setShowTokenSelectSheet: y,
+                isTokenStatusSuccess: w,
                 amount: j,
                 setAmount: N
               } = e,
@@ -2245,8 +2258,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               O = (0, v.useCallback)(e => !!e && Object.keys(D).includes(e.coinMinimalDenom), [D]),
               {
                 inputAmount: B,
-                setInputAmount: L,
-                selectedToken: _,
+                setInputAmount: _,
+                selectedToken: L,
                 setSelectedToken: z,
                 sendActiveChain: Z,
                 selectedChain: F,
@@ -2254,8 +2267,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 setAmountError: U,
                 amountError: W,
                 userPreferredGasPrice: G,
-                userPreferredGasLimit: H,
-                gasEstimate: R,
+                userPreferredGasLimit: R,
+                gasEstimate: H,
                 selectedAddress: $,
                 fee: V,
                 feeDenom: K,
@@ -2270,36 +2283,36 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               (0, v.useEffect)(() => {
                 var e, n, t;
                 let l = null === (n = j.split(".")) || void 0 === n ? void 0 : null === (e = n[1]) || void 0 === e ? void 0 : e.length,
-                  s = (null == _ ? void 0 : _.coinDecimals) ?? 6;
-                l > s ? L(((t = Number(j)), (Math.floor(t * Math.pow(10, s)) / Math.pow(10, s)).toFixed(s))) : L(j);
-              }, [j, null == _ ? void 0 : _.coinDecimals]),
+                  s = (null == L ? void 0 : L.coinDecimals) ?? 6;
+                l > s ? _(((t = Number(j)), (Math.floor(t * Math.pow(10, s)) / Math.pow(10, s)).toFixed(s))) : _(j);
+              }, [j, null == L ? void 0 : L.coinDecimals]),
               (0, v.useEffect)(() => {
                 U(
                   (() => {
                     var e, n, t;
-                    if ((null == $ ? void 0 : $.address) && !J && _ && O(_)) return "IBC transfers are not supported for cw20 tokens.";
+                    if ((null == $ ? void 0 : $.address) && !J && L && O(L)) return "IBC transfers are not supported for cw20 tokens.";
                     if ("" === B) return "";
                     if (isNaN(Number(B))) return "Please enter a valid amount";
                     if (new i.BigNumber(B).lt(0)) return "Please enter a positive amount";
-                    if (new i.BigNumber(B).gt(new i.BigNumber((null == _ ? void 0 : _.amount) ?? ""))) return "Insufficient balance";
+                    if (new i.BigNumber(B).gt(new i.BigNumber((null == L ? void 0 : L.amount) ?? ""))) return "Insufficient balance";
                     if (
                       (0, a.bj0)(Z) &&
-                      (0, a.bj0)((null == _ ? void 0 : _.chain) ?? "") &&
-                      (null == _ ? void 0 : _.coinMinimalDenom) === "mist" &&
+                      (0, a.bj0)((null == L ? void 0 : L.chain) ?? "") &&
+                      (null == L ? void 0 : L.coinMinimalDenom) === "mist" &&
                       new i.BigNumber(
                         (null == V ? void 0 : null === (n = V.amount) || void 0 === n ? void 0 : null === (e = n[0]) || void 0 === e ? void 0 : e.amount) ?? 0
                       ).eq(0)
                     )
                       return "Insufficient balance for fees";
                     let l = E.find(e =>
-                      (null == _ ? void 0 : _.isEvm) && (null == e ? void 0 : e.isEvm)
+                      (null == L ? void 0 : L.isEvm) && (null == e ? void 0 : e.isEvm)
                         ? e.coinMinimalDenom === (null == K ? void 0 : K.coinMinimalDenom)
                         : e.ibcDenom === K.coinMinimalDenom || e.coinMinimalDenom === K.coinMinimalDenom
                     );
                     if (!V || !G || !l) return "";
                     let { amount: s } = (0, d.X$)({
                       gasPrice: G.amount.toFloatApproximation(),
-                      gasLimit: H ?? R,
+                      gasLimit: R ?? H,
                       feeDenom: K,
                       gasAdjustment: ee,
                       isSeiEvmTransaction: null == C ? void 0 : null === (t = C[Z]) || void 0 === t ? void 0 : t.evmOnlyChain,
@@ -2311,7 +2324,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     if (s.gt(l.amount)) return "Insufficient funds for fees.";
                   })()
                 );
-              }, [E, null == V ? void 0 : V.amount, null == K ? void 0 : K.coinMinimalDenom, B, _, $, ee, Z, C, M, q, Y, X]),
+              }, [E, null == V ? void 0 : V.amount, null == K ? void 0 : K.coinMinimalDenom, B, L, $, ee, Z, C, M, q, Y, X]),
               (0, v.useEffect)(() => {
                 b &&
                   (N(""),
@@ -2331,11 +2344,11 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   isInputInUSDC: S,
                   setIsInputInUSDC: I,
                   value: j,
-                  token: _,
-                  loadingAssets: !y,
+                  token: L,
+                  loadingAssets: !w,
                   balanceStatus: n,
                   onChange: e => N(e),
-                  onTokenSelectSheet: () => w(!0),
+                  onTokenSelectSheet: () => y(!0),
                   amountError: W,
                   sendActiveChain: Z,
                   selectedChain: F,
@@ -2344,7 +2357,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               })
             );
           });
-          (w.displayName = "AmountCard"), l();
+          (y.displayName = "AmountCard"), l();
         } catch (e) {
           l(e);
         }
@@ -2371,9 +2384,9 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           let g = (0, u.Pi)(e => {
             let { assets: n, selectedToken: t, isOpen: l, onClose: u, onTokenSelect: f, denoms: g } = e,
               p = (0, v.useRef)(null),
-              [b, w] = (0, v.useState)(""),
-              { sendActiveChain: y } = (0, h.GE)(),
-              j = (0, a.QSC)(y),
+              [b, y] = (0, v.useState)(""),
+              { sendActiveChain: w } = (0, h.GE)(),
+              j = (0, a.QSC)(w),
               N = (0, v.useMemo)(
                 () =>
                   n.filter(e => {
@@ -2394,7 +2407,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             return (
               (0, v.useEffect)(() => {
                 l &&
-                  (w(""),
+                  (y(""),
                   setTimeout(() => {
                     var e;
                     null === (e = p.current) || void 0 === e || e.focus();
@@ -2414,8 +2427,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                       (0, s.jsx)(c.M, {
                         ref: p,
                         value: b,
-                        onChange: e => w(e.target.value),
-                        onClear: () => w(""),
+                        onChange: e => y(e.target.value),
+                        onClear: () => y(""),
                         placeholder: "Select Token",
                         "aria-label": "select token search input"
                       }),
@@ -2515,8 +2528,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               {
                 amountError: p,
                 addressError: b,
-                pfmEnabled: w,
-                setPfmEnabled: y,
+                pfmEnabled: y,
+                setPfmEnabled: w,
                 transferData: j,
                 isIbcUnwindingDisabled: N,
                 setSelectedAddress: C,
@@ -2542,15 +2555,15 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                           var t;
                           return e.chainId === (null == n ? void 0 : null === (t = n.multi_chain_msg) || void 0 === t ? void 0 : t.chain_id);
                         });
-                g((null == t ? void 0 : t.addressPrefix) === "sei" ? { ...t, addressPrefix: "seiTestnet2" } : t), y((null == t ? void 0 : t.pfmEnabled) !== !1);
-              } else g(null), y(!0);
+                g((null == t ? void 0 : t.addressPrefix) === "sei" ? { ...t, addressPrefix: "seiTestnet2" } : t), w((null == t ? void 0 : t.pfmEnabled) !== !1);
+              } else g(null), w(!0);
               return () => {
-                y(!0);
+                w(!0);
               };
             }, [B, null == j ? void 0 : j.isSkipTransfer, null == j ? void 0 : j.routeResponse, null == j ? void 0 : j.messages]);
-            let L = (p || "").includes("IBC transfers are not supported"),
-              _ = (p || "").includes("You can only send this token to a SEI address");
-            return L || _
+            let _ = (p || "").includes("IBC transfers are not supported"),
+              L = (p || "").includes("You can only send this token to a SEI address");
+            return _ || L
               ? (0, s.jsxs)("div", {
                   className: "p-4 rounded-2xl bg-red-100 dark:bg-red-900 items-center flex gap-2",
                   children: [
@@ -2573,7 +2586,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                         : t.key,
                     sourceChain: I
                   })
-                : w || N
+                : y || N
                   ? null
                   : (0, s.jsxs)("div", {
                       className: "px-3 py-2.5 rounded-2xl items-center flex bg-accent-warning-800 gap-1.5",
@@ -2736,8 +2749,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 inputAmount: g,
                 userPreferredGasPrice: p,
                 userPreferredGasLimit: b,
-                setUserPreferredGasLimit: w,
-                setUserPreferredGasPrice: y,
+                setUserPreferredGasLimit: y,
+                setUserPreferredGasPrice: w,
                 gasEstimate: j,
                 gasOption: N,
                 setGasOption: C,
@@ -2751,10 +2764,10 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 isSeiEvmTransaction: E,
                 setIsSolanaBalanceInsufficientForFee: O,
                 computedGas: B,
-                l2DataBufferFee: L
+                l2DataBufferFee: _
               } = (0, u.GE)(),
-              _ = h.KB.getSolanaBalances(A, T, void 0),
-              z = null === (n = _.filter(e => "lamports" === e.coinMinimalDenom)[0]) || void 0 === n ? void 0 : n.amount,
+              L = h.KB.getSolanaBalances(A, T, void 0),
+              z = null === (n = L.filter(e => "lamports" === e.coinMinimalDenom)[0]) || void 0 === n ? void 0 : n.amount,
               Z = t.allDenoms,
               F = (0, i.e7)(Z, { activeChain: A, selectedNetwork: T, isSeiEvmTransaction: E }),
               [P, U] = (0, m.useState)({ option: N, gasPrice: p ?? F.gasPrice }),
@@ -2762,7 +2775,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               G = (0, m.useCallback)(() => {
                 v(!1);
               }, []),
-              H = (0, m.useCallback)(
+              R = (0, m.useCallback)(
                 (e, n) => {
                   (W.current = !0), U(e), k({ ...n.denom, ibcDenom: n.ibcDenom });
                 },
@@ -2773,8 +2786,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 !W.current && U({ option: N, gasPrice: F.gasPrice });
               }, [F.gasPrice.amount.toString(), F.gasPrice.denom]),
               (0, m.useEffect)(() => {
-                C(P.option), y(P.gasPrice);
-              }, [P, C, y]),
+                C(P.option), w(P.gasPrice);
+              }, [P, C, w]),
               (0, m.useEffect)(() => {
                 if (0 === x.value) return;
                 O(!1);
@@ -2794,9 +2807,9 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               (0, s.jsx)(i.ZP, {
                 recommendedGasLimit: j.toString(),
                 gasLimit: (null == b ? void 0 : b.toString()) ?? j.toString(),
-                setGasLimit: e => w(Number(e.toString())),
+                setGasLimit: e => y(Number(e.toString())),
                 gasPriceOption: P,
-                onGasPriceOptionChange: H,
+                onGasPriceOptionChange: R,
                 error: I,
                 setError: D,
                 isSelectedTokenEvm: null == S ? void 0 : S.isEvm,
@@ -2806,7 +2819,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 rootDenomsStore: t,
                 rootBalanceStore: l,
                 computedGas: B,
-                l2DataBufferFee: L,
+                l2DataBufferFee: _,
                 className: g ? "" : "hidden",
                 children: g
                   ? (0, s.jsxs)(s.Fragment, {
@@ -2915,8 +2928,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 setIsAddContactSheetVisible: g,
                 setShowSelectRecipient: p,
                 activeChain: b,
-                setInputInProgress: w,
-                inputInProgress: y,
+                setInputInProgress: y,
+                inputInProgress: w,
                 chainInfoStore: j,
                 chainFeatureFlagsStore: N
               } = e,
@@ -2945,7 +2958,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                           : null
                       ]
                     }),
-                    x && !y
+                    x && !w
                       ? (0, s.jsx)(v.Z, {
                           selectedAddress: x,
                           setSelectedContact: f,
@@ -2953,7 +2966,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                           activeChain: b,
                           wallets: D,
                           onEdit: () => {
-                            w(!0),
+                            y(!0),
                               k((null == x ? void 0 : x.ethAddress) || (null == x ? void 0 : x.address) || ""),
                               S(null),
                               setTimeout(() => {
@@ -2966,7 +2979,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                         })
                       : (0, s.jsx)(m.Z, {
                           ref: n,
-                          setInputInProgress: w,
+                          setInputInProgress: y,
                           setShowSelectRecipient: p,
                           setRecipientInputValue: k,
                           recipientInputValue: C,
@@ -2976,7 +2989,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                         })
                   ]
                 }),
-                x && !y ? (0, s.jsx)(h.V, {}) : null,
+                x && !w ? (0, s.jsx)(h.V, {}) : null,
                 (0, s.jsx)(u.ug, {})
               ]
             });
@@ -3009,8 +3022,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             g = t(59079),
             p = t(60914),
             b = t(2784),
-            w = t(81354),
-            y = t(54525),
+            y = t(81354),
+            w = t(54525),
             j = t(53221),
             N = t(70514),
             C = t(48534),
@@ -3033,8 +3046,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 {
                   setEthAddress: O,
                   setSelectedAddress: B,
-                  addressError: L,
-                  setMemo: _,
+                  addressError: _,
+                  setMemo: L,
                   sendActiveChain: z,
                   setAddressError: Z,
                   setAddressWarning: F
@@ -3042,18 +3055,18 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 P = (0, a.tIw)(),
                 [U, W] = (0, b.useState)(!1),
                 G = (0, a.NrF)(x, 100),
-                H = y.o.useGetContact(x),
-                R = m.w.useWallets(),
+                R = w.o.useGetContact(x),
+                H = m.w.useWallets(),
                 $ = (0, b.useMemo)(
                   () =>
-                    R
-                      ? Object.values(R)
+                    H
+                      ? Object.values(H)
                           .map(e => e)
                           .sort((e, n) =>
                             e.createdAt && n.createdAt ? new Date(e.createdAt).getTime() - new Date(n.createdAt).getTime() : e.name.localeCompare(n.name)
                           )
                       : [],
-                  [R]
+                  [H]
                 ),
                 V = (0, b.useMemo)(() => {
                   let e = $.find(e => {
@@ -3065,7 +3078,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   });
                   if (e) return e;
                 }, [x, $]),
-                K = H ?? V,
+                K = R ?? V,
                 J = (0, b.useMemo)(() => {
                   let e = [...Object.keys(P), "arch", "sol", "sei", "pp", "core", "i"];
                   r.L.spaceIds && e.push(...r.L.spaceIds);
@@ -3112,7 +3125,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               let X = (0, b.useCallback)(
                   e => {
                     if (e) {
-                      _("");
+                      L("");
                       try {
                         if (0 === e.length) {
                           Z(void 0);
@@ -3146,11 +3159,11 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                           emoji: void 0
                         }),
                           S(!1),
-                          w.K5.resetUpdateCount();
+                          y.K5.resetUpdateCount();
                       } catch (e) {}
                     }
                   },
-                  [P, K, null == V ? void 0 : V.avatar, Z, _, B, S]
+                  [P, K, null == V ? void 0 : V.avatar, Z, L, B, S]
                 ),
                 ee = (0, b.useCallback)(() => {
                   let e = null == x ? void 0 : x.trim();
@@ -3172,7 +3185,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 }, [n, l, X]),
                 et = (0, b.useCallback)(
                   e => {
-                    Z(void 0), B(e), O(e.ethAddress ?? ""), l(e.address ?? ""), S(!1), w.K5.resetUpdateCount();
+                    Z(void 0), B(e), O(e.ethAddress ?? ""), l(e.address ?? ""), S(!1), y.K5.resetUpdateCount();
                   },
                   [Z, O, B, l, S]
                 ),
@@ -3182,8 +3195,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   },
                   [S, l, X]
                 ),
-                es = !J && L,
-                ea = (null == x ? void 0 : x.length) > 0 && (null == G ? void 0 : G.length) > 0 && !L && !J;
+                es = !J && _,
+                ea = (null == x ? void 0 : x.length) > 0 && (null == G ? void 0 : G.length) > 0 && !_ && !J;
               return (0, s.jsxs)("div", {
                 className: "flex flex-col justify-start items-start",
                 children: [
@@ -3234,7 +3247,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     ]
                   }),
                   es || ea || J ? (0, s.jsx)("div", { className: "w-full h-[1px] mt-5 bg-secondary-300" }) : null,
-                  es ? (0, s.jsx)("div", { className: "text-sm text-destructive-100 font-medium leading-[19px] mt-5", children: L }) : null,
+                  es ? (0, s.jsx)("div", { className: "text-sm text-destructive-100 font-medium leading-[19px] mt-5", children: _ }) : null,
                   ea
                     ? (0, s.jsx)("button", {
                         className: "w-full flex items-center gap-3 cursor-pointer mt-5",
@@ -3281,7 +3294,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     isOpen: U,
                     onClose: () => W(!1),
                     setSelectedAddress: e => {
-                      B(e), W(!1), S(!1), w.K5.resetUpdateCount();
+                      B(e), W(!1), S(!1), y.K5.resetUpdateCount();
                     },
                     address: x,
                     forceName: K ? K.name : void 0,
@@ -3302,7 +3315,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
     68975: function (e, n, t) {
       t.a(e, async function (e, l) {
         try {
-          t.d(n, { Z: () => w });
+          t.d(n, { Z: () => y });
           var s = t(52322),
             a = t(41172),
             i = t(89187),
@@ -3359,20 +3372,20 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 })
               });
             },
-            w = e => {
+            y = e => {
               let { address: n, handleContactSelect: t } = e,
                 l = (0, r.ob)(),
                 i = (0, d.pb)();
               (0, a.DI5)();
               let { selectedToken: v, sendActiveChain: f } = (0, m.GE)(),
-                [g, w] = (0, o.A)(n, l),
-                y = (0, h.useMemo)(
+                [g, y] = (0, o.A)(n, l),
+                w = (0, h.useMemo)(
                   () =>
-                    Object.entries(w).filter(e => {
+                    Object.entries(y).filter(e => {
                       let [, n] = e;
                       return null !== n;
                     }),
-                  [w]
+                  [y]
                 );
               return (0, s.jsx)("div", {
                 className: "w-full",
@@ -3380,11 +3393,11 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   ? (0, s.jsx)("div", { className: "mt-5", children: (0, s.jsx)(p, {}) })
                   : (0, s.jsx)(s.Fragment, {
                       children:
-                        y && y.length > 0
+                        w && w.length > 0
                           ? (0, s.jsx)(s.Fragment, {
                               children: (0, s.jsx)("ul", {
                                 className: "list-none space-y-2 mt-5 max-h-[180px] overflow-y-auto",
-                                children: y.map(e => {
+                                children: w.map(e => {
                                   let [l, a] = e,
                                     r = c.r.Logos.getNameServiceLogo(l);
                                   if (a && "string" == typeof a) {
@@ -3639,8 +3652,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             g = t(57124),
             p = t(30464),
             b = t(2784),
-            w = t(46103),
-            y = t(54525),
+            y = t(46103),
+            w = t(54525),
             j = t(76147),
             N = e([j, x]);
           function C(e) {
@@ -3649,12 +3662,12 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               [M, A] = (0, b.useState)(""),
               [T, E] = (0, b.useState)(1),
               [O, B] = (0, b.useState)(!1),
-              [L, _] = (0, b.useState)(""),
+              [_, L] = (0, b.useState)(""),
               [z, Z] = (0, b.useState)(""),
               [F, P] = (0, b.useState)(""),
               [U, W] = (0, b.useState)(!1),
-              { setMemo: G, setSelectedAddress: H } = (0, j.GE)(),
-              R = y.o.useGetContact(l),
+              { setMemo: G, setSelectedAddress: R } = (0, j.GE)(),
+              H = w.o.useGetContact(l),
               { contacts: $, loading: V } = (0, f.g)(),
               K = (0, a.tIw)(),
               J = (0, g.a)(),
@@ -3680,8 +3693,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               }
             }, [l, K]);
             (0, b.useEffect)(() => {
-              R && (A(R.name), E(R.emoji), D(R.memo ?? ""), B((null == R ? void 0 : R.saveAsCEX) ?? !1), P(R.ethAddress || R.address));
-            }, [R]),
+              H && (A(H.name), E(H.emoji), D(H.memo ?? ""), B((null == H ? void 0 : H.saveAsCEX) ?? !1), P(H.ethAddress || H.address));
+            }, [H]),
               (0, b.useEffect)(() => {
                 ((0, i.AtH)(l) || (0, i.Ohs)(l) || (0, i.$v)(l) || (0, i.BVJ)(l)) && P(l);
               }, [l]),
@@ -3689,10 +3702,10 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 n && Q.current && Q.current.focus();
               }, [n]);
             let ee = async () => {
-                if (!L && !z && M && F && !U) {
+                if (!_ && !z && M && F && !U) {
                   var e, n;
                   W(!0),
-                    await y.o.save({ address: F, blockchain: X, emoji: T, name: M, memo: I, ethAddress: N, saveAsCEX: O }),
+                    await w.o.save({ address: F, blockchain: X, emoji: T, name: M, memo: I, ethAddress: N, saveAsCEX: O }),
                     G(I),
                     null == C ||
                       C({
@@ -3707,7 +3720,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                       }),
                     t(),
                     W(!1),
-                    _(""),
+                    L(""),
                     Z(""),
                     P(""),
                     A(""),
@@ -3716,10 +3729,10 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 }
               },
               en = async () => {
-                ((null == R ? void 0 : R.ethAddress) || (null == R ? void 0 : R.address)) &&
+                ((null == H ? void 0 : H.ethAddress) || (null == H ? void 0 : H.address)) &&
                   (W(!0),
-                  await y.o.removeEntry((null == R ? void 0 : R.ethAddress) || (null == R ? void 0 : R.address)),
-                  H(null),
+                  await w.o.removeEntry((null == H ? void 0 : H.ethAddress) || (null == H ? void 0 : H.address)),
+                  R(null),
                   A(""),
                   D(""),
                   B(!1),
@@ -3729,7 +3742,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               };
             return (0, s.jsx)(m.Z, {
               containerClassName: "bg-secondary-50",
-              title: R ? "Edit Contact" : "Add Contact",
+              title: H ? "Edit Contact" : "Add Contact",
               onClose: t,
               isOpen: n,
               className: "!p-6",
@@ -3750,10 +3763,10 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                       placeholder: "enter address",
                       value: F,
                       onChange: e => {
-                        L && _("");
+                        _ && L("");
                         let n = e.target.value;
                         if ((P(n), n.length > 0 && !(0, i.AtH)(n) && !(0, i.Ohs)(n) && !(0, i.$v)(n) && !(0, i.BVJ)(n))) {
-                          _("Invalid address");
+                          L("Invalid address");
                           return;
                         }
                         if (
@@ -3761,9 +3774,9 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                             let { address: t } = e;
                             return t === n;
                           }) &&
-                          n !== ((null == R ? void 0 : R.ethAddress) || (null == R ? void 0 : R.address))
+                          n !== ((null == H ? void 0 : H.ethAddress) || (null == H ? void 0 : H.address))
                         ) {
-                          _("Contact with same address already exists");
+                          L("Contact with same address already exists");
                           return;
                         }
                       },
@@ -3820,12 +3833,12 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                               })
                         ]
                       }),
-                    (L || z) && (0, s.jsx)(h.Z, { size: "xs", color: "text-red-300", className: "font-bold", children: L || z }),
+                    (_ || z) && (0, s.jsx)(h.Z, { size: "xs", color: "text-red-300", className: "font-bold", children: _ || z }),
                     U
-                      ? (0, s.jsx)(u.T, { color: w.w.white100 })
+                      ? (0, s.jsx)(u.T, { color: y.w.white100 })
                       : (0, s.jsx)(v.zx, {
                           className: "w-full mt-3",
-                          disabled: !M || !F || !!L || !!z || (O && 0 === I.length),
+                          disabled: !M || !F || !!_ || !!z || (O && 0 === I.length),
                           title: "Save contact",
                           children: "Save contact"
                         }),
@@ -3874,8 +3887,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 selectedToken: d,
                 selectedAddress: p,
                 fee: b,
-                inputAmount: w,
-                isIBCTransfer: y,
+                inputAmount: y,
+                isIBCTransfer: w,
                 transferData: j,
                 memo: N,
                 sendActiveChain: C,
@@ -3889,8 +3902,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               T = (0, s.FmJ)(),
               E = s.rNU.useOperateCosmosTx(),
               [O, B] = (0, f.useState)(!1),
-              L = h.w.useGetWallet(),
-              _ = (0, s.xxU)(C, k),
+              _ = h.w.useGetWallet(),
+              L = (0, s.xxU)(C, k),
               { activeWallet: z } = (0, u.ZP)(),
               Z = null == z ? void 0 : z.addresses[C],
               F = (0, f.useMemo)(() => (0, g.nY)(Object.values(I)), [I]),
@@ -3913,15 +3926,15 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   var r, u, m, h, v, f, g;
                   let O, U, W;
                   let G = t[j],
-                    H = null == G ? void 0 : G.multi_chain_msg,
-                    R = JSON.parse(H.msg),
+                    R = null == G ? void 0 : G.multi_chain_msg,
+                    H = JSON.parse(R.msg),
                     $ = new Date().getTime();
-                  if (Number(R.timeout_timestamp / 1e6) < $) {
+                  if (Number(H.timeout_timestamp / 1e6) < $) {
                     l("Transaction timed out"), n(!1);
                     return;
                   }
-                  let { senderAddress: V, encodedMessage: K } = (0, o.u0)(H.msg_type_url, R),
-                    J = null == D ? void 0 : D.find(e => e.chainId === H.chain_id);
+                  let { senderAddress: V, encodedMessage: K } = (0, o.u0)(R.msg_type_url, H),
+                    J = null == D ? void 0 : D.find(e => e.chainId === R.chain_id);
                   if (!J) {
                     l("Chain info is not found");
                     return;
@@ -3934,7 +3947,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   }
                   let Q = P(k, J.key, J.chainId),
                     q = new o.gO(String(J.chainId), J.restUrl, J.coinType, U, O, Q ? "/initia.crypto.v1beta1.ethsecp256k1.PubKey" : void 0),
-                    Y = await L(J.key);
+                    Y = await _(J.key);
                   try {
                     if ((null == z ? void 0 : z.walletType) === s._KQ.LEDGER) {
                       if (F.includes(J.key)) {
@@ -4003,7 +4016,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     let l = async () => {
                         let e = 0;
                         for (; e <= 100; ) {
-                          let t = await o.xJ.getTxnStatus({ chain_id: H.chain_id, tx_hash: n });
+                          let t = await o.xJ.getTxnStatus({ chain_id: R.chain_id, tx_hash: n });
                           if (t.success) {
                             let { state: e, error: n } = t.response;
                             if (e === o._T.STATE_COMPLETED_SUCCESS || e === o._T.STATE_ABANDONED) return { code: 0 };
@@ -4016,13 +4029,13 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                       r = (null == d ? void 0 : d.coinMinimalDenom) || (null == d ? void 0 : d.ibcDenom) || "",
                       c = {
                         img: J.icon,
-                        sentAmount: w,
+                        sentAmount: y,
                         sentTokenInfo: { ...d, coinDenom: (null == d ? void 0 : d.symbol) || (null == d ? void 0 : d.name) },
                         sentUsdValue: "",
                         subtitle1: (0, s.Hnh)(i),
-                        title1: `${w} ${(null == d ? void 0 : d.symbol) || (null == d ? void 0 : d.name)}`,
+                        title1: `${y} ${(null == d ? void 0 : d.symbol) || (null == d ? void 0 : d.name)}`,
                         txStatus: "loading",
-                        txType: y ? "ibc/transfer" : "send",
+                        txType: w ? "ibc/transfer" : "send",
                         txHash: n,
                         promise: l(),
                         sourceChain: C,
@@ -4031,18 +4044,18 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                         toChain: null == p ? void 0 : p.chainName
                       },
                       u = I[(null === (m = S[(null == d ? void 0 : d.coinMinimalDenom) ?? ""]) || void 0 === m ? void 0 : m.chain) ?? ""],
-                      x = await (0, s.IGx)(w, {
+                      x = await (0, s.IGx)(y, {
                         coinGeckoId: null === (h = S[(null == d ? void 0 : d.coinMinimalDenom) ?? ""]) || void 0 === h ? void 0 : h.coinGeckoId,
                         coinMinimalDenom: (null == d ? void 0 : d.coinMinimalDenom) ?? "",
                         chainId: (0, s.LQk)(u, k),
                         chain: (null == d ? void 0 : d.chain) ?? ""
                       }),
-                      g = (0, a.hI1)(w.toString(), (null == d ? void 0 : d.coinDecimals) ?? 6),
-                      j = y ? await (0, s.V51)(null == R ? void 0 : R.source_channel, i, { denom: r, amount: g }) : (0, s.dSc)(i, { denom: r, amount: g });
+                      g = (0, a.hI1)(y.toString(), (null == d ? void 0 : d.coinDecimals) ?? 6),
+                      j = w ? await (0, s.V51)(null == H ? void 0 : H.source_channel, i, { denom: r, amount: g }) : (0, s.dSc)(i, { denom: r, amount: g });
                     (j = { ...j, ...T }),
                       await E({
                         txHash: n,
-                        txType: y ? s.pb0.IbcSend : s.pb0.Send,
+                        txType: w ? s.pb0.IbcSend : s.pb0.Send,
                         amount: x,
                         metadata: j,
                         feeDenomination: null == b ? void 0 : null === (v = b.amount[0]) || void 0 === v ? void 0 : v.denom,
@@ -4050,7 +4063,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                         forceChain: C,
                         forceNetwork: k,
                         forceWalletAddress: Z,
-                        chainId: _
+                        chainId: L
                       }),
                       M(c),
                       e(t ? "success" : "txDeclined");
@@ -4097,8 +4110,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             g = t(2784),
             p = t(42799),
             b = t(48346),
-            w = t(30809),
-            y = t(70514),
+            y = t(30809),
+            w = t(70514),
             j = t(56186),
             N = t(5120),
             C = t(48101),
@@ -4117,8 +4130,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 inputAmount: E,
                 selectedToken: O,
                 selectedAddress: B,
-                setTransferData: L,
-                pfmEnabled: _,
+                setTransferData: _,
+                pfmEnabled: L,
                 isIbcUnwindingDisabled: z,
                 isIBCTransfer: Z,
                 fetchAccountDetailsStatus: F,
@@ -4126,8 +4139,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 addressError: U,
                 sendActiveChain: W,
                 sendSelectedNetwork: G,
-                hasToUseCw20PointerLogic: H,
-                gasError: R
+                hasToUseCw20PointerLogic: R,
+                gasError: H
               } = (0, f.GE)(),
               { status: $ } = (0, a.sXv)(W, G),
               V = (0, i.KPM)(W),
@@ -4213,14 +4226,14 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 isMainnet: "mainnet" === G
               }),
               { data: em } = (0, r.useQuery)(
-                ["minimum-rent-amount", null == B ? void 0 : B.address, W, null == O ? void 0 : O.chain, w.i.selectedNetwork],
+                ["minimum-rent-amount", null == B ? void 0 : B.address, W, null == O ? void 0 : O.chain, y.i.selectedNetwork],
                 async () => {
                   if ((0, i.Jhy)(W) && (0, i.Jhy)((null == O ? void 0 : O.chain) ?? "")) {
                     var e, n;
                     let t = await i.MPm.getSolanaClient(
                       (null == q ? void 0 : null === (n = q[W]) || void 0 === n ? void 0 : null === (e = n.apis) || void 0 === e ? void 0 : e.rpc) ?? "",
                       void 0,
-                      w.i.selectedNetwork,
+                      y.i.selectedNetwork,
                       W
                     );
                     return await t.getMinimumRentAmount((null == B ? void 0 : B.address) ?? "");
@@ -4229,7 +4242,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 }
               );
             (0, g.useEffect)(() => {
-              (null == eu ? void 0 : eu.messages) ? L(eu) : L({ isSkipTransfer: !1, isGasFeesLoading: !1, gasFees: void 0, gasFeesError: void 0 });
+              (null == eu ? void 0 : eu.messages) ? _(eu) : _({ isSkipTransfer: !1, isGasFeesLoading: !1, gasFees: void 0, gasFeesError: void 0 });
             }, [null == O ? void 0 : O.coinMinimalDenom, null == B ? void 0 : B.chainName, null == eu ? void 0 : eu.messages]),
               (0, g.useEffect)(() => {
                 if (ei) {
@@ -4292,10 +4305,10 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   (!!V && "loading" === $) ||
                   A ||
                   ea ||
-                  !!R ||
+                  !!H ||
                   !!es ||
-                  (!_ && !z) ||
-                  (["error", "loading"].includes(F) && !H) ||
+                  (!L && !z) ||
+                  (["error", "loading"].includes(F) && !R) ||
                   Y
                 );
               }, [
@@ -4305,14 +4318,14 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 null == eu ? void 0 : eu.messages,
                 null == B ? void 0 : B.chainName,
                 ea,
-                R,
+                H,
                 K,
                 W,
                 A,
-                _,
+                L,
                 z,
                 F,
-                H,
+                R,
                 $,
                 V,
                 Y,
@@ -4330,7 +4343,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                           onClick: ev,
                           disabled: ex,
                           "data-testing-id": "send-review-transfer-btn",
-                          className: (0, y.cn)("w-full", { "!bg-red-300 text-white-100": U || P || D || R || Y || es }),
+                          className: (0, w.cn)("w-full", { "!bg-red-300 text-white-100": U || P || D || H || Y || es }),
                           "aria-label": "send review transfer button",
                           children: (0, s.jsx)("span", { "aria-label": "send review transfer button text in send flow", children: eh })
                         })
@@ -4373,8 +4386,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             g = t(42152),
             p = t(96217),
             b = t(91486),
-            w = t(14981),
-            y = t(4370),
+            y = t(14981),
+            w = t(4370),
             j = t(49728),
             N = t(30942),
             C = t(57124),
@@ -4388,8 +4401,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             E = t(76516),
             O = t(76147),
             B = t(2784),
-            L = t(74713),
-            _ = t(53221),
+            _ = t(74713),
+            L = t(53221),
             z = t(12499),
             Z = t(46338),
             F = e([k, O, E]);
@@ -4402,8 +4415,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               U = (0, C.a)(),
               W = (0, a.DI5)(),
               G = k.w.useGetWallet(),
-              H = M.allERC20Denoms,
-              [R, $] = (0, B.useState)(!1),
+              R = M.allERC20Denoms,
+              [H, $] = (0, B.useState)(!1),
               V = (0, j.U)(),
               {
                 memo: K,
@@ -4431,7 +4444,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 sendActiveChain: ef,
                 setIsSending: eg
               } = (0, O.GE)(),
-              { confirmSkipTx: ep, txnProcessing: eb, error: ew, showLedgerPopupSkipTx: ey, setShowLedgerPopupSkipTx: ej, setError: eN } = (0, E.y)(),
+              { confirmSkipTx: ep, txnProcessing: eb, error: ey, showLedgerPopupSkipTx: ew, setShowLedgerPopupSkipTx: ej, setError: eN } = (0, E.y)(),
               eC = (0, B.useMemo)(() => P(new (m())(X).multipliedBy(ee ?? 0)), [P, X, ee]);
             (0, B.useMemo)(() => {
               var e;
@@ -4447,7 +4460,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 [u, h]
               ),
               eI = (0, B.useCallback)(async () => {
-                if (R) {
+                if (H) {
                   $(!1), V();
                   return;
                 }
@@ -4455,7 +4468,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   try {
                     var e, n, t, l, s, r;
                     let d = Q.address,
-                      c = (0, a.kjy)(Object.keys(H), null == J ? void 0 : J.coinMinimalDenom);
+                      c = (0, a.kjy)(Object.keys(R), null == J ? void 0 : J.coinMinimalDenom);
                     if (
                       ((null === (e = W[ef]) || void 0 === e ? void 0 : e.evmOnlyChain) &&
                         c &&
@@ -4495,7 +4508,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                             amount: new (m())(X),
                             memo: K,
                             fees: q,
-                            ibcChannelId: L.MQ.getSourceChainChannelId(ef, null == Q ? void 0 : Q.chainName)
+                            ibcChannelId: _.MQ.getSourceChainChannelId(ef, null == Q ? void 0 : Q.chainName)
                           },
                           eS
                         );
@@ -4533,7 +4546,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 q,
                 null == Q ? void 0 : Q.address,
                 J,
-                H,
+                R,
                 W,
                 ef,
                 null == ex ? void 0 : null === (n = ex.pubKey) || void 0 === n ? void 0 : n.key,
@@ -4556,7 +4569,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 ej,
                 null == Q ? void 0 : Q.chainName,
                 V,
-                R
+                H
               ]);
             (0, N.X)(et);
             let eD = (0, B.useCallback)(() => {
@@ -4639,7 +4652,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                           (0, s.jsxs)("div", {
                             className: "flex items-center gap-1.5 cursor-pointer",
                             onClick: e => {
-                              e.stopPropagation(), _.i.copyText((null == Q ? void 0 : Q.ethAddress) || (null == Q ? void 0 : Q.address) || ""), F(!0);
+                              e.stopPropagation(), L.i.copyText((null == Q ? void 0 : Q.ethAddress) || (null == Q ? void 0 : Q.address) || ""), F(!0);
                             },
                             children: [
                               (0, s.jsx)("p", {
@@ -4655,11 +4668,11 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                                         : t.split("-")[0]
                                     : (0, a.Hnh)(null == Q ? void 0 : Q.address)
                               }),
-                              (0, s.jsx)(w.M, {
+                              (0, s.jsx)(y.M, {
                                 mode: "wait",
                                 children: T
                                   ? (0, s.jsx)(
-                                      y.E.span,
+                                      w.E.span,
                                       {
                                         transition: Z._M,
                                         variants: Z.K0,
@@ -4672,7 +4685,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                                       "copied"
                                     )
                                   : (0, s.jsx)(
-                                      y.E.span,
+                                      w.E.span,
                                       {
                                         transition: Z._M,
                                         variants: Z.K0,
@@ -4704,15 +4717,15 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                             ]
                           })
                         : null,
-                      !R && (et || ew) ? (0, s.jsx)(x._, { text: et || ew, disableSentryCapture: !0 }) : null,
-                      R ? (0, s.jsx)(f.u, {}) : null,
+                      !H && (et || ey) ? (0, s.jsx)(x._, { text: et || ey, disableSentryCapture: !0 }) : null,
+                      H ? (0, s.jsx)(f.u, {}) : null,
                       (0, s.jsx)(b.zx, {
                         className: "w-full mt-4",
                         onClick: eI,
                         disabled: Y || en || es || eb,
                         "data-testing-id": "send-review-sheet-send-btn",
                         "aria-label": "send review transfer button",
-                        children: R
+                        children: H
                           ? "Connect Ledger"
                           : en || eb
                             ? (0, s.jsx)(A(), {
@@ -4727,7 +4740,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     ]
                   })
                 }),
-                (0, s.jsx)(g.Z, { showLedgerPopup: (Y || ey) && !et, onCloseLedgerPopup: eD })
+                (0, s.jsx)(g.Z, { showLedgerPopup: (Y || ew) && !et, onCloseLedgerPopup: eD })
               ]
             });
           });
@@ -4770,7 +4783,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
     76147: function (e, n, t) {
       t.a(e, async function (e, l) {
         try {
-          t.d(n, { GE: () => w, TG: () => b });
+          t.d(n, { GE: () => y, TG: () => b });
           var s = t(52322),
             a = t(41172),
             i = t(15969),
@@ -4793,8 +4806,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 h = l.allERC20Denoms,
                 {
                   tokenFiatValue: b,
-                  feeTokenFiatValue: w,
-                  confirmSend: y,
+                  feeTokenFiatValue: y,
+                  confirmSend: w,
                   confirmSendEth: j,
                   selectedToken: N,
                   setCustomIbcChannelId: C,
@@ -4808,8 +4821,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   setInputAmount: E,
                   ibcSupportData: O,
                   setSelectedToken: B,
-                  feeDenom: L,
-                  setFeeDenom: _,
+                  feeDenom: _,
+                  setFeeDenom: L,
                   gasOption: z,
                   setGasOption: Z,
                   gasEstimate: F,
@@ -4817,8 +4830,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   allGasOptions: U,
                   userPreferredGasPrice: W,
                   setUserPreferredGasPrice: G,
-                  userPreferredGasLimit: H,
-                  setUserPreferredGasLimit: R,
+                  userPreferredGasLimit: R,
+                  setUserPreferredGasLimit: H,
                   addressError: $,
                   amountError: V,
                   setAddressError: K,
@@ -4847,8 +4860,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   associated0xAddress: eg,
                   hasToUsePointerLogic: ep,
                   setHasToUsePointerLogic: eb,
-                  pointerAddress: ew,
-                  setPointerAddress: ey,
+                  pointerAddress: ey,
+                  setPointerAddress: ew,
                   hasToUseCw20PointerLogic: ej,
                   setHasToUseCw20PointerLogic: eN,
                   computedGas: eC,
@@ -4862,8 +4875,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   setAssociated0xAddress: eE,
                   isSolanaTxnSimulationError: eO,
                   setIsSolanaTxnSimulationError: eB,
-                  isSolanaBalanceInsufficientForFee: eL,
-                  setIsSolanaBalanceInsufficientForFee: e_,
+                  isSolanaBalanceInsufficientForFee: e_,
+                  setIsSolanaBalanceInsufficientForFee: eL,
                   l2DataBufferFee: ez,
                   setL2DataBufferFee: eZ
                 } = (0, a.TH7)({ denoms: d, cw20Denoms: m, erc20Denoms: h, ibcDataStore: u.MQ }),
@@ -4872,14 +4885,14 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 eU = (0, o.E)(),
                 eW = x(),
                 eG = f(),
-                eH = g(),
-                [eR, e$] = (0, c.useState)(null),
+                eR = g(),
+                [eH, e$] = (0, c.useState)(null),
                 [eV, eK] = (0, c.useState)(!1),
                 [eJ, eQ] = (0, c.useState)(!0),
                 [eq, eY] = (0, c.useState)(""),
                 eX = (0, c.useCallback)(
                   async (e, n) => {
-                    await y(
+                    await w(
                       {
                         ...e,
                         getWallet: () =>
@@ -4890,13 +4903,13 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                               : (0, i.Jhy)(k)
                                 ? eG(k).then(e => e)
                                 : (0, i.bj0)(k)
-                                  ? eH(k).then(e => e)
+                                  ? eR(k).then(e => e)
                                   : eF()
                       },
                       n
                     );
                   },
-                  [y, eU, eF, null == N ? void 0 : N.coinMinimalDenom, eW, eG, k, eH]
+                  [w, eU, eF, null == N ? void 0 : N.coinMinimalDenom, eW, eG, k, eR]
                 ),
                 e0 = (0, c.useCallback)(
                   async (e, n, t, l, s, a, i) => {
@@ -4914,12 +4927,12 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   ethAddress: eq,
                   setEthAddress: eY,
                   tokenFiatValue: b ?? "",
-                  feeTokenFiatValue: w ?? "",
+                  feeTokenFiatValue: y ?? "",
                   selectedToken: N,
                   confirmSend: eX,
                   confirmSendEth: e0,
                   sameChain: e === n,
-                  transferData: eR,
+                  transferData: eH,
                   setTransferData: e$,
                   isIbcUnwindingDisabled: eV,
                   setIsIbcUnwindingDisabled: eK,
@@ -4937,8 +4950,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   setInputAmount: E,
                   ibcSupportData: O,
                   setSelectedToken: B,
-                  feeDenom: L,
-                  setFeeDenom: _,
+                  feeDenom: _,
+                  setFeeDenom: L,
                   gasOption: z,
                   setGasOption: Z,
                   gasEstimate: F,
@@ -4946,8 +4959,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   allGasOptions: U,
                   userPreferredGasPrice: W,
                   setUserPreferredGasPrice: G,
-                  userPreferredGasLimit: H,
-                  setUserPreferredGasLimit: R,
+                  userPreferredGasLimit: R,
+                  setUserPreferredGasLimit: H,
                   addressError: $,
                   amountError: V,
                   setAddressError: K,
@@ -4976,8 +4989,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   associated0xAddress: eg,
                   hasToUsePointerLogic: ep,
                   setHasToUsePointerLogic: eb,
-                  pointerAddress: ew,
-                  setPointerAddress: ey,
+                  pointerAddress: ey,
+                  setPointerAddress: ew,
                   hasToUseCw20PointerLogic: ej,
                   setHasToUseCw20PointerLogic: eN,
                   computedGas: eC,
@@ -4991,8 +5004,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   setAssociated0xAddress: eE,
                   isSolanaTxnSimulationError: eO,
                   setIsSolanaTxnSimulationError: eB,
-                  isSolanaBalanceInsufficientForFee: eL,
-                  setIsSolanaBalanceInsufficientForFee: e_,
+                  isSolanaBalanceInsufficientForFee: e_,
+                  setIsSolanaBalanceInsufficientForFee: eL,
                   l2DataBufferFee: ez,
                   setL2DataBufferFee: eZ
                 };
@@ -5000,11 +5013,11 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 eP,
                 eq,
                 b,
-                w,
+                y,
                 N,
                 eX,
                 e0,
-                eR,
+                eH,
                 eV,
                 eK,
                 C,
@@ -5021,8 +5034,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 E,
                 O,
                 B,
-                L,
                 _,
+                L,
                 z,
                 Z,
                 F,
@@ -5030,8 +5043,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 U,
                 W,
                 G,
-                H,
                 R,
+                H,
                 $,
                 V,
                 K,
@@ -5060,8 +5073,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 eg,
                 ep,
                 eb,
-                ew,
                 ey,
+                ew,
                 ej,
                 eN,
                 eC,
@@ -5075,14 +5088,14 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 eE,
                 eO,
                 eB,
-                eL,
                 e_,
+                eL,
                 ez,
                 eZ
               ]);
               return (0, s.jsx)(p.Provider, { value: e1, children: n });
             }),
-            w = () => {
+            y = () => {
               let e = (0, c.useContext)(p);
               return (0, m.h)(null !== e, "useSendContext must be used within SendContextProvider"), e;
             };
@@ -5140,7 +5153,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           b = f[n];
         (0, r.useEffect)(() => {
           !(async function () {
-            var e, r, x, p, w, y;
+            var e, r, x, p, y, w;
             let j;
             if (!(null == t ? void 0 : t.address) || !n || !h) return;
             if ((0, a.mq)(n)) {
@@ -5185,7 +5198,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             if (u || (null === (x = f[j]) || void 0 === x ? void 0 : x.apiStatus) !== !1) v(void 0);
             else {
               v(
-                `IBC transfers are not supported between ${(null === (w = f[j]) || void 0 === w ? void 0 : w.chainName) || "this address"} and ${b.chainName}.`
+                `IBC transfers are not supported between ${(null === (y = f[j]) || void 0 === y ? void 0 : y.chainName) || "this address"} and ${b.chainName}.`
               );
               return;
             }
@@ -5194,7 +5207,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             u || k || S
               ? v(void 0)
               : v(
-                  `IBC transfers are not supported between ${(null === (y = f[j]) || void 0 === y ? void 0 : y.chainName) || "this address"} and ${b.chainName} for ${(0, l.MDB)(null == h ? void 0 : h.symbol)} token.`
+                  `IBC transfers are not supported between ${(null === (w = f[j]) || void 0 === w ? void 0 : w.chainName) || "this address"} and ${b.chainName} for ${(0, l.MDB)(null == h ? void 0 : h.symbol)} token.`
                 );
           })();
         }, [b, t, f, g, m, x.chains, u, null == h ? void 0 : h.symbol, null == h ? void 0 : h.coinMinimalDenom, n, c, p]);
@@ -5220,8 +5233,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             g = t(42941),
             p = t(75958),
             b = t(35065),
-            w = t(17844),
-            y = t(2784),
+            y = t(17844),
+            w = t(2784),
             j = t(10289),
             N = t(81354),
             C = t(26245),
@@ -5235,25 +5248,25 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             E = t(28588),
             O = t(54827),
             B = t(5228),
-            L = t(25282),
-            _ = t(72112),
+            _ = t(25282),
+            L = t(72112),
             z = t(51563),
             Z = t(76147),
             F = t(67066),
             P = t(60914),
-            U = e([x, f, D, T, M, L, C, B, O, z, P, w, b, _, E, Z]);
-          [x, f, D, T, M, L, C, B, O, z, P, w, b, _, E, Z] = U.then ? (await U)() : U;
+            U = e([x, f, D, T, M, _, C, B, O, z, P, y, b, L, E, Z]);
+          [x, f, D, T, M, _, C, B, O, z, P, y, b, L, E, Z] = U.then ? (await U)() : U;
           let W = (0, p.Pi)(e => {
               var n, t;
               let { denoms: l } = e,
                 p = (0, j.s0)(),
                 U = M.jZ.loading,
-                [W, G] = (0, y.useState)(!1),
-                [H, R] = (0, y.useState)(!1),
+                [W, G] = (0, w.useState)(!1),
+                [R, H] = (0, w.useState)(!1),
                 { walletAvatar: $, walletName: V } = (0, v.vL)(),
                 K = (0, j.TH)().state,
                 J = (0, a.a74)(),
-                [Q, q] = (0, y.useState)(""),
+                [Q, q] = (0, w.useState)(""),
                 {
                   selectedAddress: Y,
                   setSelectedAddress: X,
@@ -5274,31 +5287,31 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 eh = (0, g.Z)().get("assetCoinDenom") ?? void 0,
                 ev = (0, g.Z)().get("chainId") ?? void 0,
                 ex = (0, g.Z)().get("holderChain") ?? void 0,
-                [ef, eg] = (0, y.useState)(!1),
-                [ep, eb] = (0, y.useState)(!1),
-                [ew, ey] = (0, y.useState)(!eh),
-                [ej, eN] = (0, y.useState)(),
-                [eC, ek] = (0, y.useState)(!1),
-                [eS, eI] = (0, y.useState)(!1),
+                [ef, eg] = (0, w.useState)(!1),
+                [ep, eb] = (0, w.useState)(!1),
+                [ey, ew] = (0, w.useState)(!eh),
+                [ej, eN] = (0, w.useState)(),
+                [eC, ek] = (0, w.useState)(!1),
+                [eS, eI] = (0, w.useState)(!1),
                 eD = k.Ui.chainInfos;
               (0, x.$)({ page: "send", queryStatus: U ? "loading" : "success", op: "sendPageLoad", description: "loading state on send page" });
-              let eM = (0, y.useCallback)(() => G(!0), []),
-                eA = (0, y.useCallback)(() => {
-                  R(!1);
+              let eM = (0, w.useCallback)(() => G(!0), []),
+                eA = (0, w.useCallback)(() => {
+                  H(!1);
                 }, []),
-                eT = (0, y.useCallback)(
+                eT = (0, w.useCallback)(
                   e => {
-                    el || e ? ey(!1) : p(-1);
+                    el || e ? ew(!1) : p(-1);
                   },
                   [p, el]
                 ),
                 { chains: eE } = (0, a._IL)(),
                 eO = (0, a.tIw)(),
                 eB = (0, a.rTu)(),
-                { data: eL } = (0, o.Uj)({ chainTypes: ["cosmos"] }),
-                { data: e_ } = (0, a.S2A)(),
+                { data: e_ } = (0, o.Uj)({ chainTypes: ["cosmos"] }),
+                { data: eL } = (0, a.S2A)(),
                 ez = (0, f.ob)(),
-                eZ = (0, y.useRef)(null),
+                eZ = (0, w.useRef)(null),
                 eF = eE[ea],
                 eP = {
                   denom: (null == el ? void 0 : el.ibcDenom) || (null == el ? void 0 : el.coinMinimalDenom) || "",
@@ -5310,12 +5323,12 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     ? `transfer/${null === (n = el.ibcChainInfo) || void 0 === n ? void 0 : n.channelId}`
                     : ""
                 },
-                eU = null == eL ? void 0 : eL.find(e => e.chainId === eF.chainId),
+                eU = null == e_ ? void 0 : e_.find(e => (null == e ? void 0 : e.chainId) === (null == eF ? void 0 : eF.chainId)),
                 { data: eW } =
-                  (null == e_ ? void 0 : null === (t = e_.ibc) || void 0 === t ? void 0 : t.extension) !== "disabled"
+                  (null == eL ? void 0 : null === (t = eL.ibc) || void 0 === t ? void 0 : t.extension) !== "disabled"
                     ? (0, o.Mf)(eP, eU, "mainnet" === eo)
                     : { data: null },
-                eG = (0, y.useMemo)(
+                eG = (0, w.useMemo)(
                   () =>
                     (null == eW
                       ? void 0
@@ -5330,23 +5343,23 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                           .map(e => e.chainId)) || [],
                   [eW, null == eB ? void 0 : eB.walletType, null == eB ? void 0 : eB.addresses, eE]
                 ),
-                eH = (0, y.useMemo)(() => {
+                eR = (0, w.useMemo)(() => {
                   if (!(null == Y ? void 0 : Y.address)) return null;
                   let e = (0, i.z_q)(Y.address);
                   if (!e) return null;
                   let n = eO[e];
                   return n ? eE[n] : null;
                 }, [eO, eE, null == Y ? void 0 : Y.address]),
-                eR = M.jZ.getAggregatedSpendableBalances(ez, void 0),
+                eH = M.jZ.getAggregatedSpendableBalances(ez, void 0),
                 e$ = C.g5.statusForChain(ea, ez, void 0),
                 { enabled: eV, snip20Tokens: eK } = (0, a.r4i)(),
-                eJ = (0, y.useMemo)(() => {
-                  let e = eR;
+                eJ = (0, w.useMemo)(() => {
+                  let e = eH;
                   return (
                     "secret" === J && eV && (null == eK ? void 0 : eK.length) > 0 && (e = [...e, ...eK]),
                     e.sort((e, n) => Number(n.usdValue) - Number(e.usdValue))
                   );
-                }, [J, eR, eV, eK]);
+                }, [J, eH, eV, eK]);
               (0, F.P)({
                 sendActiveChain: ea,
                 selectedAddress: Y,
@@ -5357,13 +5370,13 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 setAddressError: ee,
                 manageChainsStore: D.t
               }),
-                (0, y.useEffect)(() => {
+                (0, w.useEffect)(() => {
                   "testnet" === ez && M.jZ.loadBalances("aggregated");
                 }, [ez]),
-                (0, y.useEffect)(() => {
+                (0, w.useEffect)(() => {
                   (null == Y ? void 0 : Y.chainName) && et(void 0);
                 }, [null == Y ? void 0 : Y.chainName, et]),
-                (0, y.useEffect)(() => {
+                (0, w.useEffect)(() => {
                   let e = (null == Y ? void 0 : Y.address) || (null == Y ? void 0 : Y.ethAddress);
                   if (e && Object.keys(eO).length > 0) {
                     let n = "cosmos";
@@ -5382,13 +5395,13 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     el || ei(n);
                   }
                 }, [eO, null == Y ? void 0 : Y.address, null == Y ? void 0 : Y.chainName, null == Y ? void 0 : Y.ethAddress, el, ei]),
-                (0, y.useEffect)(() => {
+                (0, w.useEffect)(() => {
                   el && el.tokenBalanceOnChain && ea !== el.tokenBalanceOnChain && ei(el.tokenBalanceOnChain);
                 }, [el, ea]),
-                (0, y.useEffect)(() => {
+                (0, w.useEffect)(() => {
                   N.K5.resetUpdateCount();
                 }, [null == el ? void 0 : el.ibcDenom, null == el ? void 0 : el.coinMinimalDenom]),
-                (0, y.useEffect)(() => {
+                (0, w.useEffect)(() => {
                   var e;
                   !(
                     (0, i.KPM)(ea) ||
@@ -5400,7 +5413,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     ea &&
                     S.MQ.loadIbcChains(ea);
                 }, [eE, ea]),
-                (0, y.useEffect)(() => {
+                (0, w.useEffect)(() => {
                   var e, n;
                   !(
                     (0, i.KPM)(ea) ||
@@ -5408,18 +5421,18 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     i.Dr3.includes(ea) ||
                     (0, i.Jhy)(ea) ||
                     (0, i.bj0)(ea) ||
-                    !(null == eH ? void 0 : eH.key) ||
-                    (0, i.KPM)(null == eH ? void 0 : eH.key) ||
-                    (null == eE ? void 0 : null === (n = eE[null == eH ? void 0 : eH.key]) || void 0 === n ? void 0 : n.evmOnlyChain) ||
-                    i.Dr3.includes(null == eH ? void 0 : eH.key) ||
-                    (0, i.Jhy)(null == eH ? void 0 : eH.key) ||
-                    (0, i.bj0)(null == eH ? void 0 : eH.key)
+                    !(null == eR ? void 0 : eR.key) ||
+                    (0, i.KPM)(null == eR ? void 0 : eR.key) ||
+                    (null == eE ? void 0 : null === (n = eE[null == eR ? void 0 : eR.key]) || void 0 === n ? void 0 : n.evmOnlyChain) ||
+                    i.Dr3.includes(null == eR ? void 0 : eR.key) ||
+                    (0, i.Jhy)(null == eR ? void 0 : eR.key) ||
+                    (0, i.bj0)(null == eR ? void 0 : eR.key)
                   ) &&
                     ea &&
-                    eH.key &&
-                    S.MQ.loadIbcData(ea, eH.key);
-                }, [ea, eE, null == eH ? void 0 : eH.key]);
-              let eQ = (0, y.useCallback)(
+                    eR.key &&
+                    S.MQ.loadIbcData(ea, eR.key);
+                }, [ea, eE, null == eR ? void 0 : eR.key]);
+              let eQ = (0, w.useCallback)(
                   e => {
                     if (
                       (em(e),
@@ -5453,16 +5466,16 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   },
                   [em, J, ei, eu, eD]
                 ),
-                eq = (0, y.useMemo)(() => {
+                eq = (0, w.useMemo)(() => {
                   var e;
                   let n = !1 === U;
                   return (null == eD ? void 0 : null === (e = eD[ea]) || void 0 === e ? void 0 : e.evmOnlyChain) && (n = n && "success" === e$), n;
                 }, [eD, e$, U, ea]);
               return (
-                (0, y.useEffect)(() => {
+                (0, w.useEffect)(() => {
                   !el && !eh && eq && K && K.coinMinimalDenom && eQ(K);
                 }, [eJ, K, eq, el, eQ, eh, er]),
-                (0, y.useEffect)(() => {
+                (0, w.useEffect)(() => {
                   if (eh) {
                     let e =
                       eJ.find(e =>
@@ -5504,20 +5517,20 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                                   rootCW20DenomsStore: I.UE,
                                   rootERC20DenomsStore: I.iE,
                                   resetForm: eS,
-                                  setShowTokenSelectSheet: ey,
+                                  setShowTokenSelectSheet: ew,
                                   isTokenStatusSuccess: eq,
                                   setAmount: q,
                                   amount: Q
                                 }),
-                                (0, s.jsx)(L.Z, {
+                                (0, s.jsx)(_.Z, {
                                   ref: eZ,
                                   isIBCTransfer: en,
                                   sendSelectedNetwork: eo,
-                                  destChainInfo: eH,
+                                  destChainInfo: eR,
                                   selectedAddress: Y,
                                   activeChain: J,
                                   setSelectedContact: eN,
-                                  setShowSelectRecipient: R,
+                                  setShowSelectRecipient: H,
                                   setIsAddContactSheetVisible: eb,
                                   setInputInProgress: ek,
                                   inputInProgress: eC,
@@ -5533,7 +5546,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                         })
                       : null,
                     (0, s.jsx)(P.v, {
-                      isOpen: H && !ep,
+                      isOpen: R && !ep,
                       onClose: eA,
                       postSelectRecipient: () => {
                         ek(!1), N.K5.resetUpdateCount();
@@ -5543,12 +5556,12 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                       }
                     }),
                     ef &&
-                      (0, s.jsx)(w.Z, {
+                      (0, s.jsx)(y.Z, {
                         isOpen: ef,
                         onClose: e => {
                           eg(!1), e && (ec(""), eI(!0), setTimeout(() => eI(!1), 2e3));
                         },
-                        txType: w.U.SEND
+                        txType: y.U.SEND
                       }),
                     (0, s.jsx)(b.Z, {
                       isVisible: W,
@@ -5557,7 +5570,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                       },
                       title: "Your Wallets"
                     }),
-                    (0, s.jsx)(_.Z, {
+                    (0, s.jsx)(L.Z, {
                       isOpen: ep,
                       onSave: X,
                       onClose: () => {
@@ -5571,7 +5584,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     }),
                     (0, s.jsx)(E.n, {
                       denoms: l,
-                      isOpen: ew,
+                      isOpen: ey,
                       assets: eJ,
                       selectedToken: el,
                       onClose: eT,
@@ -5587,7 +5600,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             G = (0, p.Pi)(() => {
               let e = (0, a.a74)(),
                 n = (0, a.hU2)(),
-                t = (0, y.useMemo)(
+                t = (0, w.useMemo)(
                   () =>
                     n
                       ? {

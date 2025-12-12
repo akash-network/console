@@ -5,12 +5,12 @@
       t = new e.Error().stack;
     t &&
       ((e._sentryDebugIds = e._sentryDebugIds || {}),
-      (e._sentryDebugIds[t] = "8631c602-8c69-4a29-a43b-814784bbc522"),
-      (e._sentryDebugIdIdentifier = "sentry-dbid-8631c602-8c69-4a29-a43b-814784bbc522"));
+      (e._sentryDebugIds[t] = "01f5cd7e-f950-4eb8-8637-9da3cc26a60a"),
+      (e._sentryDebugIdIdentifier = "sentry-dbid-01f5cd7e-f950-4eb8-8637-9da3cc26a60a"));
   } catch (e) {}
 })();
 var _global = "undefined" != typeof window ? window : "undefined" != typeof global ? global : "undefined" != typeof self ? self : {};
-(_global.SENTRY_RELEASE = { id: "0.22.9" }),
+(_global.SENTRY_RELEASE = { id: "0.23.1" }),
   (() => {
     var __webpack_modules__ = {
         60470: function (e, t, i) {
@@ -58797,13 +58797,13 @@ zoo`.split("\n");
             }
           },
           babylon: {
-            chainId: "bbn-test-5",
-            testnetChainId: "bbn-test-5",
+            chainId: "bbn-test-6",
+            testnetChainId: "bbn-test-6",
             key: "babylon",
             chainName: "Babylon Testnet",
             chainRegistryPath: "babylon",
             addressPrefix: "bbn",
-            apis: { rpcTest: "https://babylon-testnet-rpc.nodes.guru", restTest: "https://babylon-testnet-api.nodes.guru" },
+            apis: { rpcTest: "https://babylon-testnet-rpc.polkachu.com", restTest: "https://babylon-testnet-api.polkachu.com" },
             denom: "BBN",
             bip44: { coinType: "118" },
             enabled: !0,
@@ -63822,7 +63822,7 @@ ${E.join("\n")}`);
         (ec = new WeakMap()),
         (el = new WeakMap()),
         (eu = new WeakMap());
-      var MB = { i8: "0.22.9" },
+      var MB = { i8: "0.23.1" },
         MM = function (e, t, i, n) {
           if ("a" === i && !n) throw TypeError("Private accessor was defined without a getter");
           if ("function" == typeof t ? e !== t || !n : !t.has(e)) throw TypeError("Cannot read private member from an object whose class did not declare it");

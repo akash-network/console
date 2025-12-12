@@ -4,7 +4,7 @@ import type { BrowserContext, Page } from "@playwright/test";
 import { wait } from "@src/utils/timer";
 import { testEnvConfig } from "../fixture/test-env.config";
 import { clickConnectWalletButton, clickWalletSelectorDropdown } from "../fixture/testing-helpers";
-import { approveWalletOperation, createWallet, getExtensionPage } from "../fixture/wallet-setup";
+import { createWallet, getExtensionPage } from "../fixture/wallet-setup";
 
 export type FeeType = "low" | "medium" | "high";
 export class LeapExt {
@@ -17,8 +17,8 @@ export class LeapExt {
     await this.page.goto(`${testEnvConfig.BASE_URL}`);
   }
 
-  async createAndUseWallet(extensionId: string): Promise<string> {
-    const { extPage, address } = await createWallet(this.context, extensionId);
+  async createAndUseWallet(): Promise<string> {
+    const { extPage, address } = await createWallet(this.context);
 
     const [popup] = await Promise.all([
       this.context.waitForEvent("page"),
@@ -32,8 +32,8 @@ export class LeapExt {
     return address;
   }
 
-  async switchToTestWallet(extensionId: string): Promise<void> {
-    const extPage = await getExtensionPage(this.context, extensionId);
+  async switchToTestWallet(): Promise<void> {
+    const extPage = await getExtensionPage(this.context);
     await clickWalletSelectorDropdown(extPage);
     const wallet = await DirectSecp256k1HdWallet.fromMnemonic(testEnvConfig.TEST_WALLET_MNEMONIC, {
       prefix: "akash"
@@ -60,14 +60,27 @@ export class LeapExt {
     await popupPage.waitForLoadState("load");
     const feeTypeLocator = getFeeTypeLocator(popupPage, feeType);
     const feeTypeLabelLocator = feeTypeLocator.locator("xpath=..");
+    await feeTypeLabelLocator.waitFor({ state: "visible", timeout: 10_000 }).catch(async () => {
+      // sometimes extension window shows spinner indefinitely, trying to reload it
+      await popupPage.reload({ waitUntil: "load" });
+    });
     await feeTypeLabelLocator.click();
-    await wait(1000);
+
+    await popupPage.getByText(/show additional settings/i).click();
+    const gasInput = popupPage
+      .getByText("Enter gas limit manually")
+      .locator("xpath=..") // get parent
+      .locator("input");
+
+    const value = Number(await gasInput.inputValue());
+    await gasInput.fill(Math.ceil(1.5 * value).toString());
+
     if (!(await feeTypeLocator.isChecked())) {
       // sometimes leap wallet reverts fee type back to low
       await feeTypeLabelLocator.click();
     }
-    await approveWalletOperation(popupPage);
-    await this.page.waitForLoadState("networkidle");
+
+    await Promise.all([popupPage.waitForEvent("close"), popupPage.locator("button", { hasText: /Approve/i }).click()]);
   }
 
   async waitForTransaction(type: "success" | "error"): Promise<void> {

@@ -4,12 +4,12 @@
       o = new e.Error().stack;
     o &&
       ((e._sentryDebugIds = e._sentryDebugIds || {}),
-      (e._sentryDebugIds[o] = "46aaa4c9-ed98-437c-bf44-9cffa3709faf"),
-      (e._sentryDebugIdIdentifier = "sentry-dbid-46aaa4c9-ed98-437c-bf44-9cffa3709faf"));
+      (e._sentryDebugIds[o] = "01239268-2b79-49ee-a530-8f1774ea8333"),
+      (e._sentryDebugIdIdentifier = "sentry-dbid-01239268-2b79-49ee-a530-8f1774ea8333"));
   } catch (e) {}
 })();
 var _global = "undefined" != typeof window ? window : "undefined" != typeof global ? global : "undefined" != typeof self ? self : {};
-_global.SENTRY_RELEASE = { id: "0.22.9" };
+_global.SENTRY_RELEASE = { id: "0.23.1" };
 ("use strict");
 (self.webpackChunk_leap_cosmos_extension = self.webpackChunk_leap_cosmos_extension || []).push([
   ["2929"],
@@ -326,16 +326,16 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             P = t(74703),
             I = t(53108),
             M = t(63184),
-            w = t(79533),
-            _ = t(74229),
+            _ = t(79533),
+            w = t(74229),
             S = t(76131),
             x = t(49728),
             U = t(78935),
             T = t(65027),
             D = t(95238),
             C = t(75958),
-            B = t(2784),
-            N = t(10289),
+            N = t(2784),
+            B = t(10289),
             E = t(42799),
             O = t(39713),
             R = t(48346),
@@ -364,24 +364,24 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             er = new l.tX(),
             es = (0, C.Pi)(e => {
               var o;
-              let { data: t, chainId: n, isSignArbitrary: c, rootBalanceStore: y, rootStakeStore: w, rootDenomsStore: T, activeChain: C } = e,
-                E = (0, B.useRef)(!1),
-                R = (0, B.useRef)(!1),
-                Z = (0, B.useRef)(!1),
-                [en, es] = (0, B.useState)(!1),
-                [ea, el] = (0, B.useState)(null),
-                [ed, em] = (0, B.useState)(!1),
-                [eu, ec] = (0, B.useState)(),
-                [eg, ep] = (0, B.useState)(null),
-                [ef, ev] = (0, B.useState)(null),
-                [eA, ek] = (0, B.useState)(""),
-                [ey, eh] = (0, B.useState)(""),
-                [eb, eP] = (0, B.useState)(!1),
+              let { data: t, chainId: n, isSignArbitrary: c, rootBalanceStore: y, rootStakeStore: _, rootDenomsStore: T, activeChain: C } = e,
+                E = (0, N.useRef)(!1),
+                R = (0, N.useRef)(!1),
+                Z = (0, N.useRef)(!1),
+                [en, es] = (0, N.useState)(!1),
+                [ea, el] = (0, N.useState)(null),
+                [ed, em] = (0, N.useState)(!1),
+                [eu, ec] = (0, N.useState)(),
+                [eg, ep] = (0, N.useState)(null),
+                [ef, ev] = (0, N.useState)(null),
+                [eA, ek] = (0, N.useState)(""),
+                [ey, eh] = (0, N.useState)(""),
+                [eb, eP] = (0, N.useState)(!1),
                 eI = (0, s.QSC)(C),
                 eM = (0, s.rTu)(),
-                ew = ei(C),
-                e_ = (0, N.s0)(),
-                eS = (0, B.useMemo)(
+                e_ = ei(C),
+                ew = (0, B.s0)(),
+                eS = (0, N.useMemo)(
                   () => ((null == eI ? void 0 : eI.testnetChainId) && (null == eI ? void 0 : eI.testnetChainId) === n ? "testnet" : "mainnet"),
                   [null == eI ? void 0 : eI.testnetChainId, n]
                 ),
@@ -389,26 +389,26 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 eU = (0, A.e7)(ex, { activeChain: C }),
                 eT = s.rNU.useLogCosmosDappTx(),
                 eD = (0, s.dco)(),
-                eC = (0, B.useRef)(!1),
-                [eB, eN] = (0, B.useState)(null),
-                [eE, eO] = (0, B.useState)(!1),
+                eC = (0, N.useRef)(!1),
+                [eN, eB] = (0, N.useState)(null),
+                [eE, eO] = (0, N.useState)(!1),
                 { setDefaultFee: eR } = (0, s.ezp)(),
-                eL = (0, B.useRef)(null),
+                eL = (0, N.useRef)(null),
                 ej = O.zT.getStore(C, eS, !1),
                 eq = null == ej ? void 0 : ej.data,
                 e$ = null == ej ? void 0 : ej.isLoading,
                 eF = (0, K.r)(ex, C, eq, e$);
-              (0, B.useEffect)(() => {
-                !eB &&
+              (0, N.useEffect)(() => {
+                !eN &&
                   eL.current &&
                   setTimeout(() => {
                     eL.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
                   }, 10);
-              }, [eB]),
-                (0, B.useEffect)(() => {
+              }, [eN]),
+                (0, N.useEffect)(() => {
                   y.loadBalances(C, eS);
                 }, [C, eS]);
-              let [eV, eZ] = (0, B.useState)({ gasPrice: eU.gasPrice, option: s.j1p.LOW });
+              let [eV, eZ] = (0, N.useState)({ gasPrice: eU.gasPrice, option: s.j1p.LOW });
               (0, j.h)(null !== eM, "activeWallet is null");
               let {
                   isAmino: eG,
@@ -416,7 +416,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   ethSignType: ez,
                   signOptions: eW,
                   eip712Types: eY
-                } = (0, B.useMemo)(() => {
+                } = (0, N.useMemo)(() => {
                   let e = !!(null == t ? void 0 : t.isAmino),
                     o = !!(null == t ? void 0 : t.isAdr36),
                     n = null == t ? void 0 : t.ethSignType,
@@ -424,7 +424,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     r = null == t ? void 0 : t.signOptions;
                   return { isAmino: e, isAdr36: o, ethSignType: n, signOptions: r, eip712Types: i };
                 }, [t]),
-                [eJ, eK, eQ, eX, e0, e1, e2] = (0, B.useMemo)(() => {
+                [eJ, eK, eQ, eX, e0, e1, e2] = (0, N.useMemo)(() => {
                   if (eG) {
                     let o;
                     let n = (0, W.k)({
@@ -486,29 +486,29 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 }, [eG, t, eV.gasPrice, eA, eH, ey, c, ez]),
                 e3 = null == t ? void 0 : t.origin,
                 e4 = (0, U.G)(e3),
-                e6 = (0, _.a1)(),
-                e8 = (0, B.useMemo)(() => {
+                e6 = (0, w.a1)(),
+                e8 = (0, N.useMemo)(() => {
                   if (Array.isArray(eK)) return eK.map(e => e.raw["@type"] ?? e.raw.type).filter(Boolean);
                 }, [eK]),
-                e7 = (0, B.useCallback)(() => {
+                e7 = (0, N.useCallback)(() => {
                   setTimeout(() => {
-                    y.refetchBalances(C, eS), w.updateStake(C, eS, !0);
+                    y.refetchBalances(C, eS), _.updateStake(C, eS, !0);
                   }, 3e3);
-                }, [C, y, w, eS]),
-                e5 = (0, B.useCallback)(async () => {
+                }, [C, y, _, eS]),
+                e5 = (0, N.useCallback)(async () => {
                   R.current ||
                     Z.current ||
                     ((R.current = !0),
                     G().runtime.sendMessage({ type: P.u.signResponse, payload: { status: "error", data: "Transaction cancelled by the user." } }),
                     (0, $.oj)()
-                      ? e_("/home")
+                      ? ew("/home")
                       : (await (0, a._vH)(100),
                         setTimeout(async () => {
                           window.close();
                         }, 10)));
-                }, [e_]),
-                e9 = (0, B.useMemo)(() => (e1 ? ("gasLimit" in e1 ? e1.gasLimit.toString() : e1.gas.toString()) : eD[C].DEFAULT_GAS_IBC.toString()), [C, e1]),
-                oe = (0, B.useMemo)(() => {
+                }, [ew]),
+                e9 = (0, N.useMemo)(() => (e1 ? ("gasLimit" in e1 ? e1.gasLimit.toString() : e1.gas.toString()) : eD[C].DEFAULT_GAS_IBC.toString()), [C, e1]),
+                oe = (0, N.useMemo)(() => {
                   if (e1 && (null == e1 ? void 0 : e1.amount[0])) {
                     let { denom: e } = e1.amount[0];
                     return e;
@@ -516,8 +516,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   return eU.gasPrice.denom;
                 }, [e1, eU.gasPrice]),
                 oo = (0, x.U)(),
-                ot = (0, B.useMemo)(() => (0, q.h)(eu), [eu]),
-                on = (0, B.useCallback)(async () => {
+                ot = (0, N.useMemo)(() => (0, q.h)(eu), [eu]),
+                on = (0, N.useCallback)(async () => {
                   var e, o, t, n, i, l, d, m;
                   if (ot) {
                     try {
@@ -598,7 +598,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                         }
                         if (!1 === e) throw Error("Unusually high fees detected, could not process transaction. Please try again.");
                       }
-                      let e = await ew(C, !!(ez || eY));
+                      let e = await e_(C, !!(ez || eY));
                       eM.walletType === s._KQ.LEDGER && em(!0);
                       let o = (await e.getAccounts())[0].pubkey,
                         t = await (async () => {
@@ -702,7 +702,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                         throw Error("Could not send transaction to the dApp");
                       }
                       (0, $.oj)()
-                        ? (e7(), e_("/home"))
+                        ? (e7(), ew("/home"))
                         : setTimeout(async () => {
                             window.close();
                           }, 10);
@@ -753,7 +753,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                         }
                         if (!1 === e) throw Error("Unusually high fees detected, could not process transaction. Please try again.");
                       }
-                      let e = await ew(C),
+                      let e = await e_(C),
                         o = await (async () => {
                           try {
                             if ("function" == typeof e.signDirect) return e.signDirect(g, M.SignDoc.fromPartial(eX));
@@ -799,7 +799,19 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                       if (!o) throw Error("Could not sign transaction");
                       (Z.current = !0),
                         (0, J.D0)(o, eK ?? [], e3 ?? origin, e0, C, null == eM ? void 0 : eM.addresses[C], eT, eQ.chain_id, eS).catch(e => {
-                          (0, u.Tb)(e);
+                          (0, u.Tb)(e, {
+                            tags: {
+                              errorType: "cosmos_transaction_error",
+                              source: "sign_transaction",
+                              severity: "error",
+                              errorName: e instanceof Error ? e.name : "CosmosTransactionError",
+                              transactionType: "cosmos_dapp_transaction"
+                            },
+                            fingerprint: ["cosmos_dapp_transaction", "cosmos_dapp_transaction_error"],
+                            level: "error",
+                            contexts: { transaction: { type: "cosmos", chain: C, network: eS, errorMessage: e instanceof Error ? e.message : String(e) } },
+                            extra: { chain: C, address: null == eM ? void 0 : eM.addresses[C], network: eS, isCosmos: !0, appUrl: e3 ?? origin }
+                          });
                         }),
                         await (0, a._vH)(100);
                       try {
@@ -808,18 +820,18 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                         throw Error("Could not send transaction to the dApp");
                       }
                       (0, $.oj)()
-                        ? (e7(), e_("/home"))
+                        ? (e7(), ew("/home"))
                         : setTimeout(async () => {
                             window.close();
                           }, 10);
                     } catch (e) {
                       e instanceof Error && (e.message === a.KHu ? e5() : ep(e.message));
                     }
-                }, [eM.addresses, eS, C, e7, eX, eG, ew, e3, e0, eT, e5, ez, ot]);
-              (0, B.useEffect)(() => {
+                }, [null == eM ? void 0 : eM.addresses, eS, C, e7, eX, eG, e_, e3, e0, eT, e5, ez, ot]);
+              (0, N.useEffect)(() => {
                 eR(e1), O.NR.setDefaultFee(e1);
               }, [e1]),
-                (0, B.useEffect)(
+                (0, N.useEffect)(
                   () => (
                     window.addEventListener("beforeunload", e5),
                     G().storage.local.remove(I.u1),
@@ -829,24 +841,36 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   ),
                   [e5]
                 ),
-                (0, B.useEffect)(() => {
+                (0, N.useEffect)(() => {
                   if (e3 && e8 && !E.current)
                     try {
                       E.current = !0;
                     } catch (e) {
-                      (0, u.Tb)(e);
+                      (0, u.Tb)(e, {
+                        tags: {
+                          errorType: "cosmos_transaction_error",
+                          source: "sign_transaction",
+                          severity: "error",
+                          errorName: e instanceof Error ? e.name : "CosmosTransactionError",
+                          transactionType: "cosmos_dapp_transaction"
+                        },
+                        fingerprint: ["cosmos_dapp_transaction", "cosmos_dapp_transaction_error"],
+                        level: "error",
+                        contexts: { transaction: { type: "cosmos", errorMessage: e instanceof Error ? e.message : String(e) } },
+                        extra: { walletType: eM.walletType, chainId: eI.chainId, chainName: eI.chainName, isAmino: eG, siteOrigin: e3, transactionTypes: e8 }
+                      });
                     }
-                }, [eM.walletType, eI.chainId, eI.chainName, eG, e3, e8]);
-              let oi = (0, B.useMemo)(
+                }, [null == eM ? void 0 : eM.walletType, null == eI ? void 0 : eI.chainId, null == eI ? void 0 : eI.chainName, eG, e3, e8]);
+              let oi = (0, N.useMemo)(
                   () => (c ? "" : Array.isArray(eK) ? (0, H.p)(Array.isArray(eK) ? (null == eK ? void 0 : eK.map(e => e.parsed)) : null) : ""),
                   [c, eK]
                 ),
-                or = (0, B.useMemo)(
+                or = (0, N.useMemo)(
                   () => !!(null == e0 ? void 0 : e0.granter) || !!(null == e0 ? void 0 : e0.payer) || !!(null == eW ? void 0 : eW.disableBalanceCheck),
                   [null == e0 ? void 0 : e0.granter, null == e0 ? void 0 : e0.payer, null == eW ? void 0 : eW.disableBalanceCheck]
                 ),
-                os = !oe || !!eg || !!ef || (!!oi && !1 === eb) || (!1 === eB && !eE),
-                oa = (0, B.useMemo)(
+                os = !oe || !!eg || !!ef || (!!oi && !1 === eb) || (!1 === eN && !eE),
+                oa = (0, N.useMemo)(
                   () => ({
                     page: "sign-transaction",
                     queryStatus: os ? "loading" : "success",
@@ -862,14 +886,14 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                           gasPriceError: !!ef,
                           hasToShowCheckbox: !!oi,
                           checkedGrantAuthBox: eb,
-                          isFeesValid: !!eB,
+                          isFeesValid: !!eN,
                           highFeeAccepted: eE
                         },
                         context: { dappFeeDenom: oe, signingError: eg, gasPriceError: ef, hasToShowCheckbox: oi }
                       }
                     }
                   }),
-                  [os, oe, eg, ef, oi, eb, eB, eE]
+                  [os, oe, eg, ef, oi, eb, eN, eE]
                 );
               return (
                 (0, S.$)(oa),
@@ -925,7 +949,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                               validateFee: !0,
                               onInvalidFees: (e, o) => {
                                 try {
-                                  !1 === o && eN(!1);
+                                  !1 === o && eB(!1);
                                 } catch (e) {
                                   var t, n;
                                   (0, u.Tb)(e, {
@@ -1008,7 +1032,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                               (0, i.jsx)(h.Z, { size: "xs", color: "dark:text-gray-400 text-gray-600", children: oi })
                             ]
                           }),
-                        !1 === eB &&
+                        !1 === eN &&
                           (0, i.jsxs)("div", {
                             className: "flex flex-row items-center rounded-lg p-[4px]",
                             ref: eL,
@@ -1062,16 +1086,30 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             }),
             ea = (e => {
               let o = () => {
-                let [o, t] = (0, B.useState)(),
-                  [n, r] = (0, B.useState)(a.NOo),
-                  [s, l] = (0, B.useState)(!1),
-                  [d, m] = (0, B.useState)(null),
-                  [c, g] = (0, B.useState)(),
-                  p = (0, N.s0)();
-                (0, B.useEffect)(() => {
-                  (0, w._d)().then(r).catch(u.Tb);
+                let [o, t] = (0, N.useState)(),
+                  [n, r] = (0, N.useState)(a.NOo),
+                  [s, l] = (0, N.useState)(!1),
+                  [d, m] = (0, N.useState)(null),
+                  [c, g] = (0, N.useState)(),
+                  p = (0, B.s0)();
+                (0, N.useEffect)(() => {
+                  (0, _._d)()
+                    .then(r)
+                    .catch(e =>
+                      (0, u.Tb)(e, {
+                        tags: {
+                          errorType: "decode_chain_id_to_chain_error",
+                          source: "decode_chain_id_to_chain",
+                          severity: "error",
+                          errorName: e instanceof Error ? e.name : "DecodeChainIdToChainError"
+                        },
+                        fingerprint: ["decode_chain_id_to_chain", "decode_chain_id_to_chain_error"],
+                        level: "error",
+                        contexts: { transaction: { type: "decode_chain_id_to_chain", errorMessage: e instanceof Error ? e.message : String(e) } }
+                      })
+                    );
                 }, []);
-                let f = (0, B.useCallback)(
+                let f = (0, N.useCallback)(
                   (e, o) => {
                     if (o.id === G().runtime.id && e.type === P.u.signTransaction) {
                       var i;
@@ -1092,7 +1130,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   },
                   [n, p]
                 );
-                return ((0, B.useEffect)(
+                return ((0, N.useEffect)(
                   () => (
                     G().runtime.sendMessage({ type: P.u.signingPopupOpen }),
                     G().runtime.onMessage.addListener(f),
@@ -1118,7 +1156,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     });
               };
               return (o.displayName = `withTxnSigningRequest(${e.displayName})`), o;
-            })(B.memo(es));
+            })(N.memo(es));
           n();
         } catch (e) {
           n(e);
@@ -1607,8 +1645,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               let { fee: s, error: m, setError: g, disableBalanceCheck: v, rootBalanceStore: k, activeChain: y, selectedNetwork: h, feeTokensList: b } = e,
                 P = (0, r.dco)(),
                 [I] = (0, r.X$P)(),
-                [M, w] = (0, p.useState)(!1),
-                _ = k.getSpendableBalancesForChain(y, h, void 0),
+                [M, _] = (0, p.useState)(!1),
+                w = k.getSpendableBalancesForChain(y, h, void 0),
                 S = k.getLoadingStatusForChain(y, h),
                 x = (0, p.useMemo)(() => (S ? "loading" : "success"), [S]),
                 U = (0, r.xxU)(),
@@ -1619,7 +1657,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     n = null == b ? void 0 : b.find(e => (e.ibcDenom ? e.ibcDenom === t : e.denom.coinMinimalDenom === t)),
                     i =
                       null ===
-                        (o = _.find(e => {
+                        (o = w.find(e => {
                           var o;
                           return (null == n ? void 0 : n.ibcDenom) || (null == e ? void 0 : e.ibcDenom)
                             ? (null == e ? void 0 : e.ibcDenom) === (null == n ? void 0 : n.ibcDenom)
@@ -1629,7 +1667,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                         ? void 0
                         : o.amount;
                   return { ...n, amount: i };
-                }, [_, null == s ? void 0 : s.amount, b]),
+                }, [w, null == s ? void 0 : s.amount, b]),
                 { data: C } = (0, d.useQuery)(
                   ["fee-token-fiat-value", null == D ? void 0 : null === (o = D.denom) || void 0 === o ? void 0 : o.coinDenom],
                   async () => {
@@ -1643,25 +1681,25 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     );
                   }
                 ),
-                B = (0, p.useMemo)(() => {
+                N = (0, p.useMemo)(() => {
                   var e;
                   return s ? A(s, (null == D ? void 0 : null === (e = D.denom) || void 0 === e ? void 0 : e.coinDecimals) ?? 0) : null;
                 }, [y, P, s, null == D ? void 0 : null === (t = D.denom) || void 0 === t ? void 0 : t.coinDecimals]);
               return (
                 (0, p.useEffect)(() => {
                   var e, o;
-                  let t = null == B ? void 0 : null === (e = B.amount) || void 0 === e ? void 0 : e.toString();
+                  let t = null == N ? void 0 : null === (e = N.amount) || void 0 === e ? void 0 : e.toString();
                   !v &&
                     t &&
                     "loading" !== x &&
                     (new (u())(t).isGreaterThan((null == D ? void 0 : D.amount) ?? 0)
                       ? g(`You don't have enough ${null == D ? void 0 : null === (o = D.denom) || void 0 === o ? void 0 : o.coinDenom} to pay the gas fee`)
                       : g(null));
-                }, [D, B, x, v]),
+                }, [D, N, x, v]),
                 (0, i.jsxs)("div", {
                   className: "mt-3",
                   children: [
-                    B
+                    N
                       ? (0, i.jsxs)("div", {
                           className: "rounded-lg bg-secondary-100 border border-secondary-200",
                           children: [
@@ -1676,7 +1714,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                                       size: 14,
                                       className: "text-muted-foreground cursor-pointer",
                                       weight: "fill",
-                                      onClick: () => w(!0),
+                                      onClick: () => _(!0),
                                       "aria-label": "sign dapp edit static fee button in sign transaction flow"
                                     })
                                   ]
@@ -1684,11 +1722,11 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                                 (0, i.jsxs)("p", {
                                   className: "font-medium text-foreground text-sm mt-3 list-none ml-0",
                                   children: [
-                                    B.formattedAmount,
+                                    N.formattedAmount,
                                     " ",
                                     null == D ? void 0 : null === (n = D.denom) || void 0 === n ? void 0 : n.coinDenom,
                                     " ",
-                                    C ? T(new (u())((null == B ? void 0 : B.amount) ?? 0).multipliedBy(C)) : null
+                                    C ? T(new (u())((null == N ? void 0 : N.amount) ?? 0).multipliedBy(C)) : null
                                   ]
                                 }),
                                 m ? (0, i.jsx)("p", { className: "font-medium text-destructive-400 text-sm mt-3 list-none ml-0", children: m }) : null
@@ -1707,7 +1745,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                           ]
                         })
                       : null,
-                    (0, i.jsx)(f.Z, { isOpen: M, onClose: () => w(!1), gasPriceError: m })
+                    (0, i.jsx)(f.Z, { isOpen: M, onClose: () => _(!1), gasPriceError: m })
                   ]
                 })
               );
@@ -1930,13 +1968,17 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         return (0, n.calculateFee)(parseInt(e), o);
       }
       function s(e, o, t) {
-        let r = (0, n.calculateFee)(parseInt(t || ("gasLimit" in e ? e.gasLimit : e.gas).toString()), o);
-        return i.Fee.fromPartial({
-          gasLimit: r.gas,
-          amount: (null == r ? void 0 : r.amount.map(e => ({ amount: e.amount, denom: e.denom }))) ?? [],
-          granter: null == e ? void 0 : e.granter,
-          payer: null == e ? void 0 : e.payer
-        });
+        try {
+          let r = (0, n.calculateFee)(parseInt(t || ("gasLimit" in e ? e.gasLimit : e.gas).toString()), o);
+          return i.Fee.fromPartial({
+            gasLimit: r.gas,
+            amount: (null == r ? void 0 : r.amount.map(e => ({ amount: e.amount, denom: e.denom }))) ?? [],
+            granter: null == e ? void 0 : e.granter,
+            payer: null == e ? void 0 : e.payer
+          });
+        } catch (e) {
+          return i.Fee.fromPartial({ gasLimit: t, amount: [], granter: void 0, payer: void 0 });
+        }
       }
     },
     92437: function (e, o, t) {
@@ -2270,21 +2312,21 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         toProto: e => M.encode(e).finish(),
         toProtoMsg: e => ({ typeUrl: "/cosmos.base.v1beta1.Coin", value: M.encode(e).finish() })
       };
-      function w() {
+      function _() {
         return { denom: "", amount: "" };
       }
       b.register(M.typeUrl, M), b.registerAminoProtoMapping(M.aminoType, M.typeUrl);
-      let _ = {
+      let w = {
         typeUrl: "/cosmos.base.v1beta1.DecCoin",
         aminoType: "cosmos-sdk/DecCoin",
-        is: e => e && (e.$typeUrl === _.typeUrl || ("string" == typeof e.denom && "string" == typeof e.amount)),
-        isSDK: e => e && (e.$typeUrl === _.typeUrl || ("string" == typeof e.denom && "string" == typeof e.amount)),
-        isAmino: e => e && (e.$typeUrl === _.typeUrl || ("string" == typeof e.denom && "string" == typeof e.amount)),
+        is: e => e && (e.$typeUrl === w.typeUrl || ("string" == typeof e.denom && "string" == typeof e.amount)),
+        isSDK: e => e && (e.$typeUrl === w.typeUrl || ("string" == typeof e.denom && "string" == typeof e.amount)),
+        isAmino: e => e && (e.$typeUrl === w.typeUrl || ("string" == typeof e.denom && "string" == typeof e.amount)),
         encode: (e, o = y.Lt.create()) => ("" !== e.denom && o.uint32(10).string(e.denom), "" !== e.amount && o.uint32(18).string(e.amount), o),
         decode(e, o) {
           let t = e instanceof y.oP ? e : new y.oP(e),
             n = void 0 === o ? t.len : t.pos + o,
-            i = w();
+            i = _();
           for (; t.pos < n; ) {
             let e = t.uint32();
             switch (e >>> 3) {
@@ -2302,27 +2344,27 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         },
         fromPartial(e) {
           var o, t;
-          let n = w();
+          let n = _();
           return (n.denom = null !== (o = e.denom) && void 0 !== o ? o : ""), (n.amount = null !== (t = e.amount) && void 0 !== t ? t : ""), n;
         },
         fromAmino(e) {
-          let o = w();
+          let o = _();
           return void 0 !== e.denom && null !== e.denom && (o.denom = e.denom), void 0 !== e.amount && null !== e.amount && (o.amount = e.amount), o;
         },
         toAmino(e) {
           let o = {};
           return (o.denom = "" === e.denom ? void 0 : e.denom), (o.amount = "" === e.amount ? void 0 : e.amount), o;
         },
-        fromAminoMsg: e => _.fromAmino(e.value),
-        toAminoMsg: e => ({ type: "cosmos-sdk/DecCoin", value: _.toAmino(e) }),
-        fromProtoMsg: e => _.decode(e.value),
-        toProto: e => _.encode(e).finish(),
-        toProtoMsg: e => ({ typeUrl: "/cosmos.base.v1beta1.DecCoin", value: _.encode(e).finish() })
+        fromAminoMsg: e => w.fromAmino(e.value),
+        toAminoMsg: e => ({ type: "cosmos-sdk/DecCoin", value: w.toAmino(e) }),
+        fromProtoMsg: e => w.decode(e.value),
+        toProto: e => w.encode(e).finish(),
+        toProtoMsg: e => ({ typeUrl: "/cosmos.base.v1beta1.DecCoin", value: w.encode(e).finish() })
       };
       function S() {
         return { int: "" };
       }
-      b.register(_.typeUrl, _), b.registerAminoProtoMapping(_.aminoType, _.typeUrl);
+      b.register(w.typeUrl, w), b.registerAminoProtoMapping(w.aminoType, w.typeUrl);
       let x = {
         typeUrl: "/cosmos.base.v1beta1.IntProto",
         aminoType: "cosmos-sdk/IntProto",
@@ -2409,17 +2451,17 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         is: e =>
           e &&
           (e.$typeUrl === C.typeUrl ||
-            (Array.isArray(e.sendEnabled) && (!e.sendEnabled.length || N.is(e.sendEnabled[0])) && "boolean" == typeof e.defaultSendEnabled)),
+            (Array.isArray(e.sendEnabled) && (!e.sendEnabled.length || B.is(e.sendEnabled[0])) && "boolean" == typeof e.defaultSendEnabled)),
         isSDK: e =>
           e &&
           (e.$typeUrl === C.typeUrl ||
-            (Array.isArray(e.send_enabled) && (!e.send_enabled.length || N.isSDK(e.send_enabled[0])) && "boolean" == typeof e.default_send_enabled)),
+            (Array.isArray(e.send_enabled) && (!e.send_enabled.length || B.isSDK(e.send_enabled[0])) && "boolean" == typeof e.default_send_enabled)),
         isAmino: e =>
           e &&
           (e.$typeUrl === C.typeUrl ||
-            (Array.isArray(e.send_enabled) && (!e.send_enabled.length || N.isAmino(e.send_enabled[0])) && "boolean" == typeof e.default_send_enabled)),
+            (Array.isArray(e.send_enabled) && (!e.send_enabled.length || B.isAmino(e.send_enabled[0])) && "boolean" == typeof e.default_send_enabled)),
         encode(e, o = y.Lt.create()) {
-          for (let t of e.sendEnabled) N.encode(t, o.uint32(10).fork()).ldelim();
+          for (let t of e.sendEnabled) B.encode(t, o.uint32(10).fork()).ldelim();
           return !0 === e.defaultSendEnabled && o.uint32(16).bool(e.defaultSendEnabled), o;
         },
         decode(e, o) {
@@ -2430,7 +2472,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             let e = t.uint32();
             switch (e >>> 3) {
               case 1:
-                i.sendEnabled.push(N.decode(t, t.uint32()));
+                i.sendEnabled.push(B.decode(t, t.uint32()));
                 break;
               case 2:
                 i.defaultSendEnabled = t.bool();
@@ -2445,7 +2487,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           var o, t;
           let n = D();
           return (
-            (n.sendEnabled = (null === (o = e.sendEnabled) || void 0 === o ? void 0 : o.map(e => N.fromPartial(e))) || []),
+            (n.sendEnabled = (null === (o = e.sendEnabled) || void 0 === o ? void 0 : o.map(e => B.fromPartial(e))) || []),
             (n.defaultSendEnabled = null !== (t = e.defaultSendEnabled) && void 0 !== t && t),
             n
           );
@@ -2454,7 +2496,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           var o;
           let t = D();
           return (
-            (t.sendEnabled = (null === (o = e.send_enabled) || void 0 === o ? void 0 : o.map(e => N.fromAmino(e))) || []),
+            (t.sendEnabled = (null === (o = e.send_enabled) || void 0 === o ? void 0 : o.map(e => B.fromAmino(e))) || []),
             void 0 !== e.default_send_enabled && null !== e.default_send_enabled && (t.defaultSendEnabled = e.default_send_enabled),
             t
           );
@@ -2462,7 +2504,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         toAmino(e) {
           let o = {};
           return (
-            e.sendEnabled ? (o.send_enabled = e.sendEnabled.map(e => (e ? N.toAmino(e) : void 0))) : (o.send_enabled = e.sendEnabled),
+            e.sendEnabled ? (o.send_enabled = e.sendEnabled.map(e => (e ? B.toAmino(e) : void 0))) : (o.send_enabled = e.sendEnabled),
             (o.default_send_enabled = !1 === e.defaultSendEnabled ? void 0 : e.defaultSendEnabled),
             o
           );
@@ -2473,21 +2515,21 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         toProto: e => C.encode(e).finish(),
         toProtoMsg: e => ({ typeUrl: "/cosmos.bank.v1beta1.Params", value: C.encode(e).finish() })
       };
-      function B() {
+      function N() {
         return { denom: "", enabled: !1 };
       }
       b.register(C.typeUrl, C), b.registerAminoProtoMapping(C.aminoType, C.typeUrl);
-      let N = {
+      let B = {
         typeUrl: "/cosmos.bank.v1beta1.SendEnabled",
         aminoType: "cosmos-sdk/SendEnabled",
-        is: e => e && (e.$typeUrl === N.typeUrl || ("string" == typeof e.denom && "boolean" == typeof e.enabled)),
-        isSDK: e => e && (e.$typeUrl === N.typeUrl || ("string" == typeof e.denom && "boolean" == typeof e.enabled)),
-        isAmino: e => e && (e.$typeUrl === N.typeUrl || ("string" == typeof e.denom && "boolean" == typeof e.enabled)),
+        is: e => e && (e.$typeUrl === B.typeUrl || ("string" == typeof e.denom && "boolean" == typeof e.enabled)),
+        isSDK: e => e && (e.$typeUrl === B.typeUrl || ("string" == typeof e.denom && "boolean" == typeof e.enabled)),
+        isAmino: e => e && (e.$typeUrl === B.typeUrl || ("string" == typeof e.denom && "boolean" == typeof e.enabled)),
         encode: (e, o = y.Lt.create()) => ("" !== e.denom && o.uint32(10).string(e.denom), !0 === e.enabled && o.uint32(16).bool(e.enabled), o),
         decode(e, o) {
           let t = e instanceof y.oP ? e : new y.oP(e),
             n = void 0 === o ? t.len : t.pos + o,
-            i = B();
+            i = N();
           for (; t.pos < n; ) {
             let e = t.uint32();
             switch (e >>> 3) {
@@ -2505,27 +2547,27 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         },
         fromPartial(e) {
           var o, t;
-          let n = B();
+          let n = N();
           return (n.denom = null !== (o = e.denom) && void 0 !== o ? o : ""), (n.enabled = null !== (t = e.enabled) && void 0 !== t && t), n;
         },
         fromAmino(e) {
-          let o = B();
+          let o = N();
           return void 0 !== e.denom && null !== e.denom && (o.denom = e.denom), void 0 !== e.enabled && null !== e.enabled && (o.enabled = e.enabled), o;
         },
         toAmino(e) {
           let o = {};
           return (o.denom = "" === e.denom ? void 0 : e.denom), (o.enabled = !1 === e.enabled ? void 0 : e.enabled), o;
         },
-        fromAminoMsg: e => N.fromAmino(e.value),
-        toAminoMsg: e => ({ type: "cosmos-sdk/SendEnabled", value: N.toAmino(e) }),
-        fromProtoMsg: e => N.decode(e.value),
-        toProto: e => N.encode(e).finish(),
-        toProtoMsg: e => ({ typeUrl: "/cosmos.bank.v1beta1.SendEnabled", value: N.encode(e).finish() })
+        fromAminoMsg: e => B.fromAmino(e.value),
+        toAminoMsg: e => ({ type: "cosmos-sdk/SendEnabled", value: B.toAmino(e) }),
+        fromProtoMsg: e => B.decode(e.value),
+        toProto: e => B.encode(e).finish(),
+        toProtoMsg: e => ({ typeUrl: "/cosmos.bank.v1beta1.SendEnabled", value: B.encode(e).finish() })
       };
       function E() {
         return { address: "", coins: [] };
       }
-      b.register(N.typeUrl, N), b.registerAminoProtoMapping(N.aminoType, N.typeUrl);
+      b.register(B.typeUrl, B), b.registerAminoProtoMapping(B.aminoType, B.typeUrl);
       let O = {
         typeUrl: "/cosmos.bank.v1beta1.Input",
         aminoType: "cosmos-sdk/Input",
@@ -3235,7 +3277,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           (e.$typeUrl === eo.typeUrl ||
             ("string" == typeof e.authority &&
               Array.isArray(e.sendEnabled) &&
-              (!e.sendEnabled.length || N.is(e.sendEnabled[0])) &&
+              (!e.sendEnabled.length || B.is(e.sendEnabled[0])) &&
               Array.isArray(e.useDefaultFor) &&
               (!e.useDefaultFor.length || "string" == typeof e.useDefaultFor[0]))),
         isSDK: e =>
@@ -3243,7 +3285,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           (e.$typeUrl === eo.typeUrl ||
             ("string" == typeof e.authority &&
               Array.isArray(e.send_enabled) &&
-              (!e.send_enabled.length || N.isSDK(e.send_enabled[0])) &&
+              (!e.send_enabled.length || B.isSDK(e.send_enabled[0])) &&
               Array.isArray(e.use_default_for) &&
               (!e.use_default_for.length || "string" == typeof e.use_default_for[0]))),
         isAmino: e =>
@@ -3251,11 +3293,11 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           (e.$typeUrl === eo.typeUrl ||
             ("string" == typeof e.authority &&
               Array.isArray(e.send_enabled) &&
-              (!e.send_enabled.length || N.isAmino(e.send_enabled[0])) &&
+              (!e.send_enabled.length || B.isAmino(e.send_enabled[0])) &&
               Array.isArray(e.use_default_for) &&
               (!e.use_default_for.length || "string" == typeof e.use_default_for[0]))),
         encode(e, o = y.Lt.create()) {
-          for (let t of ("" !== e.authority && o.uint32(10).string(e.authority), e.sendEnabled)) N.encode(t, o.uint32(18).fork()).ldelim();
+          for (let t of ("" !== e.authority && o.uint32(10).string(e.authority), e.sendEnabled)) B.encode(t, o.uint32(18).fork()).ldelim();
           for (let t of e.useDefaultFor) o.uint32(26).string(t);
           return o;
         },
@@ -3270,7 +3312,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 i.authority = t.string();
                 break;
               case 2:
-                i.sendEnabled.push(N.decode(t, t.uint32()));
+                i.sendEnabled.push(B.decode(t, t.uint32()));
                 break;
               case 3:
                 i.useDefaultFor.push(t.string());
@@ -3286,7 +3328,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           let i = ee();
           return (
             (i.authority = null !== (o = e.authority) && void 0 !== o ? o : ""),
-            (i.sendEnabled = (null === (t = e.sendEnabled) || void 0 === t ? void 0 : t.map(e => N.fromPartial(e))) || []),
+            (i.sendEnabled = (null === (t = e.sendEnabled) || void 0 === t ? void 0 : t.map(e => B.fromPartial(e))) || []),
             (i.useDefaultFor = (null === (n = e.useDefaultFor) || void 0 === n ? void 0 : n.map(e => e)) || []),
             i
           );
@@ -3296,7 +3338,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           let n = ee();
           return (
             void 0 !== e.authority && null !== e.authority && (n.authority = e.authority),
-            (n.sendEnabled = (null === (o = e.send_enabled) || void 0 === o ? void 0 : o.map(e => N.fromAmino(e))) || []),
+            (n.sendEnabled = (null === (o = e.send_enabled) || void 0 === o ? void 0 : o.map(e => B.fromAmino(e))) || []),
             (n.useDefaultFor = (null === (t = e.use_default_for) || void 0 === t ? void 0 : t.map(e => e)) || []),
             n
           );
@@ -3305,7 +3347,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           let o = {};
           return (
             (o.authority = "" === e.authority ? void 0 : e.authority),
-            e.sendEnabled ? (o.send_enabled = e.sendEnabled.map(e => (e ? N.toAmino(e) : void 0))) : (o.send_enabled = e.sendEnabled),
+            e.sendEnabled ? (o.send_enabled = e.sendEnabled.map(e => (e ? B.toAmino(e) : void 0))) : (o.send_enabled = e.sendEnabled),
             e.useDefaultFor ? (o.use_default_for = e.useDefaultFor.map(e => e)) : (o.use_default_for = e.useDefaultFor),
             o
           );
@@ -3851,14 +3893,14 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           "/cosmos.staking.v1beta1.MsgBeginRedelegate": { aminoType: "cosmos-sdk/MsgBeginRedelegate", toAmino: eh.toAmino, fromAmino: eh.fromAmino },
           "/cosmos.staking.v1beta1.MsgUndelegate": { aminoType: "cosmos-sdk/MsgUndelegate", toAmino: eP.toAmino, fromAmino: eP.fromAmino }
         },
-        ew = [
+        e_ = [
           ["/cosmos.staking.v1beta1.MsgCreateValidator", ep],
           ["/cosmos.staking.v1beta1.MsgEditValidator", ev],
           ["/cosmos.staking.v1beta1.MsgDelegate", ek],
           ["/cosmos.staking.v1beta1.MsgBeginRedelegate", eh],
           ["/cosmos.staking.v1beta1.MsgUndelegate", eP]
         ];
-      function e_() {
+      function ew() {
         return { name: "", time: void 0, height: BigInt(0), info: "", upgradedClientState: void 0 };
       }
       let eS = {
@@ -3874,7 +3916,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         decode(e, o) {
           let t = e instanceof y.oP ? e : new y.oP(e),
             n = void 0 === o ? t.len : t.pos + o,
-            i = e_();
+            i = ew();
           for (; t.pos < n; ) {
             let e = t.uint32();
             switch (e >>> 3) {
@@ -3901,7 +3943,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         },
         fromPartial(e) {
           var o, t, n;
-          let i = e_();
+          let i = ew();
           return (
             (i.name = null !== (o = e.name) && void 0 !== o ? o : ""),
             (i.time = null !== (t = e.time) && void 0 !== t ? t : void 0),
@@ -4018,12 +4060,12 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           "/cosmos.upgrade.v1beta1.MsgSoftwareUpgrade": { aminoType: "cosmos-sdk/MsgSoftwareUpgrade", toAmino: eU.toAmino, fromAmino: eU.fromAmino },
           "/cosmos.upgrade.v1beta1.MsgCancelUpgrade": { aminoType: "cosmos-sdk/MsgCancelUpgrade", toAmino: eD.toAmino, fromAmino: eD.fromAmino }
         },
-        eB = [
+        eN = [
           ["/cosmos.upgrade.v1beta1.MsgSoftwareUpgrade", eU],
           ["/cosmos.upgrade.v1beta1.MsgCancelUpgrade", eD]
         ],
-        eN = Object.assign(Object.assign(Object.assign({}, en), eM), eC),
-        eE = [...ei, ...ew, ...eB];
+        eB = Object.assign(Object.assign(Object.assign({}, en), eM), eC),
+        eE = [...ei, ...e_, ...eN];
       function eO() {
         return { permission: 0, address: "", addresses: [] };
       }
@@ -5480,7 +5522,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
       function oM() {
         return { positionIds: [], sender: "" };
       }
-      let ow = {
+      let o_ = {
           typeUrl: "/osmosis.concentratedliquidity.v1beta1.MsgCollectIncentives",
           encode(e, o = y.Lt.create()) {
             for (let t of (o.uint32(10).fork(), e.positionIds)) o.uint64(t);
@@ -5522,13 +5564,13 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             let o = {};
             return e.positionIds ? (o.position_ids = e.positionIds.map(e => e.toString())) : (o.position_ids = []), (o.sender = e.sender), o;
           },
-          fromAminoMsg: e => ow.fromAmino(e.value),
-          toAminoMsg: e => ({ type: "osmosis/cl-collect-incentives", value: ow.toAmino(e) }),
-          fromProtoMsg: e => ow.decode(e.value),
-          toProto: e => ow.encode(e).finish(),
-          toProtoMsg: e => ({ typeUrl: "/osmosis.concentratedliquidity.v1beta1.MsgCollectIncentives", value: ow.encode(e).finish() })
+          fromAminoMsg: e => o_.fromAmino(e.value),
+          toAminoMsg: e => ({ type: "osmosis/cl-collect-incentives", value: o_.toAmino(e) }),
+          fromProtoMsg: e => o_.decode(e.value),
+          toProto: e => o_.encode(e).finish(),
+          toProtoMsg: e => ({ typeUrl: "/osmosis.concentratedliquidity.v1beta1.MsgCollectIncentives", value: o_.encode(e).finish() })
         },
-        o_ = {
+        ow = {
           "/osmosis.concentratedliquidity.v1beta1.MsgCreatePosition": { aminoType: "osmosis/cl-create-position", toAmino: oA.toAmino, fromAmino: oA.fromAmino },
           "/osmosis.concentratedliquidity.v1beta1.MsgWithdrawPosition": {
             aminoType: "osmosis/cl-withdraw-position",
@@ -5543,8 +5585,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           },
           "/osmosis.concentratedliquidity.v1beta1.MsgCollectIncentives": {
             aminoType: "osmosis/cl-collect-incentives",
-            toAmino: ow.toAmino,
-            fromAmino: ow.fromAmino
+            toAmino: o_.toAmino,
+            fromAmino: o_.fromAmino
           }
         },
         oS = [
@@ -5552,7 +5594,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           ["/osmosis.concentratedliquidity.v1beta1.MsgWithdrawPosition", ob],
           ["/osmosis.concentratedliquidity.v1beta1.MsgAddToPosition", oy],
           ["/osmosis.concentratedliquidity.v1beta1.MsgCollectSpreadRewards", oI],
-          ["/osmosis.concentratedliquidity.v1beta1.MsgCollectIncentives", ow]
+          ["/osmosis.concentratedliquidity.v1beta1.MsgCollectIncentives", o_]
         ];
       var ox = t(43475);
       function oU() {
@@ -5564,8 +5606,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           for (let t of (void 0 !== e.startTime && es.Timestamp.encode((0, el.Uq)(e.startTime), o.uint32(10).fork()).ldelim(),
           void 0 !== e.duration && ox.Duration.encode(e.duration, o.uint32(18).fork()).ldelim(),
           e.initialPoolWeights))
-            oN.encode(t, o.uint32(26).fork()).ldelim();
-          for (let t of e.targetPoolWeights) oN.encode(t, o.uint32(34).fork()).ldelim();
+            oB.encode(t, o.uint32(26).fork()).ldelim();
+          for (let t of e.targetPoolWeights) oB.encode(t, o.uint32(34).fork()).ldelim();
           return o;
         },
         decode(e, o) {
@@ -5582,10 +5624,10 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 i.duration = ox.Duration.decode(t, t.uint32());
                 break;
               case 3:
-                i.initialPoolWeights.push(oN.decode(t, t.uint32()));
+                i.initialPoolWeights.push(oB.decode(t, t.uint32()));
                 break;
               case 4:
-                i.targetPoolWeights.push(oN.decode(t, t.uint32()));
+                i.targetPoolWeights.push(oB.decode(t, t.uint32()));
                 break;
               default:
                 t.skipType(7 & e);
@@ -5599,24 +5641,24 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           return (
             (i.startTime = null !== (o = e.startTime) && void 0 !== o ? o : void 0),
             (i.duration = void 0 !== e.duration && null !== e.duration ? ox.Duration.fromPartial(e.duration) : void 0),
-            (i.initialPoolWeights = (null === (t = e.initialPoolWeights) || void 0 === t ? void 0 : t.map(e => oN.fromPartial(e))) || []),
-            (i.targetPoolWeights = (null === (n = e.targetPoolWeights) || void 0 === n ? void 0 : n.map(e => oN.fromPartial(e))) || []),
+            (i.initialPoolWeights = (null === (t = e.initialPoolWeights) || void 0 === t ? void 0 : t.map(e => oB.fromPartial(e))) || []),
+            (i.targetPoolWeights = (null === (n = e.targetPoolWeights) || void 0 === n ? void 0 : n.map(e => oB.fromPartial(e))) || []),
             i
           );
         },
         fromAmino: e => ({
           startTime: e.start_time,
           duration: (null == e ? void 0 : e.duration) ? ox.Duration.fromAmino(e.duration) : void 0,
-          initialPoolWeights: Array.isArray(null == e ? void 0 : e.initial_pool_weights) ? e.initial_pool_weights.map(e => oN.fromAmino(e)) : [],
-          targetPoolWeights: Array.isArray(null == e ? void 0 : e.target_pool_weights) ? e.target_pool_weights.map(e => oN.fromAmino(e)) : []
+          initialPoolWeights: Array.isArray(null == e ? void 0 : e.initial_pool_weights) ? e.initial_pool_weights.map(e => oB.fromAmino(e)) : [],
+          targetPoolWeights: Array.isArray(null == e ? void 0 : e.target_pool_weights) ? e.target_pool_weights.map(e => oB.fromAmino(e)) : []
         }),
         toAmino(e) {
           let o = {};
           return (
             (o.start_time = e.startTime),
             (o.duration = e.duration ? ox.Duration.toAmino(e.duration) : void 0),
-            e.initialPoolWeights ? (o.initial_pool_weights = e.initialPoolWeights.map(e => (e ? oN.toAmino(e) : void 0))) : (o.initial_pool_weights = []),
-            e.targetPoolWeights ? (o.target_pool_weights = e.targetPoolWeights.map(e => (e ? oN.toAmino(e) : void 0))) : (o.target_pool_weights = []),
+            e.initialPoolWeights ? (o.initial_pool_weights = e.initialPoolWeights.map(e => (e ? oB.toAmino(e) : void 0))) : (o.initial_pool_weights = []),
+            e.targetPoolWeights ? (o.target_pool_weights = e.targetPoolWeights.map(e => (e ? oB.toAmino(e) : void 0))) : (o.target_pool_weights = []),
             o
           );
         },
@@ -5690,10 +5732,10 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         toProto: e => oC.encode(e).finish(),
         toProtoMsg: e => ({ typeUrl: "/osmosis.gamm.v1beta1.PoolParams", value: oC.encode(e).finish() })
       };
-      function oB() {
+      function oN() {
         return { token: void 0, weight: "" };
       }
-      let oN = {
+      let oB = {
         typeUrl: "/osmosis.gamm.v1beta1.PoolAsset",
         encode: (e, o = y.Lt.create()) => (
           void 0 !== e.token && ea.sN.encode(e.token, o.uint32(10).fork()).ldelim(), "" !== e.weight && o.uint32(18).string(e.weight), o
@@ -5701,7 +5743,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         decode(e, o) {
           let t = e instanceof y.oP ? e : new y.oP(e),
             n = void 0 === o ? t.len : t.pos + o,
-            i = oB();
+            i = oN();
           for (; t.pos < n; ) {
             let e = t.uint32();
             switch (e >>> 3) {
@@ -5719,7 +5761,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         },
         fromPartial(e) {
           var o;
-          let t = oB();
+          let t = oN();
           return (
             (t.token = void 0 !== e.token && null !== e.token ? ea.sN.fromPartial(e.token) : void 0),
             (t.weight = null !== (o = e.weight) && void 0 !== o ? o : ""),
@@ -5731,11 +5773,11 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           let o = {};
           return (o.token = e.token ? ea.sN.toAmino(e.token) : void 0), (o.weight = e.weight), o;
         },
-        fromAminoMsg: e => oN.fromAmino(e.value),
-        toAminoMsg: e => ({ type: "osmosis/gamm/pool-asset", value: oN.toAmino(e) }),
-        fromProtoMsg: e => oN.decode(e.value),
-        toProto: e => oN.encode(e).finish(),
-        toProtoMsg: e => ({ typeUrl: "/osmosis.gamm.v1beta1.PoolAsset", value: oN.encode(e).finish() })
+        fromAminoMsg: e => oB.fromAmino(e.value),
+        toAminoMsg: e => ({ type: "osmosis/gamm/pool-asset", value: oB.toAmino(e) }),
+        fromProtoMsg: e => oB.decode(e.value),
+        toProto: e => oB.encode(e).finish(),
+        toProtoMsg: e => ({ typeUrl: "/osmosis.gamm.v1beta1.PoolAsset", value: oB.encode(e).finish() })
       };
       function oE() {
         return { sender: "", poolParams: oC.fromPartial({}), poolAssets: [], futurePoolGovernor: "" };
@@ -5746,7 +5788,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             for (let t of ("" !== e.sender && o.uint32(10).string(e.sender),
             void 0 !== e.poolParams && oC.encode(e.poolParams, o.uint32(18).fork()).ldelim(),
             e.poolAssets))
-              oN.encode(t, o.uint32(26).fork()).ldelim();
+              oB.encode(t, o.uint32(26).fork()).ldelim();
             return "" !== e.futurePoolGovernor && o.uint32(34).string(e.futurePoolGovernor), o;
           },
           decode(e, o) {
@@ -5763,7 +5805,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   i.poolParams = oC.decode(t, t.uint32());
                   break;
                 case 3:
-                  i.poolAssets.push(oN.decode(t, t.uint32()));
+                  i.poolAssets.push(oB.decode(t, t.uint32()));
                   break;
                 case 4:
                   i.futurePoolGovernor = t.string();
@@ -5780,7 +5822,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             return (
               (i.sender = null !== (o = e.sender) && void 0 !== o ? o : ""),
               (i.poolParams = void 0 !== e.poolParams && null !== e.poolParams ? oC.fromPartial(e.poolParams) : void 0),
-              (i.poolAssets = (null === (t = e.poolAssets) || void 0 === t ? void 0 : t.map(e => oN.fromPartial(e))) || []),
+              (i.poolAssets = (null === (t = e.poolAssets) || void 0 === t ? void 0 : t.map(e => oB.fromPartial(e))) || []),
               (i.futurePoolGovernor = null !== (n = e.futurePoolGovernor) && void 0 !== n ? n : ""),
               i
             );
@@ -5788,7 +5830,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           fromAmino: e => ({
             sender: e.sender,
             poolParams: (null == e ? void 0 : e.pool_params) ? oC.fromAmino(e.pool_params) : void 0,
-            poolAssets: Array.isArray(null == e ? void 0 : e.pool_assets) ? e.pool_assets.map(e => oN.fromAmino(e)) : [],
+            poolAssets: Array.isArray(null == e ? void 0 : e.pool_assets) ? e.pool_assets.map(e => oB.fromAmino(e)) : [],
             futurePoolGovernor: e.future_pool_governor
           }),
           toAmino(e) {
@@ -5796,7 +5838,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             return (
               (o.sender = e.sender),
               (o.pool_params = e.poolParams ? oC.toAmino(e.poolParams) : void 0),
-              e.poolAssets ? (o.pool_assets = e.poolAssets.map(e => (e ? oN.toAmino(e) : void 0))) : (o.pool_assets = []),
+              e.poolAssets ? (o.pool_assets = e.poolAssets.map(e => (e ? oB.toAmino(e) : void 0))) : (o.pool_assets = []),
               (o.future_pool_governor = e.futurePoolGovernor),
               o
             );
@@ -7264,10 +7306,10 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         toProto: e => tM.encode(e).finish(),
         toProtoMsg: e => ({ typeUrl: "/osmosis.poolmanager.v1beta1.MsgSwapExactAmountIn", value: tM.encode(e).finish() })
       };
-      function tw() {
+      function t_() {
         return { sender: "", routes: [], tokenInDenom: "", tokenOutMinAmount: "" };
       }
-      let t_ = {
+      let tw = {
         typeUrl: "/osmosis.poolmanager.v1beta1.MsgSplitRouteSwapExactAmountIn",
         encode(e, o = y.Lt.create()) {
           for (let t of ("" !== e.sender && o.uint32(10).string(e.sender), e.routes)) oQ.encode(t, o.uint32(18).fork()).ldelim();
@@ -7276,7 +7318,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         decode(e, o) {
           let t = e instanceof y.oP ? e : new y.oP(e),
             n = void 0 === o ? t.len : t.pos + o,
-            i = tw();
+            i = t_();
           for (; t.pos < n; ) {
             let e = t.uint32();
             switch (e >>> 3) {
@@ -7300,7 +7342,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         },
         fromPartial(e) {
           var o, t, n, i;
-          let r = tw();
+          let r = t_();
           return (
             (r.sender = null !== (o = e.sender) && void 0 !== o ? o : ""),
             (r.routes = (null === (t = e.routes) || void 0 === t ? void 0 : t.map(e => oQ.fromPartial(e))) || []),
@@ -7325,11 +7367,11 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             o
           );
         },
-        fromAminoMsg: e => t_.fromAmino(e.value),
-        toAminoMsg: e => ({ type: "osmosis/poolmanager/split-amount-in", value: t_.toAmino(e) }),
-        fromProtoMsg: e => t_.decode(e.value),
-        toProto: e => t_.encode(e).finish(),
-        toProtoMsg: e => ({ typeUrl: "/osmosis.poolmanager.v1beta1.MsgSplitRouteSwapExactAmountIn", value: t_.encode(e).finish() })
+        fromAminoMsg: e => tw.fromAmino(e.value),
+        toAminoMsg: e => ({ type: "osmosis/poolmanager/split-amount-in", value: tw.toAmino(e) }),
+        fromProtoMsg: e => tw.decode(e.value),
+        toProto: e => tw.encode(e).finish(),
+        toProtoMsg: e => ({ typeUrl: "/osmosis.poolmanager.v1beta1.MsgSplitRouteSwapExactAmountIn", value: tw.encode(e).finish() })
       };
       function tS() {
         return { sender: "", routes: [], tokenInMaxAmount: "", tokenOut: void 0 };
@@ -7482,8 +7524,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           },
           "/osmosis.poolmanager.v1beta1.MsgSplitRouteSwapExactAmountIn": {
             aminoType: "osmosis/poolmanager/split-amount-in",
-            toAmino: t_.toAmino,
-            fromAmino: t_.fromAmino
+            toAmino: tw.toAmino,
+            fromAmino: tw.fromAmino
           },
           "/osmosis.poolmanager.v1beta1.MsgSplitRouteSwapExactAmountOut": {
             aminoType: "osmosis/poolmanager/split-amount-out",
@@ -7494,13 +7536,13 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         tC = [
           ["/osmosis.poolmanager.v1beta1.MsgSwapExactAmountIn", tM],
           ["/osmosis.poolmanager.v1beta1.MsgSwapExactAmountOut", tx],
-          ["/osmosis.poolmanager.v1beta1.MsgSplitRouteSwapExactAmountIn", t_],
+          ["/osmosis.poolmanager.v1beta1.MsgSplitRouteSwapExactAmountIn", tw],
           ["/osmosis.poolmanager.v1beta1.MsgSplitRouteSwapExactAmountOut", tT]
         ];
-      function tB() {
+      function tN() {
         return { sender: "", lockId: BigInt(0), valAddr: "" };
       }
-      let tN = {
+      let tB = {
         typeUrl: "/osmosis.superfluid.MsgSuperfluidDelegate",
         encode: (e, o = y.Lt.create()) => (
           "" !== e.sender && o.uint32(10).string(e.sender),
@@ -7511,7 +7553,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         decode(e, o) {
           let t = e instanceof y.oP ? e : new y.oP(e),
             n = void 0 === o ? t.len : t.pos + o,
-            i = tB();
+            i = tN();
           for (; t.pos < n; ) {
             let e = t.uint32();
             switch (e >>> 3) {
@@ -7532,7 +7574,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         },
         fromPartial(e) {
           var o, t;
-          let n = tB();
+          let n = tN();
           return (
             (n.sender = null !== (o = e.sender) && void 0 !== o ? o : ""),
             (n.lockId = void 0 !== e.lockId && null !== e.lockId ? BigInt(e.lockId.toString()) : BigInt(0)),
@@ -7545,11 +7587,11 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           let o = {};
           return (o.sender = e.sender), (o.lock_id = e.lockId ? e.lockId.toString() : void 0), (o.val_addr = e.valAddr), o;
         },
-        fromAminoMsg: e => tN.fromAmino(e.value),
-        toAminoMsg: e => ({ type: "osmosis/superfluid-delegate", value: tN.toAmino(e) }),
-        fromProtoMsg: e => tN.decode(e.value),
-        toProto: e => tN.encode(e).finish(),
-        toProtoMsg: e => ({ typeUrl: "/osmosis.superfluid.MsgSuperfluidDelegate", value: tN.encode(e).finish() })
+        fromAminoMsg: e => tB.fromAmino(e.value),
+        toAminoMsg: e => ({ type: "osmosis/superfluid-delegate", value: tB.toAmino(e) }),
+        fromProtoMsg: e => tB.decode(e.value),
+        toProto: e => tB.encode(e).finish(),
+        toProtoMsg: e => ({ typeUrl: "/osmosis.superfluid.MsgSuperfluidDelegate", value: tB.encode(e).finish() })
       };
       function tE() {
         return { sender: "", lockId: BigInt(0) };
@@ -8082,7 +8124,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           toProtoMsg: e => ({ typeUrl: "/osmosis.superfluid.MsgUnbondConvertAndStake", value: tQ.encode(e).finish() })
         },
         tX = {
-          "/osmosis.superfluid.MsgSuperfluidDelegate": { aminoType: "osmosis/superfluid-delegate", toAmino: tN.toAmino, fromAmino: tN.fromAmino },
+          "/osmosis.superfluid.MsgSuperfluidDelegate": { aminoType: "osmosis/superfluid-delegate", toAmino: tB.toAmino, fromAmino: tB.fromAmino },
           "/osmosis.superfluid.MsgSuperfluidUndelegate": { aminoType: "osmosis/superfluid-undelegate", toAmino: tO.toAmino, fromAmino: tO.fromAmino },
           "/osmosis.superfluid.MsgSuperfluidUnbondLock": { aminoType: "osmosis/superfluid-unbond-lock", toAmino: tL.toAmino, fromAmino: tL.fromAmino },
           "/osmosis.superfluid.MsgSuperfluidUndelegateAndUnbondLock": {
@@ -8114,7 +8156,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           "/osmosis.superfluid.MsgUnbondConvertAndStake": { aminoType: "osmosis/unbond-convert-and-stake", toAmino: tQ.toAmino, fromAmino: tQ.fromAmino }
         },
         t0 = [
-          ["/osmosis.superfluid.MsgSuperfluidDelegate", tN],
+          ["/osmosis.superfluid.MsgSuperfluidDelegate", tB],
           ["/osmosis.superfluid.MsgSuperfluidUndelegate", tO],
           ["/osmosis.superfluid.MsgSuperfluidUnbondLock", tL],
           ["/osmosis.superfluid.MsgSuperfluidUndelegateAndUnbondLock", tq],
@@ -8489,7 +8531,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         ],
         na = Object.assign(
           Object.assign(
-            Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign({}, op), o_), oR), oG), ta), tb), tD),
+            Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign({}, op), ow), oR), oG), ta), tb), tD),
             tX
           ),
           nr
@@ -8946,7 +8988,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             fromAmino: nI.fromAmino
           }
         };
-      function nw() {
+      function n_() {
         return {
           name: "",
           address: "",
@@ -8959,7 +9001,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           slashQueryInProgress: !1
         };
       }
-      let n_ = {
+      let nw = {
         typeUrl: "/stride.stakeibc.Validator",
         encode: (e, o = y.Lt.create()) => (
           "" !== e.name && o.uint32(10).string(e.name),
@@ -8976,7 +9018,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         decode(e, o) {
           let t = e instanceof y.oP ? e : new y.oP(e),
             n = void 0 === o ? t.len : t.pos + o,
-            i = nw();
+            i = n_();
           for (; t.pos < n; ) {
             let e = t.uint32();
             switch (e >>> 3) {
@@ -9015,7 +9057,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         },
         fromPartial(e) {
           var o, t, n, i, r, s, a;
-          let l = nw();
+          let l = n_();
           return (
             (l.name = null !== (o = e.name) && void 0 !== o ? o : ""),
             (l.address = null !== (t = e.address) && void 0 !== t ? t : ""),
@@ -9033,7 +9075,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           );
         },
         fromAmino(e) {
-          let o = nw();
+          let o = n_();
           return (
             void 0 !== e.name && null !== e.name && (o.name = e.name),
             void 0 !== e.address && null !== e.address && (o.address = e.address),
@@ -9066,10 +9108,10 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             o
           );
         },
-        fromAminoMsg: e => n_.fromAmino(e.value),
-        fromProtoMsg: e => n_.decode(e.value),
-        toProto: e => n_.encode(e).finish(),
-        toProtoMsg: e => ({ typeUrl: "/stride.stakeibc.Validator", value: n_.encode(e).finish() })
+        fromAminoMsg: e => nw.fromAmino(e.value),
+        fromProtoMsg: e => nw.decode(e.value),
+        toProto: e => nw.encode(e).finish(),
+        toProtoMsg: e => ({ typeUrl: "/stride.stakeibc.Validator", value: nw.encode(e).finish() })
       };
       function nS() {
         return { creator: "", amount: "", hostDenom: "" };
@@ -9357,10 +9399,10 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         toProto: e => nC.encode(e).finish(),
         toProtoMsg: e => ({ typeUrl: "/stride.stakeibc.MsgRegisterHostZone", value: nC.encode(e).finish() })
       };
-      function nB() {
+      function nN() {
         return { creator: "", hostZoneId: "", epoch: BigInt(0), receiver: "" };
       }
-      let nN = {
+      let nB = {
         typeUrl: "/stride.stakeibc.MsgClaimUndelegatedTokens",
         encode: (e, o = y.Lt.create()) => (
           "" !== e.creator && o.uint32(10).string(e.creator),
@@ -9372,7 +9414,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         decode(e, o) {
           let t = e instanceof y.oP ? e : new y.oP(e),
             n = void 0 === o ? t.len : t.pos + o,
-            i = nB();
+            i = nN();
           for (; t.pos < n; ) {
             let e = t.uint32();
             switch (e >>> 3) {
@@ -9396,7 +9438,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         },
         fromPartial(e) {
           var o, t, n;
-          let i = nB();
+          let i = nN();
           return (
             (i.creator = null !== (o = e.creator) && void 0 !== o ? o : ""),
             (i.hostZoneId = null !== (t = e.hostZoneId) && void 0 !== t ? t : ""),
@@ -9406,7 +9448,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           );
         },
         fromAmino(e) {
-          let o = nB();
+          let o = nN();
           return (
             void 0 !== e.creator && null !== e.creator && (o.creator = e.creator),
             void 0 !== e.host_zone_id && null !== e.host_zone_id && (o.hostZoneId = e.host_zone_id),
@@ -9425,11 +9467,11 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             o
           );
         },
-        fromAminoMsg: e => nN.fromAmino(e.value),
-        toAminoMsg: e => ({ type: "stakeibc/ClaimUndelegatedTokens", value: nN.toAmino(e) }),
-        fromProtoMsg: e => nN.decode(e.value),
-        toProto: e => nN.encode(e).finish(),
-        toProtoMsg: e => ({ typeUrl: "/stride.stakeibc.MsgClaimUndelegatedTokens", value: nN.encode(e).finish() })
+        fromAminoMsg: e => nB.fromAmino(e.value),
+        toAminoMsg: e => ({ type: "stakeibc/ClaimUndelegatedTokens", value: nB.toAmino(e) }),
+        fromProtoMsg: e => nB.decode(e.value),
+        toProto: e => nB.encode(e).finish(),
+        toProtoMsg: e => ({ typeUrl: "/stride.stakeibc.MsgClaimUndelegatedTokens", value: nB.encode(e).finish() })
       };
       function nE() {
         return { creator: "", hostZone: "", numRebalance: BigInt(0) };
@@ -9505,7 +9547,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         typeUrl: "/stride.stakeibc.MsgAddValidators",
         encode(e, o = y.Lt.create()) {
           for (let t of ("" !== e.creator && o.uint32(10).string(e.creator), "" !== e.hostZone && o.uint32(18).string(e.hostZone), e.validators))
-            n_.encode(t, o.uint32(26).fork()).ldelim();
+            nw.encode(t, o.uint32(26).fork()).ldelim();
           return o;
         },
         decode(e, o) {
@@ -9522,7 +9564,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 i.hostZone = t.string();
                 break;
               case 3:
-                i.validators.push(n_.decode(t, t.uint32()));
+                i.validators.push(nw.decode(t, t.uint32()));
                 break;
               default:
                 t.skipType(7 & e);
@@ -9536,7 +9578,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           return (
             (i.creator = null !== (o = e.creator) && void 0 !== o ? o : ""),
             (i.hostZone = null !== (t = e.hostZone) && void 0 !== t ? t : ""),
-            (i.validators = (null === (n = e.validators) || void 0 === n ? void 0 : n.map(e => n_.fromPartial(e))) || []),
+            (i.validators = (null === (n = e.validators) || void 0 === n ? void 0 : n.map(e => nw.fromPartial(e))) || []),
             i
           );
         },
@@ -9546,7 +9588,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           return (
             void 0 !== e.creator && null !== e.creator && (t.creator = e.creator),
             void 0 !== e.host_zone && null !== e.host_zone && (t.hostZone = e.host_zone),
-            (t.validators = (null === (o = e.validators) || void 0 === o ? void 0 : o.map(e => n_.fromAmino(e))) || []),
+            (t.validators = (null === (o = e.validators) || void 0 === o ? void 0 : o.map(e => nw.fromAmino(e))) || []),
             t
           );
         },
@@ -9555,7 +9597,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           return (
             (o.creator = "" === e.creator ? void 0 : e.creator),
             (o.host_zone = "" === e.hostZone ? void 0 : e.hostZone),
-            e.validators ? (o.validators = e.validators.map(e => (e ? n_.toAmino(e) : void 0))) : (o.validators = e.validators),
+            e.validators ? (o.validators = e.validators.map(e => (e ? nw.toAmino(e) : void 0))) : (o.validators = e.validators),
             o
           );
         },
@@ -9850,7 +9892,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           "/stride.stakeibc.MsgLiquidStake": { aminoType: "stakeibc/LiquidStake", toAmino: nx.toAmino, fromAmino: nx.fromAmino },
           "/stride.stakeibc.MsgRedeemStake": { aminoType: "stakeibc/RedeemStake", toAmino: nT.toAmino, fromAmino: nT.fromAmino },
           "/stride.stakeibc.MsgRegisterHostZone": { aminoType: "stakeibc/RegisterHostZone", toAmino: nC.toAmino, fromAmino: nC.fromAmino },
-          "/stride.stakeibc.MsgClaimUndelegatedTokens": { aminoType: "stakeibc/ClaimUndelegatedTokens", toAmino: nN.toAmino, fromAmino: nN.fromAmino },
+          "/stride.stakeibc.MsgClaimUndelegatedTokens": { aminoType: "stakeibc/ClaimUndelegatedTokens", toAmino: nB.toAmino, fromAmino: nB.fromAmino },
           "/stride.stakeibc.MsgRebalanceValidators": { aminoType: "stakeibc/RebalanceValidators", toAmino: nO.toAmino, fromAmino: nO.fromAmino },
           "/stride.stakeibc.MsgAddValidators": { aminoType: "/stride.stakeibc.MsgAddValidators", toAmino: nL.toAmino, fromAmino: nL.fromAmino },
           "/stride.stakeibc.MsgDeleteValidator": { aminoType: "stakeibc/DeleteValidator", toAmino: nq.toAmino, fromAmino: nq.fromAmino },
@@ -9919,7 +9961,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             }
           }
         },
-        n0 = new p.AminoTypes({ ...eN, ...nX, ...nQ, ...e2, ...nW, ...A.r }),
+        n0 = new p.AminoTypes({ ...eB, ...nX, ...nQ, ...e2, ...nW, ...A.r }),
         n1 = new g.Registry([...eE, ...nl, ...e3, ...ou, ...A.l]),
         n2 = [nY.x3, nY.s3, "swapfast.app"];
       function n3(e) {
