@@ -2,7 +2,7 @@ import { singleton } from "tsyringe";
 
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 
-class CachedBalance {
+export class CachedBalance {
   constructor(private value: number) {}
 
   public reserveSufficientAmount(desiredAmount: number) {
