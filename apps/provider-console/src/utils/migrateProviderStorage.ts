@@ -5,6 +5,10 @@ const MIGRATION_FLAG_KEY = "providerProcessMigrationComplete";
 const OLD_KEY = "providerProcess";
 const BACKUP_KEY = "providerProcess_backup";
 
+function getMigrationFlagKey(walletAddress: string): string {
+  return `${MIGRATION_FLAG_KEY}:${walletAddress.toLowerCase()}`;
+}
+
 /**
  * Migrates provider process data from the old global key to wallet-scoped keys.
  * This is a one-time migration that runs on first load after the update.
@@ -14,14 +18,10 @@ const BACKUP_KEY = "providerProcess_backup";
  * - Migrates to: localStorage["networkId/walletAddress/providerProcess"]
  * - Keeps old data as backup
  * - Only runs if wallet is connected
+ * - Migration flag is wallet-scoped so each wallet migrates independently
  */
 export function migrateProviderStorage(): void {
   if (typeof window === "undefined") {
-    return;
-  }
-
-  // Check if migration has already been completed
-  if (localStorage.getItem(MIGRATION_FLAG_KEY)) {
     return;
   }
 
@@ -34,11 +34,17 @@ export function migrateProviderStorage(): void {
       return;
     }
 
+    // Check if migration has already been completed for this wallet
+    const migrationFlagKey = getMigrationFlagKey(walletAddress);
+    if (localStorage.getItem(migrationFlagKey)) {
+      return;
+    }
+
     // Read old data
     const oldDataString = localStorage.getItem(OLD_KEY);
     if (!oldDataString) {
-      // No old data to migrate, mark as complete
-      localStorage.setItem(MIGRATION_FLAG_KEY, "true");
+      // No old data to migrate, mark as complete for this wallet
+      localStorage.setItem(migrationFlagKey, "true");
       return;
     }
 
@@ -52,8 +58,8 @@ export function migrateProviderStorage(): void {
     // Migrate data to new key
     localStorage.setItem(newKey, oldDataString);
 
-    // Mark migration as complete
-    localStorage.setItem(MIGRATION_FLAG_KEY, "true");
+    // Mark migration as complete for this wallet
+    localStorage.setItem(migrationFlagKey, "true");
 
     console.log(`Provider process storage migrated to wallet-scoped key: ${newKey}`);
   } catch (error) {

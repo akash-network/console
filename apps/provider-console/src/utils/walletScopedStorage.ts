@@ -29,10 +29,14 @@ export function createWalletScopedStorage<T>(baseKey: string): AsyncStorage<T> {
   };
 
   const parseJSON = (value: string): T | undefined => {
+    if (value == null || value === "undefined") {
+      return undefined;
+    }
+
     try {
-      return value === "undefined" ? undefined : (JSON.parse(value ?? "") as T);
+      return JSON.parse(value) as T;
     } catch (error) {
-      return value === "undefined" ? undefined : (value as unknown as T);
+      return undefined;
     }
   };
 
