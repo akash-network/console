@@ -22,7 +22,10 @@ export const UserAwareFlagProvider: FCWithChildren<Props> = ({ children, compone
   return (
     <c.FlagProvider
       config={{
-        context: { userId: user?.id },
+        context: {
+          userId: user?.id,
+          sessionId: getSessionId()
+        },
         fetch: isEnableAll ? () => new Response(JSON.stringify({ toggles: [] })) : undefined
       }}
     >
@@ -66,4 +69,9 @@ function WaitForFeatureFlags({ children }: { children: ReactNode }) {
     return <Loading text="Loading application..." />;
   }
   return <>{children}</>;
+}
+
+function getSessionId(): string | undefined {
+  const m = document.cookie.match(/(?:^|; )unleash-session-id=([^;]+)/);
+  return m?.[1];
 }
