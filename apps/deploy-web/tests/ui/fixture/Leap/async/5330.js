@@ -4,21 +4,21 @@
       a = new e.Error().stack;
     a &&
       ((e._sentryDebugIds = e._sentryDebugIds || {}),
-      (e._sentryDebugIds[a] = "10b8b5ed-d319-481b-80c0-59701b598f35"),
-      (e._sentryDebugIdIdentifier = "sentry-dbid-10b8b5ed-d319-481b-80c0-59701b598f35"));
+      (e._sentryDebugIds[a] = "afcff905-f175-45f0-86a5-c03d8bcea3f1"),
+      (e._sentryDebugIdIdentifier = "sentry-dbid-afcff905-f175-45f0-86a5-c03d8bcea3f1"));
   } catch (e) {}
 })();
 var _global = "undefined" != typeof window ? window : "undefined" != typeof global ? global : "undefined" != typeof self ? self : {};
-_global.SENTRY_RELEASE = { id: "0.22.9" };
+_global.SENTRY_RELEASE = { id: "0.23.1" };
 ("use strict");
 (self.webpackChunk_leap_cosmos_extension = self.webpackChunk_leap_cosmos_extension || []).push([
   ["5330"],
   {
     31981: function (e, a, t) {
-      t.a(e, async function (e, l) {
+      t.a(e, async function (e, r) {
         try {
           t.r(a), t.d(a, { default: () => h });
-          var r = t(52322),
+          var l = t(52322),
             n = t(41172),
             s = t(2784),
             i = t(10289),
@@ -27,39 +27,39 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             d = t(54325),
             m = t(28332),
             u = t(27918),
-            p = t(11828),
-            f = e([o, u, m]);
+            f = t(11828),
+            p = e([o, u, m]);
           function h() {
             var e, a;
             let t = (0, i.s0)(),
-              l = new URLSearchParams((0, i.TH)().search).get("airdropId"),
-              f = (0, n._2_)() || {},
-              h = null === (e = Object.values(f).filter(e => (null == e ? void 0 : e.id) === l)) || void 0 === e ? void 0 : e[0],
+              r = new URLSearchParams((0, i.TH)().search).get("airdropId"),
+              p = (0, n._2_)() || {},
+              h = null === (e = Object.values(p).filter(e => (null == e ? void 0 : e.id) === r)) || void 0 === e ? void 0 : e[0],
               x = (null == h ? void 0 : h.claimStartDate) ? new Date(h.claimStartDate) : null,
               v = (null == h ? void 0 : h.claimEndDate) ? new Date(h.claimEndDate) : null,
-              b = new Date(),
-              g = !!v && v < b,
+              g = new Date(),
+              b = !!v && v < g,
               y = !!(null == h ? void 0 : null === (a = h.CTAInfo) || void 0 === a ? void 0 : a.text),
               j = (null == h ? void 0 : h.status) === "failed";
             return (
               (0, s.useEffect)(() => {
                 h || t("/airdrops", { replace: !0 });
               }, []),
-              (0, r.jsxs)("div", {
+              (0, l.jsxs)("div", {
                 className: "relative h-full w-full enclosing-panel bg-secondary-50 overflow-y-auto",
                 children: [
-                  (0, r.jsx)(o.Y, {}),
-                  (0, r.jsx)("div", {
+                  (0, l.jsx)(o.Y, {}),
+                  (0, l.jsx)("div", {
                     className: "p-7 h-[calc(100%-64px)]",
                     children:
                       j || !h
-                        ? (0, r.jsx)(u.Z, {})
-                        : (0, r.jsxs)(r.Fragment, {
+                        ? (0, l.jsx)(u.Z, {})
+                        : (0, l.jsxs)(l.Fragment, {
                             children: [
-                              (0, r.jsx)(p.Z, { selectedAirdrop: h, isClaimPeriodOver: g, isClaimable: y }),
-                              y && !g && (0, r.jsx)(c.Z, { selectedAirdrop: h }),
-                              (0, r.jsx)(d.Z, { claimStartDate: x, claimEndDate: v, isClaimPeriodOver: g }),
-                              (0, r.jsx)(m.Z, { selectedAirdrop: h })
+                              (0, l.jsx)(f.Z, { selectedAirdrop: h, isClaimPeriodOver: b, isClaimable: y }),
+                              y && !b && (0, l.jsx)(c.Z, { selectedAirdrop: h }),
+                              (0, l.jsx)(d.Z, { claimStartDate: x, claimEndDate: v, isClaimPeriodOver: b }),
+                              (0, l.jsx)(m.Z, { selectedAirdrop: h })
                             ]
                           })
                   })
@@ -67,17 +67,17 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               })
             );
           }
-          ([o, u, m] = f.then ? (await f)() : f), l();
+          ([o, u, m] = p.then ? (await p)() : p), r();
         } catch (e) {
-          l(e);
+          r(e);
         }
       });
     },
     34424: function (e, a, t) {
-      t.a(e, async function (e, l) {
+      t.a(e, async function (e, r) {
         try {
           t.d(a, { Y: () => h });
-          var r = t(52322),
+          var l = t(52322),
             n = t(43166),
             s = t(36906),
             i = t(16283),
@@ -86,54 +86,54 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             d = t(35065),
             m = t(2784),
             u = t(10289),
-            p = t(11218),
-            f = e([d]);
-          d = (f.then ? (await f)() : f)[0];
+            f = t(11218),
+            p = e([d]);
+          d = (p.then ? (await p)() : p)[0];
           let h = e => {
             let { disableWalletButton: a, onBackClick: t } = e,
-              l = (0, u.s0)(),
-              f = (0, c.v)(),
+              r = (0, u.s0)(),
+              p = (0, c.v)(),
               [h, x] = (0, m.useState)(!1),
-              [v, b] = (0, m.useState)(!1),
-              g = (0, m.useCallback)(() => b(!0), []);
-            return (0, r.jsxs)(r.Fragment, {
+              [v, g] = (0, m.useState)(!1),
+              b = (0, m.useCallback)(() => g(!0), []);
+            return (0, l.jsxs)(l.Fragment, {
               children: [
-                (0, r.jsxs)(o.m, {
+                (0, l.jsxs)(o.m, {
                   className: "bg-secondary-50/75",
                   children: [
-                    (0, r.jsx)(n.X, {
+                    (0, l.jsx)(n.X, {
                       size: 36,
                       className: "text-muted-foreground hover:text-foreground cursor-pointer p-2",
                       onClick: () => {
-                        t ? t() : l(-1);
+                        t ? t() : r(-1);
                       }
                     }),
-                    (0, r.jsx)(i.G2, {
+                    (0, l.jsx)(i.G2, {
                       showDropdown: !0,
                       showWalletAvatar: !0,
                       className: "absolute top-1/2 right-1/2 translate-x-1/2 -translate-y-1/2",
-                      walletName: f.walletName,
-                      walletAvatar: f.walletAvatar,
+                      walletName: p.walletName,
+                      walletAvatar: p.walletAvatar,
                       handleDropdownClick: () => x(!a)
                     }),
-                    (0, r.jsx)(s.k, { size: 20, className: "text-muted-foreground hover:text-foreground cursor-pointer shrink-0 mr-2", onClick: g })
+                    (0, l.jsx)(s.k, { size: 20, className: "text-muted-foreground hover:text-foreground cursor-pointer shrink-0 mr-2", onClick: b })
                   ]
                 }),
-                (0, r.jsx)(d.Z, { isVisible: h, onClose: () => x(!1), title: "Your Wallets" }),
-                (0, r.jsx)(p.k, { isOpen: v, onClose: () => b(!1) })
+                (0, l.jsx)(d.Z, { isVisible: h, onClose: () => x(!1), title: "Your Wallets" }),
+                (0, l.jsx)(f.k, { isOpen: v, onClose: () => g(!1) })
               ]
             });
           };
-          l();
+          r();
         } catch (e) {
-          l(e);
+          r(e);
         }
       });
     },
     6486: function (e, a, t) {
       t.d(a, { Z: () => m });
-      var l = t(52322),
-        r = t(75377),
+      var r = t(52322),
+        l = t(75377),
         n = t(26007),
         s = t(92642),
         i = t(26571),
@@ -142,34 +142,46 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         d = t.n(c);
       function m(e) {
         var a, t, c, m, u;
-        let { selectedAirdrop: p } = e,
-          f =
-            (null == p ? void 0 : null === (a = p.CTAInfo) || void 0 === a ? void 0 : a.type) === "internal"
-              ? `${o.x3}${null == p ? void 0 : null === (t = p.CTAInfo) || void 0 === t ? void 0 : t.href}`
-              : null == p
+        let { selectedAirdrop: f } = e,
+          p =
+            (null == f ? void 0 : null === (a = f.CTAInfo) || void 0 === a ? void 0 : a.type) === "internal"
+              ? `${o.x3}${null == f ? void 0 : null === (t = f.CTAInfo) || void 0 === t ? void 0 : t.href}`
+              : null == f
                 ? void 0
-                : null === (c = p.CTAInfo) || void 0 === c
+                : null === (c = f.CTAInfo) || void 0 === c
                   ? void 0
                   : c.href,
           h = () => {
             try {
-              d().track(i.B_.ButtonClick, { buttonType: i.L$.AIRDROPS, buttonName: i.$S.CLAIM_AIRDROP, redirectURL: f, time: Date.now() / 1e3 });
-            } catch (e) {
-              (0, s.Tb)(e);
+              d().track(i.B_.ButtonClick, { buttonType: i.L$.AIRDROPS, buttonName: i.$S.CLAIM_AIRDROP, redirectURL: p, time: Date.now() / 1e3 });
+            } catch (a) {
+              var e;
+              (0, s.Tb)(a, {
+                tags: {
+                  errorType: "claim_button_error",
+                  source: "claim_button",
+                  severity: "error",
+                  errorName: a instanceof Error ? a.name : "ClaimButtonError"
+                },
+                fingerprint: ["claim_button", "claim_button_error"],
+                level: "error",
+                contexts: { transaction: { type: "claim_button", errorMessage: a instanceof Error ? a.message : String(a) } },
+                extra: { redirectURL: p, airdropType: null == f ? void 0 : null === (e = f.CTAInfo) || void 0 === e ? void 0 : e.type }
+              });
             }
           };
-        return (0, l.jsx)(r.Buttons.Generic, {
+        return (0, r.jsx)(l.Buttons.Generic, {
           size: "normal",
           className: "w-full mb-6 !bg-black-100 dark:!bg-white-100 text-white-100 dark:text-black-100",
-          title: null == p ? void 0 : null === (m = p.CTAInfo) || void 0 === m ? void 0 : m.text,
+          title: null == f ? void 0 : null === (m = f.CTAInfo) || void 0 === m ? void 0 : m.text,
           onClick: () => {
-            h(), window.open(f, "_blank");
+            h(), window.open(p, "_blank");
           },
-          children: (0, l.jsxs)("div", {
+          children: (0, r.jsxs)("div", {
             className: "flex items-center gap-2",
             children: [
-              null == p ? void 0 : null === (u = p.CTAInfo) || void 0 === u ? void 0 : u.text,
-              (0, l.jsx)(n.O, { size: 20, className: "text-white-100 dark:text-black-100" })
+              null == f ? void 0 : null === (u = f.CTAInfo) || void 0 === u ? void 0 : u.text,
+              (0, r.jsx)(n.O, { size: 20, className: "text-white-100 dark:text-black-100" })
             ]
           })
         });
@@ -177,68 +189,68 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
       t(2784);
     },
     54325: function (e, a, t) {
-      t.d(a, { Z: () => g });
-      var l = t(52322),
-        r = t(2784),
+      t.d(a, { Z: () => b });
+      var r = t(52322),
+        l = t(2784),
         n = t(6806);
       let s = new Map([
         [
           "bold",
-          r.createElement(
-            r.Fragment,
+          l.createElement(
+            l.Fragment,
             null,
-            r.createElement("path", {
+            l.createElement("path", {
               d: "M208,28H188V24a12,12,0,0,0-24,0v4H92V24a12,12,0,0,0-24,0v4H48A20,20,0,0,0,28,48V208a20,20,0,0,0,20,20H208a20,20,0,0,0,20-20V48A20,20,0,0,0,208,28ZM68,52a12,12,0,0,0,24,0h72a12,12,0,0,0,24,0h16V76H52V52ZM52,204V100H204V204Z"
             })
           )
         ],
         [
           "duotone",
-          r.createElement(
-            r.Fragment,
+          l.createElement(
+            l.Fragment,
             null,
-            r.createElement("path", { d: "M216,48V88H40V48a8,8,0,0,1,8-8H208A8,8,0,0,1,216,48Z", opacity: "0.2" }),
-            r.createElement("path", {
+            l.createElement("path", { d: "M216,48V88H40V48a8,8,0,0,1,8-8H208A8,8,0,0,1,216,48Z", opacity: "0.2" }),
+            l.createElement("path", {
               d: "M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Z"
             })
           )
         ],
         [
           "fill",
-          r.createElement(
-            r.Fragment,
+          l.createElement(
+            l.Fragment,
             null,
-            r.createElement("path", {
+            l.createElement("path", {
               d: "M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32Zm0,48H48V48H72v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24Z"
             })
           )
         ],
         [
           "light",
-          r.createElement(
-            r.Fragment,
+          l.createElement(
+            l.Fragment,
             null,
-            r.createElement("path", {
+            l.createElement("path", {
               d: "M208,34H182V24a6,6,0,0,0-12,0V34H86V24a6,6,0,0,0-12,0V34H48A14,14,0,0,0,34,48V208a14,14,0,0,0,14,14H208a14,14,0,0,0,14-14V48A14,14,0,0,0,208,34ZM48,46H74V56a6,6,0,0,0,12,0V46h84V56a6,6,0,0,0,12,0V46h26a2,2,0,0,1,2,2V82H46V48A2,2,0,0,1,48,46ZM208,210H48a2,2,0,0,1-2-2V94H210V208A2,2,0,0,1,208,210Z"
             })
           )
         ],
         [
           "regular",
-          r.createElement(
-            r.Fragment,
+          l.createElement(
+            l.Fragment,
             null,
-            r.createElement("path", {
+            l.createElement("path", {
               d: "M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Z"
             })
           )
         ],
         [
           "thin",
-          r.createElement(
-            r.Fragment,
+          l.createElement(
+            l.Fragment,
             null,
-            r.createElement("path", {
+            l.createElement("path", {
               d: "M208,36H180V24a4,4,0,0,0-8,0V36H84V24a4,4,0,0,0-8,0V36H48A12,12,0,0,0,36,48V208a12,12,0,0,0,12,12H208a12,12,0,0,0,12-12V48A12,12,0,0,0,208,36ZM48,44H76V56a4,4,0,0,0,8,0V44h88V56a4,4,0,0,0,8,0V44h28a4,4,0,0,1,4,4V84H44V48A4,4,0,0,1,48,44ZM208,212H48a4,4,0,0,1-4-4V92H212V208A4,4,0,0,1,208,212Z"
             })
           )
@@ -250,42 +262,42 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         d = Object.getOwnPropertySymbols,
         m = Object.prototype.hasOwnProperty,
         u = Object.prototype.propertyIsEnumerable,
-        p = (e, a, t) => (a in e ? i(e, a, { enumerable: !0, configurable: !0, writable: !0, value: t }) : (e[a] = t)),
-        f = (e, a) => {
-          for (var t in a || (a = {})) m.call(a, t) && p(e, t, a[t]);
-          if (d) for (var t of d(a)) u.call(a, t) && p(e, t, a[t]);
+        f = (e, a, t) => (a in e ? i(e, a, { enumerable: !0, configurable: !0, writable: !0, value: t }) : (e[a] = t)),
+        p = (e, a) => {
+          for (var t in a || (a = {})) m.call(a, t) && f(e, t, a[t]);
+          if (d) for (var t of d(a)) u.call(a, t) && f(e, t, a[t]);
           return e;
         },
         h = (e, a) => o(e, c(a));
-      let x = (0, r.forwardRef)((e, a) => r.createElement(n.Z, h(f({ ref: a }, e), { weights: s })));
+      let x = (0, l.forwardRef)((e, a) => l.createElement(n.Z, h(p({ ref: a }, e), { weights: s })));
       x.displayName = "CalendarBlank";
       var v = t(69816),
-        b = t(63561);
-      function g(e) {
-        let { claimStartDate: a, claimEndDate: t, isClaimPeriodOver: r } = e;
-        return (0, l.jsxs)("div", {
+        g = t(63561);
+      function b(e) {
+        let { claimStartDate: a, claimEndDate: t, isClaimPeriodOver: l } = e;
+        return (0, r.jsxs)("div", {
           className: "flex flex-col gap-2 mb-6 bg-secondary-100 rounded-xl p-4",
           children: [
-            (0, l.jsxs)(v.Z, {
+            (0, r.jsxs)(v.Z, {
               size: "md",
               className: "font-bold gap-2",
-              children: [(0, l.jsx)(x, { size: 20, className: "text-black-100 dark:text-white-100" }), "Claim period"]
+              children: [(0, r.jsx)(x, { size: 20, className: "text-black-100 dark:text-white-100" }), "Claim period"]
             }),
-            (0, l.jsxs)("div", {
+            (0, r.jsxs)("div", {
               children: [
-                r &&
-                  (0, l.jsx)(v.Z, {
+                l &&
+                  (0, r.jsx)(v.Z, {
                     size: "sm",
                     color: "text-muted-foreground",
                     className: "font-medium",
                     children: "Claim period of this Airdrop has passed."
                   }),
-                (0, l.jsx)(v.Z, {
+                (0, r.jsx)(v.Z, {
                   size: "sm",
                   color: "text-muted-foreground",
                   className: "font-medium",
                   children: a
-                    ? `${(0, b.Z)(a, "dd MMM, yyyy")} - ${t && (0, b.Z)(t, "dd MMM, yyyy")}`
+                    ? `${(0, g.Z)(a, "dd MMM, yyyy")} - ${t && (0, g.Z)(t, "dd MMM, yyyy")}`
                     : "The claim period of this airdrop hasn’t been announced yet. Stay tuned for more details."
                 })
               ]
@@ -295,10 +307,10 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
       }
     },
     28332: function (e, a, t) {
-      t.a(e, async function (e, l) {
+      t.a(e, async function (e, r) {
         try {
-          t.d(a, { Z: () => b });
-          var r = t(52322),
+          t.d(a, { Z: () => g });
+          var l = t(52322),
             n = t(41172),
             s = t(14863),
             i = t(26227),
@@ -307,53 +319,53 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             d = t(69816),
             m = t(10706),
             u = t(30464),
-            p = t(2784),
-            f = t(53221),
+            f = t(2784),
+            p = t(53221),
             h = t(32374),
             x = t(71198),
             v = e([m]);
-          function b(e) {
+          function g(e) {
             var a;
             let { selectedAirdrop: t } = e,
-              [l, v] = (0, p.useState)(!1),
-              [b, g] = (0, p.useState)(!1),
+              [r, v] = (0, f.useState)(!1),
+              [g, b] = (0, f.useState)(!1),
               { activeWallet: y } = (0, m.ZP)(),
               j = (0, h.k)((null == y ? void 0 : y.name) || ""),
-              w = (0, p.useMemo)(() => {
+              w = (0, f.useMemo)(() => {
                 if (null == y ? void 0 : y.avatar) return y.avatar;
               }, [null == y ? void 0 : y.avatar]);
-            (0, p.useEffect)(() => {
+            (0, f.useEffect)(() => {
               var e;
               (null == t ? void 0 : null === (e = t.tokenInfo) || void 0 === e ? void 0 : e.find(e => !(null == e ? void 0 : e.address))) && v(!0);
             }, [t]),
-              (0, p.useEffect)(() => {
+              (0, f.useEffect)(() => {
                 let e;
-                return b && (e = setTimeout(() => g(!1), 2e3)), () => clearTimeout(e);
-              }, [b]);
-            let Z = e => {
-              e && (f.i.copyText(e), g(!0));
+                return g && (e = setTimeout(() => b(!1), 2e3)), () => clearTimeout(e);
+              }, [g]);
+            let A = e => {
+              e && (p.i.copyText(e), b(!0));
             };
-            return (0, r.jsxs)("div", {
+            return (0, l.jsxs)("div", {
               className: "flex flex-col gap-2 bg-secondary-100 rounded-xl p-4",
               children: [
-                (0, r.jsxs)(d.Z, {
+                (0, l.jsxs)(d.Z, {
                   size: "md",
                   className: "font-bold gap-2",
-                  children: [(0, r.jsx)(s.w, { size: 20, className: "text-black-100 dark:text-white-100" }), "Eligible wallets"]
+                  children: [(0, l.jsx)(s.w, { size: 20, className: "text-black-100 dark:text-white-100" }), "Eligible wallets"]
                 }),
-                (0, r.jsxs)("div", {
+                (0, l.jsxs)("div", {
                   className: "bg-secondary-200 p-4 rounded-2xl mt-1",
                   children: [
-                    (0, r.jsxs)("div", {
+                    (0, l.jsxs)("div", {
                       className: "flex items-center gap-2 mb-3",
                       children: [
                         w
-                          ? (0, r.jsx)("img", { className: "w-5 h-5 rounded-full", src: w, alt: "wallet-avatar" })
-                          : (0, r.jsx)("img", { className: "w-5 h-5", src: u.r.Logos.LeapLogo28, alt: "wallet-avatar" }),
-                        (0, r.jsx)(d.Z, { size: "sm", className: "font-bold", children: (0, x.fy)(j, 10) })
+                          ? (0, l.jsx)("img", { className: "w-5 h-5 rounded-full", src: w, alt: "wallet-avatar" })
+                          : (0, l.jsx)("img", { className: "w-5 h-5", src: u.r.Logos.LeapLogo28, alt: "wallet-avatar" }),
+                        (0, l.jsx)(d.Z, { size: "sm", className: "font-bold", children: (0, x.fy)(j, 10) })
                       ]
                     }),
-                    (0, r.jsxs)("div", {
+                    (0, l.jsxs)("div", {
                       className: "flex flex-wrap gap-3",
                       children: [
                         null == t
@@ -362,35 +374,35 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                             ? void 0
                             : a.map((e, a) => {
                                 if (null == e ? void 0 : e.address)
-                                  return (0, r.jsxs)(
+                                  return (0, l.jsxs)(
                                     "div",
                                     {
                                       className: "flex gap-2 py-2 px-3 rounded-3xl bg-secondary-300",
                                       children: [
-                                        (0, r.jsx)(d.Z, {
+                                        (0, l.jsx)(d.Z, {
                                           size: "sm",
                                           color: "text-gray-800 dark:text-gray-200",
                                           className: "font-medium",
                                           children: (0, n.Hnh)(null == e ? void 0 : e.address)
                                         }),
-                                        (0, r.jsx)("div", {
+                                        (0, l.jsx)("div", {
                                           className: "text-black-100 dark:text-white-100 cursor-pointer",
-                                          onClick: () => Z(null == e ? void 0 : e.address),
-                                          children: b
-                                            ? (0, r.jsx)(i.f, { weight: "fill", size: 20, className: "text-black-100 dark:text-white-100" })
-                                            : (0, r.jsx)(o.K, { size: 20, className: "text-black-100 dark:text-white-100" })
+                                          onClick: () => A(null == e ? void 0 : e.address),
+                                          children: g
+                                            ? (0, l.jsx)(i.f, { weight: "fill", size: 20, className: "text-black-100 dark:text-white-100" })
+                                            : (0, l.jsx)(o.K, { size: 20, className: "text-black-100 dark:text-white-100" })
                                         })
                                       ]
                                     },
                                     a
                                   );
                               }),
-                        l &&
-                          (0, r.jsxs)("div", {
+                        r &&
+                          (0, l.jsxs)("div", {
                             className: "flex items-start bg-destructive/75 rounded-2xl p-4 gap-3",
                             children: [
-                              (0, r.jsx)(c.Q, { size: 16, className: "text-destructive-100 shrink-0 mt-1" }),
-                              (0, r.jsx)("p", {
+                              (0, l.jsx)(c.Q, { size: 16, className: "text-destructive-100 shrink-0 mt-1" }),
+                              (0, l.jsx)("p", {
                                 className: "text-sm font-medium text-foreground !leading-[19px]",
                                 children: "We are unable to fetch airdrops for some addresses. Please try again later."
                               })
@@ -403,17 +415,17 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               ]
             });
           }
-          (m = (v.then ? (await v)() : v)[0]), l();
+          (m = (v.then ? (await v)() : v)[0]), r();
         } catch (e) {
-          l(e);
+          r(e);
         }
       });
     },
     27918: function (e, a, t) {
-      t.a(e, async function (e, l) {
+      t.a(e, async function (e, r) {
         try {
-          t.d(a, { Z: () => b });
-          var r = t(52322),
+          t.d(a, { Z: () => g });
+          var l = t(52322),
             n = t(41172),
             s = t(75377),
             i = t(18536),
@@ -422,19 +434,19 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             d = t(69816),
             m = t(26571),
             u = t(17643),
-            p = t(30464),
-            f = t(24542),
-            h = t.n(f),
+            f = t(30464),
+            p = t(24542),
+            h = t.n(p),
             x = t(2784),
             v = e([u]);
-          function b() {
+          function g() {
             let [e, a] = (0, x.useState)(!1),
-              [t, l] = (0, x.useState)(1),
-              f = (0, u.u)(),
+              [t, r] = (0, x.useState)(1),
+              p = (0, u.u)(),
               v = (0, n._2_)(),
-              b = null === v;
-            (0, x.useEffect)(() => (a(b), () => a(!1)), [b]);
-            let g = () => {
+              g = null === v;
+            (0, x.useEffect)(() => (a(g), () => a(!1)), [g]);
+            let b = () => {
               try {
                 h().track(m.B_.ButtonClick, {
                   buttonType: m.L$.AIRDROPS,
@@ -447,125 +459,125 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 (0, o.Tb)(e);
               }
             };
-            return (0, r.jsxs)("div", {
+            return (0, l.jsxs)("div", {
               className: "flex flex-col gap-6 h-full",
               children: [
-                (0, r.jsx)("div", {
+                (0, l.jsx)("div", {
                   className: "bg-white-100 dark:bg-gray-950 rounded-xl py-8 px-4 flex flex-col items-center justify-center flex-1",
                   children: e
-                    ? (0, r.jsxs)("div", {
+                    ? (0, l.jsxs)("div", {
                         className: "flex justify-center items-center",
-                        children: [(0, r.jsx)(c.Z, {}), (0, r.jsx)(d.Z, { className: "mt-16", children: "Loading Airdrop" })]
+                        children: [(0, l.jsx)(c.Z, {}), (0, l.jsx)(d.Z, { className: "mt-16", children: "Loading Airdrop" })]
                       })
-                    : (0, r.jsxs)(r.Fragment, {
+                    : (0, l.jsxs)(l.Fragment, {
                         children: [
-                          (0, r.jsx)("img", { src: p.r.Airdrop.airdropFailed, alt: "airdrop_banner", className: "mb-6" }),
-                          (0, r.jsx)(d.Z, { size: "xl", className: "font-bold mb-2", children: "Woops!" }),
-                          (0, r.jsxs)(d.Z, {
+                          (0, l.jsx)("img", { src: f.r.Airdrop.airdropFailed, alt: "airdrop_banner", className: "mb-6" }),
+                          (0, l.jsx)(d.Z, { size: "xl", className: "font-bold mb-2", children: "Woops!" }),
+                          (0, l.jsxs)(d.Z, {
                             size: "sm",
                             color: "text-gray-800 dark:text-gray-200",
                             className: "font-medium text-center",
-                            children: ["We aren’t able to load details for this ", (0, r.jsx)("br", {}), " Airdrop. You can try again later."]
+                            children: ["We aren’t able to load details for this ", (0, l.jsx)("br", {}), " Airdrop. You can try again later."]
                           })
                         ]
                       })
                 }),
-                (0, r.jsx)(s.Buttons.Generic, {
+                (0, l.jsx)(s.Buttons.Generic, {
                   size: "normal",
                   className: "w-full !bg-black-100 dark:!bg-white-100 text-white-100 dark:text-black-100",
                   title: "Retry",
                   disabled: e,
                   onClick: () => {
                     a(!0),
-                      l(e => e + 1),
-                      f(),
-                      g(),
+                      r(e => e + 1),
+                      p(),
+                      b(),
                       setTimeout(() => {
                         a(!1);
                       }, 1e4);
                   },
                   children: e
                     ? "Loading"
-                    : (0, r.jsxs)("div", {
+                    : (0, l.jsxs)("div", {
                         className: "flex items-center gap-2",
-                        children: ["Retry", (0, r.jsx)(i.y, { size: 20, style: { transform: "rotateY(180deg)" } })]
+                        children: ["Retry", (0, l.jsx)(i.y, { size: 20, style: { transform: "rotateY(180deg)" } })]
                       })
                 })
               ]
             });
           }
-          (u = (v.then ? (await v)() : v)[0]), l();
+          (u = (v.then ? (await v)() : v)[0]), r();
         } catch (e) {
-          l(e);
+          r(e);
         }
       });
     },
     11653: function (e, a, t) {
       t.d(a, { Z: () => H });
-      var l = t(52322),
-        r = t(2784),
+      var r = t(52322),
+        l = t(2784),
         n = t(6806);
       let s = new Map([
         [
           "bold",
-          r.createElement(
-            r.Fragment,
+          l.createElement(
+            l.Fragment,
             null,
-            r.createElement("path", {
+            l.createElement("path", {
               d: "M227.85,46.89a20,20,0,0,0-18.74-18.74c-13.13-.77-46.65.42-74.48,28.24L131,60H74.36a19.83,19.83,0,0,0-14.14,5.86L25.87,100.19a20,20,0,0,0,11.35,33.95l37.14,5.18,42.32,42.32,5.19,37.18A19.88,19.88,0,0,0,135.34,235a20.13,20.13,0,0,0,6.37,1,19.9,19.9,0,0,0,14.1-5.87l34.34-34.35A19.85,19.85,0,0,0,196,181.64V125l3.6-3.59C227.43,93.54,228.62,60,227.85,46.89ZM76,84h31L75.75,115.28l-27.23-3.8ZM151.6,73.37A72.27,72.27,0,0,1,204,52a72.17,72.17,0,0,1-21.38,52.41L128,159,97,128ZM172,180l-27.49,27.49-3.8-27.23L172,149Zm-72,22c-8.71,11.85-26.19,26-60,26a12,12,0,0,1-12-12c0-33.84,14.12-51.32,26-60A12,12,0,1,1,68.18,175.3C62.3,179.63,55.51,187.8,53,203c15.21-2.51,23.37-9.3,27.7-15.18A12,12,0,1,1,100,202Z"
             })
           )
         ],
         [
           "duotone",
-          r.createElement(
-            r.Fragment,
+          l.createElement(
+            l.Fragment,
             null,
-            r.createElement("path", {
+            l.createElement("path", {
               d: "M184,120v61.65a8,8,0,0,1-2.34,5.65l-34.35,34.35a8,8,0,0,1-13.57-4.53L128,176ZM136,72H74.35a8,8,0,0,0-5.65,2.34L34.35,108.69a8,8,0,0,0,4.53,13.57L80,128ZM40,216c37.65,0,50.69-19.69,54.56-28.18L68.18,161.44C59.69,165.31,40,178.35,40,216Z",
               opacity: "0.2"
             }),
-            r.createElement("path", {
+            l.createElement("path", {
               d: "M223.85,47.12a16,16,0,0,0-15-15c-12.58-.75-44.73.4-71.41,27.07L132.69,64H74.36A15.91,15.91,0,0,0,63,68.68L28.7,103a16,16,0,0,0,9.07,27.16l38.47,5.37,44.21,44.21,5.37,38.49a15.94,15.94,0,0,0,10.78,12.92,16.11,16.11,0,0,0,5.1.83A15.91,15.91,0,0,0,153,227.3L187.32,193A15.91,15.91,0,0,0,192,181.64V123.31l4.77-4.77C223.45,91.86,224.6,59.71,223.85,47.12ZM74.36,80h42.33L77.16,119.52,40,114.34Zm74.41-9.45a76.65,76.65,0,0,1,59.11-22.47,76.46,76.46,0,0,1-22.42,59.16L128,164.68,91.32,128ZM176,181.64,141.67,216l-5.19-37.17L176,139.31Zm-74.16,9.5C97.34,201,82.29,224,40,224a8,8,0,0,1-8-8c0-42.29,23-57.34,32.86-61.85a8,8,0,0,1,6.64,14.56c-6.43,2.93-20.62,12.36-23.12,38.91,26.55-2.5,36-16.69,38.91-23.12a8,8,0,1,1,14.56,6.64Z"
             })
           )
         ],
         [
           "fill",
-          r.createElement(
-            r.Fragment,
+          l.createElement(
+            l.Fragment,
             null,
-            r.createElement("path", {
+            l.createElement("path", {
               d: "M101.85,191.14C97.34,201,82.29,224,40,224a8,8,0,0,1-8-8c0-42.29,23-57.34,32.86-61.85a8,8,0,0,1,6.64,14.56c-6.43,2.93-20.62,12.36-23.12,38.91,26.55-2.5,36-16.69,38.91-23.12a8,8,0,1,1,14.56,6.64Zm122-144a16,16,0,0,0-15-15c-12.58-.75-44.73.4-71.4,27.07h0L88,108.7A8,8,0,0,1,76.67,97.39l26.56-26.57A4,4,0,0,0,100.41,64H74.35A15.9,15.9,0,0,0,63,68.68L28.7,103a16,16,0,0,0,9.07,27.16l38.47,5.37,44.21,44.21,5.37,38.49a15.94,15.94,0,0,0,10.78,12.92,16.11,16.11,0,0,0,5.1.83A15.91,15.91,0,0,0,153,227.3L187.32,193A16,16,0,0,0,192,181.65V155.59a4,4,0,0,0-6.83-2.82l-26.57,26.56a8,8,0,0,1-11.71-.42,8.2,8.2,0,0,1,.6-11.1l49.27-49.27h0C223.45,91.86,224.6,59.71,223.85,47.12Z"
             })
           )
         ],
         [
           "light",
-          r.createElement(
-            r.Fragment,
+          l.createElement(
+            l.Fragment,
             null,
-            r.createElement("path", {
+            l.createElement("path", {
               d: "M221.86,47.24a14,14,0,0,0-13.11-13.1c-12.31-.73-43.77.39-69.88,26.5L133.52,66H74.35a13.9,13.9,0,0,0-9.89,4.1L30.11,104.44a14,14,0,0,0,7.94,23.76l39.13,5.46,45.16,45.16L127.8,218a14,14,0,0,0,23.76,7.92l34.35-34.35a13.91,13.91,0,0,0,4.1-9.89V122.48l5.35-5.35h0C221.46,91,222.59,59.56,221.86,47.24ZM38.11,115a2,2,0,0,1,.49-2L72.94,78.58A2,2,0,0,1,74.35,78h47.17L77.87,121.64l-38.14-5.32A1.93,1.93,0,0,1,38.11,115ZM178,181.65a2,2,0,0,1-.59,1.41L143.08,217.4a2,2,0,0,1-3.4-1.11l-5.32-38.16L178,134.48Zm8.87-73h0L128,167.51,88.49,128l58.87-58.88a78.47,78.47,0,0,1,60.69-23A2,2,0,0,1,209.88,48,78.47,78.47,0,0,1,186.88,108.64ZM100,190.31C95.68,199.84,81.13,222,40,222a6,6,0,0,1-6-6c0-41.13,22.16-55.68,31.69-60a6,6,0,1,1,5,10.92c-7,3.17-22.53,13.52-24.47,42.91,29.39-1.94,39.74-17.52,42.91-24.47a6,6,0,1,1,10.92,5Z"
             })
           )
         ],
         [
           "regular",
-          r.createElement(
-            r.Fragment,
+          l.createElement(
+            l.Fragment,
             null,
-            r.createElement("path", {
+            l.createElement("path", {
               d: "M223.85,47.12a16,16,0,0,0-15-15c-12.58-.75-44.73.4-71.41,27.07L132.69,64H74.36A15.91,15.91,0,0,0,63,68.68L28.7,103a16,16,0,0,0,9.07,27.16l38.47,5.37,44.21,44.21,5.37,38.49a15.94,15.94,0,0,0,10.78,12.92,16.11,16.11,0,0,0,5.1.83A15.91,15.91,0,0,0,153,227.3L187.32,193A15.91,15.91,0,0,0,192,181.64V123.31l4.77-4.77C223.45,91.86,224.6,59.71,223.85,47.12ZM74.36,80h42.33L77.16,119.52,40,114.34Zm74.41-9.45a76.65,76.65,0,0,1,59.11-22.47,76.46,76.46,0,0,1-22.42,59.16L128,164.68,91.32,128ZM176,181.64,141.67,216l-5.19-37.17L176,139.31Zm-74.16,9.5C97.34,201,82.29,224,40,224a8,8,0,0,1-8-8c0-42.29,23-57.34,32.86-61.85a8,8,0,0,1,6.64,14.56c-6.43,2.93-20.62,12.36-23.12,38.91,26.55-2.5,36-16.69,38.91-23.12a8,8,0,1,1,14.56,6.64Z"
             })
           )
         ],
         [
           "thin",
-          r.createElement(
-            r.Fragment,
+          l.createElement(
+            l.Fragment,
             null,
-            r.createElement("path", {
+            l.createElement("path", {
               d: "M219.86,47.36a12,12,0,0,0-11.22-11.22c-12-.71-42.82.38-68.35,25.91L134.35,68h-60a11.9,11.9,0,0,0-8.48,3.52L31.52,105.85a12,12,0,0,0,6.81,20.37l39.79,5.55,46.11,46.11,5.55,39.81a12,12,0,0,0,20.37,6.79l34.34-34.35a11.9,11.9,0,0,0,3.52-8.48v-60l5.94-5.94C219.48,90.18,220.57,59.41,219.86,47.36ZM36.21,115.6a3.94,3.94,0,0,1,1-4.09L71.53,77.17A4,4,0,0,1,74.35,76h52L78.58,123.76,39.44,118.3A3.94,3.94,0,0,1,36.21,115.6ZM180,181.65a4,4,0,0,1-1.17,2.83l-34.35,34.34a4,4,0,0,1-6.79-2.25l-5.46-39.15L180,129.65Zm-52-11.31L85.66,128l60.28-60.29c23.24-23.24,51.25-24.23,62.22-23.58a3.93,3.93,0,0,1,3.71,3.71c.65,11-.35,39-23.58,62.22ZM98.21,189.48C94,198.66,80,220,40,220a4,4,0,0,1-4-4c0-40,21.34-54,30.52-58.21a4,4,0,0,1,3.32,7.28c-7.46,3.41-24.43,14.66-25.76,46.85,32.19-1.33,43.44-18.3,46.85-25.76a4,4,0,1,1,7.28,3.32Z"
             })
           )
@@ -577,81 +589,81 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         d = Object.getOwnPropertySymbols,
         m = Object.prototype.hasOwnProperty,
         u = Object.prototype.propertyIsEnumerable,
-        p = (e, a, t) => (a in e ? i(e, a, { enumerable: !0, configurable: !0, writable: !0, value: t }) : (e[a] = t)),
-        f = (e, a) => {
-          for (var t in a || (a = {})) m.call(a, t) && p(e, t, a[t]);
-          if (d) for (var t of d(a)) u.call(a, t) && p(e, t, a[t]);
+        f = (e, a, t) => (a in e ? i(e, a, { enumerable: !0, configurable: !0, writable: !0, value: t }) : (e[a] = t)),
+        p = (e, a) => {
+          for (var t in a || (a = {})) m.call(a, t) && f(e, t, a[t]);
+          if (d) for (var t of d(a)) u.call(a, t) && f(e, t, a[t]);
           return e;
         },
         h = (e, a) => o(e, c(a));
-      let x = (0, r.forwardRef)((e, a) => r.createElement(n.Z, h(f({ ref: a }, e), { weights: s })));
+      let x = (0, l.forwardRef)((e, a) => l.createElement(n.Z, h(p({ ref: a }, e), { weights: s })));
       x.displayName = "RocketLaunch";
       var v = t(92642),
-        b = t(72779),
-        g = t.n(b),
+        g = t(72779),
+        b = t.n(g),
         y = t(69816),
         j = t(26571),
         w = t(23259),
-        Z = t(24542),
-        A = t.n(Z);
+        A = t(24542),
+        Z = t.n(A);
       let V = `${w.x3}/airdrops`;
       function H(e) {
         let { className: a = "" } = e,
           t = () => {
             try {
-              A().track(j.B_.ButtonClick, { buttonType: j.L$.AIRDROPS, buttonName: j.$S.GO_TO_LEAPBOARD, redirectURL: V, time: Date.now() / 1e3 });
+              Z().track(j.B_.ButtonClick, { buttonType: j.L$.AIRDROPS, buttonName: j.$S.GO_TO_LEAPBOARD, redirectURL: V, time: Date.now() / 1e3 });
             } catch (e) {
               (0, v.Tb)(e);
             }
           };
-        return (0, l.jsxs)("div", {
-          className: g()("flex gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-900 rounded-3xl w-fit items-center cursor-pointer", a),
+        return (0, r.jsxs)("div", {
+          className: b()("flex gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-900 rounded-3xl w-fit items-center cursor-pointer", a),
           onClick: () => {
             window.open(V, "_blank"), t();
           },
           children: [
-            (0, l.jsx)("img", { src: "https://assets.leapwallet.io/Leapboard.png", alt: "leapboard_logo", width: 16, height: 16 }),
-            (0, l.jsx)(y.Z, { size: "xs", className: "font-bold", children: "Go to Leap Dashboard" }),
-            (0, l.jsx)(x, { size: 16, className: "text-black-100 dark:text-white-100" })
+            (0, r.jsx)("img", { src: "https://assets.leapwallet.io/Leapboard.png", alt: "leapboard_logo", width: 16, height: 16 }),
+            (0, r.jsx)(y.Z, { size: "xs", className: "font-bold", children: "Go to Leap Dashboard" }),
+            (0, r.jsx)(x, { size: 16, className: "text-black-100 dark:text-white-100" })
           ]
         });
       }
     },
     11828: function (e, a, t) {
       t.d(a, { Z: () => s });
-      var l = t(52322),
-        r = t(41172),
+      var r = t(52322),
+        l = t(41172),
         n = t(30464);
       function s(e) {
         var a, t;
         let { selectedAirdrop: s, isClaimPeriodOver: i, isClaimable: o } = e,
-          c = (0, r.LHZ)(
+          c = (0, l.LHZ)(
             String(null == s ? void 0 : s.totalAmount),
             null == s ? void 0 : null === (t = s.tokenInfo) || void 0 === t ? void 0 : null === (a = t[0]) || void 0 === a ? void 0 : a.denom,
             2
           );
-        return (0, l.jsxs)("div", {
+        return (0, r.jsxs)("div", {
           className: "flex flex-col items-center gap-6 mb-6",
           children: [
             i
-              ? (0, l.jsx)("img", { src: n.r.Airdrop.airdropOver, alt: "airdrop_banner" })
-              : (0, l.jsxs)("div", {
+              ? (0, r.jsx)("img", { src: n.r.Airdrop.airdropOver, alt: "airdrop_banner" })
+              : (0, r.jsxs)("div", {
                   className: "relative",
                   children: [
-                    (0, l.jsx)("img", { src: n.r.Airdrop.airdropBanner, alt: "airdrop_banner" }),
-                    (0, l.jsx)("img", {
+                    (0, r.jsx)("img", { src: n.r.Airdrop.airdropBanner, alt: "airdrop_banner" }),
+                    (0, r.jsx)("img", {
                       src: null == s ? void 0 : s.airdropIcon,
                       alt: "airdrop_token",
                       className: "absolute w-[78px] h-[78px] top-[5px] right-[65px] rounded-full"
                     })
                   ]
                 }),
-            (0, l.jsxs)("div", {
+            (0, r.jsxs)("div", {
               className: "text-xl font-bold text-center text-black-100 dark:text-white-100",
               children: [
                 i ? "You were eligible for" : o ? "You can claim" : "You are eligible for",
-                (0, l.jsx)("br", {}),
-                (0, l.jsx)("span", { className: "text-green-600", children: (null == s ? void 0 : s.totalAmount) ? c : null == s ? void 0 : s.name }),
+                (0, r.jsx)("br", {}),
+                (0, r.jsx)("span", { className: "text-green-600", children: (null == s ? void 0 : s.totalAmount) ? c : null == s ? void 0 : s.name }),
                 " ",
                 "Airdrop"
               ]
@@ -663,35 +675,35 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
     },
     11218: function (e, a, t) {
       t.d(a, { k: () => o });
-      var l = t(52322),
-        r = t(36906),
+      var r = t(52322),
+        l = t(36906),
         n = t(96217),
         s = t(69816);
       t(2784);
       var i = t(11653);
       let o = e => {
         let { isOpen: a, onClose: t } = e;
-        return (0, l.jsxs)(n.Z, {
+        return (0, r.jsxs)(n.Z, {
           isOpen: a,
           onClose: t,
           title: "About Airdrops",
           children: [
-            (0, l.jsx)(s.Z, {
+            (0, r.jsx)(s.Z, {
               size: "sm",
               color: "text-gray-800 dark:text-gray-200",
               className: "font-medium mb-3",
               children:
                 "Only active airdrops that Leap has partnered with for eligibility tracking are displayed here. For information on other airdrops, visit our Leap Dashboard."
             }),
-            (0, l.jsx)(i.Z, {}),
-            (0, l.jsxs)("div", {
+            (0, r.jsx)(i.Z, {}),
+            (0, r.jsxs)("div", {
               className: "flex gap-2 mt-8 mb-2 items-center",
               children: [
-                (0, l.jsx)(r.k, { size: 20, className: "text-black-100 dark:text-white-100" }),
-                (0, l.jsx)(s.Z, { size: "md", className: "font-bold", children: "Disclaimer" })
+                (0, r.jsx)(l.k, { size: 20, className: "text-black-100 dark:text-white-100" }),
+                (0, r.jsx)(s.Z, { size: "md", className: "font-bold", children: "Disclaimer" })
               ]
             }),
-            (0, l.jsx)(s.Z, {
+            (0, r.jsx)(s.Z, {
               size: "sm",
               color: "text-gray-800 dark:text-gray-200",
               className: "font-medium",
@@ -704,66 +716,66 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
     },
     18536: function (e, a, t) {
       t.d(a, { y: () => h });
-      var l = t(2784),
-        r = t(6806);
+      var r = t(2784),
+        l = t(6806);
       let n = new Map([
         [
           "bold",
-          l.createElement(
-            l.Fragment,
+          r.createElement(
+            r.Fragment,
             null,
-            l.createElement("path", {
+            r.createElement("path", {
               d: "M228,128a100,100,0,0,1-98.66,100H128a99.39,99.39,0,0,1-68.62-27.29,12,12,0,0,1,16.48-17.45,76,76,0,1,0-1.57-109c-.13.13-.25.25-.39.37L54.89,92H72a12,12,0,0,1,0,24H24a12,12,0,0,1-12-12V56a12,12,0,0,1,24,0V76.72L57.48,57.06A100,100,0,0,1,228,128Z"
             })
           )
         ],
         [
           "duotone",
-          l.createElement(
-            l.Fragment,
+          r.createElement(
+            r.Fragment,
             null,
-            l.createElement("path", { d: "M216,128a88,88,0,1,1-88-88A88,88,0,0,1,216,128Z", opacity: "0.2" }),
-            l.createElement("path", {
+            r.createElement("path", { d: "M216,128a88,88,0,1,1-88-88A88,88,0,0,1,216,128Z", opacity: "0.2" }),
+            r.createElement("path", {
               d: "M224,128a96,96,0,0,1-94.71,96H128A95.38,95.38,0,0,1,62.1,197.8a8,8,0,0,1,11-11.63A80,80,0,1,0,71.43,71.39a3.07,3.07,0,0,1-.26.25L44.59,96H72a8,8,0,0,1,0,16H24a8,8,0,0,1-8-8V56a8,8,0,0,1,16,0V85.8L60.25,60A96,96,0,0,1,224,128Z"
             })
           )
         ],
         [
           "fill",
-          l.createElement(
-            l.Fragment,
+          r.createElement(
+            r.Fragment,
             null,
-            l.createElement("path", {
+            r.createElement("path", {
               d: "M224,128a96,96,0,0,1-94.71,96H128A95.38,95.38,0,0,1,62.1,197.8a8,8,0,0,1,11-11.63A80,80,0,1,0,71.43,71.39a3.07,3.07,0,0,1-.26.25L60.63,81.29l17,17A8,8,0,0,1,72,112H24a8,8,0,0,1-8-8V56A8,8,0,0,1,29.66,50.3L49.31,70,60.25,60A96,96,0,0,1,224,128Z"
             })
           )
         ],
         [
           "light",
-          l.createElement(
-            l.Fragment,
+          r.createElement(
+            r.Fragment,
             null,
-            l.createElement("path", {
+            r.createElement("path", {
               d: "M222,128a94,94,0,0,1-92.74,94H128a93.43,93.43,0,0,1-64.5-25.65,6,6,0,1,1,8.24-8.72A82,82,0,1,0,70,70l-.19.19L39.44,98H72a6,6,0,0,1,0,12H24a6,6,0,0,1-6-6V56a6,6,0,0,1,12,0V90.34L61.63,61.4A94,94,0,0,1,222,128Z"
             })
           )
         ],
         [
           "regular",
-          l.createElement(
-            l.Fragment,
+          r.createElement(
+            r.Fragment,
             null,
-            l.createElement("path", {
+            r.createElement("path", {
               d: "M224,128a96,96,0,0,1-94.71,96H128A95.38,95.38,0,0,1,62.1,197.8a8,8,0,0,1,11-11.63A80,80,0,1,0,71.43,71.39a3.07,3.07,0,0,1-.26.25L44.59,96H72a8,8,0,0,1,0,16H24a8,8,0,0,1-8-8V56a8,8,0,0,1,16,0V85.8L60.25,60A96,96,0,0,1,224,128Z"
             })
           )
         ],
         [
           "thin",
-          l.createElement(
-            l.Fragment,
+          r.createElement(
+            r.Fragment,
             null,
-            l.createElement("path", {
+            r.createElement("path", {
               d: "M220,128a92,92,0,0,1-90.77,92H128a91.47,91.47,0,0,1-63.13-25.1,4,4,0,1,1,5.5-5.82A84,84,0,1,0,68.6,68.57l-.13.12L34.3,100H72a4,4,0,0,1,0,8H24a4,4,0,0,1-4-4V56a4,4,0,0,1,8,0V94.89l35-32A92,92,0,0,1,220,128Z"
             })
           )
@@ -776,13 +788,13 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         d = Object.prototype.hasOwnProperty,
         m = Object.prototype.propertyIsEnumerable,
         u = (e, a, t) => (a in e ? s(e, a, { enumerable: !0, configurable: !0, writable: !0, value: t }) : (e[a] = t)),
-        p = (e, a) => {
+        f = (e, a) => {
           for (var t in a || (a = {})) d.call(a, t) && u(e, t, a[t]);
           if (c) for (var t of c(a)) m.call(a, t) && u(e, t, a[t]);
           return e;
         },
-        f = (e, a) => i(e, o(a));
-      let h = (0, l.forwardRef)((e, a) => l.createElement(r.Z, f(p({ ref: a }, e), { weights: n })));
+        p = (e, a) => i(e, o(a));
+      let h = (0, r.forwardRef)((e, a) => r.createElement(l.Z, p(f({ ref: a }, e), { weights: n })));
       h.displayName = "ArrowCounterClockwise";
     }
   }

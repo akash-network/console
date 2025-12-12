@@ -12,6 +12,19 @@ jobs:
     with:
       path: apps/deploy-web
 
+  test-beta:
+    runs-on: ubuntu-latest
+    needs: should-validate
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/console-web-ui-testing
+        with:
+          url: ${{ vars.CONSOLE_WEB_BETA_URL }}
+          test-wallet-mnemonic: ${{ secrets.CONSOLE_WEB_E2E_TEST_WALLET_MNEMONIC }}
+          gh-user-to-slack-user: ${{ vars.GH_USER_TO_SLACK_USER }}
+          ui-config-signature-private-key: ${{ secrets.CONSOLE_WEB_E2E_TEST_UI_CONFIG_SIGNATURE_PRIVATE_KEY_BETA }}
+
+
   validate:
     needs: should-validate
     if: needs.should-validate.outputs.enabled == 'true'

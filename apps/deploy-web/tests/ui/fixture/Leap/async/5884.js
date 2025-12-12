@@ -4,12 +4,12 @@
       t = new e.Error().stack;
     t &&
       ((e._sentryDebugIds = e._sentryDebugIds || {}),
-      (e._sentryDebugIds[t] = "e84e3e82-790e-4be9-a14c-45c35837b49e"),
-      (e._sentryDebugIdIdentifier = "sentry-dbid-e84e3e82-790e-4be9-a14c-45c35837b49e"));
+      (e._sentryDebugIds[t] = "9f8a636d-ec7b-4035-860e-f3ca1036cf51"),
+      (e._sentryDebugIdIdentifier = "sentry-dbid-9f8a636d-ec7b-4035-860e-f3ca1036cf51"));
   } catch (e) {}
 })();
 var _global = "undefined" != typeof window ? window : "undefined" != typeof global ? global : "undefined" != typeof self ? self : {};
-_global.SENTRY_RELEASE = { id: "0.22.9" };
+_global.SENTRY_RELEASE = { id: "0.23.1" };
 ("use strict");
 (self.webpackChunk_leap_cosmos_extension = self.webpackChunk_leap_cosmos_extension || []).push([
   ["5884"],
@@ -161,8 +161,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             h = r(7345),
             p = r(2784),
             g = r(32796),
-            j = r(72591),
-            f = r(91545),
+            f = r(72591),
+            j = r(91545),
             b = e([c, d, i, h]);
           [c, d, i, h] = b.then ? (await b)() : b;
           let y = (0, u.Pi)(e => {
@@ -212,10 +212,10 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                                 ]
                               })
                             }),
-                            (0, l.jsx)(f.Z, { displaySettings: w })
+                            (0, l.jsx)(j.Z, { displaySettings: w })
                           ]
                         }),
-                        (0, l.jsx)(j.d, { isOpen: y, onClose: () => k(!1), settings: w, onSettingsChange: C })
+                        (0, l.jsx)(f.d, { isOpen: y, onClose: () => k(!1), settings: w, onSettingsChange: C })
                       ]
                     }),
                     (0, l.jsx)(h.Z, { isVisible: u, onClose: () => b(!1), chainTagsStore: t })
@@ -233,7 +233,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
       });
     },
     91545: function (e, t, r) {
-      r.d(t, { Z: () => f });
+      r.d(t, { Z: () => j });
       var s = r(52322),
         l = r(41172),
         a = r(86200),
@@ -304,13 +304,13 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             })
           });
         },
-        j = e => {
+        f = e => {
           let { data: t, displaySettings: r } = e,
             [l, a] = (0, i.useState)(),
             { dappCategories: c, dapps: x, products: m, disclaimer: u } = t,
             h = (0, i.useMemo)(() => Object.values(x), [x]),
             p = (0, i.useMemo)(() => Object.values(m), [m]),
-            j = (0, i.useMemo)(
+            f = (0, i.useMemo)(
               () =>
                 Object.entries(c)
                   .filter(e => {
@@ -337,7 +337,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             children: [
               (0, s.jsx)("div", {
                 className: "space-y-5",
-                children: j.map((e, t) => {
+                children: f.map((e, t) => {
                   let [l, i] = e;
                   return (0, s.jsxs)(
                     "div",
@@ -416,7 +416,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             ]
           });
         },
-        f = e => {
+        j = e => {
           let { displaySettings: t } = e,
             r = (0, l.WfF)();
           return "loading" === r.status
@@ -454,8 +454,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 ]
               })
             : "error" === r.status
-              ? (0, s.jsx)(a._, { text: r.error.message })
-              : (0, s.jsx)(j, { data: r.data, displaySettings: t });
+              ? (0, s.jsx)(a._, { text: r.error.message, disableSentryCapture: !0 })
+              : (0, s.jsx)(f, { data: r.data, displaySettings: t });
         };
     }
   }

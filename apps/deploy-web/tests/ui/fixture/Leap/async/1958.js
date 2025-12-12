@@ -4,12 +4,12 @@
       t = new e.Error().stack;
     t &&
       ((e._sentryDebugIds = e._sentryDebugIds || {}),
-      (e._sentryDebugIds[t] = "b754bcb9-c729-4202-8489-c654a8702798"),
-      (e._sentryDebugIdIdentifier = "sentry-dbid-b754bcb9-c729-4202-8489-c654a8702798"));
+      (e._sentryDebugIds[t] = "22d33ab8-e242-49a3-907a-4efd00aaa87e"),
+      (e._sentryDebugIdIdentifier = "sentry-dbid-22d33ab8-e242-49a3-907a-4efd00aaa87e"));
   } catch (e) {}
 })();
 var _global = "undefined" != typeof window ? window : "undefined" != typeof global ? global : "undefined" != typeof self ? self : {};
-_global.SENTRY_RELEASE = { id: "0.22.9" };
+_global.SENTRY_RELEASE = { id: "0.23.1" };
 ("use strict");
 (self.webpackChunk_leap_cosmos_extension = self.webpackChunk_leap_cosmos_extension || []).push([
   ["1958"],
@@ -209,26 +209,26 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             let { isOpen: t, toggler: l } = e,
               { raffles: s, isLoading: w } = (0, d.Zw)(),
               { bookmarks: k } = (0, v.ZE)(),
-              { alphaUser: S, selectedOpportunities: E, selectedEcosystems: Z } = (0, g.o)();
-            (0, c.a)(i.q.ChadExclusivesBookmark, t, { isChad: (null == S ? void 0 : S.isChad) ?? !1 });
-            let { raffleWins: A } = (0, d.Cn)((null == S ? void 0 : S.id) ?? ""),
+              { alphaUser: E, selectedOpportunities: S, selectedEcosystems: Z } = (0, g.o)();
+            (0, c.a)(i.q.ChadExclusivesBookmark, t, { isChad: (null == E ? void 0 : E.isChad) ?? !1 });
+            let { raffleWins: A } = (0, d.Cn)((null == E ? void 0 : E.id) ?? ""),
               { theme: M } = (0, n.useTheme)(),
               [L, F] = (0, u.useState)(!1),
-              [O, D] = (0, u.useState)(""),
-              [T, B] = (0, u.useState)(null),
-              z = (0, u.useMemo)(() => new o.default(s, { keys: ["title", "secondaryTitle", "ecosystem", "categories"], threshold: 0.3, shouldSort: !0 }), [s]),
-              V = (0, u.useMemo)(() => {
-                if (!O) return (0, y.pu)(s);
-                let e = z.search(O);
+              [_, O] = (0, u.useState)(""),
+              [T, D] = (0, u.useState)(null),
+              B = (0, u.useMemo)(() => new o.default(s, { keys: ["title", "secondaryTitle", "ecosystem", "categories"], threshold: 0.3, shouldSort: !0 }), [s]),
+              z = (0, u.useMemo)(() => {
+                if (!_) return (0, y.pu)(s);
+                let e = B.search(_);
                 return (0, y.pu)(e.map(e => e.item));
-              }, [s, O, z]),
-              P = (0, u.useMemo)(() => {
-                let e = V.filter(e => k.has(e.id ?? ""));
-                return (null == E ? void 0 : E.length) || (null == Z ? void 0 : Z.length)
+              }, [s, _, B]),
+              V = (0, u.useMemo)(() => {
+                let e = z.filter(e => k.has(e.id ?? ""));
+                return (null == S ? void 0 : S.length) || (null == Z ? void 0 : Z.length)
                   ? e.filter(
                       e =>
-                        (!(null == E ? void 0 : E.length) ||
-                          E.every(t => {
+                        (!(null == S ? void 0 : S.length) ||
+                          S.every(t => {
                             var l;
                             return null === (l = e.categories) || void 0 === l ? void 0 : l.includes(t);
                           })) &&
@@ -239,8 +239,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                           }))
                     )
                   : e;
-              }, [V, E, Z, k]),
-              R = (null == Z ? void 0 : Z.length) + (null == E ? void 0 : E.length);
+              }, [z, S, Z, k]),
+              P = (null == Z ? void 0 : Z.length) + (null == S ? void 0 : S.length);
             return (0, a.jsx)(r.Z, {
               fullScreen: !0,
               isOpen: t,
@@ -248,30 +248,30 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               title: "Bookmarks",
               className: "flex-1",
               children:
-                0 !== P.length || 0 !== R || w || O
+                0 !== V.length || 0 !== P || w || _
                   ? (0, a.jsxs)("div", {
                       className: "flex flex-col gap-4 h-full",
-                      ref: B,
+                      ref: D,
                       children: [
-                        (0, a.jsx)(C.z5, { setIsFilterDrawerOpen: F, setSearch: D }),
-                        E.length > 0 || Z.length > 0 ? (0, a.jsx)(p.$, {}) : null,
-                        0 === P.length && !w && (0, a.jsx)(f.M, { className: "mt-3 flex-1 h-full", filterType: O ? "search" : "no-results" }),
-                        P.length > 0
+                        (0, a.jsx)(C.z5, { setIsFilterDrawerOpen: F, setSearch: O }),
+                        S.length > 0 || Z.length > 0 ? (0, a.jsx)(p.$, {}) : null,
+                        0 === V.length && !w && (0, a.jsx)(f.M, { className: "mt-3 flex-1 h-full", filterType: _ ? "search" : "no-results" }),
+                        V.length > 0
                           ? (0, a.jsx)("div", {
                               className: "h-full flex flex-col flex-1",
                               children: (0, a.jsx)(h.OO, {
                                 components: { Footer: N },
                                 customScrollParent: T ?? void 0,
                                 style: { height: "100%" },
-                                totalCount: P.length,
+                                totalCount: V.length,
                                 itemContent: e => {
-                                  let t = P[e];
+                                  let t = V[e];
                                   return (0, a.jsx)(
                                     b.ZP,
                                     {
                                       ...t,
                                       pageName: i.q.Bookmark,
-                                      isSearched: "" !== O,
+                                      isSearched: "" !== _,
                                       isBookmarked: k.has(t.id ?? ""),
                                       userWon: !!(null == A ? void 0 : A.find(e => e.id === t.id))
                                     },
@@ -283,7 +283,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                           : w
                             ? (0, a.jsx)("div", { className: "space-y-4 isolate", children: (0, a.jsx)(m.V, {}) })
                             : null,
-                        (0, a.jsx)(j.Z, { isChad: (null == S ? void 0 : S.isChad) ?? !1, raffles: s, isShown: L, onClose: () => F(!1), pageName: i.q.Bookmark })
+                        (0, a.jsx)(j.Z, { isChad: (null == E ? void 0 : E.isChad) ?? !1, raffles: s, isShown: L, onClose: () => F(!1), pageName: i.q.Bookmark })
                       ]
                     })
                   : (0, a.jsx)(x.Z, {
@@ -370,37 +370,51 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
     76239: function (e, t, l) {
       l.a(e, async function (e, s) {
         try {
-          l.d(t, { Z: () => f });
+          l.d(t, { Z: () => p });
           var a = l(52322),
-            n = l(26571),
-            r = l(74229),
-            i = l(36400),
-            o = l(4914),
-            c = l(24542),
-            d = l.n(c),
-            u = l(2784),
-            h = l(74481),
-            m = l(8420),
-            x = e([i]);
-          function f(e) {
+            n = l(92642),
+            r = l(26571),
+            i = l(74229),
+            o = l(36400),
+            c = l(4914),
+            d = l(24542),
+            u = l.n(d),
+            h = l(2784),
+            m = l(74481),
+            x = l(8420),
+            f = e([o]);
+          function p(e) {
             var t;
-            let { ecosystemFilters: l, pageName: s, isChad: c, onClose: x } = e,
-              { chains: f } = (0, o.w)(),
-              p = (0, i.pb)(),
-              v = (0, r.os)(),
-              g = (0, r.a1)(),
-              y = Object.values(p),
+            let { ecosystemFilters: l, pageName: s, isChad: d, onClose: f } = e,
+              { chains: p } = (0, c.w)(),
+              v = (0, o.pb)(),
+              g = (0, i.os)(),
+              y = (0, i.a1)(),
               j = Object.values(v),
-              C = [...y, ...j],
-              { selectedOpportunities: b, selectedEcosystems: w, setEcosystems: N } = (0, m.o)(),
-              k = (0, u.useCallback)(
+              C = Object.values(g),
+              b = [...j, ...C],
+              { selectedOpportunities: w, selectedEcosystems: N, setEcosystems: k } = (0, x.o)(),
+              E = (0, h.useCallback)(
                 e => {
                   try {
-                    let t = (null == w ? void 0 : w.includes(e)) ? w.filter(t => t !== e) : [...(w || []), e];
-                    N(t), x(), d().track(n.B_.Filters, { filterSelected: [...(b || []), ...(t || [])], filterApplySource: s, isChad: c });
-                  } catch (e) {}
+                    let t = (null == N ? void 0 : N.includes(e)) ? N.filter(t => t !== e) : [...(N || []), e];
+                    k(t), f(), u().track(r.B_.Filters, { filterSelected: [...(w || []), ...(t || [])], filterApplySource: s, isChad: d });
+                  } catch (e) {
+                    (0, n.Tb)(e, {
+                      tags: {
+                        errorType: "chad_ecosystem_filter_error",
+                        source: "chad_ecosystem_filter",
+                        severity: "error",
+                        errorName: e instanceof Error ? e.name : "ChadEcosystemFilterError"
+                      },
+                      fingerprint: ["chad_ecosystem_filter", "chad_ecosystem_filter_error"],
+                      level: "error",
+                      contexts: { transaction: { type: "chad_ecosystem_filter", errorMessage: e instanceof Error ? e.message : String(e) } },
+                      extra: { ecosystemFilters: l, pageName: s, isChad: d }
+                    });
+                  }
                 },
-                [b, w, N, s, c, x]
+                [w, N, k, s, d, f]
               );
             return (0, a.jsxs)("div", {
               className: "flex flex-col gap-5",
@@ -415,8 +429,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                         ? void 0
                         : t.map((e, t) => {
                             var s, n;
-                            let r = f.find(t => t.name.toLowerCase().startsWith(null == e ? void 0 : e.toLowerCase().split(" ")[0])),
-                              i = C.find(t => t.chainName.toLowerCase().startsWith(null == e ? void 0 : e.toLowerCase().split(" ")[0])),
+                            let r = p.find(t => t.name.toLowerCase().startsWith(null == e ? void 0 : e.toLowerCase().split(" ")[0])),
+                              i = b.find(t => t.chainName.toLowerCase().startsWith(null == e ? void 0 : e.toLowerCase().split(" ")[0])),
                               o =
                                 i && (null == i ? void 0 : i.chainSymbolImageUrl)
                                   ? null == i
@@ -425,16 +439,16 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                                   : (r &&
                                       ((null == r ? void 0 : null === (s = r.image) || void 0 === s ? void 0 : s.small) ||
                                         (null == r ? void 0 : null === (n = r.image) || void 0 === n ? void 0 : n.large))) ||
-                                    g;
+                                    y;
                             return (0, a.jsx)(
-                              h.Z,
+                              m.Z,
                               {
                                 icon: o,
                                 label: e,
                                 isLast: t === l.length - 1,
-                                isSelected: null == w ? void 0 : w.includes(e),
-                                onSelect: () => k(e),
-                                onRemove: () => k(e)
+                                isSelected: null == N ? void 0 : N.includes(e),
+                                onSelect: () => E(e),
+                                onRemove: () => E(e)
                               },
                               e
                             );
@@ -443,7 +457,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               ]
             });
           }
-          (i = (x.then ? (await x)() : x)[0]), s();
+          (o = (f.then ? (await f)() : f)[0]), s();
         } catch (e) {
           s(e);
         }
@@ -712,7 +726,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
     28401: function (e, t, l) {
       l.a(e, async function (e, s) {
         try {
-          l.d(t, { Z: () => V });
+          l.d(t, { Z: () => z });
           var a = l(52322),
             n = l(41172),
             r = l(48039),
@@ -735,31 +749,31 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             w = l(35492),
             N = l(69019),
             k = l(64502),
-            S = l(39331),
-            E = l(23393),
+            E = l(39331),
+            S = l(23393),
             Z = l(11151),
             A = l(8420),
             M = l(91064),
             L = l(25294),
             F = l(97222),
-            O = l(88987),
-            D = l(38742),
+            _ = l(88987),
+            O = l(38742),
             T = l(92404),
-            B = e([f, F]);
-          function z() {
+            D = e([f, F]);
+          function B() {
             return (0, a.jsx)("div", { style: { padding: "2rem", textAlign: "center" }, children: " " });
           }
-          [f, F] = B.then ? (await B)() : B;
-          let V = (0, g.Pi)(function () {
+          [f, F] = D.then ? (await D)() : D;
+          let z = (0, g.Pi)(function () {
             let { raffles: e, isLoading: t } = (0, p.Zw)(),
               { selectedOpportunities: l, selectedEcosystems: s, alphaUser: d, openDetails: g } = (0, A.o)(),
-              { bookmarks: B } = (0, Z.S7)(),
-              { raffleWins: V } = (0, p.Cn)((null == d ? void 0 : d.id) ?? ""),
-              P = (0, v.K)(),
-              R = P.get(b.S.alphaDateStatus),
-              [_, W] = (0, y.useState)(""),
-              H = (0, n.NrF)(_, 1e3),
-              [I, $] = (0, y.useState)(!1),
+              { bookmarks: D } = (0, Z.S7)(),
+              { raffleWins: z } = (0, p.Cn)((null == d ? void 0 : d.id) ?? ""),
+              V = (0, v.K)(),
+              P = V.get(b.S.alphaDateStatus),
+              [R, H] = (0, y.useState)(""),
+              I = (0, n.NrF)(R, 1e3),
+              [W, $] = (0, y.useState)(!1),
               [q, Y] = (0, y.useState)(""),
               [U, K] = (0, y.useState)(null),
               G = (0, y.useRef)(null);
@@ -770,35 +784,35 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 q && setTimeout(() => Y(""), 2e3);
               }, [q]),
               (0, y.useEffect)(() => {
-                let t = P.get("listingId");
+                let t = V.get("listingId");
                 if (t && e.length > 0) {
                   let l = e.find(e => e.id === t);
-                  l && g({ ...l, isBookmarked: B.has(l.id), pageName: c.q.ChadExclusives, userWon: !!(null == V ? void 0 : V.find(e => e.id === l.id)) });
+                  l && g({ ...l, isBookmarked: D.has(l.id), pageName: c.q.ChadExclusives, userWon: !!(null == z ? void 0 : z.find(e => e.id === l.id)) });
                 }
-              }, [P, g, e, I, B, V]);
+              }, [V, g, e, W, D, z]);
             let X = (0, y.useMemo)(
                 () => new x.default(e, { keys: ["title", "secondaryTitle", "ecosystem", "categories"], threshold: 0.3, shouldSort: !0 }),
                 [e]
               ),
               J = (0, y.useMemo)(() => {
-                if (!_) return (0, M.pu)(e);
-                let t = X.search(_);
+                if (!R) return (0, M.pu)(e);
+                let t = X.search(R);
                 return (0, M.pu)(t.map(e => e.item));
-              }, [e, _, X]),
+              }, [e, R, X]),
               Q = (0, y.useMemo)(
                 () =>
-                  (null == l ? void 0 : l.length) || (null == s ? void 0 : s.length) || R
-                    ? (R
+                  (null == l ? void 0 : l.length) || (null == s ? void 0 : s.length) || P
+                    ? (P
                         ? J.filter(e => {
                             let t = u()(e.startsAt),
                               l = u()(e.endsAt),
                               s = u()(),
                               a = s.diff(t, "second");
-                            return R === D.rr.Live
+                            return P === O.rr.Live
                               ? e.endsAt && a >= 0 && e.status !== p.rk.COMPLETED && "Ended" !== (0, M.pW)(e.endsAt)
-                              : R === D.rr.Upcoming
+                              : P === O.rr.Upcoming
                                 ? t.isAfter(s)
-                                : R === D.rr.Ended
+                                : P === O.rr.Ended
                                   ? l.isBefore(s)
                                   : void 0;
                           })
@@ -817,19 +831,19 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                             }))
                       )
                     : J,
-                [l, s, R, J]
+                [l, s, P, J]
               );
             (0, y.useEffect)(() => {
-              H &&
+              I &&
                 (0, w.W)(c.B_.SearchDone, {
-                  searchTerm: H,
+                  searchTerm: I,
                   searchResultsCount: Q.length,
                   topResults: Q.slice(0, 5).map(e => e.id),
                   page: c.q.ChadExclusives,
                   isChad: (null == d ? void 0 : d.isChad) ?? !1
                 });
-            }, [H]);
-            let ee = (0, y.useMemo)(() => (_ ? "search" : R || "no-results"), [_, R]);
+            }, [I]);
+            let ee = (0, y.useMemo)(() => (R ? "search" : P || "no-results"), [R, P]);
             return e.length < 1 && !t
               ? (0, a.jsx)(h.E.div, {
                   initial: { opacity: 0, y: 20 },
@@ -848,30 +862,30 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     !(null == d ? void 0 : d.isChad) && (0, a.jsx)(L.N, {}),
                     (0, a.jsx)(T.T, { className: (null == d ? void 0 : d.isChad) ? "" : "mt-8", isChad: (null == d ? void 0 : d.isChad) ?? !1 }),
                     (0, a.jsx)(o.Z, { className: "my-7" }),
-                    (0, a.jsx)(D.z5, { className: "mb-7", setSearch: W, setIsFilterDrawerOpen: $ }),
+                    (0, a.jsx)(O.z5, { className: "mb-7", setSearch: H, setIsFilterDrawerOpen: $ }),
                     (0, a.jsxs)(m.M, {
                       children: [
-                        l.length > 0 || s.length > 0 ? (0, a.jsx)(E.$, {}) : null,
-                        0 === Q.length && !t && (0, a.jsx)(S.M, { filterType: ee, className: "mb-9" }),
+                        l.length > 0 || s.length > 0 ? (0, a.jsx)(S.$, {}) : null,
+                        0 === Q.length && !t && (0, a.jsx)(E.M, { filterType: ee, className: "mb-9" }),
                         Q.length > 0 &&
                           (0, a.jsx)("div", {
                             className: "h-full flex flex-col flex-1",
                             children: (0, a.jsx)(j.OO, {
                               ref: G,
-                              components: { Footer: z },
+                              components: { Footer: B },
                               customScrollParent: U ?? void 0,
                               style: { height: "100%" },
                               totalCount: Q.length,
                               itemContent: e => {
                                 let t = Q[e];
                                 return (0, a.jsx)(
-                                  O.ZP,
+                                  _.ZP,
                                   {
                                     ...t,
                                     pageName: c.q.ChadExclusives,
-                                    isSearched: "" !== _,
-                                    isBookmarked: B.has(t.id ?? ""),
-                                    userWon: !!(null == V ? void 0 : V.find(e => e.id === t.id))
+                                    isSearched: "" !== R,
+                                    isBookmarked: D.has(t.id ?? ""),
+                                    userWon: !!(null == z ? void 0 : z.find(e => e.id === t.id))
                                   },
                                   `${t.id}-${e}`
                                 );
@@ -882,7 +896,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                         (0, a.jsx)(F.Z, {
                           isChad: (null == d ? void 0 : d.isChad) ?? !1,
                           raffles: e,
-                          isShown: I,
+                          isShown: W,
                           onClose: () => $(!1),
                           pageName: c.q.ChadExclusives
                         })
@@ -916,127 +930,141 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
     22256: function (e, t, l) {
       l.a(e, async function (e, s) {
         try {
-          l.d(t, { Z: () => F });
+          l.d(t, { Z: () => _ });
           var a = l(52322),
             n = l(41172),
             r = l(48039),
             i = l(6011),
-            o = l(55334),
-            c = l(96217),
-            d = l(69816),
-            u = l(91486),
-            h = l(12334),
-            m = l(26571),
-            x = l(53108),
-            f = l(28879),
-            p = l.n(f),
-            v = l(14981),
-            g = l(4370),
-            y = l(78646),
-            j = l(5254),
-            C = l(57667),
-            b = l(2784),
-            w = l(35492),
-            N = l(72565),
-            k = l.n(N),
+            o = l(92642),
+            c = l(55334),
+            d = l(96217),
+            u = l(69816),
+            h = l(91486),
+            m = l(12334),
+            x = l(26571),
+            f = l(53108),
+            p = l(28879),
+            v = l.n(p),
+            g = l(14981),
+            y = l(4370),
+            j = l(78646),
+            C = l(5254),
+            b = l(57667),
+            w = l(2784),
+            N = l(35492),
+            k = l(72565),
+            E = l.n(k),
             S = l(78233),
-            E = l(16733),
-            Z = l(8420),
-            A = l(91064),
-            M = l(10723),
-            L = e([y]);
-          y = (L.then ? (await L)() : L)[0];
-          let O = p()();
-          function F(e) {
+            Z = l(16733),
+            A = l(8420),
+            M = l(91064),
+            L = l(10723),
+            F = e([j]);
+          j = (F.then ? (await F)() : F)[0];
+          let O = v()();
+          function _(e) {
             let { isShown: t, onClose: l, raffle: s } = e,
-              { alphaUser: f } = (0, Z.o)();
-            (0, y.a)(m.q.ChadExclusivesDetail, t, {
-              isChad: (null == f ? void 0 : f.isChad) ?? !1,
+              { alphaUser: p } = (0, A.o)();
+            (0, j.a)(x.q.ChadExclusivesDetail, t, {
+              isChad: (null == p ? void 0 : p.isChad) ?? !1,
               ecosystem: [...new Set((null == s ? void 0 : s.ecosystem) ?? [])],
               categories: [...new Set((null == s ? void 0 : s.categories) ?? [])]
             });
-            let { raffleWins: N } = (0, j.Cn)((null == f ? void 0 : f.id) ?? ""),
-              [L, F] = (0, b.useState)(""),
-              D = (0, b.useMemo)(() => p()(null == s ? void 0 : s.endsAt), [null == s ? void 0 : s.endsAt]),
-              T = (0, b.useMemo)(() => p()(null == s ? void 0 : s.startsAt), [null == s ? void 0 : s.startsAt]),
-              [B, z] = (0, b.useState)(T.isAfter(O)),
-              [V, P] = (0, b.useState)((null == s ? void 0 : s.status) === j.rk.COMPLETED ? 0 : D.diff(O, "second")),
-              R = (0, b.useMemo)(
+            let { raffleWins: k } = (0, C.Cn)((null == p ? void 0 : p.id) ?? ""),
+              [F, _] = (0, w.useState)(""),
+              T = (0, w.useMemo)(() => v()(null == s ? void 0 : s.endsAt), [null == s ? void 0 : s.endsAt]),
+              D = (0, w.useMemo)(() => v()(null == s ? void 0 : s.startsAt), [null == s ? void 0 : s.startsAt]),
+              [B, z] = (0, w.useState)(D.isAfter(O)),
+              [V, P] = (0, w.useState)((null == s ? void 0 : s.status) === C.rk.COMPLETED ? 0 : T.diff(O, "second")),
+              R = (0, w.useMemo)(
                 () =>
                   !!(
                     (null == s ? void 0 : s.endsAt) &&
                     V >= 0 &&
-                    (null == s ? void 0 : s.status) !== j.rk.COMPLETED &&
-                    "Ended" !== (0, A.pW)(null == s ? void 0 : s.endsAt)
+                    (null == s ? void 0 : s.status) !== C.rk.COMPLETED &&
+                    "Ended" !== (0, M.pW)(null == s ? void 0 : s.endsAt)
                   ),
                 [V, null == s ? void 0 : s.endsAt, null == s ? void 0 : s.status]
               );
-            (0, b.useEffect)(() => {
+            (0, w.useEffect)(() => {
               let e = () => {
-                let e = p()(),
-                  t = T.isAfter(e),
-                  l = (null == s ? void 0 : s.status) === j.rk.COMPLETED ? 0 : D.diff(e, "second");
+                let e = v()(),
+                  t = D.isAfter(e),
+                  l = (null == s ? void 0 : s.status) === C.rk.COMPLETED ? 0 : T.diff(e, "second");
                 z(t), P(l);
               };
               e();
               let t = setInterval(e, 1e3);
               return () => clearInterval(t);
-            }, [null == s ? void 0 : s.status, T, D]);
-            let { hasEntered: _, isLoading: W, refetch: H } = (0, C.C)(null == s ? void 0 : s.id, null == f ? void 0 : f.id),
-              I = (0, b.useMemo)(() => N.find(e => e.id === (null == s ? void 0 : s.id)), [N, null == s ? void 0 : s.id]);
-            (0, b.useEffect)(() => {
-              L && setTimeout(() => F(""), 2e3);
-            }, [L]),
-              (0, b.useEffect)(() => {
+            }, [null == s ? void 0 : s.status, D, T]);
+            let { hasEntered: H, isLoading: I, refetch: W } = (0, b.C)(null == s ? void 0 : s.id, null == p ? void 0 : p.id),
+              $ = (0, w.useMemo)(() => k.find(e => e.id === (null == s ? void 0 : s.id)), [k, null == s ? void 0 : s.id]);
+            (0, w.useEffect)(() => {
+              F && setTimeout(() => _(""), 2e3);
+            }, [F]),
+              (0, w.useEffect)(() => {
                 (async () => {
-                  if (t && I && (null == s ? void 0 : s.id)) {
-                    let e = (await k().storage.local.get(x.M7))[x.M7] || [];
+                  if (t && $ && (null == s ? void 0 : s.id)) {
+                    let e = (await E().storage.local.get(f.M7))[f.M7] || [];
                     if (!e.includes(s.id)) {
                       let t = [...e, s.id];
-                      await k().storage.local.set({ [x.M7]: t });
+                      await E().storage.local.set({ [f.M7]: t });
                     }
                   }
                 })();
-              }, [t, I, null == s ? void 0 : s.id]);
-            let $ = (0, b.useCallback)(async () => {
+              }, [t, $, null == s ? void 0 : s.id]);
+            let q = (0, w.useCallback)(async () => {
               try {
                 let e = (0, n.O65)(),
                   t = `${e}/alpha-insights/raffle-entries`;
-                await o.Z.post(t, { raffleId: null == s ? void 0 : s.id, userId: null == f ? void 0 : f.id }),
-                  (0, w.W)(m.B_.ButtonClick, {
-                    buttonName: m.$S.ENTER_RAFFLE,
-                    ButtonPageName: m.q.ChadExclusivesDetail,
-                    isChad: (null == f ? void 0 : f.isChad) ?? !1
+                await c.Z.post(t, { raffleId: null == s ? void 0 : s.id, userId: null == p ? void 0 : p.id }),
+                  (0, N.W)(x.B_.ButtonClick, {
+                    buttonName: x.$S.ENTER_RAFFLE,
+                    ButtonPageName: x.q.ChadExclusivesDetail,
+                    isChad: (null == p ? void 0 : p.isChad) ?? !1
                   }),
-                  await H();
-              } catch (e) {}
-            }, [null == f ? void 0 : f.id, null == s ? void 0 : s.id, H]);
+                  await W();
+              } catch (e) {
+                (0, o.Tb)(e, {
+                  tags: {
+                    errorType: "handle_enter_raffle_error",
+                    source: "handle_enter_raffle",
+                    severity: "error",
+                    errorName: e instanceof Error ? e.name : "HandleEnterRaffleError"
+                  },
+                  fingerprint: ["handle_enter_raffle", "handle_enter_raffle_error"],
+                  level: "error",
+                  contexts: { transaction: { type: "handle_enter_raffle", errorMessage: e instanceof Error ? e.message : String(e) } },
+                  extra: { raffleId: null == s ? void 0 : s.id, userId: null == p ? void 0 : p.id }
+                });
+              }
+            }, [null == p ? void 0 : p.id, null == s ? void 0 : s.id, W]);
             return (0, a.jsxs)(a.Fragment, {
               children: [
-                (0, a.jsxs)(c.Z, {
+                (0, a.jsxs)(d.Z, {
                   fullScreen: !0,
                   title: "Reward Details",
                   isOpen: t,
                   onClose: l,
                   className: "px-6 pt-8 flex flex-col gap-6",
-                  footerComponent: I
-                    ? (0, a.jsx)(u.zx, { className: "w-full", children: "Claim now" })
-                    : _
-                      ? (0, a.jsxs)(u.zx, {
+                  footerComponent: $
+                    ? (0, a.jsx)(h.zx, { className: "w-full", children: "Claim now" })
+                    : H
+                      ? (0, a.jsxs)(h.zx, {
                           className: "w-full",
-                          onClick: $,
+                          onClick: q,
                           disabled: !0,
                           children: [(0, a.jsx)(i.f, { size: 20, weight: "bold" }), "You have entered!"]
                         })
                       : R
-                        ? (0, a.jsx)(u.zx, { className: "w-full", children: "Enter giveaway" })
-                        : (0, a.jsx)(u.zx, { className: "w-full", children: "View more exclusives" }),
+                        ? (0, a.jsx)(h.zx, { className: "w-full", children: "Enter giveaway" })
+                        : (0, a.jsx)(h.zx, { className: "w-full", children: "View more exclusives" }),
                   children: [
                     (0, a.jsxs)("header", {
                       className: "space-y-3",
                       children: [
                         (0, a.jsx)("h1", { className: "text-center text-xl font-bold", children: null == s ? void 0 : s.title }),
-                        (0, a.jsx)(E.Z, {
+                        (0, a.jsx)(Z.Z, {
                           className: "justify-center",
                           ecosystemFilter: (null == s ? void 0 : s.ecosystem) ?? [],
                           categoryFilter: (null == s ? void 0 : s.categories) ?? []
@@ -1047,14 +1075,14 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                       src: (null == s ? void 0 : s.bannerImage) ?? `https://placehold.co/40x40?text=${null == s ? void 0 : s.secondaryTitle}`,
                       className: "w-full h-[107px] rounded-lg object-cover"
                     }),
-                    (0, a.jsx)(h.Z, {}),
-                    (0, a.jsx)(v.M, {
+                    (0, a.jsx)(m.Z, {}),
+                    (0, a.jsx)(g.M, {
                       mode: "wait",
-                      children: W
-                        ? (0, a.jsx)(M.Uv, {}, "loading")
+                      children: I
+                        ? (0, a.jsx)(L.Uv, {}, "loading")
                         : B
                           ? (0, a.jsx)(
-                              M._N,
+                              L._N,
                               {
                                 title: "Stay tuned, starting in",
                                 endDate: (null == s ? void 0 : s.startsAt) ?? "",
@@ -1064,9 +1092,9 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                               },
                               "subscription-countdown"
                             )
-                          : !_ && (null == f ? void 0 : f.isChad) && V > 0
+                          : !H && (null == p ? void 0 : p.isChad) && V > 0
                             ? (0, a.jsx)(
-                                M._N,
+                                L._N,
                                 {
                                   title: "Giveaway ends in",
                                   endDate: (null == s ? void 0 : s.endsAt) ?? "",
@@ -1076,27 +1104,27 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                                 },
                                 "subscription-countdown"
                               )
-                            : _ && (null == s ? void 0 : s.status) !== j.rk.COMPLETED
-                              ? (0, a.jsx)(M.Rv, {}, "result-soon")
-                              : I
-                                ? (0, a.jsx)(M.bS, { rewardUnit: null == s ? void 0 : s.rewardUnitName }, "raffle-winner")
-                                : _ && !I
-                                  ? (0, a.jsx)(M._u, {}, "not-winner")
-                                  : (null == f ? void 0 : f.isChad) || !(V > 0)
+                            : H && (null == s ? void 0 : s.status) !== C.rk.COMPLETED
+                              ? (0, a.jsx)(L.Rv, {}, "result-soon")
+                              : $
+                                ? (0, a.jsx)(L.bS, { rewardUnit: null == s ? void 0 : s.rewardUnitName }, "raffle-winner")
+                                : H && !$
+                                  ? (0, a.jsx)(L._u, {}, "not-winner")
+                                  : (null == p ? void 0 : p.isChad) || !(V > 0)
                                     ? V <= 0
-                                      ? (0, a.jsx)(M.hI, {})
+                                      ? (0, a.jsx)(L.hI, {})
                                       : null
-                                    : (0, a.jsx)(M.sv, {}, "ineligible")
+                                    : (0, a.jsx)(L.sv, {}, "ineligible")
                     }),
-                    (0, a.jsx)(h.Z, {}),
+                    (0, a.jsx)(m.Z, {}),
                     (null == s ? void 0 : s.description) ? (0, a.jsx)(S.m, { ...s, pageName: s.pageName }) : null
                   ]
                 }),
                 t &&
-                  (0, a.jsx)(v.M, {
+                  (0, a.jsx)(g.M, {
                     children:
-                      L &&
-                      (0, a.jsxs)(g.E.div, {
+                      F &&
+                      (0, a.jsxs)(y.E.div, {
                         initial: { opacity: 0, y: 20 },
                         animate: { opacity: 1, y: 0 },
                         exit: { opacity: 0, y: 20 },
@@ -1104,8 +1132,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                         className:
                           "absolute bottom-24 left-0 right-0 mx-4 z-[9999] bg-green-600 dark:bg-green-600 rounded-full py-2.5 px-4 flex items-center justify-between shadow-lg",
                         children: [
-                          (0, a.jsx)(d.Z, { size: "xs", className: "font-bold text-gray-900 dark:text-white-100", children: L }),
-                          (0, a.jsx)(r.X, { size: 12, onClick: () => F(""), className: "cursor-pointer text-gray-900 dark:text-white-100 ml-2" })
+                          (0, a.jsx)(u.Z, { size: "xs", className: "font-bold text-gray-900 dark:text-white-100", children: F }),
+                          (0, a.jsx)(r.X, { size: 12, onClick: () => _(""), className: "cursor-pointer text-gray-900 dark:text-white-100 ml-2" })
                         ]
                       })
                   })
@@ -1249,7 +1277,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
       }
     },
     88987: function (e, t, l) {
-      l.d(t, { ZP: () => _ });
+      l.d(t, { ZP: () => R });
       var s = l(52322),
         a = l(2784),
         n = l(6806);
@@ -1343,15 +1371,15 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         w = l(5254),
         N = l(42941),
         k = l(95862),
-        S = l(70514),
-        E = l(35153),
+        E = l(70514),
+        S = l(35153),
         Z = l(35492),
         A = l(16733),
         M = l(11151),
         L = l(8420),
         F = l(97323),
-        O = l(91064),
-        D = l(43342);
+        _ = l(91064),
+        O = l(43342);
       function T(e) {
         let { alt: t, image: l } = e;
         return (0, s.jsx)("img", {
@@ -1363,12 +1391,12 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           }
         });
       }
-      var B = l(38742);
-      let z = e => `cloned-bookmark-icon-${e}`,
-        V = (e, t, l) => {
+      var D = l(38742);
+      let B = e => `cloned-bookmark-icon-${e}`,
+        z = (e, t, l) => {
           var s;
-          let a = null === (s = document.getElementById(D.y)) || void 0 === s ? void 0 : s.cloneNode(!0);
-          (a.id = z(e)), (a.style.zIndex = "999"), (a.style.display = "block"), document.body.appendChild(a);
+          let a = null === (s = document.getElementById(O.y)) || void 0 === s ? void 0 : s.cloneNode(!0);
+          (a.id = B(e)), (a.style.zIndex = "999"), (a.style.display = "block"), document.body.appendChild(a);
           let n = l.getBoundingClientRect();
           (a.style.position = "fixed"), (a.style.left = `${n.left}px`), (a.style.top = `${n.top}px`);
           let r = t.getBoundingClientRect(),
@@ -1386,9 +1414,9 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             i
           );
         },
-        P = { initial: { opacity: 0, y: 10 }, animate: { opacity: 1, y: 0 } },
-        R = { duration: 0.3, ease: "easeOut" };
-      function _(e) {
+        V = { initial: { opacity: 0, y: 10 }, animate: { opacity: 1, y: 0 } },
+        P = { duration: 0.3, ease: "easeOut" };
+      function R(e) {
         let {
             title: t,
             startsAt: l,
@@ -1404,31 +1432,31 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             redirectUrl: x
           } = e,
           f = (0, N.K)(),
-          { toggleBookmark: j, isBookmarked: _ } = (0, M.ZE)(),
-          { setOpportunities: W, setEcosystems: H, selectedOpportunities: I, selectedEcosystems: $, openDetails: q, alphaUser: Y } = (0, L.o)(),
+          { toggleBookmark: j, isBookmarked: R } = (0, M.ZE)(),
+          { setOpportunities: H, setEcosystems: I, selectedOpportunities: W, selectedEcosystems: $, openDetails: q, alphaUser: Y } = (0, L.o)(),
           { setOpportunities: U, setEcosystems: K, selectedOpportunities: G, selectedEcosystems: X } = (0, F.m)(),
           J = (0, a.useRef)(null),
           Q = (0, a.useRef)(null),
           ee = (0, a.useCallback)(
             e => {
-              h ? K([...(X || []), e]) : H([...($ || []), e]);
+              h ? K([...(X || []), e]) : I([...($ || []), e]);
             },
-            [$, H, X, K, h]
+            [$, I, X, K, h]
           ),
           et = (0, a.useCallback)(
             e => {
-              h ? U([...(G || []), e]) : W([...(I || []), e]);
+              h ? U([...(G || []), e]) : H([...(W || []), e]);
             },
-            [I, W, G, U, h]
+            [W, H, G, U, h]
           ),
           el = (0, a.useCallback)(() => {
-            f.get(E.S.alphaDateStatus) === B.rr.Live ? f.remove(E.S.alphaDateStatus) : f.set(E.S.alphaDateStatus, B.rr.Live);
+            f.get(S.S.alphaDateStatus) === D.rr.Live ? f.remove(S.S.alphaDateStatus) : f.set(S.S.alphaDateStatus, D.rr.Live);
           }, [f]);
         (0, a.useEffect)(
           () => () => {
             if (Q.current) {
               var e;
-              Q.current.cancel(), null === (e = document.getElementById(z(d))) || void 0 === e || e.remove();
+              Q.current.cancel(), null === (e = document.getElementById(B(d))) || void 0 === e || e.remove();
             }
           },
           [d]
@@ -1438,17 +1466,17 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             return C()().diff(e, "second");
           }, [l]),
           ea = (0, a.useMemo)(() => {
-            if (es < 0) return `Starts in ${(0, O.Or)(l)}`;
-            let e = (0, O.pW)(n);
+            if (es < 0) return `Starts in ${(0, _.Or)(l)}`;
+            let e = (0, _.pW)(n);
             return r === w.rk.COMPLETED || "Ended" === e ? `Ended on ${C()(n).format("MMM D, YYYY")}` : e;
           }, [es, n, r, l]),
-          en = (0, a.useMemo)(() => !!(n && es >= 0 && r !== w.rk.COMPLETED && "Ended" !== (0, O.pW)(n)), [es, n, r]),
-          er = (0, a.useMemo)(() => r === w.rk.COMPLETED || "Ended" === (0, O.pW)(n), [n, r]);
+          en = (0, a.useMemo)(() => !!(n && es >= 0 && r !== w.rk.COMPLETED && "Ended" !== (0, _.pW)(n)), [es, n, r]),
+          er = (0, a.useMemo)(() => r === w.rk.COMPLETED || "Ended" === (0, _.pW)(n), [n, r]);
         return (0, s.jsxs)(b.E.div, {
           initial: "initial",
           animate: "animate",
-          variants: P,
-          transition: R,
+          variants: V,
+          transition: P,
           onClick: () => {
             if (x) {
               (0, Z.W)(y.B_.PageView, {
@@ -1475,7 +1503,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 isChad: (null == Y ? void 0 : Y.isChad) ?? !1
               });
           },
-          className: (0, S.cn)(
+          className: (0, E.cn)(
             "flex items-start cursor-pointer p-5 transition-colors duration-200 ease-in-out gap-4 flex-col rounded-2xl border mb-4 border-secondary-300",
             er ? "bg-secondary" : "gradient-linear-mono"
           ),
@@ -1521,9 +1549,9 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   : (0, s.jsx)("button", {
                       onClick: e => {
                         e.stopPropagation();
-                        let l = _(d),
-                          s = document.getElementById(D.f);
-                        !l && s && J.current && (Q.current = V(d, s, J.current)),
+                        let l = R(d),
+                          s = document.getElementById(O.f);
+                        !l && s && J.current && (Q.current = z(d, s, J.current)),
                           j(d),
                           (0, Z.W)(y.B_.Bookmark, {
                             [l ? "bookmarkRemoved" : "bookmarkAdded"]: d,
@@ -1534,8 +1562,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                       },
                       children: (0, s.jsx)(v.W, {
                         ref: J,
-                        weight: _(d) ? "fill" : "regular",
-                        className: (0, S.cn)("size-6", _(d) ? "text-primary" : "text- dark:text-gray-400")
+                        weight: R(d) ? "fill" : "regular",
+                        className: (0, E.cn)("size-6", R(d) ? "text-primary" : "text- dark:text-gray-400")
                       })
                     })
               ]

@@ -4,12 +4,12 @@
       n = new e.Error().stack;
     n &&
       ((e._sentryDebugIds = e._sentryDebugIds || {}),
-      (e._sentryDebugIds[n] = "4107fdf9-e7b7-407c-9a82-2bc114708799"),
-      (e._sentryDebugIdIdentifier = "sentry-dbid-4107fdf9-e7b7-407c-9a82-2bc114708799"));
+      (e._sentryDebugIds[n] = "5fe428a3-d19e-4266-b958-5205ebd4bd06"),
+      (e._sentryDebugIdIdentifier = "sentry-dbid-5fe428a3-d19e-4266-b958-5205ebd4bd06"));
   } catch (e) {}
 })();
 var _global = "undefined" != typeof window ? window : "undefined" != typeof global ? global : "undefined" != typeof self ? self : {};
-_global.SENTRY_RELEASE = { id: "0.22.9" };
+_global.SENTRY_RELEASE = { id: "0.23.1" };
 ("use strict");
 (self.webpackChunk_leap_cosmos_extension = self.webpackChunk_leap_cosmos_extension || []).push([
   ["4580"],
@@ -17,8 +17,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
     42311: function (e, n, i) {
       i.d(n, { j: () => c });
       var t = i(52322),
-        l = i(75377),
-        o = i(57124),
+        o = i(75377),
+        l = i(57124),
         a = i(30464);
       i(2784);
       var s = i(70514),
@@ -36,8 +36,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             className: h,
             imageClassName: f
           } = e,
-          v = (0, o.a)();
-        return (0, t.jsx)(l.GenericCard, {
+          v = (0, l.a)();
+        return (0, t.jsx)(o.GenericCard, {
           title: n,
           subtitle: (0, t.jsxs)("p", { children: [i, " ", m ?? null] }),
           isRounded: c,
@@ -46,7 +46,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           icon: (0, t.jsxs)("div", {
             className: "flex items-center gap-[8px]",
             children: [
-              (0, t.jsx)(l.Toggle, { checked: x, onChange: u }),
+              (0, t.jsx)(o.Toggle, { checked: x, onChange: u }),
               (0, t.jsx)("div", { className: "h-[36px] w-[0.25px] bg-gray-200 dark:bg-gray-600" }),
               (0, t.jsx)("button", {
                 className: "cursor-pointer",
@@ -63,18 +63,18 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
     53299: function (e, n, i) {
       i.d(n, { Z: () => r });
       var t = i(52322),
-        l = i(43166),
-        o = i(85027),
+        o = i(43166),
+        l = i(85027),
         a = i(69816);
       i(2784);
       var s = i(10289);
       let r = e => {
         let { title: n, onBack: i } = e,
           r = (0, s.s0)();
-        return (0, t.jsxs)(o.m, {
+        return (0, t.jsxs)(l.m, {
           className: "bg-secondary-50 border-b border-secondary-300",
           children: [
-            (0, t.jsx)(l.X, {
+            (0, t.jsx)(o.X, {
               className: "size-9 p-2 cursor-pointer text-muted-foreground hover:text-foreground",
               onClick: () => {
                 i ? i() : r(-1);
@@ -89,8 +89,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
     43922: function (e, n, i) {
       i.d(n, { X: () => N });
       var t = i(52322),
-        l = i(4370),
-        o = i(2784),
+        o = i(4370),
+        l = i(2784),
         a = i(19623),
         s = i(7474),
         r = i(42799),
@@ -106,7 +106,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           let {
               index: n,
               token: i,
-              tokensLength: l,
+              tokensLength: o,
               handleToggleChange: a,
               fetchedTokens: s,
               onDeleteClick: r,
@@ -120,11 +120,11 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             D = m.disabledCW20Denoms,
             k = v.enabledCW20Denoms,
             { getExplorerAccountUrl: C } = (0, d.JVF)({}),
-            y = n === l - 1,
+            y = n === o - 1,
             w = (0, x.MD)((null == i ? void 0 : i.name) ?? (0, x.kC)(i.coinDenom.toLowerCase()) ?? "", 7, 4),
             M = (0, x.MD)(i.coinDenom, 4, 4),
             N = C(i.coinMinimalDenom),
-            T = (0, o.useMemo)(() => {
+            T = (0, l.useMemo)(() => {
               let e = (0, t.jsx)(f.i, { type: "native", className: "bg-[#ff9f0a1a] text-orange-500" });
               return (
                 p[i.coinMinimalDenom]
@@ -136,7 +136,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 e
               );
             }, [p, j, i.coinMinimalDenom]),
-            S = (0, o.useCallback)(
+            S = (0, l.useCallback)(
               e => {
                 e.stopPropagation(), window.open(N, "_blank");
               },
@@ -164,8 +164,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           let {
             filteredManuallyAddedTokens: n,
             handleToggleChange: i,
-            fetchedTokens: l,
-            onDeleteClick: o,
+            fetchedTokens: o,
+            onDeleteClick: l,
             fetchingContract: d,
             handleAddNewTokenClick: m,
             searchedText: u
@@ -187,8 +187,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                           token: a,
                           tokensLength: n.length,
                           handleToggleChange: i,
-                          fetchedTokens: l,
-                          onDeleteClick: o,
+                          fetchedTokens: o,
+                          onDeleteClick: l,
                           betaCW20DenomsStore: r.Xy,
                           disabledCW20DenomsStore: r.eV,
                           enabledCW20DenomsStore: r.bI,
@@ -205,18 +205,18 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         k = i(30464),
         C = i(49409);
       let y = (0, m.Pi)(e => {
-          let { token: n, tokensLength: i, index: l, handleToggleChange: a, cw20DenomsStore: s, autoFetchedCW20DenomsStore: r } = e,
+          let { token: n, tokensLength: i, index: o, handleToggleChange: a, cw20DenomsStore: s, autoFetchedCW20DenomsStore: r } = e,
             { cw20Denoms: c } = s,
             { autoFetchedCW20Denoms: m } = r,
             g = (0, D.a1)(),
             { theme: f } = (0, j.useTheme)(),
             { getExplorerAccountUrl: v } = (0, d.JVF)({}),
-            b = (0, o.useMemo)(() => ({ ...c, ...m }), [c, m]),
-            p = l === i - 1,
+            b = (0, l.useMemo)(() => ({ ...c, ...m }), [c, m]),
+            p = o === i - 1,
             y = (0, x.MD)((null == n ? void 0 : n.name) ?? (0, x.kC)(n.coinDenom.toLowerCase()) ?? "", 7, 4),
             w = (0, x.MD)(n.coinDenom, 4, 4),
             M = v(n.coinMinimalDenom),
-            N = (0, o.useCallback)(
+            N = (0, l.useCallback)(
               e => {
                 e.stopPropagation(), window.open(M, "_blank");
               },
@@ -259,36 +259,36 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   className: "flex items-center gap-[8px]",
                   children: (0, t.jsx)(j.Toggle, { checked: n.enabled, onChange: e => a(e, n.coinMinimalDenom) })
                 }),
-                className: (0, u.cn)("!bg-secondary-100 hover:!bg-secondary-200 rounded-xl mb-4 w-full !h-[66px]", 0 === l ? "mt-6" : "")
+                className: (0, u.cn)("!bg-secondary-100 hover:!bg-secondary-200 rounded-xl mb-4 w-full !h-[66px]", 0 === o ? "mt-6" : "")
               }),
               p ? (0, t.jsx)("div", { className: "h-[1px] bg-transparent mt-6" }) : null
             ]
           });
         }),
         w = e => {
-          let { filteredSupportedTokens: n, handleToggleChange: i, fetchingContract: l, handleAddNewTokenClick: o, searchedText: d } = e;
-          return !0 === l
+          let { filteredSupportedTokens: n, handleToggleChange: i, fetchingContract: o, handleAddNewTokenClick: l, searchedText: d } = e;
+          return !0 === o
             ? (0, t.jsx)("div", { className: "flex items-center justify-center flex-1", children: (0, t.jsx)(a.T, { color: "#29a874" }) })
-            : !1 === l && 0 === n.length
-              ? (0, t.jsx)(c.Pi, { onAddTokenClick: o, searchedText: d })
+            : !1 === o && 0 === n.length
+              ? (0, t.jsx)(c.Pi, { onAddTokenClick: l, searchedText: d })
               : (0, t.jsx)("div", {
                   className: "w-full px-6 flex-1",
                   children: (0, t.jsx)(s.OO, {
                     style: { flexGrow: "1", width: "100%" },
                     data: n,
-                    itemContent: (e, l) =>
+                    itemContent: (e, o) =>
                       (0, t.jsx)(
                         y,
                         {
                           activeChainStore: p.J,
                           cw20DenomsStore: r.Sg,
                           autoFetchedCW20DenomsStore: r.PZ,
-                          token: l,
+                          token: o,
                           tokensLength: n.length,
                           index: e,
                           handleToggleChange: i
                         },
-                        `${l.coinMinimalDenom}`
+                        `${o.coinMinimalDenom}`
                       )
                   })
                 });
@@ -301,7 +301,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           let {
             activeTab: n,
             setActiveTab: i,
-            filteredSupportedTokens: o,
+            filteredSupportedTokens: l,
             filteredManuallyAddedTokens: a,
             fetchedTokens: s,
             handleToggleChange: r,
@@ -327,7 +327,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                         children: [
                           e.label,
                           e.value === n &&
-                            (0, t.jsx)(l.E.div, { className: "absolute bottom-0 left-0 right-0 h-0.5 bg-primary z-10", layoutId: "active-tab-indicator" })
+                            (0, t.jsx)(o.E.div, { className: "absolute bottom-0 left-0 right-0 h-0.5 bg-primary z-10", layoutId: "active-tab-indicator" })
                         ]
                       })
                     },
@@ -336,7 +336,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 )
               }),
               "supported" === n
-                ? (0, t.jsx)(w, { filteredSupportedTokens: o, handleToggleChange: r, fetchingContract: u, handleAddNewTokenClick: d, searchedText: m })
+                ? (0, t.jsx)(w, { filteredSupportedTokens: l, handleToggleChange: r, fetchingContract: u, handleAddNewTokenClick: d, searchedText: m })
                 : (0, t.jsx)(b, {
                     filteredManuallyAddedTokens: a,
                     handleToggleChange: r,
@@ -351,20 +351,20 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         };
     },
     19326: function (e, n, i) {
-      i.d(n, { t: () => o });
+      i.d(n, { t: () => l });
       var t = i(52322),
-        l = i(26007);
-      function o(e) {
-        let { title: n, showRedirection: i, handleRedirectionClick: o } = e;
+        o = i(26007);
+      function l(e) {
+        let { title: n, showRedirection: i, handleRedirectionClick: l } = e;
         return (0, t.jsxs)("div", {
           className: "flex gap-1 items-center font-bold dark:text-white-100",
           children: [
             (0, t.jsx)("span", { className: "shrink-0", children: n }),
             i &&
               (0, t.jsx)("button", {
-                onClick: o,
+                onClick: l,
                 className: "!text-md dark:text-gray-400 !leading-4 flex items-center",
-                children: (0, t.jsx)(l.O, { size: 16 })
+                children: (0, t.jsx)(o.O, { size: 16 })
               })
           ]
         });
@@ -374,19 +374,19 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
     50600: function (e, n, i) {
       i.d(n, { i: () => a });
       var t = i(52322),
-        l = i(72779),
-        o = i.n(l);
+        o = i(72779),
+        l = i.n(o);
       function a(e) {
         let { className: n, type: i } = e;
-        return (0, t.jsx)("span", { className: o()("px-[6px] py-[1px] text-[10px] text-center ml-[2px] rounded-xl", n), children: i });
+        return (0, t.jsx)("span", { className: l()("px-[6px] py-[1px] text-[10px] text-center ml-[2px] rounded-xl", n), children: i });
       }
       i(2784);
     },
     25167: function (e, n, i) {
       i.d(n, { Pi: () => x, ub: () => d, iv: () => b.i, jz: () => t.j });
       var t = i(42311),
-        l = i(52322),
-        o = i(96217),
+        o = i(52322),
+        l = i(96217),
         a = i(91486),
         s = i(30464),
         r = i(75958),
@@ -420,42 +420,42 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 : t && p[(null == t ? void 0 : t.coinMinimalDenom) ?? ""] && u.removeBetaERC20Denoms(null == t ? void 0 : t.coinMinimalDenom, g),
               i();
           }, [t, v, b, p, i, m, g, x, u]);
-        return (0, l.jsxs)(o.Z, {
+        return (0, o.jsxs)(l.Z, {
           title: "Delete Token",
           onClose: i,
           className: "p-6",
           isOpen: n,
           children: [
-            (0, l.jsxs)("div", {
+            (0, o.jsxs)("div", {
               className: "rounded-2xl bg-secondary-100 p-6 flex flex-col items-center text-center",
               children: [
-                (0, l.jsx)("div", {
+                (0, o.jsx)("div", {
                   className: "rounded-full bg-destructive-100 p-[18px] w-fit flex",
-                  children: (0, l.jsx)("img", { src: s.r.Misc.DeleteTokenSheetBin })
+                  children: (0, o.jsx)("img", { src: s.r.Misc.DeleteTokenSheetBin })
                 }),
-                (0, l.jsx)("div", { className: "font-bold text-gray-800 dark:text-white-100 text-base mt-4", children: "Confirm Delete?" }),
-                (0, l.jsxs)("div", {
+                (0, o.jsx)("div", { className: "font-bold text-gray-800 dark:text-white-100 text-base mt-4", children: "Confirm Delete?" }),
+                (0, o.jsxs)("div", {
                   className: "text-gray-400 font-medium text-sm mt-5",
                   children: ["Are you sure you want to delete your manually added “", j, "” token on", " ", f.chainName, "?"]
                 })
               ]
             }),
-            (0, l.jsxs)("div", {
+            (0, o.jsxs)("div", {
               className: "flex flex-row justify-between mt-6 gap-3",
               children: [
-                (0, l.jsx)(a.zx, {
+                (0, o.jsx)(a.zx, {
                   type: "button",
                   className: "h-[48px] flex-1 !bg-secondary-100 hover:!bg-secondary-200",
                   onClick: i,
                   "aria-label": "cancel delete token button in manage tokens flow",
-                  children: (0, l.jsx)("span", { "aria-label": "cancel delete token button text in manage tokens flow", children: "Cancel" })
+                  children: (0, o.jsx)("span", { "aria-label": "cancel delete token button text in manage tokens flow", children: "Cancel" })
                 }),
-                (0, l.jsx)(a.zx, {
+                (0, o.jsx)(a.zx, {
                   type: "button",
                   className: "h-[48px] flex-1 cursor-pointer !bg-destructive-100 hover:!bg-destructive-400",
                   onClick: D,
                   "aria-label": "confirm delete token button in manage tokens flow",
-                  children: (0, l.jsx)("span", { "aria-label": "confirm delete token button text in manage tokens flow", children: "Confirm" })
+                  children: (0, o.jsx)("span", { "aria-label": "confirm delete token button text in manage tokens flow", children: "Confirm" })
                 })
               ]
             })
@@ -466,12 +466,12 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         u = i(27963);
       function x(e) {
         let { onAddTokenClick: n, searchedText: i } = e,
-          t = (0, l.jsxs)("p", {
+          t = (0, o.jsxs)("p", {
             className: "text-[13px]",
             children: [
               "Or manually add token data",
               " ",
-              (0, l.jsx)("button", {
+              (0, o.jsx)("button", {
                 className: "border-none bg-transparent hover:underline cursor-pointer font-bold text-sm",
                 style: { color: "#ad4aff" },
                 onClick: () => n(!1),
@@ -481,11 +481,11 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           });
         return (
           i &&
-            (t = (0, l.jsxs)("p", {
+            (t = (0, o.jsxs)("p", {
               className: "text-[13px]",
               children: [
                 "Try manually adding tokens instead",
-                (0, l.jsx)(m.Buttons.Generic, {
+                (0, o.jsx)(m.Buttons.Generic, {
                   onClick: () => n(!0),
                   className: "max-w-[200px] text-gray-900 mt-[16px]",
                   style: { boxShadow: "none" },
@@ -493,10 +493,10 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 })
               ]
             })),
-          (0, l.jsx)(u.S, {
+          (0, o.jsx)(u.S, {
             isRounded: !0,
             subHeading: t,
-            heading: (0, l.jsx)("p", { className: "text-[15px]", children: i ? "No results found" : "Search for any token" }),
+            heading: (0, o.jsx)("p", { className: "text-[15px]", children: i ? "No results found" : "Search for any token" }),
             classname: "flex-1 justify-center pt-0",
             src: s.r.Misc.Explore
           })
@@ -508,7 +508,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         let {
             tokens: n,
             handleToggleChange: i,
-            fetchedTokens: o,
+            fetchedTokens: l,
             onDeleteClick: a,
             betaCW20DenomsStore: s,
             disabledCW20DenomsStore: r,
@@ -520,29 +520,29 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           { disabledCW20Denoms: v } = r,
           { enabledCW20Denoms: p } = d,
           { getExplorerAccountUrl: j } = (0, g.JVF)({});
-        return (0, l.jsxs)("div", {
+        return (0, o.jsxs)("div", {
           children: [
-            (0, l.jsx)("div", { className: "font-bold text-sm text-gray-600 dark:text-gray-200 mb-2", children: "Manually added tokens" }),
-            (0, l.jsx)("div", {
+            (0, o.jsx)("div", { className: "font-bold text-sm text-gray-600 dark:text-gray-200 mb-2", children: "Manually added tokens" }),
+            (0, o.jsx)("div", {
               className: "rounded-2xl flex flex-col items-center justify-center dark:bg-gray-900 bg-white-100 overflow-hidden",
               children: n.map((e, n, s) => {
                 let r = n === s.length - 1,
-                  d = (0, l.jsx)(b.i, { type: "native", className: "bg-[#ff9f0a1a] text-orange-500" }),
+                  d = (0, o.jsx)(b.i, { type: "native", className: "bg-[#ff9f0a1a] text-orange-500" }),
                   u = (0, g.MDB)((null == e ? void 0 : e.name) ?? (0, g.kC2)(e.coinDenom.toLowerCase()), 7, 4),
                   D = (0, g.MDB)(e.coinDenom, 4, 4);
                 x[e.coinMinimalDenom]
-                  ? (d = (0, l.jsx)(b.i, { type: "cw20", className: "bg-[#29A8741A] text-green-600" }))
+                  ? (d = (0, o.jsx)(b.i, { type: "cw20", className: "bg-[#29A8741A] text-green-600" }))
                   : f[e.coinMinimalDenom]
-                    ? (d = (0, l.jsx)(b.i, { type: "erc20", className: "bg-[#A52A2A1A] text-[#a52a2a]" }))
+                    ? (d = (0, o.jsx)(b.i, { type: "erc20", className: "bg-[#A52A2A1A] text-[#a52a2a]" }))
                     : e.coinMinimalDenom.trim().toLowerCase().startsWith("factory") &&
-                      (d = (0, l.jsx)(b.i, { type: "factory", className: "bg-[#0AB8FF1A] text-teal-500" }));
+                      (d = (0, o.jsx)(b.i, { type: "factory", className: "bg-[#0AB8FF1A] text-teal-500" }));
                 let k = j(e.coinMinimalDenom);
-                return (0, l.jsxs)(
+                return (0, o.jsxs)(
                   c.Fragment,
                   {
                     children: [
-                      (0, l.jsx)(t.j, {
-                        title: (0, l.jsx)(h.t, {
+                      (0, o.jsx)(t.j, {
+                        title: (0, o.jsx)(h.t, {
                           title: u,
                           showRedirection: !!x[e.coinMinimalDenom] && !!k,
                           handleRedirectionClick: e => {
@@ -553,11 +553,11 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                         isRounded: r,
                         imgSrc: e.icon,
                         TokenType: d,
-                        isToggleChecked: !v.includes(e.coinMinimalDenom) && !o.includes(e.coinMinimalDenom) && p.includes(e.coinMinimalDenom),
+                        isToggleChecked: !v.includes(e.coinMinimalDenom) && !l.includes(e.coinMinimalDenom) && p.includes(e.coinMinimalDenom),
                         onToggleChange: n => i(n, e.coinMinimalDenom),
                         onDeleteClick: () => a(e)
                       }),
-                      r ? null : (0, l.jsx)(m.CardDivider, {})
+                      r ? null : (0, o.jsx)(m.CardDivider, {})
                     ]
                   },
                   `${e.coinMinimalDenom}-${n}`
@@ -570,31 +570,31 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
       var f = i(57124),
         v = i(49409);
       (0, r.Pi)(e => {
-        let { tokens: n, handleToggleChange: i, activeChainStore: t, cw20DenomsStore: o, autoFetchedCW20DenomsStore: a } = e,
+        let { tokens: n, handleToggleChange: i, activeChainStore: t, cw20DenomsStore: l, autoFetchedCW20DenomsStore: a } = e,
           { activeChain: r } = t,
-          { denoms: d } = o,
+          { denoms: d } = l,
           u = null == d ? void 0 : d[r],
           { autoFetchedCW20Denoms: x } = a,
           b = (0, f.a)(),
           { theme: p } = (0, m.useTheme)(),
           { getExplorerAccountUrl: j } = (0, g.JVF)({}),
           D = (0, c.useMemo)(() => ({ ...u, ...x }), [u, x]);
-        return (0, l.jsxs)("div", {
+        return (0, o.jsxs)("div", {
           children: [
-            (0, l.jsx)("div", { className: "font-bold text-sm text-gray-600 dark:text-gray-200 mb-2", children: "Supported tokens" }),
-            (0, l.jsx)("div", {
+            (0, o.jsx)("div", { className: "font-bold text-sm text-gray-600 dark:text-gray-200 mb-2", children: "Supported tokens" }),
+            (0, o.jsx)("div", {
               className: "rounded-2xl flex flex-col items-center justify-center dark:bg-gray-900 bg-white-100 overflow-hidden",
               children: n.map((e, n, t) => {
-                let o = n === t.length - 1,
+                let l = n === t.length - 1,
                   a = (0, g.MDB)((null == e ? void 0 : e.name) ?? (0, g.kC2)(e.coinDenom.toLowerCase()), 7, 4),
                   r = (0, g.MDB)(e.coinDenom, 4, 4),
                   d = j(e.coinMinimalDenom);
-                return (0, l.jsxs)(
+                return (0, o.jsxs)(
                   c.Fragment,
                   {
                     children: [
-                      (0, l.jsx)(m.GenericCard, {
-                        title: (0, l.jsx)(h.t, {
+                      (0, o.jsx)(m.GenericCard, {
+                        title: (0, o.jsx)(h.t, {
                           title: a,
                           showRedirection: !!(null == D ? void 0 : D[null == e ? void 0 : e.coinMinimalDenom]) && !!d,
                           handleRedirectionClick: e => {
@@ -602,22 +602,22 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                           }
                         }),
                         subtitle: r,
-                        isRounded: o,
+                        isRounded: l,
                         size: "md",
-                        img: (0, l.jsxs)("div", {
+                        img: (0, o.jsxs)("div", {
                           className: "relative mr-3",
                           children: [
-                            (0, l.jsx)("img", { src: e.icon ?? b, className: "h-7 w-7", onError: (0, v._)(b) }),
+                            (0, o.jsx)("img", { src: e.icon ?? b, className: "h-7 w-7", onError: (0, v._)(b) }),
                             e.verified &&
-                              (0, l.jsxs)("div", {
+                              (0, o.jsxs)("div", {
                                 className: "absolute group -bottom-[5px] -right-[5px]",
                                 children: [
-                                  (0, l.jsx)("img", {
+                                  (0, o.jsx)("img", {
                                     src: p === m.ThemeName.DARK ? s.r.Misc.VerifiedWithBgStarDark : s.r.Misc.VerifiedWithBgStar,
                                     alt: "verified-token",
                                     className: "h-4 w-4"
                                   }),
-                                  (0, l.jsx)("div", {
+                                  (0, o.jsx)("div", {
                                     className:
                                       "group-hover:!block hidden absolute bottom-0 right-0 translate-x-full bg-gray-200 dark:bg-gray-800 px-3 py-2 rounded-lg text-xs dark:text-white-100",
                                     children: "Whitelisted"
@@ -626,12 +626,12 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                               })
                           ]
                         }),
-                        icon: (0, l.jsx)("div", {
+                        icon: (0, o.jsx)("div", {
                           className: "flex items-center gap-[8px]",
-                          children: (0, l.jsx)(m.Toggle, { checked: e.enabled, onChange: n => i(n, e.coinMinimalDenom) })
+                          children: (0, o.jsx)(m.Toggle, { checked: e.enabled, onChange: n => i(n, e.coinMinimalDenom) })
                         })
                       }),
-                      o ? null : (0, l.jsx)(m.CardDivider, {})
+                      l ? null : (0, o.jsx)(m.CardDivider, {})
                     ]
                   },
                   `${e.coinMinimalDenom}-${n}`
@@ -646,62 +646,63 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
     7381: function (e, n, i) {
       i.a(e, async function (e, t) {
         try {
-          i.r(n), i.d(n, { default: () => M });
-          var l = i(52322),
-            o = i(41172),
+          i.r(n), i.d(n, { default: () => N });
+          var o = i(52322),
+            l = i(41172),
             a = i(29049),
-            s = i(84916),
-            r = i(80075),
-            c = i(75958),
-            d = i(2784),
-            m = i(10289),
-            u = i(78344),
-            x = i(26245),
-            g = i(36321),
-            h = i(42799),
-            f = i(30809),
-            v = i(53345),
-            b = i(72565),
-            p = i.n(b),
-            j = i(25167),
-            D = i(53299),
-            k = i(43922),
-            C = i(8789),
-            y = e([x]);
-          x = (y.then ? (await y)() : y)[0];
-          let w = (0, c.Pi)(() => {
-              let { activeChain: e } = u.J,
-                { selectedNetwork: n } = f.i,
-                { disabledCW20Denoms: i } = h.eV,
-                { enabledCW20Denoms: t } = h.bI,
-                c = h.Xy.betaCW20Denoms,
-                { cw20Denoms: b } = h.Sg,
-                { interactedDenoms: y } = h.GC,
-                w = h.vk.betaNativeDenoms,
-                M = h.EM.betaERC20Denoms,
-                { erc20Denoms: N } = h.QH,
-                { autoFetchedCW20Denoms: T } = h.PZ,
-                { cw20Tokens: S } = x.Sz,
-                { erc20Tokens: A } = x.g5,
-                R = (0, m.s0)(),
-                { lcdUrl: E } = (0, o.U9i)(),
-                [W, _] = (0, d.useState)(!1),
-                [L, B] = (0, d.useState)(),
-                [P, I] = (0, d.useState)(""),
-                [F, O] = (0, d.useState)([]),
-                [z, V] = (0, d.useState)(!1),
-                G = (0, d.useRef)(),
-                [$, U] = (0, d.useState)([]),
-                J = (0, d.useRef)(null),
-                [X, Z] = (0, d.useState)("supported"),
-                H = (0, d.useMemo)(() => {
-                  var e, n, l;
-                  let o = [],
+            s = i(92642),
+            r = i(84916),
+            c = i(80075),
+            d = i(75958),
+            m = i(2784),
+            u = i(10289),
+            x = i(78344),
+            g = i(26245),
+            h = i(36321),
+            f = i(42799),
+            v = i(30809),
+            b = i(53345),
+            p = i(72565),
+            j = i.n(p),
+            D = i(25167),
+            k = i(53299),
+            C = i(43922),
+            y = i(8789),
+            w = e([g]);
+          g = (w.then ? (await w)() : w)[0];
+          let M = (0, d.Pi)(() => {
+              let { activeChain: e } = x.J,
+                { selectedNetwork: n } = v.i,
+                { disabledCW20Denoms: i } = f.eV,
+                { enabledCW20Denoms: t } = f.bI,
+                d = f.Xy.betaCW20Denoms,
+                { cw20Denoms: p } = f.Sg,
+                { interactedDenoms: w } = f.GC,
+                M = f.vk.betaNativeDenoms,
+                N = f.EM.betaERC20Denoms,
+                { erc20Denoms: T } = f.QH,
+                { autoFetchedCW20Denoms: S } = f.PZ,
+                { cw20Tokens: A } = g.Sz,
+                { erc20Tokens: _ } = g.g5,
+                E = (0, u.s0)(),
+                { lcdUrl: R } = (0, l.U9i)(),
+                [W, L] = (0, m.useState)(!1),
+                [B, I] = (0, m.useState)(),
+                [P, F] = (0, m.useState)(""),
+                [O, z] = (0, m.useState)([]),
+                [V, G] = (0, m.useState)(!1),
+                $ = (0, m.useRef)(),
+                [U, J] = (0, m.useState)([]),
+                X = (0, m.useRef)(null),
+                [Z, H] = (0, m.useState)("supported"),
+                K = (0, m.useMemo)(() => {
+                  var e, n, o;
+                  let l = [],
                     a =
-                      (null === (e = Object.values(b)) || void 0 === e
+                      (null === (e = Object.values(p)) || void 0 === e
                         ? void 0
                         : e.map(e => {
-                            let n = null == S ? void 0 : S.find(n => n.coinMinimalDenom === e.coinMinimalDenom);
+                            let n = null == A ? void 0 : A.find(n => n.coinMinimalDenom === e.coinMinimalDenom);
                             return {
                               ...e,
                               enabled:
@@ -714,14 +715,14 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                             };
                           })) ?? [],
                     s =
-                      (null === (n = Object.values(T)) || void 0 === n
+                      (null === (n = Object.values(S)) || void 0 === n
                         ? void 0
                         : n.map(e => ({ ...e, enabled: null == t ? void 0 : t.includes(e.coinMinimalDenom), verified: !1 }))) ?? [],
                     r =
-                      (null === (l = Object.values(N)) || void 0 === l
+                      (null === (o = Object.values(T)) || void 0 === o
                         ? void 0
-                        : l.map(e => {
-                            let n = null == A ? void 0 : A.find(n => n.coinMinimalDenom === e.coinMinimalDenom);
+                        : o.map(e => {
+                            let n = null == _ ? void 0 : _.find(n => n.coinMinimalDenom === e.coinMinimalDenom);
                             return {
                               ...e,
                               enabled:
@@ -733,29 +734,29 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                               verified: !0
                             };
                           })) ?? [];
-                  return (o = [...o, ...a, ...s, ...r]);
-                }, [T, b, S, i, t, N, A]);
-              (0, d.useEffect)(
+                  return (l = [...l, ...a, ...s, ...r]);
+                }, [S, p, A, i, t, T, _]);
+              (0, m.useEffect)(
                 () =>
-                  (0, r.EH)(() => {
+                  (0, c.EH)(() => {
                     let e = [];
-                    w && (e = [...e, ...(Object.values(w) ?? [])]),
-                      c && (e = [...e, ...(Object.values(c) ?? [])]),
-                      M && (e = [...e, ...(Object.values(M) ?? [])]),
-                      U(e);
+                    M && (e = [...e, ...(Object.values(M) ?? [])]),
+                      d && (e = [...e, ...(Object.values(d) ?? [])]),
+                      N && (e = [...e, ...(Object.values(N) ?? [])]),
+                      J(e);
                   }),
-                [c, M, w]
+                [d, N, M]
               ),
-                (0, d.useEffect)(() => {
-                  O(e => (e ?? []).filter(e => !i.includes(e)));
+                (0, m.useEffect)(() => {
+                  z(e => (e ?? []).filter(e => !i.includes(e)));
                 }, [i.length]);
-              let K = (0, d.useMemo)(() => {
+              let Q = (0, m.useMemo)(() => {
                   var e;
                   return (
-                    (null == $
+                    (null == U
                       ? void 0
                       : null ===
-                            (e = $.filter(e => {
+                            (e = U.filter(e => {
                               let n = P.trim().toLowerCase();
                               return !!(
                                 (e.name ?? "").toLowerCase().includes(n) ||
@@ -770,14 +771,14 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                             return i < t ? -1 : +(i < t);
                           })) ?? []
                   );
-                }, [$, P]),
-                Q = (0, d.useMemo)(() => {
+                }, [U, P]),
+                Y = (0, m.useMemo)(() => {
                   var e;
                   return (
-                    (null == H
+                    (null == K
                       ? void 0
                       : null ===
-                            (e = H.filter(e => {
+                            (e = K.filter(e => {
                               let n = P.trim().toLowerCase();
                               return !!(
                                 (e.name ?? "").toLowerCase().includes(n) ||
@@ -791,62 +792,74 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                               t = n.enabled;
                             if (i && !t) return -1;
                             if (!i && t) return 1;
-                            let l = !!((null == b ? void 0 : b[e.coinMinimalDenom]) || (null == N ? void 0 : N[e.coinMinimalDenom])),
-                              o = !!((null == b ? void 0 : b[n.coinMinimalDenom]) || (null == N ? void 0 : N[n.coinMinimalDenom]));
-                            return l && !o ? -1 : !l && o ? 1 : (0, C.j)(e, n);
+                            let o = !!((null == p ? void 0 : p[e.coinMinimalDenom]) || (null == T ? void 0 : T[e.coinMinimalDenom])),
+                              l = !!((null == p ? void 0 : p[n.coinMinimalDenom]) || (null == T ? void 0 : T[n.coinMinimalDenom]));
+                            return o && !l ? -1 : !o && l ? 1 : (0, y.j)(e, n);
                           })) ?? []
                   );
-                }, [H, P, b, N]);
-              (0, d.useEffect)(() => {
+                }, [K, P, p, T]);
+              (0, m.useEffect)(() => {
                 0 !== P.length &&
+                  0 === Y.length &&
                   0 === Q.length &&
-                  0 === K.length &&
-                  (clearTimeout(G.current),
-                  (G.current = setTimeout(async () => {
+                  (clearTimeout($.current),
+                  ($.current = setTimeout(async () => {
                     try {
-                      V(!0);
-                      let n = await (0, v.s)(E ?? "", P);
+                      G(!0);
+                      let n = await (0, b.s)(R ?? "", P);
                       "string" != typeof n &&
                         n.symbol &&
-                        (O(e => [...e, P]),
-                        U(i => [
+                        (z(e => [...e, P]),
+                        J(i => [
                           ...i,
                           { name: n.name, coinDecimals: n.decimals, coinMinimalDenom: P, coinDenom: n.symbol, icon: "", coinGeckoId: "", chain: e }
                         ]));
                     } catch (e) {
+                      (0, s.Tb)(e, {
+                        tags: {
+                          errorType: "fetch_contract_info_error",
+                          source: "manage_tokens",
+                          severity: "error",
+                          errorName: e instanceof Error ? e.name : "FetchContractInfoError"
+                        },
+                        fingerprint: ["manage_tokens", "fetch_contract_info_error"],
+                        level: "error",
+                        contexts: { transaction: { type: "manage_tokens", errorMessage: e instanceof Error ? e.message : String(e) } },
+                        extra: { searchedText: P, lcdUrl: R }
+                      });
                     } finally {
-                      V(!1);
+                      G(!1);
                     }
                   }, 100)));
-              }, [P, K.length, E, e, Q.length]);
-              let Y = (0, d.useCallback)(
+              }, [P, Q.length, R, e, Y.length]);
+              let q = (0, m.useCallback)(
                   function () {
                     let e = arguments.length > 0 && void 0 !== arguments[0] && arguments[0],
-                      n = p().extension.getViews({ type: "popup" });
+                      n = j().extension.getViews({ type: "popup" });
                     if (0 === n.length) {
                       let n = { replace: !0 };
-                      e && (n.state = { coinMinimalDenom: P }), R("/add-token", n);
-                    } else window.open(p().runtime.getURL("index.html#/add-token"));
+                      e && (n.state = { coinMinimalDenom: P }), E("/add-token", n);
+                    } else window.open(j().runtime.getURL("index.html#/add-token"));
                   },
-                  [R, P]
+                  [E, P]
                 ),
-                q = (0, d.useCallback)(
-                  async (l, o) => {
-                    y.some(e => e === o) || (await h.GC.setInteractedDenoms([...y, o]));
+                ee = (0, m.useCallback)(
+                  async (o, l) => {
+                    w.some(e => e === l) || (await f.GC.setInteractedDenoms([...w, l]));
                     let a = [],
                       s = [],
                       r = !1;
-                    if (l) {
-                      (a = i.filter(e => e !== o)), (s = [...t, o]);
-                      let l = $.find(e => e.coinMinimalDenom === o);
-                      F.includes(o) && l && (r = !0), "aggregated" !== e && x.Sz.fetchCW20TokenBalances(e, n, [o]);
-                    } else (a = [...i, o]), (s = t.filter(e => e !== o));
-                    if ((await h.eV.setDisabledCW20Denoms(a), await h.bI.setEnabledCW20Denoms(s), r)) {
-                      let n = $.find(e => e.coinMinimalDenom === o),
-                        i = F.filter(e => e !== o);
-                      O(i),
-                        await h.Xy.setBetaCW20Denoms(
-                          o,
+                    if (o) {
+                      (a = i.filter(e => e !== l)), (s = [...t, l]);
+                      let o = U.find(e => e.coinMinimalDenom === l);
+                      O.includes(l) && o && (r = !0), "aggregated" !== e && g.Sz.fetchCW20TokenBalances(e, n, [l]);
+                    } else (a = [...i, l]), (s = t.filter(e => e !== l));
+                    if ((await f.eV.setDisabledCW20Denoms(a), await f.bI.setEnabledCW20Denoms(s), r)) {
+                      let n = U.find(e => e.coinMinimalDenom === l),
+                        i = O.filter(e => e !== l);
+                      z(i),
+                        await f.Xy.setBetaCW20Denoms(
+                          l,
                           {
                             chain: e,
                             name: n.name,
@@ -860,72 +873,72 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                         );
                     }
                   },
-                  [e, n, i, t, F, y, $]
+                  [e, n, i, t, O, w, U]
                 ),
-                ee = (0, d.useCallback)(() => {
-                  _(!1), B(void 0);
+                en = (0, m.useCallback)(() => {
+                  L(!1), I(void 0);
                 }, []),
-                en = (0, d.useCallback)(e => {
-                  _(!0), B(e);
+                ei = (0, m.useCallback)(e => {
+                  L(!0), I(e);
                 }, []);
               return (
-                (0, d.useEffect)(() => {
+                (0, m.useEffect)(() => {
                   var e;
-                  null === (e = J.current) || void 0 === e || e.focus();
+                  null === (e = X.current) || void 0 === e || e.focus();
                 }, []),
-                (0, l.jsxs)("div", {
+                (0, o.jsxs)("div", {
                   className: "flex flex-col h-full bg-secondary-50",
                   children: [
-                    (0, l.jsx)(D.Z, {}),
-                    (0, l.jsxs)("div", {
+                    (0, o.jsx)(k.Z, {}),
+                    (0, o.jsxs)("div", {
                       className: "flex items-center gap-2 m-6",
                       children: [
-                        (0, l.jsx)(s.M, {
-                          ref: J,
+                        (0, o.jsx)(r.M, {
+                          ref: X,
                           value: P,
                           onChange: e => {
                             var n;
-                            return I((null == e ? void 0 : null === (n = e.target) || void 0 === n ? void 0 : n.value) ?? "");
+                            return F((null == e ? void 0 : null === (n = e.target) || void 0 === n ? void 0 : n.value) ?? "");
                           },
                           placeholder: "Search by chain name",
-                          onClear: () => I("")
+                          onClear: () => F("")
                         }),
-                        Y &&
-                          (0, l.jsx)("div", {
+                        q &&
+                          (0, o.jsx)("div", {
                             className: "bg-secondary-100 hover:bg-secondary-200 px-4 py-3 text-muted-foreground rounded-xl cursor-pointer",
-                            onClick: () => Y(),
+                            onClick: () => q(),
                             "aria-label": "add new token button in manage tokens flow",
-                            children: (0, l.jsx)(a.v, { size: 20, "aria-label": "add new token button text in manage tokens flow" })
+                            children: (0, o.jsx)(a.v, { size: 20, "aria-label": "add new token button text in manage tokens flow" })
                           })
                       ]
                     }),
-                    (0, l.jsx)(k.X, {
-                      activeTab: X,
-                      setActiveTab: Z,
-                      fetchingContract: z,
-                      filteredSupportedTokens: Q,
-                      filteredManuallyAddedTokens: K,
-                      fetchedTokens: F,
-                      handleToggleChange: q,
-                      onDeleteClick: en,
-                      handleAddNewTokenClick: Y,
+                    (0, o.jsx)(C.X, {
+                      activeTab: Z,
+                      setActiveTab: H,
+                      fetchingContract: V,
+                      filteredSupportedTokens: Y,
+                      filteredManuallyAddedTokens: Q,
+                      fetchedTokens: O,
+                      handleToggleChange: ee,
+                      onDeleteClick: ei,
+                      handleAddNewTokenClick: q,
                       searchedText: P
                     }),
-                    (0, l.jsx)(j.ub, {
-                      activeChainStore: u.J,
-                      chainInfosStore: g.Ui,
-                      betaNativeDenomsStore: h.vk,
-                      betaERC20DenomsStore: h.EM,
-                      betaCW20DenomsStore: h.Xy,
+                    (0, o.jsx)(D.ub, {
+                      activeChainStore: x.J,
+                      chainInfosStore: h.Ui,
+                      betaNativeDenomsStore: f.vk,
+                      betaERC20DenomsStore: f.EM,
+                      betaCW20DenomsStore: f.Xy,
                       isOpen: W,
-                      onClose: ee,
-                      tokenToDelete: L
+                      onClose: en,
+                      tokenToDelete: B
                     })
                   ]
                 })
               );
             }),
-            M = (0, c.Pi)(() => (0, l.jsx)(w, {}));
+            N = (0, d.Pi)(() => (0, o.jsx)(M, {}));
           t();
         } catch (e) {
           t(e);
@@ -941,13 +954,13 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
       }
     },
     53345: function (e, n, i) {
-      i.d(n, { s: () => o });
+      i.d(n, { s: () => l });
       var t = i(55334),
-        l = i(48834).Buffer;
-      async function o(e, n) {
-        let i = `${e}/cosmwasm/wasm/v1/contract/${n}/smart/${l.from('{"token_info":{}}').toString("base64")}`,
-          { data: o } = await t.Z.get(i);
-        return o.error && o.error.toLowerCase().includes("decoding bech32 failed") ? "Invalid Contract Address" : o.data;
+        o = i(48834).Buffer;
+      async function l(e, n) {
+        let i = `${e}/cosmwasm/wasm/v1/contract/${n}/smart/${o.from('{"token_info":{}}').toString("base64")}`,
+          { data: l } = await t.Z.get(i);
+        return l.error && l.error.toLowerCase().includes("decoding bech32 failed") ? "Invalid Contract Address" : l.data;
       }
     }
   }

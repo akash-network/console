@@ -4,12 +4,12 @@
       t = new e.Error().stack;
     t &&
       ((e._sentryDebugIds = e._sentryDebugIds || {}),
-      (e._sentryDebugIds[t] = "04be560c-81aa-4aad-8f61-931704de3b10"),
-      (e._sentryDebugIdIdentifier = "sentry-dbid-04be560c-81aa-4aad-8f61-931704de3b10"));
+      (e._sentryDebugIds[t] = "d51f183a-6d7f-4260-a413-7649517dd08b"),
+      (e._sentryDebugIdIdentifier = "sentry-dbid-d51f183a-6d7f-4260-a413-7649517dd08b"));
   } catch (e) {}
 })();
 var _global = "undefined" != typeof window ? window : "undefined" != typeof global ? global : "undefined" != typeof self ? self : {};
-_global.SENTRY_RELEASE = { id: "0.22.9" };
+_global.SENTRY_RELEASE = { id: "0.23.1" };
 ("use strict");
 (self.webpackChunk_leap_cosmos_extension = self.webpackChunk_leap_cosmos_extension || []).push([
   ["1880"],
@@ -26,23 +26,23 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             c = s(75958),
             d = s(2784),
             x = s(10289),
-            m = s(42799),
-            u = s(48346),
+            u = s(42799),
+            m = s(48346),
             f = s(46103),
             h = s(48534),
             b = s(72565),
             w = s.n(b),
             g = s(94685),
-            j = e([u]);
-          u = (j.then ? (await j)() : j)[0];
+            j = e([m]);
+          m = (j.then ? (await j)() : j)[0];
           let y = (0, c.Pi)(e => {
             let { handleRejectBtnClick: t } = e,
               [s, l] = (0, d.useState)(!1),
               c = (0, a.a74)(),
               [b, j] = (0, d.useState)(c),
               [p, y] = (0, d.useState)({ address: "", symbol: "", image: "", decimals: 0, coinGeckoId: "" }),
-              v = m.bI.getEnabledCW20DenomsForChain(b),
-              k = (0, x.s0)();
+              v = u.bI.getEnabledCW20DenomsForChain(b),
+              C = (0, x.s0)();
             (0, d.useEffect)(() => {
               w()
                 .storage.local.get([r.RO])
@@ -51,7 +51,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   y({ ...t.params.options }), (null == t ? void 0 : t.activeChain) && j(t.activeChain);
                 });
             }, []);
-            let C = async () => {
+            let k = async () => {
               l(!0);
               let e = {
                 coinDenom: p.symbol,
@@ -61,14 +61,14 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 icon: p.image ?? "",
                 chain: b
               };
-              await m.EM.setBetaERC20Denoms(p.address, e, b);
+              await u.EM.setBetaERC20Denoms(p.address, e, b);
               let s = [...v, p.address];
-              await m.bI.setEnabledCW20Denoms(s, b),
-                u.jZ.refetchBalances(b),
+              await u.bI.setEnabledCW20Denoms(s, b),
+                m.jZ.refetchBalances(b),
                 window.removeEventListener("beforeunload", t),
                 await w().storage.local.set({ [r.u1]: { data: "Approved" } }),
                 setTimeout(async () => {
-                  await w().storage.local.remove([r.RO]), await w().storage.local.remove(r.u1), l(!1), (0, h.oj)() ? k("/home") : window.close();
+                  await w().storage.local.remove([r.RO]), await w().storage.local.remove(r.u1), l(!1), (0, h.oj)() ? C("/home") : window.close();
                 }, 50);
             };
             return (0, n.jsxs)(n.Fragment, {
@@ -97,7 +97,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     rejectBtnClick: t,
                     rejectBtnText: "Reject",
                     confirmBtnText: s ? (0, n.jsx)(i.T, { color: f.w.white100 }) : "Approve",
-                    confirmBtnClick: C,
+                    confirmBtnClick: k,
                     isConfirmBtnDisabled: s
                   })
                 })
@@ -120,7 +120,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
       });
     },
     94685: function (e, t, s) {
-      s.d(t, { QS: () => k, GL: () => h, X6: () => f, zb: () => y, No: () => m, P6: () => N, $_: () => c });
+      s.d(t, { QS: () => C, GL: () => h, X6: () => f, zb: () => y, No: () => u, P6: () => N, $_: () => c });
       var l = s(52322),
         n = s(72779),
         a = s.n(n),
@@ -132,14 +132,14 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         return (0, l.jsxs)("div", {
           className: a()("w-full flex flex-col flex-1 items-center box-border", n ? "h-full justify-center" : "justify-end"),
           children: [
-            s ? (0, l.jsx)("div", { className: "my-2", children: (0, l.jsx)(i._, { text: s }) }) : null,
+            s ? (0, l.jsx)("div", { className: "my-2", children: (0, l.jsx)(i._, { text: s, disableSentryCapture: !0 }) }) : null,
             n ? (0, l.jsx)(o.T, { color: "#E18881" }) : (0, l.jsx)(l.Fragment, { children: t })
           ]
         });
       }
       var d = s(75377),
         x = s(46103);
-      function m(e) {
+      function u(e) {
         let { error: t, rejectBtnClick: s, rejectBtnText: n, confirmBtnClick: i, confirmBtnText: o, isConfirmBtnDisabled: r } = e;
         return (0, l.jsxs)("div", {
           className: a()("flex flex-row justify-between w-full", { "mb-6": !!t }),
@@ -161,14 +161,14 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           ]
         });
       }
-      var u = s(69816);
+      var m = s(69816);
       function f(e) {
         let { text: t } = e;
-        return (0, l.jsx)(u.Z, { size: "lg", className: "font-bold mt-5", children: t });
+        return (0, l.jsx)(m.Z, { size: "lg", className: "font-bold mt-5", children: t });
       }
       function h(e) {
         let { text: t } = e;
-        return (0, l.jsx)(u.Z, {
+        return (0, l.jsx)(m.Z, {
           size: "xs",
           className: "font-bold text-center mt-[2px] max-w-[250px]",
           color: "text-gray-800 dark:text-gray-600 mb-2",
@@ -216,7 +216,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         );
       }
       var v = s(86874);
-      function k(e) {
+      function C(e) {
         let { address: t, img: s } = e;
         return t
           ? (0, l.jsx)(d.GenericCard, {
@@ -240,20 +240,20 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               ]
             });
       }
-      var C = s(41477);
+      var k = s(41477);
       function N(e) {
         let { name: t, symbol: s, decimals: n } = e;
         return (0, l.jsxs)("div", {
           className: "flex flex-col gap-y-[10px] bg-white-100 dark:bg-gray-900 rounded-2xl p-4 w-full",
           children: [
-            (0, l.jsx)(C.sr, { children: "Coin Name" }),
-            (0, l.jsx)(C.B4, { children: t }),
-            C.iz,
-            (0, l.jsx)(C.sr, { children: "Coin Symbol" }),
-            (0, l.jsx)(C.B4, { children: s }),
-            C.iz,
-            (0, l.jsx)(C.sr, { children: "Coin Decimals" }),
-            (0, l.jsx)(C.B4, { children: n })
+            (0, l.jsx)(k.sr, { children: "Coin Name" }),
+            (0, l.jsx)(k.B4, { children: t }),
+            k.iz,
+            (0, l.jsx)(k.sr, { children: "Coin Symbol" }),
+            (0, l.jsx)(k.B4, { children: s }),
+            k.iz,
+            (0, l.jsx)(k.sr, { children: "Coin Decimals" }),
+            (0, l.jsx)(k.B4, { children: n })
           ]
         });
       }

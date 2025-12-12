@@ -4,18 +4,18 @@
       t = new e.Error().stack;
     t &&
       ((e._sentryDebugIds = e._sentryDebugIds || {}),
-      (e._sentryDebugIds[t] = "e815eefd-8437-4454-9f08-e85f9e2f651e"),
-      (e._sentryDebugIdIdentifier = "sentry-dbid-e815eefd-8437-4454-9f08-e85f9e2f651e"));
+      (e._sentryDebugIds[t] = "c4f95364-aaec-4ef5-bd33-cbe6d32255dc"),
+      (e._sentryDebugIdIdentifier = "sentry-dbid-c4f95364-aaec-4ef5-bd33-cbe6d32255dc"));
   } catch (e) {}
 })();
 var _global = "undefined" != typeof window ? window : "undefined" != typeof global ? global : "undefined" != typeof self ? self : {};
-_global.SENTRY_RELEASE = { id: "0.22.9" };
+_global.SENTRY_RELEASE = { id: "0.23.1" };
 ("use strict");
 (self.webpackChunk_leap_cosmos_extension = self.webpackChunk_leap_cosmos_extension || []).push([
   ["9139"],
   {
     78189: function (e, t, a) {
-      a.d(t, { Z: () => o });
+      a.d(t, { Z: () => r });
       var n = a(52322);
       a(2784);
       var l = a(86874);
@@ -34,7 +34,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           ]
         });
       }
-      function o() {
+      function r() {
         return (0, n.jsxs)(n.Fragment, { children: [(0, n.jsx)(s, {}), (0, n.jsx)(s, {}), (0, n.jsx)(s, {}), (0, n.jsx)(s, {}), (0, n.jsx)(s, {})] });
       }
     },
@@ -44,18 +44,18 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           a.d(t, { q: () => d });
           var l = a(60431),
             s = a(36400),
-            o = a(37761),
-            r = a(2784),
+            r = a(37761),
+            o = a(2784),
             i = a(42799),
             c = e([s]);
           function d() {
             let e = (0, s.pb)(),
               t = i.gb.allDenoms,
-              { data: a, isLoading: n } = (0, o.Dm)(),
+              { data: a, isLoading: n } = (0, r.Dm)(),
               { cryptoAssets: c = [] } = a ?? {},
-              [d, u] = (0, r.useState)(!1);
+              [d, u] = (0, o.useState)(!1);
             return (
-              (0, r.useEffect)(() => {
+              (0, o.useEffect)(() => {
                 setTimeout(() => {
                   u(!0);
                 }, 1e3);
@@ -103,21 +103,21 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
       });
     },
     37761: function (e, t, a) {
-      a.d(t, { Dm: () => r, OJ: () => c, XH: () => u, vE: () => d, zS: () => i });
+      a.d(t, { Dm: () => o, OJ: () => c, XH: () => u, vE: () => d, zS: () => i });
       var n = a(60431),
         l = a(55334),
         s = a(57072);
-      let o = "https://api.onramper.com";
-      function r() {
+      let r = "https://api.onramper.com";
+      function o() {
         return (0, n.useQuery)(
           ["onramper-asset-list"],
           async () => {
             var e, t, a, n;
-            let r = await l.Z.get(`${o}/supported?type=buy`, { headers: { Authorization: "pk_prod_01JXWAN8M081D3E7AX1XA1MGYM" } });
+            let o = await l.Z.get(`${r}/supported?type=buy`, { headers: { Authorization: "pk_prod_01JXWAN8M081D3E7AX1XA1MGYM" } });
             return {
-              cryptoAssets: null == r ? void 0 : null === (t = r.data) || void 0 === t ? void 0 : null === (e = t.message) || void 0 === e ? void 0 : e.crypto,
+              cryptoAssets: null == o ? void 0 : null === (t = o.data) || void 0 === t ? void 0 : null === (e = t.message) || void 0 === e ? void 0 : e.crypto,
               fiatAssets: Object.values(
-                (null == r ? void 0 : null === (n = r.data) || void 0 === n ? void 0 : null === (a = n.message) || void 0 === a ? void 0 : a.fiat) ?? {}
+                (null == o ? void 0 : null === (n = o.data) || void 0 === n ? void 0 : null === (a = n.message) || void 0 === a ? void 0 : a.fiat) ?? {}
               ).map(e => ({ code: e.code, name: e.name, logo: (null == e ? void 0 : e.icon) ?? (0, s.b)(e.code) }))
             };
           },
@@ -126,23 +126,23 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
       }
       async function i(e) {
         let t = await l.Z.get(
-          `${o}/quotes/${e.fiat_currency}/${e.crypto_currency}?type=buy&amount=${e.fiat_amount}&network=${e.network}&paymentMethod=${e.payment_method}`,
+          `${r}/quotes/${e.fiat_currency}/${e.crypto_currency}?type=buy&amount=${e.fiat_amount}&network=${e.network}&paymentMethod=${e.payment_method}`,
           { headers: { Authorization: "pk_prod_01JXWAN8M081D3E7AX1XA1MGYM" } }
         );
         return null == t ? void 0 : t.data;
       }
       async function c(e) {
-        let t = await l.Z.get(`${o}/supported/payment-types/${e.fiat_currency}?type=buy&destination=${e.crypto_currency}`, {
+        let t = await l.Z.get(`${r}/supported/payment-types/${e.fiat_currency}?type=buy&destination=${e.crypto_currency}`, {
           headers: { Authorization: "pk_prod_01JXWAN8M081D3E7AX1XA1MGYM" }
         });
         return null == t ? void 0 : t.data;
       }
       async function d() {
-        let e = await l.Z.get(`${o}/supported/onramps/all`, { headers: { Authorization: "pk_prod_01JXWAN8M081D3E7AX1XA1MGYM" } });
+        let e = await l.Z.get(`${r}/supported/onramps/all`, { headers: { Authorization: "pk_prod_01JXWAN8M081D3E7AX1XA1MGYM" } });
         return null == e ? void 0 : e.data;
       }
       async function u() {
-        let e = await l.Z.get(`${o}/supported/defaults`, { headers: { Authorization: "pk_prod_01JXWAN8M081D3E7AX1XA1MGYM" } });
+        let e = await l.Z.get(`${r}/supported/defaults`, { headers: { Authorization: "pk_prod_01JXWAN8M081D3E7AX1XA1MGYM" } });
         return null == e ? void 0 : e.data;
       }
     },
@@ -151,9 +151,10 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
       var n = a(55334);
       async function l(e) {
         var t, a;
-        let { from: l, to: s } = e,
-          o = await n.Z.get(`https://api.kado.money/v1/ramp/currencyconvert?from=${l}&to=${s}`);
-        return null == o ? void 0 : null === (a = o.data) || void 0 === a ? void 0 : null === (t = a.data) || void 0 === t ? void 0 : t.conversion;
+        let { from: l, to: s } = e;
+        if (!l || !s) return "0";
+        let r = await n.Z.get(`https://api.kado.money/v1/ramp/currencyconvert?from=${l}&to=${s}`);
+        return null == r ? void 0 : null === (a = r.data) || void 0 === a ? void 0 : null === (t = a.data) || void 0 === t ? void 0 : t.conversion;
       }
       a(57072);
     },
@@ -162,8 +163,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
       var n = a(52322),
         l = a(41172),
         s = a(75377),
-        o = a(69816),
-        r = a(29750),
+        r = a(69816),
+        o = a(29750),
         i = a(2784),
         c = a(70514),
         d = a(49409);
@@ -184,8 +185,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               className: "relative",
               children: [
                 (0, n.jsx)("img", {
-                  src: a ?? (f === s.ThemeName.DARK ? r.ImgNotAvailableDark : r.ImgNotAvailableLight),
-                  onError: (0, d._)(f === s.ThemeName.DARK ? r.ImgNotAvailableDark : r.ImgNotAvailableLight),
+                  src: a ?? (f === s.ThemeName.DARK ? o.ImgNotAvailableDark : o.ImgNotAvailableLight),
+                  onError: (0, d._)(f === s.ThemeName.DARK ? o.ImgNotAvailableDark : o.ImgNotAvailableLight),
                   className: "rounded-full",
                   width: 36,
                   height: 36
@@ -196,8 +197,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             (0, n.jsxs)("div", {
               className: "flex flex-col",
               children: [
-                (0, n.jsx)(o.Z, { size: "md", color: "text-monochrome", className: "font-bold", children: (0, l.MDB)(t) }),
-                (0, n.jsx)(o.Z, { size: "xs", color: "text-secondary-800", children: (0, l.MDB)(x) })
+                (0, n.jsx)(r.Z, { size: "md", color: "text-monochrome", className: "font-bold", children: (0, l.MDB)(t) }),
+                (0, n.jsx)(r.Z, { size: "xs", color: "text-secondary-800", children: (0, l.MDB)(x) })
               ]
             })
           ]
@@ -210,8 +211,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           a.d(t, { Z: () => g });
           var l = a(52322),
             s = a(41172),
-            o = a(62598),
-            r = a(96217),
+            r = a(62598),
+            o = a(96217),
             i = a(78189),
             c = a(84916),
             d = a(27558),
@@ -233,7 +234,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               k = f.gb.allDenoms,
               S = Object.values(k),
               C = Object.values(N),
-              A = (0, m.useMemo)(
+              _ = (0, m.useMemo)(
                 () =>
                   j.reduce((e, t) => {
                     let a = C.find(e => e.chainRegistryPath === t.origin || e.key === t.origin),
@@ -253,11 +254,11 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   }, []),
                 [C, S, j]
               ),
-              Z = (0, m.useMemo)(() => {
-                let e = A.filter(e => e.symbol.toLowerCase().includes(y.toLowerCase()) || e.chainName.toLowerCase().includes(y.toLowerCase()));
+              A = (0, m.useMemo)(() => {
+                let e = _.filter(e => e.symbol.toLowerCase().includes(y.toLowerCase()) || e.chainName.toLowerCase().includes(y.toLowerCase()));
                 return e.length > 0 ? [{ title: "Popular tokens" }, ...e] : e;
-              }, [A, y]),
-              _ = (0, m.useMemo)(() => {
+              }, [_, y]),
+              Z = (0, m.useMemo)(() => {
                 let e = v
                   .filter(
                     e =>
@@ -270,8 +271,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   });
                 return e.length > 0 ? [{ title: "Available tokens" }, ...e] : e;
               }, [v, y, j]),
-              I = (0, m.useMemo)(() => [...Z, ..._], [Z, _]),
-              M = b && 0 === Z.length;
+              E = (0, m.useMemo)(() => [...A, ...Z], [A, Z]),
+              I = b && 0 === A.length;
             return (
               (0, m.useEffect)(() => {
                 t &&
@@ -281,7 +282,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     null === (e = w.current) || void 0 === e || e.focus();
                   }, 200));
               }, [t]),
-              (0, l.jsxs)(r.Z, {
+              (0, l.jsxs)(o.Z, {
                 isOpen: t,
                 onClose: a,
                 fullScreen: !0,
@@ -300,16 +301,16 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                       onClear: () => g("")
                     })
                   }),
-                  M && (0, l.jsx)(i.Z, {}),
-                  !M &&
+                  I && (0, l.jsx)(i.Z, {}),
+                  !I &&
                     (0, l.jsxs)("div", {
                       className: "h-[calc(100%-56px)] overflow-y-auto",
                       children: [
-                        (null == I ? void 0 : I.length) === 0 &&
+                        (null == E ? void 0 : E.length) === 0 &&
                           (0, l.jsxs)("div", {
                             className: "py-[80px] px-4 w-full flex-col flex  justify-center items-center gap-4",
                             children: [
-                              (0, l.jsx)(o.Z, { size: 64, className: "dark:text-gray-50 text-gray-900 p-5 rounded-full bg-secondary-200" }),
+                              (0, l.jsx)(r.Z, { size: 64, className: "dark:text-gray-50 text-gray-900 p-5 rounded-full bg-secondary-200" }),
                               (0, l.jsxs)("div", {
                                 className: "flex flex-col justify-start items-center w-full gap-4",
                                 children: [
@@ -326,7 +327,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                             ]
                           }),
                         (0, l.jsx)(x.OO, {
-                          data: I,
+                          data: E,
                           style: { flexGrow: "1", width: "100%" },
                           itemContent: (e, t) =>
                             "title" in t
@@ -361,24 +362,24 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
       var n = a(52322),
         l = a(62598),
         s = a(96217),
-        o = a(78189),
-        r = a(84916),
+        r = a(78189),
+        o = a(84916),
         i = a(37761),
         c = a(2784),
         d = a(41172),
         u = a(69816),
         m = a(70514);
       function x(e) {
-        let { code: t, name: a, logo: l, onClick: s, isSelected: o } = e,
-          r = (0, c.useCallback)(() => {
-            o || s();
-          }, [o, s]);
+        let { code: t, name: a, logo: l, onClick: s, isSelected: r } = e,
+          o = (0, c.useCallback)(() => {
+            r || s();
+          }, [r, s]);
         return (0, n.jsxs)("div", {
           className: (0, m.cn)(
             "flex gap-x-3 items-center px-4 py-3 rounded-xl mt-3 cursor-pointer border border-transparent",
-            o ? "bg-secondary-200 hover:bg-secondary-200 cursor-not-allowed border-secondary-600" : "cursor-pointer bg-secondary-100 hover:bg-secondary-200"
+            r ? "bg-secondary-200 hover:bg-secondary-200 cursor-not-allowed border-secondary-600" : "cursor-pointer bg-secondary-100 hover:bg-secondary-200"
           ),
-          onClick: r,
+          onClick: o,
           children: [
             (0, n.jsx)("img", { src: l, className: "rounded-full w-9 h-9" }),
             (0, n.jsxs)("div", {
@@ -416,7 +417,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             children: [
               (0, n.jsx)("div", {
                 className: "flex flex-col items-center w-full pb-2",
-                children: (0, n.jsx)(r.M, {
+                children: (0, n.jsx)(o.M, {
                   ref: g,
                   value: m,
                   onChange: e => p(e.target.value),
@@ -425,7 +426,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   onClear: () => p("")
                 })
               }),
-              f && (0, n.jsx)(o.Z, {}),
+              f && (0, n.jsx)(r.Z, {}),
               !f &&
                 (0, n.jsxs)("div", {
                   children: [
@@ -467,13 +468,13 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
       var n = a(52322),
         l = a(96217),
         s = a(69816),
-        o = a(6401),
-        r = a(75958);
+        r = a(6401),
+        o = a(75958);
       a(2784);
       var i = a(70514);
-      let c = (0, r.Pi)(e => {
-        let { isVisible: t, onClose: a, onPaymentSelect: r, paymentMethods: c, selectedPaymentMethod: d } = e,
-          [u] = (0, o.nB)();
+      let c = (0, o.Pi)(e => {
+        let { isVisible: t, onClose: a, onPaymentSelect: o, paymentMethods: c, selectedPaymentMethod: d } = e,
+          [u] = (0, r.nB)();
         return (0, n.jsx)(l.Z, {
           isOpen: t,
           onClose: a,
@@ -489,7 +490,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   className: (0, i.cn)("flex justify-between items-center w-full bg-secondary rounded-xl p-5 cursor-pointer", {
                     "border border-monochrome": e.paymentTypeId === d.paymentTypeId
                   }),
-                  onClick: () => r(e),
+                  onClick: () => o(e),
                   "aria-label": "payment method item in select payment sheet flow",
                   children: (0, n.jsxs)("div", {
                     className: "flex gap-4 items-center",
@@ -521,14 +522,14 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
       var n = a(52322),
         l = a(49183),
         s = a(96217),
-        o = a(69816),
-        r = a(6401),
+        r = a(69816),
+        o = a(6401),
         i = a(75958);
       a(2784);
       var c = a(70514);
       let d = (0, i.Pi)(e => {
         let { isVisible: t, onClose: a, onProviderSelect: i, providers: d, selectedProvider: u, asset: m } = e,
-          [x] = (0, r.nB)();
+          [x] = (0, o.nB)();
         return (0, n.jsx)(s.Z, {
           isOpen: t,
           onClose: a,
@@ -555,8 +556,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                           (0, n.jsxs)("div", {
                             className: "flex flex-col items-start gap-0.5",
                             children: [
-                              (0, n.jsx)(o.Z, { className: "text-[18px] font-bold", color: "text-monochrome", children: e.provider.displayName }),
-                              0 === t && (0, n.jsx)(o.Z, { size: "xs", className: "font-medium", color: "text-green-500", children: "Best Value" })
+                              (0, n.jsx)(r.Z, { className: "text-[18px] font-bold", color: "text-monochrome", children: e.provider.displayName }),
+                              0 === t && (0, n.jsx)(r.Z, { size: "xs", className: "font-medium", color: "text-green-500", children: "Best Value" })
                             ]
                           })
                         ]
@@ -564,7 +565,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                       e.quote.payout && e.quote.payout > 0 && m
                         ? (0, n.jsx)("div", {
                             className: "flex flex-col items-end gap-0.5",
-                            children: (0, n.jsx)(o.Z, {
+                            children: (0, n.jsx)(r.Z, {
                               size: "sm",
                               className: "font-bold",
                               color: "text-monochrome",
@@ -584,11 +585,11 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
     34712: function (e, t, a) {
       a.a(e, async function (e, n) {
         try {
-          a.r(t), a.d(t, { ServiceProviderBaseUrlEnum: () => G, ServiceProviderEnum: () => q, default: () => W });
+          a.r(t), a.d(t, { ServiceProviderBaseUrlEnum: () => F, ServiceProviderEnum: () => U, default: () => G });
           var l,
             s,
-            o = a(52322),
-            r = a(41172),
+            r = a(52322),
+            o = a(41172),
             i = a(43166),
             c = a(48272),
             d = a(26007),
@@ -608,259 +609,283 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             k = a(72027),
             S = a(42941),
             C = a(86240),
-            A = a(57124),
-            Z = a(25292),
-            _ = a(35065),
-            I = a(65432),
-            M = a(2784),
-            E = a(86874),
+            _ = a(57124),
+            A = a(25292),
+            Z = a(35065),
+            E = a(65432),
+            I = a(2784),
+            M = a(86874),
             D = a(10289),
-            z = a(70514),
-            L = a(57072),
-            T = a(49409),
-            $ = a(37906),
-            X = a(71198),
-            P = a(38723),
-            O = a(49807),
-            R = a(90802),
-            U = a(66946),
-            F = e([w, _, P]);
-          [w, _, P] = F.then ? (await F)() : F;
-          var q = (((l = {}).ONRAMPER = "onramper"), l),
-            G = (((s = {}).ONRAMPER = "https://buy.onramper.com"), s);
-          let W = () => {
+            T = a(70514),
+            z = a(57072),
+            L = a(49409),
+            $ = a(71198),
+            X = a(38723),
+            P = a(49807),
+            q = a(90802),
+            O = a(66946),
+            R = e([w, Z, X]);
+          [w, Z, X] = R.then ? (await R)() : R;
+          var U = (((l = {}).ONRAMPER = "onramper"), l),
+            F = (((s = {}).ONRAMPER = "https://buy.onramper.com"), s);
+          let G = () => {
             let { walletAvatar: e, walletName: t } = (0, C.v)(),
-              [a, n] = (0, M.useState)(!1),
-              [l, s] = (0, M.useState)(null),
-              [m, v] = (0, M.useState)(null),
-              [F, q] = (0, M.useState)(null),
-              [G, W] = (0, M.useState)(null),
-              [Y, B] = (0, M.useState)(null),
-              [J, H] = (0, M.useState)(!1),
-              [K, V] = (0, M.useState)(!1),
-              Q = (0, S.Z)().get("pageSource") ?? void 0,
-              ee = (0, M.useRef)(0);
-            (0, M.useMemo)(() => ({ pageViewSource: Q }), [Q]);
-            let et = (0, A.a)(),
-              ea = (0, D.s0)(),
-              en = (0, D.TH)().state,
-              [el, es] = (0, M.useState)(!1),
-              [eo, er] = (0, M.useState)(!1),
-              [ei, ec] = (0, M.useState)(""),
-              [ed, eu] = (0, M.useState)(void 0),
-              em = (0, r.SFn)(null == ed ? void 0 : ed.chainKey),
-              [ex, ep] = (0, M.useState)("0"),
-              ef = (0, r.NrF)(ex, 500),
-              [eh, ey] = (0, M.useState)("0"),
-              [eg, eb] = (0, M.useState)("0"),
-              [ev, ej] = (0, M.useState)(!1),
-              [ew, eN] = (0, M.useState)(null),
-              ek = (0, M.useRef)(null),
-              eS = (0, w.pb)(),
-              eC = (0, M.useCallback)(() => n(!0), []);
-            (0, M.useEffect)(() => {
+              [a, n] = (0, I.useState)(!1),
+              [l, s] = (0, I.useState)(null),
+              [m, v] = (0, I.useState)(null),
+              [R, U] = (0, I.useState)(null),
+              [F, G] = (0, I.useState)(null),
+              [W, Y] = (0, I.useState)(null),
+              [B, J] = (0, I.useState)(!1),
+              [H, K] = (0, I.useState)(!1),
+              V = (0, S.Z)().get("pageSource") ?? void 0,
+              Q = (0, I.useRef)(0);
+            (0, I.useMemo)(() => ({ pageViewSource: V }), [V]);
+            let ee = (0, _.a)(),
+              et = (0, D.s0)(),
+              ea = (0, D.TH)().state,
+              [en, el] = (0, I.useState)(!1),
+              [es, er] = (0, I.useState)(!1),
+              [eo, ei] = (0, I.useState)(""),
+              [ec, ed] = (0, I.useState)(void 0),
+              eu = (0, o.SFn)(null == ec ? void 0 : ec.chainKey),
+              [em, ex] = (0, I.useState)("0"),
+              ep = (0, o.NrF)(em, 500),
+              [ef, eh] = (0, I.useState)("0"),
+              [ey, eg] = (0, I.useState)("0"),
+              [eb, ev] = (0, I.useState)(!1),
+              [ej, ew] = (0, I.useState)(null),
+              eN = (0, I.useRef)(null),
+              ek = (0, w.pb)(),
+              eS = (0, I.useCallback)(() => n(!0), []);
+            (0, I.useEffect)(() => {
               (async function () {
-                let e = await (0, N.OJ)({ fiat_currency: ei.toLowerCase(), crypto_currency: (null == ed ? void 0 : ed.id) ?? "atom_cosmos" });
+                let e = await (0, N.OJ)({ fiat_currency: eo.toLowerCase(), crypto_currency: (null == ec ? void 0 : ec.id) ?? "atom_cosmos" });
                 s(e.message), v(e.message.length > 0 ? e.message[0] : null);
               })();
-            }, [ei, ed]),
-              (0, M.useEffect)(() => {
+            }, [eo, ec]),
+              (0, I.useEffect)(() => {
                 (async function () {
                   let e = await (0, N.vE)();
-                  q(e.message);
+                  U(e.message);
                 })();
               }, []),
-              (0, M.useEffect)(() => {
+              (0, I.useEffect)(() => {
                 async function e() {
-                  let e = ++ee.current;
+                  let e = ++Q.current;
                   try {
-                    eN(null), ej(!0);
+                    ew(null), ev(!0);
                     let t = (
                         await (0, N.zS)({
                           payment_method: (null == m ? void 0 : m.paymentTypeId) ?? "",
-                          fiat_amount: new (x())(ef).toNumber(),
-                          fiat_currency: ei.toLowerCase(),
-                          crypto_currency: (null == ed ? void 0 : ed.id) ?? "atom_cosmos",
-                          network: (null == ed ? void 0 : ed.origin) ?? "cosmos"
+                          fiat_amount: new (x())(ep).toNumber(),
+                          fiat_currency: eo.toLowerCase(),
+                          crypto_currency: (null == ec ? void 0 : ec.id) ?? "atom_cosmos",
+                          network: (null == ec ? void 0 : ec.origin) ?? "cosmos"
                         })
                       ).filter(e => (e.payout ?? 0) > 0),
                       a = t.reduce((e, t) => {
-                        let a = null == F ? void 0 : F.find(e => e.id === t.ramp);
+                        let a = null == R ? void 0 : R.find(e => e.id === t.ramp);
                         return a && e.push({ provider: a, quote: t }), e;
                       }, []);
-                    if (e !== ee.current) return;
+                    if (e !== Q.current) return;
                     t.length > 0
-                      ? (eb((t[0].payout ?? 0).toString()), W(a), B(a[0]))
-                      : (eb("0"), eN("No onramp available for these details. Please select a different payment method, fiat or crypto"));
+                      ? (eg((t[0].payout ?? 0).toString()), G(a), Y(a[0]))
+                      : (eg("0"), ew("No onramp available for these details. Please select a different payment method, fiat or crypto"));
                   } catch (a) {
-                    if (e !== ee.current) return;
-                    (0, u.Tb)(a, { tags: $.rw });
+                    if (e !== Q.current) return;
+                    (0, u.Tb)(a, {
+                      tags: { errorType: "get_quote_error", source: "get_quote", severity: "error", errorName: a instanceof Error ? a.name : "GetQuoteError" },
+                      fingerprint: ["get_quote", "get_quote_error"],
+                      level: "error",
+                      contexts: { transaction: { type: "get_quote", errorMessage: a instanceof Error ? a.message : String(a) } },
+                      extra: {
+                        fiat_currency: eo.toLowerCase(),
+                        crypto_currency: (null == ec ? void 0 : ec.id) ?? "atom_cosmos",
+                        network: (null == ec ? void 0 : ec.origin) ?? "cosmos",
+                        payment_method: (null == m ? void 0 : m.paymentTypeId) ?? "",
+                        fiat_amount: new (x())(ep).toNumber()
+                      }
+                    });
                     let t = a instanceof Error ? a.message : "An error occurred";
-                    t.toLowerCase().includes("timeout") ? eN("Request timed out. Unable to fetch quote.") : eN(t);
+                    t.toLowerCase().includes("timeout") ? ew("Request timed out. Unable to fetch quote.") : ew(t);
                   } finally {
-                    e === ee.current && ej(!1);
+                    e === Q.current && ev(!1);
                   }
                 }
-                ef && (null == m ? void 0 : m.paymentTypeId) && new (x())(ef).isGreaterThan("0") ? e() : eb("0");
-              }, [ef, F, ed, ei, null == m ? void 0 : m.paymentTypeId]),
-              (0, M.useEffect)(() => {
-                if (ek.current) {
+                ep && (null == m ? void 0 : m.paymentTypeId) && new (x())(ep).isGreaterThan("0") ? e() : eg("0");
+              }, [ep, R, ec, eo, null == m ? void 0 : m.paymentTypeId]),
+              (0, I.useEffect)(() => {
+                if (eN.current) {
                   var e;
-                  null === (e = ek.current) || void 0 === e || e.focus();
+                  null === (e = eN.current) || void 0 === e || e.focus();
                 }
               }, []),
-              (0, M.useEffect)(() => {
-                if (Q === b.q.AssetDetails) {
-                  let e = eS[en.chain];
-                  eu({
-                    symbol: en.symbol,
+              (0, I.useEffect)(() => {
+                if (V === b.q.AssetDetails) {
+                  let e = ek[ea.chain];
+                  ed({
+                    symbol: ea.symbol,
                     chainName: e.chainName,
                     chainId: e.chainId,
                     chainSymbolImageUrl: e.chainSymbolImageUrl,
-                    assetImg: en.img,
+                    assetImg: ea.img,
                     origin: e.chainName,
                     chainKey: e.key,
-                    tags: null == en ? void 0 : en.tags
+                    tags: null == ea ? void 0 : ea.tags
                   });
                 }
-              }, [en, eS, Q]),
-              (0, M.useEffect)(() => {
-                ed || er(!0);
-              }, [ed]),
-              (0, M.useEffect)(() => {
+              }, [ea, ek, V]),
+              (0, I.useEffect)(() => {
+                ec || er(!0);
+              }, [ec]),
+              (0, I.useEffect)(() => {
                 (async function (e, t) {
                   if ("USD" !== t) {
                     let a = await (0, k.S3)({ from: t, to: "USD" }),
                       n = new (x())(e).multipliedBy(a);
-                    ey(n.toString());
-                  } else ey(e);
-                })(ef, ei);
-              }, [ef, ei]),
-              (0, M.useEffect)(() => {
+                    eh(n.toString());
+                  } else eh(e);
+                })(ep, eo);
+              }, [ep, eo]),
+              (0, I.useEffect)(() => {
                 (async function () {
-                  if ((eN(null), parseFloat(eh) > 0)) {
-                    let e = await (0, k.S3)({ from: "USD", to: ei });
-                    10 > parseFloat(eh)
-                      ? eN(`Amount should be at least ${(10 * e).toFixed(2)} ${ei}`)
-                      : parseFloat(eh) > 1e4 && eN(`Amount exceeds your daily limit of ${(1e4 * e).toFixed(2)} ${ei}`);
+                  if ((ew(null), parseFloat(ef) > 0)) {
+                    let e = await (0, k.S3)({ from: "USD", to: eo });
+                    10 > parseFloat(ef)
+                      ? ew(`Amount should be at least ${(10 * e).toFixed(2)} ${eo}`)
+                      : parseFloat(ef) > 1e4 && ew(`Amount exceeds your daily limit of ${(1e4 * e).toFixed(2)} ${eo}`);
                   }
                 })();
-              }, [eh, ei]),
-              (0, M.useEffect)(() => {
+              }, [ef, eo]),
+              (0, I.useEffect)(() => {
                 async function e() {
                   try {
                     let e = await (0, N.XH)();
-                    ec(e.message.source.toUpperCase()), ep(e.message.amount.toString());
+                    ei(e.message.source.toUpperCase()), ex(e.message.amount.toString());
                   } catch (e) {
-                    ec("USD"), ep("300");
+                    (0, u.Tb)(e, {
+                      tags: {
+                        errorType: "get_defaults_error",
+                        source: "get_defaults",
+                        severity: "error",
+                        errorName: e instanceof Error ? e.name : "GetDefaultsError"
+                      },
+                      fingerprint: ["get_defaults", "get_defaults_error"],
+                      level: "error",
+                      contexts: { transaction: { type: "get_defaults", errorMessage: e instanceof Error ? e.message : String(e) } },
+                      extra: { selectedCurrency: eo }
+                    }),
+                      ei("USD"),
+                      ex("300");
                   }
                 }
-                ei || e();
-              }, [ei]);
-            let eA = (0, M.useCallback)(() => {
+                eo || e();
+              }, [eo]);
+            let eC = (0, I.useCallback)(() => {
               var e, t;
               let a = {
                   apiKey: "pk_prod_01JXWAN8M081D3E7AX1XA1MGYM",
-                  wallets: (null == ed ? void 0 : ed.id) + ":" + em,
+                  wallets: (null == ec ? void 0 : ec.id) + ":" + eu,
                   skipTransactionScreen: !0,
                   txnType: "buy",
-                  txnAmount: ex,
-                  txnFiat: ei,
-                  txnCrypto: (null == ed ? void 0 : ed.id) ?? "",
+                  txnAmount: em,
+                  txnFiat: eo,
+                  txnCrypto: (null == ec ? void 0 : ec.id) ?? "",
                   txnPaymentMethod: null == m ? void 0 : m.paymentTypeId,
-                  txnOnramp: null == Y ? void 0 : Y.provider.id,
+                  txnOnramp: null == W ? void 0 : W.provider.id,
                   txnRedirect: !0
                 },
                 n = ((e = "01JXWAN8M1EEJKBTW2WGR9FMDY"), (t = `wallets=${a.wallets}`), j().HmacSHA256(t, e).toString(j().enc.Hex)),
-                l = (0, I.l)(a),
+                l = (0, E.l)(a),
                 s = `https://buy.onramper.com?${l}&signature=${n}`;
               window.open(s, "_blank");
-            }, [ex, em, null == ed ? void 0 : ed.id, ei, null == m ? void 0 : m.paymentTypeId, null == Y ? void 0 : Y.provider.id]);
-            return (0, o.jsxs)(o.Fragment, {
+            }, [em, eu, null == ec ? void 0 : ec.id, eo, null == m ? void 0 : m.paymentTypeId, null == W ? void 0 : W.provider.id]);
+            return (0, r.jsxs)(r.Fragment, {
               children: [
-                ed
-                  ? (0, o.jsxs)(o.Fragment, {
+                ec
+                  ? (0, r.jsxs)(r.Fragment, {
                       children: [
-                        (0, o.jsxs)(f.m, {
+                        (0, r.jsxs)(f.m, {
                           children: [
-                            (0, o.jsx)(i.X, { size: 36, className: "text-monochrome cursor-pointer p-2", onClick: () => ea(-1) }),
-                            (0, o.jsx)(p.G, {
+                            (0, r.jsx)(i.X, { size: 36, className: "text-monochrome cursor-pointer p-2", onClick: () => et(-1) }),
+                            (0, r.jsx)(p.G, {
                               className: "absolute top-1/2 right-1/2 translate-x-1/2 -translate-y-1/2",
                               walletName: t,
                               showWalletAvatar: !0,
                               walletAvatar: e,
                               showDropdown: !0,
-                              handleDropdownClick: eC
+                              handleDropdownClick: eS
                             })
                           ]
                         }),
-                        (0, o.jsxs)("div", {
+                        (0, r.jsxs)("div", {
                           className: "flex flex-col gap-3 p-6",
                           children: [
-                            (0, o.jsxs)("div", {
+                            (0, r.jsxs)("div", {
                               className: "w-full bg-secondary-100 rounded-2xl p-5 flex flex-col gap-3",
                               children: [
-                                (0, o.jsx)("div", {
+                                (0, r.jsx)("div", {
                                   className: "flex justify-between items-center",
-                                  children: (0, o.jsx)("p", { className: "text-muted-foreground text-sm font-medium !leading-[22.4px]", children: "You pay" })
+                                  children: (0, r.jsx)("p", { className: "text-muted-foreground text-sm font-medium !leading-[22.4px]", children: "You pay" })
                                 }),
-                                (0, o.jsxs)("div", {
+                                (0, r.jsxs)("div", {
                                   className: "flex rounded-2xl justify-between w-full items-center gap-2 h-[34px] p-[2px]",
                                   children: [
-                                    (0, o.jsx)("input", {
-                                      value: ex,
+                                    (0, r.jsx)("input", {
+                                      value: em,
                                       onChange: e => {
-                                        eN(null);
+                                        ew(null);
                                         let t = e.target.value,
-                                          a = (0, X.Rv)(t);
-                                        0 > parseFloat(a) ? eN("Please enter a valid positive number.") : ep(a);
+                                          a = (0, $.Rv)(t);
+                                        0 > parseFloat(a) ? ew("Please enter a valid positive number.") : ex(a);
                                       },
                                       type: "number",
                                       placeholder: "0",
-                                      ref: ek,
-                                      className: (0, z.cn)(
+                                      ref: eN,
+                                      className: (0, T.cn)(
                                         "bg-transparent outline-none w-full text-left placeholder:font-bold placeholder:text-[24px] placeholder:text-monochrome font-bold !leading-[32.4px] caret-accent-blue",
                                         {
-                                          "text-destructive-100": !!ew,
-                                          "text-monochrome": !ew,
-                                          "text-[24px]": ex.length < 12,
-                                          "text-[22px]": ex.length >= 12 && ex.length < 15,
-                                          "text-[20px]": ex.length >= 15 && ex.length < 18,
-                                          "text-[18px]": ex.length >= 18
+                                          "text-destructive-100": !!ej,
+                                          "text-monochrome": !ej,
+                                          "text-[24px]": em.length < 12,
+                                          "text-[22px]": em.length >= 12 && em.length < 15,
+                                          "text-[20px]": em.length >= 15 && em.length < 18,
+                                          "text-[18px]": em.length >= 18
                                         }
                                       ),
                                       "aria-label": "buy pay amount input"
                                     }),
-                                    (0, o.jsxs)("button", {
-                                      className: (0, z.cn)(
+                                    (0, r.jsxs)("button", {
+                                      className: (0, T.cn)(
                                         "flex justify-end items-center gap-2 shrink-0 py-1 px-1.5 rounded-[40px] bg-secondary-300 hover:bg-secondary-400"
                                       ),
-                                      onClick: () => es(!0),
+                                      onClick: () => el(!0),
                                       "aria-label": "buy pay amount currency button",
                                       children: [
-                                        (0, o.jsx)("img", {
-                                          src: (0, L.b)(ei),
+                                        (0, r.jsx)("img", {
+                                          src: (0, z.b)(eo),
                                           className: "w-[24px] h-[24px] rounded-full",
                                           "aria-label": "buy pay amount currency image"
                                         }),
-                                        (0, o.jsx)("p", {
-                                          className: (0, z.cn)("dark:text-white-100 text-sm font-medium"),
+                                        (0, r.jsx)("p", {
+                                          className: (0, T.cn)("dark:text-white-100 text-sm font-medium"),
                                           "aria-label": "buy pay amount currency text",
-                                          children: ei
+                                          children: eo
                                         }),
-                                        (0, o.jsx)(c.p, { size: 14, className: "dark:text-white-100", "aria-label": "buy pay amount currency caret down" })
+                                        (0, r.jsx)(c.p, { size: 14, className: "dark:text-white-100", "aria-label": "buy pay amount currency caret down" })
                                       ]
                                     })
                                   ]
                                 }),
-                                ew && (0, o.jsx)(y.Z, { size: "xs", className: "text-red-600 dark:text-red-300 pt-1.5", children: ew }),
-                                (0, o.jsx)("div", {
+                                ej && (0, r.jsx)(y.Z, { size: "xs", className: "text-red-600 dark:text-red-300 pt-1.5", children: ej }),
+                                (0, r.jsx)("div", {
                                   className: "flex gap-1.5 mt-1",
                                   children: [100, 500, 1e3].map(e =>
-                                    (0, o.jsx)(
+                                    (0, r.jsx)(
                                       "button",
                                       {
-                                        onClick: () => ep(e.toString()),
+                                        onClick: () => ex(e.toString()),
                                         className:
                                           "rounded-full bg-secondary-200 px-[6px] py-0.5 font-medium text-xs hover:bg-secondary-300 dark:hover:text-white-100 hover:text-black-100 !leading-[19.2px] text-muted-foreground",
                                         "aria-label": `buy pay amount button ${e}`,
@@ -872,48 +897,48 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                                 })
                               ]
                             }),
-                            (0, o.jsxs)("div", {
+                            (0, r.jsxs)("div", {
                               className: "w-full bg-secondary-100 rounded-2xl p-5 flex flex-col gap-3",
                               children: [
-                                (0, o.jsx)("div", {
+                                (0, r.jsx)("div", {
                                   className: "flex justify-between items-center",
-                                  children: (0, o.jsx)("p", { className: "text-muted-foreground text-sm font-medium !leading-[22.4px]", children: "You get" })
+                                  children: (0, r.jsx)("p", { className: "text-muted-foreground text-sm font-medium !leading-[22.4px]", children: "You get" })
                                 }),
-                                (0, o.jsxs)("div", {
+                                (0, r.jsxs)("div", {
                                   className: "flex rounded-2xl justify-between w-full items-center gap-2 h-[34px] p-[2px]",
                                   children: [
-                                    ev
-                                      ? (0, o.jsx)("div", {
+                                    eb
+                                      ? (0, r.jsx)("div", {
                                           className: "w-[50px] h-full z-0",
-                                          children: (0, o.jsx)(E.Z, { className: "rounded-full bg-gray-50 dark:bg-gray-800" })
+                                          children: (0, r.jsx)(M.Z, { className: "rounded-full bg-gray-50 dark:bg-gray-800" })
                                         })
-                                      : (0, o.jsx)("input", {
-                                          value: 1e6 * parseFloat(eg) > 0 ? (0, r.LHZ)(eg, void 0, 6) : eg,
+                                      : (0, r.jsx)("input", {
+                                          value: 1e6 * parseFloat(ey) > 0 ? (0, o.LHZ)(ey, void 0, 6) : ey,
                                           placeholder: "0",
-                                          className: (0, z.cn)(
+                                          className: (0, T.cn)(
                                             "bg-transparent outline-none w-full text-left placeholder:font-bold placeholder:text-[24px] placeholder:text-monochrome font-bold !leading-[32.4px] caret-accent-blue text-[24px] text-monochrome"
                                           ),
                                           readOnly: !0
                                         }),
-                                    (0, o.jsxs)("button", {
-                                      className: (0, z.cn)(
+                                    (0, r.jsxs)("button", {
+                                      className: (0, T.cn)(
                                         "flex justify-end items-center gap-2 shrink-0 py-1 px-1.5 rounded-[40px] bg-secondary-300 hover:bg-secondary-400"
                                       ),
                                       onClick: () => er(!0),
                                       "aria-label": "buy get amount token button",
                                       children: [
-                                        (0, o.jsx)("img", {
-                                          src: null == ed ? void 0 : ed.assetImg,
-                                          onError: (0, T._)(et),
+                                        (0, r.jsx)("img", {
+                                          src: null == ec ? void 0 : ec.assetImg,
+                                          onError: (0, L._)(ee),
                                           className: "w-[24px] h-[24px] rounded-full",
                                           "aria-label": "buy get amount token image"
                                         }),
-                                        (0, o.jsx)("p", {
-                                          className: (0, z.cn)("dark:text-white-100 text-sm font-medium"),
+                                        (0, r.jsx)("p", {
+                                          className: (0, T.cn)("dark:text-white-100 text-sm font-medium"),
                                           "aria-label": "buy get amount token text",
-                                          children: null == ed ? void 0 : ed.symbol
+                                          children: null == ec ? void 0 : ec.symbol
                                         }),
-                                        (0, o.jsx)(c.p, { size: 14, className: "dark:text-white-100", "aria-label": "buy get amount token caret down" })
+                                        (0, r.jsx)(c.p, { size: 14, className: "dark:text-white-100", "aria-label": "buy get amount token caret down" })
                                       ]
                                     })
                                   ]
@@ -921,35 +946,35 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                               ]
                             }),
                             m &&
-                              (0, o.jsxs)("div", {
+                              (0, r.jsxs)("div", {
                                 className: "w-full flex justify-between mt-2",
                                 children: [
-                                  (0, o.jsx)(y.Z, { size: "sm", color: "text-muted-foreground", className: "font-medium", children: "Pay using" }),
-                                  (0, o.jsxs)("div", {
-                                    className: (0, z.cn)("flex items-center gap-1", { "cursor-pointer": l && l.length > 1 }),
+                                  (0, r.jsx)(y.Z, { size: "sm", color: "text-muted-foreground", className: "font-medium", children: "Pay using" }),
+                                  (0, r.jsxs)("div", {
+                                    className: (0, T.cn)("flex items-center gap-1", { "cursor-pointer": l && l.length > 1 }),
                                     onClick: () => {
-                                      l && l.length > 1 && H(!0);
+                                      l && l.length > 1 && J(!0);
                                     },
                                     children: [
-                                      (0, o.jsx)("img", { src: m.icon, className: "w-5 h-5" }),
-                                      (0, o.jsx)(y.Z, { size: "sm", color: "text-monochrome", className: "font-medium", children: (0, X.MD)(m.name, 15, 3) }),
-                                      l && l.length > 1 && (0, o.jsx)(c.p, { size: 14, className: "text-secondary-600" })
+                                      (0, r.jsx)("img", { src: m.icon, className: "w-5 h-5" }),
+                                      (0, r.jsx)(y.Z, { size: "sm", color: "text-monochrome", className: "font-medium", children: (0, $.MD)(m.name, 15, 3) }),
+                                      l && l.length > 1 && (0, r.jsx)(c.p, { size: 14, className: "text-secondary-600" })
                                     ]
                                   })
                                 ]
                               }),
-                            Y &&
-                              !ew &&
-                              (0, o.jsxs)("div", {
+                            W &&
+                              !ej &&
+                              (0, r.jsxs)("div", {
                                 className: "w-full flex justify-between mt-1",
                                 children: [
-                                  (0, o.jsx)(y.Z, { size: "sm", color: "text-muted-foreground", className: "font-medium", children: "Provider" }),
-                                  ev
-                                    ? (0, o.jsxs)("div", {
+                                  (0, r.jsx)(y.Z, { size: "sm", color: "text-muted-foreground", className: "font-medium", children: "Provider" }),
+                                  eb
+                                    ? (0, r.jsxs)("div", {
                                         className: "flex items-center gap-0.5",
                                         children: [
-                                          (0, o.jsx)(h.T, { color: "text-green-600", className: "h-7 w-7" }),
-                                          (0, o.jsx)(y.Z, {
+                                          (0, r.jsx)(h.T, { color: "text-green-600", className: "h-7 w-7" }),
+                                          (0, r.jsx)(y.Z, {
                                             size: "sm",
                                             color: "text-monochrome",
                                             className: "font-medium",
@@ -957,90 +982,90 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                                           })
                                         ]
                                       })
-                                    : (0, o.jsxs)("div", {
-                                        className: (0, z.cn)("flex items-center gap-1", { "cursor-pointer": G && G.length > 1 }),
+                                    : (0, r.jsxs)("div", {
+                                        className: (0, T.cn)("flex items-center gap-1", { "cursor-pointer": F && F.length > 1 }),
                                         onClick: () => {
-                                          G && G.length > 1 && V(!0);
+                                          F && F.length > 1 && K(!0);
                                         },
                                         children: [
-                                          (0, o.jsx)("img", { src: Y.provider.icon, className: "w-5 h-5" }),
-                                          (0, o.jsx)(y.Z, { size: "sm", color: "text-monochrome", className: "font-medium", children: Y.provider.displayName }),
-                                          G && G.length > 1 && (0, o.jsx)(c.p, { size: 14, className: "text-secondary-600" })
+                                          (0, r.jsx)("img", { src: W.provider.icon, className: "w-5 h-5" }),
+                                          (0, r.jsx)(y.Z, { size: "sm", color: "text-monochrome", className: "font-medium", children: W.provider.displayName }),
+                                          F && F.length > 1 && (0, r.jsx)(c.p, { size: 14, className: "text-secondary-600" })
                                         ]
                                       })
                                 ]
                               })
                           ]
                         }),
-                        (0, o.jsx)("div", {
+                        (0, r.jsx)("div", {
                           className: "w-full p-4 mt-auto sticky bottom-0 bg-secondary-100 ",
-                          children: (0, o.jsx)(g.zx, {
-                            className: (0, z.cn)("w-full", { "!bg-red-300 text-white-100": ew }),
-                            onClick: eA,
-                            disabled: !new (x())(eg).isGreaterThan(0) || ev || (0, Z.isString)(ew),
+                          children: (0, r.jsx)(g.zx, {
+                            className: (0, T.cn)("w-full", { "!bg-red-300 text-white-100": ej }),
+                            onClick: eC,
+                            disabled: !new (x())(ey).isGreaterThan(0) || eb || (0, A.isString)(ej),
                             "aria-label": "buy button in buy flow",
-                            children: new (x())(eg).isGreaterThan(0)
-                              ? (0, o.jsxs)("div", {
+                            children: new (x())(ey).isGreaterThan(0)
+                              ? (0, r.jsxs)("div", {
                                   className: "flex items-center gap-1.5",
                                   children: [
-                                    (0, o.jsx)(d.O, { size: 20, weight: "bold" }),
-                                    (0, o.jsx)("span", { "aria-label": "buy button text in buy flow", children: "Buy" })
+                                    (0, r.jsx)(d.O, { size: 20, weight: "bold" }),
+                                    (0, r.jsx)("span", { "aria-label": "buy button text in buy flow", children: "Buy" })
                                   ]
                                 })
-                              : (0, o.jsx)("span", { "aria-label": "buy button text in buy flow", children: "Enter amount" })
+                              : (0, r.jsx)("span", { "aria-label": "buy button text in buy flow", children: "Enter amount" })
                           })
                         })
                       ]
                     })
                   : null,
-                (0, o.jsx)(O.Z, {
-                  isVisible: el,
-                  selectedCurrency: ei,
-                  onClose: () => es(!1),
+                (0, r.jsx)(P.Z, {
+                  isVisible: en,
+                  selectedCurrency: eo,
+                  onClose: () => el(!1),
                   onCurrencySelect: e => {
-                    ec(e), es(!1), ek.current && ek.current.focus();
+                    ei(e), el(!1), eN.current && eN.current.focus();
                   }
                 }),
-                (0, o.jsx)(_.Z, {
+                (0, r.jsx)(Z.Z, {
                   isVisible: a,
                   onClose: () => {
-                    n(!1), ea("/home");
+                    n(!1), et("/home");
                   },
                   title: "Your Wallets"
                 }),
-                (0, o.jsx)(P.Z, {
-                  isVisible: eo,
-                  selectedAsset: ed,
+                (0, r.jsx)(X.Z, {
+                  isVisible: es,
+                  selectedAsset: ec,
                   onClose: () => {
-                    ed ? er(!1) : ea(-1);
+                    ec ? er(!1) : et(-1);
                   },
                   onAssetSelect: e => {
-                    eu(e), v(null), er(!1), ek.current && ek.current.focus();
+                    ed(e), v(null), er(!1), eN.current && eN.current.focus();
                   }
                 }),
                 l &&
                   m &&
-                  (0, o.jsx)(R.Z, {
-                    isVisible: J,
-                    onClose: () => H(!1),
+                  (0, r.jsx)(q.Z, {
+                    isVisible: B,
+                    onClose: () => J(!1),
                     onPaymentSelect: e => {
-                      v(e), H(!1);
+                      v(e), J(!1);
                     },
                     paymentMethods: l,
                     selectedPaymentMethod: m
                   }),
-                G &&
-                  Y &&
-                  (0, o.jsx)(U.Z, {
-                    isVisible: K,
-                    onClose: () => V(!1),
+                F &&
+                  W &&
+                  (0, r.jsx)(O.Z, {
+                    isVisible: H,
+                    onClose: () => K(!1),
                     onProviderSelect: e => {
                       var t;
-                      B(e), eb((null === (t = e.quote.payout) || void 0 === t ? void 0 : t.toString()) ?? "0"), V(!1);
+                      Y(e), eg((null === (t = e.quote.payout) || void 0 === t ? void 0 : t.toString()) ?? "0"), K(!1);
                     },
-                    providers: G,
-                    selectedProvider: Y,
-                    asset: ed
+                    providers: F,
+                    selectedProvider: W,
+                    asset: ec
                   })
               ]
             });

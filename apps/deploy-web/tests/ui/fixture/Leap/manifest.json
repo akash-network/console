@@ -1,44 +1,48 @@
 {
-   "action": {
-      "default_icon": {
-         "128": "icon-128.png"
-      },
-      "default_popup": "index.html#/home"
-   },
-   "background": {
-      "service_worker": "background.js"
-   },
-   "commands": {
-      "_execute_action": {
-         "suggested_key": {
-            "default": "Ctrl+Shift+L"
-         }
+"update_url": "https://clients2.google.com/service/update2/crx",
+
+  "manifest_version": 3,
+  "name": "Leap Wallet",
+  "description": "Multichain crypto wallet for Cosmos, EVM, Solana, Move, Bitcoin & more. Leap everywhere!",
+  "version": "0.23.1",
+  "options_page": "index.html#/home",
+  "web_accessible_resources": [
+    {
+      "resources": ["injectLeap.js"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "action": {
+    "default_icon": {
+      "128": "icon-128.png"
+    },
+    "default_popup": "index.html#/home"
+  },
+  "icons": {
+    "16": "icon-16.png",
+    "48": "icon-48.png",
+    "128": "icon-128.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*/*", "http://*/*"],
+      "js": ["contentScripts.js"],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ],
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+L"
       }
-   },
-   "content_scripts": [ {
-      "all_frames": true,
-      "js": [ "contentScripts.js" ],
-      "matches": [ "https://*/*", "http://*/*" ],
-      "run_at": "document_start"
-   } ],
-   "content_security_policy": {
-      "extension_pages": "object-src 'none'; script-src 'self' 'wasm-unsafe-eval'; img-src * 'self' data: https:; font-src https://fonts.gstatic.com; style-src 'self' https://fonts.googleapis.com  data: 'unsafe-inline'; connect-src * data: blob: filesystem:; media-src * data: blob: filesystem:; form-action 'self'; frame-ancestors 'none';frame-src https://newassets.hcaptcha.com https://www.google.com/; base-uri 'self'; default-src 'none'"
-   },
-   "description": "Multichain crypto wallet for Cosmos, EVM, Solana, Move, Bitcoin & more. Leap everywhere!",
-   "icons": {
-      "128": "icon-128.png",
-      "16": "icon-16.png",
-      "48": "icon-48.png"
-   },
-   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApBZnY7YqkqDWDRaeefHu0/M0pYzkLiGsVdzRk9Lrg/WAQSNNODOArFrpyL6I5VI2h4FXavscbhkqsWGAyHVdeDJBkvpgzVbGEi8E01Et0DgbEdbFDiQymB25KEJXu89Q4ao+EwEq5sQAFAoIvDNbGciZOummU9SSLhJ4x16ugqPIZpXR1MwFqyTw5zRcm4RVU1bqFQtW99KPPBYnvvlIzqpX4RJDijR1iOSLPPtmLgudY8AFruQdB1FfiPhOk1jLCiEk61fwz1w6x1iUluFNF1Jfz7nK9I5j6D4uSMeND8hT3Y+xYI9nP2+VPTfzzZbkoqAoW1tIpr3SagN3JeXCpQIDAQAB",
-   "manifest_version": 3,
-   "name": "Leap Wallet",
-   "options_page": "index.html#/home",
-   "permissions": [ "storage", "sidePanel" ],
-   "update_url": "https://clients2.google.com/service/update2/crx",
-   "version": "0.22.9",
-   "web_accessible_resources": [ {
-      "matches": [ "\u003Call_urls>" ],
-      "resources": [ "injectLeap.js" ]
-   } ]
+    }
+  },
+  "permissions": ["storage", "sidePanel"],
+  "content_security_policy": {
+    "extension_pages": "object-src 'none'; script-src 'self' 'wasm-unsafe-eval'; img-src * 'self' data: https:; font-src https://fonts.gstatic.com; style-src 'self' https://fonts.googleapis.com  data: 'unsafe-inline'; connect-src * data: blob: filesystem:; media-src * data: blob: filesystem:; form-action 'self'; frame-ancestors 'none';frame-src https://newassets.hcaptcha.com https://www.google.com/; base-uri 'self'; default-src 'none'"
+  }
 }

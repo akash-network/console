@@ -4,12 +4,12 @@
       r = new e.Error().stack;
     r &&
       ((e._sentryDebugIds = e._sentryDebugIds || {}),
-      (e._sentryDebugIds[r] = "7df5a120-452e-4e9d-beaf-c693d3c9a0bc"),
-      (e._sentryDebugIdIdentifier = "sentry-dbid-7df5a120-452e-4e9d-beaf-c693d3c9a0bc"));
+      (e._sentryDebugIds[r] = "85dc084a-7d14-4677-938a-cd38b3d7f944"),
+      (e._sentryDebugIdIdentifier = "sentry-dbid-85dc084a-7d14-4677-938a-cd38b3d7f944"));
   } catch (e) {}
 })();
 var _global = "undefined" != typeof window ? window : "undefined" != typeof global ? global : "undefined" != typeof self ? self : {};
-_global.SENTRY_RELEASE = { id: "0.22.9" };
+_global.SENTRY_RELEASE = { id: "0.23.1" };
 ("use strict");
 (self.webpackChunk_leap_cosmos_extension = self.webpackChunk_leap_cosmos_extension || []).push([
   ["977"],
@@ -681,7 +681,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           return G.iif;
         }
       });
-      var J = t(33154);
+      var J = t(67495);
       Object.defineProperty(r, "interval", {
         enumerable: !0,
         get: function () {
@@ -3412,7 +3412,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         (r.fromAsyncIterable = j),
         (r.fromReadableStreamLike = P);
     },
-    33154: function (e, r, t) {
+    67495: function (e, r, t) {
       Object.defineProperty(r, "__esModule", { value: !0 }), (r.interval = void 0);
       var n = t(17152),
         o = t(18069);
@@ -5805,7 +5805,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
       Object.defineProperty(r, "__esModule", { value: !0 }), (r.sampleTime = void 0);
       var n = t(17152),
         o = t(20778),
-        i = t(33154);
+        i = t(67495);
       r.sampleTime = function (e, r) {
         return void 0 === r && (r = n.asyncScheduler), o.sample(i.interval(e, r));
       };

@@ -4,384 +4,408 @@
       t = new e.Error().stack;
     t &&
       ((e._sentryDebugIds = e._sentryDebugIds || {}),
-      (e._sentryDebugIds[t] = "a9de40cf-71ca-416a-9589-d4b87bebf98f"),
-      (e._sentryDebugIdIdentifier = "sentry-dbid-a9de40cf-71ca-416a-9589-d4b87bebf98f"));
+      (e._sentryDebugIds[t] = "058c1b54-e013-4450-a549-7f346629b3af"),
+      (e._sentryDebugIdIdentifier = "sentry-dbid-058c1b54-e013-4450-a549-7f346629b3af"));
   } catch (e) {}
 })();
 var _global = "undefined" != typeof window ? window : "undefined" != typeof global ? global : "undefined" != typeof self ? self : {};
-_global.SENTRY_RELEASE = { id: "0.22.9" };
+_global.SENTRY_RELEASE = { id: "0.23.1" };
 ("use strict");
 (self.webpackChunk_leap_cosmos_extension = self.webpackChunk_leap_cosmos_extension || []).push([
   ["9384"],
   {
     52056: function (e, t, a) {
-      var n, s;
-      a.d(t, { y: () => n }),
+      var s, n;
+      a.d(t, { y: () => s }),
         a(55968),
         a(95238),
-        ((s = n || (n = {})).SEND_TX = "send-tx-to-background"),
-        (s.REQUEST_SIGN_DIRECT = "request-sign-direct"),
-        (s.REQUEST_SIGN_AMINO = "request-sign-amino"),
-        (s.GET_KEY = "get-key"),
-        (s.GET_KEYS = "get-keys"),
-        (s.ENABLE_ACCESS = "enable-access"),
-        (s.GET_CHAIN_INFOS_WITHOUT_ENDPOINTS = "get-chain-infos-without-endpoints"),
-        (s.GET_SUPPORTED_CHAINS = "get-supported-chains"),
-        (s.GET_CONNECTION_STATUS = "get-connection-status"),
-        (s.ADD_SUGGESTED_CHAIN = "add-suggested-chain"),
-        (s.DISCONNECT = "disconnect"),
-        (s.GET_SECRET20_VIEWING_KEY = "get-secret20-viewing-key"),
-        (s.SUGGEST_TOKEN = "suggest-token"),
-        (s.SUGGEST_CW20_TOKEN = "suggest-cw20-token"),
-        (s.UPDATE_SECRET20_VIEWING_KEY = "update-secret20-viewing-key"),
-        (s.GET_PUBKEY_MSG = "get-pubkey-msg"),
-        (s.GET_TX_ENCRYPTION_KEY_MSG = "get-tx-encryption-key-msg"),
-        (s.REQUEST_ENCRYPT_MSG = "request-encrypt-msg"),
-        (s.REQUEST_DECRYPT_MSG = "request-decrypt-msg"),
-        (s.REQUEST_VERIFY_ADR36_AMINO_SIGN_DOC = "request-verify-adr36-amino-sign-doc"),
-        (s.REQUEST_SIGN_EIP712 = "request-sign-eip712"),
-        (s.OPEN_SIDE_PANEL = "open-side-panel");
+        ((n = s || (s = {})).SEND_TX = "send-tx-to-background"),
+        (n.REQUEST_SIGN_DIRECT = "request-sign-direct"),
+        (n.REQUEST_SIGN_AMINO = "request-sign-amino"),
+        (n.GET_KEY = "get-key"),
+        (n.GET_KEYS = "get-keys"),
+        (n.ENABLE_ACCESS = "enable-access"),
+        (n.GET_CHAIN_INFOS_WITHOUT_ENDPOINTS = "get-chain-infos-without-endpoints"),
+        (n.GET_SUPPORTED_CHAINS = "get-supported-chains"),
+        (n.GET_CONNECTION_STATUS = "get-connection-status"),
+        (n.ADD_SUGGESTED_CHAIN = "add-suggested-chain"),
+        (n.DISCONNECT = "disconnect"),
+        (n.GET_SECRET20_VIEWING_KEY = "get-secret20-viewing-key"),
+        (n.SUGGEST_TOKEN = "suggest-token"),
+        (n.SUGGEST_CW20_TOKEN = "suggest-cw20-token"),
+        (n.UPDATE_SECRET20_VIEWING_KEY = "update-secret20-viewing-key"),
+        (n.GET_PUBKEY_MSG = "get-pubkey-msg"),
+        (n.GET_TX_ENCRYPTION_KEY_MSG = "get-tx-encryption-key-msg"),
+        (n.REQUEST_ENCRYPT_MSG = "request-encrypt-msg"),
+        (n.REQUEST_DECRYPT_MSG = "request-decrypt-msg"),
+        (n.REQUEST_VERIFY_ADR36_AMINO_SIGN_DOC = "request-verify-adr36-amino-sign-doc"),
+        (n.REQUEST_SIGN_EIP712 = "request-sign-eip712"),
+        (n.OPEN_SIDE_PANEL = "open-side-panel");
     },
     85406: function (e, t, a) {
-      a.a(e, async function (e, n) {
+      a.a(e, async function (e, s) {
         try {
-          a.d(t, { a: () => g, u: () => x });
-          var s = a(41172),
-            l = a(15969),
-            r = a(55159),
-            i = a(2784),
-            o = a(22014),
-            c = a(72565),
-            d = a.n(c),
-            u = a(53108),
-            m = a(58551),
-            f = e([m]);
-          async function x(e, t, a, n) {
-            let s = l.tgY.create(e, l.oCA.secret.chainId, n);
-            return !!(await s.getBalance(n, a, t)).balance;
+          a.d(t, { a: () => w, u: () => x });
+          var n = a(41172),
+            r = a(15969),
+            i = a(55159),
+            l = a(92642),
+            o = a(2784),
+            c = a(22014),
+            d = a(72565),
+            u = a.n(d),
+            m = a(53108),
+            g = a(58551),
+            f = e([g]);
+          async function x(e, t, a, s) {
+            let n = r.tgY.create(e, r.oCA.secret.chainId, s);
+            return !!(await n.getBalance(s, a, t)).balance;
           }
-          function g() {
-            let e = (0, m.E)(),
-              t = (0, s.VMC)(),
-              a = s.rNU.useOperateCosmosTx(),
-              { setViewingKeys: n } = (0, s.WdY)();
-            return (0, i.useCallback)(
-              async (i, c, m, f, g, h) => {
-                if (!o.M8.password) throw Error("Password not set");
-                let w = await e(),
-                  y = l.KQf.create(i ?? "", c, w),
-                  b = null == h ? void 0 : h.key;
-                if (g) {
-                  if (!(await x(i ?? "", b ?? "", f, m))) return { validKey: !1, error: "Invalid viewing key", key: b };
+          function w() {
+            let e = (0, g.E)(),
+              t = (0, n.VMC)(),
+              a = n.rNU.useOperateCosmosTx(),
+              { setViewingKeys: s } = (0, n.WdY)();
+            return (0, o.useCallback)(
+              async (o, d, g, f, w, h) => {
+                if (!c.M8.password) throw Error("Password not set");
+                let y = await e(),
+                  b = r.KQf.create(o ?? "", d, y),
+                  v = null == h ? void 0 : h.key;
+                if (w) {
+                  if (!(await x(o ?? "", v ?? "", f, g))) return { validKey: !1, error: "Invalid viewing key", key: v };
                 } else
                   try {
-                    var v, p, E, j, _;
-                    let { txStatus: e, viewingKey: n } = await y.createViewingKey(m, f, t, {
-                      key: b,
+                    var p, _, E, j, N;
+                    let { txStatus: e, viewingKey: s } = await b.createViewingKey(g, f, t, {
+                      key: v,
                       gasLimit: null == h ? void 0 : h.gasLimit,
                       feeDenom: null == h ? void 0 : h.feeDenom
                     });
                     if (0 !== e.code) return { validKey: !1, error: e.rawLog };
                     a({
                       txHash: e.transactionHash,
-                      txType: s.pb0.SecretTokenTransaction,
+                      txType: n.pb0.SecretTokenTransaction,
                       metadata: { contract: f },
                       feeDenomination: "uscrt",
                       feeQuantity:
-                        (null === (_ = e.tx) || void 0 === _
+                        (null === (N = e.tx) || void 0 === N
                           ? void 0
-                          : null === (j = _.auth_info) || void 0 === j
+                          : null === (j = N.auth_info) || void 0 === j
                             ? void 0
                             : null === (E = j.fee) || void 0 === E
                               ? void 0
-                              : null === (p = E.amount) || void 0 === p
+                              : null === (_ = E.amount) || void 0 === _
                                 ? void 0
-                                : null === (v = p[0]) || void 0 === v
+                                : null === (p = _[0]) || void 0 === p
                                   ? void 0
-                                  : v.amount) ?? "0.01",
-                      chainId: c
+                                  : p.amount) ?? "0.01",
+                      chainId: d
                     }),
-                      (b = n);
+                      (v = s);
                   } catch (e) {
-                    return { validKey: !1, error: "Unable to create viewing key" };
+                    return (
+                      (0, l.Tb)(e, {
+                        tags: {
+                          errorType: "use_create_viewing_key_error",
+                          source: "use_create_viewing_key",
+                          severity: "error",
+                          errorName: e instanceof Error ? e.name : "UseCreateViewingKeyError"
+                        },
+                        fingerprint: ["use_create_viewing_key", "use_create_viewing_key_error"],
+                        level: "error",
+                        contexts: { transaction: { type: "use_create_viewing_key", errorMessage: e instanceof Error ? e.message : String(e) } },
+                        extra: { lcdUrl: o, chainId: d, signerAddress: g, contractAddress: f }
+                      }),
+                      { validKey: !1, error: "Unable to create viewing key" }
+                    );
                   }
-                let N = (0, r.HI)(b, o.M8.password),
-                  k = (await d().storage.local.get([u.rg]))[u.rg];
-                if (k) {
-                  let e = e => ({ ...k, [m]: { ...k[m], [f]: e ? N : b } });
-                  await d().storage.local.set({ [u.rg]: e(!0) }), n(e(!1));
+                let k = (0, i.HI)(v, c.M8.password),
+                  C = (await u().storage.local.get([m.rg]))[m.rg];
+                if (C) {
+                  let e = e => ({ ...C, [g]: { ...C[g], [f]: e ? k : v } });
+                  await u().storage.local.set({ [m.rg]: e(!0) }), s(e(!1));
                 } else {
-                  let e = e => ({ [m]: { [f]: e ? N : b } });
-                  await d().storage.local.set({ [u.rg]: e(!0) }), n(e(!1));
+                  let e = e => ({ [g]: { [f]: e ? k : v } });
+                  await u().storage.local.set({ [m.rg]: e(!0) }), s(e(!1));
                 }
-                return { validKey: !0, error: null, key: b };
+                return { validKey: !0, error: null, key: v };
               },
-              [e, t, a, n]
+              [e, t, a, s]
             );
           }
-          (m = (f.then ? (await f)() : f)[0]), n();
+          (g = (f.then ? (await f)() : f)[0]), s();
         } catch (e) {
-          n(e);
+          s(e);
         }
       });
     },
     58551: function (e, t, a) {
-      a.a(e, async function (e, n) {
+      a.a(e, async function (e, s) {
         try {
           a.d(t, { E: () => o });
-          var s = a(2784),
-            l = a(22014),
-            r = a(65027),
-            i = e([r]);
+          var n = a(2784),
+            r = a(22014),
+            i = a(65027),
+            l = e([i]);
           function o() {
-            let e = r.w.useGetWallet();
-            return (0, s.useCallback)(async () => {
-              if (!l.M8.password) throw Error("Password not set");
+            let e = i.w.useGetWallet();
+            return (0, n.useCallback)(async () => {
+              if (!r.M8.password) throw Error("Password not set");
               return await e();
             }, [e]);
           }
-          (r = (i.then ? (await i)() : i)[0]), n();
+          (i = (l.then ? (await l)() : l)[0]), s();
         } catch (e) {
-          n(e);
+          s(e);
         }
       });
     },
     50242: function (e, t, a) {
-      a.a(e, async function (e, n) {
+      a.a(e, async function (e, s) {
         try {
-          a.r(t), a.d(t, { default: () => T });
-          var s = a(52322),
-            l = a(41172),
-            r = a(52056),
-            i = a(15969),
+          a.r(t), a.d(t, { default: () => S });
+          var n = a(52322),
+            r = a(41172),
+            i = a(52056),
+            l = a(15969),
             o = a(92642),
             c = a(89178),
             d = a(19623),
             u = a(69816),
             m = a(53108),
-            f = a(79533),
-            x = a(85406),
-            g = a(75958),
-            h = a(2784),
-            w = a(10289),
+            g = a(79533),
+            f = a(85406),
+            x = a(75958),
+            w = a(2784),
+            h = a(10289),
             y = a(42799),
             b = a(48346),
             v = a(46103),
             p = a(53345),
-            E = a(48534),
-            j = a(37906),
-            _ = a(72565),
-            N = a.n(_),
-            k = a(94685),
-            C = a(71142),
-            S = e([x, b]);
-          [x, b] = S.then ? (await S)() : S;
-          let I = (0, g.Pi)(e => {
+            _ = a(48534),
+            E = a(72565),
+            j = a.n(E),
+            N = a(94685),
+            k = a(71142),
+            C = e([f, b]);
+          [f, b] = C.then ? (await C)() : C;
+          let T = (0, x.Pi)(e => {
             let { handleRejectBtnClick: t } = e,
-              a = (0, l.DI5)(),
-              n = (0, x.a)(),
-              g = (0, l.hU2)(),
-              _ = (0, w.s0)(),
-              S = (0, l.yHI)("secret", "mainnet", a),
-              T = (0, l.lSw)(),
-              I = (0, l.qZl)(),
-              [A, G] = (0, h.useState)(""),
-              [D, R] = (0, h.useState)(!1),
-              [K, O] = (0, h.useState)(!1),
-              [P, U] = (0, h.useState)(!1),
-              [B, Y] = (0, h.useState)(!0),
-              [L, W] = (0, h.useState)(!1),
-              [M, Z] = (0, h.useState)(""),
-              [z, Q] = (0, h.useState)({ decimals: 0, name: "", symbol: "" }),
-              [F, H] = (0, h.useState)({ contractAddress: "", address: "", viewingKey: "", type: "", chainId: "secret-4" }),
-              q = F.type !== r.y.SUGGEST_CW20_TOKEN;
-            (0, h.useEffect)(() => {
-              N()
+              a = (0, r.DI5)(),
+              s = (0, f.a)(),
+              x = (0, r.hU2)(),
+              E = (0, h.s0)(),
+              C = (0, r.yHI)("secret", "mainnet", a),
+              S = (0, r.lSw)(),
+              T = (0, r.qZl)(),
+              [I, A] = (0, w.useState)(""),
+              [G, D] = (0, w.useState)(!1),
+              [R, K] = (0, w.useState)(!1),
+              [U, O] = (0, w.useState)(!1),
+              [P, B] = (0, w.useState)(!0),
+              [Y, L] = (0, w.useState)(!1),
+              [M, W] = (0, w.useState)(""),
+              [Z, z] = (0, w.useState)({ decimals: 0, name: "", symbol: "" }),
+              [Q, F] = (0, w.useState)({ contractAddress: "", address: "", viewingKey: "", type: "", chainId: "secret-4" }),
+              H = Q.type !== i.y.SUGGEST_CW20_TOKEN;
+            (0, w.useEffect)(() => {
+              j()
                 .storage.local.get([m.RO])
                 .then(async e => {
                   let t = e[m.RO],
-                    a = (await (0, f._d)())[t.chainId],
-                    { lcdUrl: n } = S(!1, a, "mainnet");
-                  if (t && n)
+                    a = (await (0, g._d)())[t.chainId],
+                    { lcdUrl: s } = C(!1, a, "mainnet");
+                  if (t && s)
                     try {
-                      if ((Y(!0), H(t), Z(""), t.type !== r.y.SUGGEST_CW20_TOKEN)) {
-                        if (null == g ? void 0 : g[t.contractAddress]) {
-                          let e = g[t.contractAddress];
-                          Q({ name: e.name, symbol: e.symbol, decimals: e.decimals });
+                      if ((B(!0), F(t), W(""), t.type !== i.y.SUGGEST_CW20_TOKEN)) {
+                        if (null == x ? void 0 : x[t.contractAddress]) {
+                          let e = x[t.contractAddress];
+                          z({ name: e.name, symbol: e.symbol, decimals: e.decimals });
                         } else {
-                          let e = i.tgY.create(n, t.chainId, t.address),
+                          let e = l.tgY.create(s, t.chainId, t.address),
                             a = await e.getTokenParams(t.contractAddress);
-                          a.token_info && Q(a.token_info);
+                          a.token_info && z(a.token_info);
                         }
                       } else {
-                        let e = await (0, p.s)(n, t.contractAddress);
+                        let e = await (0, p.s)(s, t.contractAddress);
                         if ("string" == typeof e && e.includes("Invalid")) {
-                          Z("Invalid Contract Address");
+                          W("Invalid Contract Address");
                           return;
                         }
-                        Q({ name: e.name, symbol: e.symbol, decimals: e.decimals });
+                        z({ name: e.name, symbol: e.symbol, decimals: e.decimals });
                       }
                     } catch (e) {
                       if (e instanceof c.d7) {
-                        var s, l;
-                        Z((null === (l = e.response) || void 0 === l ? void 0 : null === (s = l.data) || void 0 === s ? void 0 : s.message) ?? e.message);
-                      } else Z(e.message);
-                      (0, o.Tb)(e, { tags: j.rw });
+                        var n, r;
+                        W((null === (r = e.response) || void 0 === r ? void 0 : null === (n = r.data) || void 0 === n ? void 0 : n.message) ?? e.message);
+                      } else W(e.message);
+                      (0, o.Tb)(e, {
+                        tags: {
+                          errorType: "suggest_secret_error",
+                          source: "suggest_secret",
+                          severity: "error",
+                          errorName: e instanceof Error ? e.name : "SuggestSecretError"
+                        },
+                        fingerprint: ["suggest_secret", "suggest_secret_error"],
+                        level: "error",
+                        contexts: { transaction: { type: "suggest_secret", errorMessage: e instanceof Error ? e.message : String(e) } }
+                      });
                     } finally {
-                      Y(!1);
+                      B(!1);
                     }
-                  Y(!1);
+                  B(!1);
                 });
-            }, [S, g]);
-            let V = (0, h.useCallback)(async () => {
-                O(!0);
-                let e = (await (0, f._d)())[F.chainId],
-                  { lcdUrl: t = "" } = S(!1, e, "mainnet"),
-                  a = await (0, x.u)(t, A, F.contractAddress, F.address);
-                return U(!a), O(!1), a;
-              }, [A, S, F.address, F.chainId, F.contractAddress]),
-              $ = (0, h.useCallback)(async () => {
-                if (q) {
-                  if (A && !(await V())) return;
-                  W(!0);
-                  let e = (await (0, f._d)())[F.chainId],
-                    { lcdUrl: t = "" } = S(!1, e, "mainnet");
+            }, [C, x]);
+            let V = (0, w.useCallback)(async () => {
+                K(!0);
+                let e = (await (0, g._d)())[Q.chainId],
+                  { lcdUrl: t = "" } = C(!1, e, "mainnet"),
+                  a = await (0, f.u)(t, I, Q.contractAddress, Q.address);
+                return O(!a), K(!1), a;
+              }, [I, C, Q.address, Q.chainId, Q.contractAddress]),
+              q = (0, w.useCallback)(async () => {
+                if (H) {
+                  if (I && !(await V())) return;
+                  L(!0);
+                  let e = (await (0, g._d)())[Q.chainId],
+                    { lcdUrl: t = "" } = C(!1, e, "mainnet");
                   if (
-                    (await n(t, F.chainId, F.address, F.contractAddress, F.type === r.y.UPDATE_SECRET20_VIEWING_KEY || (D && !!A), { key: F.viewingKey || A }),
-                    !g[F.contractAddress])
+                    (await s(t, Q.chainId, Q.address, Q.contractAddress, Q.type === i.y.UPDATE_SECRET20_VIEWING_KEY || (G && !!I), { key: Q.viewingKey || I }),
+                    !x[Q.contractAddress])
                   ) {
-                    let t = { name: z.symbol, symbol: F.contractAddress, decimals: z.decimals, coinGeckoId: "", icon: "" };
-                    await I(F.contractAddress, t, e);
+                    let t = { name: Z.symbol, symbol: Q.contractAddress, decimals: Z.decimals, coinGeckoId: "", icon: "" };
+                    await T(Q.contractAddress, t, e);
                   }
                 } else {
-                  W(!0);
-                  let e = (await (0, f._d)())[F.chainId],
-                    a = { coinDenom: z.symbol, coinMinimalDenom: F.contractAddress, coinDecimals: z.decimals, coinGeckoId: "", icon: "", chain: e };
-                  window.removeEventListener("beforeunload", t), await y.Xy.setBetaCW20Denoms(F.contractAddress, a, e);
-                  let n = [...y.bI.getEnabledCW20DenomsForChain(e), F.contractAddress];
-                  await y.bI.setEnabledCW20Denoms(n, e), b.jZ.loadBalances();
+                  L(!0);
+                  let e = (await (0, g._d)())[Q.chainId],
+                    a = { coinDenom: Z.symbol, coinMinimalDenom: Q.contractAddress, coinDecimals: Z.decimals, coinGeckoId: "", icon: "", chain: e };
+                  window.removeEventListener("beforeunload", t), await y.Xy.setBetaCW20Denoms(Q.contractAddress, a, e);
+                  let s = [...y.bI.getEnabledCW20DenomsForChain(e), Q.contractAddress];
+                  await y.bI.setEnabledCW20Denoms(s, e), b.jZ.loadBalances();
                 }
                 window.removeEventListener("beforeunload", t),
-                  await N().storage.local.set({ [m.u1]: { data: "Approved" } }),
+                  await j().storage.local.set({ [m.u1]: { data: "Approved" } }),
                   setTimeout(async () => {
-                    await N().storage.local.remove([m.RO]), await N().storage.local.remove(m.u1), W(!1), (0, E.oj)() ? _("/home") : window.close();
+                    await j().storage.local.remove([m.RO]), await j().storage.local.remove(m.u1), L(!1), (0, _.oj)() ? E("/home") : window.close();
                   }, 50);
-              }, [D, z.decimals, z.symbol, n, A, S, q, F.address, F.chainId, F.contractAddress, F.type, F.viewingKey, g, _, T, I, V]);
-            return (0, s.jsxs)(s.Fragment, {
+              }, [G, Z.decimals, Z.symbol, s, I, C, H, Q.address, Q.chainId, Q.contractAddress, Q.type, Q.viewingKey, x, E, S, T, V]);
+            return (0, n.jsxs)(n.Fragment, {
               children: [
-                (0, s.jsxs)("div", {
+                (0, n.jsxs)("div", {
                   className: "flex flex-col items-center",
                   children: [
-                    (0, s.jsx)(k.X6, { text: "Adding token" }),
-                    (0, s.jsx)(k.GL, { text: "This will allow this token to be viewed within Leap Wallet" }),
-                    (0, s.jsx)(k.QS, { address: F.contractAddress ?? "" }),
-                    B ? (0, s.jsx)(C.I, {}) : z && (0, s.jsx)(k.P6, { name: z.name ?? "", symbol: z.symbol ?? "", decimals: z.decimals ?? 0 })
+                    (0, n.jsx)(N.X6, { text: "Adding token" }),
+                    (0, n.jsx)(N.GL, { text: "This will allow this token to be viewed within Leap Wallet" }),
+                    (0, n.jsx)(N.QS, { address: Q.contractAddress ?? "" }),
+                    P ? (0, n.jsx)(k.I, {}) : Z && (0, n.jsx)(N.P6, { name: Z.name ?? "", symbol: Z.symbol ?? "", decimals: Z.decimals ?? 0 })
                   ]
                 }),
-                z &&
-                  !B &&
-                  (0, s.jsxs)("div", {
+                Z &&
+                  !P &&
+                  (0, n.jsxs)("div", {
                     className: "my-4 w-full",
                     children: [
-                      D &&
-                        (0, s.jsxs)("div", {
-                          className: `relative w-full flex items-center border rounded-xl flex h-12 bg-white-100 dark:bg-gray-900 py-2 pl-5 pr-[10px] ${P && A ? "border-red-300" : "border-gray-500"}`,
+                      G &&
+                        (0, n.jsxs)("div", {
+                          className: `relative w-full flex items-center border rounded-xl flex h-12 bg-white-100 dark:bg-gray-900 py-2 pl-5 pr-[10px] ${U && I ? "border-red-300" : "border-gray-500"}`,
                           children: [
-                            (0, s.jsx)("input", {
+                            (0, n.jsx)("input", {
                               placeholder: "viewing key",
                               className: "flex flex-grow text-base dark:text-white-100 text-gray-400 outline-none bg-white-0 placeholder-gray-400::placeholder",
-                              value: A,
-                              onChange: e => G(e.currentTarget.value),
+                              value: I,
+                              onChange: e => A(e.currentTarget.value),
                               autoComplete: "off"
                             }),
-                            K ? (0, s.jsx)(d.T, { color: v.w.white100, className: "h-6 y-6" }) : null
+                            R ? (0, n.jsx)(d.T, { color: v.w.white100, className: "h-6 y-6" }) : null
                           ]
                         }),
-                      P && A && (0, s.jsx)(u.Z, { size: "sm", className: "mt-1", color: "text-red-300", children: "Invalid Viewing key provided" })
+                      U && I && (0, n.jsx)(u.Z, { size: "sm", className: "mt-1", color: "text-red-300", children: "Invalid Viewing key provided" })
                     ]
                   }),
-                (0, s.jsxs)(k.$_, {
+                (0, n.jsxs)(N.$_, {
                   error: M,
-                  isFetching: B,
+                  isFetching: P,
                   children: [
-                    q &&
-                      (0, s.jsxs)("div", {
+                    H &&
+                      (0, n.jsxs)("div", {
                         className: "flex mb-4 w-full items-center cursor-pointer ml-2",
                         children: [
-                          (0, s.jsx)("input", {
+                          (0, n.jsx)("input", {
                             className: "h-4 w-4 border border-gray-300 rounded-xl",
                             type: "checkbox",
                             value: "",
-                            checked: D,
-                            onChange: () => R(!D),
+                            checked: G,
+                            onChange: () => D(!G),
                             id: "advancedFeature"
                           }),
-                          (0, s.jsx)("label", {
+                          (0, n.jsx)("label", {
                             className: "form-check-label inline-block dark:text-white-100 text-gray-900 ml-2 text-md",
                             htmlFor: "advancedFeature",
                             children: "(Advanced) Import my own viewing key"
                           })
                         ]
                       }),
-                    (0, s.jsx)(k.No, {
+                    (0, n.jsx)(N.No, {
                       error: M,
                       rejectBtnClick: t,
                       rejectBtnText: "Reject",
-                      confirmBtnClick: $,
-                      confirmBtnText: L || K ? (0, s.jsx)(d.T, { color: v.w.white100 }) : "Approve",
-                      isConfirmBtnDisabled: (null == M ? void 0 : M.length) !== 0 || (P && (null == A ? void 0 : A.length) > 0) || !z.name
+                      confirmBtnClick: q,
+                      confirmBtnText: Y || R ? (0, n.jsx)(d.T, { color: v.w.white100 }) : "Approve",
+                      isConfirmBtnDisabled: (null == M ? void 0 : M.length) !== 0 || (U && (null == I ? void 0 : I.length) > 0) || !Z.name
                     })
                   ]
                 })
               ]
             });
           });
-          function T() {
-            return (0, s.jsx)(k.zb, {
+          function S() {
+            return (0, n.jsx)(N.zb, {
               suggestKey: m.RO,
               children: e => {
                 let { handleRejectBtnClick: t } = e;
-                return (0, s.jsx)(I, { handleRejectBtnClick: t });
+                return (0, n.jsx)(T, { handleRejectBtnClick: t });
               }
             });
           }
-          n();
+          s();
         } catch (e) {
-          n(e);
+          s(e);
         }
       });
     },
     71142: function (e, t, a) {
-      a.d(t, { I: () => r });
-      var n = a(52322),
-        s = a(41477);
+      a.d(t, { I: () => i });
+      var s = a(52322),
+        n = a(41477);
       a(2784);
-      var l = a(86874);
-      function r() {
-        return (0, n.jsxs)("div", {
+      var r = a(86874);
+      function i() {
+        return (0, s.jsxs)("div", {
           className: "flex flex-col gap-y-[10px] bg-white-100 dark:bg-gray-900 rounded-2xl p-4 w-full",
           children: [
-            (0, n.jsxs)("div", {
+            (0, s.jsxs)("div", {
               className: "flex flex-col gap-[6px] w-full",
               children: [
-                (0, n.jsx)(s.sr, { children: "Coin Name" }),
-                (0, n.jsx)(l.Z, { className: "", width: 80, height: 16, containerClassName: "block !leading-none" })
+                (0, s.jsx)(n.sr, { children: "Coin Name" }),
+                (0, s.jsx)(r.Z, { className: "", width: 80, height: 16, containerClassName: "block !leading-none" })
               ]
             }),
-            s.iz,
-            (0, n.jsxs)("div", {
+            n.iz,
+            (0, s.jsxs)("div", {
               className: "flex flex-col gap-[6px] w-full",
               children: [
-                (0, n.jsx)(s.sr, { children: "Coin Symbol" }),
-                (0, n.jsx)(l.Z, { className: "", width: 50, height: 16, containerClassName: "block !leading-none" })
+                (0, s.jsx)(n.sr, { children: "Coin Symbol" }),
+                (0, s.jsx)(r.Z, { className: "", width: 50, height: 16, containerClassName: "block !leading-none" })
               ]
             }),
-            s.iz,
-            (0, n.jsxs)("div", {
+            n.iz,
+            (0, s.jsxs)("div", {
               className: "flex flex-col gap-[6px] w-full",
               children: [
-                (0, n.jsx)(s.sr, { children: "Coin Decimals" }),
-                (0, n.jsx)(l.Z, { className: "", width: 25, height: 16, containerClassName: "block !leading-none" })
+                (0, s.jsx)(n.sr, { children: "Coin Decimals" }),
+                (0, s.jsx)(r.Z, { className: "", width: 25, height: 16, containerClassName: "block !leading-none" })
               ]
             })
           ]
@@ -389,152 +413,152 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
       }
     },
     94685: function (e, t, a) {
-      a.d(t, { QS: () => j, GL: () => g, X6: () => x, zb: () => p, No: () => m, P6: () => N, $_: () => c });
-      var n = a(52322),
-        s = a(72779),
-        l = a.n(s),
-        r = a(86200),
-        i = a(19623),
+      a.d(t, { QS: () => E, GL: () => x, X6: () => f, zb: () => p, No: () => m, P6: () => N, $_: () => c });
+      var s = a(52322),
+        n = a(72779),
+        r = a.n(n),
+        i = a(86200),
+        l = a(19623),
         o = a(2784);
       function c(e) {
-        let { children: t, error: a, isFetching: s } = e;
-        return (0, n.jsxs)("div", {
-          className: l()("w-full flex flex-col flex-1 items-center box-border", s ? "h-full justify-center" : "justify-end"),
+        let { children: t, error: a, isFetching: n } = e;
+        return (0, s.jsxs)("div", {
+          className: r()("w-full flex flex-col flex-1 items-center box-border", n ? "h-full justify-center" : "justify-end"),
           children: [
-            a ? (0, n.jsx)("div", { className: "my-2", children: (0, n.jsx)(r._, { text: a }) }) : null,
-            s ? (0, n.jsx)(i.T, { color: "#E18881" }) : (0, n.jsx)(n.Fragment, { children: t })
+            a ? (0, s.jsx)("div", { className: "my-2", children: (0, s.jsx)(i._, { text: a, disableSentryCapture: !0 }) }) : null,
+            n ? (0, s.jsx)(l.T, { color: "#E18881" }) : (0, s.jsx)(s.Fragment, { children: t })
           ]
         });
       }
       var d = a(75377),
         u = a(46103);
       function m(e) {
-        let { error: t, rejectBtnClick: a, rejectBtnText: s, confirmBtnClick: r, confirmBtnText: i, isConfirmBtnDisabled: o } = e;
-        return (0, n.jsxs)("div", {
-          className: l()("flex flex-row justify-between w-full", { "mb-6": !!t }),
+        let { error: t, rejectBtnClick: a, rejectBtnText: n, confirmBtnClick: i, confirmBtnText: l, isConfirmBtnDisabled: o } = e;
+        return (0, s.jsxs)("div", {
+          className: r()("flex flex-row justify-between w-full", { "mb-6": !!t }),
           children: [
-            (0, n.jsx)(d.Buttons.Generic, {
+            (0, s.jsx)(d.Buttons.Generic, {
               style: { height: "48px", background: u.w.gray900, color: u.w.white100 },
               onClick: a,
               "aria-label": "reject button in suggest flow",
-              children: (0, n.jsx)("span", { "aria-label": "reject button text in suggest flow", children: s })
+              children: (0, s.jsx)("span", { "aria-label": "reject button text in suggest flow", children: n })
             }),
-            (0, n.jsx)(d.Buttons.Generic, {
+            (0, s.jsx)(d.Buttons.Generic, {
               style: { height: "48px", background: u.w.cosmosPrimary, color: u.w.white100, cursor: "pointer" },
               className: "ml-3 bg-gray-800",
-              onClick: r,
+              onClick: i,
               "aria-label": "confirm button in suggest flow",
               disabled: o,
-              children: (0, n.jsx)("span", { "aria-label": "confirm button text in suggest flow", children: i })
+              children: (0, s.jsx)("span", { "aria-label": "confirm button text in suggest flow", children: l })
             })
           ]
         });
       }
-      var f = a(69816);
+      var g = a(69816);
+      function f(e) {
+        let { text: t } = e;
+        return (0, s.jsx)(g.Z, { size: "lg", className: "font-bold mt-5", children: t });
+      }
       function x(e) {
         let { text: t } = e;
-        return (0, n.jsx)(f.Z, { size: "lg", className: "font-bold mt-5", children: t });
-      }
-      function g(e) {
-        let { text: t } = e;
-        return (0, n.jsx)(f.Z, {
+        return (0, s.jsx)(g.Z, {
           size: "xs",
           className: "font-bold text-center mt-[2px] max-w-[250px]",
           color: "text-gray-800 dark:text-gray-600 mb-2",
           children: t
         });
       }
-      var h = a(53108),
-        w = a(10289),
+      var w = a(53108),
+        h = a(10289),
         y = a(48534),
         b = a(72565),
         v = a.n(b);
       function p(e) {
         let { children: t, suggestKey: a } = e,
-          s = (0, w.s0)(),
-          r = (0, o.useCallback)(async () => {
-            await v().storage.local.set({ [h.u1]: { error: "Rejected by the user." } }),
+          n = (0, h.s0)(),
+          i = (0, o.useCallback)(async () => {
+            await v().storage.local.set({ [w.u1]: { error: "Rejected by the user." } }),
               setTimeout(async () => {
-                await v().storage.local.remove([a]), await v().storage.local.remove(h.u1), (0, y.oj)() ? s("/home") : window.close();
+                await v().storage.local.remove([a]), await v().storage.local.remove(w.u1), (0, y.oj)() ? n("/home") : window.close();
               }, 10);
-          }, [s, a]);
+          }, [n, a]);
         return (
           (0, o.useEffect)(
             () => (
-              window.addEventListener("beforeunload", r),
-              v().storage.local.remove(h.u1),
+              window.addEventListener("beforeunload", i),
+              v().storage.local.remove(w.u1),
               function () {
-                window.removeEventListener("beforeunload", r);
+                window.removeEventListener("beforeunload", i);
               }
             ),
-            [r]
+            [i]
           ),
-          (0, n.jsx)("div", {
+          (0, s.jsx)("div", {
             className: "flex justify-center items-center h-screen",
-            children: (0, n.jsxs)("div", {
+            children: (0, s.jsxs)("div", {
               className: "panel-width panel-height max-panel-height enclosing-panel",
               children: [
-                (0, n.jsx)("div", { className: "w-full h-1 rounded-t-2xl", style: { backgroundColor: u.w.cosmosPrimary } }),
-                (0, n.jsx)("div", {
-                  className: l()("relative h-full flex flex-col justify-between items-center pt-4 pb-10", { "px-4": (0, y.oj)(), "px-7": !(0, y.oj)() }),
-                  children: t({ handleRejectBtnClick: r })
+                (0, s.jsx)("div", { className: "w-full h-1 rounded-t-2xl", style: { backgroundColor: u.w.cosmosPrimary } }),
+                (0, s.jsx)("div", {
+                  className: r()("relative h-full flex flex-col justify-between items-center pt-4 pb-10", { "px-4": (0, y.oj)(), "px-7": !(0, y.oj)() }),
+                  children: t({ handleRejectBtnClick: i })
                 })
               ]
             })
           })
         );
       }
-      var E = a(86874);
-      function j(e) {
+      var _ = a(86874);
+      function E(e) {
         let { address: t, img: a } = e;
         return t
-          ? (0, n.jsx)(d.GenericCard, {
-              title: (0, n.jsx)("span", { className: "text-[15px]", children: "Contract Address" }),
-              subtitle: (0, n.jsx)("span", { className: "break-all", children: t }),
+          ? (0, s.jsx)(d.GenericCard, {
+              title: (0, s.jsx)("span", { className: "text-[15px]", children: "Contract Address" }),
+              subtitle: (0, s.jsx)("span", { className: "break-all", children: t }),
               className: "h-[80px] py-8 my-5",
               img: a ?? null,
               size: "sm",
               isRounded: !0
             })
-          : (0, n.jsxs)("div", {
+          : (0, s.jsxs)("div", {
               className:
                 "flex flex-col justify-end items-start w-full px-4 bg-white-100 dark:bg-gray-900 cursor-pointer min-w-[344px] h-[80px] rounded-[16px] pb-2 my-5",
               children: [
-                (0, n.jsx)("div", {
+                (0, s.jsx)("div", {
                   className: "text-[15px] font-bold text-black-100 dark:text-white-100 text-left max-w-[170px] text-ellipsis overflow-hidden",
                   children: "Contract Address"
                 }),
-                (0, n.jsx)(E.Z, { height: 14, className: "w-full", containerClassName: "w-full mt-[2px] block !leading-none" }),
-                (0, n.jsx)(E.Z, { height: 14, width: 90, containerClassName: "block mt-[2px] !leading-none" })
+                (0, s.jsx)(_.Z, { height: 14, className: "w-full", containerClassName: "w-full mt-[2px] block !leading-none" }),
+                (0, s.jsx)(_.Z, { height: 14, width: 90, containerClassName: "block mt-[2px] !leading-none" })
               ]
             });
       }
-      var _ = a(41477);
+      var j = a(41477);
       function N(e) {
-        let { name: t, symbol: a, decimals: s } = e;
-        return (0, n.jsxs)("div", {
+        let { name: t, symbol: a, decimals: n } = e;
+        return (0, s.jsxs)("div", {
           className: "flex flex-col gap-y-[10px] bg-white-100 dark:bg-gray-900 rounded-2xl p-4 w-full",
           children: [
-            (0, n.jsx)(_.sr, { children: "Coin Name" }),
-            (0, n.jsx)(_.B4, { children: t }),
-            _.iz,
-            (0, n.jsx)(_.sr, { children: "Coin Symbol" }),
-            (0, n.jsx)(_.B4, { children: a }),
-            _.iz,
-            (0, n.jsx)(_.sr, { children: "Coin Decimals" }),
-            (0, n.jsx)(_.B4, { children: s })
+            (0, s.jsx)(j.sr, { children: "Coin Name" }),
+            (0, s.jsx)(j.B4, { children: t }),
+            j.iz,
+            (0, s.jsx)(j.sr, { children: "Coin Symbol" }),
+            (0, s.jsx)(j.B4, { children: a }),
+            j.iz,
+            (0, s.jsx)(j.sr, { children: "Coin Decimals" }),
+            (0, s.jsx)(j.B4, { children: n })
           ]
         });
       }
     },
     53345: function (e, t, a) {
-      a.d(t, { s: () => l });
-      var n = a(55334),
-        s = a(48834).Buffer;
-      async function l(e, t) {
-        let a = `${e}/cosmwasm/wasm/v1/contract/${t}/smart/${s.from('{"token_info":{}}').toString("base64")}`,
-          { data: l } = await n.Z.get(a);
-        return l.error && l.error.toLowerCase().includes("decoding bech32 failed") ? "Invalid Contract Address" : l.data;
+      a.d(t, { s: () => r });
+      var s = a(55334),
+        n = a(48834).Buffer;
+      async function r(e, t) {
+        let a = `${e}/cosmwasm/wasm/v1/contract/${t}/smart/${n.from('{"token_info":{}}').toString("base64")}`,
+          { data: r } = await s.Z.get(a);
+        return r.error && r.error.toLowerCase().includes("decoding bech32 failed") ? "Invalid Contract Address" : r.data;
       }
     },
     56052: function () {}

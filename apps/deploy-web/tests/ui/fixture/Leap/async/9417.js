@@ -4,12 +4,12 @@
       t = new e.Error().stack;
     t &&
       ((e._sentryDebugIds = e._sentryDebugIds || {}),
-      (e._sentryDebugIds[t] = "f937e79e-d49c-4631-b08c-e9f1c9aba54b"),
-      (e._sentryDebugIdIdentifier = "sentry-dbid-f937e79e-d49c-4631-b08c-e9f1c9aba54b"));
+      (e._sentryDebugIds[t] = "c6906c6b-6913-4498-ba98-6bac01956115"),
+      (e._sentryDebugIdIdentifier = "sentry-dbid-c6906c6b-6913-4498-ba98-6bac01956115"));
   } catch (e) {}
 })();
 var _global = "undefined" != typeof window ? window : "undefined" != typeof global ? global : "undefined" != typeof self ? self : {};
-_global.SENTRY_RELEASE = { id: "0.22.9" };
+_global.SENTRY_RELEASE = { id: "0.23.1" };
 ("use strict");
 (self.webpackChunk_leap_cosmos_extension = self.webpackChunk_leap_cosmos_extension || []).push([
   ["9417"],
@@ -198,8 +198,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             A = n(2784),
             k = n(10289),
             M = n(42799),
-            L = n(39713),
-            C = n(48346),
+            C = n(39713),
+            L = n(48346),
             Z = n(46103),
             P = n(44818),
             F = n(48534),
@@ -209,8 +209,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             R = n(96808),
             z = n(94194),
             H = n(48834).Buffer,
-            G = e([E, L, _, v, z, R, C]);
-          [E, L, _, v, z, R, C] = G.then ? (await G)() : G;
+            G = e([E, C, _, v, z, R, L]);
+          [E, C, _, v, z, R, L] = G.then ? (await G)() : G;
           let U = E.w.useGetWallet,
             $ = E.w.useAptosSigner,
             V = (0, D.Pi)(e => {
@@ -218,7 +218,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 E = (0, A.useRef)(!1),
                 D = (0, A.useRef)(!1),
                 M = (0, A.useRef)(!1),
-                [C, I] = (0, A.useState)(!1),
+                [L, I] = (0, A.useState)(!1),
                 [G, V] = (0, A.useState)(null),
                 [W] = (0, A.useState)(null),
                 [Q, q] = (0, A.useState)(null),
@@ -249,7 +249,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 [eh, eb] = (0, A.useState)(null),
                 [ew, ey] = (0, A.useState)(!1),
                 ej = (0, i.FmJ)(),
-                eN = L.zT.getStore(N, em, !1),
+                eN = C.zT.getStore(N, em, !1),
                 eS = null == eN ? void 0 : eN.data,
                 e_ = (0, A.useRef)(null);
               (0, A.useEffect)(() => {
@@ -276,8 +276,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 }, [t]),
                 { lcdUrl: eM } = (0, i.U9i)(N, em),
                 {
-                  allowSetFee: eL,
-                  message: eC,
+                  allowSetFee: eC,
+                  message: eL,
                   signDoc: eZ,
                   fee: eP,
                   defaultFee: eF
@@ -472,7 +472,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   (async function () {
                     var e, t, n;
                     if (!eA) {
-                      if (!eL) {
+                      if (!eC) {
                         (null == eZ ? void 0 : null === (e = eZ.rawTransaction) || void 0 === e ? void 0 : e.max_gas_amount) !== void 0 &&
                           en(Number(null == eZ ? void 0 : null === (t = eZ.rawTransaction) || void 0 === t ? void 0 : t.max_gas_amount));
                         return;
@@ -547,7 +547,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                               className: p()(
                                 "text-xs text-gray-900 dark:text-white-100 dark:bg-gray-900 bg-white-100 p-4 w-full overflow-x-auto rounded-2xl whitespace-pre-line break-words"
                               ),
-                              children: eC
+                              children: eL
                             })
                           : (0, s.jsx)(v.ZP, {
                               className: "flex flex-col gap-6",
@@ -555,7 +555,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                               gasLimit: ea || String(et),
                               setGasLimit: e => es(e.toString()),
                               recommendedGasLimit: String(et),
-                              gasPriceOption: ex.current || eL ? eT : { ...eT, option: "" },
+                              gasPriceOption: ex.current || eC ? eT : { ...eT, option: "" },
                               onGasPriceOptionChange: e => {
                                 (ex.current = !0), eE(e);
                               },
@@ -596,13 +596,13 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                                 }
                               },
                               hasUserTouchedFees: !!(null == ex ? void 0 : ex.current),
-                              notUpdateInitialGasPrice: !eL,
+                              notUpdateInitialGasPrice: !eC,
                               rootDenomsStore: m,
                               rootBalanceStore: a,
                               children: (0, s.jsx)(z.t, {
                                 gasPriceError: Q,
                                 txData: eZ,
-                                allowSetFee: eL,
+                                allowSetFee: eC,
                                 staticFee: (0, s.jsx)(R.Z, {
                                   fee: eP,
                                   error: Q,
@@ -615,9 +615,9 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                                 })
                               })
                             }),
-                        G ?? W ? (0, s.jsx)(f._, { text: G ?? W ?? "" }) : null,
+                        G ?? W ? (0, s.jsx)(f._, { text: G ?? W ?? "", disableSentryCapture: !0 }) : null,
                         (0, s.jsx)(x.Z, {
-                          showLedgerPopup: C,
+                          showLedgerPopup: L,
                           onClose: () => {
                             I(!1);
                           }
@@ -720,7 +720,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   ),
                   t && i && d)
                 )
-                  return (0, s.jsx)(e, { data: i, chainId: d, activeChain: t, rootDenomsStore: M.gb, rootBalanceStore: C.jZ });
+                  return (0, s.jsx)(e, { data: i, chainId: d, activeChain: t, rootDenomsStore: M.gb, rootBalanceStore: L.jZ });
                 if (m) {
                   var f;
                   let e = ((f = m.code), "no-data" === f ? "No Transaction Data" : "Something Went Wrong");
@@ -811,7 +811,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                         : t.amount;
                   return { ...a, amount: s };
                 }, [T, null == i ? void 0 : i.amount, y]),
-                { data: L } = (0, d.useQuery)(
+                { data: C } = (0, d.useQuery)(
                   ["fee-token-fiat-value", null == M ? void 0 : null === (t = M.denom) || void 0 === t ? void 0 : t.coinDenom],
                   async () => {
                     var e, t, n;
@@ -824,25 +824,25 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     );
                   }
                 ),
-                C = (0, g.useMemo)(() => {
+                L = (0, g.useMemo)(() => {
                   var e;
                   return i ? x(i, (null == M ? void 0 : null === (e = M.denom) || void 0 === e ? void 0 : e.coinDecimals) ?? 0) : null;
                 }, [b, S, i, null == M ? void 0 : null === (n = M.denom) || void 0 === n ? void 0 : n.coinDecimals]);
               return (
                 (0, g.useEffect)(() => {
                   var e, t;
-                  let n = null == C ? void 0 : null === (e = C.amount) || void 0 === e ? void 0 : e.toString();
+                  let n = null == L ? void 0 : null === (e = L.amount) || void 0 === e ? void 0 : e.toString();
                   !v &&
                     n &&
                     "loading" !== D &&
                     (new (u())(n).isGreaterThan((null == M ? void 0 : M.amount) ?? 0)
                       ? p(`You don't have enough ${null == M ? void 0 : null === (t = M.denom) || void 0 === t ? void 0 : t.coinDenom} to pay the gas fee`)
                       : p(null));
-                }, [M, C, D, v]),
+                }, [M, L, D, v]),
                 (0, s.jsxs)("div", {
                   className: "mt-3",
                   children: [
-                    C
+                    L
                       ? (0, s.jsxs)("div", {
                           className: "rounded-lg bg-secondary-100 border border-secondary-200",
                           children: [
@@ -865,11 +865,11 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                                 (0, s.jsxs)("p", {
                                   className: "font-medium text-foreground text-sm mt-3 list-none ml-0",
                                   children: [
-                                    C.formattedAmount,
+                                    L.formattedAmount,
                                     " ",
                                     null == M ? void 0 : null === (a = M.denom) || void 0 === a ? void 0 : a.coinDenom,
                                     " ",
-                                    L ? k(new (u())((null == C ? void 0 : C.amount) ?? 0).multipliedBy(L)) : null
+                                    C ? k(new (u())((null == L ? void 0 : L.amount) ?? 0).multipliedBy(C)) : null
                                   ]
                                 }),
                                 c ? (0, s.jsx)("p", { className: "font-medium text-destructive-400 text-sm mt-3 list-none ml-0", children: c }) : null

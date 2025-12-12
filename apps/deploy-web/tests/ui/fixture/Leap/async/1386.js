@@ -1,68 +1,75 @@
 !(function () {
   try {
     var e = "undefined" != typeof window ? window : "undefined" != typeof global ? global : "undefined" != typeof self ? self : {},
-      a = new e.Error().stack;
-    a &&
+      t = new e.Error().stack;
+    t &&
       ((e._sentryDebugIds = e._sentryDebugIds || {}),
-      (e._sentryDebugIds[a] = "4a459b0c-cc8d-44c8-8e95-36dd50898fc8"),
-      (e._sentryDebugIdIdentifier = "sentry-dbid-4a459b0c-cc8d-44c8-8e95-36dd50898fc8"));
+      (e._sentryDebugIds[t] = "4eb15253-87ef-4b8c-abc8-23678591a486"),
+      (e._sentryDebugIdIdentifier = "sentry-dbid-4eb15253-87ef-4b8c-abc8-23678591a486"));
   } catch (e) {}
 })();
 var _global = "undefined" != typeof window ? window : "undefined" != typeof global ? global : "undefined" != typeof self ? self : {};
-_global.SENTRY_RELEASE = { id: "0.22.9" };
+_global.SENTRY_RELEASE = { id: "0.23.1" };
 ("use strict");
 (self.webpackChunk_leap_cosmos_extension = self.webpackChunk_leap_cosmos_extension || []).push([
   ["1386"],
   {
-    62306: function (e, a, t) {
-      t.a(e, async function (e, n) {
+    62306: function (e, t, a) {
+      a.a(e, async function (e, n) {
         try {
-          t.r(a), t.d(a, { default: () => C });
-          var l = t(52322),
-            i = t(55159),
-            s = t(92642),
-            o = t(91486),
-            r = t(26571),
-            d = t(20541),
-            c = t(33725),
-            u = t(4370),
-            f = t(41978),
-            m = t(24542),
-            g = t.n(m),
-            y = t(75958),
-            x = t(2784),
-            p = t(10289),
-            w = t(22014),
-            b = t(52757),
-            h = t(75727),
-            v = t(72565),
-            j = t.n(v),
-            E = t(98622),
-            _ = e([d]);
-          d = (_.then ? (await _)() : _)[0];
-          let k = { duration: 0.25, delay: 1.05, ease: "easeOut" },
-            S = { hidden: { opacity: 0, y: "-25%" }, visible: { opacity: 1, y: 0 } },
+          a.r(t), a.d(t, { default: () => C });
+          var l = a(52322),
+            i = a(55159),
+            s = a(92642),
+            o = a(91486),
+            r = a(26571),
+            d = a(20541),
+            c = a(33725),
+            u = a(4370),
+            f = a(41978),
+            m = a(24542),
+            g = a.n(m),
+            y = a(75958),
+            x = a(2784),
+            b = a(10289),
+            p = a(22014),
+            w = a(52757),
+            h = a(75727),
+            v = a(72565),
+            S = a.n(v),
+            j = a(98622),
+            E = e([d]);
+          d = (E.then ? (await E)() : E)[0];
+          let _ = { duration: 0.25, delay: 1.25, ease: "easeOut" },
+            k = { hidden: { opacity: 0, y: "-25%" }, visible: { opacity: 1, y: 0 } },
             N = { hidden: { opacity: 0, y: "25%" }, visible: { opacity: 1, y: 0 } },
             I = e => {
-              let { navigate: a, trackCTAEvent: t } = e,
+              let { navigate: t, trackCTAEvent: a } = e,
                 [n, i] = (0, c.H)(),
                 s = (0, x.useCallback)(async () => {
                   let e = "#leap-logo",
-                    a = "#background-gradient";
-                  await Promise.all([i(e, { y: 120 }, { duration: 0 }), i(a, { opacity: 0.4 }, { duration: 0 })]),
-                    await Promise.all([i(e, { scale: 1.3334, y: 120 }, { duration: 0.25, ease: "easeOut" }), i(a, { opacity: 0.75 }, { duration: 0.25 })]),
+                    t = "#background-gradient",
+                    a = document.querySelector(e),
+                    n = document.querySelector(t);
+                  a &&
+                    n &&
+                    (await Promise.all([i(e, { y: 120 }, { duration: 0 }), i(t, { opacity: 0.4 }, { duration: 0 })]),
+                    await Promise.all([i(e, { scale: 1.3334, y: 120 }, { duration: 0.25, ease: "easeOut" }), i(t, { opacity: 0.75 }, { duration: 0.25 })]),
                     await Promise.all([
                       i(e, { scale: 1, y: 120 }, { delay: 0.25, duration: 0.25, ease: "easeOut" }),
-                      i(a, { opacity: 0.4 }, { delay: 0.25, duration: 0.25 })
+                      i(t, { opacity: 0.4 }, { delay: 0.25, duration: 0.25 })
                     ]),
                     await Promise.all([
                       i(e, { scale: 1.3334, y: 0 }, { delay: 0.25, duration: 0.2, ease: "easeOut" }),
-                      i(a, { opacity: 1 }, { delay: 0.25, duration: 0.25 })
-                    ]);
+                      i(t, { opacity: 1 }, { delay: 0.25, duration: 0.25 })
+                    ]));
                 }, [i]);
               return (
                 (0, x.useEffect)(() => {
-                  s();
+                  let e = setTimeout(() => {
+                    s();
+                  }, 100);
+                  return () => clearTimeout(e);
                 }, [s]),
                 (0, l.jsxs)("div", {
                   ref: n,
@@ -85,8 +92,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                           {
                             initial: "hidden",
                             animate: "visible",
-                            variants: S,
-                            transition: k,
+                            variants: k,
+                            transition: _,
                             className: "flex flex-col gap-4",
                             children: [
                               (0, l.jsx)("span", { className: "text-center text-xxl font-bold text-secondary-foreground", children: "Leap everywhere" }),
@@ -105,13 +112,13 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                       initial: "hidden",
                       animate: "visible",
                       variants: N,
-                      transition: k,
+                      transition: _,
                       children: [
                         (0, l.jsx)(o.zx, {
                           className: "w-full",
                           "data-testing-id": "create-new-wallet",
                           onClick: () => {
-                            a("/onboardingCreate"), t("new");
+                            t("/onboardingCreate"), a("new");
                           },
                           children: "Create a new wallet"
                         }),
@@ -120,7 +127,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                           className: "w-full",
                           "data-testing-id": "import-existing-wallet",
                           onClick: () => {
-                            a("/onboardingImport"), t("import-seed-phrase");
+                            t("/onboardingImport"), a("import-seed-phrase");
                           },
                           children: "Import an existing wallet"
                         })
@@ -131,17 +138,17 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               );
             },
             C = (0, y.Pi)(function () {
-              let e = (0, p.s0)(),
-                { loading: a, noAccount: t } = (0, d.aC)();
+              let e = (0, b.s0)(),
+                { loading: t, noAccount: a } = (0, d.aC)();
               return ((0, x.useEffect)(() => {
                 (async () => {
                   let n = await i.Kn.getAllWallets();
-                  !1 === a && (0, b.d)(n) && (!t || w.M8.password) && e("/onboardingSuccess");
+                  !1 === t && (0, w.d)(n) && (!a || p.M8.password) && e("/onboardingSuccess");
                 })();
-              }, [a, e, t, w.M8.password]),
+              }, [t, e, a, p.M8.password]),
               (0, x.useEffect)(() => {
                 (0, h.c)(),
-                  j().extension.getViews({ type: "popup" }),
+                  S().extension.getViews({ type: "popup" }),
                   localStorage.getItem("timeStarted1") || localStorage.setItem("timeStarted1", new Date().getTime().toString());
                 try {
                   g().track(r.B_.OnboardingStarted, { firstWallet: !0, time: Date.now() / 1e3 });
@@ -149,9 +156,9 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   (0, s.Tb)(e);
                 }
               }, []),
-              a)
+              t)
                 ? null
-                : (0, l.jsx)(E.z, {
+                : (0, l.jsx)(j.z, {
                     className: "flex flex-col gap-y-5 justify-center items-center grow",
                     children: (0, l.jsx)(I, {
                       navigate: e,
@@ -172,46 +179,46 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         }
       });
     },
-    98622: function (e, a, t) {
-      t.d(a, { z: () => s });
-      var n = t(52322),
-        l = t(4370);
-      t(2784);
-      var i = t(70514);
+    98622: function (e, t, a) {
+      a.d(t, { z: () => s });
+      var n = a(52322),
+        l = a(4370);
+      a(2784);
+      var i = a(70514);
       let s = e => {
-        let { className: a, children: t, ...s } = e;
+        let { className: t, children: a, ...s } = e;
         return (0, n.jsx)(l.E.div, {
-          className: (0, i.cn)("overflow-auto bg-secondary overflow-x-hidden my-auto mx-auto rounded-3xl flex h-full w-full", a),
+          className: (0, i.cn)("overflow-auto bg-secondary overflow-x-hidden my-auto mx-auto rounded-3xl flex h-full w-full", t),
           ...s,
-          children: t
+          children: a
         });
       };
     },
-    75727: function (e, a, t) {
-      t.d(a, { c: () => n });
+    75727: function (e, t, a) {
+      a.d(t, { c: () => n });
       let n = () =>
         Promise.all([
-          Promise.resolve().then(t.bind(t, 62306)),
-          Promise.all([t.e("1347"), t.e("4772"), t.e("8095"), t.e("3617")]).then(t.bind(t, 50363)),
-          Promise.all([t.e("1347"), t.e("4772"), t.e("8095"), t.e("6564")]).then(t.bind(t, 98151)),
-          Promise.all([t.e("4379"), t.e("8813")]).then(t.bind(t, 21886))
+          Promise.resolve().then(a.bind(a, 62306)),
+          Promise.all([a.e("1347"), a.e("4772"), a.e("8095"), a.e("3617")]).then(a.bind(a, 50363)),
+          Promise.all([a.e("1347"), a.e("4772"), a.e("8095"), a.e("6564")]).then(a.bind(a, 98151)),
+          Promise.all([a.e("4379"), a.e("8813")]).then(a.bind(a, 21886))
         ]);
     },
-    33725: function (e, a, t) {
-      t.d(a, { H: () => s });
-      var n = t(40368),
-        l = t(2784),
-        i = t(15406);
+    33725: function (e, t, a) {
+      a.d(t, { H: () => s });
+      var n = a(40368),
+        l = a(2784),
+        i = a(15406);
       function s() {
         var e;
-        let a = (0, n.h)(() => ({ current: null, animations: [] })),
-          t = (0, n.h)(() => (0, i.n)(a));
+        let t = (0, n.h)(() => ({ current: null, animations: [] })),
+          a = (0, n.h)(() => (0, i.n)(t));
         return (
           (e = () => {
-            a.animations.forEach(e => e.stop());
+            t.animations.forEach(e => e.stop());
           }),
           (0, l.useEffect)(() => () => e(), []),
-          [a, t]
+          [t, a]
         );
       }
     }

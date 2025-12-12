@@ -4,217 +4,262 @@
       n = new e.Error().stack;
     n &&
       ((e._sentryDebugIds = e._sentryDebugIds || {}),
-      (e._sentryDebugIds[n] = "847c9b03-18f6-4cca-9aad-1378604cfe9f"),
-      (e._sentryDebugIdIdentifier = "sentry-dbid-847c9b03-18f6-4cca-9aad-1378604cfe9f"));
+      (e._sentryDebugIds[n] = "77b5bafc-2d1b-4a74-9aad-f0634a310021"),
+      (e._sentryDebugIdIdentifier = "sentry-dbid-77b5bafc-2d1b-4a74-9aad-f0634a310021"));
   } catch (e) {}
 })();
 var _global = "undefined" != typeof window ? window : "undefined" != typeof global ? global : "undefined" != typeof self ? self : {};
-_global.SENTRY_RELEASE = { id: "0.22.9" };
+_global.SENTRY_RELEASE = { id: "0.23.1" };
 ("use strict");
 (self.webpackChunk_leap_cosmos_extension = self.webpackChunk_leap_cosmos_extension || []).push([
   ["8986"],
   {
-    60143: function (e, n, a) {
-      a.a(e, async function (e, o) {
+    60143: function (e, n, o) {
+      o.a(e, async function (e, a) {
         try {
-          a.r(n), a.d(n, { default: () => w });
-          var t = a(52322),
-            i = a(41172),
-            l = a(15969),
-            s = a(43069),
-            c = a(36549),
-            r = a(19623),
-            m = a(91486),
-            d = a(75958),
-            u = a(53299),
-            f = a(2784),
-            h = a(10289),
-            x = a(78344),
-            b = a(42799),
-            v = a(48346),
-            y = a(30809),
-            g = a(53345),
-            D = a(23163),
-            p = e([v]);
-          v = (p.then ? (await p)() : p)[0];
-          let C = (0, d.Pi)(e => {
+          o.r(n), o.d(n, { default: () => w });
+          var r = o(52322),
+            t = o(41172),
+            i = o(15969),
+            s = o(43069),
+            l = o(92642),
+            c = o(36549),
+            d = o(19623),
+            m = o(91486),
+            u = o(75958),
+            f = o(53299),
+            g = o(2784),
+            b = o(10289),
+            h = o(78344),
+            x = o(42799),
+            v = o(48346),
+            y = o(30809),
+            p = o(53345),
+            k = o(23163),
+            D = e([v]);
+          v = (D.then ? (await D)() : D)[0];
+          let _ = (0, u.Pi)(e => {
             var n;
             let {
-                betaCW20DenomsStore: a,
-                betaERC20DenomsStore: o,
-                betaNativeDenomsStore: d,
-                activeChainStore: u,
-                rootDenomsStore: x,
-                selectedNetworkStore: b,
+                betaCW20DenomsStore: o,
+                betaERC20DenomsStore: a,
+                betaNativeDenomsStore: u,
+                activeChainStore: f,
+                rootDenomsStore: h,
+                selectedNetworkStore: x,
                 rootBalanceStore: v,
                 enabledCW20DenomsStore: y
               } = e,
-              p = (0, h.s0)(),
-              w = (0, h.TH)().state,
-              C = (0, i.DI5)(),
-              k = u.activeChain,
-              j = x.allDenoms,
-              N = b.selectedNetwork,
-              [S, M] = (0, f.useState)({ name: "", coinDenom: "", coinMinimalDenom: "", coinDecimals: "", coinGeckoId: "", icon: "", chain: k }),
-              [I, _] = (0, f.useState)(!1),
-              [E, W] = (0, f.useState)(!1),
-              [T, L] = (0, f.useState)(!1),
-              [O, B] = (0, f.useState)(!1),
-              [R, Z] = (0, f.useState)({}),
-              [A, G] = (0, f.useState)(!1),
-              { name: $, coinDenom: U, coinMinimalDenom: X, coinDecimals: z, coinGeckoId: F, icon: H, chain: P } = S,
-              { lcdUrl: Y, evmJsonRpc: J } = (0, i.U9i)(),
-              q = (0, i.xxU)(k, N, !0),
-              K = (0, f.useRef)(null),
-              Q = y.getEnabledCW20DenomsForChain(k),
-              V = (0, f.useCallback)(
+              D = (0, b.s0)(),
+              w = (0, b.TH)().state,
+              _ = (0, t.DI5)(),
+              C = f.activeChain,
+              M = h.allDenoms,
+              j = x.selectedNetwork,
+              [E, N] = (0, g.useState)({ name: "", coinDenom: "", coinMinimalDenom: "", coinDecimals: "", coinGeckoId: "", icon: "", chain: C }),
+              [S, T] = (0, g.useState)(!1),
+              [I, W] = (0, g.useState)(!1),
+              [A, L] = (0, g.useState)(!1),
+              [O, B] = (0, g.useState)(!1),
+              [R, Z] = (0, g.useState)({}),
+              [G, U] = (0, g.useState)(!1),
+              { name: $, coinDenom: X, coinMinimalDenom: z, coinDecimals: F, coinGeckoId: H, icon: J, chain: P } = E,
+              { lcdUrl: Y, evmJsonRpc: q } = (0, t.U9i)(),
+              K = (0, t.xxU)(C, j, !0),
+              Q = (0, g.useRef)(null),
+              V = y.getEnabledCW20DenomsForChain(C),
+              ee = (0, g.useCallback)(
                 async e => {
                   var n;
-                  let a = e.currentTarget.value.trim();
-                  if (!a && a.toLowerCase().startsWith("ibc/")) return;
-                  B(!0), _(!1), W(!1);
-                  let o = !1;
+                  let o = e.currentTarget.value.trim();
+                  if (!o && o.toLowerCase().startsWith("ibc/")) return;
+                  B(!0), T(!1), W(!1);
+                  let a = !1;
                   try {
-                    let e = await (0, l.bt3)(k, "testnet" === N);
+                    let e = await (0, i.bt3)(C, "testnet" === j);
                     if (e && e.assets)
                       for (let n of e.assets) {
                         let e = n.denom.trim(),
-                          t = !1;
+                          r = !1;
                         if (
                           e &&
-                          (e.startsWith("cw20:") && ((t = !0), (e = e.slice(5))),
-                          a.startsWith("cw20:") && (a = a.slice(5)),
-                          e.toLowerCase() === a.toLowerCase())
+                          (e.startsWith("cw20:") && ((r = !0), (e = e.slice(5))),
+                          o.startsWith("cw20:") && (o = o.slice(5)),
+                          e.toLowerCase() === o.toLowerCase())
                         ) {
-                          let { name: a, symbol: i, image: l, decimals: s, coingecko_id: c } = n;
-                          (o = !0),
-                            t ? _(!0) : _(!1),
-                            M(n => ({ ...n, name: a, coinDenom: i, coinMinimalDenom: e, coinDecimals: String(s), coinGeckoId: c, icon: l }));
+                          let { name: o, symbol: t, image: i, decimals: s, coingecko_id: l } = n;
+                          (a = !0),
+                            r ? T(!0) : T(!1),
+                            N(n => ({ ...n, name: o, coinDenom: t, coinMinimalDenom: e, coinDecimals: String(s), coinGeckoId: l, icon: i }));
                           break;
                         }
                       }
-                  } catch (e) {}
-                  if (!1 === o)
+                  } catch (e) {
+                    (0, l.Tb)(e, {
+                      tags: { errorType: "add_token_error", source: "add_token", severity: "error", errorName: e instanceof Error ? e.name : "AddTokenError" },
+                      fingerprint: ["add_token", "add_token_error"],
+                      level: "error",
+                      contexts: { transaction: { type: "add_token", errorMessage: e instanceof Error ? e.message : String(e) } }
+                    });
+                  }
+                  if (!1 === a)
                     try {
-                      let e = await (0, g.s)(Y ?? "", a);
+                      let e = await (0, p.s)(Y ?? "", o);
                       "string" != typeof e && e.symbol
-                        ? ((o = !0), _(!0), M(n => ({ ...n, name: e.name, coinDenom: e.symbol, coinDecimals: e.decimals, coinMinimalDenom: a })))
-                        : _(!1);
+                        ? ((a = !0), T(!0), N(n => ({ ...n, name: e.name, coinDenom: e.symbol, coinDecimals: e.decimals, coinMinimalDenom: o })))
+                        : T(!1);
                     } catch (e) {
-                      _(!1);
+                      T(!1),
+                        (0, l.Tb)(e, {
+                          tags: {
+                            errorType: "add_token_error",
+                            source: "add_token",
+                            severity: "error",
+                            errorName: e instanceof Error ? e.name : "AddTokenError"
+                          },
+                          fingerprint: ["add_token", "add_token_error"],
+                          level: "error",
+                          contexts: { transaction: { type: "add_token", errorMessage: e instanceof Error ? e.message : String(e) } },
+                          extra: { coinMinimalDenom: o, lcdUrl: Y }
+                        });
                     }
-                  if (!1 === o && (null === (n = C[k]) || void 0 === n ? void 0 : n.evmOnlyChain))
+                  if (!1 === a && (null === (n = _[C]) || void 0 === n ? void 0 : n.evmOnlyChain))
                     try {
-                      let e = await (0, l.d_E)(a, J ?? "", Number(q));
-                      (o = !0), W(!0), M(n => ({ ...n, name: e.name, coinDenom: e.symbol, coinDecimals: String(e.decimals), coinMinimalDenom: a }));
+                      let e = await (0, i.d_E)(o, q ?? "", Number(K));
+                      (a = !0), W(!0), N(n => ({ ...n, name: e.name, coinDenom: e.symbol, coinDecimals: String(e.decimals), coinMinimalDenom: o }));
                     } catch (e) {
-                      W(!1);
+                      W(!1),
+                        (0, l.Tb)(e, {
+                          tags: {
+                            errorType: "add_token_error",
+                            source: "add_token",
+                            severity: "error",
+                            errorName: e instanceof Error ? e.name : "AddTokenError"
+                          },
+                          fingerprint: ["add_token", "add_token_error"],
+                          level: "error",
+                          contexts: { transaction: { type: "add_token", errorMessage: e instanceof Error ? e.message : String(e) } },
+                          extra: { coinMinimalDenom: o, evmJsonRpc: q, evmChainId: K }
+                        });
                     }
-                  if (!1 === o && ["mainCoreum", "coreum"].includes(P))
+                  if (!1 === a && ["mainCoreum", "coreum"].includes(P))
                     try {
-                      let { symbol: e, precision: n } = await (0, i.yaX)(Y ?? "", a);
-                      (o = !0), M(o => ({ ...o, coinDenom: e, coinMinimalDenom: a, coinDecimals: n }));
-                    } catch (e) {}
-                  L(o), B(!1);
+                      let { symbol: e, precision: n } = await (0, t.yaX)(Y ?? "", o);
+                      (a = !0), N(a => ({ ...a, coinDenom: e, coinMinimalDenom: o, coinDecimals: n }));
+                    } catch (e) {
+                      (0, l.Tb)(e, {
+                        tags: {
+                          errorType: "add_token_error",
+                          source: "add_token",
+                          severity: "error",
+                          errorName: e instanceof Error ? e.name : "AddTokenError"
+                        },
+                        fingerprint: ["add_token", "add_token_error"],
+                        level: "error",
+                        contexts: { transaction: { type: "add_token", errorMessage: e instanceof Error ? e.message : String(e) } },
+                        extra: { coinMinimalDenom: o, lcdUrl: Y }
+                      });
+                    }
+                  L(a), B(!1);
                 },
-                [C, k, P, N, Y, J, q]
+                [_, C, P, j, Y, q, K]
               ),
-              ee = (0, f.useCallback)(
+              en = (0, g.useCallback)(
                 e => {
-                  let { name: n, value: a } = e.currentTarget,
-                    o = "";
-                  if (a) {
+                  let { name: n, value: o } = e.currentTarget,
+                    a = "";
+                  if (o) {
                     if ("coinMinimalDenom" === n) {
-                      var t, i;
-                      let e = a.trim().toLowerCase();
-                      Object.keys(j)
+                      var r, t;
+                      let e = o.trim().toLowerCase();
+                      Object.keys(M)
                         .map(e => e.toLowerCase())
                         .includes(e)
-                        ? (o = "Token with same minimal denom already exists")
-                        : (null === (t = C[k]) || void 0 === t ? void 0 : t.evmOnlyChain) && !(0, l.Ohs)(e)
-                          ? (o = "Invalid contract address")
-                          : !(null === (i = C[k]) || void 0 === i ? void 0 : i.evmOnlyChain) && (e.startsWith("erc20/") || (0, l.Ohs)(e))
-                            ? (o = "We don't support adding erc20 token yet.")
-                            : e.startsWith("ibc/") && (o = "We don't support adding ibc token yet.");
-                    } else "coinDecimals" === n && (0, D.W)(a) ? (o = "Incorrect decimal value") : "icon" === n && (0, D.S)(a) && (o = "Invalid Icon URL");
+                        ? (a = "Token with same minimal denom already exists")
+                        : (null === (r = _[C]) || void 0 === r ? void 0 : r.evmOnlyChain) && !(0, i.Ohs)(e)
+                          ? (a = "Invalid contract address")
+                          : !(null === (t = _[C]) || void 0 === t ? void 0 : t.evmOnlyChain) && (e.startsWith("erc20/") || (0, i.Ohs)(e))
+                            ? (a = "We don't support adding erc20 token yet.")
+                            : e.startsWith("ibc/") && (a = "We don't support adding ibc token yet.");
+                    } else "coinDecimals" === n && (0, k.W)(o) ? (a = "Incorrect decimal value") : "icon" === n && (0, k.S)(o) && (a = "Invalid Icon URL");
                   }
-                  o ? Z(e => ({ ...e, [n]: o })) : R[n] && (delete R[n], Z(R)), M(e => ({ ...e, [n]: a.trim() }));
+                  a ? Z(e => ({ ...e, [n]: a })) : R[n] && (delete R[n], Z(R)), N(e => ({ ...e, [n]: o.trim() }));
                 },
-                [k, C, j, R]
+                [C, _, M, R]
               );
-            (0, f.useEffect)(() => {
-              w && w.coinMinimalDenom && ee({ currentTarget: { name: "coinMinimalDenom", value: w.coinMinimalDenom } });
+            (0, g.useEffect)(() => {
+              w && w.coinMinimalDenom && en({ currentTarget: { name: "coinMinimalDenom", value: w.coinMinimalDenom } });
             }, [w]),
-              (0, f.useEffect)(() => {
-                K.current && K.current.focus();
+              (0, g.useEffect)(() => {
+                Q.current && Q.current.focus();
               }, []);
-            let en = (0, f.useCallback)(async () => {
-                G(!0);
-                let e = { ...S, coinDecimals: Number(S.coinDecimals) };
+            let eo = (0, g.useCallback)(async () => {
+                U(!0);
+                let e = { ...E, coinDecimals: Number(E.coinDecimals) };
                 e.name || (e.name = void 0),
-                  I
-                    ? await a.setBetaCW20Denoms(S.coinMinimalDenom, e, P)
-                    : E
-                      ? await o.setBetaERC20Denoms(S.coinMinimalDenom, e, P)
-                      : await d.setBetaNativeDenoms(S.coinMinimalDenom, e, P);
-                let n = [...Q, S.coinMinimalDenom];
-                await y.setEnabledCW20Denoms(n, k), v.refetchBalances(), G(!1), p("/");
-              }, [k, a, o, d, P, y, Q, I, E, p, v, S]),
-              ea = (0, f.useMemo)(() => !O && !T && X && !R.coinMinimalDenom, [O, T, X, R]),
-              eo = (0, f.useMemo)(
-                () => !U || !X || !z || A || O || !!R.coinMinimalDenom || !!R.coinDenom || !!R.coinDecimals || !!R.coinGeckoId || !!R.name || !!R.icon,
-                [U, X, z, A, O, R]
+                  S
+                    ? await o.setBetaCW20Denoms(E.coinMinimalDenom, e, P)
+                    : I
+                      ? await a.setBetaERC20Denoms(E.coinMinimalDenom, e, P)
+                      : await u.setBetaNativeDenoms(E.coinMinimalDenom, e, P);
+                let n = [...V, E.coinMinimalDenom];
+                await y.setEnabledCW20Denoms(n, C), v.refetchBalances(), U(!1), D("/");
+              }, [C, o, a, u, P, y, V, S, I, D, v, E]),
+              ea = (0, g.useMemo)(() => !O && !A && z && !R.coinMinimalDenom, [O, A, z, R]),
+              er = (0, g.useMemo)(
+                () => !X || !z || !F || G || O || !!R.coinMinimalDenom || !!R.coinDenom || !!R.coinDecimals || !!R.coinGeckoId || !!R.name || !!R.icon,
+                [X, z, F, G, O, R]
               ),
-              { coinMinimalDenomPlaceholder: et, coinDenomPlaceholder: ei } = (0, f.useMemo)(() => {
+              { coinMinimalDenomPlaceholder: et, coinDenomPlaceholder: ei } = (0, g.useMemo)(() => {
                 var e;
                 let n = "Coin minimal denom (ex: juno1...5awr)",
-                  a = "Coin denom (ex: NETA)";
+                  o = "Coin denom (ex: NETA)";
                 return (
-                  (null === (e = C[k]) || void 0 === e ? void 0 : e.evmOnlyChain) && ((n = "Contract address (ex: 0x...)"), (a = "Symbol (ex: PYTH)")),
-                  { coinMinimalDenomPlaceholder: n, coinDenomPlaceholder: a }
+                  (null === (e = _[C]) || void 0 === e ? void 0 : e.evmOnlyChain) && ((n = "Contract address (ex: 0x...)"), (o = "Symbol (ex: PYTH)")),
+                  { coinMinimalDenomPlaceholder: n, coinDenomPlaceholder: o }
                 );
-              }, [k, C]);
-            return (0, t.jsxs)(t.Fragment, {
+              }, [C, _]);
+            return (0, r.jsxs)(r.Fragment, {
               children: [
-                (0, t.jsxs)("form", {
+                (0, r.jsxs)("form", {
                   className: "mx-auto w-[344px] mb-5 pb-6 overflow-y-auto h-[calc(100%-66px)]",
                   children: [
-                    (0, t.jsxs)("div", {
+                    (0, r.jsxs)("div", {
                       className: "rounded-lg w-full flex items-center h-[56px] p-4 bg-secondary-100 my-6 gap-x-[10px]",
                       children: [
-                        (0, t.jsx)(s.C, { className: "text-secondary-100 bg-accent-yellow rounded-full h-5 w-5 p-[2px]" }),
-                        (0, t.jsx)("div", { className: "font-medium text-foreground text-sm !leading-[22px]", children: "Only add tokens you trust." })
+                        (0, r.jsx)(s.C, { className: "text-secondary-100 bg-accent-yellow rounded-full h-5 w-5 p-[2px]" }),
+                        (0, r.jsx)("div", { className: "font-medium text-foreground text-sm !leading-[22px]", children: "Only add tokens you trust." })
                       ]
                     }),
-                    (0, t.jsx)(c.a, {
+                    (0, r.jsx)(c.a, {
                       placeholder: et,
-                      value: X,
+                      value: z,
                       name: "coinMinimalDenom",
-                      onChange: ee,
+                      onChange: en,
                       error: R.coinMinimalDenom,
                       warning: ea
-                        ? `Make sure the coin minimal denom is correct and it belongs to ${null === (n = C[k]) || void 0 === n ? void 0 : n.chainName} chain`
+                        ? `Make sure the coin minimal denom is correct and it belongs to ${null === (n = _[C]) || void 0 === n ? void 0 : n.chainName} chain`
                         : "",
-                      onBlur: V,
-                      ref: K
+                      onBlur: ee,
+                      ref: Q
                     }),
-                    (0, t.jsx)(c.a, { placeholder: ei, value: U, name: "coinDenom", onChange: ee, error: R.coinDenom }),
-                    (0, t.jsx)(c.a, { placeholder: "Coin decimals (ex: 6)", value: z, name: "coinDecimals", onChange: ee, error: R.coinDecimals }),
-                    (0, t.jsx)(c.a, { placeholder: "Token name (optional)", value: $, name: "name", onChange: ee, error: R.name }),
-                    (0, t.jsx)(c.a, { placeholder: "Coin gecko id (optional)", value: F, name: "coinGeckoId", onChange: ee, error: R.coinGeckoId }),
-                    (0, t.jsx)(c.a, { placeholder: "Icon url (optional)", value: H, name: "icon", onChange: ee, error: R.icon })
+                    (0, r.jsx)(c.a, { placeholder: ei, value: X, name: "coinDenom", onChange: en, error: R.coinDenom }),
+                    (0, r.jsx)(c.a, { placeholder: "Coin decimals (ex: 6)", value: F, name: "coinDecimals", onChange: en, error: R.coinDecimals }),
+                    (0, r.jsx)(c.a, { placeholder: "Token name (optional)", value: $, name: "name", onChange: en, error: R.name }),
+                    (0, r.jsx)(c.a, { placeholder: "Coin gecko id (optional)", value: H, name: "coinGeckoId", onChange: en, error: R.coinGeckoId }),
+                    (0, r.jsx)(c.a, { placeholder: "Icon url (optional)", value: J, name: "icon", onChange: en, error: R.icon })
                   ]
                 }),
-                (0, t.jsx)("div", {
+                (0, r.jsx)("div", {
                   className: "absolute bottom-0 left-0 right-0 p-4 bg-secondary-100 backdrop-blur-xl",
                   children:
-                    O || A
-                      ? (0, t.jsx)("div", { className: "h-[44px]", children: (0, t.jsx)(r.Z, {}) })
-                      : (0, t.jsx)(m.zx, {
+                    O || G
+                      ? (0, r.jsx)("div", { className: "h-[44px]", children: (0, r.jsx)(d.Z, {}) })
+                      : (0, r.jsx)(m.zx, {
                           className: "rounded-full w-full font-bold text-sm !leading-5 text-gray-900 dark:text-white-100 h-11 !bg-primary",
                           type: "submit",
-                          disabled: eo,
-                          onClick: en,
+                          disabled: er,
+                          onClick: eo,
                           children: "Add token"
                         })
                 })
@@ -222,66 +267,66 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             });
           });
           function w() {
-            return (0, t.jsxs)("div", {
+            return (0, r.jsxs)("div", {
               className: "bg-secondary-50 flex flex-col h-full",
               children: [
-                (0, t.jsx)(u.Z, { title: "Add Token" }),
-                (0, t.jsx)("div", {
+                (0, r.jsx)(f.Z, { title: "Add Token" }),
+                (0, r.jsx)("div", {
                   className: "panel-width px-6 flex-1 overflow-y-hidden relative",
-                  children: (0, t.jsx)(C, {
+                  children: (0, r.jsx)(_, {
                     selectedNetworkStore: y.i,
-                    betaCW20DenomsStore: b.Xy,
-                    betaERC20DenomsStore: b.EM,
-                    betaNativeDenomsStore: b.vk,
-                    activeChainStore: x.J,
-                    rootDenomsStore: b.gb,
+                    betaCW20DenomsStore: x.Xy,
+                    betaERC20DenomsStore: x.EM,
+                    betaNativeDenomsStore: x.vk,
+                    activeChainStore: h.J,
+                    rootDenomsStore: x.gb,
                     rootBalanceStore: v.jZ,
-                    enabledCW20DenomsStore: b.bI
+                    enabledCW20DenomsStore: x.bI
                   })
                 })
               ]
             });
           }
-          o();
+          a();
         } catch (e) {
-          o(e);
+          a(e);
         }
       });
     },
-    53299: function (e, n, a) {
-      a.d(n, { Z: () => c });
-      var o = a(52322),
-        t = a(43166),
-        i = a(85027),
-        l = a(69816);
-      a(2784);
-      var s = a(10289);
-      let c = e => {
-        let { title: n, onBack: a } = e,
-          c = (0, s.s0)();
-        return (0, o.jsxs)(i.m, {
+    53299: function (e, n, o) {
+      o.d(n, { Z: () => l });
+      var a = o(52322),
+        r = o(43166),
+        t = o(85027),
+        i = o(69816);
+      o(2784);
+      var s = o(10289);
+      let l = e => {
+        let { title: n, onBack: o } = e,
+          l = (0, s.s0)();
+        return (0, a.jsxs)(t.m, {
           className: "bg-secondary-50 border-b border-secondary-300",
           children: [
-            (0, o.jsx)(t.X, {
+            (0, a.jsx)(r.X, {
               className: "size-9 p-2 cursor-pointer text-muted-foreground hover:text-foreground",
               onClick: () => {
-                a ? a() : c(-1);
+                o ? o() : l(-1);
               }
             }),
-            (0, o.jsx)(l.Z, { className: "text-[18px] font-bold !leading-6", color: "text-monochrome", children: n ?? "Manage tokens" }),
-            (0, o.jsx)("div", { className: "w-9 h-9" })
+            (0, a.jsx)(i.Z, { className: "text-[18px] font-bold !leading-6", color: "text-monochrome", children: n ?? "Manage tokens" }),
+            (0, a.jsx)("div", { className: "w-9 h-9" })
           ]
         });
       };
     },
-    53345: function (e, n, a) {
-      a.d(n, { s: () => i });
-      var o = a(55334),
-        t = a(48834).Buffer;
-      async function i(e, n) {
-        let a = `${e}/cosmwasm/wasm/v1/contract/${n}/smart/${t.from('{"token_info":{}}').toString("base64")}`,
-          { data: i } = await o.Z.get(a);
-        return i.error && i.error.toLowerCase().includes("decoding bech32 failed") ? "Invalid Contract Address" : i.data;
+    53345: function (e, n, o) {
+      o.d(n, { s: () => t });
+      var a = o(55334),
+        r = o(48834).Buffer;
+      async function t(e, n) {
+        let o = `${e}/cosmwasm/wasm/v1/contract/${n}/smart/${r.from('{"token_info":{}}').toString("base64")}`,
+          { data: t } = await a.Z.get(o);
+        return t.error && t.error.toLowerCase().includes("decoding bech32 failed") ? "Invalid Contract Address" : t.data;
       }
     }
   }
