@@ -1,0 +1,183 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`SocialAuth matches snapshot when rendered with a button prefix 1`] = `
+<div>
+  <div
+    class="flex flex-col items-start justify-start gap-4 self-stretch sm:flex-row"
+  >
+    <button
+      class="ring-offset-background focus-visible:ring-ring relative inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 aria-[disabled='true']:pointer-events-none aria-[disabled='true']:opacity-50 bg-background hover:bg-accent hover:text-accent-foreground border px-4 py-2 h-9 w-full flex-1 justify-center gap-2 border-neutral-200 dark:border-neutral-800"
+      type="button"
+    >
+      <svg
+        fill="none"
+        height="16"
+        viewBox="0 0 16 16"
+        width="16"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M8.00662 0C3.57917 0 0 3.60555 0 8.06611C0 11.6317 2.29329 14.6498 5.4747 15.7181C5.87246 15.7984 6.01816 15.5445 6.01816 15.331C6.01816 15.144 6.00505 14.503 6.00505 13.8352C3.7778 14.316 3.31399 12.8736 3.31399 12.8736C2.95606 11.9388 2.42572 11.6985 2.42572 11.6985C1.69674 11.2044 2.47882 11.2044 2.47882 11.2044C3.28744 11.2578 3.71175 12.0324 3.71175 12.0324C4.42745 13.2609 5.58074 12.9138 6.04471 12.7001C6.11092 12.1792 6.32315 11.8187 6.5485 11.6184C4.77211 11.4314 2.90312 10.737 2.90312 7.63869C2.90312 6.7573 3.22107 6.03619 3.72486 5.47536C3.64538 5.27509 3.36693 4.44696 3.80451 3.33858C3.80451 3.33858 4.48055 3.12487 6.00488 4.16654C6.6575 3.98998 7.33054 3.90016 8.00662 3.8994C8.68266 3.8994 9.37181 3.99298 10.0082 4.16654C11.5327 3.12487 12.2087 3.33858 12.2087 3.33858C12.6463 4.44696 12.3677 5.27509 12.2882 5.47536C12.8053 6.03619 13.1101 6.7573 13.1101 7.63869C13.1101 10.737 11.2411 11.418 9.45146 11.6184C9.74318 11.8721 9.99492 12.3528 9.99492 13.114C9.99492 14.1957 9.98181 15.0638 9.98181 15.3308C9.98181 15.5445 10.1277 15.7984 10.5253 15.7182C13.7067 14.6497 16 11.6317 16 8.06611C16.0131 3.60555 12.4208 0 8.00662 0Z"
+          style="fill: hsl(var(--foreground));"
+        />
+      </svg>
+      <span
+        class="hidden sm:inline"
+      >
+        Continue with 
+        GitHub
+      </span>
+      <span
+        class="sm:hidden"
+      >
+        GitHub
+      </span>
+    </button>
+    <button
+      class="ring-offset-background focus-visible:ring-ring relative inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 aria-[disabled='true']:pointer-events-none aria-[disabled='true']:opacity-50 bg-background hover:bg-accent hover:text-accent-foreground border px-4 py-2 h-9 w-full flex-1 justify-center gap-2 border-neutral-200 dark:border-neutral-800"
+      type="button"
+    >
+      <svg
+        fill="none"
+        height="16"
+        viewBox="0 0 16 16"
+        width="16"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <g
+          clip-path="url(#clip0_325_44)"
+        >
+          <path
+            d="M7.99988 6.54544V9.64363H12.3053C12.1163 10.64 11.5489 11.4837 10.698 12.0509L13.2944 14.0655C14.8071 12.6692 15.6798 10.6182 15.6798 8.18188C15.6798 7.61462 15.6289 7.06912 15.5344 6.54553L7.99988 6.54544Z"
+            fill="#4285F4"
+          />
+          <path
+            d="M3.51649 9.52267L2.93092 9.97093L0.858154 11.5854C2.17451 14.1963 4.8725 16 7.99974 16C10.1597 16 11.9706 15.2873 13.2942 14.0655L10.6979 12.0509C9.98516 12.5309 9.07606 12.8218 7.99974 12.8218C5.91976 12.8218 4.15254 11.4182 3.51976 9.52729L3.51649 9.52267Z"
+            fill="#34A853"
+          />
+          <path
+            d="M0.858119 4.41455C0.312695 5.49087 0 6.70543 0 7.99996C0 9.29448 0.312695 10.509 0.858119 11.5854C0.858119 11.5926 3.51998 9.51991 3.51998 9.51991C3.35998 9.03991 3.26541 8.53085 3.26541 7.99987C3.26541 7.46889 3.35998 6.95984 3.51998 6.47984L0.858119 4.41455Z"
+            fill="#FBBC05"
+          />
+          <path
+            d="M7.99991 3.18545C9.17811 3.18545 10.2254 3.59271 11.0617 4.37818L13.3526 2.0873C11.9635 0.792777 10.1599 0 7.99991 0C4.87266 0 2.17451 1.79636 0.858154 4.41455L3.51994 6.48001C4.15263 4.58908 5.91992 3.18545 7.99991 3.18545Z"
+            fill="#EA4335"
+          />
+        </g>
+        <defs>
+          <clippath
+            id="clip0_325_44"
+          >
+            <rect
+              fill="white"
+              height="16"
+              width="16"
+            />
+          </clippath>
+        </defs>
+      </svg>
+      <span
+        class="hidden sm:inline"
+      >
+        Continue with 
+        Google
+      </span>
+      <span
+        class="sm:hidden"
+      >
+        Google
+      </span>
+    </button>
+  </div>
+</div>
+`;
+
+exports[`SocialAuth matches snapshot when rendered without a button prefix 1`] = `
+<div>
+  <div
+    class="flex flex-col items-start justify-start gap-4 self-stretch sm:flex-row"
+  >
+    <button
+      class="ring-offset-background focus-visible:ring-ring relative inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 aria-[disabled='true']:pointer-events-none aria-[disabled='true']:opacity-50 bg-background hover:bg-accent hover:text-accent-foreground border px-4 py-2 h-9 w-full flex-1 justify-center gap-2 border-neutral-200 dark:border-neutral-800"
+      type="button"
+    >
+      <svg
+        fill="none"
+        height="16"
+        viewBox="0 0 16 16"
+        width="16"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M8.00662 0C3.57917 0 0 3.60555 0 8.06611C0 11.6317 2.29329 14.6498 5.4747 15.7181C5.87246 15.7984 6.01816 15.5445 6.01816 15.331C6.01816 15.144 6.00505 14.503 6.00505 13.8352C3.7778 14.316 3.31399 12.8736 3.31399 12.8736C2.95606 11.9388 2.42572 11.6985 2.42572 11.6985C1.69674 11.2044 2.47882 11.2044 2.47882 11.2044C3.28744 11.2578 3.71175 12.0324 3.71175 12.0324C4.42745 13.2609 5.58074 12.9138 6.04471 12.7001C6.11092 12.1792 6.32315 11.8187 6.5485 11.6184C4.77211 11.4314 2.90312 10.737 2.90312 7.63869C2.90312 6.7573 3.22107 6.03619 3.72486 5.47536C3.64538 5.27509 3.36693 4.44696 3.80451 3.33858C3.80451 3.33858 4.48055 3.12487 6.00488 4.16654C6.6575 3.98998 7.33054 3.90016 8.00662 3.8994C8.68266 3.8994 9.37181 3.99298 10.0082 4.16654C11.5327 3.12487 12.2087 3.33858 12.2087 3.33858C12.6463 4.44696 12.3677 5.27509 12.2882 5.47536C12.8053 6.03619 13.1101 6.7573 13.1101 7.63869C13.1101 10.737 11.2411 11.418 9.45146 11.6184C9.74318 11.8721 9.99492 12.3528 9.99492 13.114C9.99492 14.1957 9.98181 15.0638 9.98181 15.3308C9.98181 15.5445 10.1277 15.7984 10.5253 15.7182C13.7067 14.6497 16 11.6317 16 8.06611C16.0131 3.60555 12.4208 0 8.00662 0Z"
+          style="fill: hsl(var(--foreground));"
+        />
+      </svg>
+      <span
+        class="hidden sm:inline"
+      >
+        GitHub
+      </span>
+      <span
+        class="sm:hidden"
+      >
+        GitHub
+      </span>
+    </button>
+    <button
+      class="ring-offset-background focus-visible:ring-ring relative inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 aria-[disabled='true']:pointer-events-none aria-[disabled='true']:opacity-50 bg-background hover:bg-accent hover:text-accent-foreground border px-4 py-2 h-9 w-full flex-1 justify-center gap-2 border-neutral-200 dark:border-neutral-800"
+      type="button"
+    >
+      <svg
+        fill="none"
+        height="16"
+        viewBox="0 0 16 16"
+        width="16"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <g
+          clip-path="url(#clip0_325_44)"
+        >
+          <path
+            d="M7.99988 6.54544V9.64363H12.3053C12.1163 10.64 11.5489 11.4837 10.698 12.0509L13.2944 14.0655C14.8071 12.6692 15.6798 10.6182 15.6798 8.18188C15.6798 7.61462 15.6289 7.06912 15.5344 6.54553L7.99988 6.54544Z"
+            fill="#4285F4"
+          />
+          <path
+            d="M3.51649 9.52267L2.93092 9.97093L0.858154 11.5854C2.17451 14.1963 4.8725 16 7.99974 16C10.1597 16 11.9706 15.2873 13.2942 14.0655L10.6979 12.0509C9.98516 12.5309 9.07606 12.8218 7.99974 12.8218C5.91976 12.8218 4.15254 11.4182 3.51976 9.52729L3.51649 9.52267Z"
+            fill="#34A853"
+          />
+          <path
+            d="M0.858119 4.41455C0.312695 5.49087 0 6.70543 0 7.99996C0 9.29448 0.312695 10.509 0.858119 11.5854C0.858119 11.5926 3.51998 9.51991 3.51998 9.51991C3.35998 9.03991 3.26541 8.53085 3.26541 7.99987C3.26541 7.46889 3.35998 6.95984 3.51998 6.47984L0.858119 4.41455Z"
+            fill="#FBBC05"
+          />
+          <path
+            d="M7.99991 3.18545C9.17811 3.18545 10.2254 3.59271 11.0617 4.37818L13.3526 2.0873C11.9635 0.792777 10.1599 0 7.99991 0C4.87266 0 2.17451 1.79636 0.858154 4.41455L3.51994 6.48001C4.15263 4.58908 5.91992 3.18545 7.99991 3.18545Z"
+            fill="#EA4335"
+          />
+        </g>
+        <defs>
+          <clippath
+            id="clip0_325_44"
+          >
+            <rect
+              fill="white"
+              height="16"
+              width="16"
+            />
+          </clippath>
+        </defs>
+      </svg>
+      <span
+        class="hidden sm:inline"
+      >
+        Google
+      </span>
+      <span
+        class="sm:hidden"
+      >
+        Google
+      </span>
+    </button>
+  </div>
+</div>
+`;

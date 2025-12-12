@@ -1,0 +1,63 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`AuthLayout renders dark theme layout 1`] = `
+<div>
+  <script>
+    !function(){try{var d=document.documentElement,n='data-theme',s='setAttribute';var e=localStorage.getItem('theme');if('system'===e||(!e&&false)){var t='(prefers-color-scheme: dark)',m=window.matchMedia(t);if(m.media!==t||m.matches){d.style.colorScheme = 'dark';d[s](n,'dark')}else{d.style.colorScheme = 'light';d[s](n,'light')}}else if(e){d[s](n,e|| '')}else{d[s](n,'dark')}if(e==='light'||e==='dark'||!e)d.style.colorScheme=e||'dark'}catch(e){}}()
+  </script>
+  <div
+    style=""
+  >
+    <div
+      class="relative flex h-screen"
+    >
+      <div
+        class="absolute flex h-full w-full items-center justify-center overflow-y-auto bg-[hsl(var(--background))] lg:relative lg:w-1/2 bg-[#171717]"
+        style="background-image: radial-gradient(circle, rgba(255, 255, 255, 0.07) 2px, transparent 2px); background-size: 24px 24px; color: hsl(var(--foreground));"
+      >
+        <div>
+          Sidebar
+        </div>
+      </div>
+      <div
+        class="relative z-10 flex w-full flex-1 items-center justify-center overflow-y-auto px-3 py-4 lg:p-0"
+      >
+        <div>
+          Children
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`AuthLayout renders light theme layout 1`] = `
+<div>
+  <script>
+    !function(){try{var d=document.documentElement,n='data-theme',s='setAttribute';var e=localStorage.getItem('theme');if('system'===e||(!e&&false)){var t='(prefers-color-scheme: dark)',m=window.matchMedia(t);if(m.media!==t||m.matches){d.style.colorScheme = 'dark';d[s](n,'dark')}else{d.style.colorScheme = 'light';d[s](n,'light')}}else if(e){d[s](n,e|| '')}else{d[s](n,'light')}if(e==='light'||e==='dark'||!e)d.style.colorScheme=e||'light'}catch(e){}}()
+  </script>
+  <div
+    style=""
+  >
+    <div
+      class="relative flex h-screen"
+    >
+      <div
+        class="absolute flex h-full w-full items-center justify-center overflow-y-auto bg-[hsl(var(--background))] lg:relative lg:w-1/2 dark"
+        style="background-image: radial-gradient(circle, rgba(255, 255, 255, 0.07) 2px, transparent 2px); background-size: 24px 24px; color: hsl(var(--foreground));"
+      >
+        <div>
+          Sidebar
+        </div>
+      </div>
+      <div
+        class="relative z-10 flex w-full flex-1 items-center justify-center overflow-y-auto px-3 py-4 lg:p-0"
+      >
+        <div>
+          Children
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`;

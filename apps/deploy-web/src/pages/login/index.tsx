@@ -2,15 +2,13 @@ import { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { z } from "zod";
 
+import { AuthPage } from "@src/components/auth/AuthPage/AuthPage";
 import { Loading } from "@src/components/layout/Layout";
 import { useServices } from "@src/context/ServicesProvider";
 import { useFlag } from "@src/hooks/useFlag";
 import { defineServerSideProps } from "@src/lib/nextjs/defineServerSideProps/defineServerSideProps";
 import { isAuthenticated, isFeatureEnabled } from "@src/lib/nextjs/pageGuards/pageGuards";
 
-/**
- * Dedicated login page with custom Auth0 authentication
- */
 export default () => {
   const isEmbeddedLoginEnabled = useFlag("console_embedded_login");
   const searchParams = useSearchParams();
@@ -21,9 +19,11 @@ export default () => {
     if (!isEmbeddedLoginEnabled) {
       windowLocation.assign(searchParams.get("tab") === "signup" ? urlService.signup(returnUrl) : urlService.login(returnUrl));
     }
-  }, []);
+  }, [isEmbeddedLoginEnabled, windowLocation, searchParams, urlService, returnUrl]);
 
-  // login page is under development
+  if (isEmbeddedLoginEnabled) {
+    return <AuthPage />;
+  }
   return <Loading text="Loading..." />;
 };
 
