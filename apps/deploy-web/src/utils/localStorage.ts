@@ -5,7 +5,10 @@ import { gt, neq } from "semver";
 const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || "0.0.0";
 
 const migrations: Record<string, () => void> = {
-  "0.14.0": () => {}
+  "0.14.0": () => {},
+  "3.11.1": () => {
+    localStorage.removeItem("unleash:repository:sessionId");
+  }
 };
 
 // Store latestUpdatedVersion in localStorage
