@@ -257,7 +257,7 @@ export const ProviderList: React.FunctionComponent = () => {
                 />
               </div>
 
-              <div className="w-full min-w-[200px] md:w-auto">
+              <div className="w-full min-w-[200px] space-y-1 md:w-auto">
                 <Label>Sort by</Label>
                 <Select value={sort} onValueChange={handleSortChange}>
                   <SelectTrigger>

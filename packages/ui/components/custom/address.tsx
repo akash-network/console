@@ -8,12 +8,15 @@ import { cn, copyTextToClipboard } from "../../utils";
 import { CustomTooltip } from "../tooltip";
 import { Snackbar } from "./snackbar";
 
-export const shortenAddress = (address: string) => {
+export const shortenAddress = (address: string | undefined | null) => {
+  if (!address) {
+    return "";
+  }
   return `${address.slice(0, 8)}...${address.slice(-5)}`;
 };
 
 type Props = {
-  address: string;
+  address: string | undefined | null;
   isCopyable?: boolean;
   disableTruncate?: boolean;
   disableTooltip?: boolean;
@@ -28,7 +31,7 @@ export const Address: React.FunctionComponent<Props> = ({ address, isCopyable, d
   const formattedAddress = disableTruncate ? address : shortenAddress(address);
 
   const onClick = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (isCopyable) {
+    if (isCopyable && address) {
       event.preventDefault();
       event.stopPropagation();
 
@@ -53,5 +56,5 @@ export const Address: React.FunctionComponent<Props> = ({ address, isCopyable, d
     </span>
   );
 
-  return disableTruncate || disableTooltip ? content : <CustomTooltip title={address}>{content}</CustomTooltip>;
+  return disableTruncate || disableTooltip ? content : <CustomTooltip title={address || ""}>{content}</CustomTooltip>;
 };

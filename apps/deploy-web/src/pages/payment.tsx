@@ -242,7 +242,6 @@ const PayPage: React.FunctionComponent = () => {
             onComplete={() => setShowPaymentSuccess({ amount: "", show: false })}
           />
           <div className="mb-6">
-            <h2 className="mb-3 text-lg font-semibold">Your Payment Methods</h2>
             <PaymentMethodsList
               paymentMethods={paymentMethods}
               isRemoving={removePaymentMethod.isPending}
@@ -252,7 +251,7 @@ const PayPage: React.FunctionComponent = () => {
               onPaymentMethodSelect={setSelectedPaymentMethodId}
               isTrialing={isTrialing}
             />
-            <Button onClick={handleShowAddPaymentMethod} className="mt-4 w-full">
+            <Button onClick={handleShowAddPaymentMethod} className="mt-6 w-full">
               Add New Payment Method
             </Button>
           </div>

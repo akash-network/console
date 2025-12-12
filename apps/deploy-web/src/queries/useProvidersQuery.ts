@@ -11,7 +11,7 @@ import { QueryKeys } from "./queryKeys";
 
 export function useProviderDetail(
   owner: string,
-  options: Omit<UseQueryOptions<ApiProviderDetail | null>, "queryKey" | "queryFn">
+  options: Omit<UseQueryOptions<ApiProviderDetail | null>, "queryKey" | "queryFn"> = {}
 ): UseQueryResult<ApiProviderDetail | null> {
   const { publicConsoleApiHttpClient } = useServices();
   return useQuery({
