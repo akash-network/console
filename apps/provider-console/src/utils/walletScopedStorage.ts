@@ -40,34 +40,50 @@ export function createWalletScopedStorage<T>(baseKey: string): AsyncStorage<T> {
     }
   };
 
+  const maskStorageKey = (key: string): string => {
+    const parts = key.split("/");
+    if (parts.length === 3 && parts[1].length > 10) {
+      const walletAddress = parts[1];
+      const masked = `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`;
+      return `${parts[0]}/${masked}/${parts[2]}`;
+    }
+    return key;
+  };
+
   return {
     getItem: (_key: string, initialValue: T): PromiseLike<T> => {
       if (typeof window === "undefined") {
         return Promise.resolve(initialValue);
       }
 
+      const storageKey = getStorageKey();
+      const maskedKey = maskStorageKey(storageKey);
+
       try {
-        const storageKey = getStorageKey();
         const item = localStorage.getItem(storageKey);
         return Promise.resolve(item ? parseJSON(item) ?? initialValue : initialValue);
       } catch (error) {
-        console.warn(`Error reading localStorage key "${getStorageKey()}":`, error);
+        console.warn(`Error reading localStorage key "${maskedKey}":`, error);
         return Promise.resolve(initialValue);
       }
     },
 
     setItem: (_key: string, newValue: T): PromiseLike<void> => {
       if (typeof window === "undefined") {
-        console.warn(`Tried setting localStorage key "${getStorageKey()}" even though environment is not a client`);
+        const storageKey = getStorageKey();
+        const maskedKey = maskStorageKey(storageKey);
+        console.warn(`Tried setting localStorage key "${maskedKey}" even though environment is not a client`);
         return Promise.resolve();
       }
 
+      const storageKey = getStorageKey();
+      const maskedKey = maskStorageKey(storageKey);
+
       try {
-        const storageKey = getStorageKey();
         localStorage.setItem(storageKey, JSON.stringify(newValue));
         return Promise.resolve();
       } catch (error) {
-        console.warn(`Error setting localStorage key "${getStorageKey()}":`, error);
+        console.warn(`Error setting localStorage key "${maskedKey}":`, error);
         return Promise.resolve();
       }
     },
@@ -77,12 +93,14 @@ export function createWalletScopedStorage<T>(baseKey: string): AsyncStorage<T> {
         return Promise.resolve();
       }
 
+      const storageKey = getStorageKey();
+      const maskedKey = maskStorageKey(storageKey);
+
       try {
-        const storageKey = getStorageKey();
         localStorage.removeItem(storageKey);
         return Promise.resolve();
       } catch (error) {
-        console.warn(`Error removing localStorage key "${getStorageKey()}":`, error);
+        console.warn(`Error removing localStorage key "${maskedKey}":`, error);
         return Promise.resolve();
       }
     }
