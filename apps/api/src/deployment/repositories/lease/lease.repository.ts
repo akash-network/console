@@ -2,6 +2,8 @@ import { Lease } from "@akashnetwork/database/dbSchemas/akash";
 import { col, fn, Op, WhereOptions } from "sequelize";
 import { singleton } from "tsyringe";
 
+import { DrainingDeploymentLeaseSource } from "@src/deployment/types/draining-deployment";
+
 export interface DrainingDeploymentOutput {
   dseq: number;
   owner: string;
@@ -26,7 +28,7 @@ export interface DatabaseLeaseListParams {
 }
 
 @singleton()
-export class LeaseRepository {
+export class LeaseRepository implements DrainingDeploymentLeaseSource {
   async findOneByDseqAndOwner(dseq: string, owner: string): Promise<DrainingDeploymentOutput | null> {
     const leases = await Lease.findAll({
       where: { dseq, owner },
