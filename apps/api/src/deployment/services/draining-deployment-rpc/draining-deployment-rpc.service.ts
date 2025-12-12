@@ -15,6 +15,16 @@ export class DrainingDeploymentRpcService implements DrainingDeploymentLeaseSour
     loggerService.setContext(DrainingDeploymentRpcService.name);
   }
 
+  /**
+   * Finds draining deployments by owner and dseqs from RPC.
+   * Fetches lease and deployment data, calculates block rates, and predicts closure heights.
+   * Returns only deployments that are predicted to close before or at the closure height.
+   *
+   * @param closureHeight - The block height threshold for filtering draining deployments
+   * @param owner - The owner address to query deployments for
+   * @param dseqs - Array of deployment sequence numbers to filter by
+   * @returns Array of draining deployment outputs with predicted closure heights
+   */
   async findManyByDseqAndOwner(closureHeight: number, owner: string, dseqs: string[]): Promise<DrainingDeploymentOutput[]> {
     if (!dseqs.length) {
       return [];
@@ -28,6 +38,14 @@ export class DrainingDeploymentRpcService implements DrainingDeploymentLeaseSour
     return outputs.filter(output => output.predictedClosedHeight <= closureHeight);
   }
 
+  /**
+   * Fetches lease data from RPC for the given owner and dseqs.
+   * Handles pagination automatically.
+   *
+   * @param owner - The owner address to query leases for
+   * @param dseqSet - Set of deployment sequence numbers to filter by
+   * @returns Array of RPC lease data
+   */
   async #fetchLeases(owner: string, dseqSet: Set<string>): Promise<RpcLease[]> {
     const allItems: RpcLease[] = [];
     let nextKey: string | null = null;
@@ -46,6 +64,14 @@ export class DrainingDeploymentRpcService implements DrainingDeploymentLeaseSour
     return allItems;
   }
 
+  /**
+   * Fetches deployment data from RPC for the given owner and dseqs.
+   * Handles pagination automatically and calculates escrow balances.
+   *
+   * @param owner - The owner address to query deployments for
+   * @param dseqSet - Set of deployment sequence numbers to filter by
+   * @returns Array of RPC deployment info with escrow balances
+   */
   async #fetchDeployments(owner: string, dseqSet: Set<string>): Promise<RpcDeploymentInfo[]> {
     const allItems: RpcDeploymentInfo[] = [];
     let nextKey: string | null = null;
@@ -71,6 +97,13 @@ export class DrainingDeploymentRpcService implements DrainingDeploymentLeaseSour
     return allItems;
   }
 
+  /**
+   * Sums amount strings as BigInt to avoid precision loss.
+   * Logs warnings for invalid amounts but continues processing.
+   *
+   * @param items - Array of objects with amount strings
+   * @returns Sum of amounts as BigInt
+   */
   #sumAmounts(items: Array<{ amount: string }>): bigint {
     return items.reduce((sum, item) => {
       try {
@@ -86,6 +119,15 @@ export class DrainingDeploymentRpcService implements DrainingDeploymentLeaseSour
     }, 0n);
   }
 
+  /**
+   * Creates a map of draining deployments from RPC lease data.
+   * Aggregates block rates by summing rate amounts for each dseq.
+   * This implementation assumes that denom is always the same for managed wallets
+   * for which these methods are used, allowing direct summation of rate amounts.
+   *
+   * @param rpcLeases - Array of RPC lease data
+   * @returns Map of dseq to draining deployment output (without predictedClosedHeight)
+   */
   #createDrainingDeploymentMap(rpcLeases: RpcLease[]): Map<string, Omit<DrainingDeploymentOutput, "predictedClosedHeight">> {
     const leaseMap = new Map<string, Omit<DrainingDeploymentOutput, "predictedClosedHeight">>();
 
@@ -113,6 +155,13 @@ export class DrainingDeploymentRpcService implements DrainingDeploymentLeaseSour
     return leaseMap;
   }
 
+  /**
+   * Creates a map of deployments keyed by normalized dseq string.
+   * Normalizes dseq keys to handle leading zeros consistently.
+   *
+   * @param deployments - Array of RPC deployment info
+   * @returns Map of normalized dseq to deployment info
+   */
   #createDeploymentMap(deployments: RpcDeploymentInfo[]): Map<string, RpcDeploymentInfo> {
     const deploymentMap = new Map<string, RpcDeploymentInfo>();
 
@@ -124,6 +173,16 @@ export class DrainingDeploymentRpcService implements DrainingDeploymentLeaseSour
     return deploymentMap;
   }
 
+  /**
+   * Adds predicted closure heights to draining deployments.
+   * Calculates closure height based on escrow balance and block rate using BigInt
+   * to avoid precision loss. Filters out deployments with missing data, zero balance,
+   * or invalid block rates, logging warnings for each case.
+   *
+   * @param leaseMap - Map of draining deployments without predictedClosedHeight
+   * @param deploymentMap - Map of deployment info with escrow balances
+   * @returns Array of draining deployment outputs with predicted closure heights
+   */
   #addPredictedClosedHeight(
     leaseMap: Map<string, Omit<DrainingDeploymentOutput, "predictedClosedHeight">>,
     deploymentMap: Map<string, RpcDeploymentInfo>

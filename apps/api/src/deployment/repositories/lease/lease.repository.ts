@@ -44,6 +44,18 @@ export class LeaseRepository implements DrainingDeploymentLeaseSource {
     return null;
   }
 
+  /**
+   * Finds multiple draining deployments by dseqs and owner from the database.
+   * Filters by closure height, aggregates lease data by summing block rates (price)
+   * and taking minimum predicted closure height and closed height.
+   * This implementation assumes that denom is always the same for managed wallets
+   * for which these methods are used, allowing direct summation of price values.
+   *
+   * @param closureHeight - The block height threshold for filtering draining deployments
+   * @param owner - Owner address
+   * @param dseqs - Array of deployment sequence numbers to filter by
+   * @returns Array of draining deployment outputs
+   */
   async findManyByDseqAndOwner(closureHeight: number, owner: string, dseqs: string[]): Promise<DrainingDeploymentOutput[]> {
     if (!dseqs.length) return [];
 
@@ -76,6 +88,14 @@ export class LeaseRepository implements DrainingDeploymentLeaseSource {
     return [];
   }
 
+  /**
+   * Finds leases with pagination support and optional filtering.
+   * Supports filtering by owner, dseq, gseq, oseq, provider, and state.
+   * Includes associated deployment data in the results.
+   *
+   * @param params - Query parameters for filtering and pagination
+   * @returns Object with total count and array of lease rows
+   */
   async findLeasesWithPagination(params: DatabaseLeaseListParams): Promise<{ count: number; rows: Lease[] }> {
     const { skip = 0, limit = 100, owner, dseq, gseq, oseq, provider, state, reverse = false } = params;
 
