@@ -1,5 +1,12 @@
 
 
+## [3.11.0](https://github.com/akash-network/console/compare/console-web/v3.10.1...console-web/v3.11.0) (2025-12-12)
+
+
+### Features
+
+* adds embedded-login page views ([#2335](https://github.com/akash-network/console/issues/2335)) ([331dfc8](https://github.com/akash-network/console/commit/331dfc855401b3dd5394ac7af072830ed918877e))
+
 ## [3.10.1](https://github.com/akash-network/console/compare/console-web/v3.10.0...console-web/v3.10.1) (2025-12-11)
 
 
