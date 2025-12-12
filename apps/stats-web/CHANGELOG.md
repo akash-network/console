@@ -1,5 +1,12 @@
 
 
+## [1.9.1](https://github.com/akash-network/console/compare/stats-web/v1.9.0...stats-web/v1.9.1) (2025-12-12)
+
+
+### Bug Fixes
+
+* upgrades nextjs to latest 14.x ([#2345](https://github.com/akash-network/console/issues/2345)) ([46d0b23](https://github.com/akash-network/console/commit/46d0b2315f7aed4dabdc31f75dac964f43a4264d))
+
 ## [1.9.0](https://github.com/akash-network/console/compare/stats-web/v1.8.0...stats-web/v1.9.0) (2025-12-11)
 
 

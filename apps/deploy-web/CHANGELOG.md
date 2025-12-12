@@ -1,5 +1,13 @@
 
 
+## [3.11.1](https://github.com/akash-network/console/compare/console-web/v3.11.0...console-web/v3.11.1) (2025-12-12)
+
+
+### Bug Fixes
+
+* set unleash-session-id into cookie ([#2347](https://github.com/akash-network/console/issues/2347)) ([1a7ed18](https://github.com/akash-network/console/commit/1a7ed18afc79c0fa82de331375321d8ded9afe8e))
+* upgrades nextjs to latest 14.x ([#2345](https://github.com/akash-network/console/issues/2345)) ([46d0b23](https://github.com/akash-network/console/commit/46d0b2315f7aed4dabdc31f75dac964f43a4264d))
+
 ## [3.11.0](https://github.com/akash-network/console/compare/console-web/v3.10.1...console-web/v3.11.0) (2025-12-12)
 
 
