@@ -223,7 +223,7 @@ describe(DrainingDeploymentRpcService.name, () => {
     const deployments: ReturnType<typeof DeploymentListResponseSeeder.create>[] = [];
 
     inputs.forEach(input => {
-      const dseq = input.deployment?.dseq ?? faker.string.numeric(6);
+      const dseq = input.deployment?.dseq ?? faker.string.numeric({ length: 6, allowLeadingZeros: false });
       dseqs.push(dseq);
 
       input.leases.forEach((lease, leaseIdx) => {

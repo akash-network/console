@@ -102,7 +102,7 @@ export class DrainingDeploymentRpcService implements DrainingDeploymentLeaseSour
     const deploymentMap = new Map<string, RpcDeploymentInfo>();
 
     for (const deployment of deployments) {
-      const key = deployment.dseq;
+      const key = String(Number(deployment.dseq));
       deploymentMap.set(key, deployment);
     }
 
