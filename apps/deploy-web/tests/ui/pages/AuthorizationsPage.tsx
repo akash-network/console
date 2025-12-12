@@ -1,4 +1,3 @@
-import { shortenAddress } from "@akashnetwork/ui/components";
 import type { BrowserContext as Context, Locator, Page } from "@playwright/test";
 
 import { testEnvConfig } from "../fixture/test-env.config";
@@ -83,4 +82,8 @@ export class AuthorizationsPage {
   getListLocator(type: AuthorizationType): Locator {
     return this.page.getByLabel(AUTHORIZATION_LIST_LABELS[type].title);
   }
+}
+
+export function shortenAddress(address: string) {
+  return `${address.slice(0, 8)}...${address.slice(-5)}`;
 }

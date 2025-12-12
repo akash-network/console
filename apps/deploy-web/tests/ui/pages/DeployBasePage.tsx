@@ -50,16 +50,12 @@ export class DeployBasePage {
     } else {
       const providers = PROVIDERS_WHITELIST[testEnvConfig.NETWORK_ID];
       if (!providers.length) {
-        await this.page.getByRole("radio", { checked: false }).click();
+        await this.page.getByRole("radio", { checked: false }).first().click();
       } else {
-        await Promise.race(
-          providers.map(provider =>
-            this.page
-              .getByLabel(provider)
-              .click()
-              .catch(() => null)
-          )
-        );
+        const locator = providers
+          .slice(1)
+          .reduce((combinedLocator, provider) => combinedLocator.or(this.page.getByLabel(provider)), this.page.getByLabel(providers[0]));
+        await locator.first().click();
       }
     }
 

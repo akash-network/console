@@ -1,12 +1,16 @@
+import { tmpdir } from "os";
 import path from "path";
 import { z } from "zod";
 
 export const testEnvSchema = z.object({
-  BASE_URL: z.string().default("http://localhost:3000"),
+  BASE_URL: z
+    .string()
+    .default("http://localhost:3000")
+    .transform(url => url.replace(/\/+$/, "")),
   TEST_WALLET_MNEMONIC: z.string(),
   UI_CONFIG_SIGNATURE_PRIVATE_KEY: z.string().optional(),
   NETWORK_ID: z.enum(["mainnet", "sandbox", "testnet"]).default("sandbox"),
-  USER_DATA_DIR: z.string().default(path.join(__dirname, "testdata", "with-leap-extension"))
+  USER_DATA_DIR: z.string().default(path.join(tmpdir(), "akash-console-web-ui-tests", crypto.randomUUID()))
 });
 
 export const testEnvConfig = testEnvSchema.parse({
