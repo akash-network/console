@@ -60,7 +60,7 @@ export class TopUpManagedDeploymentsService {
       }
     }
 
-    this.finalizeSummary(options);
+    await this.finalizeSummary(options);
 
     return errors.length > 0 ? Err(errors) : Ok(undefined);
   }

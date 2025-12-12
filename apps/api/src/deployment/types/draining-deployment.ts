@@ -8,7 +8,7 @@ export type DrainingDeployment = AutoTopUpDeployment & {
 
 export type RpcDeploymentInfo = {
   dseq: string;
-  escrowBalance: bigint;
+  escrowBalance: number;
   createdHeight: number;
 };
 

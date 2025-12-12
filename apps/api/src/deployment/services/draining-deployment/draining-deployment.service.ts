@@ -6,7 +6,7 @@ import { BlockHttpService } from "@src/chain/services/block-http/block-http.serv
 import { LoggerService } from "@src/core";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { DrainingDeploymentOutput, LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
-import { DrainingDeployment, DrainingDeploymentLeaseSource } from "@src/deployment/types/draining-deployment";
+import { DrainingDeployment } from "@src/deployment/types/draining-deployment";
 import { averageBlockCountInAnHour } from "@src/utils/constants";
 import { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 import { DrainingDeploymentRpcService } from "../draining-deployment-rpc/draining-deployment-rpc.service";
@@ -180,9 +180,8 @@ export class DrainingDeploymentService {
       return [];
     }
 
-    const leaseSource: DrainingDeploymentLeaseSource = this.rpcService;
     try {
-      return await leaseSource.findManyByDseqAndOwner(closureHeight, owner, dseqs);
+      return await this.rpcService.findManyByDseqAndOwner(closureHeight, owner, dseqs);
     } catch (error) {
       this.loggerService.error({
         event: "LEASE_RPC_QUERY_FAILED_FALLBACK_TO_DB",
