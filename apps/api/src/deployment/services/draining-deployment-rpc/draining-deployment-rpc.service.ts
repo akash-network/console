@@ -16,6 +16,10 @@ export class DrainingDeploymentRpcService implements DrainingDeploymentLeaseSour
   }
 
   async findManyByDseqAndOwner(closureHeight: number, owner: string, dseqs: string[]): Promise<DrainingDeploymentOutput[]> {
+    if (!dseqs.length) {
+      return [];
+    }
+
     const dseqSet = new Set(dseqs);
     const [leases, deployments] = await Promise.all([this.#fetchLeases(owner, dseqSet), this.#fetchDeployments(owner, dseqSet)]);
     const leaseMap = this.#createDrainingDeploymentMap(leases);
@@ -67,8 +71,19 @@ export class DrainingDeploymentRpcService implements DrainingDeploymentLeaseSour
     return allItems;
   }
 
-  #sumAmounts(items: Array<{ amount: string }>): number {
-    return items.reduce((sum, item) => sum + parseFloat(item.amount), 0);
+  #sumAmounts(items: Array<{ amount: string }>): bigint {
+    return items.reduce((sum, item) => {
+      try {
+        return sum + BigInt(item.amount);
+      } catch (error) {
+        this.loggerService.warn({
+          event: "INVALID_AMOUNT_FORMAT",
+          amount: item.amount,
+          error: error instanceof Error ? error.message : String(error)
+        });
+        return sum;
+      }
+    }, 0n);
   }
 
   #createDrainingDeploymentMap(rpcLeases: RpcLease[]): Map<string, Omit<DrainingDeploymentOutput, "predictedClosedHeight">> {
@@ -125,7 +140,7 @@ export class DrainingDeploymentRpcService implements DrainingDeploymentLeaseSour
         return acc;
       }
 
-      if (deployment.escrowBalance <= 0) {
+      if (deployment.escrowBalance <= 0n) {
         this.loggerService.warn({
           event: "DEPLOYMENT_HAS_NO_BALANCE",
           dseq: drainingDeployment.dseq,
@@ -143,7 +158,10 @@ export class DrainingDeploymentRpcService implements DrainingDeploymentLeaseSour
         return acc;
       }
 
-      const predictedClosedHeight = Math.ceil(deployment.createdHeight + deployment.escrowBalance / drainingDeployment.blockRate);
+      const escrow = deployment.escrowBalance;
+      const rate = BigInt(Math.floor(drainingDeployment.blockRate));
+      const blocks = Number((escrow + rate - 1n) / rate);
+      const predictedClosedHeight = deployment.createdHeight + blocks;
 
       return [...acc, { ...drainingDeployment, predictedClosedHeight }];
     }, [] as DrainingDeploymentOutput[]);

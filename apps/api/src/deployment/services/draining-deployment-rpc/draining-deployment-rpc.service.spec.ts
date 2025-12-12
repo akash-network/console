@@ -92,7 +92,7 @@ describe(DrainingDeploymentRpcService.name, () => {
       expect(result[0].blockRate).toBe(totalBlockRate);
     });
 
-    it("excludes deployments without matching lease data", async () => {
+    it("excludes deployments when deployment is missing (DEPLOYMENT_NOT_FOUND)", async () => {
       const { service, loggerService, owner, dseqs, closureHeight } = setup({
         inputs: [
           {
