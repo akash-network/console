@@ -4,12 +4,12 @@
       a = new e.Error().stack;
     a &&
       ((e._sentryDebugIds = e._sentryDebugIds || {}),
-      (e._sentryDebugIds[a] = "aa7168d7-f8da-4b29-8de3-7e0049e89bb0"),
-      (e._sentryDebugIdIdentifier = "sentry-dbid-aa7168d7-f8da-4b29-8de3-7e0049e89bb0"));
+      (e._sentryDebugIds[a] = "575311cc-5655-4d9a-a83a-65bf68a1a532"),
+      (e._sentryDebugIdIdentifier = "sentry-dbid-575311cc-5655-4d9a-a83a-65bf68a1a532"));
   } catch (e) {}
 })();
 var _global = "undefined" != typeof window ? window : "undefined" != typeof global ? global : "undefined" != typeof self ? self : {};
-_global.SENTRY_RELEASE = { id: "0.22.9" };
+_global.SENTRY_RELEASE = { id: "0.23.1" };
 ("use strict");
 (self.webpackChunk_leap_cosmos_extension = self.webpackChunk_leap_cosmos_extension || []).push([
   ["8377"],
@@ -130,8 +130,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             u = t(74229),
             m = t(76131),
             x = t(72059),
-            f = t(50449),
-            v = t(34844),
+            v = t(50449),
+            f = t(34844),
             h = t(42941),
             g = t(30464),
             p = t(75958),
@@ -143,16 +143,16 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             y = t(84335),
             C = t(49298),
             S = t(78884),
-            D = t(68708),
-            M = t(86798),
-            A = t(46078),
+            _ = t(68708),
+            D = t(86798),
+            M = t(46078),
             E = t(46798),
-            _ = t(81248),
-            L = t(95380),
-            T = t(92006),
+            A = t(81248),
+            T = t(95380),
+            L = t(92006),
             B = t(28345),
-            Z = e([x, N, v, j, m, T, A, M, E, B, S, k, L, _, C]);
-          [x, N, v, j, m, T, A, M, E, B, S, k, L, _, C] = Z.then ? (await Z)() : Z;
+            Z = e([x, N, f, j, m, L, M, D, E, B, S, k, T, A, C]);
+          [x, N, f, j, m, L, M, D, E, B, S, k, T, A, C] = Z.then ? (await Z)() : Z;
           let R = (0, p.Pi)(e => {
             var a, t, l;
             let {
@@ -160,8 +160,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 forceNetwork: p,
                 showBackAction: Z,
                 onBackClick: R,
-                rootDenomsStore: O,
-                delegationsStore: F,
+                rootDenomsStore: F,
+                delegationsStore: O,
                 validatorsStore: P,
                 unDelegationsStore: G,
                 claimRewardsStore: I,
@@ -169,52 +169,52 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 chainTagsStore: H
               } = e,
               z = (0, s.a74)(),
-              $ = (0, x.N8)(),
-              V = (0, w.useMemo)(() => o || z, [z, o]),
+              V = (0, x.N8)(),
+              $ = (0, w.useMemo)(() => o || z, [z, o]),
               [U, W] = (0, w.useState)(null),
               Y = (0, s.obn)(),
               K = (0, w.useMemo)(() => p || Y, [Y, p]),
               { walletAvatar: q, walletName: X, activeWallet: Q } = (0, u.vL)(),
               { headerChainImgSrc: ee } = (0, u.Cd)();
-            (0, f._)(N.t), (0, v.G)(V);
+            (0, v._)(N.t), (0, f.G)($);
             let ea = (0, h.Z)(),
               et = ea.get("validatorAddress") ?? void 0,
               el = ea.get("chainId") ?? void 0,
               en = ea.get("action") ?? void 0,
               es = (0, b.s0)(),
-              eo = O.allDenoms,
-              ei = F.delegationsForChain(V),
-              er = P.validatorsForChain(V),
-              ed = G.unDelegationsForChain(V),
-              ec = I.claimRewardsForChain(V),
+              eo = F.allDenoms,
+              ei = O.delegationsForChain($),
+              er = P.validatorsForChain($),
+              ed = G.unDelegationsForChain($),
+              ec = I.claimRewardsForChain($),
               {
                 rewards: eu,
                 delegations: em,
                 loadingDelegations: ex,
-                loadingNetwork: ef,
-                loadingRewards: ev,
+                loadingNetwork: ev,
+                loadingRewards: ef,
                 loadingUnboundingDelegations: eh
-              } = (0, s.nDu)(eo, ei, er, ed, ec, V, K, J.allSpendableTokens),
-              eg = (0, w.useMemo)(() => ex || ev || eh, [ex, ev, eh]),
-              [ep] = (0, s.JsT)(eo, V, K),
+              } = (0, s.nDu)(eo, ei, er, ed, ec, $, K, J.allSpendableTokens),
+              eg = (0, w.useMemo)(() => ex || ef || eh, [ex, ef, eh]),
+              [ep] = (0, s.JsT)(eo, $, K),
               [ew, eb] = (0, w.useState)(!1),
               [ej, eN] = (0, w.useState)(!1),
               [ek, ey] = (0, w.useState)(!1),
               [eC, eS] = (0, w.useState)(!1),
-              [eD, eM] = (0, w.useState)(!1),
-              [eA, eE] = (0, w.useState)(!1),
-              { isLoading: e_, data: eL = {} } = (0, s.ViV)(),
-              { data: eT } = (0, s.S2A)(),
+              [e_, eD] = (0, w.useState)(!1),
+              [eM, eE] = (0, w.useState)(!1),
+              { isLoading: eA, data: eT = {} } = (0, s.ViV)(),
+              { data: eL } = (0, s.S2A)(),
               eB = (0, w.useMemo)(() => {
                 var e;
-                return null === (e = eL[null == ep ? void 0 : ep.coinDenom]) || void 0 === e
+                return null === (e = eT[null == ep ? void 0 : ep.coinDenom]) || void 0 === e
                   ? void 0
                   : e.sort((e, a) => {
                       let t = e.priority,
                         l = a.priority;
                       return void 0 !== t && void 0 !== l ? t - l : void 0 !== t ? -1 : +(void 0 !== l);
                     });
-              }, [null == ep ? void 0 : ep.coinDenom, eL]),
+              }, [null == ep ? void 0 : ep.coinDenom, eT]),
               eZ = (0, w.useMemo)(() => {
                 var e;
                 let a = {};
@@ -248,7 +248,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               !(async function () {
                 if (el && z !== d.HW) {
                   let e = (await (0, c._d)())[el];
-                  $(e);
+                  V(e);
                 }
               })();
             }, [el]);
@@ -256,16 +256,16 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               var e;
               return null === (e = er.validatorData.validators) || void 0 === e ? void 0 : e.reduce((e, a) => ((e[a.address] = a), e), {});
             }, [er.validatorData.validators]);
-            (0, s.Ewi)(eR, j.RZ, V, K);
-            let eO = (0, w.useCallback)(async () => {
-              let e = V;
+            (0, s.Ewi)(eR, j.RZ, $, K);
+            let eF = (0, w.useCallback)(async () => {
+              let e = $;
               el && z !== d.HW && (e = (await (0, c._d)())[el]);
               let a = et ? (null == eR ? void 0 : eR[et]) : void 0,
                 t = { mode: "DELEGATE", toValidator: a, forceChain: e, forceNetwork: K };
               sessionStorage.setItem("navigate-stake-input-state", JSON.stringify(t));
               let l = a ? "" : `?validatorAddress=${et}`;
               es(`/stake/input${l}`, { state: t, replace: !0 });
-            }, [z, V, K, es, el, et, eR]);
+            }, [z, $, K, es, el, et, eR]);
             (0, w.useEffect)(() => {
               switch (en) {
                 case "CLAIM_REWARDS":
@@ -275,17 +275,17 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   eE(!0);
                   break;
                 case "DELEGATE":
-                  eO();
+                  eF();
               }
-            }, [en, eO]);
-            let eF = (0, w.useCallback)(() => {
+            }, [en, eF]);
+            let eO = (0, w.useCallback)(() => {
               var e;
-              "lava" === V && (null == eT ? void 0 : null === (e = eT.restaking) || void 0 === e ? void 0 : e.extension)
-                ? eM(!0)
-                : "celestia" === V
+              "lava" === $ && (null == eL ? void 0 : null === (e = eL.restaking) || void 0 === e ? void 0 : e.extension)
+                ? eD(!0)
+                : "celestia" === $
                   ? eb(!0)
                   : eS(!0);
-            }, [V, null == eT ? void 0 : null === (a = eT.restaking) || void 0 === a ? void 0 : a.extension]);
+            }, [$, null == eL ? void 0 : null === (a = eL.restaking) || void 0 === a ? void 0 : a.extension]);
             return ((0, m.$)({
               enabled: !!Q,
               page: "stake",
@@ -296,28 +296,28 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             Q)
               ? (0, n.jsxs)(n.Fragment, {
                   children: [
-                    (0, n.jsx)(T.w, { onBackClick: R }),
+                    (0, n.jsx)(L.w, { onBackClick: R }),
                     (0, n.jsxs)("div", {
                       className: "flex flex-col gap-y-5 px-6 py-7 w-full flex-1",
                       children: [
-                        (0, n.jsx)(A.Z, { forceChain: V, forceNetwork: K }),
+                        (0, n.jsx)(M.Z, { forceChain: $, forceNetwork: K }),
                         eg || Object.values(em ?? {}).length > 0
-                          ? (0, n.jsx)(M.Z, { onClaim: eF, forceChain: V, forceNetwork: K })
+                          ? (0, n.jsx)(D.Z, { onClaim: eO, forceChain: $, forceNetwork: K })
                           : (0, n.jsx)(y.Z, {
-                              forceChain: V,
+                              forceChain: $,
                               forceNetwork: K,
                               title: "Stake tokens to earn rewards",
                               subtitle: `You haven't staked any ${null == ep ? void 0 : ep.coinDenom}`,
                               buttonText: "Stake now"
                             }),
-                        (0, n.jsx)(E.Z, { forceChain: V, forceNetwork: K, setClaimTxMode: W })
+                        (0, n.jsx)(E.Z, { forceChain: $, forceNetwork: K, setClaimTxMode: W })
                       ]
                     }),
-                    (0, n.jsx)(B.U, { mode: U, isOpen: !!U, onClose: () => W(null), forceChain: V, forceNetwork: K }),
-                    !ef &&
+                    (0, n.jsx)(B.U, { mode: U, isOpen: !!U, onClose: () => W(null), forceChain: $, forceNetwork: K }),
+                    !ev &&
                       (0, n.jsxs)(n.Fragment, {
                         children: [
-                          (0, n.jsx)(S.C, { isOpen: ew, onClose: () => eb(!1), validators: eR, forceChain: V, forceNetwork: K, setClaimTxMode: W }),
+                          (0, n.jsx)(S.C, { isOpen: ew, onClose: () => eb(!1), validators: eR, forceChain: $, forceNetwork: K, setClaimTxMode: W }),
                           (0, n.jsx)(k.C, {
                             isOpen: eC,
                             onClose: () => eS(!1),
@@ -327,33 +327,33 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                             onClaimAndStake: () => {
                               eS(!1), ey(!0);
                             },
-                            forceChain: V,
+                            forceChain: $,
                             forceNetwork: K
                           }),
-                          "lava" === V &&
-                            (null == eT ? void 0 : null === (t = eT.restaking) || void 0 === t ? void 0 : t.extension) === "active" &&
-                            (0, n.jsx)(L.C, {
+                          "lava" === $ &&
+                            (null == eL ? void 0 : null === (t = eL.restaking) || void 0 === t ? void 0 : t.extension) === "active" &&
+                            (0, n.jsx)(T.C, {
                               isOpen: ej,
                               onClose: () => eN(!1),
-                              rootDenomsStore: O,
+                              rootDenomsStore: F,
                               rootBalanceStore: J,
-                              forceChain: V,
+                              forceChain: $,
                               forceNetwork: K,
                               setClaimTxMode: W
                             }),
-                          "lava" === V &&
-                            (null == eT ? void 0 : null === (l = eT.restaking) || void 0 === l ? void 0 : l.extension) === "active" &&
-                            (0, n.jsx)(_.Z, {
-                              isOpen: eD,
-                              onClose: () => eM(!1),
+                          "lava" === $ &&
+                            (null == eL ? void 0 : null === (l = eL.restaking) || void 0 === l ? void 0 : l.extension) === "active" &&
+                            (0, n.jsx)(A.Z, {
+                              isOpen: e_,
+                              onClose: () => eD(!1),
                               onClaimValidatorRewards: () => {
-                                eM(!1), eb(!0);
+                                eD(!1), eb(!0);
                               },
                               onClaimProviderRewards: () => {
-                                eM(!1), eN(!0);
+                                eD(!1), eN(!0);
                               },
-                              rootDenomsStore: O,
-                              delegationsStore: F,
+                              rootDenomsStore: F,
+                              delegationsStore: O,
                               validatorsStore: P,
                               unDelegationsStore: G,
                               claimRewardsStore: I,
@@ -367,13 +367,13 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                               onClose: () => ey(!1),
                               validators: eR,
                               chainRewards: eZ,
-                              forceChain: V,
+                              forceChain: $,
                               forceNetwork: K,
                               setClaimTxMode: W
                             })
                         ]
                       }),
-                    eB && (0, n.jsx)(D.Z, { isVisible: eA, onClose: () => eE(!1), providers: eB, rootDenomsStore: O, forceChain: V, forceNetwork: K })
+                    eB && (0, n.jsx)(_.Z, { isVisible: eM, onClose: () => eE(!1), providers: eB, rootDenomsStore: F, forceChain: $, forceNetwork: K })
                   ]
                 })
               : (0, n.jsx)("div", {
@@ -401,11 +401,11 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             u = t(30464),
             m = t(75958),
             x = t(2784),
-            f = t(62833),
-            v = t(48346),
+            v = t(62833),
+            f = t(48346),
             h = t(90258),
-            g = e([c, v]);
-          [c, v] = g.then ? (await g)() : g;
+            g = e([c, f]);
+          [c, f] = g.then ? (await g)() : g;
           let p = (0, m.Pi)(e => {
             let { isOpen: a, onClose: t, mode: l, forceChain: m, forceNetwork: g } = e,
               p = (0, c.a7)(),
@@ -428,7 +428,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                       k({ ...N, txStatus: "failed" });
                     })
                     .finally(() => {
-                      v.jZ.refetchBalances(b, j), v.lc.updateStake(b, j, !0);
+                      f.jZ.refetchBalances(b, j), f.lc.updateStake(b, j, !0);
                     });
               }, [null == N ? void 0 : N.promise]),
               (0, n.jsxs)(r.Z, {
@@ -492,7 +492,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   (0, n.jsxs)("div", {
                     className: "flex gap-x-4 mt-auto [&>*]:flex-1",
                     children: [
-                      (0, n.jsx)(d.zx, { variant: "mono", asChild: !0, children: (0, n.jsx)(f.rU, { to: "/home", children: "Home" }) }),
+                      (0, n.jsx)(d.zx, { variant: "mono", asChild: !0, children: (0, n.jsx)(v.rU, { to: "/home", children: "Home" }) }),
                       (0, n.jsx)(d.zx, {
                         onClick: t,
                         disabled: (null == N ? void 0 : N.txStatus) === "loading",
@@ -513,7 +513,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
     83208: function (e, a, t) {
       t.a(e, async function (e, l) {
         try {
-          t.d(a, { j: () => M });
+          t.d(a, { j: () => D });
           var n = t(52322),
             s = t(41172),
             o = t(48039),
@@ -524,8 +524,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             u = t(99272),
             m = t(27963),
             x = t(84916),
-            f = t(96128),
-            v = t.n(f),
+            v = t(96128),
+            f = t.n(v),
             h = t(79533),
             g = t(6401),
             p = t(38313),
@@ -537,50 +537,50 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             y = t(56001),
             C = t(67684),
             S = t(13906),
-            D = e([p, y, k, u]);
-          [p, y, k, u] = D.then ? (await D)() : D;
-          let M = (0, j.Pi)(e => {
+            _ = e([p, y, k, u]);
+          [p, y, k, u] = _.then ? (await _)() : _;
+          let D = (0, j.Pi)(e => {
             let {
                 chainTagsStore: a,
                 aggregateStakeStore: t,
                 rootDenomsStore: l,
                 delegationsStore: d,
-                validatorsStore: f,
+                validatorsStore: v,
                 unDelegationsStore: j,
-                claimRewardsStore: D,
-                rootBalanceStore: M
+                claimRewardsStore: _,
+                rootBalanceStore: D
               } = e,
               {
-                perChainDelegations: A,
+                perChainDelegations: M,
                 totalCurrencyAmountDelegation: E,
-                averageApr: _,
-                totalClaimRewardsAmount: L,
-                isEveryChainLoading: T,
+                averageApr: A,
+                totalClaimRewardsAmount: T,
+                isEveryChainLoading: L,
                 isSomeChainLoading: B
               } = t.aggregatedStake,
               [Z, R] = (0, N.useState)(""),
-              [O, F] = (0, N.useState)(!1),
+              [F, O] = (0, N.useState)(!1),
               [P] = (0, g.nB)(),
               G = (0, s.DI5)(),
               [I, J] = (0, N.useState)(!0),
               [H, z] = (0, N.useState)(!0),
-              [$, V] = (0, N.useState)("amount"),
+              [V, $] = (0, N.useState)("amount"),
               U = (0, p.ob)(),
               [W, Y] = (0, N.useState)(null),
               K = (0, w.Z)(),
               q = K.get("chainId") ?? void 0,
-              X = (0, N.useMemo)(() => (_ ? `${v()((100 * _).toString(), { precision: 2, symbol: "" }).format()}%` : "-"), [_]),
+              X = (0, N.useMemo)(() => (A ? `${f()((100 * A).toString(), { precision: 2, symbol: "" }).format()}%` : "-"), [A]),
               Q = ["ATOM", "TIA", "CORE", "OSMO", "INJ", "BABY", "NIBI", "OM"],
               ee = (0, N.useMemo)(() => {
                 let e = Z.trim().toLowerCase(),
-                  a = Object.keys(A)
-                    .reduce((a, t) => (t.toLowerCase().includes(e) || A[t].stakingDenom.toLowerCase().includes(e) ? [...a, { ...A[t], chain: t }] : a), [])
+                  a = Object.keys(M)
+                    .reduce((a, t) => (t.toLowerCase().includes(e) || M[t].stakingDenom.toLowerCase().includes(e) ? [...a, { ...M[t], chain: t }] : a), [])
                     .sort((e, a) => {
                       let t = Q.indexOf(e.stakingDenom),
                         l = Q.indexOf(a.stakingDenom);
                       return -1 === t ? 1 : -1 === l ? -1 : t - l;
                     });
-                switch ($) {
+                switch (V) {
                   case "apr":
                     return a.sort((e, a) => (I ? a.apr - e.apr : e.apr - a.apr));
                   case "amount":
@@ -615,15 +615,15 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                           : -1;
                     });
                 }
-              }, [A, Z, H, I, $]),
+              }, [M, Z, H, I, V]),
               ea = (0, N.useCallback)(
                 e => {
                   var a;
                   Y(e),
-                    0 === ((null === (a = f.validatorsForChain(e).validatorData) || void 0 === a ? void 0 : a.validators) ?? []).length &&
-                      f.loadValidators(e, U);
+                    0 === ((null === (a = v.validatorsForChain(e).validatorData) || void 0 === a ? void 0 : a.validators) ?? []).length &&
+                      v.loadValidators(e, U);
                 },
-                [U, f]
+                [U, v]
               ),
               et = (0, N.useCallback)(() => Y(null), []);
             return ((0, N.useEffect)(() => {
@@ -642,19 +642,19 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   onBackClick: et,
                   rootDenomsStore: l,
                   delegationsStore: d,
-                  validatorsStore: f,
+                  validatorsStore: v,
                   unDelegationsStore: j,
-                  claimRewardsStore: D,
-                  rootBalanceStore: M,
+                  claimRewardsStore: _,
+                  rootBalanceStore: D,
                   chainTagsStore: a
                 })
               : (0, n.jsxs)(n.Fragment, {
                   children: [
-                    (0, n.jsx)(k.w, { setShowSearchInput: F }),
+                    (0, n.jsx)(k.w, { setShowSearchInput: O }),
                     (0, n.jsxs)("div", {
                       className: "flex flex-col pt-6 px-6 w-full h-full overflow-y-scroll bg-secondary-50",
                       children: [
-                        O
+                        F
                           ? (0, n.jsxs)("div", {
                               className: "flex gap-4 items-center mb-6",
                               children: [
@@ -663,7 +663,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                                   size: 24,
                                   className: "text-muted-foreground  cursor-pointer p-3.5 h-auto w-12 rounded-full bg-secondary-100 hover:bg-secondary-200",
                                   onClick: () => {
-                                    F(!1), R("");
+                                    O(!1), R("");
                                   }
                                 })
                               ]
@@ -679,7 +679,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                                 }),
                                 (0, n.jsx)(C.d, {
                                   label: "Claimable",
-                                  value: P(L),
+                                  value: P(T),
                                   className: "border-r-[1px] border-solid border-gray-200 dark:border-gray-850"
                                 }),
                                 (0, n.jsx)(C.d, { label: "Avg APR", value: X })
@@ -693,11 +693,11 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                               (0, n.jsxs)("button", {
                                 className: "flex items-center justify-between gap-1",
                                 onClick: () => {
-                                  J(!I), V("apr");
+                                  J(!I), $("apr");
                                 },
                                 children: [
                                   "APR",
-                                  "apr" === $ &&
+                                  "apr" === V &&
                                     (0, n.jsx)(n.Fragment, {
                                       children: I
                                         ? (0, n.jsx)(i.p, { size: 16, className: "text-black-100 dark:text-white-100" })
@@ -708,11 +708,11 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                               (0, n.jsxs)("button", {
                                 className: "w-[90px] text-right flex items-center justify-end gap-1",
                                 onClick: () => {
-                                  z(!H), V("amount");
+                                  z(!H), $("amount");
                                 },
                                 children: [
                                   "Amount",
-                                  "amount" === $ &&
+                                  "amount" === V &&
                                     (0, n.jsx)(n.Fragment, {
                                       children: H
                                         ? (0, n.jsx)(i.p, { size: 16, className: "text-black-100 dark:text-white-100" })
@@ -727,14 +727,14 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                           children: (0, n.jsxs)("div", {
                             className: "flex flex-col gap-3 pb-6",
                             children: [
-                              T ? (0, n.jsx)(u.MC, {}) : null,
-                              T
+                              L ? (0, n.jsx)(u.MC, {}) : null,
+                              L
                                 ? null
                                 : ee.length > 0
                                   ? (0, n.jsx)(n.Fragment, {
                                       children: ee.map(e => {
                                         let { totalDelegationAmount: a, currencyAmountDelegation: t, stakingDenom: l, apr: s, chain: o } = e,
-                                          i = s ? `${v()((100 * s).toString(), { precision: 2, symbol: "" }).format()} %` : "-";
+                                          i = s ? `${f()((100 * s).toString(), { precision: 2, symbol: "" }).format()} %` : "-";
                                         return (0, n.jsx)(
                                           S.h,
                                           {
@@ -758,7 +758,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                                       classname: "dark:!bg-gray-950",
                                       imgContainerClassname: "dark:!bg-gray-900"
                                     }),
-                              B && !O ? (0, n.jsx)(u.MC, {}) : null
+                              B && !F ? (0, n.jsx)(u.MC, {}) : null
                             ]
                           })
                         })
@@ -804,10 +804,10 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             u = t(75958),
             m = t(2784),
             x = t(42799),
-            f = t(84994),
-            v = t(84601),
-            h = e([v]);
-          v = (h.then ? (await h)() : h)[0];
+            v = t(84994),
+            f = t(84601),
+            h = e([f]);
+          f = (h.then ? (await h)() : h)[0];
           let g = e =>
               (0, n.jsxs)("div", {
                 className: "flex gap-2 items-center justify-between bg-secondary-100 p-6 rounded-xl",
@@ -830,37 +830,37 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 j = (0, m.useMemo)(() => h || b, [h, b]),
                 [N] = (0, c.nB)(),
                 k = x.gb.allDenoms,
-                y = v.xO.delegationsForChain(w),
-                C = v.fe.validatorsForChain(w),
-                S = v.GO.unDelegationsForChain(w),
-                D = v.eq.claimRewardsForChain(w),
-                [M] = (0, s.JsT)(k, w, j),
-                { totalRewardsDollarAmt: A, rewards: E } = (0, s.nDu)(k, y, C, S, D, w, j),
-                _ = (0, m.useMemo)(() => {
+                y = f.xO.delegationsForChain(w),
+                C = f.fe.validatorsForChain(w),
+                S = f.GO.unDelegationsForChain(w),
+                _ = f.eq.claimRewardsForChain(w),
+                [D] = (0, s.JsT)(k, w, j),
+                { totalRewardsDollarAmt: M, rewards: E } = (0, s.nDu)(k, y, C, S, _, w, j),
+                A = (0, m.useMemo)(() => {
                   if (E) {
                     var e;
-                    return null === (e = E.total) || void 0 === e ? void 0 : e.find(e => e.denom === (null == M ? void 0 : M.coinMinimalDenom));
+                    return null === (e = E.total) || void 0 === e ? void 0 : e.find(e => e.denom === (null == D ? void 0 : D.coinMinimalDenom));
                   }
-                }, [null == M ? void 0 : M.coinMinimalDenom, E]),
-                L = (0, m.useMemo)(() => !_ || new (i())(_.amount).lt(1e-5), [_]),
-                T = (0, m.useMemo)(
-                  () => f.J.formatHideBalance((0, s.LHZ)((null == _ ? void 0 : _.amount) ?? "", null == M ? void 0 : M.coinDenom)),
-                  [null == M ? void 0 : M.coinDenom, null == _ ? void 0 : _.amount]
+                }, [null == D ? void 0 : D.coinMinimalDenom, E]),
+                T = (0, m.useMemo)(() => !A || new (i())(A.amount).lt(1e-5), [A]),
+                L = (0, m.useMemo)(
+                  () => v.J.formatHideBalance((0, s.LHZ)((null == A ? void 0 : A.amount) ?? "", null == D ? void 0 : D.coinDenom)),
+                  [null == D ? void 0 : D.coinDenom, null == A ? void 0 : A.amount]
                 ),
                 B = (0, m.useMemo)(
                   () =>
-                    new (i())((null == _ ? void 0 : _.currencyAmount) ?? "").gt(0)
-                      ? f.J.formatHideBalance(N(new (i())((null == _ ? void 0 : _.currencyAmount) ?? "")))
-                      : T,
-                  [N, T, null == _ ? void 0 : _.currencyAmount]
+                    new (i())((null == A ? void 0 : A.currencyAmount) ?? "").gt(0)
+                      ? v.J.formatHideBalance(N(new (i())((null == A ? void 0 : A.currencyAmount) ?? "")))
+                      : L,
+                  [N, L, null == A ? void 0 : A.currencyAmount]
                 ),
-                Z = (0, m.useMemo)(() => (new (i())((null == _ ? void 0 : _.currencyAmount) ?? "").gt(0) ? T : ""), [T, null == _ ? void 0 : _.currencyAmount]),
+                Z = (0, m.useMemo)(() => (new (i())((null == A ? void 0 : A.currencyAmount) ?? "").gt(0) ? L : ""), [L, null == A ? void 0 : A.currencyAmount]),
                 R = (0, m.useMemo)(
-                  () => f.J.formatHideBalance(`${(0, s.LHZ)((null == _ ? void 0 : _.amount) ?? "", null == M ? void 0 : M.coinDenom)}`),
-                  [null == M ? void 0 : M.coinDenom, null == _ ? void 0 : _.amount]
+                  () => v.J.formatHideBalance(`${(0, s.LHZ)((null == A ? void 0 : A.amount) ?? "", null == D ? void 0 : D.coinDenom)}`),
+                  [null == D ? void 0 : D.coinDenom, null == A ? void 0 : A.amount]
                 ),
-                O = (0, m.useMemo)(() => (A && new (i())(A).gt(0) ? f.J.formatHideBalance(N(new (i())(A))) : R), [N, R, A]),
-                F = (0, m.useMemo)(() => (A && new (i())(A).gt(0) ? R : ""), [R, A]);
+                F = (0, m.useMemo)(() => (M && new (i())(M).gt(0) ? v.J.formatHideBalance(N(new (i())(M))) : R), [N, R, M]),
+                O = (0, m.useMemo)(() => (M && new (i())(M).gt(0) ? R : ""), [R, M]);
               return (0, n.jsxs)(r.Z, {
                 isOpen: a,
                 onClose: t,
@@ -870,10 +870,10 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   (0, n.jsxs)("div", {
                     className: "flex flex-col gap-4 w-full",
                     children: [
-                      (0, n.jsx)("span", { className: "text-muted-foreground text-sm", children: `Claim rewards on ${M.coinDenom}` }),
+                      (0, n.jsx)("span", { className: "text-muted-foreground text-sm", children: `Claim rewards on ${D.coinDenom}` }),
                       (0, n.jsx)(g, {
-                        titleAmount: O,
-                        secondaryAmount: F,
+                        titleAmount: F,
+                        secondaryAmount: O,
                         button: (0, n.jsx)(d.zx, {
                           onClick: l,
                           variant: "secondary",
@@ -896,7 +896,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                           size: "md",
                           className: "w-[7.5rem] whitespace-nowrap",
                           onClick: o,
-                          disabled: L,
+                          disabled: T,
                           "aria-label": "claim info card claim and stake button in stake v2 flow",
                           children: (0, n.jsx)("span", {
                             "aria-label": "claim info card claim and stake button text in stake v2 flow",
@@ -928,11 +928,11 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
       let c = (0, i.Pi)(e => {
         let { forceChain: a, forceNetwork: t, onClick: i, title: c, subtitle: u, buttonText: m } = e,
           x = (0, n.a74)(),
-          f = (0, n.obn)(),
-          v = a ?? x,
-          h = t ?? f,
+          v = (0, n.obn)(),
+          f = a ?? x,
+          h = t ?? v,
           g = (0, r.s0)(),
-          [p] = (0, n.JsT)(d.gb.allDenoms, v, h);
+          [p] = (0, n.JsT)(d.gb.allDenoms, f, h);
         return (0, l.jsxs)("div", {
           className: "flex flex-col gap-7 py-[90px] px-4 border border-secondary-100 rounded-2xl",
           children: [
@@ -949,7 +949,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               onClick: () => {
                 if (i) i();
                 else {
-                  let e = { mode: "DELEGATE", forceChain: v, forceNetwork: h };
+                  let e = { mode: "DELEGATE", forceChain: f, forceNetwork: h };
                   sessionStorage.setItem("navigate-stake-input-state", JSON.stringify(e)), g("/stake/input", { state: e });
                 }
               },
@@ -963,7 +963,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
     14048: function (e, a, t) {
       t.a(e, async function (e, l) {
         try {
-          t.d(a, { Z: () => f });
+          t.d(a, { Z: () => v });
           var n = t(52322),
             s = t(41172),
             o = t(15969),
@@ -975,44 +975,44 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             m = t(99447),
             x = e([u]);
           u = (x.then ? (await x)() : x)[0];
-          let f = (0, r.Pi)(e => {
+          let v = (0, r.Pi)(e => {
             let {
                 rootDenomsStore: a,
                 delegationsStore: t,
                 validatorsStore: l,
                 unDelegationsStore: r,
                 claimRewardsStore: x,
-                forceChain: f,
-                forceNetwork: v,
+                forceChain: v,
+                forceNetwork: f,
                 rootBalanceStore: h,
                 setClaimTxMode: g
               } = e,
               p = (0, s.a74)(),
               w = (0, s.obn)(),
-              b = f ?? p,
-              j = v ?? w,
+              b = v ?? p,
+              j = f ?? w,
               N = a.allDenoms,
               k = t.delegationsForChain(b),
               y = l.validatorsForChain(b),
               C = r.unDelegationsForChain(b),
               S = x.claimRewardsForChain(b),
-              { unboundingDelegationsInfo: D, loadingUnboundingDelegations: M } = (0, s.nDu)(N, k, y, C, S, b, j),
-              A = (0, d.useMemo)(() => {
+              { unboundingDelegationsInfo: _, loadingUnboundingDelegations: D } = (0, s.nDu)(N, k, y, C, S, b, j),
+              M = (0, d.useMemo)(() => {
                 var e;
                 return null === (e = y.validatorData.validators) || void 0 === e ? void 0 : e.reduce((e, a) => ((e[a.address] = a), e), {});
               }, [y.validatorData.validators]),
               E = (0, d.useMemo)(() => {
                 var e;
-                return null === (e = Object.values(D ?? {})) || void 0 === e ? void 0 : e[0];
-              }, [D]),
-              { isCancleUnstakeSupported: _ } = (0, s.MY5)(E, b, j),
-              [L, T] = (0, d.useState)(!1),
+                return null === (e = Object.values(_ ?? {})) || void 0 === e ? void 0 : e[0];
+              }, [_]),
+              { isCancleUnstakeSupported: A } = (0, s.MY5)(E, b, j),
+              [T, L] = (0, d.useState)(!1),
               [B, Z] = (0, d.useState)(),
-              [R, O] = (0, d.useState)();
-            return M || (0 !== Object.values(D ?? {}).length && A)
+              [R, F] = (0, d.useState)();
+            return D || (0 !== Object.values(_ ?? {}).length && M)
               ? (0, n.jsxs)(n.Fragment, {
                   children: [
-                    M &&
+                    D &&
                       (0, n.jsxs)("div", {
                         className: "flex flex-col w-full gap-4",
                         children: [
@@ -1026,9 +1026,9 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                           (0, n.jsx)(i.KE, { count: 5 })
                         ]
                       }),
-                    !M &&
-                      A &&
-                      D &&
+                    !D &&
+                      M &&
+                      _ &&
                       (0, n.jsxs)("div", {
                         className: "flex flex-col w-full gap-4",
                         children: [
@@ -1039,19 +1039,19 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                               (0, n.jsx)("span", { className: "text-xs text-muted-foreground", children: "Amount Staked" })
                             ]
                           }),
-                          Object.values(D ?? {}).map(e => {
-                            let a = A[null == e ? void 0 : e.validator_address];
+                          Object.values(_ ?? {}).map(e => {
+                            let a = M[null == e ? void 0 : e.validator_address];
                             return a
                               ? e.entries.map((t, l) =>
                                   (0, n.jsx)(
                                     m.v,
                                     {
                                       entry: t,
-                                      isCancleUnstakeSupported: _,
+                                      isCancleUnstakeSupported: A,
                                       validator: a,
                                       subText: (0, o.sSP)(b) ? void 0 : (0, c.z)(t.completion_time),
                                       onClick: () => {
-                                        _ && (T(!0), Z(e), O(t));
+                                        A && (L(!0), Z(e), F(t));
                                       }
                                     },
                                     `${null == a ? void 0 : a.address} ${l}`
@@ -1063,13 +1063,13 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                       }),
                     B &&
                       R &&
-                      A &&
+                      M &&
                       (0, n.jsx)(u.Z, {
-                        isOpen: L,
-                        onClose: () => T(!1),
+                        isOpen: T,
+                        onClose: () => L(!1),
                         unbondingDelegation: B,
                         unbondingDelegationEntry: R,
-                        validator: A[B.validator_address],
+                        validator: M[B.validator_address],
                         rootDenomsStore: a,
                         rootBalanceStore: h,
                         delegationsStore: t,
@@ -1093,7 +1093,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
     90139: function (e, a, t) {
       t.a(e, async function (e, l) {
         try {
-          t.d(a, { Z: () => T });
+          t.d(a, { Z: () => B });
           var n = t(52322),
             s = t(41172),
             o = t(75377),
@@ -1104,8 +1104,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             u = t(80588),
             m = t(42152),
             x = t(96217),
-            f = t(91486),
-            v = t(13287),
+            v = t(91486),
+            f = t(13287),
             h = t(6401),
             g = t(30942),
             p = t(65027),
@@ -1117,100 +1117,113 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             y = t(2784),
             C = t(10289),
             S = t(42799),
-            D = t(48346),
-            M = t(48534),
-            A = t(90258),
+            _ = t(48346),
+            D = t(48534),
+            M = t(90258),
             E = t(78884),
-            _ = e([p, d, D, E, c, u]);
-          [p, d, D, E, c, u] = _.then ? (await _)() : _;
+            A = t(92642),
+            T = e([p, d, _, E, c, u]);
+          [p, d, _, E, c, u] = T.then ? (await T)() : T;
           let L = p.w.useGetWallet,
-            T = (0, k.Pi)(e => {
+            B = (0, k.Pi)(e => {
               let { isOpen: a, onClose: t, validator: l, unbondingDelegationEntry: i, forceChain: p, forceNetwork: j, setClaimTxMode: k } = e,
-                _ = S.gb.allDenoms,
-                T = L(),
-                B = (0, s.a74)(),
-                Z = (0, y.useMemo)(() => p || B, [B, p]),
-                R = (0, s.obn)(),
-                O = (0, y.useMemo)(() => j || R, [R, j]),
-                F = (0, d.e7)(_, { activeChain: Z, selectedNetwork: O }),
-                [P] = (0, h.nB)(),
-                [G] = (0, s.JsT)(_, Z, O),
-                { theme: I } = (0, o.useTheme)(),
+                T = S.gb.allDenoms,
+                B = L(),
+                Z = (0, s.a74)(),
+                R = (0, y.useMemo)(() => p || Z, [Z, p]),
+                F = (0, s.obn)(),
+                O = (0, y.useMemo)(() => j || F, [F, j]),
+                P = (0, d.e7)(T, { activeChain: R, selectedNetwork: O }),
+                [G] = (0, h.nB)(),
+                [I] = (0, s.JsT)(T, R, O),
+                { theme: J } = (0, o.useTheme)(),
                 {
-                  showLedgerPopup: J,
-                  onReviewTransaction: H,
-                  isLoading: z,
+                  showLedgerPopup: H,
+                  onReviewTransaction: z,
+                  isLoading: V,
                   error: $,
-                  setAmount: V,
-                  recommendedGasLimit: U,
-                  userPreferredGasLimit: W,
-                  setUserPreferredGasLimit: Y,
-                  setUserPreferredGasPrice: K,
-                  gasOption: q,
-                  setGasOption: X,
-                  userPreferredGasPrice: Q,
-                  setFeeDenom: ee,
-                  setCreationHeight: ea,
-                  ledgerError: et,
-                  setLedgerError: el,
-                  customFee: en,
-                  feeDenom: es
-                } = (0, s.rKd)(_, "CANCEL_UNDELEGATION", l, void 0, void 0, Z, O),
-                [eo, ei] = (0, y.useState)(!1),
-                [er, ed] = (0, y.useState)(null),
-                [ec, eu] = (0, y.useState)({ option: q, gasPrice: Q ?? F.gasPrice });
+                  setAmount: U,
+                  recommendedGasLimit: W,
+                  userPreferredGasLimit: Y,
+                  setUserPreferredGasLimit: K,
+                  setUserPreferredGasPrice: q,
+                  gasOption: X,
+                  setGasOption: Q,
+                  userPreferredGasPrice: ee,
+                  setFeeDenom: ea,
+                  setCreationHeight: et,
+                  ledgerError: el,
+                  setLedgerError: en,
+                  customFee: es,
+                  feeDenom: eo
+                } = (0, s.rKd)(T, "CANCEL_UNDELEGATION", l, void 0, void 0, R, O),
+                [ei, er] = (0, y.useState)(!1),
+                [ed, ec] = (0, y.useState)(null),
+                [eu, em] = (0, y.useState)({ option: X, gasPrice: ee ?? P.gasPrice });
               (0, C.s0)();
-              let { data: em } = (0, s.pD_)((null == l ? void 0 : l.image) ? void 0 : l),
-                ex = (null == l ? void 0 : l.image) || em || w.r.Misc.Validator;
+              let { data: ex } = (0, s.pD_)((null == l ? void 0 : l.image) ? void 0 : l),
+                ev = (null == l ? void 0 : l.image) || ex || w.r.Misc.Validator;
               (0, g.X)($),
                 (0, y.useEffect)(() => {
-                  ea(i.creation_height), V(i.balance);
+                  et(i.creation_height), U(i.balance);
                 }, [i]),
                 (0, y.useEffect)(() => {
-                  ec.option && X(ec.option), ec.gasPrice && K(ec.gasPrice);
-                }, [ec, X, K]);
+                  eu.option && Q(eu.option), eu.gasPrice && q(eu.gasPrice);
+                }, [eu, Q, q]);
               let ef = (0, y.useCallback)(
                   (e, a) => {
-                    eu(e), ee(a.denom);
+                    em(e), ea(a.denom);
                   },
-                  [ee]
+                  [ea]
                 ),
-                ev = (0, y.useCallback)(() => {
-                  ei(!1);
-                }, []),
                 eh = (0, y.useCallback)(() => {
+                  er(!1);
+                }, []),
+                eg = (0, y.useCallback)(() => {
                   k("CANCEL_UNDELEGATION"), t();
                 }, [t, k]),
-                eg = (0, y.useCallback)(async () => {
+                ep = (0, y.useCallback)(async () => {
                   try {
-                    let e = await T(Z);
-                    H(e, eh, !1, { stdFee: en, feeDenom: es });
+                    let e = await B(R);
+                    z(e, eg, !1, { stdFee: es, feeDenom: eo });
                   } catch (e) {
-                    el(e.message),
+                    en(e.message),
                       setTimeout(() => {
-                        el("");
-                      }, 6e3);
+                        en("");
+                      }, 6e3),
+                      (0, A.Tb)(e, {
+                        tags: {
+                          errorType: "stake_v2_transaction_error",
+                          source: "stake_v2_review_cancel_unstake_tx",
+                          severity: "error",
+                          errorName: e instanceof Error ? e.name : "StakeV2TransactionError"
+                        },
+                        fingerprint: ["stake_v2_review_cancel_unstake_tx", "stake_v2_review_cancel_unstake_tx_error"],
+                        level: "error",
+                        contexts: { transaction: { type: "stake_v2_review_cancel_unstake_tx", errorMessage: e instanceof Error ? e.message : String(e) } },
+                        extra: { chain: R, feeDenom: eo, customFee: es }
+                      });
                   }
-                }, [en, es, T, H, el, eh, Z]);
+                }, [es, eo, B, z, en, eg, R]);
               return (
-                (0, v.U)(et || $, { activeChain: Z, activeNetwork: O }),
+                (0, f.U)(el || $, { activeChain: R, activeNetwork: O }),
                 (0, n.jsxs)(d.ZP, {
-                  recommendedGasLimit: U,
-                  gasLimit: (null == W ? void 0 : W.toString()) ?? U,
-                  setGasLimit: e => Y(Number(e.toString())),
-                  gasPriceOption: ec,
+                  recommendedGasLimit: W,
+                  gasLimit: (null == Y ? void 0 : Y.toString()) ?? W,
+                  setGasLimit: e => K(Number(e.toString())),
+                  gasPriceOption: eu,
                   onGasPriceOptionChange: ef,
-                  error: er,
-                  setError: ed,
-                  chain: Z,
+                  error: ed,
+                  setError: ec,
+                  chain: R,
                   network: O,
-                  rootBalanceStore: D.jZ,
+                  rootBalanceStore: _.jZ,
                   rootDenomsStore: S.gb,
                   children: [
                     (0, n.jsxs)(x.Z, {
                       isOpen: a,
                       onClose: t,
-                      title: A.PV.CANCEL_UNDELEGATION,
+                      title: M.PV.CANCEL_UNDELEGATION,
                       className: "p-6",
                       children: [
                         (0, n.jsxs)("div", {
@@ -1221,18 +1234,18 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                               children: "This will reset the unstaking period and stake the tokens back to the validator"
                             }),
                             (0, n.jsx)(E.Z, {
-                              title: P(new (r())((null == i ? void 0 : i.currencyBalance) ?? "")),
+                              title: G(new (r())((null == i ? void 0 : i.currencyBalance) ?? "")),
                               subText: null == i ? void 0 : i.formattedBalance,
-                              imgSrc: G.icon
+                              imgSrc: I.icon
                             }),
                             (0, n.jsx)(E.Z, {
                               title: (0, s.MDB)(
                                 null == l ? void 0 : l.moniker,
-                                (0, M.oj)() ? 15 + Math.floor(((Math.min(window.innerWidth, 400) - 320) / 81) * 7) : 10,
+                                (0, D.oj)() ? 15 + Math.floor(((Math.min(window.innerWidth, 400) - 320) / 81) * 7) : 10,
                                 3
                               ),
                               subText: "Validator",
-                              imgSrc: ex
+                              imgSrc: ev
                             })
                           ]
                         }),
@@ -1240,21 +1253,21 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                           className: "flex items-center w-full justify-between mt-5 mb-7",
                           children: [
                             (0, n.jsx)("span", { className: "text-sm text-muted-foreground font-medium", children: "Fees" }),
-                            (0, n.jsx)(c.a, { setShowFeesSettingSheet: ei })
+                            (0, n.jsx)(c.a, { setShowFeesSettingSheet: er })
                           ]
                         }),
                         (0, n.jsxs)("div", {
                           className: "flex flex-col items-center w-full gap-y-2",
                           children: [
-                            et && (0, n.jsx)("p", { className: "text-sm font-bold text-destructive-100 px-2", children: et }),
+                            el && (0, n.jsx)("p", { className: "text-sm font-bold text-destructive-100 px-2", children: el }),
                             $ && (0, n.jsx)("p", { className: "text-sm font-bold text-destructive-100 px-2", children: $ }),
-                            er && !eo && (0, n.jsx)("p", { className: "text-sm font-bold text-destructive-100 px-2", children: er }),
-                            (0, n.jsx)(f.zx, {
-                              onClick: eg,
+                            ed && !ei && (0, n.jsx)("p", { className: "text-sm font-bold text-destructive-100 px-2", children: ed }),
+                            (0, n.jsx)(v.zx, {
+                              onClick: ep,
                               className: "w-full",
-                              disabled: z || !!$ || !!er || !!et,
+                              disabled: V || !!$ || !!ed || !!el,
                               "aria-label": "review cancel unstake tx confirm button in stake v2 flow",
-                              children: z
+                              children: V
                                 ? (0, n.jsx)(N(), {
                                     loop: !0,
                                     autoplay: !0,
@@ -1268,8 +1281,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                         })
                       ]
                     }),
-                    J && (0, n.jsx)(m.Z, { showLedgerPopup: J }),
-                    (0, n.jsx)(u.k, { showFeesSettingSheet: eo, onClose: ev, gasError: er })
+                    H && (0, n.jsx)(m.Z, { showLedgerPopup: H }),
+                    (0, n.jsx)(u.k, { showFeesSettingSheet: ei, onClose: eh, gasError: ed })
                   ]
                 })
               );
@@ -1294,196 +1307,208 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             u = t(42152),
             m = t(96217),
             x = t(6401),
-            f = t(30942),
-            v = t(65027),
+            v = t(30942),
+            f = t(65027),
             h = t(30464),
             g = t(63242),
             p = t(75958),
             w = t(2784),
             b = t(10289),
             j = t(48534),
-            N = t(63400),
-            k = t(91486),
-            y = t(13287),
-            C = t(49728),
-            S = t(97680),
-            D = t.n(S),
+            N = t(92642),
+            k = t(63400),
+            y = t(91486),
+            C = t(13287),
+            S = t(49728),
+            _ = t(97680),
+            D = t.n(_),
             M = t(42799),
-            A = t(84994),
-            E = t(48346),
-            _ = t(84601),
+            E = t(84994),
+            A = t(48346),
+            T = t(84601),
             L = t(12499),
-            T = t(90258),
-            B = t(78884),
-            Z = e([v, _, r, E, B, d, c]);
-          [v, _, r, E, B, d, c] = Z.then ? (await Z)() : Z;
-          let R = v.w.useGetWallet,
+            B = t(90258),
+            Z = t(78884),
+            R = e([f, T, r, A, Z, d, c]);
+          [f, T, r, A, Z, d, c] = R.then ? (await R)() : R;
+          let F = f.w.useGetWallet,
             O = (0, p.Pi)(e => {
               var a, t;
-              let { isOpen: l, onClose: o, validators: v, chainRewards: p, setClaimTxMode: S, forceChain: Z, forceNetwork: O } = e,
-                F = (0, s.a74)(),
-                P = (0, s.obn)(),
-                G = Z ?? F,
-                I = O ?? P,
-                J = R(G),
-                [H] = (0, x.nB)(),
-                z = M.gb.allDenoms,
-                $ = _.xO.delegationsForChain(G),
-                V = _.fe.validatorsForChain(G),
-                U = _.GO.unDelegationsForChain(G),
-                W = _.eq.claimRewardsForChain(G),
-                Y = (0, C.U)(),
-                [K] = (0, s.JsT)(z, G, I),
-                { delegations: q, totalRewardsDollarAmt: X, rewards: Q } = (0, s.nDu)(z, $, V, U, W, G, I),
-                [ee, ea] = (0, w.useState)(""),
-                et = (0, r.e7)(z, { activeChain: G, selectedNetwork: I }),
+              let { isOpen: l, onClose: o, validators: f, chainRewards: p, setClaimTxMode: _, forceChain: R, forceNetwork: O } = e,
+                P = (0, s.a74)(),
+                G = (0, s.obn)(),
+                I = R ?? P,
+                J = O ?? G,
+                H = F(I),
+                [z] = (0, x.nB)(),
+                V = M.gb.allDenoms,
+                $ = T.xO.delegationsForChain(I),
+                U = T.fe.validatorsForChain(I),
+                W = T.GO.unDelegationsForChain(I),
+                Y = T.eq.claimRewardsForChain(I),
+                K = (0, S.U)(),
+                [q] = (0, s.JsT)(V, I, J),
+                { delegations: X, totalRewardsDollarAmt: Q, rewards: ee } = (0, s.nDu)(V, $, U, W, Y, I, J),
+                [ea, et] = (0, w.useState)(""),
+                el = (0, r.e7)(V, { activeChain: I, selectedNetwork: J }),
                 {
-                  claimAndStakeRewards: el,
-                  loading: en,
-                  recommendedGasLimit: es,
-                  userPreferredGasLimit: eo,
-                  setUserPreferredGasLimit: ei,
-                  setUserPreferredGasPrice: er,
-                  gasOption: ed,
-                  setGasOption: ec,
-                  userPreferredGasPrice: eu,
-                  setFeeDenom: em,
-                  setMemo: ex,
+                  claimAndStakeRewards: en,
+                  loading: es,
+                  recommendedGasLimit: eo,
+                  userPreferredGasLimit: ei,
+                  setUserPreferredGasLimit: er,
+                  setUserPreferredGasPrice: ed,
+                  gasOption: ec,
+                  setGasOption: eu,
+                  userPreferredGasPrice: em,
+                  setFeeDenom: ex,
+                  setMemo: ev,
                   showLedgerPopup: ef,
-                  ledgerError: ev,
-                  setLedgerError: eh
-                } = (0, s.QnK)(z, q, p, W.refetchDelegatorRewards, ea, G, void 0, I),
-                [eg, ep] = (0, w.useState)(null),
-                [ew, eb] = (0, w.useState)(!1),
-                [ej, eN] = (0, w.useState)({ option: ed, gasPrice: eu ?? et.gasPrice });
+                  ledgerError: eh,
+                  setLedgerError: eg
+                } = (0, s.QnK)(V, X, p, Y.refetchDelegatorRewards, et, I, void 0, J),
+                [ep, ew] = (0, w.useState)(null),
+                [eb, ej] = (0, w.useState)(!1),
+                [eN, ek] = (0, w.useState)({ option: ec, gasPrice: em ?? el.gasPrice });
               (0, b.s0)();
-              let ek = (0, w.useMemo)(() => {
-                  if (Q) {
+              let ey = (0, w.useMemo)(() => {
+                  if (ee) {
                     var e;
-                    return null === (e = Q.total) || void 0 === e ? void 0 : e.find(e => e.denom === (null == K ? void 0 : K.coinMinimalDenom));
+                    return null === (e = ee.total) || void 0 === e ? void 0 : e.find(e => e.denom === (null == q ? void 0 : q.coinMinimalDenom));
                   }
-                }, [null == K ? void 0 : K.coinMinimalDenom, Q]),
-                ey = (0, w.useMemo)(() => {
-                  if (Q && Object.values(v ?? {}).length)
-                    return Q.rewards
-                      .filter(e => e.reward.some(e => e.denom === (null == K ? void 0 : K.coinMinimalDenom)) && (null == q ? void 0 : q[e.validator_address]))
-                      .map(e => v[e.validator_address]);
-                }, [null == K ? void 0 : K.coinMinimalDenom, q, Q, v]),
-                { data: eC } = (0, s.pD_)(
-                  (null == ey ? void 0 : null === (a = ey[0]) || void 0 === a ? void 0 : a.image) ? void 0 : null == ey ? void 0 : ey[0]
+                }, [null == q ? void 0 : q.coinMinimalDenom, ee]),
+                eC = (0, w.useMemo)(() => {
+                  if (ee && Object.values(f ?? {}).length)
+                    return ee.rewards
+                      .filter(e => e.reward.some(e => e.denom === (null == q ? void 0 : q.coinMinimalDenom)) && (null == X ? void 0 : X[e.validator_address]))
+                      .map(e => f[e.validator_address]);
+                }, [null == q ? void 0 : q.coinMinimalDenom, X, ee, f]),
+                { data: eS } = (0, s.pD_)(
+                  (null == eC ? void 0 : null === (a = eC[0]) || void 0 === a ? void 0 : a.image) ? void 0 : null == eC ? void 0 : eC[0]
                 ),
-                eS = (null == ey ? void 0 : null === (t = ey[0]) || void 0 === t ? void 0 : t.image) || eC || h.r.Misc.Validator;
-              (0, f.X)(ee),
+                e_ = (null == eC ? void 0 : null === (t = eC[0]) || void 0 === t ? void 0 : t.image) || eS || h.r.Misc.Validator;
+              (0, v.X)(ea),
                 (0, w.useEffect)(() => {
                   let e = !1;
-                  if (null == ey ? void 0 : ey.length)
-                    for (let t of ey) {
+                  if (null == eC ? void 0 : eC.length)
+                    for (let t of eC) {
                       var a;
                       if (t && (null === (a = t.custom_attributes) || void 0 === a ? void 0 : a.priority) && t.custom_attributes.priority > 0) {
                         e = !0;
                         break;
                       }
                     }
-                  ex(e ? "Staked with Leap Wallet" : "");
-                }, [ey, ex]);
+                  ev(e ? "Staked with Leap Wallet" : "");
+                }, [eC, ev]);
               let eD = (0, w.useCallback)(() => {
-                  S("CLAIM_AND_DELEGATE"), o();
-                }, [o, S]),
+                  _("CLAIM_AND_DELEGATE"), o();
+                }, [o, _]),
                 eM = (0, w.useCallback)(async () => {
                   try {
-                    let e = await J();
-                    await el(e, { success: eD });
+                    let e = await H();
+                    await en(e, { success: eD });
                   } catch (e) {
-                    eh(e.message),
+                    eg(e.message),
                       setTimeout(() => {
-                        eh("");
-                      }, 6e3);
+                        eg("");
+                      }, 6e3),
+                      (0, N.Tb)(e, {
+                        tags: {
+                          errorType: "stake_v2_transaction_error",
+                          source: "stake_v2_review_claim_and_stake_tx",
+                          severity: "error",
+                          errorName: e instanceof Error ? e.name : "StakeV2TransactionError"
+                        },
+                        fingerprint: ["stake_v2_review_claim_and_stake_tx", "stake_v2_review_claim_and_stake_tx_error"],
+                        level: "error",
+                        contexts: { transaction: { type: "stake_v2_review_claim_and_stake_tx", errorMessage: e instanceof Error ? e.message : String(e) } }
+                      });
                   }
-                }, [el, J, eh, eD]);
+                }, [en, H, eg, eD]);
               (0, w.useEffect)(() => {
-                ej.option && ec(ej.option), ej.gasPrice && er(ej.gasPrice);
-              }, [ej, ec, er]);
-              let eA = (0, w.useCallback)(
+                eN.option && eu(eN.option), eN.gasPrice && ed(eN.gasPrice);
+              }, [eN, eu, ed]);
+              let eE = (0, w.useCallback)(
                   (e, a) => {
-                    eN(e), em(a.denom);
+                    ek(e), ex(a.denom);
                   },
-                  [em]
+                  [ex]
                 ),
-                eE = (0, w.useCallback)(() => {
-                  eb(!1);
+                eA = (0, w.useCallback)(() => {
+                  ej(!1);
                 }, []),
-                e_ = (0, w.useMemo)(
-                  () => A.J.formatHideBalance((0, s.LHZ)((null == ek ? void 0 : ek.amount) ?? "", null == K ? void 0 : K.coinDenom)),
-                  [null == K ? void 0 : K.coinDenom, null == ek ? void 0 : ek.amount]
+                eT = (0, w.useMemo)(
+                  () => E.J.formatHideBalance((0, s.LHZ)((null == ey ? void 0 : ey.amount) ?? "", null == q ? void 0 : q.coinDenom)),
+                  [null == q ? void 0 : q.coinDenom, null == ey ? void 0 : ey.amount]
                 ),
-                eL = (0, w.useMemo)(() => (X && new (i())(X).gt(0) ? A.J.formatHideBalance(H(new (i())(X))) : e_), [H, e_, X]),
-                eT = (0, w.useMemo)(() => (X && new (i())(X).gt(0) ? e_ : ""), [e_, X]);
-              (0, y.U)(ev || ee, { activeChain: G, activeNetwork: I });
-              let eB = (0, w.useMemo)(() => {
+                eL = (0, w.useMemo)(() => (Q && new (i())(Q).gt(0) ? E.J.formatHideBalance(z(new (i())(Q))) : eT), [z, eT, Q]),
+                eB = (0, w.useMemo)(() => (Q && new (i())(Q).gt(0) ? eT : ""), [eT, Q]);
+              (0, C.U)(eh || ea, { activeChain: I, activeNetwork: J });
+              let eZ = (0, w.useMemo)(() => {
                   var e;
                   let a =
-                      ey &&
+                      eC &&
                       (0, s.MDB)(
-                        null === (e = ey[0]) || void 0 === e ? void 0 : e.moniker,
+                        null === (e = eC[0]) || void 0 === e ? void 0 : e.moniker,
                         j.sN ? 15 + Math.floor(((Math.min(window.innerWidth, 400) - 320) / 81) * 7) : 10,
                         3
                       ),
-                    t = ey && (ey.length > 1 ? `+${ey.length - 1} more validators` : "");
-                  return { title: a, subText: t, imgSrc: eS, fallbackImgSrc: h.r.Misc.Validator };
-                }, [eS, ey]),
-                eZ = (0, w.useMemo)(() => (0, L.h)(ev), [ev]),
-                eR = (0, w.useCallback)(async () => {
-                  if (eZ) {
-                    Y();
+                    t = eC && (eC.length > 1 ? `+${eC.length - 1} more validators` : "");
+                  return { title: a, subText: t, imgSrc: e_, fallbackImgSrc: h.r.Misc.Validator };
+                }, [e_, eC]),
+                eR = (0, w.useMemo)(() => (0, L.h)(eh), [eh]),
+                eF = (0, w.useCallback)(async () => {
+                  if (eR) {
+                    K();
                     return;
                   }
                   eM();
-                }, [eZ, eM, Y]);
+                }, [eR, eM, K]);
               return (0, n.jsxs)(r.ZP, {
-                recommendedGasLimit: es,
-                gasLimit: (null == eo ? void 0 : eo.toString()) ?? es,
-                setGasLimit: e => ei(Number(e.toString())),
-                gasPriceOption: ej,
-                onGasPriceOptionChange: eA,
-                error: eg,
-                setError: ep,
-                chain: G,
-                network: I,
-                rootBalanceStore: E.jZ,
+                recommendedGasLimit: eo,
+                gasLimit: (null == ei ? void 0 : ei.toString()) ?? eo,
+                setGasLimit: e => er(Number(e.toString())),
+                gasPriceOption: eN,
+                onGasPriceOptionChange: eE,
+                error: ep,
+                setError: ew,
+                chain: I,
+                network: J,
+                rootBalanceStore: A.jZ,
                 rootDenomsStore: M.gb,
                 children: [
                   (0, n.jsxs)(m.Z, {
                     isOpen: l,
                     onClose: o,
-                    title: (0, n.jsx)("span", { className: "whitespace-nowrap", children: T.PV.CLAIM_AND_DELEGATE }),
+                    title: (0, n.jsx)("span", { className: "whitespace-nowrap", children: B.PV.CLAIM_AND_DELEGATE }),
                     className: "p-6 mt-4",
                     children: [
                       (0, n.jsxs)("div", {
                         className: "flex flex-col items-center w-full gap-y-4",
-                        children: [(0, n.jsx)(B.Z, { title: eL, subText: eT, imgSrc: null == K ? void 0 : K.icon }), (0, n.jsx)(B.Z, { ...eB })]
+                        children: [(0, n.jsx)(Z.Z, { title: eL, subText: eB, imgSrc: null == q ? void 0 : q.icon }), (0, n.jsx)(Z.Z, { ...eZ })]
                       }),
                       (0, n.jsxs)("div", {
                         className: "flex items-center w-full justify-between mt-5 mb-7",
                         children: [
                           (0, n.jsx)("span", { className: "text-sm text-muted-foreground font-medium", children: "Fees" }),
-                          (0, n.jsx)(d.a, { setShowFeesSettingSheet: eb })
+                          (0, n.jsx)(d.a, { setShowFeesSettingSheet: ej })
                         ]
                       }),
                       (0, n.jsxs)("div", {
                         className: "flex flex-col gap-y-2 items-center",
                         children: [
-                          !eZ && ev && (0, n.jsx)("p", { className: "text-sm font-bold text-destructive-100 px-2", children: ev }),
-                          eZ && (0, n.jsx)(N.u, {}),
-                          ee && (0, n.jsx)("p", { className: "text-sm font-bold text-destructive-100 px-2", children: ee }),
-                          eg && !ew && (0, n.jsx)("p", { className: "text-sm font-bold text-destructive-100 px-2", children: eg }),
-                          (0, n.jsx)(k.zx, {
+                          !eR && eh && (0, n.jsx)("p", { className: "text-sm font-bold text-destructive-100 px-2", children: eh }),
+                          eR && (0, n.jsx)(k.u, {}),
+                          ea && (0, n.jsx)("p", { className: "text-sm font-bold text-destructive-100 px-2", children: ea }),
+                          ep && !eb && (0, n.jsx)("p", { className: "text-sm font-bold text-destructive-100 px-2", children: ep }),
+                          (0, n.jsx)(y.zx, {
                             className: "w-full",
-                            disabled: en || !!ee || !!eg || ef || (!eZ && !!ev),
-                            onClick: eR,
+                            disabled: es || !!ea || !!ep || ef || (!eR && !!eh),
+                            onClick: eF,
                             "aria-label": "review claim and stake tx confirm button in stake v2 flow",
-                            children: eZ
+                            children: eR
                               ? "Connect Ledger"
-                              : en
+                              : es
                                 ? (0, n.jsx)(D(), {
                                     loop: !0,
                                     autoplay: !0,
@@ -1501,7 +1526,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     ]
                   }),
                   (0, n.jsx)(u.Z, { showLedgerPopup: ef }),
-                  (0, n.jsx)(c.k, { showFeesSettingSheet: ew, onClose: eE, gasError: eg })
+                  (0, n.jsx)(c.k, { showFeesSettingSheet: eb, onClose: eA, gasError: ep })
                 ]
               });
             });
@@ -1514,7 +1539,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
     78884: function (e, a, t) {
       t.a(e, async function (e, l) {
         try {
-          t.d(a, { C: () => F, Z: () => O });
+          t.d(a, { C: () => P, Z: () => O });
           var n = t(52322),
             s = t(41172),
             o = t(6391),
@@ -1525,8 +1550,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             u = t(42152),
             m = t(96217),
             x = t(6401),
-            f = t(30942),
-            v = t(57124),
+            v = t(30942),
+            f = t(57124),
             h = t(65027),
             g = t(30464),
             p = t(63242),
@@ -1534,23 +1559,24 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             b = t(2784),
             j = t(49409),
             N = t(48534),
-            k = t(63400),
-            y = t(91486),
-            C = t(13287),
-            S = t(49728),
+            k = t(92642),
+            y = t(63400),
+            C = t(91486),
+            S = t(13287),
+            _ = t(49728),
             D = t(97680),
             M = t.n(D),
-            A = t(42799),
-            E = t(84994),
-            _ = t(48346),
+            E = t(42799),
+            A = t(84994),
+            T = t(48346),
             L = t(84601),
-            T = t(12499),
-            B = t(90258),
-            Z = e([h, L, r, _, d, c]);
-          [h, L, r, _, d, c] = Z.then ? (await Z)() : Z;
-          let R = h.w.useGetWallet,
+            B = t(12499),
+            Z = t(90258),
+            R = e([h, L, r, T, d, c]);
+          [h, L, r, T, d, c] = R.then ? (await R)() : R;
+          let F = h.w.useGetWallet,
             O = e => {
-              let a = (0, v.a)();
+              let a = (0, f.a)();
               return (0, n.jsxs)("div", {
                 className: "flex gap-2 items-center justify-between bg-secondary-100 p-6 rounded-xl w-full",
                 children: [
@@ -1565,165 +1591,177 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 ]
               });
             },
-            F = (0, w.Pi)(e => {
+            P = (0, w.Pi)(e => {
               var a, t;
-              let { isOpen: l, onClose: o, validator: v, validators: h, setClaimTxMode: w, forceChain: j, forceNetwork: D } = e,
-                Z = (0, s.a74)(),
-                F = j ?? Z,
-                P = (0, s.obn)(),
-                G = D ?? P,
-                I = (0, S.U)(),
-                J = R(F),
-                H = A.gb.allDenoms,
-                z = (0, r.e7)(H, { activeChain: F, selectedNetwork: G }),
+              let { isOpen: l, onClose: o, validator: f, validators: h, setClaimTxMode: w, forceChain: j, forceNetwork: D } = e,
+                R = (0, s.a74)(),
+                P = j ?? R,
+                G = (0, s.obn)(),
+                I = D ?? G,
+                J = (0, _.U)(),
+                H = F(P),
+                z = E.gb.allDenoms,
+                V = (0, r.e7)(z, { activeChain: P, selectedNetwork: I }),
                 [$] = (0, x.nB)(),
-                [V] = (0, s.JsT)(H, F, G),
-                U = L.xO.delegationsForChain(F),
-                W = L.fe.validatorsForChain(F),
-                Y = L.GO.unDelegationsForChain(F),
-                K = L.eq.claimRewardsForChain(F),
-                { delegations: q, totalRewardsDollarAmt: X, rewards: Q, totalRewards: ee } = (0, s.nDu)(H, U, W, Y, K, F, G),
+                [U] = (0, s.JsT)(z, P, I),
+                W = L.xO.delegationsForChain(P),
+                Y = L.fe.validatorsForChain(P),
+                K = L.GO.unDelegationsForChain(P),
+                q = L.eq.claimRewardsForChain(P),
+                { delegations: X, totalRewardsDollarAmt: Q, rewards: ee, totalRewards: ea } = (0, s.nDu)(z, W, Y, K, q, P, I),
                 {
-                  showLedgerPopup: ea,
-                  onReviewTransaction: et,
-                  isLoading: el,
-                  error: en,
-                  setAmount: es,
-                  recommendedGasLimit: eo,
-                  userPreferredGasLimit: ei,
-                  setUserPreferredGasLimit: er,
-                  gasOption: ed,
-                  setGasOption: ec,
-                  userPreferredGasPrice: eu,
-                  setFeeDenom: em,
-                  ledgerError: ex,
+                  showLedgerPopup: et,
+                  onReviewTransaction: el,
+                  isLoading: en,
+                  error: es,
+                  setAmount: eo,
+                  recommendedGasLimit: ei,
+                  userPreferredGasLimit: er,
+                  setUserPreferredGasLimit: ed,
+                  gasOption: ec,
+                  setGasOption: eu,
+                  userPreferredGasPrice: em,
+                  setFeeDenom: ex,
+                  ledgerError: ev,
                   setLedgerError: ef,
-                  customFee: ev,
-                  feeDenom: eh,
-                  setUserPreferredGasPrice: eg
-                } = (0, s.rKd)(H, "CLAIM_REWARDS", v, void 0, Object.values(q ?? {}), F, G),
-                [ep, ew] = (0, b.useState)(!1),
-                [eb, ej] = (0, b.useState)(null),
-                [eN, ek] = (0, b.useState)({ option: ed, gasPrice: eu ?? z.gasPrice }),
-                ey = (0, b.useMemo)(() => {
-                  if (Q && h) return Q.rewards.filter(e => (null == q ? void 0 : q[e.validator_address])).map(e => h[e.validator_address]);
-                }, [q, Q, h]),
-                { data: eC } = (0, s.pD_)(
-                  (null == ey ? void 0 : null === (a = ey[0]) || void 0 === a ? void 0 : a.image) ? void 0 : null == ey ? void 0 : ey[0]
+                  customFee: eh,
+                  feeDenom: eg,
+                  setUserPreferredGasPrice: ep
+                } = (0, s.rKd)(z, "CLAIM_REWARDS", f, void 0, Object.values(X ?? {}), P, I),
+                [ew, eb] = (0, b.useState)(!1),
+                [ej, eN] = (0, b.useState)(null),
+                [ek, ey] = (0, b.useState)({ option: ec, gasPrice: em ?? V.gasPrice }),
+                eC = (0, b.useMemo)(() => {
+                  if (ee && h) return ee.rewards.filter(e => (null == X ? void 0 : X[e.validator_address])).map(e => h[e.validator_address]);
+                }, [X, ee, h]),
+                { data: eS } = (0, s.pD_)(
+                  (null == eC ? void 0 : null === (a = eC[0]) || void 0 === a ? void 0 : a.image) ? void 0 : null == eC ? void 0 : eC[0]
                 ),
-                eS = (null == ey ? void 0 : null === (t = ey[0]) || void 0 === t ? void 0 : t.image) || eC || g.r.Misc.Validator,
+                e_ = (null == eC ? void 0 : null === (t = eC[0]) || void 0 === t ? void 0 : t.image) || eS || g.r.Misc.Validator,
                 eD = (0, b.useMemo)(() => {
-                  if (Q) {
+                  if (ee) {
                     var e;
-                    return null == Q
+                    return null == ee
                       ? void 0
-                      : null === (e = Q.total) || void 0 === e
+                      : null === (e = ee.total) || void 0 === e
                         ? void 0
-                        : e.find(e => e.denom === (null == V ? void 0 : V.coinMinimalDenom));
+                        : e.find(e => e.denom === (null == U ? void 0 : U.coinMinimalDenom));
                   }
-                }, [null == V ? void 0 : V.coinMinimalDenom, Q]);
-              (0, f.X)(en),
+                }, [null == U ? void 0 : U.coinMinimalDenom, ee]);
+              (0, v.X)(es),
                 (0, b.useEffect)(() => {
-                  es((null == eD ? void 0 : eD.amount) ?? "0");
-                }, [ee]),
+                  eo((null == eD ? void 0 : eD.amount) ?? "0");
+                }, [ea]),
                 (0, b.useEffect)(() => {
-                  eN.option && ec(eN.option), eN.gasPrice && eg(eN.gasPrice);
-                }, [eN, ec, eg]);
+                  ek.option && eu(ek.option), ek.gasPrice && ep(ek.gasPrice);
+                }, [ek, eu, ep]);
               let eM = (0, b.useCallback)(
                   (e, a) => {
-                    ek(e), em(a.denom);
+                    ey(e), ex(a.denom);
                   },
-                  [em]
+                  [ex]
                 ),
-                eA = (0, b.useCallback)(() => {
-                  ew(!1);
+                eE = (0, b.useCallback)(() => {
+                  eb(!1);
                 }, []),
-                eE = (0, b.useMemo)(
-                  () => E.J.formatHideBalance(`${(0, s.LHZ)((null == eD ? void 0 : eD.amount) ?? "", null == V ? void 0 : V.coinDenom)}`),
-                  [null == V ? void 0 : V.coinDenom, null == eD ? void 0 : eD.amount]
+                eA = (0, b.useMemo)(
+                  () => A.J.formatHideBalance(`${(0, s.LHZ)((null == eD ? void 0 : eD.amount) ?? "", null == U ? void 0 : U.coinDenom)}`),
+                  [null == U ? void 0 : U.coinDenom, null == eD ? void 0 : eD.amount]
                 ),
-                e_ = (0, b.useMemo)(() => (X && new (i())(X).gt(0) ? E.J.formatHideBalance($(new (i())(X))) : eE), [$, eE, X]),
-                eL = (0, b.useMemo)(() => (X && new (i())(X).gt(0) ? eE : ""), [eE, X]),
-                eT = (0, b.useCallback)(() => {
+                eT = (0, b.useMemo)(() => (Q && new (i())(Q).gt(0) ? A.J.formatHideBalance($(new (i())(Q))) : eA), [$, eA, Q]),
+                eL = (0, b.useMemo)(() => (Q && new (i())(Q).gt(0) ? eA : ""), [eA, Q]),
+                eB = (0, b.useCallback)(() => {
                   w("CLAIM_REWARDS"), o();
                 }, [o, w]),
-                eB = (0, b.useCallback)(async () => {
+                eZ = (0, b.useCallback)(async () => {
                   try {
-                    let e = await J(F);
-                    et(e, eT, !1, { stdFee: ev, feeDenom: eh });
+                    let e = await H(P);
+                    el(e, eB, !1, { stdFee: eh, feeDenom: eg });
                   } catch (e) {
                     ef(e.message),
                       setTimeout(() => {
                         ef("");
-                      }, 6e3);
+                      }, 6e3),
+                      (0, k.Tb)(e, {
+                        tags: {
+                          errorType: "stake_v2_transaction_error",
+                          source: "stake_v2_review_claim_tx",
+                          severity: "error",
+                          errorName: e instanceof Error ? e.name : "StakeV2TransactionError"
+                        },
+                        fingerprint: ["stake_v2_review_claim_tx", "stake_v2_review_claim_tx_error"],
+                        level: "error",
+                        contexts: { transaction: { type: "stake_v2_review_claim_tx", errorMessage: e instanceof Error ? e.message : String(e) } },
+                        extra: { chain: P, feeDenom: eg, customFee: eh }
+                      });
                   }
-                }, [F, ev, eh, J, et, ef, eT]),
-                eZ = (0, b.useMemo)(() => {
+                }, [P, eh, eg, H, el, ef, eB]),
+                eR = (0, b.useMemo)(() => {
                   var e;
                   let a =
-                      ey &&
+                      eC &&
                       (0, s.MDB)(
-                        null === (e = ey[0]) || void 0 === e ? void 0 : e.moniker,
+                        null === (e = eC[0]) || void 0 === e ? void 0 : e.moniker,
                         N.sN ? 15 + Math.floor(((Math.min(window.innerWidth, 400) - 320) / 81) * 7) : 10,
                         3
                       ),
-                    t = ey && (ey.length > 1 ? `+${ey.length - 1} more validators` : "");
-                  return { title: a, subText: t, imgSrc: eS };
-                }, [eS, ey]);
-              (0, C.U)(ex || en, { activeChain: F, activeNetwork: G });
-              let eR = (0, b.useMemo)(() => (0, T.h)(ex), [ex]),
+                    t = eC && (eC.length > 1 ? `+${eC.length - 1} more validators` : "");
+                  return { title: a, subText: t, imgSrc: e_ };
+                }, [e_, eC]);
+              (0, S.U)(ev || es, { activeChain: P, activeNetwork: I });
+              let eF = (0, b.useMemo)(() => (0, B.h)(ev), [ev]),
                 eO = (0, b.useCallback)(async () => {
-                  if (eR) {
-                    I();
+                  if (eF) {
+                    J();
                     return;
                   }
-                  eB();
-                }, [eR, eB, I]);
+                  eZ();
+                }, [eF, eZ, J]);
               return (0, n.jsxs)(r.ZP, {
-                recommendedGasLimit: eo,
-                gasLimit: (null == ei ? void 0 : ei.toString()) ?? eo,
-                setGasLimit: e => er(Number(e.toString())),
-                gasPriceOption: eN,
+                recommendedGasLimit: ei,
+                gasLimit: (null == er ? void 0 : er.toString()) ?? ei,
+                setGasLimit: e => ed(Number(e.toString())),
+                gasPriceOption: ek,
                 onGasPriceOptionChange: eM,
-                error: eb,
-                setError: ej,
-                chain: F,
-                network: G,
-                rootBalanceStore: _.jZ,
-                rootDenomsStore: A.gb,
+                error: ej,
+                setError: eN,
+                chain: P,
+                network: I,
+                rootBalanceStore: T.jZ,
+                rootDenomsStore: E.gb,
                 children: [
                   (0, n.jsxs)(m.Z, {
                     isOpen: l,
                     onClose: o,
-                    title: B.PV.CLAIM_REWARDS,
+                    title: Z.PV.CLAIM_REWARDS,
                     className: "p-6 mt-4",
                     children: [
                       (0, n.jsxs)("div", {
                         className: "flex flex-col items-center w-full gap-y-4",
-                        children: [(0, n.jsx)(O, { title: e_, subText: eL, imgSrc: V.icon }), (0, n.jsx)(O, { ...eZ })]
+                        children: [(0, n.jsx)(O, { title: eT, subText: eL, imgSrc: U.icon }), (0, n.jsx)(O, { ...eR })]
                       }),
                       (0, n.jsxs)("div", {
                         className: "flex items-center w-full justify-between mt-5 mb-7",
                         children: [
                           (0, n.jsx)("span", { className: "text-sm text-muted-foreground font-medium", children: "Fees" }),
-                          (0, n.jsx)(d.a, { setShowFeesSettingSheet: ew })
+                          (0, n.jsx)(d.a, { setShowFeesSettingSheet: eb })
                         ]
                       }),
                       (0, n.jsxs)("div", {
                         className: "flex flex-col items-center w-full gap-y-2",
                         children: [
-                          !eR && ex && (0, n.jsx)("p", { className: "text-sm font-bold text-destructive-100 px-2", children: ex }),
-                          eR && (0, n.jsx)(k.u, {}),
-                          en && (0, n.jsx)("p", { className: "text-sm font-bold text-destructive-100 px-2", children: en }),
-                          eb && !ep && (0, n.jsx)("p", { className: "text-sm font-bold text-destructive-100 px-2", children: eb }),
-                          (0, n.jsx)(y.zx, {
+                          !eF && ev && (0, n.jsx)("p", { className: "text-sm font-bold text-destructive-100 px-2", children: ev }),
+                          eF && (0, n.jsx)(y.u, {}),
+                          es && (0, n.jsx)("p", { className: "text-sm font-bold text-destructive-100 px-2", children: es }),
+                          ej && !ew && (0, n.jsx)("p", { className: "text-sm font-bold text-destructive-100 px-2", children: ej }),
+                          (0, n.jsx)(C.zx, {
                             className: "w-full",
-                            disabled: el || !!en || !!eb || ea || (!eR && !!ex),
+                            disabled: en || !!es || !!ej || et || (!eF && !!ev),
                             onClick: eO,
                             "aria-label": "review claim tx confirm button in stake v2 flow",
-                            children: eR
+                            children: eF
                               ? "Connect Ledger"
-                              : el
+                              : en
                                 ? (0, n.jsx)(M(), {
                                     loop: !0,
                                     autoplay: !0,
@@ -1737,8 +1775,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                       })
                     ]
                   }),
-                  (0, n.jsx)(u.Z, { showLedgerPopup: ea }),
-                  (0, n.jsx)(c.k, { showFeesSettingSheet: ep, onClose: eA, gasError: eb })
+                  (0, n.jsx)(u.Z, { showLedgerPopup: et }),
+                  (0, n.jsx)(c.k, { showFeesSettingSheet: ew, onClose: eE, gasError: ej })
                 ]
               });
             });
@@ -1751,7 +1789,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
     30200: function (e, a, t) {
       t.a(e, async function (e, l) {
         try {
-          t.d(a, { Z: () => B });
+          t.d(a, { Z: () => Z });
           var n = t(52322),
             s = t(41172),
             o = t(6391),
@@ -1762,8 +1800,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             u = t(42152),
             m = t(96217),
             x = t(6401),
-            f = t(30942),
-            v = t(57124),
+            v = t(30942),
+            f = t(57124),
             h = t(65027),
             g = t(30464),
             p = t(63242),
@@ -1773,128 +1811,141 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             N = t(2784),
             k = t(10289),
             y = t(48534),
-            C = t(91486),
-            S = t(13287),
+            C = t(92642),
+            S = t(91486),
+            _ = t(13287),
             D = t(42799),
             M = t(48346),
-            A = t(84601),
-            E = t(90258),
-            _ = t(78884),
-            L = e([h, A, r, M, _, d, c]);
-          [h, A, r, M, _, d, c] = L.then ? (await L)() : L;
-          let T = h.w.useGetWallet,
-            B = (0, j.Pi)(e => {
+            E = t(84601),
+            A = t(90258),
+            T = t(78884),
+            L = e([h, E, r, M, T, d, c]);
+          [h, E, r, M, T, d, c] = L.then ? (await L)() : L;
+          let B = h.w.useGetWallet,
+            Z = (0, j.Pi)(e => {
               let { isOpen: a, onClose: t, validator: l, forceChain: o, forceNetwork: h, selectedDelegation: w, setClaimTxMode: j } = e,
                 L = (0, s.a74)(),
-                B = o ?? L,
-                Z = (0, s.obn)(),
-                R = h ?? Z,
-                O = T(B),
-                F = D.gb.allDenoms,
-                P = (0, r.e7)(F, { activeChain: B, selectedNetwork: R }),
-                [G] = (0, x.nB)();
-              (0, v.a)();
-              let [I] = (0, s.JsT)(F, B, R),
-                J = A.eq.claimRewardsForChain(B),
+                Z = o ?? L,
+                R = (0, s.obn)(),
+                F = h ?? R,
+                O = B(Z),
+                P = D.gb.allDenoms,
+                G = (0, r.e7)(P, { activeChain: Z, selectedNetwork: F }),
+                [I] = (0, x.nB)();
+              (0, f.a)();
+              let [J] = (0, s.JsT)(P, Z, F),
+                H = E.eq.claimRewardsForChain(Z),
                 {
-                  showLedgerPopup: H,
-                  onReviewTransaction: z,
+                  showLedgerPopup: z,
+                  onReviewTransaction: V,
                   isLoading: $,
-                  error: V,
-                  setAmount: U,
-                  recommendedGasLimit: W,
-                  userPreferredGasLimit: Y,
-                  setUserPreferredGasLimit: K,
-                  gasOption: q,
-                  setGasOption: X,
-                  userPreferredGasPrice: Q,
-                  setFeeDenom: ee,
-                  ledgerError: ea,
-                  setLedgerError: et,
-                  customFee: el,
-                  feeDenom: en,
-                  setUserPreferredGasPrice: es
-                } = (0, s.rKd)(F, "CLAIM_REWARDS", l, void 0, [w], B, R),
-                [eo, ei] = (0, N.useState)(!1),
-                [er, ed] = (0, N.useState)(null),
-                [ec, eu] = (0, N.useState)({ option: q, gasPrice: Q ?? P.gasPrice });
+                  error: U,
+                  setAmount: W,
+                  recommendedGasLimit: Y,
+                  userPreferredGasLimit: K,
+                  setUserPreferredGasLimit: q,
+                  gasOption: X,
+                  setGasOption: Q,
+                  userPreferredGasPrice: ee,
+                  setFeeDenom: ea,
+                  ledgerError: et,
+                  setLedgerError: el,
+                  customFee: en,
+                  feeDenom: es,
+                  setUserPreferredGasPrice: eo
+                } = (0, s.rKd)(P, "CLAIM_REWARDS", l, void 0, [w], Z, F),
+                [ei, er] = (0, N.useState)(!1),
+                [ed, ec] = (0, N.useState)(null),
+                [eu, em] = (0, N.useState)({ option: X, gasPrice: ee ?? G.gasPrice });
               (0, k.s0)();
-              let { data: em } = (0, s.pD_)((null == l ? void 0 : l.image) ? void 0 : l),
-                ex = (null == l ? void 0 : l.image) || em || g.r.Misc.Validator,
-                [ef, ev, eh] = (0, N.useMemo)(() => {
+              let { data: ex } = (0, s.pD_)((null == l ? void 0 : l.image) ? void 0 : l),
+                ev = (null == l ? void 0 : l.image) || ex || g.r.Misc.Validator,
+                [ef, eh, eg] = (0, N.useMemo)(() => {
                   var e, a;
                   let t =
-                      null == J
+                      null == H
                         ? void 0
-                        : null === (a = J.rewards) || void 0 === a
+                        : null === (a = H.rewards) || void 0 === a
                           ? void 0
                           : null === (e = a.rewards) || void 0 === e
                             ? void 0
                             : e[(null == l ? void 0 : l.address) ?? ""],
                     n = null == t ? void 0 : t.reward.reduce((e, a) => e.plus(new (i())(a.currencyAmount ?? "")), new (i())(0)),
-                    o = null == t ? void 0 : t.reward.find(e => e.denom === (null == I ? void 0 : I.coinMinimalDenom)),
-                    r = (0, s.LHZ)((null == o ? void 0 : o.amount) ?? "", null == I ? void 0 : I.coinDenom),
+                    o = null == t ? void 0 : t.reward.find(e => e.denom === (null == J ? void 0 : J.coinMinimalDenom)),
+                    r = (0, s.LHZ)((null == o ? void 0 : o.amount) ?? "", null == J ? void 0 : J.coinDenom),
                     d = null == t ? void 0 : t.reward.reduce((e, a) => e.plus(new (i())(a.amount)), new (i())(0));
                   return [n, r, d];
-                }, [I, J, l]);
-              (0, f.X)(V),
+                }, [J, H, l]);
+              (0, v.X)(U),
                 (0, N.useEffect)(() => {
-                  U((null == eh ? void 0 : eh.toString()) ?? "0");
-                }, [eh]),
+                  W((null == eg ? void 0 : eg.toString()) ?? "0");
+                }, [eg]),
                 (0, N.useEffect)(() => {
-                  ec.option && X(ec.option), ec.gasPrice && es(ec.gasPrice);
-                }, [ec, X, es]);
-              let eg = (0, N.useCallback)(
+                  eu.option && Q(eu.option), eu.gasPrice && eo(eu.gasPrice);
+                }, [eu, Q, eo]);
+              let ep = (0, N.useCallback)(
                   (e, a) => {
-                    eu(e), ee(a.denom);
+                    em(e), ea(a.denom);
                   },
-                  [ee]
+                  [ea]
                 ),
-                ep = (0, N.useCallback)(() => {
-                  ei(!1);
-                }, []),
                 ew = (0, N.useCallback)(() => {
+                  er(!1);
+                }, []),
+                eb = (0, N.useCallback)(() => {
                   j("CLAIM_REWARDS"), t();
                 }, [j, t]),
-                eb = (0, N.useCallback)(async () => {
+                ej = (0, N.useCallback)(async () => {
                   try {
-                    let e = await O(B);
-                    z(e, ew, !1, { stdFee: el, feeDenom: en });
+                    let e = await O(Z);
+                    V(e, eb, !1, { stdFee: en, feeDenom: es });
                   } catch (e) {
-                    et(e.message),
+                    el(e.message),
                       setTimeout(() => {
-                        et("");
-                      }, 6e3);
+                        el("");
+                      }, 6e3),
+                      (0, C.Tb)(e, {
+                        tags: {
+                          errorType: "stake_v2_transaction_error",
+                          source: "stake_v2_review_validator_claim_tx",
+                          severity: "error",
+                          errorName: e instanceof Error ? e.name : "StakeV2TransactionError"
+                        },
+                        fingerprint: ["stake_v2_review_validator_claim_tx", "stake_v2_review_validator_claim_tx_error"],
+                        level: "error",
+                        contexts: { transaction: { type: "stake_v2_review_validator_claim_tx", errorMessage: e instanceof Error ? e.message : String(e) } },
+                        extra: { chain: Z, feeDenom: es, customFee: en }
+                      });
                   }
-                }, [B, el, en, O, z, et, ew]);
+                }, [Z, en, es, O, V, el, eb]);
               return (
-                (0, S.U)(ea || V, { activeChain: B, activeNetwork: R }),
+                (0, _.U)(et || U, { activeChain: Z, activeNetwork: F }),
                 (0, n.jsxs)(r.ZP, {
-                  recommendedGasLimit: W,
-                  gasLimit: (null == Y ? void 0 : Y.toString()) ?? W,
-                  setGasLimit: e => K(Number(e.toString())),
-                  gasPriceOption: ec,
-                  onGasPriceOptionChange: eg,
-                  error: er,
-                  setError: ed,
-                  chain: B,
-                  network: R,
+                  recommendedGasLimit: Y,
+                  gasLimit: (null == K ? void 0 : K.toString()) ?? Y,
+                  setGasLimit: e => q(Number(e.toString())),
+                  gasPriceOption: eu,
+                  onGasPriceOptionChange: ep,
+                  error: ed,
+                  setError: ec,
+                  chain: Z,
+                  network: F,
                   rootBalanceStore: M.jZ,
                   rootDenomsStore: D.gb,
                   children: [
                     (0, n.jsxs)(m.Z, {
                       isOpen: a,
                       onClose: t,
-                      title: E.PV.CLAIM_REWARDS,
+                      title: A.PV.CLAIM_REWARDS,
                       className: "p-6 mt-4",
                       children: [
                         (0, n.jsxs)("div", {
                           className: "flex flex-col items-center w-full gap-y-4",
                           children: [
-                            (0, n.jsx)(_.Z, { title: G(ef ?? new (i())("")), subText: ev, imgSrc: I.icon }),
-                            (0, n.jsx)(_.Z, {
+                            (0, n.jsx)(T.Z, { title: I(ef ?? new (i())("")), subText: eh, imgSrc: J.icon }),
+                            (0, n.jsx)(T.Z, {
                               title: l && (0, s.MDB)(l.moniker, (0, y.oj)() ? 15 + Math.floor(((Math.min(window.innerWidth, 400) - 320) / 81) * 7) : 10, 3),
-                              imgSrc: ex
+                              imgSrc: ev
                             })
                           ]
                         }),
@@ -1902,19 +1953,19 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                           className: "flex items-center w-full justify-between mt-5 mb-7",
                           children: [
                             (0, n.jsx)("span", { className: "text-sm text-muted-foreground font-medium", children: "Fees" }),
-                            (0, n.jsx)(d.a, { setShowFeesSettingSheet: ei })
+                            (0, n.jsx)(d.a, { setShowFeesSettingSheet: er })
                           ]
                         }),
                         (0, n.jsxs)("div", {
                           className: "flex flex-col items-center w-full gap-y-2",
                           children: [
-                            ea && (0, n.jsx)("p", { className: "text-sm font-bold text-destructive-100 px-2", children: ea }),
-                            V && (0, n.jsx)("p", { className: "text-sm font-bold text-destructive-100 px-2", children: V }),
-                            er && !eo && (0, n.jsx)("p", { className: "text-sm font-bold text-destructive-100 px-2", children: er }),
-                            (0, n.jsx)(C.zx, {
+                            et && (0, n.jsx)("p", { className: "text-sm font-bold text-destructive-100 px-2", children: et }),
+                            U && (0, n.jsx)("p", { className: "text-sm font-bold text-destructive-100 px-2", children: U }),
+                            ed && !ei && (0, n.jsx)("p", { className: "text-sm font-bold text-destructive-100 px-2", children: ed }),
+                            (0, n.jsx)(S.zx, {
                               className: "w-full",
-                              disabled: $ || !!V || !!er || H || !!ea,
-                              onClick: eb,
+                              disabled: $ || !!U || !!ed || z || !!et,
+                              onClick: ej,
                               "aria-label": "review validator claim tx confirm button in stake v2 flow",
                               children: $
                                 ? (0, n.jsx)(b(), {
@@ -1933,8 +1984,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                         })
                       ]
                     }),
-                    H && (0, n.jsx)(u.Z, { showLedgerPopup: H }),
-                    (0, n.jsx)(c.k, { showFeesSettingSheet: eo, onClose: ep, gasError: er })
+                    z && (0, n.jsx)(u.Z, { showLedgerPopup: z }),
+                    (0, n.jsx)(c.k, { showFeesSettingSheet: ei, onClose: ew, gasError: ed })
                   ]
                 })
               );
@@ -1958,17 +2009,17 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         u = t(96128),
         m = t.n(u),
         x = t(29750),
-        f = t(24542),
-        v = t.n(f);
+        v = t(24542),
+        f = t.n(v);
       t(2784);
       var h = t(49409);
       function g(e) {
         let { provider: a, backgroundColor: t, rootDenomsStore: i, activeChain: r, activeNetwork: u } = e,
-          [f] = (0, n.JsT)(i.allDenoms, r, u);
+          [v] = (0, n.JsT)(i.allDenoms, r, u);
         return (0, l.jsx)(s.GenericCard, {
           onClick: () => {
             window.open(a.url, "_blank"),
-              v().track(c.B_.ButtonClick, { buttonType: "stake", buttonName: "liquid staking redirection", redirectURL: a.url, stakeToken: f.coinDenom });
+              f().track(c.B_.ButtonClick, { buttonType: "stake", buttonName: "liquid staking redirection", redirectURL: a.url, stakeToken: v.coinDenom });
           },
           className: `${t} w-full`,
           img: (0, l.jsx)("img", { src: a.image ?? x.GenericLight, onError: (0, h._)(x.GenericLight), width: 30, height: 30, className: "rounded-full mr-4" }),
@@ -2040,8 +2091,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             u = t(4370),
             m = t(6401),
             x = t(75958),
-            f = t(2784),
-            v = t(86874),
+            v = t(2784),
+            f = t(86874),
             h = t(10289),
             g = t(42799),
             p = t(84994),
@@ -2067,7 +2118,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                             initial: "hidden",
                             animate: "visible",
                             exit: "hidden",
-                            children: (0, n.jsx)(v.Z, { className: "w-24 h-5 grow-0" })
+                            children: (0, n.jsx)(f.Z, { className: "w-24 h-5 grow-0" })
                           },
                           "loading"
                         )
@@ -2091,36 +2142,36 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               var a, t, l;
               let { onClaim: i, forceChain: c, forceNetwork: u } = e,
                 x = (0, s.a74)(),
-                v = c ?? x,
+                f = c ?? x,
                 j = (0, s.obn)(),
                 N = u ?? j,
                 y = g.gb.allDenoms,
-                C = w.xO.delegationsForChain(v),
-                S = w.fe.validatorsForChain(v),
-                D = w.GO.unDelegationsForChain(v),
-                M = w.eq.claimRewardsForChain(v),
-                [A] = (0, s.JsT)(y, v, N),
+                C = w.xO.delegationsForChain(f),
+                S = w.fe.validatorsForChain(f),
+                _ = w.GO.unDelegationsForChain(f),
+                D = w.eq.claimRewardsForChain(f),
+                [M] = (0, s.JsT)(y, f, N),
                 {
                   totalRewardsDollarAmt: E,
-                  loadingDelegations: _,
-                  currencyAmountDelegation: L,
-                  totalDelegationAmount: T,
+                  loadingDelegations: A,
+                  currencyAmountDelegation: T,
+                  totalDelegationAmount: L,
                   loadingRewards: B,
                   totalRewards: Z,
                   rewards: R
-                } = (0, s.nDu)(y, C, S, D, M, v, N),
-                [O] = (0, m.nB)(),
-                F = (0, s.rTu)(),
+                } = (0, s.nDu)(y, C, S, _, D, f, N),
+                [F] = (0, m.nB)(),
+                O = (0, s.rTu)(),
                 P = (0, h.s0)(),
-                G = (0, f.useMemo)(() => {
-                  if (L && new (r())(L).gt(0)) return O(new (r())(L));
-                }, [L, O]),
-                I = (0, f.useMemo)(() => {
-                  if ("evmos" === v && (null == F ? void 0 : F.walletType) === o._K.LEDGER) return !0;
-                  if ("celestia" === v) {
+                G = (0, v.useMemo)(() => {
+                  if (T && new (r())(T).gt(0)) return F(new (r())(T));
+                }, [T, F]),
+                I = (0, v.useMemo)(() => {
+                  if ("evmos" === f && (null == O ? void 0 : O.walletType) === o._K.LEDGER) return !0;
+                  if ("celestia" === f) {
                     var e, a;
                     return (
-                      (null == M ? void 0 : null === (a = M.rewards) || void 0 === a ? void 0 : null === (e = a.result) || void 0 === e ? void 0 : e.rewards) ??
+                      (null == D ? void 0 : null === (a = D.rewards) || void 0 === a ? void 0 : null === (e = a.result) || void 0 === e ? void 0 : e.rewards) ??
                       []
                     )
                       .reduce((e, a) => {
@@ -2135,29 +2186,29 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                                 : t[a.validator_address])
                         )
                           return e;
-                        let n = a.reward.find(e => e.denom === (null == A ? void 0 : A.coinMinimalDenom));
+                        let n = a.reward.find(e => e.denom === (null == M ? void 0 : M.coinMinimalDenom));
                         return n ? new (r())(n.amount).plus(e) : e;
                       }, new (r())(0))
                       .lt(1e-5);
                   }
                   return !Z || new (r())(Z).lt(1e-5);
                 }, [
-                  v,
-                  null == A ? void 0 : A.coinMinimalDenom,
-                  null == F ? void 0 : F.walletType,
-                  null == M ? void 0 : null === (t = M.rewards) || void 0 === t ? void 0 : null === (a = t.result) || void 0 === a ? void 0 : a.rewards,
+                  f,
+                  null == M ? void 0 : M.coinMinimalDenom,
+                  null == O ? void 0 : O.walletType,
+                  null == D ? void 0 : null === (t = D.rewards) || void 0 === t ? void 0 : null === (a = t.result) || void 0 === a ? void 0 : a.rewards,
                   null == C ? void 0 : null === (l = C.delegationInfo) || void 0 === l ? void 0 : l.delegations,
                   Z
                 ]),
-                J = (0, f.useMemo)(() => {
+                J = (0, v.useMemo)(() => {
                   var e, a;
                   let t =
-                    null == R ? void 0 : null === (e = R.total) || void 0 === e ? void 0 : e.find(e => e.denom === (null == A ? void 0 : A.coinMinimalDenom));
+                    null == R ? void 0 : null === (e = R.total) || void 0 === e ? void 0 : e.find(e => e.denom === (null == M ? void 0 : M.coinMinimalDenom));
                   return E && new (r())(E).gt(0)
-                    ? p.J.formatHideBalance(O(new (r())(E)))
+                    ? p.J.formatHideBalance(F(new (r())(E)))
                     : (null == R || null === (a = R.total) || void 0 === a || a.length,
-                      p.J.formatHideBalance(`${(0, s.LHZ)((null == t ? void 0 : t.amount) ?? "", null == A ? void 0 : A.coinDenom)}`));
-                }, [A, O, R, E]);
+                      p.J.formatHideBalance(`${(0, s.LHZ)((null == t ? void 0 : t.amount) ?? "", null == M ? void 0 : M.coinDenom)}`));
+                }, [M, F, R, E]);
               return (0, n.jsxs)("div", {
                 className: "flex flex-col w-full bg-secondary-100 rounded-2xl p-5 gap-y-6",
                 children: [
@@ -2166,12 +2217,12 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     children: [
                       (0, n.jsx)(k, {
                         title: "Deposited Amount",
-                        loading: _,
+                        loading: A,
                         children: (0, n.jsxs)("div", {
                           className: "flex flex-col",
                           children: [
                             (0, n.jsx)("span", { className: "font-bold text-[18px]", children: G && p.J.formatHideBalance(G) }),
-                            (0, n.jsxs)("span", { className: "text-sm text-muted-foreground", children: ["(", p.J.formatHideBalance(T ?? "-"), ")"] })
+                            (0, n.jsxs)("span", { className: "text-sm text-muted-foreground", children: ["(", p.J.formatHideBalance(L ?? "-"), ")"] })
                           ]
                         })
                       }),
@@ -2188,7 +2239,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                       (0, n.jsx)(d.zx, {
                         size: "md",
                         onClick: () => {
-                          let e = { mode: "DELEGATE", forceChain: v, forceNetwork: N };
+                          let e = { mode: "DELEGATE", forceChain: f, forceNetwork: N };
                           sessionStorage.setItem("navigate-stake-input-state", JSON.stringify(e)), P("/stake/input", { state: e });
                         },
                         "aria-label": "stake amount card stake button in stake v2 flow",
@@ -2228,8 +2279,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             u = t(57124),
             m = t(75958),
             x = t(2784),
-            f = t(86874),
-            v = t(42799),
+            v = t(86874),
+            f = t(42799),
             h = t(84601),
             g = t(49409),
             p = t(46338),
@@ -2242,13 +2293,13 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               m = a ?? l,
               w = (0, u.a)(),
               b = (0, s.QSC)(m),
-              j = v.gb.allDenoms,
+              j = f.gb.allDenoms,
               N = h.xO.delegationsForChain(m),
               k = h.fe.validatorsForChain(m),
               y = h.GO.unDelegationsForChain(m),
               C = h.eq.claimRewardsForChain(m),
-              { network: S, loadingNetwork: D } = (0, s.nDu)(j, N, k, y, C, m, t ?? o),
-              M = (0, x.useMemo)(() => {
+              { network: S, loadingNetwork: _ } = (0, s.nDu)(j, N, k, y, C, m, t ?? o),
+              D = (0, x.useMemo)(() => {
                 if (null == S ? void 0 : S.chainApr) return i()(((null == S ? void 0 : S.chainApr) * 100).toString(), { precision: 2, symbol: "" }).format();
               }, [null == S ? void 0 : S.chainApr]);
             return (0, n.jsxs)("div", {
@@ -2279,7 +2330,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                             initial: "hidden",
                             animate: "visible",
                             exit: "hidden",
-                            children: (0, n.jsx)(f.Z, { className: "w-20 h-5" })
+                            children: (0, n.jsx)(v.Z, { className: "w-20 h-5" })
                           },
                           "skeleton"
                         )
@@ -2292,7 +2343,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                             animate: "visible",
                             exit: "hidden",
                             className: "font-medium text-muted-foreground",
-                            children: M && `APR ${M}%`
+                            children: D && `APR ${D}%`
                           },
                           "span"
                         )
@@ -2353,7 +2404,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
     29816: function (e, a, t) {
       t.a(e, async function (e, l) {
         try {
-          t.d(a, { Z: () => f });
+          t.d(a, { Z: () => v });
           var n = t(52322),
             s = t(27963),
             o = t(74229),
@@ -2366,7 +2417,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             m = t(46078),
             x = e([i, m]);
           [i, m] = x.then ? (await x)() : x;
-          let f = (0, d.Pi)(e => {
+          let v = (0, d.Pi)(e => {
             let { isStakeNotSupported: a, isStakeComingSoon: t } = e,
               l = (0, c.s0)(),
               { activeWallet: d } = (0, o.vL)(),
@@ -2421,14 +2472,14 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             u = t(42799),
             m = t(34733),
             x = t(48346),
-            f = t(84601),
-            v = t(46338),
+            v = t(84601),
+            f = t(46338),
             h = t(43963),
             g = t(14048),
             p = t(94991),
             w = t(25053),
-            b = e([p, g, f, x]);
-          [p, g, f, x] = b.then ? (await b)() : b;
+            b = e([p, g, v, x]);
+          [p, g, v, x] = b.then ? (await b)() : b;
           let j = (0, r.Pi)(e => {
             var a;
             let { forceChain: t, forceNetwork: l, setClaimTxMode: r } = e,
@@ -2437,32 +2488,32 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               N = t ?? b,
               k = l ?? j,
               y = u.gb.allDenoms,
-              C = f.xO.delegationsForChain(N),
-              S = f.fe.validatorsForChain(N),
-              D = f.GO.unDelegationsForChain(N),
-              M = f.eq.claimRewardsForChain(N),
-              { delegations: A, unboundingDelegationsInfo: E, loadingDelegations: _, loadingUnboundingDelegations: L } = (0, s.nDu)(y, C, S, D, M, N, k),
-              { delegations: T } = (0, s.fHb)(),
+              C = v.xO.delegationsForChain(N),
+              S = v.fe.validatorsForChain(N),
+              _ = v.GO.unDelegationsForChain(N),
+              D = v.eq.claimRewardsForChain(N),
+              { delegations: M, unboundingDelegationsInfo: E, loadingDelegations: A, loadingUnboundingDelegations: T } = (0, s.nDu)(y, C, S, _, D, N, k),
+              { delegations: L } = (0, s.fHb)(),
               [B] = (0, s.JsT)(y, N, k),
               [Z, R] = (0, c.useState)(),
-              { data: O } = (0, s.S2A)(),
-              F = (0, c.useMemo)(() => {
+              { data: F } = (0, s.S2A)(),
+              O = (0, c.useMemo)(() => {
                 var e;
                 let a = m.b.getDelegationEpochMessages(B),
                   t = m.b.getUnDelegationEpochMessages(B),
                   l = [];
                 return (
-                  (Object.values(A ?? {}).length > 0 || a.length > 0) && l.push({ label: "Your delegations" }),
-                  Object.values(T ?? {}).length > 0 &&
-                    (null == O ? void 0 : null === (e = O.restaking) || void 0 === e ? void 0 : e.extension) === "active" &&
+                  (Object.values(M ?? {}).length > 0 || a.length > 0) && l.push({ label: "Your delegations" }),
+                  Object.values(L ?? {}).length > 0 &&
+                    (null == F ? void 0 : null === (e = F.restaking) || void 0 === e ? void 0 : e.extension) === "active" &&
                     "lava" === N &&
                     l.push({ label: "Your providers" }),
                   (Object.values(E ?? {}).length > 0 || t.length > 0) && l.push({ label: "Pending unstake" }),
                   l.length > 0 && R(l[0]),
                   l
                 );
-              }, [N, B, A, null == O ? void 0 : null === (a = O.restaking) || void 0 === a ? void 0 : a.extension, T, E]);
-            return _ || L
+              }, [N, B, M, null == F ? void 0 : null === (a = F.restaking) || void 0 === a ? void 0 : a.extension, L, E]);
+            return A || T
               ? (0, n.jsx)(n.Fragment, {})
               : (0, n.jsxs)("div", {
                   className: "flex flex-col gap-6",
@@ -2470,9 +2521,9 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     (0, n.jsx)("div", {
                       className: "flex gap-x-2 border-b border-border-bottom -mx-6 px-6",
                       children: (0, n.jsx)(w.z, {
-                        buttons: F,
+                        buttons: O,
                         setSelectedTab: R,
-                        selectedIndex: F.findIndex(e => {
+                        selectedIndex: O.findIndex(e => {
                           let { label: a } = e;
                           return a === (null == Z ? void 0 : Z.label);
                         })
@@ -2486,7 +2537,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                           (0, n.jsx)(
                             i.E.div,
                             {
-                              transition: v._M,
+                              transition: f._M,
                               variants: h.dJ,
                               initial: "exit",
                               animate: "animate",
@@ -2495,10 +2546,10 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                               children: (0, n.jsx)(p.Z, {
                                 rootDenomsStore: u.gb,
                                 rootBalanceStore: x.jZ,
-                                delegationsStore: f.xO,
-                                validatorsStore: f.fe,
-                                unDelegationsStore: f.GO,
-                                claimRewardsStore: f.eq,
+                                delegationsStore: v.xO,
+                                validatorsStore: v.fe,
+                                unDelegationsStore: v.GO,
+                                claimRewardsStore: v.eq,
                                 forceChain: N,
                                 forceNetwork: k,
                                 setClaimTxMode: r
@@ -2510,7 +2561,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                           (0, n.jsx)(
                             i.E.div,
                             {
-                              transition: v._M,
+                              transition: f._M,
                               variants: h.dJ,
                               initial: "enter",
                               animate: "animate",
@@ -2518,10 +2569,10 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                               className: "relative",
                               children: (0, n.jsx)(g.Z, {
                                 rootDenomsStore: u.gb,
-                                delegationsStore: f.xO,
-                                validatorsStore: f.fe,
-                                unDelegationsStore: f.GO,
-                                claimRewardsStore: f.eq,
+                                delegationsStore: v.xO,
+                                validatorsStore: v.fe,
+                                unDelegationsStore: v.GO,
+                                claimRewardsStore: v.eq,
                                 forceChain: N,
                                 forceNetwork: k,
                                 rootBalanceStore: x.jZ,
@@ -2568,7 +2619,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         c = e => {
           var a;
           let { setSelectedTab: t, selectedIndex: n, buttons: o, buttonClassName: c, className: u, indicatorDefaultScale: m } = e,
-            { containerRef: x, indicatorRef: f, childRefs: v } = (0, s.r)({ navItems: o, activeLabel: null === (a = o[n]) || void 0 === a ? void 0 : a.label });
+            { containerRef: x, indicatorRef: v, childRefs: f } = (0, s.r)({ navItems: o, activeLabel: null === (a = o[n]) || void 0 === a ? void 0 : a.label });
           return (0, l.jsxs)("div", {
             ref: x,
             className: (0, i.cn)("relative flex items-center isolate gap-7", u),
@@ -2577,7 +2628,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 (0, l.jsx)(
                   r,
                   {
-                    ref: e => v.current.set(a, e),
+                    ref: e => f.current.set(a, e),
                     active: a === n,
                     onClick: () => t(e),
                     className: c,
@@ -2590,7 +2641,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               (0, l.jsx)("div", {
                 className:
                   "absolute bottom-0 h-0.5 origin-left scale-0 translate-x-3 transition-transform duration-200 w-full rounded-[50vmin/10vmin] z-10 bg-accent-green",
-                ref: f,
+                ref: v,
                 style: m ?? d
               })
             ]
@@ -2612,8 +2663,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             u = t(96128),
             m = t.n(u),
             x = t(6401),
-            f = t(30464),
-            v = t(75958),
+            v = t(30464),
+            f = t(75958),
             h = t(2784),
             g = t(34733),
             p = t(84994),
@@ -2623,57 +2674,57 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             N = t(90139),
             k = e([N]);
           N = (k.then ? (await k)() : k)[0];
-          let y = (0, v.Pi)(e => {
-            var a, t, l, i, u, v;
+          let y = (0, f.Pi)(e => {
+            var a, t, l, i, u, f;
             let {
                 isOpen: k,
                 onClose: y,
                 validator: C,
                 unbondingDelegation: S,
-                unbondingDelegationEntry: D,
-                rootDenomsStore: M,
-                delegationsStore: A,
+                unbondingDelegationEntry: _,
+                rootDenomsStore: D,
+                delegationsStore: M,
                 validatorsStore: E,
-                unDelegationsStore: _,
-                claimRewardsStore: L,
-                rootBalanceStore: T,
+                unDelegationsStore: A,
+                claimRewardsStore: T,
+                rootBalanceStore: L,
                 forceChain: B,
                 forceNetwork: Z,
                 setClaimTxMode: R
               } = e,
-              O = (0, s.a74)(),
-              F = (0, h.useMemo)(() => B || O, [O, B]),
+              F = (0, s.a74)(),
+              O = (0, h.useMemo)(() => B || F, [F, B]),
               P = (0, s.obn)(),
               G = (0, h.useMemo)(() => Z || P, [P, Z]),
-              I = M.allDenoms,
-              J = A.delegationsForChain(F),
-              H = E.validatorsForChain(F),
-              z = _.unDelegationsForChain(F),
-              $ = L.claimRewardsForChain(F),
-              [V] = (0, s.JsT)(I, F, G),
+              I = D.allDenoms,
+              J = M.delegationsForChain(O),
+              H = E.validatorsForChain(O),
+              z = A.unDelegationsForChain(O),
+              V = T.claimRewardsForChain(O),
+              [$] = (0, s.JsT)(I, O, G),
               [U] = (0, x.nB)(),
               { theme: W } = (0, o.useTheme)(),
               [Y, K] = (0, h.useState)(!1),
-              { network: q } = (0, s.nDu)(I, J, H, z, $, F, G),
+              { network: q } = (0, s.nDu)(I, J, H, z, V, O, G),
               X = null == q ? void 0 : q.validatorAprs,
               { data: Q } = (0, s.pD_)((null == C ? void 0 : C.image) ? void 0 : C),
-              ee = (null == C ? void 0 : C.image) || Q || f.r.Misc.Validator,
+              ee = (null == C ? void 0 : C.image) || Q || v.r.Misc.Validator,
               ea = (0, h.useMemo)(
                 () =>
-                  new (r())((null == D ? void 0 : D.currencyBalance) ?? "").gt(0)
-                    ? p.J.formatHideBalance(U(new (r())((null == D ? void 0 : D.currencyBalance) ?? "")))
-                    : p.J.formatHideBalance((null == D ? void 0 : D.formattedBalance) ?? ""),
-                [U, null == D ? void 0 : D.currencyBalance, null == D ? void 0 : D.formattedBalance]
+                  new (r())((null == _ ? void 0 : _.currencyBalance) ?? "").gt(0)
+                    ? p.J.formatHideBalance(U(new (r())((null == _ ? void 0 : _.currencyBalance) ?? "")))
+                    : p.J.formatHideBalance((null == _ ? void 0 : _.formattedBalance) ?? ""),
+                [U, null == _ ? void 0 : _.currencyBalance, null == _ ? void 0 : _.formattedBalance]
               ),
               et = (0, h.useMemo)(
                 () =>
-                  new (r())((null == D ? void 0 : D.currencyBalance) ?? "").gt(0) ? p.J.formatHideBalance((null == D ? void 0 : D.formattedBalance) ?? "") : "",
-                [null == D ? void 0 : D.currencyBalance, null == D ? void 0 : D.formattedBalance]
+                  new (r())((null == _ ? void 0 : _.currencyBalance) ?? "").gt(0) ? p.J.formatHideBalance((null == _ ? void 0 : _.formattedBalance) ?? "") : "",
+                [null == _ ? void 0 : _.currencyBalance, null == _ ? void 0 : _.formattedBalance]
               ),
               el =
                 S &&
-                D &&
-                (null === (a = g.b.canceledUnBondingDelegationsMap[S.validator_address]) || void 0 === a ? void 0 : a.some(e => e === D.creation_height));
+                _ &&
+                (null === (a = g.b.canceledUnBondingDelegationsMap[S.validator_address]) || void 0 === a ? void 0 : a.some(e => e === _.creation_height));
             return (0, n.jsxs)(n.Fragment, {
               children: [
                 (0, n.jsxs)(d.Z, {
@@ -2695,7 +2746,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                               height: 40,
                               className: "rounded-full",
                               src: ee,
-                              onError: (0, w._)(f.r.Misc.Validator),
+                              onError: (0, w._)(v.r.Misc.Validator),
                               "aria-label": "unstaked validator details image in stake v2 flow"
                             }),
                             (0, n.jsx)("span", {
@@ -2747,7 +2798,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                                           ? void 0
                                           : l.rate
                                   )
-                                    ? `${new (r())((null == C ? void 0 : null === (v = C.commission) || void 0 === v ? void 0 : null === (u = v.commission_rates) || void 0 === u ? void 0 : u.rate) ?? "").multipliedBy(100).toFixed(0)}%`
+                                    ? `${new (r())((null == C ? void 0 : null === (f = C.commission) || void 0 === f ? void 0 : null === (u = f.commission_rates) || void 0 === u ? void 0 : u.rate) ?? "").multipliedBy(100).toFixed(0)}%`
                                     : "N/A"
                                 })
                               ]
@@ -2784,11 +2835,11 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                               children: [
                                 (0, n.jsx)("span", {
                                   className: "font-bold text-[18px] text-foreground",
-                                  children: (0, j.z)((null == D ? void 0 : D.completion_time) ?? "")
+                                  children: (0, j.z)((null == _ ? void 0 : _.completion_time) ?? "")
                                 }),
                                 (0, n.jsx)("span", {
                                   className: "text-muted-foreground text-sm",
-                                  children: (null == D ? void 0 : D.completion_time) && (0, s.E0P)(null == D ? void 0 : D.completion_time)
+                                  children: (null == _ ? void 0 : _.completion_time) && (0, s.E0P)(null == _ ? void 0 : _.completion_time)
                                 })
                               ]
                             })
@@ -2814,9 +2865,9 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 (0, n.jsx)(N.Z, {
                   isOpen: Y,
                   onClose: () => K(!1),
-                  unbondingDelegationEntry: D,
+                  unbondingDelegationEntry: _,
                   validator: C,
-                  forceChain: F,
+                  forceChain: O,
                   forceNetwork: G,
                   setClaimTxMode: R
                 })
@@ -2843,8 +2894,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         m = t(63479);
       let x = (0, d.Pi)(e => {
         let { validator: a, onClick: t, entry: s, isCancleUnstakeSupported: d, subText: x } = e,
-          { data: f } = (0, n.pD_)((null == a ? void 0 : a.image) ? void 0 : a),
-          v = (null == a ? void 0 : a.image) || f || r.r.Misc.Validator,
+          { data: v } = (0, n.pD_)((null == a ? void 0 : a.image) ? void 0 : a),
+          f = (null == a ? void 0 : a.image) || v || r.r.Misc.Validator,
           [h] = (0, i.nB)(),
           g = (0, c.useMemo)(
             () =>
@@ -2857,7 +2908,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             () => (new (o())(s.currencyBalance ?? "").gt(0) ? u.J.formatHideBalance(s.formattedBalance ?? "") : ""),
             [s.currencyBalance, s.formattedBalance]
           );
-        return (0, l.jsx)(m.O, { onClick: t, imgSrc: v, moniker: a.moniker, titleAmount: g, subAmount: p, disabled: !d, subText: x });
+        return (0, l.jsx)(m.O, { onClick: t, imgSrc: f, moniker: a.moniker, titleAmount: g, subAmount: p, disabled: !d, subText: x });
       });
     },
     63479: function (e, a, t) {
@@ -2871,9 +2922,9 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         d = t(49409),
         c = t(48534);
       let u = i.memo(e => {
-        let { onClick: a, imgSrc: t, moniker: i, titleAmount: u, subAmount: m, jailed: x, disabled: f, subText: v } = e;
+        let { onClick: a, imgSrc: t, moniker: i, titleAmount: u, subAmount: m, jailed: x, disabled: v, subText: f } = e;
         return (0, l.jsxs)("button", {
-          disabled: f || !a,
+          disabled: v || !a,
           onClick: a,
           className: (0, r.cn)(
             "flex justify-between items-center px-4 py-3 bg-secondary-100 disabled:hover:bg-secondary-100 hover:bg-secondary-200 disabled:cursor-auto rounded-xl",
@@ -2900,11 +2951,11 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                       "aria-label": `validator card view name in stake v2 flow ${i}`,
                       children: (0, n.MDB)(i, c.sN ? 5 + Math.floor(((Math.min(window.innerWidth, 400) - 320) / 81) * 7) : 10, 3)
                     }),
-                    v
+                    f
                       ? (0, l.jsx)("span", {
                           className: "font-medium text-right text-xs text-muted-foreground",
                           "aria-label": `validator card view sub text in stake v2 flow ${i}`,
-                          children: v
+                          children: f
                         })
                       : x
                         ? (0, l.jsx)("span", {
@@ -2940,7 +2991,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
     94991: function (e, a, t) {
       t.a(e, async function (e, l) {
         try {
-          t.d(a, { Z: () => D });
+          t.d(a, { Z: () => _ });
           var n = t(52322),
             s = t(41172),
             o = t(6391),
@@ -2951,8 +3002,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             u = t(96128),
             m = t.n(u),
             x = t(6401),
-            f = t(42941),
-            v = t(30464),
+            v = t(42941),
+            f = t(30464),
             h = t(75958),
             g = t(2784),
             p = t(10289),
@@ -2967,7 +3018,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               var a, t, l, o, d;
               let {
                   isOpen: u,
-                  onClose: f,
+                  onClose: v,
                   onSwitchValidator: h,
                   onUnstake: p,
                   validator: N,
@@ -2975,27 +3026,27 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   rootDenomsStore: y,
                   delegationsStore: C,
                   validatorsStore: S,
-                  unDelegationsStore: D,
-                  claimRewardsStore: M,
-                  forceChain: A,
+                  unDelegationsStore: _,
+                  claimRewardsStore: D,
+                  forceChain: M,
                   forceNetwork: E,
-                  onValidatorClaim: _
+                  onValidatorClaim: A
                 } = e,
-                L = (0, s.a74)(),
-                T = (0, g.useMemo)(() => A || L, [L, A]),
+                T = (0, s.a74)(),
+                L = (0, g.useMemo)(() => M || T, [T, M]),
                 B = (0, s.obn)(),
                 Z = (0, g.useMemo)(() => E || B, [B, E]),
                 R = y.allDenoms,
-                O = C.delegationsForChain(T),
-                F = S.validatorsForChain(T),
-                P = D.unDelegationsForChain(T),
-                G = M.claimRewardsForChain(T),
-                [I] = (0, s.JsT)(R, T, Z),
+                F = C.delegationsForChain(L),
+                O = S.validatorsForChain(L),
+                P = _.unDelegationsForChain(L),
+                G = D.claimRewardsForChain(L),
+                [I] = (0, s.JsT)(R, L, Z),
                 [J] = (0, x.nB)(),
-                { network: H } = (0, s.nDu)(R, O, F, P, G, T, Z),
+                { network: H } = (0, s.nDu)(R, F, O, P, G, L, Z),
                 z = null == H ? void 0 : H.validatorAprs,
-                { data: $ } = (0, s.pD_)((null == N ? void 0 : N.image) ? void 0 : N),
-                V = (null == N ? void 0 : N.image) || $ || v.r.Misc.Validator,
+                { data: V } = (0, s.pD_)((null == N ? void 0 : N.image) ? void 0 : N),
+                $ = (null == N ? void 0 : N.image) || V || f.r.Misc.Validator,
                 [U, W, Y] = (0, g.useMemo)(() => {
                   var e, a;
                   let t =
@@ -3028,7 +3079,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               return (0, n.jsxs)(r.Z, {
                 fullScreen: !0,
                 isOpen: u,
-                onClose: f,
+                onClose: v,
                 title: "Validator details",
                 className: "!p-0 relative h-full",
                 headerClassName: "border-secondary-200 border-b",
@@ -3039,7 +3090,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                       (0, n.jsxs)("div", {
                         className: "flex w-full gap-4 items-center",
                         children: [
-                          (0, n.jsx)("img", { width: 40, height: 40, className: "rounded-full", src: V, onError: (0, b._)(v.r.Misc.Validator) }),
+                          (0, n.jsx)("img", { width: 40, height: 40, className: "rounded-full", src: $, onError: (0, b._)(f.r.Misc.Validator) }),
                           (0, n.jsx)("span", {
                             className: "font-bold text-lg",
                             children: (0, s.MDB)(
@@ -3136,7 +3187,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                                 variant: "secondary",
                                 className: "bg-secondary-350 disabled:bg-secondary-300 h-fit w-[121px]",
                                 disabled: !Y || Y.lt(1e-5),
-                                onClick: _,
+                                onClick: A,
                                 "aria-label": "claim button in stake v2 flow",
                                 children: (0, n.jsx)("span", { "aria-label": "claim button text in stake v2 flow", children: "Claim" })
                               })
@@ -3169,7 +3220,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               let { validator: a, delegation: t, onClick: l } = e,
                 [o] = (0, x.nB)(),
                 { data: r } = (0, s.pD_)((null == a ? void 0 : a.image) ? void 0 : a),
-                d = (null == a ? void 0 : a.image) || r || v.r.Misc.Validator,
+                d = (null == a ? void 0 : a.image) || r || f.r.Misc.Validator,
                 c = (0, g.useMemo)(
                   () =>
                     new (i())(t.balance.currencyAmount ?? "").gt(0)
@@ -3186,7 +3237,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 }, [l, t]);
               return (0, n.jsx)(k.O, { onClick: m, imgSrc: d, moniker: a.moniker, titleAmount: c, subAmount: u, jailed: a.jailed });
             }),
-            D = (0, h.Pi)(e => {
+            _ = (0, h.Pi)(e => {
               var a;
               let {
                   rootDenomsStore: t,
@@ -3199,26 +3250,26 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   rootBalanceStore: m,
                   setClaimTxMode: x
                 } = e,
-                v = (0, p.s0)(),
+                f = (0, p.s0)(),
                 [h, w] = (0, g.useState)(!1),
                 [b, j] = (0, g.useState)(!1),
                 [k, y] = (0, g.useState)(),
-                D = (0, s.a74)(),
-                M = (0, g.useMemo)(() => c || D, [D, c]),
-                A = (0, s.obn)(),
-                E = (0, g.useMemo)(() => u || A, [A, u]),
-                _ = t.allDenoms,
-                L = l.delegationsForChain(M),
-                T = o.validatorsForChain(M),
-                B = i.unDelegationsForChain(M),
-                Z = r.claimRewardsForChain(M),
-                { delegations: R, loadingNetwork: O, loadingDelegations: F } = (0, s.nDu)(_, L, T, B, Z, M, E),
+                _ = (0, s.a74)(),
+                D = (0, g.useMemo)(() => c || _, [_, c]),
+                M = (0, s.obn)(),
+                E = (0, g.useMemo)(() => u || M, [M, u]),
+                A = t.allDenoms,
+                T = l.delegationsForChain(D),
+                L = o.validatorsForChain(D),
+                B = i.unDelegationsForChain(D),
+                Z = r.claimRewardsForChain(D),
+                { delegations: R, loadingNetwork: F, loadingDelegations: O } = (0, s.nDu)(A, T, L, B, Z, D, E),
                 P = (0, g.useMemo)(() => {
                   var e;
-                  return null === (e = T.validatorData.validators) || void 0 === e ? void 0 : e.reduce((e, a) => ((e[a.address] = a), e), {});
-                }, [T.validatorData.validators]),
-                G = O || F,
-                I = (0, f.Z)(),
+                  return null === (e = L.validatorData.validators) || void 0 === e ? void 0 : e.reduce((e, a) => ((e[a.address] = a), e), {});
+                }, [L.validatorData.validators]),
+                G = F || O,
+                I = (0, v.Z)(),
                 J = I.get("validatorAddress") ?? void 0,
                 H = I.get("action") ?? void 0;
               (0, g.useEffect)(() => {
@@ -3227,7 +3278,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   e && (y(e), w(!0));
                 }
               }, [R, H, J]);
-              let [z, $] = (0, g.useMemo)(() => {
+              let [z, V] = (0, g.useMemo)(() => {
                   let e = Object.values(R ?? {}).sort((e, a) => parseFloat(a.balance.amount) - parseFloat(e.balance.amount)),
                     a = e.filter(e => {
                       var a;
@@ -3241,7 +3292,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     });
                   return [a, t];
                 }, [R, P]),
-                V = (0, g.useCallback)(() => {
+                $ = (0, g.useCallback)(() => {
                   w(!1), j(!0);
                 }, []),
                 U = (0, g.useCallback)(e => {
@@ -3289,7 +3340,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     }),
                   !G &&
                     P &&
-                    $.length > 0 &&
+                    V.length > 0 &&
                     (0, n.jsxs)("div", {
                       className: "flex flex-col w-full gap-4",
                       children: [
@@ -3302,7 +3353,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                         }),
                         (0, n.jsx)("div", {
                           className: "flex flex-col w-full gap-4",
-                          children: $.map(e => {
+                          children: V.map(e => {
                             var a;
                             let t = null == P ? void 0 : P[null == e ? void 0 : null === (a = e.delegation) || void 0 === a ? void 0 : a.validator_address];
                             return (0, n.jsx)(S, { delegation: e, validator: t, onClick: U }, null == t ? void 0 : t.address);
@@ -3318,20 +3369,20 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                         mode: "REDELEGATE",
                         fromValidator: P[(null == k ? void 0 : k.delegation.validator_address) || ""],
                         delegation: k,
-                        forceChain: M,
+                        forceChain: D,
                         forceNetwork: E
                       };
-                      sessionStorage.setItem("navigate-stake-input-state", JSON.stringify(e)), v("/stake/input", { state: e });
+                      sessionStorage.setItem("navigate-stake-input-state", JSON.stringify(e)), f("/stake/input", { state: e });
                     },
                     onUnstake: () => {
                       let e = {
                         mode: "UNDELEGATE",
                         toValidator: P[(null == k ? void 0 : k.delegation.validator_address) || ""],
                         delegation: k,
-                        forceChain: M,
+                        forceChain: D,
                         forceNetwork: E
                       };
-                      sessionStorage.setItem("navigate-stake-input-state", JSON.stringify(e)), v("/stake/input", { state: e });
+                      sessionStorage.setItem("navigate-stake-input-state", JSON.stringify(e)), f("/stake/input", { state: e });
                     },
                     validator: null == P ? void 0 : P[(null == k ? void 0 : null === (a = k.delegation) || void 0 === a ? void 0 : a.validator_address) || ""],
                     delegation: k,
@@ -3340,9 +3391,9 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     validatorsStore: o,
                     unDelegationsStore: i,
                     claimRewardsStore: r,
-                    forceChain: M,
+                    forceChain: D,
                     forceNetwork: E,
-                    onValidatorClaim: V
+                    onValidatorClaim: $
                   }),
                   b &&
                     k &&
@@ -3351,7 +3402,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                       onClose: () => j(!1),
                       validator: null == P ? void 0 : P[k.delegation.validator_address],
                       selectedDelegation: k,
-                      forceChain: M,
+                      forceChain: D,
                       forceNetwork: E,
                       setClaimTxMode: x
                     })
@@ -3378,10 +3429,10 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             u = t(48346),
             m = t(84601),
             x = t(83208),
-            f = t(29816),
-            v = t(92006),
+            v = t(29816),
+            f = t(92006),
             h = t(56001),
-            g = e([x, v, f, h, m, u]);
+            g = e([x, f, v, h, m, u]);
           function p() {
             let e = (0, i.Z)().get("pageSource") ?? void 0;
             (0, r.useMemo)(() => ({ pageViewSource: e }), [e]);
@@ -3400,7 +3451,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   chainTagsStore: d.HN
                 })
               : l || t
-                ? (0, n.jsxs)(n.Fragment, { children: [(0, n.jsx)(v.w, {}), (0, n.jsx)(f.Z, { isStakeComingSoon: t, isStakeNotSupported: l })] })
+                ? (0, n.jsxs)(n.Fragment, { children: [(0, n.jsx)(f.w, {}), (0, n.jsx)(v.Z, { isStakeComingSoon: t, isStakeNotSupported: l })] })
                 : (0, n.jsx)(h.Z, {
                     rootDenomsStore: c.gb,
                     delegationsStore: m.xO,
@@ -3411,7 +3462,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     chainTagsStore: d.HN
                   });
           }
-          ([x, v, f, h, m, u] = g.then ? (await g)() : g), l();
+          ([x, f, v, h, m, u] = g.then ? (await g)() : g), l();
         } catch (e) {
           l(e);
         }
@@ -3431,8 +3482,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             u = t(6401),
             m = t(38313),
             x = t(75958),
-            f = t(2784),
-            v = t(84994),
+            v = t(2784),
+            f = t(84994),
             h = t(58022),
             g = e([c, m, h]);
           [c, m, h] = g.then ? (await g)() : g;
@@ -3453,62 +3504,62 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               [k] = (0, u.nB)(),
               y = x.allDenoms,
               C = (0, c.a7)(),
-              S = (0, f.useMemo)(() => j || C, [C, j]),
-              D = (0, m.ob)(),
-              M = (0, f.useMemo)(() => N || D, [D, N]),
-              [A] = (0, s.JsT)(y, S, M),
+              S = (0, v.useMemo)(() => j || C, [C, j]),
+              _ = (0, m.ob)(),
+              D = (0, v.useMemo)(() => N || _, [_, N]),
+              [M] = (0, s.JsT)(y, S, D),
               E = g.delegationsForChain(S),
-              _ = p.validatorsForChain(S),
-              L = w.unDelegationsForChain(S),
-              T = b.claimRewardsForChain(S),
-              { totalRewardsDollarAmt: B = 0, rewards: Z = { total: [] }, totalRewards: R } = (0, s.nDu)(y, E, _, L, T, S, M),
-              O = (0, f.useMemo)(() => !R || new (i())(R).lt(1e-5), [R]),
-              { rewards: F } = (0, s.fHb)(),
-              P = (0, f.useMemo)(
-                () => !(null == F ? void 0 : F.totalRewards) || new (i())(null == F ? void 0 : F.totalRewards).lt(1e-5),
-                [null == F ? void 0 : F.totalRewards]
+              A = p.validatorsForChain(S),
+              T = w.unDelegationsForChain(S),
+              L = b.claimRewardsForChain(S),
+              { totalRewardsDollarAmt: B = 0, rewards: Z = { total: [] }, totalRewards: R } = (0, s.nDu)(y, E, A, T, L, S, D),
+              F = (0, v.useMemo)(() => !R || new (i())(R).lt(1e-5), [R]),
+              { rewards: O } = (0, s.fHb)(),
+              P = (0, v.useMemo)(
+                () => !(null == O ? void 0 : O.totalRewards) || new (i())(null == O ? void 0 : O.totalRewards).lt(1e-5),
+                [null == O ? void 0 : O.totalRewards]
               ),
-              G = (0, f.useMemo)(() => {
+              G = (0, v.useMemo)(() => {
                 if (Z) {
                   var e;
                   return null == Z
                     ? void 0
                     : null === (e = Z.total) || void 0 === e
                       ? void 0
-                      : e.find(e => e.denom === (null == A ? void 0 : A.coinMinimalDenom));
+                      : e.find(e => e.denom === (null == M ? void 0 : M.coinMinimalDenom));
                 }
-              }, [null == A ? void 0 : A.coinMinimalDenom, Z]),
-              I = (0, f.useMemo)(() => {
-                if (F) {
+              }, [null == M ? void 0 : M.coinMinimalDenom, Z]),
+              I = (0, v.useMemo)(() => {
+                if (O) {
                   var e;
                   let a =
-                      null === (e = F.rewards) || void 0 === e
+                      null === (e = O.rewards) || void 0 === e
                         ? void 0
                         : e
                             .flatMap(e => e.amount)
                             .reduce((e, a) => ((e[a.denom] = e[a.denom] ? new (i())(e[a.denom]).plus(new (i())(a.amount)) : new (i())(a.amount)), e), {}),
                     t = Object.keys(a ?? {}).length;
-                  return v.J.formatHideBalance(`${F.formattedTotalRewards} ${t > 1 ? `+${t - 1} more` : ""}`);
+                  return f.J.formatHideBalance(`${O.formattedTotalRewards} ${t > 1 ? `+${t - 1} more` : ""}`);
                 }
-              }, [F]),
-              J = (0, f.useMemo)(() => {
+              }, [O]),
+              J = (0, v.useMemo)(() => {
                 var e, a;
-                return v.J.formatHideBalance(
-                  `${(0, s.LHZ)((null == G ? void 0 : G.amount) ?? "", A.coinDenom)} ${(null == Z ? void 0 : null === (e = Z.total) || void 0 === e ? void 0 : e.length) > 1 ? `+${(null == Z ? void 0 : null === (a = Z.total) || void 0 === a ? void 0 : a.length) - 1} more` : ""}`
+                return f.J.formatHideBalance(
+                  `${(0, s.LHZ)((null == G ? void 0 : G.amount) ?? "", M.coinDenom)} ${(null == Z ? void 0 : null === (e = Z.total) || void 0 === e ? void 0 : e.length) > 1 ? `+${(null == Z ? void 0 : null === (a = Z.total) || void 0 === a ? void 0 : a.length) - 1} more` : ""}`
                 );
-              }, [null == A ? void 0 : A.coinDenom, null == G ? void 0 : G.amount, null == Z ? void 0 : Z.total.length]),
-              H = (0, f.useMemo)(() => (new (i())(B).gt(0) ? v.J.formatHideBalance(k(new (i())(B))) : J), [k, J, B]),
-              z = (0, f.useMemo)(() => (new (i())(B).gt(0) ? J : ""), [J, B]),
-              $ = (0, f.useMemo)(
+              }, [null == M ? void 0 : M.coinDenom, null == G ? void 0 : G.amount, null == Z ? void 0 : Z.total.length]),
+              H = (0, v.useMemo)(() => (new (i())(B).gt(0) ? f.J.formatHideBalance(k(new (i())(B))) : J), [k, J, B]),
+              z = (0, v.useMemo)(() => (new (i())(B).gt(0) ? J : ""), [J, B]),
+              V = (0, v.useMemo)(
                 () =>
-                  new (i())(null == F ? void 0 : F.totalRewardsDollarAmt).gt(0)
-                    ? v.J.formatHideBalance(k(new (i())(null == F ? void 0 : F.totalRewardsDollarAmt)))
+                  new (i())(null == O ? void 0 : O.totalRewardsDollarAmt).gt(0)
+                    ? f.J.formatHideBalance(k(new (i())(null == O ? void 0 : O.totalRewardsDollarAmt)))
                     : I,
-                [k, I, null == F ? void 0 : F.totalRewardsDollarAmt]
+                [k, I, null == O ? void 0 : O.totalRewardsDollarAmt]
               ),
-              V = (0, f.useMemo)(
-                () => (new (i())(null == F ? void 0 : F.totalRewardsDollarAmt).gt(0) ? I : ""),
-                [I, null == F ? void 0 : F.totalRewardsDollarAmt]
+              $ = (0, v.useMemo)(
+                () => (new (i())(null == O ? void 0 : O.totalRewardsDollarAmt).gt(0) ? I : ""),
+                [I, null == O ? void 0 : O.totalRewardsDollarAmt]
               );
             return (0, n.jsxs)(r.Z, {
               isOpen: a,
@@ -3525,7 +3576,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                       secondaryAmount: z,
                       button: (0, n.jsx)(d.zx, {
                         onClick: l,
-                        disabled: O,
+                        disabled: F,
                         size: "md",
                         variant: "secondary",
                         className: "w-[7.5rem] bg-secondary-350 disabled:bg-secondary-300 hover:bg-secondary-300",
@@ -3540,8 +3591,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   children: [
                     (0, n.jsx)("span", { className: "text-muted-foreground text-sm", children: "Provider Rewards" }),
                     (0, n.jsx)(h.Z, {
-                      titleAmount: $ ?? "",
-                      secondaryAmount: V ?? "",
+                      titleAmount: V ?? "",
+                      secondaryAmount: $ ?? "",
                       button: (0, n.jsx)(d.zx, {
                         size: "md",
                         variant: "secondary",
@@ -3576,8 +3627,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         u = t(30464),
         m = t(2784),
         x = t(10289),
-        f = t(49409),
-        v = t(91486),
+        v = t(49409),
+        f = t(91486),
         h = t(75958),
         g = t(42799),
         p = t(84994),
@@ -3591,14 +3642,14 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             y = (0, n.obn)(),
             C = (0, m.useMemo)(() => b || y, [y, b]),
             [S] = (0, n.JsT)(j, k, C),
-            [D] = (0, c.nB)(),
-            { theme: M } = (0, s.useTheme)(),
-            A = (0, m.useMemo)(
+            [_] = (0, c.nB)(),
+            { theme: D } = (0, s.useTheme)(),
+            M = (0, m.useMemo)(
               () =>
                 new (i())(x.amount.currencyAmount ?? "").gt(0)
-                  ? p.J.formatHideBalance(D(new (i())(x.amount.currencyAmount ?? "")))
+                  ? p.J.formatHideBalance(_(new (i())(x.amount.currencyAmount ?? "")))
                   : p.J.formatHideBalance(x.amount.formatted_amount ?? x.amount.amount),
-              [x.amount.amount, x.amount.currencyAmount, x.amount.formatted_amount, D]
+              [x.amount.amount, x.amount.currencyAmount, x.amount.formatted_amount, _]
             ),
             E = (0, m.useMemo)(
               () => (new (i())(x.amount.currencyAmount ?? "").gt(0) ? p.J.formatHideBalance(x.amount.formatted_amount ?? x.amount.amount) : ""),
@@ -3623,7 +3674,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                         height: 40,
                         className: "rounded-full",
                         src: (null == d ? void 0 : d.image) || u.r.Misc.Validator,
-                        onError: (0, f._)(u.r.Misc.Validator)
+                        onError: (0, v._)(u.r.Misc.Validator)
                       }),
                       (0, l.jsx)("span", {
                         className: "font-bold text-lg",
@@ -3665,7 +3716,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   (0, l.jsxs)("div", {
                     className: "p-6 bg-secondary-100 rounded-xl",
                     children: [
-                      (0, l.jsxs)("span", { className: "font-bold text-lg", children: [A, " "] }),
+                      (0, l.jsxs)("span", { className: "font-bold text-lg", children: [M, " "] }),
                       E && (0, l.jsxs)("span", { className: "text-muted-foreground", children: ["(", E, ")"] })
                     ]
                   })
@@ -3673,7 +3724,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               }),
               (0, l.jsx)("div", {
                 className: "flex gap-x-3 bg-secondary-200 w-full [&>*]:flex-1 mt-auto absolute bottom-0 py-4 px-5",
-                children: (0, l.jsxs)(v.zx, {
+                children: (0, l.jsxs)(f.zx, {
                   onClick: o,
                   "aria-label": "switch provider button in stake v2 flow",
                   children: [" ", (0, l.jsx)("span", { "aria-label": "switch provider button text in stake v2 flow", children: "Switch provider" })]
@@ -3703,7 +3754,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           s = (0, x.s0)(),
           [o, i] = (0, m.useState)(!1),
           [r, c] = (0, m.useState)(),
-          { delegations: u, loadingDelegations: f, providers: v } = (0, n.fHb)(),
+          { delegations: u, loadingDelegations: v, providers: f } = (0, n.fHb)(),
           h = (0, m.useMemo)(() => Object.values(u ?? {}).find(e => "empty_provider" === e.provider), [u]),
           p = (0, m.useMemo)(() => Object.values(u ?? {}).sort((e, a) => parseFloat(a.amount.amount) - parseFloat(e.amount.amount)), [u]),
           w = (0, m.useMemo)(
@@ -3717,12 +3768,12 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           );
         return (0, l.jsxs)(l.Fragment, {
           children: [
-            f && (0, l.jsx)(d.KE, {}),
+            v && (0, l.jsx)(d.KE, {}),
             (0, l.jsx)("div", {
               className: "flex flex-col w-full gap-y-2",
               children:
-                !f &&
-                v &&
+                !v &&
+                f &&
                 p.length > 0 &&
                 (0, l.jsxs)(l.Fragment, {
                   children: [
@@ -3754,7 +3805,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                         ]
                       }),
                     p.map(e => {
-                      let a = null == v ? void 0 : v.find(a => a.address === e.provider);
+                      let a = null == f ? void 0 : f.find(a => a.address === e.provider);
                       return (
                         a &&
                         (0, l.jsx)(
@@ -3778,12 +3829,12 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 rootDenomsStore: g.gb,
                 isOpen: o,
                 onClose: () => i(!1),
-                provider: r.provider === (null == h ? void 0 : h.provider) ? w : v.find(e => e.address === r.provider),
+                provider: r.provider === (null == h ? void 0 : h.provider) ? w : f.find(e => e.address === r.provider),
                 delegation: r,
                 onSwitchValidator: () => {
                   let e = {
                     mode: "REDELEGATE",
-                    fromProvider: r.provider === (null == h ? void 0 : h.provider) ? w : v.find(e => e.address === r.provider),
+                    fromProvider: r.provider === (null == h ? void 0 : h.provider) ? w : f.find(e => e.address === r.provider),
                     providerDelegation: r,
                     forceChain: "lava"
                   };
@@ -3799,7 +3850,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
     95380: function (e, a, t) {
       t.a(e, async function (e, l) {
         try {
-          t.d(a, { C: () => B });
+          t.d(a, { C: () => Z });
           var n = t(52322),
             s = t(41172),
             o = t(6391),
@@ -3810,8 +3861,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             u = t(42152),
             m = t(96217),
             x = t(91486),
-            f = t(13287),
-            v = t(6401),
+            v = t(13287),
+            f = t(6401),
             h = t(30942),
             g = t(65027),
             p = t(30464),
@@ -3821,147 +3872,160 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             N = t(10289),
             k = t(84994),
             y = t(48534),
-            C = t(63400),
-            S = t(49728),
+            C = t(92642),
+            S = t(63400),
+            _ = t(49728),
             D = t(97680),
             M = t.n(D),
-            A = t(12499),
-            E = t(78884),
-            _ = t(90258),
-            L = e([g, r, E, d, c]);
-          [g, r, E, d, c] = L.then ? (await L)() : L;
-          let T = g.w.useGetWallet,
-            B = (0, b.Pi)(e => {
+            E = t(12499),
+            A = t(78884),
+            T = t(90258),
+            L = e([g, r, A, d, c]);
+          [g, r, A, d, c] = L.then ? (await L)() : L;
+          let B = g.w.useGetWallet,
+            Z = (0, b.Pi)(e => {
               var a;
-              let { isOpen: t, onClose: l, validator: o, rootDenomsStore: g, rootBalanceStore: b, forceChain: D, forceNetwork: L, setClaimTxMode: B } = e,
-                Z = g.allDenoms,
-                R = (0, s.a74)(),
-                O = (0, j.useMemo)(() => D || R, [R, D]),
-                F = (0, s.obn)(),
-                P = (0, j.useMemo)(() => L || F, [F, L]),
-                G = T(),
-                I = (0, r.e7)(Z, { activeChain: O, selectedNetwork: P }),
-                [J] = (0, v.nB)(),
-                [H] = (0, s.JsT)(Z, O, P),
-                { rewards: z, providers: $ } = (0, s.fHb)(),
-                V = (0, j.useMemo)(() => {
-                  if (z && $) {
+              let { isOpen: t, onClose: l, validator: o, rootDenomsStore: g, rootBalanceStore: b, forceChain: D, forceNetwork: L, setClaimTxMode: Z } = e,
+                R = g.allDenoms,
+                F = (0, s.a74)(),
+                O = (0, j.useMemo)(() => D || F, [F, D]),
+                P = (0, s.obn)(),
+                G = (0, j.useMemo)(() => L || P, [P, L]),
+                I = B(),
+                J = (0, r.e7)(R, { activeChain: O, selectedNetwork: G }),
+                [H] = (0, f.nB)(),
+                [z] = (0, s.JsT)(R, O, G),
+                { rewards: V, providers: $ } = (0, s.fHb)(),
+                U = (0, j.useMemo)(() => {
+                  if (V && $) {
                     var e;
-                    return null == z
+                    return null == V
                       ? void 0
-                      : null === (e = z.rewards) || void 0 === e
+                      : null === (e = V.rewards) || void 0 === e
                         ? void 0
                         : e.map(e => $.find(a => a.address === e.provider)).filter(e => void 0 !== e);
                   }
-                }, [$, z]),
+                }, [$, V]),
                 {
-                  showLedgerPopup: U,
-                  onReviewTransaction: W,
-                  isLoading: Y,
-                  error: K,
-                  setAmount: q,
-                  recommendedGasLimit: X,
-                  userPreferredGasLimit: Q,
-                  setUserPreferredGasLimit: ee,
-                  gasOption: ea,
-                  setGasOption: et,
-                  userPreferredGasPrice: el,
-                  setFeeDenom: en,
-                  customFee: es,
-                  feeDenom: eo,
-                  ledgerError: ei,
-                  setLedgerError: er
-                } = (0, s.$l7)(Z, "CLAIM_REWARDS", o, void 0, void 0, void 0, void 0, void 0, V, O, P),
-                [ed, ec] = (0, j.useState)(!1),
-                [eu, em] = (0, j.useState)(null),
-                [ex, ef] = (0, j.useState)({ option: ea, gasPrice: el ?? I.gasPrice });
+                  showLedgerPopup: W,
+                  onReviewTransaction: Y,
+                  isLoading: K,
+                  error: q,
+                  setAmount: X,
+                  recommendedGasLimit: Q,
+                  userPreferredGasLimit: ee,
+                  setUserPreferredGasLimit: ea,
+                  gasOption: et,
+                  setGasOption: el,
+                  userPreferredGasPrice: en,
+                  setFeeDenom: es,
+                  customFee: eo,
+                  feeDenom: ei,
+                  ledgerError: er,
+                  setLedgerError: ed
+                } = (0, s.$l7)(R, "CLAIM_REWARDS", o, void 0, void 0, void 0, void 0, void 0, U, O, G),
+                [ec, eu] = (0, j.useState)(!1),
+                [em, ex] = (0, j.useState)(null),
+                [ev, ef] = (0, j.useState)({ option: et, gasPrice: en ?? J.gasPrice });
               (0, N.s0)();
-              let ev = (0, S.U)();
-              (0, h.X)(K),
+              let eh = (0, _.U)();
+              (0, h.X)(q),
                 (0, j.useEffect)(() => {
-                  q((null == z ? void 0 : z.totalRewards) ?? "0");
-                }, [null == z ? void 0 : z.totalRewards]);
-              let eh = (0, j.useMemo)(() => {
-                  if (z) {
+                  X((null == V ? void 0 : V.totalRewards) ?? "0");
+                }, [null == V ? void 0 : V.totalRewards]);
+              let eg = (0, j.useMemo)(() => {
+                  if (V) {
                     var e;
                     let a =
-                        null === (e = z.rewards) || void 0 === e
+                        null === (e = V.rewards) || void 0 === e
                           ? void 0
                           : e
                               .flatMap(e => e.amount)
                               .reduce((e, a) => ((e[a.denom] = e[a.denom] ? new (i())(e[a.denom]).plus(new (i())(a.amount)) : new (i())(a.amount)), e), {}),
                       t = Object.keys(a ?? {}).length;
-                    return k.J.formatHideBalance(`${z.formattedTotalRewards} ${t > 1 ? `+${t - 1} more` : ""}`);
+                    return k.J.formatHideBalance(`${V.formattedTotalRewards} ${t > 1 ? `+${t - 1} more` : ""}`);
                   }
-                }, [z]),
-                eg = (0, j.useCallback)(
+                }, [V]),
+                ep = (0, j.useCallback)(
                   (e, a) => {
-                    ef(e), en(a.denom), e.option && et(e.option);
+                    ef(e), es(a.denom), e.option && el(e.option);
                   },
-                  [en, et]
+                  [es, el]
                 ),
-                ep = (0, j.useCallback)(() => {
-                  ec(!1);
-                }, []),
                 ew = (0, j.useCallback)(() => {
-                  B("CLAIM_REWARDS"), l();
-                }, [l, B]),
-                eb = (0, j.useCallback)(async () => {
+                  eu(!1);
+                }, []),
+                eb = (0, j.useCallback)(() => {
+                  Z("CLAIM_REWARDS"), l();
+                }, [l, Z]),
+                ej = (0, j.useCallback)(async () => {
                   try {
-                    let e = await G(O);
-                    W(e, ew, !1, { stdFee: es, feeDenom: eo });
+                    let e = await I(O);
+                    Y(e, eb, !1, { stdFee: eo, feeDenom: ei });
                   } catch (e) {
-                    er(e.message),
+                    ed(e.message),
                       setTimeout(() => {
-                        er("");
-                      }, 6e3);
+                        ed("");
+                      }, 6e3),
+                      (0, C.Tb)(e, {
+                        tags: {
+                          errorType: "stake_v2_transaction_error",
+                          source: "stake_v2_review_claim_lava_tx",
+                          severity: "error",
+                          errorName: e instanceof Error ? e.name : "StakeV2TransactionError"
+                        },
+                        fingerprint: ["stake_v2_review_claim_lava_tx", "stake_v2_review_claim_lava_tx_error"],
+                        level: "error",
+                        contexts: { transaction: { type: "stake_v2_review_claim_lava_tx", errorMessage: e instanceof Error ? e.message : String(e) } },
+                        extra: { chain: O, feeDenom: ei, customFee: eo }
+                      });
                   }
-                }, [O, es, eo, G, W, er, ew]);
-              (0, f.U)(ei || K);
-              let ej = (0, j.useMemo)(() => (0, A.h)(ei), [ei]),
-                eN = (0, j.useCallback)(async () => {
-                  if (ej) {
-                    ev();
+                }, [O, eo, ei, I, Y, ed, eb]);
+              (0, v.U)(er || q);
+              let eN = (0, j.useMemo)(() => (0, E.h)(er), [er]),
+                ek = (0, j.useCallback)(async () => {
+                  if (eN) {
+                    eh();
                     return;
                   }
-                  eb();
-                }, [ej, eb, ev]);
+                  ej();
+                }, [eN, ej, eh]);
               return (0, n.jsxs)(r.ZP, {
-                recommendedGasLimit: X,
-                gasLimit: (null == Q ? void 0 : Q.toString()) ?? X,
-                setGasLimit: e => ee(Number(e.toString())),
-                gasPriceOption: ex,
-                onGasPriceOptionChange: eg,
-                error: eu,
+                recommendedGasLimit: Q,
+                gasLimit: (null == ee ? void 0 : ee.toString()) ?? Q,
+                setGasLimit: e => ea(Number(e.toString())),
+                gasPriceOption: ev,
+                onGasPriceOptionChange: ep,
+                error: em,
                 chain: O,
-                network: P,
-                setError: em,
+                network: G,
+                setError: ex,
                 rootDenomsStore: g,
                 rootBalanceStore: b,
                 children: [
                   (0, n.jsxs)(m.Z, {
                     isOpen: t,
                     onClose: l,
-                    title: _.PV.CLAIM_REWARDS,
+                    title: T.PV.CLAIM_REWARDS,
                     className: "p-6 mt-4",
                     children: [
                       (0, n.jsxs)("div", {
                         className: "flex flex-col items-center w-full gap-y-4",
                         children: [
-                          (0, n.jsx)(E.Z, {
-                            title: k.J.formatHideBalance(J(new (i())((null == z ? void 0 : z.totalRewardsDollarAmt) ?? "0"))),
-                            subText: eh,
-                            imgSrc: H.icon
+                          (0, n.jsx)(A.Z, {
+                            title: k.J.formatHideBalance(H(new (i())((null == V ? void 0 : V.totalRewardsDollarAmt) ?? "0"))),
+                            subText: eg,
+                            imgSrc: z.icon
                           }),
-                          (0, n.jsx)(E.Z, {
+                          (0, n.jsx)(A.Z, {
                             title:
-                              V &&
+                              U &&
                               (0, s.MDB)(
-                                null === (a = V[0]) || void 0 === a ? void 0 : a.moniker,
+                                null === (a = U[0]) || void 0 === a ? void 0 : a.moniker,
                                 (0, y.oj)() ? 2 + Math.floor(((Math.min(window.innerWidth, 400) - 320) / 81) * 7) : 10,
                                 3
                               ),
-                            subText: V && (V.length > 1 ? `+${V.length - 1} more providers` : ""),
+                            subText: U && (U.length > 1 ? `+${U.length - 1} more providers` : ""),
                             imgSrc: p.r.Misc.Validator
                           })
                         ]
@@ -3970,24 +4034,24 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                         className: "flex items-center w-full justify-between mt-5 mb-7",
                         children: [
                           (0, n.jsx)("span", { className: "text-sm text-muted-foreground font-medium", children: "Fees" }),
-                          (0, n.jsx)(d.a, { setShowFeesSettingSheet: ec })
+                          (0, n.jsx)(d.a, { setShowFeesSettingSheet: eu })
                         ]
                       }),
                       (0, n.jsxs)("div", {
                         className: "flex flex-col items-center w-full gap-y-2",
                         children: [
-                          !ej && ei && (0, n.jsx)("p", { className: "text-sm font-bold text-destructive-100 px-2", children: ei }),
-                          ej && (0, n.jsx)(C.u, {}),
-                          K && (0, n.jsx)("p", { className: "text-sm font-bold text-destructive-100 px-2", children: K }),
-                          eu && !ed && (0, n.jsx)("p", { className: "text-sm font-bold text-destructive-100 px-2", children: eu }),
+                          !eN && er && (0, n.jsx)("p", { className: "text-sm font-bold text-destructive-100 px-2", children: er }),
+                          eN && (0, n.jsx)(S.u, {}),
+                          q && (0, n.jsx)("p", { className: "text-sm font-bold text-destructive-100 px-2", children: q }),
+                          em && !ec && (0, n.jsx)("p", { className: "text-sm font-bold text-destructive-100 px-2", children: em }),
                           (0, n.jsx)(x.zx, {
                             className: "w-full",
-                            disabled: Y || !!K || !!eu || U || (!ej && !!ei),
-                            onClick: eN,
+                            disabled: K || !!q || !!em || W || (!eN && !!er),
+                            onClick: ek,
                             "aria-label": "claim rewards button in stake v2 flow",
-                            children: ej
+                            children: eN
                               ? "Connect Ledger"
-                              : Y
+                              : K
                                 ? (0, n.jsx)(M(), {
                                     loop: !0,
                                     autoplay: !0,
@@ -4001,8 +4065,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                       })
                     ]
                   }),
-                  (0, n.jsx)(u.Z, { showLedgerPopup: U }),
-                  (0, n.jsx)(c.k, { showFeesSettingSheet: ed, onClose: ep, gasError: eu })
+                  (0, n.jsx)(u.Z, { showLedgerPopup: W }),
+                  (0, n.jsx)(c.k, { showFeesSettingSheet: ec, onClose: ew, gasError: em })
                 ]
               });
             });
@@ -4015,7 +4079,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
     92006: function (e, a, t) {
       t.a(e, async function (e, l) {
         try {
-          t.d(a, { w: () => f });
+          t.d(a, { w: () => v });
           var n = t(52322),
             s = t(43166),
             o = t(22764),
@@ -4027,11 +4091,11 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             m = t(10289),
             x = e([c]);
           c = (x.then ? (await x)() : x)[0];
-          let f = e => {
+          let v = e => {
             let { disableWalletButton: a, setShowSearchInput: t, onBackClick: l } = e,
               x = (0, m.s0)(),
-              f = (0, d.v)(),
-              [v, h] = (0, u.useState)(!1);
+              v = (0, d.v)(),
+              [f, h] = (0, u.useState)(!1);
             return (0, n.jsxs)(n.Fragment, {
               children: [
                 (0, n.jsxs)(r.m, {
@@ -4048,8 +4112,8 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                       showDropdown: !0,
                       showWalletAvatar: !0,
                       className: "absolute top-1/2 right-1/2 translate-x-1/2 -translate-y-1/2",
-                      walletName: f.walletName,
-                      walletAvatar: f.walletAvatar,
+                      walletName: v.walletName,
+                      walletAvatar: v.walletAvatar,
                       handleDropdownClick: () => h(!a)
                     }),
                     t &&
@@ -4061,7 +4125,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                       })
                   ]
                 }),
-                (0, n.jsx)(c.Z, { isVisible: v, onClose: () => h(!1), title: "Your Wallets" })
+                (0, n.jsx)(c.Z, { isVisible: f, onClose: () => h(!1), title: "Your Wallets" })
               ]
             });
           };

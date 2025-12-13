@@ -4,12 +4,12 @@
       t = new e.Error().stack;
     t &&
       ((e._sentryDebugIds = e._sentryDebugIds || {}),
-      (e._sentryDebugIds[t] = "3c03b7d3-1a4e-495d-9bce-204537bbfb6b"),
-      (e._sentryDebugIdIdentifier = "sentry-dbid-3c03b7d3-1a4e-495d-9bce-204537bbfb6b"));
+      (e._sentryDebugIds[t] = "b9a5edc4-7406-430b-b71a-1051a6287681"),
+      (e._sentryDebugIdIdentifier = "sentry-dbid-b9a5edc4-7406-430b-b71a-1051a6287681"));
   } catch (e) {}
 })();
 var _global = "undefined" != typeof window ? window : "undefined" != typeof global ? global : "undefined" != typeof self ? self : {};
-_global.SENTRY_RELEASE = { id: "0.22.9" };
+_global.SENTRY_RELEASE = { id: "0.23.1" };
 ("use strict");
 (self.webpackChunk_leap_cosmos_extension = self.webpackChunk_leap_cosmos_extension || []).push([
   ["6962"],
@@ -20,62 +20,62 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           a.r(t), a.d(t, { default: () => w });
           var s = a(52322),
             i = a(41172),
-            l = a(84166),
-            o = a(49183),
-            r = a(74703),
-            d = a(53108),
-            c = a(72059),
+            r = a(84166),
+            l = a(49183),
+            o = a(74703),
+            c = a(53108),
+            d = a(72059),
             u = a(2784),
-            x = a(10289),
-            p = a(42799),
+            p = a(10289),
+            x = a(42799),
             g = a(48346),
             m = a(72565),
             b = a.n(m),
             f = a(35198),
             h = a(66675),
-            y = e([g, c, f]);
-          [g, c, f] = y.then ? (await y)() : y;
+            y = e([g, d, f]);
+          [g, d, f] = y.then ? (await y)() : y;
           let w = (e => {
             let t = () => {
               let t = (0, i.a74)(),
-                a = (0, c.N8)(),
-                [n, l] = (0, u.useState)(!1),
-                [d, x] = (0, u.useState)(null);
+                a = (0, d.N8)(),
+                [n, r] = (0, u.useState)(!1),
+                [c, p] = (0, u.useState)(null);
               (0, u.useEffect)(() => {
                 !(async function () {
-                  (0, o.mq)(t) || (await a("bitcoin")), l(!0);
+                  (0, l.mq)(t) || (await a("bitcoin")), r(!0);
                 })();
               }, [t]);
-              let p = (0, u.useCallback)(async (e, t) => {
-                if (t.id === b().runtime.id && e.type === r.u.signTransaction) {
+              let x = (0, u.useCallback)(async (e, t) => {
+                if (t.id === b().runtime.id && e.type === o.u.signTransaction) {
                   let t = e.payload;
-                  x(t);
+                  p(t);
                 }
               }, []);
               return ((0, u.useEffect)(() => {
                 if (n)
                   return (
-                    b().runtime.sendMessage({ type: r.u.signingPopupOpen }),
-                    b().runtime.onMessage.addListener(p),
+                    b().runtime.sendMessage({ type: o.u.signingPopupOpen }),
+                    b().runtime.onMessage.addListener(x),
                     () => {
-                      b().runtime.onMessage.removeListener(p);
+                      b().runtime.onMessage.removeListener(x);
                     }
                   );
-              }, [n, p]),
-              d)
-                ? (0, s.jsx)(e, { txnData: d })
+              }, [n, x]),
+              c)
+                ? (0, s.jsx)(e, { txnData: c })
                 : (0, s.jsx)(f.gb, {});
             };
             return (t.displayName = `withBitcoinTxnSigningRequest(${e.displayName})`), t;
           })(
             u.memo(function (e) {
               let { txnData: t } = e,
-                a = (0, x.s0)();
+                a = (0, p.s0)();
               switch (
                 ((0, u.useEffect)(
                   () => (
                     window.addEventListener("beforeunload", () => (0, h.B)(a, null == t ? void 0 : t.payloadId)),
-                    b().storage.local.remove(d.u1),
+                    b().storage.local.remove(c.u1),
                     () => {
                       window.removeEventListener("beforeunload", () => (0, h.B)(a, null == t ? void 0 : t.payloadId));
                     }
@@ -84,13 +84,13 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 ),
                 t.signTxnData.methodType)
               ) {
-                case l.z3.SEND_BITCOIN:
-                  return (0, s.jsx)(f.$g, { txnData: t, rootDenomsStore: p.gb, rootBalanceStore: g.jZ });
-                case l.z3.SIGN_PSBT:
-                  return (0, s.jsx)(f.v5, { txnData: t, rootDenomsStore: p.gb });
-                case l.z3.SIGN_PSBTS:
-                  return (0, s.jsx)(f.nG, { txnData: t, rootDenomsStore: p.gb });
-                case l.z3.SIGN_MESSAGE:
+                case r.z3.SEND_BITCOIN:
+                  return (0, s.jsx)(f.$g, { txnData: t, rootDenomsStore: x.gb, rootBalanceStore: g.jZ });
+                case r.z3.SIGN_PSBT:
+                  return (0, s.jsx)(f.v5, { txnData: t, rootDenomsStore: x.gb });
+                case r.z3.SIGN_PSBTS:
+                  return (0, s.jsx)(f.nG, { txnData: t, rootDenomsStore: x.gb });
+                case r.z3.SIGN_MESSAGE:
                   return (0, s.jsx)(f.Qi, { txnData: t });
                 default:
                   return null;
@@ -115,17 +115,17 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
     49597: function (e, t, a) {
       a.a(e, async function (e, n) {
         try {
-          a.d(t, { $: () => _ });
+          a.d(t, { $: () => I });
           var s = a(52322),
             i = a(56594),
-            l = a(41172),
-            o = a(15969),
-            r = a(92642),
-            d = a(71696),
-            c = a.n(d),
+            r = a(41172),
+            l = a(15969),
+            o = a(92642),
+            c = a(71696),
+            d = a.n(c),
             u = a(79215),
-            x = a(86200),
-            p = a(58885),
+            p = a(86200),
+            x = a(58885),
             g = a(19623),
             m = a(91486),
             b = a(74703),
@@ -133,77 +133,77 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             h = a(72059),
             y = a(78935),
             w = a(65027),
-            j = a(75958),
-            v = a(2784),
+            v = a(75958),
+            j = a(2784),
             N = a(10289),
             S = a(48534),
-            D = a(72565),
-            k = a.n(D),
-            T = a(66675),
-            I = a(51426),
-            E = e([w, h, p, I]);
-          [w, h, p, I] = E.then ? (await E)() : E;
+            T = a(72565),
+            D = a.n(T),
+            k = a(66675),
+            _ = a(51426),
+            E = e([w, h, x, _]);
+          [w, h, x, _] = E.then ? (await E)() : E;
           let B = w.w.useGetWallet,
-            _ = (0, j.Pi)(e => {
+            I = (0, v.Pi)(e => {
               let { txnData: t, rootDenomsStore: a, rootBalanceStore: n } = e,
-                d = B(),
-                w = (0, l.FmJ)(),
-                j = (0, N.s0)(),
-                D = (0, h.a7)(),
-                E = (0, l.rTu)();
-              c()(null !== E, "activeWallet is null");
-              let _ = (0, l.SFn)(),
-                G = null == t ? void 0 : t.origin,
-                C = (0, y.G)(G),
-                L = (0, f.a1)(),
-                { rpcUrl: A } = (0, l.U9i)(D),
-                [M, P] = (0, v.useState)(""),
-                $ = (0, l.dco)(),
-                R = (0, l._ty)(D),
-                z = (0, v.useMemo)(() => {
+                c = B(),
+                w = (0, r.FmJ)(),
+                v = (0, N.s0)(),
+                T = (0, h.a7)(),
+                E = (0, r.rTu)();
+              d()(null !== E, "activeWallet is null");
+              let I = (0, r.SFn)(),
+                C = null == t ? void 0 : t.origin,
+                G = (0, y.G)(C),
+                M = (0, f.a1)(),
+                { rpcUrl: L } = (0, r.U9i)(T),
+                [A, P] = (0, j.useState)(""),
+                $ = (0, r.dco)(),
+                R = (0, r._ty)(T),
+                z = (0, j.useMemo)(() => {
                   var e;
-                  return parseInt((((null === (e = $[D]) || void 0 === e ? void 0 : e.DEFAULT_GAS_IBC) ?? o.N7W.DEFAULT_GAS_IBC) * R).toString());
-                }, [D, $, R]),
-                [H, O] = (0, v.useState)(z),
-                [W, F] = (0, v.useState)(null),
-                Q = (0, p.e7)(a.allDenoms, { activeChain: D }),
-                [U, Z] = (0, v.useState)({ gasPrice: Q.gasPrice, option: l.j1p.LOW }),
-                [J, q] = (0, v.useState)("idle"),
-                [K, X] = (0, v.useState)(null),
-                [V, Y] = (0, v.useState)(!1),
-                ee = l.rNU.useLogCosmosDappTx(),
-                et = (0, v.useMemo)(() => {
-                  let e = M ?? H;
+                  return parseInt((((null === (e = $[T]) || void 0 === e ? void 0 : e.DEFAULT_GAS_IBC) ?? l.N7W.DEFAULT_GAS_IBC) * R).toString());
+                }, [T, $, R]),
+                [H, O] = (0, j.useState)(z),
+                [W, F] = (0, j.useState)(null),
+                Q = (0, x.e7)(a.allDenoms, { activeChain: T }),
+                [U, Z] = (0, j.useState)({ gasPrice: Q.gasPrice, option: r.j1p.LOW }),
+                [J, q] = (0, j.useState)("idle"),
+                [K, X] = (0, j.useState)(null),
+                [V, Y] = (0, j.useState)(!1),
+                ee = r.rNU.useLogCosmosDappTx(),
+                et = (0, j.useMemo)(() => {
+                  let e = A ?? H;
                   if (U.gasPrice) return (0, i.calculateFee)(Math.ceil(Number(e)), U.gasPrice);
-                }, [M, H, U.gasPrice]);
-              (0, v.useEffect)(() => {
+                }, [A, H, U.gasPrice]);
+              (0, j.useEffect)(() => {
                 !(async function () {
-                  if (A) {
+                  if (L) {
                     Y(!0);
-                    let e = await (0, o.ZrD)(_, A),
-                      t = (0, o.XWe)(e.length, 2, "p2wpkh");
+                    let e = await (0, l.ZrD)(I, L),
+                      t = (0, l.XWe)(e.length, 2, "p2wpkh");
                     O(t), Y(!1);
                   }
                 })();
-              }, [_, A]);
-              let ea = (0, v.useCallback)(() => {
+              }, [I, L]);
+              let ea = (0, j.useCallback)(() => {
                   setTimeout(() => {
-                    n.refetchBalances(D);
+                    n.refetchBalances(T);
                   }, 3e3);
-                }, [D, n]),
+                }, [T, n]),
                 en = async () => {
                   try {
-                    if (E.walletType === l._KQ.LEDGER) throw Error("Ledger transactions are not supported yet");
+                    if (E.walletType === r._KQ.LEDGER) throw Error("Ledger transactions are not supported yet");
                     if (et) {
                       X(null), q("loading");
-                      let e = await d(D),
-                        a = "bitcoin" === D ? "mainnet" : "testnet",
-                        n = new o.DwL(a, e, A),
+                      let e = await c(T),
+                        a = "bitcoin" === T ? "mainnet" : "testnet",
+                        n = new l.DwL(a, e, L),
                         s = parseInt(et.amount[0].amount) / parseInt(et.gas),
                         i = e.getAccounts();
                       if (!i[0].pubkey) throw Error("No public key found");
-                      let c = await n.createTransaction({
-                        sourceAddress: _,
+                      let d = await n.createTransaction({
+                        sourceAddress: I,
                         addressType: "p2wpkh",
                         destinationAddress: t.signTxnData.to,
                         amount: Number(t.signTxnData.amount),
@@ -212,31 +212,44 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                       });
                       try {
                         await ee({
-                          txHash: c.txHex,
-                          txType: l.pb0.Dapp,
-                          metadata: { ...w, dapp_url: G ?? origin },
+                          txHash: d.txHex,
+                          txType: r.pb0.Dapp,
+                          metadata: { ...w, dapp_url: C ?? origin },
                           feeQuantity: et.amount[0].amount,
                           feeDenomination: et.amount[0].denom,
-                          address: _,
-                          chain: D
+                          address: I,
+                          chain: T
                         });
                       } catch (e) {
-                        (0, r.Tb)(e, { extra: { extra_info: "Bitcoin dApp sendBitcoin Error -- txPostToDB: " } });
+                        (0, o.Tb)(e, { extra: { extra_info: "Bitcoin dApp sendBitcoin Error -- txPostToDB: " } });
                       }
                       q("success");
                       try {
-                        k().runtime.sendMessage({
+                        D().runtime.sendMessage({
                           type: b.u.signBitcoinResponse,
                           payloadId: null == t ? void 0 : t.payloadId,
-                          payload: { status: "success", data: c.txId }
+                          payload: { status: "success", data: d.txId }
                         });
                       } catch {
                         throw Error("Could not send transaction to the dApp");
                       }
-                      (0, S.oj)() ? (ea(), j("/home")) : window.close();
+                      (0, S.oj)() ? (ea(), v("/home")) : window.close();
                     }
                   } catch (e) {
-                    q("error"), X(e.message);
+                    q("error"),
+                      X(e.message),
+                      (0, o.Tb)(e, {
+                        tags: {
+                          errorType: "bitcoin_transaction_error",
+                          source: "send_bitcoin",
+                          severity: "error",
+                          errorName: e instanceof Error ? e.name : "BitcoinTransactionError"
+                        },
+                        fingerprint: ["send_bitcoin", "send_bitcoin_error"],
+                        level: "error",
+                        contexts: { transaction: { type: "send_bitcoin", errorMessage: e instanceof Error ? e.message : String(e) } },
+                        extra: { chain: T, address: I, amount: t.signTxnData.amount, fee: et, memo: t.signTxnData.memo }
+                      });
                   }
                 },
                 es = !!K || "loading" === J || !!W || V;
@@ -245,13 +258,13 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 children: [
                   (0, s.jsxs)(u.og, {
                     className: "bg-secondary-50",
-                    subTitle: G || "Unknown site",
-                    logo: C || L,
+                    subTitle: C || "Unknown site",
+                    logo: G || M,
                     title: "Approve transaction",
                     children: [
-                      (0, s.jsx)(p.ZP, {
+                      (0, s.jsx)(x.ZP, {
                         className: "flex flex-col gap-6",
-                        gasLimit: M || (null == H ? void 0 : H.toString()),
+                        gasLimit: A || (null == H ? void 0 : H.toString()),
                         setGasLimit: e => P(e.toString()),
                         recommendedGasLimit: null == H ? void 0 : H.toString(),
                         gasPriceOption: U,
@@ -259,13 +272,13 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                         error: W,
                         setError: F,
                         considerGasAdjustment: !1,
-                        chain: D,
+                        chain: T,
                         isSeiEvmTransaction: !0,
                         rootBalanceStore: n,
                         rootDenomsStore: a,
-                        children: (0, s.jsx)(I.t, { gasPriceError: W, txData: t.signTxnData.details })
+                        children: (0, s.jsx)(_.t, { gasPriceError: W, txData: t.signTxnData.details })
                       }),
-                      K && "error" === J ? (0, s.jsx)(x._, { text: K }) : null
+                      K && "error" === J ? (0, s.jsx)(p._, { text: K, disableSentryCapture: !0 }) : null
                     ]
                   }),
                   (0, s.jsxs)("div", {
@@ -273,7 +286,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     children: [
                       (0, s.jsx)(m.zx, {
                         variant: "mono",
-                        onClick: () => (0, T.B)(j, null == t ? void 0 : t.payloadId),
+                        onClick: () => (0, k.B)(v, null == t ? void 0 : t.payloadId),
                         disabled: "loading" === J,
                         "aria-label": "sign bitcoin dapp reject button in sign bitcoin send bitcoin flow",
                         children: (0, s.jsx)("span", {
@@ -308,82 +321,96 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
     94989: function (e, t, a) {
       a.a(e, async function (e, n) {
         try {
-          a.d(t, { Q: () => T });
+          a.d(t, { Q: () => _ });
           var s = a(52322),
             i = a(41172),
-            l = a(15969),
+            r = a(15969),
+            l = a(92642),
             o = a(71696),
-            r = a.n(o),
+            c = a.n(o),
             d = a(79215),
-            c = a(86200),
-            u = a(19623),
+            u = a(86200),
+            p = a(19623),
             x = a(91486),
-            p = a(74703),
-            g = a(4370),
-            m = a(74229),
-            b = a(78935),
-            f = a(65027),
-            h = a(2784),
-            y = a(10289),
-            w = a(48534),
+            g = a(74703),
+            m = a(4370),
+            b = a(74229),
+            f = a(78935),
+            h = a(65027),
+            y = a(2784),
+            w = a(10289),
+            v = a(48534),
             j = a(46338),
-            v = a(43963),
-            N = a(72565),
-            S = a.n(N),
+            N = a(43963),
+            S = a(72565),
+            T = a.n(S),
             D = a(66675),
-            k = e([f]);
-          let I = (f = (k.then ? (await k)() : k)[0]).w.useGetWallet;
-          function T(e) {
+            k = e([h]);
+          let E = (h = (k.then ? (await k)() : k)[0]).w.useGetWallet;
+          function _(e) {
             let { txnData: t } = e,
-              a = I(),
-              n = (0, y.s0)(),
+              a = E(),
+              n = (0, w.s0)(),
               o = (0, i.a74)(),
-              f = (0, i.rTu)();
-            r()(null !== f, "activeWallet is null");
-            let N = null == t ? void 0 : t.origin,
-              k = (0, b.G)(N),
-              T = (0, m.a1)(),
-              [E, B] = (0, h.useState)("idle"),
-              [_, G] = (0, h.useState)(null),
-              C = async () => {
+              h = (0, i.rTu)();
+            c()(null !== h, "activeWallet is null");
+            let S = null == t ? void 0 : t.origin,
+              k = (0, f.G)(S),
+              _ = (0, b.a1)(),
+              [B, I] = (0, y.useState)("idle"),
+              [C, G] = (0, y.useState)(null),
+              M = async () => {
                 try {
-                  if (f.walletType === i._KQ.LEDGER) throw Error("Ledger transactions are not supported yet");
-                  G(null), B("loading");
+                  if (h.walletType === i._KQ.LEDGER) throw Error("Ledger transactions are not supported yet");
+                  G(null), I("loading");
                   let e = await a(o),
                     s = "";
-                  "bip322-simple" === t.signTxnData.type && (s = l.DwL.SignBIP322SimpleMessage(t.signTxnData.message, e)),
-                    "ecdsa" === t.signTxnData.type && (s = await l.DwL.SignECDSA(t.signTxnData.message, e));
+                  "bip322-simple" === t.signTxnData.type && (s = r.DwL.SignBIP322SimpleMessage(t.signTxnData.message, e)),
+                    "ecdsa" === t.signTxnData.type && (s = await r.DwL.SignECDSA(t.signTxnData.message, e));
                   try {
-                    S().runtime.sendMessage({
-                      type: p.u.signBitcoinResponse,
+                    T().runtime.sendMessage({
+                      type: g.u.signBitcoinResponse,
                       payloadId: null == t ? void 0 : t.payloadId,
                       payload: { status: "success", data: s }
                     });
                   } catch {
                     throw Error("Could not send transaction to the dApp");
                   }
-                  (0, w.oj)() ? n("/home") : window.close();
+                  (0, v.oj)() ? n("/home") : window.close();
                 } catch (e) {
-                  B("error"), G(e.message);
+                  I("error"),
+                    G(e.message),
+                    (0, l.Tb)(e, {
+                      tags: {
+                        errorType: "bitcoin_transaction_error",
+                        source: "sign_message",
+                        severity: "error",
+                        errorName: e instanceof Error ? e.name : "BitcoinTransactionError"
+                      },
+                      fingerprint: ["sign_message", "sign_message_error"],
+                      level: "error",
+                      contexts: { transaction: { type: "sign_message", errorMessage: e instanceof Error ? e.message : String(e) } },
+                      extra: { chain: o, message: t.signTxnData.message }
+                    });
                 }
               },
-              L = !!_ || "loading" === E;
+              L = !!C || "loading" === B;
             return (0, s.jsxs)("div", {
               className: "h-full",
               children: [
                 (0, s.jsxs)(d.og, {
                   className: "bg-secondary-50",
                   title: "Signature request",
-                  subTitle: N || "Unknown site",
-                  logo: k || T,
+                  subTitle: S || "Unknown site",
+                  logo: k || _,
                   children: [
                     (0, s.jsxs)("div", {
                       className: "flex flex-col gap-3 p-4 rounded-xl border border-secondary-200 bg-secondary-50",
                       children: [
                         (0, s.jsx)("span", { className: "text-muted-foreground text-xs font-medium", children: "Data" }),
-                        (0, s.jsx)(g.E.pre, {
+                        (0, s.jsx)(m.E.pre, {
                           transition: j._M,
-                          variants: v.dJ,
+                          variants: N.dJ,
                           initial: "enter",
                           animate: "animate",
                           exit: "enter",
@@ -395,7 +422,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                         })
                       ]
                     }),
-                    _ && "error" === E ? (0, s.jsx)(c._, { text: _, className: "mt-3" }) : null
+                    C && "error" === B ? (0, s.jsx)(u._, { text: C, disableSentryCapture: !0, className: "mt-3" }) : null
                   ]
                 }),
                 (0, s.jsxs)("div", {
@@ -404,18 +431,18 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     (0, s.jsx)(x.zx, {
                       variant: "mono",
                       onClick: () => (0, D.B)(n, null == t ? void 0 : t.payloadId),
-                      disabled: "loading" === E,
+                      disabled: "loading" === B,
                       "aria-label": "sign bitcoin dapp reject button in sign bitcoin message flow",
                       children: (0, s.jsx)("span", { "aria-label": "sign bitcoin dapp reject button text in sign bitcoin message flow", children: "Reject" })
                     }),
                     (0, s.jsx)(x.zx, {
-                      onClick: C,
+                      onClick: M,
                       disabled: L,
                       className: `${L ? "cursor-not-allowed opacity-50" : ""}`,
                       "aria-label": "sign bitcoin dapp approve button in sign bitcoin message flow",
                       children:
-                        "loading" === E
-                          ? (0, s.jsx)(u.T, { color: "white" })
+                        "loading" === B
+                          ? (0, s.jsx)(p.T, { color: "white" })
                           : (0, s.jsx)("span", { "aria-label": "sign bitcoin dapp approve button text in sign bitcoin message flow", children: "Sign" })
                     })
                   ]
@@ -432,159 +459,173 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
     56249: function (e, t, a) {
       a.a(e, async function (e, n) {
         try {
-          a.d(t, { v: () => M });
+          a.d(t, { v: () => P });
           var s = a(52322),
             i = a(41172),
-            l = a(15969),
-            o = a(75377),
-            r = a(8974),
-            d = a(76354),
-            c = a(71696),
-            u = a.n(c),
+            r = a(15969),
+            l = a(75377),
+            o = a(8974),
+            c = a(76354),
+            d = a(92642),
+            u = a(71696),
+            p = a.n(u),
             x = a(6391),
-            p = a.n(x),
-            g = a(72779),
-            m = a.n(g),
-            b = a(86200),
-            f = a(78454),
-            h = a(19623),
-            y = a(74703),
-            w = a(78935),
+            g = a.n(x),
+            m = a(72779),
+            b = a.n(m),
+            f = a(86200),
+            h = a(78454),
+            y = a(19623),
+            w = a(74703),
+            v = a(78935),
             j = a(65027),
-            v = a(30464),
-            N = a(75958),
-            S = a(2784),
+            N = a(30464),
+            S = a(75958),
+            T = a(2784),
             D = a(10289),
             k = a(46103),
-            T = a(32374),
-            I = a(49409),
-            E = a(48534),
-            B = a(71198),
-            _ = a(72565),
-            G = a.n(_),
-            C = a(66675),
-            L = e([j, f]);
-          [j, f] = L.then ? (await L)() : L;
+            _ = a(32374),
+            E = a(49409),
+            B = a(48534),
+            I = a(71198),
+            C = a(72565),
+            G = a.n(C),
+            M = a(66675),
+            L = e([j, h]);
+          [j, h] = L.then ? (await L)() : L;
           let A = j.w.useGetWallet,
-            M = (0, N.Pi)(e => {
-              var t, a, n, c, x;
-              let { txnData: g, rootDenomsStore: j, isRedirected: N, handleBack: _ } = e,
+            P = (0, S.Pi)(e => {
+              var t, a, n, u, x;
+              let { txnData: m, rootDenomsStore: j, isRedirected: S, handleBack: C } = e,
                 L = A(),
-                M = (0, D.s0)(),
-                P = (0, i.a74)(),
-                $ = (0, i.QSC)(P),
-                R = (0, i.rTu)();
-              u()(null !== R, "activeWallet is null");
-              let z = (0, S.useMemo)(() => (0, T.k)(R.name), [R.name]),
-                H = null == g ? void 0 : g.origin,
-                O =
-                  null == H
+                P = (0, D.s0)(),
+                $ = (0, i.a74)(),
+                R = (0, i.QSC)($),
+                z = (0, i.rTu)();
+              p()(null !== z, "activeWallet is null");
+              let H = (0, T.useMemo)(() => (0, _.k)(z.name), [z.name]),
+                O = null == m ? void 0 : m.origin,
+                W =
+                  null == O
                     ? void 0
-                    : null === (n = H.split("//")) || void 0 === n
+                    : null === (n = O.split("//")) || void 0 === n
                       ? void 0
                       : null === (a = n.at(-1)) || void 0 === a
                         ? void 0
                         : null === (t = a.split(".")) || void 0 === t
                           ? void 0
                           : t.at(-2),
-                W = (0, w.G)(H),
-                F = (0, S.useMemo)(() => l.DwL.GetPsbtHexDetails(g.signTxnData.psbtHex, "bitcoinSignet" === P ? d.Pq : d.IB), [P, g.signTxnData.psbtHex]),
-                Q = (0, S.useMemo)(() => j.allDenoms[Object.keys($.nativeDenoms)[0]], [$.nativeDenoms, j.allDenoms]),
-                U = (0, i.SFn)(),
-                [Z, J] = (0, S.useState)("idle"),
-                [q, K] = (0, S.useState)(null),
-                X = async () => {
+                F = (0, v.G)(O),
+                Q = (0, T.useMemo)(() => r.DwL.GetPsbtHexDetails(m.signTxnData.psbtHex, "bitcoinSignet" === $ ? c.Pq : c.IB), [$, m.signTxnData.psbtHex]),
+                U = (0, T.useMemo)(() => j.allDenoms[Object.keys(R.nativeDenoms)[0]], [R.nativeDenoms, j.allDenoms]),
+                Z = (0, i.SFn)(),
+                [J, q] = (0, T.useState)("idle"),
+                [K, X] = (0, T.useState)(null),
+                V = async () => {
                   try {
-                    if (R.walletType === i._KQ.LEDGER) throw Error("Ledger transactions are not supported yet");
-                    let e = g.signTxnData.options,
+                    if (z.walletType === i._KQ.LEDGER) throw Error("Ledger transactions are not supported yet");
+                    let e = m.signTxnData.options,
                       t = !e || !1 != e.autoFinalized;
-                    K(null), J("loading");
-                    let a = await L(P);
+                    X(null), q("loading");
+                    let a = await L($);
                     if (
-                      (F.inputs.forEach((e, t) => {
+                      (Q.inputs.forEach((e, t) => {
                         if (e.tapScriptInfo) {
                           let a = e.tapScriptInfo;
-                          F.tx.updateInput(t, {
+                          Q.tx.updateInput(t, {
                             tapMerkleRoot: a.merklePath,
                             tapScriptSig: a.controlBlock,
                             tapInternalKey: a.internalKey,
                             tapLeafScript: a.scriptTree
                           });
                         }
-                        a.signIdx(U, F.tx, t);
+                        a.signIdx(Z, Q.tx, t);
                       }),
                       t)
                     ) {
-                      for (let e = 0; e < F.inputs.length; e++) F.tx.finalizeIdx(e);
-                      F.tx.extract();
+                      for (let e = 0; e < Q.inputs.length; e++) Q.tx.finalizeIdx(e);
+                      Q.tx.extract();
                     }
-                    let n = r.$v.encode(F.tx.toPSBT());
-                    J("success");
+                    let n = o.$v.encode(Q.tx.toPSBT());
+                    q("success");
                     try {
                       G().runtime.sendMessage({
-                        type: y.u.signBitcoinResponse,
-                        payloadId: null == g ? void 0 : g.payloadId,
+                        type: w.u.signBitcoinResponse,
+                        payloadId: null == m ? void 0 : m.payloadId,
                         payload: { status: "success", data: n }
                       });
                     } catch {
                       throw Error("Could not send transaction to the dApp");
                     }
-                    (0, E.oj)() ? M("/home") : window.close();
+                    (0, B.oj)() ? P("/home") : window.close();
                   } catch (e) {
-                    J("error"), K(e.message);
+                    q("error"),
+                      X(e.message),
+                      (0, d.Tb)(e, {
+                        tags: {
+                          errorType: "bitcoin_transaction_error",
+                          source: "sign_psbt",
+                          severity: "error",
+                          errorName: e instanceof Error ? e.name : "BitcoinTransactionError"
+                        },
+                        fingerprint: ["sign_psbt", "sign_psbt_error"],
+                        level: "error",
+                        contexts: { transaction: { type: "sign_psbt", errorMessage: e instanceof Error ? e.message : String(e) } },
+                        extra: { chain: $ }
+                      });
                   }
                 },
-                V = !!q || "loading" === Z;
+                Y = !!K || "loading" === J;
               return (0, s.jsx)("div", {
-                className: m()("panel-width enclosing-panel h-full relative self-center justify-self-center flex justify-center items-center", {
-                  "mt-2": !(0, E.oj)()
+                className: b()("panel-width enclosing-panel h-full relative self-center justify-self-center flex justify-center items-center", {
+                  "mt-2": !(0, B.oj)()
                 }),
                 children: (0, s.jsx)("div", {
-                  className: m()("relative w-full overflow-clip rounded-md border border-gray-300 dark:border-gray-900", { "panel-height": (0, E.oj)() }),
-                  children: (0, s.jsxs)(f.Z, {
+                  className: b()("relative w-full overflow-clip rounded-md border border-gray-300 dark:border-gray-900", { "panel-height": (0, B.oj)() }),
+                  children: (0, s.jsxs)(h.Z, {
                     header: (0, s.jsx)("div", {
                       className: "w-[396px]",
-                      children: (0, s.jsx)(o.Header, {
-                        action: N ? { type: o.HeaderActionType.BACK, onClick: _ } : void 0,
-                        imgSrc: $.chainSymbolImageUrl ?? v.r.Logos.GenericLight,
-                        title: (0, s.jsx)(o.Buttons.Wallet, { title: (0, B.fy)(z, 10), className: "pr-4 cursor-default" })
+                      children: (0, s.jsx)(l.Header, {
+                        action: S ? { type: l.HeaderActionType.BACK, onClick: C } : void 0,
+                        imgSrc: R.chainSymbolImageUrl ?? N.r.Logos.GenericLight,
+                        title: (0, s.jsx)(l.Buttons.Wallet, { title: (0, I.fy)(H, 10), className: "pr-4 cursor-default" })
                       })
                     }),
                     children: [
                       (0, s.jsxs)("div", {
-                        className: `px-7 py-3 overflow-y-auto relative ${N ? "h-[500px]" : "h-[450px]"}`,
+                        className: `px-7 py-3 overflow-y-auto relative ${S ? "h-[500px]" : "h-[450px]"}`,
                         children: [
                           (0, s.jsx)("h2", {
                             className: "text-center text-lg font-bold dark:text-white-100 text-gray-900 w-full",
-                            children: N ? "Transaction Details" : "Sign Transaction"
+                            children: S ? "Transaction Details" : "Sign Transaction"
                           }),
-                          N
+                          S
                             ? null
                             : (0, s.jsx)("p", {
                                 className: "text-center text-sm dark:text-gray-300 text-gray-500 w-full",
                                 children: "Only sign this transaction if you fully understand the content and trust the requesting site"
                               }),
-                          N
+                          S
                             ? null
                             : (0, s.jsxs)("div", {
                                 className: "flex items-center mt-3 rounded-2xl dark:bg-gray-900 bg-white-100 p-4",
                                 children: [
-                                  (0, s.jsx)(o.Avatar, {
-                                    avatarImage: W,
-                                    avatarOnError: (0, I._)(v.r.Misc.Globe),
+                                  (0, s.jsx)(l.Avatar, {
+                                    avatarImage: F,
+                                    avatarOnError: (0, E._)(N.r.Misc.Globe),
                                     size: "sm",
                                     className: "rounded-full overflow-hidden"
                                   }),
                                   (0, s.jsxs)("div", {
                                     className: "ml-3",
                                     children: [
-                                      (0, s.jsx)("p", { className: "capitalize text-gray-900 dark:text-white-100 text-base font-bold", children: O }),
-                                      (0, s.jsx)("p", { className: "lowercase text-gray-500 dark:text-gray-400 text-xs font-medium", children: H })
+                                      (0, s.jsx)("p", { className: "capitalize text-gray-900 dark:text-white-100 text-base font-bold", children: W }),
+                                      (0, s.jsx)("p", { className: "lowercase text-gray-500 dark:text-gray-400 text-xs font-medium", children: O })
                                     ]
                                   })
                                 ]
                               }),
-                          (null == F ? void 0 : F.txAmount)
+                          (null == Q ? void 0 : Q.txAmount)
                             ? (0, s.jsxs)("p", {
                                 className: "mt-3",
                                 children: [
@@ -592,12 +633,12 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                                   (0, s.jsx)("pre", {
                                     className:
                                       "text-xs text-gray-900 dark:text-white-100 dark:bg-gray-900 bg-white-100 p-4 w-full overflow-x-auto rounded-2xl mt-1",
-                                    children: `${new (p())(Number(F.txAmount)).dividedBy(10 ** (Q.coinDecimals ?? 8)).toNumber()} ${$.denom}`
+                                    children: `${new (g())(Number(Q.txAmount)).dividedBy(10 ** (U.coinDecimals ?? 8)).toNumber()} ${R.denom}`
                                   })
                                 ]
                               })
                             : null,
-                          (null == F ? void 0 : F.fee)
+                          (null == Q ? void 0 : Q.fee)
                             ? (0, s.jsxs)("p", {
                                 className: "mt-3",
                                 children: [
@@ -605,12 +646,12 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                                   (0, s.jsx)("pre", {
                                     className:
                                       "text-xs text-gray-900 dark:text-white-100 dark:bg-gray-900 bg-white-100 p-4 w-full overflow-x-auto rounded-2xl mt-1",
-                                    children: `${new (p())(Number(F.fee)).dividedBy(10 ** (Q.coinDecimals ?? 8)).toNumber()} ${$.denom}`
+                                    children: `${new (g())(Number(Q.fee)).dividedBy(10 ** (U.coinDecimals ?? 8)).toNumber()} ${R.denom}`
                                   })
                                 ]
                               })
                             : null,
-                          (null == F ? void 0 : null === (c = F.inputs) || void 0 === c ? void 0 : c.length)
+                          (null == Q ? void 0 : null === (u = Q.inputs) || void 0 === u ? void 0 : u.length)
                             ? (0, s.jsxs)("p", {
                                 className: "mt-3",
                                 children: [
@@ -619,11 +660,11 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                                     className:
                                       "text-xs text-gray-900 dark:text-white-100 dark:bg-gray-900 bg-white-100 p-4 w-full overflow-x-auto rounded-2xl mt-1",
                                     children: JSON.stringify(
-                                      F.inputs,
+                                      Q.inputs,
                                       (e, t) => {
                                         if ("tapScriptInfo" !== e)
                                           return "bigint" == typeof t
-                                            ? `${new (p())(Number(t)).dividedBy(10 ** (Q.coinDecimals ?? 8)).toNumber()} ${$.denom}`
+                                            ? `${new (g())(Number(t)).dividedBy(10 ** (U.coinDecimals ?? 8)).toNumber()} ${R.denom}`
                                             : t;
                                       },
                                       2
@@ -632,7 +673,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                                 ]
                               })
                             : null,
-                          (null == F ? void 0 : null === (x = F.outputs) || void 0 === x ? void 0 : x.length)
+                          (null == Q ? void 0 : null === (x = Q.outputs) || void 0 === x ? void 0 : x.length)
                             ? (0, s.jsxs)("p", {
                                 className: "mt-3",
                                 children: [
@@ -641,46 +682,46 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                                     className:
                                       "text-xs text-gray-900 dark:text-white-100 dark:bg-gray-900 bg-white-100 p-4 w-full overflow-x-auto rounded-2xl mt-1",
                                     children: JSON.stringify(
-                                      F.outputs,
+                                      Q.outputs,
                                       (e, t) =>
-                                        "bigint" == typeof t ? `${new (p())(Number(t)).dividedBy(10 ** (Q.coinDecimals ?? 8)).toNumber()} ${$.denom}` : t,
+                                        "bigint" == typeof t ? `${new (g())(Number(t)).dividedBy(10 ** (U.coinDecimals ?? 8)).toNumber()} ${R.denom}` : t,
                                       2
                                     )
                                   })
                                 ]
                               })
                             : null,
-                          q && "error" === Z ? (0, s.jsx)(b._, { text: q, className: "mt-3" }) : null
+                          K && "error" === J ? (0, s.jsx)(f._, { text: K, disableSentryCapture: !0, className: "mt-3" }) : null
                         ]
                       }),
-                      N
+                      S
                         ? null
                         : (0, s.jsx)("div", {
                             className: "absolute bottom-0 left-0 py-3 px-7 dark:bg-black-100 bg-gray-50 w-full",
                             children: (0, s.jsxs)("div", {
                               className: "flex items-center justify-center w-full space-x-3",
                               children: [
-                                (0, s.jsx)(o.Buttons.Generic, {
+                                (0, s.jsx)(l.Buttons.Generic, {
                                   title: "Reject Button",
                                   color: k.w.gray900,
-                                  onClick: () => (0, C.B)(M, null == g ? void 0 : g.payloadId),
-                                  disabled: "loading" === Z,
+                                  onClick: () => (0, M.B)(P, null == m ? void 0 : m.payloadId),
+                                  disabled: "loading" === J,
                                   "aria-label": "sign bitcoin dapp reject button in sign bitcoin psbt flow",
                                   children: (0, s.jsx)("span", {
                                     "aria-label": "sign bitcoin dapp reject button text in sign bitcoin psbt flow",
                                     children: "Reject"
                                   })
                                 }),
-                                (0, s.jsx)(o.Buttons.Generic, {
+                                (0, s.jsx)(l.Buttons.Generic, {
                                   title: "Approve Button",
                                   color: k.w.green600,
-                                  onClick: X,
-                                  disabled: V,
-                                  className: `${V ? "cursor-not-allowed opacity-50" : ""}`,
+                                  onClick: V,
+                                  disabled: Y,
+                                  className: `${Y ? "cursor-not-allowed opacity-50" : ""}`,
                                   "aria-label": "sign bitcoin dapp approve button in sign bitcoin psbt flow",
                                   children:
-                                    "loading" === Z
-                                      ? (0, s.jsx)(h.T, { color: "white" })
+                                    "loading" === J
+                                      ? (0, s.jsx)(y.T, { color: "white" })
                                       : (0, s.jsx)("span", {
                                           "aria-label": "sign bitcoin dapp approve button text in sign bitcoin psbt flow",
                                           children: "Sign"
@@ -706,114 +747,128 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           a.d(t, { n: () => A });
           var s = a(52322),
             i = a(41172),
-            l = a(15969),
-            o = a(75377),
-            r = a(8974),
-            d = a(76354),
-            c = a(71696),
-            u = a.n(c),
+            r = a(15969),
+            l = a(75377),
+            o = a(8974),
+            c = a(76354),
+            d = a(92642),
+            u = a(71696),
+            p = a.n(u),
             x = a(72779),
-            p = a.n(x),
-            g = a(86200),
-            m = a(78454),
-            b = a(19623),
-            f = a(74703),
-            h = a(78935),
-            y = a(65027),
-            w = a(30464),
+            g = a.n(x),
+            m = a(86200),
+            b = a(78454),
+            f = a(19623),
+            h = a(74703),
+            y = a(78935),
+            w = a(65027),
+            v = a(30464),
             j = a(75958),
-            v = a(2784),
-            N = a(10289),
-            S = a(46103),
+            N = a(2784),
+            S = a(10289),
+            T = a(46103),
             D = a(32374),
             k = a(49409),
-            T = a(48534),
-            I = a(71198),
-            E = a(72565),
-            B = a.n(E),
-            _ = a(66675),
+            _ = a(48534),
+            E = a(71198),
+            B = a(72565),
+            I = a.n(B),
+            C = a(66675),
             G = a(56249),
-            C = e([y, G, m]);
-          [y, G, m] = C.then ? (await C)() : C;
-          let L = y.w.useGetWallet,
+            M = e([w, G, b]);
+          [w, G, b] = M.then ? (await M)() : M;
+          let L = w.w.useGetWallet,
             A = (0, j.Pi)(e => {
               var t, a, n;
-              let { txnData: c, rootDenomsStore: x } = e,
-                y = L(),
-                j = (0, N.s0)(),
-                E = (0, i.a74)(),
-                C = (0, i.QSC)(E),
+              let { txnData: u, rootDenomsStore: x } = e,
+                w = L(),
+                j = (0, S.s0)(),
+                B = (0, i.a74)(),
+                M = (0, i.QSC)(B),
                 A = (0, i.rTu)();
-              u()(null !== A, "activeWallet is null");
-              let M = (0, v.useMemo)(() => (0, D.k)(A.name), [A.name]),
-                P = null == c ? void 0 : c.origin,
-                $ =
-                  null == P
+              p()(null !== A, "activeWallet is null");
+              let P = (0, N.useMemo)(() => (0, D.k)(A.name), [A.name]),
+                $ = null == u ? void 0 : u.origin,
+                R =
+                  null == $
                     ? void 0
-                    : null === (n = P.split("//")) || void 0 === n
+                    : null === (n = $.split("//")) || void 0 === n
                       ? void 0
                       : null === (a = n.at(-1)) || void 0 === a
                         ? void 0
                         : null === (t = a.split(".")) || void 0 === t
                           ? void 0
                           : t.at(-2),
-                R = (0, h.G)(P),
-                z = (0, v.useMemo)(
-                  () => c.signTxnData.psbtsHexes.map(e => l.DwL.GetPsbtHexDetails(e, "bitcoinSignet" === E ? d.Pq : d.IB)),
-                  [E, c.signTxnData.psbtsHexes]
+                z = (0, y.G)($),
+                H = (0, N.useMemo)(
+                  () => u.signTxnData.psbtsHexes.map(e => r.DwL.GetPsbtHexDetails(e, "bitcoinSignet" === B ? c.Pq : c.IB)),
+                  [B, u.signTxnData.psbtsHexes]
                 ),
-                H = (0, i.SFn)(),
-                [O, W] = (0, v.useState)("idle"),
-                [F, Q] = (0, v.useState)(null),
-                [U, Z] = (0, v.useState)(null),
-                J = async () => {
+                O = (0, i.SFn)(),
+                [W, F] = (0, N.useState)("idle"),
+                [Q, U] = (0, N.useState)(null),
+                [Z, J] = (0, N.useState)(null),
+                q = async () => {
                   try {
                     if (A.walletType === i._KQ.LEDGER) throw Error("Ledger transactions are not supported yet");
-                    Q(null), W("loading");
-                    let e = await y(E),
+                    U(null), F("loading");
+                    let e = await w(B),
                       t = [];
-                    for (let a of z) {
+                    for (let a of H) {
                       a.inputs.forEach((t, n) => {
-                        e.signIdx(H, a.tx, n);
+                        e.signIdx(O, a.tx, n);
                       });
-                      for (let e = 0; e < a.inputs.length; e++) z.tx.finalizeIdx(e);
-                      t.push(r.$v.encode(a.tx.extract()));
+                      for (let e = 0; e < a.inputs.length; e++) H.tx.finalizeIdx(e);
+                      t.push(o.$v.encode(a.tx.extract()));
                     }
-                    W("success");
+                    F("success");
                     try {
-                      B().runtime.sendMessage({
-                        type: f.u.signBitcoinResponse,
-                        payloadId: null == c ? void 0 : c.payloadId,
+                      I().runtime.sendMessage({
+                        type: h.u.signBitcoinResponse,
+                        payloadId: null == u ? void 0 : u.payloadId,
                         payload: { status: "success", data: t }
                       });
                     } catch {
                       throw Error("Could not send transaction to the dApp");
                     }
-                    (0, T.oj)() ? j("/home") : window.close();
+                    (0, _.oj)() ? j("/home") : window.close();
                   } catch (e) {
-                    W("error"), Q(e.message);
+                    F("error"),
+                      U(e.message),
+                      (0, d.Tb)(e, {
+                        tags: {
+                          errorType: "bitcoin_transaction_error",
+                          source: "sign_psbts",
+                          severity: "error",
+                          errorName: e instanceof Error ? e.name : "BitcoinTransactionError"
+                        },
+                        fingerprint: ["sign_psbts", "sign_psbts_error"],
+                        level: "error",
+                        contexts: { transaction: { type: "sign_psbts", errorMessage: e instanceof Error ? e.message : String(e) } },
+                        extra: { chain: B }
+                      });
                   }
                 },
-                q = !!F || "loading" === O;
-              return null !== U
+                K = !!Q || "loading" === W;
+              return null !== Z
                 ? (0, s.jsx)(G.v, {
-                    txnData: { ...c, signTxnData: { psbtHex: c.signTxnData.psbtsHexes[U] } },
+                    txnData: { ...u, signTxnData: { psbtHex: u.signTxnData.psbtsHexes[Z] } },
                     rootDenomsStore: x,
                     isRedirected: !0,
-                    handleBack: () => Z(null)
+                    handleBack: () => J(null)
                   })
                 : (0, s.jsx)("div", {
-                    className: p()("panel-width enclosing-panel h-full relative self-center justify-self-center flex justify-center items-center", {
-                      "mt-2": !(0, T.oj)()
+                    className: g()("panel-width enclosing-panel h-full relative self-center justify-self-center flex justify-center items-center", {
+                      "mt-2": !(0, _.oj)()
                     }),
                     children: (0, s.jsx)("div", {
-                      className: p()("relative w-full overflow-clip rounded-md border border-gray-300 dark:border-gray-900", { "panel-height": (0, T.oj)() }),
-                      children: (0, s.jsxs)(m.Z, {
+                      className: g()("relative w-full overflow-clip rounded-md border border-gray-300 dark:border-gray-900", { "panel-height": (0, _.oj)() }),
+                      children: (0, s.jsxs)(b.Z, {
                         header: (0, s.jsx)("div", {
                           className: "w-[396px]",
-                          children: (0, s.jsx)(o.Header, {
-                            imgSrc: C.chainSymbolImageUrl ?? w.r.Logos.GenericLight,
-                            title: (0, s.jsx)(o.Buttons.Wallet, { title: (0, I.fy)(M, 10), className: "pr-4 cursor-default" })
+                          children: (0, s.jsx)(l.Header, {
+                            imgSrc: M.chainSymbolImageUrl ?? v.r.Logos.GenericLight,
+                            title: (0, s.jsx)(l.Buttons.Wallet, { title: (0, E.fy)(P, 10), className: "pr-4 cursor-default" })
                           })
                         }),
                         children: [
@@ -831,23 +886,23 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                               (0, s.jsxs)("div", {
                                 className: "flex items-center mt-3 rounded-2xl dark:bg-gray-900 bg-white-100 p-4",
                                 children: [
-                                  (0, s.jsx)(o.Avatar, {
-                                    avatarImage: R,
-                                    avatarOnError: (0, k._)(w.r.Misc.Globe),
+                                  (0, s.jsx)(l.Avatar, {
+                                    avatarImage: z,
+                                    avatarOnError: (0, k._)(v.r.Misc.Globe),
                                     size: "sm",
                                     className: "rounded-full overflow-hidden"
                                   }),
                                   (0, s.jsxs)("div", {
                                     className: "ml-3",
                                     children: [
-                                      (0, s.jsx)("p", { className: "capitalize text-gray-900 dark:text-white-100 text-base font-bold", children: $ }),
-                                      (0, s.jsx)("p", { className: "lowercase text-gray-500 dark:text-gray-400 text-xs font-medium", children: P })
+                                      (0, s.jsx)("p", { className: "capitalize text-gray-900 dark:text-white-100 text-base font-bold", children: R }),
+                                      (0, s.jsx)("p", { className: "lowercase text-gray-500 dark:text-gray-400 text-xs font-medium", children: $ })
                                     ]
                                   })
                                 ]
                               }),
-                              c.signTxnData.psbtsHexes.length
-                                ? c.signTxnData.psbtsHexes.map((e, t) =>
+                              u.signTxnData.psbtsHexes.length
+                                ? u.signTxnData.psbtsHexes.map((e, t) =>
                                     (0, s.jsxs)(
                                       "div",
                                       {
@@ -857,13 +912,13 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                                             className: "flex flex-col text-gray-900 dark:text-white-100",
                                             children: [
                                               (0, s.jsxs)("span", { className: "font-semibold", children: ["Transaction ", t + 1] }),
-                                              (0, s.jsx)("span", { children: (0, I.Hn)(e, 7) })
+                                              (0, s.jsx)("span", { children: (0, E.Hn)(e, 7) })
                                             ]
                                           }),
                                           (0, s.jsx)("button", {
                                             className: "rounded-lg text-white-100 py-[4px] px-[12px] font-semibold",
-                                            style: { backgroundColor: S.w.getChainColor(E) },
-                                            onClick: () => Z(t),
+                                            style: { backgroundColor: T.w.getChainColor(B) },
+                                            onClick: () => J(t),
                                             children: "View"
                                           })
                                         ]
@@ -872,7 +927,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                                     )
                                   )
                                 : null,
-                              F && "error" === O ? (0, s.jsx)(g._, { text: F, className: "mt-3" }) : null
+                              Q && "error" === W ? (0, s.jsx)(m._, { text: Q, disableSentryCapture: !0, className: "mt-3" }) : null
                             ]
                           }),
                           (0, s.jsx)("div", {
@@ -880,27 +935,27 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                             children: (0, s.jsxs)("div", {
                               className: "flex items-center justify-center w-full space-x-3",
                               children: [
-                                (0, s.jsx)(o.Buttons.Generic, {
+                                (0, s.jsx)(l.Buttons.Generic, {
                                   title: "Reject Button",
-                                  color: S.w.gray900,
-                                  onClick: () => (0, _.B)(j, null == c ? void 0 : c.payloadId),
-                                  disabled: "loading" === O,
+                                  color: T.w.gray900,
+                                  onClick: () => (0, C.B)(j, null == u ? void 0 : u.payloadId),
+                                  disabled: "loading" === W,
                                   "aria-label": "sign bitcoin dapp reject button in sign bitcoin psbts flow",
                                   children: (0, s.jsx)("span", {
                                     "aria-label": "sign bitcoin dapp reject button text in sign bitcoin psbts flow",
                                     children: "Reject"
                                   })
                                 }),
-                                (0, s.jsx)(o.Buttons.Generic, {
+                                (0, s.jsx)(l.Buttons.Generic, {
                                   title: "Approve Button",
-                                  color: S.w.green600,
-                                  onClick: J,
-                                  disabled: q,
-                                  className: `${q ? "cursor-not-allowed opacity-50" : ""}`,
+                                  color: T.w.green600,
+                                  onClick: q,
+                                  disabled: K,
+                                  className: `${K ? "cursor-not-allowed opacity-50" : ""}`,
                                   "aria-label": "sign bitcoin dapp approve button in sign bitcoin psbts flow",
                                   children:
-                                    "loading" === O
-                                      ? (0, s.jsx)(b.T, { color: "white" })
+                                    "loading" === W
+                                      ? (0, s.jsx)(f.T, { color: "white" })
                                       : (0, s.jsx)("span", {
                                           "aria-label": "sign bitcoin dapp approve button text in sign bitcoin psbts flow",
                                           children: "Sign"
@@ -923,14 +978,14 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
     35198: function (e, t, a) {
       a.a(e, async function (e, n) {
         try {
-          a.d(t, { $g: () => i.$, Qi: () => l.Q, gb: () => s.g, nG: () => r.n, v5: () => o.v });
+          a.d(t, { $g: () => i.$, Qi: () => r.Q, gb: () => s.g, nG: () => o.n, v5: () => l.v });
           var s = a(35147),
             i = a(49597),
-            l = a(94989),
-            o = a(56249),
-            r = a(72971),
-            d = e([i, l, o, r]);
-          ([i, l, o, r] = d.then ? (await d)() : d), n();
+            r = a(94989),
+            l = a(56249),
+            o = a(72971),
+            c = e([i, r, l, o]);
+          ([i, r, l, o] = c.then ? (await c)() : c), n();
         } catch (e) {
           n(e);
         }
@@ -942,14 +997,14 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           a.d(t, { t: () => f });
           var s = a(52322),
             i = a(58885),
-            l = a(4370),
-            o = a(14981),
-            r = a(25053),
-            d = a(2784),
-            c = a(42799),
+            r = a(4370),
+            l = a(14981),
+            o = a(25053),
+            c = a(2784),
+            d = a(42799),
             u = a(48346),
-            x = a(46338),
-            p = a(43963),
+            p = a(46338),
+            x = a(43963),
             g = e([i, u]);
           [i, u] = g.then ? (await g)() : g;
           let m = [
@@ -958,12 +1013,12 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             ],
             b = { transform: "translateX(0px) scaleX(0.161044)" },
             f = e => {
-              let [t, a] = (0, d.useState)(m[0]);
+              let [t, a] = (0, c.useState)(m[0]);
               return (0, s.jsxs)(s.Fragment, {
                 children: [
                   (0, s.jsx)("div", {
                     className: "border-b border-border-bottom",
-                    children: (0, s.jsx)(r.z, {
+                    children: (0, s.jsx)(o.z, {
                       buttons: m,
                       setSelectedTab: a,
                       selectedIndex: m.findIndex(e => {
@@ -977,17 +1032,17 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                   }),
                   (0, s.jsx)("div", {
                     className: "flex flex-col gap-6",
-                    children: (0, s.jsxs)(o.M, {
+                    children: (0, s.jsxs)(l.M, {
                       mode: "wait",
                       initial: !1,
                       children: [
                         "fees" === t.id &&
                           (0, s.jsxs)(
-                            l.E.div,
+                            r.E.div,
                             {
                               className: "flex flex-col gap-7",
-                              transition: x._M,
-                              variants: p.dJ,
+                              transition: p._M,
+                              variants: x.dJ,
                               initial: "exit",
                               animate: "animate",
                               exit: "exit",
@@ -997,7 +1052,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                                   className: "border border-border-bottom rounded-xl ",
                                   children: [
                                     (0, s.jsx)(i.ZP.AdditionalSettingsToggle, {}),
-                                    (0, s.jsx)(i.ZP.AdditionalSettings, { showGasLimitWarning: !0, rootBalanceStore: u.jZ, rootDenomsStore: c.gb })
+                                    (0, s.jsx)(i.ZP.AdditionalSettings, { showGasLimitWarning: !0, rootBalanceStore: u.jZ, rootDenomsStore: d.gb })
                                   ]
                                 }),
                                 !!e.gasPriceError &&
@@ -1012,10 +1067,10 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                             children: [
                               (0, s.jsx)("span", { className: "text-muted-foreground text-xs font-medium", children: "Data" }),
                               (0, s.jsx)(
-                                l.E.pre,
+                                r.E.pre,
                                 {
-                                  transition: x._M,
-                                  variants: p.dJ,
+                                  transition: p._M,
+                                  variants: x.dJ,
                                   initial: "enter",
                                   animate: "animate",
                                   exit: "enter",
@@ -1039,13 +1094,13 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
       });
     },
     66675: function (e, t, a) {
-      a.d(t, { B: () => o });
+      a.d(t, { B: () => l });
       var n = a(74703),
         s = a(48534),
         i = a(72565),
-        l = a.n(i);
-      async function o(e, t) {
-        await l().runtime.sendMessage({ type: n.u.signBitcoinResponse, payloadId: t, payload: { status: "error", data: "User rejected the transaction" } }),
+        r = a.n(i);
+      async function l(e, t) {
+        await r().runtime.sendMessage({ type: n.u.signBitcoinResponse, payloadId: t, payload: { status: "error", data: "User rejected the transaction" } }),
           (0, s.oj)() ? e("/home") : window.close();
       }
     }

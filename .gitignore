@@ -88,3 +88,6 @@ test-results
 .DS_Store
 .github/test-data
 junit.xml
+
+# Leap extension local storage for e2e tests with playwright
+apps/deploy-web/tests/ui/fixture/leapExtensionLocalStorage.*.json

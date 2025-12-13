@@ -4,191 +4,191 @@
       t = new e.Error().stack;
     t &&
       ((e._sentryDebugIds = e._sentryDebugIds || {}),
-      (e._sentryDebugIds[t] = "e4515eda-c6c1-4504-96fe-3b7ab2e808e5"),
-      (e._sentryDebugIdIdentifier = "sentry-dbid-e4515eda-c6c1-4504-96fe-3b7ab2e808e5"));
+      (e._sentryDebugIds[t] = "9105b1c8-5065-4971-8c42-055995010b44"),
+      (e._sentryDebugIdIdentifier = "sentry-dbid-9105b1c8-5065-4971-8c42-055995010b44"));
   } catch (e) {}
 })();
 var _global = "undefined" != typeof window ? window : "undefined" != typeof global ? global : "undefined" != typeof self ? self : {};
-_global.SENTRY_RELEASE = { id: "0.22.9" };
+_global.SENTRY_RELEASE = { id: "0.23.1" };
 ("use strict");
 (self.webpackChunk_leap_cosmos_extension = self.webpackChunk_leap_cosmos_extension || []).push([
   ["8095"],
   {
     51416: function (e, t, s) {
-      s.a(e, async function (e, a) {
+      s.a(e, async function (e, r) {
         try {
-          s.d(t, { k: () => m });
-          var r = s(41172),
+          s.d(t, { k: () => h });
+          var a = s(41172),
             n = s(15969),
             i = s(92541),
             l = s(55159),
             d = s(97486),
             o = s(65027),
-            u = s(53542),
-            c = s(2784),
+            c = s(53542),
+            u = s(2784),
             f = s(19288),
-            v = s(10507),
-            p = s(1252),
-            h = e([o, d, u]);
-          function m() {
-            let [e, t] = (0, c.useState)(),
-              [s, a] = (0, c.useState)(),
-              [h, m] = (0, c.useState)(""),
-              w = o.w.useImportMultipleWalletAccounts(),
-              { chains: g } = (0, r._IL)(),
+            p = s(10507),
+            v = s(1252),
+            m = e([o, d, c]);
+          function h() {
+            let [e, t] = (0, u.useState)(),
+              [s, r] = (0, u.useState)(),
+              [m, h] = (0, u.useState)(""),
+              g = o.w.useImportMultipleWalletAccounts(),
+              { chains: w } = (0, a._IL)(),
               y = o.w.useSaveLedgerWallet(),
-              b = (0, c.useRef)();
-            (0, c.useEffect)(() => {
-              if (!h) {
+              b = (0, u.useRef)();
+            (0, u.useEffect)(() => {
+              if (!m) {
                 let e = d.W.CreateNewMnemonic();
-                m(e);
+                h(e);
               }
-            }, [h]);
+            }, [m]);
             let x = e => {
                 b.current = e;
               },
               S = e => {
                 let t = Object.assign(b.current ?? {}, {});
                 Object.entries(e).forEach(e => {
-                  let [s, a] = e;
-                  t[s] = { ...t[s], ...a };
+                  let [s, r] = e;
+                  t[s] = { ...t[s], ...r };
                 }),
                   x(t);
               },
-              k = async (e, t, s) => {
+              E = async (e, t, s) => {
                 if (e) {
-                  let a = Object.entries(b.current ?? {})
+                  let r = Object.entries(b.current ?? {})
                       .filter(e => {
                         let [s] = e;
                         return t.includes(s);
                       })
                       .reduce((e, t) => {
-                        var a, r;
+                        var r, a;
                         let [n, i] = t,
-                          l = !!(null == i ? void 0 : null === (a = i.cosmos) || void 0 === a ? void 0 : a.address) && s.includes(i.cosmos.address),
-                          d = !!(null == i ? void 0 : null === (r = i.ethereum) || void 0 === r ? void 0 : r.address) && s.includes(i.ethereum.address);
+                          l = !!(null == i ? void 0 : null === (r = i.cosmos) || void 0 === r ? void 0 : r.address) && s.includes(i.cosmos.address),
+                          d = !!(null == i ? void 0 : null === (a = i.ethereum) || void 0 === a ? void 0 : a.address) && s.includes(i.ethereum.address);
                         return (l && d) || (e[n] = { chainAddresses: i, isCosmosAddressPresent: l, isEvmAddressPresent: d }), e;
                       }, {}),
-                    r = Object.keys(a).reduce((e, t) => {
-                      var s, r, n, i, l, d, o, u;
-                      let c = "cosmos",
-                        v = "ethereum",
-                        p = a[t],
-                        h = (null == p ? void 0 : p.isCosmosAddressPresent)
-                          ? null == p
+                    a = Object.keys(r).reduce((e, t) => {
+                      var s, a, n, i, l, d, o, c;
+                      let u = "cosmos",
+                        p = "ethereum",
+                        v = r[t],
+                        m = (null == v ? void 0 : v.isCosmosAddressPresent)
+                          ? null == v
                             ? void 0
-                            : null === (r = p.chainAddresses) || void 0 === r
+                            : null === (a = v.chainAddresses) || void 0 === a
                               ? void 0
-                              : null === (s = r[c]) || void 0 === s
+                              : null === (s = a[u]) || void 0 === s
                                 ? void 0
                                 : s.pubKey
-                          : (null == p ? void 0 : p.isEvmAddressPresent)
-                            ? null == p
+                          : (null == v ? void 0 : v.isEvmAddressPresent)
+                            ? null == v
                               ? void 0
-                              : null === (i = p.chainAddresses) || void 0 === i
+                              : null === (i = v.chainAddresses) || void 0 === i
                                 ? void 0
-                                : null === (n = i[v]) || void 0 === n
+                                : null === (n = i[p]) || void 0 === n
                                   ? void 0
                                   : n.pubKey
-                            : (null == p
+                            : (null == v
                                 ? void 0
-                                : null === (d = p.chainAddresses) || void 0 === d
+                                : null === (d = v.chainAddresses) || void 0 === d
                                   ? void 0
-                                  : null === (l = d[c]) || void 0 === l
+                                  : null === (l = d[u]) || void 0 === l
                                     ? void 0
                                     : l.pubKey) ??
-                              (null == p
+                              (null == v
                                 ? void 0
-                                : null === (u = p.chainAddresses) || void 0 === u
+                                : null === (c = v.chainAddresses) || void 0 === c
                                   ? void 0
-                                  : null === (o = u[v]) || void 0 === o
+                                  : null === (o = c[p]) || void 0 === o
                                     ? void 0
                                     : o.pubKey);
-                      return { ...e, [t]: { pubkey: h, path: (0, f.X2)(t) } };
+                      return { ...e, [t]: { pubkey: m, path: (0, f.X2)(t) } };
                     }, {});
-                  await y({ addresses: a, password: e, pubKeys: r });
+                  await y({ addresses: r, password: e, pubKeys: a });
                 }
               },
-              E = async e => {
+              k = async e => {
                 let s = await l.Kn.getWalletsFromMnemonic(e, 5, "118", n.oCA.cosmos.addressPrefix),
-                  a = await Promise.all(
+                  r = await Promise.all(
                     s.map(async t => {
-                      var s, a;
-                      let r = (0, i.Z)("60", t.index.toString()),
-                        d = (0, l.Rk)(e, { hdPath: r, addressPrefix: n.oCA.ethereum.addressPrefix, ethWallet: !1 }),
+                      var s, r;
+                      let a = (0, i.Z)("60", t.index.toString()),
+                        d = (0, l.Rk)(e, { hdPath: a, addressPrefix: n.oCA.ethereum.addressPrefix, ethWallet: !1 }),
                         o = (0, l.h)("84", t.index.toString()),
-                        u = l.ef.generateWalletFromMnemonic(e, {
+                        c = l.ef.generateWalletFromMnemonic(e, {
                           addressPrefix: n.oCA.bitcoin.addressPrefix,
                           paths: [o],
                           network: n.oCA.bitcoin.btcNetwork || l.IB
                         }),
-                        c = (0, i.Z)("637", t.index.toString()),
-                        f = await (0, v.OE)(e, c, "seedPhrase"),
-                        p = (0, i.Z)("501", t.index.toString()),
-                        h = await (0, v.qV)(e, p, "seedPhrase"),
-                        m = (0, i.Z)("784", t.index.toString()),
-                        w = await (0, v.AP)(e, m, "seedPhrase"),
-                        g = d instanceof l.Gl ? (null === (s = d.getAccountWithHexAddress()[0]) || void 0 === s ? void 0 : s.address) : void 0,
-                        y = null === (a = u.getAccounts()[0]) || void 0 === a ? void 0 : a.address,
+                        u = (0, i.Z)("637", t.index.toString()),
+                        f = await (0, p.OE)(e, u, "seedPhrase"),
+                        v = (0, i.Z)("501", t.index.toString()),
+                        m = await (0, p.qV)(e, v, "seedPhrase"),
+                        h = (0, i.Z)("784", t.index.toString()),
+                        g = await (0, p.AP)(e, h, "seedPhrase"),
+                        w = d instanceof l.Gl ? (null === (s = d.getAccountWithHexAddress()[0]) || void 0 === s ? void 0 : s.address) : void 0,
+                        y = null === (r = c.getAccounts()[0]) || void 0 === r ? void 0 : r.address,
                         b = null == f ? void 0 : f.address,
-                        x = null == h ? void 0 : h.address,
-                        S = null == w ? void 0 : w.address;
-                      return { ...t, evmAddress: g, bitcoinAddress: y, moveAddress: b, solanaAddress: x, suiAddress: S };
+                        x = null == m ? void 0 : m.address,
+                        S = null == g ? void 0 : g.address;
+                      return { ...t, evmAddress: w, bitcoinAddress: y, moveAddress: b, solanaAddress: x, suiAddress: S };
                     })
                   );
-                t(a);
+                t(r);
               },
-              A = () => {
+              _ = () => {
                 let e = {};
-                for (let t of Object.entries(g)) {
-                  let [s, a] = t;
-                  e[s] = { addressPrefix: a.addressPrefix, enabled: a.enabled, coinType: a.bip44.coinType };
+                for (let t of Object.entries(w)) {
+                  let [s, r] = t;
+                  e[s] = { addressPrefix: r.addressPrefix, enabled: r.enabled, coinType: r.bip44.coinType };
                 }
                 return e;
               },
-              j = async e => {
-                let t = e === u.Yg.ETH ? "ethereum" : "cosmos",
-                  s = (0, p.nY)(Object.values(g)),
-                  a = e === u.Yg.ETH ? s : [],
-                  r = A(),
-                  { pathWiseAddresses: i } = await (0, n.tJg)(e, [0, 1, 2, 3, 4], void 0, { primaryChain: t, chainsToImport: a, chainInfos: r });
+              A = async e => {
+                let t = e === c.Yg.ETH ? "ethereum" : "cosmos",
+                  s = (0, v.nY)(Object.values(w)),
+                  r = e === c.Yg.ETH ? s : [],
+                  a = _(),
+                  { pathWiseAddresses: i } = await (0, n.tJg)(e, [0, 1, 2, 3, 4], void 0, { primaryChain: t, chainsToImport: r, chainInfos: a });
                 S(i);
               },
               P = async (e, s) => {
-                let a = e === u.Yg.ETH ? "ethereum" : "cosmos",
-                  r = A(),
-                  i = (0, p.nY)(Object.values(g)),
-                  l = e === u.Yg.ETH ? i : [],
-                  { primaryChainAccount: d, pathWiseAddresses: o } = await (0, n.tJg)(e, s, void 0, { primaryChain: a, chainsToImport: l, chainInfos: r });
+                let r = e === c.Yg.ETH ? "ethereum" : "cosmos",
+                  a = _(),
+                  i = (0, v.nY)(Object.values(w)),
+                  l = e === c.Yg.ETH ? i : [],
+                  { primaryChainAccount: d, pathWiseAddresses: o } = await (0, n.tJg)(e, s, void 0, { primaryChain: r, chainsToImport: l, chainInfos: a });
                 t(e => [...(e ?? []), ...d.map((t, s) => ({ address: t.address, pubkey: t.pubkey, index: (e ?? []).length + s, path: t.path }))]), S(o);
               },
-              C = async (t, r, i, l) => {
+              j = async (t, a, i, l) => {
                 var d;
                 let o = [...(e ?? []), ...(s ?? [])],
-                  c = t === u.Yg.ETH ? "ethereum" : "cosmos",
-                  f = A(),
-                  { primaryChainAccount: v, pathWiseAddresses: p } = await (0, n.tJg)(t, [], [r], { primaryChain: c, chainsToImport: [], chainInfos: f }),
-                  h = o.some(e => !!e.path && r.includes(e.path) && e.address === v[0].address),
-                  m = !!(null == v ? void 0 : null === (d = v[0]) || void 0 === d ? void 0 : d.address) && (null == l ? void 0 : l.includes(v[0].address));
-                if (h || m) throw Error("This account is already present. Kindly enter a different derivation path.");
-                a(e => [...(e ?? []), ...v.map((t, s) => ({ address: t.address, pubkey: t.pubkey, index: (e ?? []).length + s, path: t.path, name: i }))]),
-                  S(p);
+                  u = t === c.Yg.ETH ? "ethereum" : "cosmos",
+                  f = _(),
+                  { primaryChainAccount: p, pathWiseAddresses: v } = await (0, n.tJg)(t, [], [a], { primaryChain: u, chainsToImport: [], chainInfos: f }),
+                  m = o.some(e => !!e.path && a.includes(e.path) && e.address === p[0].address),
+                  h = !!(null == p ? void 0 : null === (d = p[0]) || void 0 === d ? void 0 : d.address) && (null == l ? void 0 : l.includes(p[0].address));
+                if (m || h) throw Error("This account is already present. Kindly enter a different derivation path.");
+                r(e => [...(e ?? []), ...p.map((t, s) => ({ address: t.address, pubkey: t.pubkey, index: (e ?? []).length + s, path: t.path, name: i }))]),
+                  S(v);
               };
             return {
               addresses: b.current,
-              mnemonic: h,
+              mnemonic: m,
               walletAccounts: e,
               setWalletAccounts: t,
               customWalletAccounts: s,
               setAddresses: x,
-              getAccountDetails: E,
-              getLedgerAccountDetails: j,
-              onOnboardingComplete: (e, t, s, a) => {
+              getAccountDetails: k,
+              getLedgerAccountDetails: A,
+              onOnboardingComplete: (e, t, s, r) => {
                 if (e && t)
-                  return w({
+                  return g({
                     mnemonic: e,
                     password: t,
-                    type: a,
+                    type: r,
                     selectedAddressIndexes: Object.entries(s)
                       .filter(e => {
                         let [, t] = e;
@@ -200,46 +200,47 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                       })
                   });
               },
-              onBoardingCompleteLedger: k,
+              onBoardingCompleteLedger: E,
               getLedgerAccountDetailsForIdxs: P,
-              getCustomLedgerAccountDetails: C
+              getCustomLedgerAccountDetails: j
             };
           }
-          ([o, d, u] = h.then ? (await h)() : h), a();
+          ([o, d, c] = m.then ? (await m)() : m), r();
         } catch (e) {
-          a(e);
+          r(e);
         }
       });
     },
     53542: function (e, t, s) {
-      s.a(e, async function (e, a) {
+      s.a(e, async function (e, r) {
         try {
-          s.d(t, { Xp: () => P, Yg: () => k, jr: () => j });
-          var r,
+          s.d(t, { Xp: () => j, Yg: () => k, jr: () => P });
+          var a,
             n = s(52322),
             i = s(15969),
             l = s(55159),
-            d = s(20541),
-            o = s(51416),
+            d = s(92642),
+            o = s(20541),
+            c = s(51416),
             u = s(42941),
-            c = s(47013),
-            f = s(65027),
+            f = s(47013),
+            p = s(65027),
             v = s(2784),
-            p = s(10289),
+            m = s(10289),
             h = s(22014),
-            m = s(50371),
+            g = s(50371),
             w = s(52757),
-            g = s(72565),
-            y = s.n(g),
-            b = s(92186),
-            x = s(48834).Buffer,
-            S = e([d, o, f]);
-          [d, o, f] = S.then ? (await S)() : S;
-          var k = (((r = {}).COSMOS = "cosmos"), (r.ETH = "eth"), r);
-          let E = (0, v.createContext)(null),
+            y = s(72565),
+            b = s.n(y),
+            x = s(92186),
+            S = s(48834).Buffer,
+            E = e([o, c, p]);
+          [o, c, p] = E.then ? (await E)() : E;
+          var k = (((a = {}).COSMOS = "cosmos"), (a.ETH = "eth"), a);
+          let _ = (0, v.createContext)(null),
             A = e => {
-              let { currentStep: t, walletName: s, loading: a } = e;
-              if (a) return "loading";
+              let { currentStep: t, walletName: s, loading: r } = e;
+              if (r) return "loading";
               if (0 === t) return "select-import-type";
               if (1 === t && "seed-phrase" === s) return "seed-phrase";
               if (1 === t && "private-key" === s) return "private-key";
@@ -266,51 +267,51 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                       ? "choose-password"
                       : "onboarding-success";
             },
-            j = e => {
+            P = e => {
               let { children: t } = e,
-                { noAccount: s } = (0, d.aC)(),
-                a = (0, u.Z)(),
-                [r, g] = (0, v.useState)(""),
-                [S, k] = (0, v.useState)(""),
-                [j, P] = (0, v.useState)(""),
+                { noAccount: s } = (0, o.aC)(),
+                r = (0, u.Z)(),
+                [a, y] = (0, v.useState)(""),
+                [E, k] = (0, v.useState)(""),
+                [P, j] = (0, v.useState)(""),
                 [C, T] = (0, v.useState)("seed-phrase"),
-                [O, _] = (0, v.useState)({}),
-                [W, I] = (0, v.useState)(!1),
-                [M, R] = (0, v.useState)(b.T.step0),
-                [N, Y] = (0, v.useState)(""),
-                [H, K] = (0, v.useState)(void 0),
-                [L, Z] = (0, v.useState)(0),
-                D = (0, c.Z)(L) || 0,
-                J = (0, p.s0)(),
-                B = ["ledger", "evm-ledger"].includes(C || ""),
-                F = null == C ? void 0 : C.toLowerCase().includes("metamask"),
-                X = null == C ? void 0 : C.toLowerCase().includes("evm wallets"),
-                q = (null == C ? void 0 : C.toLowerCase().includes("private")) || F || X,
-                [z, G] = (0, v.useState)(new Set()),
-                V = B ? 4 : 3,
-                Q = A({ currentStep: L, walletName: C, loading: W }),
+                [O, W] = (0, v.useState)({}),
+                [M, I] = (0, v.useState)(!1),
+                [N, R] = (0, v.useState)(x.T.step0),
+                [K, L] = (0, v.useState)(""),
+                [Y, H] = (0, v.useState)(void 0),
+                [Z, D] = (0, v.useState)(0),
+                J = (0, f.Z)(Z) || 0,
+                B = (0, m.s0)(),
+                F = ["ledger", "evm-ledger"].includes(C || ""),
+                X = null == C ? void 0 : C.toLowerCase().includes("metamask"),
+                q = null == C ? void 0 : C.toLowerCase().includes("evm wallets"),
+                z = (null == C ? void 0 : C.toLowerCase().includes("private")) || X || q,
+                [G, V] = (0, v.useState)(new Set()),
+                Q = F ? 4 : 3,
+                U = A({ currentStep: Z, walletName: C, loading: M }),
                 {
-                  walletAccounts: U,
-                  addresses: $,
-                  customWalletAccounts: ee,
-                  setWalletAccounts: et,
-                  getAccountDetails: es,
+                  walletAccounts: $,
+                  addresses: ee,
+                  customWalletAccounts: et,
+                  setWalletAccounts: es,
+                  getAccountDetails: er,
                   getLedgerAccountDetails: ea,
-                  onOnboardingComplete: er,
-                  onBoardingCompleteLedger: en,
-                  getLedgerAccountDetailsForIdxs: ei,
-                  getCustomLedgerAccountDetails: el,
-                  setAddresses: ed
-                } = (0, o.k)(),
-                eo = f.w.useSaveWatchWallet(),
+                  onOnboardingComplete: en,
+                  onBoardingCompleteLedger: ei,
+                  getLedgerAccountDetailsForIdxs: el,
+                  getCustomLedgerAccountDetails: ed,
+                  setAddresses: eo
+                } = (0, c.k)(),
+                ec = p.w.useSaveWatchWallet(),
                 eu = async function () {
                   let e = !(arguments.length > 0) || void 0 === arguments[0] || arguments[0];
-                  return s ? (e ? void (await (0, i._vH)(2e3), J("/onboardingSuccess")) : J("/onboardingSuccess")) : J("/home", { state: { from: location } });
+                  return s ? (e ? void (await (0, i._vH)(2e3), B("/onboardingSuccess")) : B("/onboardingSuccess")) : B("/home", { state: { from: location } });
                 },
-                ec = async e => {
+                ef = async e => {
                   try {
-                    if ((I(!0), B))
-                      await en(
+                    if ((I(!0), F))
+                      await ei(
                         e,
                         Object.entries(O)
                           .filter(e => {
@@ -321,151 +322,163 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                             let [t] = e;
                             return t;
                           }),
-                        H ?? []
+                        Y ?? []
                       );
-                    else if ("watch-wallet" === C && S && j) await eo(S, j, e);
+                    else if ("watch-wallet" === C && E && P) await ec(E, P, e);
                     else {
-                      let t = q ? { 0: !0 } : O;
-                      await er(r, e, t, "import");
+                      let t = z ? { 0: !0 } : O;
+                      await en(a, e, t, "import");
                     }
-                    if ((h.M8.password || (await ef()), e)) {
-                      let t = x.from(e).toString("base64");
-                      y().runtime.sendMessage({ type: "unlock", data: { password: t } }), h.M8.setPassword(e), await eu();
+                    if ((h.M8.password || (await ep()), e)) {
+                      let t = S.from(e).toString("base64");
+                      b().runtime.sendMessage({ type: "unlock", data: { password: t } }), h.M8.setPassword(e), await eu();
                     }
                   } catch (e) {
                     if ("Wallet already present" === e.message.trim()) throw e;
+                    (0, d.Tb)(e, {
+                      tags: {
+                        errorType: "onboarding_completed_error",
+                        source: "onboarding_completed",
+                        severity: "error",
+                        errorName: e instanceof Error ? e.name : "OnboardingCompletedError"
+                      },
+                      fingerprint: ["onboarding_completed", "onboarding_completed_error"],
+                      level: "error",
+                      contexts: { transaction: { type: "onboarding_completed", errorMessage: e instanceof Error ? e.message : String(e) } },
+                      extra: { walletName: C, isLedger: F, isPrivateKey: z, isMetamask: X, isOtherEvmWallets: q }
+                    });
                   } finally {
                     I(!1);
                   }
                 },
-                ef = async () => {
-                  if (B) {
-                    if (L === V + 1) return eu();
-                    if (4 === L && h.M8.password) {
-                      await ec(h.M8.password);
+                ep = async () => {
+                  if (F) {
+                    if (Z === Q + 1) return eu();
+                    if (4 === Z && h.M8.password) {
+                      await ef(h.M8.password);
                       return;
                     }
-                  } else if (L === V) return eu();
-                  if (2 === L && !s && !B) {
+                  } else if (Z === Q) return eu();
+                  if (2 === Z && !s && !F) {
                     try {
-                      h.M8.password && (await ec(h.M8.password));
+                      h.M8.password && (await ef(h.M8.password));
                     } catch (e) {}
                     return eu(!1);
                   }
-                  Z(L + 1);
+                  D(Z + 1);
                 },
                 ev = async () => {
-                  if ("ledger" === C && 1 === L) {
-                    let e = await f.w.getAllWallets();
+                  if ("ledger" === C && 1 === Z) {
+                    let e = await p.w.getAllWallets();
                     if ((0, w.d)(e)) {
-                      J("/home", { state: { from: location } });
+                      B("/home", { state: { from: location } });
                       return;
                     }
                   }
-                  3 === L && q ? Z(L - 2) : L > 0 ? Z(L - 1) : J(-1);
+                  3 === Z && z ? D(Z - 2) : Z > 0 ? D(Z - 1) : B(-1);
                 },
-                ep = async () => {
+                em = async () => {
                   try {
-                    q || (await es((0, m.Z)(r))), await ef();
+                    z || (await er((0, g.Z)(a))), await ep();
                   } catch (e) {
-                    e instanceof Error && Y(e.message.trim());
+                    e instanceof Error && L(e.message.trim());
                   }
                 },
                 eh = async e => {
-                  if (B)
+                  if (F)
                     try {
-                      R(b.T.step2), await e("evm-ledger" === C), R(b.T.step3), await ef();
+                      R(x.T.step2), await e("evm-ledger" === C), R(x.T.step3), await ep();
                     } catch {
-                      R(b.T.step1);
+                      R(x.T.step1);
                     }
                 };
               return (
                 (0, v.useEffect)(() => {
-                  let e = a.get("walletName");
-                  "ledger" === e && (T("ledger"), Z(1));
-                }, [a]),
+                  let e = r.get("walletName");
+                  "ledger" === e && (T("ledger"), D(1));
+                }, [r]),
                 (0, v.useEffect)(() => {
                   (async () => {
                     let e = await l.Kn.getAllWallets(),
                       t = [];
                     for (let n of Object.values(e ?? {})) {
-                      var s, a, r;
+                      var s, r, a;
                       t.push(null == n ? void 0 : null === (s = n.addresses) || void 0 === s ? void 0 : s.cosmos),
-                        (null == n ? void 0 : null === (a = n.addresses) || void 0 === a ? void 0 : a.ethereum) &&
-                          t.push(null == n ? void 0 : null === (r = n.addresses) || void 0 === r ? void 0 : r.ethereum);
+                        (null == n ? void 0 : null === (r = n.addresses) || void 0 === r ? void 0 : r.ethereum) &&
+                          t.push(null == n ? void 0 : null === (a = n.addresses) || void 0 === a ? void 0 : a.ethereum);
                     }
-                    K(t);
+                    H(t);
                   })();
                 }, []),
                 (0, v.useEffect)(() => {
-                  if ((null == U ? void 0 : U.length) && 0 === Object.keys(O).length) {
-                    let [e] = U;
-                    _({ [e.index]: !!e.address && !(null == H ? void 0 : H.includes(e.address)) });
+                  if ((null == $ ? void 0 : $.length) && 0 === Object.keys(O).length) {
+                    let [e] = $;
+                    W({ [e.index]: !!e.address && !(null == Y ? void 0 : Y.includes(e.address)) });
                   }
-                }, [H, U, O]),
-                (0, n.jsx)(E.Provider, {
+                }, [Y, $, O]),
+                (0, n.jsx)(_.Provider, {
                   value: {
-                    prevStep: D,
-                    currentStep: L,
-                    setCurrentStep: Z,
-                    totalSteps: V,
-                    loading: W,
+                    prevStep: J,
+                    currentStep: Z,
+                    setCurrentStep: D,
+                    totalSteps: Q,
+                    loading: M,
                     setLoading: I,
-                    importWalletFromSeedPhrase: ep,
+                    importWalletFromSeedPhrase: em,
                     importLedger: eh,
                     backToPreviousStep: ev,
-                    moveToNextStep: ef,
-                    onOnboardingCompleted: ec,
-                    privateKeyError: N,
-                    currentStepName: Q,
-                    walletAccounts: U,
-                    customWalletAccounts: ee,
-                    setWalletAccounts: et,
+                    moveToNextStep: ep,
+                    onOnboardingCompleted: ef,
+                    privateKeyError: K,
+                    currentStepName: U,
+                    walletAccounts: $,
+                    customWalletAccounts: et,
+                    setWalletAccounts: es,
                     getLedgerAccountDetails: ea,
-                    getLedgerAccountDetailsForIdxs: ei,
-                    ledgerConnectionStatus: M,
+                    getLedgerAccountDetailsForIdxs: el,
+                    ledgerConnectionStatus: N,
                     setLedgerConnectionStatus: R,
-                    secret: r,
-                    setSecret: g,
-                    watchWalletAddress: S,
+                    secret: a,
+                    setSecret: y,
+                    watchWalletAddress: E,
                     setWatchWalletAddress: k,
-                    watchWalletName: j,
-                    setWatchWalletName: P,
+                    watchWalletName: P,
+                    setWatchWalletName: j,
                     selectedIds: O,
-                    setSelectedIds: _,
+                    setSelectedIds: W,
                     walletName: C,
-                    setPrivateKeyError: Y,
+                    setPrivateKeyError: L,
                     setWalletName: T,
-                    getCustomLedgerAccountDetails: el,
-                    ledgerNetworks: z,
-                    setLedgerNetworks: G,
-                    addresses: $,
-                    setAddresses: ed
+                    getCustomLedgerAccountDetails: ed,
+                    ledgerNetworks: G,
+                    setLedgerNetworks: V,
+                    addresses: ee,
+                    setAddresses: eo
                   },
                   children: t
                 })
               );
             },
-            P = () => {
-              let e = (0, v.useContext)(E);
+            j = () => {
+              let e = (0, v.useContext)(_);
               if (!e) throw Error("useImportWalletContext must be used within a ImportWalletProvider");
               return e;
             };
-          a();
+          r();
         } catch (e) {
-          a(e);
+          r(e);
         }
       });
     },
     92186: function (e, t, s) {
-      s.d(t, { T: () => r });
-      var a,
-        r = (((a = {})[(a.step0 = 0)] = "step0"), (a[(a.step1 = 1)] = "step1"), (a[(a.step2 = 2)] = "step2"), (a[(a.step3 = 3)] = "step3"), a);
+      s.d(t, { T: () => a });
+      var r,
+        a = (((r = {})[(r.step0 = 0)] = "step0"), (r[(r.step1 = 1)] = "step1"), (r[(r.step2 = 2)] = "step2"), (r[(r.step3 = 3)] = "step3"), r);
     },
     91729: function (e, t, s) {
       s.d(t, { S: () => l, n: () => d });
-      var a = s(52322),
-        r = s(4370);
+      var r = s(52322),
+        a = s(4370);
       s(2784);
       var n = s(70514),
         i = s(46338);
@@ -476,20 +489,20 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           exit: { opacity: 0, x: 0, transition: { ...i.eR, duration: 0.15 } }
         },
         d = e => {
-          let { children: t, heading: s, subHeading: i, className: d, entry: o = "right", headerIcon: u } = e;
-          return (0, a.jsxs)(r.E.div, {
+          let { children: t, heading: s, subHeading: i, className: d, entry: o = "right", headerIcon: c } = e;
+          return (0, r.jsxs)(a.E.div, {
             className: (0, n.cn)("flex flex-col items-stretch w-full h-full gap-7", d),
             variants: l,
             initial: "left" === o ? "fromLeft" : "fromRight",
             animate: "animate",
             exit: "exit",
             children: [
-              (0, a.jsxs)("header", {
+              (0, r.jsxs)("header", {
                 className: "flex flex-col items-center gap-1",
                 children: [
-                  u && (0, a.jsx)("div", { className: "size-16 bg-secondary-200 rounded-full grid place-content-center", children: u }),
-                  (0, a.jsx)("h1", { className: "font-bold text-[1.5rem] text-center", children: s }),
-                  i && (0, a.jsx)("div", { className: "text-[0.875rem] font-medium text-muted-foreground leading-[1.4rem] text-center", children: i })
+                  c && (0, r.jsx)("div", { className: "size-16 bg-secondary-200 rounded-full grid place-content-center", children: c }),
+                  (0, r.jsx)("h1", { className: "font-bold text-[1.5rem] text-center", children: s }),
+                  i && (0, r.jsx)("div", { className: "text-[0.875rem] font-medium text-muted-foreground leading-[1.4rem] text-center", children: i })
                 ]
               }),
               t

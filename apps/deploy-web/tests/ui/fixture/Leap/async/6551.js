@@ -4,12 +4,12 @@
       t = new e.Error().stack;
     t &&
       ((e._sentryDebugIds = e._sentryDebugIds || {}),
-      (e._sentryDebugIds[t] = "d7e57653-e62f-4cbc-8e37-0f519e8fe882"),
-      (e._sentryDebugIdIdentifier = "sentry-dbid-d7e57653-e62f-4cbc-8e37-0f519e8fe882"));
+      (e._sentryDebugIds[t] = "dbfc012c-e4ab-4e87-adb9-1c6fc3db9592"),
+      (e._sentryDebugIdIdentifier = "sentry-dbid-dbfc012c-e4ab-4e87-adb9-1c6fc3db9592"));
   } catch (e) {}
 })();
 var _global = "undefined" != typeof window ? window : "undefined" != typeof global ? global : "undefined" != typeof self ? self : {};
-_global.SENTRY_RELEASE = { id: "0.22.9" };
+_global.SENTRY_RELEASE = { id: "0.23.1" };
 ("use strict");
 (self.webpackChunk_leap_cosmos_extension = self.webpackChunk_leap_cosmos_extension || []).push([
   ["6551"],
@@ -234,7 +234,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
     42751: function (e, t, a) {
       a.a(e, async function (e, s) {
         try {
-          a.r(t), a.d(t, { default: () => I });
+          a.r(t), a.d(t, { default: () => U });
           var l = a(52322),
             n = a(41172),
             i = a(15969),
@@ -259,83 +259,84 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             y = a(78220),
             C = a(15249),
             D = a(26869),
-            S = a(69816),
-            L = a(91486),
-            A = a(13287),
-            T = a(18823),
-            M = a(80502),
-            G = a(92621),
+            S = a(92642),
+            L = a(69816),
+            A = a(91486),
+            T = a(13287),
+            M = a(18823),
+            G = a(80502),
+            _ = a(92621),
             P = a(20537),
             Z = a(26908),
-            _ = a(39719),
-            R = a(92006),
-            z = a(28345),
-            F = e([g, h, R, C, z, u, m, x]);
-          [g, h, R, C, z, u, m, x] = F.then ? (await F)() : F;
-          let V = g.w.useGetWallet,
-            I = (0, b.Pi)(e => {
-              var t, a, s, d, g, b, F;
+            R = a(39719),
+            z = a(92006),
+            F = a(28345),
+            V = e([g, h, z, C, F, u, m, x]);
+          [g, h, z, C, F, u, m, x] = V.then ? (await V)() : V;
+          let I = g.w.useGetWallet,
+            U = (0, b.Pi)(e => {
+              var t, a, s, d, g, b, V;
               let {
-                  rootDenomsStore: I,
-                  delegationsStore: U,
-                  validatorsStore: O,
-                  unDelegationsStore: H,
-                  claimRewardsStore: $,
-                  rootBalanceStore: B,
-                  nmsStore: W
+                  rootDenomsStore: U,
+                  delegationsStore: O,
+                  validatorsStore: H,
+                  unDelegationsStore: $,
+                  claimRewardsStore: B,
+                  rootBalanceStore: W,
+                  nmsStore: K
                 } = e,
-                [K, Y] = (0, j.useState)(),
-                [J, X] = (0, j.useState)(!1),
-                [q, Q] = (0, j.useState)(!1),
-                [ee, et] = (0, j.useState)(!1),
-                [ea, es] = (0, j.useState)(!1),
-                [el, en] = (0, j.useState)(!1),
-                [ei, eo] = (0, j.useState)(!1),
-                [er, ed] = (0, j.useState)(!1),
-                [ec, eu] = (0, j.useState)(!1),
-                [em, ex] = (0, j.useState)(null),
-                ev = (0, w.s0)(),
-                ef = (0, w.TH)(),
-                eh = (0, p.Z)().get("validatorAddress") ?? void 0,
+                [Y, J] = (0, j.useState)(),
+                [X, q] = (0, j.useState)(!1),
+                [Q, ee] = (0, j.useState)(!1),
+                [et, ea] = (0, j.useState)(!1),
+                [es, el] = (0, j.useState)(!1),
+                [en, ei] = (0, j.useState)(!1),
+                [eo, er] = (0, j.useState)(!1),
+                [ed, ec] = (0, j.useState)(!1),
+                [eu, em] = (0, j.useState)(!1),
+                [ex, ev] = (0, j.useState)(null),
+                ef = (0, w.s0)(),
+                eh = (0, w.TH)(),
+                ep = (0, p.Z)().get("validatorAddress") ?? void 0,
                 {
-                  toValidator: ep,
-                  fromValidator: eg,
-                  mode: eb = "DELEGATE",
-                  delegation: ej,
-                  forceChain: ew,
-                  forceNetwork: ek,
-                  toProvider: eE,
-                  fromProvider: eN,
-                  providerDelegation: ey
+                  toValidator: eg,
+                  fromValidator: eb,
+                  mode: ej = "DELEGATE",
+                  delegation: ew,
+                  forceChain: ek,
+                  forceNetwork: eE,
+                  toProvider: eN,
+                  fromProvider: ey,
+                  providerDelegation: eC
                 } = (0, j.useMemo)(() => {
                   let e = JSON.parse(sessionStorage.getItem("navigate-stake-input-state") ?? "null");
-                  return (null == ef ? void 0 : ef.state) || e || {};
-                }, [null == ef ? void 0 : ef.state]),
-                [eC, eD] = (0, j.useState)(eE),
-                eS = (0, n.a74)(),
-                eL = (0, n.obn)(),
-                eA = (0, j.useMemo)(() => ew || eS, [eS, ew]),
+                  return (null == eh ? void 0 : eh.state) || e || {};
+                }, [null == eh ? void 0 : eh.state]),
+                [eD, eS] = (0, j.useState)(eN),
+                eL = (0, n.a74)(),
+                eA = (0, n.obn)(),
                 eT = (0, j.useMemo)(() => ek || eL, [eL, ek]),
-                eM = I.allDenoms,
-                eG = U.delegationsForChain(eA),
-                eP = O.validatorsForChain(eA),
-                eZ = H.unDelegationsForChain(eA),
-                e_ = $.claimRewardsForChain(eA);
+                eM = (0, j.useMemo)(() => eE || eA, [eA, eE]),
+                eG = U.allDenoms,
+                e_ = O.delegationsForChain(eT),
+                eP = H.validatorsForChain(eT),
+                eZ = $.unDelegationsForChain(eT),
+                eR = B.claimRewardsForChain(eT);
               (0, j.useEffect)(() => {
-                O.ensureValidatorsLoaded(eA, eT);
-              }, [eA, eT, O]);
-              let [eR] = (0, n.JsT)(eM, eA, eT);
-              (0, T.S)();
-              let { network: ez } = (0, n.nDu)(eM, eG, eP, eZ, e_, eA, eT),
-                { providers: eF } = (0, n.fHb)(),
-                eV = (0, j.useMemo)(() => {
+                H.ensureValidatorsLoaded(eT, eM);
+              }, [eT, eM, H]);
+              let [ez] = (0, n.JsT)(eG, eT, eM);
+              (0, M.S)();
+              let { network: eF } = (0, n.nDu)(eG, e_, eP, eZ, eR, eT, eM),
+                { providers: eV } = (0, n.fHb)(),
+                eI = (0, j.useMemo)(() => {
                   var e, t;
                   return (0, k.z)(
                     (0, f.Z)(
                       new Date(),
-                      (null == ez
+                      (null == eF
                         ? void 0
-                        : null === (t = ez.chain) || void 0 === t
+                        : null === (t = eF.chain) || void 0 === t
                           ? void 0
                           : null === (e = t.params) || void 0 === e
                             ? void 0
@@ -343,78 +344,78 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     ).toISOString(),
                     ""
                   );
-                }, [ez]),
-                eI = (0, j.useMemo)(() => {
+                }, [eF]),
+                eU = (0, j.useMemo)(() => {
                   var e;
                   return null === (e = eP.validatorData.validators) || void 0 === e ? void 0 : e.reduce((e, t) => ((e[t.address] = t), e), {});
                 }, [eP.validatorData.validators]),
-                eU = (0, j.useMemo)(
+                eO = (0, j.useMemo)(
                   () =>
-                    Object.values(eI ?? {}).some(e => {
+                    Object.values(eU ?? {}).some(e => {
                       var t;
                       return (null === (t = e.custom_attributes) || void 0 === t ? void 0 : t.priority) === 0;
                     }),
-                  [eI]
+                  [eU]
                 ),
-                [eO, eH] = (0, j.useState)(("DELEGATE" === eb && !eU) || ("REDELEGATE" === eb && !eN)),
-                e$ = null == ez ? void 0 : ez.validatorAprs,
-                { data: eB } = (0, n.S2A)(),
+                [eH, e$] = (0, j.useState)(("DELEGATE" === ej && !eO) || ("REDELEGATE" === ej && !ey)),
+                eB = null == eF ? void 0 : eF.validatorAprs,
+                { data: eW } = (0, n.S2A)(),
                 {
-                  amount: eW,
-                  setAmount: eK,
-                  recommendedGasLimit: eY,
-                  userPreferredGasLimit: eJ,
-                  setUserPreferredGasLimit: eX,
-                  userPreferredGasPrice: eq,
-                  setUserPreferredGasPrice: eQ,
-                  gasOption: e0,
-                  setFeeDenom: e2,
-                  isLoading: e1,
-                  onReviewTransaction: e4,
-                  customFee: e5,
-                  feeDenom: e6,
-                  setGasOption: e3,
+                  amount: eK,
+                  setAmount: eY,
+                  recommendedGasLimit: eJ,
+                  userPreferredGasLimit: eX,
+                  setUserPreferredGasLimit: eq,
+                  userPreferredGasPrice: eQ,
+                  setUserPreferredGasPrice: e0,
+                  gasOption: e2,
+                  setFeeDenom: e1,
+                  isLoading: e4,
+                  onReviewTransaction: e5,
+                  customFee: e6,
+                  feeDenom: e3,
+                  setGasOption: e7,
                   error: e8,
-                  ledgerError: e7,
-                  setLedgerError: e9,
-                  showLedgerPopup: te,
-                  setMemo: tt
-                } = "lava" === eA && (null == eB ? void 0 : null === (t = eB.restaking) || void 0 === t ? void 0 : t.extension) === "active"
-                  ? (0, n.$l7)(eM, eb, K, eg, [ej], [ey], eC, eN, void 0, eA, eT)
-                  : (0, n.rKd)(eM, eb, K, eg, [ej], eA, eT),
-                ta = (0, u.e7)(eM, { activeChain: eA, selectedNetwork: eT }),
-                ts = V(eA),
-                { activeWallet: tl } = (0, h.ZP)(),
-                [tn, ti] = (0, j.useState)(null),
-                [to, tr] = (0, j.useState)({ option: e0, gasPrice: eq ?? ta.gasPrice }),
-                [td, tc] = (0, j.useState)(),
-                tu = (0, j.useMemo)(() => {
-                  var e;
-                  return null === (e = B.allTokens) || void 0 === e
-                    ? void 0
-                    : e.find(e => e.symbol === (null == eR ? void 0 : eR.coinDenom) && e.tokenBalanceOnChain === eA && !e.ibcChainInfo);
-                }, [null == eR ? void 0 : eR.coinDenom, B.allTokens, eA]),
+                  ledgerError: e9,
+                  setLedgerError: te,
+                  showLedgerPopup: tt,
+                  setMemo: ta
+                } = "lava" === eT && (null == eW ? void 0 : null === (t = eW.restaking) || void 0 === t ? void 0 : t.extension) === "active"
+                  ? (0, n.$l7)(eG, ej, Y, eb, [ew], [eC], eD, ey, void 0, eT, eM)
+                  : (0, n.rKd)(eG, ej, Y, eb, [ew], eT, eM),
+                ts = (0, u.e7)(eG, { activeChain: eT, selectedNetwork: eM }),
+                tl = I(eT),
+                { activeWallet: tn } = (0, h.ZP)(),
+                [ti, to] = (0, j.useState)(null),
+                [tr, td] = (0, j.useState)({ option: e2, gasPrice: eQ ?? ts.gasPrice }),
+                [tc, tu] = (0, j.useState)(),
                 tm = (0, j.useMemo)(() => {
                   var e;
-                  return null === (e = B.allSpendableTokens) || void 0 === e
+                  return null === (e = W.allTokens) || void 0 === e
                     ? void 0
-                    : e.find(e => e.symbol === (null == eR ? void 0 : eR.coinDenom) && e.tokenBalanceOnChain === eA && !e.ibcChainInfo);
-                }, [null == eR ? void 0 : eR.coinDenom, B.allSpendableTokens, eA]),
-                tx = (!tm || (null == tm ? void 0 : tm.amount) === "0") && (null == tu ? void 0 : tu.amount) && parseFloat(tu.amount) > 0,
-                tv = (0, n.Ewi)(eI, W, eA, eT),
-                tf = (0, j.useMemo)(
+                    : e.find(e => e.symbol === (null == ez ? void 0 : ez.coinDenom) && e.tokenBalanceOnChain === eT && !e.ibcChainInfo);
+                }, [null == ez ? void 0 : ez.coinDenom, W.allTokens, eT]),
+                tx = (0, j.useMemo)(() => {
+                  var e;
+                  return null === (e = W.allSpendableTokens) || void 0 === e
+                    ? void 0
+                    : e.find(e => e.symbol === (null == ez ? void 0 : ez.coinDenom) && e.tokenBalanceOnChain === eT && !e.ibcChainInfo);
+                }, [null == ez ? void 0 : ez.coinDenom, W.allSpendableTokens, eT]),
+                tv = (!tx || (null == tx ? void 0 : tx.amount) === "0") && (null == tm ? void 0 : tm.amount) && parseFloat(tm.amount) > 0,
+                tf = (0, n.Ewi)(eU, K, eT, eM),
+                th = (0, j.useMemo)(
                   () =>
-                    tv
+                    tf
                       .filter(e => !e.jailed)
-                      .filter(e => e.address !== (null == eg ? void 0 : eg.address))
+                      .filter(e => e.address !== (null == eb ? void 0 : eb.address))
                       .filter(e => "cosmosvaloper1j78gfl4ml9h2xdduhw2cpgheu3hdalkpuvk7m5" !== e.address),
-                  [tv, null == eg ? void 0 : eg.address]
+                  [tf, null == eb ? void 0 : eb.address]
                 ),
-                th = (0, j.useMemo)(() => ep || (eh ? (null == eI ? void 0 : eI[eh]) : void 0), [ep, eh, eI]),
-                tp = (0, j.useMemo)(() => {
-                  let e = [...eF];
+                tp = (0, j.useMemo)(() => eg || (ep ? (null == eU ? void 0 : eU[ep]) : void 0), [eg, ep, eU]),
+                tg = (0, j.useMemo)(() => {
+                  let e = [...eV];
                   return (
-                    "REDELEGATE" === eb &&
+                    "REDELEGATE" === ej &&
                       e.push({
                         provider: "empty_provider",
                         moniker: "Empty Provider",
@@ -425,154 +426,166 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                         delegateLimit: "",
                         delegateTotal: ""
                       }),
-                    e.filter(e => e.address !== (null == eN ? void 0 : eN.address))
+                    e.filter(e => e.address !== (null == ey ? void 0 : ey.address))
                   );
-                }, [null == eN ? void 0 : eN.address, eb, eF]);
+                }, [null == ey ? void 0 : ey.address, ej, eV]);
               (0, j.useEffect)(() => {
-                tr({ option: e0, gasPrice: ta.gasPrice });
-              }, [ta.gasPrice.amount.toString(), ta.gasPrice.denom]),
+                td({ option: e2, gasPrice: ts.gasPrice });
+              }, [ts.gasPrice.amount.toString(), ts.gasPrice.denom]),
                 (0, j.useEffect)(() => {
-                  if (!K) {
-                    if ((eo(!0), th)) Y(th), eH(!1);
-                    else if ("DELEGATE" === eb) {
-                      let e = Object.values(eI ?? {}).find(e => {
+                  if (!Y) {
+                    if ((er(!0), tp)) J(tp), e$(!1);
+                    else if ("DELEGATE" === ej) {
+                      let e = Object.values(eU ?? {}).find(e => {
                         var t;
                         return (null === (t = e.custom_attributes) || void 0 === t ? void 0 : t.priority) === 0;
                       });
-                      e && Y(e);
+                      e && J(e);
                     }
-                    eo(!1);
+                    er(!1);
                   }
-                }, [eb, K, th, eI]),
+                }, [ej, Y, tp, eU]),
                 (0, j.useEffect)(() => {
-                  to.option && e3(to.option), to.gasPrice && eQ(to.gasPrice);
-                }, [to, e3, eQ]);
-              let tg = (0, j.useCallback)(
+                  tr.option && e7(tr.option), tr.gasPrice && e0(tr.gasPrice);
+                }, [tr, e7, e0]);
+              let tb = (0, j.useCallback)(
                   (e, t) => {
-                    tr(e), e2(t.denom);
+                    td(e), e1(t.denom);
                   },
-                  [e2]
+                  [e1]
                 ),
-                tb = (0, j.useCallback)(() => {
-                  ex(eb), et(!1);
-                }, [eN, eb]),
-                tj = (0, j.useCallback)(async () => {
+                tj = (0, j.useCallback)(() => {
+                  ev(ej), ea(!1);
+                }, [ey, ej]),
+                tw = (0, j.useCallback)(async () => {
                   try {
-                    let e = await ts(eA);
-                    await e4(e, tb, !1, { stdFee: e5, feeDenom: e6 });
+                    let e = await tl(eT);
+                    await e5(e, tj, !1, { stdFee: e6, feeDenom: e3 });
                   } catch (e) {
-                    e9(e.message),
+                    te(e.message),
                       setTimeout(() => {
-                        e9("");
-                      }, 6e3);
+                        te("");
+                      }, 6e3),
+                      (0, S.Tb)(e, {
+                        tags: {
+                          errorType: "stake_v2_transaction_error",
+                          source: "stake_v2",
+                          severity: "error",
+                          errorName: e instanceof Error ? e.name : "StakeV2TransactionError"
+                        },
+                        fingerprint: ["stake_v2", "stake_v2_error"],
+                        level: "error",
+                        contexts: { transaction: { type: "stake_v2", errorMessage: e instanceof Error ? e.message : String(e) } },
+                        extra: { chain: eT, feeDenom: e3, customFee: e6 }
+                      });
                   }
-                }, [eA, e5, e6, ts, e4, e9, tb]);
+                }, [eT, e6, e3, tl, e5, te, tj]);
               (0, j.useEffect)(() => {
-                ec && new (c())(eW).gt(0) && et(!0);
-              }, [ec, eW]),
+                eu && new (c())(eK).gt(0) && ea(!0);
+              }, [eu, eK]),
                 (0, j.useEffect)(() => {
                   var e, t;
-                  ("DELEGATE" === eb || "REDELEGATE" === eb) &&
-                  (null == K ? void 0 : null === (e = K.custom_attributes) || void 0 === e ? void 0 : e.priority) &&
-                  (null == K ? void 0 : null === (t = K.custom_attributes) || void 0 === t ? void 0 : t.priority) > 0
-                    ? tt("Staked with Leap Wallet")
-                    : tt("");
-                }, [eb, null == K ? void 0 : null === (a = K.custom_attributes) || void 0 === a ? void 0 : a.priority, tt]);
-              let tw = (0, j.useMemo)(() => (ej ? ej.balance : ey ? ey.amount : void 0), [ej, ey]);
-              (0, A.U)(e7 || e8, { activeChain: eA, activeNetwork: eT, mode: eb });
-              let tk = B.getLoadingStatusForChain(eA, eT),
-                tE = null === (s = U.delegationsForChain(eA)) || void 0 === s ? void 0 : s.loadingDelegations;
+                  ("DELEGATE" === ej || "REDELEGATE" === ej) &&
+                  (null == Y ? void 0 : null === (e = Y.custom_attributes) || void 0 === e ? void 0 : e.priority) &&
+                  (null == Y ? void 0 : null === (t = Y.custom_attributes) || void 0 === t ? void 0 : t.priority) > 0
+                    ? ta("Staked with Leap Wallet")
+                    : ta("");
+                }, [ej, null == Y ? void 0 : null === (a = Y.custom_attributes) || void 0 === a ? void 0 : a.priority, ta]);
+              let tk = (0, j.useMemo)(() => (ew ? ew.balance : eC ? eC.amount : void 0), [ew, eC]);
+              (0, T.U)(e9 || e8, { activeChain: eT, activeNetwork: eM, mode: ej });
+              let tE = W.getLoadingStatusForChain(eT, eM),
+                tN = null === (s = O.delegationsForChain(eT)) || void 0 === s ? void 0 : s.loadingDelegations;
               return (
                 (0, j.useEffect)(
                   () => () => {
-                    ef.state || sessionStorage.removeItem("navigate-stake-input-state");
+                    eh.state || sessionStorage.removeItem("navigate-stake-input-state");
                   },
-                  [ef.state]
+                  [eh.state]
                 ),
                 (0, l.jsxs)(l.Fragment, {
                   children: [
-                    K || eN
+                    Y || ey
                       ? (0, l.jsxs)(l.Fragment, {
                           children: [
-                            (0, l.jsx)(R.w, {}),
+                            (0, l.jsx)(z.w, {}),
                             (0, l.jsxs)("div", {
                               className: "flex flex-col gap-y-5 px-6 pb-6 pt-7 w-full flex-1 h-[calc(100%-132px)] overflow-y-scroll bg-secondary",
                               children: [
-                                eg &&
+                                eb &&
                                   (0, l.jsx)(y.Z, {
                                     title: "Current Validator",
-                                    selectedValidator: eg,
-                                    setShowSelectValidatorSheet: eH,
+                                    selectedValidator: eb,
+                                    setShowSelectValidatorSheet: e$,
                                     selectDisabled: !0,
-                                    apr: e$ && e$[(null == eg ? void 0 : eg.address) ?? ""]
+                                    apr: eB && eB[(null == eb ? void 0 : eb.address) ?? ""]
                                   }),
-                                eN &&
+                                ey &&
                                   (0, l.jsx)(P.s, {
                                     title: "Current Provider",
-                                    selectedProvider: eN,
-                                    setShowSelectProviderSheet: X,
+                                    selectedProvider: ey,
+                                    setShowSelectProviderSheet: q,
                                     selectDisabled: !0,
-                                    rootDenomsStore: I
+                                    rootDenomsStore: U
                                   }),
                                 (0, l.jsx)(D.Z, {
-                                  amount: eW,
-                                  setAmount: eK,
-                                  adjustAmount: ec,
-                                  setAdjustAmount: eu,
-                                  token: tu,
-                                  fees: null == e5 ? void 0 : e5.amount[0],
-                                  hasError: el,
-                                  setHasError: en,
-                                  mode: eb,
-                                  tokenLoading: tk,
-                                  delegationBalance: tw,
-                                  rootDenomsStore: I,
-                                  activeChain: eA,
-                                  activeNetwork: eT,
-                                  delegationBalanceLoading: tE
+                                  amount: eK,
+                                  setAmount: eY,
+                                  adjustAmount: eu,
+                                  setAdjustAmount: em,
+                                  token: tm,
+                                  fees: null == e6 ? void 0 : e6.amount[0],
+                                  hasError: en,
+                                  setHasError: ei,
+                                  mode: ej,
+                                  tokenLoading: tE,
+                                  delegationBalance: tk,
+                                  rootDenomsStore: U,
+                                  activeChain: eT,
+                                  activeNetwork: eM,
+                                  delegationBalanceLoading: tN
                                 }),
-                                !eN &&
-                                  (ei
+                                !ey &&
+                                  (eo
                                     ? (0, l.jsx)(v.D, {})
                                     : (0, l.jsx)(y.Z, {
                                         title:
-                                          "lava" === eA &&
-                                          (null == eB ? void 0 : null === (d = eB.restaking) || void 0 === d ? void 0 : d.extension) === "active" &&
-                                          "DELEGATE" === eb
+                                          "lava" === eT &&
+                                          (null == eW ? void 0 : null === (d = eW.restaking) || void 0 === d ? void 0 : d.extension) === "active" &&
+                                          "DELEGATE" === ej
                                             ? "Stake to Validator"
                                             : "Validator",
-                                        selectedValidator: K,
-                                        setShowSelectValidatorSheet: eH,
-                                        selectDisabled: "UNDELEGATE" === eb && !!th,
-                                        apr: e$ && e$[(null == K ? void 0 : K.address) ?? ""]
+                                        selectedValidator: Y,
+                                        setShowSelectValidatorSheet: e$,
+                                        selectDisabled: "UNDELEGATE" === ej && !!tp,
+                                        apr: eB && eB[(null == Y ? void 0 : Y.address) ?? ""]
                                       })),
-                                "lava" === eA &&
-                                  (null == eB ? void 0 : null === (g = eB.restaking) || void 0 === g ? void 0 : g.extension) === "active" &&
-                                  ("DELEGATE" === eb || ("REDELEGATE" === eb && eN) || ("UNDELEGATE" === eb && eE)) &&
+                                "lava" === eT &&
+                                  (null == eW ? void 0 : null === (g = eW.restaking) || void 0 === g ? void 0 : g.extension) === "active" &&
+                                  ("DELEGATE" === ej || ("REDELEGATE" === ej && ey) || ("UNDELEGATE" === ej && eN)) &&
                                   (0, l.jsx)(P.s, {
-                                    title: "DELEGATE" === eb ? "Restake to Provider" : "Provider",
-                                    optional: "DELEGATE" === eb,
-                                    selectedProvider: eC,
-                                    setShowSelectProviderSheet: X,
-                                    selectDisabled: "UNDELEGATE" === eb,
-                                    rootDenomsStore: I
+                                    title: "DELEGATE" === ej ? "Restake to Provider" : "Provider",
+                                    optional: "DELEGATE" === ej,
+                                    selectedProvider: eD,
+                                    setShowSelectProviderSheet: q,
+                                    selectDisabled: "UNDELEGATE" === ej,
+                                    rootDenomsStore: U
                                   }),
-                                tu && new (c())(tu.amount).isEqualTo(0) && (0, l.jsx)(E.Z, { rootDenomsStore: I, activeChain: eA, activeNetwork: eT }),
-                                new (c())(eW).isGreaterThan(0) &&
+                                tm && new (c())(tm.amount).isEqualTo(0) && (0, l.jsx)(E.Z, { rootDenomsStore: U, activeChain: eT, activeNetwork: eM }),
+                                new (c())(eK).isGreaterThan(0) &&
                                   (0, l.jsxs)("div", {
                                     className: "flex items-center justify-between px-2",
                                     children: [
-                                      !(0, i.sSP)(eA) &&
+                                      !(0, i.sSP)(eT) &&
                                         (0, l.jsxs)("div", {
                                           className: "text-xs font-medium",
                                           children: [
                                             (0, l.jsx)("span", { className: "text-muted-foreground", children: "Unstaking period: " }),
-                                            (0, l.jsx)("span", { children: eV })
+                                            (0, l.jsx)("span", { children: eI })
                                           ]
                                         }),
-                                      (null == td ? void 0 : td.fiatValue) &&
+                                      (null == tc ? void 0 : tc.fiatValue) &&
                                         (0, l.jsxs)("button", {
-                                          onClick: () => Q(!0),
+                                          onClick: () => ee(!0),
                                           className: "flex items-center hover:cursor-pointer ml-auto gap-1 group",
                                           "aria-label": "stake input page fees button in stake v2 flow",
                                           children: [
@@ -580,7 +593,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                                             (0, l.jsx)("span", {
                                               className: "text-xs text-secondary-800 font-medium group-hover:text-foreground transition-colors",
                                               "aria-label": "stake input page fees button text in stake v2 flow",
-                                              children: null == td ? void 0 : td.fiatValue
+                                              children: null == tc ? void 0 : tc.fiatValue
                                             }),
                                             (0, l.jsx)(r.p, {
                                               size: 12,
@@ -591,48 +604,48 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                                         })
                                     ]
                                   }),
-                                tx &&
-                                  (0, l.jsxs)(S.Z, {
+                                tv &&
+                                  (0, l.jsxs)(L.Z, {
                                     className: "px-3 font-medium text-center",
                                     size: "sm",
                                     color: "text-red-300",
-                                    children: ["Insufficient unlocked ", null == tu ? void 0 : tu.symbol, " for gas fees. Please buy some and try again"]
+                                    children: ["Insufficient unlocked ", null == tm ? void 0 : tm.symbol, " for gas fees. Please buy some and try again"]
                                   })
                               ]
                             }),
                             (0, l.jsx)("div", {
                               className: "flex flex-col gap-4 w-full p-4 mt-auto sticky bottom-0 bg-secondary-100",
-                              children: (0, l.jsx)(L.zx, {
+                              children: (0, l.jsx)(A.zx, {
                                 className: "w-full",
-                                variant: el ? "destructive" : "default",
+                                variant: en ? "destructive" : "default",
                                 onClick: () => {
                                   if (
-                                    "DELEGATE" === eb &&
-                                    parseFloat(eW) + ((null == td ? void 0 : td.value) ?? 0) > parseFloat((null == tu ? void 0 : tu.amount) ?? "")
+                                    "DELEGATE" === ej &&
+                                    parseFloat(eK) + ((null == tc ? void 0 : tc.value) ?? 0) > parseFloat((null == tm ? void 0 : tm.amount) ?? "")
                                   )
-                                    ed(!0);
+                                    ec(!0);
                                   else {
                                     var e;
-                                    "lava" !== eA ||
-                                    (null == eB ? void 0 : null === (e = eB.restaking) || void 0 === e ? void 0 : e.extension) !== "active" ||
-                                    "DELEGATE" !== eb ||
-                                    eC
-                                      ? (null == tl ? void 0 : tl.watchWallet)
-                                        ? M.o.setShowPopup(!0)
-                                        : et(!0)
-                                      : es(!0);
+                                    "lava" !== eT ||
+                                    (null == eW ? void 0 : null === (e = eW.restaking) || void 0 === e ? void 0 : e.extension) !== "active" ||
+                                    "DELEGATE" !== ej ||
+                                    eD
+                                      ? (null == tn ? void 0 : tn.watchWallet)
+                                        ? G.o.setShowPopup(!0)
+                                        : ea(!0)
+                                      : el(!0);
                                   }
                                 },
-                                disabled: !new (c())(eW).isGreaterThan(0) || el || tx || ((eg || "DELEGATE" === eb) && !K) || (eN && !eC) || !!e7,
+                                disabled: !new (c())(eK).isGreaterThan(0) || en || tv || ((eb || "DELEGATE" === ej) && !Y) || (ey && !eD) || !!e9,
                                 "aria-label": "stake input page review button in stake v2 flow",
-                                children: el
+                                children: en
                                   ? (0, l.jsx)("span", {
                                       "aria-label": "stake input page review button text in stake v2 flow",
                                       children: "Insufficient Balance"
                                     })
                                   : (0, l.jsxs)("span", {
                                       "aria-label": "stake input page review button text in stake v2 flow",
-                                      children: ["Review ", (0, N.P)(eb, !!eN)]
+                                      children: ["Review ", (0, N.P)(ej, !!ey)]
                                     })
                               })
                             })
@@ -640,98 +653,98 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                         })
                       : null,
                     (0, l.jsx)(C.Z, {
-                      isVisible: eO,
+                      isVisible: eH,
                       onClose: () => {
-                        K ? eH(!1) : ev(-1);
+                        Y ? e$(!1) : ef(-1);
                       },
                       onValidatorSelect: e => {
-                        Y(e), eH(!1);
+                        J(e), e$(!1);
                       },
-                      validators: tf,
-                      apr: e$,
-                      forceChain: eA,
-                      forceNetwork: eT
+                      validators: th,
+                      apr: eB,
+                      forceChain: eT,
+                      forceNetwork: eM
                     }),
-                    "lava" === eA &&
-                      (null == eB ? void 0 : null === (b = eB.restaking) || void 0 === b ? void 0 : b.extension) === "active" &&
+                    "lava" === eT &&
+                      (null == eW ? void 0 : null === (b = eW.restaking) || void 0 === b ? void 0 : b.extension) === "active" &&
                       (0, l.jsx)(Z.Z, {
-                        isVisible: J,
-                        onClose: () => X(!1),
+                        isVisible: X,
+                        onClose: () => q(!1),
                         onProviderSelect: e => {
-                          eD(e), X(!1);
+                          eS(e), q(!1);
                         },
-                        providers: tp
+                        providers: tg
                       }),
-                    (K || ("REDELEGATE" === eb && eC)) &&
+                    (Y || ("REDELEGATE" === ej && eD)) &&
                       (0, l.jsx)(N.Z, {
-                        isVisible: ee,
-                        isLoading: e1,
-                        onClose: () => et(!1),
-                        onSubmit: tj,
-                        tokenAmount: eW,
-                        token: tu,
-                        validator: K,
-                        provider: eC,
+                        isVisible: et,
+                        isLoading: e4,
+                        onClose: () => ea(!1),
+                        onSubmit: tw,
+                        tokenAmount: eK,
+                        token: tm,
+                        validator: Y,
+                        provider: eD,
                         error: e8,
-                        gasError: tn,
-                        mode: eb,
-                        unstakingPeriod: eV,
-                        showLedgerPopup: te,
-                        ledgerError: e7,
-                        activeChain: eA
+                        gasError: ti,
+                        mode: ej,
+                        unstakingPeriod: eI,
+                        showLedgerPopup: tt,
+                        ledgerError: e9,
+                        activeChain: eT
                       }),
-                    "DELEGATE" === eb && tu && e5 && er
-                      ? (0, l.jsx)(G.Z, {
-                          tokenAmount: eW,
-                          setTokenAmount: eK,
-                          token: tu,
-                          fee: e5.amount[0],
+                    "DELEGATE" === ej && tm && e6 && ed
+                      ? (0, l.jsx)(_.Z, {
+                          tokenAmount: eK,
+                          setTokenAmount: eY,
+                          token: tm,
+                          fee: e6.amount[0],
                           onAdjust: () => {
-                            ed(!1), eu(!0), et(!0);
+                            ec(!1), em(!0), ea(!0);
                           },
                           onCancel: () => {
-                            ed(!1);
+                            ec(!1);
                           },
-                          isOpen: er
+                          isOpen: ed
                         })
                       : null,
-                    "lava" === eA &&
-                      (null == eB ? void 0 : null === (F = eB.restaking) || void 0 === F ? void 0 : F.extension) === "active" &&
-                      "DELEGATE" === eb &&
-                      (0, l.jsx)(_.Z, {
-                        isVisible: ea,
-                        onClose: () => es(!1),
+                    "lava" === eT &&
+                      (null == eW ? void 0 : null === (V = eW.restaking) || void 0 === V ? void 0 : V.extension) === "active" &&
+                      "DELEGATE" === ej &&
+                      (0, l.jsx)(R.Z, {
+                        isVisible: es,
+                        onClose: () => el(!1),
                         setShowSelectProviderSheet: () => {
-                          es(!1), X(!0);
+                          el(!1), q(!0);
                         },
                         onReviewStake: () => {
-                          es(!1), et(!0);
+                          el(!1), ea(!0);
                         }
                       }),
-                    (0, l.jsx)(z.U, {
-                      mode: em,
-                      isOpen: !!em,
+                    (0, l.jsx)(F.U, {
+                      mode: ex,
+                      isOpen: !!ex,
                       onClose: () => {
-                        eK(""), ex(null);
+                        eY(""), ev(null);
                       },
-                      forceChain: eA,
-                      forceNetwork: eT
+                      forceChain: eT,
+                      forceNetwork: eM
                     }),
                     (0, l.jsxs)(u.ZP, {
-                      recommendedGasLimit: eY,
-                      gasLimit: (null == eJ ? void 0 : eJ.toString()) ?? eY,
-                      setGasLimit: e => eX(Number(e.toString())),
-                      gasPriceOption: to,
-                      onGasPriceOptionChange: tg,
-                      error: tn,
-                      setError: ti,
-                      chain: eA,
-                      network: eT,
-                      rootDenomsStore: I,
-                      rootBalanceStore: B,
+                      recommendedGasLimit: eJ,
+                      gasLimit: (null == eX ? void 0 : eX.toString()) ?? eJ,
+                      setGasLimit: e => eq(Number(e.toString())),
+                      gasPriceOption: tr,
+                      onGasPriceOptionChange: tb,
+                      error: ti,
+                      setError: to,
+                      chain: eT,
+                      network: eM,
+                      rootDenomsStore: U,
+                      rootBalanceStore: W,
                       children: [
-                        (0, l.jsx)(m.a, { className: "hidden", setDisplayFeeValue: tc, setShowFeesSettingSheet: Q }),
-                        (0, l.jsx)(x.k, { showFeesSettingSheet: q, onClose: () => Q(!1), gasError: null })
+                        (0, l.jsx)(m.a, { className: "hidden", setDisplayFeeValue: tu, setShowFeesSettingSheet: ee }),
+                        (0, l.jsx)(x.k, { showFeesSettingSheet: Q, onClose: () => ee(!1), gasError: null })
                       ]
                     })
                   ]
@@ -1051,22 +1064,22 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             ledgerError: M,
             activeChain: G
           } = e,
-          [P] = (0, l.fOz)(),
-          Z = (0, m.U)(),
-          { data: _ } = (0, l.pD_)((null == b ? void 0 : b.image) ? void 0 : b),
-          R = (null == b ? void 0 : b.image) || _ || x.r.Misc.Validator,
+          [_] = (0, l.fOz)(),
+          P = (0, m.U)(),
+          { data: Z } = (0, l.pD_)((null == b ? void 0 : b.image) ? void 0 : b),
+          R = (null == b ? void 0 : b.image) || Z || x.r.Misc.Validator,
           z = (0, g.useMemo)(
-            () => (new (o())((null == h ? void 0 : h.usdPrice) ?? "").gt(0) ? P(new (o())(v).times((null == h ? void 0 : h.usdPrice) ?? "")) : ""),
-            [P, null == h ? void 0 : h.usdPrice, v]
+            () => (new (o())((null == h ? void 0 : h.usdPrice) ?? "").gt(0) ? _(new (o())(v).times((null == h ? void 0 : h.usdPrice) ?? "")) : ""),
+            [_, null == h ? void 0 : h.usdPrice, v]
           ),
           F = (0, g.useMemo)(() => (0, w.h)(M), [M]),
           V = (0, g.useCallback)(() => {
             if (F) {
-              Z();
+              P();
               return;
             }
             i();
-          }, [F, i, Z]),
+          }, [F, i, P]),
           I = M || C || L;
         return (0, s.jsxs)(s.Fragment, {
           children: [
@@ -1381,9 +1394,9 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               A = (0, n.obn)(),
               T = v ?? S,
               M = g ?? A,
-              [G, P] = (0, j.useState)(!1),
-              [Z, _] = (0, j.useMemo)(() => {
-                P(!0);
+              [G, _] = (0, j.useState)(!1),
+              [P, Z] = (0, j.useMemo)(() => {
+                _(!0);
                 let e = i.filter(e => e.moniker.toLowerCase().includes(b.toLowerCase()) || e.address.includes(b));
                 e.sort((e, t) => {
                   switch (y) {
@@ -1404,12 +1417,12 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     });
                 let t = e.filter(e => !1 !== e.active),
                   a = e.filter(e => !1 === e.active);
-                return P(!1), [t, b ? a : []];
+                return _(!1), [t, b ? a : []];
               }, [i, b, y, o]),
               R = (0, j.useMemo)(() => {
-                let e = [...Z];
-                return _.length > 0 && (e.push({ itemType: "inactiveHeader" }), e.push(..._)), e;
-              }, [Z, _]),
+                let e = [...P];
+                return Z.length > 0 && (e.push({ itemType: "inactiveHeader" }), e.push(...Z)), e;
+              }, [P, Z]),
               z = (0, j.useCallback)(
                 (e, t) =>
                   "itemType" in t
@@ -1514,25 +1527,25 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
         let [A] = (0, l.JsT)(y.allDenoms, C, D),
           [T] = (0, l.fOz)(),
           [M, G] = (0, v.useState)(""),
-          [P, Z] = (0, v.useState)(!1),
-          [_, R] = (0, v.useState)(!1),
+          [_, P] = (0, v.useState)(!1),
+          [Z, R] = (0, v.useState)(!1),
           z = (0, v.useMemo)(
             () =>
               M
-                ? P
+                ? _
                   ? new (o())(M).dividedBy(new (o())((null == t ? void 0 : t.usdPrice) ?? "0")).toString()
                   : new (o())(M).multipliedBy(new (o())((null == t ? void 0 : t.usdPrice) ?? "0")).toString()
                 : "",
-            [M, P, null == t ? void 0 : t.usdPrice]
+            [M, _, null == t ? void 0 : t.usdPrice]
           ),
           F = (0, v.useMemo)(() => {
-            if ("DELEGATE" !== j) return new (o())(P ? (null == w ? void 0 : w.currencyAmount) ?? "" : (null == w ? void 0 : w.amount) ?? "");
+            if ("DELEGATE" !== j) return new (o())(_ ? (null == w ? void 0 : w.currencyAmount) ?? "" : (null == w ? void 0 : w.amount) ?? "");
             let e = (0, n.hI1)((null == t ? void 0 : t.amount) ?? "0", (null == t ? void 0 : t.coinDecimals) ?? 6),
               a = new (o())(e).minus((null == x ? void 0 : x.amount) ?? "0");
             if (a.lte(0)) return new (o())(0);
             let s = new (o())((0, n.TGo)(a.toString(), (null == t ? void 0 : t.coinDecimals) ?? 6));
-            return P ? new (o())(s).multipliedBy((null == t ? void 0 : t.usdPrice) ?? "0") : s;
-          }, [w, null == x ? void 0 : x.amount, P, j, t]),
+            return _ ? new (o())(s).multipliedBy((null == t ? void 0 : t.usdPrice) ?? "0") : s;
+          }, [w, null == x ? void 0 : x.amount, _, j, t]),
           V = (0, v.useCallback)(
             e => {
               let a;
@@ -1541,10 +1554,10 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                 s.isLessThan(0) ||
                 ((a =
                   "DELEGATE" === j
-                    ? P
+                    ? _
                       ? (null == t ? void 0 : t.usdValue) ?? "0"
                       : (null == t ? void 0 : t.amount) ?? "0"
-                    : P
+                    : _
                       ? (null == w ? void 0 : w.currencyAmount) ?? ""
                       : (null == w ? void 0 : w.amount) ?? ""),
                 s.isGreaterThan(a))
@@ -1554,16 +1567,16 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               }
               b(!1);
             },
-            [null == w ? void 0 : w.amount, null == w ? void 0 : w.currencyAmount, P, j, b, t]
+            [null == w ? void 0 : w.amount, null == w ? void 0 : w.currencyAmount, _, j, b, t]
           ),
           I = (0, v.useMemo)(
             () =>
               new (o())(
-                P
+                _
                   ? ("DELEGATE" === j ? (null == t ? void 0 : t.usdValue) : null == w ? void 0 : w.currencyAmount) ?? ""
                   : ("DELEGATE" === j ? (null == t ? void 0 : t.amount) : null == w ? void 0 : w.amount) ?? ""
               ),
-            [null == w ? void 0 : w.amount, null == w ? void 0 : w.currencyAmount, P, j, null == t ? void 0 : t.amount, null == t ? void 0 : t.usdValue]
+            [null == w ? void 0 : w.amount, null == w ? void 0 : w.currencyAmount, _, j, null == t ? void 0 : t.amount, null == t ? void 0 : t.usdValue]
           ),
           U = (0, v.useCallback)(
             e => {
@@ -1573,11 +1586,11 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
           );
         return (
           (0, v.useEffect)(() => {
-            k && (P ? G((parseFloat(a) * parseFloat((null == t ? void 0 : t.usdPrice) ?? "0")).toFixed(6)) : G(a), E(!1));
+            k && (_ ? G((parseFloat(a) * parseFloat((null == t ? void 0 : t.usdPrice) ?? "0")).toFixed(6)) : G(a), E(!1));
           }, [k]),
           (0, v.useEffect)(() => {
-            M && !g ? i((P ? parseFloat(M) / parseFloat((null == t ? void 0 : t.usdPrice) ?? "0") : parseFloat(M)).toFixed(6)) : i("");
-          }, [M, P, null == t ? void 0 : t.usdPrice, g]),
+            M && !g ? i((_ ? parseFloat(M) / parseFloat((null == t ? void 0 : t.usdPrice) ?? "0") : parseFloat(M)).toFixed(6)) : i("");
+          }, [M, _, null == t ? void 0 : t.usdPrice, g]),
           (0, v.useEffect)(() => {
             "DELEGATE" === j ? R(N) : R(S);
           }, [j, N, S]),
@@ -1599,7 +1612,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               u = c.toFixed(r, o().ROUND_DOWN),
               m = e.toFixed(r, o().ROUND_DOWN);
             if (!c.lte(0) && u != m && (!i || !(u > m))) {
-              if (P) {
+              if (_) {
                 if (!(null == t ? void 0 : t.usdPrice)) return;
                 U(c.multipliedBy(t.usdPrice).toString());
               } else U(u);
@@ -1609,7 +1622,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
             x,
             U,
             M,
-            P,
+            _,
             j,
             null == t ? void 0 : t.amount,
             null == t ? void 0 : t.coinDecimals,
@@ -1624,7 +1637,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
               (0, s.jsx)("input", {
                 ref: L,
                 className: "bg-transparent text-[1.5rem] font-bold caret-blue-200 outline-none border-none focus-within:placeholder:opacity-0",
-                value: P ? `$${M}` : M,
+                value: _ ? `$${M}` : M,
                 onChange: e => {
                   var t, a, s, l;
                   let n =
@@ -1648,21 +1661,21 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     children: [
                       (0, s.jsx)("span", {
                         className: "text-sm text-muted-foreground",
-                        children: M ? (P ? `${(0, l.LHZ)(z)} ${null == A ? void 0 : A.coinDenom}` : T(new (o())(z))) : P ? "$0.00" : "0.00"
+                        children: M ? (_ ? `${(0, l.LHZ)(z)} ${null == A ? void 0 : A.coinDenom}` : T(new (o())(z))) : _ ? "$0.00" : "0.00"
                       }),
                       (0, s.jsx)("button", {
                         onClick: () => {
                           var e;
                           M &&
                             G(
-                              P
+                              _
                                 ? (parseFloat(M) / parseFloat((null == t ? void 0 : t.usdPrice) ?? "0")).toFixed(6)
                                 : (parseFloat(M) * parseFloat((null == t ? void 0 : t.usdPrice) ?? "0")).toFixed(6)
                             ),
-                            Z(!P),
+                            P(!_),
                             null === (e = L.current) || void 0 === e || e.focus();
                         },
-                        title: P ? "Switch to amount" : "Switch to USD",
+                        title: _ ? "Switch to amount" : "Switch to USD",
                         className: "rounded-full size-5 bg-secondary-200 hover:bg-secondary-300 items-center flex gap-1 justify-center shrink-0 " + r.YV,
                         "aria-label": "swap button in stake v2 flow",
                         children: (0, s.jsx)(m.T, { className: "!leading-[12px] rotate-90 p-1 size-[18px]", "aria-label": "swap button icon in stake v2 flow" })
@@ -1674,7 +1687,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                     children: [
                       (0, s.jsx)(c.M, {
                         mode: "wait",
-                        children: _
+                        children: Z
                           ? (0, s.jsx)(
                               d.O,
                               {
@@ -1693,7 +1706,7 @@ _global.SENTRY_RELEASE = { id: "0.22.9" };
                                 initial: "hidden",
                                 animate: "visible",
                                 exit: "hidden",
-                                children: [I.eq(0) ? "0" : P ? T(I) : (0, l.LHZ)(I.toString()), " ", null == A ? void 0 : A.coinDenom]
+                                children: [I.eq(0) ? "0" : _ ? T(I) : (0, l.LHZ)(I.toString()), " ", null == A ? void 0 : A.coinDenom]
                               },
                               "balance"
                             )

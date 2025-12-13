@@ -1,11 +1,10 @@
-import { shortenAddress } from "@akashnetwork/ui/components";
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import type { BrowserContext, Page } from "@playwright/test";
 
 import { expect, test } from "./fixture/context-with-extension";
 import { topUpWallet } from "./fixture/wallet-setup";
 import type { AuthorizationType } from "./pages/AuthorizationsPage";
-import { AuthorizationsPage } from "./pages/AuthorizationsPage";
+import { AuthorizationsPage, shortenAddress } from "./pages/AuthorizationsPage";
 import { LeapExt } from "./pages/LeapExt";
 
 test.describe("Deployment Authorizations", () => {
@@ -29,8 +28,8 @@ function includeAuthorizationTests(input: { authType: AuthorizationType }) {
     await authorizationsPage.revokeAll(input.authType);
   });
 
-  test("can authorize spending", async ({ page, context, extensionId }) => {
-    const { authorizationsPage, anotherWalletAddress: address } = await setup({ page, context, extensionId, ...input });
+  test("can authorize spending", async ({ page, context }) => {
+    const { authorizationsPage, anotherWalletAddress: address } = await setup({ page, context, ...input });
 
     const shortenedAddress = shortenAddress(address);
     const grantList = authorizationsPage.getListLocator(input.authType);
@@ -38,8 +37,8 @@ function includeAuthorizationTests(input: { authType: AuthorizationType }) {
     await expect(grantList.locator("td", { hasText: shortenedAddress })).toBeVisible({ timeout: 10_000 });
   });
 
-  test("can edit spending", async ({ page, context, extensionId }) => {
-    const { authorizationsPage, anotherWalletAddress: address, extension } = await setup({ page, context, extensionId, ...input });
+  test("can edit spending", async ({ page, context }) => {
+    const { authorizationsPage, anotherWalletAddress: address, extension } = await setup({ page, context, ...input });
     await Promise.all([extension.acceptTransaction("high"), authorizationsPage.editSpending(input.authType, address)]);
     await extension.waitForTransaction("success");
 
@@ -47,8 +46,8 @@ function includeAuthorizationTests(input: { authType: AuthorizationType }) {
     await expect(grantList.locator("tr", { hasText: /10(\.0+?) AKT/ })).toBeVisible({ timeout: 10_000 });
   });
 
-  test("can revoke spending", async ({ page, context, extensionId }) => {
-    const { authorizationsPage, anotherWalletAddress: address, extension } = await setup({ page, context, extensionId, ...input });
+  test("can revoke spending", async ({ page, context }) => {
+    const { authorizationsPage, anotherWalletAddress: address, extension } = await setup({ page, context, ...input });
 
     await Promise.all([extension.acceptTransaction("high"), authorizationsPage.revokeSpending(input.authType, address)]);
     await extension.waitForTransaction("success");
@@ -59,10 +58,13 @@ function includeAuthorizationTests(input: { authType: AuthorizationType }) {
   });
 }
 
-async function setup({ page, context, authType }: { page: Page; context: BrowserContext; extensionId: string; authType: AuthorizationType }) {
+async function setup({ page, context, authType }: { page: Page; context: BrowserContext; authType: AuthorizationType }) {
   const extension = new LeapExt(context, page);
   const anotherWallet = await DirectSecp256k1HdWallet.generate(12, { prefix: "akash" });
-  const [anotherWalletAccounts] = await Promise.all([await anotherWallet.getAccounts(), topUpWallet(anotherWallet)]);
+  const anotherWalletAccounts = await anotherWallet.getAccounts();
+  const anotherWalletAddress = anotherWalletAccounts[0].address;
+
+  await topUpWallet(anotherWalletAddress);
 
   const authorizationsPage = new AuthorizationsPage(context, page);
   await authorizationsPage.goto();
@@ -72,7 +74,7 @@ async function setup({ page, context, authType }: { page: Page; context: Browser
 
   return {
     authorizationsPage,
-    anotherWalletAddress: anotherWalletAccounts[0].address,
+    anotherWalletAddress,
     extension
   };
 }
