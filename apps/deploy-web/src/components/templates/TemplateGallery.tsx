@@ -2,10 +2,8 @@
 import type { ChangeEventHandler } from "react";
 import { useEffect, useState } from "react";
 import { MdSearchOff } from "react-icons/md";
-import { Button, buttonVariants, Spinner } from "@akashnetwork/ui/components";
+import { Button, buttonVariants, Input, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import IconButton from "@mui/material/IconButton";
-import TextField from "@mui/material/TextField";
 import { FilterList, Xmark } from "iconoir-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -100,21 +98,19 @@ export const TemplateGallery: React.FunctionComponent = () => {
   };
 
   const searchBar = (
-    <TextField
-      fullWidth
-      label="Search"
-      size="small"
-      sx={{ marginBottom: "1rem" }}
-      disabled={isLoadingTemplates}
+    <Input
       value={searchTerms}
       onChange={onSearchChange}
-      InputProps={{
-        endAdornment: searchTerms && (
-          <IconButton onClick={onClearSearch} size="small">
-            <Xmark className="text-sm" />
-          </IconButton>
+      label="Search"
+      className="w-full"
+      type="text"
+      endIcon={
+        !!searchTerms && (
+          <Button size="icon" variant="text" onClick={onClearSearch}>
+            <Xmark className="text-xs" />
+          </Button>
         )
-      }}
+      }
     />
   );
 
@@ -158,7 +154,7 @@ export const TemplateGallery: React.FunctionComponent = () => {
           <div className="mr-12 hidden w-[222px] md:block">
             <p className="mb-4 font-bold">Filter Templates</p>
 
-            {searchBar}
+            <div className="mb-6">{searchBar}</div>
 
             <ul className="flex flex-col items-start">
               {templates && (
@@ -201,7 +197,7 @@ export const TemplateGallery: React.FunctionComponent = () => {
 
         <div className="flex-1">
           {searchTerms && (
-            <div className="flex items-center pb-4">
+            <div className="flex items-center pb-6">
               <p className="text-muted-foreground">
                 Searching for: "{searchTerms}" - {shownTemplates.length} results
               </p>

@@ -42,12 +42,13 @@ export function AccountMenu() {
               <DropdownMenuTrigger asChild>
                 <Button
                   size="icon"
-                  variant="ghost"
+                  variant="outline"
+                  className="h-9 w-9 bg-accent"
                   onClick={() => (username ? router.push(urlService.userProfile(username)) : null)}
                   onMouseOver={() => setOpen(true)}
                 >
-                  <Avatar className="h-[2rem] w-[2rem]">
-                    <AvatarFallback>{username ? username[0].toUpperCase() : <User />}</AvatarFallback>
+                  <Avatar className="h-9 w-9">
+                    <AvatarFallback className="bg-transparent">{username ? username[0].toUpperCase() : <User />}</AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>

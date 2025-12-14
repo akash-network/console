@@ -43,7 +43,7 @@ export const TemplateDetail: FC<TemplateDetailProps> = ({ template }) => {
     <Layout disableContainer>
       <div className="[&>img]:max-w-full">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="w-full rounded-none">
+          <TabsList className="w-full justify-center rounded-none">
             <TabsTrigger value="README" className={cn({ ["font-bold"]: activeTab === "README" })}>
               README
             </TabsTrigger>
@@ -57,7 +57,7 @@ export const TemplateDetail: FC<TemplateDetailProps> = ({ template }) => {
             )}
           </TabsList>
 
-          <div className="container flex h-full px-4 py-2 sm:pt-8">
+          <div className="container flex h-full p-6">
             <div className="flex items-center truncate">
               <Button aria-label="back" onClick={goBack} size="icon" variant="ghost">
                 <NavArrowLeft />
@@ -84,21 +84,21 @@ export const TemplateDetail: FC<TemplateDetailProps> = ({ template }) => {
 
           {activeTab === "README" && (
             <ViewPanel stickToBottom className="overflow-auto pb-12">
-              <div className="container pb-8 pt-4 sm:pt-8">
+              <div className="container p-6 pt-0">
                 <Markdown hasHtml={template.id?.startsWith("akash-network-awesome-akash")}>{template.readme}</Markdown>
               </div>
             </ViewPanel>
           )}
           {activeTab === "SDL" && (
             <ViewPanel stickToBottom className="overflow-hidden">
-              <div className="container h-full pb-8 pt-4 sm:pt-8">
+              <div className="container h-full p-6 pt-0">
                 <DynamicMonacoEditor height="100%" language="yaml" value={template.deploy || ""} options={{ readOnly: true }} />
               </div>
             </ViewPanel>
           )}
           {activeTab === "GUIDE" && (
-            <ViewPanel stickToBottom className="overflow-auto p-4 pb-12">
-              <div className="container h-full pb-8 pt-4 sm:pt-8">
+            <ViewPanel stickToBottom className="overflow-auto p-6 pb-12">
+              <div className="container h-full p-6 pt-0">
                 <Markdown>{template.guide}</Markdown>
               </div>
             </ViewPanel>

@@ -36,14 +36,14 @@ export function WalletStatus() {
               <DropdownMenu modal={false} open={open}>
                 <DropdownMenuTrigger asChild>
                   <div
-                    className={cn("flex items-center justify-center rounded-md border bg-accent px-4 py-2 text-sm hover:bg-accent/80")}
+                    className={cn("flex items-center justify-center space-x-2 rounded-md border bg-accent px-4 py-2 text-sm hover:bg-accent/80")}
                     onMouseOver={() => setOpen(true)}
                   >
                     <div className="flex items-center space-x-2" aria-label="Connected wallet name and balance">
+                      <Wallet className="text-xs" />
                       {isManaged && isTrialing && <span className="text-xs">Trial</span>}
                       {!isManaged && (
                         <>
-                          <Wallet className="text-xs" />
                           {walletName?.length > 20 ? (
                             <span className="text-xs">{getSplitText(walletName, 4, 4)}</span>
                           ) : (
@@ -53,7 +53,7 @@ export function WalletStatus() {
                       )}
                     </div>
 
-                    {walletBalance && ((isManaged && isTrialing) || !isManaged) && <div className="px-2 text-muted-foreground">|</div>}
+                    {walletBalance && ((isManaged && isTrialing) || !isManaged) && <div className="text-muted-foreground">|</div>}
 
                     <div className="text-xs">
                       {walletBalance && (
@@ -67,7 +67,7 @@ export function WalletStatus() {
                     </div>
 
                     <div>
-                      <NavArrowDown className="ml-2 text-xs" />
+                      <NavArrowDown className="text-xs" />
                     </div>
                   </div>
                 </DropdownMenuTrigger>

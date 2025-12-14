@@ -17,8 +17,8 @@ export const AccountStatsCards: React.FC<Props> = ({ walletBalance, activeDeploy
   return (
     <div className="grid gap-6 md:grid-cols-3">
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <h3 className="text-sm font-medium text-muted-foreground">Available Balance</h3>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+          <h3 className="text-sm font-medium leading-none text-muted-foreground">Available Balance</h3>
           <Wallet className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
@@ -29,8 +29,8 @@ export const AccountStatsCards: React.FC<Props> = ({ walletBalance, activeDeploy
       </Card>
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <h3 className="text-sm font-medium text-muted-foreground">Active Deployments</h3>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+          <h3 className="text-sm font-medium leading-none text-muted-foreground">Active Deployments</h3>
           <Server className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
@@ -39,13 +39,13 @@ export const AccountStatsCards: React.FC<Props> = ({ walletBalance, activeDeploy
       </Card>
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <h3 className="text-sm font-medium text-muted-foreground">Total Cost</h3>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+          <h3 className="text-sm font-medium leading-none text-muted-foreground">Total Cost</h3>
           <StatsUpSquare className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-1">
-            <p className="text-2xl font-bold">
+            <p className="text-2xl font-bold leading-none">
               <FormattedNumber value={costPerHour || 0} style="currency" currency="USD" /> / hour
             </p>
             <p className="text-sm text-muted-foreground">

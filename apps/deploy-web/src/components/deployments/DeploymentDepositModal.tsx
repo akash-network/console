@@ -157,7 +157,7 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
       enableCloseOnBackdropClick
       title={title}
     >
-      <div className="mb-1 space-y-6">
+      <div className="space-y-6">
         {services.length > 0 && (
           <div className="max-h-[300px] space-y-4 overflow-auto">
             {services.map(service => {

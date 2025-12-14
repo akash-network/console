@@ -102,7 +102,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ isLoadingBalances,
             />
           )}
 
-          {hasActiveDeployments && (
+          {hasActiveDeployments && userProviders && (
             <ResourceStatsGrid providers={userProviders} totalCpu={totalCpu} totalGpu={totalGpu || 0} memory={_ram} storage={_storage} />
           )}
 

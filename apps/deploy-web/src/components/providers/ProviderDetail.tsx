@@ -159,11 +159,11 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
 
         {networkCapacity && wasRecentlyOnline && (
           <>
-            <div className="mb-4">
+            <div className="mb-6">
               <NetworkCapacity {...networkCapacity} />
             </div>
 
-            <div className="grid grid-cols-1 gap-4 space-y-4 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-6 space-y-6 lg:grid-cols-2">
               <div className="basis-1/2">
                 <ActiveLeasesGraph provider={provider} />
               </div>
@@ -199,12 +199,12 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
 
         {provider && providerAttributesSchema && (
           <>
-            <div className="mt-4">
-              <Title subTitle className="mb-4 font-normal tracking-tight">
+            <div className="mb-6 mt-6">
+              <Title subTitle className="mb-4 font-normal">
                 General Info
               </Title>
 
-              <Card className="mb-4">
+              <Card className="mb-6">
                 <CardContent className="mb-4 grid grid-cols-1 gap-4 p-4 sm:grid-cols-2">
                   <div>
                     <LabelValue label="Host" value={provider.host} />
@@ -225,16 +225,19 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
                 </CardContent>
               </Card>
 
-              <Title subTitle className="mb-4 font-normal tracking-tight">
+              <Title subTitle className="mb-4 font-normal">
                 Specs
               </Title>
-              <ProviderSpecs provider={provider} />
 
-              <Title subTitle className="mb-4 mt-4 font-normal tracking-tight">
+              <div className="mb-6">
+                <ProviderSpecs provider={provider} />
+              </div>
+
+              <Title subTitle className="mb-4 font-normal">
                 Features
               </Title>
-              <Card className="mb-4">
-                <CardContent className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2">
+              <Card className="mb-6">
+                <CardContent className="grid grid-cols-1 gap-4 pt-6 sm:grid-cols-2">
                   <div>
                     <LabelValue label="Akash version" value={provider.akashVersion || "Unknown"} />
                     <LabelValue label="IP Leases" value={provider.featEndpointIp && <Check className="ml-0 text-primary sm:ml-2" />} />
@@ -248,12 +251,12 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
                 </CardContent>
               </Card>
 
-              <Title subTitle className="mb-4 font-normal tracking-tight">
+              <Title subTitle className="mb-4 font-normal">
                 Stats
               </Title>
 
               <Card className="mb-4">
-                <CardContent className="p-4">
+                <CardContent className="pt-6">
                   <LabelValue label="Deployments" value={provider.deploymentCount} />
                   <LabelValue label="Leases" value={provider.leaseCount} />
                   <LabelValue label="Orders" value={provider.orderCount || "0"} />
@@ -262,11 +265,11 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
               </Card>
             </div>
 
-            <Title subTitle className="mb-4 font-normal tracking-tight">
+            <Title subTitle className="mb-4 font-normal">
               Raw attributes
             </Title>
             <Card>
-              <CardContent className="p-4">
+              <CardContent className="pt-6">
                 {provider.attributes.map(x => (
                   <LabelValue key={x.key} label={x.key} value={x.value} />
                 ))}

@@ -15,7 +15,7 @@ type Provider = {
 };
 
 type Props = {
-  providers: Provider[] | null;
+  providers: Provider[];
   totalCpu: number;
   totalGpu?: number;
   memory: ReturnType<typeof bytesToShrink>;
@@ -23,10 +23,6 @@ type Props = {
 };
 
 export const ResourceStatsGrid: React.FC<Props> = ({ providers, totalCpu, totalGpu, memory, storage }) => {
-  if (!providers || providers.length === 0) {
-    return null;
-  }
-
   return (
     <Card>
       <CardContent className="space-y-6 p-6">

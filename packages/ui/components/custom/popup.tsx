@@ -171,7 +171,7 @@ export function Popup(props: React.PropsWithChildren<PopupProps>) {
   } else {
     component.push(
       <ScrollArea key="dialog-content" className="-mx-4 max-h-[75vh]">
-        <div className="px-4">
+        <div className="mb-1 px-4">
           {props.variant === "prompt" ? (
             <div>
               <Label>{props.message}</Label>
