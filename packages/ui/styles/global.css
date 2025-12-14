@@ -4,7 +4,6 @@
 
 @layer base {
   :root, .light {
-    /* akashml.com inspired color palette - Light mode */
     --background: 0 0% 96%;
     --header: 120 33% 100%;
     --foreground: 0 0% 4%;
@@ -39,7 +38,6 @@
   }
 
   .dark {
-    /* akashml.com inspired color palette - Dark mode */
     --background: 0 0% 15%;
     --header: 0 0% 4%;
     --foreground: 0 0% 96%;
