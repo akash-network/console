@@ -5,7 +5,6 @@ import { MediaImage } from "iconoir-react";
 import Link from "next/link";
 
 import type { TemplateOutputSummaryWithCategory } from "@src/queries/useTemplateQuery";
-import { getShortText } from "@src/utils/stringUtils";
 import { UrlService } from "@src/utils/urlUtils";
 
 type Props = {
@@ -38,7 +37,7 @@ export const TemplateBox: React.FunctionComponent<Props> = ({ template, linkHref
         </div>
       </CardHeader>
       <CardContent className="pt-0">
-        <p className="text-xs text-muted-foreground">{getShortText(template.summary, 80)}</p>
+        <p className="line-clamp-2 text-xs text-muted-foreground">{template.summary}</p>
       </CardContent>
     </Link>
   );

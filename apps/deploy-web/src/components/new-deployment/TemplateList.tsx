@@ -1,8 +1,8 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { buttonVariants, Card, CardContent, CardDescription, CardHeader, FileButton } from "@akashnetwork/ui/components";
+import { buttonVariants, Card, CardContent, CardHeader, FileButton } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { ArrowRight, Upload } from "iconoir-react";
+import { OpenNewWindow, Upload } from "iconoir-react";
 import { useAtom } from "jotai";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -98,10 +98,21 @@ export const TemplateList: React.FunctionComponent<Props> = ({ onChangeGitProvid
     <div className="my-0 pb-8">
       <CustomNextSeo title="Create Deployment - Template List" url={`${domainName}${UrlService.newDeployment({ step: RouteStep.chooseTemplate })}`} />
 
-      <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-4">
-        <div className="col-span-3 grid grid-cols-1 gap-6 md:col-span-1">
+      {/* Build Your Own Section */}
+      <Card className="mb-6">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <div>
+            <h3 className="text-xl font-bold tracking-tight">Build Your Own</h3>
+            <p className="text-sm text-muted-foreground">Select a type or upload your own SDL.</p>
+          </div>
+          <FileButton onFileSelect={onFileSelect} accept=".yml,.yaml,.txt" size="sm" variant="default" className="space-x-2">
+            <Upload className="text-xs" />
+            <span>Upload SDL</span>
+          </FileButton>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <DeployOptionBox
-            title="Build & Deploy"
+            title="Build and Deploy"
             description="Build & Deploy directly from a code repository (VCS)"
             topIcons={[{ light: "/images/github.png", dark: "/images/github-dark.svg" }, "/images/gitlab.png", "/images/bitbucket.png"]}
             bottomIcons={[
@@ -130,19 +141,16 @@ export const TemplateList: React.FunctionComponent<Props> = ({ onChangeGitProvid
             onClick={() => onSDLBuilderClick()}
             testId="custom-container-card"
           />
+        </CardContent>
+      </Card>
 
-          <FileButton onFileSelect={onFileSelect} accept=".yml,.yaml,.txt" size="lg" variant="outline" className="space-x-2 bg-card text-foreground">
-            <Upload className="text-xs" />
-            <span className="text-xs">Upload your SDL</span>
-          </FileButton>
-        </div>
-
-        <Card className="col-span-3">
-          <CardHeader>
-            <h3 className="mb-2 text-xl font-bold tracking-tight">Explore Templates</h3>
-
-            <CardDescription>
-              Browse through the marketplace of pre-made solutions with categories like AI&ML, Blockchain nodes and more!{" "}
+      {/* Explore Templates Section */}
+      <Card>
+        <CardHeader className="flex flex-row items-start justify-between space-y-0">
+          <div>
+            <h3 className="text-xl font-bold tracking-tight">Explore Templates</h3>
+            <p className="text-sm text-muted-foreground">
+              Browse through the marketplace of pre-made solutions with categories like AI & ML, Blockchain nodes and more!{" "}
               <Link
                 href={UrlService.newDeployment({ step: RouteStep.editDeployment, templateId: helloWorldTemplate.code })}
                 className="text-inherit underline"
@@ -151,28 +159,23 @@ export const TemplateList: React.FunctionComponent<Props> = ({ onChangeGitProvid
               >
                 Try hello world app!
               </Link>
-            </CardDescription>
-
-            <div>
-              <Link href={UrlService.templates()} prefetch={false} className={cn(buttonVariants({ variant: "link", size: "sm" }), "space-x-2 px-0")}>
-                <span>View All Templates</span>
-                <ArrowRight className="text-xs" />
-              </Link>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <section className="grid grid-cols-1 gap-2 md:grid-cols-2 md:gap-4 lg:grid-cols-3" aria-label="Template list">
-              {previewTemplates.map(template => (
-                <TemplateBox
-                  key={template.id}
-                  template={template}
-                  linkHref={UrlService.newDeployment({ step: RouteStep.editDeployment, templateId: template?.id })}
-                />
-              ))}
-            </section>
-          </CardContent>
-        </Card>
-      </div>
+            </p>
+          </div>
+          <Link href={UrlService.templates()} prefetch={false} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "space-x-2")}>
+            <OpenNewWindow className="text-xs" />
+            <span>View All</span>
+          </Link>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3" aria-label="Template list">
+          {previewTemplates.map(template => (
+            <TemplateBox
+              key={template.id}
+              template={template}
+              linkHref={UrlService.newDeployment({ step: RouteStep.editDeployment, templateId: template?.id })}
+            />
+          ))}
+        </CardContent>
+      </Card>
     </div>
   );
 };
