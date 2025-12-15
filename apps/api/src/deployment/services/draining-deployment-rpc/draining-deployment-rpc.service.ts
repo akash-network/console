@@ -57,7 +57,7 @@ export class DrainingDeploymentRpcService implements DrainingDeploymentLeaseSour
         pagination: { limit: 1000, key: nextKey || undefined }
       });
 
-      const filteredItems = response.leases.filter(lease => dseqSet.has(lease.lease.id.dseq));
+      const filteredItems = response.leases.filter(lease => lease.lease.state === "active" && dseqSet.has(lease.lease.id.dseq));
       allItems.push(...filteredItems);
       nextKey = response.pagination.next_key;
     } while (nextKey);
@@ -84,7 +84,7 @@ export class DrainingDeploymentRpcService implements DrainingDeploymentLeaseSour
       });
 
       const filteredItems = response.deployments
-        .filter(deployment => dseqSet.has(deployment.deployment.id.dseq))
+        .filter(deployment => deployment.deployment.state === "active" && dseqSet.has(deployment.deployment.id.dseq))
         .map(deployment => ({
           dseq: deployment.deployment.id.dseq,
           createdHeight: Number(deployment.deployment.created_at),

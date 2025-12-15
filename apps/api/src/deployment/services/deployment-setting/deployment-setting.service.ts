@@ -5,6 +5,7 @@ import assert from "http-assert";
 import { singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
+import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { FindDeploymentSettingParams } from "@src/deployment/http-schemas/deployment-setting.schema";
 import {
   DeploymentSettingRepository,
@@ -25,6 +26,7 @@ export class DeploymentSettingService {
     private readonly deploymentSettingRepository: DeploymentSettingRepository,
     private readonly authService: AuthService,
     private readonly drainingDeploymentService: DrainingDeploymentService,
+    private readonly walletReloadJobService: WalletReloadJobService,
     private readonly config: DeploymentConfigService
   ) {}
 
@@ -46,7 +48,13 @@ export class DeploymentSettingService {
   }
 
   async create(input: DeploymentSettingsInput): Promise<DeploymentSettingWithEstimatedTopUpAmount> {
-    return this.withEstimatedTopUpAmount(await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "create").create(input));
+    const result = await this.withEstimatedTopUpAmount(await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "create").create(input));
+
+    if (result.autoTopUpEnabled) {
+      await this.walletReloadJobService.scheduleImmediate(result.userId);
+    }
+
+    return result;
   }
 
   async upsert(

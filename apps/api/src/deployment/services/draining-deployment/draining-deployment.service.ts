@@ -124,7 +124,7 @@ export class DrainingDeploymentService {
    * This is based on each deployment's block rate and the number of blocks needed to keep them running until the target date.
    *
    * @param address - The address to calculate the deployment costs for
-   * @param targetDate - The target date to calculate the costs until
+   * @param targetDate - The target date to calculate the costs until and till which deployments would close
    * @returns The total cost (in credits) needed to keep all draining deployments running until the target date
    */
   async calculateAllDeploymentCostUntilDate(address: string, targetDate: Date): Promise<number> {
