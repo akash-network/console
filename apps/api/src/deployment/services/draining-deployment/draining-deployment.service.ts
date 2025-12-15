@@ -124,10 +124,10 @@ export class DrainingDeploymentService {
    * This is based on each deployment's block rate and the number of blocks needed to keep them running until the target date.
    *
    * @param address - The address to calculate the deployment costs for
-   * @param targetDate - The target date to calculate the costs until
+   * @param closeBeforeDate - The target date to calculate the costs until and till which deployments would close
    * @returns The total cost (in credits) needed to keep all draining deployments running until the target date
    */
-  async calculateAllDeploymentCostUntilDate(address: string, targetDate: Date): Promise<number> {
+  async calculateAllDeploymentCostUntilDate(address: string, closeBeforeDate: Date): Promise<number> {
     const userWallet = await this.userWalletRepository.findOneBy({ address });
 
     if (!userWallet || !userWallet.address) {
@@ -136,7 +136,7 @@ export class DrainingDeploymentService {
 
     const currentHeight = await this.blockHttpService.getCurrentHeight();
     const now = new Date();
-    const hoursUntilTarget = (targetDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+    const hoursUntilTarget = (closeBeforeDate.getTime() - now.getTime()) / (1000 * 60 * 60);
     const targetHeight = Math.floor(currentHeight + averageBlockCountInAnHour * hoursUntilTarget);
 
     let totalAmount = 0;
