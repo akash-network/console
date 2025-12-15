@@ -1,6 +1,4 @@
 import { MsgAccountDeposit } from "@akashnetwork/chain-sdk/private-types/akash.v1";
-import { LoggerService } from "@akashnetwork/logging";
-import groupBy from "lodash/groupBy";
 import { Err, Ok, Result } from "ts-results";
 import { singleton } from "tsyringe";
 
@@ -9,10 +7,11 @@ import { BillingConfigService } from "@src/billing/services/billing-config/billi
 import { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
+import { LoggerService } from "@src/core";
+import type { DryRunOptions } from "@src/core/types/console";
 import { TopUpSummarizer } from "@src/deployment/lib/top-up-summarizer/top-up-summarizer";
 import { DrainingDeployment } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
-import { DeploymentsRefiller, TopUpDeploymentsOptions } from "@src/deployment/types/deployments-refiller";
 import { CachedBalanceService } from "../cached-balance/cached-balance.service";
 
 type CollectedMessage = {
@@ -22,9 +21,7 @@ type CollectedMessage = {
 };
 
 @singleton()
-export class TopUpManagedDeploymentsService implements DeploymentsRefiller {
-  private readonly logger = LoggerService.forContext(TopUpManagedDeploymentsService.name);
-
+export class TopUpManagedDeploymentsService {
   private readonly summarizer = new TopUpSummarizer();
 
   constructor(
@@ -34,43 +31,48 @@ export class TopUpManagedDeploymentsService implements DeploymentsRefiller {
     private readonly rpcClientService: RpcMessageService,
     private readonly cachedBalanceService: CachedBalanceService,
     private readonly blockHttpService: BlockHttpService,
-    private readonly chainErrorService: ChainErrorService
-  ) {}
+    private readonly chainErrorService: ChainErrorService,
+    private readonly logger: LoggerService
+  ) {
+    this.logger.setContext(TopUpManagedDeploymentsService.name);
+  }
 
-  async topUpDeployments(options: TopUpDeploymentsOptions): Promise<Result<void, Error[]>> {
+  async topUpDeployments(options: DryRunOptions): Promise<Result<void, unknown[]>> {
     const startBlockHeight = await this.blockHttpService.getCurrentHeight();
     this.summarizer.set("startBlockHeight", startBlockHeight);
+    const errors: unknown[] = [];
 
-    for await (const deployments of this.drainingDeploymentService.paginate({ limit: options.concurrency || 10 })) {
-      const messageInputs = await this.collectMessages(deployments, options);
-      const byOwner = groupBy(messageInputs, "deployment.address");
-      const results = await Promise.allSettled(Object.values(byOwner).map(ownerInputs => this.topUpForOwner(ownerInputs, options)));
-
-      const rejectedErrors = results
-        .filter((result: PromiseSettledResult<unknown>): result is PromiseRejectedResult => {
-          return result.status === "rejected";
-        })
-        .map(result => result.reason);
-
-      if (rejectedErrors.length) {
-        this.finalizeSummary(options);
-        return Err(rejectedErrors);
+    for await (const { address, deployments } of this.drainingDeploymentService.findDrainingDeploymentsByOwner()) {
+      try {
+        const messageInputs = await this.collectMessages(deployments, options);
+        if (!messageInputs.length) {
+          this.logger.info({
+            event: "TOP_UP_SKIPPED_NOTHING_TO_TOP_UP",
+            owner: address,
+            deploymentCount: deployments.length,
+            dryRun: options.dryRun
+          });
+          continue;
+        }
+        await this.topUpForOwner(address, messageInputs, options);
+      } catch (error: unknown) {
+        errors.push(error);
       }
     }
 
-    this.finalizeSummary(options);
+    await this.finalizeSummary(options);
 
-    return Ok(undefined);
+    return errors.length > 0 ? Err(errors) : Ok(undefined);
   }
 
-  private async finalizeSummary(options: TopUpDeploymentsOptions) {
+  private async finalizeSummary(options: DryRunOptions) {
     const endBlockHeight = await this.blockHttpService.getCurrentHeight();
     this.summarizer.set("endBlockHeight", endBlockHeight);
 
     this.logSummary(options);
   }
 
-  private async collectMessages(deployments: DrainingDeployment[], options: TopUpDeploymentsOptions): Promise<CollectedMessage[]> {
+  private async collectMessages(deployments: DrainingDeployment[], options: DryRunOptions): Promise<CollectedMessage[]> {
     const denom = this.billingConfig.get("DEPLOYMENT_GRANT_DENOM");
 
     const messageInputs = await Promise.all(
@@ -136,8 +138,7 @@ export class TopUpManagedDeploymentsService implements DeploymentsRefiller {
     return messageInputs.filter(x => !!x);
   }
 
-  private async topUpForOwner(ownerInputs: CollectedMessage[], options: TopUpDeploymentsOptions) {
-    const owner = ownerInputs[0].deployment.address;
+  private async topUpForOwner(owner: string, ownerInputs: CollectedMessage[], options: DryRunOptions) {
     const logItems = ownerInputs.map(({ deployment, input }) => ({
       deployment,
       input
@@ -195,7 +196,7 @@ export class TopUpManagedDeploymentsService implements DeploymentsRefiller {
     }
   }
 
-  private logSummary(options: TopUpDeploymentsOptions) {
+  private logSummary(options: DryRunOptions) {
     const summary = this.summarizer.summarize();
     const log = { event: "TOP_UP_DEPLOYMENTS_SUMMARY", summary, dryRun: options.dryRun };
     const hasErrors = summary.deploymentTopUpErrorCount - summary.insufficientBalanceCount > 0;

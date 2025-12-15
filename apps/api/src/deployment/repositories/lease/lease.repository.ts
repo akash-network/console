@@ -2,6 +2,8 @@ import { Lease } from "@akashnetwork/database/dbSchemas/akash";
 import { col, fn, Op, WhereOptions } from "sequelize";
 import { singleton } from "tsyringe";
 
+import { DrainingDeploymentLeaseSource } from "@src/deployment/types/draining-deployment";
+
 export interface DrainingDeploymentOutput {
   dseq: number;
   owner: string;
@@ -26,7 +28,7 @@ export interface DatabaseLeaseListParams {
 }
 
 @singleton()
-export class LeaseRepository {
+export class LeaseRepository implements DrainingDeploymentLeaseSource {
   async findOneByDseqAndOwner(dseq: string, owner: string): Promise<DrainingDeploymentOutput | null> {
     const leases = await Lease.findAll({
       where: { dseq, owner },
@@ -42,15 +44,26 @@ export class LeaseRepository {
     return null;
   }
 
-  async findManyByDseqAndOwner(closureHeight: number, pairs: { dseq: string; owner: string }[]): Promise<DrainingDeploymentOutput[]> {
-    if (!pairs.length) return [];
+  /**
+   * Finds multiple draining deployments by dseqs and owner from the database.
+   * Filters by closure height, aggregates lease data by summing block rates (price)
+   * and taking minimum predicted closure height and closed height.
+   * This implementation assumes that denom is always the same for managed wallets
+   * for which these methods are used, allowing direct summation of price values.
+   *
+   * @param closureHeight - The block height threshold for filtering draining deployments
+   * @param owner - Owner address
+   * @param dseqs - Array of deployment sequence numbers to filter by
+   * @returns Array of draining deployment outputs
+   */
+  async findManyByDseqAndOwner(closureHeight: number, owner: string, dseqs: string[]): Promise<DrainingDeploymentOutput[]> {
+    if (!dseqs.length) return [];
 
     const leaseOrLeases = await Lease.findAll({
       where: {
         predictedClosedHeight: { [Op.lte]: closureHeight },
-        [Op.or]: pairs.map(({ dseq, owner }) => ({
-          [Op.and]: [{ dseq, owner }]
-        }))
+        owner,
+        dseq: { [Op.in]: dseqs }
       },
       attributes: [
         "dseq",
@@ -75,6 +88,14 @@ export class LeaseRepository {
     return [];
   }
 
+  /**
+   * Finds leases with pagination support and optional filtering.
+   * Supports filtering by owner, dseq, gseq, oseq, provider, and state.
+   * Includes associated deployment data in the results.
+   *
+   * @param params - Query parameters for filtering and pagination
+   * @returns Object with total count and array of lease rows
+   */
   async findLeasesWithPagination(params: DatabaseLeaseListParams): Promise<{ count: number; rows: Lease[] }> {
     const { skip = 0, limit = 100, owner, dseq, gseq, oseq, provider, state, reverse = false } = params;
 

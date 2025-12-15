@@ -1,5 +1,5 @@
 export type FeatureFlag =
-  | "alerts" // keep new line
+  | "alerts"
   | "anonymous_free_trial"
   | "notifications_general_alerts_update"
   | "ui_deployment_closed_alert"
