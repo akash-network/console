@@ -1,5 +1,12 @@
 
 
+## [3.14.1](https://github.com/akash-network/console/compare/console-api/v3.14.0...console-api/v3.14.1) (2025-12-15)
+
+
+### Bug Fixes
+
+* **billing:** properly filters active leases and triggers the job  ([e7265ba](https://github.com/akash-network/console/commit/e7265ba35ff4fb6764cf61babb4930a7d4da4809)), closes [#1779](https://github.com/akash-network/console/issues/1779)
+
 ## [3.14.0](https://github.com/akash-network/console/compare/console-api/v3.13.1...console-api/v3.14.0) (2025-12-15)
 
 
