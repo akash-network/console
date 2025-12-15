@@ -29,7 +29,7 @@ export const AccountHeader: React.FC<Props> = ({ isManagedWallet, onDeployClick,
         )}
         <Link
           href={urlService.newDeployment()}
-          className={cn(buttonVariants({ variant: "default", size: "sm" }), "flex items-center gap-2")}
+          className={cn(buttonVariants({ variant: "default", size: "sm" }), "flex items-center gap-2", isBlockchainDown && "pointer-events-none opacity-50")}
           onClick={onDeployClick}
           aria-disabled={isBlockchainDown}
         >

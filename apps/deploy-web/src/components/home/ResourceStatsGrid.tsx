@@ -29,13 +29,21 @@ export const ResourceStatsGrid: React.FC<Props> = ({ providers, totalCpu, totalG
         <div className="space-y-4">
           <h3 className="text-sm font-medium">Current Providers</h3>
           <div className="flex flex-wrap gap-2">
-            {providers.map((p, index) => (
-              <Link key={`${p.owner}-${index}`} href={p.owner ? UrlService.providerDetailLeases(p.owner) : "#"}>
-                <Badge variant="default" className="rounded-md bg-muted-foreground">
-                  {p.name}
-                </Badge>
-              </Link>
-            ))}
+            {providers.map((p, index) =>
+              p.owner ? (
+                <Link key={`${p.owner}-${index}`} href={UrlService.providerDetailLeases(p.owner)}>
+                  <Badge variant="default" className="rounded-md bg-muted-foreground">
+                    {p.name}
+                  </Badge>
+                </Link>
+              ) : (
+                <span key={`${p.owner}-${index}`} aria-disabled="true" tabIndex={-1}>
+                  <Badge variant="default" className="rounded-md bg-muted-foreground">
+                    {p.name}
+                  </Badge>
+                </span>
+              )
+            )}
           </div>
         </div>
 

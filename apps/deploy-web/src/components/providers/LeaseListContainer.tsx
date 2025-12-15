@@ -26,7 +26,7 @@ export const LeaseListContainer: React.FunctionComponent<Props> = ({ owner }) =>
     data: providerStatus,
     isLoading: isLoadingStatus,
     refetch: getProviderStatus
-  } = useProviderStatus(provider as ApiProviderList, {
+  } = useProviderStatus(provider as ApiProviderList | null | undefined, {
     enabled: !!provider?.hostUri
   });
 
