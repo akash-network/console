@@ -166,12 +166,12 @@ describe(DrainingDeploymentRpcService.name, () => {
       );
     });
 
-    it("sets closedHeight when lease is closed", async () => {
+    it("sets closedHeight when lease has closed_on set", async () => {
       const input = {
         leases: [
           {
             blockRate: 50,
-            state: "closed" as const,
+            state: "active" as const,
             closedHeight: 999000
           }
         ],
@@ -248,7 +248,8 @@ describe(DrainingDeploymentRpcService.name, () => {
           {
             owner,
             dseq,
-            createdAt: String(createdHeight)
+            createdAt: String(createdHeight),
+            state: "active"
           },
           1
         );
