@@ -5,9 +5,10 @@ import { cn } from "@akashnetwork/ui/utils";
 import { Learning, NavArrowDown, Rocket, SearchEngine } from "iconoir-react";
 import Link from "next/link";
 
-import { UrlService } from "@src/utils/urlUtils";
+import { useServices } from "@src/context/ServicesProvider";
 
 export const WelcomePanel: React.FC = () => {
+  const { urlService } = useServices();
   const [expanded, setExpanded] = useState(true);
 
   return (
@@ -33,7 +34,7 @@ export const WelcomePanel: React.FC = () => {
                 </Avatar>
 
                 <div className="flex flex-col">
-                  <Link href={UrlService.getStarted()} className="font-semibold">
+                  <Link href={urlService.getStarted()} className="font-semibold">
                     Getting started with Akash Console
                   </Link>
                   <span className="text-sm text-muted-foreground">Learn how to deploy your first docker container on Akash in a few clicks using Console.</span>
@@ -48,7 +49,7 @@ export const WelcomePanel: React.FC = () => {
                 </Avatar>
 
                 <div className="ml-4 flex flex-col">
-                  <Link href={UrlService.templates()} className="font-semibold">
+                  <Link href={urlService.templates()} className="font-semibold">
                     Explore the marketplace
                   </Link>
                   <span className="text-sm text-muted-foreground">

@@ -6,7 +6,7 @@ import { Plus, Rocket } from "iconoir-react";
 import Link from "next/link";
 
 import { AddFundsLink } from "@src/components/user/AddFundsLink";
-import { UrlService } from "@src/utils/urlUtils";
+import { useServices } from "@src/context/ServicesProvider";
 
 type Props = {
   isManagedWallet: boolean;
@@ -15,18 +15,20 @@ type Props = {
 };
 
 export const AccountHeader: React.FC<Props> = ({ isManagedWallet, onDeployClick, isBlockchainDown }) => {
+  const { urlService } = useServices();
+
   return (
     <div className="flex items-center justify-between">
       <h3 className="text-xl font-semibold">Your account</h3>
       <div className="flex gap-4">
         {isManagedWallet && (
-          <AddFundsLink className={cn(buttonVariants({ variant: "outline", size: "sm" }), "flex items-center gap-2")} href={UrlService.payment()}>
+          <AddFundsLink className={cn(buttonVariants({ variant: "outline", size: "sm" }), "flex items-center gap-2")} href={urlService.payment()}>
             <Plus className="h-4 w-4" />
             <span className="whitespace-nowrap">Add Funds</span>
           </AddFundsLink>
         )}
         <Link
-          href={UrlService.newDeployment()}
+          href={urlService.newDeployment()}
           className={cn(buttonVariants({ variant: "default", size: "sm" }), "flex items-center gap-2")}
           onClick={onDeployClick}
           aria-disabled={isBlockchainDown}

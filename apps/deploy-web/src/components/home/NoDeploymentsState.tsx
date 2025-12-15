@@ -4,13 +4,15 @@ import { Button, Card, CardContent } from "@akashnetwork/ui/components";
 import { MultiplePages, Rocket } from "iconoir-react";
 import Link from "next/link";
 
-import { UrlService } from "@src/utils/urlUtils";
+import { useServices } from "@src/context/ServicesProvider";
 
 type Props = {
   onDeployClick: () => void;
 };
 
 export const NoDeploymentsState: React.FC<Props> = ({ onDeployClick }) => {
+  const { urlService } = useServices();
+
   return (
     <Card>
       <CardContent className="flex flex-col items-center justify-center py-12">
@@ -23,13 +25,13 @@ export const NoDeploymentsState: React.FC<Props> = ({ onDeployClick }) => {
         </p>
         <div className="flex gap-4">
           <Button onClick={onDeployClick} asChild>
-            <Link href={UrlService.newDeployment()}>
+            <Link href={urlService.newDeployment()}>
               <Rocket className="mr-2 h-4 w-4 rotate-45" />
               Create Deployment
             </Link>
           </Button>
           <Button variant="outline" asChild>
-            <Link href={UrlService.templates()}>
+            <Link href={urlService.templates()}>
               <MultiplePages className="mr-2 h-4 w-4" />
               Explore Templates
             </Link>

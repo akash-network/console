@@ -21,7 +21,7 @@ export const LeaseListContainer: React.FunctionComponent<Props> = ({ owner }) =>
   const [filteredLeases, setFilteredLeases] = useState<Array<LeaseDto> | null>(null);
   const { data: providerDetail, isLoading: isLoadingProvider, refetch: getProviderDetail } = useProviderDetail(owner);
   const { address } = useWallet();
-  const { data: leases, isFetching: isLoadingLeases, refetch: getLeases } = useAllLeases(address);
+  const { data: leases, isFetching: isLoadingLeases, refetch: getLeases } = useAllLeases(address, { enabled: !!address });
   const {
     data: providerStatus,
     isLoading: isLoadingStatus,
@@ -53,14 +53,11 @@ export const LeaseListContainer: React.FunctionComponent<Props> = ({ owner }) =>
 
   const refresh = () => {
     getProviderDetail();
-    getLeases();
+    if (address) {
+      getLeases();
+    }
     getProviderStatus();
   };
-
-  useEffect(() => {
-    getLeases();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   useEffect(() => {
     if (provider && leases && leases.length > 0) {
