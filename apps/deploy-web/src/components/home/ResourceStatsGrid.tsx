@@ -29,8 +29,8 @@ export const ResourceStatsGrid: React.FC<Props> = ({ providers, totalCpu, totalG
         <div className="space-y-4">
           <h3 className="text-sm font-medium">Current Providers</h3>
           <div className="flex flex-wrap gap-2">
-            {providers.map(p => (
-              <Link key={p.owner} href={p.owner ? UrlService.providerDetailLeases(p.owner) : "#"}>
+            {providers.map((p, index) => (
+              <Link key={`${p.owner}-${index}`} href={p.owner ? UrlService.providerDetailLeases(p.owner) : "#"}>
                 <Badge variant="default" className="rounded-md bg-muted-foreground">
                   {p.name}
                 </Badge>
@@ -44,7 +44,7 @@ export const ResourceStatsGrid: React.FC<Props> = ({ providers, totalCpu, totalG
         <div className="space-y-4">
           <h3 className="text-sm font-medium">Total resources leased</h3>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-            <ResourceCard icon={<Cpu className="h-6 w-6" />} value={totalCpu} label="CPUs" />
+            <ResourceCard icon={<Cpu className="h-6 w-6" />} value={roundDecimal(totalCpu, 2)} label="CPUs" />
             <ResourceCard icon={<Flash className="h-6 w-6" />} value={totalGpu || 0} label="GPUs" />
             <ResourceCard icon={<Server className="h-6 w-6" />} value={`${roundDecimal(memory.value, 0)} ${memory.unit}`} label="Memory" />
             <ResourceCard icon={<Database className="h-6 w-6" />} value={`${roundDecimal(storage.value, 2)} ${storage.unit}`} label="Storage" />

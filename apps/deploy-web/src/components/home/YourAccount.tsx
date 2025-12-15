@@ -99,6 +99,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ isLoadingBalances,
               activeDeploymentsCount={activeDeployments.length}
               costPerMonth={costPerMonth}
               costPerHour={costPerHour}
+              isManagedWallet={isManagedWallet}
             />
           )}
 
