@@ -1,5 +1,12 @@
 
 
+## [3.12.0](https://github.com/akash-network/console/compare/console-web/v3.11.1...console-web/v3.12.0) (2025-12-15)
+
+
+### Features
+
+* **deployment:** add RPC support with database fallback for draining deployments ([d08fb86](https://github.com/akash-network/console/commit/d08fb8618ba6eb9b67bb56c63d489040179d8347))
+
 ## [3.11.1](https://github.com/akash-network/console/compare/console-web/v3.11.0...console-web/v3.11.1) (2025-12-12)
 
 
