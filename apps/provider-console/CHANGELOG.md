@@ -1,5 +1,12 @@
 
 
+## [1.33.2](https://github.com/akash-network/console/compare/provider-console/v1.33.1...provider-console/v1.33.2) (2025-12-12)
+
+
+### Bug Fixes
+
+* wallet aware local storage and fixed error message on wallet screen ([#2350](https://github.com/akash-network/console/issues/2350)) ([e16b45d](https://github.com/akash-network/console/commit/e16b45d8fb28f6332a7b2c651c4ec88e1439cab3))
+
 ## [1.33.1](https://github.com/akash-network/console/compare/provider-console/v1.33.0...provider-console/v1.33.1) (2025-12-12)
 
 
