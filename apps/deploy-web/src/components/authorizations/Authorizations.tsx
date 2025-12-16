@@ -223,7 +223,7 @@ export const Authorizations: React.FunctionComponent = () => {
             page={SettingsTabs.AUTHORIZATIONS}
             headerActions={
               address && (
-                <div className="md:ml-4">
+                <div className="md:ml-6">
                   <Button onClick={onCreateNewGrant} color="secondary" variant="default" type="button" size="sm">
                     <Bank />
                     &nbsp;Authorize Spend
@@ -235,7 +235,7 @@ export const Authorizations: React.FunctionComponent = () => {
             <section aria-labelledby="deployment-authorizations">
               {!address ? (
                 <>
-                  <Fieldset label="" className="mb-4">
+                  <Fieldset label="" className="mb-6">
                     <ConnectWallet text="Connect your wallet to create a deployment authorization." />
                   </Fieldset>
                 </>
@@ -245,32 +245,34 @@ export const Authorizations: React.FunctionComponent = () => {
                     These authorizations allow you authorize other addresses to spend on deployments or deployment deposits using your funds. You can revoke
                     these authorizations at any time.
                   </h3>
-                  <Fieldset label="Authorizations Given" className="mb-4">
-                    <div className="mb-4 flex items-center gap-2">
-                      <Input
-                        type="text"
-                        placeholder="Search by grantee address..."
-                        value={searchGrantee}
-                        onChange={onSearchGranteeChange}
-                        className="max-w-md flex-grow"
-                        error={!!searchError}
-                        endIcon={
-                          <Button
-                            variant="text"
-                            size="icon"
-                            onClick={() => {
-                              setSearchGrantee("");
-                              setSearchError(null);
-                            }}
-                          >
-                            <Xmark />
-                          </Button>
-                        }
-                      />
-                      <Button variant="ghost" size="icon" className="rounded-full" onClick={onRefreshSearchClick}>
-                        <Refresh className="text-xs" />
-                      </Button>
-                    </div>
+                  <Fieldset label="Authorizations Given" className="mb-6">
+                    {(granterGrants?.grants?.length || searchGrantee) && (
+                      <div className="mb-4 flex items-center gap-2">
+                        <Input
+                          type="text"
+                          placeholder="Search by grantee address..."
+                          value={searchGrantee}
+                          onChange={onSearchGranteeChange}
+                          className="max-w-md flex-grow"
+                          error={!!searchError}
+                          endIcon={
+                            <Button
+                              variant="text"
+                              size="icon"
+                              onClick={() => {
+                                setSearchGrantee("");
+                                setSearchError(null);
+                              }}
+                            >
+                              <Xmark />
+                            </Button>
+                          }
+                        />
+                        <Button variant="ghost" size="icon" className="rounded-full" onClick={onRefreshSearchClick}>
+                          <Refresh className="text-xs" />
+                        </Button>
+                      </div>
+                    )}
                     {isLoadingGranterGrants || !filteredGranterGrants ? (
                       <div className="flex items-center justify-center">
                         <Spinner size="large" />
@@ -302,7 +304,7 @@ export const Authorizations: React.FunctionComponent = () => {
                     )}
                   </Fieldset>
 
-                  <Fieldset label="Authorizations Received" className="mb-4">
+                  <Fieldset label="Authorizations Received" className="mb-6">
                     {isLoadingGranteeGrants || !granteeGrants ? (
                       <div className="flex items-center justify-center">
                         <Spinner size="large" />
@@ -339,7 +341,7 @@ export const Authorizations: React.FunctionComponent = () => {
               <div className="flex flex-wrap items-center py-4">
                 <Title id="tx-fee-authorizations">Tx Fee Authorizations</Title>
                 {address && (
-                  <Button onClick={onCreateNewAllowance} color="secondary" variant="default" className="md:ml-4" type="button" size="sm">
+                  <Button onClick={onCreateNewAllowance} color="secondary" variant="default" className="md:ml-6" type="button" size="sm">
                     <Bank />
                     &nbsp;Authorize Fee Spend
                   </Button>
@@ -348,7 +350,7 @@ export const Authorizations: React.FunctionComponent = () => {
 
               {!address ? (
                 <>
-                  <Fieldset label="" className="mb-4">
+                  <Fieldset label="" className="mb-6">
                     <ConnectWallet text="Connect your wallet to create a tx fee authorization." />
                   </Fieldset>
                 </>
@@ -359,7 +361,7 @@ export const Authorizations: React.FunctionComponent = () => {
                     at any time.
                   </h3>
 
-                  <Fieldset label="Authorizations Given" className="mb-4">
+                  <Fieldset label="Authorizations Given" className="mb-6">
                     {isLoadingAllowancesIssued || !allowancesIssued ? (
                       <div className="flex items-center justify-center">
                         <Spinner size="large" />
@@ -385,7 +387,7 @@ export const Authorizations: React.FunctionComponent = () => {
                     )}
                   </Fieldset>
 
-                  <Fieldset label="Authorizations Received" className="mb-4">
+                  <Fieldset label="Authorizations Received" className="mb-6">
                     {isLoadingAllowancesGranted || !allowancesGranted ? (
                       <div className="flex items-center justify-center">
                         <Spinner size="large" />

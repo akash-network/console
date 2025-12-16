@@ -127,7 +127,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
 
   return (
     <Collapsible open={expanded} onOpenChange={onExpandClick}>
-      <Card className="mt-4 rounded-sm border border-muted-foreground/20">
+      <Card className="mt-6 rounded-sm border border-muted-foreground/20">
         <CardContent className="p-0">
           {/** Edit Environment Variables */}
           {_isEditingEnv && (

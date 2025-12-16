@@ -13,7 +13,7 @@ export function ApiKeyDocsBanner() {
           Discover how to integrate the Akash API into your applications. Our comprehensive documentation covers authentication, creating deployments, managing
           resources, and more.
         </p>
-        <ExternalLink href="https://github.com/akash-network/console/wiki/Managed-wallet-API" text="View API Documentation" />
+        <ExternalLink href="https://akash.network/docs/api-documentation/console-api/getting-started/" text="View API Documentation" />
       </AlertDescription>
     </Alert>
   );

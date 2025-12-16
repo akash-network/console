@@ -11,6 +11,7 @@ import { LabelValue } from "@src/components/shared/LabelValue";
 import type { RequiredUserConsumer } from "@src/components/user/RequiredUserContainer";
 import { UserProfileLayout } from "@src/components/user/UserProfileLayout";
 import { useServices } from "@src/context/ServicesProvider";
+import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useSaveSettings } from "@src/queries/useSaveSettings";
 import type { UserSettings } from "@src/types/user";
 import Layout from "../layout/Layout";
@@ -32,6 +33,7 @@ export const UserSettingsForm: RequiredUserConsumer = ({ user }) => {
   const { consoleApiHttpClient, analyticsService } = useServices();
   const [isCheckingAvailability, setIsCheckingAvailability] = useState<boolean>(false);
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
+  const { isLoading } = useCustomUser();
   const form = useForm<z.infer<typeof formSchema>>({
     defaultValues: {
       username: "",
@@ -94,12 +96,12 @@ export const UserSettingsForm: RequiredUserConsumer = ({ user }) => {
   }
 
   return (
-    <Layout>
+    <Layout isLoading={isLoading}>
       <NextSeo title={user?.username} />
       <UserProfileLayout page="settings" username={user.username} bio={user.bio}>
-        <FormPaper>
+        <FormPaper contentClassName="p-6">
           <Form {...form}>
-            <form onSubmit={handleSubmit(onSubmit)}>
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
               <LabelValue label="Email" value={user.email} />
               <LabelValue
                 label="Username"
@@ -182,9 +184,11 @@ export const UserSettingsForm: RequiredUserConsumer = ({ user }) => {
                 }
               />
 
-              <Button type="submit" disabled={!canSave || isSaving}>
-                {isSaving ? <Spinner size="small" /> : "Save"}
-              </Button>
+              <div className="flex justify-end">
+                <Button type="submit" disabled={!canSave || isSaving} size="sm">
+                  {isSaving ? <Spinner size="small" /> : "Save"}
+                </Button>
+              </div>
             </form>
           </Form>
         </FormPaper>

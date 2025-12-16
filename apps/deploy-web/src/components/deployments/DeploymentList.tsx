@@ -167,7 +167,7 @@ export const DeploymentList: React.FunctionComponent = () => {
             {selectedItemIds.length > 0 && (
               <>
                 <div className="md:ml-4">
-                  <Button onClick={onCloseSelectedDeployments} color="secondary">
+                  <Button onClick={onCloseSelectedDeployments} color="secondary" size="sm">
                     Close selected ({selectedItemIds.length})
                   </Button>
                 </div>

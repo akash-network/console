@@ -56,7 +56,7 @@ export const SelectNetworkModal = ({ onClose }: SelectNetworkModalProps) => {
                 className={cn(
                   buttonVariants({ variant: "text" }),
                   { ["pointer-events-none text-muted-foreground"]: !network.enabled },
-                  "flex h-auto cursor-pointer items-center justify-start"
+                  "flex h-auto cursor-pointer items-center justify-start py-3"
                 )}
               >
                 <div className="basis-[40px]">

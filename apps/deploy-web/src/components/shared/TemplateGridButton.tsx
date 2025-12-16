@@ -3,7 +3,6 @@ import { cardClasses, CardContent, CardHeader } from "@akashnetwork/ui/component
 import { cn } from "@akashnetwork/ui/utils";
 import Link from "next/link";
 
-import { getShortText } from "@src/hooks/useShortText";
 import type { ITemplate } from "@src/types";
 import { UrlService } from "@src/utils/urlUtils";
 
@@ -24,8 +23,8 @@ export const TemplateGridButton: React.FunctionComponent<Props> = ({ template, o
           <div className="break-all font-bold">{template.title}</div>
         </div>
       </CardHeader>
-      <CardContent className="pb-4 pt-0">
-        <p className="text-sm text-muted-foreground">{getShortText(template.description || "", 50)}</p>
+      <CardContent className="pt-0">
+        <p className="line-clamp-2 text-xs text-muted-foreground">{template.description}</p>
       </CardContent>
     </Link>
   );

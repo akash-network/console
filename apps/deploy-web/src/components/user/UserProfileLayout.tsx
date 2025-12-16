@@ -48,7 +48,7 @@ export const UserProfileLayout: React.FunctionComponent<Props> = ({ page, childr
       </div>
 
       <Tabs value={page} onValueChange={handleTabChange}>
-        <TabsList className="mb-4 grid w-full grid-cols-3 border-b">
+        <TabsList className="mb-6 grid w-full grid-cols-3 border-b">
           <TabsTrigger value="templates">Templates</TabsTrigger>
           {user?.username === username && (
             <>

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Alert, Form, FormField, FormInput, Label, Popup, RadioGroup, RadioGroupItem, Snackbar } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useSetAtom } from "jotai";
 import { useRouter } from "next/router";
 import { useSnackbar } from "notistack";
 import { z } from "zod";
@@ -13,6 +14,7 @@ import { useCustomUser } from "@src/hooks/useCustomUser";
 import { getShortText } from "@src/hooks/useShortText";
 import { useSaveUserTemplate } from "@src/queries/useTemplateQuery";
 import { analyticsService } from "@src/services/analytics/analytics.service";
+import sdlStore from "@src/store/sdlStore";
 import type { EnvironmentVariableType, ITemplate, ServiceType } from "@src/types";
 import { UrlService } from "@src/utils/urlUtils";
 
@@ -22,6 +24,7 @@ type Props = {
   getTemplateData: () => Partial<ITemplate>;
   setTemplateMetadata: (value: ITemplate) => void;
   onClose: () => void;
+  clearFormStorage: () => void;
   children?: ReactNode;
 };
 
@@ -31,7 +34,14 @@ const formSchema = z.object({
 });
 type FormValues = z.infer<typeof formSchema>;
 
-export const SaveTemplateModal: React.FunctionComponent<Props> = ({ onClose, getTemplateData, templateMetadata, setTemplateMetadata, services }) => {
+export const SaveTemplateModal: React.FunctionComponent<Props> = ({
+  onClose,
+  getTemplateData,
+  templateMetadata,
+  setTemplateMetadata,
+  services,
+  clearFormStorage
+}) => {
   const [publicEnvs, setPublicEnvs] = useState<EnvironmentVariableType[]>([]);
   const { enqueueSnackbar } = useSnackbar();
   const formRef = useRef<HTMLFormElement>(null);
@@ -39,13 +49,8 @@ export const SaveTemplateModal: React.FunctionComponent<Props> = ({ onClose, get
   const isRestricted = !isLoadingUser && !user;
   const isCurrentUserTemplate = !isRestricted && user?.sub === templateMetadata?.userId;
   const router = useRouter();
-  const { mutate: saveTemplate } = useSaveUserTemplate({
-    onSuccess(template) {
-      if (!isCurrentUserTemplate && template) {
-        router.push(UrlService.sdlBuilder(template.id));
-      }
-    }
-  });
+  const setSdlBuilderSdl = useSetAtom(sdlStore.sdlBuilderSdl);
+  const { mutate: saveTemplate, isPending: isSaving } = useSaveUserTemplate();
   const form = useForm<FormValues>({
     defaultValues: {
       title: "",
@@ -69,33 +74,58 @@ export const SaveTemplateModal: React.FunctionComponent<Props> = ({ onClose, get
 
   const onSubmit = async (data: FormValues) => {
     const template = getTemplateData();
+    const isUpdating = !!templateMetadata?.id;
 
-    saveTemplate({ ...template, title: data.title, isPublic: data.visibility !== "private" });
+    saveTemplate(
+      { ...template, title: data.title, isPublic: data.visibility !== "private" },
+      {
+        onSuccess: response => {
+          const responseData = response?.data;
+          const newId = typeof responseData === "string" ? responseData : responseData?.id;
 
-    const newTemplateMetadata = { ...templateMetadata, title: data.title, isPublic: data.visibility !== "private" };
-    if (!isCurrentUserTemplate) {
-      newTemplateMetadata.username = user.username || "";
-      newTemplateMetadata.userId = user.sub || "";
-    }
-    setTemplateMetadata(newTemplateMetadata);
+          const newTemplateMetadata = {
+            ...templateMetadata,
+            id: newId,
+            title: data.title,
+            isPublic: data.visibility !== "private"
+          };
 
-    enqueueSnackbar(<Snackbar title="Template saved!" iconVariant="success" />, {
-      variant: "success"
-    });
+          if (!isCurrentUserTemplate) {
+            newTemplateMetadata.username = user?.username || "";
+            newTemplateMetadata.userId = user?.sub || "";
+          }
 
-    if (newTemplateMetadata.id) {
-      analyticsService.track("update_sdl_template", {
-        category: "sdl_builder",
-        label: "Update SDL template"
-      });
-    } else {
-      analyticsService.track("create_sdl_template", {
-        category: "sdl_builder",
-        label: "Create SDL template"
-      });
-    }
+          setTemplateMetadata(newTemplateMetadata);
 
-    onClose();
+          enqueueSnackbar(<Snackbar title="Template saved!" iconVariant="success" />, {
+            variant: "success"
+          });
+
+          if (isUpdating) {
+            analyticsService.track("update_sdl_template", {
+              category: "sdl_builder",
+              label: "Update SDL template"
+            });
+          } else {
+            analyticsService.track("create_sdl_template", {
+              category: "sdl_builder",
+              label: "Create SDL template"
+            });
+          }
+
+          // Clear the SDL builder storage so the saved template becomes the source of truth
+          setSdlBuilderSdl(null);
+          clearFormStorage();
+
+          onClose();
+
+          // Navigate to the new template URL after metadata is set
+          if (!isCurrentUserTemplate && newId) {
+            router.push(UrlService.sdlBuilder(newId));
+          }
+        }
+      }
+    );
   };
 
   const onSave = () => {
@@ -114,20 +144,21 @@ export const SaveTemplateModal: React.FunctionComponent<Props> = ({ onClose, get
           color: "primary",
           variant: "text",
           side: "left",
+          disabled: isSaving,
           onClick: onClose
         },
         {
-          label: isCurrentUserTemplate ? "Save" : "Save As",
+          label: isSaving ? "Saving..." : isCurrentUserTemplate ? "Save" : "Save As",
           color: "secondary",
           variant: "default",
           side: "right",
-          disabled: isRestricted,
+          disabled: isRestricted || isSaving,
           onClick: onSave
         }
       ]}
-      onClose={onClose}
+      onClose={isSaving ? undefined : onClose}
       maxWidth="xs"
-      enableCloseOnBackdropClick
+      enableCloseOnBackdropClick={!isSaving}
     >
       <div className="pt-2">
         {isRestricted ? (
