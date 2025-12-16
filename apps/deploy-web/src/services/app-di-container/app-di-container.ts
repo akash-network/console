@@ -92,10 +92,12 @@ export const createAppRootContainer = (config: ServicesConfig) => {
       container.applyAxiosInterceptors(new DeploymentSettingHttpService(apiConfig), {
         request: [withUserToken]
       }),
-    managedDeployment: () =>
-      container.applyAxiosInterceptors(new ManagedDeploymentHttpService(apiConfig), {
+    managedDeployment: () => {
+      const httpClient = container.applyAxiosInterceptors(createHttpClient(apiConfig), {
         request: [withUserToken]
-      }),
+      });
+      return new ManagedDeploymentHttpService(httpClient);
+    },
     walletSettings: () =>
       container.applyAxiosInterceptors(new WalletSettingsHttpService(apiConfig), {
         request: [withUserToken]

@@ -132,7 +132,7 @@ export const AccountOverview: React.FunctionComponent = () => {
                   <div className="flex items-center justify-between">
                     <Switch checked={walletSettings?.autoReloadEnabled ?? false} onCheckedChange={toggleAutoReload} disabled={isReloadChangeDisabled} />
                   </div>
-                  {!isWeeklyCostLoading && weeklyCost !== undefined && weeklyCost > 0 && (
+                  {!isWeeklyCostLoading && weeklyCost !== undefined && (
                     <div className="text-sm text-muted-foreground">
                       Ongoing auto-topped-up deployment cost is approximately{" "}
                       <span className="font-medium text-foreground">

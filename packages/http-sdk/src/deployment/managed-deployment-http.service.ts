@@ -1,22 +1,21 @@
-import type { AxiosRequestConfig } from "axios";
-
-import { ApiHttpService } from "../api-http/api-http.service";
+import { extractData } from "../http/http.service";
+import type { HttpClient } from "../utils/httpClient";
 
 export interface WeeklyDeploymentCostResponse {
-  weeklyCost: number;
+  data: {
+    weeklyCost: number;
+  };
 }
 
-export class ManagedDeploymentHttpService extends ApiHttpService {
-  constructor(config?: Pick<AxiosRequestConfig, "baseURL">) {
-    super(config);
-  }
+export class ManagedDeploymentHttpService {
+  constructor(private readonly httpClient: HttpClient) {}
 
   /**
    * Get weekly deployment cost for all deployments with auto top-up enabled
    * @returns Weekly cost in USD
    */
   async getWeeklyDeploymentCost(): Promise<number> {
-    const response = await this.extractApiData<WeeklyDeploymentCostResponse>(await this.get("/v1/weekly-cost"));
-    return response.weeklyCost;
+    const response = await this.httpClient.get<WeeklyDeploymentCostResponse>("/v1/weekly-cost");
+    return extractData(response).data.weeklyCost;
   }
 }

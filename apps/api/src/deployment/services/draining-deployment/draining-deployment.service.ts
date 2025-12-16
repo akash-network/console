@@ -143,7 +143,7 @@ export class DrainingDeploymentService {
     const targetHeight = Math.floor(currentHeight + averageBlockCountInAnHour * hoursUntilTarget);
     const drainingDeployments = await this.#findDrainingDeployments(deploymentSettings, address, currentHeight);
 
-    return await this.#accumulateDeploymentCost(drainingDeployments, async ({ predictedClosedHeight, blockRate }) => {
+    return await this.#accumulateDeploymentCost(drainingDeployments, ({ predictedClosedHeight, blockRate }) => {
       if (predictedClosedHeight && predictedClosedHeight >= currentHeight && predictedClosedHeight <= targetHeight) {
         const blocksNeeded = targetHeight - currentHeight;
         return Math.floor(blockRate * blocksNeeded);
@@ -177,18 +177,18 @@ export class DrainingDeploymentService {
     const blocksInAWeek = Math.floor(averageBlockCountInAnHour * 24 * 7);
     const drainingDeployments = await this.#findDrainingDeployments(deploymentSettings, userWallet.address, Number.MAX_SAFE_INTEGER);
 
-    const weeklyCostInUakt = await this.#accumulateDeploymentCost(drainingDeployments, async ({ predictedClosedHeight, blockRate }) => {
+    const weeklyCost = await this.#accumulateDeploymentCost(drainingDeployments, ({ predictedClosedHeight, blockRate }) => {
       if (predictedClosedHeight && predictedClosedHeight > currentHeight && blockRate > 0) {
         return Math.floor(blockRate * blocksInAWeek);
       }
       return 0;
     });
 
-    if (weeklyCostInUakt === 0) {
+    if (weeklyCost === 0) {
       return 0;
     }
 
-    return await this.balancesService.toFiatAmount(weeklyCostInUakt);
+    return await this.balancesService.toFiatAmount(weeklyCost);
   }
 
   /**
@@ -232,11 +232,11 @@ export class DrainingDeploymentService {
    */
   async #accumulateDeploymentCost(
     drainingDeployments: DrainingDeploymentOutput[],
-    callback: (deployment: DrainingDeploymentOutput) => Promise<number>
+    callback: (deployment: DrainingDeploymentOutput) => number
   ): Promise<number> {
     let totalAmount = 0;
     for (const deployment of drainingDeployments) {
-      totalAmount += await callback(deployment);
+      totalAmount += callback(deployment);
     }
     return totalAmount;
   }
