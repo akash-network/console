@@ -1,6 +1,7 @@
 import React, { useContext } from "react";
 import type { NetworkId } from "@akashnetwork/chain-sdk";
 import { AuthzHttpService, CertificatesService } from "@akashnetwork/http-sdk";
+import type { NextRouter } from "next/router";
 import { useRouter } from "next/router";
 
 import { UAKT_DENOM, USDC_IBC_DENOMS } from "@src/config/denom.config";
@@ -20,7 +21,7 @@ export type Props = {
   services?: Partial<AppDIContainer extends DIContainer<infer TFactories> ? TFactories : never>;
 };
 
-export type AppDIContainer = ReturnType<typeof createAppContainer>;
+export type AppDIContainer = ReturnType<typeof createAppContainer> & { router: NextRouter };
 
 export const ServicesProvider: React.FC<Props> = ({ children, services }) => {
   const settingsState = useSettings();
