@@ -146,7 +146,7 @@ export const TemplateList: React.FunctionComponent<Props> = ({ onChangeGitProvid
 
       {/* Explore Templates Section */}
       <Card>
-        <CardHeader className="flex flex-row items-start justify-between space-y-0">
+        <CardHeader className="flex flex-row items-start justify-between space-x-6">
           <div>
             <h3 className="text-xl font-bold tracking-tight">Explore Templates</h3>
             <p className="text-sm text-muted-foreground">
