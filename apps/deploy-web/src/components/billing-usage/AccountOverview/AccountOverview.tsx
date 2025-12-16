@@ -21,7 +21,7 @@ export const AccountOverview: React.FunctionComponent = () => {
   const { balance: walletBalance, isLoading: isWalletBalanceLoading } = useWalletBalance();
   const { data: walletSettings } = useWalletSettingsQuery();
   const { data: weeklyCost, isLoading: isWeeklyCostLoading } = useWeeklyDeploymentCostQuery();
-  const { updateWalletSettings, createWalletSettings } = useWalletSettingsMutations();
+  const { upsertWalletSettings } = useWalletSettingsMutations();
   const { confirm } = usePopup();
 
   const isLoading = isLoadingDefaultPaymentMethod;
@@ -47,31 +47,25 @@ export const AccountOverview: React.FunctionComponent = () => {
         return;
       }
 
-      try {
-        const settings = {
-          autoReloadEnabled
-        };
+      const settings = {
+        autoReloadEnabled
+      };
 
-        if (walletSettings) {
-          await updateWalletSettings.mutateAsync(settings);
-        } else {
-          await createWalletSettings.mutateAsync(settings);
-        }
-
-        enqueueSnackbar(<Snackbar title={`Auto Reload ${autoReloadEnabled ? "enabled" : "disabled"}`} iconVariant="success" />, {
-          variant: "success",
-          autoHideDuration: 3000
-        });
-      } catch (error: unknown) {
-        enqueueSnackbar(<Snackbar title="Failed to update Auto Reload settings" iconVariant="error" />, { variant: "error" });
-      }
+      upsertWalletSettings.mutate(settings, {
+        onSuccess: response =>
+          enqueueSnackbar(<Snackbar title={`Auto Reload ${response.autoReloadEnabled ? "enabled" : "disabled"}`} iconVariant="success" />, {
+            variant: "success",
+            autoHideDuration: 3000
+          }),
+        onError: () => enqueueSnackbar(<Snackbar title="Failed to update Auto Reload settings" iconVariant="error" />, { variant: "error" })
+      });
     },
-    [confirm, createWalletSettings, enqueueSnackbar, updateWalletSettings, walletSettings]
+    [confirm, enqueueSnackbar, upsertWalletSettings]
   );
 
   const isReloadChangeDisabled = useMemo(() => {
-    return !defaultPaymentMethod || updateWalletSettings.isPending || createWalletSettings.isPending;
-  }, [defaultPaymentMethod, updateWalletSettings.isPending, createWalletSettings.isPending]);
+    return !defaultPaymentMethod || upsertWalletSettings.isPending;
+  }, [defaultPaymentMethod, upsertWalletSettings.isPending]);
 
   if (isLoading) {
     return (
@@ -92,36 +86,38 @@ export const AccountOverview: React.FunctionComponent = () => {
 
       <div className="pt-4">
         <div className="flex w-full flex-col gap-4 lg:flex-row lg:gap-8">
-          <Card className="flex min-h-28 basis-1/2 flex-col">
+          <Card className="relative flex min-h-28 basis-1/2 flex-col overflow-hidden">
+            {(!walletBalance || isWalletBalanceLoading) && (
+              <div className="absolute left-0 right-0 top-0 flex flex-1 items-center">
+                <LinearProgress color="primary" className="mx-auto w-full" />
+              </div>
+            )}
             <CardHeader className="flex flex-row items-center justify-between pb-0">
               <CardTitle className="text-base">Credits Remaining</CardTitle>
             </CardHeader>
-            {!walletBalance || isWalletBalanceLoading ? (
-              <div className="flex flex-1 items-center">
-                <LinearProgress color="primary" className="mx-auto w-11/12" />
+            <CardContent className="pb-0">
+              <div className="mt-4 text-3xl font-bold">
+                {walletBalance && <FormattedNumber value={walletBalance.totalDeploymentGrantsUSD} style="currency" currency="USD" />}
               </div>
-            ) : (
-              <>
-                <CardContent className="pb-0">
-                  <div className="mt-4 text-3xl font-bold">
-                    <FormattedNumber value={walletBalance.totalDeploymentGrantsUSD} style="currency" currency="USD" />
-                  </div>
-                </CardContent>
-                <CardFooter className="justify-end">
-                  <Button
-                    variant="default"
-                    size="icon"
-                    className="h-8 w-8 text-xs"
-                    onClick={() => setShowPaymentPopup(true)}
-                    disabled={isWalletBalanceLoading || !defaultPaymentMethod}
-                  >
-                    <Plus />
-                  </Button>
-                </CardFooter>
-              </>
-            )}
+            </CardContent>
+            <CardFooter className="justify-end">
+              <Button
+                variant="default"
+                size="icon"
+                className="h-8 w-8 text-xs"
+                onClick={() => setShowPaymentPopup(true)}
+                disabled={isWalletBalanceLoading || !defaultPaymentMethod}
+              >
+                <Plus />
+              </Button>
+            </CardFooter>
           </Card>
-          <Card className="flex min-h-28 basis-1/2 flex-col">
+          <Card className="relative flex min-h-28 basis-1/2 flex-col overflow-hidden">
+            {upsertWalletSettings.isPending && (
+              <div className="absolute left-0 right-0 top-0 flex flex-1 items-center">
+                <LinearProgress color="primary" className="mx-auto w-full" />
+              </div>
+            )}
             <CardHeader className="flex items-start justify-between pb-0">
               <CardTitle className="text-base">Credits Auto Reload</CardTitle>
               <CardDescription className="space-y-2">Charges your default payment method ~weekly to keep deployments with auto top-up running</CardDescription>

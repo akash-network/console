@@ -11,8 +11,7 @@ export const useWalletSettingsQuery = (options?: Omit<UseQueryOptions<WalletSett
     ...options,
     queryKey: QueryKeys.getWalletSettingsKey(),
     queryFn: async () => {
-      const response = await walletSettings.getWalletSettings();
-      return response;
+      return await walletSettings.getWalletSettings();
     }
   });
 };
@@ -50,6 +49,7 @@ export const useWalletSettingsMutations = () => {
 
   return {
     updateWalletSettings,
+    upsertWalletSettings: updateWalletSettings,
     createWalletSettings,
     deleteWalletSettings
   };
