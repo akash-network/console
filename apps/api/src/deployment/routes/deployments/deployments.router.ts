@@ -15,6 +15,7 @@ import {
   GetDeploymentByOwnerDseqResponseSchema,
   GetDeploymentParamsSchema,
   GetDeploymentResponseSchema,
+  GetWeeklyDeploymentCostResponseSchema,
   ListDeploymentsQuerySchema,
   ListDeploymentsResponseSchema,
   ListWithResourcesParamsSchema,
@@ -362,4 +363,26 @@ deploymentsRouter.openapi(fallbackInfoRoute, async function routeFallbackDeploym
       404
     );
   }
+});
+
+const getWeeklyDeploymentCostRoute = createRoute({
+  method: "get",
+  path: "/v1/weekly-cost",
+  summary: "Get weekly deployment cost",
+  tags: ["Deployments"],
+  security: SECURITY_BEARER_OR_API_KEY,
+  responses: {
+    200: {
+      description: "Returns weekly cost for all deployments with auto top-up enabled",
+      content: {
+        "application/json": {
+          schema: GetWeeklyDeploymentCostResponseSchema
+        }
+      }
+    }
+  }
+});
+deploymentsRouter.openapi(getWeeklyDeploymentCostRoute, async function routeGetWeeklyDeploymentCost(c) {
+  const result = await container.resolve(DeploymentController).getWeeklyDeploymentCost();
+  return c.json(result, 200);
 });

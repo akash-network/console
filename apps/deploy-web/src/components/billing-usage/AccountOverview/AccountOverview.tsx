@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState } from "react";
 import { FormattedNumber } from "react-intl";
-import { Button, Card, CardContent, CardFooter, CardHeader, CardTitle, Snackbar, Switch } from "@akashnetwork/ui/components";
+import { Button, Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle, Snackbar, Switch } from "@akashnetwork/ui/components";
+import { usePopup } from "@akashnetwork/ui/context";
 import { LinearProgress } from "@mui/material";
 import { Plus } from "iconoir-react";
 import { useSnackbar } from "notistack";
@@ -10,7 +11,7 @@ import Layout from "@src/components/layout/Layout";
 import { Title } from "@src/components/shared/Title";
 import { PaymentSuccessAnimation } from "@src/components/user/payment/PaymentSuccessAnimation";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
-import { useDefaultPaymentMethodQuery, useWalletSettingsMutations, useWalletSettingsQuery } from "@src/queries";
+import { useDefaultPaymentMethodQuery, useWalletSettingsMutations, useWalletSettingsQuery, useWeeklyDeploymentCostQuery } from "@src/queries";
 
 export const AccountOverview: React.FunctionComponent = () => {
   const [showPaymentPopup, setShowPaymentPopup] = useState(false);
@@ -19,7 +20,9 @@ export const AccountOverview: React.FunctionComponent = () => {
   const { data: defaultPaymentMethod, isLoading: isLoadingDefaultPaymentMethod } = useDefaultPaymentMethodQuery();
   const { balance: walletBalance, isLoading: isWalletBalanceLoading } = useWalletBalance();
   const { data: walletSettings } = useWalletSettingsQuery();
+  const { data: weeklyCost, isLoading: isWeeklyCostLoading } = useWeeklyDeploymentCostQuery();
   const { updateWalletSettings, createWalletSettings } = useWalletSettingsMutations();
+  const { confirm } = usePopup();
 
   const isLoading = isLoadingDefaultPaymentMethod;
 
@@ -29,6 +32,21 @@ export const AccountOverview: React.FunctionComponent = () => {
 
   const toggleAutoReload = useCallback(
     async (autoReloadEnabled: boolean) => {
+      const promptMessage = autoReloadEnabled
+        ? {
+            title: "Enable automatic credit reloading?",
+            message: "Your default payment method will be charged automatically when credits run low, so your deployments keep running."
+          }
+        : {
+            title: "Disable automatic credit reloading?",
+            message: "Your deployments may stop if your credit balance runs out, and no automatic charges will be made."
+          };
+      const isConfirmed = await confirm(promptMessage);
+
+      if (!isConfirmed) {
+        return;
+      }
+
       try {
         const settings = {
           autoReloadEnabled
@@ -48,7 +66,7 @@ export const AccountOverview: React.FunctionComponent = () => {
         enqueueSnackbar(<Snackbar title="Failed to update Auto Reload settings" iconVariant="error" />, { variant: "error" });
       }
     },
-    [createWalletSettings, enqueueSnackbar, updateWalletSettings, walletSettings]
+    [confirm, createWalletSettings, enqueueSnackbar, updateWalletSettings, walletSettings]
   );
 
   const isReloadChangeDisabled = useMemo(() => {
@@ -104,15 +122,26 @@ export const AccountOverview: React.FunctionComponent = () => {
             )}
           </Card>
           <Card className="flex min-h-28 basis-1/2 flex-col">
-            <CardHeader className="flex flex-row items-center justify-between pb-0">
-              <CardTitle className="text-base">Auto reload</CardTitle>
+            <CardHeader className="flex items-start justify-between pb-0">
+              <CardTitle className="text-base">Credits Auto Reload</CardTitle>
+              <CardDescription className="space-y-2">Charges your default payment method ~weekly to keep deployments with auto top-up running</CardDescription>
             </CardHeader>
             <CardContent className="pt-2">
               <div>
-                <div className="pt-4">
-                  <Switch checked={walletSettings?.autoReloadEnabled ?? false} onCheckedChange={toggleAutoReload} disabled={isReloadChangeDisabled} />
+                <div className="flex flex-col gap-4 pt-4">
+                  <div className="flex items-center justify-between">
+                    <Switch checked={walletSettings?.autoReloadEnabled ?? false} onCheckedChange={toggleAutoReload} disabled={isReloadChangeDisabled} />
+                  </div>
+                  {!isWeeklyCostLoading && weeklyCost !== undefined && (
+                    <div className="text-sm text-muted-foreground">
+                      Ongoing auto-topped-up deployment cost is approximately{" "}
+                      <span className="font-medium text-foreground">
+                        <FormattedNumber value={weeklyCost} style="currency" currency="USD" />
+                      </span>{" "}
+                      per week
+                    </div>
+                  )}
                 </div>
-                <div className="pt-2 text-sm">Add funds automatically</div>
               </div>
             </CardContent>
           </Card>

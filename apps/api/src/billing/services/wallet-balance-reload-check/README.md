@@ -40,13 +40,14 @@ Users need sufficient funds to keep their deployments with auto top-up enabled r
 
 ## When Does the Check Run?
 
-The handler runs in three scenarios:
+The handler runs in four scenarios:
 
 1. **When feature is enabled**: Immediately when a user enables auto-reload
-2. **Scheduled checks**: Every 24 hours (1 day) for users with auto-reload enabled
-3. **Immediate triggers**: When a user creates a deployment or makes a deposit
+2. **When deployment auto top-up is enabled**: Immediately when a user enables auto top-up on a deployment
+3. **Scheduled checks**: Every 24 hours (1 day) for users with auto-reload enabled
+4. **Immediate triggers**: When a user creates a deployment or makes a deposit
 
-When auto-reload is enabled, the first check runs immediately. Subsequent checks run on a daily schedule. Immediate triggers (deployments/deposits) ensure the balance is checked right after spending or depositing funds, rather than waiting for the next scheduled check.
+When auto-reload is enabled, the first check runs immediately. When deployment auto top-up is enabled, an immediate check is scheduled to ensure the wallet balance can cover the new deployment costs. Subsequent checks run on a daily schedule. Immediate triggers (deployments/deposits) ensure the balance is checked right after spending or depositing funds, rather than waiting for the next scheduled check.
 
 ## Sequence Diagram
 
@@ -55,6 +56,14 @@ User enables auto-reload
     │
     ▼
 WalletSettingService schedules immediate check
+    │
+    ├─► [OR] User enables deployment auto top-up
+    │   │
+    │   ▼
+    │   DeploymentSettingService.scheduleImmediate()
+    │   │
+    │   ▼
+    │   WalletReloadJobService.scheduleImmediate()
     │
     ├─► [OR] User creates deployment / makes deposit
     │   │
@@ -68,7 +77,7 @@ WalletSettingService schedules immediate check
     │   WalletSettingService enqueues immediate check
     │
     ▼
-[Immediately when enabled, OR 24 hours later for scheduled checks, OR immediately on deployment/deposit]
+[Immediately when enabled, OR when deployment auto top-up enabled, OR 24 hours later for scheduled checks, OR immediately on deployment/deposit]
     │
     ▼
 WalletBalanceReloadCheckHandler.handle()
