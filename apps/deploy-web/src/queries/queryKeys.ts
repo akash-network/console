@@ -75,6 +75,8 @@ export class QueryKeys {
 
   static getWalletSettingsKey = () => ["WALLET_SETTINGS"];
 
+  static getWeeklyDeploymentCostKey = () => ["WEEKLY_DEPLOYMENT_COST"];
+
   static getManagedWalletKey = (userId?: string) => ["MANAGED_WALLET", userId || ""];
 
   static getPaymentTransactionsKey = (options?: {

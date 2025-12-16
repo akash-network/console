@@ -15482,6 +15482,51 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/weekly-cost": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "weeklyCost": {
+                          "description": "Total weekly cost in USD for all deployments with auto top-up enabled",
+                          "type": "number",
+                        },
+                      },
+                      "required": [
+                        "weeklyCost",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Returns weekly cost for all deployments with auto top-up enabled",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Get weekly deployment cost",
+        "tags": [
+          "Deployments",
+        ],
+      },
+    },
   },
   "servers": [
     {

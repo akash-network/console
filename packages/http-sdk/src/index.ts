@@ -14,6 +14,7 @@ export * from "./deployment-setting/deployment-setting-http.service";
 export * from "./api-key";
 export * from "./bid/bid-http.service";
 export * from "./deployment/deployment-http.service";
+export * from "./deployment/managed-deployment-http.service";
 export * from "./lease/lease-http.service";
 export * from "./provider/provider-http.service";
 export * from "./utils/isHttpError";
