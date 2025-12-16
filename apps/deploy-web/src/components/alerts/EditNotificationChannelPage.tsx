@@ -23,7 +23,7 @@ export const EditNotificationChannelPage: React.FunctionComponent<Props> = ({ no
   return (
     <Layout containerClassName="flex h-full flex-col">
       <NextSeo title="Edit Notification Channel" />
-      <div className="mt-4 flex flex-wrap items-center py-4">
+      <div className="flex flex-wrap items-center px-6 py-6">
         <Link href="." type="button" className="p-2">
           <NavArrowLeft />
         </Link>

@@ -173,7 +173,7 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
                     <LeaseSpecDetail
                       type="storage"
                       className="flex-shrink-0"
-                      value={`${service.profile?.storage[0].size} ${service.profile?.storage[0].unit}`}
+                      value={`${service.profile?.storage?.[0]?.size ?? "-"} ${service.profile?.storage?.[0]?.unit ?? ""}`}
                     />
                   </div>
                 </Alert>

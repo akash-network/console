@@ -173,15 +173,15 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
               <span data-testid={`lease-row-${index}-state`}>{lease.state}</span>
               <StatusPill state={lease.state} size="small" />
 
-              <span className="ml-4 text-muted-foreground">GSEQ:</span>
+              <span className="ml-6 text-muted-foreground">GSEQ:</span>
               <span className="ml-1">{lease.gseq}</span>
 
-              <span className="ml-4">OSEQ:</span>
+              <span className="ml-6">OSEQ:</span>
               <span className="ml-1">{lease.oseq}</span>
             </div>
 
             {isLeaseActive && (
-              <div className="ml-4 inline-flex">
+              <div className="ml-6 inline-flex">
                 <Link className="text-sm" href={`/deployments/${dseq}?tab=LOGS`}>
                   View logs
                 </Link>
