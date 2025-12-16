@@ -1,5 +1,17 @@
 
 
+## [3.13.0](https://github.com/akash-network/console/compare/console-web/v3.12.0...console-web/v3.13.0) (2025-12-16)
+
+
+### Features
+
+* **deployment:** adds weekly deployment cost display for auto-topped-up deployments  ([ec84b32](https://github.com/akash-network/console/commit/ec84b32cfb6663c7e0f8cf8c941ba83c310e856a)), closes [#1779](https://github.com/akash-network/console/issues/1779)
+
+
+### Bug Fixes
+
+* **deployment:** uses proper currency formatting in DeploymentDetailTopBar ([696f778](https://github.com/akash-network/console/commit/696f77822c203f535f18d7fc31aa200cc14c4168)), closes [#2356](https://github.com/akash-network/console/issues/2356)
+
 ## [3.12.0](https://github.com/akash-network/console/compare/console-web/v3.11.1...console-web/v3.12.0) (2025-12-15)
 
 
