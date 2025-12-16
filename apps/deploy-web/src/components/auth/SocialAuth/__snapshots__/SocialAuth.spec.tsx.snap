@@ -6,7 +6,7 @@ exports[`SocialAuth matches snapshot when rendered with a button prefix 1`] = `
     class="flex flex-col items-start justify-start gap-4 self-stretch sm:flex-row"
   >
     <button
-      class="ring-offset-background focus-visible:ring-ring relative inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 aria-[disabled='true']:pointer-events-none aria-[disabled='true']:opacity-50 bg-accent hover:bg-accent/80 hover:text-accent-foreground border px-4 py-2 h-9 w-full flex-1 justify-center gap-2 border-neutral-200 dark:border-neutral-800"
+      class="ring-offset-background focus-visible:ring-ring relative inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 aria-[disabled='true']:pointer-events-none aria-[disabled='true']:opacity-50 dark:bg-input/30 hover:bg-accent/80 hover:text-accent-foreground border bg-white px-4 py-2 h-9 w-full flex-1 justify-center gap-2 border-neutral-200 dark:border-neutral-800"
       type="button"
     >
       <svg
@@ -34,7 +34,7 @@ exports[`SocialAuth matches snapshot when rendered with a button prefix 1`] = `
       </span>
     </button>
     <button
-      class="ring-offset-background focus-visible:ring-ring relative inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 aria-[disabled='true']:pointer-events-none aria-[disabled='true']:opacity-50 bg-accent hover:bg-accent/80 hover:text-accent-foreground border px-4 py-2 h-9 w-full flex-1 justify-center gap-2 border-neutral-200 dark:border-neutral-800"
+      class="ring-offset-background focus-visible:ring-ring relative inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 aria-[disabled='true']:pointer-events-none aria-[disabled='true']:opacity-50 dark:bg-input/30 hover:bg-accent/80 hover:text-accent-foreground border bg-white px-4 py-2 h-9 w-full flex-1 justify-center gap-2 border-neutral-200 dark:border-neutral-800"
       type="button"
     >
       <svg
@@ -98,7 +98,7 @@ exports[`SocialAuth matches snapshot when rendered without a button prefix 1`] =
     class="flex flex-col items-start justify-start gap-4 self-stretch sm:flex-row"
   >
     <button
-      class="ring-offset-background focus-visible:ring-ring relative inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 aria-[disabled='true']:pointer-events-none aria-[disabled='true']:opacity-50 bg-accent hover:bg-accent/80 hover:text-accent-foreground border px-4 py-2 h-9 w-full flex-1 justify-center gap-2 border-neutral-200 dark:border-neutral-800"
+      class="ring-offset-background focus-visible:ring-ring relative inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 aria-[disabled='true']:pointer-events-none aria-[disabled='true']:opacity-50 dark:bg-input/30 hover:bg-accent/80 hover:text-accent-foreground border bg-white px-4 py-2 h-9 w-full flex-1 justify-center gap-2 border-neutral-200 dark:border-neutral-800"
       type="button"
     >
       <svg
@@ -125,7 +125,7 @@ exports[`SocialAuth matches snapshot when rendered without a button prefix 1`] =
       </span>
     </button>
     <button
-      class="ring-offset-background focus-visible:ring-ring relative inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 aria-[disabled='true']:pointer-events-none aria-[disabled='true']:opacity-50 bg-accent hover:bg-accent/80 hover:text-accent-foreground border px-4 py-2 h-9 w-full flex-1 justify-center gap-2 border-neutral-200 dark:border-neutral-800"
+      class="ring-offset-background focus-visible:ring-ring relative inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 aria-[disabled='true']:pointer-events-none aria-[disabled='true']:opacity-50 dark:bg-input/30 hover:bg-accent/80 hover:text-accent-foreground border bg-white px-4 py-2 h-9 w-full flex-1 justify-center gap-2 border-neutral-200 dark:border-neutral-800"
       type="button"
     >
       <svg
