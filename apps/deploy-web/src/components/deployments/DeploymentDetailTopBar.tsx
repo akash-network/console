@@ -1,5 +1,6 @@
 "use client";
 import type { ReactNode } from "react";
+import React from "react";
 import { useCallback, useState } from "react";
 import { Button, CustomTooltip, DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, Spinner, Switch } from "@akashnetwork/ui/components";
 import { usePopup } from "@akashnetwork/ui/context";
@@ -15,6 +16,7 @@ import { CustomDropdownLinkItem } from "@src/components/shared/CustomDropdownLin
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useCurrencyFormatter } from "@src/hooks/useCurrencyFormatter/useCurrencyFormatter";
 import { useDeploymentMetrics } from "@src/hooks/useDeploymentMetrics";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
@@ -120,6 +122,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
     return response;
   };
 
+  const formatCurrency = useCurrencyFormatter();
   const setAutoTopUpEnabled = useCallback(
     async (autoTopUpEnabled: boolean) => {
       if (autoTopUpEnabled && realTimeLeft?.timeLeft) {
@@ -130,9 +133,10 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
           const secToDepositFor = secTillNextTopUp - secTillClosed;
           const deposit = Math.ceil((deploymentCost * secToDepositFor) / averageBlockTime);
 
+          const convertedDeposit = formatCurrency(udenomToUsd(deposit, deployment.escrowAccount.state.funds[0]?.denom || ""));
           const isConfirmed = await confirm({
             title: "Deposit required",
-            message: `To enable auto top-up, please deposit $${udenomToUsd(deposit, deployment.escrowAccount.state.funds[0]?.denom || "")}. This ensures your deployment remains active until the next scheduled check.`
+            message: `To enable auto top-up, please deposit ${convertedDeposit}. This ensures your deployment remains active until the next scheduled check.`
           });
 
           if (!isConfirmed) {
@@ -149,7 +153,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
 
       deploymentSetting.setAutoTopUpEnabled(autoTopUpEnabled);
     },
-    [confirm, deployment.escrowAccount.state.funds[0]?.denom, deploymentCost, deploymentSetting, onDeploymentDeposit, realTimeLeft?.timeLeft, udenomToUsd]
+    [confirm, deployment.escrowAccount.state.funds, deploymentCost, deploymentSetting, formatCurrency, onDeploymentDeposit, realTimeLeft?.timeLeft, udenomToUsd]
   );
 
   return (
