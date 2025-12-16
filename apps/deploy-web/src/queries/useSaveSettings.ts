@@ -11,7 +11,7 @@ import { ApiUrlService } from "@src/utils/apiUtils";
 import { QueryKeys } from "./queryKeys";
 
 export function useSaveSettings() {
-  const { consoleApiHttpClient } = useServices();
+  const { consoleApiHttpClient, errorHandler } = useServices();
 
   const { enqueueSnackbar } = useSnackbar();
   const { checkSession } = useCustomUser();
@@ -28,6 +28,7 @@ export function useSaveSettings() {
         message = typeof error.response.data === "string" ? error.response.data : error.response.data.message || message;
       }
       enqueueSnackbar(message, { variant: "error" });
+      errorHandler.reportError({ error, tags: { category: "user-settings" } });
     }
   });
 }
