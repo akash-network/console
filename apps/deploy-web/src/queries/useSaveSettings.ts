@@ -1,6 +1,6 @@
 import type { UseQueryOptions } from "@tanstack/react-query";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import type { AxiosInstance, AxiosResponse } from "axios";
+import axios, { type AxiosInstance, type AxiosResponse } from "axios";
 import { useSnackbar } from "notistack";
 
 import { useServices } from "@src/context/ServicesProvider";
@@ -16,14 +16,18 @@ export function useSaveSettings() {
   const { enqueueSnackbar } = useSnackbar();
   const { checkSession } = useCustomUser();
 
-  return useMutation<AxiosResponse<any, any>, unknown, UserSettings>({
+  return useMutation<AxiosResponse<unknown, unknown>, Error, UserSettings>({
     mutationFn: newSettings => consoleApiHttpClient.put("/user/updateSettings", newSettings),
     onSuccess: () => {
       enqueueSnackbar("Settings saved", { variant: "success" });
       checkSession();
     },
-    onError: () => {
-      enqueueSnackbar("Error saving settings", { variant: "error" });
+    onError: error => {
+      let message = "Error saving settings";
+      if (axios.isAxiosError(error) && error.response?.data) {
+        message = typeof error.response.data === "string" ? error.response.data : error.response.data.message || message;
+      }
+      enqueueSnackbar(message, { variant: "error" });
     }
   });
 }
