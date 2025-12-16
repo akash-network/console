@@ -62,7 +62,7 @@ export function SignInForm(props: Props) {
             )}
           />
         </div>
-        <div className="flex flex-col gap-5 self-stretch sm:flex-row">
+        <div className="flex flex-col-reverse gap-5 self-stretch sm:flex-row">
           <Button type="button" onClick={goBack} variant="outline" className="h-9 flex-1 border-neutral-200 dark:border-neutral-800">
             <Undo2 className="mr-2 h-4 w-4" />
             Go Back
