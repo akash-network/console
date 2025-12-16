@@ -1,5 +1,12 @@
 
 
+## [2.9.0](https://github.com/akash-network/console/compare/notifications/v2.8.0...notifications/v2.9.0) (2025-12-16)
+
+
+### Features
+
+* **deployment:** adds weekly deployment cost display for auto-topped-up deployments  ([ec84b32](https://github.com/akash-network/console/commit/ec84b32cfb6663c7e0f8cf8c941ba83c310e856a)), closes [#1779](https://github.com/akash-network/console/issues/1779)
+
 ## [2.8.0](https://github.com/akash-network/console/compare/notifications/v2.7.0...notifications/v2.8.0) (2025-12-09)
 
 

@@ -1,5 +1,12 @@
 
 
+## [3.15.0](https://github.com/akash-network/console/compare/console-api/v3.14.1...console-api/v3.15.0) (2025-12-16)
+
+
+### Features
+
+* **deployment:** adds weekly deployment cost display for auto-topped-up deployments  ([ec84b32](https://github.com/akash-network/console/commit/ec84b32cfb6663c7e0f8cf8c941ba83c310e856a)), closes [#1779](https://github.com/akash-network/console/issues/1779)
+
 ## [3.14.1](https://github.com/akash-network/console/compare/console-api/v3.14.0...console-api/v3.14.1) (2025-12-15)
 
 
