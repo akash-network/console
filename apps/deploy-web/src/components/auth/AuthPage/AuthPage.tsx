@@ -70,7 +70,7 @@ export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
       const newSearchParams = new URLSearchParams(searchParams);
       newSearchParams.set("tab", tabId);
       signInOrSignUp.reset();
-      router.replace(`?${newSearchParams.toString()}`);
+      router.replace(`?${newSearchParams.toString()}`, undefined, { shallow: true });
     },
     [searchParams, router]
   );
@@ -105,7 +105,7 @@ export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
             </div>
             <div className="flex-1">
               <h5 className="font-semibold">Cost Savings</h5>
-              <p className="mt-1">The most competitive prices for GPUs on-demands, anywhere on the internet.</p>
+              <p className="mt-1">The most competitive prices for GPUs on-demand, anywhere on the internet.</p>
             </div>
           </div>
         </div>
