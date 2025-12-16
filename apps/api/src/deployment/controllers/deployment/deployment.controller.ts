@@ -11,6 +11,7 @@ import {
   DepositDeploymentResponse,
   GetDeploymentByOwnerDseqResponse,
   GetDeploymentResponse,
+  GetWeeklyDeploymentCostResponse,
   ListDeploymentsResponseSchema,
   ListWithResourcesParams,
   ListWithResourcesQuery,
@@ -20,13 +21,15 @@ import {
 } from "@src/deployment/http-schemas/deployment.schema";
 import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
+import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 
 @singleton()
 export class DeploymentController {
   constructor(
     private readonly deploymentReaderService: DeploymentReaderService,
     private readonly deploymentWriterService: DeploymentWriterService,
-    private readonly authService: AuthService
+    private readonly authService: AuthService,
+    private readonly drainingDeploymentService: DrainingDeploymentService
   ) {}
 
   @Protected([{ action: "sign", subject: "UserWallet" }])
@@ -96,5 +99,11 @@ export class DeploymentController {
     assert(deployment, 404, "Deployment Not Found");
 
     return deployment;
+  }
+
+  @Protected([{ action: "read", subject: "UserWallet" }])
+  async getWeeklyDeploymentCost(): Promise<GetWeeklyDeploymentCostResponse> {
+    const weeklyCost = await this.drainingDeploymentService.calculateWeeklyDeploymentCost(this.authService.currentUser.id, this.authService.ability);
+    return { data: { weeklyCost } };
   }
 }

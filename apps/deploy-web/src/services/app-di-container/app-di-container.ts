@@ -4,6 +4,7 @@ import {
   AuthHttpService,
   createHttpClient,
   DeploymentSettingHttpService,
+  ManagedDeploymentHttpService,
   TemplateHttpService,
   TxHttpService,
   UsageHttpService,
@@ -89,6 +90,10 @@ export const createAppRootContainer = (config: ServicesConfig) => {
     },
     deploymentSetting: () =>
       container.applyAxiosInterceptors(new DeploymentSettingHttpService(apiConfig), {
+        request: [withUserToken]
+      }),
+    managedDeployment: () =>
+      container.applyAxiosInterceptors(new ManagedDeploymentHttpService(apiConfig), {
         request: [withUserToken]
       }),
     walletSettings: () =>

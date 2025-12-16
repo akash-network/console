@@ -1,10 +1,12 @@
+import { AnyAbility } from "@casl/ability";
 import keyBy from "lodash/keyBy";
 import { singleton } from "tsyringe";
 
 import { UserWalletRepository } from "@src/billing/repositories";
+import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import { LoggerService } from "@src/core";
-import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import { AutoTopUpDeployment, DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { DrainingDeploymentOutput, LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
 import { DrainingDeployment } from "@src/deployment/types/draining-deployment";
 import { averageBlockCountInAnHour } from "@src/utils/constants";
@@ -22,7 +24,8 @@ export class DrainingDeploymentService {
     private readonly deploymentSettingRepository: DeploymentSettingRepository,
     private readonly config: DeploymentConfigService,
     private readonly loggerService: LoggerService,
-    private readonly rpcService: DrainingDeploymentRpcService
+    private readonly rpcService: DrainingDeploymentRpcService,
+    private readonly balancesService: BalancesService
   ) {
     loggerService.setContext(DrainingDeploymentService.name);
   }
@@ -128,9 +131,9 @@ export class DrainingDeploymentService {
    * @returns The total cost (in credits) needed to keep all draining deployments running until the target date
    */
   async calculateAllDeploymentCostUntilDate(address: string, targetDate: Date): Promise<number> {
-    const userWallet = await this.userWalletRepository.findOneBy({ address });
+    const deploymentSettings = await this.#findAutoTopUpDeploymentSettings(address);
 
-    if (!userWallet || !userWallet.address) {
+    if (deploymentSettings.length === 0) {
       return 0;
     }
 
@@ -138,30 +141,103 @@ export class DrainingDeploymentService {
     const now = new Date();
     const hoursUntilTarget = (targetDate.getTime() - now.getTime()) / (1000 * 60 * 60);
     const targetHeight = Math.floor(currentHeight + averageBlockCountInAnHour * hoursUntilTarget);
+    const drainingDeployments = await this.#findDrainingDeployments(deploymentSettings, address, currentHeight);
 
-    let totalAmount = 0;
-
-    const deploymentSettings = await this.deploymentSettingRepository.findAutoTopUpDeploymentsByOwner(address);
-
-    if (deploymentSettings.length === 0) {
-      return totalAmount;
-    }
-
-    const dseqs = deploymentSettings.map(deployment => deployment.dseq);
-    const drainingDeployments = await this.findLeases(targetHeight, address, dseqs);
-
-    if (drainingDeployments.length === 0) {
-      return totalAmount;
-    }
-
-    for (const { predictedClosedHeight, blockRate } of drainingDeployments) {
+    return await this.#accumulateDeploymentCost(drainingDeployments, async ({ predictedClosedHeight, blockRate }) => {
       if (predictedClosedHeight && predictedClosedHeight >= currentHeight && predictedClosedHeight <= targetHeight) {
         const blocksNeeded = targetHeight - currentHeight;
-        const amountNeeded = Math.floor(blockRate * blocksNeeded);
-        totalAmount += amountNeeded;
+        return Math.floor(blockRate * blocksNeeded);
       }
+      return 0;
+    });
+  }
+
+  /**
+   * Calculates the weekly spending for all deployments with auto top-up enabled.
+   * This calculates the cost to keep all deployments running for 7 days, regardless of when they would close.
+   *
+   * @param userId - The user ID to calculate the deployment costs for
+   * @param ability - CASL ability instance for authorization checks
+   * @returns The total weekly cost in USD for all deployments with auto top-up enabled
+   */
+  async calculateWeeklyDeploymentCost(userId: string, ability: AnyAbility): Promise<number> {
+    const userWallet = await this.userWalletRepository.accessibleBy(ability, "read").findOneByUserId(userId);
+
+    if (!userWallet?.address) {
+      return 0;
     }
 
+    const deploymentSettings = await this.deploymentSettingRepository.accessibleBy(ability, "read").findAutoTopUpDeploymentsByOwner(userWallet.address);
+
+    if (deploymentSettings.length === 0) {
+      return 0;
+    }
+
+    const currentHeight = await this.blockHttpService.getCurrentHeight();
+    const blocksInAWeek = Math.floor(averageBlockCountInAnHour * 24 * 7);
+    const drainingDeployments = await this.#findDrainingDeployments(deploymentSettings, userWallet.address, Number.MAX_SAFE_INTEGER);
+
+    const weeklyCostInUakt = await this.#accumulateDeploymentCost(drainingDeployments, async ({ predictedClosedHeight, blockRate }) => {
+      if (predictedClosedHeight && predictedClosedHeight > currentHeight && blockRate > 0) {
+        return Math.floor(blockRate * blocksInAWeek);
+      }
+      return 0;
+    });
+
+    if (weeklyCostInUakt === 0) {
+      return 0;
+    }
+
+    return await this.balancesService.toFiatAmount(weeklyCostInUakt);
+  }
+
+  /**
+   * Finds auto top-up deployment settings for a given address.
+   * Validates that the user wallet exists and has an address before querying.
+   *
+   * @param address - The wallet address to find deployment settings for
+   * @returns Array of auto top-up deployment settings, or empty array if wallet not found
+   */
+  async #findAutoTopUpDeploymentSettings(address: string): Promise<AutoTopUpDeployment[]> {
+    const userWallet = await this.userWalletRepository.findOneBy({ address });
+
+    if (!userWallet?.address) {
+      return [];
+    }
+
+    return this.deploymentSettingRepository.findAutoTopUpDeploymentsByOwner(address);
+  }
+
+  /**
+   * Finds draining deployments for the given deployment settings.
+   * Extracts dseqs from settings and queries leases using the current height as closure height.
+   *
+   * @param deploymentSettings - Array of auto top-up deployment settings
+   * @param address - The owner address to query deployments for
+   * @param closureHeight - Current block height to use as closure height threshold
+   * @returns Array of draining deployment outputs
+   */
+  async #findDrainingDeployments(deploymentSettings: AutoTopUpDeployment[], address: string, closureHeight: number): Promise<DrainingDeploymentOutput[]> {
+    const dseqs = deploymentSettings.map(deployment => deployment.dseq);
+    return await this.findLeases(closureHeight, address, dseqs);
+  }
+
+  /**
+   * Accumulates deployment costs by applying a callback function to each deployment.
+   * Sums up the cost values returned by the callback for all deployments.
+   *
+   * @param drainingDeployments - Array of draining deployment outputs to process
+   * @param callback - Async function that calculates cost for a single deployment
+   * @returns Total accumulated cost across all deployments
+   */
+  async #accumulateDeploymentCost(
+    drainingDeployments: DrainingDeploymentOutput[],
+    callback: (deployment: DrainingDeploymentOutput) => Promise<number>
+  ): Promise<number> {
+    let totalAmount = 0;
+    for (const deployment of drainingDeployments) {
+      totalAmount += await callback(deployment);
+    }
     return totalAmount;
   }
 

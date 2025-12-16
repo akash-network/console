@@ -265,6 +265,12 @@ export const GetDeploymentByOwnerDseqResponseSchema = z.object({
   other: DeploymentInfoSchema
 });
 
+export const GetWeeklyDeploymentCostResponseSchema = z.object({
+  data: z.object({
+    weeklyCost: z.number().describe("Total weekly cost in USD for all deployments with auto top-up enabled")
+  })
+});
+
 export type GetDeploymentResponse = z.infer<typeof GetDeploymentResponseSchema>;
 export type CreateDeploymentRequest = z.infer<typeof CreateDeploymentRequestSchema>;
 export type CreateDeploymentResponse = z.infer<typeof CreateDeploymentResponseSchema>;
@@ -277,3 +283,4 @@ export type ListWithResourcesParams = z.infer<typeof ListWithResourcesParamsSche
 export type ListWithResourcesQuery = z.infer<typeof ListWithResourcesQuerySchema>;
 export type ListWithResourcesResponse = z.infer<typeof ListWithResourcesResponseSchema>;
 export type GetDeploymentByOwnerDseqResponse = z.infer<typeof GetDeploymentByOwnerDseqResponseSchema>;
+export type GetWeeklyDeploymentCostResponse = z.infer<typeof GetWeeklyDeploymentCostResponseSchema>;
