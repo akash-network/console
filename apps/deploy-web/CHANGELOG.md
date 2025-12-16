@@ -1,5 +1,13 @@
 
 
+## [3.13.1](https://github.com/akash-network/console/compare/console-web/v3.13.0...console-web/v3.13.1) (2025-12-16)
+
+
+### Bug Fixes
+
+* fixes background on login page for dark theme ([#2362](https://github.com/akash-network/console/issues/2362)) ([cf9d5e0](https://github.com/akash-network/console/commit/cf9d5e0f524eb5f14b181f1b74cb53add2579c42))
+* typo fix and shallow navigation between login/signup ([#2365](https://github.com/akash-network/console/issues/2365)) ([b003b05](https://github.com/akash-network/console/commit/b003b05f10d869a5c753d7a2cb32b33c26e1b5be))
+
 ## [3.13.0](https://github.com/akash-network/console/compare/console-web/v3.12.0...console-web/v3.13.0) (2025-12-16)
 
 
