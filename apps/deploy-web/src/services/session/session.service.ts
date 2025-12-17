@@ -165,6 +165,38 @@ export class SessionService {
     const response = await this.#consoleApiHttpClient.get<{ data: UserSettings }>("/v1/user/me", { headers });
     return response.data.data;
   }
+
+  async sendPasswordResetEmail(input: {
+    email: string;
+  }): Promise<Result<void, { code: "too_many_requests"; message: string; retryAfter: number } | { code: "unknown"; message: string; cause: unknown }>> {
+    const oauthIssuerUrl = new URL(this.#config.ISSUER_BASE_URL);
+
+    const auth0Response = await this.#externalHttpClient.post(
+      `${oauthIssuerUrl.origin}/dbconnections/change_password`,
+      {
+        client_id: this.#config.CLIENT_ID,
+        email: input.email.trim(),
+        connection: "Username-Password-Authentication"
+      },
+      {
+        validateStatus: notServerError
+      }
+    );
+
+    if (auth0Response.status === 429) {
+      return Err({
+        message: "Too many requests. Please try again later.",
+        code: "too_many_requests",
+        retryAfter: parseInt(auth0Response.headers["x-ratelimit-reset"] || "0", 10)
+      });
+    }
+
+    if (auth0Response.status !== 200) {
+      return Err({ message: "Cannot send password reset email.", code: "unknown", cause: auth0Response.data });
+    }
+
+    return Ok(undefined);
+  }
 }
 
 export interface OauthConfig {

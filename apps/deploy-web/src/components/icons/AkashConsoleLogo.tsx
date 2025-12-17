@@ -1,7 +1,7 @@
 export const AkashConsoleLogo = ({ className = "", size = { width: 170, height: 20 } }: { className?: string; size?: { width: number; height: number } }) => {
   return (
-    <div style={{ width: size.width, height: size.height }}>
-      <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 170 20" fill="none" className={className}>
+    <div style={{ width: size.width, height: size.height }} className={className}>
+      <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 170 20" fill="none">
         <path d="M13.7518 12.0425L17.1474 18.0147H10.2884L6.85693 12.0425H13.7518Z" fill="url(#paint0_linear_868_9890)" />
         <path d="M17.1455 18.0158L20.5713 12.0436L13.7141 0.0961914H6.85693L17.1455 18.0158Z" fill="#FF414C" />
         <path d="M3.42857 6.06689H10.2858L3.43142 18.0143L0 12.042L3.42857 6.06689Z" fill="#FF414C" />

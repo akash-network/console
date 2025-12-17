@@ -1,6 +1,4 @@
 import type { Tabs } from "@akashnetwork/ui/components";
-import type { InternalAxiosRequestConfig } from "axios";
-import { AxiosError } from "axios";
 import { mock } from "jest-mock-extended";
 import type { ReadonlyURLSearchParams } from "next/navigation";
 import type { NextRouter } from "next/router";
@@ -18,8 +16,8 @@ describe(AuthPage.name, () => {
   it("redirects to social login with computed return url", async () => {
     const SocialAuthMock = jest.fn(ComponentMock);
     const { authService } = setup({
-      tab: "login",
       searchParams: {
+        tab: "login",
         from: "/protected"
       },
       dependencies: {
@@ -56,13 +54,15 @@ describe(AuthPage.name, () => {
   it("resets mutation and updates tab query when switching to login", async () => {
     const TabsMock = jest.fn(ComponentMock as typeof Tabs);
     const SignUpFormMock = jest.fn(ComponentMock as typeof SignUpForm);
+    const RemoteApiErrorMock = jest.fn(({ error }) => error && <div>Unexpected error</div>);
     const { authService } = setup({
       searchParams: {
         tab: "signup"
       },
       dependencies: {
         Tabs: TabsMock as unknown as typeof Tabs,
-        SignUpForm: SignUpFormMock
+        SignUpForm: SignUpFormMock,
+        RemoteApiError: RemoteApiErrorMock
       }
     });
     authService.signup.mockRejectedValue(new Error("Account exists"));
@@ -123,9 +123,11 @@ describe(AuthPage.name, () => {
 
     it("shows alert when sign-in fails", async () => {
       const SignInFormMock = jest.fn(ComponentMock as typeof SignInForm);
+      const RemoteApiErrorMock = jest.fn(({ error }) => error && <div>Unexpected error</div>);
       const { authService, router } = setup({
         dependencies: {
-          SignInForm: SignInFormMock
+          SignInForm: SignInFormMock,
+          RemoteApiError: RemoteApiErrorMock
         }
       });
       authService.login.mockRejectedValue(new Error("Invalid credentials"));
@@ -138,38 +140,7 @@ describe(AuthPage.name, () => {
       });
 
       await waitFor(() => {
-        expect(screen.getByText(/unexpected error occurred/i)).toBeInTheDocument();
-      });
-      expect(router.push).not.toHaveBeenCalled();
-    });
-
-    it("shows alert with error from API when sign-in fails", async () => {
-      const SignInFormMock = jest.fn(ComponentMock as typeof SignInForm);
-      const { authService, router } = setup({
-        dependencies: {
-          SignInForm: SignInFormMock
-        }
-      });
-      const message = "Wrong email or password";
-      authService.login.mockRejectedValue(
-        new AxiosError("Invalid credentials", undefined, undefined, undefined, {
-          status: 400,
-          statusText: "Bad Request",
-          data: { message },
-          headers: {},
-          config: {} as InternalAxiosRequestConfig
-        })
-      );
-
-      act(() => {
-        SignInFormMock.mock.calls[0][0].onSubmit({
-          email: "test@example.com",
-          password: "password123"
-        });
-      });
-
-      await waitFor(() => {
-        expect(screen.getByText(message)).toBeInTheDocument();
+        expect(screen.getByText(/unexpected error/i)).toBeInTheDocument();
       });
       expect(router.push).not.toHaveBeenCalled();
     });
@@ -210,9 +181,11 @@ describe(AuthPage.name, () => {
 
     it("shows alert when sign-up fails", async () => {
       const SignUpFormMock = jest.fn(ComponentMock as typeof SignUpForm);
+      const RemoteApiErrorMock = jest.fn(({ error }) => error && <div>Unexpected error</div>);
       const { authService, router } = setup({
         dependencies: {
-          SignUpForm: SignUpFormMock
+          SignUpForm: SignUpFormMock,
+          RemoteApiError: RemoteApiErrorMock
         }
       });
       authService.signup.mockRejectedValue(new Error("Invalid credentials"));
@@ -226,39 +199,7 @@ describe(AuthPage.name, () => {
       });
 
       await waitFor(() => {
-        expect(screen.getByText(/unexpected error occurred/i)).toBeInTheDocument();
-      });
-      expect(router.push).not.toHaveBeenCalled();
-    });
-
-    it("shows alert with error from API when sign-up fails", async () => {
-      const SignUpFormMock = jest.fn(ComponentMock as typeof SignUpForm);
-      const { authService, router } = setup({
-        dependencies: {
-          SignUpForm: SignUpFormMock
-        }
-      });
-      const message = "Wrong email or password";
-      authService.signup.mockRejectedValue(
-        new AxiosError("Invalid credentials", undefined, undefined, undefined, {
-          status: 400,
-          statusText: "Bad Request",
-          data: { message },
-          headers: {},
-          config: {} as InternalAxiosRequestConfig
-        })
-      );
-
-      act(() => {
-        SignUpFormMock.mock.calls[0][0].onSubmit({
-          email: "test@example.com",
-          password: "password123",
-          termsAndConditions: true
-        });
-      });
-
-      await waitFor(() => {
-        expect(screen.getByText(message)).toBeInTheDocument();
+        expect(screen.getByText(/unexpected error/i)).toBeInTheDocument();
       });
       expect(router.push).not.toHaveBeenCalled();
     });
@@ -266,7 +207,7 @@ describe(AuthPage.name, () => {
 
   function setup(input: {
     searchParams?: {
-      tab?: "login" | "signup";
+      tab?: "login" | "signup" | "forgot-password";
       returnTo?: string;
       from?: string;
     };

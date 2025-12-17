@@ -44,6 +44,12 @@ export class AuthService {
     });
   }
 
+  async sendPasswordResetEmail(input: { email: string }): Promise<void> {
+    await this.internalApiHttpClient.post<void>("/api/auth/send-password-reset-email", {
+      email: input.email
+    });
+  }
+
   logout() {
     this.localStorage.removeItem(ANONYMOUS_USER_TOKEN_KEY);
     this.localStorage.removeItem(ONBOARDING_STEP_KEY);
