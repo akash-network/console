@@ -144,19 +144,19 @@ export const DeploymentList: React.FunctionComponent = () => {
     <Layout isLoading={isLoadingDeployments || isLoadingProviders} isUsingSettings isUsingWallet>
       <NextSeo title="Deployments" />
       {deployments && deployments.length > 0 && isWalletConnected && (
-        <div className="flex flex-wrap items-center pb-2">
+        <div className="flex flex-wrap items-center pb-6">
           <>
             <Title className="font-bold" subTitle>
               Deployments
             </Title>
 
-            <div className="ml-4">
+            <div className="ml-6">
               <Button aria-label="back" onClick={() => getDeployments()} size="icon" variant="ghost">
                 <Refresh />
               </Button>
             </div>
 
-            <div className="ml-8">
+            <div className="ml-6">
               <div className="flex items-center space-x-2">
                 <CheckboxWithLabel label="Active" checked={isFilteringActive} onCheckedChange={onIsFilteringActiveClick} />
               </div>
@@ -164,13 +164,13 @@ export const DeploymentList: React.FunctionComponent = () => {
 
             {selectedItemIds.length > 0 && (
               <>
-                <div className="md:ml-4">
+                <div className="md:ml-6">
                   <Button onClick={onCloseSelectedDeployments} color="secondary" size="sm">
                     Close selected ({selectedItemIds.length})
                   </Button>
                 </div>
 
-                <div className="ml-4">
+                <div className="ml-6">
                   <LinkTo onClick={clearSelection}>Clear</LinkTo>
                 </div>
               </>
@@ -192,7 +192,7 @@ export const DeploymentList: React.FunctionComponent = () => {
       )}
 
       {((filteredDeployments?.length || 0) > 0 || !!search) && (
-        <div className="flex items-center pb-4 pt-2">
+        <div className="flex items-center pb-6">
           <div className="flex-grow">
             <Input
               value={search}
@@ -231,7 +231,7 @@ export const DeploymentList: React.FunctionComponent = () => {
 
       <div>
         {orderedDeployments.length > 0 && (
-          <div className="flex flex-wrap items-center justify-between pb-4">
+          <div className="flex flex-wrap items-center justify-between pb-6">
             <span className="text-xs">
               You have <strong>{orderedDeployments.length}</strong>
               {isFilteringActive ? " active" : ""} deployments
@@ -278,7 +278,7 @@ export const DeploymentList: React.FunctionComponent = () => {
       </div>
 
       {search && currentPageDeployments.length === 0 && (
-        <div className="py-4">
+        <div className="py-6">
           <p>No deployment found.</p>
         </div>
       )}
