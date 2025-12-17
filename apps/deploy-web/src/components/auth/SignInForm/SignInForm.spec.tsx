@@ -15,7 +15,7 @@ describe(SignInForm.name, () => {
     const { onSubmit } = setup();
 
     await userEvent.type(screen.getByLabelText("Email"), "alice@example.com");
-    await userEvent.type(screen.getByLabelText("Password"), "password123");
+    await userEvent.type(screen.getByLabelText(/Password/i), "password123");
     await userEvent.click(screen.getByRole("button", { name: "Log in" }));
 
     await waitFor(() => {
@@ -48,7 +48,7 @@ describe(SignInForm.name, () => {
     const { onSubmit } = setup();
 
     await userEvent.type(screen.getByLabelText("Email"), "test");
-    await userEvent.type(screen.getByLabelText("Password"), "password123");
+    await userEvent.type(screen.getByLabelText(/Password/i), "password123");
     await userEvent.click(screen.getByRole("button", { name: "Log in" }));
 
     expect(onSubmit).not.toHaveBeenCalled();

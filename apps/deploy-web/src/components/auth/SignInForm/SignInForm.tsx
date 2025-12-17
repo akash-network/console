@@ -1,7 +1,9 @@
+import { useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { Button, Form, FormField, FormInput, Spinner } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LogIn, Undo2 } from "lucide-react";
+import Link from "next/link";
 import { z } from "zod";
 
 import { useBackNav } from "@src/hooks/useBackNav";
@@ -16,18 +18,29 @@ export type SignInFormValues = z.infer<typeof formSchema>;
 interface Props {
   isLoading?: boolean;
   onSubmit: (values: SignInFormValues) => void;
+  onForgotPasswordClick?: () => void;
+  defaultEmail?: string;
+  onEmailChange?: (email: string) => void;
 }
 
 export function SignInForm(props: Props) {
   const form = useForm<SignInFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      email: "",
+      email: props.defaultEmail || "",
       password: ""
     }
   });
   const goBack = useBackNav("/");
   const emitSubmit = form.handleSubmit(values => props.onSubmit(values));
+
+  const onForgotPasswordClick = useCallback(
+    (event: React.MouseEvent) => {
+      event.preventDefault();
+      props.onForgotPasswordClick?.();
+    },
+    [props.onForgotPasswordClick]
+  );
 
   return (
     <Form {...form}>
@@ -43,7 +56,10 @@ export function SignInForm(props: Props) {
                 label="Email"
                 placeholder="m@example.com"
                 value={field.value}
-                onChange={event => field.onChange(event.target.value)}
+                onChange={event => {
+                  field.onChange(event.target.value);
+                  props.onEmailChange?.(event.target.value);
+                }}
               />
             )}
           />
@@ -54,7 +70,17 @@ export function SignInForm(props: Props) {
               <FormInput
                 className="w-full"
                 type="password"
-                label="Password"
+                labelClassName="flex items-center justify-between"
+                label={
+                  <>
+                    <div>Password</div>
+                    <div>
+                      <Link className="text-xs text-current underline hover:no-underline" prefetch={false} href="#" onClick={onForgotPasswordClick}>
+                        Forgot password?
+                      </Link>
+                    </div>
+                  </>
+                }
                 placeholder="••••••••"
                 value={field.value}
                 onChange={event => field.onChange(event.target.value)}

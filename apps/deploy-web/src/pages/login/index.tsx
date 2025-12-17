@@ -31,7 +31,7 @@ export const getServerSideProps = defineServerSideProps({
   route: "/login",
   schema: z.object({
     query: z.object({
-      tab: z.enum(["login", "signup"]).default("login"),
+      tab: z.enum(["login", "signup", "forgot-password"]).default("login"),
       from: z.string().optional()
     })
   }),
