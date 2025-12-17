@@ -65,11 +65,12 @@ describe(ManagedSignerService.name, () => {
     });
 
     it("throws 403 error when userWallet has no fee allowance", async () => {
-      const wallet = UserWalletSeeder.create({ userId: "user-123", feeAllowance: 0 });
+      const wallet = UserWalletSeeder.create({ userId: "user-123" });
       const user = UserSeeder.create({ userId: "user-123" });
       const { service } = setup({
         findOneByUserId: jest.fn().mockResolvedValue(wallet),
-        findById: jest.fn().mockResolvedValue(user)
+        findById: jest.fn().mockResolvedValue(user),
+        retrieveAndCalcFeeLimit: jest.fn(async () => 0)
       });
 
       await expect(service.executeDerivedDecodedTxByUserId("user-123", [])).rejects.toThrow("Not enough funds to cover the transaction fee");
@@ -77,9 +78,7 @@ describe(ManagedSignerService.name, () => {
 
     it("throws 403 error when userWallet has no deployment allowance for deployment message", async () => {
       const wallet = UserWalletSeeder.create({
-        userId: "user-123",
-        feeAllowance: 100,
-        deploymentAllowance: 0
+        userId: "user-123"
       });
       const user = UserSeeder.create({ userId: "user-123" });
       const deploymentMessage: EncodeObject = {
@@ -89,7 +88,8 @@ describe(ManagedSignerService.name, () => {
 
       const { service } = setup({
         findOneByUserId: jest.fn().mockResolvedValue(wallet),
-        findById: jest.fn().mockResolvedValue(user)
+        findById: jest.fn().mockResolvedValue(user),
+        retrieveDeploymentLimit: jest.fn(async () => 0)
       });
 
       await expect(service.executeDerivedDecodedTxByUserId("user-123", [deploymentMessage])).rejects.toThrow("Not enough funds to cover the deployment costs");
@@ -97,9 +97,7 @@ describe(ManagedSignerService.name, () => {
 
     it("validates trial limits when anonymous free trial is enabled", async () => {
       const wallet = UserWalletSeeder.create({
-        userId: "user-123",
-        feeAllowance: 100,
-        deploymentAllowance: 100
+        userId: "user-123"
       });
       const user = UserSeeder.create({ userId: "user-123" });
       const messages: EncodeObject[] = [
@@ -123,8 +121,7 @@ describe(ManagedSignerService.name, () => {
           code: 0,
           hash: "tx-hash",
           rawLog: "success"
-        }),
-        refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined)
+        })
       });
 
       await service.executeDerivedDecodedTxByUserId("user-123", messages);
@@ -136,9 +133,7 @@ describe(ManagedSignerService.name, () => {
 
     it("skips trial validation when anonymous free trial is disabled", async () => {
       const wallet = UserWalletSeeder.create({
-        userId: "user-123",
-        feeAllowance: 100,
-        deploymentAllowance: 100
+        userId: "user-123"
       });
       const user = UserSeeder.create({ userId: "user-123" });
       const messages: EncodeObject[] = [
@@ -160,8 +155,7 @@ describe(ManagedSignerService.name, () => {
           code: 0,
           hash: "tx-hash",
           rawLog: "success"
-        }),
-        refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined)
+        })
       });
 
       await service.executeDerivedDecodedTxByUserId("user-123", messages);
@@ -173,9 +167,7 @@ describe(ManagedSignerService.name, () => {
 
     it("executes transaction successfully and returns result", async () => {
       const wallet = UserWalletSeeder.create({
-        userId: "user-123",
-        feeAllowance: 100,
-        deploymentAllowance: 100
+        userId: "user-123"
       });
       const user = UserSeeder.create({ userId: "user-123" });
       const messages: EncodeObject[] = [
@@ -196,17 +188,15 @@ describe(ManagedSignerService.name, () => {
         transactionHash: "tx-hash-123"
       };
 
-      const { service, txManagerService, balancesService } = setup({
+      const { service, txManagerService } = setup({
         findOneByUserId: jest.fn().mockResolvedValue(wallet),
         findById: jest.fn().mockResolvedValue(user),
-        signAndBroadcastWithDerivedWallet: jest.fn().mockResolvedValue(txResult),
-        refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined)
+        signAndBroadcastWithDerivedWallet: jest.fn().mockResolvedValue(txResult)
       });
 
       const result = await service.executeDerivedDecodedTxByUserId("user-123", messages);
 
       expect(txManagerService.signAndBroadcastWithDerivedWallet).toHaveBeenCalledWith(wallet.id, messages, { fee: { granter: expect.any(String) } }, false);
-      expect(balancesService.refreshUserWalletLimits).toHaveBeenCalledWith(wallet);
       expect(result).toEqual({
         code: 0,
         hash: "tx-hash-123",
@@ -218,8 +208,6 @@ describe(ManagedSignerService.name, () => {
     it("publishes TrialDeploymentLeaseCreated event for trialing wallet with deployment message when anonymous trial is disabled", async () => {
       const wallet = UserWalletSeeder.create({
         userId: "user-123",
-        feeAllowance: 100,
-        deploymentAllowance: 100,
         isTrialing: true
       });
       const user = UserSeeder.create({ userId: "user-123" });
@@ -246,7 +234,6 @@ describe(ManagedSignerService.name, () => {
           hash: "tx-hash",
           rawLog: "success"
         }),
-        refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined),
         publish: jest.fn().mockResolvedValue(undefined),
         hasLeases
       });
@@ -278,8 +265,6 @@ describe(ManagedSignerService.name, () => {
     it("does not publish TrialDeploymentCreated event when anonymous trial is enabled", async () => {
       const wallet = UserWalletSeeder.create({
         userId: "user-123",
-        feeAllowance: 100,
-        deploymentAllowance: 100,
         isTrialing: true
       });
       const user = UserSeeder.create({ userId: "user-123" });
@@ -302,7 +287,6 @@ describe(ManagedSignerService.name, () => {
           hash: "tx-hash",
           rawLog: "success"
         }),
-        refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined),
         publish: jest.fn().mockResolvedValue(undefined)
       });
 
@@ -313,9 +297,7 @@ describe(ManagedSignerService.name, () => {
 
     it("handles chain errors properly", async () => {
       const wallet = UserWalletSeeder.create({
-        userId: "user-123",
-        feeAllowance: 100,
-        deploymentAllowance: 100
+        userId: "user-123"
       });
       const user = UserSeeder.create({ userId: "user-123" });
       const messages: EncodeObject[] = [
@@ -344,7 +326,7 @@ describe(ManagedSignerService.name, () => {
 
     it("uses current user when userId matches auth currentUser", async () => {
       const currentUser = UserSeeder.create({ userId: "user-123" });
-      const wallet = UserWalletSeeder.create({ userId: "user-123", feeAllowance: 100 });
+      const wallet = UserWalletSeeder.create({ userId: "user-123" });
       const messages: EncodeObject[] = [
         {
           typeUrl: MsgCreateLease.$type,
@@ -363,8 +345,7 @@ describe(ManagedSignerService.name, () => {
           code: 0,
           hash: "tx-hash",
           rawLog: "success"
-        }),
-        refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined)
+        })
       });
 
       await service.executeDerivedDecodedTxByUserId("user-123", messages);
@@ -375,8 +356,6 @@ describe(ManagedSignerService.name, () => {
     it("validates lease provider for all leases regardless of trial status", async () => {
       const wallet = UserWalletSeeder.create({
         userId: "user-123",
-        feeAllowance: 100,
-        deploymentAllowance: 100,
         isTrialing: false
       });
       const user = UserSeeder.create({ userId: "user-123" });
@@ -400,8 +379,7 @@ describe(ManagedSignerService.name, () => {
           code: 0,
           hash: "tx-hash",
           rawLog: "success"
-        }),
-        refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined)
+        })
       });
 
       await service.executeDerivedDecodedTxByUserId("user-123", messages);
@@ -412,8 +390,6 @@ describe(ManagedSignerService.name, () => {
     it("validates lease provider for trial wallets", async () => {
       const wallet = UserWalletSeeder.create({
         userId: "user-123",
-        feeAllowance: 100,
-        deploymentAllowance: 100,
         isTrialing: true
       });
       const user = UserSeeder.create({ userId: "user-123" });
@@ -437,8 +413,7 @@ describe(ManagedSignerService.name, () => {
           code: 0,
           hash: "tx-hash",
           rawLog: "success"
-        }),
-        refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined)
+        })
       });
 
       await service.executeDerivedDecodedTxByUserId("user-123", messages);
@@ -449,8 +424,6 @@ describe(ManagedSignerService.name, () => {
     it("validates lease provider in anonymous trial mode", async () => {
       const wallet = UserWalletSeeder.create({
         userId: "user-123",
-        feeAllowance: 100,
-        deploymentAllowance: 100,
         isTrialing: true
       });
       const user = UserSeeder.create({ userId: "user-123" });
@@ -477,8 +450,7 @@ describe(ManagedSignerService.name, () => {
           code: 0,
           hash: "tx-hash",
           rawLog: "success"
-        }),
-        refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined)
+        })
       });
 
       await service.executeDerivedDecodedTxByUserId("user-123", messages);
@@ -492,9 +464,7 @@ describe(ManagedSignerService.name, () => {
   describe("executeDerivedEncodedTxByUserId", () => {
     it("executes transaction and calls scheduleImmediate when transaction contains MsgCreateDeployment", async () => {
       const wallet = UserWalletSeeder.create({
-        userId: "user-123",
-        feeAllowance: 100,
-        deploymentAllowance: 100
+        userId: "user-123"
       });
       const user = UserSeeder.create({ userId: "user-123" });
       const deploymentMessage = {
@@ -510,7 +480,6 @@ describe(ManagedSignerService.name, () => {
           hash: "tx-hash",
           rawLog: "success"
         }),
-        refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined),
         decode: jest.fn().mockReturnValue({ id: { dseq: "123", owner: wallet.address } })
       });
 
@@ -521,8 +490,7 @@ describe(ManagedSignerService.name, () => {
 
     it("executes transaction and calls scheduleImmediate when transaction contains MsgAccountDeposit", async () => {
       const wallet = UserWalletSeeder.create({
-        userId: "user-123",
-        feeAllowance: 100
+        userId: "user-123"
       });
       const user = UserSeeder.create({ userId: "user-123" });
       const depositMessage = {
@@ -538,7 +506,6 @@ describe(ManagedSignerService.name, () => {
           hash: "tx-hash",
           rawLog: "success"
         }),
-        refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined),
         decode: jest.fn().mockReturnValue({ owner: wallet.address, amount: "1000" })
       });
 
@@ -549,9 +516,7 @@ describe(ManagedSignerService.name, () => {
 
     it("executes transaction and does not call scheduleImmediate when transaction does not contain spending messages", async () => {
       const wallet = UserWalletSeeder.create({
-        userId: "user-123",
-        feeAllowance: 100,
-        deploymentAllowance: 100
+        userId: "user-123"
       });
       const user = UserSeeder.create({ userId: "user-123" });
       const leaseMessage = {
@@ -567,7 +532,6 @@ describe(ManagedSignerService.name, () => {
           hash: "tx-hash",
           rawLog: "success"
         }),
-        refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined),
         decode: jest.fn().mockReturnValue({ bidId: { dseq: "123" } })
       });
 
@@ -586,7 +550,8 @@ describe(ManagedSignerService.name, () => {
     validateTrialLimit?: TrialValidationService["validateTrialLimit"];
     validateLeaseProvidersAuditors?: TrialValidationService["validateLeaseProvidersAuditors"];
     signAndBroadcastWithDerivedWallet?: TxManagerService["signAndBroadcastWithDerivedWallet"];
-    refreshUserWalletLimits?: BalancesService["refreshUserWalletLimits"];
+    retrieveAndCalcFeeLimit?: BalancesService["retrieveAndCalcFeeLimit"];
+    retrieveDeploymentLimit?: BalancesService["retrieveDeploymentLimit"];
     publish?: DomainEventsService["publish"];
     transformChainError?: ChainErrorService["toAppError"];
     hasLeases?: LeaseHttpService["hasLeases"];
@@ -601,7 +566,8 @@ describe(ManagedSignerService.name, () => {
         findById: input?.findById ?? jest.fn()
       }),
       balancesService: mock<BalancesService>({
-        refreshUserWalletLimits: input?.refreshUserWalletLimits ?? jest.fn()
+        retrieveAndCalcFeeLimit: input?.retrieveAndCalcFeeLimit ?? jest.fn(async () => 1_000_000),
+        retrieveDeploymentLimit: input?.retrieveDeploymentLimit ?? jest.fn(async () => 10_000_000)
       }),
       authService: mock<AuthService>({
         currentUser: input?.currentUser ?? UserSeeder.create({ userId: "current-user" }),

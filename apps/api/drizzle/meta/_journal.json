@@ -169,6 +169,13 @@
       "when": 1764597182108,
       "tag": "0023_clumsy_vertigo",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1765891421198,
+      "tag": "0024_absurd_tarot",
+      "breakpoints": true
     }
   ]
 }

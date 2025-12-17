@@ -2,19 +2,26 @@ import { certificateManager } from "@akashnetwork/chain-sdk";
 import { MsgCreateCertificate } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import type { Registry } from "@cosmjs/proto-signing";
 import fetchMock from "fetch-mock";
+import nock from "nock";
 import { container } from "tsyringe";
 
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
+import { ManagedSignerService, RpcMessageService } from "@src/billing/services";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { app } from "@src/rest-app";
 
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
-jest.setTimeout(30000);
+jest.setTimeout(40000);
 
 describe("Tx Sign", () => {
   const registry = container.resolve<Registry>(TYPE_REGISTRY);
   const walletService = new WalletTestingService(app);
+
+  afterEach(() => {
+    nock.cleanAll();
+  });
 
   describe("POST /v1/tx", () => {
     it("should create a wallet for a user", async () => {
@@ -78,6 +85,26 @@ describe("Tx Sign", () => {
       } finally {
         unblockNode();
       }
+    });
+
+    it("should refill fees if not sufficient before signing a tx", async () => {
+      const { user, token, wallet } = await setup();
+
+      const signer = container.resolve(ManagedSignerService);
+      const rpcMessageService = container.resolve(RpcMessageService);
+      const txManagerService = container.resolve(TxManagerService);
+      await signer.executeFundingTx([
+        rpcMessageService.getRevokeAllowanceMsg({ granter: await txManagerService.getFundingWalletAddress(), grantee: wallet.address })
+      ]);
+
+      const res = await app.request("/v1/tx", {
+        method: "POST",
+        body: await createMessagePayload(user.id, wallet.address),
+        headers: new Headers({ "Content-Type": "application/json", authorization: `Bearer ${token}` })
+      });
+
+      expect(res.status).toBe(200);
+      expect(await res.json()).toMatchObject({ data: { code: 0, transactionHash: expect.any(String) } });
     });
   });
 

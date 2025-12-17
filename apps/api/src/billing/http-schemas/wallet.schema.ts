@@ -3,7 +3,6 @@ import { z } from "@hono/zod-openapi";
 const WalletOutputSchema = z.object({
   id: z.number().nullable().openapi({}),
   userId: z.string().nullable().openapi({}),
-  creditAmount: z.number().openapi({}),
   address: z.string().nullable().openapi({}),
   isTrialing: z.boolean(),
   createdAt: z.coerce.date().nullable().openapi({})

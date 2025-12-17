@@ -3,6 +3,7 @@ import { singleton } from "tsyringe";
 import { AuthService } from "@src/auth/services/auth.service";
 import { TrialStarted } from "@src/billing/events/trial-started";
 import { UserWalletPublicOutput, UserWalletRepository } from "@src/billing/repositories";
+import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
@@ -13,6 +14,7 @@ export class WalletInitializerService {
   constructor(
     private readonly walletManager: ManagedUserWalletService,
     private readonly userWalletRepository: UserWalletRepository,
+    private readonly managedSignerService: ManagedSignerService,
     private readonly authService: AuthService,
     private readonly domainEvents: DomainEventsService,
     private readonly featureFlagsService: FeatureFlagsService
@@ -25,13 +27,11 @@ export class WalletInitializerService {
 
     let isTrialSpendingAuthorized = false;
     try {
-      const wallet = await this.walletManager.createAndAuthorizeTrialSpending({ addressIndex: userWallet.id, useOldWallet: false });
+      const wallet = await this.walletManager.createAndAuthorizeTrialSpending(this.managedSignerService, { addressIndex: userWallet.id, useOldWallet: false });
       userWallet = await this.userWalletRepository.updateById(
         userWallet.id,
         {
-          address: wallet.address,
-          deploymentAllowance: wallet.limits.deployment,
-          feeAllowance: wallet.limits.fees
+          address: wallet.address
         },
         { returning: true }
       );

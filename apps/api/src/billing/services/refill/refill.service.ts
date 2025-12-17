@@ -1,11 +1,9 @@
 import { LoggerService } from "@akashnetwork/logging";
-import { PromisePool } from "@supercharge/promise-pool";
-import addDays from "date-fns/addDays";
-import subDays from "date-fns/subDays";
 import { singleton } from "tsyringe";
 
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
+import { ManagedSignerService } from "@src/billing/services";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { ManagedUserWalletService } from "@src/billing/services/managed-user-wallet/managed-user-wallet.service";
 import { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
@@ -20,46 +18,11 @@ export class RefillService {
     @InjectBillingConfig() private readonly config: BillingConfig,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly managedUserWalletService: ManagedUserWalletService,
+    private readonly managedSignerService: ManagedSignerService,
     private readonly balancesService: BalancesService,
     private readonly walletInitializerService: WalletInitializerService,
     private readonly analyticsService: AnalyticsService
   ) {}
-
-  async refillAllFees() {
-    const wallets = await this.userWalletRepository.findDrainingWallets({
-      fee: this.config.FEE_ALLOWANCE_REFILL_THRESHOLD,
-      trialExpirationDays: this.config.TRIAL_ALLOWANCE_EXPIRATION_DAYS
-    });
-
-    if (wallets.length) {
-      const { errors } = await PromisePool.withConcurrency(this.config.ALLOWANCE_REFILL_BATCH_SIZE)
-        .for(wallets)
-        .process(async wallet => this.refillWalletFees(wallet));
-
-      if (errors.length) {
-        this.logger.error({ event: "WALLETS_REFILL_ERROR", error: new AggregateError(errors) });
-      }
-    }
-  }
-
-  private async refillWalletFees(userWallet: UserWalletOutput) {
-    const trialWindowStart = subDays(new Date(), this.config.TRIAL_ALLOWANCE_EXPIRATION_DAYS);
-    const isInTrialWindow = userWallet.isTrialing && userWallet.createdAt && userWallet.createdAt > trialWindowStart;
-
-    const expiration = isInTrialWindow && userWallet.createdAt ? addDays(userWallet.createdAt, this.config.TRIAL_ALLOWANCE_EXPIRATION_DAYS) : undefined;
-
-    await this.managedUserWalletService.authorizeSpending(
-      {
-        address: userWallet.address!,
-        limits: {
-          fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT
-        },
-        expiration
-      },
-      userWallet.isOldWallet ?? false
-    );
-    await this.balancesService.refreshUserWalletLimits(userWallet);
-  }
 
   /**
    * Top up the wallet with the given amount in USD
@@ -73,6 +36,7 @@ export class RefillService {
     const nextLimit = currentLimit + amountUsd * 10000;
     const limits = { deployment: nextLimit, fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT };
     await this.managedUserWalletService.authorizeSpending(
+      this.managedSignerService,
       {
         address: userWallet.address!,
         limits
@@ -80,7 +44,7 @@ export class RefillService {
       userWallet.isOldWallet ?? false
     );
 
-    await this.balancesService.refreshUserWalletLimits(userWallet, { endTrial: true });
+    await this.userWalletRepository.updateById(userWallet.id, { isTrialing: true });
     this.analyticsService.track(userId!, "balance_top_up");
     this.logger.debug({ event: "WALLET_TOP_UP", userWallet, limits });
   }

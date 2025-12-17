@@ -4,7 +4,6 @@ import nock from "nock";
 import stripe from "stripe";
 import { container } from "tsyringe";
 
-import { BILLING_CONFIG, type BillingConfig } from "@src/billing/providers";
 import { CheckoutSessionRepository } from "@src/billing/repositories";
 import type { ApiPgDatabase } from "@src/core";
 import { POSTGRES_DB, resolveTable } from "@src/core";
@@ -20,7 +19,6 @@ describe("Stripe webhook", () => {
   const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
   const userWalletsQuery = db.query.UserWallets;
   const checkoutSessionRepository = container.resolve(CheckoutSessionRepository);
-  const billingConfig = container.resolve<BillingConfig>(BILLING_CONFIG);
   const walletService = new WalletTestingService(app);
 
   const generatePayload = (sessionId: string, eventType: string) =>
@@ -90,13 +88,9 @@ describe("Stripe webhook", () => {
           sessionId
         });
 
-        // Calculate expected balance: trial allowance + payment amount (100 cents * 10000 multiplier)
-        const expectedBalance = billingConfig.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT + 100 * 10000;
-
         expect(webhookResponse.status).toBe(200);
         expect(userWallet).toMatchObject({
           userId: user.id,
-          deploymentAllowance: `${expectedBalance}.00`,
           isTrialing: false
         });
         expect(checkoutSession).toBeUndefined();
@@ -143,7 +137,6 @@ describe("Stripe webhook", () => {
       // Wallet should exist but balance should not have changed (no payment processed)
       expect(userWallet).toMatchObject({
         userId: user.id,
-        deploymentAllowance: "20000000.00", // Original trial balance
         isTrialing: true
       });
       expect(checkoutSession).toMatchObject({
@@ -174,7 +167,6 @@ describe("Stripe webhook", () => {
       // Wallet should exist but balance should not have changed (no payment processed)
       expect(userWallet).toMatchObject({
         userId: user.id,
-        deploymentAllowance: "20000000.00", // Original trial balance
         isTrialing: true
       });
       expect(checkoutSession).toMatchObject({

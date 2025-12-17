@@ -67,6 +67,7 @@ export class StaleManagedDeploymentsCleanerService {
     } catch (error: any) {
       if (error.message.includes("not allowed to pay fees")) {
         await this.managedUserWalletService.authorizeSpending(
+          this.managedSignerService,
           {
             address: wallet.address!,
             limits: {

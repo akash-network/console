@@ -12,6 +12,8 @@ import { AuthService } from "@src/auth/services/auth.service";
 import { TrialDeploymentLeaseCreated } from "@src/billing/events/trial-deployment-lease-created";
 import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provider";
 import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
+import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { ManagedUserWalletService } from "@src/billing/services/managed-user-wallet/managed-user-wallet.service";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
@@ -40,7 +42,9 @@ export class ManagedSignerService {
     private readonly txManagerService: TxManagerService,
     private readonly domainEvents: DomainEventsService,
     private readonly leaseHttpService: LeaseHttpService,
-    private readonly walletReloadJobService: WalletReloadJobService
+    private readonly walletReloadJobService: WalletReloadJobService,
+    private readonly managedUserWalletService: ManagedUserWalletService,
+    private readonly billingConfigService: BillingConfigService
   ) {}
 
   async executeDerivedTx(walletIndex: number, messages: readonly EncodeObject[], useOldWallet: boolean = false) {
@@ -109,12 +113,22 @@ export class ManagedSignerService {
     transactionHash: string;
     rawLog: string;
   }> {
-    assert(userWallet.feeAllowance > 0, 403, "Not enough funds to cover the transaction fee");
+    const limitRequests = [this.balancesService.retrieveAndCalcFeeLimit(userWallet)];
 
     const hasDeploymentMessage = messages.some(message => message.typeUrl.endsWith(".MsgCreateDeployment"));
 
     if (hasDeploymentMessage) {
-      assert(userWallet.deploymentAllowance > 0, 403, "Not enough funds to cover the deployment costs");
+      limitRequests.push(this.balancesService.retrieveDeploymentLimit(userWallet));
+    }
+
+    const [feeLimit, deploymentLimit] = await Promise.all(limitRequests);
+
+    if (hasDeploymentMessage) {
+      assert(deploymentLimit > 0, 403, "Not enough funds to cover the deployment costs");
+    }
+
+    if (feeLimit < this.billingConfigService.get("FEE_ALLOWANCE_REFILL_THRESHOLD")) {
+      await this.managedUserWalletService.refillWalletFees(this, userWallet);
     }
 
     await this.anonymousValidateService.validateLeaseProvidersAuditors(messages, userWallet);
@@ -148,8 +162,6 @@ export class ManagedSignerService {
         })
       );
     }
-
-    await this.balancesService.refreshUserWalletLimits(userWallet);
 
     const result = pick(tx, ["code", "hash", "transactionHash", "rawLog"]) as Pick<IndexedTx, "code" | "hash" | "rawLog">;
 

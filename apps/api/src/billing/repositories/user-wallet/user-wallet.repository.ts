@@ -1,5 +1,4 @@
-import subDays from "date-fns/subDays";
-import { and, count, eq, gt, inArray, lte, or } from "drizzle-orm";
+import { count, eq, inArray } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -8,24 +7,14 @@ import { TxService } from "@src/core/services";
 
 export type DbCreateUserWalletInput = ApiPgTables["UserWallets"]["$inferInsert"];
 export type DbUserWalletInput = Partial<DbCreateUserWalletInput>;
-export type UserWalletInput = Partial<
-  Omit<DbUserWalletInput, "deploymentAllowance" | "feeAllowance"> & {
-    deploymentAllowance: number;
-    feeAllowance: number;
-  }
->;
+export type UserWalletInput = Partial<DbUserWalletInput>;
 export type DbUserWalletOutput = ApiPgTables["UserWallets"]["$inferSelect"];
-export type UserWalletOutput = Omit<DbUserWalletOutput, "feeAllowance" | "deploymentAllowance"> & {
-  creditAmount: number;
-  deploymentAllowance: number;
-  feeAllowance: number;
-};
+export type UserWalletOutput = DbUserWalletOutput;
 
 export interface UserWalletPublicOutput {
   id: UserWalletOutput["id"];
   userId: UserWalletOutput["userId"];
   address: UserWalletOutput["address"];
-  creditAmount: UserWalletOutput["creditAmount"];
   isTrialing: boolean;
   createdAt: UserWalletOutput["createdAt"];
 }
@@ -82,21 +71,6 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
     return this.toOutput(item);
   }
 
-  async findDrainingWallets(thresholds: { fee: number; trialExpirationDays: number }) {
-    const trialWindowStart = subDays(new Date(), thresholds.trialExpirationDays);
-
-    return this.toOutputList(
-      await this.cursor.query.UserWallets.findMany({
-        where: this.whereAccessibleBy(
-          and(
-            lte(this.table.feeAllowance, thresholds.fee.toString()),
-            or(and(eq(this.table.isTrialing, true), gt(this.table.createdAt, trialWindowStart)), eq(this.table.isTrialing, false))
-          )
-        )
-      })
-    );
-  }
-
   async findOneByUserId(userId: UserWalletOutput["userId"]) {
     if (!userId) return undefined;
 
@@ -120,37 +94,11 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
     return payingUserCount;
   }
 
-  protected toOutput(dbOutput: DbUserWalletOutput): UserWalletOutput {
-    const deploymentAllowance = dbOutput?.deploymentAllowance && parseFloat(dbOutput.deploymentAllowance);
-
-    return {
-      ...dbOutput,
-      creditAmount: deploymentAllowance || 0,
-      deploymentAllowance: deploymentAllowance || 0,
-      feeAllowance: parseFloat(dbOutput.feeAllowance)
-    };
-  }
-
-  protected toInput({ deploymentAllowance, feeAllowance, ...input }: UserWalletInput): DbUserWalletInput {
-    const dbInput: DbUserWalletInput = input;
-
-    if (deploymentAllowance !== undefined) {
-      dbInput.deploymentAllowance = deploymentAllowance.toString();
-    }
-
-    if (feeAllowance !== undefined) {
-      dbInput.feeAllowance = feeAllowance.toString();
-    }
-
-    return dbInput;
-  }
-
   toPublic(output: UserWalletOutput): UserWalletPublicOutput {
     return {
       id: output.id,
       userId: output.userId,
       address: output.address,
-      creditAmount: output.creditAmount,
       isTrialing: !!output.isTrialing,
       createdAt: output.createdAt
     };

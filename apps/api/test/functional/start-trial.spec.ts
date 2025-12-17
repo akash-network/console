@@ -81,8 +81,6 @@ describe("start trial", () => {
           id: expect.any(Number),
           userId,
           address: expect.any(String),
-          deploymentAllowance: `${config.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT}.00`,
-          feeAllowance: `${config.TRIAL_FEES_ALLOWANCE_AMOUNT}.00`,
           isTrialing: true
         });
         expect(allowances).toMatchObject([

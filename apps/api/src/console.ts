@@ -24,15 +24,6 @@ program.name("API Console").description("CLI to run API commands").version("0.0.
 const tracer = trace.getTracer("API Console");
 
 program
-  .command("refill-wallets")
-  .description("Refill draining wallets")
-  .action(async (options, command) => {
-    await executeCliHandler(command.name(), async () => {
-      await container.resolve(WalletController).refillWallets();
-    });
-  });
-
-program
   .command("top-up-deployments")
   .description("Refill deployments with auto top up enabled")
   .option("-d, --dry-run", "Dry run the top up deployments", false)

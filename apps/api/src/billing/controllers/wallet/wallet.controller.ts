@@ -64,7 +64,6 @@ export class WalletController {
               id: null,
               userId: currentUser.id,
               address: null,
-              creditAmount: 0,
               isTrialing: false,
               createdAt: null,
               requires3DS: true,
@@ -115,9 +114,5 @@ export class WalletController {
     return {
       data: (await this.signerService.executeDerivedEncodedTxByUserId(userId, messages as EncodeObject[])) as SignTxResponseOutput["data"]
     };
-  }
-
-  async refillWallets() {
-    await this.refillService.refillAllFees();
   }
 }

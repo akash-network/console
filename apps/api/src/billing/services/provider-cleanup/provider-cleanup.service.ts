@@ -63,6 +63,7 @@ export class ProviderCleanupService {
         if (error.message.includes("not allowed to pay fees")) {
           if (!options.dryRun) {
             await this.managedUserWalletService.authorizeSpending(
+              this.managedSignerService,
               {
                 address: wallet.address!,
                 limits: {

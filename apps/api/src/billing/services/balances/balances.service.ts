@@ -3,7 +3,7 @@ import { singleton } from "tsyringe";
 
 import type { GetBalancesResponseOutput } from "@src/billing/http-schemas/balance.schema";
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
-import { type UserWalletInput, type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
+import { type UserWalletOutput } from "@src/billing/repositories";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { Memoize } from "@src/caching/helpers";
 import { StatsService } from "@src/dashboard/services/stats/stats.service";
@@ -19,48 +19,18 @@ export class BalancesService {
 
   constructor(
     @InjectBillingConfig() private readonly config: BillingConfig,
-    private readonly userWalletRepository: UserWalletRepository,
     private txManagerService: TxManagerService,
     private readonly authzHttpService: AuthzHttpService,
     private readonly deploymentHttpService: DeploymentHttpService,
     private readonly statsService: StatsService
   ) {}
 
-  async refreshUserWalletLimits(userWallet: UserWalletOutput, options?: { endTrial: boolean }): Promise<void> {
-    const update = await this.getFreshLimitsUpdate(userWallet);
-
-    if (!Object.keys(update).length) {
-      return;
-    }
-
-    if (options?.endTrial && userWallet.isTrialing) {
-      update.isTrialing = false;
-    }
-
-    await this.userWalletRepository.updateById(userWallet.id, update);
-  }
-
-  async getFreshLimitsUpdate(userWallet: UserWalletOutput): Promise<Partial<UserWalletInput>> {
-    const limits = await this.getFreshLimits(userWallet);
-    const update: Partial<UserWalletInput> = {};
-
-    if (userWallet.feeAllowance !== limits.fee) {
-      update.feeAllowance = limits.fee;
-    }
-
-    if (userWallet.deploymentAllowance !== limits.deployment) {
-      update.deploymentAllowance = limits.deployment;
-    }
-
-    return update;
-  }
-
   async getFreshLimits(userWallet: Pick<UserWalletOutput, "address" | "isOldWallet">): Promise<{ fee: number; deployment: number }> {
     const [fee, deployment] = await Promise.all([this.retrieveAndCalcFeeLimit(userWallet), this.retrieveDeploymentLimit(userWallet)]);
     return { fee, deployment };
   }
 
-  private async retrieveAndCalcFeeLimit(userWallet: Pick<UserWalletOutput, "address" | "isOldWallet">): Promise<number> {
+  async retrieveAndCalcFeeLimit(userWallet: Pick<UserWalletOutput, "address" | "isOldWallet">): Promise<number> {
     const fundingWalletAddress = await this.txManagerService.getFundingWalletAddress(userWallet.isOldWallet ?? false);
     const feeAllowance = await this.authzHttpService.getFeeAllowanceForGranterAndGrantee(fundingWalletAddress, userWallet.address!);
 
