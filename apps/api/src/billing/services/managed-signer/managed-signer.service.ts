@@ -14,6 +14,7 @@ import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provide
 import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
+import { LoggerService } from "@src/core";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
@@ -40,7 +41,8 @@ export class ManagedSignerService {
     private readonly txManagerService: TxManagerService,
     private readonly domainEvents: DomainEventsService,
     private readonly leaseHttpService: LeaseHttpService,
-    private readonly walletReloadJobService: WalletReloadJobService
+    private readonly walletReloadJobService: WalletReloadJobService,
+    private readonly logger: LoggerService
   ) {}
 
   async executeDerivedTx(walletIndex: number, messages: readonly EncodeObject[], useOldWallet: boolean = false) {
@@ -109,6 +111,12 @@ export class ManagedSignerService {
     transactionHash: string;
     rawLog: string;
   }> {
+    this.logger.info({
+      event: "EXECUTE_MANAGED_WALLET_TX",
+      walletId: userWallet.id,
+      messageTypes: messages.map(message => message.typeUrl)
+    });
+
     assert(userWallet.feeAllowance > 0, 403, "Not enough funds to cover the transaction fee");
 
     const hasDeploymentMessage = messages.some(message => message.typeUrl.endsWith(".MsgCreateDeployment"));
