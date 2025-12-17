@@ -43,7 +43,7 @@ export function useTopBanner(): ITopBannerContext {
       setIsMaintenanceBannerOpen,
       isGenericBannerOpen,
       setIsGenericBannerOpen,
-      isBlockchainDown: settings.isBlockchainDown,
+      isBlockchainDown: true, // settings.isBlockchainDown,
       hasCreditCardBanner
     }),
     [

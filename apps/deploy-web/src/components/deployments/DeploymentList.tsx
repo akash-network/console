@@ -3,8 +3,6 @@ import { useEffect, useState } from "react";
 import {
   Button,
   buttonVariants,
-  Card,
-  CardContent,
   CheckboxWithLabel,
   CustomPagination,
   Input,
@@ -35,9 +33,9 @@ import walletStore from "@src/store/walletStore";
 import type { DeploymentDto, NamedDeploymentDto } from "@src/types/deployment";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { UrlService } from "@src/utils/urlUtils";
+import { NoDeploymentsState } from "../home/NoDeploymentsState";
 import Layout from "../layout/Layout";
 import { Title } from "../shared/Title";
-import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
 import { DeploymentListRow } from "./DeploymentListRow";
 
 export const DeploymentList: React.FunctionComponent = () => {
@@ -215,34 +213,14 @@ export const DeploymentList: React.FunctionComponent = () => {
       )}
 
       {filteredDeployments?.length === 0 && !isLoadingDeployments && !search && (
-        <Card>
-          <CardContent>
-            <div className="p-16 text-center">
-              <h3 className="mb-2 text-xl font-bold">{deployments && deployments?.length > 0 ? "No active deployments." : "No deployments yet."}</h3>
-
-              {isSignedInWithTrial && !user && <p className="text-sm">If you are expecting to see some, you may need to sign-in or connect a wallet</p>}
-
-              {isWalletConnected ? (
-                <Link
-                  href={UrlService.newDeployment()}
-                  className={cn(buttonVariants({ variant: "default" }), "mt-4 space-x-2")}
-                  onClick={onDeployClick}
-                  aria-disabled={settings.isBlockchainDown}
-                >
-                  <Rocket className="rotate-45 text-sm" />
-                  <span className="whitespace-nowrap">Deploy</span>
-                </Link>
-              ) : (
-                <div className="mt-8 flex items-center justify-center space-x-2">
-                  <ConnectWalletButton />
-                  <Link className={cn(buttonVariants({ variant: "outline" }))} href={UrlService.newLogin()} passHref prefetch={false}>
-                    Sign in
-                  </Link>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        <NoDeploymentsState
+          onDeployClick={onDeployClick}
+          hasDeployments={Boolean(deployments && deployments.length > 0)}
+          isWalletConnected={isWalletConnected}
+          isSignedInWithTrial={isSignedInWithTrial}
+          hasUser={Boolean(user)}
+          showTemplatesButton
+        />
       )}
 
       {(!filteredDeployments || filteredDeployments?.length === 0) && isLoadingDeployments && !search && (
