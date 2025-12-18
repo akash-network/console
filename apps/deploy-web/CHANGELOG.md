@@ -1,5 +1,12 @@
 
 
+## [3.15.2](https://github.com/akash-network/console/compare/console-web/v3.15.1...console-web/v3.15.2) (2025-12-18)
+
+
+### Bug Fixes
+
+* **auth:** remove cf header forwarding ([#2384](https://github.com/akash-network/console/issues/2384)) ([579bdfb](https://github.com/akash-network/console/commit/579bdfb03c8b2039291316a1f8486edf07b5ec75))
+
 ## [3.15.1](https://github.com/akash-network/console/compare/console-web/v3.15.0...console-web/v3.15.1) (2025-12-18)
 
 

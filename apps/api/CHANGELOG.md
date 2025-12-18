@@ -1,5 +1,12 @@
 
 
+## [3.17.0](https://github.com/akash-network/console/compare/console-api/v3.16.0...console-api/v3.17.0) (2025-12-18)
+
+
+### Features
+
+* **notifications:** merges notifications swagger spec into api spec ([#2381](https://github.com/akash-network/console/issues/2381)) ([95eda5b](https://github.com/akash-network/console/commit/95eda5b0151618ee1dd3ac4bfb46636940bd0b96))
+
 ## [3.16.0](https://github.com/akash-network/console/compare/console-api/v3.15.2...console-api/v3.16.0) (2025-12-18)
 
 
