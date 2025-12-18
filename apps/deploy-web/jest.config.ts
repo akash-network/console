@@ -15,7 +15,7 @@ const common = {
     "^@tests(.*)$": "<rootDir>/tests/$1",
     // see ./src/lib/auth0/setSession/setSession.ts for more details
     "^@auth0/nextjs-auth0/session$": path.join(require.resolve("@auth0/nextjs-auth0"), "..", "session", "index.js"),
-    "^@auth0/nextjs-auth0/update-session$": path.join(require.resolve("@auth0/nextjs-auth0"), "..", "session", "update-session.js")
+    "^@auth0/nextjs-auth0/config$": path.join(require.resolve("@auth0/nextjs-auth0"), "..", "config.js")
   },
   transform: {
     "\\.tsx?$": ["ts-jest", { tsconfig: "<rootDir>/tsconfig.spec.json" }] as Config.TransformerConfig
