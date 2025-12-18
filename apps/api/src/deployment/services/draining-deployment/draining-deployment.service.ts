@@ -141,7 +141,7 @@ export class DrainingDeploymentService {
     const now = new Date();
     const hoursUntilTarget = (targetDate.getTime() - now.getTime()) / (1000 * 60 * 60);
     const targetHeight = Math.floor(currentHeight + averageBlockCountInAnHour * hoursUntilTarget);
-    const drainingDeployments = await this.#findDrainingDeployments(deploymentSettings, address, currentHeight);
+    const drainingDeployments = await this.#findDrainingDeployments(deploymentSettings, address, targetHeight);
 
     return await this.#accumulateDeploymentCost(drainingDeployments, ({ predictedClosedHeight, blockRate }) => {
       if (predictedClosedHeight && predictedClosedHeight >= currentHeight && predictedClosedHeight <= targetHeight) {

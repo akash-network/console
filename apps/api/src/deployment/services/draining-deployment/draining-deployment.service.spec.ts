@@ -400,7 +400,7 @@ describe(DrainingDeploymentService.name, () => {
         { predictedClosedHeight: baseSetup.currentHeight + 200, blockRate: blockRate2 }
       ];
 
-      const { service, address, targetDate } = await setupCalculateCost({
+      const { service, address, targetDate, leaseRepository } = await setupCalculateCost({
         deployments
       });
 
@@ -409,10 +409,12 @@ describe(DrainingDeploymentService.name, () => {
       const hoursInWeek = 7 * 24;
       const expectedBlocksNeeded = Math.floor(averageBlockCountInAnHour * hoursInWeek);
       const expectedTotal = (blockRate1 + blockRate2) * expectedBlocksNeeded;
+      const expectedTargetHeight = 1100799;
 
       // Allow for small differences in date calculations (±2 blocks = ±250 with total rate of 125)
       expect(result).toBeGreaterThanOrEqual(expectedTotal - 250);
       expect(result).toBeLessThanOrEqual(expectedTotal + 250);
+      expect(leaseRepository.findManyByDseqAndOwner).toHaveBeenCalledWith(expectedTargetHeight, address, expect.any(Array));
     });
 
     it("returns 0 when user wallet not found", async () => {
