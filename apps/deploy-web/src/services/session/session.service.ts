@@ -1,5 +1,6 @@
 import type { HttpClient } from "@akashnetwork/http-sdk";
 import { Session } from "@auth0/nextjs-auth0";
+import type { AxiosResponse } from "axios";
 import type { Result } from "ts-results";
 import { Err, Ok } from "ts-results";
 
@@ -17,7 +18,7 @@ export class SessionService {
     this.#config = config;
   }
 
-  async signIn(input: { email: string; password: string }): Promise<Result<Session, { message: string; code: string }>> {
+  async signIn(input: { email: string; password: string }): Promise<Result<Session, { message: string; code: string; cause: unknown }>> {
     const result = await this.#signInOnProvider(input);
     if (result.ok) {
       const session = result.val;
@@ -30,7 +31,10 @@ export class SessionService {
     return result;
   }
 
-  async #signInOnProvider(input: { email: string; password: string }): Promise<Result<Session, { message: string; code: string }>> {
+  async #signInOnProvider(input: {
+    email: string;
+    password: string;
+  }): Promise<Result<Session, { code: "invalid_credentials"; message: string; cause: unknown }>> {
     const oauthIssuerUrl = new URL(this.#config.ISSUER_BASE_URL);
 
     const tokenResponse = await this.#externalHttpClient.post(
@@ -53,7 +57,8 @@ export class SessionService {
     if (tokenResponse.status >= 400) {
       return Err({
         message: tokenResponse.data.error_description || "Authentication failed",
-        code: "invalid_credentials"
+        code: "invalid_credentials",
+        cause: extractResponseDetails(tokenResponse)
       });
     }
 
@@ -67,7 +72,8 @@ export class SessionService {
     if (userInfoResponse.status >= 400) {
       return Err({
         message: userInfoResponse.data.error_description || "Authentication failed",
-        code: "invalid_credentials"
+        code: "invalid_credentials",
+        cause: extractResponseDetails(userInfoResponse)
       });
     }
 
@@ -88,9 +94,20 @@ export class SessionService {
     return Ok(session);
   }
 
-  async signUp(input: { email: string; password: string }): Promise<Result<Session, { message: string; code: string }>> {
+  async signUp(input: {
+    email: string;
+    password: string;
+  }): Promise<
+    Result<
+      Session,
+      | { code: "invalid_password"; message: string; policy: string; cause: unknown }
+      | { code: "user_exists"; message: string; cause: unknown }
+      | { code: "signup_failed"; message: string; cause: unknown }
+    >
+  > {
     const oauthIssuerUrl = new URL(this.#config.ISSUER_BASE_URL);
 
+    // https://auth0.com/docs/api/authentication/signup/create-a-new-user
     const signupResponse = await this.#externalHttpClient.post(
       `${oauthIssuerUrl.origin}/dbconnections/signup`,
       {
@@ -108,13 +125,24 @@ export class SessionService {
       if (signupResponse.data.code === "invalid_password" && signupResponse.data.policy) {
         return Err({
           message: signupResponse.data.message || signupResponse.data.description || "Password violates policy",
-          code: "invalid_password"
+          code: "invalid_password",
+          policy: signupResponse.data.policy,
+          cause: extractResponseDetails(signupResponse)
+        });
+      }
+
+      if (signupResponse.status === 409 || (signupResponse.status === 400 && signupResponse.data.code === "invalid_signup")) {
+        return Err({
+          message: signupResponse.data.message || signupResponse.data.description || "Such user already exists",
+          code: "user_exists",
+          cause: extractResponseDetails(signupResponse)
         });
       }
 
       return Err({
         message: signupResponse.data.message || signupResponse.data.description || "Signup failed",
-        code: "signup_failed"
+        code: "signup_failed",
+        cause: extractResponseDetails(signupResponse)
       });
     }
 
@@ -130,7 +158,11 @@ export class SessionService {
       return Ok(session);
     }
 
-    return result;
+    return Err({
+      code: "signup_failed",
+      message: result.val.message,
+      cause: result.val
+    });
   }
 
   /**
@@ -192,7 +224,7 @@ export class SessionService {
     }
 
     if (auth0Response.status !== 200) {
-      return Err({ message: "Cannot send password reset email.", code: "unknown", cause: auth0Response.data });
+      return Err({ message: "Cannot send password reset email.", code: "unknown", cause: extractResponseDetails(auth0Response) });
     }
 
     return Ok(undefined);
@@ -220,4 +252,13 @@ function getClaimsFromToken(token: string) {
     return value;
   });
   return claims;
+}
+
+function extractResponseDetails(response: AxiosResponse) {
+  return {
+    url: response.config?.url,
+    method: response.config?.method,
+    status: response.status,
+    data: response.data
+  };
 }

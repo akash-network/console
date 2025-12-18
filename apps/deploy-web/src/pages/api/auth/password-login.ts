@@ -23,6 +23,11 @@ export default defineApiHandler({
       return;
     }
 
-    return res.status(400).json(result.val);
+    const { cause, ...errorDetails } = result.val;
+    services.logger.warn({
+      event: "PASSWORD_LOGIN_ERROR",
+      cause: result.val
+    });
+    return res.status(400).json(errorDetails);
   }
 });
