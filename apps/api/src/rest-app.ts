@@ -176,8 +176,8 @@ appHono.get("/status", c => {
   return c.json({ version, memory });
 });
 
-appHono.get("/v1/doc", c => {
-  return c.json(container.resolve(OpenApiDocsService).generateDocs(openApiHonoHandlers));
+appHono.get("/v1/doc", async c => {
+  return c.json(await container.resolve(OpenApiDocsService).generateDocs(openApiHonoHandlers));
 });
 appHono.get("/v1/swagger", swaggerUI({ url: "/v1/doc" }));
 
