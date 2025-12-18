@@ -36,6 +36,8 @@ export class DrainingDeploymentRpcService implements DrainingDeploymentLeaseSour
     const deploymentMap = this.#createDeploymentMap(deployments);
     const outputs = this.#addPredictedClosedHeight(leaseMap, deploymentMap);
 
+    this.loggerService.debug({ event: "RPC_RESOURCES_FETCHED", dseqSet, leases, deployments, result: outputs });
+
     return outputs.filter(output => output.predictedClosedHeight <= closureHeight);
   }
 
