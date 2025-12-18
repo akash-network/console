@@ -1,7 +1,9 @@
 import type { FC } from "react";
+import { useCallback } from "react";
 import React from "react";
 import type { components } from "@akashnetwork/react-query-sdk/notifications";
 import { Checkbox, CustomPagination, MIN_PAGE_SIZE, Spinner, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
+import type { CellContext } from "@tanstack/react-table";
 import { createColumnHelper, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { startCase } from "lodash";
 import Link from "next/link";
@@ -41,6 +43,13 @@ export const AlertsListView: FC<Props> = ({
   const columnHelper = createColumnHelper<Alert>();
   const isAlertUpdateEnabled = d.useFlag("notifications_general_alerts_update");
 
+  const extractDseq = useCallback((info: CellContext<Alert, unknown>) => {
+    const { params } = info.row.original;
+    const dseq = params && "dseq" in params && params.dseq;
+
+    return dseq || undefined;
+  }, []);
+
   const columns = [
     columnHelper.accessor("enabled", {
       header: "Enabled",
@@ -52,7 +61,7 @@ export const AlertsListView: FC<Props> = ({
               checked={info.getValue()}
               disabled={isToggling}
               onCheckedChange={checked => {
-                onToggle(info.row.original.id, !!checked, info.row.original.params?.dseq);
+                onToggle(info.row.original.id, !!checked, extractDseq(info));
               }}
               aria-label={"Toggle alert"}
             />
@@ -62,21 +71,20 @@ export const AlertsListView: FC<Props> = ({
     }),
     columnHelper.accessor("deploymentName", {
       header: "Deployment Name",
-      cell: info =>
-        info.row.original.params?.dseq ? (
-          <Link href={UrlService.deploymentDetails(info.row.original.params.dseq, "ALERTS")} className="font-bold">
+      cell: info => {
+        const dseq = extractDseq(info);
+        return dseq ? (
+          <Link href={UrlService.deploymentDetails(dseq, "ALERTS")} className="font-bold">
             {info.getValue()}
           </Link>
         ) : (
           info.getValue()
-        )
+        );
+      }
     }),
     columnHelper.accessor("params", {
       header: "DSEQ",
-      cell: info => {
-        const params = info.getValue();
-        return params?.dseq ?? "N/A";
-      }
+      cell: info => extractDseq(info) ?? "N/A"
     }),
     columnHelper.accessor("type", {
       header: "Type",

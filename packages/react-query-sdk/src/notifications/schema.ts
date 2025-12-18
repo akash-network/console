@@ -244,6 +244,49 @@ export interface components {
               owner: string;
               suppressedBySystem?: boolean;
             };
+          }
+        | {
+            /** Format: uuid */
+            notificationChannelId: string;
+            name: string;
+            /** @default true */
+            enabled: boolean;
+            summary: string;
+            description: string;
+            /** @enum {string} */
+            type: "WALLET_BALANCE";
+            conditions:
+              | {
+                  /** @enum {string} */
+                  operator: "and";
+                  value: {
+                    operator: "eq" | "lt" | "gt" | "lte" | "gte";
+                    /** @enum {string} */
+                    field: "balance";
+                    value: number;
+                  }[];
+                }
+              | {
+                  /** @enum {string} */
+                  operator: "or";
+                  value: {
+                    operator: "eq" | "lt" | "gt" | "lte" | "gte";
+                    /** @enum {string} */
+                    field: "balance";
+                    value: number;
+                  }[];
+                }
+              | {
+                  operator: "eq" | "lt" | "gt" | "lte" | "gte";
+                  /** @enum {string} */
+                  field: "balance";
+                  value: number;
+                };
+            params: {
+              owner: string;
+              denom: string;
+              suppressedBySystem?: boolean;
+            };
           };
     };
     AlertOutputResponse: {
@@ -310,6 +353,53 @@ export interface components {
             status: string;
             createdAt: unknown;
             updatedAt: unknown;
+            params?: {
+              dseq: string;
+              type: string;
+              suppressedBySystem?: boolean;
+            };
+            conditions:
+              | {
+                  /** @enum {string} */
+                  operator: "and";
+                  value: {
+                    operator: "eq" | "lt" | "gt" | "lte" | "gte";
+                    field: string;
+                    value: string | number | boolean;
+                  }[];
+                }
+              | {
+                  /** @enum {string} */
+                  operator: "or";
+                  value: {
+                    operator: "eq" | "lt" | "gt" | "lte" | "gte";
+                    field: string;
+                    value: string | number | boolean;
+                  }[];
+                }
+              | {
+                  operator: "eq" | "lt" | "gt" | "lte" | "gte";
+                  field: string;
+                  value: string | number | boolean;
+                };
+            /** @enum {string} */
+            type: "CHAIN_EVENT";
+          }
+        | {
+            /** Format: uuid */
+            notificationChannelId: string;
+            name: string;
+            enabled: boolean;
+            summary: string;
+            description: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            userId: string;
+            notificationChannelName?: string;
+            status: string;
+            createdAt: unknown;
+            updatedAt: unknown;
             /** @enum {string} */
             type: "DEPLOYMENT_BALANCE";
             conditions:
@@ -360,19 +450,17 @@ export interface components {
             status: string;
             createdAt: unknown;
             updatedAt: unknown;
-            params?: {
-              dseq: string;
-              type: string;
-              suppressedBySystem?: boolean;
-            };
+            /** @enum {string} */
+            type: "WALLET_BALANCE";
             conditions:
               | {
                   /** @enum {string} */
                   operator: "and";
                   value: {
                     operator: "eq" | "lt" | "gt" | "lte" | "gte";
-                    field: string;
-                    value: string | number | boolean;
+                    /** @enum {string} */
+                    field: "balance";
+                    value: number;
                   }[];
                 }
               | {
@@ -380,17 +468,22 @@ export interface components {
                   operator: "or";
                   value: {
                     operator: "eq" | "lt" | "gt" | "lte" | "gte";
-                    field: string;
-                    value: string | number | boolean;
+                    /** @enum {string} */
+                    field: "balance";
+                    value: number;
                   }[];
                 }
               | {
                   operator: "eq" | "lt" | "gt" | "lte" | "gte";
-                  field: string;
-                  value: string | number | boolean;
+                  /** @enum {string} */
+                  field: "balance";
+                  value: number;
                 };
-            /** @enum {string} */
-            type: "CHAIN_EVENT";
+            params: {
+              owner: string;
+              denom: string;
+              suppressedBySystem?: boolean;
+            };
           };
     };
     ValidationErrorResponse: {
@@ -476,6 +569,53 @@ export interface components {
             status: string;
             createdAt: unknown;
             updatedAt: unknown;
+            params?: {
+              dseq: string;
+              type: string;
+              suppressedBySystem?: boolean;
+            };
+            conditions:
+              | {
+                  /** @enum {string} */
+                  operator: "and";
+                  value: {
+                    operator: "eq" | "lt" | "gt" | "lte" | "gte";
+                    field: string;
+                    value: string | number | boolean;
+                  }[];
+                }
+              | {
+                  /** @enum {string} */
+                  operator: "or";
+                  value: {
+                    operator: "eq" | "lt" | "gt" | "lte" | "gte";
+                    field: string;
+                    value: string | number | boolean;
+                  }[];
+                }
+              | {
+                  operator: "eq" | "lt" | "gt" | "lte" | "gte";
+                  field: string;
+                  value: string | number | boolean;
+                };
+            /** @enum {string} */
+            type: "CHAIN_EVENT";
+          }
+        | {
+            /** Format: uuid */
+            notificationChannelId: string;
+            name: string;
+            enabled: boolean;
+            summary: string;
+            description: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            userId: string;
+            notificationChannelName?: string;
+            status: string;
+            createdAt: unknown;
+            updatedAt: unknown;
             /** @enum {string} */
             type: "DEPLOYMENT_BALANCE";
             conditions:
@@ -526,19 +666,17 @@ export interface components {
             status: string;
             createdAt: unknown;
             updatedAt: unknown;
-            params?: {
-              dseq: string;
-              type: string;
-              suppressedBySystem?: boolean;
-            };
+            /** @enum {string} */
+            type: "WALLET_BALANCE";
             conditions:
               | {
                   /** @enum {string} */
                   operator: "and";
                   value: {
                     operator: "eq" | "lt" | "gt" | "lte" | "gte";
-                    field: string;
-                    value: string | number | boolean;
+                    /** @enum {string} */
+                    field: "balance";
+                    value: number;
                   }[];
                 }
               | {
@@ -546,17 +684,22 @@ export interface components {
                   operator: "or";
                   value: {
                     operator: "eq" | "lt" | "gt" | "lte" | "gte";
-                    field: string;
-                    value: string | number | boolean;
+                    /** @enum {string} */
+                    field: "balance";
+                    value: number;
                   }[];
                 }
               | {
                   operator: "eq" | "lt" | "gt" | "lte" | "gte";
-                  field: string;
-                  value: string | number | boolean;
+                  /** @enum {string} */
+                  field: "balance";
+                  value: number;
                 };
-            /** @enum {string} */
-            type: "CHAIN_EVENT";
+            params: {
+              owner: string;
+              denom: string;
+              suppressedBySystem?: boolean;
+            };
           }
       )[];
       pagination: {

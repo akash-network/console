@@ -1942,6 +1942,265 @@
                   "conditions",
                   "params"
                 ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "notificationChannelId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 3
+                  },
+                  "enabled": {
+                    "type": "boolean",
+                    "default": true
+                  },
+                  "summary": {
+                    "type": "string",
+                    "minLength": 3
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 3
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "WALLET_BALANCE"
+                    ]
+                  },
+                  "conditions": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "operator": {
+                            "type": "string",
+                            "enum": [
+                              "and"
+                            ]
+                          },
+                          "value": {
+                            "type": "array",
+                            "minItems": 2,
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "operator": {
+                                  "oneOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "eq"
+                                      ]
+                                    },
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "lt"
+                                      ]
+                                    },
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "gt"
+                                      ]
+                                    },
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "lte"
+                                      ]
+                                    },
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "gte"
+                                      ]
+                                    }
+                                  ]
+                                },
+                                "field": {
+                                  "type": "string",
+                                  "enum": [
+                                    "balance"
+                                  ]
+                                },
+                                "value": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "operator",
+                                "field",
+                                "value"
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "operator",
+                          "value"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "operator": {
+                            "type": "string",
+                            "enum": [
+                              "or"
+                            ]
+                          },
+                          "value": {
+                            "type": "array",
+                            "minItems": 2,
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "operator": {
+                                  "oneOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "eq"
+                                      ]
+                                    },
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "lt"
+                                      ]
+                                    },
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "gt"
+                                      ]
+                                    },
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "lte"
+                                      ]
+                                    },
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "gte"
+                                      ]
+                                    }
+                                  ]
+                                },
+                                "field": {
+                                  "type": "string",
+                                  "enum": [
+                                    "balance"
+                                  ]
+                                },
+                                "value": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "operator",
+                                "field",
+                                "value"
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "operator",
+                          "value"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "operator": {
+                            "oneOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "eq"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "lt"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "gt"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "lte"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "gte"
+                                ]
+                              }
+                            ]
+                          },
+                          "field": {
+                            "type": "string",
+                            "enum": [
+                              "balance"
+                            ]
+                          },
+                          "value": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "operator",
+                          "field",
+                          "value"
+                        ]
+                      }
+                    ]
+                  },
+                  "params": {
+                    "type": "object",
+                    "properties": {
+                      "owner": {
+                        "type": "string"
+                      },
+                      "denom": {
+                        "type": "string"
+                      },
+                      "suppressedBySystem": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "owner",
+                      "denom"
+                    ]
+                  }
+                },
+                "required": [
+                  "notificationChannelId",
+                  "name",
+                  "summary",
+                  "description",
+                  "type",
+                  "conditions",
+                  "params"
+                ]
               }
             ]
           }
@@ -2294,6 +2553,307 @@
                   },
                   "createdAt": {},
                   "updatedAt": {},
+                  "params": {
+                    "type": "object",
+                    "properties": {
+                      "dseq": {
+                        "type": "string",
+                        "pattern": "^\\d+$"
+                      },
+                      "type": {
+                        "type": "string"
+                      },
+                      "suppressedBySystem": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "dseq",
+                      "type"
+                    ]
+                  },
+                  "conditions": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "operator": {
+                            "type": "string",
+                            "enum": [
+                              "and"
+                            ]
+                          },
+                          "value": {
+                            "type": "array",
+                            "minItems": 2,
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "operator": {
+                                  "oneOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "eq"
+                                      ]
+                                    },
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "lt"
+                                      ]
+                                    },
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "gt"
+                                      ]
+                                    },
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "lte"
+                                      ]
+                                    },
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "gte"
+                                      ]
+                                    }
+                                  ]
+                                },
+                                "field": {
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "oneOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "number"
+                                    },
+                                    {
+                                      "type": "boolean"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "operator",
+                                "field",
+                                "value"
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "operator",
+                          "value"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "operator": {
+                            "type": "string",
+                            "enum": [
+                              "or"
+                            ]
+                          },
+                          "value": {
+                            "type": "array",
+                            "minItems": 2,
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "operator": {
+                                  "oneOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "eq"
+                                      ]
+                                    },
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "lt"
+                                      ]
+                                    },
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "gt"
+                                      ]
+                                    },
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "lte"
+                                      ]
+                                    },
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "gte"
+                                      ]
+                                    }
+                                  ]
+                                },
+                                "field": {
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "oneOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "number"
+                                    },
+                                    {
+                                      "type": "boolean"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "operator",
+                                "field",
+                                "value"
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "operator",
+                          "value"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "operator": {
+                            "oneOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "eq"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "lt"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "gt"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "lte"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "gte"
+                                ]
+                              }
+                            ]
+                          },
+                          "field": {
+                            "type": "string"
+                          },
+                          "value": {
+                            "oneOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "boolean"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "operator",
+                          "field",
+                          "value"
+                        ]
+                      }
+                    ]
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "CHAIN_EVENT"
+                    ]
+                  }
+                },
+                "required": [
+                  "notificationChannelId",
+                  "name",
+                  "enabled",
+                  "summary",
+                  "description",
+                  "id",
+                  "userId",
+                  "status",
+                  "createdAt",
+                  "updatedAt",
+                  "conditions",
+                  "type"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "notificationChannelId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 3
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "summary": {
+                    "type": "string",
+                    "minLength": 3
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 3
+                  },
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "userId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "notificationChannelName": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string"
+                  },
+                  "createdAt": {},
+                  "updatedAt": {},
                   "type": {
                     "type": "string",
                     "enum": [
@@ -2575,23 +3135,10 @@
                   },
                   "createdAt": {},
                   "updatedAt": {},
-                  "params": {
-                    "type": "object",
-                    "properties": {
-                      "dseq": {
-                        "type": "string",
-                        "pattern": "^\\d+$"
-                      },
-                      "type": {
-                        "type": "string"
-                      },
-                      "suppressedBySystem": {
-                        "type": "boolean"
-                      }
-                    },
-                    "required": [
-                      "dseq",
-                      "type"
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "WALLET_BALANCE"
                     ]
                   },
                   "conditions": {
@@ -2646,20 +3193,13 @@
                                   ]
                                 },
                                 "field": {
-                                  "type": "string"
+                                  "type": "string",
+                                  "enum": [
+                                    "balance"
+                                  ]
                                 },
                                 "value": {
-                                  "oneOf": [
-                                    {
-                                      "type": "string"
-                                    },
-                                    {
-                                      "type": "number"
-                                    },
-                                    {
-                                      "type": "boolean"
-                                    }
-                                  ]
+                                  "type": "number"
                                 }
                               },
                               "required": [
@@ -2725,20 +3265,13 @@
                                   ]
                                 },
                                 "field": {
-                                  "type": "string"
+                                  "type": "string",
+                                  "enum": [
+                                    "balance"
+                                  ]
                                 },
                                 "value": {
-                                  "oneOf": [
-                                    {
-                                      "type": "string"
-                                    },
-                                    {
-                                      "type": "number"
-                                    },
-                                    {
-                                      "type": "boolean"
-                                    }
-                                  ]
+                                  "type": "number"
                                 }
                               },
                               "required": [
@@ -2792,20 +3325,13 @@
                             ]
                           },
                           "field": {
-                            "type": "string"
+                            "type": "string",
+                            "enum": [
+                              "balance"
+                            ]
                           },
                           "value": {
-                            "oneOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "number"
-                              },
-                              {
-                                "type": "boolean"
-                              }
-                            ]
+                            "type": "number"
                           }
                         },
                         "required": [
@@ -2816,10 +3342,22 @@
                       }
                     ]
                   },
-                  "type": {
-                    "type": "string",
-                    "enum": [
-                      "CHAIN_EVENT"
+                  "params": {
+                    "type": "object",
+                    "properties": {
+                      "owner": {
+                        "type": "string"
+                      },
+                      "denom": {
+                        "type": "string"
+                      },
+                      "suppressedBySystem": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "owner",
+                      "denom"
                     ]
                   }
                 },
@@ -2834,8 +3372,9 @@
                   "status",
                   "createdAt",
                   "updatedAt",
+                  "type",
                   "conditions",
-                  "type"
+                  "params"
                 ]
               }
             ]
@@ -3275,6 +3814,307 @@
                     },
                     "createdAt": {},
                     "updatedAt": {},
+                    "params": {
+                      "type": "object",
+                      "properties": {
+                        "dseq": {
+                          "type": "string",
+                          "pattern": "^\\d+$"
+                        },
+                        "type": {
+                          "type": "string"
+                        },
+                        "suppressedBySystem": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "dseq",
+                        "type"
+                      ]
+                    },
+                    "conditions": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "operator": {
+                              "type": "string",
+                              "enum": [
+                                "and"
+                              ]
+                            },
+                            "value": {
+                              "type": "array",
+                              "minItems": 2,
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "operator": {
+                                    "oneOf": [
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "eq"
+                                        ]
+                                      },
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "lt"
+                                        ]
+                                      },
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "gt"
+                                        ]
+                                      },
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "lte"
+                                        ]
+                                      },
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "gte"
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  "field": {
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "oneOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "number"
+                                      },
+                                      {
+                                        "type": "boolean"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "operator",
+                                  "field",
+                                  "value"
+                                ]
+                              }
+                            }
+                          },
+                          "required": [
+                            "operator",
+                            "value"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "operator": {
+                              "type": "string",
+                              "enum": [
+                                "or"
+                              ]
+                            },
+                            "value": {
+                              "type": "array",
+                              "minItems": 2,
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "operator": {
+                                    "oneOf": [
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "eq"
+                                        ]
+                                      },
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "lt"
+                                        ]
+                                      },
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "gt"
+                                        ]
+                                      },
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "lte"
+                                        ]
+                                      },
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "gte"
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  "field": {
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "oneOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "number"
+                                      },
+                                      {
+                                        "type": "boolean"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "operator",
+                                  "field",
+                                  "value"
+                                ]
+                              }
+                            }
+                          },
+                          "required": [
+                            "operator",
+                            "value"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "operator": {
+                              "oneOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "eq"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "lt"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "gt"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "lte"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "gte"
+                                  ]
+                                }
+                              ]
+                            },
+                            "field": {
+                              "type": "string"
+                            },
+                            "value": {
+                              "oneOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "number"
+                                },
+                                {
+                                  "type": "boolean"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "operator",
+                            "field",
+                            "value"
+                          ]
+                        }
+                      ]
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "CHAIN_EVENT"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "notificationChannelId",
+                    "name",
+                    "enabled",
+                    "summary",
+                    "description",
+                    "id",
+                    "userId",
+                    "status",
+                    "createdAt",
+                    "updatedAt",
+                    "conditions",
+                    "type"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "notificationChannelId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 3
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "summary": {
+                      "type": "string",
+                      "minLength": 3
+                    },
+                    "description": {
+                      "type": "string",
+                      "minLength": 3
+                    },
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "userId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "notificationChannelName": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "createdAt": {},
+                    "updatedAt": {},
                     "type": {
                       "type": "string",
                       "enum": [
@@ -3556,23 +4396,10 @@
                     },
                     "createdAt": {},
                     "updatedAt": {},
-                    "params": {
-                      "type": "object",
-                      "properties": {
-                        "dseq": {
-                          "type": "string",
-                          "pattern": "^\\d+$"
-                        },
-                        "type": {
-                          "type": "string"
-                        },
-                        "suppressedBySystem": {
-                          "type": "boolean"
-                        }
-                      },
-                      "required": [
-                        "dseq",
-                        "type"
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "WALLET_BALANCE"
                       ]
                     },
                     "conditions": {
@@ -3627,20 +4454,13 @@
                                     ]
                                   },
                                   "field": {
-                                    "type": "string"
+                                    "type": "string",
+                                    "enum": [
+                                      "balance"
+                                    ]
                                   },
                                   "value": {
-                                    "oneOf": [
-                                      {
-                                        "type": "string"
-                                      },
-                                      {
-                                        "type": "number"
-                                      },
-                                      {
-                                        "type": "boolean"
-                                      }
-                                    ]
+                                    "type": "number"
                                   }
                                 },
                                 "required": [
@@ -3706,20 +4526,13 @@
                                     ]
                                   },
                                   "field": {
-                                    "type": "string"
+                                    "type": "string",
+                                    "enum": [
+                                      "balance"
+                                    ]
                                   },
                                   "value": {
-                                    "oneOf": [
-                                      {
-                                        "type": "string"
-                                      },
-                                      {
-                                        "type": "number"
-                                      },
-                                      {
-                                        "type": "boolean"
-                                      }
-                                    ]
+                                    "type": "number"
                                   }
                                 },
                                 "required": [
@@ -3773,20 +4586,13 @@
                               ]
                             },
                             "field": {
-                              "type": "string"
+                              "type": "string",
+                              "enum": [
+                                "balance"
+                              ]
                             },
                             "value": {
-                              "oneOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "number"
-                                },
-                                {
-                                  "type": "boolean"
-                                }
-                              ]
+                              "type": "number"
                             }
                           },
                           "required": [
@@ -3797,10 +4603,22 @@
                         }
                       ]
                     },
-                    "type": {
-                      "type": "string",
-                      "enum": [
-                        "CHAIN_EVENT"
+                    "params": {
+                      "type": "object",
+                      "properties": {
+                        "owner": {
+                          "type": "string"
+                        },
+                        "denom": {
+                          "type": "string"
+                        },
+                        "suppressedBySystem": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "owner",
+                        "denom"
                       ]
                     }
                   },
@@ -3815,8 +4633,9 @@
                     "status",
                     "createdAt",
                     "updatedAt",
+                    "type",
                     "conditions",
-                    "type"
+                    "params"
                   ]
                 }
               ]
