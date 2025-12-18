@@ -37,7 +37,11 @@ export const services = createChildContainer(rootContainer, {
       services.externalApiHttpClient,
       services.applyAxiosInterceptors(
         services.createAxios({
-          baseURL: services.apiUrlService.getBaseApiUrlFor(services.config.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID)
+          baseURL: services.apiUrlService.getBaseApiUrlFor(services.config.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID),
+          headers: {
+            "Content-Type": "application/json; charset=utf-8",
+            Accept: "application/json"
+          }
         })
       ),
       {

@@ -97,7 +97,8 @@ describe(SessionService.name, () => {
 
       externalHttpClient.post.mockResolvedValueOnce({
         status: 401,
-        data: { error_description: "Invalid credentials" }
+        data: { error_description: "Invalid credentials" },
+        headers: {}
       });
 
       const result = await service.signIn({ email: "user@example.com", password: "wrong-password" });
@@ -135,7 +136,8 @@ describe(SessionService.name, () => {
           code: "invalid_password",
           policy: "Password must contain at least 8 characters",
           message: "Password is too weak"
-        }
+        },
+        headers: {}
       });
 
       const result = await service.signUp({ email: "user@example.com", password: "weak" });
@@ -171,7 +173,8 @@ describe(SessionService.name, () => {
         status: 409,
         data: {
           description: "User already exists"
-        }
+        },
+        headers: {}
       });
 
       const result = await service.signUp({ email: "user@example.com", password: "Password123!" });
