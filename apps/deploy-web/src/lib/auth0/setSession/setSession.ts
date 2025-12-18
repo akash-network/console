@@ -25,9 +25,15 @@ function getSessionCache(): InstanceType<typeof sessionModule.SessionCache> {
   return cachedSessionCache;
 }
 
-export async function setSession(reqOrSession: NextApiRequest | Session, res: NextApiResponse | undefined, newSession: Session): Promise<void> {
+export async function setSession(
+  reqOrSession: NextApiRequest | Session,
+  res: NextApiResponse | undefined,
+  newSession: Session,
+  sessionModuleOverride?: typeof sessionModule
+): Promise<void> {
+  const auth0SessionModule = sessionModuleOverride ?? sessionModule;
   const req = res ? (reqOrSession as NextApiRequest) : undefined;
   const sessionCache = getSessionCache();
   const session = res ? newSession : reqOrSession;
-  await sessionModule.set({ req, res, session, sessionCache });
+  await auth0SessionModule.set({ req, res, session, sessionCache });
 }
