@@ -392,29 +392,31 @@ describe(DrainingDeploymentService.name, () => {
 
   describe("calculateAllDeploymentCostUntilDate", () => {
     it("calculates total cost for deployments closing within target date", async () => {
-      const blockRate1 = 50;
-      const blockRate2 = 75;
-      const baseSetup = setup();
-      const deployments = [
-        { predictedClosedHeight: baseSetup.currentHeight + 100, blockRate: blockRate1 },
-        { predictedClosedHeight: baseSetup.currentHeight + 200, blockRate: blockRate2 }
-      ];
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date("2025-01-01T12:00:00.000Z"));
 
-      const { service, address, targetDate, leaseRepository } = await setupCalculateCost({
-        deployments
-      });
+      try {
+        const blockRate1 = 50;
+        const blockRate2 = 75;
+        const baseSetup = setup();
+        const deployments = [
+          { predictedClosedHeight: baseSetup.currentHeight + 100, blockRate: blockRate1 },
+          { predictedClosedHeight: baseSetup.currentHeight + 200, blockRate: blockRate2 }
+        ];
 
-      const result = await service.calculateAllDeploymentCostUntilDate(address, targetDate);
+        const { service, address, targetDate, leaseRepository } = await setupCalculateCost({
+          deployments
+        });
+        const expectedTargetHeight = 1100800;
+        const expectedTotal = 12600000;
 
-      const hoursInWeek = 7 * 24;
-      const expectedBlocksNeeded = Math.floor(averageBlockCountInAnHour * hoursInWeek);
-      const expectedTotal = (blockRate1 + blockRate2) * expectedBlocksNeeded;
-      const expectedTargetHeight = 1100799;
+        const result = await service.calculateAllDeploymentCostUntilDate(address, targetDate);
 
-      // Allow for small differences in date calculations (±2 blocks = ±250 with total rate of 125)
-      expect(result).toBeGreaterThanOrEqual(expectedTotal - 250);
-      expect(result).toBeLessThanOrEqual(expectedTotal + 250);
-      expect(leaseRepository.findManyByDseqAndOwner).toHaveBeenCalledWith(expectedTargetHeight, address, expect.any(Array));
+        expect(result).toBe(expectedTotal);
+        expect(leaseRepository.findManyByDseqAndOwner).toHaveBeenCalledWith(expectedTargetHeight, address, expect.any(Array));
+      } finally {
+        jest.useRealTimers();
+      }
     });
 
     it("returns 0 when user wallet not found", async () => {

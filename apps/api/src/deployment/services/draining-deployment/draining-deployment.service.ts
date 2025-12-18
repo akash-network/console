@@ -139,6 +139,7 @@ export class DrainingDeploymentService {
 
     const currentHeight = await this.blockHttpService.getCurrentHeight();
     const now = new Date();
+
     const hoursUntilTarget = (targetDate.getTime() - now.getTime()) / (1000 * 60 * 60);
     const targetHeight = Math.floor(currentHeight + averageBlockCountInAnHour * hoursUntilTarget);
     const drainingDeployments = await this.#findDrainingDeployments(deploymentSettings, address, targetHeight);
