@@ -41,10 +41,21 @@ export default defineApiHandler({
 
     if (result.ok) {
       await setSession(req, res, result.val);
-      res.status(204).json(null);
+      res.status(204).end();
       return;
     }
 
-    return res.status(400).json(result.val);
+    const { cause, ...errorDetails } = result.val;
+    services.logger.warn({
+      event: "PASSWORD_SIGNUP_ERROR",
+      cause: result.val
+    });
+
+    if (result.val.code === "user_exists") {
+      res.status(204).end();
+      return;
+    }
+
+    return res.status(400).json(errorDetails);
   }
 });

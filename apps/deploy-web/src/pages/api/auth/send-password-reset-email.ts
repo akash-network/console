@@ -27,9 +27,9 @@ export default defineApiHandler({
       }
 
       const { cause, ...errorDetails } = result.val;
-      services.logger.error({
+      services.logger.warn({
         event: "SEND_PASSWORD_RESET_EMAIL_ERROR",
-        cause
+        cause: result.val
       });
       return res.status(400).json(errorDetails);
     } catch (error) {

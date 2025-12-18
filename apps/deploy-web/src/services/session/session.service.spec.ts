@@ -104,10 +104,12 @@ describe(SessionService.name, () => {
 
       expect(result.ok).toBe(false);
       const error = expectErr(result);
-      expect(error).toEqual({
-        message: "Invalid credentials",
-        code: "invalid_credentials"
-      });
+      expect(error).toEqual(
+        expect.objectContaining({
+          message: "Invalid credentials",
+          code: "invalid_credentials"
+        })
+      );
       expect(externalHttpClient.get).not.toHaveBeenCalled();
       expect(consoleApiHttpClient.get).not.toHaveBeenCalled();
 
@@ -140,10 +142,13 @@ describe(SessionService.name, () => {
 
       expect(result.ok).toBe(false);
       const error = expectErr(result);
-      expect(error).toEqual({
-        message: "Password is too weak",
-        code: "invalid_password"
-      });
+      expect(error).toEqual(
+        expect.objectContaining({
+          message: "Password is too weak",
+          code: "invalid_password",
+          policy: "Password must contain at least 8 characters"
+        })
+      );
       expect(externalHttpClient.post).toHaveBeenCalledTimes(1);
       expect(externalHttpClient.post).toHaveBeenCalledWith(
         `${new URL(config.ISSUER_BASE_URL).origin}/dbconnections/signup`,
@@ -173,10 +178,12 @@ describe(SessionService.name, () => {
 
       expect(result.ok).toBe(false);
       const error = expectErr(result);
-      expect(error).toEqual({
-        message: "User already exists",
-        code: "signup_failed"
-      });
+      expect(error).toEqual(
+        expect.objectContaining({
+          message: "User already exists",
+          code: "user_exists"
+        })
+      );
       expect(externalHttpClient.post).toHaveBeenCalledTimes(1);
       expect(externalHttpClient.post).toHaveBeenCalledWith(
         `${new URL(config.ISSUER_BASE_URL).origin}/dbconnections/signup`,
