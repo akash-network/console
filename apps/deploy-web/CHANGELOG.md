@@ -1,5 +1,12 @@
 
 
+## [3.15.3](https://github.com/akash-network/console/compare/console-web/v3.15.2...console-web/v3.15.3) (2025-12-18)
+
+
+### Bug Fixes
+
+* **auth:** set session loaded early ([#2387](https://github.com/akash-network/console/issues/2387)) ([0cdc166](https://github.com/akash-network/console/commit/0cdc166261f8d8ba1092100f7d7d933ab18eae99))
+
 ## [3.15.2](https://github.com/akash-network/console/compare/console-web/v3.15.1...console-web/v3.15.2) (2025-12-18)
 
 
