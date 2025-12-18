@@ -1,5 +1,17 @@
 
 
+## [3.15.0](https://github.com/akash-network/console/compare/console-web/v3.14.0...console-web/v3.15.0) (2025-12-18)
+
+
+### Features
+
+* **notifications:** re-generates swagger and sdks ([d3aae18](https://github.com/akash-network/console/commit/d3aae187885f5086549ebb81bad415cbf6d2e034))
+
+
+### Bug Fixes
+
+* improves error handling/logging in new login/signup flow ([#2380](https://github.com/akash-network/console/issues/2380)) ([c7f7917](https://github.com/akash-network/console/commit/c7f7917d6f76ec7c0a436bdff54791e15fc46ee3))
+
 ## [3.14.0](https://github.com/akash-network/console/compare/console-web/v3.13.1...console-web/v3.14.0) (2025-12-18)
 
 

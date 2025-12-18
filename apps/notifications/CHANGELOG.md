@@ -1,5 +1,12 @@
 
 
+## [2.10.0](https://github.com/akash-network/console/compare/notifications/v2.9.0...notifications/v2.10.0) (2025-12-18)
+
+
+### Features
+
+* **notifications:** re-generates swagger and sdks ([d3aae18](https://github.com/akash-network/console/commit/d3aae187885f5086549ebb81bad415cbf6d2e034))
+
 ## [2.9.0](https://github.com/akash-network/console/compare/notifications/v2.8.0...notifications/v2.9.0) (2025-12-16)
 
 

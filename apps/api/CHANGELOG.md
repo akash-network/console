@@ -1,5 +1,12 @@
 
 
+## [3.16.0](https://github.com/akash-network/console/compare/console-api/v3.15.2...console-api/v3.16.0) (2025-12-18)
+
+
+### Features
+
+* **notifications:** re-generates swagger and sdks ([d3aae18](https://github.com/akash-network/console/commit/d3aae187885f5086549ebb81bad415cbf6d2e034))
+
 ## [3.15.2](https://github.com/akash-network/console/compare/console-api/v3.15.1...console-api/v3.15.2) (2025-12-18)
 
 
