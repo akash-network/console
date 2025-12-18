@@ -1,5 +1,13 @@
 
 
+## [1.10.0](https://github.com/akash-network/console/compare/stats-web/v1.9.1...stats-web/v1.10.0) (2025-12-18)
+
+
+### Features
+
+* adds forget password form to embedded login page ([#2372](https://github.com/akash-network/console/issues/2372)) ([cd51331](https://github.com/akash-network/console/commit/cd51331e9bb2089de69751f527ca565512477d9b))
+* update frontend styling and theme ([#2331](https://github.com/akash-network/console/issues/2331)) ([0ae3a55](https://github.com/akash-network/console/commit/0ae3a557181a0eecaa3cdcf27d48513c0c09f79f))
+
 ## [1.9.1](https://github.com/akash-network/console/compare/stats-web/v1.9.0...stats-web/v1.9.1) (2025-12-12)
 
 
