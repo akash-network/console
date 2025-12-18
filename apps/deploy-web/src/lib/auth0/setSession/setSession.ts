@@ -24,6 +24,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 const originalUpdateSessionFactory = updateSessionModule.default;
 let globalSessionCache: SessionCache | undefined;
 updateSessionModule.default = (sessionCache: SessionCache) => {
+  console.log("updateSessionModule", sessionCache);
   globalSessionCache = sessionCache;
   return originalUpdateSessionFactory(sessionCache);
 };
@@ -50,6 +51,9 @@ export async function setSession(reqOrSession: NextApiRequest | Session, res: Ne
   await ensureSessionCacheInitialized(req, res);
 
   const sessionCache = globalSessionCache;
+
+  console.log("sessionCache", sessionCache);
+
   if (!sessionCache) {
     throw new Error("Cannot create session: SessionCache cache was not automatically discovered");
   }
