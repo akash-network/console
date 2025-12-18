@@ -1,5 +1,12 @@
 
 
+## [3.15.1](https://github.com/akash-network/console/compare/console-web/v3.15.0...console-web/v3.15.1) (2025-12-18)
+
+
+### Bug Fixes
+
+* adds JSON headers to http client used by session service ([#2382](https://github.com/akash-network/console/issues/2382)) ([dd2c146](https://github.com/akash-network/console/commit/dd2c146d692b5d5543032521657a09af7287fd7a))
+
 ## [3.15.0](https://github.com/akash-network/console/compare/console-web/v3.14.0...console-web/v3.15.0) (2025-12-18)
 
 
