@@ -1,5 +1,12 @@
 
 
+## [3.15.1](https://github.com/akash-network/console/compare/console-api/v3.15.0...console-api/v3.15.1) (2025-12-18)
+
+
+### Bug Fixes
+
+* **deployment:** adds draining rpc query logs ([5d6e7a9](https://github.com/akash-network/console/commit/5d6e7a968f004e1c711d65db390db1517a9c0c9e)), closes [#1779](https://github.com/akash-network/console/issues/1779)
+
 ## [3.15.0](https://github.com/akash-network/console/compare/console-api/v3.14.1...console-api/v3.15.0) (2025-12-16)
 
 

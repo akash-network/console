@@ -1,5 +1,19 @@
 
 
+## [3.14.0](https://github.com/akash-network/console/compare/console-web/v3.13.1...console-web/v3.14.0) (2025-12-18)
+
+
+### Features
+
+* adds forget password form to embedded login page ([#2372](https://github.com/akash-network/console/issues/2372)) ([cd51331](https://github.com/akash-network/console/commit/cd51331e9bb2089de69751f527ca565512477d9b))
+* **billing:** adds loading state for the auto reload toggle ([8c66de0](https://github.com/akash-network/console/commit/8c66de07d349892e0ee6227e46cbbb001cfb10d1)), closes [#1779](https://github.com/akash-network/console/issues/1779)
+* update frontend styling and theme ([#2331](https://github.com/akash-network/console/issues/2331)) ([0ae3a55](https://github.com/akash-network/console/commit/0ae3a557181a0eecaa3cdcf27d48513c0c09f79f))
+
+
+### Bug Fixes
+
+* changes the order of buttons in mobile view ([#2367](https://github.com/akash-network/console/issues/2367)) ([4e7140f](https://github.com/akash-network/console/commit/4e7140fab6960365fad2d171efb09dc64604783a))
+
 ## [3.13.1](https://github.com/akash-network/console/compare/console-web/v3.13.0...console-web/v3.13.1) (2025-12-16)
 
 
