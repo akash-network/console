@@ -31,8 +31,8 @@ export const AddPaymentMethodPopup: React.FC<AddPaymentMethodPopupProps> = ({ op
                 appearance: {
                   theme: isDarkMode ? "night" : "stripe",
                   variables: {
-                    colorPrimary: "#ff424c",
-                    colorSuccess: "#ff424c"
+                    colorPrimary: isDarkMode ? "#e3e3e3" : "#171717",
+                    colorSuccess: "#16a34a"
                   }
                 }
               }}

@@ -91,9 +91,9 @@ const authHandler = once((services: AppServices) =>
           }
         });
       } catch (error: unknown) {
-        if (isAccessTokenExpiredError(error)) {
-          services.logger.warn({ event: "AUTH_ACCESS_TOKEN_EXPIRED", url: req.url });
-          redirectToLogin(req, res);
+        if (isInvalidSessionError(error)) {
+          services.logger.warn({ event: "AUTH_SESSION_INVALID", url: req.url });
+          clearSessionAndRedirectToLogin(req, res);
           return;
         }
         let severity: SeverityLevel = "error";
@@ -109,15 +109,31 @@ const authHandler = once((services: AppServices) =>
   })
 );
 
-function isAccessTokenExpiredError(error: unknown): boolean {
-  return error instanceof ProfileHandlerError && error.cause instanceof AccessTokenError && error.cause.code === AccessTokenErrorCode.EXPIRED_ACCESS_TOKEN;
+function isInvalidSessionError(error: unknown): boolean {
+  if (!(error instanceof ProfileHandlerError) || !(error.cause instanceof AccessTokenError)) {
+    return false;
+  }
+
+  const invalidSessionCodes: string[] = [AccessTokenErrorCode.EXPIRED_ACCESS_TOKEN, AccessTokenErrorCode.FAILED_REFRESH_GRANT];
+
+  return invalidSessionCodes.includes(error.cause.code);
 }
 
 function isGeneralAxiosError(error: unknown): error is AxiosError {
   return isAxiosError(error) && !!error?.status && error.status >= 400 && error.status < 500;
 }
 
-function redirectToLogin(req: NextApiRequest, res: NextApiResponse): void {
+function clearSessionAndRedirectToLogin(req: NextApiRequest, res: NextApiResponse): void {
+  // Clear invalid session cookies before redirecting
+  const cookies = req.cookies;
+  const expiredCookies = Object.keys(cookies)
+    .filter(key => key.startsWith("appSession"))
+    .map(key => `${key}=; Path=/; HttpOnly; SameSite=Lax; Expires=Thu, 01 Jan 1970 00:00:00 GMT`);
+
+  if (expiredCookies.length > 0) {
+    res.setHeader("Set-Cookie", expiredCookies);
+  }
+
   const returnUrl = encodeURIComponent(req.url || "/");
   const loginUrl = `/api/auth/login?from=${returnUrl}`;
   res.writeHead(302, { Location: loginUrl });

@@ -76,14 +76,14 @@ export const FeeGrantTable: React.FC<Props> = ({
                   <LinkTo onClick={onClearSelection} className="text-xs">
                     Clear
                   </LinkTo>
-                  <Button onClick={onDeleteGrants} variant="destructive" size="sm" className="h-6 p-2 text-xs">
+                  <Button onClick={onDeleteGrants} variant="outline" size="sm" className="h-6 p-2 text-xs">
                     Revoke selected ({selectedAllowances.length})
                   </Button>
                 </div>
               )}
               {allowances.length > 0 && selectedAllowances.length === 0 && (
                 <div className="flex items-center justify-end">
-                  <Button onClick={onDeleteAll} variant="destructive" size="sm" className="h-6 p-2 text-xs">
+                  <Button onClick={onDeleteAll} variant="outline" size="sm" className="h-6 p-2 text-xs">
                     Revoke all
                   </Button>
                 </div>

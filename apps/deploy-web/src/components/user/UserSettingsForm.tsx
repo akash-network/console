@@ -1,16 +1,16 @@
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { MdHighlightOff } from "react-icons/md";
-import { Alert, Button, Form, FormField, FormInput, Spinner, Switch, Textarea } from "@akashnetwork/ui/components";
+import { Alert, Button, Card, CardContent, Form, FormField, FormInput, Spinner, Switch, Textarea } from "@akashnetwork/ui/components";
 import { CheckCircle } from "iconoir-react";
 import { NextSeo } from "next-seo";
 import { z } from "zod";
 
-import { FormPaper } from "@src/components/sdl/FormPaper";
 import { LabelValue } from "@src/components/shared/LabelValue";
 import type { RequiredUserConsumer } from "@src/components/user/RequiredUserContainer";
 import { UserProfileLayout } from "@src/components/user/UserProfileLayout";
 import { useServices } from "@src/context/ServicesProvider";
+import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useSaveSettings } from "@src/queries/useSaveSettings";
 import type { UserSettings } from "@src/types/user";
 import Layout from "../layout/Layout";
@@ -32,6 +32,7 @@ export const UserSettingsForm: RequiredUserConsumer = ({ user }) => {
   const { consoleApiHttpClient, analyticsService } = useServices();
   const [isCheckingAvailability, setIsCheckingAvailability] = useState<boolean>(false);
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
+  const { isLoading } = useCustomUser();
   const form = useForm<z.infer<typeof formSchema>>({
     defaultValues: {
       username: "",
@@ -94,100 +95,104 @@ export const UserSettingsForm: RequiredUserConsumer = ({ user }) => {
   }
 
   return (
-    <Layout>
+    <Layout isLoading={isLoading}>
       <NextSeo title={user?.username} />
       <UserProfileLayout page="settings" username={user.username} bio={user.bio}>
-        <FormPaper>
-          <Form {...form}>
-            <form onSubmit={handleSubmit(onSubmit)}>
-              <LabelValue label="Email" value={user.email} />
-              <LabelValue
-                label="Username"
-                value={
-                  <>
+        <Card>
+          <CardContent className="p-6">
+            <Form {...form}>
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+                <LabelValue label="Email" value={user.email} />
+                <LabelValue
+                  label="Username"
+                  value={
+                    <>
+                      <div className="flex items-center">
+                        <FormField
+                          name="username"
+                          control={control}
+                          render={({ field }) => {
+                            return <FormInput {...field} autoFocus className="mr-2" disabled={isFormDisabled} />;
+                          }}
+                        />
+                        {isCheckingAvailability && <Spinner size="small" />}
+                        <span className="flex flex-shrink-0 items-center whitespace-nowrap text-xs">
+                          {!isCheckingAvailability && isAvailable && (
+                            <>
+                              <CheckCircle className="text-green-600" />
+                              &nbsp;Username is available
+                            </>
+                          )}
+                          {!isCheckingAvailability && isAvailable === false && (
+                            <>
+                              <MdHighlightOff className="text-destructive" />
+                              &nbsp;Username is not available
+                            </>
+                          )}
+                        </span>
+                      </div>
+                      {errors.username && (
+                        <Alert className="mt-2" variant="destructive">
+                          {errors.username.message}
+                        </Alert>
+                      )}
+                    </>
+                  }
+                />
+                <LabelValue
+                  label="Subscribed to newsletter"
+                  value={
                     <div className="flex items-center">
-                      <FormField
-                        name="username"
+                      <Controller
+                        name="subscribedToNewsletter"
                         control={control}
-                        render={({ field }) => {
-                          return <FormInput {...field} autoFocus className="mr-2" disabled={isFormDisabled} />;
-                        }}
+                        render={({ field }) => <Switch checked={field.value} onCheckedChange={field.onChange} />}
                       />
-                      {isCheckingAvailability && <Spinner size="small" />}
-                      <span className="flex flex-shrink-0 items-center whitespace-nowrap text-xs">
-                        {!isCheckingAvailability && isAvailable && (
-                          <>
-                            <CheckCircle className="text-green-600" />
-                            &nbsp;Username is available
-                          </>
-                        )}
-                        {!isCheckingAvailability && isAvailable === false && (
-                          <>
-                            <MdHighlightOff className="text-destructive" />
-                            &nbsp;Username is not available
-                          </>
-                        )}
-                      </span>
                     </div>
-                    {errors.username && (
-                      <Alert className="mt-2" variant="destructive">
-                        {errors.username.message}
-                      </Alert>
-                    )}
-                  </>
-                }
-              />
-              <LabelValue
-                label="Subscribed to newsletter"
-                value={
-                  <div className="flex items-center">
-                    <Controller
-                      name="subscribedToNewsletter"
+                  }
+                />
+                <LabelValue label="Bio" value={<Textarea disabled={isFormDisabled} rows={4} inputClassName="w-full" {...register("bio")} />} />
+
+                <LabelValue
+                  label="Youtube"
+                  value={
+                    <FormField
+                      name="youtubeUsername"
                       control={control}
-                      render={({ field }) => <Switch checked={field.value} onCheckedChange={field.onChange} />}
+                      render={({ field }) => <FormInput {...field} disabled={isFormDisabled} className="w-full" placeholder="https://www.youtube.com/c/" />}
                     />
-                  </div>
-                }
-              />
-              <LabelValue label="Bio" value={<Textarea disabled={isFormDisabled} rows={4} inputClassName="w-full" {...register("bio")} />} />
+                  }
+                />
+                <LabelValue
+                  label="X"
+                  value={
+                    <FormField
+                      name="twitterUsername"
+                      control={control}
+                      render={({ field }) => <FormInput {...field} disabled={isFormDisabled} className="w-full" placeholder="https://x.com/" />}
+                    />
+                  }
+                />
+                <LabelValue
+                  label="Github"
+                  value={
+                    <FormField
+                      name="githubUsername"
+                      control={control}
+                      render={({ field }) => <FormInput {...field} disabled={isFormDisabled} className="w-full" placeholder="https://github.com/" />}
+                    />
+                  }
+                />
 
-              <LabelValue
-                label="Youtube"
-                value={
-                  <FormField
-                    name="youtubeUsername"
-                    control={control}
-                    render={({ field }) => <FormInput {...field} disabled={isFormDisabled} className="w-full" placeholder="https://www.youtube.com/c/" />}
-                  />
-                }
-              />
-              <LabelValue
-                label="X"
-                value={
-                  <FormField
-                    name="twitterUsername"
-                    control={control}
-                    render={({ field }) => <FormInput {...field} disabled={isFormDisabled} className="w-full" placeholder="https://x.com/" />}
-                  />
-                }
-              />
-              <LabelValue
-                label="Github"
-                value={
-                  <FormField
-                    name="githubUsername"
-                    control={control}
-                    render={({ field }) => <FormInput {...field} disabled={isFormDisabled} className="w-full" placeholder="https://github.com/" />}
-                  />
-                }
-              />
-
-              <Button type="submit" disabled={!canSave || isSaving}>
-                {isSaving ? <Spinner size="small" /> : "Save"}
-              </Button>
-            </form>
-          </Form>
-        </FormPaper>
+                <div className="flex justify-end">
+                  <Button type="submit" disabled={!canSave || isSaving} size="sm">
+                    {isSaving ? <Spinner size="small" /> : "Save"}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
       </UserProfileLayout>
     </Layout>
   );

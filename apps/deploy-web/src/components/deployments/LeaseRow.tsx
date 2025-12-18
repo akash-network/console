@@ -167,21 +167,21 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
 
     return (
       <Card className="mb-4">
-        <CardHeader className="bg-secondary py-2">
+        <CardHeader className="rounded-t-lg bg-secondary py-2">
           <div className="flex items-center">
             <div className="inline-flex items-center text-xs text-muted-foreground">
               <span data-testid={`lease-row-${index}-state`}>{lease.state}</span>
               <StatusPill state={lease.state} size="small" />
 
-              <span className="ml-4 text-muted-foreground">GSEQ:</span>
+              <span className="ml-6 text-muted-foreground">GSEQ:</span>
               <span className="ml-1">{lease.gseq}</span>
 
-              <span className="ml-4">OSEQ:</span>
+              <span className="ml-6">OSEQ:</span>
               <span className="ml-1">{lease.oseq}</span>
             </div>
 
             {isLeaseActive && (
-              <div className="ml-4 inline-flex">
+              <div className="ml-6 inline-flex">
                 <Link className="text-sm" href={`/deployments/${dseq}?tab=LOGS`}>
                   View logs
                 </Link>
@@ -189,9 +189,9 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
             )}
           </div>
         </CardHeader>
-        <CardContent className="pt-4">
-          <div className="space-y-2">
-            <div className="mb-4">
+        <CardContent className="pt-6">
+          <div className="space-y-4">
+            <div>
               <SpecDetail
                 cpuAmount={lease.cpuAmount}
                 gpuAmount={lease.gpuAmount}
@@ -269,8 +269,8 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
               .map(n => leaseStatus.services[n])
               .map((service, i) => (
                 <div
-                  className={cn("mt-2", {
-                    ["border-b pb-2"]: servicesNames.length > 1 && i !== servicesNames.length - 1
+                  className={cn("mt-4", {
+                    ["border-b pb-4"]: servicesNames.length > 1 && i !== servicesNames.length - 1
                   })}
                   key={`${service.name}_${i}`}
                 >
@@ -364,7 +364,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
                   {isRemoteDeploy && repo && (
                     <div className="mt-2">
                       <LabelValueOld label="Deployed Repo:" />
-                      <ul className="mt-2 space-y-2">
+                      <ul className="mt-2 space-y-6">
                         <li className="flex items-center">
                           <Link href={repo} target="_blank" className="inline-flex items-center space-x-2 truncate text-sm">
                             <span>{repo?.replace("https://github.com/", "")?.replace("https://gitlab.com/", "")}</span> <OpenInWindow className="text-xs" />
@@ -375,9 +375,9 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
                   )}
                   {service.uris?.length > 0 && (
                     <>
-                      <div className="mt-2">
+                      <div>
                         <LabelValueOld label="URI(s):" />
-                        <ul className="mt-2 space-y-2" aria-label="URIs">
+                        <ul className="space-y-2" aria-label="URIs">
                           {service.uris.map(uri => {
                             return (
                               <li className="flex items-center" key={uri}>
@@ -446,7 +446,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
           )}
 
           {sshInstructions && (
-            <div className="mt-4">
+            <div className="mt-6">
               <h5 className="font-bold dark:text-neutral-500">SSH Instructions:</h5>
               <ul className="list-inside list-disc space-y-1">
                 <li>

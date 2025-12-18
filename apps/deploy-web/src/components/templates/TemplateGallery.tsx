@@ -2,10 +2,8 @@
 import type { ChangeEventHandler } from "react";
 import { useEffect, useState } from "react";
 import { MdSearchOff } from "react-icons/md";
-import { Button, buttonVariants, Spinner } from "@akashnetwork/ui/components";
+import { Button, buttonVariants, Input, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import IconButton from "@mui/material/IconButton";
-import TextField from "@mui/material/TextField";
 import { FilterList, Xmark } from "iconoir-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -100,21 +98,19 @@ export const TemplateGallery: React.FunctionComponent = () => {
   };
 
   const searchBar = (
-    <TextField
-      fullWidth
-      label="Search"
-      size="small"
-      sx={{ marginBottom: "1rem" }}
-      disabled={isLoadingTemplates}
+    <Input
       value={searchTerms}
       onChange={onSearchChange}
-      InputProps={{
-        endAdornment: searchTerms && (
-          <IconButton onClick={onClearSearch} size="small">
-            <Xmark className="text-sm" />
-          </IconButton>
+      label="Search"
+      className="w-full"
+      type="text"
+      endIcon={
+        !!searchTerms && (
+          <Button size="icon" variant="text" onClick={onClearSearch}>
+            <Xmark className="text-xs" />
+          </Button>
         )
-      }}
+      }
     />
   );
 
@@ -126,8 +122,8 @@ export const TemplateGallery: React.FunctionComponent = () => {
         description="Explore all the templates made by the community to easily deploy any docker container on the Akash Network."
       />
 
-      <div className="mb-6 text-center sm:mb-8 md:mb-12">
-        <Title className="mb-2 text-2xl font-bold sm:text-3xl md:text-4xl">Find your Template</Title>
+      <div className="mb-6 sm:mb-8 md:mb-12">
+        <Title className="mb-2">Find your Template</Title>
 
         <Title subTitle className="text-base font-normal text-muted-foreground sm:text-lg">
           Jumpstart your app development process with our pre-built solutions.
@@ -158,7 +154,7 @@ export const TemplateGallery: React.FunctionComponent = () => {
           <div className="mr-12 hidden w-[222px] md:block">
             <p className="mb-4 font-bold">Filter Templates</p>
 
-            {searchBar}
+            <div className="mb-6">{searchBar}</div>
 
             <ul className="flex flex-col items-start">
               {templates && (
@@ -201,7 +197,7 @@ export const TemplateGallery: React.FunctionComponent = () => {
 
         <div className="flex-1">
           {searchTerms && (
-            <div className="flex items-center pb-4">
+            <div className="flex items-center pb-6">
               <p className="text-muted-foreground">
                 Searching for: "{searchTerms}" - {shownTemplates.length} results
               </p>
@@ -212,7 +208,7 @@ export const TemplateGallery: React.FunctionComponent = () => {
             </div>
           )}
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3">
             {shownTemplates.map((template, id) => (
               <TemplateBox key={`${template.id}_${id}`} template={template} />
             ))}

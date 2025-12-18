@@ -1,6 +1,6 @@
 import React from "react";
 import { FormattedNumber } from "react-intl";
-import { Button, buttonVariants, Separator } from "@akashnetwork/ui/components";
+import { Button, buttonVariants, Card, CardContent, Separator } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { CoinsSwap, HandCard } from "iconoir-react";
 
@@ -28,9 +28,9 @@ export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBa
           <p className="text-center">Free Trial</p>
         </div>
       )}
-      <div className="rounded-md border border-primary/50 bg-primary/10 p-2 text-primary dark:bg-primary dark:text-foreground">
-        {(walletBalance && (
-          <>
+      <Card>
+        {walletBalance ? (
+          <CardContent className="space-y-2 p-4">
             <div className="flex items-center justify-between space-x-2">
               <span className="text-xs">Credits Remaining:</span>
               <span>
@@ -43,7 +43,7 @@ export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBa
               </span>
             </div>
 
-            <Separator className="my-2 bg-primary/50 dark:bg-white/20" />
+            <Separator />
 
             <div className="flex items-center justify-between space-x-2">
               <span className="text-xs">Deposits:</span>
@@ -56,9 +56,11 @@ export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBa
                 />
               </span>
             </div>
-          </>
-        )) || <div className="space-x-2 text-xs text-white">Wallet Balance is unknown because the blockchain is unavailable</div>}
-      </div>
+          </CardContent>
+        ) : (
+          <CardContent className="p-4 text-xs">Wallet Balance is unknown because the blockchain is unavailable</CardContent>
+        )}
+      </Card>
       <div className="mb-2 mt-1 flex items-center justify-end">
         <LinkTo className="text-xs text-foreground no-underline" onClick={() => showManagedEscrowFaqModal()}>
           What's this?
@@ -73,9 +75,9 @@ export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBa
       )}
 
       <div className="flex flex-col items-center justify-end space-y-2 pt-2">
-        <AddFundsLink className={cn("w-full hover:no-underline", buttonVariants({ variant: "default" }))} href={UrlService.payment()}>
+        <AddFundsLink className={cn("w-full space-x-2 hover:no-underline", buttonVariants({ variant: "default" }))} href={UrlService.payment()}>
+          <HandCard className="text-xs" />
           <span className="whitespace-nowrap">Add Funds</span>
-          <HandCard className="ml-2 text-xs" />
         </AddFundsLink>
         <Separator className="my-2 bg-secondary/90 dark:bg-white/10" />
         <Button onClick={isWalletConnected ? switchWalletType : connect} variant="outline" className="w-full space-x-2">

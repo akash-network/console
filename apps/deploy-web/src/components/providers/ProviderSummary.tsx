@@ -32,10 +32,10 @@ export const ProviderSummary: React.FunctionComponent<Props> = ({ provider }) =>
     <Card className="overflow-hidden rounded-b-none">
       <CardContent className="p-0">
         <div className="flex flex-col lg:flex-row lg:justify-between">
-          <div className="flex-grow-1 p-4">
+          <div className="flex-grow-1 p-6">
             {provider.name && <LabelValue label="Name" value={provider.name} />}
             <LabelValue label="Uri" value={provider.hostUri} />
-            <LabelValue label="Address" value={<Address address={provider.owner as string} isCopyable />} />
+            <LabelValue label="Address" value={<Address address={provider.owner} isCopyable />} />
             <LabelValue label="Region" value={provider.ipRegion && provider.ipCountry && `${provider.ipRegion}, ${provider.ipCountry}`} />
             <LabelValue label="Active leases" value={provider.leaseCount} />
             <LabelValue

@@ -47,7 +47,7 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
   });
 
   return (
-    <div className="grid grid-cols-2 gap-4 p-4">
+    <div className="grid grid-cols-2 gap-6 p-6">
       <div>
         <LabelValue
           label="Balance"

@@ -293,7 +293,7 @@ export const RentGpusForm: React.FunctionComponent = () => {
           onDeploymentDeposit={onDeploymentDeposit}
           denom={currentService?.placement?.pricing?.denom || sdlDenom}
           infoText={
-            <Alert className="mb-4" variant="default">
+            <Alert className="mb-6" variant="default">
               <p className="text-sm text-muted-foreground">
                 <DeploymentMinimumEscrowAlertText />
                 <LinkTo onClick={ev => handleDocClick(ev, "https://akash.network/docs/getting-started/intro-to-akash/bids-and-leases/#escrow-accounts")}>

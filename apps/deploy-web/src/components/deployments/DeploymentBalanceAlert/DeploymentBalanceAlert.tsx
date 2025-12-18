@@ -37,13 +37,12 @@ export const DeploymentBalanceAlert: FC<Props> = ({ disabled }) => {
         </div>
       }
       subLabel="An additional alert will be sent when the account balance has been increased above threshold value."
-      className="my-2"
     >
-      <div className="space-y-4 py-4">
-        <div className="space-y-3">
+      <div className="space-y-6">
+        <div className="space-y-2">
           <NotificationChannelSelect name="deploymentBalance.notificationChannelId" disabled={disabled} />
         </div>
-        <div className="space-y-3">
+        <div className="space-y-2">
           <FormField
             control={control}
             name="deploymentBalance.threshold"

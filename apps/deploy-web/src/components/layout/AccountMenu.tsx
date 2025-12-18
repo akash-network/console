@@ -42,12 +42,13 @@ export function AccountMenu() {
               <DropdownMenuTrigger asChild>
                 <Button
                   size="icon"
-                  variant="ghost"
+                  variant="outline"
+                  className="h-9 w-9 bg-accent"
                   onClick={() => (username ? router.push(urlService.userProfile(username)) : null)}
                   onMouseOver={() => setOpen(true)}
                 >
-                  <Avatar className="h-[2rem] w-[2rem]">
-                    <AvatarFallback>{username ? username[0].toUpperCase() : <User />}</AvatarFallback>
+                  <Avatar className="h-9 w-9">
+                    <AvatarFallback className="bg-transparent">{username ? username[0].toUpperCase() : <User />}</AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
@@ -106,7 +107,7 @@ export function AccountMenu() {
                     ) : (
                       <div className="w-full space-y-1">
                         <CustomDropdownLinkItem
-                          className="justify-center bg-primary p-2 !text-white hover:bg-primary/80 hover:text-white focus:bg-primary/80"
+                          className="justify-center bg-primary p-2 text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground focus:bg-primary/80 focus:text-primary-foreground"
                           onClick={() => router.push(urlService.newSignup())}
                         >
                           Sign up

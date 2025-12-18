@@ -48,10 +48,11 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
   const { data: gpuModels } = useGpuModels();
   const { enqueueSnackbar } = useSnackbar();
   const form = useForm<SdlBuilderFormValuesType>({
-    resolver: zodResolver(SdlBuilderFormValuesSchema)
+    resolver: zodResolver(SdlBuilderFormValuesSchema),
+    defaultValues: DEFAULT_SERVICES
   });
   const { handleSubmit, reset, control, trigger, watch, setValue } = form;
-  useFormPersist("sdl-builder-form", {
+  const { clear: clearFormStorage } = useFormPersist("sdl-builder-form", {
     watch,
     setValue,
     defaultValues: DEFAULT_SERVICES,
@@ -75,10 +76,14 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
       // Load user template
       loadTemplate(templateQueryId as string);
     } else if (!templateQueryId && templateMetadata) {
+      // Navigating back to plain SDL builder - clear storage and reset to defaults
       setTemplateMetadata(null);
+      setSdlBuilderSdl(null);
+      clearFormStorage();
+      setServiceCollapsed([]);
       reset();
     }
-  }, [templateQueryId, templateMetadata]);
+  }, [templateQueryId, templateMetadata, clearFormStorage, setSdlBuilderSdl, reset]);
 
   useEffect(() => {
     if (_services) {
@@ -195,6 +200,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
           templateMetadata={templateMetadata as ITemplate}
           setTemplateMetadata={setTemplateMetadata}
           services={_services as ServiceType[]}
+          clearFormStorage={clearFormStorage}
         />
       )}
 
@@ -235,23 +241,23 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
             </div>
           )}
 
-          <div className="flex items-center justify-between pt-4">
-            <div className="flex items-center">
-              <Button color="secondary" variant="default" type="submit">
+          <div className="flex items-center justify-between pt-6">
+            <div className="flex items-center space-x-6">
+              <Button color="secondary" variant="default" type="submit" size="sm">
                 Deploy
               </Button>
 
-              <Button color="secondary" variant="text" onClick={onPreviewSdlClick} className="ml-4" type="button">
+              <Button color="secondary" variant="text" onClick={onPreviewSdlClick} type="button" size="sm">
                 Preview
               </Button>
 
-              <Button color="secondary" variant="text" onClick={() => setIsImportingSdl(true)} className="ml-4" type="button">
+              <Button color="secondary" variant="text" onClick={() => setIsImportingSdl(true)} type="button" size="sm">
                 Import
               </Button>
 
               <Button
                 variant="text"
-                className="ml-4"
+                size="sm"
                 type="button"
                 onClick={() => {
                   analyticsService.track("reset_sdl", {
@@ -266,14 +272,14 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
               </Button>
 
               {isLoadingTemplate && (
-                <div className="ml-4">
+                <div>
                   <Spinner size="small" />
                 </div>
               )}
             </div>
 
             <div>
-              <Button color="secondary" variant="default" type="button" onClick={() => onSaveClick()}>
+              <Button color="secondary" variant="default" type="button" onClick={() => onSaveClick()} size="sm">
                 Save
               </Button>
             </div>
@@ -295,14 +301,14 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
           ))}
 
           {error && (
-            <Alert variant="destructive" className="mt-4">
+            <Alert variant="destructive" className="mt-6">
               {error}
             </Alert>
           )}
 
-          <div className="flex items-center justify-end pt-4">
+          <div className="flex items-center justify-end pt-6">
             <div>
-              <Button color="secondary" variant="default" onClick={serviceManager.add} type="button">
+              <Button color="secondary" variant="default" onClick={serviceManager.add} type="button" size="sm">
                 Add Service
               </Button>
             </div>

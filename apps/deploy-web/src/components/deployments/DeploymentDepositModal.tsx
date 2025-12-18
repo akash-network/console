@@ -157,65 +157,71 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
       enableCloseOnBackdropClick
       title={title}
     >
-      {services.length > 0 && (
-        <div className="mb-3 max-h-[300px] overflow-auto">
-          {services.map(service => {
-            return (
-              <Alert key={service.title} className="mb-1">
-                <div className="mb-2 break-all text-sm">
-                  <span className="font-bold">{service.title}</span>:{service.image}
-                </div>
-                <div className="flex items-center space-x-4 whitespace-nowrap">
-                  <LeaseSpecDetail type="cpu" className="flex-shrink-0" value={service.profile?.cpu} />
-                  {!!service.profile?.gpu && <LeaseSpecDetail type="gpu" className="flex-shrink-0" value={service.profile?.gpu} />}
-                  <LeaseSpecDetail type="ram" className="flex-shrink-0" value={`${service.profile?.ram} ${service.profile?.ramUnit}`} />
-                  <LeaseSpecDetail type="storage" className="flex-shrink-0" value={`${service.profile?.storage[0].size} ${service.profile?.storage[0].unit}`} />
-                </div>
-              </Alert>
-            );
-          })}
-        </div>
-      )}
-
-      <Form {...form}>
-        <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
-          {infoText}
-
-          <div className="w-full">
-            <FormField
-              control={control}
-              name="amount"
-              render={({ field }) => {
-                return (
-                  <FormInput
-                    {...field}
-                    type="number"
-                    label={
-                      <div className="mb-1 flex items-center justify-between">
-                        <span>Amount</span>
-                        <LinkTo onClick={() => onBalanceClick()} className="text-xs">
-                          Balance: {depositData?.balance} {depositData?.label}
-                        </LinkTo>
-                      </div>
-                    }
-                    autoFocus
-                    min={!disableMin ? depositData?.min : 0}
-                    step={0.000001}
-                    max={depositData?.max}
-                    startIcon={<div className="pl-2 text-xs">{depositData?.label}</div>}
-                  />
-                );
-              }}
-            />
+      <div className="space-y-6">
+        {services.length > 0 && (
+          <div className="max-h-[300px] space-y-4 overflow-auto">
+            {services.map(service => {
+              return (
+                <Alert key={service.title}>
+                  <div className="mb-2 break-all text-sm">
+                    <span className="font-bold">{service.title}</span>:{service.image}
+                  </div>
+                  <div className="flex items-center space-x-4 whitespace-nowrap">
+                    <LeaseSpecDetail type="cpu" className="flex-shrink-0" value={service.profile?.cpu} />
+                    {!!service.profile?.gpu && <LeaseSpecDetail type="gpu" className="flex-shrink-0" value={service.profile?.gpu} />}
+                    <LeaseSpecDetail type="ram" className="flex-shrink-0" value={`${service.profile?.ram} ${service.profile?.ramUnit}`} />
+                    <LeaseSpecDetail
+                      type="storage"
+                      className="flex-shrink-0"
+                      value={`${service.profile?.storage?.[0]?.size ?? "-"} ${service.profile?.storage?.[0]?.unit ?? ""}`}
+                    />
+                  </div>
+                </Alert>
+              );
+            })}
           </div>
+        )}
 
-          {error && (
-            <Alert variant="destructive" className="mt-4 text-sm">
-              {error}
-            </Alert>
-          )}
-        </form>
-      </Form>
+        <Form {...form}>
+          <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
+            {infoText}
+
+            <div className="w-full">
+              <FormField
+                control={control}
+                name="amount"
+                render={({ field }) => {
+                  return (
+                    <FormInput
+                      {...field}
+                      type="number"
+                      label={
+                        <div className="mb-1 flex items-center justify-between">
+                          <span>Amount</span>
+                          <LinkTo onClick={() => onBalanceClick()} className="text-xs">
+                            Balance: {depositData?.balance} {depositData?.label}
+                          </LinkTo>
+                        </div>
+                      }
+                      autoFocus
+                      min={!disableMin ? depositData?.min : 0}
+                      step={0.000001}
+                      max={depositData?.max}
+                      startIcon={<div className="pl-2 text-xs">{depositData?.label}</div>}
+                    />
+                  );
+                }}
+              />
+            </div>
+
+            {error && (
+              <Alert variant="destructive" className="mt-4 text-sm">
+                {error}
+              </Alert>
+            )}
+          </form>
+        </Form>
+      </div>
     </Popup>
   );
 };

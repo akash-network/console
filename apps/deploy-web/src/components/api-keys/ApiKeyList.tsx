@@ -63,7 +63,7 @@ export function ApiKeyList({ apiKeys, onDeleteApiKey, onDeleteClose, isDeleting,
             <h1 className="text-2xl font-bold">API Keys</h1>
           </div>
           <VerifiedPayingCustomerRequiredLink onClick={() => setIsCreateModalOpen(true)}>
-            <Button>Create Key</Button>
+            <Button size="sm">Create Key</Button>
           </VerifiedPayingCustomerRequiredLink>
         </div>
 

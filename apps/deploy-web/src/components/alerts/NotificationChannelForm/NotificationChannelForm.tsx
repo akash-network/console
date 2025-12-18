@@ -92,9 +92,9 @@ export const NotificationChannelForm: FC<NotificationChannelFormProps> = ({ onCa
   const cancel = useCallback(() => onCancel?.(), [onCancel]);
 
   return (
-    <div className="space-y-4 p-4">
+    <div className="space-y-6 p-6">
       <Form {...form}>
-        <form onSubmit={handleSubmit(submit)} className="space-y-4">
+        <form onSubmit={handleSubmit(submit)} className="space-y-6">
           <div className="space-y-3">
             <FormField
               control={control}
@@ -134,7 +134,7 @@ export const NotificationChannelForm: FC<NotificationChannelFormProps> = ({ onCa
 
           {error && <Alert variant="destructive">{error}</Alert>}
 
-          <div className="flex justify-end gap-2 pt-4">
+          <div className="flex justify-end gap-6">
             <LoadingButton data-testid="notification-channel-form-submit" disabled={isLoading || !hasChanges} loading={isLoading} type="submit">
               Save
             </LoadingButton>

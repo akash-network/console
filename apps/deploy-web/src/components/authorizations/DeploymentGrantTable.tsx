@@ -96,14 +96,14 @@ export const DeploymentGrantTable: React.FC<Props> = ({
               <LinkTo onClick={() => setSelectedGrants([])} className="text-xs">
                 Clear
               </LinkTo>
-              <Button onClick={() => setDeletingGrants(selectedGrants)} variant="destructive" size="sm" className="h-6 p-2 text-xs">
+              <Button onClick={() => setDeletingGrants(selectedGrants)} variant="outline" size="sm" className="h-6 p-2 text-xs">
                 Revoke selected ({selectedGrants.length})
               </Button>
             </div>
           )}
           {grants.length > 0 && selectedGrants.length === 0 && (
             <div className="flex items-center justify-end">
-              <Button onClick={() => setDeletingGrants(grants)} variant="destructive" size="sm" className="h-6 p-2 text-xs">
+              <Button onClick={() => setDeletingGrants(grants)} variant="outline" size="sm" className="h-6 p-2 text-xs">
                 Revoke all
               </Button>
             </div>

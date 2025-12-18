@@ -96,7 +96,7 @@ export default App;
 function AppRoot(props: Props & { children: React.ReactNode }) {
   const { queryClient } = useRootContainer();
   return (
-    <main className={cn("h-full bg-background font-sans tracking-wide antialiased", GeistSans.variable)}>
+    <main className={cn("h-full bg-background font-sans antialiased", GeistSans.variable)}>
       <PageHead pageSeo={props.pageProps.seo} />
 
       <RootContainerProvider>

@@ -31,10 +31,9 @@ export const DeploymentCloseAlert: FC<{ disabled?: boolean }> = ({ disabled }) =
           />
         </div>
       }
-      className="my-2"
     >
-      <div className="space-y-4 p-4">
-        <div className="space-y-3">
+      <div className="space-y-6">
+        <div className="space-y-2">
           <NotificationChannelSelect name="deploymentClosed.notificationChannelId" disabled={disabled} />
         </div>
       </div>

@@ -19,30 +19,23 @@ type Props = {
 export const LeaseListContainer: React.FunctionComponent<Props> = ({ owner }) => {
   const [provider, setProvider] = useState<Partial<ClientProviderDetailWithStatus> | null>(null);
   const [filteredLeases, setFilteredLeases] = useState<Array<LeaseDto> | null>(null);
+  const { data: providerDetail, isLoading: isLoadingProvider, refetch: getProviderDetail } = useProviderDetail(owner);
+  const { address } = useWallet();
+  const { data: leases, isFetching: isLoadingLeases, refetch: getLeases } = useAllLeases(address, { enabled: !!address });
   const {
-    data: providerDetail,
-    isLoading: isLoadingProvider,
-    refetch: getProviderDetail
-  } = useProviderDetail(owner, {
-    enabled: false,
-    retry: false
+    data: providerStatus,
+    isLoading: isLoadingStatus,
+    refetch: getProviderStatus
+  } = useProviderStatus(provider as ApiProviderList | null | undefined, {
+    enabled: !!provider?.hostUri
   });
+
   useEffect(() => {
     if (providerDetail) {
       setProvider(provider => (provider ? { ...provider, ...providerDetail } : providerDetail));
     }
   }, [providerDetail]);
 
-  const { address } = useWallet();
-  const { data: leases, isFetching: isLoadingLeases, refetch: getLeases } = useAllLeases(address, { enabled: false });
-  const {
-    data: providerStatus,
-    isLoading: isLoadingStatus,
-    refetch: getProviderStatus
-  } = useProviderStatus(provider as ApiProviderList, {
-    enabled: false,
-    retry: false
-  });
   useEffect(() => {
     if (providerStatus) {
       setProvider(provider => (provider ? { ...provider, ...providerStatus } : (providerStatus as ClientProviderDetailWithStatus)));
@@ -50,22 +43,19 @@ export const LeaseListContainer: React.FunctionComponent<Props> = ({ owner }) =>
   }, [providerStatus]);
 
   useEffect(() => {
-    refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
     if (leases) {
       const numberOfDeployments = leases?.filter(d => d.provider === owner).length || 0;
       const numberOfActiveLeases = leases?.filter(d => d.provider === owner && d.state === "active").length || 0;
 
-      setProvider({ ...provider, userLeases: numberOfDeployments, userActiveLeases: numberOfActiveLeases });
+      setProvider(prev => (prev ? { ...prev, userLeases: numberOfDeployments, userActiveLeases: numberOfActiveLeases } : null));
     }
-  }, [leases]);
+  }, [leases, owner]);
 
   const refresh = () => {
     getProviderDetail();
-    getLeases();
+    if (address) {
+      getLeases();
+    }
     getProviderStatus();
   };
 

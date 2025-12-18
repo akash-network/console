@@ -19,7 +19,7 @@ export const ProviderSpecs: React.FunctionComponent<Props> = ({ provider }) => {
 
   return (
     <Card>
-      <CardContent className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2">
+      <CardContent className="grid grid-cols-1 gap-4 pt-6 sm:grid-cols-2">
         <div>
           <LabelValue label="GPU" value={provider.hardwareGpuVendor || "Unknown"} />
           <LabelValue label="CPU" value={provider.hardwareCpu || "Unknown"} />

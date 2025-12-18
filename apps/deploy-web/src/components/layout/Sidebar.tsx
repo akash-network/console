@@ -302,20 +302,20 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
   const drawer = (
     <div
       style={{ width: isNavOpen ? DRAWER_WIDTH : CLOSED_DRAWER_WIDTH }}
-      className="box-border flex h-full flex-shrink-0 flex-col items-center justify-between overflow-y-auto overflow-x-hidden border-r-[1px] border-muted-foreground/20 bg-popover transition-[width] duration-300 ease-in-out md:h-[calc(100%-57px)] dark:bg-background"
+      className="box-border flex h-full flex-shrink-0 flex-col items-center justify-between overflow-y-auto overflow-x-hidden border-r-[1px] border-muted-foreground/20 bg-secondary transition-[width] duration-300 ease-in-out md:h-[calc(100%-57px)] dark:bg-card"
     >
       <div className={cn("flex w-full flex-col items-center justify-between", { ["p-2"]: isNavOpen, ["pb-2 pt-2"]: !isNavOpen })}>
         <Link
-          className={cn(buttonVariants({ variant: "default", size: isNavOpen ? "lg" : "icon" }), "h-[45px] w-full leading-4", {
-            ["h-[45px] w-[45px] min-w-0 pb-2 pt-2"]: !isNavOpen
+          className={cn(buttonVariants({ variant: "default", size: isNavOpen ? "lg" : "icon" }), "h-9 w-full leading-4", {
+            ["h-9 w-9 min-w-0 pb-2 pt-2"]: !isNavOpen
           })}
           href={UrlService.newDeployment()}
           onClick={onDeployClick}
           data-testid="sidebar-deploy-button"
           aria-disabled={settings.isBlockchainDown}
         >
+          <Rocket className={cn("rotate-45", { ["mr-2"]: isNavOpen })} fontSize="small" />
           {isNavOpen && "Deploy "}
-          <Rocket className={cn("rotate-45", { ["ml-4"]: isNavOpen })} fontSize="small" />
         </Link>
 
         {routeGroups.map((g, i) => (
@@ -349,7 +349,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
 
   return (
     <nav
-      className={cn("ease fixed z-[100] bg-header/95 md:flex-shrink-0", {
+      className={cn("ease fixed z-[100] bg-card md:flex-shrink-0", {
         ["md:w-[240px]"]: isNavOpen,
         ["md:w-[57px]"]: !isNavOpen
       })}
@@ -384,7 +384,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
         variant="permanent"
         PaperProps={{
           className: cn(
-            "border-none ease z-[1000] bg-header/95 transition-[width] duration-300 box-border overflow-hidden mt-[57px]",
+            "border-none ease z-[1000] bg-card transition-[width] duration-300 box-border overflow-hidden mt-[57px]",
             {
               ["md:w-[240px]"]: isNavOpen,
               ["md:w-[57px]"]: !isNavOpen

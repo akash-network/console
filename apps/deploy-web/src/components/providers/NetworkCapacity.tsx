@@ -39,16 +39,7 @@ export interface Props {
 }
 
 const NetworkCapacity: React.FunctionComponent<Props> = props => {
-  const {
-    activeCPU,
-    totalCPU,
-    activeGPU,
-    totalGPU,
-    activeMemory,
-    totalMemory,
-    activeStorage,
-    totalStorage
-  } = props;
+  const { activeCPU, totalCPU, activeGPU, totalGPU, activeMemory, totalMemory, activeStorage, totalStorage } = props;
   const activeMemoryBytes = activeMemory;
   const availableMemoryBytes = totalMemory - activeMemory;
   const activeStorageBytes = activeStorage;
@@ -214,7 +205,7 @@ const useData = (active: number, available: number): NetworkCapacityDatum[] => {
       id: "available",
       label: "Available",
       value: available,
-      color: resolvedTheme === "dark" ? tw.theme.colors.neutral[800] : tw.theme.colors.neutral[500]
+      color: resolvedTheme === "dark" ? tw.theme.colors.neutral[500] : tw.theme.colors.neutral[500]
     }
   ];
 };
@@ -239,7 +230,7 @@ function useStorageData(props: Props): NetworkCapacityDatum[] {
     {
       id: "available-emphemeral",
       label: "Available emphemeral",
-      color: resolvedTheme === "dark" ? tw.theme.colors.neutral[800] : tw.theme.colors.neutral[500],
+      color: resolvedTheme === "dark" ? tw.theme.colors.neutral[400] : tw.theme.colors.neutral[500],
       value: props.availableEphemeralStorage + props.pendingEphemeralStorage
     },
     {

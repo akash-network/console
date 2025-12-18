@@ -3,8 +3,6 @@ import { useEffect, useState } from "react";
 import {
   Button,
   buttonVariants,
-  Card,
-  CardContent,
   CheckboxWithLabel,
   CustomPagination,
   Input,
@@ -35,9 +33,9 @@ import walletStore from "@src/store/walletStore";
 import type { DeploymentDto, NamedDeploymentDto } from "@src/types/deployment";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { UrlService } from "@src/utils/urlUtils";
+import { NoDeploymentsState } from "../home/NoDeploymentsState";
 import Layout from "../layout/Layout";
 import { Title } from "../shared/Title";
-import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
 import { DeploymentListRow } from "./DeploymentListRow";
 
 export const DeploymentList: React.FunctionComponent = () => {
@@ -146,19 +144,19 @@ export const DeploymentList: React.FunctionComponent = () => {
     <Layout isLoading={isLoadingDeployments || isLoadingProviders} isUsingSettings isUsingWallet>
       <NextSeo title="Deployments" />
       {deployments && deployments.length > 0 && isWalletConnected && (
-        <div className="flex flex-wrap items-center pb-2">
+        <div className="flex flex-wrap items-center pb-6">
           <>
             <Title className="font-bold" subTitle>
               Deployments
             </Title>
 
-            <div className="ml-4">
+            <div className="ml-6">
               <Button aria-label="back" onClick={() => getDeployments()} size="icon" variant="ghost">
                 <Refresh />
               </Button>
             </div>
 
-            <div className="ml-8">
+            <div className="ml-6">
               <div className="flex items-center space-x-2">
                 <CheckboxWithLabel label="Active" checked={isFilteringActive} onCheckedChange={onIsFilteringActiveClick} />
               </div>
@@ -166,13 +164,13 @@ export const DeploymentList: React.FunctionComponent = () => {
 
             {selectedItemIds.length > 0 && (
               <>
-                <div className="md:ml-4">
-                  <Button onClick={onCloseSelectedDeployments} color="secondary">
+                <div className="md:ml-6">
+                  <Button onClick={onCloseSelectedDeployments} color="secondary" size="sm">
                     Close selected ({selectedItemIds.length})
                   </Button>
                 </div>
 
-                <div className="ml-4">
+                <div className="ml-6">
                   <LinkTo onClick={clearSelection}>Clear</LinkTo>
                 </div>
               </>
@@ -181,12 +179,12 @@ export const DeploymentList: React.FunctionComponent = () => {
             {(filteredDeployments?.length || 0) > 0 && (
               <Link
                 href={UrlService.newDeployment()}
-                className={cn("ml-auto", buttonVariants({ variant: "default", size: "sm" }))}
+                className={cn("ml-auto space-x-2", buttonVariants({ variant: "default", size: "sm" }))}
                 aria-disabled={settings.isBlockchainDown}
                 onClick={onDeployClick}
               >
-                Deploy
-                <Rocket className="ml-4 rotate-45 text-sm" />
+                <Rocket className="rotate-45 text-sm" />
+                <span className="whitespace-nowrap">Deploy</span>
               </Link>
             )}
           </>
@@ -194,7 +192,7 @@ export const DeploymentList: React.FunctionComponent = () => {
       )}
 
       {((filteredDeployments?.length || 0) > 0 || !!search) && (
-        <div className="flex items-center pb-4 pt-2">
+        <div className="flex items-center pb-6">
           <div className="flex-grow">
             <Input
               value={search}
@@ -215,34 +213,14 @@ export const DeploymentList: React.FunctionComponent = () => {
       )}
 
       {filteredDeployments?.length === 0 && !isLoadingDeployments && !search && (
-        <Card>
-          <CardContent>
-            <div className="p-16 text-center">
-              <h3 className="mb-2 text-xl font-bold">{deployments && deployments?.length > 0 ? "No active deployments." : "No deployments yet."}</h3>
-
-              {isSignedInWithTrial && !user && <p className="text-sm">If you are expecting to see some, you may need to sign-in or connect a wallet</p>}
-
-              {isWalletConnected ? (
-                <Link
-                  href={UrlService.newDeployment()}
-                  className={cn(buttonVariants({ variant: "default", size: "lg" }), "mt-4")}
-                  onClick={onDeployClick}
-                  aria-disabled={settings.isBlockchainDown}
-                >
-                  Deploy
-                  <Rocket className="ml-4 rotate-45 text-sm" />
-                </Link>
-              ) : (
-                <div className="mt-8 flex items-center justify-center space-x-2">
-                  <ConnectWalletButton />
-                  <Link className={cn(buttonVariants({ variant: "outline" }))} href={UrlService.newLogin()} passHref prefetch={false}>
-                    Sign in
-                  </Link>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        <NoDeploymentsState
+          onDeployClick={onDeployClick}
+          hasDeployments={Boolean(deployments && deployments.length > 0)}
+          isWalletConnected={isWalletConnected}
+          isSignedInWithTrial={isSignedInWithTrial}
+          hasUser={Boolean(user)}
+          showTemplatesButton
+        />
       )}
 
       {(!filteredDeployments || filteredDeployments?.length === 0) && isLoadingDeployments && !search && (
@@ -253,7 +231,7 @@ export const DeploymentList: React.FunctionComponent = () => {
 
       <div>
         {orderedDeployments.length > 0 && (
-          <div className="flex flex-wrap items-center justify-between pb-4">
+          <div className="flex flex-wrap items-center justify-between pb-6">
             <span className="text-xs">
               You have <strong>{orderedDeployments.length}</strong>
               {isFilteringActive ? " active" : ""} deployments
@@ -300,7 +278,7 @@ export const DeploymentList: React.FunctionComponent = () => {
       </div>
 
       {search && currentPageDeployments.length === 0 && (
-        <div className="py-4">
+        <div className="py-6">
           <p>No deployment found.</p>
         </div>
       )}

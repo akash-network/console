@@ -30,9 +30,9 @@ export const UserProfile: React.FunctionComponent<Props> = ({ username, user }) 
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-4">
           {!isLoadingTemplates && userTemplates?.length === 0 && (
-            <div className="p-4">
+            <div className="p-6">
               <p className="text-sm text-muted-foreground">No public templates.</p>
 
               {username === _user?.username && (
