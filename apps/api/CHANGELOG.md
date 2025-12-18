@@ -1,5 +1,12 @@
 
 
+## [3.15.2](https://github.com/akash-network/console/compare/console-api/v3.15.1...console-api/v3.15.2) (2025-12-18)
+
+
+### Bug Fixes
+
+* **deployment:** use targetHeight for deployment filtering in cost calculation  ([5ef1389](https://github.com/akash-network/console/commit/5ef1389710ffdeb644504c1e84024c0c4231bc5c)), closes [#1779](https://github.com/akash-network/console/issues/1779)
+
 ## [3.15.1](https://github.com/akash-network/console/compare/console-api/v3.15.0...console-api/v3.15.1) (2025-12-18)
 
 
