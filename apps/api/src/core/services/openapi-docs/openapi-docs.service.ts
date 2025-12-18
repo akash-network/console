@@ -22,7 +22,7 @@ export class OpenApiDocsService {
     this.#serverOrigin = coreConfig.SERVER_ORIGIN;
   }
 
-  async generateDocs(handlers: OpenApiHonoHandler[]) {
+  async generateDocs(handlers: OpenApiHonoHandler[], options: { scope: string }) {
     const version = "v1";
     const docs = {
       openapi: "3.0.0",
@@ -71,27 +71,29 @@ export class OpenApiDocsService {
       }
     }
 
-    const externalDocs = await this.#loadExternalNotificationsSpec();
-    if (externalDocs?.paths) {
-      const { filteredPaths, usedSchemaRefs } = this.#filterPrivateRoutes(externalDocs.paths);
-      Object.assign(docs.paths, filteredPaths);
+    if (options.scope === "full") {
+      const externalDocs = await this.#loadExternalNotificationsSpec();
+      if (externalDocs?.paths) {
+        const { filteredPaths, usedSchemaRefs } = this.#filterPrivateRoutes(externalDocs.paths);
+        Object.assign(docs.paths, filteredPaths);
 
-      if (externalDocs?.components?.schemas) {
-        const filteredSchemas = this.#filterSchemasByReferences(externalDocs.components.schemas, usedSchemaRefs);
+        if (externalDocs?.components?.schemas) {
+          const filteredSchemas = this.#filterSchemasByReferences(externalDocs.components.schemas, usedSchemaRefs);
 
-        docs.components.schemas = {
-          ...docs.components.schemas,
-          ...filteredSchemas
-        };
-        docs.components.securitySchemes = {
-          ...docs.components.securitySchemes,
-          ...(externalDocs.components.securitySchemes || {})
-        };
-      } else if (externalDocs?.components) {
-        docs.components.securitySchemes = {
-          ...docs.components.securitySchemes,
-          ...(externalDocs.components.securitySchemes || {})
-        };
+          docs.components.schemas = {
+            ...docs.components.schemas,
+            ...filteredSchemas
+          };
+          docs.components.securitySchemes = {
+            ...docs.components.securitySchemes,
+            ...(externalDocs.components.securitySchemes || {})
+          };
+        } else if (externalDocs?.components) {
+          docs.components.securitySchemes = {
+            ...docs.components.securitySchemes,
+            ...(externalDocs.components.securitySchemes || {})
+          };
+        }
       }
     }
 

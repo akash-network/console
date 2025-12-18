@@ -6,7 +6,7 @@ describe("API Docs", () => {
       jest.useFakeTimers();
       jest.setSystemTime(new Date("2025-07-03T12:00:00.000Z"));
 
-      const response = await app.request(`/v1/doc`);
+      const response = await app.request(`/v1/doc?scope=console`);
 
       expect(response.status).toBe(200);
       const data = await response.json();
