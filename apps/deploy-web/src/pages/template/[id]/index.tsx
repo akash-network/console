@@ -1,7 +1,7 @@
-import { getSession } from "@auth0/nextjs-auth0";
 import { z } from "zod";
 
 import { UserTemplate } from "@src/components/templates/UserTemplate";
+import { getSession } from "@src/lib/auth0";
 import { defineServerSideProps } from "@src/lib/nextjs/defineServerSideProps/defineServerSideProps";
 import type { ITemplate } from "@src/types";
 

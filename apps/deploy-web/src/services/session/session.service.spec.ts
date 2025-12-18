@@ -1,8 +1,8 @@
 import type { HttpClient } from "@akashnetwork/http-sdk";
-import { Session } from "@auth0/nextjs-auth0";
 import { mock, type MockProxy } from "jest-mock-extended";
 import type { Result } from "ts-results";
 
+import { Session } from "@src/lib/auth0";
 import type { UserSettings } from "@src/types/user";
 import { type OauthConfig, SessionService } from "./session.service";
 
@@ -169,7 +169,7 @@ describe(SessionService.name, () => {
     it("returns error when signup fails for other reasons", async () => {
       const { service, externalHttpClient, consoleApiHttpClient, config } = setup();
 
-      externalHttpClient.post.mockResolvedValueOnce({
+      externalHttpClient.post.mockResolvedValue({
         status: 409,
         data: {
           description: "User already exists"
@@ -183,11 +183,11 @@ describe(SessionService.name, () => {
       const error = expectErr(result);
       expect(error).toEqual(
         expect.objectContaining({
-          message: "User already exists",
+          message: "Such user already exists but credentials are invalid",
           code: "user_exists"
         })
       );
-      expect(externalHttpClient.post).toHaveBeenCalledTimes(1);
+      expect(externalHttpClient.post).toHaveBeenCalledTimes(2);
       expect(externalHttpClient.post).toHaveBeenCalledWith(
         `${new URL(config.ISSUER_BASE_URL).origin}/dbconnections/signup`,
         {
@@ -217,7 +217,8 @@ describe(SessionService.name, () => {
       const idToken = createIdToken(tokenPayload);
       const signupResponse = {
         status: 200,
-        data: {}
+        data: {},
+        headers: {}
       };
       const tokenResponse = {
         status: 200,
@@ -228,11 +229,13 @@ describe(SessionService.name, () => {
           scope: "openid profile email offline_access",
           expires_in: 3_600,
           token_type: "Bearer"
-        }
+        },
+        headers: {}
       };
       const userInfoResponse = {
         status: 200,
-        data: {}
+        data: {},
+        headers: {}
       };
       const createdUser: UserSettings = {
         username: "registered-user",

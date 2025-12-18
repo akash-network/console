@@ -1,12 +1,12 @@
 // pages/api/auth/[...auth0].js
-import type { Session } from "@auth0/nextjs-auth0";
-import { AccessTokenError, AccessTokenErrorCode, ProfileHandlerError } from "@auth0/nextjs-auth0";
-import { handleAuth, handleCallback, handleLogin, handleLogout, handleProfile } from "@auth0/nextjs-auth0";
 import type { AxiosError } from "axios";
 import { isAxiosError } from "axios";
 import { once } from "lodash";
 import type { NextApiRequest, NextApiResponse } from "next";
 
+import type { Session } from "@src/lib/auth0";
+import { AccessTokenError, AccessTokenErrorCode, ProfileHandlerError } from "@src/lib/auth0";
+import { handleAuth, handleCallback, handleLogin, handleLogout, handleProfile } from "@src/lib/auth0";
 import { defineApiHandler } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
 import type { AppServices } from "@src/services/app-di-container/server-di-container.service";
 import { rewriteLocalRedirect } from "@src/services/auth/auth/rewrite-local-redirect";
