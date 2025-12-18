@@ -74,7 +74,7 @@ const nextConfig = {
     if (options.isServer) {
       // see ./src/lib/auth0/setSession/setSession.ts for more details
       config.resolve.alias["@auth0/nextjs-auth0/session"] = path.join(require.resolve("@auth0/nextjs-auth0"), "..", "session", "index.js");
-      config.resolve.alias["@auth0/nextjs-auth0/update-session"] = path.join(require.resolve("@auth0/nextjs-auth0"), "..", "session", "update-session.js");
+      config.resolve.alias["@auth0/nextjs-auth0/config"] = path.join(require.resolve("@auth0/nextjs-auth0"), "..", "config.js");
     }
 
     return config;
