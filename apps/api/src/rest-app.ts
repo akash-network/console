@@ -6,6 +6,7 @@ import { otel } from "@hono/otel";
 import { swaggerUI } from "@hono/swagger-ui";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import assert from "http-assert";
 import { container } from "tsyringe";
 
 import packageJson from "../package.json";
@@ -176,8 +177,10 @@ appHono.get("/status", c => {
   return c.json({ version, memory });
 });
 
-appHono.get("/v1/doc", c => {
-  return c.json(container.resolve(OpenApiDocsService).generateDocs(openApiHonoHandlers));
+appHono.get("/v1/doc", async c => {
+  const scope = c.req.query("scope") || "full";
+  assert(["full", "console"].includes(scope), 403, '"scope" query is invalid. Valid options: "full", "api"');
+  return c.json(await container.resolve(OpenApiDocsService).generateDocs(openApiHonoHandlers, { scope }));
 });
 appHono.get("/v1/swagger", swaggerUI({ url: "/v1/doc" }));
 
