@@ -34,16 +34,18 @@ export const createAppRootContainer = (config: ServicesConfig) => {
   const apiConfig = { baseURL: config.BASE_API_MAINNET_URL, adapter: "fetch" };
   const container = createContainer({
     getTraceData: () => getTraceData,
-    applyAxiosInterceptors: (): typeof withInterceptors => {
-      const otelInterceptor = (config: InternalAxiosRequestConfig) => {
+    otelInterceptor: (): ((config: InternalAxiosRequestConfig) => InternalAxiosRequestConfig) => {
+      return (reqConfig: InternalAxiosRequestConfig) => {
         const traceData = container.getTraceData();
-        if (traceData?.["sentry-trace"]) config.headers.set("Traceparent", traceData["sentry-trace"]);
-        if (traceData?.baggage) config.headers.set("Baggage", traceData.baggage);
-        return config;
+        if (traceData?.["sentry-trace"]) reqConfig.headers.set("Traceparent", traceData["sentry-trace"]);
+        if (traceData?.baggage) reqConfig.headers.set("Baggage", traceData.baggage);
+        return reqConfig;
       };
+    },
+    applyAxiosInterceptors: (): typeof withInterceptors => {
       return (axiosInstance, interceptors?) =>
         withInterceptors(axiosInstance, {
-          request: [config.globalRequestMiddleware, otelInterceptor, ...(interceptors?.request || [])],
+          request: [config.globalRequestMiddleware, container.otelInterceptor, ...(interceptors?.request || [])],
           response: [...(interceptors?.response || [])]
         });
     },
@@ -107,12 +109,20 @@ export const createAppRootContainer = (config: ServicesConfig) => {
         request: [withUserToken]
       }),
     externalApiHttpClient: () =>
-      container.createAxios({
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json"
-        }
-      }),
+      // Note: Do NOT use container.createAxios() here - it applies globalRequestMiddleware
+      // which forwards cf-connecting-ip/x-forwarded-for headers that cause Cloudflare conflicts
+      // when making requests to external services like Auth0
+      withInterceptors(
+        createHttpClient({
+          adapter: "fetch",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "User-Agent": "AkashConsole/1.0 (https://console.akash.network)"
+          }
+        }),
+        { request: [container.otelInterceptor] }
+      ),
     createAxios:
       () =>
       (options?: CreateAxiosDefaults): AxiosInstance =>
