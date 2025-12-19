@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback } from "react";
 import type { components } from "@akashnetwork/react-query-sdk/notifications";
 import { NavArrowLeft } from "iconoir-react";
 import Link from "next/link";
@@ -19,6 +19,10 @@ type Props = {
 export const EditNotificationChannelPage: React.FunctionComponent<Props> = ({ notificationChannel }: Props) => {
   const goBack = useBackNav(UrlService.notificationChannels());
   const navGuard = useNavigationGuard();
+  const saveNavStateAndGoBack = useCallback(() => {
+    navGuard.toggle({ hasChanges: false });
+    goBack();
+  }, [goBack, navGuard]);
 
   return (
     <Layout containerClassName="flex h-full flex-col">
@@ -29,13 +33,7 @@ export const EditNotificationChannelPage: React.FunctionComponent<Props> = ({ no
         </Link>
         <Title>Edit Notification Channel</Title>
       </div>
-      <NotificationChannelEditContainer
-        id={notificationChannel.id}
-        onEditSuccess={() => {
-          navGuard.toggle({ hasChanges: false });
-          goBack();
-        }}
-      >
+      <NotificationChannelEditContainer id={notificationChannel.id} onEditSuccess={saveNavStateAndGoBack}>
         {props => (
           <NotificationChannelForm
             initialValues={{
