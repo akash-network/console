@@ -36,6 +36,10 @@ export const createAppRootContainer = (config: ServicesConfig) => {
     getTraceData: () => getTraceData,
     applyAxiosInterceptors: (): typeof withInterceptors => {
       const otelInterceptor = (config: InternalAxiosRequestConfig) => {
+        if (typeof window !== "undefined" && getRequestOrigin(config) !== window.location.origin) {
+          // skip OTEL headers for cross-origin requests in browser because it may fail due to CORS policy
+          return config;
+        }
         const traceData = container.getTraceData();
         if (traceData?.["sentry-trace"]) config.headers.set("Traceparent", traceData["sentry-trace"]);
         if (traceData?.baggage) config.headers.set("Baggage", traceData.baggage);
@@ -179,4 +183,15 @@ type Interceptor<T> = (value: T) => T | Promise<T>;
 interface Interceptors {
   request?: Array<Interceptor<InternalAxiosRequestConfig> | undefined>;
   response?: Array<Interceptor<AxiosResponse> | undefined>;
+}
+
+function getRequestOrigin(config: InternalAxiosRequestConfig) {
+  if (config.url?.startsWith("http")) return new URL(config.url).origin;
+
+  let baseUrl = config.baseURL ?? "";
+  if (baseUrl.endsWith("/")) baseUrl = baseUrl.slice(0, -1);
+  let url = config.url ?? "";
+  if (!url.startsWith("/")) url = `/${url}`;
+  const fullUrl = baseUrl + url;
+  return fullUrl.startsWith("http") ? new URL(fullUrl).origin : window.location.origin;
 }

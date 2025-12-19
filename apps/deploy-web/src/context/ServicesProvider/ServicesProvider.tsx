@@ -75,7 +75,7 @@ function createAppContainer<T extends Factories>(settingsState: SettingsContextT
               });
             return inflightPingRequest.then(result => {
               if (!result.isBlockchainDown) {
-                // if blockchain is available, then we have an issue wit some endpoint
+                // if blockchain is available, then we have an issue with some endpoint
                 // and want the original request to fail and NOT fallback to fallbackChainApiHttpClient
                 return Promise.reject(error);
               }
