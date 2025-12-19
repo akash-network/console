@@ -1,11 +1,11 @@
 import type { LoggerService } from "@akashnetwork/logging";
-import type { Session } from "@auth0/nextjs-auth0";
 import { AxiosError } from "axios";
 import { mock } from "jest-mock-extended";
 import type { GetServerSidePropsContext, GetServerSidePropsResult } from "next";
 import type { z } from "zod";
 import { z as zod, ZodError } from "zod";
 
+import type { Session } from "@src/lib/auth0";
 import { services } from "@src/services/app-di-container/server-di-container.service";
 import { requestExecutionContext } from "../requestExecutionContext";
 import type { AppTypedContext } from "./defineServerSideProps";

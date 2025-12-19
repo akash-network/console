@@ -75,10 +75,13 @@ describe(LogCollectorControl.name, () => {
       form.setValue("services.0.title", "new-title");
     });
 
-    await waitFor(async () => {
-      const selector = form.getValues("services.1.env")?.find(env => env.key === "POD_LABEL_SELECTOR");
-      expect(selector?.value).toBe('"akash.network/manifest-service=new-title"');
-    });
+    await waitFor(
+      async () => {
+        const selector = form.getValues("services.1.env")?.find(env => env.key === "POD_LABEL_SELECTOR");
+        expect(selector?.value).toBe('"akash.network/manifest-service=new-title"');
+      },
+      { timeout: 1000 }
+    );
   });
 
   it("updates log-collector placement when target service placement is changed", async () => {

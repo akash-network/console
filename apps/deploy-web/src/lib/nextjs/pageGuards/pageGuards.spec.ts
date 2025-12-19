@@ -1,8 +1,8 @@
 import type { LoggerService } from "@akashnetwork/logging";
-import type { Session } from "@auth0/nextjs-auth0";
 import { faker } from "@faker-js/faker";
 import { mock } from "jest-mock-extended";
 
+import type { Session } from "@src/lib/auth0";
 import type { FeatureFlagService } from "@src/services/feature-flag/feature-flag.service";
 import { UrlService } from "@src/utils/urlUtils";
 import type { AppTypedContext } from "../defineServerSideProps/defineServerSideProps";

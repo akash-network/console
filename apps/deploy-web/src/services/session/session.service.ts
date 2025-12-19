@@ -1,9 +1,9 @@
 import type { HttpClient } from "@akashnetwork/http-sdk";
-import { Session } from "@auth0/nextjs-auth0";
 import type { AxiosResponse } from "axios";
 import type { Result } from "ts-results";
 import { Err, Ok } from "ts-results";
 
+import { Session } from "@src/lib/auth0";
 import type { UserSettings } from "@src/types/user";
 import { fromBase64Url } from "../../utils/encoding";
 
@@ -121,24 +121,17 @@ export class SessionService {
       }
     );
 
-    if (signupResponse.status >= 400) {
-      if (signupResponse.data.code === "invalid_password" && signupResponse.data.policy) {
-        return Err({
-          message: signupResponse.data.message || signupResponse.data.description || "Password violates policy",
-          code: "invalid_password",
-          policy: signupResponse.data.policy,
-          cause: extractResponseDetails(signupResponse)
-        });
-      }
+    if (signupResponse.status === 400 && signupResponse.data.code === "invalid_password" && signupResponse.data.policy) {
+      return Err({
+        message: signupResponse.data.message || signupResponse.data.description || "Password violates policy",
+        code: "invalid_password",
+        policy: signupResponse.data.policy,
+        cause: extractResponseDetails(signupResponse)
+      });
+    }
 
-      if (signupResponse.status === 409 || (signupResponse.status === 400 && signupResponse.data.code === "invalid_signup")) {
-        return Err({
-          message: signupResponse.data.message || signupResponse.data.description || "Such user already exists",
-          code: "user_exists",
-          cause: extractResponseDetails(signupResponse)
-        });
-      }
-
+    const isUserExists = signupResponse.status === 409 || (signupResponse.status === 400 && signupResponse.data.code === "invalid_signup");
+    if (signupResponse.status >= 400 && !isUserExists) {
       return Err({
         message: signupResponse.data.message || signupResponse.data.description || "Signup failed",
         code: "signup_failed",
@@ -156,6 +149,14 @@ export class SessionService {
       const userSettings = await this.createLocalUser(result.val);
       session.user = { ...session.user, ...userSettings };
       return Ok(session);
+    }
+
+    if (isUserExists) {
+      return Err({
+        message: "Such user already exists but credentials are invalid",
+        code: "user_exists",
+        cause: extractResponseDetails(signupResponse)
+      });
     }
 
     return Err({

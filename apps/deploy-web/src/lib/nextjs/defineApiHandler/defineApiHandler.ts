@@ -1,8 +1,8 @@
-import type { Session } from "@auth0/nextjs-auth0";
 import { wrapApiHandlerWithSentry } from "@sentry/nextjs";
 import type { NextApiHandler, NextApiRequest, NextApiResponse } from "next";
 import type { z } from "zod";
 
+import type { Session } from "@src/lib/auth0";
 import { services } from "@src/services/app-di-container/server-di-container.service";
 import { createRequestExecutionContext, requestExecutionContext } from "../requestExecutionContext";
 

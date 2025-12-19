@@ -5,7 +5,6 @@ import type { NextRouter } from "next/router";
 import { useRouter } from "next/router";
 
 import { UAKT_DENOM, USDC_IBC_DENOMS } from "@src/config/denom.config";
-import { withInterceptors } from "@src/services/app-di-container/app-di-container";
 import { services as rootContainer } from "@src/services/app-di-container/browser-di-container";
 import type { DIContainer, Factories } from "@src/services/container/createContainer";
 import { createChildContainer } from "@src/services/container/createContainer";
@@ -52,7 +51,7 @@ function createAppContainer<T extends Factories>(settingsState: SettingsContextT
       // keep track of the blockchain down status to make it instant
       // settings from useSettings hook is reactive and updated with a delay, according to react rendering cycle
       let isBlockchainDown = settingsState.settings?.isBlockchainDown;
-      const chainApiHttpClient: FallbackableHttpClient = withInterceptors(
+      const chainApiHttpClient: FallbackableHttpClient = rootContainer.applyAxiosInterceptors(
         createFallbackableHttpClient(rootContainer.createAxios, rootContainer.fallbackChainApiHttpClient, {
           baseURL: settingsState.settings?.apiEndpoint,
           shouldFallback: () => isBlockchainDown || !!settingsState.settings?.isBlockchainDown,

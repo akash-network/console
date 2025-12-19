@@ -1,10 +1,10 @@
 import { createAPIClient } from "@akashnetwork/react-query-sdk/notifications";
-import { getSession } from "@auth0/nextjs-auth0";
 import { requestFn } from "@openapi-qraft/react";
 import * as unleashModule from "@unleash/nextjs";
 import httpProxy from "http-proxy";
 
 import { serverEnvConfig } from "@src/config/server-env.config";
+import { getSession } from "@src/lib/auth0";
 import { ApiUrlService } from "../api-url/api-url.service";
 import { clientIpForwardingInterceptor } from "../client-ip-forwarding/client-ip-forwarding.interceptor";
 import { createChildContainer } from "../container/createContainer";

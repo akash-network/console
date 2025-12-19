@@ -4,12 +4,6 @@ import * as Sentry from "@sentry/nextjs";
 const logger = new LoggerService({ name: `instrumentation-${process.env.NEXT_RUNTIME}` });
 
 export async function register() {
-  if (process.env.NEXT_RUNTIME === "nodejs") {
-    // Ensure setSession module is loaded early to patch Auth0's updateSessionFactory
-    // before Auth0 SDK initializes. This captures the SessionCache instance.
-    // See ./src/lib/auth0/setSession/setSession.ts for details.
-    await import("./lib/auth0/setSession/setSession");
-  }
   // Note: if you want to override the automatic release value, do not set a
   // `release` value here - use the environment variable `SENTRY_RELEASE`, so
   // that it will also get attached to your source maps

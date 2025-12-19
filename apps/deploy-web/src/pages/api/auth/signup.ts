@@ -1,5 +1,4 @@
-import { handleLogin } from "@auth0/nextjs-auth0";
-
+import { handleLogin } from "@src/lib/auth0";
 import { defineApiHandler } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
 import { rewriteLocalRedirect } from "@src/services/auth/auth/rewrite-local-redirect";
 import type { SeverityLevel } from "@src/services/error-handler/error-handler.service";

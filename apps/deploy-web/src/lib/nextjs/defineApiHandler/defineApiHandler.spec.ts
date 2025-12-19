@@ -1,9 +1,9 @@
 import type { LoggerService } from "@akashnetwork/logging";
-import type { Session } from "@auth0/nextjs-auth0";
 import { mock } from "jest-mock-extended";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { z } from "zod";
 
+import type { Session } from "@src/lib/auth0";
 import { services } from "@src/services/app-di-container/server-di-container.service";
 import type { NextApiRequestWithServices } from "./defineApiHandler";
 import { defineApiHandler, REQ_SERVICES_KEY } from "./defineApiHandler";

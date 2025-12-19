@@ -1,4 +1,5 @@
 import { faker } from "@faker-js/faker";
+import { format } from "date-fns";
 
 import type { UsageHistory, UsageHistoryStats } from "@src/types";
 
@@ -15,7 +16,7 @@ export const buildUsageHistoryItem = ({
   totalUsdSpent = faker.number.int({ min: 0, max: 1000 })
 }: UsageHistoryOverride = {}): UsageHistory[number] => {
   return {
-    date: date instanceof Date ? date.toISOString().split("T")[0] : date,
+    date: date instanceof Date ? format(date, "yyyy-MM-dd") : date,
     activeDeployments,
     dailyAktSpent,
     totalAktSpent,

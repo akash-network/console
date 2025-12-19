@@ -13,8 +13,8 @@
  * 4. `setSession` implementation which is basically an adoption of `updateSession` function
  */
 
-import type { Session, SessionCache } from "@auth0/nextjs-auth0";
-import { getSession as auth0GetSession } from "@auth0/nextjs-auth0";
+import type { Session, SessionCache } from "@auth0/nextjs-auth0"; // eslint-disable-line no-restricted-imports
+import { getSession as auth0GetSession } from "@auth0/nextjs-auth0"; // eslint-disable-line no-restricted-imports
 // @ts-expect-error - access to internal function via webpack alias in next.config.js#72
 import * as sessionModule from "@auth0/nextjs-auth0/session";
 // @ts-expect-error - access to internal function via webpack alias in next.config.js#72
@@ -24,7 +24,6 @@ import type { NextApiRequest, NextApiResponse } from "next";
 const originalUpdateSessionFactory = updateSessionModule.default;
 let globalSessionCache: SessionCache | undefined;
 updateSessionModule.default = (sessionCache: SessionCache) => {
-  console.log("updateSessionModule", sessionCache);
   globalSessionCache = sessionCache;
   return originalUpdateSessionFactory(sessionCache);
 };
@@ -51,8 +50,6 @@ export async function setSession(reqOrSession: NextApiRequest | Session, res: Ne
   await ensureSessionCacheInitialized(req, res);
 
   const sessionCache = globalSessionCache;
-
-  console.log("sessionCache", sessionCache);
 
   if (!sessionCache) {
     throw new Error("Cannot create session: SessionCache cache was not automatically discovered");
