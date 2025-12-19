@@ -1,5 +1,12 @@
 
 
+## [3.15.5](https://github.com/akash-network/console/compare/console-web/v3.15.4...console-web/v3.15.5) (2025-12-19)
+
+
+### Bug Fixes
+
+* ensure we do not send otel to 3rd party origins in browser ([#2393](https://github.com/akash-network/console/issues/2393)) ([9703dec](https://github.com/akash-network/console/commit/9703decb42a41229be9fabb927ae934ee510df74))
+
 ## [3.15.4](https://github.com/akash-network/console/compare/console-web/v3.15.3...console-web/v3.15.4) (2025-12-19)
 
 
