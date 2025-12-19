@@ -137,11 +137,10 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   useEffect(() => {
     if (selectedWalletType === "managed" && selectedNetworkId !== appConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID) {
-      const url = new URL(window.location.href);
-      url.searchParams.set("network", appConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID);
-      window.location.href = url.toString();
+      setSelectedNetworkId(appConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID);
+      window.location.href = UrlService.home();
     }
-  }, [selectedWalletType, selectedNetworkId, appConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID]);
+  }, [selectedWalletType, selectedNetworkId, appConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID, setSelectedNetworkId]);
 
   function switchWalletType() {
     if (selectedWalletType === "custodial" && !managedWallet) {
