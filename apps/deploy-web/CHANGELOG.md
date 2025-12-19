@@ -1,5 +1,12 @@
 
 
+## [3.15.4](https://github.com/akash-network/console/compare/console-web/v3.15.3...console-web/v3.15.4) (2025-12-19)
+
+
+### Bug Fixes
+
+* ensure externalHttpClient doesnt propagate user IP header ([#2390](https://github.com/akash-network/console/issues/2390)) ([2b87f00](https://github.com/akash-network/console/commit/2b87f003d8e1a2eecbb75b22e423491a09e67877))
+
 ## [3.15.3](https://github.com/akash-network/console/compare/console-web/v3.15.2...console-web/v3.15.3) (2025-12-18)
 
 
