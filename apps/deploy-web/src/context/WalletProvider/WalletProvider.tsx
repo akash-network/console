@@ -13,7 +13,6 @@ import { useSnackbar } from "notistack";
 
 import type { LoadingState } from "@src/components/layout/TransactionModal";
 import { TransactionModal } from "@src/components/layout/TransactionModal";
-import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useAllowance } from "@src/hooks/useAllowance";
 import { useManagedWallet } from "@src/hooks/useManagedWallet";
 import { useUser } from "@src/hooks/useUser";
@@ -75,7 +74,7 @@ const MESSAGE_STATES: Record<string, LoadingState> = {
  * WalletProvider is a client only component
  */
 export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { analyticsService, tx: txHttpService } = useServices();
+  const { analyticsService, tx: txHttpService, appConfig } = useServices();
 
   const [, setSettingsId] = useAtom(settingsIdAtom);
   const [isWalletLoaded, setIsWalletLoaded] = useState<boolean>(true);
@@ -136,6 +135,14 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setSettingsId(walletAddress || null);
   }, [walletAddress]);
 
+  useEffect(() => {
+    if (selectedWalletType === "managed" && selectedNetworkId !== appConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID) {
+      const url = new URL(window.location.href);
+      url.searchParams.set("network", appConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID);
+      window.location.href = url.toString();
+    }
+  }, [selectedWalletType, selectedNetworkId, appConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID]);
+
   function switchWalletType() {
     if (selectedWalletType === "custodial" && !managedWallet) {
       userWallet.disconnect();
@@ -180,9 +187,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   async function loadWallet(): Promise<void> {
     const networkId =
-      isManaged && selectedNetworkId !== browserEnvConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID
-        ? browserEnvConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID
-        : undefined;
+      isManaged && selectedNetworkId !== appConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID ? appConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID : undefined;
     let currentWallets = getStorageWallets(networkId);
 
     if (!currentWallets.some(x => x.address === walletAddress)) {
@@ -363,8 +368,9 @@ export function useIsManagedWalletUser() {
 }
 
 const TransactionSnackbarContent: React.FC<{ snackMessage: string; transactionHash: string }> = ({ snackMessage, transactionHash }) => {
+  const { appConfig } = useServices();
   const selectedNetworkId = networkStore.useSelectedNetworkId();
-  const txUrl = transactionHash && `${browserEnvConfig.NEXT_PUBLIC_STATS_APP_URL}/transactions/${transactionHash}?network=${selectedNetworkId}`;
+  const txUrl = transactionHash && `${appConfig.NEXT_PUBLIC_STATS_APP_URL}/transactions/${transactionHash}?network=${selectedNetworkId}`;
 
   return (
     <>
