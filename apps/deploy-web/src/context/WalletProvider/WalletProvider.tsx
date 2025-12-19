@@ -21,7 +21,6 @@ import { useBalances } from "@src/queries/useBalancesQuery";
 import networkStore from "@src/store/networkStore";
 import walletStore from "@src/store/walletStore";
 import type { AppError } from "@src/types";
-import { UrlService } from "@src/utils/urlUtils";
 import { getStorageWallets, updateStorageManagedWallet, updateStorageWallets } from "@src/utils/walletUtils";
 import { useSelectedChain } from "../CustomChainProvider";
 import { useServices } from "../ServicesProvider";
@@ -74,7 +73,7 @@ const MESSAGE_STATES: Record<string, LoadingState> = {
  * WalletProvider is a client only component
  */
 export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { analyticsService, tx: txHttpService, appConfig } = useServices();
+  const { analyticsService, tx: txHttpService, appConfig, urlService, windowLocation } = useServices();
 
   const [, setSettingsId] = useAtom(settingsIdAtom);
   const [isWalletLoaded, setIsWalletLoaded] = useState<boolean>(true);
@@ -138,9 +137,9 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => {
     if (selectedWalletType === "managed" && selectedNetworkId !== appConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID) {
       setSelectedNetworkId(appConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID);
-      window.location.href = UrlService.home();
+      windowLocation.href = urlService.home();
     }
-  }, [selectedWalletType, selectedNetworkId, appConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID, setSelectedNetworkId]);
+  }, [selectedWalletType, selectedNetworkId, appConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID, setSelectedNetworkId, windowLocation, urlService]);
 
   function switchWalletType() {
     if (selectedWalletType === "custodial" && !managedWallet) {
@@ -177,7 +176,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       label: "Disconnect wallet"
     });
 
-    router.push(UrlService.home());
+    router.push(urlService.home());
 
     if (managedWallet) {
       setSelectedWalletType("managed");
