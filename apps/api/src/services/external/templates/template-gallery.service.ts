@@ -82,8 +82,15 @@ export class TemplateGalleryService {
     repository: keyof typeof REPOSITORIES;
     fetchTemplates: (version: string) => Promise<Category[]>;
   }): Promise<Category[]> {
-    const { repoName, repoOwner, repoVersion } = await this.templateFetcher.fetchLatestCommitSha(repository);
-    const cacheFilePath = `${this.options.dataFolderPath}/templates/${repoOwner}-${repoName}-${repoVersion}.json`;
+    const { repoName, repoOwner } = REPOSITORIES[repository];
+    const cachePathPrefix = `${this.options.dataFolderPath}/templates/${repoOwner}-${repoName}`;
+    const latestCommitSha = await this.templateFetcher.fetchLatestCommitSha(repository).catch(async error => {
+      const files = await Array.fromAsync(fs.promises.glob(`${cachePathPrefix}-*.json`));
+      if (!files.length) throw error;
+
+      return files[0].slice(path.normalize(cachePathPrefix).length + 1, -1 * ".json".length);
+    });
+    const cacheFilePath = `${cachePathPrefix}-${latestCommitSha}.json`;
     const cacheFileExists = await fs.promises.access(cacheFilePath, fs.constants.R_OK).then(
       () => true,
       () => false
@@ -98,7 +105,7 @@ export class TemplateGalleryService {
       return await this.generatingTasks[cacheFilePath];
     } else {
       console.log("No cache found for", repoOwner, repoName, "generating...");
-      this.generatingTasks[cacheFilePath] = fetchTemplates(repoVersion);
+      this.generatingTasks[cacheFilePath] = fetchTemplates(latestCommitSha);
       const categories = await this.generatingTasks[cacheFilePath];
       this.generatingTasks[cacheFilePath] = null;
 
