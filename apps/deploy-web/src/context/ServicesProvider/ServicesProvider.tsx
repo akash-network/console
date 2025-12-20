@@ -1,8 +1,6 @@
-import React, { useContext } from "react";
+import React, { useContext, useMemo } from "react";
 import type { NetworkId } from "@akashnetwork/chain-sdk";
 import { AuthzHttpService, CertificatesService } from "@akashnetwork/http-sdk";
-import type { NextRouter } from "next/router";
-import { useRouter } from "next/router";
 
 import { UAKT_DENOM, USDC_IBC_DENOMS } from "@src/config/denom.config";
 import { services as rootContainer } from "@src/services/app-di-container/browser-di-container";
@@ -20,14 +18,14 @@ export type Props = {
   services?: Partial<AppDIContainer extends DIContainer<infer TFactories> ? TFactories : never>;
 };
 
-export type AppDIContainer = ReturnType<typeof createAppContainer> & { router: NextRouter };
+export type AppDIContainer = ReturnType<typeof createAppContainer>;
 
 export const ServicesProvider: React.FC<Props> = ({ children, services }) => {
   const settingsState = useSettings();
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const router = services?.router ? undefined : useRouter(); // used condition to let tests pass router mock
-
-  const childContainer = createAppContainer(settingsState, { router: () => router, ...services });
+  const childContainer = useMemo(
+    () => createAppContainer(settingsState, services),
+    [settingsState.settings?.apiEndpoint, settingsState.settings?.isBlockchainDown, services]
+  );
 
   return <ServicesContext.Provider value={childContainer}>{children}</ServicesContext.Provider>;
 };
@@ -37,7 +35,7 @@ export function useServices() {
 }
 
 const neverResolvedPromise = new Promise<never>(() => {});
-function createAppContainer<T extends Factories>(settingsState: SettingsContextType, services: T) {
+function createAppContainer<T extends Factories>(settingsState: SettingsContextType, services: Partial<T> | undefined) {
   const di = createChildContainer(rootContainer, {
     authzHttpService: () => new AuthzHttpService(di.chainApiHttpClient),
     walletBalancesService: () =>

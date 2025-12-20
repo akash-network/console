@@ -25,7 +25,6 @@ import { ClientOnlyTurnstile } from "@src/components/turnstile/Turnstile";
 import { UserProviders } from "@src/components/user/UserProviders/UserProviders";
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { CertificateProvider } from "@src/context/CertificateProvider";
-import { ChainParamProvider } from "@src/context/ChainParamProvider";
 import { CustomChainProvider } from "@src/context/CustomChainProvider";
 import { ColorModeProvider } from "@src/context/CustomThemeContext";
 import { FlagProvider } from "@src/context/FlagProvider/FlagProvider";
@@ -112,9 +111,7 @@ function AppRoot(props: Props & { children: React.ReactNode }) {
                           <SettingsProvider>
                             <ServicesProvider>
                               <CustomChainProvider>
-                                <ChainParamProvider>
-                                  <LocalNoteProvider>{props.children}</LocalNoteProvider>
-                                </ChainParamProvider>
+                                <LocalNoteProvider>{props.children}</LocalNoteProvider>
                               </CustomChainProvider>
                             </ServicesProvider>
                           </SettingsProvider>

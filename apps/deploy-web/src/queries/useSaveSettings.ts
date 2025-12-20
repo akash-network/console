@@ -39,11 +39,14 @@ async function getDepositParams(chainApiHttpClient: AxiosInstance) {
   return JSON.parse(depositParams.param.value) as DepositParams[];
 }
 
+const ONE_HOUR_IN_MS = 60 * 60 * 1000;
 export function useDepositParams(options?: Omit<UseQueryOptions<DepositParams[]>, "queryKey" | "queryFn">) {
   const { chainApiHttpClient } = useServices();
   return useQuery({
     queryKey: QueryKeys.getDepositParamsKey(),
     queryFn: () => getDepositParams(chainApiHttpClient),
+    staleTime: ONE_HOUR_IN_MS,
+    gcTime: ONE_HOUR_IN_MS,
     ...options,
     enabled: options?.enabled !== false && !chainApiHttpClient.isFallbackEnabled
   });

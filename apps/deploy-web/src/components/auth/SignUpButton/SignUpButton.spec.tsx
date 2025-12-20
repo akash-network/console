@@ -4,7 +4,7 @@ import React from "react";
 import { mock } from "jest-mock-extended";
 import type { NextRouter } from "next/router";
 
-import { SignUpButton } from "./SignUpButton";
+import { DEPENDENCIES, SignUpButton } from "./SignUpButton";
 
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
@@ -66,8 +66,8 @@ describe(SignUpButton.name, () => {
     const router = mock<NextRouter>({ push: navigate ?? jest.fn() });
 
     render(
-      <TestContainerProvider services={{ router: () => router }}>
-        <SignUpButton {...props} />
+      <TestContainerProvider>
+        <SignUpButton {...props} dependencies={{ ...DEPENDENCIES, useRouter: () => router }} />
       </TestContainerProvider>
     );
   }

@@ -1,7 +1,7 @@
 import type { FC } from "react";
 
-import { useChainParam } from "@src/context/ChainParamProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useChainParam } from "@src/hooks/useChainParam/useChainParam";
 
 export const DeploymentMinimumEscrowAlertText: FC = () => {
   const { isManaged } = useWallet();

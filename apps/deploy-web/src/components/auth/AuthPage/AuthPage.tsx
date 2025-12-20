@@ -6,6 +6,7 @@ import { useUser } from "@auth0/nextjs-auth0/client";
 import { useMutation } from "@tanstack/react-query";
 import { DollarSignIcon, RocketIcon, ZapIcon } from "lucide-react";
 import { useSearchParams } from "next/navigation";
+import { useRouter } from "next/router";
 import { NextSeo } from "next-seo";
 
 import { AkashConsoleLogo } from "@src/components/icons/AkashConsoleLogo";
@@ -32,7 +33,8 @@ export const DEPENDENCIES = {
   TabsTrigger,
   TabsList,
   useUser,
-  useSearchParams
+  useSearchParams,
+  useRouter
 };
 
 interface Props {
@@ -40,7 +42,8 @@ interface Props {
 }
 
 export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
-  const { authService, router } = useServices();
+  const { authService } = useServices();
+  const router = d.useRouter();
   const searchParams = d.useSearchParams();
   const { checkSession } = d.useUser();
   const [email, setEmail] = useState("");
