@@ -4,9 +4,21 @@ const withBundleAnalyzer = require("@next/bundle-analyzer")({
 });
 const { version, repository } = require("./package.json");
 const isDev = process.env.NODE_ENV === "development";
+const defaultCache = require("next-pwa/cache");
 const withPWA = require("next-pwa")({
   dest: "public",
-  disable: isDev
+  disable: isDev,
+  runtimeCaching: [
+    {
+      urlPattern: ({ url }) => {
+        const isSameOrigin = self.origin === url.origin; // eslint-disable-line no-undef
+        return !isSameOrigin;
+      },
+      handler: "NetworkOnly",
+      options: { cacheName: "third-party-network-only" }
+    },
+    ...defaultCache
+  ]
 });
 const { withSentryConfig } = require("@sentry/nextjs");
 const path = require("path");
