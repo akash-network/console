@@ -171,7 +171,7 @@ export const BillingView: React.FC<BillingViewProps> = ({
           <DateRangePicker date={dateRange} onChange={onDateRangeChange} className="w-full" minDate={oneYearAgo} maxDate={endOfToday()} maxRangeInDays={366} />
         </div>
 
-        <Button variant="outline" onClick={onExport} className="h-12 gap-4" disabled={!data.length || !dateRange.from || !dateRange.to}>
+        <Button variant="outline" onClick={onExport} size="sm" className="gap-2" disabled={!data.length || !dateRange.from || !dateRange.to}>
           <Download width={16} />
           Export as CSV
         </Button>

@@ -42,7 +42,7 @@ export const BillingUsageLayout: React.FunctionComponent<Props> = ({ children, p
   };
 
   return (
-    <Tabs value={page} onValueChange={changeTab} className="space-y-4 pb-6">
+    <Tabs value={page} onValueChange={changeTab} className="space-y-6 pb-6">
       <Title>Billing & Usage</Title>
 
       <TabsList className={cn("grid w-full", isAutoCreditReloadEnabled ? "grid-cols-3" : "grid-cols-2")}>
