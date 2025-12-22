@@ -71,14 +71,10 @@ export class TemplateFetcherService {
     this.setGithubRequestsRemaining(response.headers["x-ratelimit-remaining"]);
 
     if (response.status !== 200) {
-      throw new Error(`Failed to fetch latest version of ${repoOwner}/${repoName} from github`);
+      throw new Error(`Failed to fetch latest version of ${repoOwner}/${repoName} from github`, { cause: response });
     }
 
-    return {
-      repoOwner,
-      repoName,
-      repoVersion: response.data.commit.sha
-    };
+    return response.data.commit.sha;
   }
 
   private async fetchFileContent(owner: string, repo: string, path: string, ref: string): Promise<string> {
