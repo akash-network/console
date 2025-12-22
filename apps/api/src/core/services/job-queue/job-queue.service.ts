@@ -99,21 +99,43 @@ export class JobQueueService implements Disposable {
   }
 
   async cancel(name: string, id: string): Promise<void> {
-    await this.pgBoss.cancel(name, id);
-    this.logger.info({
-      event: "JOB_CANCELLED",
-      id,
-      name
-    });
+    try {
+      await this.pgBoss.cancel(name, id);
+      this.logger.info({
+        event: "JOB_CANCELLED",
+        id,
+        name
+      });
+    } catch (error) {
+      // Job may already be in a terminal state (completed, cancelled, failed)
+      // This is expected when trying to cancel a job that has already finished
+      this.logger.warn({
+        event: "JOB_CANCEL_FAILED",
+        id,
+        name,
+        error
+      });
+    }
   }
 
   async complete(name: string, id: string): Promise<void> {
-    await this.pgBoss.complete(name, id);
-    this.logger.info({
-      event: "JOB_COMPLETED",
-      id,
-      name
-    });
+    try {
+      await this.pgBoss.complete(name, id);
+      this.logger.info({
+        event: "JOB_COMPLETED",
+        id,
+        name
+      });
+    } catch (error) {
+      // Job may already be in a terminal state (completed, cancelled, failed)
+      // This is expected when trying to complete a job that has already finished
+      this.logger.warn({
+        event: "JOB_COMPLETE_FAILED",
+        id,
+        name,
+        error
+      });
+    }
   }
 
   /** Starts jobs processing */
