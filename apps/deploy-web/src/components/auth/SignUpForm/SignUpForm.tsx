@@ -39,10 +39,24 @@ export type SignUpFormValues = z.infer<typeof formSchema>;
 type Props = {
   isLoading?: boolean;
   onSubmit: (values: SignUpFormValues) => void;
+  dependencies?: typeof DEPENDENCIES;
 };
 
-export function SignUpForm(props: Props) {
-  const form = useForm<SignUpFormValues>({
+export const DEPENDENCIES = {
+  Button,
+  Form,
+  FormField,
+  FormInput,
+  Spinner,
+  Link,
+  useBackNav,
+  useForm,
+  Checkbox,
+  FormMessage
+};
+
+export function SignUpForm({ dependencies: d = DEPENDENCIES, ...props }: Props) {
+  const form = d.useForm<SignUpFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       email: "",
@@ -50,18 +64,18 @@ export function SignUpForm(props: Props) {
       termsAndConditions: false
     }
   });
-  const goBack = useBackNav("/");
+  const goBack = d.useBackNav("/");
   const emitSubmit = form.handleSubmit(values => props.onSubmit(values));
 
   return (
-    <Form {...form}>
+    <d.Form {...form}>
       <form noValidate={true} className="flex flex-col items-center justify-start gap-5 self-stretch" autoComplete="off" onSubmit={emitSubmit}>
         <div className="flex flex-col items-start justify-start gap-4 self-stretch">
-          <FormField
+          <d.FormField
             control={form.control}
             name="email"
             render={({ field }) => (
-              <FormInput
+              <d.FormInput
                 className="w-full"
                 type="email"
                 label="Email"
@@ -71,11 +85,11 @@ export function SignUpForm(props: Props) {
               />
             )}
           />
-          <FormField
+          <d.FormField
             control={form.control}
             name="password"
             render={({ field }) => (
-              <FormInput
+              <d.FormInput
                 className="w-full"
                 type="password"
                 label="Password"
@@ -85,38 +99,38 @@ export function SignUpForm(props: Props) {
               />
             )}
           />
-          <FormField
+          <d.FormField
             control={form.control}
             name="termsAndConditions"
             render={({ field }) => (
               <div>
                 <label className="flex cursor-pointer items-center space-x-2">
-                  <Checkbox onCheckedChange={field.onChange} checked={field.value} />
+                  <d.Checkbox onCheckedChange={field.onChange} checked={field.value} />
                   <span>
                     I have read and agree to{" "}
-                    <Link prefetch={false} target="_blank" href="/terms-of-service">
+                    <d.Link prefetch={false} target="_blank" href="/terms-of-service">
                       Terms of Services
-                    </Link>
+                    </d.Link>
                     .
                   </span>
                 </label>
-                <FormMessage />
+                <d.FormMessage />
               </div>
             )}
           />
         </div>
 
         <div className="flex flex-col-reverse gap-5 self-stretch sm:flex-row">
-          <Button type="button" onClick={goBack} variant="outline" className="h-9 flex-1 border-neutral-200 dark:border-neutral-800">
+          <d.Button type="button" onClick={goBack} variant="outline" className="h-9 flex-1 border-neutral-200 dark:border-neutral-800">
             <Undo2 className="mr-2 h-4 w-4" />
             Go Back
-          </Button>
-          <Button disabled={!!props.isLoading} type="submit" className="h-9 flex-1">
+          </d.Button>
+          <d.Button disabled={!!props.isLoading} type="submit" className="h-9 flex-1">
             <LogIn className="mr-2 h-4 w-4" />
             {props.isLoading ? <Spinner size="small" /> : "Sign up"}
-          </Button>
+          </d.Button>
         </div>
       </form>
-    </Form>
+    </d.Form>
   );
 }

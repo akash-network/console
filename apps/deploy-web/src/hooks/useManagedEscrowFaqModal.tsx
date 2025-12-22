@@ -5,7 +5,7 @@ import { Alert } from "@akashnetwork/ui/components";
 import { usePopup } from "@akashnetwork/ui/context";
 import { ArrowRight } from "iconoir-react";
 
-import { useChainParam } from "@src/context/ChainParamProvider";
+import { useChainParam } from "@src/hooks/useChainParam/useChainParam";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
 
 export const useManagedEscrowFaqModal = (): {

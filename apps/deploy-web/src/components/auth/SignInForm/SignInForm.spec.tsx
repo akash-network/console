@@ -1,11 +1,8 @@
 import "@testing-library/jest-dom";
 
 import type { ComponentProps } from "react";
-import { mock } from "jest-mock-extended";
-import type { NextRouter } from "next/router";
 
-import { TestContainerProvider } from "../../../../tests/unit/TestContainerProvider";
-import { SignInForm, type SignInFormValues } from "./SignInForm";
+import { DEPENDENCIES, SignInForm, type SignInFormValues } from "./SignInForm";
 
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -25,23 +22,22 @@ describe(SignInForm.name, () => {
   });
 
   it("disables submit button and renders spinner while loading", () => {
-    const { onSubmit, props, rerender } = setup();
+    const { onSubmit, rerender } = setup();
 
-    rerender(<SignInForm {...props} isLoading={true} />);
+    rerender({ isLoading: true });
 
     expect(onSubmit).not.toHaveBeenCalled();
     expect(screen.queryByRole("status")).toBeInTheDocument();
     expect(screen.queryByText("Log in")).not.toBeInTheDocument();
   });
 
-  it("navigates backward when browser history has entries", () => {
-    const { router } = setup({ historyLength: 2 });
+  it("navigates backward when 'Go Back' button is clicked", () => {
+    const { goBack } = setup();
     const goBackButton = screen.getByRole("button", { name: "Go Back" });
 
     fireEvent.click(goBackButton);
 
-    expect(router.back).toHaveBeenCalledTimes(1);
-    expect(router.push).not.toHaveBeenCalled();
+    expect(goBack).toHaveBeenCalledTimes(1);
   });
 
   it("validates form when submitted", async () => {
@@ -55,41 +51,24 @@ describe(SignInForm.name, () => {
     expect(screen.getByText("Invalid email")).toBeInTheDocument();
   });
 
-  type SignInFormProps = ComponentProps<typeof SignInForm>;
-  type SetupOptions = {
-    historyLength?: number;
-    props?: Partial<SignInFormProps>;
-    routerOverrides?: Partial<NextRouter>;
-  };
-
-  function setup(input: SetupOptions = {}) {
-    const router = mock<NextRouter>();
-    const onSubmit = input.props?.onSubmit ?? jest.fn<void, [SignInFormValues]>();
-    const props: SignInFormProps = {
+  function setup(input: Partial<ComponentProps<typeof SignInForm>> = {}) {
+    const goBack = jest.fn();
+    const onSubmit = input?.onSubmit ?? jest.fn<void, [SignInFormValues]>();
+    const props: ComponentProps<typeof SignInForm> = {
       isLoading: false,
-      ...input.props,
+      ...input,
       onSubmit
     };
 
-    const renderResult = render(
-      <TestContainerProvider
-        services={{
-          windowHistory: () =>
-            mock<Window["history"]>({
-              length: input.historyLength ?? 0
-            }),
-          router: () => router
-        }}
-      >
-        <SignInForm {...props} />
-      </TestContainerProvider>
-    );
+    const renderResult = render(<SignInForm {...props} dependencies={{ ...DEPENDENCIES, useBackNav: () => goBack }} />);
 
     return {
       ...renderResult,
       onSubmit,
-      props,
-      router
+      goBack,
+      rerender: (newProps?: Partial<ComponentProps<typeof SignInForm>>) => {
+        renderResult.rerender(<SignInForm {...props} {...newProps} dependencies={{ ...DEPENDENCIES, useBackNav: () => goBack }} />);
+      }
     };
   }
 });

@@ -1,11 +1,8 @@
 import "@testing-library/jest-dom";
 
 import type { ComponentProps } from "react";
-import { mock } from "jest-mock-extended";
-import type { NextRouter } from "next/router";
 
-import { TestContainerProvider } from "../../../../tests/unit/TestContainerProvider";
-import { SignUpForm, type SignUpFormValues } from "./SignUpForm";
+import { DEPENDENCIES, SignUpForm, type SignUpFormValues } from "./SignUpForm";
 
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -34,30 +31,20 @@ describe(SignUpForm.name, () => {
   });
 
   it("disables submit button and renders spinner while loading", () => {
-    const { props, rerender } = setup();
+    const { rerender } = setup();
 
-    rerender(<SignUpForm {...props} isLoading={true} />);
+    rerender({ isLoading: true });
 
     expect(screen.queryByRole("status")).toBeInTheDocument();
     expect(screen.queryByText("Sign up")).not.toBeInTheDocument();
   });
 
-  it("navigates backward when browser history has entries", async () => {
-    const { router } = setup({ historyLength: 2 });
+  it("navigates back to the previous page when 'Go Back' button is clicked", async () => {
+    const { goBack } = setup();
 
     await userEvent.click(screen.getByRole("button", { name: "Go Back" }));
 
-    expect(router.back).toHaveBeenCalledTimes(1);
-    expect(router.push).not.toHaveBeenCalled();
-  });
-
-  it("navigates to fallback when browser history is empty", async () => {
-    const { router } = setup({ historyLength: 0 });
-
-    await userEvent.click(screen.getByRole("button", { name: "Go Back" }));
-
-    expect(router.push).toHaveBeenCalledWith("/");
-    expect(router.back).not.toHaveBeenCalled();
+    expect(goBack).toHaveBeenCalledTimes(1);
   });
 
   it("validates form inputs when submitted", async () => {
@@ -72,41 +59,24 @@ describe(SignUpForm.name, () => {
     expect(screen.queryByText("You must accept the terms and conditions")).toBeInTheDocument();
   });
 
-  type SignUpFormProps = ComponentProps<typeof SignUpForm>;
-  type SetupOptions = {
-    historyLength?: number;
-    props?: Partial<SignUpFormProps>;
-    routerOverrides?: Partial<NextRouter>;
-  };
-
-  function setup(input: SetupOptions = {}) {
-    const router = mock<NextRouter>(input.routerOverrides);
-    const onSubmit = input.props?.onSubmit ?? jest.fn<void, [SignUpFormValues]>();
-    const props: SignUpFormProps = {
+  function setup(input: Partial<ComponentProps<typeof SignUpForm>> = {}) {
+    const goBack = jest.fn();
+    const onSubmit = input?.onSubmit ?? jest.fn<void, [SignUpFormValues]>();
+    const props: ComponentProps<typeof SignUpForm> = {
       isLoading: false,
-      ...input.props,
+      ...input,
       onSubmit
     };
 
-    const renderResult = render(
-      <TestContainerProvider
-        services={{
-          windowHistory: () =>
-            mock<Window["history"]>({
-              length: input.historyLength ?? 0
-            }),
-          router: () => router
-        }}
-      >
-        <SignUpForm {...props} />
-      </TestContainerProvider>
-    );
+    const renderResult = render(<SignUpForm {...props} dependencies={{ ...DEPENDENCIES, useBackNav: () => goBack }} />);
 
     return {
       ...renderResult,
       onSubmit,
-      props,
-      router
+      goBack,
+      rerender: (newProps?: Partial<ComponentProps<typeof SignUpForm>>) => {
+        renderResult.rerender(<SignUpForm {...props} {...newProps} dependencies={{ ...DEPENDENCIES, useBackNav: () => goBack }} />);
+      }
     };
   }
 });

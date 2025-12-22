@@ -1,9 +1,11 @@
 import { useCallback } from "react";
+import { useRouter } from "next/router";
 
 import { useServices } from "@src/context/ServicesProvider";
 
 export const useBackNav = (fallback: string) => {
-  const { router, windowHistory } = useServices();
+  const { windowHistory } = useServices();
+  const router = useRouter();
 
   return useCallback(() => {
     if (windowHistory.length > 1) {
@@ -11,5 +13,5 @@ export const useBackNav = (fallback: string) => {
     } else {
       router.push(fallback);
     }
-  }, [router, windowHistory, fallback]);
+  }, [router.asPath, windowHistory, fallback]);
 };

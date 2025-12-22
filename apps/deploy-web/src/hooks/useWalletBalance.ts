@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { useAtom } from "jotai";
 
 import { UAKT_DENOM } from "@src/config/denom.config";
-import { useChainParam } from "@src/context/ChainParamProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useChainParam } from "@src/hooks/useChainParam/useChainParam";
 import { useBalances } from "@src/queries/useBalancesQuery";
 import walletStore from "@src/store/walletStore";
 import { udenomToDenom } from "@src/utils/mathHelpers";

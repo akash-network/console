@@ -21,17 +21,29 @@ interface Props {
   onForgotPasswordClick?: () => void;
   defaultEmail?: string;
   onEmailChange?: (email: string) => void;
+  dependencies?: typeof DEPENDENCIES;
 }
 
-export function SignInForm(props: Props) {
-  const form = useForm<SignInFormValues>({
+export const DEPENDENCIES = {
+  Button,
+  Form,
+  FormField,
+  FormInput,
+  Spinner,
+  Link,
+  useBackNav,
+  useForm
+};
+
+export function SignInForm({ dependencies: d = DEPENDENCIES, ...props }: Props) {
+  const form = d.useForm<SignInFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       email: props.defaultEmail || "",
       password: ""
     }
   });
-  const goBack = useBackNav("/");
+  const goBack = d.useBackNav("/");
   const emitSubmit = form.handleSubmit(values => props.onSubmit(values));
 
   const onForgotPasswordClick = useCallback(
@@ -43,14 +55,14 @@ export function SignInForm(props: Props) {
   );
 
   return (
-    <Form {...form}>
+    <d.Form {...form}>
       <form noValidate={true} autoComplete="on" onSubmit={emitSubmit} className="flex flex-col items-center justify-start gap-5 self-stretch">
         <div className="flex flex-col items-start justify-start gap-4 self-stretch">
-          <FormField
+          <d.FormField
             control={form.control}
             name="email"
             render={({ field }) => (
-              <FormInput
+              <d.FormInput
                 className="w-full"
                 type="email"
                 label="Email"
@@ -63,11 +75,11 @@ export function SignInForm(props: Props) {
               />
             )}
           />
-          <FormField
+          <d.FormField
             control={form.control}
             name="password"
             render={({ field }) => (
-              <FormInput
+              <d.FormInput
                 className="w-full"
                 type="password"
                 labelClassName="flex items-center justify-between"
@@ -75,9 +87,9 @@ export function SignInForm(props: Props) {
                   <>
                     <div>Password</div>
                     <div>
-                      <Link className="text-xs text-current underline hover:no-underline" prefetch={false} href="#" onClick={onForgotPasswordClick}>
+                      <d.Link className="text-xs text-current underline hover:no-underline" prefetch={false} href="#" onClick={onForgotPasswordClick}>
                         Forgot password?
-                      </Link>
+                      </d.Link>
                     </div>
                   </>
                 }
@@ -89,17 +101,17 @@ export function SignInForm(props: Props) {
           />
         </div>
         <div className="flex flex-col-reverse gap-5 self-stretch sm:flex-row">
-          <Button type="button" onClick={goBack} variant="outline" className="h-9 flex-1 border-neutral-200 dark:border-neutral-800">
+          <d.Button type="button" onClick={goBack} variant="outline" className="h-9 flex-1 border-neutral-200 dark:border-neutral-800">
             <Undo2 className="mr-2 h-4 w-4" />
             Go Back
-          </Button>
+          </d.Button>
 
-          <Button disabled={!!props.isLoading} type="submit" className="h-9 flex-1">
+          <d.Button disabled={!!props.isLoading} type="submit" className="h-9 flex-1">
             <LogIn className="mr-2 h-4 w-4" />
             {props.isLoading ? <Spinner size="small" /> : "Log in"}
-          </Button>
+          </d.Button>
         </div>
       </form>
-    </Form>
+    </d.Form>
   );
 }

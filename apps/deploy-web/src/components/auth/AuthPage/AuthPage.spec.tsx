@@ -234,12 +234,13 @@ describe(AuthPage.name, () => {
     const useSearchParamsMock = () => params as ReadonlyURLSearchParams;
 
     render(
-      <TestContainerProvider services={{ authService: () => authService, router: () => router }}>
+      <TestContainerProvider services={{ authService: () => authService }}>
         <AuthPage
           dependencies={{
             ...MockComponents(DEPENDENCIES),
             useUser: useUserMock,
             useSearchParams: useSearchParamsMock,
+            useRouter: () => router,
             ...input.dependencies
           }}
         />
