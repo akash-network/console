@@ -251,17 +251,23 @@ export function DateRangePicker({
                 )}
               </span>
               {selectedRange && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="ml-3 flex-shrink-0 p-0 hover:bg-transparent"
+                <span
+                  role="button"
+                  tabIndex={0}
+                  className="hover:bg-muted ml-3 flex-shrink-0 cursor-pointer rounded p-1"
                   onClick={e => {
                     e.stopPropagation();
                     clearSelection();
                   }}
+                  onKeyDown={e => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.stopPropagation();
+                      clearSelection();
+                    }
+                  }}
                 >
                   <Xmark className="h-5 w-5" />
-                </Button>
+                </span>
               )}
             </Button>
           </PopoverTrigger>
@@ -397,16 +403,23 @@ export function DateRangePicker({
               )}
             </div>
             {selectedRange && (
-              <Button
-                variant="ghost"
-                className="ml-2 p-0 hover:bg-transparent"
+              <span
+                role="button"
+                tabIndex={0}
+                className="hover:bg-muted ml-2 cursor-pointer rounded p-1"
                 onClick={e => {
                   e.stopPropagation();
                   clearSelection();
                 }}
+                onKeyDown={e => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.stopPropagation();
+                    clearSelection();
+                  }
+                }}
               >
                 <Xmark className="h-5 w-5" />
-              </Button>
+              </span>
             )}
           </Button>
         </PopoverTrigger>

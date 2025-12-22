@@ -60,19 +60,14 @@ export class WalletReloadJobService {
       });
 
       if (!createdJobId) {
-        // singletonKey returned null - this means a job with this key already exists in an active state
-        // This can happen if there's a race condition or the previous job hasn't been fully processed yet
-        // Log a warning but don't fail - having a job already scheduled is acceptable
-        this.logger.warn({
-          event: "JOB_ALREADY_EXISTS",
-          message: "A wallet balance reload check job already exists for this user. Skipping creation.",
+        this.logger.error({
+          event: "JOB_CREATION_FAILED",
+          message: "Failed to schedule wallet balance reload check - a job already exists for this user",
           userId: walletSetting.userId,
           attemptedJobId: jobId,
           previousJobId: walletSetting.autoReloadJobId
         });
-        // Return the attempted job ID - the wallet setting was updated with this ID
-        // The existing active job will continue to run and schedule the next check
-        return jobId;
+        throw new Error("Failed to schedule wallet balance reload check: job already exists");
       }
 
       this.logger.info({

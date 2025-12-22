@@ -123,7 +123,6 @@ export class WalletSettingService {
 
   async #arrangeSchedule(prev?: WalletSettingOutput, next?: WalletSettingOutput) {
     if (!prev?.autoReloadEnabled && next?.autoReloadEnabled) {
-      // Pass prevAction: "cancel" in case there's an existing cancelled job from a previous disable
       await this.walletReloadJobService.scheduleForWalletSetting(next, { prevAction: "cancel" });
     }
 
