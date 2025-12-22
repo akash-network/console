@@ -1,5 +1,12 @@
 
 
+## [3.16.1](https://github.com/akash-network/console/compare/console-web/v3.16.0...console-web/v3.16.1) (2025-12-22)
+
+
+### Bug Fixes
+
+* set "User-Agent" header only in server env ([#2405](https://github.com/akash-network/console/issues/2405)) ([6483351](https://github.com/akash-network/console/commit/6483351ff94cd6b12f25f4755d340b71257a48fe))
+
 ## [3.16.0](https://github.com/akash-network/console/compare/console-web/v3.15.5...console-web/v3.16.0) (2025-12-22)
 
 
