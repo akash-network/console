@@ -110,14 +110,19 @@ export const createAppRootContainer = (config: ServicesConfig) => {
       container.applyAxiosInterceptors(new ApiKeyHttpService(apiConfig), {
         request: [withUserToken]
       }),
-    externalApiHttpClient: () =>
-      container.createAxios({
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          "User-Agent": "AkashConsole/1.0 (https://console.akash.network)"
-        }
-      }),
+    externalApiHttpClient: () => {
+      const headers: Record<string, string> = {
+        Accept: "application/json",
+        "Content-Type": "application/json"
+      };
+      if (config.runtimeEnv === "nodejs") {
+        headers["User-Agent"] = "AkashConsole/1.0 (https://console.akash.network)";
+      }
+
+      return container.createAxios({
+        headers
+      });
+    },
     createAxios:
       () =>
       (options?: CreateAxiosDefaults): AxiosInstance =>
