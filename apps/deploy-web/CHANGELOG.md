@@ -1,5 +1,18 @@
 
 
+## [3.16.0](https://github.com/akash-network/console/compare/console-web/v3.15.5...console-web/v3.16.0) (2025-12-22)
+
+
+### Features
+
+* **notification-channel:** memoizes edit handler to avoid a change detection loop ([13498b5](https://github.com/akash-network/console/commit/13498b5ab9db4df43e3513d534001b5944f63c52))
+
+
+### Bug Fixes
+
+* do not cache 3rd party requests ([#2404](https://github.com/akash-network/console/issues/2404)) ([8558c19](https://github.com/akash-network/console/commit/8558c1966a5800ac0f766fb8f74da1286f0c93cc))
+* switch network managed ([#2399](https://github.com/akash-network/console/issues/2399)) ([52f4be6](https://github.com/akash-network/console/commit/52f4be6b9a9e87cd9f877ffbc520b8bf72a80ab8))
+
 ## [3.15.5](https://github.com/akash-network/console/compare/console-web/v3.15.4...console-web/v3.15.5) (2025-12-19)
 
 
