@@ -230,47 +230,31 @@ export function DateRangePicker({
     return (
       <div className={cn("grid gap-2", className)}>
         <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              id="date"
-              variant="outline"
-              className={cn("h-12 w-full px-4 text-left font-normal", selectedRange ? "justify-between" : "text-muted-foreground")}
-            >
-              <CalendarIcon className="mr-3 h-5 w-5 flex-shrink-0" />
-              <span className="truncate">
-                {selectedRange?.from ? (
-                  selectedRange.to ? (
-                    <>
-                      {format(selectedRange.from, "MMM dd")} - {format(selectedRange.to, "MMM dd, yyyy")}
-                    </>
+          <div className="flex items-center gap-2">
+            <PopoverTrigger asChild>
+              <Button id="date" variant="outline" className={cn("h-12 flex-1 px-4 text-left font-normal", !selectedRange && "text-muted-foreground")}>
+                <CalendarIcon className="mr-3 h-5 w-5 flex-shrink-0" />
+                <span className="truncate">
+                  {selectedRange?.from ? (
+                    selectedRange.to ? (
+                      <>
+                        {format(selectedRange.from, "MMM dd")} - {format(selectedRange.to, "MMM dd, yyyy")}
+                      </>
+                    ) : (
+                      format(selectedRange.from, "MMM dd, yyyy")
+                    )
                   ) : (
-                    format(selectedRange.from, "MMM dd, yyyy")
-                  )
-                ) : (
-                  "Pick a date range"
-                )}
-              </span>
-              {selectedRange && (
-                <span
-                  role="button"
-                  tabIndex={0}
-                  className="hover:bg-muted ml-3 flex-shrink-0 cursor-pointer rounded p-1"
-                  onClick={e => {
-                    e.stopPropagation();
-                    clearSelection();
-                  }}
-                  onKeyDown={e => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.stopPropagation();
-                      clearSelection();
-                    }
-                  }}
-                >
-                  <Xmark className="h-5 w-5" />
+                    "Pick a date range"
+                  )}
                 </span>
-              )}
-            </Button>
-          </PopoverTrigger>
+              </Button>
+            </PopoverTrigger>
+            {selectedRange && (
+              <Button variant="outline" size="icon" aria-label="Clear date selection" className="h-12 w-12 flex-shrink-0 rounded-md" onClick={clearSelection}>
+                <Xmark className="h-5 w-5" />
+              </Button>
+            )}
+          </div>
           <PopoverContent className="mx-4 max-h-[calc(var(--radix-popover-content-available-height))] w-screen max-w-sm overflow-auto p-0" align="center">
             <div className="space-y-4 p-4">
               {showPresets && (
@@ -386,9 +370,9 @@ export function DateRangePicker({
   return (
     <div className={cn("grid gap-2", className)}>
       <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button id="date" variant="outline" className={cn("w-full justify-between text-left font-normal", !selectedRange && "text-muted-foreground")}>
-            <div className="flex items-center">
+        <div className="flex items-center gap-2">
+          <PopoverTrigger asChild>
+            <Button id="date" variant="outline" className={cn("flex-1 justify-start text-left font-normal", !selectedRange && "text-muted-foreground")}>
               <CalendarIcon className="mr-2 h-4 w-4" />
               {selectedRange?.from ? (
                 selectedRange.to ? (
@@ -401,28 +385,14 @@ export function DateRangePicker({
               ) : (
                 <span>Pick a date range</span>
               )}
-            </div>
-            {selectedRange && (
-              <span
-                role="button"
-                tabIndex={0}
-                className="hover:bg-muted ml-2 cursor-pointer rounded p-1"
-                onClick={e => {
-                  e.stopPropagation();
-                  clearSelection();
-                }}
-                onKeyDown={e => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.stopPropagation();
-                    clearSelection();
-                  }
-                }}
-              >
-                <Xmark className="h-5 w-5" />
-              </span>
-            )}
-          </Button>
-        </PopoverTrigger>
+            </Button>
+          </PopoverTrigger>
+          {selectedRange && (
+            <Button variant="outline" size="icon" aria-label="Clear date selection" className="flex-shrink-0 rounded-md" onClick={clearSelection}>
+              <Xmark className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
         <PopoverContent className="max-h-[calc(var(--radix-popover-content-available-height))] w-auto overflow-auto p-0" align="start">
           <div className="flex">
             <div className="min-w-[200px] border-r p-3">

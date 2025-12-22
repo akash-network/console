@@ -35,15 +35,14 @@ export class WalletReloadJobService {
       // Try to cancel/complete the previous job if it exists
       // This may fail if the job is already in a terminal state, which is fine
       if (walletSetting.autoReloadJobId) {
-        const action = options?.prevAction ?? "complete";
         this.logger.info({
           event: "PREVIOUS_JOB_CLEANUP",
-          action,
+          action: options?.prevAction,
           previousJobId: walletSetting.autoReloadJobId,
           userId: walletSetting.userId
         });
 
-        if (action === "cancel") {
+        if (options?.prevAction === "cancel") {
           await this.jobQueueService.cancel(WalletBalanceReloadCheck.name, walletSetting.autoReloadJobId);
         } else {
           await this.jobQueueService.complete(WalletBalanceReloadCheck.name, walletSetting.autoReloadJobId);

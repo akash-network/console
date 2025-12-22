@@ -178,7 +178,7 @@ export const BillingView: React.FC<BillingViewProps> = ({
       </div>
 
       {!data.length && (
-        <div className="text-center text-muted-foreground">
+        <div className="py-8 text-center text-muted-foreground">
           <p>No billing history found for the selected date range.</p>
         </div>
       )}
