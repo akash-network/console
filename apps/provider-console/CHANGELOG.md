@@ -1,5 +1,12 @@
 
 
+## [1.34.1](https://github.com/akash-network/console/compare/provider-console/v1.34.0...provider-console/v1.34.1) (2025-12-23)
+
+
+### Bug Fixes
+
+* **billing:** auto credit reload ui and setting update ([#2409](https://github.com/akash-network/console/issues/2409)) ([d0f0fb8](https://github.com/akash-network/console/commit/d0f0fb8c3247b4c29aba50cd7ec2ae6b2fa6854e))
+
 ## [1.34.0](https://github.com/akash-network/console/compare/provider-console/v1.33.2...provider-console/v1.34.0) (2025-12-18)
 
 

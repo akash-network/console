@@ -1,5 +1,14 @@
 
 
+## [3.17.1](https://github.com/akash-network/console/compare/console-api/v3.17.0...console-api/v3.17.1) (2025-12-23)
+
+
+### Bug Fixes
+
+* **billing:** auto credit reload ui and setting update ([#2409](https://github.com/akash-network/console/issues/2409)) ([d0f0fb8](https://github.com/akash-network/console/commit/d0f0fb8c3247b4c29aba50cd7ec2ae6b2fa6854e))
+* **billing:** return usage for both old and new wallet ([#2410](https://github.com/akash-network/console/issues/2410)) ([743229e](https://github.com/akash-network/console/commit/743229e0c3587ff1efaf7d86e0e653136077a8f4))
+* ensure templates fallback to stale cache in case GH_TOKEN expired ([#2397](https://github.com/akash-network/console/issues/2397)) ([62690c0](https://github.com/akash-network/console/commit/62690c03d24c58b34805b1e84c1a5cff7201980d))
+
 ## [3.17.0](https://github.com/akash-network/console/compare/console-api/v3.16.0...console-api/v3.17.0) (2025-12-18)
 
 
