@@ -55,7 +55,11 @@ describe("proxy API handler", () => {
     const req = mock<NextApiRequest>({
       method: "GET",
       url: input.url,
-      headers: input.headers,
+      headers: {
+        "sentry-trace": "",
+        traceparent: "",
+        ...input.headers
+      },
       socket: {
         remoteAddress: "127.0.0.1",
         ...input.socket

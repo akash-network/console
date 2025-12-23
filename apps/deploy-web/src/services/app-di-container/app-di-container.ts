@@ -13,7 +13,6 @@ import {
 } from "@akashnetwork/http-sdk";
 import { StripeService as HttpStripeService } from "@akashnetwork/http-sdk/src/stripe/stripe.service";
 import { LoggerService } from "@akashnetwork/logging";
-import { getTraceData } from "@sentry/nextjs";
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 import type { Axios, AxiosInstance, AxiosResponse, CreateAxiosDefaults, InternalAxiosRequestConfig } from "axios";
 
@@ -33,15 +32,14 @@ import { UserTracker } from "../user-tracker/user-tracker.service";
 export const createAppRootContainer = (config: ServicesConfig) => {
   const apiConfig = { baseURL: config.BASE_API_MAINNET_URL, adapter: "fetch" };
   const container = createContainer({
-    getTraceData: () => getTraceData,
     applyAxiosInterceptors: (): typeof withInterceptors => {
       const otelInterceptor = (config: InternalAxiosRequestConfig) => {
         if (typeof window !== "undefined" && getRequestOrigin(config) !== window.location.origin) {
           // skip OTEL headers for cross-origin requests in browser because it may fail due to CORS policy
           return config;
         }
-        const traceData = container.getTraceData();
-        if (traceData?.["sentry-trace"]) config.headers.set("Traceparent", traceData["sentry-trace"]);
+        const traceData = container.errorHandler.getTraceData();
+        if (traceData.traceIdW3C) config.headers.set("traceparent", traceData.traceIdW3C);
         if (traceData?.baggage) config.headers.set("Baggage", traceData.baggage);
         return config;
       };
