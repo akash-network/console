@@ -1,3 +1,4 @@
+import { LoggerService } from "@akashnetwork/logging";
 import { QueryTypes } from "sequelize";
 import { singleton } from "tsyringe";
 
@@ -20,6 +21,8 @@ export interface BillingUsageRawResult {
 
 @singleton()
 export class UsageRepository {
+  private readonly logger = LoggerService.forContext(UsageRepository.name);
+
   constructor(
     private readonly userWalletRepository: UserWalletRepository,
     private readonly txManagerService: TxManagerService
@@ -132,12 +135,17 @@ export class UsageRepository {
       return [address];
     }
 
-    const oldAddress = await this.txManagerService.getDerivedWalletAddress(userWallet.id, true);
+    try {
+      const oldAddress = await this.txManagerService.getDerivedWalletAddress(userWallet.id, true);
 
-    if (oldAddress === address) {
+      if (oldAddress === address) {
+        return [address];
+      }
+
+      return [address, oldAddress];
+    } catch (error) {
+      this.logger.error({ event: "FAILED_TO_DERIVE_OLD_WALLET_ADDRESS", address, walletId: userWallet.id, error });
       return [address];
     }
-
-    return [address, oldAddress];
   }
 }

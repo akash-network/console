@@ -274,8 +274,7 @@ describe(UsageRepository.name, () => {
       (userWalletRepository.findOneByAddress as jest.Mock).mockResolvedValue({
         id: 1,
         address: testAddress,
-        createdAt: new Date("2024-11-01"),
-        isOldWallet: true
+        createdAt: new Date("2024-11-01")
       });
       (txManagerService.getDerivedWalletAddress as jest.Mock).mockResolvedValue(oldAddress);
 
@@ -323,8 +322,7 @@ describe(UsageRepository.name, () => {
       (userWalletRepository.findOneByAddress as jest.Mock).mockResolvedValue({
         id: 1,
         address: testAddress,
-        createdAt: new Date("2024-12-01"),
-        isOldWallet: false
+        createdAt: new Date("2024-12-01")
       });
 
       await createTestDay({
