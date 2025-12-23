@@ -304,11 +304,11 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
       style={{ width: isNavOpen ? DRAWER_WIDTH : CLOSED_DRAWER_WIDTH }}
       className="box-border flex h-full flex-shrink-0 flex-col items-center justify-between overflow-y-auto overflow-x-hidden border-r-[1px] border-muted-foreground/20 bg-secondary transition-[width] duration-300 ease-in-out md:h-[calc(100%-57px)] dark:bg-card"
     >
-      <div className={cn("flex w-full flex-col items-center justify-between", { ["p-2"]: isNavOpen, ["pb-2 pt-2"]: !isNavOpen })}>
-        <div className={cn("flex w-full items-center justify-center pt-4", { ["px-4"]: isNavOpen })}>
+      <div className={cn("flex w-full flex-col items-center justify-between", { ["p-4"]: isNavOpen, ["pt-4"]: !isNavOpen })}>
+        <div className={cn("flex w-full items-center justify-center pt-4")}>
           <Link
             className={cn(buttonVariants({ variant: "default", size: isNavOpen ? "lg" : "icon" }), "h-9 w-full leading-4", {
-              ["h-9 w-9 min-w-0 rounded-sm pb-2 pt-2"]: !isNavOpen
+              ["h-9 w-11 min-w-0 rounded-sm pb-2 pt-2"]: !isNavOpen
             })}
             href={UrlService.newDeployment()}
             onClick={onDeployClick}
