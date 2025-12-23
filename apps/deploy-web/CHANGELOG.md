@@ -1,5 +1,17 @@
 
 
+## [3.16.2](https://github.com/akash-network/console/compare/console-web/v3.16.1...console-web/v3.16.2) (2025-12-23)
+
+
+### Bug Fixes
+
+* **billing:** auto credit reload ui and setting update ([#2409](https://github.com/akash-network/console/issues/2409)) ([d0f0fb8](https://github.com/akash-network/console/commit/d0f0fb8c3247b4c29aba50cd7ec2ae6b2fa6854e))
+
+
+### Code Refactoring
+
+* converts ChainParamContext to hook ([#2403](https://github.com/akash-network/console/issues/2403)) ([51816d5](https://github.com/akash-network/console/commit/51816d56bf3c6f3233973e1fdf39da2a5ff71927))
+
 ## [3.16.1](https://github.com/akash-network/console/compare/console-web/v3.16.0...console-web/v3.16.1) (2025-12-22)
 
 
