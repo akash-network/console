@@ -106,6 +106,13 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
     return this.toOutput(userWallet);
   }
 
+  async findOneByAddress(address: string) {
+    const userWallet = await this.cursor.query.UserWallets.findFirst({ where: this.whereAccessibleBy(eq(this.table.address, address)) });
+    if (!userWallet) return undefined;
+
+    return this.toOutput(userWallet);
+  }
+
   async findFirst() {
     return this.findOneBy();
   }

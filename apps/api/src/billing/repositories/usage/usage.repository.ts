@@ -1,7 +1,12 @@
+import { LoggerService } from "@akashnetwork/logging";
 import { QueryTypes } from "sequelize";
 import { singleton } from "tsyringe";
 
+import { UserWalletRepository } from "@src/billing/repositories/user-wallet/user-wallet.repository";
+import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { chainDb } from "@src/db/dbConnection";
+
+const WALLET_MIGRATION_DATE = new Date("2025-11-24");
 
 export interface BillingUsageRawResult {
   date: string;
@@ -16,7 +21,15 @@ export interface BillingUsageRawResult {
 
 @singleton()
 export class UsageRepository {
+  private readonly logger = LoggerService.forContext(UsageRepository.name);
+
+  constructor(
+    private readonly userWalletRepository: UserWalletRepository,
+    private readonly txManagerService: TxManagerService
+  ) {}
+
   async getHistory(address: string, startDate: string, endDate: string) {
+    const addresses = await this.resolveAddresses(address);
     const query = `
       WITH date_range AS (
         SELECT generate_series(
@@ -45,7 +58,7 @@ export class UsageRepository {
         FROM date_range dr
                LEFT JOIN day d ON dr.date = d.date
                LEFT JOIN lease l ON
-          l.owner = :address AND
+          l.owner IN (:addresses) AND
           l."createdHeight" < COALESCE(d."lastBlockHeightYet", 999999999) AND
           COALESCE(l."closedHeight", l."predictedClosedHeight") > COALESCE(d."firstBlockHeight", 0)
       ),
@@ -94,7 +107,7 @@ export class UsageRepository {
 
     const results = await chainDb.query<BillingUsageRawResult>(query, {
       type: QueryTypes.SELECT,
-      replacements: { address, startDate, endDate }
+      replacements: { addresses, startDate, endDate }
     });
 
     return results.map(row => ({
@@ -107,5 +120,32 @@ export class UsageRepository {
       dailyUsdSpent: parseFloat(String(row.dailyUsdSpent)),
       totalUsdSpent: parseFloat(String(row.totalUsdSpent))
     }));
+  }
+
+  private async resolveAddresses(address: string): Promise<string[]> {
+    const userWallet = await this.userWalletRepository.findOneByAddress(address);
+
+    if (!userWallet) {
+      return [address];
+    }
+
+    const walletCreatedBeforeMigration = userWallet.createdAt && userWallet.createdAt < WALLET_MIGRATION_DATE;
+
+    if (!walletCreatedBeforeMigration) {
+      return [address];
+    }
+
+    try {
+      const oldAddress = await this.txManagerService.getDerivedWalletAddress(userWallet.id, true);
+
+      if (oldAddress === address) {
+        return [address];
+      }
+
+      return [address, oldAddress];
+    } catch (error) {
+      this.logger.error({ event: "FAILED_TO_DERIVE_OLD_WALLET_ADDRESS", address, walletId: userWallet.id, error });
+      return [address];
+    }
   }
 }
