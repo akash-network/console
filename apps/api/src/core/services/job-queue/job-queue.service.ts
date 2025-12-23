@@ -107,14 +107,16 @@ export class JobQueueService implements Disposable {
         name
       });
     } catch (error) {
-      // Job may already be in a terminal state (completed, cancelled, failed)
-      // This is expected when trying to cancel a job that has already finished
-      this.logger.warn({
-        event: "JOB_CANCEL_FAILED",
-        id,
-        name,
-        error
-      });
+      if (this.isTerminalStateError(error)) {
+        this.logger.warn({
+          event: "JOB_CANCEL_FAILED",
+          id,
+          name,
+          error
+        });
+      } else {
+        throw error;
+      }
     }
   }
 
@@ -127,15 +129,35 @@ export class JobQueueService implements Disposable {
         name
       });
     } catch (error) {
-      // Job may already be in a terminal state (completed, cancelled, failed)
-      // This is expected when trying to complete a job that has already finished
-      this.logger.warn({
-        event: "JOB_COMPLETE_FAILED",
-        id,
-        name,
-        error
-      });
+      if (this.isTerminalStateError(error)) {
+        this.logger.warn({
+          event: "JOB_COMPLETE_FAILED",
+          id,
+          name,
+          error
+        });
+      } else {
+        throw error;
+      }
     }
+  }
+
+  private isTerminalStateError(error: unknown): boolean {
+    if (!(error instanceof Error)) {
+      return false;
+    }
+
+    const terminalStatePatterns = [
+      /job.+not found/i,
+      /job.+already.+completed/i,
+      /job.+already.+cancelled/i,
+      /job.+already.+failed/i,
+      /job.+in.+terminal.+state/i,
+      /cannot.+cancel.+job/i,
+      /cannot.+complete.+job/i
+    ];
+
+    return terminalStatePatterns.some(pattern => pattern.test(error.message));
   }
 
   /** Starts jobs processing */
