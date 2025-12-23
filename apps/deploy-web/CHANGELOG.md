@@ -1,5 +1,14 @@
 
 
+## [3.16.3](https://github.com/akash-network/console/compare/console-web/v3.16.2...console-web/v3.16.3) (2025-12-23)
+
+
+### Bug Fixes
+
+* adds handling of 422 error on manifest creation in deploy-web ([#2411](https://github.com/akash-network/console/issues/2411)) ([2fffa69](https://github.com/akash-network/console/commit/2fffa69f71271f1c71f0547524122e11d8664b3a))
+* converts sentry-trace to w3c traceparent before sending to our APIs ([#2412](https://github.com/akash-network/console/issues/2412)) ([bff0656](https://github.com/akash-network/console/commit/bff0656f539d68a8c8402b9e16643df95f0e477f))
+* removes allowUrls because it excludes valid relative urls ([#2414](https://github.com/akash-network/console/issues/2414)) ([1fa38a1](https://github.com/akash-network/console/commit/1fa38a1d2d8bcaf1829a76e29513ce36fe6c2718))
+
 ## [3.16.2](https://github.com/akash-network/console/compare/console-web/v3.16.1...console-web/v3.16.2) (2025-12-23)
 
 
