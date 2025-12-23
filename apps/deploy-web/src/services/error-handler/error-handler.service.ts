@@ -32,7 +32,7 @@ export class ErrorHandlerService {
 
     this.logger.error({ ...extra, ...finalTags, error });
     this.captureException(error, {
-      level: severity,
+      level: severity || "error",
       extra,
       tags: finalTags
     });

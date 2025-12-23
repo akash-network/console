@@ -19,7 +19,7 @@ import type { ApiProviderList } from "@src/types/provider";
 import { deploymentData } from "@src/utils/deploymentData";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import RemoteDeployUpdate from "../remote-deploy/update/RemoteDeployUpdate";
-import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar";
+import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar/ManifestErrorSnackbar";
 import { Title } from "../shared/Title";
 import { CreateCredentialsButton } from "./CreateCredentialsButton/CreateCredentialsButton";
 
