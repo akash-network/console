@@ -56,7 +56,7 @@ import { useLocalNotes } from "../../../context/LocalNoteProvider";
 import { CustomDropdownLinkItem } from "../../shared/CustomDropdownLinkItem";
 import { CustomNextSeo } from "../../shared/CustomNextSeo";
 import { LinearLoadingSkeleton } from "../../shared/LinearLoadingSkeleton";
-import { ManifestErrorSnackbar } from "../../shared/ManifestErrorSnackbar";
+import { ManifestErrorSnackbar } from "../../shared/ManifestErrorSnackbar/ManifestErrorSnackbar";
 import ViewPanel from "../../shared/ViewPanel";
 import { BidCountdownTimer } from "../BidCountdownTimer";
 import { BidGroup } from "../BidGroup";

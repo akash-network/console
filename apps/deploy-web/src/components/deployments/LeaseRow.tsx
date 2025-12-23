@@ -31,7 +31,7 @@ import { getGpusFromAttributes } from "@src/utils/deploymentUtils";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { sshVmImages } from "@src/utils/sdl/data";
 import { CopyTextToClipboardButton } from "../shared/CopyTextToClipboardButton";
-import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar";
+import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar/ManifestErrorSnackbar";
 import { ProviderName } from "../shared/ProviderName";
 
 type Props = {

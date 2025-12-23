@@ -1,5 +1,5 @@
+import { isHttpError } from "@akashnetwork/http-sdk";
 import { Snackbar } from "@akashnetwork/ui/components";
-import { isAxiosError } from "axios";
 
 export type ManifestErrorSnackbarProps = {
   err: unknown;
@@ -11,11 +11,11 @@ export const ManifestErrorSnackbar = ({ err, messages }: ManifestErrorSnackbarPr
 };
 
 function generateErrorText(err: unknown, customMessages?: Record<string, string>) {
-  if (isAxiosError(err) && err.response?.status === 401) {
+  if (isHttpError(err) && err.response?.status === 401) {
     return `You don't have local certificate. Please create a new one.`;
   }
 
-  if (isAxiosError(err) && err.response?.status === 400) {
+  if (isHttpError(err) && err.response?.status === 400) {
     if (!err.response.data?.error?.issues) return DEFAULT_ERROR_MESSAGE;
 
     const errors = new Set<string>();
@@ -29,6 +29,11 @@ function generateErrorText(err: unknown, customMessages?: Record<string, string>
       }
     });
     return Array.from(errors).join("\n ");
+  }
+
+  if (isHttpError(err) && err.response?.status === 422) {
+    // raw error message from provider. It returns error in text/plain format.
+    return typeof err.response.data === "string" ? err.response.data : err.response.data.message || JSON.stringify(err.response.data);
   }
 
   return err;

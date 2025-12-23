@@ -16,6 +16,7 @@ describe(ErrorHandlerService.name, () => {
 
     expect(captureException).toHaveBeenCalledWith(error, {
       extra: { message: "test message" },
+      level: "error",
       tags: { category: "test", event: "TEST_ERROR" }
     });
     expect(logger.error).toHaveBeenCalledWith({ error, category: "test", event: "TEST_ERROR", message: "test message" });
@@ -49,6 +50,7 @@ describe(ErrorHandlerService.name, () => {
     errorHandler.reportError({ error: httpError });
 
     expect(captureException).toHaveBeenCalledWith(httpError, {
+      level: "error",
       extra: {
         headers: {
           "content-type": "application/json",
@@ -128,6 +130,7 @@ describe(ErrorHandlerService.name, () => {
       expect(result).toBe("fallback");
       expect(captureException).toHaveBeenCalledWith(error, {
         extra: {},
+        level: "error",
         tags: { category: "test" }
       });
     });
@@ -151,6 +154,7 @@ describe(ErrorHandlerService.name, () => {
       expect(result).toBe("fallback");
       expect(captureException).toHaveBeenCalledWith(error, {
         extra: {},
+        level: "error",
         tags: { category: "test" }
       });
     });
