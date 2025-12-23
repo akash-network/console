@@ -14,7 +14,6 @@ initSentry({
   tracePropagationTargets: [/^\/api\//],
   integrations: [
     eventFiltersIntegration({
-      allowUrls: [/https?:\/\/[^.]+\.akash\.network/],
       denyUrls: [/^chrome-extension:\/\//]
     }),
     thirdPartyErrorFilterIntegration({
