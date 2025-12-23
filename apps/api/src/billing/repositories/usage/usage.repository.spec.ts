@@ -322,7 +322,7 @@ describe(UsageRepository.name, () => {
       (userWalletRepository.findOneByAddress as jest.Mock).mockResolvedValue({
         id: 1,
         address: testAddress,
-        createdAt: new Date("2024-12-01")
+        createdAt: new Date("2025-12-01")
       });
 
       await createTestDay({
