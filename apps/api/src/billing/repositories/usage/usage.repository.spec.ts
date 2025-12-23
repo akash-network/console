@@ -5,6 +5,8 @@ import type { Block, Day } from "@akashnetwork/database/dbSchemas/base";
 import type { CreationAttributes } from "sequelize";
 import { Op } from "sequelize";
 
+import type { UserWalletRepository } from "@src/billing/repositories/user-wallet/user-wallet.repository";
+import type { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { chainDb } from "@src/db/dbConnection";
 import { UsageRepository } from "./usage.repository";
 
@@ -263,6 +265,103 @@ describe(UsageRepository.name, () => {
       });
     });
 
+    it("includes leases from old wallet address for pre-migration wallets", async () => {
+      const oldAddress = createAkashAddress();
+      const { usageRepository, userWalletRepository, txManagerService } = setup();
+      const startDate = "2023-01-01";
+      const endDate = "2023-01-01";
+
+      (userWalletRepository.findOneByAddress as jest.Mock).mockResolvedValue({
+        id: 1,
+        address: testAddress,
+        createdAt: new Date("2024-11-01"),
+        isOldWallet: true
+      });
+      (txManagerService.getDerivedWalletAddress as jest.Mock).mockResolvedValue(oldAddress);
+
+      await createTestDay({
+        date: new Date("2023-01-01"),
+        firstBlockHeight: 100,
+        lastBlockHeight: 200,
+        lastBlockHeightYet: 200,
+        aktPrice: 2.5
+      });
+
+      await createTestBlock({ height: 150 });
+
+      await createTestLease({
+        owner: testAddress,
+        createdHeight: 50,
+        closedHeight: 250,
+        price: 1000000,
+        denom: "uakt"
+      });
+
+      await createTestLease({
+        owner: oldAddress,
+        createdHeight: 50,
+        closedHeight: 250,
+        price: 2000000,
+        denom: "uakt"
+      });
+
+      const results = await usageRepository.getHistory(testAddress, startDate, endDate);
+
+      expect(results).toHaveLength(1);
+      expect(results[0]).toMatchObject({
+        activeDeployments: 2,
+        dailyAktSpent: 300
+      });
+    });
+
+    it("does not include old wallet for post-migration wallets", async () => {
+      const oldAddress = createAkashAddress();
+      const { usageRepository, userWalletRepository } = setup();
+      const startDate = "2023-01-01";
+      const endDate = "2023-01-01";
+
+      (userWalletRepository.findOneByAddress as jest.Mock).mockResolvedValue({
+        id: 1,
+        address: testAddress,
+        createdAt: new Date("2024-12-01"),
+        isOldWallet: false
+      });
+
+      await createTestDay({
+        date: new Date("2023-01-01"),
+        firstBlockHeight: 100,
+        lastBlockHeight: 200,
+        lastBlockHeightYet: 200,
+        aktPrice: 2.5
+      });
+
+      await createTestBlock({ height: 150 });
+
+      await createTestLease({
+        owner: testAddress,
+        createdHeight: 50,
+        closedHeight: 250,
+        price: 1000000,
+        denom: "uakt"
+      });
+
+      await createTestLease({
+        owner: oldAddress,
+        createdHeight: 50,
+        closedHeight: 250,
+        price: 2000000,
+        denom: "uakt"
+      });
+
+      const results = await usageRepository.getHistory(testAddress, startDate, endDate);
+
+      expect(results).toHaveLength(1);
+      expect(results[0]).toMatchObject({
+        activeDeployments: 1,
+        dailyAktSpent: 100
+      });
+    });
+
     async function createTestDay(overrides: Partial<CreationAttributes<Day>> = {}) {
       const day = await createDay(overrides);
       createdDayIds.push(day.id);
@@ -313,9 +412,20 @@ describe(UsageRepository.name, () => {
   });
 
   function setup() {
-    const usageRepository = new UsageRepository();
+    const userWalletRepository = {
+      findOneByAddress: jest.fn().mockResolvedValue(undefined)
+    } as unknown as UserWalletRepository;
+
+    const txManagerService = {
+      getDerivedWalletAddress: jest.fn().mockResolvedValue("")
+    } as unknown as TxManagerService;
+
+    const usageRepository = new UsageRepository(userWalletRepository, txManagerService);
+
     return {
-      usageRepository
+      usageRepository,
+      userWalletRepository,
+      txManagerService
     };
   }
 });
