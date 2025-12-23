@@ -5,7 +5,7 @@ import { UserWalletRepository } from "@src/billing/repositories/user-wallet/user
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { chainDb } from "@src/db/dbConnection";
 
-const WALLET_MIGRATION_DATE = new Date("2024-11-24");
+const WALLET_MIGRATION_DATE = new Date("2025-11-24");
 
 export interface BillingUsageRawResult {
   date: string;
