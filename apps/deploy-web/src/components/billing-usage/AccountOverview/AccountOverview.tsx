@@ -1,17 +1,18 @@
 import React, { useCallback, useMemo, useState } from "react";
 import { FormattedNumber } from "react-intl";
-import { Button, Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle, Snackbar, Switch } from "@akashnetwork/ui/components";
+import { Button, Card, CardContent, CardHeader, CustomTooltip, Skeleton, Snackbar, Switch } from "@akashnetwork/ui/components";
 import { usePopup } from "@akashnetwork/ui/context";
 import { LinearProgress } from "@mui/material";
-import { Plus } from "iconoir-react";
+import { InfoCircle, Plus, Wallet } from "iconoir-react";
+import Link from "next/link";
 import { useSnackbar } from "notistack";
 
 import { PaymentPopup } from "@src/components/billing-usage/PaymentPopup/PaymentPopup";
-import Layout from "@src/components/layout/Layout";
 import { Title } from "@src/components/shared/Title";
 import { PaymentSuccessAnimation } from "@src/components/user/payment/PaymentSuccessAnimation";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
 import { useDefaultPaymentMethodQuery, useWalletSettingsMutations, useWalletSettingsQuery, useWeeklyDeploymentCostQuery } from "@src/queries";
+import { UrlService } from "@src/utils/urlUtils";
 
 export const AccountOverview: React.FunctionComponent = () => {
   const [showPaymentPopup, setShowPaymentPopup] = useState(false);
@@ -20,7 +21,7 @@ export const AccountOverview: React.FunctionComponent = () => {
   const { data: defaultPaymentMethod, isLoading: isLoadingDefaultPaymentMethod } = useDefaultPaymentMethodQuery();
   const { balance: walletBalance, isLoading: isWalletBalanceLoading } = useWalletBalance();
   const { data: walletSettings } = useWalletSettingsQuery();
-  const { data: weeklyCost, isLoading: isWeeklyCostLoading } = useWeeklyDeploymentCostQuery();
+  const { data: weeklyCost } = useWeeklyDeploymentCostQuery();
   const { upsertWalletSettings } = useWalletSettingsMutations();
   const { confirm } = usePopup();
 
@@ -63,81 +64,120 @@ export const AccountOverview: React.FunctionComponent = () => {
     [confirm, enqueueSnackbar, upsertWalletSettings]
   );
 
+  const hasPaymentMethod = !!defaultPaymentMethod;
+
   const isReloadChangeDisabled = useMemo(() => {
-    return !defaultPaymentMethod || upsertWalletSettings.isPending;
-  }, [defaultPaymentMethod, upsertWalletSettings.isPending]);
+    return !hasPaymentMethod || upsertWalletSettings.isPending;
+  }, [hasPaymentMethod, upsertWalletSettings.isPending]);
 
   if (isLoading) {
     return (
-      <Layout>
-        <div className="flex min-h-[50vh] items-center justify-center">
-          <div className="flex flex-col items-center gap-4">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-            <p className="text-muted-foreground">Loading payment information...</p>
+      <div>
+        <div className="flex items-center justify-between">
+          <Title subTitle>Your account</Title>
+          <Skeleton className="h-9 w-28" />
+        </div>
+
+        <div className="pt-4">
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-4 w-4" />
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col gap-1">
+                  <Skeleton className="h-8 w-24" />
+                  <Skeleton className="h-4 w-40" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-4 w-4" />
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col gap-2">
+                  <Skeleton className="h-6 w-12 rounded-full" />
+                  <Skeleton className="h-4 w-56" />
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
-      </Layout>
+      </div>
     );
   }
 
   return (
     <div>
-      <Title subTitle>Account overview</Title>
+      <div className="flex items-center justify-between">
+        <Title subTitle>Your account</Title>
+        <CustomTooltip title="Add a payment method first to add funds" disabled={hasPaymentMethod}>
+          <Button onClick={() => setShowPaymentPopup(true)} disabled={isWalletBalanceLoading || !hasPaymentMethod} size="sm">
+            <Plus className="h-4 w-4" />
+            Add Funds
+          </Button>
+        </CustomTooltip>
+      </div>
 
-      <div className="pt-4">
-        <div className="flex w-full flex-col gap-4 lg:flex-row lg:gap-8">
-          <Card className="relative flex min-h-28 basis-1/2 flex-col overflow-hidden">
+      <div className="pt-6">
+        <div className="grid gap-6 md:grid-cols-2">
+          <Card className="relative overflow-hidden">
             {(!walletBalance || isWalletBalanceLoading) && (
               <div className="absolute left-0 right-0 top-0 flex flex-1 items-center">
                 <LinearProgress color="primary" className="mx-auto w-full" />
               </div>
             )}
-            <CardHeader className="flex flex-row items-center justify-between pb-0">
-              <CardTitle className="text-base">Credits Remaining</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+              <h3 className="text-sm font-medium leading-none text-muted-foreground">Available Balance</h3>
+              <Wallet className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent className="pb-0">
-              <div className="mt-4 text-3xl font-bold">
-                {walletBalance && <FormattedNumber value={walletBalance.totalDeploymentGrantsUSD} style="currency" currency="USD" />}
+            <CardContent>
+              <div className="flex flex-col gap-1">
+                <p className="text-2xl font-bold leading-none">
+                  {walletBalance && <FormattedNumber value={walletBalance.totalDeploymentGrantsUSD} style="currency" currency="USD" />}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {walletBalance && <FormattedNumber value={walletBalance.totalDeploymentEscrowUSD} style="currency" currency="USD" />} used in deployments
+                </p>
               </div>
             </CardContent>
-            <CardFooter className="justify-end">
-              <Button
-                variant="default"
-                size="icon"
-                className="h-8 w-8 text-xs"
-                onClick={() => setShowPaymentPopup(true)}
-                disabled={isWalletBalanceLoading || !defaultPaymentMethod}
-              >
-                <Plus />
-              </Button>
-            </CardFooter>
           </Card>
-          <Card className="relative flex min-h-28 basis-1/2 flex-col overflow-hidden">
+          <Card className="relative overflow-hidden">
             {upsertWalletSettings.isPending && (
               <div className="absolute left-0 right-0 top-0 flex flex-1 items-center">
                 <LinearProgress color="primary" className="mx-auto w-full" />
               </div>
             )}
-            <CardHeader className="flex items-start justify-between pb-0">
-              <CardTitle className="text-base">Credits Auto Reload</CardTitle>
-              <CardDescription className="space-y-2">Charges your default payment method ~weekly to keep deployments with auto top-up running</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+              <div className="flex items-center gap-1">
+                <h3 className="text-sm font-medium leading-none text-muted-foreground">Auto Recharge</h3>
+                <CustomTooltip title="Automatically add credits to your account using your default payment method to keep deployments running.">
+                  <InfoCircle className="h-4 w-4 cursor-pointer text-muted-foreground" />
+                </CustomTooltip>
+              </div>
             </CardHeader>
-            <CardContent className="pt-2">
-              <div>
-                <div className="flex flex-col gap-4 pt-4">
-                  <div className="flex items-center justify-between">
-                    <Switch checked={walletSettings?.autoReloadEnabled ?? false} onCheckedChange={toggleAutoReload} disabled={isReloadChangeDisabled} />
-                  </div>
-                  {!isWeeklyCostLoading && weeklyCost !== undefined && (
-                    <div className="text-sm text-muted-foreground">
-                      Ongoing auto-topped-up deployment cost is approximately{" "}
-                      <span className="font-medium text-foreground">
-                        <FormattedNumber value={weeklyCost} style="currency" currency="USD" />
-                      </span>{" "}
-                      per week
-                    </div>
-                  )}
-                </div>
+            <CardContent>
+              <div className="flex flex-col gap-2">
+                <Switch checked={walletSettings?.autoReloadEnabled ?? false} onCheckedChange={toggleAutoReload} disabled={isReloadChangeDisabled} />
+                {hasPaymentMethod ? (
+                  <p className="text-sm text-muted-foreground">
+                    Recharge amount is approximately{" "}
+                    <span className="font-medium text-foreground">
+                      <FormattedNumber value={weeklyCost ?? 0} style="currency" currency="USD" />
+                    </span>{" "}
+                    per week
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    <Link href={UrlService.paymentMethods()} className="text-primary underline">
+                      Add a payment method
+                    </Link>{" "}
+                    to enable auto recharge
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>

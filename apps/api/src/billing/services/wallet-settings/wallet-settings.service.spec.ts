@@ -87,7 +87,8 @@ describe(WalletSettingService.name, () => {
         expect.objectContaining({
           id: newSetting.id,
           userId: user.id
-        })
+        }),
+        { prevAction: "cancel" }
       );
     });
 
@@ -145,7 +146,8 @@ describe(WalletSettingService.name, () => {
         expect.objectContaining({
           id: updatedSetting.id,
           userId: user.id
-        })
+        }),
+        { prevAction: "cancel" }
       );
     });
 

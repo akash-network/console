@@ -16,7 +16,7 @@ type Props = {
 
 export const SidebarGroupMenu: React.FunctionComponent<Props> = ({ group, hasDivider = true, isNavOpen }) => {
   return (
-    <div className="mt-4 w-full">
+    <div className="mt-6 w-full">
       {hasDivider && <Separator className="mb-2" />}
 
       <nav className={cn("flex flex-1 flex-col", { ["items-center"]: !isNavOpen })} aria-label="Sidebar">

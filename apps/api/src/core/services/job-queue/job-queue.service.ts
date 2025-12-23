@@ -99,21 +99,65 @@ export class JobQueueService implements Disposable {
   }
 
   async cancel(name: string, id: string): Promise<void> {
-    await this.pgBoss.cancel(name, id);
-    this.logger.info({
-      event: "JOB_CANCELLED",
-      id,
-      name
-    });
+    try {
+      await this.pgBoss.cancel(name, id);
+      this.logger.info({
+        event: "JOB_CANCELLED",
+        id,
+        name
+      });
+    } catch (error) {
+      if (this.isTerminalStateError(error)) {
+        this.logger.warn({
+          event: "JOB_CANCEL_FAILED",
+          id,
+          name,
+          error
+        });
+      } else {
+        throw error;
+      }
+    }
   }
 
   async complete(name: string, id: string): Promise<void> {
-    await this.pgBoss.complete(name, id);
-    this.logger.info({
-      event: "JOB_COMPLETED",
-      id,
-      name
-    });
+    try {
+      await this.pgBoss.complete(name, id);
+      this.logger.info({
+        event: "JOB_COMPLETED",
+        id,
+        name
+      });
+    } catch (error) {
+      if (this.isTerminalStateError(error)) {
+        this.logger.warn({
+          event: "JOB_COMPLETE_FAILED",
+          id,
+          name,
+          error
+        });
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  private isTerminalStateError(error: unknown): boolean {
+    if (!(error instanceof Error)) {
+      return false;
+    }
+
+    const terminalStatePatterns = [
+      /job.+not found/i,
+      /job.+already.+completed/i,
+      /job.+already.+cancelled/i,
+      /job.+already.+failed/i,
+      /job.+in.+terminal.+state/i,
+      /cannot.+cancel.+job/i,
+      /cannot.+complete.+job/i
+    ];
+
+    return terminalStatePatterns.some(pattern => pattern.test(error.message));
   }
 
   /** Starts jobs processing */

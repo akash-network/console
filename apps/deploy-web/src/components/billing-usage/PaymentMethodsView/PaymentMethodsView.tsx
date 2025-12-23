@@ -2,6 +2,7 @@ import React from "react";
 import type { PaymentMethod, SetupIntentResponse } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
 import { Button, Card, CardContent, CardFooter, CardHeader, Spinner, Table, TableBody } from "@akashnetwork/ui/components";
 import { CircularProgress } from "@mui/material";
+import { Plus } from "lucide-react";
 import { useTheme } from "next-themes";
 
 import { AddPaymentMethodPopup } from "@src/components/user/payment";
@@ -67,9 +68,9 @@ export const PaymentMethodsView: React.FC<PaymentMethodsViewProps> = ({
           <div className="text-2xl font-bold">Payment Methods</div>
           <div className="border-b-[1px] pb-4 text-sm text-gray-500">All payments to add credits will be made using your default card.</div>
         </d.CardHeader>
-        <d.CardContent className="relative p-0">
+        <d.CardContent className="relative">
           {data.length === 0 ? (
-            <p className="px-4 py-6 text-sm text-gray-500">No payment methods added yet.</p>
+            <p className="py-6 text-sm text-gray-500">No payment methods added yet.</p>
           ) : (
             <>
               <d.Table>
@@ -93,9 +94,10 @@ export const PaymentMethodsView: React.FC<PaymentMethodsViewProps> = ({
             </>
           )}
         </d.CardContent>
-        <d.CardFooter className="flex justify-end border-t-[1px] bg-muted py-2">
-          <d.Button onClick={onAddPaymentMethod} className="mb-4 mt-4" disabled={isInProgress}>
-            Add Payment Method
+        <d.CardFooter className="flex justify-end">
+          <d.Button onClick={onAddPaymentMethod} size="sm" disabled={isInProgress} className="gap-2">
+            <Plus className="h-4 w-4" />
+            <span>Add Payment Method</span>
           </d.Button>
         </d.CardFooter>
       </d.Card>
