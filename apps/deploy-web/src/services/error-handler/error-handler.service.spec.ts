@@ -3,7 +3,7 @@ import type { InternalAxiosRequestConfig } from "axios";
 import { AxiosError } from "axios";
 import { mock } from "jest-mock-extended";
 
-import { ErrorHandlerService } from "./error-handler.service";
+import { ErrorHandlerService, sentryTraceToW3C } from "./error-handler.service";
 
 describe(ErrorHandlerService.name, () => {
   it("handles generic error without extra metadata", () => {
@@ -179,6 +179,30 @@ describe(ErrorHandlerService.name, () => {
 
       expect(result).toBe("success");
       expect(captureException).not.toHaveBeenCalled();
+    });
+  });
+
+  describe(sentryTraceToW3C.name, () => {
+    it("converts sentry-trace to W3C traceparent with 00 flags when sampled is 0", () => {
+      const sentryTrace = "15b857440fc54a828dbbc2e934f54b6e-8ab28c3adec47f08-0";
+      expect(sentryTraceToW3C(sentryTrace)).toBe("00-15b857440fc54a828dbbc2e934f54b6e-8ab28c3adec47f08-00");
+    });
+
+    it("converts sentry-trace to W3C traceparent with 01 flags when sampled is 1", () => {
+      const sentryTrace = "15b857440fc54a828dbbc2e934f54b6e-8ab28c3adec47f08-1";
+      expect(sentryTraceToW3C(sentryTrace)).toBe("00-15b857440fc54a828dbbc2e934f54b6e-8ab28c3adec47f08-01");
+    });
+
+    it("returns undefined for invalid values", () => {
+      expect(sentryTraceToW3C("")).toBeUndefined();
+      expect(sentryTraceToW3C("15b857440fc54a828dbbc2e934f54b6e-8ab28c3adec47f08")).toBe("00-15b857440fc54a828dbbc2e934f54b6e-8ab28c3adec47f08-00");
+      expect(sentryTraceToW3C("00000000000000000000000000000000-8ab28c3adec47f08-1")).toBeUndefined();
+      expect(sentryTraceToW3C("15b857440fc54a828dbbc2e934f54b6e-0000000000000000-1")).toBeUndefined();
+    });
+
+    it("ignores extra suffixes after the sampled flag", () => {
+      const sentryTrace = "15b857440fc54a828dbbc2e934f54b6e-8ab28c3adec47f08-1-foo";
+      expect(sentryTraceToW3C(sentryTrace)).toBe("00-15b857440fc54a828dbbc2e934f54b6e-8ab28c3adec47f08-01");
     });
   });
 
