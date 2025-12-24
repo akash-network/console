@@ -28,7 +28,7 @@ export const AccountStatsCards: React.FC<Props> = ({ walletBalance, activeDeploy
   const usdcInDeployments = udenomToDenom(walletBalance?.totalDeploymentEscrowUUSDC || 0, 2);
 
   return (
-    <div className={`grid gap-6 ${isManagedWallet ? "md:grid-cols-3" : "md:grid-cols-4"}`}>
+    <div className={`grid gap-6 ${isManagedWallet ? "lg:grid-cols-3" : "sm:grid-cols-2 lg:grid-cols-4"}`}>
       {isManagedWallet ? (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
