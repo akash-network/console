@@ -11,7 +11,7 @@ initSentry({
   enabled: process.env.NEXT_PUBLIC_SENTRY_ENABLED === "true",
   // propagate sentry-trace and baggage headers to internal API only
   // everything else will be done with custom interceptor
-  tracePropagationTargets: [/^\/api\//],
+  tracePropagationTargets: [/^\/api\//, /^\/_next\//],
   integrations: [
     eventFiltersIntegration({
       denyUrls: [/^chrome-extension:\/\//]
