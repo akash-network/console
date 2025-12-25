@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation";
 import { CustomDropdownLinkItem } from "@src/components/shared/CustomDropdownLinkItem";
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
+import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useCurrencyFormatter } from "@src/hooks/useCurrencyFormatter/useCurrencyFormatter";
 import { useDeploymentMetrics } from "@src/hooks/useDeploymentMetrics";
@@ -23,7 +24,6 @@ import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import { usePricing } from "@src/hooks/usePricing/usePricing";
 import { useUser } from "@src/hooks/useUser";
 import { useDeploymentSettingQuery } from "@src/queries/deploymentSettingsQuery";
-import { analyticsService } from "@src/services/analytics/analytics.service";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import { averageBlockTime } from "@src/utils/priceUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
@@ -48,6 +48,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
   deployment,
   leases
 }) => {
+  const { analyticsService } = useServices();
   const { changeDeploymentName, getDeploymentData, getDeploymentName } = useLocalNotes();
   const { udenomToUsd } = usePricing();
   const router = useRouter();

@@ -5,8 +5,8 @@ import { Alert, Form, FormField, FormInput, Popup } from "@akashnetwork/ui/compo
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 
+import { useServices } from "@src/context/ServicesProvider";
 import { type ProviderInfo, useProviderApiActions } from "@src/hooks/useProviderApiActions";
-import { analyticsService } from "@src/services/analytics/analytics.service";
 import type { LeaseDto } from "@src/types/deployment";
 
 type Props = {
@@ -30,6 +30,7 @@ const formSchema = z.object({
 type FormData = z.infer<typeof formSchema>;
 
 export const ShellDownloadModal = ({ selectedLease, onCloseClick, selectedService, providerInfo }: Props) => {
+  const { analyticsService } = useServices();
   const formRef = useRef<HTMLFormElement | null>(null);
   const { downloadFileFromShell } = useProviderApiActions();
   const form = useForm<FormData>({

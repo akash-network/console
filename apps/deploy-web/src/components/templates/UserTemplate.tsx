@@ -12,10 +12,10 @@ import { LeaseSpecDetail } from "@src/components/shared/LeaseSpecDetail";
 import { Title } from "@src/components/shared/Title";
 import { UserFavoriteButton } from "@src/components/shared/UserFavoriteButton";
 import { USER_TEMPLATE_CODE } from "@src/config/deploy.config";
+import { useServices } from "@src/context/ServicesProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { getShortText } from "@src/hooks/useShortText";
 import { useDeleteTemplate } from "@src/queries/useTemplateQuery";
-import { analyticsService } from "@src/services/analytics/analytics.service";
 import sdlStore from "@src/store/sdlStore";
 import type { ITemplate } from "@src/types";
 import { RouteStep } from "@src/types/route-steps.type";
@@ -31,6 +31,7 @@ type Props = {
 };
 
 export const UserTemplate: React.FunctionComponent<Props> = ({ id, template }) => {
+  const { analyticsService } = useServices();
   const [description, setDescription] = useState("");
   const [isShowingDelete, setIsShowingDelete] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);

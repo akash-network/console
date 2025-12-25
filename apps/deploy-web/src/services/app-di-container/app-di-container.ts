@@ -16,7 +16,8 @@ import { LoggerService } from "@akashnetwork/logging";
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 import type { Axios, AxiosInstance, AxiosResponse, CreateAxiosDefaults, InternalAxiosRequestConfig } from "axios";
 
-import { analyticsService } from "@src/services/analytics/analytics.service";
+import { browserEnvConfig } from "@src/config/browser-env.config";
+import { AnalyticsService } from "@src/services/analytics/analytics.service";
 import networkStore from "@src/store/networkStore";
 import { registry } from "@src/utils/customRegistry";
 import { UrlService } from "@src/utils/urlUtils";
@@ -32,6 +33,8 @@ import { UserTracker } from "../user-tracker/user-tracker.service";
 export const createAppRootContainer = (config: ServicesConfig) => {
   const apiConfig = { baseURL: config.BASE_API_MAINNET_URL, adapter: "fetch" };
   const container = createContainer({
+    publicConfig: () => browserEnvConfig,
+
     applyAxiosInterceptors: (): typeof withInterceptors => {
       const otelInterceptor = (config: InternalAxiosRequestConfig) => {
         if (typeof window !== "undefined" && getRequestOrigin(config) !== window.location.origin) {
@@ -65,7 +68,12 @@ export const createAppRootContainer = (config: ServicesConfig) => {
       container.applyAxiosInterceptors(new HttpStripeService(apiConfig), {
         request: [withUserToken]
       }),
-    stripeService: () => new StripeService(),
+    stripeService: () =>
+      new StripeService({
+        config: {
+          publishableKey: container.publicConfig.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
+        }
+      }),
     tx: () =>
       container.applyAxiosInterceptors(new TxHttpService(registry, apiConfig), {
         request: [withUserToken]
@@ -126,7 +134,18 @@ export const createAppRootContainer = (config: ServicesConfig) => {
       (options?: CreateAxiosDefaults): AxiosInstance =>
         createHttpClient({ adapter: "fetch", ...options }),
     certificateManager: () => certificateManager,
-    analyticsService: () => analyticsService,
+    analyticsService: () =>
+      new AnalyticsService({
+        amplitude: {
+          enabled: container.publicConfig.NEXT_PUBLIC_AMPLITUDE_ENABLED,
+          apiKey: container.publicConfig.NEXT_PUBLIC_AMPLITUDE_API_KEY,
+          samplingRate: container.publicConfig.NEXT_PUBLIC_AMPLITUDE_SAMPLING
+        },
+        ga: {
+          measurementId: container.publicConfig.NEXT_PUBLIC_GA_MEASUREMENT_ID,
+          enabled: container.publicConfig.NEXT_PUBLIC_GA_ENABLED
+        }
+      }),
     apiUrlService: config.apiUrlService,
     managedWalletService: () =>
       container.applyAxiosInterceptors(

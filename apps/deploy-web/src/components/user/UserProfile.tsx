@@ -5,11 +5,10 @@ import Link from "next/link";
 
 import { TemplateGridButton } from "@src/components/shared/TemplateGridButton";
 import { UserProfileLayout } from "@src/components/user/UserProfileLayout";
+import { useServices } from "@src/context/ServicesProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useUserTemplates } from "@src/queries/useTemplateQuery";
-import { analyticsService } from "@src/services/analytics/analytics.service";
 import type { IUserSetting } from "@src/types/user";
-import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 
 type Props = {
@@ -18,6 +17,7 @@ type Props = {
 };
 
 export const UserProfile: React.FunctionComponent<Props> = ({ username, user }) => {
+  const { analyticsService, urlService } = useServices();
   const { data: userTemplates, isLoading: isLoadingTemplates } = useUserTemplates(username);
   const { user: _user, isLoading } = useCustomUser();
 
@@ -38,7 +38,7 @@ export const UserProfile: React.FunctionComponent<Props> = ({ username, user }) 
               {username === _user?.username && (
                 <Link
                   className={cn(buttonVariants({ variant: "default", size: "sm" }), "mt-4")}
-                  href={UrlService.sdlBuilder()}
+                  href={urlService.sdlBuilder()}
                   onClick={() => {
                     analyticsService.track("create_sdl_template_link", {
                       category: "profile",

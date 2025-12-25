@@ -3,12 +3,13 @@ import { NextSeo } from "next-seo";
 
 import { TemplateGridButton } from "@src/components/shared/TemplateGridButton";
 import { UserProfileLayout } from "@src/components/user/UserProfileLayout";
+import { useServices } from "@src/context/ServicesProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useUserFavoriteTemplates } from "@src/queries/useTemplateQuery";
-import { analyticsService } from "@src/services/analytics/analytics.service";
 import Layout from "../layout/Layout";
 
 export const UserFavorites: React.FunctionComponent = () => {
+  const { analyticsService } = useServices();
   const { data: favoriteTemplates, isLoading: isLoadingTemplates } = useUserFavoriteTemplates();
   const { user, isLoading } = useCustomUser();
 

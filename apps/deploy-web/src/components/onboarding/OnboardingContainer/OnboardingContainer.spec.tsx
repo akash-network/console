@@ -288,7 +288,7 @@ describe("OnboardingContainer", () => {
       authService,
       chainApiHttpClient: mockChainApiHttpClient,
       deploymentLocalStorage: mockDeploymentLocalStorage,
-      appConfig: mockAppConfig,
+      publicConfig: mockAppConfig,
       errorHandler: mockErrorHandler,
       windowLocation,
       windowHistory
@@ -375,8 +375,7 @@ describe("OnboardingContainer", () => {
       validateDeploymentData: mockValidateDeploymentData,
       appendAuditorRequirement: mockAppendAuditorRequirement,
       helloWorldTemplate: mockHelloWorldTemplate,
-      TransactionMessageData: mockTransactionMessageData as unknown as typeof TransactionMessageData,
-      UrlService
+      TransactionMessageData: mockTransactionMessageData as unknown as typeof TransactionMessageData
     };
 
     const mockChildren = jest.fn().mockReturnValue(<div>Test</div>);

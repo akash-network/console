@@ -23,10 +23,10 @@ import { z } from "zod";
 
 import { LinkTo } from "@src/components/shared/LinkTo";
 import { UAKT_DENOM } from "@src/config/denom.config";
+import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useUsdcDenom } from "@src/hooks/useDenom";
 import { useDenomData } from "@src/hooks/useWalletBalance";
-import { analyticsService } from "@src/services/analytics/analytics.service";
 import type { GrantType } from "@src/types/grant";
 import { denomToUdenom } from "@src/utils/mathHelpers";
 import { aktToUakt, coinToDenom, getUsdcDenom } from "@src/utils/priceUtils";
@@ -52,6 +52,7 @@ const formSchema = z.object({
 });
 
 export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, address, onClose }) => {
+  const { analyticsService } = useServices();
   const formRef = useRef<HTMLFormElement>(null);
   const [error, setError] = useState("");
   const { signAndBroadcastTx } = useWallet();

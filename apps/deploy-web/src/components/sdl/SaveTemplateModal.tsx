@@ -10,10 +10,10 @@ import { useSnackbar } from "notistack";
 import { z } from "zod";
 
 import { MustConnect } from "@src/components/shared/MustConnect";
+import { useServices } from "@src/context/ServicesProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { getShortText } from "@src/hooks/useShortText";
 import { useSaveUserTemplate } from "@src/queries/useTemplateQuery";
-import { analyticsService } from "@src/services/analytics/analytics.service";
 import sdlStore from "@src/store/sdlStore";
 import type { EnvironmentVariableType, ITemplate, ServiceType } from "@src/types";
 import { UrlService } from "@src/utils/urlUtils";
@@ -42,6 +42,7 @@ export const SaveTemplateModal: React.FunctionComponent<Props> = ({
   services,
   clearFormStorage
 }) => {
+  const { analyticsService } = useServices();
   const [publicEnvs, setPublicEnvs] = useState<EnvironmentVariableType[]>([]);
   const { enqueueSnackbar } = useSnackbar();
   const formRef = useRef<HTMLFormElement>(null);

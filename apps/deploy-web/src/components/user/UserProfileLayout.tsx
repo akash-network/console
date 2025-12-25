@@ -4,9 +4,8 @@ import { ErrorBoundary } from "react-error-boundary";
 import { ErrorFallback, Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { useRouter } from "next/router";
 
+import { useServices } from "@src/context/ServicesProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
-import { analyticsService } from "@src/services/analytics/analytics.service";
-import { UrlService } from "@src/utils/urlUtils";
 
 type UserProfileTab = "templates" | "favorites" | "settings";
 type Props = {
@@ -19,6 +18,7 @@ type Props = {
 export const UserProfileLayout: React.FunctionComponent<Props> = ({ page, children, username = "", bio }) => {
   const router = useRouter();
   const { user } = useCustomUser();
+  const { analyticsService, urlService } = useServices();
 
   const handleTabChange = (newValue: string) => {
     analyticsService.track("user_profile_template_tab", {
@@ -28,13 +28,13 @@ export const UserProfileLayout: React.FunctionComponent<Props> = ({ page, childr
 
     switch (newValue) {
       case "templates":
-        router.push(UrlService.userProfile(username));
+        router.push(urlService.userProfile(username));
         break;
       case "favorites":
-        router.push(UrlService.userFavorites());
+        router.push(urlService.userFavorites());
         break;
       case "settings":
-        router.push(UrlService.userSettings());
+        router.push(urlService.userSettings());
         break;
     }
   };

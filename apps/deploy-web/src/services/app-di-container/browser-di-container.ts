@@ -36,7 +36,7 @@ export const services = createChildContainer(rootContainer, {
       request: [withAnonymousUserToken]
     }),
   consoleApiHttpClient: () =>
-    services.applyAxiosInterceptors(services.createAxios({ baseURL: services.appConfig.NEXT_PUBLIC_BASE_API_MAINNET_URL }), {
+    services.applyAxiosInterceptors(services.createAxios({ baseURL: services.publicConfig.NEXT_PUBLIC_BASE_API_MAINNET_URL }), {
       request: [withUserToken]
     }),
   /** TODO: https://github.com/akash-network/console/issues/1720 */
@@ -50,7 +50,6 @@ export const services = createChildContainer(rootContainer, {
         }
       ]
     }),
-  appConfig: () => browserEnvConfig,
   authService: () => new AuthService(services.urlService, services.internalApiHttpClient),
   storedWalletsService: () => walletUtils,
   deploymentLocalStorage: () => new DeploymentStorageService(localStorage, services.networkStore),

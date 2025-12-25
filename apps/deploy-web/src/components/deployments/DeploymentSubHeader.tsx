@@ -37,7 +37,7 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
   const denomData = useDenomData(deployment.escrowAccount.state.funds[0]?.denom || "");
   const { isCustodial, isTrialing } = useWallet();
   const isAnonymousFreeTrialEnabled = useFlag("anonymous_free_trial");
-  const { appConfig } = useServices();
+  const { publicConfig: appConfig } = useServices();
 
   const trialDuration = appConfig.NEXT_PUBLIC_TRIAL_DEPLOYMENTS_DURATION_HOURS;
   const { timeRemainingText: trialTimeRemaining } = useTrialDeploymentTimeRemaining({

@@ -9,7 +9,7 @@ import type { editor } from "monaco-editor";
 import { useTheme } from "next-themes";
 import { useSnackbar } from "notistack";
 
-import { analyticsService } from "@src/services/analytics/analytics.service";
+import { useServices } from "@src/context/ServicesProvider";
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { Timer } from "@src/utils/timer";
@@ -21,6 +21,7 @@ type Props = {
 };
 
 export const ImportSdlModal: React.FunctionComponent<Props> = ({ onClose, setValue }) => {
+  const { analyticsService } = useServices();
   const [sdl, setSdl] = useState<string | undefined>("");
   const [parsingError, setParsingError] = useState<string | null>(null);
   const { enqueueSnackbar } = useSnackbar();
