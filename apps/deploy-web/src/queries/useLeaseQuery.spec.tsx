@@ -1,5 +1,6 @@
 import type { CertificatesService } from "@akashnetwork/http-sdk";
 import { useQueryClient } from "@tanstack/react-query";
+import { AxiosError } from "axios";
 import { mock } from "jest-mock-extended";
 
 import type { Props as ServicesProviderProps } from "@src/context/ServicesProvider";
@@ -285,6 +286,33 @@ describe("useLeaseQuery", () => {
         }
       });
 
+      await waitFor(() => {
+        expect(result.current.data).toBeNull();
+      });
+    });
+
+    it("returns null when lease is not active", async () => {
+      const { result } = setupLeaseStatus({
+        lease: { ...mockLease, state: "closed" },
+        services: {
+          providerProxy: () => mock<ProviderProxyService>()
+        }
+      });
+      await waitFor(() => {
+        expect(result.current.data).toBeNull();
+      });
+    });
+
+    it("returns null when fetching lease status fails with 404", async () => {
+      const providerProxy = mock<ProviderProxyService>({
+        request: jest.fn().mockRejectedValue(new AxiosError("Not Found", "404", undefined, undefined, { status: 404 } as any))
+      });
+      const { result } = setupLeaseStatus({
+        lease: mockLease,
+        services: {
+          providerProxy: () => providerProxy
+        }
+      });
       await waitFor(() => {
         expect(result.current.data).toBeNull();
       });
