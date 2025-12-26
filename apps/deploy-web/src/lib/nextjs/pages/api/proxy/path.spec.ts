@@ -74,9 +74,9 @@ describe("proxy API handler", () => {
       getSession: mockGetSession,
       httpProxy: mockHttpProxy,
       apiUrlService: mockApiUrlService,
-      config: mockConfig,
+      privateConfig: mockConfig,
       userTracker: mockUserTracker
-    } as unknown as typeof services;
+    } satisfies typeof services;
 
     const handlerPromise = proxyHandler(req, res);
 

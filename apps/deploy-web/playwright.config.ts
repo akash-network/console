@@ -4,6 +4,12 @@ import path from "path";
 
 dotenv.config({ path: path.resolve(__dirname, "env/.env.test") });
 
+if (!process.env.E2E_TESTING_CLIENT_TOKEN && !process.env.BASE_URL?.includes("localhost")) {
+  throw new Error(
+    "E2E_TESTING_CLIENT_TOKEN is a required env variable. Without it, tests will be blocked by captcha verification. Should be set to the same value as app's E2E_TESTING_CLIENT_TOKEN env variable."
+  );
+}
+
 /**
  * See https://playwright.dev/docs/test-configuration.
  */

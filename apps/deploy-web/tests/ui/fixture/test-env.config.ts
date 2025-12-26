@@ -8,7 +8,6 @@ export const testEnvSchema = z.object({
     .default("http://localhost:3000")
     .transform(url => url.replace(/\/+$/, "")),
   TEST_WALLET_MNEMONIC: z.string(),
-  UI_CONFIG_SIGNATURE_PRIVATE_KEY: z.string().optional(),
   NETWORK_ID: z.enum(["mainnet", "sandbox", "testnet"]).default("sandbox"),
   USER_DATA_DIR: z.string().default(path.join(tmpdir(), "akash-console-web-ui-tests", crypto.randomUUID()))
 });
@@ -16,7 +15,6 @@ export const testEnvSchema = z.object({
 export const testEnvConfig = testEnvSchema.parse({
   BASE_URL: process.env.BASE_URL,
   TEST_WALLET_MNEMONIC: process.env.TEST_WALLET_MNEMONIC,
-  UI_CONFIG_SIGNATURE_PRIVATE_KEY: process.env.UI_CONFIG_SIGNATURE_PRIVATE_KEY,
   USER_DATA_DIR: process.env.USER_DATA_DIR
 });
 
