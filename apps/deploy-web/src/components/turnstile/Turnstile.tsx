@@ -1,17 +1,17 @@
 "use client";
 
-import type { FC } from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { RefObject } from "react";
+import { forwardRef, useCallback, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { MdInfo } from "react-icons/md";
 import { Button } from "@akashnetwork/ui/components";
 import type { TurnstileInstance } from "@marsidev/react-turnstile";
 import { Turnstile as ReactTurnstile } from "@marsidev/react-turnstile";
 import { motion } from "framer-motion";
+import { RefreshCwIcon, Undo2 } from "lucide-react";
 import dynamic from "next/dynamic";
 
 import { useWhen } from "@src/hooks/useWhen";
-
-let originalFetch: typeof fetch | undefined;
+import { getInjectedConfig } from "@src/utils/getInjectedConfig/getInjectedConfig";
 
 type TurnstileStatus = "uninitialized" | "solved" | "interactive" | "expired" | "error" | "dismissed";
 
@@ -23,68 +23,69 @@ export const COMPONENTS = {
   MdInfo
 };
 
+export type TurnstileRef = {
+  renderAndWaitResponse: () => Promise<{ token: string }>;
+};
+
 type TurnstileProps = {
   enabled: boolean;
   siteKey: string;
+  onGoBack?: () => void;
+  turnstileRef?: RefObject<TurnstileRef>;
   components?: typeof COMPONENTS;
 };
 
-export const Turnstile: FC<TurnstileProps> = ({ enabled, siteKey, components: c = COMPONENTS }) => {
+export const Turnstile = forwardRef<TurnstileRef, TurnstileProps>(function Turnstile(
+  { enabled, siteKey, onGoBack, turnstileRef: externalTurnstileRef, components: c = COMPONENTS },
+  ref
+) {
   const turnstileRef = useRef<TurnstileInstance>();
   const [status, setStatus] = useState<TurnstileStatus>("uninitialized");
   const isVisible = useMemo(() => enabled && VISIBILITY_STATUSES.includes(status), [enabled, status]);
-  const abortControllerRef = useRef<AbortController>();
+  const eventBus = useRef<EventTarget>(new EventTarget());
+  const injectedConfig = getInjectedConfig();
 
   const resetWidget = useCallback(() => {
     turnstileRef.current?.remove();
     turnstileRef.current?.render();
     turnstileRef.current?.execute();
   }, []);
+  const hideWidget = useCallback(() => {
+    setStatus("uninitialized");
+    onGoBack?.();
+    turnstileRef.current?.remove();
+  }, [onGoBack]);
 
-  const renderTurnstileAndWaitForResponse = useCallback(async () => {
-    abortControllerRef.current = new AbortController();
-    resetWidget();
-
-    return Promise.race([
-      turnstileRef.current?.getResponsePromise(),
-      new Promise<void>(resolve => abortControllerRef.current?.signal.addEventListener("abort", () => resolve()))
-    ]);
-  }, [resetWidget]);
-
-  useEffect(() => {
-    if (!enabled) {
-      if (typeof originalFetch === "function") {
-        globalThis.fetch = originalFetch;
-        originalFetch = undefined;
-      }
-      return;
-    }
-
-    if (typeof globalThis.fetch === "function") {
-      originalFetch = originalFetch || globalThis.fetch;
-      const fetch = originalFetch;
-      globalThis.fetch = async (resource, options) => {
-        const response = await fetch(resource, options);
-
-        if (response.headers.get("cf-mitigated") === "challenge" && turnstileRef.current && (await renderTurnstileAndWaitForResponse())) {
-          return globalThis.fetch(resource, options);
-        }
-
-        return response;
-      };
-    }
-
-    return () => {
-      if (typeof originalFetch === "function") {
-        globalThis.fetch = originalFetch;
-        originalFetch = undefined;
-      }
-    };
-  }, [enabled]);
-
-  useWhen(status === "error", () => {
+  useWhen(status === "error" || status === "expired", () => {
     resetWidget();
   });
+
+  useImperativeHandle(
+    ref || externalTurnstileRef,
+    () => ({
+      renderAndWaitResponse() {
+        resetWidget();
+        return new Promise((resolve, reject) => {
+          eventBus.current.addEventListener(
+            "success",
+            event => {
+              resolve((event as CustomEvent<{ token: string }>).detail);
+            },
+            { once: true }
+          );
+          eventBus.current.addEventListener(
+            "error",
+            event => {
+              const details = (event as CustomEvent<{ reason: string; error?: string }>).detail;
+              reject({ status, ...details });
+            },
+            { once: true }
+          );
+        });
+      }
+    }),
+    [resetWidget]
+  );
 
   if (!enabled) {
     return null;
@@ -93,7 +94,7 @@ export const Turnstile: FC<TurnstileProps> = ({ enabled, siteKey, components: c 
   return (
     <>
       <motion.div
-        className="fixed inset-0 z-[101] flex content-center items-center justify-center bg-popover/90"
+        className="absolute inset-0 z-[101] flex content-center items-center justify-center bg-[hsl(var(--background))]"
         initial={{ opacity: 0 }}
         animate={{ opacity: isVisible ? 1 : 0 }}
         style={{ pointerEvents: isVisible ? "auto" : "none" }}
@@ -102,56 +103,56 @@ export const Turnstile: FC<TurnstileProps> = ({ enabled, siteKey, components: c 
           delay: isVisible ? 0 : status === "dismissed" ? 0 : 1
         }}
       >
-        <div className="flex flex-col items-center">
-          <h3 className="mb-2 text-2xl font-bold">We are verifying you are a human. This may take a few seconds</h3>
-          <p className="mb-8">Reviewing the security of your connection before proceeding</p>
-          <div className="h-[66px]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="text-center">
+            <p className="font-bold">We are verifying you are a human. This may take a moment</p>
+            <p className="text-sm text-muted-foreground">Reviewing the security of your connection before proceeding</p>
+          </div>
+          <div className="flex h-[66px] items-center">
             <c.ReactTurnstile
+              className="flex-1"
               ref={turnstileRef}
-              siteKey={siteKey}
+              siteKey={injectedConfig?.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? siteKey}
               options={{ execution: "execute" }}
-              onError={() => setStatus("error")}
-              onExpire={() => setStatus("expired")}
-              onSuccess={() => setStatus("solved")}
+              onError={error => {
+                setStatus("error");
+                eventBus.current.dispatchEvent(new CustomEvent("error", { detail: { error, reason: "error" } }));
+              }}
+              onExpire={() => {
+                setStatus("expired");
+                eventBus.current.dispatchEvent(new CustomEvent("expired", { detail: { reason: "expired" } }));
+              }}
+              onSuccess={token => {
+                setStatus("solved");
+                eventBus.current.dispatchEvent(new CustomEvent("success", { detail: { token } }));
+              }}
               onBeforeInteractive={() => setStatus("interactive")}
             />
+            <motion.div
+              className="flex flex-col items-center"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: isVisible ? 1 : 0 }}
+              style={{ pointerEvents: isVisible ? "auto" : "none" }}
+              transition={{
+                duration: 0.3,
+                delay: isVisible ? (status === "error" ? 0 : 5) : 1
+              }}
+            >
+              <div className="ml-2 inline-flex gap-2">
+                <c.Button onClick={resetWidget} size="icon" variant="outline">
+                  <RefreshCwIcon className="size-4" />
+                </c.Button>
+                <c.Button onClick={hideWidget} size="icon" variant="outline">
+                  <Undo2 className="size-4" />
+                </c.Button>
+              </div>
+            </motion.div>
           </div>
           {status === "error" && <p className="text-red-600">Some error occurred</p>}
-          <motion.div
-            className="flex flex-col items-center"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: isVisible ? 1 : 0 }}
-            style={{ pointerEvents: isVisible ? "auto" : "none" }}
-            transition={{
-              duration: 0.3,
-              delay: isVisible ? (status === "error" ? 0 : 5) : 1
-            }}
-          >
-            <div className="my-8">
-              <c.Button onClick={resetWidget} className="mr-4">
-                Retry
-              </c.Button>
-              <c.Button
-                onClick={() => {
-                  setStatus("dismissed");
-                  abortControllerRef.current?.abort();
-                  turnstileRef.current?.remove();
-                }}
-                variant="link"
-              >
-                Dismiss
-              </c.Button>
-            </div>
-
-            <p>
-              <c.MdInfo className="mr-1 inline text-xl text-muted-foreground" />
-              <small>dismissing the check might result into some features not working properly</small>
-            </p>
-          </motion.div>
         </div>
       </motion.div>
     </>
   );
-};
+});
 
-export const ClientOnlyTurnstile = dynamic(() => Promise.resolve(Turnstile), { ssr: false });
+export const ClientOnlyTurnstile = dynamic(async () => Turnstile, { ssr: false });

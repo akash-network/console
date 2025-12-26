@@ -19,11 +19,8 @@ import NProgress from "nprogress";
 
 import GoogleAnalytics from "@src/components/layout/CustomGoogleAnalytics";
 import { CustomIntlProvider } from "@src/components/layout/CustomIntlProvider";
-import { Loading } from "@src/components/layout/Layout";
 import { PageHead } from "@src/components/layout/PageHead";
-import { ClientOnlyTurnstile } from "@src/components/turnstile/Turnstile";
 import { UserProviders } from "@src/components/user/UserProviders/UserProviders";
-import { browserEnvConfig } from "@src/config/browser-env.config";
 import { CertificateProvider } from "@src/context/CertificateProvider";
 import { CustomChainProvider } from "@src/context/CustomChainProvider";
 import { ColorModeProvider } from "@src/context/CustomThemeContext";
@@ -34,7 +31,6 @@ import { ServicesProvider } from "@src/context/ServicesProvider";
 import { RootContainerProvider, useRootContainer } from "@src/context/ServicesProvider/RootContainerProvider";
 import { SettingsProvider } from "@src/context/SettingsProvider";
 import { WalletProvider } from "@src/context/WalletProvider";
-import { useInjectedConfig } from "@src/hooks/useInjectedConfig";
 import { store } from "@src/store/global-store";
 
 interface Props extends AppProps {
@@ -52,24 +48,10 @@ Router.events.on("routeChangeError", () => NProgress.done());
 
 const App: React.FunctionComponent<Props> = props => {
   const { Component, pageProps } = props;
-  const { config, isLoaded: isLoadedInjectedConfig } = useInjectedConfig();
-
-  if (!isLoadedInjectedConfig) {
-    return (
-      <AppRoot {...props}>
-        <Loading text="Loading settings..." />
-      </AppRoot>
-    );
-  }
 
   return (
     <AppRoot {...props}>
       <>
-        <ClientOnlyTurnstile
-          enabled={config?.NEXT_PUBLIC_TURNSTILE_ENABLED || browserEnvConfig.NEXT_PUBLIC_TURNSTILE_ENABLED}
-          siteKey={config?.NEXT_PUBLIC_TURNSTILE_SITE_KEY || browserEnvConfig.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
-        />
-
         <GoogleAnalytics />
 
         <UserProviders>

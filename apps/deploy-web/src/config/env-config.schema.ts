@@ -64,7 +64,15 @@ export const serverEnvSchema = browserEnvSchema.extend({
   NEXT_PUBLIC_UNLEASH_ENABLE_ALL: coercedBoolean().optional().default("false"),
   NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID: networkId.optional().default("mainnet"),
   NEXT_PUBLIC_DEFAULT_NETWORK_ID: networkId.optional().default("mainnet"),
-  NODE_ENV: z.enum(["development", "production", "test"]).optional().default("development")
+  NODE_ENV: z.enum(["development", "production", "test"]).optional().default("development"),
+  TURNSTILE_SECRET_KEY: z.string(),
+  /**
+   * @see https://developers.cloudflare.com/turnstile/troubleshooting/testing/#test-secret-keys
+   */
+  TURNSTILE_BYPASS_SECRET_KEY: z.string().default("1x0000000000000000000000000000000AA"),
+  E2E_TESTING_CLIENT_TOKEN: z.string({
+    required_error: "This token is used to adjust configuration of the app for e2e testing. Can be any random string."
+  })
 });
 
 export type BrowserEnvConfig = z.infer<typeof browserEnvSchema>;

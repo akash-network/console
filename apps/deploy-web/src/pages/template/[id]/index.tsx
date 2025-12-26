@@ -35,7 +35,7 @@ export const getServerSideProps = defineServerSideProps({
       };
     }
     const response = await services.consoleApiHttpClient.get(
-      `${services.apiUrlService.getBaseApiUrlFor(services.config.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID)}/user/template/${params.id}`,
+      `${services.apiUrlService.getBaseApiUrlFor(services.privateConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID)}/user/template/${params.id}`,
       config
     );
 

@@ -5,6 +5,7 @@ import { type TurnstileProps } from "@marsidev/react-turnstile";
 import { mock } from "jest-mock-extended";
 import { setTimeout as wait } from "node:timers/promises";
 
+import type { TurnstileRef } from "./Turnstile";
 import { COMPONENTS, Turnstile } from "./Turnstile";
 
 import { fireEvent, render, screen } from "@testing-library/react";
@@ -15,20 +16,6 @@ describe(Turnstile.name, () => {
     await setup({ enabled: false });
 
     expect(screen.queryByText("Turnstile")).not.toBeInTheDocument();
-  });
-
-  it("does not patch fetch API if turnstile is disabled", async () => {
-    const originalFetch = window.fetch;
-    await setup({ enabled: false });
-
-    expect(window.fetch).toBe(originalFetch);
-  });
-
-  it("patches fetch API if turnstile is enabled", async () => {
-    const originalFetch = window.fetch;
-    await setup({ enabled: true });
-
-    expect(window.fetch).not.toBe(originalFetch);
   });
 
   it("renders turnstile widget", async () => {
@@ -72,22 +59,24 @@ describe(Turnstile.name, () => {
         ))
       }
     });
-    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    fireEvent.click(screen.getAllByRole("button")[0]);
 
     expect(turnstileInstance.remove).toHaveBeenCalled();
     expect(turnstileInstance.render).toHaveBeenCalled();
     expect(turnstileInstance.execute).toHaveBeenCalled();
   });
 
-  it('removes actual widget on "Dismiss" button click', async () => {
+  it('removes actual widget on "Go Back" button click', async () => {
     const turnstileInstance = mock<TurnstileInstance>();
     const ReactTurnstile = forwardRef<TurnstileInstance | undefined, TurnstileProps>((props, ref) => {
       useForwardedRef(ref, turnstileInstance);
       return <div>Turnstile</div>;
     });
+    const onGoBack = jest.fn();
 
     await setup({
       enabled: true,
+      onGoBack,
       components: {
         ReactTurnstile,
         Button: forwardRef((props, ref) => (
@@ -97,95 +86,81 @@ describe(Turnstile.name, () => {
         ))
       }
     });
-    fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+    fireEvent.click(screen.getAllByRole("button")[1]);
 
     expect(turnstileInstance.remove).toHaveBeenCalled();
     expect(turnstileInstance.render).not.toHaveBeenCalled();
     expect(turnstileInstance.execute).not.toHaveBeenCalled();
+    expect(onGoBack).toHaveBeenCalled();
   });
 
-  describe("when CF-Mitigated header is present", () => {
-    let originalFetch: typeof globalThis.fetch;
-
-    beforeEach(() => {
-      originalFetch = globalThis.fetch;
-      let amountOfCalls = 0;
-      globalThis.fetch = jest.fn(async () => {
-        if (amountOfCalls > 0) {
-          return new Response("done", {
-            status: 200
-          });
-        }
-
-        const response = new Response("", {
-          status: 403,
-          headers: new Headers({ "cf-mitigated": "challenge" })
-        });
-
-        amountOfCalls++;
-
-        return response;
-      });
-    });
-
-    afterEach(() => {
-      globalThis.fetch = originalFetch;
-    });
-
-    it("renders turnstile widget", async () => {
+  describe("renderAndWaitResponse", () => {
+    it("resolves with token when challenge is solved", async () => {
       const turnstileInstance = mock<TurnstileInstance>();
+      let triggerSuccess: ((token: string) => void) | undefined;
       const ReactTurnstile = forwardRef<TurnstileInstance | undefined, TurnstileProps>((props, ref) => {
         useForwardedRef(ref, turnstileInstance);
+        triggerSuccess = (token: string) => props.onSuccess?.(token);
         return <div>Turnstile</div>;
       });
 
-      await setup({ enabled: true, components: { ReactTurnstile } });
-      await fetch("/");
-
-      expect(turnstileInstance.render).toHaveBeenCalled();
-    });
-
-    it('does not retry request if "Dismiss" button is clicked', async () => {
-      const fetchMock = globalThis.fetch;
-
-      await setup({
+      const { turnstileRef } = await setup({
         enabled: true,
-        components: {
-          Button: forwardRef((props, ref) => (
-            <button type="button" {...props} ref={ref} onClick={props.onClick}>
-              {props.children}
-            </button>
-          ))
-        }
+        components: { ReactTurnstile }
       });
-      await fetch("/");
-      fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
 
-      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const promise = turnstileRef.current!.renderAndWaitResponse();
+      await act(async () => {
+        triggerSuccess?.("test-token");
+        await wait(0);
+      });
+
+      await expect(promise).resolves.toEqual({ token: "test-token" });
+      expect(turnstileInstance.remove).toHaveBeenCalled();
+      expect(turnstileInstance.render).toHaveBeenCalled();
+      expect(turnstileInstance.execute).toHaveBeenCalled();
     });
 
-    it("retries request if challenge is solved", async () => {
-      const fetchMock = globalThis.fetch;
-      const turnstileInstance = mock<TurnstileInstance>({
-        getResponsePromise: () => Promise.resolve("test response")
-      });
+    it("rejects with error when challenge fails", async () => {
+      const turnstileInstance = mock<TurnstileInstance>();
+      let triggerError: ((error: string) => void) | undefined;
       const ReactTurnstile = forwardRef<TurnstileInstance | undefined, TurnstileProps>((props, ref) => {
         useForwardedRef(ref, turnstileInstance);
+        triggerError = (error: string) => props.onError?.(error);
         return <div>Turnstile</div>;
       });
 
-      await setup({ enabled: true, components: { ReactTurnstile } });
-      await fetch("/");
+      const { turnstileRef } = await setup({
+        enabled: true,
+        components: { ReactTurnstile }
+      });
 
-      expect(fetchMock).toHaveBeenCalledTimes(2);
+      let rejection: unknown;
+      const promise = turnstileRef.current!.renderAndWaitResponse().catch(error => {
+        rejection = error;
+      });
+      await act(async () => {
+        triggerError?.("test-error");
+        await wait(0);
+      });
+      await promise;
+
+      expect(rejection).toMatchObject({
+        reason: "error",
+        error: "test-error"
+      });
     });
   });
 
-  async function setup(input?: { enabled?: boolean; siteKey?: string; components?: Partial<typeof COMPONENTS> }) {
+  async function setup(input?: { enabled?: boolean; siteKey?: string; onGoBack?: () => void; components?: Partial<typeof COMPONENTS> }) {
+    const turnstileRef = { current: null as TurnstileRef | null };
+
     const result = render(
       <Turnstile
+        ref={turnstileRef}
         enabled={!!input?.enabled}
         siteKey="unittest-site-key"
+        onGoBack={input?.onGoBack}
         components={MockComponents(COMPONENTS, {
           ReactTurnstile: forwardRef<TurnstileInstance | undefined, TurnstileProps>((_, ref) => {
             useForwardedRef(ref);
@@ -197,7 +172,7 @@ describe(Turnstile.name, () => {
     );
     await act(() => wait(0));
 
-    return result;
+    return { ...result, turnstileRef };
   }
 
   function useForwardedRef<T>(ref: React.ForwardedRef<T>, instance: T = mock<T>()) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Separator, Tabs, TabsContent, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { useMutation } from "@tanstack/react-query";
 import { DollarSignIcon, RocketIcon, ZapIcon } from "lucide-react";
@@ -10,6 +10,8 @@ import { NextSeo } from "next-seo";
 
 import { AkashConsoleLogo } from "@src/components/icons/AkashConsoleLogo";
 import { RemoteApiError } from "@src/components/shared/RemoteApiError/RemoteApiError";
+import type { TurnstileRef } from "@src/components/turnstile/Turnstile";
+import { ClientOnlyTurnstile } from "@src/components/turnstile/Turnstile";
 import { useServices } from "@src/context/ServicesProvider";
 import { useUser } from "@src/hooks/useUser";
 import { AuthLayout } from "../AuthLayout/AuthLayout";
@@ -28,6 +30,7 @@ export const DEPENDENCIES = {
   SignUpForm,
   RemoteApiError,
   ForgotPasswordForm,
+  Turnstile: ClientOnlyTurnstile,
   Tabs,
   TabsContent,
   TabsTrigger,
@@ -42,11 +45,12 @@ interface Props {
 }
 
 export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
-  const { authService } = useServices();
+  const { authService, appConfig } = useServices();
   const router = d.useRouter();
   const searchParams = d.useSearchParams();
   const { checkSession } = d.useUser();
   const [email, setEmail] = useState("");
+  const turnstileRef = useRef<TurnstileRef | null>(null);
 
   const redirectToSocialLogin = useCallback(
     async (provider: "github" | "google-oauth2") => {
@@ -57,11 +61,17 @@ export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
   );
   const signInOrSignUp = useMutation({
     async mutationFn(input: Tagged<"signin", SignInFormValues> | Tagged<"signup", SignUpFormValues>) {
+      if (!turnstileRef.current) {
+        throw new Error("Captcha has not been rendered");
+      }
       const returnUrl = searchParams.get("from") || searchParams.get("returnTo") || "/";
+
+      const { token: captchaToken } = await turnstileRef.current.renderAndWaitResponse();
+
       if (input.type === "signin") {
-        await authService.login(input.value);
+        await authService.login({ ...input.value, captchaToken });
       } else {
-        await authService.signup(input.value);
+        await authService.signup({ ...input.value, captchaToken });
       }
       await checkSession();
       router.push(returnUrl);
@@ -74,17 +84,24 @@ export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
       const tabId = value !== "login" && value !== "signup" && value !== "forgot-password" ? "login" : value;
       const newSearchParams = new URLSearchParams(searchParams);
       newSearchParams.set("tab", tabId);
-      signInOrSignUp.reset();
-      forgotPassword.reset();
+      resetMutations();
       router.replace(`?${newSearchParams.toString()}`, undefined, { shallow: true });
     },
     [searchParams, router]
   );
   const forgotPassword = useMutation({
     async mutationFn(input: { email: string }) {
-      await authService.sendPasswordResetEmail({ email: input.email });
+      if (!turnstileRef.current) {
+        throw new Error("Captcha has not been rendered");
+      }
+      const { token: captchaToken } = await turnstileRef.current.renderAndWaitResponse();
+      await authService.sendPasswordResetEmail({ email: input.email, captchaToken });
     }
   });
+  const resetMutations = useCallback(() => {
+    signInOrSignUp.reset();
+    forgotPassword.reset();
+  }, [signInOrSignUp, forgotPassword]);
 
   return (
     <d.AuthLayout
@@ -142,7 +159,7 @@ export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
             </p>
           </div>
 
-          <div className="relative mt-6 w-full">
+          <div className="relative mt-4 w-full">
             {(activeView === "forgot-password" && (
               <>
                 <d.RemoteApiError className="mb-5" error={forgotPassword.error} />
@@ -210,6 +227,12 @@ export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
                 </d.TabsContent>
               </d.Tabs>
             )}
+            <d.Turnstile
+              turnstileRef={turnstileRef}
+              enabled={appConfig.NEXT_PUBLIC_TURNSTILE_ENABLED}
+              siteKey={appConfig.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+              onGoBack={resetMutations}
+            />
           </div>
         </div>
       </>

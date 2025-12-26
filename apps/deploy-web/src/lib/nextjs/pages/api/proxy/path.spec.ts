@@ -30,7 +30,7 @@ describe("proxy API handler", () => {
     const mockGetSession = jest.fn();
     const mockUserTracker = mock<typeof services.userTracker>();
     const mockApiUrlService = mock<typeof services.apiUrlService>();
-    const mockConfig = mock<typeof services.config>();
+    const mockConfig = mock<typeof services.privateConfig>();
 
     const mockProxy = {
       once: jest.fn().mockReturnThis(),

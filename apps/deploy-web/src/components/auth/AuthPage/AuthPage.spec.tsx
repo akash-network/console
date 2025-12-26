@@ -1,8 +1,10 @@
+import type { RefObject } from "react";
 import type { Tabs } from "@akashnetwork/ui/components";
 import { mock } from "jest-mock-extended";
 import type { ReadonlyURLSearchParams } from "next/navigation";
 import type { NextRouter } from "next/router";
 
+import type { TurnstileRef } from "@src/components/turnstile/Turnstile";
 import type { AuthService } from "@src/services/auth/auth/auth.service";
 import type { SignInForm, SignInFormValues } from "../SignInForm/SignInForm";
 import type { SignUpForm, SignUpFormValues } from "../SignUpForm/SignUpForm";
@@ -110,7 +112,10 @@ describe(AuthPage.name, () => {
       });
 
       await waitFor(() => {
-        expect(authService.login).toHaveBeenCalledWith(credentials);
+        expect(authService.login).toHaveBeenCalledWith({
+          ...credentials,
+          captchaToken: "test-captcha-token"
+        });
       });
       expect(authService.signup).not.toHaveBeenCalled();
       await waitFor(() => {
@@ -168,7 +173,10 @@ describe(AuthPage.name, () => {
       });
 
       await waitFor(() => {
-        expect(authService.signup).toHaveBeenCalledWith(credentials);
+        expect(authService.signup).toHaveBeenCalledWith({
+          ...credentials,
+          captchaToken: "test-captcha-token"
+        });
       });
       expect(authService.login).not.toHaveBeenCalled();
       await waitFor(() => {
@@ -233,6 +241,15 @@ describe(AuthPage.name, () => {
     }
     const useSearchParamsMock = () => params as ReadonlyURLSearchParams;
 
+    const TurnstileMock = jest.fn(({ turnstileRef }: { turnstileRef?: RefObject<TurnstileRef> }) => {
+      if (turnstileRef) {
+        (turnstileRef as { current: TurnstileRef }).current = {
+          renderAndWaitResponse: jest.fn().mockResolvedValue({ token: "test-captcha-token" })
+        };
+      }
+      return null;
+    });
+
     render(
       <TestContainerProvider services={{ authService: () => authService }}>
         <AuthPage
@@ -241,6 +258,7 @@ describe(AuthPage.name, () => {
             useUser: useUserMock,
             useSearchParams: useSearchParamsMock,
             useRouter: () => router,
+            Turnstile: TurnstileMock,
             ...input.dependencies
           }}
         />
