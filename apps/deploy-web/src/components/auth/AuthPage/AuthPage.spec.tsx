@@ -1,4 +1,4 @@
-import type { RefObject } from "react";
+import { type RefObject, useState } from "react";
 import type { Tabs } from "@akashnetwork/ui/components";
 import { mock } from "jest-mock-extended";
 import type { ReadonlyURLSearchParams } from "next/navigation";
@@ -213,6 +213,48 @@ describe(AuthPage.name, () => {
     });
   });
 
+  describe("when ForgotPassword view is open", () => {
+    it("renders forgot password form when SignInForm notifies about its request", async () => {
+      const SignInFormMock = jest.fn((() => <span>SignInForm</span>) as typeof SignInForm);
+      const ForgotPasswordFormMock = jest.fn(() => <span>ForgotPasswordForm</span>);
+      const { router } = setup({
+        dependencies: {
+          SignInForm: SignInFormMock,
+          ForgotPasswordForm: ForgotPasswordFormMock
+        }
+      });
+
+      await act(() => {
+        SignInFormMock.mock.calls[0][0].onForgotPasswordClick?.();
+      });
+
+      await waitFor(() => {
+        expect(router.replace).toHaveBeenCalledTimes(1);
+        expect(screen.getByText("ForgotPasswordForm")).toBeInTheDocument();
+      });
+    });
+
+    it("submits forgot password form and displays success message", async () => {
+      const ForgotPasswordFormMock = jest.fn(ComponentMock as typeof DEPENDENCIES.ForgotPasswordForm);
+      const { authService } = setup({
+        searchParams: {
+          tab: "forgot-password"
+        },
+        dependencies: {
+          ForgotPasswordForm: ForgotPasswordFormMock
+        }
+      });
+
+      await act(() => {
+        ForgotPasswordFormMock.mock.calls[0][0].onSubmit({ email: "test@example.com" });
+      });
+
+      await waitFor(() => {
+        expect(authService.sendPasswordResetEmail).toHaveBeenCalledWith({ email: "test@example.com", captchaToken: "test-captcha-token" });
+      });
+    });
+  });
+
   function setup(input: {
     searchParams?: {
       tab?: "login" | "signup" | "forgot-password";
@@ -222,7 +264,13 @@ describe(AuthPage.name, () => {
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const authService = mock<AuthService>();
-    const router = mock<NextRouter>();
+    let setRouterPageParams: (params: URLSearchParams) => void = () => {};
+    const router = mock<NextRouter>({
+      replace: jest.fn(url => {
+        setRouterPageParams?.(new URL(url as string, "http://localunittest:8080").searchParams);
+        return Promise.resolve(true);
+      })
+    });
     const checkSession = jest.fn(async () => undefined);
     const useUserMock: typeof DEPENDENCIES.useUser = () => ({
       checkSession,
@@ -239,7 +287,11 @@ describe(AuthPage.name, () => {
     if (input.searchParams?.returnTo) {
       params.set("returnTo", input.searchParams.returnTo);
     }
-    const useSearchParamsMock = () => params as ReadonlyURLSearchParams;
+    const useSearchParamsMock = () => {
+      const [pageParams, setPageParams] = useState(params);
+      setRouterPageParams = setPageParams;
+      return pageParams as ReadonlyURLSearchParams;
+    };
 
     const TurnstileMock = jest.fn(({ turnstileRef }: { turnstileRef?: RefObject<TurnstileRef> }) => {
       if (turnstileRef) {

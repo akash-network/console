@@ -35,6 +35,11 @@ export const DEPENDENCIES = {
   TabsContent,
   TabsTrigger,
   TabsList,
+  DollarSignIcon,
+  RocketIcon,
+  ZapIcon,
+  AkashConsoleLogo,
+  Separator,
   useUser,
   useSearchParams,
   useRouter
@@ -111,7 +116,7 @@ export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
           <p>The fastest way to deploy an application on Akash.Network</p>
           <div className="flex gap-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-md border border-[#E5E5E5] bg-white" style={{ color: "hsl(var(--background))" }}>
-              <ZapIcon />
+              <d.ZapIcon />
             </div>
             <div className="flex-1">
               <h5 className="font-semibold">Generous Free Trial</h5>
@@ -120,7 +125,7 @@ export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
           </div>
           <div className="flex gap-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-md border border-[#E5E5E5] bg-white" style={{ color: "hsl(var(--background))" }}>
-              <RocketIcon />
+              <d.RocketIcon />
             </div>
             <div className="flex-1">
               <h5 className="font-semibold">Optimized for AI/ML</h5>
@@ -129,7 +134,7 @@ export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
           </div>
           <div className="flex gap-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-md border border-[#E5E5E5] bg-white" style={{ color: "hsl(var(--background))" }}>
-              <DollarSignIcon />
+              <d.DollarSignIcon />
             </div>
             <div className="flex-1">
               <h5 className="font-semibold">Cost Savings</h5>
@@ -143,7 +148,7 @@ export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
         <d.NextSeo title="Log in or Sign up" />
         <div className="w-full max-w-[576px] rounded-[var(--radius)] bg-[hsl(var(--background))] px-3 py-4 sm:px-6 lg:rounded-none">
           <div>
-            <AkashConsoleLogo className="mb-4 lg:hidden" size={{ width: 291, height: 32 }} />
+            <d.AkashConsoleLogo className="mb-4 lg:hidden" size={{ width: 291, height: 32 }} />
             <h1 className="text-xl font-bold leading-tight text-neutral-950 lg:text-4xl lg:leading-10 dark:text-[var(--foreground)]">
               {(activeView === "forgot-password" && "Reset your password") || (
                 <div className="flex items-center">
@@ -162,6 +167,7 @@ export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
           <div className="relative mt-4 w-full">
             {(activeView === "forgot-password" && (
               <>
+                test me here?
                 <d.RemoteApiError className="mb-5" error={forgotPassword.error} />
                 <d.ForgotPasswordForm
                   defaultEmail={email}
@@ -204,7 +210,7 @@ export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
                 <d.SocialAuth onSocialLogin={redirectToSocialLogin} />
 
                 <div className="relative flex items-center justify-center self-stretch py-2.5">
-                  <Separator className="absolute inset-0 top-1/2" />
+                  <d.Separator className="absolute inset-0 top-1/2" />
                   <div className="current relative top-[-1px] z-10 px-2" style={{ backgroundColor: "hsl(var(--background))" }}>
                     <span className="relative top-1/2 text-xs font-normal text-neutral-500 dark:text-neutral-400">Or continue with</span>
                   </div>
