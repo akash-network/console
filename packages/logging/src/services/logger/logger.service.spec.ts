@@ -16,7 +16,12 @@ describe("LoggerService", () => {
     formatters: {
       level: expect.any(Function)
     },
-    serializers: expect.any(Object)
+    serializers: expect.any(Object),
+    browser: {
+      formatters: {
+        level: expect.any(Function)
+      }
+    }
   };
 
   afterEach(() => {
@@ -75,6 +80,13 @@ describe("LoggerService", () => {
       expect(pinoMock).toHaveBeenCalledWith({ ...COMMON_EXPECTED_OPTIONS, level: "debug" });
 
       LoggerService.mixin = undefined;
+    });
+
+    it("should initialize pino with provided browser options", () => {
+      const pinoMock = jest.fn();
+      new LoggerService({ createPino: pinoMock, browser: { disabled: false } });
+
+      expect(pinoMock).toHaveBeenCalledWith({ ...COMMON_EXPECTED_OPTIONS, browser: { ...COMMON_EXPECTED_OPTIONS.browser, disabled: false } });
     });
   });
 

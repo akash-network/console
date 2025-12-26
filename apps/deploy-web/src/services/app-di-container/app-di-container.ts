@@ -159,7 +159,16 @@ export const createAppRootContainer = (config: ServicesConfig) => {
         })
       }),
     errorHandler: () => new ErrorHandlerService(container.logger),
-    logger: () => new LoggerService({ name: `app-${config.runtimeEnv}` }),
+    logger: () =>
+      new LoggerService({
+        name: `app-${config.runtimeEnv}`,
+        browser: {
+          disabled: config.runtimeEnv !== "browser",
+          // enable serialization of log events, so then we can see more details about errors in Sentry
+          serialize: true,
+          asObject: true
+        }
+      }),
     urlService: () => UrlService,
     userTracker: () => new UserTracker()
   });
