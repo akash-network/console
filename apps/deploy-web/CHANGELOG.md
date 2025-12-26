@@ -1,5 +1,14 @@
 
 
+## [3.16.4](https://github.com/akash-network/console/compare/console-web/v3.16.3...console-web/v3.16.4) (2025-12-26)
+
+
+### Bug Fixes
+
+* do not fetch lease status for closed deployments and return null in case of 404 ([#2423](https://github.com/akash-network/console/issues/2423)) ([c224c35](https://github.com/akash-network/console/commit/c224c35b4a76c5ce3c760b209815e707251af48c))
+* fixes collumn arrangement in account stats on dashboard ([#2416](https://github.com/akash-network/console/issues/2416)) ([d708b85](https://github.com/akash-network/console/commit/d708b85d70c65ba4df514736076cde67cf563431))
+* propagate sentry-trace to SSR requests in deploy-web ([#2415](https://github.com/akash-network/console/issues/2415)) ([6d155c4](https://github.com/akash-network/console/commit/6d155c4d4d251057167de69b12e82a08fda7ce9f))
+
 ## [3.16.3](https://github.com/akash-network/console/compare/console-web/v3.16.2...console-web/v3.16.3) (2025-12-23)
 
 
