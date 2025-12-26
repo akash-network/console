@@ -1,3 +1,4 @@
+import { isHttpError } from "@akashnetwork/http-sdk";
 import type { UseQueryOptions } from "@tanstack/react-query";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AxiosInstance } from "axios";
@@ -82,11 +83,16 @@ export function useLeaseStatus(
   return useQuery({
     queryKey: QueryKeys.getLeaseStatusKey(lease?.dseq || "", lease?.gseq || NaN, lease?.oseq || NaN),
     queryFn: async () => {
-      if (!lease || !providerCredentials.details.usable) return null;
+      if (lease?.state !== "active" || !providerCredentials.details.usable) return null;
 
       const response = await fetchProviderUrl<LeaseStatusDto>(`/lease/${lease.dseq}/${lease.gseq}/${lease.oseq}/status`, {
         method: "GET",
         credentials: providerCredentials.details
+      }).catch(error => {
+        if (isHttpError(error) && error.response?.status === 404) {
+          return { data: null };
+        }
+        throw error;
       });
 
       return response.data;
