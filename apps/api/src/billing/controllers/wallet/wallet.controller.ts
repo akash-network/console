@@ -15,8 +15,6 @@ import { RefillService } from "@src/billing/services/refill/refill.service";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
 import { StripeErrorService } from "@src/billing/services/stripe-error/stripe-error.service";
 import { GetWalletOptions, WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 
 @scoped(Lifecycle.ResolutionScoped)
 export class WalletController {
@@ -29,58 +27,55 @@ export class WalletController {
     private readonly authService: AuthService,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly stripeService: StripeService,
-    private readonly stripeErrorService: StripeErrorService,
-    private readonly featureFlagsService: FeatureFlagsService
+    private readonly stripeErrorService: StripeErrorService
   ) {}
 
   @Protected([{ action: "create", subject: "UserWallet" }])
   async create({ data: { userId } }: StartTrialRequestInput): Promise<WalletOutputResponse> {
     const { currentUser } = this.authService;
 
-    if (!this.featureFlagsService.isEnabled(FeatureFlags.ANONYMOUS_FREE_TRIAL)) {
-      assert(currentUser.emailVerified, 400, "Email not verified");
-      assert(currentUser.stripeCustomerId, 400, "Stripe customer ID not found");
+    assert(currentUser.emailVerified, 400, "Email not verified");
+    assert(currentUser.stripeCustomerId, 400, "Stripe customer ID not found");
 
-      const paymentMethods = await this.stripeService.getPaymentMethods(currentUser.id, currentUser.stripeCustomerId, this.authService.ability);
-      assert(paymentMethods.length > 0, 400, "You must have a payment method to start a trial.");
+    const paymentMethods = await this.stripeService.getPaymentMethods(currentUser.id, currentUser.stripeCustomerId, this.authService.ability);
+    assert(paymentMethods.length > 0, 400, "You must have a payment method to start a trial.");
 
-      if (this.stripeService.isProduction) {
-        const hasDuplicateTrialAccount = await this.stripeService.hasDuplicateTrialAccount(paymentMethods, currentUser.id);
-        assert(!hasDuplicateTrialAccount, 400, "This payment method is already associated with another trial account. Please use a different payment method.");
+    if (this.stripeService.isProduction) {
+      const hasDuplicateTrialAccount = await this.stripeService.hasDuplicateTrialAccount(paymentMethods, currentUser.id);
+      assert(!hasDuplicateTrialAccount, 400, "This payment method is already associated with another trial account. Please use a different payment method.");
+    }
+
+    const latestPaymentMethod = paymentMethods[0];
+    try {
+      const validationResult = await this.stripeService.validatePaymentMethodForTrial({
+        customer: currentUser.stripeCustomerId,
+        payment_method: latestPaymentMethod.id,
+        userId: currentUser.id
+      });
+
+      // If the card requires 3D Secure authentication, return the necessary information
+      if (validationResult.requires3DS) {
+        return {
+          data: {
+            id: null,
+            userId: currentUser.id,
+            address: null,
+            creditAmount: 0,
+            isTrialing: false,
+            createdAt: null,
+            requires3DS: true,
+            clientSecret: validationResult.clientSecret || null,
+            paymentIntentId: validationResult.paymentIntentId || null,
+            paymentMethodId: validationResult.paymentMethodId || null
+          }
+        };
+      }
+    } catch (error: unknown) {
+      if (this.stripeErrorService.isKnownError(error, "payment")) {
+        throw this.stripeErrorService.toAppError(error, "payment");
       }
 
-      const latestPaymentMethod = paymentMethods[0];
-      try {
-        const validationResult = await this.stripeService.validatePaymentMethodForTrial({
-          customer: currentUser.stripeCustomerId,
-          payment_method: latestPaymentMethod.id,
-          userId: currentUser.id
-        });
-
-        // If the card requires 3D Secure authentication, return the necessary information
-        if (validationResult.requires3DS) {
-          return {
-            data: {
-              id: null,
-              userId: currentUser.id,
-              address: null,
-              creditAmount: 0,
-              isTrialing: false,
-              createdAt: null,
-              requires3DS: true,
-              clientSecret: validationResult.clientSecret || null,
-              paymentIntentId: validationResult.paymentIntentId || null,
-              paymentMethodId: validationResult.paymentMethodId || null
-            }
-          };
-        }
-      } catch (error: unknown) {
-        if (this.stripeErrorService.isKnownError(error, "payment")) {
-          throw this.stripeErrorService.toAppError(error, "payment");
-        }
-
-        throw error;
-      }
+      throw error;
     }
 
     return {

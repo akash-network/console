@@ -1,5 +1,15 @@
 import { z } from "zod";
 
+export const GetUserResponseOutputSchema = z.object({
+  data: z
+    .object({
+      id: z.string().openapi({})
+    })
+    .openapi({})
+});
+
+export type GetUserResponseOutput = z.infer<typeof GetUserResponseOutputSchema>;
+
 export const UserSchema = z.object({
   id: z.string(),
   userId: z.string(),
