@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { NavigationGuardProvider } from "next-navigation-guard";
 
 describe("NavigationGuardProvider compatibility", () => {
@@ -18,23 +18,34 @@ describe("NavigationGuardProvider compatibility", () => {
   });
 
   it("should work without crypto.randomUUID (Android 10 compatibility)", () => {
-    // Simulate older browser without crypto.randomUUID
-    const cryptoWithoutRandomUUID = {
-      ...global.crypto,
+    // Simulate older browser without crypto.randomUUID (like Android 10)
+    // Create a minimal crypto object without randomUUID but with other standard methods
+    const oldBrowserCrypto = {
+      getRandomValues: (arr: any) => {
+        for (let i = 0; i < arr.length; i++) {
+          arr[i] = Math.floor(Math.random() * 256);
+        }
+        return arr;
+      },
+      subtle: {} as SubtleCrypto,
       randomUUID: undefined
     } as any;
-    global.crypto = cryptoWithoutRandomUUID;
+    
+    global.crypto = oldBrowserCrypto;
 
-    // Should not throw an error when rendering
-    expect(() => {
+    let error: Error | null = null;
+    try {
       render(
         <NavigationGuardProvider>
-          <div>Test Content</div>
+          <div data-testid="old-browser-test">Old Browser Compatible</div>
         </NavigationGuardProvider>
       );
-    }).not.toThrow();
+    } catch (e) {
+      error = e as Error;
+    }
 
-    expect(screen.getByText("Test Content")).toBeInTheDocument();
+    expect(error).toBeNull();
+    expect(screen.getByTestId("old-browser-test")).toBeInTheDocument();
   });
 
   it("should render children successfully", () => {
@@ -48,7 +59,7 @@ describe("NavigationGuardProvider compatibility", () => {
     expect(screen.getByText("Navigation Guard Works")).toBeInTheDocument();
   });
 
-  it("should work when crypto object is completely missing", () => {
+  it("should work without crypto object (very old browsers)", () => {
     // Simulate very old browser without crypto at all
     delete (global as any).crypto;
 
@@ -77,34 +88,5 @@ describe("NavigationGuardProvider compatibility", () => {
 
     expect(screen.getByTestId("provider-1")).toBeInTheDocument();
     expect(screen.getByTestId("provider-2")).toBeInTheDocument();
-  });
-
-  it("should work in simulated old browser environment (no crypto.randomUUID)", () => {
-    // Create a minimal crypto object without randomUUID (like Android 10)
-    const oldBrowserCrypto = {
-      getRandomValues: (arr: any) => {
-        for (let i = 0; i < arr.length; i++) {
-          arr[i] = Math.floor(Math.random() * 256);
-        }
-        return arr;
-      },
-      subtle: {} as SubtleCrypto
-    } as Crypto;
-    
-    global.crypto = oldBrowserCrypto;
-
-    let error: Error | null = null;
-    try {
-      render(
-        <NavigationGuardProvider>
-          <div data-testid="old-browser-test">Old Browser Compatible</div>
-        </NavigationGuardProvider>
-      );
-    } catch (e) {
-      error = e as Error;
-    }
-
-    expect(error).toBeNull();
-    expect(screen.getByTestId("old-browser-test")).toBeInTheDocument();
   });
 });
