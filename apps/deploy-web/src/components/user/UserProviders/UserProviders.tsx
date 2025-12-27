@@ -2,7 +2,6 @@ import { useEffect } from "react";
 import { UserProvider } from "@auth0/nextjs-auth0/client";
 
 import { UserInitLoader } from "@src/components/user/UserInitLoader";
-import { AnonymousUserProvider } from "@src/context/AnonymousUserProvider/AnonymousUserProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { useUser } from "@src/hooks/useUser";
 import type { FCWithChildren } from "@src/types/component";
@@ -16,9 +15,7 @@ export const UserProviders: FCWithChildren = ({ children }) => {
   return appConfig.NEXT_PUBLIC_BILLING_ENABLED ? (
     <UserProvider fetcher={url => internalApiHttpClient.get(url).then(response => response.data)}>
       <UserInitLoader>
-        <AnonymousUserProvider>
-          <UserTracker>{children}</UserTracker>
-        </AnonymousUserProvider>
+        <UserTracker>{children}</UserTracker>
       </UserInitLoader>
     </UserProvider>
   ) : (
@@ -37,7 +34,6 @@ const UserTracker: FCWithChildren = ({ children }) => {
     if (user?.id) {
       analyticsService.identify({
         id: user.id,
-        anonymous: !user.userId,
         emailVerified: !!user.emailVerified
       });
     }

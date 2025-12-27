@@ -8,11 +8,9 @@ import { useRouter } from "next/navigation";
 
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { useFlag } from "@src/hooks/useFlag";
 import { UrlService } from "@src/utils/urlUtils";
 
 const DEPENDENCIES = {
-  useFlag,
   useRouter,
   useSettings
 };
@@ -26,16 +24,15 @@ interface Props extends ButtonProps {
 export const ConnectManagedWalletButton: React.FunctionComponent<Props> = ({ className = "", dependencies: d = DEPENDENCIES, ...rest }) => {
   const { settings } = d.useSettings();
   const { connectManagedWallet, hasManagedWallet, isWalletLoading } = useWallet();
-  const allowAnonymousUserTrial = d.useFlag("anonymous_free_trial");
   const router = d.useRouter();
 
   const startTrial: React.MouseEventHandler = useCallback(() => {
-    if (allowAnonymousUserTrial || hasManagedWallet) {
+    if (hasManagedWallet) {
       connectManagedWallet();
     } else {
       router.push(UrlService.onboarding());
     }
-  }, [connectManagedWallet, allowAnonymousUserTrial, router, hasManagedWallet]);
+  }, [connectManagedWallet, router, hasManagedWallet]);
 
   return (
     <Button variant="default" onClick={startTrial} className={className} {...rest} disabled={settings.isBlockchainDown || isWalletLoading}>

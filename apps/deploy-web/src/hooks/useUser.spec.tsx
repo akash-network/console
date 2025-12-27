@@ -3,12 +3,10 @@ import { CustomSnackbarProvider } from "@akashnetwork/ui/context";
 import { UserProvider } from "@auth0/nextjs-auth0/client";
 import { mock } from "jest-mock-extended";
 
-import { AnonymousUserProvider } from "@src/context/AnonymousUserProvider/AnonymousUserProvider";
 import type * as useCustomUserModule from "@src/hooks/useCustomUser";
-import type * as useStoredAnonymousUserModule from "@src/hooks/useStoredAnonymousUser";
 import { useIsRegisteredUser } from "./useUser";
 
-import { buildAnonymousUser, buildUser } from "@tests/seeders/user";
+import { buildUser } from "@tests/seeders/user";
 import { setupQuery } from "@tests/unit/query-client";
 
 describe("useIsRegisteredUser", () => {
@@ -35,11 +33,9 @@ describe("useIsRegisteredUser", () => {
   });
 
   function setup({
-    customUser,
-    anonymousUser
+    customUser
   }: {
     customUser?: ReturnType<typeof buildUser>;
-    anonymousUser?: ReturnType<typeof buildAnonymousUser>;
   } = {}) {
     mock<typeof useCustomUserModule.useCustomUser>(() => ({
       user: customUser || buildUser(),
@@ -48,17 +44,10 @@ describe("useIsRegisteredUser", () => {
       checkSession: mock()
     }));
 
-    mock<typeof useStoredAnonymousUserModule.useStoredAnonymousUser>(() => ({
-      user: anonymousUser || buildAnonymousUser(),
-      isLoading: false
-    }));
-
     jest.clearAllMocks();
     jest.restoreAllMocks();
 
-    const mockUserHttpService = mock<UserHttpService>({
-      getOrCreateAnonymousUser: jest.fn().mockResolvedValue(anonymousUser)
-    });
+    const mockUserHttpService = mock<UserHttpService>();
 
     return setupQuery(() => useIsRegisteredUser(), {
       services: {
@@ -66,9 +55,7 @@ describe("useIsRegisteredUser", () => {
       },
       wrapper: ({ children }) => (
         <CustomSnackbarProvider>
-          <UserProvider user={customUser}>
-            <AnonymousUserProvider>{children}</AnonymousUserProvider>
-          </UserProvider>
+          <UserProvider user={customUser}>{children}</UserProvider>
         </CustomSnackbarProvider>
       )
     });

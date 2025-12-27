@@ -1,6 +1,6 @@
 "use client";
 import type { Dispatch, SetStateAction } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Alert, AlertDescription, Button, CustomTooltip, FileButton, Input, Snackbar, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import type { EncodeObject } from "@cosmjs/proto-signing";
@@ -8,7 +8,6 @@ import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { ArrowRight, InfoCircle, Upload } from "iconoir-react";
 import { useAtom } from "jotai";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSnackbar } from "notistack";
 
@@ -16,24 +15,21 @@ import { useCertificate } from "@src/context/CertificateProvider";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { useFlag } from "@src/hooks/useFlag";
 import { useImportSimpleSdl } from "@src/hooks/useImportSimpleSdl";
 import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom";
 import { useWhen } from "@src/hooks/useWhen";
-import { useDeploymentList } from "@src/queries/useDeploymentQuery";
 import { useDepositParams } from "@src/queries/useSaveSettings";
 import sdlStore from "@src/store/sdlStore";
 import type { TemplateCreation } from "@src/types";
 import type { DepositParams } from "@src/types/deployment";
 import { RouteStep } from "@src/types/route-steps.type";
 import { deploymentData } from "@src/utils/deploymentData";
-import { appendAuditorRequirement, appendTrialAttribute, TRIAL_ATTRIBUTE, TRIAL_REGISTERED_ATTRIBUTE } from "@src/utils/deploymentData/v1beta3";
+import { appendAuditorRequirement, appendTrialAttribute, TRIAL_REGISTERED_ATTRIBUTE } from "@src/utils/deploymentData/v1beta3";
 import { validateDeploymentData } from "@src/utils/deploymentUtils";
 import { Timer } from "@src/utils/timer";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { domainName, handleDocClick, UrlService } from "@src/utils/urlUtils";
 import { useSettings } from "../../context/SettingsProvider";
-import { SignUpButton } from "../auth/SignUpButton/SignUpButton";
 import { DeploymentDepositModal } from "../deployments/DeploymentDepositModal";
 import { DeploymentMinimumEscrowAlertText } from "../sdl/DeploymentMinimumEscrowAlertText";
 import { TrialDeploymentBadge } from "../shared";
@@ -44,8 +40,6 @@ import { PrerequisiteList } from "../shared/PrerequisiteList";
 import ViewPanel from "../shared/ViewPanel";
 import type { SdlBuilderRefType } from "./SdlBuilder";
 import { SdlBuilder } from "./SdlBuilder";
-
-const TRIAL_DEPLOYMENT_LIMIT = 5;
 
 type Props = {
   onTemplateSelected: Dispatch<TemplateCreation | null>;
@@ -70,7 +64,6 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
   const [selectedSdlEditMode, setSelectedSdlEditMode] = useAtom(sdlStore.selectedSdlEditMode);
   const [isRepoInputValid, setIsRepoInputValid] = useState(false);
   const [sdlDenom, setSdlDenom] = useState("uakt");
-  const isAnonymousFreeTrialEnabled = useFlag("anonymous_free_trial");
 
   const { analyticsService, chainApiHttpClient, appConfig, deploymentLocalStorage } = useServices();
   const { settings } = useSettings();
@@ -231,12 +224,8 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
         return;
       }
 
-      if (isAnonymousFreeTrialEnabled) {
-        if (isTrialing && !isOnboarding) {
-          sdl = appendTrialAttribute(sdl, TRIAL_ATTRIBUTE);
-        } else if (isOnboarding) {
-          sdl = appendTrialAttribute(sdl, TRIAL_REGISTERED_ATTRIBUTE);
-        }
+      if (isTrialing) {
+        sdl = appendTrialAttribute(sdl, TRIAL_REGISTERED_ATTRIBUTE);
       }
 
       if (isManaged) {
@@ -302,30 +291,9 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
     setSelectedSdlEditMode(mode);
   };
 
-  const { data: deployments } = useDeploymentList(address);
-  const trialDeploymentLimitReached = useMemo(() => {
-    return isAnonymousFreeTrialEnabled && isTrialing && (deployments?.length || 0) >= TRIAL_DEPLOYMENT_LIMIT;
-  }, [deployments?.length, isTrialing, isAnonymousFreeTrialEnabled]);
-
   return (
     <>
       <CustomNextSeo title="Create Deployment - Manifest Edit" url={`${domainName}${UrlService.newDeployment({ step: RouteStep.editDeployment })}`} />
-
-      {trialDeploymentLimitReached && (
-        <div className="pb-4 pt-4">
-          <Alert variant="warning" className="backdrop-blur-md md:mb-0">
-            <AlertDescription className="space-y-1 dark:text-white/90">
-              <p>
-                You have reached the limit of {TRIAL_DEPLOYMENT_LIMIT} trial deployments.{" "}
-                <Link href={UrlService.newLogin()} passHref prefetch={false} className="font-bold underline">
-                  Sign in
-                </Link>{" "}
-                or <SignUpButton className="font-bold underline" /> to add funds and continue deploying.
-              </p>
-            </AlertDescription>
-          </Alert>
-        </div>
-      )}
 
       <div className="mb-2 pt-4">
         <div className="mb-2 flex flex-col items-end justify-between md:flex-row">
@@ -451,7 +419,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
                 <strong>Learn more.</strong>
               </LinkTo>
 
-              {!isAnonymousFreeTrialEnabled && isTrialing && (
+              {isTrialing && (
                 <div className="mt-2">
                   <TrialDeploymentBadge />
                 </div>
