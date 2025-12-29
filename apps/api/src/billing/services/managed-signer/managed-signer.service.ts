@@ -109,14 +109,7 @@ export class ManagedSignerService {
     transactionHash: string;
     rawLog: string;
   }> {
-    assert(userWallet.feeAllowance > 0, 403, "Not enough funds to cover the transaction fee");
-
-    const hasDeploymentMessage = messages.some(message => message.typeUrl.endsWith(".MsgCreateDeployment"));
-
-    if (hasDeploymentMessage) {
-      assert(userWallet.deploymentAllowance > 0, 403, "Not enough funds to cover the deployment costs");
-    }
-
+    await this.#validateBalances(userWallet, messages);
     await this.anonymousValidateService.validateLeaseProvidersAuditors(messages, userWallet);
 
     if (this.featureFlagsService.isEnabled(FeatureFlags.ANONYMOUS_FREE_TRIAL)) {
@@ -161,6 +154,29 @@ export class ManagedSignerService {
     }
 
     return result as Pick<IndexedTx, "code" | "hash" | "rawLog"> & { transactionHash: string };
+  }
+
+  /**
+   * Validates that the user wallet has sufficient balances to cover transaction fees and deployment costs.
+   * Uses cached allowances if balance is greater than 0, otherwise fetches current balances from the chain to ensure accuracy.
+   * Throws an assertion error if insufficient funds are available.
+   *
+   * @param userWallet - The user wallet to validate balances for
+   * @param messages - Array of transaction messages to check for deployment messages
+   * @throws {HttpError} 402 if there are not enough funds to cover the transaction fee
+   * @throws {HttpError} 402 if there are not enough funds to cover deployment costs (when deployment message is present)
+   */
+  async #validateBalances(userWallet: UserWalletOutput, messages: EncodeObject[]) {
+    const hasDeploymentMessage = messages.some(message => message.typeUrl.endsWith(".MsgCreateDeployment"));
+    const [feeAllowance, deploymentAllowance] = await Promise.all([
+      userWallet.feeAllowance > 0 ? Promise.resolve(userWallet.feeAllowance) : this.balancesService.retrieveAndCalcFeeLimit(userWallet),
+      !hasDeploymentMessage || userWallet.deploymentAllowance > 0
+        ? Promise.resolve(userWallet.deploymentAllowance)
+        : this.balancesService.retrieveDeploymentLimit(userWallet)
+    ]);
+
+    assert(feeAllowance > 0, 402, "Not enough funds to cover the transaction fee");
+    assert(!hasDeploymentMessage || deploymentAllowance > 0, 402, "Not enough funds to cover the deployment costs");
   }
 
   private decodeMessages(messages: StringifiedEncodeObject[]): EncodeObject[] {

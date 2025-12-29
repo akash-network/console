@@ -64,7 +64,7 @@ describe(ManagedSignerService.name, () => {
       expect(userRepository.findById).toHaveBeenCalledWith("user-456");
     });
 
-    it("throws 403 error when userWallet has no fee allowance", async () => {
+    it("throws 402 error when userWallet has no fee allowance", async () => {
       const wallet = UserWalletSeeder.create({ userId: "user-123", feeAllowance: 0 });
       const user = UserSeeder.create({ userId: "user-123" });
       const { service } = setup({
@@ -75,7 +75,7 @@ describe(ManagedSignerService.name, () => {
       await expect(service.executeDerivedDecodedTxByUserId("user-123", [])).rejects.toThrow("Not enough funds to cover the transaction fee");
     });
 
-    it("throws 403 error when userWallet has no deployment allowance for deployment message", async () => {
+    it("throws 402 error when userWallet has no deployment allowance for deployment message", async () => {
       const wallet = UserWalletSeeder.create({
         userId: "user-123",
         feeAllowance: 100,
