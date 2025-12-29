@@ -67,22 +67,27 @@ export class LoggerService implements Logger {
 
   private initPino(): pino.Logger {
     const { createPino = pino, context, ...additionalOptions } = this.options ?? {};
+    const formatters: pino.LoggerOptions["formatters"] = {
+      level(label) {
+        return { level: CUSTOM_LEVELS[label] || label };
+      }
+    };
     const options: pino.LoggerOptions = {
       level: LoggerService.config.LOG_LEVEL,
       mixin: LoggerService.mixin,
       timestamp: () => `,"time":"${new Date().toISOString()}"`,
-      formatters: {
-        level(label) {
-          return { level: CUSTOM_LEVELS[label] || label };
-        }
-      },
+      formatters,
       serializers: {
         err: logError,
         error: logError,
         msg: sanitizeString,
         message: sanitizeString
       },
-      ...additionalOptions
+      ...additionalOptions,
+      browser: {
+        formatters,
+        ...additionalOptions?.browser
+      }
     };
     const destinationStream = this.getPrettyIfPresent();
     const logger = destinationStream?.ok ? createPino(options, destinationStream.value) : createPino(options);
@@ -139,7 +144,11 @@ export class LoggerService implements Logger {
   error(message: Error): void;
   error(message: unknown): void;
   error(message: unknown): void {
-    this.pino.error(message);
+    if (message && message instanceof Error) {
+      this.pino.error({ err: message });
+    } else {
+      this.pino.error(message);
+    }
   }
 
   fatal(message: LogMessage): void;
