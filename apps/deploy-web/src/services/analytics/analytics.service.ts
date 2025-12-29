@@ -1,8 +1,8 @@
-import * as amplitude from "@amplitude/analytics-browser";
-import murmurhash from "murmurhash";
-import { event } from "nextjs-google-analytics";
+"use client";
 
-import { browserEnvConfig } from "@src/config/browser-env.config";
+import * as amplitude from "@amplitude/analytics-browser";
+import { v3 as murmurhash } from "murmurhash";
+import { event } from "nextjs-google-analytics";
 
 export type AnalyticsUser = {
   id?: string;
@@ -139,7 +139,7 @@ const isBrowser = typeof window !== "undefined";
 
 export type Amplitude = Pick<typeof amplitude, "init" | "Identify" | "identify" | "track" | "setUserId">;
 export type GoogleAnalytics = { event: typeof event };
-export type HashFn = typeof murmurhash.v3;
+export type HashFn = typeof murmurhash;
 
 export class AnalyticsService {
   private readonly STORAGE_KEY = "analytics_values_cache";
@@ -154,11 +154,11 @@ export class AnalyticsService {
 
   constructor(
     private readonly options: AnalyticsOptions,
-    private readonly amplitude: Amplitude,
-    private readonly hash: HashFn,
-    private readonly ga: GoogleAnalytics,
-    private readonly getGtag: () => Gtag.Gtag | undefined = () => undefined,
-    private readonly storage?: Pick<Storage, "getItem" | "setItem">
+    private readonly amplitudeClient: Amplitude = amplitude,
+    private readonly hash: HashFn = murmurhash,
+    private readonly ga: GoogleAnalytics = { event },
+    private readonly getGtag: () => Gtag.Gtag | undefined = () => (isBrowser ? window.gtag : undefined),
+    private readonly storage: Pick<Storage, "getItem" | "setItem"> | undefined = isBrowser ? window.localStorage : undefined
   ) {
     if (this.options.amplitude.enabled === false) {
       this.isAmplitudeEnabled = false;
@@ -192,7 +192,7 @@ export class AnalyticsService {
       return;
     }
 
-    const event = new this.amplitude.Identify();
+    const event = new this.amplitudeClient.Identify();
 
     for (const key in user) {
       if (key !== "id") {
@@ -200,10 +200,10 @@ export class AnalyticsService {
       }
     }
 
-    this.amplitude.identify(event);
+    this.amplitudeClient.identify(event);
 
     if (user.id) {
-      this.amplitude.setUserId(user.id);
+      this.amplitudeClient.setUserId(user.id);
     }
   }
 
@@ -212,7 +212,7 @@ export class AnalyticsService {
       this.isAmplitudeEnabled = this.shouldSampleUser(user.id);
 
       if (this.isAmplitudeEnabled) {
-        this.amplitude.init(this.options.amplitude.apiKey);
+        this.amplitudeClient.init(this.options.amplitude.apiKey);
       }
     }
   }
@@ -249,7 +249,7 @@ export class AnalyticsService {
     const eventProperties = typeof eventPropertiesOrTarget === "object" ? eventPropertiesOrTarget : {};
 
     if (this.isAmplitudeEnabled && (!analyticsTarget || analyticsTarget === "Amplitude")) {
-      this.amplitude.track(eventName, eventProperties);
+      this.amplitudeClient.track(eventName, eventProperties);
     }
 
     if (this.options.ga.enabled && (!analyticsTarget || analyticsTarget === "GA")) {
@@ -271,27 +271,3 @@ export class AnalyticsService {
     return percentage < this.options.amplitude.samplingRate * 100;
   }
 }
-
-const localStorage = isBrowser ? window.localStorage : undefined;
-
-/**
- * @deprecated use useServices() instead
- */
-export const analyticsService = new AnalyticsService(
-  {
-    amplitude: {
-      enabled: browserEnvConfig.NEXT_PUBLIC_AMPLITUDE_ENABLED,
-      apiKey: browserEnvConfig.NEXT_PUBLIC_AMPLITUDE_API_KEY,
-      samplingRate: browserEnvConfig.NEXT_PUBLIC_AMPLITUDE_SAMPLING
-    },
-    ga: {
-      measurementId: browserEnvConfig.NEXT_PUBLIC_GA_MEASUREMENT_ID,
-      enabled: browserEnvConfig.NEXT_PUBLIC_GA_ENABLED
-    }
-  },
-  amplitude,
-  murmurhash.v3,
-  { event },
-  () => (isBrowser ? window.gtag : undefined),
-  localStorage
-);

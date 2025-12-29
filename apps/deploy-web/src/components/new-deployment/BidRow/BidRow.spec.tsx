@@ -1,7 +1,9 @@
 import type { RadioGroupItem } from "@akashnetwork/ui/components";
+import { mock } from "jest-mock-extended";
 
 import { LocalNoteProvider } from "@src/context/LocalNoteProvider/LocalNoteContext";
 import { queryClient } from "@src/queries/queryClient";
+import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { ProviderProxyService } from "@src/services/provider-proxy/provider-proxy.service";
 import type { BidDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
@@ -109,7 +111,7 @@ describe(BidRow.name, () => {
         })
       }) as unknown as ProviderProxyService;
     return render(
-      <TestContainerProvider services={{ providerProxy, queryClient: () => queryClient }}>
+      <TestContainerProvider services={{ providerProxy, queryClient: () => queryClient, analyticsService: () => mock<AnalyticsService>() }}>
         <LocalNoteProvider>
           <BidRow
             bid={props?.bid ?? buildDeploymentBid()}

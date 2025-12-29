@@ -3,8 +3,8 @@ import { Button } from "@akashnetwork/ui/components";
 import type { LinkProps } from "next/link";
 import Link from "next/link";
 
+import { useServices } from "@src/context/ServicesProvider";
 import { useAddFundsVerifiedLoginRequiredEventHandler } from "@src/hooks/useAddFundsVerifiedLoginRequiredEventHandler";
-import { analyticsService } from "@src/services/analytics/analytics.service";
 import type { FCWithChildren } from "@src/types/component";
 
 export const AddFundsLink: FCWithChildren<
@@ -14,6 +14,7 @@ export const AddFundsLink: FCWithChildren<
       disabled?: boolean;
     } & React.RefAttributes<HTMLAnchorElement>
 > = props => {
+  const { analyticsService } = useServices();
   const whenLoggedInAndVerified = useAddFundsVerifiedLoginRequiredEventHandler();
 
   return props.disabled ? (

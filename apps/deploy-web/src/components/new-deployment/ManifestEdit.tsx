@@ -72,7 +72,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
   const [sdlDenom, setSdlDenom] = useState("uakt");
   const isAnonymousFreeTrialEnabled = useFlag("anonymous_free_trial");
 
-  const { analyticsService, chainApiHttpClient, appConfig, deploymentLocalStorage } = useServices();
+  const { analyticsService, chainApiHttpClient, publicConfig: appConfig, deploymentLocalStorage } = useServices();
   const { settings } = useSettings();
   const { address, signAndBroadcastTx, isManaged, isTrialing, isOnboarding } = useWallet();
   const router = useRouter();

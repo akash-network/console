@@ -17,7 +17,7 @@ export const useTrialBalance = (): TrialBalance => {
   const { creditAmount } = useWallet();
   const { balance: walletBalance, isLoading } = useWalletBalance();
   const { wallet: managedWallet } = useManagedWallet();
-  const { appConfig } = useServices();
+  const { publicConfig: appConfig } = useServices();
 
   const TRIAL_TOTAL = appConfig.NEXT_PUBLIC_TRIAL_CREDITS_AMOUNT;
   const TRIAL_DURATION_DAYS = appConfig.NEXT_PUBLIC_TRIAL_DURATION_DAYS;

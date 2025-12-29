@@ -8,9 +8,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { CI_CD_TEMPLATE_ID } from "@src/config/remote-deploy.config";
+import { useServices } from "@src/context/ServicesProvider";
 import type { TemplateOutputSummaryWithCategory } from "@src/queries/useTemplateQuery";
 import { useTemplates } from "@src/queries/useTemplateQuery";
-import { analyticsService } from "@src/services/analytics/analytics.service";
 import sdlStore from "@src/store/sdlStore";
 import type { TemplateCreation } from "@src/types";
 import { RouteStep } from "@src/types/route-steps.type";
@@ -44,6 +44,7 @@ type Props = {
 };
 
 export const TemplateList: React.FunctionComponent<Props> = ({ onChangeGitProvider, onTemplateSelected, setEditedManifest }) => {
+  const { analyticsService } = useServices();
   const { templates } = useTemplates();
   const router = useRouter();
   const [previewTemplates, setPreviewTemplates] = useState<TemplateOutputSummaryWithCategory[]>([]);

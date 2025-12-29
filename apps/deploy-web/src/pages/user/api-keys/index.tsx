@@ -6,10 +6,11 @@ import { enqueueSnackbar } from "notistack";
 import { ApiKeyList } from "@src/components/api-keys/ApiKeyList";
 import Layout from "@src/components/layout/Layout";
 import { RequiredUserContainer } from "@src/components/user/RequiredUserContainer";
+import { useServices } from "@src/context/ServicesProvider";
 import { useDeleteApiKey, useUserApiKeys } from "@src/queries/useApiKeysQuery";
-import { analyticsService } from "@src/services/analytics/analytics.service";
 
 export default function ApiKeysPage() {
+  const { analyticsService } = useServices();
   const [apiKeyToDelete, setApiKeyToDelete] = useState<ApiKeyResponse | null>(null);
   const { data: apiKeys, isLoading: isLoadingApiKeys } = useUserApiKeys();
   const { mutate: deleteApiKey, isPending: isDeleting } = useDeleteApiKey(apiKeyToDelete?.id ?? "", () => {

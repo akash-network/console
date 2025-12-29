@@ -7,8 +7,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useSnackbar } from "notistack";
 import { z } from "zod";
 
+import { useServices } from "@src/context/ServicesProvider";
 import { useCreateApiKey } from "@src/queries";
-import { analyticsService } from "@src/services/analytics/analytics.service";
 
 interface Props {
   isOpen: boolean;
@@ -27,6 +27,7 @@ const formSchema = z.object({
 });
 
 export const CreateApiKeyModal = ({ isOpen, onClose }: Props) => {
+  const { analyticsService } = useServices();
   const { enqueueSnackbar } = useSnackbar();
   const { mutate: createApiKey, data: createdApiKey, isPending } = useCreateApiKey();
   const formRef = useRef<HTMLFormElement | null>(null);

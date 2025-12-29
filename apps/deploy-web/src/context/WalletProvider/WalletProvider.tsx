@@ -73,7 +73,7 @@ const MESSAGE_STATES: Record<string, LoadingState> = {
  * WalletProvider is a client only component
  */
 export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { analyticsService, tx: txHttpService, appConfig, urlService, windowLocation } = useServices();
+  const { analyticsService, tx: txHttpService, publicConfig: appConfig, urlService, windowLocation } = useServices();
 
   const [, setSettingsId] = useAtom(settingsIdAtom);
   const [isWalletLoaded, setIsWalletLoaded] = useState<boolean>(true);
@@ -366,7 +366,7 @@ export function useIsManagedWalletUser() {
 }
 
 const TransactionSnackbarContent: React.FC<{ snackMessage: string; transactionHash: string }> = ({ snackMessage, transactionHash }) => {
-  const { appConfig } = useServices();
+  const { publicConfig: appConfig } = useServices();
   const selectedNetworkId = networkStore.useSelectedNetworkId();
   const txUrl = transactionHash && `${appConfig.NEXT_PUBLIC_STATS_APP_URL}/transactions/${transactionHash}?network=${selectedNetworkId}`;
 

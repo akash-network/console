@@ -21,6 +21,7 @@ import { CalendarArrowDown, Coins, Edit, MoreHoriz, NavArrowRight, Plus, Upload,
 import { keyBy } from "lodash";
 import { useRouter } from "next/navigation";
 
+import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useFlag } from "@src/hooks/useFlag";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
@@ -28,7 +29,6 @@ import { useProviderCredentials } from "@src/hooks/useProviderCredentials/usePro
 import { useRealTimeLeft } from "@src/hooks/useRealTimeLeft";
 import { useDenomData } from "@src/hooks/useWalletBalance";
 import { useAllLeases, useLeaseStatus } from "@src/queries/useLeaseQuery";
-import { analyticsService } from "@src/services/analytics/analytics.service";
 import type { NamedDeploymentDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { udenomToDenom } from "@src/utils/mathHelpers";
@@ -60,6 +60,7 @@ type Props = {
 
 export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, isSelectable, onSelectDeployment, checked, providers, refreshDeployments }) => {
   const router = useRouter();
+  const { analyticsService } = useServices();
   const [open, setOpen] = useState(false);
   const [isDepositingDeployment, setIsDepositingDeployment] = useState(false);
   const { changeDeploymentName, getDeploymentData } = useLocalNotes();

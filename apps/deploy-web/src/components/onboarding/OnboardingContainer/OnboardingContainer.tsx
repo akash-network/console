@@ -21,7 +21,6 @@ import { appendAuditorRequirement } from "@src/utils/deploymentData/v1beta3";
 import { validateDeploymentData } from "@src/utils/deploymentUtils";
 import { helloWorldTemplate } from "@src/utils/templates";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
-import { UrlService } from "@src/utils/urlUtils";
 import { type OnboardingStep } from "../OnboardingStepper/OnboardingStepper";
 
 export enum OnboardingStepIndex {
@@ -61,8 +60,7 @@ const DEPENDENCIES = {
   validateDeploymentData,
   appendAuditorRequirement,
   helloWorldTemplate,
-  TransactionMessageData,
-  UrlService
+  TransactionMessageData
 };
 
 export const OnboardingContainer: React.FunctionComponent<OnboardingContainerProps> = ({ children, dependencies: d = DEPENDENCIES }) => {
@@ -74,7 +72,16 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
   const { user } = d.useUser();
   const { data: paymentMethods = [] } = d.usePaymentMethodsQuery({ enabled: !!user?.stripeCustomerId });
   const { data: depositParams } = d.useDepositParams();
-  const { analyticsService, urlService, chainApiHttpClient, deploymentLocalStorage, appConfig, errorHandler, windowLocation, windowHistory } = d.useServices();
+  const {
+    analyticsService,
+    urlService,
+    chainApiHttpClient,
+    deploymentLocalStorage,
+    publicConfig: appConfig,
+    errorHandler,
+    windowLocation,
+    windowHistory
+  } = d.useServices();
   const { hasManagedWallet, isWalletLoading, connectManagedWallet, address, signAndBroadcastTx } = d.useWallet();
   const { templates } = d.useTemplates();
   const { genNewCertificateIfLocalIsInvalid, updateSelectedCertificate } = d.useCertificate();
@@ -282,7 +289,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
 
           d.localStorage?.removeItem(ONBOARDING_STEP_KEY);
           connectManagedWallet();
-          router.push(d.UrlService.newDeployment({ step: RouteStep.createLeases, dseq: dd.deploymentId.dseq }));
+          router.push(urlService.newDeployment({ step: RouteStep.createLeases, dseq: dd.deploymentId.dseq }));
         }
       } catch (error) {
         enqueueSnackbar("Failed to deploy template. Please try again.", { variant: "error" });

@@ -1,20 +1,19 @@
 import { loadStripe, type Stripe } from "@stripe/stripe-js";
 
-import { browserEnvConfig } from "@src/config/browser-env.config";
-
 export interface StripeServiceDependencies {
-  loadStripe: typeof loadStripe;
-  browserEnvConfig: typeof browserEnvConfig;
+  loadStripe?: typeof loadStripe;
+  config: {
+    publishableKey: string;
+  };
 }
 
 export class StripeService {
   private stripeInstance: Stripe | null = null;
-  private dependencies: StripeServiceDependencies;
+  private dependencies: Required<StripeServiceDependencies>;
 
-  constructor(dependencies?: Partial<StripeServiceDependencies>) {
+  constructor(dependencies: StripeServiceDependencies) {
     this.dependencies = {
       loadStripe,
-      browserEnvConfig,
       ...dependencies
     };
   }
@@ -24,7 +23,7 @@ export class StripeService {
       return this.stripeInstance;
     }
 
-    const publishableKey = this.dependencies.browserEnvConfig.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+    const publishableKey = this.dependencies.config.publishableKey;
     if (!publishableKey) {
       console.warn("Stripe publishable key is not configured");
       return null;

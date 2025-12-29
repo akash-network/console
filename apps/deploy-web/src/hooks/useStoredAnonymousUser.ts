@@ -16,7 +16,7 @@ const storedAnonymousUserStr = typeof window !== "undefined" && localStorage.get
 const storedAnonymousUser: UserOutput | undefined = storedAnonymousUserStr ? JSON.parse(storedAnonymousUserStr) : undefined;
 
 export const useStoredAnonymousUser = (): UseApiUserResult => {
-  const { appConfig } = useServices();
+  const { publicConfig: appConfig } = useServices();
   const { user: registeredUser, isLoading: isLoadingRegisteredUser } = useCustomUser();
   const { user, isLoading, token, error } = useAnonymousUserQuery(storedAnonymousUser?.id, {
     enabled: appConfig.NEXT_PUBLIC_BILLING_ENABLED && !registeredUser && !isLoadingRegisteredUser

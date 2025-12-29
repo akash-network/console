@@ -46,7 +46,7 @@ import { RegionSelect } from "./RegionSelect";
 import { TokenFormControl } from "./TokenFormControl";
 
 export const RentGpusForm: React.FunctionComponent = () => {
-  const { chainApiHttpClient, analyticsService, appConfig, deploymentLocalStorage } = useServices();
+  const { chainApiHttpClient, analyticsService, publicConfig: appConfig, deploymentLocalStorage } = useServices();
   const [error, setError] = useState<string | null>(null);
   // const [templateMetadata, setTemplateMetadata] = useState<ITemplate>(null);
   const [isQueryInit, setIsQuertInit] = useState(false);
