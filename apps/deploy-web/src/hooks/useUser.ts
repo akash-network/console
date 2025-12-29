@@ -7,15 +7,17 @@ import type { CustomUserProfile } from "@src/types/user";
 export const useUser = (): {
   user: CustomUserProfile;
   isLoading: boolean;
+  checkSession: () => Promise<void>;
 } => {
-  const { user: registeredUser, isLoading: isLoadingRegisteredUser } = useCustomUser();
+  const { user: registeredUser, isLoading: isLoadingRegisteredUser, checkSession } = useCustomUser();
   const { user: anonymousUser, isLoading: isLoadingAnonymousUser } = useStoredAnonymousUser();
   const user = useMemo(() => registeredUser || anonymousUser, [registeredUser, anonymousUser]);
   const isLoading = useMemo(() => isLoadingRegisteredUser || isLoadingAnonymousUser, [isLoadingRegisteredUser, isLoadingAnonymousUser]);
 
   return {
     user,
-    isLoading
+    isLoading,
+    checkSession
   };
 };
 

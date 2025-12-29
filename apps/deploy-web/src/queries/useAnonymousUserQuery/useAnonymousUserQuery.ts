@@ -31,7 +31,7 @@ export const DEFAULT_RETRY_AFTER_SECONDS = 60 * 60;
 export function useAnonymousUserQuery(id?: string, options?: { enabled?: boolean }): AnonymousUserState {
   const store = useStore();
   const { user: userService, errorHandler } = useServices();
-  const [userState] = useAtom(userStateAtom);
+  const [userState, setUserState] = useAtom(userStateAtom);
 
   const fetchAnonymousUser = useAtomCallback(
     useCallback(
@@ -58,6 +58,8 @@ export function useAnonymousUserQuery(id?: string, options?: { enabled?: boolean
     options?.enabled && !userState.user && !userState.isLoading && (!userState.retryAfter || userState.retryAfter.getTime() < Date.now()),
     fetchAnonymousUser
   );
+
+  useWhen(!options?.enabled, () => setUserState({ isLoading: false }));
 
   return userState;
 }

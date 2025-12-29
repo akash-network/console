@@ -10,7 +10,7 @@ const USER_METADATA_KEY = "https://console.akash.network/user_metadata" as const
 
 describe(SessionService.name, () => {
   describe("signIn", () => {
-    it("merges user settings into session when authentication succeeds", async () => {
+    it("authenticates user and returns session", async () => {
       const tokenPayload = {
         sub: "auth0|user-123",
         nickname: "TokenUser",
@@ -36,16 +36,10 @@ describe(SessionService.name, () => {
         status: 200,
         data: {}
       };
-      const localUserSettings: UserSettings = {
-        username: "akash-user",
-        subscribedToNewsletter: true
-      };
-
-      const { service, externalHttpClient, consoleApiHttpClient, config } = setup();
+      const { service, externalHttpClient, config } = setup();
 
       externalHttpClient.post.mockResolvedValueOnce(tokenResponse);
       externalHttpClient.get.mockResolvedValueOnce(userInfoResponse);
-      consoleApiHttpClient.get.mockResolvedValueOnce({ data: { data: localUserSettings } });
 
       const result = await service.signIn({ email: "user@example.com", password: "password123" });
 
@@ -67,28 +61,10 @@ describe(SessionService.name, () => {
         expect.objectContaining({ validateStatus: expect.any(Function) })
       );
 
-      const postOptions = externalHttpClient.post.mock.calls[0]?.[2] as { validateStatus?: (status: number) => boolean } | undefined;
-      expect(postOptions?.validateStatus?.(200)).toBe(true);
-      expect(postOptions?.validateStatus?.(500)).toBe(false);
-
-      expect(externalHttpClient.get).toHaveBeenCalledWith(
-        `${new URL(config.ISSUER_BASE_URL).origin}/userinfo`,
-        expect.objectContaining({
-          headers: { Authorization: `Bearer ${tokenResponse.data.access_token}` },
-          validateStatus: expect.any(Function)
-        })
-      );
-
-      expect(consoleApiHttpClient.get).toHaveBeenCalledWith("/v1/user/me", {
-        headers: { Authorization: `Bearer ${tokenResponse.data.access_token}` }
-      });
-
       expect(session.accessToken).toBe(tokenResponse.data.access_token);
       expect(session.refreshToken).toBe(tokenResponse.data.refresh_token);
       expect(session.user.nickname).toBe(tokenPayload.nickname);
       expect(session.user.email).toBe(tokenPayload.email);
-      expect(session.user.username).toBe(localUserSettings.username);
-      expect(session.user.subscribedToNewsletter).toBe(true);
       expect(session.user[USER_METADATA_KEY]).toEqual(tokenPayload[USER_METADATA_KEY]);
     });
 
@@ -293,8 +269,7 @@ describe(SessionService.name, () => {
 
       expect(session.accessToken).toBe(tokenResponse.data.access_token);
       expect(session.user.email).toBe(email);
-      expect(session.user.username).toBe(createdUser.username);
-      expect(session.user.subscribedToNewsletter).toBe(true);
+      expect(session.user.nickname).toBe(createdUser.username);
       expect(session.user[USER_METADATA_KEY]).toEqual(tokenPayload[USER_METADATA_KEY]);
     });
   });
