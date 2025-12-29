@@ -15,8 +15,8 @@ inputs:
     description: GitHub user to Slack user mapping
     required: false
     default: "{}"
-  ui-config-signature-private-key:
-    description: Private key for the UI config signature
+  testing-client-token:
+    description: E2E testing client token which allows to bypass captcha verification
     required: true
 
 
@@ -39,7 +39,7 @@ runs:
       env:
         TEST_WALLET_MNEMONIC: ${{ inputs.test-wallet-mnemonic }}
         BASE_URL: ${{ inputs.url }}
-        UI_CONFIG_SIGNATURE_PRIVATE_KEY: ${{ inputs.ui-config-signature-private-key }}
+        E2E_TESTING_CLIENT_TOKEN: ${{ inputs.testing-client-token }}
         USER_DATA_DIR: ${{ runner.temp }}/chrome-profile-${{ github.run_id }}-${{ github.run_attempt }}
         CI: "true"
       shell: bash
