@@ -216,11 +216,11 @@ describe(AuthPage.name, () => {
     const authService = mock<AuthService>();
     const router = mock<NextRouter>();
     const checkSession = jest.fn(async () => undefined);
-    const useUserMock = () => ({
+    const useUserMock: typeof DEPENDENCIES.useUser = () => ({
       checkSession,
       isLoading: false,
       error: undefined,
-      user: undefined
+      user: {}
     });
 
     const params = new URLSearchParams();

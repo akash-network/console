@@ -2,7 +2,6 @@
 
 import { useCallback, useState } from "react";
 import { Separator, Tabs, TabsContent, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
-import { useUser } from "@auth0/nextjs-auth0/client";
 import { useMutation } from "@tanstack/react-query";
 import { DollarSignIcon, RocketIcon, ZapIcon } from "lucide-react";
 import { useSearchParams } from "next/navigation";
@@ -12,6 +11,7 @@ import { NextSeo } from "next-seo";
 import { AkashConsoleLogo } from "@src/components/icons/AkashConsoleLogo";
 import { RemoteApiError } from "@src/components/shared/RemoteApiError/RemoteApiError";
 import { useServices } from "@src/context/ServicesProvider";
+import { useUser } from "@src/hooks/useUser";
 import { AuthLayout } from "../AuthLayout/AuthLayout";
 import { ForgotPasswordForm } from "../ForgotPasswordForm/ForgotPasswordForm";
 import type { SignInFormValues } from "../SignInForm/SignInForm";

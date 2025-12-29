@@ -18,23 +18,7 @@ export class SessionService {
     this.#config = config;
   }
 
-  async signIn(input: { email: string; password: string }): Promise<Result<Session, { message: string; code: string; cause: unknown }>> {
-    const result = await this.#signInOnProvider(input);
-    if (result.ok) {
-      const session = result.val;
-      const userSettings = await this.getLocalUserDetails(session);
-
-      session.user = { ...session.user, ...userSettings };
-      return Ok(session);
-    }
-
-    return result;
-  }
-
-  async #signInOnProvider(input: {
-    email: string;
-    password: string;
-  }): Promise<Result<Session, { code: "invalid_credentials"; message: string; cause: unknown }>> {
+  async signIn(input: { email: string; password: string }): Promise<Result<Session, { code: "invalid_credentials"; message: string; cause: unknown }>> {
     const oauthIssuerUrl = new URL(this.#config.ISSUER_BASE_URL);
 
     const tokenResponse = await this.#externalHttpClient.post(
@@ -139,7 +123,7 @@ export class SessionService {
       });
     }
 
-    const result = await this.#signInOnProvider({
+    const result = await this.signIn({
       email: input.email,
       password: input.password
     });
@@ -147,7 +131,7 @@ export class SessionService {
     if (result.ok) {
       const session = result.val;
       const userSettings = await this.createLocalUser(result.val);
-      session.user = { ...session.user, ...userSettings };
+      session.user = { ...session.user, nickname: userSettings.username };
       return Ok(session);
     }
 

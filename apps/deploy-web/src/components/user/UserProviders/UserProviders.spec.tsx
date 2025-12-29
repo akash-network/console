@@ -55,7 +55,7 @@ describe(UserProviders.name, () => {
 
     expect(userTracker.track).toHaveBeenCalledWith(undefined);
     expect(userTracker.track).toHaveBeenCalledWith(anonymousUser);
-    expect(analyticsService.identify).toHaveBeenCalledTimes(2);
+    expect(analyticsService.identify).toHaveBeenCalledTimes(3);
     expect(analyticsService.identify).toHaveBeenCalledWith({
       id: anonymousUser.id,
       anonymous: !anonymousUser.userId,

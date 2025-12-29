@@ -5,8 +5,8 @@ import { once } from "lodash";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 import type { Session } from "@src/lib/auth0";
-import { AccessTokenError, AccessTokenErrorCode, ProfileHandlerError } from "@src/lib/auth0";
-import { handleAuth, handleCallback, handleLogin, handleLogout, handleProfile } from "@src/lib/auth0";
+import { AccessTokenError, AccessTokenErrorCode, getSession } from "@src/lib/auth0";
+import { handleAuth, handleCallback, handleLogin, handleLogout } from "@src/lib/auth0";
 import { defineApiHandler } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
 import type { AppServices } from "@src/services/app-di-container/server-di-container.service";
 import { rewriteLocalRedirect } from "@src/services/auth/auth/rewrite-local-redirect";
@@ -77,19 +77,19 @@ const authHandler = once((services: AppServices) =>
     async profile(req: NextApiRequest, res: NextApiResponse) {
       services.logger.info({ event: "AUTH_PROFILE_REQUEST", url: req.url });
       try {
-        await handleProfile(req, res, {
-          refetch: true,
-          afterRefetch: async (req, res, session) => {
-            try {
-              const userSettings = await services.sessionService.getLocalUserDetails(session);
-              session.user = { ...session.user, ...userSettings };
-            } catch (error) {
-              services.errorHandler.reportError({ error, tags: { category: "auth0" } });
-            }
+        const session = await getSession(req, res);
+        if (!session) {
+          services.logger.info({ event: "AUTH_PROFILE_REQUEST_NO_SESSION", url: req.url });
+          res.status(401).json({ error: "Not authenticated" });
+          return;
+        }
 
-            return session;
-          }
+        const userSettings = await services.sessionService.getLocalUserDetails(session).catch(error => {
+          services.errorHandler.reportError({ error, tags: { category: "auth0", event: "AUTH_GET_LOCAL_PROFILE_ERROR" } });
+          return undefined;
         });
+
+        res.json({ ...session.user, ...userSettings });
       } catch (error: unknown) {
         if (isInvalidSessionError(error)) {
           services.logger.warn({ event: "AUTH_SESSION_INVALID", url: req.url });
@@ -110,13 +110,13 @@ const authHandler = once((services: AppServices) =>
 );
 
 function isInvalidSessionError(error: unknown): boolean {
-  if (!(error instanceof ProfileHandlerError) || !(error.cause instanceof AccessTokenError)) {
+  if (!(error instanceof AccessTokenError)) {
     return false;
   }
 
   const invalidSessionCodes: string[] = [AccessTokenErrorCode.EXPIRED_ACCESS_TOKEN, AccessTokenErrorCode.FAILED_REFRESH_GRANT];
 
-  return invalidSessionCodes.includes(error.cause.code);
+  return invalidSessionCodes.includes(error.code);
 }
 
 function isGeneralAxiosError(error: unknown): error is AxiosError {
