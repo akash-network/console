@@ -2,7 +2,7 @@ import { LoggerService } from "@akashnetwork/logging";
 import Stripe from "stripe";
 import { singleton } from "tsyringe";
 
-import { CheckoutSessionRepository, PaymentMethodRepository } from "@src/billing/repositories";
+import { PaymentMethodRepository, StripeTransactionRepository } from "@src/billing/repositories";
 import { assertIsPayingUser } from "@src/billing/services/paying-user/paying-user";
 import { RefillService } from "@src/billing/services/refill/refill.service";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
@@ -16,11 +16,11 @@ export class StripeWebhookService {
 
   constructor(
     private readonly stripe: StripeService,
-    private readonly checkoutSessionRepository: CheckoutSessionRepository,
     private readonly refillService: RefillService,
     private readonly billingConfig: BillingConfigService,
     private readonly userRepository: UserRepository,
-    private readonly paymentMethodRepository: PaymentMethodRepository
+    private readonly paymentMethodRepository: PaymentMethodRepository,
+    private readonly stripeTransactionRepository: StripeTransactionRepository
   ) {}
 
   async routeStripeEvent(signature: string, rawEvent: string) {
@@ -34,12 +34,17 @@ export class StripeWebhookService {
 
     try {
       switch (event.type) {
-        case "checkout.session.completed":
-        case "checkout.session.async_payment_succeeded":
-          await this.tryToTopUpWalletForCheckout(event);
-          break;
         case "payment_intent.succeeded":
           await this.tryToTopUpWalletFromPaymentIntent(event);
+          break;
+        case "payment_intent.payment_failed":
+          await this.handlePaymentIntentFailed(event);
+          break;
+        case "payment_intent.canceled":
+          await this.handlePaymentIntentCanceled(event);
+          break;
+        case "charge.refunded":
+          await this.handleChargeRefunded(event);
           break;
         case "payment_method.attached":
           await this.handlePaymentMethodAttached(event);
@@ -56,28 +61,6 @@ export class StripeWebhookService {
         error
       });
       throw error;
-    }
-  }
-
-  @WithTransaction()
-  async tryToTopUpWalletForCheckout(event: Stripe.CheckoutSessionCompletedEvent | Stripe.CheckoutSessionAsyncPaymentSucceededEvent) {
-    const sessionId = event.data.object.id;
-    const checkoutSessionCache = await this.checkoutSessionRepository.findOneByAndLock({ sessionId });
-
-    if (!checkoutSessionCache) {
-      this.logger.info({ event: "SESSION_NOT_FOUND", sessionId });
-      return;
-    }
-
-    const checkoutSession = await this.stripe.checkout.sessions.retrieve(sessionId, {
-      expand: ["line_items"]
-    });
-
-    if (checkoutSession.payment_status !== "unpaid") {
-      await this.refillService.topUpWallet(checkoutSession.amount_subtotal!, checkoutSessionCache.userId);
-      await this.checkoutSessionRepository.deleteBy({ sessionId });
-    } else {
-      this.logger.error({ event: "PAYMENT_NOT_COMPLETED", sessionId });
     }
   }
 
@@ -104,9 +87,107 @@ export class StripeWebhookService {
       return;
     }
 
+    // Update transaction status with charge details
+    const chargeId = paymentIntent.latest_charge
+      ? typeof paymentIntent.latest_charge === "string"
+        ? paymentIntent.latest_charge
+        : paymentIntent.latest_charge.id
+      : undefined;
+
+    const paymentMethodDetails = paymentIntent.payment_method_types?.[0];
+
+    await this.stripeTransactionRepository.updateStatusByPaymentIntentId(paymentIntent.id, {
+      status: "succeeded",
+      stripeChargeId: chargeId,
+      paymentMethodType: paymentMethodDetails
+    });
+
     // Use amount_received when available (for partial captures), otherwise use amount
     const paymentAmount = paymentIntent.amount_received ?? paymentIntent.amount;
     await this.refillService.topUpWallet(paymentAmount, user.id);
+  }
+
+  @WithTransaction()
+  async handlePaymentIntentFailed(event: Stripe.PaymentIntentPaymentFailedEvent) {
+    const paymentIntent = event.data.object;
+    const errorMessage = paymentIntent.last_payment_error?.message ?? "Payment failed";
+
+    await this.stripeTransactionRepository.updateStatusByPaymentIntentId(paymentIntent.id, {
+      status: "failed",
+      errorMessage
+    });
+
+    this.logger.warn({
+      event: "PAYMENT_INTENT_FAILED",
+      paymentIntentId: paymentIntent.id,
+      errorMessage
+    });
+  }
+
+  @WithTransaction()
+  async handlePaymentIntentCanceled(event: Stripe.PaymentIntentCanceledEvent) {
+    const paymentIntent = event.data.object;
+
+    await this.stripeTransactionRepository.updateStatusByPaymentIntentId(paymentIntent.id, {
+      status: "canceled"
+    });
+
+    this.logger.info({
+      event: "PAYMENT_INTENT_CANCELED",
+      paymentIntentId: paymentIntent.id
+    });
+  }
+
+  @WithTransaction()
+  async handleChargeRefunded(event: Stripe.ChargeRefundedEvent) {
+    const charge = event.data.object;
+    const customerId = charge.customer as string;
+
+    // Get the refunded amount - use amount_refunded which is the total amount refunded on this charge
+    const refundedAmount = charge.amount_refunded;
+
+    // Find the user by customer ID
+    if (!customerId) {
+      this.logger.error({
+        event: "CHARGE_REFUNDED_MISSING_CUSTOMER_ID",
+        chargeId: charge.id
+      });
+      return;
+    }
+
+    const user = await this.userRepository.findOneBy({ stripeCustomerId: customerId });
+    if (!user) {
+      this.logger.error({
+        event: "CHARGE_REFUNDED_USER_NOT_FOUND",
+        customerId,
+        chargeId: charge.id
+      });
+      return;
+    }
+
+    // Update transaction status
+    const transaction = await this.stripeTransactionRepository.findByChargeId(charge.id);
+    if (transaction) {
+      await this.stripeTransactionRepository.updateById(transaction.id, {
+        status: "refunded"
+      });
+    } else {
+      this.logger.warn({
+        event: "CHARGE_REFUNDED_NO_TRANSACTION",
+        chargeId: charge.id
+      });
+    }
+
+    // Reduce the wallet balance by the refunded amount
+    await this.refillService.reduceWalletBalance(refundedAmount, user.id);
+
+    this.logger.info({
+      event: "CHARGE_REFUNDED",
+      chargeId: charge.id,
+      userId: user.id,
+      refundedAmount,
+      transactionId: transaction?.id
+    });
   }
 
   @WithTransaction()

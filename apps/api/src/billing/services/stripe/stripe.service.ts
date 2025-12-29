@@ -9,7 +9,7 @@ import Stripe from "stripe";
 import { singleton } from "tsyringe";
 
 import { PaymentIntentResult, PaymentMethodValidationResult, Transaction } from "@src/billing/http-schemas/stripe.schema";
-import { PaymentMethodRepository } from "@src/billing/repositories";
+import { PaymentMethodRepository, StripeTransactionRepository } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { RefillService } from "@src/billing/services/refill/refill.service";
 import { WithTransaction } from "@src/core";
@@ -19,12 +19,6 @@ import { UserOutput, UserRepository } from "@src/user/repositories/user/user.rep
 import { PayingUser } from "../paying-user/paying-user";
 
 const logger = LoggerService.forContext("StripeService");
-
-interface CheckoutOptions {
-  customerId: string;
-  redirectUrl: string;
-  amount?: string;
-}
 
 interface StripePrices {
   unitAmount: number;
@@ -43,6 +37,7 @@ export class StripeService extends Stripe {
     private readonly userRepository: UserRepository,
     private readonly refillService: RefillService,
     private readonly paymentMethodRepository: PaymentMethodRepository,
+    private readonly stripeTransactionRepository: StripeTransactionRepository,
     private readonly loggerService: LoggerService
   ) {
     loggerService.setContext(StripeService.name);
@@ -58,42 +53,6 @@ export class StripeService extends Stripe {
       usage: "off_session",
       payment_method_types: ["card", "link"]
     });
-  }
-
-  async startCheckoutSession(options: CheckoutOptions) {
-    const price = await this.getPrice(options.amount);
-
-    return await this.checkout.sessions.create({
-      line_items: [
-        {
-          price: price.id,
-          quantity: 1
-        }
-      ],
-      mode: "payment",
-      allow_promotion_codes: !!options.amount,
-      customer: options.customerId,
-      success_url: `${options.redirectUrl}?session_id={CHECKOUT_SESSION_ID}&payment-success=true`,
-      cancel_url: `${options.redirectUrl}?session_id={CHECKOUT_SESSION_ID}&payment-canceled=true`
-    });
-  }
-
-  private async getPrice(amount?: string) {
-    const { data: prices } = await this.prices.list({ active: true, product: this.billingConfig.get("STRIPE_PRODUCT_ID") });
-
-    const price = prices.find(price => {
-      const isCustom = !amount && !!price.custom_unit_amount;
-
-      if (isCustom) {
-        return true;
-      }
-
-      return price.unit_amount === Number(amount) * 100;
-    });
-
-    assert(price, 400, "Price invalid");
-
-    return price;
   }
 
   async findPrices(): Promise<StripePrices[]> {
@@ -219,6 +178,7 @@ export class StripeService extends Stripe {
   }
 
   async createPaymentIntent(params: {
+    userId: string;
     customer: string;
     payment_method: string;
     amount: number;
@@ -228,6 +188,15 @@ export class StripeService extends Stripe {
     idempotencyKey?: string;
   }): Promise<PaymentIntentResult> {
     const amountInCents = Math.round(params.amount * 100);
+
+    // Create transaction record before calling Stripe
+    const transaction = await this.stripeTransactionRepository.create({
+      userId: params.userId,
+      type: "payment_intent",
+      status: "created",
+      amount: amountInCents,
+      currency: params.currency
+    });
 
     const createOptions: Parameters<Stripe["paymentIntents"]["create"]> = [
       {
@@ -248,28 +217,64 @@ export class StripeService extends Stripe {
       createOptions.push({ idempotencyKey: params.idempotencyKey });
     }
 
-    const paymentIntent = await this.paymentIntents.create(...createOptions);
+    try {
+      const paymentIntent = await this.paymentIntents.create(...createOptions);
 
-    switch (paymentIntent.status) {
+      // Update transaction with Stripe payment intent ID
+      await this.stripeTransactionRepository.updateById(transaction.id, {
+        stripePaymentIntentId: paymentIntent.id,
+        status: this.mapPaymentIntentStatusToTransactionStatus(paymentIntent.status)
+      });
+
+      switch (paymentIntent.status) {
+        case "succeeded":
+        case "requires_capture":
+          return { success: true, paymentIntentId: paymentIntent.id };
+
+        case "requires_action":
+          // Card requires 3D Secure authentication
+          return {
+            success: false,
+            paymentIntentId: paymentIntent.id,
+            requiresAction: true,
+            clientSecret: paymentIntent.client_secret || undefined
+          };
+
+        case "requires_payment_method":
+          // Card was declined
+          throw new Error("Payment method was declined. Please try a different card.");
+
+        default:
+          throw new Error(`Payment failed with status: ${paymentIntent.status}`);
+      }
+    } catch (error) {
+      // Update transaction with error status
+      await this.stripeTransactionRepository.updateById(transaction.id, {
+        status: "failed",
+        errorMessage: error instanceof Error ? error.message : "Unknown error"
+      });
+      throw error;
+    }
+  }
+
+  private mapPaymentIntentStatusToTransactionStatus(
+    status: Stripe.PaymentIntent.Status
+  ): "created" | "pending" | "requires_action" | "succeeded" | "failed" | "refunded" | "canceled" {
+    switch (status) {
       case "succeeded":
+        return "succeeded";
       case "requires_capture":
-        return { success: true, paymentIntentId: paymentIntent.id };
-
+        return "succeeded";
       case "requires_action":
-        // Card requires 3D Secure authentication
-        return {
-          success: false,
-          paymentIntentId: paymentIntent.id,
-          requiresAction: true,
-          clientSecret: paymentIntent.client_secret || undefined
-        };
-
+        return "requires_action";
       case "requires_payment_method":
-        // Card was declined
-        throw new Error("Payment method was declined. Please try a different card.");
-
+        return "failed";
+      case "canceled":
+        return "canceled";
+      case "processing":
+        return "pending";
       default:
-        throw new Error(`Payment failed with status: ${paymentIntent.status}`);
+        return "pending";
     }
   }
 

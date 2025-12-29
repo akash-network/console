@@ -2,11 +2,10 @@ import assert from "http-assert";
 import { Lifecycle, scoped } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
-import { CheckoutSessionRepository, UserWalletOutput, UserWalletPublicOutput, UserWalletRepository } from "@src/billing/repositories";
+import { UserWalletOutput, UserWalletPublicOutput, UserWalletRepository } from "@src/billing/repositories";
 
 export interface GetWalletOptions {
   userId: string;
-  awaitSessionId?: string;
 }
 
 export type WalletInitialized = Omit<UserWalletOutput, "address"> & { address: string };
@@ -15,14 +14,10 @@ export type WalletInitialized = Omit<UserWalletOutput, "address"> & { address: s
 export class WalletReaderService {
   constructor(
     private readonly userWalletRepository: UserWalletRepository,
-    private readonly checkoutSessionRepository: CheckoutSessionRepository,
     private readonly authService: AuthService
   ) {}
 
-  async getWallets({ awaitSessionId, ...query }: GetWalletOptions): Promise<UserWalletPublicOutput[]> {
-    if (awaitSessionId) {
-      await this.checkoutSessionRepository.awaitSessionEnd(awaitSessionId);
-    }
+  async getWallets(query: GetWalletOptions): Promise<UserWalletPublicOutput[]> {
     const wallets = await this.userWalletRepository.accessibleBy(this.authService.ability, "read").find(query);
 
     return wallets.map(wallet => this.userWalletRepository.toPublic(wallet));

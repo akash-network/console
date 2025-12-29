@@ -84,7 +84,11 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
     }
   }, [leases]);
 
-  const networkCapacity = useMemo<NetworkCapacityProps>(() => {
+  const networkCapacity = useMemo<NetworkCapacityProps | null>(() => {
+    if (!provider.stats) {
+      return null;
+    }
+
     return {
       activeCPU: provider.stats.cpu.active / 1000,
       pendingCPU: provider.stats.cpu.pending / 1000,

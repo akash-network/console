@@ -190,6 +190,7 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
 
     try {
       await this.stripeService.createPaymentIntent({
+        userId: resources.user.id,
         customer: resources.user.stripeCustomerId,
         payment_method: resources.paymentMethod.id,
         amount: reloadAmountInFiat,

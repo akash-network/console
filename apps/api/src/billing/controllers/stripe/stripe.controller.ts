@@ -89,6 +89,7 @@ export class StripeController {
       assert(await this.stripe.hasPaymentMethod(params.paymentMethodId, currentUser), 403, "Payment method does not belong to the user");
 
       const result = await this.stripe.createPaymentIntent({
+        userId: currentUser.id,
         customer: currentUser.stripeCustomerId,
         payment_method: params.paymentMethodId,
         amount: params.amount,
