@@ -48,16 +48,13 @@ export class RefillService {
 
     const expiration = isInTrialWindow && userWallet.createdAt ? addDays(userWallet.createdAt, this.config.TRIAL_ALLOWANCE_EXPIRATION_DAYS) : undefined;
 
-    await this.managedUserWalletService.authorizeSpending(
-      {
-        address: userWallet.address!,
-        limits: {
-          fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT
-        },
-        expiration
+    await this.managedUserWalletService.authorizeSpending({
+      address: userWallet.address!,
+      limits: {
+        fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT
       },
-      userWallet.isOldWallet ?? false
-    );
+      expiration
+    });
     await this.balancesService.refreshUserWalletLimits(userWallet);
   }
 
@@ -72,13 +69,10 @@ export class RefillService {
 
     const nextLimit = currentLimit + amountUsd * 10000;
     const limits = { deployment: nextLimit, fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT };
-    await this.managedUserWalletService.authorizeSpending(
-      {
-        address: userWallet.address!,
-        limits
-      },
-      userWallet.isOldWallet ?? false
-    );
+    await this.managedUserWalletService.authorizeSpending({
+      address: userWallet.address!,
+      limits
+    });
 
     await this.balancesService.refreshUserWalletLimits(userWallet, { endTrial: true });
     this.analyticsService.track(userId!, "balance_top_up");

@@ -29,7 +29,7 @@ describe(CachedBalanceService.name, () => {
     it("should fetch and cache balance for new address", async () => {
       const balance = await service.get(address);
 
-      expect(balancesService.getFreshLimits).toHaveBeenCalledWith({ address, isOldWallet: false });
+      expect(balancesService.getFreshLimits).toHaveBeenCalledWith({ address });
       expect(balance).toBeDefined();
 
       const reservedAmount = balance.reserveSufficientAmount(500);

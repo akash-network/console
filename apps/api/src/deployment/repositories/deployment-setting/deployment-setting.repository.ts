@@ -20,7 +20,6 @@ export type AutoTopUpDeployment = {
   walletId: number;
   dseq: string;
   address: string;
-  isOldWallet: boolean | null;
 };
 
 @singleton()
@@ -73,8 +72,7 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
         id: this.table.id,
         dseq: this.table.dseq,
         walletId: UserWallets.id,
-        address: UserWallets.address,
-        isOldWallet: UserWallets.isOldWallet
+        address: UserWallets.address
       })
       .from(this.table)
       .leftJoin(Users, eq(this.table.userId, Users.id))

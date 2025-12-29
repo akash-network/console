@@ -205,7 +205,7 @@ describe(ManagedSignerService.name, () => {
 
       const result = await service.executeDerivedDecodedTxByUserId("user-123", messages);
 
-      expect(txManagerService.signAndBroadcastWithDerivedWallet).toHaveBeenCalledWith(wallet.id, messages, { fee: { granter: expect.any(String) } }, false);
+      expect(txManagerService.signAndBroadcastWithDerivedWallet).toHaveBeenCalledWith(wallet.id, messages, { fee: { granter: expect.any(String) } });
       expect(balancesService.refreshUserWalletLimits).toHaveBeenCalledWith(wallet);
       expect(result).toEqual({
         code: 0,

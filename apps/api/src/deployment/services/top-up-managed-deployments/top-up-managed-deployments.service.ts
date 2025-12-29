@@ -85,7 +85,7 @@ export class TopUpManagedDeploymentsService {
           this.summarizer.ensurePredictedClosedHeight(predictedClosedHeight);
 
           const [balance, desiredAmount] = await Promise.all([
-            this.cachedBalanceService.get(address, deployment.isOldWallet ?? false),
+            this.cachedBalanceService.get(address),
             this.drainingDeploymentService.calculateTopUpAmount(deployment)
           ]);
           if (desiredAmount <= 0) {
@@ -149,8 +149,7 @@ export class TopUpManagedDeploymentsService {
       if (!options.dryRun) {
         await this.managedSignerService.executeDerivedTx(
           walletId,
-          ownerInputs.map(i => i.message),
-          ownerInputs[0].deployment.isOldWallet ?? false
+          ownerInputs.map(i => i.message)
         );
       }
 

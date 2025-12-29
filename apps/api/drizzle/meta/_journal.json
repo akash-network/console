@@ -169,6 +169,13 @@
       "when": 1764597182108,
       "tag": "0023_clumsy_vertigo",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1767003889750,
+      "tag": "0024_new_nova",
+      "breakpoints": true
     }
   ]
 }

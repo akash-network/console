@@ -56,22 +56,19 @@ export class ProviderCleanupService {
 
       try {
         if (!options.dryRun) {
-          await this.managedSignerService.executeDerivedTx(wallet.id, [message], wallet.isOldWallet ?? false);
+          await this.managedSignerService.executeDerivedTx(wallet.id, [message]);
           this.logger.info({ event: "PROVIDER_CLEAN_UP_SUCCESS" });
         }
       } catch (error: any) {
         if (error.message.includes("not allowed to pay fees")) {
           if (!options.dryRun) {
-            await this.managedUserWalletService.authorizeSpending(
-              {
-                address: wallet.address!,
-                limits: {
-                  fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT
-                }
-              },
-              wallet.isOldWallet ?? false
-            );
-            await this.managedSignerService.executeDerivedTx(wallet.id, [message], wallet.isOldWallet ?? false);
+            await this.managedUserWalletService.authorizeSpending({
+              address: wallet.address!,
+              limits: {
+                fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT
+              }
+            });
+            await this.managedSignerService.executeDerivedTx(wallet.id, [message]);
             this.logger.info({ event: "PROVIDER_CLEAN_UP_SUCCESS" });
           }
         } else {
