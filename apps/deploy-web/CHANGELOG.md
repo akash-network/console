@@ -1,5 +1,19 @@
 
 
+## [3.17.0](https://github.com/akash-network/console/compare/console-web/v3.16.4...console-web/v3.17.0) (2025-12-29)
+
+
+### Features
+
+* adds turnstile to deploy-web auth pages ([#2421](https://github.com/akash-network/console/issues/2421)) ([7d14431](https://github.com/akash-network/console/commit/7d1443166d83d69dd90ce01a2c0016a073c4021e))
+
+
+### Code Refactoring
+
+* enables serializers in logger by default for browser ([#2424](https://github.com/akash-network/console/issues/2424)) ([dccb96d](https://github.com/akash-network/console/commit/dccb96d6c41f87e06775c38215d248f867d7b596))
+* moves analyticsService creation to DI container ([#2418](https://github.com/akash-network/console/issues/2418)) ([b771771](https://github.com/akash-network/console/commit/b771771292492691638b481aa8f645e78a4abd99))
+* optimized session storage for logged in user ([#2429](https://github.com/akash-network/console/issues/2429)) ([6f84324](https://github.com/akash-network/console/commit/6f84324b8ce6524d3bd4eb36b0ab8d3c09fb9bed))
+
 ## [3.16.4](https://github.com/akash-network/console/compare/console-web/v3.16.3...console-web/v3.16.4) (2025-12-26)
 
 

@@ -1,5 +1,12 @@
 
 
+## [2.9.1](https://github.com/akash-network/console/compare/log-collector/v2.9.0...log-collector/v2.9.1) (2025-12-29)
+
+
+### Code Refactoring
+
+* enables serializers in logger by default for browser ([#2424](https://github.com/akash-network/console/issues/2424)) ([dccb96d](https://github.com/akash-network/console/commit/dccb96d6c41f87e06775c38215d248f867d7b596))
+
 ## [2.9.0](https://github.com/akash-network/console/compare/log-collector/v2.8.0...log-collector/v2.9.0) (2025-12-16)
 
 
