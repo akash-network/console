@@ -14,7 +14,7 @@ const migrations: Record<string, () => void> = {
 // If so run all the version > until current is reached.
 export const migrateLocalStorage = () => {
   const currentVersion = APP_VERSION.replace(/-[\w]+$/, "");
-  const version = getVersion();
+  const version = getVersion().replace(/-[\w]+$/, "");
   const hasPreviousVersion = version && currentVersion !== version;
 
   if (hasPreviousVersion) {
