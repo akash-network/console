@@ -87,7 +87,13 @@ export function SignInForm({ dependencies: d = DEPENDENCIES, ...props }: Props) 
                   <>
                     <div>Password</div>
                     <div>
-                      <d.Link className="text-xs text-current underline hover:no-underline" prefetch={false} href="#" onClick={onForgotPasswordClick}>
+                      <d.Link
+                        className="text-xs text-current underline hover:no-underline"
+                        prefetch={false}
+                        href="#"
+                        onClick={onForgotPasswordClick}
+                        tabIndex={-1}
+                      >
                         Forgot password?
                       </d.Link>
                     </div>

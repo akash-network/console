@@ -10,6 +10,7 @@ import { clientIpForwardingInterceptor } from "../client-ip-forwarding/client-ip
 import { createChildContainer } from "../container/createContainer";
 import { FeatureFlagService } from "../feature-flag/feature-flag.service";
 import { SessionService } from "../session/session.service";
+import { TurnstileVerifierService } from "../turnstile-verifier/turnstile-verifier.service";
 import { createAppRootContainer } from "./app-di-container";
 
 const rootContainer = createAppRootContainer({
@@ -28,16 +29,16 @@ export const services = createChildContainer(rootContainer, {
   notificationsApi: () =>
     createAPIClient({
       requestFn,
-      baseUrl: services.apiUrlService.getBaseApiUrlFor(services.config.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID)
+      baseUrl: services.apiUrlService.getBaseApiUrlFor(services.privateConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID)
     }),
-  config: () => serverEnvConfig,
+  privateConfig: () => Object.freeze(serverEnvConfig),
   consoleApiHttpClient: () => services.applyAxiosInterceptors(services.createAxios()),
   sessionService: () =>
     new SessionService(
       services.externalApiHttpClient,
       services.applyAxiosInterceptors(
         services.createAxios({
-          baseURL: services.apiUrlService.getBaseApiUrlFor(services.config.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID),
+          baseURL: services.apiUrlService.getBaseApiUrlFor(services.privateConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID),
           headers: {
             "Content-Type": "application/json; charset=utf-8",
             Accept: "application/json"
@@ -45,12 +46,18 @@ export const services = createChildContainer(rootContainer, {
         })
       ),
       {
-        ISSUER_BASE_URL: services.config.AUTH0_ISSUER_BASE_URL,
-        CLIENT_ID: services.config.AUTH0_CLIENT_ID,
-        CLIENT_SECRET: services.config.AUTH0_CLIENT_SECRET,
-        AUDIENCE: services.config.AUTH0_AUDIENCE
+        ISSUER_BASE_URL: services.privateConfig.AUTH0_ISSUER_BASE_URL,
+        CLIENT_ID: services.privateConfig.AUTH0_CLIENT_ID,
+        CLIENT_SECRET: services.privateConfig.AUTH0_CLIENT_SECRET,
+        AUDIENCE: services.privateConfig.AUTH0_AUDIENCE
       }
-    )
+    ),
+  captchaVerifier: () =>
+    new TurnstileVerifierService(services.externalApiHttpClient, {
+      secretKey: services.privateConfig.TURNSTILE_SECRET_KEY,
+      turnstileBypassSecretKey: services.privateConfig.TURNSTILE_BYPASS_SECRET_KEY,
+      bypassSecretKeyVerificationToken: services.privateConfig.E2E_TESTING_CLIENT_TOKEN
+    })
 });
 
 export type AppServices = typeof services;

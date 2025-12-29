@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Separator, Tabs, TabsContent, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { useMutation } from "@tanstack/react-query";
 import { DollarSignIcon, RocketIcon, ZapIcon } from "lucide-react";
@@ -10,6 +10,8 @@ import { NextSeo } from "next-seo";
 
 import { AkashConsoleLogo } from "@src/components/icons/AkashConsoleLogo";
 import { RemoteApiError } from "@src/components/shared/RemoteApiError/RemoteApiError";
+import type { TurnstileRef } from "@src/components/turnstile/Turnstile";
+import { ClientOnlyTurnstile } from "@src/components/turnstile/Turnstile";
 import { useServices } from "@src/context/ServicesProvider";
 import { useUser } from "@src/hooks/useUser";
 import { AuthLayout } from "../AuthLayout/AuthLayout";
@@ -28,10 +30,16 @@ export const DEPENDENCIES = {
   SignUpForm,
   RemoteApiError,
   ForgotPasswordForm,
+  Turnstile: ClientOnlyTurnstile,
   Tabs,
   TabsContent,
   TabsTrigger,
   TabsList,
+  DollarSignIcon,
+  RocketIcon,
+  ZapIcon,
+  AkashConsoleLogo,
+  Separator,
   useUser,
   useSearchParams,
   useRouter
@@ -42,11 +50,12 @@ interface Props {
 }
 
 export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
-  const { authService } = useServices();
+  const { authService, publicConfig } = useServices();
   const router = d.useRouter();
   const searchParams = d.useSearchParams();
   const { checkSession } = d.useUser();
   const [email, setEmail] = useState("");
+  const turnstileRef = useRef<TurnstileRef | null>(null);
 
   const redirectToSocialLogin = useCallback(
     async (provider: "github" | "google-oauth2") => {
@@ -57,11 +66,17 @@ export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
   );
   const signInOrSignUp = useMutation({
     async mutationFn(input: Tagged<"signin", SignInFormValues> | Tagged<"signup", SignUpFormValues>) {
+      if (!turnstileRef.current) {
+        throw new Error("Captcha has not been rendered");
+      }
       const returnUrl = searchParams.get("from") || searchParams.get("returnTo") || "/";
+
+      const { token: captchaToken } = await turnstileRef.current.renderAndWaitResponse();
+
       if (input.type === "signin") {
-        await authService.login(input.value);
+        await authService.login({ ...input.value, captchaToken });
       } else {
-        await authService.signup(input.value);
+        await authService.signup({ ...input.value, captchaToken });
       }
       await checkSession();
       router.push(returnUrl);
@@ -74,17 +89,24 @@ export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
       const tabId = value !== "login" && value !== "signup" && value !== "forgot-password" ? "login" : value;
       const newSearchParams = new URLSearchParams(searchParams);
       newSearchParams.set("tab", tabId);
-      signInOrSignUp.reset();
-      forgotPassword.reset();
+      resetMutations();
       router.replace(`?${newSearchParams.toString()}`, undefined, { shallow: true });
     },
     [searchParams, router]
   );
   const forgotPassword = useMutation({
     async mutationFn(input: { email: string }) {
-      await authService.sendPasswordResetEmail({ email: input.email });
+      if (!turnstileRef.current) {
+        throw new Error("Captcha has not been rendered");
+      }
+      const { token: captchaToken } = await turnstileRef.current.renderAndWaitResponse();
+      await authService.sendPasswordResetEmail({ email: input.email, captchaToken });
     }
   });
+  const resetMutations = useCallback(() => {
+    signInOrSignUp.reset();
+    forgotPassword.reset();
+  }, [signInOrSignUp, forgotPassword]);
 
   return (
     <d.AuthLayout
@@ -94,7 +116,7 @@ export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
           <p>The fastest way to deploy an application on Akash.Network</p>
           <div className="flex gap-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-md border border-[#E5E5E5] bg-white" style={{ color: "hsl(var(--background))" }}>
-              <ZapIcon />
+              <d.ZapIcon />
             </div>
             <div className="flex-1">
               <h5 className="font-semibold">Generous Free Trial</h5>
@@ -103,7 +125,7 @@ export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
           </div>
           <div className="flex gap-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-md border border-[#E5E5E5] bg-white" style={{ color: "hsl(var(--background))" }}>
-              <RocketIcon />
+              <d.RocketIcon />
             </div>
             <div className="flex-1">
               <h5 className="font-semibold">Optimized for AI/ML</h5>
@@ -112,7 +134,7 @@ export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
           </div>
           <div className="flex gap-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-md border border-[#E5E5E5] bg-white" style={{ color: "hsl(var(--background))" }}>
-              <DollarSignIcon />
+              <d.DollarSignIcon />
             </div>
             <div className="flex-1">
               <h5 className="font-semibold">Cost Savings</h5>
@@ -126,7 +148,7 @@ export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
         <d.NextSeo title="Log in or Sign up" />
         <div className="w-full max-w-[576px] rounded-[var(--radius)] bg-[hsl(var(--background))] px-3 py-4 sm:px-6 lg:rounded-none">
           <div>
-            <AkashConsoleLogo className="mb-4 lg:hidden" size={{ width: 291, height: 32 }} />
+            <d.AkashConsoleLogo className="mb-4 lg:hidden" size={{ width: 291, height: 32 }} />
             <h1 className="text-xl font-bold leading-tight text-neutral-950 lg:text-4xl lg:leading-10 dark:text-[var(--foreground)]">
               {(activeView === "forgot-password" && "Reset your password") || (
                 <div className="flex items-center">
@@ -142,9 +164,10 @@ export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
             </p>
           </div>
 
-          <div className="relative mt-6 w-full">
+          <div className="relative mt-4 w-full">
             {(activeView === "forgot-password" && (
               <>
+                test me here?
                 <d.RemoteApiError className="mb-5" error={forgotPassword.error} />
                 <d.ForgotPasswordForm
                   defaultEmail={email}
@@ -187,7 +210,7 @@ export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
                 <d.SocialAuth onSocialLogin={redirectToSocialLogin} />
 
                 <div className="relative flex items-center justify-center self-stretch py-2.5">
-                  <Separator className="absolute inset-0 top-1/2" />
+                  <d.Separator className="absolute inset-0 top-1/2" />
                   <div className="current relative top-[-1px] z-10 px-2" style={{ backgroundColor: "hsl(var(--background))" }}>
                     <span className="relative top-1/2 text-xs font-normal text-neutral-500 dark:text-neutral-400">Or continue with</span>
                   </div>
@@ -210,6 +233,12 @@ export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
                 </d.TabsContent>
               </d.Tabs>
             )}
+            <d.Turnstile
+              turnstileRef={turnstileRef}
+              enabled={publicConfig.NEXT_PUBLIC_TURNSTILE_ENABLED}
+              siteKey={publicConfig.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+              onDismissed={resetMutations}
+            />
           </div>
         </div>
       </>

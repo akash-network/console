@@ -115,8 +115,8 @@ describe(TrendIndicator.name, () => {
   function setup(props: TrendIndicatorProps<"totalUsdSpent", UsageHistory>) {
     const defaultProps: TrendIndicatorProps<"totalUsdSpent", UsageHistory> = {
       components: {
-        GraphUp: () => <div>Graph Up</div>,
-        GraphDown: () => <div>Graph Down</div>
+        GraphUp: (() => <span>Graph Up</span>) as unknown as Required<TrendIndicatorProps<"totalUsdSpent", UsageHistory>>["components"]["GraphUp"],
+        GraphDown: (() => <span>Graph Down</span>) as unknown as Required<TrendIndicatorProps<"totalUsdSpent", UsageHistory>>["components"]["GraphDown"]
       },
       isFetching: props.isFetching ?? false,
       data: props.data ?? [
