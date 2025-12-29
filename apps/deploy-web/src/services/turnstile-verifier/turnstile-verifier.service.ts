@@ -30,9 +30,10 @@ export class TurnstileVerifierService {
       }
     >
   > {
+    const canUseBypassSecretKey =
+      this.#config.bypassSecretKeyVerificationToken && options?.bypassVerificationToken === this.#config.bypassSecretKeyVerificationToken;
     const payload: Record<string, string> = {
-      secret:
-        options?.bypassVerificationToken === this.#config.bypassSecretKeyVerificationToken ? this.#config.turnstileBypassSecretKey : this.#config.secretKey,
+      secret: canUseBypassSecretKey ? this.#config.turnstileBypassSecretKey : this.#config.secretKey,
       response: token
     };
     if (options?.remoteIp) {

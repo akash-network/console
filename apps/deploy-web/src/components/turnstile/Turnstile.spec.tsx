@@ -72,11 +72,11 @@ describe(Turnstile.name, () => {
       useForwardedRef(ref, turnstileInstance);
       return <div>Turnstile</div>;
     });
-    const onGoBack = jest.fn();
+    const onDismissed = jest.fn();
 
     await setup({
       enabled: true,
-      onGoBack,
+      onDismissed,
       components: {
         ReactTurnstile,
         Button: forwardRef((props, ref) => (
@@ -91,7 +91,7 @@ describe(Turnstile.name, () => {
     expect(turnstileInstance.remove).toHaveBeenCalled();
     expect(turnstileInstance.render).not.toHaveBeenCalled();
     expect(turnstileInstance.execute).not.toHaveBeenCalled();
-    expect(onGoBack).toHaveBeenCalled();
+    expect(onDismissed).toHaveBeenCalled();
   });
 
   describe("renderAndWaitResponse", () => {
@@ -152,7 +152,7 @@ describe(Turnstile.name, () => {
     });
   });
 
-  async function setup(input?: { enabled?: boolean; siteKey?: string; onGoBack?: () => void; components?: Partial<typeof COMPONENTS> }) {
+  async function setup(input?: { enabled?: boolean; siteKey?: string; onDismissed?: () => void; components?: Partial<typeof COMPONENTS> }) {
     const turnstileRef = { current: null as TurnstileRef | null };
 
     const result = render(
@@ -160,7 +160,7 @@ describe(Turnstile.name, () => {
         ref={turnstileRef}
         enabled={!!input?.enabled}
         siteKey="unittest-site-key"
-        onGoBack={input?.onGoBack}
+        onDismissed={input?.onDismissed}
         components={MockComponents(COMPONENTS, {
           ReactTurnstile: forwardRef<TurnstileInstance | undefined, TurnstileProps>((_, ref) => {
             useForwardedRef(ref);

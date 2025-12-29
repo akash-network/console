@@ -30,13 +30,13 @@ export type TurnstileRef = {
 type TurnstileProps = {
   enabled: boolean;
   siteKey: string;
-  onGoBack?: () => void;
+  onDismissed?: () => void;
   turnstileRef?: RefObject<TurnstileRef>;
   components?: typeof COMPONENTS;
 };
 
 export const Turnstile = forwardRef<TurnstileRef, TurnstileProps>(function Turnstile(
-  { enabled, siteKey, onGoBack, turnstileRef: externalTurnstileRef, components: c = COMPONENTS },
+  { enabled, siteKey, onDismissed, turnstileRef: externalTurnstileRef, components: c = COMPONENTS },
   ref
 ) {
   const turnstileRef = useRef<TurnstileInstance>();
@@ -51,13 +51,15 @@ export const Turnstile = forwardRef<TurnstileRef, TurnstileProps>(function Turns
     turnstileRef.current?.execute();
   }, []);
   const hideWidget = useCallback(() => {
-    setStatus("uninitialized");
-    onGoBack?.();
-    turnstileRef.current?.remove();
-  }, [onGoBack]);
+    setStatus("dismissed");
+    onDismissed?.();
+  }, [onDismissed]);
 
   useWhen(status === "error" || status === "expired", () => {
     resetWidget();
+  });
+  useWhen(status === "dismissed", () => {
+    turnstileRef.current?.remove();
   });
 
   useImperativeHandle(
@@ -139,10 +141,10 @@ export const Turnstile = forwardRef<TurnstileRef, TurnstileProps>(function Turns
               }}
             >
               <div className="ml-2 inline-flex gap-2">
-                <c.Button onClick={resetWidget} size="icon" variant="outline">
+                <c.Button onClick={resetWidget} size="icon" variant="outline" aria-label="Reload captcha">
                   <RefreshCwIcon className="size-4" />
                 </c.Button>
-                <c.Button onClick={hideWidget} size="icon" variant="outline">
+                <c.Button onClick={hideWidget} size="icon" variant="outline" aria-label="Dismiss captcha">
                   <Undo2 className="size-4" />
                 </c.Button>
               </div>

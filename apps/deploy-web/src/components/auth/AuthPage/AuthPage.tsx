@@ -50,7 +50,7 @@ interface Props {
 }
 
 export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
-  const { authService, appConfig } = useServices();
+  const { authService, publicConfig } = useServices();
   const router = d.useRouter();
   const searchParams = d.useSearchParams();
   const { checkSession } = d.useUser();
@@ -235,9 +235,9 @@ export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
             )}
             <d.Turnstile
               turnstileRef={turnstileRef}
-              enabled={appConfig.NEXT_PUBLIC_TURNSTILE_ENABLED}
-              siteKey={appConfig.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
-              onGoBack={resetMutations}
+              enabled={publicConfig.NEXT_PUBLIC_TURNSTILE_ENABLED}
+              siteKey={publicConfig.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+              onDismissed={resetMutations}
             />
           </div>
         </div>

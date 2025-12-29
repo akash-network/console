@@ -4,6 +4,10 @@ import { Err, Ok } from "ts-results";
 import type { AppTypedContext } from "@src/lib/nextjs/defineServerSideProps/defineServerSideProps";
 
 export async function verifyCaptcha(captchaToken: string, { services, req }: Pick<AppTypedContext, "services" | "req">) {
+  if (!services.publicConfig.NEXT_PUBLIC_TURNSTILE_ENABLED) {
+    return Ok(undefined);
+  }
+
   const remoteIp = getRemoteIp(req);
   const captchaVerification = await services.captchaVerifier.verify(captchaToken, {
     remoteIp,

@@ -31,7 +31,7 @@ export const services = createChildContainer(rootContainer, {
       requestFn,
       baseUrl: services.apiUrlService.getBaseApiUrlFor(services.privateConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID)
     }),
-  privateConfig: () => serverEnvConfig,
+  privateConfig: () => Object.freeze(serverEnvConfig),
   consoleApiHttpClient: () => services.applyAxiosInterceptors(services.createAxios()),
   sessionService: () =>
     new SessionService(
