@@ -39,10 +39,6 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
     return this.findUserWithWallet(eq(this.table.userId, userId!));
   }
 
-  async findAnonymousById(id: UserOutput["id"]) {
-    return await this.cursor.query.Users.findFirst({ where: this.whereAccessibleBy(and(eq(this.table.id, id), isNull(this.table.userId))) });
-  }
-
   async markAsActive(
     id: UserOutput["id"],
     options: {

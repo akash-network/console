@@ -72,7 +72,7 @@ import {
 } from "./provider";
 import { templatesRouter } from "./template";
 import { transactionsRouter } from "./transaction";
-import { createAnonymousUserRouter, getAnonymousUserRouter, getCurrentUserRouter, registerUserRouter } from "./user";
+import { getCurrentUserRouter, registerUserRouter } from "./user";
 import { validatorsRouter } from "./validator";
 
 const appHono = new Hono<AppEnv>();
@@ -115,8 +115,6 @@ const openApiHonoHandlers: OpenApiHonoHandler[] = [
   stripePaymentMethodsRouter,
   stripeTransactionsRouter,
   usageRouter,
-  createAnonymousUserRouter,
-  getAnonymousUserRouter,
   registerUserRouter,
   getCurrentUserRouter,
   sendVerificationEmailRouter,
