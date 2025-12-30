@@ -117,4 +117,104 @@ describe(RefillService.name, () => {
       };
     }
   });
+
+  describe("reduceWalletBalance", () => {
+    const userId = "test-user-id";
+
+    it("reduces wallet balance by the specified amount", async () => {
+      const { service, userWalletRepository, managedUserWalletService, balancesService, analyticsService } = setup();
+      const existingWallet = UserWalletSeeder.create({ userId, address: "akash1test..." });
+
+      userWalletRepository.findOneBy.mockResolvedValue(existingWallet);
+      balancesService.retrieveDeploymentLimit.mockResolvedValue(5000000); // Current limit (500 usd worth)
+      managedUserWalletService.authorizeSpending.mockResolvedValue();
+      balancesService.refreshUserWalletLimits.mockResolvedValue();
+
+      await service.reduceWalletBalance(100, userId); // Reduce by $1 (100 cents)
+
+      expect(userWalletRepository.findOneBy).toHaveBeenCalledWith({ userId });
+      expect(balancesService.retrieveDeploymentLimit).toHaveBeenCalledWith(existingWallet);
+      // 5000000 - (100 * 10000) = 5000000 - 1000000 = 4000000
+      expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith({
+        address: existingWallet.address,
+        limits: { deployment: 4000000, fees: 1000 }
+      });
+      expect(balancesService.refreshUserWalletLimits).toHaveBeenCalledWith(existingWallet);
+      expect(analyticsService.track).toHaveBeenCalledWith(userId, "balance_refund");
+    });
+
+    it("does not reduce balance below zero", async () => {
+      const { service, userWalletRepository, managedUserWalletService, balancesService, analyticsService } = setup();
+      const existingWallet = UserWalletSeeder.create({ userId, address: "akash1test..." });
+
+      userWalletRepository.findOneBy.mockResolvedValue(existingWallet);
+      balancesService.retrieveDeploymentLimit.mockResolvedValue(50000); // Current limit $0.50
+      managedUserWalletService.authorizeSpending.mockResolvedValue();
+      balancesService.refreshUserWalletLimits.mockResolvedValue();
+
+      await service.reduceWalletBalance(100, userId); // Try to reduce by $1 (100 cents)
+
+      // Should set to 0, not negative
+      expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith({
+        address: existingWallet.address,
+        limits: { deployment: 0, fees: 1000 }
+      });
+      expect(analyticsService.track).toHaveBeenCalledWith(userId, "balance_refund");
+    });
+
+    it("does nothing when wallet does not exist", async () => {
+      const { service, userWalletRepository, managedUserWalletService, balancesService, analyticsService } = setup();
+
+      userWalletRepository.findOneBy.mockResolvedValue(undefined);
+
+      await service.reduceWalletBalance(100, userId);
+
+      expect(managedUserWalletService.authorizeSpending).not.toHaveBeenCalled();
+      expect(balancesService.retrieveDeploymentLimit).not.toHaveBeenCalled();
+      expect(analyticsService.track).not.toHaveBeenCalled();
+    });
+
+    it("does nothing when wallet has no address", async () => {
+      const { service, userWalletRepository, managedUserWalletService, balancesService, analyticsService } = setup();
+      const walletWithoutAddress = UserWalletSeeder.create({ userId, address: null });
+
+      userWalletRepository.findOneBy.mockResolvedValue(walletWithoutAddress);
+
+      await service.reduceWalletBalance(100, userId);
+
+      expect(managedUserWalletService.authorizeSpending).not.toHaveBeenCalled();
+      expect(balancesService.retrieveDeploymentLimit).not.toHaveBeenCalled();
+      expect(analyticsService.track).not.toHaveBeenCalled();
+    });
+
+    function setup() {
+      const billingConfig = mock<BillingConfig>();
+      const userWalletRepository = mock<UserWalletRepository>();
+      const managedUserWalletService = mock<ManagedUserWalletService>();
+      const balancesService = mock<BalancesService>();
+      const walletInitializerService = mock<WalletInitializerService>();
+      const analyticsService = mock<AnalyticsService>();
+
+      billingConfig.FEE_ALLOWANCE_REFILL_AMOUNT = 1000;
+
+      const service = new RefillService(
+        billingConfig,
+        userWalletRepository,
+        managedUserWalletService,
+        balancesService,
+        walletInitializerService,
+        analyticsService
+      );
+
+      return {
+        service,
+        billingConfig,
+        userWalletRepository,
+        managedUserWalletService,
+        balancesService,
+        walletInitializerService,
+        analyticsService
+      };
+    }
+  });
 });

@@ -166,42 +166,32 @@ export class StripeWebhookService {
     const charge = event.data.object;
     const customerId = charge.customer as string;
 
-    // Get the refunded amount - use amount_refunded which is the total amount refunded on this charge
-    const refundedAmount = charge.amount_refunded;
-
-    // Find the user by customer ID
     if (!customerId) {
-      this.logger.error({
-        event: "CHARGE_REFUNDED_MISSING_CUSTOMER_ID",
-        chargeId: charge.id
-      });
+      this.logger.error({ event: "CHARGE_REFUNDED_MISSING_CUSTOMER_ID", chargeId: charge.id });
+      return;
+    }
+
+    const refundedAmount = this.calculateRefundDelta(event);
+    if (refundedAmount <= 0) {
+      this.logger.warn({ event: "CHARGE_REFUNDED_NO_DELTA", chargeId: charge.id, totalRefunded: charge.amount_refunded });
       return;
     }
 
     const user = await this.userRepository.findOneBy({ stripeCustomerId: customerId });
     if (!user) {
-      this.logger.error({
-        event: "CHARGE_REFUNDED_USER_NOT_FOUND",
-        customerId,
-        chargeId: charge.id
-      });
+      this.logger.error({ event: "CHARGE_REFUNDED_USER_NOT_FOUND", customerId, chargeId: charge.id });
       return;
     }
 
-    // Update transaction status
     const transaction = await this.stripeTransactionRepository.findByChargeId(charge.id);
-    if (transaction) {
-      await this.stripeTransactionRepository.updateById(transaction.id, {
-        status: "refunded"
-      });
-    } else {
-      this.logger.warn({
-        event: "CHARGE_REFUNDED_NO_TRANSACTION",
-        chargeId: charge.id
-      });
+    const isFullyRefunded = charge.refunded;
+
+    if (transaction && isFullyRefunded) {
+      await this.stripeTransactionRepository.updateById(transaction.id, { status: "refunded" });
+    } else if (!transaction) {
+      this.logger.warn({ event: "CHARGE_REFUNDED_NO_TRANSACTION", chargeId: charge.id });
     }
 
-    // Reduce the wallet balance by the refunded amount
     await this.refillService.reduceWalletBalance(refundedAmount, user.id);
 
     this.logger.info({
@@ -209,8 +199,21 @@ export class StripeWebhookService {
       chargeId: charge.id,
       userId: user.id,
       refundedAmount,
+      totalRefunded: charge.amount_refunded,
+      isFullyRefunded,
       transactionId: transaction?.id
     });
+  }
+
+  /**
+   * Calculate the refund delta from a charge.refunded event.
+   * Uses previous_attributes to get the delta, not the cumulative amount_refunded.
+   */
+  private calculateRefundDelta(event: Stripe.ChargeRefundedEvent): number {
+    const charge = event.data.object;
+    const previousAttributes = event.data.previous_attributes as { amount_refunded?: number } | undefined;
+    const previousAmountRefunded = previousAttributes?.amount_refunded ?? 0;
+    return charge.amount_refunded - previousAmountRefunded;
   }
 
   @WithTransaction()

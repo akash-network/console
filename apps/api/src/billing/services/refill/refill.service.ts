@@ -75,7 +75,7 @@ export class RefillService {
     });
 
     await this.balancesService.refreshUserWalletLimits(userWallet, { endTrial: true });
-    this.analyticsService.track(userId!, "balance_top_up");
+    this.analyticsService.track(userId, "balance_top_up");
     this.logger.debug({ event: "WALLET_TOP_UP", userWallet, limits });
   }
 
@@ -105,7 +105,7 @@ export class RefillService {
     });
 
     await this.balancesService.refreshUserWalletLimits(userWallet);
-    this.analyticsService.track(userId!, "balance_refund");
+    this.analyticsService.track(userId, "balance_refund");
     this.logger.info({ event: "WALLET_BALANCE_REDUCED", userId, amountUsd, previousLimit: currentLimit, nextLimit });
   }
 

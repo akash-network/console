@@ -406,16 +406,11 @@ export class StripeService extends Stripe {
         amountPaid: finalizedInvoice.amount_paid
       });
 
-      // Add credit to wallet
-      if (amountToAdd > 0) {
-        await this.refillService.topUpWallet(amountToAdd, currentUser.id);
-      }
-
-      // Create transaction record for the coupon claim
-      await this.stripeTransactionRepository.create({
+      // Create transaction record before crediting wallet (ensures audit trail)
+      const transaction = await this.stripeTransactionRepository.create({
         userId: currentUser.id,
         type: "coupon_claim",
-        status: "succeeded",
+        status: "pending",
         amount: amountToAdd,
         currency: coupon.currency ?? "usd",
         stripeCouponId: coupon.id,
@@ -423,6 +418,14 @@ export class StripeService extends Stripe {
         stripeInvoiceId: invoice.id,
         description: `Coupon: ${coupon.name || coupon.id}`
       });
+
+      // Add credit to wallet
+      if (amountToAdd > 0) {
+        await this.refillService.topUpWallet(amountToAdd, currentUser.id);
+      }
+
+      // Update transaction status to succeeded
+      await this.stripeTransactionRepository.updateById(transaction.id, { status: "succeeded" });
 
       logger.info({
         event: "COUPON_APPLICATION_SUCCESS",

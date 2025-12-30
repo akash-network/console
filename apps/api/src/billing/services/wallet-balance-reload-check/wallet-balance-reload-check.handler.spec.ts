@@ -64,6 +64,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       expect(scheduledDate.getTime()).toBeCloseTo(expectedNextCheckDate.getTime(), -3);
 
       expect(stripeService.createPaymentIntent).toHaveBeenCalledWith({
+        userId: expect.any(String),
         customer: expect.any(String),
         payment_method: expect.any(String),
         amount: expectedReloadAmount,
@@ -102,6 +103,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       await handler.handle(job, jobMeta);
 
       expect(stripeService.createPaymentIntent).toHaveBeenCalledWith({
+        userId: expect.any(String),
         customer: expect.any(String),
         payment_method: expect.any(String),
         amount: expectedReloadAmount,

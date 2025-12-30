@@ -497,17 +497,21 @@ describe(StripeService.name, () => {
 
   describe("applyCoupon", () => {
     it("applies promotion code successfully and tops up wallet", async () => {
-      const { service, refillService } = setup();
+      const { service, refillService, stripeTransactionRepository } = setup();
       const mockUser = createTestUser();
+      const mockCoupon = createTestCoupon({
+        id: "coupon_123",
+        amount_off: 1000,
+        percent_off: null,
+        valid: true,
+        currency: "usd",
+        name: "Test Coupon"
+      });
       const mockPromotionCode = createTestPromotionCode({
+        id: "promo_123",
         promotion: {
           type: "coupon",
-          coupon: {
-            ...createTestCoupon(),
-            amount_off: 1000,
-            percent_off: null,
-            valid: true
-          }
+          coupon: mockCoupon
         }
       });
       const mockInvoice = createTestInvoice({ id: "in_123", status: "draft" });
@@ -526,7 +530,26 @@ describe(StripeService.name, () => {
         discounts: [{ promotion_code: mockPromotionCode.id }]
       });
       expect(service.invoices.finalizeInvoice).toHaveBeenCalledWith(mockInvoice.id);
+
+      // Verify transaction is created with pending status first
+      expect(stripeTransactionRepository.create).toHaveBeenCalledWith({
+        userId: mockUser.id,
+        type: "coupon_claim",
+        status: "pending",
+        amount: 1000,
+        currency: "usd",
+        stripeCouponId: mockCoupon.id,
+        stripePromotionCodeId: mockPromotionCode.id,
+        stripeInvoiceId: mockInvoice.id,
+        description: `Coupon: ${mockCoupon.name}`
+      });
+
+      // Verify wallet top-up happens after transaction creation
       expect(refillService.topUpWallet).toHaveBeenCalledWith(1000, mockUser.id);
+
+      // Verify transaction is updated to succeeded after wallet top-up
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith("test-transaction-id", { status: "succeeded" });
+
       expect(result).toEqual({
         coupon: mockPromotionCode,
         amountAdded: 10 // 1000 cents = $10
@@ -534,13 +557,15 @@ describe(StripeService.name, () => {
     });
 
     it("applies coupon successfully when no promotion code found", async () => {
-      const { service, refillService } = setup();
+      const { service, refillService, stripeTransactionRepository } = setup();
       const mockUser = createTestUser();
       const mockCoupon = createTestCoupon({
         id: "coupon_direct",
         amount_off: 500,
         percent_off: null,
-        valid: true
+        valid: true,
+        currency: "usd",
+        name: "Direct Coupon"
       });
       const mockInvoice = createTestInvoice({ id: "in_456", status: "draft" });
       const mockFinalizedInvoice = createTestInvoice({ id: "in_456", status: "paid" });
@@ -559,7 +584,23 @@ describe(StripeService.name, () => {
         discounts: [{ coupon: mockCoupon.id }]
       });
       expect(service.invoices.finalizeInvoice).toHaveBeenCalledWith(mockInvoice.id);
+
+      // Verify transaction is created with pending status (no promotion code ID for direct coupon)
+      expect(stripeTransactionRepository.create).toHaveBeenCalledWith({
+        userId: mockUser.id,
+        type: "coupon_claim",
+        status: "pending",
+        amount: 500,
+        currency: "usd",
+        stripeCouponId: mockCoupon.id,
+        stripePromotionCodeId: undefined,
+        stripeInvoiceId: mockInvoice.id,
+        description: `Coupon: ${mockCoupon.name}`
+      });
+
       expect(refillService.topUpWallet).toHaveBeenCalledWith(500, mockUser.id);
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith("test-transaction-id", { status: "succeeded" });
+
       expect(result).toEqual({
         coupon: mockCoupon,
         amountAdded: 5 // 500 cents = $5
@@ -645,18 +686,22 @@ describe(StripeService.name, () => {
       await expect(service.applyCoupon(mockUser, "INVALID_CODE")).rejects.toThrow("No valid promotion code or coupon found with the provided code");
     });
 
-    it("throws error when topUpWallet fails after invoice is finalized", async () => {
-      const { service, refillService } = setup();
+    it("throws error when topUpWallet fails after invoice is finalized and leaves transaction in pending", async () => {
+      const { service, refillService, stripeTransactionRepository } = setup();
       const mockUser = createTestUser();
+      const mockCoupon = createTestCoupon({
+        id: "coupon_123",
+        amount_off: 1000,
+        percent_off: null,
+        valid: true,
+        currency: "usd",
+        name: "Test Coupon"
+      });
       const mockPromotionCode = createTestPromotionCode({
+        id: "promo_123",
         promotion: {
           type: "coupon",
-          coupon: {
-            ...createTestCoupon(),
-            amount_off: 1000,
-            percent_off: null,
-            valid: true
-          }
+          coupon: mockCoupon
         }
       });
       const mockInvoice = createTestInvoice({ id: "in_123", status: "draft" });
@@ -668,6 +713,17 @@ describe(StripeService.name, () => {
       refillService.topUpWallet.mockRejectedValue(new Error("Wallet top-up failed"));
 
       await expect(service.applyCoupon(mockUser, mockPromotionCode.code)).rejects.toThrow("Wallet top-up failed");
+
+      // Verify transaction was created with pending status
+      expect(stripeTransactionRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: "pending",
+          type: "coupon_claim"
+        })
+      );
+
+      // Verify transaction was NOT updated to succeeded (since topUpWallet failed)
+      expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
 
       // Verify that the invoice was created and finalized before the wallet top-up failed
       expect(service.invoices.create).toHaveBeenCalledWith({
@@ -1383,6 +1439,9 @@ function setup(
     currency: input.currency ?? "usd",
     stripePaymentIntentId: input.stripePaymentIntentId ?? null,
     stripeChargeId: input.stripeChargeId ?? null,
+    stripeCouponId: input.stripeCouponId ?? null,
+    stripePromotionCodeId: input.stripePromotionCodeId ?? null,
+    stripeInvoiceId: input.stripeInvoiceId ?? null,
     paymentMethodType: input.paymentMethodType ?? null,
     cardBrand: input.cardBrand ?? null,
     cardLast4: input.cardLast4 ?? null,
