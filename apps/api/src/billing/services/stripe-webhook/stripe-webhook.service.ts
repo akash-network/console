@@ -96,10 +96,33 @@ export class StripeWebhookService {
 
     const paymentMethodDetails = paymentIntent.payment_method_types?.[0];
 
+    // Fetch charge details to get card info and receipt URL
+    let cardBrand: string | undefined;
+    let cardLast4: string | undefined;
+    let receiptUrl: string | undefined;
+
+    if (chargeId) {
+      try {
+        const charge = await this.stripe.charges.retrieve(chargeId);
+        cardBrand = charge.payment_method_details?.card?.brand ?? undefined;
+        cardLast4 = charge.payment_method_details?.card?.last4 ?? undefined;
+        receiptUrl = charge.receipt_url ?? undefined;
+      } catch (error) {
+        this.logger.warn({
+          event: "CHARGE_DETAILS_FETCH_FAILED",
+          chargeId,
+          error
+        });
+      }
+    }
+
     await this.stripeTransactionRepository.updateStatusByPaymentIntentId(paymentIntent.id, {
       status: "succeeded",
       stripeChargeId: chargeId,
-      paymentMethodType: paymentMethodDetails
+      paymentMethodType: paymentMethodDetails,
+      cardBrand,
+      cardLast4,
+      receiptUrl
     });
 
     // Use amount_received when available (for partial captures), otherwise use amount

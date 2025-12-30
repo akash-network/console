@@ -248,10 +248,18 @@ export class StripeService extends Stripe {
           throw new Error(`Payment failed with status: ${paymentIntent.status}`);
       }
     } catch (error) {
-      // Update transaction with error status
+      // Extract payment intent ID from Stripe error if available (e.g., card declined still creates a payment intent)
+      let paymentIntentId: string | undefined;
+      if (error instanceof Stripe.errors.StripeError && error.raw) {
+        const rawError = error.raw as { payment_intent?: Stripe.PaymentIntent };
+        paymentIntentId = rawError.payment_intent?.id;
+      }
+
+      // Update transaction with error status and payment intent ID if available
       await this.stripeTransactionRepository.updateById(transaction.id, {
         status: "failed",
-        errorMessage: error instanceof Error ? error.message : "Unknown error"
+        errorMessage: error instanceof Error ? error.message : "Unknown error",
+        stripePaymentIntentId: paymentIntentId
       });
       throw error;
     }
