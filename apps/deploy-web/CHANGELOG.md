@@ -1,5 +1,12 @@
 
 
+## [3.17.1](https://github.com/akash-network/console/compare/console-web/v3.17.0...console-web/v3.17.1) (2025-12-30)
+
+
+### Bug Fixes
+
+* ensures turnstile is completely disabled when NEXT_PUBLIC_TURNSTILE_ENABLED is false ([#2434](https://github.com/akash-network/console/issues/2434)) ([762394c](https://github.com/akash-network/console/commit/762394c71305936d24a50aecb7a1a298deba32a9))
+
 ## [3.17.0](https://github.com/akash-network/console/compare/console-web/v3.16.4...console-web/v3.17.0) (2025-12-29)
 
 

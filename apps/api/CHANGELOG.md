@@ -1,5 +1,13 @@
 
 
+## [3.17.3](https://github.com/akash-network/console/compare/console-api/v3.17.2...console-api/v3.17.3) (2025-12-30)
+
+
+### Code Refactoring
+
+* **billing:** extract balance validation and improve accuracy ([d9b213d](https://github.com/akash-network/console/commit/d9b213d31696b77643d97a9f1cab528795358be2)), closes [#2338](https://github.com/akash-network/console/issues/2338)
+* **billing:** migrate from boolean wallet flag to version-based system ([830b49e](https://github.com/akash-network/console/commit/830b49e094a2d5c185f3c6ed08a8f4f0292630e5)), closes [#2298](https://github.com/akash-network/console/issues/2298)
+
 ## [3.17.2](https://github.com/akash-network/console/compare/console-api/v3.17.1...console-api/v3.17.2) (2025-12-29)
 
 
