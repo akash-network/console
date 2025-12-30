@@ -99,13 +99,10 @@ export class RefillService {
     const nextLimit = Math.max(0, currentLimit - reductionAmount);
     const limits = { deployment: nextLimit, fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT };
 
-    await this.managedUserWalletService.authorizeSpending(
-      {
-        address: userWallet.address,
-        limits
-      },
-      userWallet.isOldWallet ?? false
-    );
+    await this.managedUserWalletService.authorizeSpending({
+      address: userWallet.address,
+      limits
+    });
 
     await this.balancesService.refreshUserWalletLimits(userWallet);
     this.analyticsService.track(userId!, "balance_refund");

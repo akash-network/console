@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS "stripe_transactions" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-DROP TABLE "checkout_sessions";--> statement-breakpoint
+DROP TABLE IF EXISTS "checkout_sessions";--> statement-breakpoint
 DO $$ BEGIN
  ALTER TABLE "stripe_transactions" ADD CONSTRAINT "stripe_transactions_user_id_userSetting_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."userSetting"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION
