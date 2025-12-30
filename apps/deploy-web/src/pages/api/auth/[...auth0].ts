@@ -11,7 +11,6 @@ import { defineApiHandler } from "@src/lib/nextjs/defineApiHandler/defineApiHand
 import type { AppServices } from "@src/services/app-di-container/server-di-container.service";
 import { rewriteLocalRedirect } from "@src/services/auth/auth/rewrite-local-redirect";
 import type { SeverityLevel } from "@src/services/error-handler/error-handler.service";
-import { ANONYMOUS_HEADER_COOKIE_NAME } from "./signup";
 
 export default defineApiHandler({
   route: "/api/auth/[...auth0]",
@@ -44,11 +43,6 @@ const authHandler = once((services: AppServices) =>
             try {
               const userSettings = await services.sessionService.createLocalUser(session);
               session.user = { ...session.user, ...userSettings };
-              const isSecure = services.privateConfig.NODE_ENV === "production";
-              res.setHeader(
-                "Set-Cookie",
-                `${ANONYMOUS_HEADER_COOKIE_NAME}=; Path=/api/auth/callback; HttpOnly; ${isSecure ? "Secure;" : ""} SameSite=Lax; Expires=Thu, 01 Jan 1970 00:00:00 GMT`
-              );
             } catch (error) {
               services.errorHandler.reportError({ error, tags: { category: "auth0" } });
             }
