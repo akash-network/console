@@ -63,6 +63,14 @@ export class OpenApiDocsService {
         });
 
         Object.assign(docs.paths, handlerDocs.paths);
+
+        if (handlerDocs.components?.schemas) {
+          Object.assign(docs.components.schemas, handlerDocs.components.schemas);
+        }
+
+        if (handlerDocs.components?.securitySchemes) {
+          Object.assign(docs.components.securitySchemes, handlerDocs.components.securitySchemes);
+        }
       } catch (error) {
         logger.error({
           name: `Error generating OpenAPI docs for handler, example path: ${handler.routes[0]?.path || "unknown"}`,

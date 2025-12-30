@@ -1,22 +1,23 @@
-import type { QueryKey } from "@tanstack/react-query";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { useServices } from "@src/context/ServicesProvider/ServicesProvider";
 import { QueryKeys } from "./queryKeys";
 
 export function useManagedWalletQuery(userId?: string) {
-  const { managedWalletService } = useServices();
-  return useQuery({
-    queryKey: QueryKeys.getManagedWalletKey(userId) as QueryKey,
-    queryFn: async () => {
-      if (userId) {
-        return await managedWalletService.getWallet(userId);
+  const { consoleApi } = useServices();
+
+  return consoleApi.v1.getWallets.useQuery(
+    {
+      query: {
+        userId: userId ?? ""
       }
-      return null;
     },
-    enabled: !!userId,
-    staleTime: Infinity
-  });
+    {
+      select: response => response.data[0],
+      enabled: !!userId,
+      staleTime: Infinity
+    }
+  );
 }
 
 export function useCreateManagedWalletMutation() {

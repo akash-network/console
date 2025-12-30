@@ -10,20 +10,14 @@ import assert from "http-assert";
 import { container } from "tsyringe";
 
 import packageJson from "../package.json";
-import { verifyEmailRouter } from "./auth/routes/verify-email/verify-email.router";
+import { openApiHonoHandlers } from "./app/rest-handlers";
 import { AuthInterceptor } from "./auth/services/auth.interceptor";
-import { bidsRouter } from "./bid/routes/bids/bids.router";
-import { certificateRouter } from "./certificate/routes/certificate.router";
 import { HonoErrorHandlerService } from "./core/services/hono-error-handler/hono-error-handler.service";
-import type { OpenApiHonoHandler } from "./core/services/open-api-hono-handler/open-api-hono-handler";
 import { OpenApiDocsService } from "./core/services/openapi-docs/openapi-docs.service";
 import { RequestContextInterceptor } from "./core/services/request-context-interceptor/request-context.interceptor";
 import { startServer } from "./core/services/start-server/start-server";
 import type { AppEnv } from "./core/types/app-context";
 import { connectUsingSequelize } from "./db/dbConnection";
-import { deploymentSettingRouter } from "./deployment/routes/deployment-setting/deployment-setting.router";
-import { deploymentsRouter } from "./deployment/routes/deployments/deployments.router";
-import { leasesRouter } from "./deployment/routes/leases/leases.router";
 import { healthzRouter } from "./healthz/routes/healthz.router";
 import { clientInfoMiddleware } from "./middlewares/clientInfoMiddleware";
 import { notificationsApiProxy } from "./notifications/routes/proxy/proxy.route";
@@ -35,46 +29,7 @@ import { legacyRouter } from "./routers/legacyRouter";
 import { userRouter } from "./routers/userRouter";
 import { web3IndexRouter } from "./routers/web3indexRouter";
 import { bytesToHumanReadableSize } from "./utils/files";
-import { addressRouter } from "./address";
-import { apiKeysRouter, sendVerificationEmailRouter } from "./auth";
-import {
-  checkoutRouter,
-  getBalancesRouter,
-  getWalletListRouter,
-  signAndBroadcastTxRouter,
-  startTrialRouter,
-  stripeCouponsRouter,
-  stripeCustomersRouter,
-  stripePaymentMethodsRouter,
-  stripePricesRouter,
-  stripeTransactionsRouter,
-  stripeWebhook,
-  usageRouter,
-  walletSettingRouter
-} from "./billing";
-import { blockPredictionRouter, blocksRouter } from "./block";
 import { CORE_CONFIG, migratePG } from "./core";
-import { dashboardDataRouter, graphDataRouter, leasesDurationRouter, marketDataRouter, networkCapacityRouter } from "./dashboard";
-import { gpuRouter } from "./gpu";
-import { networkRouter } from "./network";
-import { pricingRouter } from "./pricing";
-import { proposalsRouter } from "./proposal";
-import {
-  auditorsRouter,
-  providerAttributesSchemaRouter,
-  providerDashboardRouter,
-  providerDeploymentsRouter,
-  providerEarningsRouter,
-  providerGraphDataRouter,
-  providerJwtTokenRouter,
-  providerRegionsRouter,
-  providersRouter,
-  providerVersionsRouter
-} from "./provider";
-import { templatesRouter } from "./template";
-import { transactionsRouter } from "./transaction";
-import { createAnonymousUserRouter, getAnonymousUserRouter, getCurrentUserRouter, registerUserRouter } from "./user";
-import { validatorsRouter } from "./validator";
 
 const appHono = new Hono<AppEnv>();
 appHono.use("*", otel());
@@ -104,58 +59,6 @@ appHono.route("/dashboard", dashboardRouter);
 appHono.route("/internal", internalRouter);
 appHono.route("/deployments", deploymentRouter);
 
-const openApiHonoHandlers: OpenApiHonoHandler[] = [
-  startTrialRouter,
-  getWalletListRouter,
-  walletSettingRouter,
-  signAndBroadcastTxRouter,
-  checkoutRouter,
-  stripeWebhook,
-  stripePricesRouter,
-  stripeCouponsRouter,
-  stripeCustomersRouter,
-  stripePaymentMethodsRouter,
-  stripeTransactionsRouter,
-  usageRouter,
-  createAnonymousUserRouter,
-  getAnonymousUserRouter,
-  registerUserRouter,
-  getCurrentUserRouter,
-  sendVerificationEmailRouter,
-  verifyEmailRouter,
-  deploymentSettingRouter,
-  deploymentsRouter,
-  leasesRouter,
-  apiKeysRouter,
-  bidsRouter,
-  certificateRouter,
-  getBalancesRouter,
-  providersRouter,
-  auditorsRouter,
-  providerAttributesSchemaRouter,
-  providerRegionsRouter,
-  providerDashboardRouter,
-  providerEarningsRouter,
-  providerVersionsRouter,
-  providerGraphDataRouter,
-  providerDeploymentsRouter,
-  providerJwtTokenRouter,
-  graphDataRouter,
-  dashboardDataRouter,
-  networkCapacityRouter,
-  blocksRouter,
-  blockPredictionRouter,
-  transactionsRouter,
-  marketDataRouter,
-  validatorsRouter,
-  pricingRouter,
-  gpuRouter,
-  proposalsRouter,
-  templatesRouter,
-  leasesDurationRouter,
-  addressRouter,
-  networkRouter
-];
 for (const handler of openApiHonoHandlers) {
   appHono.route("/", handler);
 }

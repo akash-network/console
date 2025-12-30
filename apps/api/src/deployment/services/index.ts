@@ -1,1 +1,1 @@
-export * from "./active-deployments-count/active-deployments-count.service.ts";
+export * from "./active-deployments-count/active-deployments-count.service";
