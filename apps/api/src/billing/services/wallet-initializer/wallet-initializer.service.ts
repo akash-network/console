@@ -45,7 +45,7 @@ export class WalletInitializerService {
 
     const walletOutput = this.userWalletRepository.toPublic(userWallet);
 
-    if (isTrialSpendingAuthorized && !this.featureFlagsService.isEnabled(FeatureFlags.ANONYMOUS_FREE_TRIAL)) {
+    if (isTrialSpendingAuthorized) {
       await this.domainEvents.publish(new TrialStarted({ userId }));
     }
 

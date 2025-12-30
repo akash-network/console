@@ -111,21 +111,19 @@ export class ManagedSignerService {
     await this.#validateBalances(userWallet, messages);
     await this.anonymousValidateService.validateLeaseProvidersAuditors(messages, userWallet);
 
-    if (this.featureFlagsService.isEnabled(FeatureFlags.ANONYMOUS_FREE_TRIAL)) {
-      const user = walletOwner?.id === userWallet.userId ? walletOwner : await this.userRepository.findById(userWallet.userId!);
-      assert(user, 500, "User for wallet not found");
-      await Promise.all(
-        messages.map(message =>
-          Promise.all([
-            this.anonymousValidateService.validateLeaseProviders(message, userWallet, user),
-            this.anonymousValidateService.validateTrialLimit(message, userWallet)
-          ])
-        )
-      );
-    }
+    const user = walletOwner?.id === userWallet.userId ? walletOwner : await this.userRepository.findById(userWallet.userId!);
+    assert(user, 500, "User for wallet not found");
+    await Promise.all(
+      messages.map(message =>
+        Promise.all([
+          this.anonymousValidateService.validateLeaseProviders(message, userWallet, user),
+          this.anonymousValidateService.validateTrialLimit(message, userWallet)
+        ])
+      )
+    );
 
     const createLeaseMessage: { typeUrl: string; value: MsgCreateLease } | undefined = messages.find(message => message.typeUrl.endsWith(".MsgCreateLease"));
-    const hasCreateTrialLeaseMessage = userWallet.isTrialing && !!createLeaseMessage && !this.featureFlagsService.isEnabled(FeatureFlags.ANONYMOUS_FREE_TRIAL);
+    const hasCreateTrialLeaseMessage = userWallet.isTrialing && !!createLeaseMessage;
     const hasLeases = hasCreateTrialLeaseMessage ? await this.leaseHttpService.hasLeases(userWallet.address!) : null;
 
     const tx = await this.executeDerivedTx(userWallet.id, messages);
