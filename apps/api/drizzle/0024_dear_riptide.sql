@@ -5,7 +5,7 @@ EXCEPTION
 END $$;
 --> statement-breakpoint
 DO $$ BEGIN
- CREATE TYPE "public"."stripe_transaction_type" AS ENUM('payment_intent');
+ CREATE TYPE "public"."stripe_transaction_type" AS ENUM('payment_intent', 'coupon_claim');
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
@@ -19,6 +19,9 @@ CREATE TABLE IF NOT EXISTS "stripe_transactions" (
 	"currency" varchar(3) DEFAULT 'usd' NOT NULL,
 	"stripe_payment_intent_id" varchar(255),
 	"stripe_charge_id" varchar(255),
+	"stripe_coupon_id" varchar(255),
+	"stripe_promotion_code_id" varchar(255),
+	"stripe_invoice_id" varchar(255),
 	"payment_method_type" varchar(50),
 	"card_brand" varchar(50),
 	"card_last4" varchar(4),
@@ -39,6 +42,8 @@ END $$;
 CREATE INDEX IF NOT EXISTS "stripe_transactions_user_id_idx" ON "stripe_transactions" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "stripe_transactions_stripe_payment_intent_id_idx" ON "stripe_transactions" USING btree ("stripe_payment_intent_id");--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "stripe_transactions_stripe_charge_id_idx" ON "stripe_transactions" USING btree ("stripe_charge_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "stripe_transactions_stripe_coupon_id_idx" ON "stripe_transactions" USING btree ("stripe_coupon_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "stripe_transactions_stripe_promotion_code_id_idx" ON "stripe_transactions" USING btree ("stripe_promotion_code_id");--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "stripe_transactions_status_idx" ON "stripe_transactions" USING btree ("status");--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "stripe_transactions_created_at_idx" ON "stripe_transactions" USING btree ("created_at");--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "stripe_transactions_user_id_created_at_idx" ON "stripe_transactions" USING btree ("user_id","created_at");

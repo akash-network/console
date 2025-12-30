@@ -403,6 +403,19 @@ export class StripeService extends Stripe {
         await this.refillService.topUpWallet(amountToAdd, currentUser.id);
       }
 
+      // Create transaction record for the coupon claim
+      await this.stripeTransactionRepository.create({
+        userId: currentUser.id,
+        type: "coupon_claim",
+        status: "succeeded",
+        amount: amountToAdd,
+        currency: coupon.currency ?? "usd",
+        stripeCouponId: coupon.id,
+        stripePromotionCodeId: updateField === "promotion_code" ? updateId : undefined,
+        stripeInvoiceId: invoice.id,
+        description: `Coupon: ${coupon.name || coupon.id}`
+      });
+
       logger.info({
         event: "COUPON_APPLICATION_SUCCESS",
         userId: currentUser.id,

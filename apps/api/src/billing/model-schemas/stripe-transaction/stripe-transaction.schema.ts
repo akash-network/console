@@ -13,7 +13,7 @@ export const stripeTransactionStatusEnum = pgEnum("stripe_transaction_status", [
   "canceled"
 ]);
 
-export const stripeTransactionTypeEnum = pgEnum("stripe_transaction_type", ["payment_intent"]);
+export const stripeTransactionTypeEnum = pgEnum("stripe_transaction_type", ["payment_intent", "coupon_claim"]);
 
 export const StripeTransactions = pgTable(
   "stripe_transactions",
@@ -31,6 +31,9 @@ export const StripeTransactions = pgTable(
     currency: varchar("currency", { length: 3 }).notNull().default("usd"),
     stripePaymentIntentId: varchar("stripe_payment_intent_id", { length: 255 }),
     stripeChargeId: varchar("stripe_charge_id", { length: 255 }),
+    stripeCouponId: varchar("stripe_coupon_id", { length: 255 }),
+    stripePromotionCodeId: varchar("stripe_promotion_code_id", { length: 255 }),
+    stripeInvoiceId: varchar("stripe_invoice_id", { length: 255 }),
     paymentMethodType: varchar("payment_method_type", { length: 50 }),
     cardBrand: varchar("card_brand", { length: 50 }),
     cardLast4: varchar("card_last4", { length: 4 }),
@@ -44,6 +47,8 @@ export const StripeTransactions = pgTable(
     userIdIdx: index("stripe_transactions_user_id_idx").on(table.userId),
     stripePaymentIntentIdIdx: index("stripe_transactions_stripe_payment_intent_id_idx").on(table.stripePaymentIntentId),
     stripeChargeIdIdx: index("stripe_transactions_stripe_charge_id_idx").on(table.stripeChargeId),
+    stripeCouponIdIdx: index("stripe_transactions_stripe_coupon_id_idx").on(table.stripeCouponId),
+    stripePromotionCodeIdIdx: index("stripe_transactions_stripe_promotion_code_id_idx").on(table.stripePromotionCodeId),
     statusIdx: index("stripe_transactions_status_idx").on(table.status),
     createdAtIdx: index("stripe_transactions_created_at_idx").on(table.createdAt),
     userIdCreatedAtIdx: index("stripe_transactions_user_id_created_at_idx").on(table.userId, table.createdAt)
