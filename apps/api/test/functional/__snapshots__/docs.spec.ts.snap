@@ -3972,37 +3972,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
         ],
       },
     },
-    "/v1/checkout": {
-      "get": {
-        "parameters": [
-          {
-            "in": "query",
-            "name": "amount",
-            "required": false,
-            "schema": {
-              "type": "string",
-            },
-          },
-        ],
-        "responses": {
-          "301": {
-            "description": "Redirects to the checkout page",
-          },
-        },
-        "security": [
-          {
-            "BearerAuth": [],
-          },
-          {
-            "ApiKeyAuth": [],
-          },
-        ],
-        "summary": "Creates a stripe checkout session and redirects to checkout",
-        "tags": [
-          "Wallet",
-        ],
-      },
-    },
     "/v1/create-jwt-token": {
       "post": {
         "requestBody": {
