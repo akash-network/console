@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { setSession } from "@src/lib/auth0/setSession/setSession";
 import { defineApiHandler } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
+import { verifyCaptcha } from "@src/middleware/verify-captcha/verify-captcha";
 
 const LOWER_LETTER_REGEX = /\p{Ll}/u;
 const UPPER_LETTER_REGEX = /\p{Lu}/u;
@@ -10,6 +11,7 @@ const SPECIAL_CHAR_REGEX = /[^\p{L}\p{N}]/u;
 
 export default defineApiHandler({
   route: "/api/auth/password-signup",
+  method: "POST",
   schema: z.object({
     body: z.object({
       email: z.string().email(),
@@ -30,10 +32,16 @@ export default defineApiHandler({
       ),
       termsAndConditions: z.boolean().refine(value => value, {
         message: "Please accept the terms and conditions"
-      })
+      }),
+      captchaToken: z.string()
     })
   }),
-  async handler({ res, req, services }) {
+  async handler(ctx) {
+    const { res, req, services, body } = ctx;
+
+    const verification = await verifyCaptcha(body.captchaToken, ctx);
+    if (verification.err) return res.status(400).json(verification.val);
+
     const result = await services.sessionService.signUp({
       email: req.body.email,
       password: req.body.password

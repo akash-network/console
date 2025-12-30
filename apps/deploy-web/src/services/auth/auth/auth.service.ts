@@ -29,24 +29,27 @@ export class AuthService {
     this.location.assign(this.urlService.signup() + (queryParams ? `?${queryParams}` : ""));
   }
 
-  async login(input: { email: string; password: string }): Promise<void> {
+  async login(input: { email: string; password: string; captchaToken: string }): Promise<void> {
     await this.internalApiHttpClient.post<void>("/api/auth/password-login", {
       email: input.email,
-      password: input.password
+      password: input.password,
+      captchaToken: input.captchaToken
     });
   }
 
-  async signup(input: { email: string; password: string; termsAndConditions: boolean }): Promise<void> {
+  async signup(input: { email: string; password: string; termsAndConditions: boolean; captchaToken: string }): Promise<void> {
     await this.internalApiHttpClient.post<void>("/api/auth/password-signup", {
       email: input.email,
       password: input.password,
-      termsAndConditions: input.termsAndConditions
+      termsAndConditions: input.termsAndConditions,
+      captchaToken: input.captchaToken
     });
   }
 
-  async sendPasswordResetEmail(input: { email: string }): Promise<void> {
+  async sendPasswordResetEmail(input: { email: string; captchaToken: string }): Promise<void> {
     await this.internalApiHttpClient.post<void>("/api/auth/send-password-reset-email", {
-      email: input.email
+      email: input.email,
+      captchaToken: input.captchaToken
     });
   }
 

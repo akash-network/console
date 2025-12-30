@@ -1,20 +1,24 @@
 import { z } from "zod";
 
 import { defineApiHandler } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
+import { verifyCaptcha } from "@src/middleware/verify-captcha/verify-captcha";
 
 export default defineApiHandler({
   route: "/api/auth/send-password-reset-email",
+  method: "POST",
   schema: z.object({
     body: z.object({
-      email: z.string().email()
+      email: z.string().email(),
+      captchaToken: z.string()
     })
   }),
-  async handler({ res, req, services }) {
-    if (req.method !== "POST") {
-      return res.status(405).json({ message: "Method not allowed" });
-    }
+  async handler(ctx) {
+    const { res, req, services, body } = ctx;
 
     try {
+      const verification = await verifyCaptcha(body.captchaToken, ctx);
+      if (verification.err) return res.status(400).json(verification.val);
+
       const result = await services.sessionService.sendPasswordResetEmail({ email: req.body.email });
       if (result.ok) {
         res.status(204).end();

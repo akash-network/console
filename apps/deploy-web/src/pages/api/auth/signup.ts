@@ -9,8 +9,8 @@ export default defineApiHandler({
   route: "/api/auth/signup",
   async handler({ res, req, services }) {
     try {
-      if (services.config.AUTH0_LOCAL_ENABLED && services.config.AUTH0_REDIRECT_BASE_URL) {
-        rewriteLocalRedirect(res, services.config);
+      if (services.privateConfig.AUTH0_LOCAL_ENABLED && services.privateConfig.AUTH0_REDIRECT_BASE_URL) {
+        rewriteLocalRedirect(res, services.privateConfig);
       }
 
       const returnUrl = decodeURIComponent((req.query.returnTo as string) ?? "/");
@@ -20,7 +20,7 @@ export default defineApiHandler({
       // then we set cookie and return 204 status, the actual call will be made by in-browser redirect
       if (token) {
         const lifetime = 5 * 60; // 5 minutes
-        const isSecure = services.config.NODE_ENV === "production";
+        const isSecure = services.privateConfig.NODE_ENV === "production";
         res.setHeader(
           "Set-Cookie",
           `${ANONYMOUS_HEADER_COOKIE_NAME}=${encodeURIComponent(token.replace(/^Bearer\s+/i, ""))}; HttpOnly; ${isSecure ? "Secure;" : ""} SameSite=Lax; Path=/api/auth/callback; Max-Age=${lifetime}`

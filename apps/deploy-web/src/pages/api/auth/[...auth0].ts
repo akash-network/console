@@ -24,8 +24,8 @@ const authHandler = once((services: AppServices) =>
   handleAuth({
     async login(req: NextApiRequest, res: NextApiResponse) {
       const returnUrl = decodeURIComponent((req.query.from as string) ?? "/");
-      if (services.config.AUTH0_LOCAL_ENABLED && services.config.AUTH0_REDIRECT_BASE_URL) {
-        rewriteLocalRedirect(res, services.config);
+      if (services.privateConfig.AUTH0_LOCAL_ENABLED && services.privateConfig.AUTH0_REDIRECT_BASE_URL) {
+        rewriteLocalRedirect(res, services.privateConfig);
       }
 
       await handleLogin(req, res, {
@@ -44,7 +44,7 @@ const authHandler = once((services: AppServices) =>
             try {
               const userSettings = await services.sessionService.createLocalUser(session);
               session.user = { ...session.user, ...userSettings };
-              const isSecure = services.config.NODE_ENV === "production";
+              const isSecure = services.privateConfig.NODE_ENV === "production";
               res.setHeader(
                 "Set-Cookie",
                 `${ANONYMOUS_HEADER_COOKIE_NAME}=; Path=/api/auth/callback; HttpOnly; ${isSecure ? "Secure;" : ""} SameSite=Lax; Expires=Thu, 01 Jan 1970 00:00:00 GMT`
@@ -61,7 +61,7 @@ const authHandler = once((services: AppServices) =>
         throw error;
       }
     },
-    logout: services.config.AUTH0_LOCAL_ENABLED
+    logout: services.privateConfig.AUTH0_LOCAL_ENABLED
       ? async function (req: NextApiRequest, res: NextApiResponse) {
           const cookies = req.cookies;
           const expiredCookies = Object.keys(cookies)
