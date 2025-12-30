@@ -66,27 +66,30 @@ export const Turnstile = forwardRef<TurnstileRef, TurnstileProps>(function Turns
     ref || externalTurnstileRef,
     () => ({
       renderAndWaitResponse() {
+        if (!enabled) {
+          return Promise.resolve({ token: "disabled-turnstile-token" });
+        }
+
         resetWidget();
         return new Promise((resolve, reject) => {
-          eventBus.current.addEventListener(
-            "success",
-            event => {
-              resolve((event as CustomEvent<{ token: string }>).detail);
-            },
-            { once: true }
-          );
-          eventBus.current.addEventListener(
-            "error",
-            event => {
-              const details = (event as CustomEvent<{ reason: string; error?: string }>).detail;
-              reject({ status, ...details });
-            },
-            { once: true }
-          );
+          const successListener = (event: Event) => {
+            eventBus.current.removeEventListener("success", successListener);
+            eventBus.current.removeEventListener("error", errorListener);
+            resolve((event as CustomEvent<{ token: string }>).detail);
+          };
+          const errorListener = (event: Event) => {
+            eventBus.current.removeEventListener("success", successListener);
+            eventBus.current.removeEventListener("error", errorListener);
+            const details = (event as CustomEvent<{ reason: string; error?: string }>).detail;
+            reject({ status, ...details });
+          };
+
+          eventBus.current.addEventListener("success", successListener);
+          eventBus.current.addEventListener("error", errorListener);
         });
       }
     }),
-    [resetWidget]
+    [resetWidget, enabled]
   );
 
   if (!enabled) {
