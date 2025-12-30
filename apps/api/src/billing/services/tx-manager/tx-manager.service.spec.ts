@@ -233,16 +233,20 @@ describe(TxManagerService.name, () => {
 
     const logger = mock<LoggerService>();
 
-    const service = new TxManagerService(
-      fundingWallet,
-      fundingSigningClient,
-      oldMasterWallet,
-      oldMasterSigningClient,
-      walletFactory,
-      oldWalletFactory,
-      batchSigningClientServiceFactory,
-      logger
-    );
+    const walletResources = {
+      v1: {
+        masterWallet: oldMasterWallet,
+        masterSigningClient: oldMasterSigningClient,
+        derivedWalletFactory: oldWalletFactory
+      },
+      v2: {
+        masterWallet: fundingWallet,
+        masterSigningClient: fundingSigningClient,
+        derivedWalletFactory: walletFactory
+      }
+    };
+
+    const service = new TxManagerService(walletResources, batchSigningClientServiceFactory, logger);
 
     return {
       service,

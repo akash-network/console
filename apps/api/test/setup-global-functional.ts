@@ -3,6 +3,6 @@ import { TestWalletService } from "./services/test-wallet.service";
 
 export default async () => {
   if (!localConfig.FUNDING_WALLET_MNEMONIC) {
-    await new TestWalletService().init(localConfig.FUNDING_WALLET_INDEX);
+    await new TestWalletService().init();
   }
 };

@@ -24,10 +24,10 @@ export class CachedBalanceService {
 
   constructor(private readonly balancesService: BalancesService) {}
 
-  public async get(address: string, isOldWallet: boolean = false): Promise<CachedBalance> {
+  public async get(address: string): Promise<CachedBalance> {
     let cachedBalance = this.balanceCache.get(address);
     if (!cachedBalance) {
-      const limits = await this.balancesService.getFreshLimits({ address, isOldWallet });
+      const limits = await this.balancesService.getFreshLimits({ address });
       cachedBalance = new CachedBalance(limits.deployment);
       this.balanceCache.set(address, cachedBalance);
     }

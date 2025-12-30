@@ -51,8 +51,7 @@ export class WalletSettingRepository extends BaseRepository<Table, WalletSetting
       with: {
         wallet: {
           columns: {
-            address: true,
-            isOldWallet: true
+            address: true
           }
         },
         user: true

@@ -136,13 +136,13 @@ export class UsageRepository {
     }
 
     try {
-      const oldAddress = await this.txManagerService.getDerivedWalletAddress(userWallet.id, true);
+      const prevAddress = await this.txManagerService.getDerivedWalletAddress(userWallet.id, { walletVersion: "v1" });
 
-      if (oldAddress === address) {
+      if (prevAddress === address) {
         return [address];
       }
 
-      return [address, oldAddress];
+      return [address, prevAddress];
     } catch (error) {
       this.logger.error({ event: "FAILED_TO_DERIVE_OLD_WALLET_ADDRESS", address, walletId: userWallet.id, error });
       return [address];

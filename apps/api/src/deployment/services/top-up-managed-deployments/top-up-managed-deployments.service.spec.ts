@@ -74,29 +74,25 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
       expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(deployments.length);
       deployments.forEach((deployment, index) => {
-        expect(managedSignerService.executeDerivedTx).toHaveBeenCalledWith(
-          deployment.walletId,
-          [
-            {
-              typeUrl: "/akash.escrow.v1.MsgAccountDeposit",
-              value: {
-                signer: deployment.address,
-                id: {
-                  scope: Scope.deployment,
-                  xid: `${deployment.address}/${deployment.dseq}`
+        expect(managedSignerService.executeDerivedTx).toHaveBeenCalledWith(deployment.walletId, [
+          {
+            typeUrl: "/akash.escrow.v1.MsgAccountDeposit",
+            value: {
+              signer: deployment.address,
+              id: {
+                scope: Scope.deployment,
+                xid: `${deployment.address}/${deployment.dseq}`
+              },
+              deposit: {
+                amount: {
+                  denom: DEPLOYMENT_GRANT_DENOM,
+                  amount: sufficientAmount.toString()
                 },
-                deposit: {
-                  amount: {
-                    denom: DEPLOYMENT_GRANT_DENOM,
-                    amount: sufficientAmount.toString()
-                  },
-                  sources: [Source.grant]
-                }
+                sources: [Source.grant]
               }
             }
-          ],
-          false
-        );
+          }
+        ]);
         expect(logger.info).toHaveBeenCalledWith(
           expect.objectContaining({
             event: "TOP_UP_DEPLOYMENTS_SUCCESS",
@@ -111,7 +107,6 @@ describe(TopUpManagedDeploymentsService.name, () => {
                   id: deployment.id,
                   owner: deployment.address,
                   address: deployment.address,
-                  isOldWallet: deployment.isOldWallet,
                   predictedClosedHeight: index === 0 ? predictedClosedHeight1 : predictedClosedHeight2,
                   walletId: deployment.walletId
                 }),
@@ -282,46 +277,42 @@ describe(TopUpManagedDeploymentsService.name, () => {
       await service.topUpDeployments({ dryRun: false });
 
       expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(1);
-      expect(managedSignerService.executeDerivedTx).toHaveBeenCalledWith(
-        walletId,
-        [
-          {
-            typeUrl: "/akash.escrow.v1.MsgAccountDeposit",
-            value: {
-              signer: owner,
-              id: {
-                scope: Scope.deployment,
-                xid: `${owner}/${deployments[0].dseq}`
+      expect(managedSignerService.executeDerivedTx).toHaveBeenCalledWith(walletId, [
+        {
+          typeUrl: "/akash.escrow.v1.MsgAccountDeposit",
+          value: {
+            signer: owner,
+            id: {
+              scope: Scope.deployment,
+              xid: `${owner}/${deployments[0].dseq}`
+            },
+            deposit: {
+              amount: {
+                denom: DEPLOYMENT_GRANT_DENOM,
+                amount: sufficientAmount.toString()
               },
-              deposit: {
-                amount: {
-                  denom: DEPLOYMENT_GRANT_DENOM,
-                  amount: sufficientAmount.toString()
-                },
-                sources: [Source.grant]
-              }
-            }
-          },
-          {
-            typeUrl: "/akash.escrow.v1.MsgAccountDeposit",
-            value: {
-              signer: owner,
-              id: {
-                scope: Scope.deployment,
-                xid: `${owner}/${deployments[1].dseq}`
-              },
-              deposit: {
-                amount: {
-                  denom: DEPLOYMENT_GRANT_DENOM,
-                  amount: sufficientAmount.toString()
-                },
-                sources: [Source.grant]
-              }
+              sources: [Source.grant]
             }
           }
-        ],
-        false
-      );
+        },
+        {
+          typeUrl: "/akash.escrow.v1.MsgAccountDeposit",
+          value: {
+            signer: owner,
+            id: {
+              scope: Scope.deployment,
+              xid: `${owner}/${deployments[1].dseq}`
+            },
+            deposit: {
+              amount: {
+                denom: DEPLOYMENT_GRANT_DENOM,
+                amount: sufficientAmount.toString()
+              },
+              sources: [Source.grant]
+            }
+          }
+        }
+      ]);
     });
 
     it("should log errors when message preparation fails", async () => {

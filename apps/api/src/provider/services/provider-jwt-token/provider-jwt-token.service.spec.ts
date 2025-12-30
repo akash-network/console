@@ -18,7 +18,7 @@ describe(ProviderJwtTokenService.name, () => {
       const result = await providerJwtTokenService.generateJwtToken({ walletId, leases: accessRules });
 
       expect(result.unwrap()).toEqual(jwtTokenValue);
-      expect(txManagerService.getDerivedWallet).toHaveBeenCalledWith(walletId, false);
+      expect(txManagerService.getDerivedWallet).toHaveBeenCalledWith(walletId);
       expect(jwtModule.JwtTokenManager).toHaveBeenCalledWith(wallet);
       expect(jwtToken.generateToken).toHaveBeenCalledWith({
         version: "v1",

@@ -335,8 +335,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     const walletSettingWithWallet = {
       ...walletSetting,
       wallet: {
-        address: wallet.address!,
-        isOldWallet: wallet.isOldWallet
+        address: wallet.address!
       },
       user: userWithStripe
     };

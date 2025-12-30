@@ -20,7 +20,7 @@ type ValidationError = {
   message: string;
 };
 
-type InitializedWallet = Require<Pick<UserWalletOutput, "address" | "isOldWallet">, "address">;
+type InitializedWallet = Require<Pick<UserWalletOutput, "address">, "address">;
 type ActionableWalletSetting = Pick<WalletSettingOutput, "id" | "userId" | "autoReloadJobId">;
 
 type Resources = {
@@ -93,7 +93,7 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
       return paymentMethod;
     }
 
-    const balance = await this.balancesService.getFullBalanceInFiat(wallet.address, !!wallet.isOldWallet);
+    const balance = await this.balancesService.getFullBalanceInFiat(wallet.address);
 
     return Ok({ ...walletResult.val, paymentMethod: paymentMethod.val, balance: balance.total });
   }
