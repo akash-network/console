@@ -150,6 +150,13 @@ describe(Turnstile.name, () => {
         error: "test-error"
       });
     });
+
+    it("resolves with disabled token when turnstile is disabled", async () => {
+      const { turnstileRef } = await setup({ enabled: false });
+
+      const promise = turnstileRef.current!.renderAndWaitResponse();
+      await expect(promise).resolves.toEqual({ token: "disabled-turnstile-token" });
+    });
   });
 
   async function setup(input?: { enabled?: boolean; siteKey?: string; onDismissed?: () => void; components?: Partial<typeof COMPONENTS> }) {
