@@ -6,12 +6,13 @@
   "license": "Apache-2.0",
   "author": "",
   "exports": {
-    "./notifications": "./src/notifications/index.ts"
+    "./notifications": "./src/notifications/index.ts",
+    "./api": "./src/api/index.ts"
   },
   "main": "src/index.ts",
   "scripts": {
     "format": "prettier --write ./*.{js,json} **/*.{ts,js,json}",
-    "gen": "npm run sdk:gen:react-query -w ../../apps/notifications && npm run lint:fix && npm run format",
+    "gen": "npm run sdk:gen:react-query -w ../../apps/notifications && npm run sdk:gen:react-query -w ../../apps/api && npm run lint:fix && npm run format",
     "lint:fix": "eslint . --fix",
     "validate:types": "tsc --noEmit && echo"
   },
