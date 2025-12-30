@@ -60,7 +60,7 @@ export class BalancesService {
     return { fee, deployment };
   }
 
-  private async retrieveAndCalcFeeLimit(userWallet: Pick<UserWalletOutput, "address" | "isOldWallet">): Promise<number> {
+  async retrieveAndCalcFeeLimit(userWallet: Pick<UserWalletOutput, "address" | "isOldWallet">): Promise<number> {
     const fundingWalletAddress = await this.txManagerService.getFundingWalletAddress(userWallet.isOldWallet ?? false);
     const feeAllowance = await this.authzHttpService.getFeeAllowanceForGranterAndGrantee(fundingWalletAddress, userWallet.address!);
 
