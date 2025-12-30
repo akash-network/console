@@ -96,11 +96,7 @@ export class AuthInterceptor implements HonoInterceptor {
   }
 
   private getUserRole(user: UserOutput) {
-    if (user.userId) {
-      return user.trial === false ? "REGULAR_PAYING_USER" : "REGULAR_USER";
-    }
-
-    return "REGULAR_ANONYMOUS_USER";
+    return user.trial === false ? "REGULAR_PAYING_USER" : "REGULAR_USER";
   }
 
   private shouldMarkUserAsActive(userId: UserOutput["id"], now: Date): boolean {
