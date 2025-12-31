@@ -17,6 +17,7 @@ export type AnalyticsOptions = {
     apiKey: string;
     enabled: boolean;
     samplingRate: number;
+    serverUrl?: string;
   };
   ga: {
     measurementId: string;
@@ -212,7 +213,15 @@ export class AnalyticsService {
       this.isAmplitudeEnabled = this.shouldSampleUser(user.id);
 
       if (this.isAmplitudeEnabled) {
-        this.amplitudeClient.init(this.options.amplitude.apiKey);
+        const { serverUrl } = this.options.amplitude;
+        this.amplitudeClient.init(
+          this.options.amplitude.apiKey,
+          serverUrl
+            ? {
+                serverUrl
+              }
+            : undefined
+        );
       }
     }
   }

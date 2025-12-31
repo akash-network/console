@@ -23,10 +23,11 @@ const withPWA = require("next-pwa")({
 const { withSentryConfig } = require("@sentry/nextjs");
 const path = require("path");
 
+let browserEnv;
 try {
   const { browserEnvSchema } = require("./env-config.schema");
 
-  browserEnvSchema.parse(process.env);
+  browserEnv = browserEnvSchema.parse(process.env);
 } catch (error) {
   if (error.message.includes("Cannot find module")) {
     console.warn("No env-config.schema.js found, skipping env validation");
@@ -169,7 +170,16 @@ const nextConfig = {
         permanent: false
       }
     ];
-  }
+  },
+  rewrites: async () =>
+    browserEnv.NEXT_PUBLIC_AMPLITUDE_PROXY_URL
+      ? [
+          {
+            source: browserEnv.NEXT_PUBLIC_AMPLITUDE_PROXY_URL,
+            destination: "https://api2.amplitude.com/2/httpapi"
+          }
+        ]
+      : []
 };
 
 /**
