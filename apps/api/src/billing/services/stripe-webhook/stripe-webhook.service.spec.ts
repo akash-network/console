@@ -250,13 +250,12 @@ describe(StripeWebhookService.name, () => {
       expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
     });
 
-    it("logs warning when transaction is not found but still reduces balance", async () => {
+    it("returns early when transaction is not found", async () => {
       const { service, userRepository, stripeTransactionRepository, refillService } = setup();
       const mockUser = createTestUser();
 
       userRepository.findOneBy.mockResolvedValue(mockUser);
       stripeTransactionRepository.findByChargeId.mockResolvedValue(undefined);
-      refillService.reduceWalletBalance.mockResolvedValue();
 
       const event = createChargeRefundedEvent({
         id: "ch_123",
@@ -269,7 +268,28 @@ describe(StripeWebhookService.name, () => {
       await service.handleChargeRefunded(event);
 
       expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
-      expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(5000, mockUser.id);
+      expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
+    });
+
+    it("returns early when transaction is not in succeeded state", async () => {
+      const { service, userRepository, stripeTransactionRepository, refillService } = setup();
+      const mockUser = createTestUser();
+
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findByChargeId.mockResolvedValue(createMockTransaction({ id: "tx-123", status: "failed" }));
+
+      const event = createChargeRefundedEvent({
+        id: "ch_123",
+        customer: mockUser.stripeCustomerId!,
+        amount_refunded: 5000,
+        refunded: true,
+        previous_amount_refunded: 0
+      });
+
+      await service.handleChargeRefunded(event);
+
+      expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+      expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
     });
   });
 

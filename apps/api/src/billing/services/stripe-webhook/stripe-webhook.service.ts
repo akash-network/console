@@ -184,12 +184,28 @@ export class StripeWebhookService {
     }
 
     const transaction = await this.stripeTransactionRepository.findByChargeId(charge.id);
+
+    if (!transaction) {
+      this.logger.warn({ event: "CHARGE_REFUNDED_NO_TRANSACTION", chargeId: charge.id });
+      return;
+    }
+
+    // Only reduce wallet balance if the transaction was successful (user actually received credits)
+    if (transaction.status !== "succeeded") {
+      this.logger.info({
+        event: "CHARGE_REFUNDED_SKIPPED",
+        chargeId: charge.id,
+        transactionId: transaction.id,
+        transactionStatus: transaction.status,
+        reason: "Transaction was not in succeeded state, user never received credits"
+      });
+      return;
+    }
+
     const isFullyRefunded = charge.refunded;
 
-    if (transaction && isFullyRefunded) {
+    if (isFullyRefunded) {
       await this.stripeTransactionRepository.updateById(transaction.id, { status: "refunded" });
-    } else if (!transaction) {
-      this.logger.warn({ event: "CHARGE_REFUNDED_NO_TRANSACTION", chargeId: charge.id });
     }
 
     await this.refillService.reduceWalletBalance(refundedAmount, user.id);
@@ -201,7 +217,7 @@ export class StripeWebhookService {
       refundedAmount,
       totalRefunded: charge.amount_refunded,
       isFullyRefunded,
-      transactionId: transaction?.id
+      transactionId: transaction.id
     });
   }
 
