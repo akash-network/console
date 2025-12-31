@@ -274,6 +274,7 @@ export class StripeService extends Stripe {
       case "requires_capture":
         return "succeeded";
       case "requires_action":
+      case "requires_confirmation":
         return "requires_action";
       case "requires_payment_method":
         return "failed";
