@@ -38,7 +38,6 @@ import { bytesToHumanReadableSize } from "./utils/files";
 import { addressRouter } from "./address";
 import { apiKeysRouter, sendVerificationEmailRouter } from "./auth";
 import {
-  checkoutRouter,
   getBalancesRouter,
   getWalletListRouter,
   signAndBroadcastTxRouter,
@@ -109,7 +108,6 @@ const openApiHonoHandlers: OpenApiHonoHandler[] = [
   getWalletListRouter,
   walletSettingRouter,
   signAndBroadcastTxRouter,
-  checkoutRouter,
   stripeWebhook,
   stripePricesRouter,
   stripeCouponsRouter,

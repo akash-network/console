@@ -1,7 +1,7 @@
 import { container } from "tsyringe";
 import { z } from "zod";
 
-import { CheckoutController } from "@src/billing/controllers/checkout/checkout.controller";
+import { StripeWebhookService } from "@src/billing/services/stripe-webhook/stripe-webhook.service";
 import { createRoute } from "@src/core/lib/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
@@ -47,6 +47,6 @@ stripeWebhook.openapi(route, async function routeStripeWebhook(c) {
     return c.json({ error: "Stripe signature is required" }, 400);
   }
 
-  await container.resolve(CheckoutController).webhook(sig, await c.req.text());
+  await container.resolve(StripeWebhookService).routeStripeEvent(sig, await c.req.text());
   return c.text("", 200) as never;
 });

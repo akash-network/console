@@ -75,8 +75,38 @@ export class RefillService {
     });
 
     await this.balancesService.refreshUserWalletLimits(userWallet, { endTrial: true });
-    this.analyticsService.track(userId!, "balance_top_up");
+    this.analyticsService.track(userId, "balance_top_up");
     this.logger.debug({ event: "WALLET_TOP_UP", userWallet, limits });
+  }
+
+  /**
+   * Reduce the wallet balance (e.g., for refunds)
+   * @param amountUsd - The amount in USD *cents* to reduce from the wallet (e.g. 10000 = $100)
+   * @param userId - The ID of the user to reduce the wallet for
+   */
+  async reduceWalletBalance(amountUsd: number, userId: UserWalletOutput["userId"]) {
+    const userWallet = await this.userWalletRepository.findOneBy({ userId });
+
+    if (!userWallet || !userWallet.address) {
+      this.logger.warn({ event: "WALLET_REDUCE_NO_WALLET", userId });
+      return;
+    }
+
+    const currentLimit = await this.balancesService.retrieveDeploymentLimit(userWallet);
+    const reductionAmount = amountUsd * 10000;
+
+    // Ensure we don't go below 0
+    const nextLimit = Math.max(0, currentLimit - reductionAmount);
+    const limits = { deployment: nextLimit, fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT };
+
+    await this.managedUserWalletService.authorizeSpending({
+      address: userWallet.address,
+      limits
+    });
+
+    await this.balancesService.refreshUserWalletLimits(userWallet);
+    this.analyticsService.track(userId, "balance_refund");
+    this.logger.info({ event: "WALLET_BALANCE_REDUCED", userId, amountUsd, previousLimit: currentLimit, nextLimit });
   }
 
   @Semaphore()

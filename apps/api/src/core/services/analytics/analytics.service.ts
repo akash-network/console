@@ -5,7 +5,7 @@ import { HASHER, type Hasher } from "@src/core/providers/hash.provider";
 import { LoggerService } from "@src/core/providers/logging.provider";
 import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 
-type AnalyticsEvent = "user_registered" | "balance_top_up";
+type AnalyticsEvent = "user_registered" | "balance_top_up" | "balance_refund";
 
 @singleton()
 export class AnalyticsService {
