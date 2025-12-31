@@ -1,0 +1,26 @@
+{
+  "name": "@akashnetwork/react-query-proxy",
+  "version": "1.0.0",
+  "description": "",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/akash-network/console"
+  },
+  "license": "Apache-2.0",
+  "author": "Akash Network",
+  "main": "src/index.ts",
+  "scripts": {
+    "test": "jest",
+    "validate:types": "tsc --noEmit && echo"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.67.2"
+  },
+  "devDependencies": {
+    "@akashnetwork/dev-config": "*",
+    "jest": "^29.7.0",
+    "prettier": "^3.3.0",
+    "ts-jest": "^29.4.0",
+    "typescript": "~5.8.2"
+  }
+}
