@@ -2,7 +2,7 @@ import { mock } from "jest-mock-extended";
 
 import type { BillingConfig } from "@src/billing/providers";
 import type { UserWalletRepository } from "@src/billing/repositories";
-import type { ManagedUserWalletService } from "@src/billing/services";
+import type { ManagedSignerService, ManagedUserWalletService } from "@src/billing/services";
 import type { BalancesService } from "@src/billing/services/balances/balances.service";
 import { RefillService } from "@src/billing/services/refill/refill.service";
 import type { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
@@ -16,7 +16,8 @@ describe(RefillService.name, () => {
     const amountUsd = 100;
 
     it("should top up existing wallet", async () => {
-      const { service, userWalletRepository, managedUserWalletService, balancesService, walletInitializerService, analyticsService } = setup();
+      const { service, userWalletRepository, managedUserWalletService, managedSignerService, balancesService, walletInitializerService, analyticsService } =
+        setup();
       const existingWallet = UserWalletSeeder.create({ userId });
       userWalletRepository.findOneBy.mockResolvedValue(existingWallet);
       managedUserWalletService.authorizeSpending.mockResolvedValue();
@@ -26,7 +27,7 @@ describe(RefillService.name, () => {
       await service.topUpWallet(amountUsd, userId);
 
       expect(userWalletRepository.findOneBy).toHaveBeenCalledWith({ userId });
-      expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith({
+      expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith(managedSignerService, {
         address: existingWallet.address,
         limits: { deployment: 1005000, fees: 1000 }
       });
@@ -37,7 +38,8 @@ describe(RefillService.name, () => {
     });
 
     it("should create new wallet when none exists", async () => {
-      const { service, userWalletRepository, walletInitializerService, balancesService, managedUserWalletService, analyticsService } = setup();
+      const { service, userWalletRepository, walletInitializerService, balancesService, managedUserWalletService, managedSignerService, analyticsService } =
+        setup();
       const newWallet = UserWalletSeeder.create({ userId });
       userWalletRepository.findOneBy.mockResolvedValue(undefined);
       walletInitializerService.initialize.mockResolvedValue(newWallet);
@@ -48,7 +50,7 @@ describe(RefillService.name, () => {
       await service.topUpWallet(amountUsd, userId);
 
       expect(userWalletRepository.findOneBy).toHaveBeenCalledWith({ userId });
-      expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith({
+      expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith(managedSignerService, {
         address: newWallet.address,
         limits: { deployment: 1000000, fees: 1000 }
       });
@@ -58,7 +60,8 @@ describe(RefillService.name, () => {
     });
 
     it("should handle race condition when creating wallet", async () => {
-      const { service, userWalletRepository, managedUserWalletService, balancesService, walletInitializerService, analyticsService } = setup();
+      const { service, userWalletRepository, managedUserWalletService, managedSignerService, balancesService, walletInitializerService, analyticsService } =
+        setup();
       const existingWallet = UserWalletSeeder.create({ userId });
       userWalletRepository.findOneBy.mockResolvedValue(undefined);
       managedUserWalletService.authorizeSpending.mockResolvedValue();
@@ -73,11 +76,11 @@ describe(RefillService.name, () => {
 
       expect(userWalletRepository.findOneBy).toHaveBeenCalledWith({ userId });
       expect(userWalletRepository.findOneBy).toHaveBeenCalledTimes(2);
-      expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith({
+      expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith(managedSignerService, {
         address: existingWallet.address,
         limits: { deployment: 1000000, fees: 1000 }
       });
-      expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith({
+      expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith(managedSignerService, {
         address: existingWallet.address,
         limits: { deployment: 2 * 1000000, fees: 1000 }
       });
@@ -91,6 +94,7 @@ describe(RefillService.name, () => {
       const billingConfig = mock<BillingConfig>();
       const userWalletRepository = mock<UserWalletRepository>();
       const managedUserWalletService = mock<ManagedUserWalletService>();
+      const managedSignerService = mock<ManagedSignerService>();
       const balancesService = mock<BalancesService>();
       const walletInitializerService = mock<WalletInitializerService>();
       const analyticsService = mock<AnalyticsService>();
@@ -101,6 +105,7 @@ describe(RefillService.name, () => {
         billingConfig,
         userWalletRepository,
         managedUserWalletService,
+        managedSignerService,
         balancesService,
         walletInitializerService,
         analyticsService
@@ -111,6 +116,7 @@ describe(RefillService.name, () => {
         billingConfig,
         userWalletRepository,
         managedUserWalletService,
+        managedSignerService,
         balancesService,
         walletInitializerService,
         analyticsService
@@ -122,7 +128,7 @@ describe(RefillService.name, () => {
     const userId = "test-user-id";
 
     it("reduces wallet balance by the specified amount", async () => {
-      const { service, userWalletRepository, managedUserWalletService, balancesService, analyticsService } = setup();
+      const { service, userWalletRepository, managedUserWalletService, managedSignerService, balancesService, analyticsService } = setup();
       const existingWallet = UserWalletSeeder.create({ userId, address: "akash1test..." });
 
       userWalletRepository.findOneBy.mockResolvedValue(existingWallet);
@@ -135,7 +141,7 @@ describe(RefillService.name, () => {
       expect(userWalletRepository.findOneBy).toHaveBeenCalledWith({ userId });
       expect(balancesService.retrieveDeploymentLimit).toHaveBeenCalledWith(existingWallet);
       // 5000000 - (100 * 10000) = 5000000 - 1000000 = 4000000
-      expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith({
+      expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith(managedSignerService, {
         address: existingWallet.address,
         limits: { deployment: 4000000, fees: 1000 }
       });
@@ -144,7 +150,7 @@ describe(RefillService.name, () => {
     });
 
     it("does not reduce balance below zero", async () => {
-      const { service, userWalletRepository, managedUserWalletService, balancesService, analyticsService } = setup();
+      const { service, userWalletRepository, managedUserWalletService, managedSignerService, balancesService, analyticsService } = setup();
       const existingWallet = UserWalletSeeder.create({ userId, address: "akash1test..." });
 
       userWalletRepository.findOneBy.mockResolvedValue(existingWallet);
@@ -155,7 +161,7 @@ describe(RefillService.name, () => {
       await service.reduceWalletBalance(100, userId); // Try to reduce by $1 (100 cents)
 
       // Should set to 0, not negative
-      expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith({
+      expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith(managedSignerService, {
         address: existingWallet.address,
         limits: { deployment: 0, fees: 1000 }
       });
@@ -191,6 +197,7 @@ describe(RefillService.name, () => {
       const billingConfig = mock<BillingConfig>();
       const userWalletRepository = mock<UserWalletRepository>();
       const managedUserWalletService = mock<ManagedUserWalletService>();
+      const managedSignerService = mock<ManagedSignerService>();
       const balancesService = mock<BalancesService>();
       const walletInitializerService = mock<WalletInitializerService>();
       const analyticsService = mock<AnalyticsService>();
@@ -201,6 +208,7 @@ describe(RefillService.name, () => {
         billingConfig,
         userWalletRepository,
         managedUserWalletService,
+        managedSignerService,
         balancesService,
         walletInitializerService,
         analyticsService
@@ -211,6 +219,7 @@ describe(RefillService.name, () => {
         billingConfig,
         userWalletRepository,
         managedUserWalletService,
+        managedSignerService,
         balancesService,
         walletInitializerService,
         analyticsService

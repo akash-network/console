@@ -12,7 +12,9 @@ import type { AuthService } from "@src/auth/services/auth.service";
 import { TrialDeploymentLeaseCreated } from "@src/billing/events/trial-deployment-lease-created";
 import type { UserWalletRepository } from "@src/billing/repositories";
 import type { BalancesService } from "@src/billing/services/balances/balances.service";
+import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
+import type { ManagedUserWalletService } from "@src/billing/services/managed-user-wallet/managed-user-wallet.service";
 import type { TrialValidationService } from "@src/billing/services/trial-validation/trial-validation.service";
 import type { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import type { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
@@ -24,6 +26,7 @@ import { createAkashAddress } from "../../../../test/seeders";
 import type { TxManagerService } from "../tx-manager/tx-manager.service";
 import { ManagedSignerService } from "./managed-signer.service";
 
+import { mockConfigService } from "@test/mocks/config-service.mock";
 import { UserSeeder } from "@test/seeders/user.seeder";
 import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
 
@@ -69,7 +72,8 @@ describe(ManagedSignerService.name, () => {
       const user = UserSeeder.create({ userId: "user-123" });
       const { service } = setup({
         findOneByUserId: jest.fn().mockResolvedValue(wallet),
-        findById: jest.fn().mockResolvedValue(user)
+        findById: jest.fn().mockResolvedValue(user),
+        retrieveAndCalcFeeLimit: jest.fn().mockResolvedValue(0)
       });
 
       await expect(service.executeDerivedDecodedTxByUserId("user-123", [])).rejects.toThrow("Not enough funds to cover the transaction fee");
@@ -89,7 +93,8 @@ describe(ManagedSignerService.name, () => {
 
       const { service } = setup({
         findOneByUserId: jest.fn().mockResolvedValue(wallet),
-        findById: jest.fn().mockResolvedValue(user)
+        findById: jest.fn().mockResolvedValue(user),
+        retrieveDeploymentLimit: jest.fn().mockResolvedValue(0)
       });
 
       await expect(service.executeDerivedDecodedTxByUserId("user-123", [deploymentMessage])).rejects.toThrow("Not enough funds to cover the deployment costs");
@@ -587,6 +592,8 @@ describe(ManagedSignerService.name, () => {
     validateLeaseProvidersAuditors?: TrialValidationService["validateLeaseProvidersAuditors"];
     signAndBroadcastWithDerivedWallet?: TxManagerService["signAndBroadcastWithDerivedWallet"];
     refreshUserWalletLimits?: BalancesService["refreshUserWalletLimits"];
+    retrieveAndCalcFeeLimit?: BalancesService["retrieveAndCalcFeeLimit"];
+    retrieveDeploymentLimit?: BalancesService["retrieveDeploymentLimit"];
     publish?: DomainEventsService["publish"];
     transformChainError?: ChainErrorService["toAppError"];
     hasLeases?: LeaseHttpService["hasLeases"];
@@ -601,7 +608,9 @@ describe(ManagedSignerService.name, () => {
         findById: input?.findById ?? jest.fn()
       }),
       balancesService: mock<BalancesService>({
-        refreshUserWalletLimits: input?.refreshUserWalletLimits ?? jest.fn()
+        refreshUserWalletLimits: input?.refreshUserWalletLimits ?? jest.fn(),
+        retrieveAndCalcFeeLimit: input?.retrieveAndCalcFeeLimit ?? jest.fn().mockResolvedValue(1000000),
+        retrieveDeploymentLimit: input?.retrieveDeploymentLimit ?? jest.fn().mockResolvedValue(5000000)
       }),
       authService: mock<AuthService>({
         currentUser: input?.currentUser ?? UserSeeder.create({ userId: "current-user" }),
@@ -630,6 +639,14 @@ describe(ManagedSignerService.name, () => {
       }),
       walletReloadJobService: mock<WalletReloadJobService>({
         scheduleImmediate: jest.fn()
+      }),
+      billingConfigService: mockConfigService<BillingConfigService>({
+        FEE_ALLOWANCE_REFILL_AMOUNT: 1000000,
+        FEE_ALLOWANCE_REFILL_THRESHOLD: 100000,
+        TRIAL_ALLOWANCE_EXPIRATION_DAYS: 30
+      }),
+      managedUserWalletService: mock<ManagedUserWalletService>({
+        refillWalletFees: jest.fn()
       })
     };
 
@@ -639,6 +656,7 @@ describe(ManagedSignerService.name, () => {
 
     const service = new ManagedSignerService(
       registryMock,
+      mocks.billingConfigService,
       mocks.userWalletRepository,
       mocks.userRepository,
       mocks.balancesService,
@@ -649,7 +667,8 @@ describe(ManagedSignerService.name, () => {
       mocks.txManagerService,
       mocks.domainEvents,
       mocks.leaseHttpService,
-      mocks.walletReloadJobService
+      mocks.walletReloadJobService,
+      mocks.managedUserWalletService
     );
 
     return { service, registry: registryMock, ...mocks };

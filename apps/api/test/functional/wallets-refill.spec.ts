@@ -4,7 +4,7 @@ import { WalletController } from "@src/billing/controllers/wallet/wallet.control
 import type { BillingConfig } from "@src/billing/providers";
 import { BILLING_CONFIG } from "@src/billing/providers";
 import { UserWalletRepository } from "@src/billing/repositories";
-import { ManagedUserWalletService } from "@src/billing/services";
+import { ManagedSignerService, ManagedUserWalletService } from "@src/billing/services";
 import { app } from "@src/rest-app";
 
 import { WalletTestingService } from "@test/services/wallet-testing.service";
@@ -28,7 +28,8 @@ describe("Wallets Refill", () => {
         const limits = {
           fees: config.FEE_ALLOWANCE_REFILL_THRESHOLD
         };
-        await managedUserWalletService.authorizeSpending({
+        const managedSignerService = container.resolve(ManagedSignerService);
+        await managedUserWalletService.authorizeSpending(managedSignerService, {
           address: wallet.address,
           limits
         });

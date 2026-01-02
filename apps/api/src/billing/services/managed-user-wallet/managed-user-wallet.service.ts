@@ -2,12 +2,16 @@ import { AuthzHttpService } from "@akashnetwork/http-sdk";
 import { LoggerService } from "@akashnetwork/logging";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import add from "date-fns/add";
+import addDays from "date-fns/addDays";
+import isAfter from "date-fns/isAfter";
+import subDays from "date-fns/subDays";
+import assert from "http-assert";
 import { singleton } from "tsyringe";
 
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
+import { UserWalletOutput } from "@src/billing/repositories";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
-import type { DryRunOptions } from "@src/core/types/console";
-import { ManagedSignerService } from "../managed-signer/managed-signer.service";
+import type { ManagedSignerService } from "../managed-signer/managed-signer.service";
 import { RpcMessageService, SpendingAuthorizationMsgOptions } from "../rpc-message-service/rpc-message.service";
 
 interface SpendingAuthorizationOptions {
@@ -30,19 +34,18 @@ export class ManagedUserWalletService {
   constructor(
     @InjectBillingConfig() private readonly config: BillingConfig,
     private readonly txManagerService: TxManagerService,
-    private readonly managedSignerService: ManagedSignerService,
     private readonly rpcMessageService: RpcMessageService,
     private readonly authzHttpService: AuthzHttpService
   ) {}
 
-  async createAndAuthorizeTrialSpending({ addressIndex }: { addressIndex: number }) {
+  async createAndAuthorizeTrialSpending(signer: ManagedSignerService, { addressIndex }: { addressIndex: number }) {
     const address = await this.txManagerService.getDerivedWalletAddress(addressIndex);
 
     const limits = {
       deployment: this.config.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT,
       fees: this.config.TRIAL_FEES_ALLOWANCE_AMOUNT
     };
-    await this.authorizeSpending({
+    await this.authorizeSpending(signer, {
       address,
       limits: limits,
       expiration: add(new Date(), { days: this.config.TRIAL_ALLOWANCE_EXPIRATION_DAYS })
@@ -58,7 +61,7 @@ export class ManagedUserWalletService {
     return { address };
   }
 
-  async authorizeSpending(options: SpendingAuthorizationOptions) {
+  async authorizeSpending(signer: ManagedSignerService, options: SpendingAuthorizationOptions) {
     const fundingWalletAddress = await this.txManagerService.getFundingWalletAddress();
     const msgOptions = {
       granter: fundingWalletAddress,
@@ -68,12 +71,12 @@ export class ManagedUserWalletService {
 
     await Promise.all([
       "deployment" in options.limits &&
-        this.authorizeDeploymentSpending({
+        this.authorizeDeploymentSpending(signer, {
           ...msgOptions,
           denom: this.config.DEPLOYMENT_GRANT_DENOM,
           limit: options.limits.deployment
         }),
-      this.authorizeFeeSpending({
+      this.authorizeFeeSpending(signer, {
         ...msgOptions,
         limit: options.limits.fees
       })
@@ -82,7 +85,32 @@ export class ManagedUserWalletService {
     this.logger.debug({ event: "SPENDING_AUTHORIZED", address: options.address });
   }
 
-  private async authorizeFeeSpending(options: Omit<SpendingAuthorizationMsgOptions, "denom">) {
+  /**
+   * Refills fee authorization for a wallet that is eligible for trial allowances.
+   * Authorizes fees for wallets in the trial window, applying the same logic as RefillService.refillWalletFees.
+   * Sets expiration date based on a trial window if the wallet is trialing.
+   *
+   * @param signer - The ManagedSignerService instance to use for authorization
+   * @param userWallet - The user wallet to refill fees for
+   */
+  async refillWalletFees(signer: ManagedSignerService, { address, ...userWallet }: UserWalletOutput) {
+    assert(address, 402, "Wallet is not initialized");
+
+    const trialWindowStart = subDays(new Date(), this.config.TRIAL_ALLOWANCE_EXPIRATION_DAYS);
+    const isInTrialWindow = userWallet.isTrialing && isAfter(userWallet.createdAt, trialWindowStart);
+    const expiration = isInTrialWindow ? addDays(userWallet.createdAt, this.config.TRIAL_ALLOWANCE_EXPIRATION_DAYS) : undefined;
+    const fees = this.config.FEE_ALLOWANCE_REFILL_AMOUNT;
+
+    await this.authorizeSpending(signer, {
+      address,
+      limits: {
+        fees
+      },
+      expiration
+    });
+  }
+
+  private async authorizeFeeSpending(signer: ManagedSignerService, options: Omit<SpendingAuthorizationMsgOptions, "denom">) {
     const messages: EncodeObject[] = [];
     const hasValidFeeAllowance = await this.authzHttpService.hasFeeAllowance(options.granter, options.grantee);
 
@@ -92,43 +120,11 @@ export class ManagedUserWalletService {
 
     messages.push(this.rpcMessageService.getFeesAllowanceGrantMsg(options));
 
-    return await this.managedSignerService.executeFundingTx(messages);
+    return await signer.executeFundingTx(messages);
   }
 
-  private async authorizeDeploymentSpending(options: SpendingAuthorizationMsgOptions) {
+  private async authorizeDeploymentSpending(signer: ManagedSignerService, options: SpendingAuthorizationMsgOptions) {
     const deploymentAllowanceMsg = this.rpcMessageService.getDepositDeploymentGrantMsg(options);
-    return await this.managedSignerService.executeFundingTx([deploymentAllowanceMsg]);
-  }
-
-  async revokeAll(grantee: string, reason?: string, options?: DryRunOptions) {
-    const fundingWalletAddress = await this.txManagerService.getFundingWalletAddress();
-    const params = { granter: fundingWalletAddress, grantee };
-    const messages: EncodeObject[] = [];
-    const revokeSummary = {
-      feeAllowance: false,
-      deploymentGrant: false
-    };
-
-    if (await this.authzHttpService.hasFeeAllowance(params.granter, params.grantee)) {
-      revokeSummary.feeAllowance = true;
-      messages.push(this.rpcMessageService.getRevokeAllowanceMsg(params));
-    }
-
-    if (await this.authzHttpService.hasDepositDeploymentGrant(params.granter, params.grantee)) {
-      revokeSummary.deploymentGrant = true;
-      messages.push(this.rpcMessageService.getRevokeDepositDeploymentGrantMsg(params));
-    }
-
-    if (!messages.length) {
-      return revokeSummary;
-    }
-
-    if (!options?.dryRun) {
-      await this.managedSignerService.executeFundingTx(messages);
-    }
-
-    this.logger.info({ event: "SPENDING_REVOKED", address: params.grantee, revokeSummary, reason });
-
-    return revokeSummary;
+    return await signer.executeFundingTx([deploymentAllowanceMsg]);
   }
 }
