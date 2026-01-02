@@ -1,5 +1,12 @@
 
 
+## [3.18.1](https://github.com/akash-network/console/compare/console-api/v3.18.0...console-api/v3.18.1) (2026-01-02)
+
+
+### Code Refactoring
+
+* **billing:** migrate wallet reload jobs to singleton policy with bulk cleanup  ([07e9be9](https://github.com/akash-network/console/commit/07e9be9fa04840001e66bb9cf52ac8920ceab581)), closes [#1779](https://github.com/akash-network/console/issues/1779)
+
 ## [3.18.0](https://github.com/akash-network/console/compare/console-api/v3.17.3...console-api/v3.18.0) (2026-01-02)
 
 
