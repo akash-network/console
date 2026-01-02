@@ -1,5 +1,12 @@
 
 
+## [3.18.0](https://github.com/akash-network/console/compare/console-api/v3.17.3...console-api/v3.18.0) (2026-01-02)
+
+
+### Features
+
+* **billing:** stripe transactions ([#2438](https://github.com/akash-network/console/issues/2438)) ([ceea647](https://github.com/akash-network/console/commit/ceea6478223bdc1af0d76b4e9e059188b887d0c9))
+
 ## [3.17.3](https://github.com/akash-network/console/compare/console-api/v3.17.2...console-api/v3.17.3) (2025-12-30)
 
 
