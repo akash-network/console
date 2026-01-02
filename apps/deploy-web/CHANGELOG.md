@@ -1,5 +1,13 @@
 
 
+## [3.18.0](https://github.com/akash-network/console/compare/console-web/v3.17.1...console-web/v3.18.0) (2026-01-02)
+
+
+### Features
+
+* **analytics:** proxies amplitude requests to avoid failed requests due to blockers ([70519e4](https://github.com/akash-network/console/commit/70519e49e37e135c92900e40737e284e93d21718))
+* **billing:** stripe transactions ([#2438](https://github.com/akash-network/console/issues/2438)) ([ceea647](https://github.com/akash-network/console/commit/ceea6478223bdc1af0d76b4e9e059188b887d0c9))
+
 ## [3.17.1](https://github.com/akash-network/console/compare/console-web/v3.17.0...console-web/v3.17.1) (2025-12-30)
 
 
