@@ -1,5 +1,12 @@
 
 
+## [3.18.1](https://github.com/akash-network/console/compare/console-web/v3.18.0...console-web/v3.18.1) (2026-01-02)
+
+
+### Code Refactoring
+
+* gets rid of semver dependency in localStorage migrations ([#2419](https://github.com/akash-network/console/issues/2419)) ([80857e0](https://github.com/akash-network/console/commit/80857e00bcf1cd13704e0279190e49b465d28918))
+
 ## [3.18.0](https://github.com/akash-network/console/compare/console-web/v3.17.1...console-web/v3.18.0) (2026-01-02)
 
 
