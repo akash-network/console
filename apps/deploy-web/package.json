@@ -121,7 +121,6 @@
     "rehype-highlight": "^6.0.0",
     "rehype-raw": "^7.0.0",
     "remark-gfm": "^3.0.1",
-    "semver": "^7.5.0",
     "stripe": "^19.3.0",
     "tailwind-merge": "^2.0.0",
     "ts-results": "^3.3.0",

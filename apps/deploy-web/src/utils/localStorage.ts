@@ -1,7 +1,5 @@
 "use client";
 
-import { gt, neq } from "semver";
-
 const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || "0.0.0";
 
 const migrations: Record<string, () => void> = {
@@ -15,13 +13,13 @@ const migrations: Record<string, () => void> = {
 // Check if latestUpdatedVersion is < currentVersion
 // If so run all the version > until current is reached.
 export const migrateLocalStorage = () => {
-  const currentVersion = APP_VERSION;
-  const version = getVersion();
-  const hasPreviousVersion = version && neq(currentVersion, version);
+  const currentVersion = APP_VERSION.replace(/-[\w]+$/, "");
+  const version = getVersion().replace(/-[\w]+$/, "");
+  const hasPreviousVersion = version && currentVersion !== version;
 
   if (hasPreviousVersion) {
     Object.keys(migrations).forEach(migrationVersion => {
-      if (gt(migrationVersion, version)) {
+      if (compareVersions(migrationVersion, version) > 0) {
         try {
           console.log(`Applying version ${migrationVersion}`);
           // Execute local storage migration
@@ -49,4 +47,19 @@ function getVersion(): string {
   }
 
   return APP_VERSION;
+}
+
+function compareVersions(a: string, b: string): number {
+  const partsA = a.split(".").map(Number);
+  const partsB = b.split(".").map(Number);
+  const maxLength = Math.max(partsA.length, partsB.length);
+
+  for (let i = 0; i < maxLength; i++) {
+    const partA = partsA[i] ?? 0;
+    const partB = partsB[i] ?? 0;
+    if (partA > partB) return 1;
+    if (partA < partB) return -1;
+  }
+
+  return 0;
 }
