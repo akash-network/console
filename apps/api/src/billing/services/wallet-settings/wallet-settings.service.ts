@@ -26,22 +26,14 @@ export class WalletSettingService {
     private readonly walletReloadJobService: WalletReloadJobService
   ) {}
 
-  async getWalletSetting(userId: string): Promise<Omit<WalletSettingOutput, "autoReloadJobId"> | undefined> {
+  async getWalletSetting(userId: string): Promise<WalletSettingOutput | undefined> {
     const { ability } = this.authService;
 
-    const maybeSetting = await this.walletSettingRepository.accessibleBy(ability, "read").findByUserId(userId);
-
-    if (!maybeSetting) {
-      return undefined;
-    }
-
-    const { autoReloadJobId, ...setting } = maybeSetting;
-
-    return setting;
+    return await this.walletSettingRepository.accessibleBy(ability, "read").findByUserId(userId);
   }
 
   @WithTransaction()
-  async upsertWalletSetting(userId: UserOutput["id"], input: WalletSettingInput): Promise<Omit<WalletSettingOutput, "autoReloadJobId">> {
+  async upsertWalletSetting(userId: UserOutput["id"], input: WalletSettingInput): Promise<WalletSettingOutput> {
     let mutationResult = await this.#update(userId, input);
 
     if (!mutationResult.next) {
@@ -50,9 +42,7 @@ export class WalletSettingService {
 
     await this.#arrangeSchedule(mutationResult.prev, mutationResult.next);
 
-    const { autoReloadJobId, ...setting } = mutationResult.next!;
-
-    return setting;
+    return mutationResult.next!;
   }
 
   async #update(userId: UserOutput["id"], settings: WalletSettingInput): Promise<{ prev?: WalletSettingOutput; next?: WalletSettingOutput }> {
@@ -123,11 +113,7 @@ export class WalletSettingService {
 
   async #arrangeSchedule(prev?: WalletSettingOutput, next?: WalletSettingOutput) {
     if (!prev?.autoReloadEnabled && next?.autoReloadEnabled) {
-      await this.walletReloadJobService.scheduleForWalletSetting(next, { prevAction: "cancel" });
-    }
-
-    if (!next?.autoReloadEnabled && next?.autoReloadJobId) {
-      await this.walletReloadJobService.cancel(next.userId, next.autoReloadJobId);
+      await this.walletReloadJobService.scheduleForWalletSetting(next);
     }
   }
 
@@ -137,9 +123,6 @@ export class WalletSettingService {
 
     assert(walletSetting, 404, "WalletSetting Not Found");
 
-    await Promise.all([
-      this.walletSettingRepository.accessibleBy(ability, "delete").deleteBy({ userId }),
-      ...(walletSetting.autoReloadJobId ? [this.walletReloadJobService.cancel(userId, walletSetting.autoReloadJobId)] : [])
-    ]);
+    await this.walletSettingRepository.accessibleBy(ability, "delete").deleteBy({ userId });
   }
 }

@@ -10,7 +10,6 @@ export const generateWalletSetting = (overrides: Partial<WalletSettingOutput>) =
     autoReloadEnabled: faker.datatype.boolean(),
     autoReloadThreshold: faker.number.float({ min: 0, max: 1000, fractionDigits: 2 }),
     autoReloadAmount: faker.number.float({ min: 0, max: 1000, fractionDigits: 2 }),
-    autoReloadJobId: faker.string.uuid(),
     createdAt: faker.date.recent(),
     updatedAt: faker.date.recent(),
     ...overrides

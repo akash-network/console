@@ -120,6 +120,31 @@ export class JobQueueService implements Disposable {
     }
   }
 
+  async cancelCreatedBy(query: { name: string; singletonKey: string }): Promise<void> {
+    const db = await this.pgBoss.getDb();
+    const schema = this.coreConfig.get("POSTGRES_BACKGROUND_JOBS_SCHEMA");
+    const result = (await db.executeSql(
+      `
+        WITH results as (
+          UPDATE ${schema}.job
+          SET completed_on = now(),
+            state = 'cancelled'
+          WHERE name = $1
+            AND state = 'created'
+            AND singleton_key = $2
+          RETURNING id
+        )
+        SELECT id FROM results
+      `,
+      [query.name, query.singletonKey]
+    )) as { rows: { id: string }[] };
+
+    this.logger.info({
+      event: "JOBS_CANCELLED",
+      jobIds: result.rows.map(r => r.id)
+    });
+  }
+
   async complete(name: string, id: string): Promise<void> {
     try {
       await this.pgBoss.complete(name, id);
