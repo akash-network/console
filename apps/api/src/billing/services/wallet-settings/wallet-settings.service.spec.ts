@@ -51,9 +51,7 @@ describe(WalletSettingService.name, () => {
         autoReloadEnabled: false
       });
 
-      const { autoReloadJobId, ...publicUpdatedSetting } = updatedSetting;
-
-      expect(result).toEqual(publicUpdatedSetting);
+      expect(result).toEqual(updatedSetting);
       expect(walletSettingRepository.findByUserId).toHaveBeenCalledWith(user.id);
       expect(walletSettingRepository.updateById).toHaveBeenCalledWith(publicSetting.id, { autoReloadEnabled: false }, { returning: true });
     });
@@ -73,9 +71,7 @@ describe(WalletSettingService.name, () => {
         autoReloadEnabled: true
       });
 
-      const { autoReloadJobId, ...publicSetting } = newSetting;
-
-      expect(result).toEqual(publicSetting);
+      expect(result).toEqual(newSetting);
       expect(walletSettingRepository.findByUserId).toHaveBeenCalledWith(user.id);
       expect(userWalletRepository.findOneByUserId).toHaveBeenCalledWith(user.id);
       expect(walletSettingRepository.create).toHaveBeenCalledWith({
@@ -87,8 +83,7 @@ describe(WalletSettingService.name, () => {
         expect.objectContaining({
           id: newSetting.id,
           userId: user.id
-        }),
-        { prevAction: "cancel" }
+        })
       );
     });
 
@@ -106,9 +101,8 @@ describe(WalletSettingService.name, () => {
       const result = await service.upsertWalletSetting(user.id, {
         autoReloadEnabled: true
       });
-      const { autoReloadJobId, ...newPublicSetting } = newSetting;
 
-      expect(result).toEqual(newPublicSetting);
+      expect(result).toEqual(newSetting);
       expect(walletSettingRepository.findByUserId).toHaveBeenCalledWith(user.id);
       expect(userWalletRepository.findOneByUserId).toHaveBeenCalledWith(user.id);
       expect(walletSettingRepository.create).toHaveBeenCalledWith({
@@ -132,9 +126,8 @@ describe(WalletSettingService.name, () => {
       const result = await service.upsertWalletSetting(user.id, {
         autoReloadEnabled: true
       });
-      const { autoReloadJobId, ...publicUpdatedSetting } = updatedSetting;
 
-      expect(result).toEqual(publicUpdatedSetting);
+      expect(result).toEqual(updatedSetting);
       expect(walletSettingRepository.updateById).toHaveBeenCalledWith(
         existingSetting.id,
         {
@@ -146,38 +139,8 @@ describe(WalletSettingService.name, () => {
         expect.objectContaining({
           id: updatedSetting.id,
           userId: user.id
-        }),
-        { prevAction: "cancel" }
+        })
       );
-    });
-
-    it("cancels job when auto-reload is disabled", async () => {
-      const { user, walletSetting, walletSettingRepository, walletReloadJobService, service } = setup();
-      const existingJobId = faker.string.uuid();
-      const existingSetting = { ...walletSetting, autoReloadEnabled: true, autoReloadJobId: existingJobId };
-      const updatedSetting = {
-        ...walletSetting,
-        id: walletSetting.id,
-        autoReloadEnabled: false,
-        autoReloadJobId: existingJobId
-      };
-      walletSettingRepository.findByUserId.mockResolvedValue(existingSetting);
-      walletSettingRepository.updateById.mockResolvedValue(updatedSetting as any);
-
-      const result = await service.upsertWalletSetting(user.id, {
-        autoReloadEnabled: false
-      });
-      const { autoReloadJobId, ...publicUpdatedSetting } = updatedSetting;
-
-      expect(result).toEqual(publicUpdatedSetting);
-      expect(walletSettingRepository.updateById).toHaveBeenCalledWith(
-        walletSetting.id,
-        {
-          autoReloadEnabled: false
-        },
-        { returning: true }
-      );
-      expect(walletReloadJobService.cancel).toHaveBeenCalledWith(user.id, existingJobId);
     });
 
     it("throws 404 when user wallet not found during create", async () => {
@@ -201,20 +164,6 @@ describe(WalletSettingService.name, () => {
       await service.deleteWalletSetting(user.id);
 
       expect(walletSettingRepository.deleteBy).toHaveBeenCalledWith({ userId: user.id });
-    });
-
-    it("deletes wallet setting and cancels job when autoReloadJobId exists", async () => {
-      const { user, walletSetting, walletSettingRepository, walletReloadJobService, service } = setup();
-      const existingJobId = faker.string.uuid();
-      const settingWithJob = { ...walletSetting, autoReloadJobId: existingJobId };
-      walletSettingRepository.findByUserId.mockResolvedValue(settingWithJob);
-      walletSettingRepository.deleteBy.mockResolvedValue(undefined);
-
-      await service.deleteWalletSetting(user.id);
-
-      expect(walletSettingRepository.findByUserId).toHaveBeenCalledWith(user.id);
-      expect(walletSettingRepository.deleteBy).toHaveBeenCalledWith({ userId: user.id });
-      expect(walletReloadJobService.cancel).toHaveBeenCalledWith(user.id, existingJobId);
     });
   });
 
@@ -241,17 +190,15 @@ describe(WalletSettingService.name, () => {
     });
     const jobId = faker.string.uuid();
     const walletReloadJobService = mock<WalletReloadJobService>({
-      scheduleForWalletSetting: jest.fn().mockResolvedValue(jobId),
-      cancel: jest.fn().mockResolvedValue(undefined)
+      scheduleForWalletSetting: jest.fn().mockResolvedValue(jobId)
     });
     const service = new WalletSettingService(walletSettingRepository, userWalletRepository, userRepository, stripeService, authService, walletReloadJobService);
-    const { autoReloadJobId, ...publicSetting } = walletSetting;
 
     return {
       user: userWithStripe,
       userWallet,
       walletSetting,
-      publicSetting,
+      publicSetting: walletSetting,
       walletSettingRepository,
       userWalletRepository,
       userRepository,

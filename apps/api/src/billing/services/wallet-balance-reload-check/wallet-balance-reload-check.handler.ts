@@ -21,7 +21,7 @@ type ValidationError = {
 };
 
 type InitializedWallet = Require<Pick<UserWalletOutput, "address">, "address">;
-type ActionableWalletSetting = Pick<WalletSettingOutput, "id" | "userId" | "autoReloadJobId">;
+type ActionableWalletSetting = Pick<WalletSettingOutput, "id" | "userId">;
 
 type Resources = {
   walletSetting: ActionableWalletSetting;
@@ -38,7 +38,7 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
 
   public readonly concurrency = 10;
 
-  public readonly policy = "short";
+  public readonly policy = "singleton";
 
   #CHECK_INTERVAL_IN_MS = millisecondsInDay;
 
@@ -209,7 +209,7 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
     try {
       await this.walletReloadJobService.scheduleForWalletSetting(resources.walletSetting, {
         startAfter: this.#calculateNextCheckDate().toISOString(),
-        prevAction: "complete"
+        withCleanup: true
       });
     } catch (error) {
       this.instrumentationService.recordSchedulingError(resources.wallet.address, error);

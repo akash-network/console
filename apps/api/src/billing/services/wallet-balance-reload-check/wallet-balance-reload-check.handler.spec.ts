@@ -56,7 +56,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
         }),
         expect.objectContaining({
           startAfter: expect.any(String),
-          prevAction: "complete"
+          withCleanup: true
         })
       );
       const scheduleCall = walletReloadJobService.scheduleForWalletSetting.mock.calls[0];
@@ -191,7 +191,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
         }),
         expect.objectContaining({
           startAfter: expect.any(String),
-          prevAction: "complete"
+          withCleanup: true
         })
       );
     });
