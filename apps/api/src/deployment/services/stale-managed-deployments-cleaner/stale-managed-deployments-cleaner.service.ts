@@ -66,7 +66,7 @@ export class StaleManagedDeploymentsCleanerService {
       this.logger.info({ event: "DEPLOYMENT_CLEAN_UP_SUCCESS", owner: wallet.address });
     } catch (error: any) {
       if (error.message.includes("not allowed to pay fees")) {
-        await this.managedUserWalletService.authorizeSpending({
+        await this.managedUserWalletService.authorizeSpending(this.managedSignerService, {
           address: wallet.address!,
           limits: {
             fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT
