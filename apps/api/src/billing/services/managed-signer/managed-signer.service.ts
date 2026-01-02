@@ -16,9 +16,7 @@ import { ManagedUserWalletService } from "@src/billing/services/managed-user-wal
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
-import { UserOutput, UserRepository } from "@src/user/repositories";
+import { UserRepository } from "@src/user/repositories";
 import { BalancesService } from "../balances/balances.service";
 import { BillingConfigService } from "../billing-config/billing-config.service";
 import { ChainErrorService } from "../chain-error/chain-error.service";
@@ -39,7 +37,6 @@ export class ManagedSignerService {
     private readonly authService: AuthService,
     private readonly chainErrorService: ChainErrorService,
     private readonly anonymousValidateService: TrialValidationService,
-    private readonly featureFlagsService: FeatureFlagsService,
     private readonly txManagerService: TxManagerService,
     private readonly domainEvents: DomainEventsService,
     private readonly leaseHttpService: LeaseHttpService,
@@ -92,16 +89,13 @@ export class ManagedSignerService {
 
     const userWallet = await this.userWalletRepository.accessibleBy(this.authService.ability, "sign").findOneByUserId(userId);
     assert(userWallet, 404, "UserWallet Not Found");
-    const user = this.authService.currentUser.userId === userId ? this.authService.currentUser : await this.userRepository.findById(userId);
-    assert(user, 404, "User Not Found");
 
-    return this.executeDecodedTxByUserWallet(userWallet, messages, user);
+    return this.executeDecodedTxByUserWallet(userWallet, messages);
   }
 
   async executeDecodedTxByUserWallet(
     userWallet: UserWalletOutput,
-    messages: EncodeObject[],
-    walletOwner?: UserOutput
+    messages: EncodeObject[]
   ): Promise<{
     code: number;
     hash: string;
@@ -110,17 +104,6 @@ export class ManagedSignerService {
   }> {
     await this.#validateBalances(userWallet, messages);
     await this.anonymousValidateService.validateLeaseProvidersAuditors(messages, userWallet);
-
-    const user = walletOwner?.id === userWallet.userId ? walletOwner : await this.userRepository.findById(userWallet.userId!);
-    assert(user, 500, "User for wallet not found");
-    await Promise.all(
-      messages.map(message =>
-        Promise.all([
-          this.anonymousValidateService.validateLeaseProviders(message, userWallet, user),
-          this.anonymousValidateService.validateTrialLimit(message, userWallet)
-        ])
-      )
-    );
 
     const createLeaseMessage: { typeUrl: string; value: MsgCreateLease } | undefined = messages.find(message => message.typeUrl.endsWith(".MsgCreateLease"));
     const hasCreateTrialLeaseMessage = userWallet.isTrialing && !!createLeaseMessage;

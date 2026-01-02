@@ -7,9 +7,6 @@ import { AuthService } from "@src/auth/services/auth.service";
 import { TrialStarted } from "@src/billing/events/trial-started";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
-import type { FeatureFlagValue } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { ProviderJwtTokenService } from "@src/provider/services/provider-jwt-token/provider-jwt-token.service";
 import { UserWalletRepository } from "../../repositories/user-wallet/user-wallet.repository";
 import { ManagedSignerService } from "../managed-signer/managed-signer.service";
@@ -32,7 +29,6 @@ describe(WalletInitializerService.name, () => {
       const di = setup({
         getOrCreateWallet,
         updateWalletById,
-        enabledFeatures: [FeatureFlags.ANONYMOUS_FREE_TRIAL]
       });
       const managedUserWalletService = di.resolve(ManagedUserWalletService) as MockProxy<ManagedUserWalletService>;
       managedUserWalletService.createAndAuthorizeTrialSpending.mockResolvedValue(chainWallet);
@@ -59,7 +55,6 @@ describe(WalletInitializerService.name, () => {
 
       const di = setup({
         getOrCreateWallet,
-        enabledFeatures: [FeatureFlags.ANONYMOUS_FREE_TRIAL]
       });
       const managedUserWalletService = di.resolve(ManagedUserWalletService);
 
@@ -78,7 +73,6 @@ describe(WalletInitializerService.name, () => {
       const di = setup({
         getOrCreateWallet,
         deleteWalletById,
-        enabledFeatures: [FeatureFlags.ANONYMOUS_FREE_TRIAL]
       });
       const managedUserWalletService = di.resolve(ManagedUserWalletService) as MockProxy<ManagedUserWalletService>;
       managedUserWalletService.createAndAuthorizeTrialSpending.mockRejectedValue(new Error("Failed to authorize trial"));
@@ -89,7 +83,7 @@ describe(WalletInitializerService.name, () => {
       expect(di.resolve(DomainEventsService).publish).not.toHaveBeenCalled();
     });
 
-    it(`publishes "TrialStarted" event when ANONYMOUS_FREE_TRIAL is disabled`, async () => {
+    it(`publishes "TrialStarted" event`, async () => {
       const userId = "test-user-id";
       const newWallet = UserWalletSeeder.create({ userId });
       const chainWallet = createChainWallet();
@@ -100,7 +94,6 @@ describe(WalletInitializerService.name, () => {
         userId,
         getOrCreateWallet,
         updateWalletById,
-        enabledFeatures: []
       });
       const managedUserWalletService = di.resolve(ManagedUserWalletService) as MockProxy<ManagedUserWalletService>;
       managedUserWalletService.createAndAuthorizeTrialSpending.mockResolvedValue(chainWallet);
@@ -116,7 +109,6 @@ describe(WalletInitializerService.name, () => {
     updateWalletById?: UserWalletRepository["updateById"];
     deleteWalletById?: UserWalletRepository["deleteById"];
     userId?: string;
-    enabledFeatures?: FeatureFlagValue[];
   }) {
     const di = container.createChildContainer();
     di.registerInstance(TYPE_REGISTRY, new Registry());
@@ -144,12 +136,6 @@ describe(WalletInitializerService.name, () => {
       })
     );
     di.registerInstance(DomainEventsService, mock<DomainEventsService>());
-    di.registerInstance(
-      FeatureFlagsService,
-      mock<FeatureFlagsService>({
-        isEnabled: jest.fn(flag => !!input?.enabledFeatures?.includes(flag))
-      })
-    );
     di.registerInstance(
       ProviderJwtTokenService,
       mock<ProviderJwtTokenService>({

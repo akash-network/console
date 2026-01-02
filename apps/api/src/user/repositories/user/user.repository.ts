@@ -1,4 +1,4 @@
-import { and, eq, isNull, lt, SQL, sql } from "drizzle-orm";
+import { and, eq, lt, SQL, sql } from "drizzle-orm";
 import { PgUpdateSetSource } from "drizzle-orm/pg-core";
 import { singleton } from "tsyringe";
 

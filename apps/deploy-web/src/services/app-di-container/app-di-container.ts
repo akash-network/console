@@ -8,7 +8,6 @@ import {
   TemplateHttpService,
   TxHttpService,
   UsageHttpService,
-  UserHttpService,
   WalletSettingsHttpService
 } from "@akashnetwork/http-sdk";
 import { StripeService as HttpStripeService } from "@akashnetwork/http-sdk/src/stripe/stripe.service";
@@ -52,7 +51,6 @@ export const createAppRootContainer = (config: ServicesConfig) => {
           response: [...(interceptors?.response || [])]
         });
     },
-    user: () => container.applyAxiosInterceptors(new UserHttpService(apiConfig), { request: [withUserToken] }),
     stripe: () =>
       container.applyAxiosInterceptors(new HttpStripeService(apiConfig), {
         request: [withUserToken]

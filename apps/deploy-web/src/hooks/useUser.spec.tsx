@@ -1,4 +1,3 @@
-import type { UserHttpService } from "@akashnetwork/http-sdk";
 import { CustomSnackbarProvider } from "@akashnetwork/ui/context";
 import { UserProvider } from "@auth0/nextjs-auth0/client";
 import { mock } from "jest-mock-extended";
@@ -43,12 +42,7 @@ describe("useIsRegisteredUser", () => {
     jest.clearAllMocks();
     jest.restoreAllMocks();
 
-    const mockUserHttpService = mock<UserHttpService>({});
-
     return setupQuery(() => useIsRegisteredUser(), {
-      services: {
-        user: () => mockUserHttpService
-      },
       wrapper: ({ children }) => (
         <CustomSnackbarProvider>
           <UserProvider user={customUser}>{children}</UserProvider>

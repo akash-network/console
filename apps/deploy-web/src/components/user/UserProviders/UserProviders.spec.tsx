@@ -51,14 +51,10 @@ describe(UserProviders.name, () => {
     });
 
     expect(userTracker.track).toHaveBeenCalledWith(undefined);
-    expect(analyticsService.identify).toHaveBeenCalledTimes(2);
+    expect(analyticsService.identify).toHaveBeenCalledTimes(1);
   });
 
-  async function setup(input?: {
-    getProfile?: () => Promise<CustomUserProfile>;
-    userTracker?: UserTracker;
-    analyticsService?: AnalyticsService;
-  }) {
+  async function setup(input?: { getProfile?: () => Promise<CustomUserProfile>; userTracker?: UserTracker; analyticsService?: AnalyticsService }) {
     const services = {
       internalApiHttpClient: () =>
         mock<Omit<AxiosInstance, "defaults">>({

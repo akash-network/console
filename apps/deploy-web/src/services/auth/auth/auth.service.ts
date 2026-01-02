@@ -15,11 +15,6 @@ export class AuthService {
     if (options?.returnTo) params.append("returnTo", options.returnTo);
     if (options?.connection) params.append("connection", options.connection);
 
-    await this.internalApiHttpClient.get<void>(this.urlService.signup(), {
-      fetchOptions: {
-        redirect: "manual"
-      }
-    });
     const queryParams = params.toString();
     // redirect user to the same url because it's impossible to read Location header in browser
     this.location.assign(this.urlService.signup() + (queryParams ? `?${queryParams}` : ""));

@@ -1,4 +1,5 @@
 import type { HttpClient } from "@akashnetwork/http-sdk";
+import { mock } from "jest-mock-extended";
 
 import { ONBOARDING_STEP_KEY } from "@src/services/storage/keys";
 import type { AuthUrlService } from "./auth.service";
@@ -8,23 +9,21 @@ describe(AuthService.name, () => {
   const mockSignupUrl = "https://auth.example.com/signup";
   const mockLogoutUrl = "https://auth.example.com/logout";
 
-  describe("signup", () => {
+  describe("loginViaOauth", () => {
     it("calls signup URL without returnTo parameter", async () => {
-      const { service, httpClient, location } = setup();
+      const { service, location } = setup();
 
       await service.loginViaOauth();
 
-      expect(httpClient.get).toHaveBeenCalledWith(mockSignupUrl, expect.any(Object));
       expect(location.assign).toHaveBeenCalledWith(mockSignupUrl);
     });
 
     it("calls signup URL with returnTo parameter", async () => {
-      const { service, httpClient, location } = setup();
+      const { service, location } = setup();
       const returnTo = "/dashboard";
 
       await service.loginViaOauth({ returnTo });
 
-      expect(httpClient.get).toHaveBeenCalledWith(mockSignupUrl, expect.any(Object));
       expect(location.assign).toHaveBeenCalledWith(`${mockSignupUrl}?returnTo=${encodeURIComponent(returnTo)}`);
     });
   });
