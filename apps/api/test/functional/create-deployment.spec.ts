@@ -11,8 +11,6 @@ import { container } from "tsyringe";
 import { BILLING_CONFIG } from "@src/billing/providers";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { CORE_CONFIG } from "@src/core";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { app } from "@src/rest-app";
 import { certVersion, deploymentVersion } from "@src/utils/constants";
 
@@ -33,8 +31,6 @@ describe("Tx Sign", () => {
 
   describe("POST /v1/tx", () => {
     it("should create a deployment for a user", async () => {
-      jest.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => flag !== FeatureFlags.ANONYMOUS_FREE_TRIAL);
-
       const { user, token, wallet } = await walletService.createUserAndWallet();
       nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL, { allowUnmocked: true })
         .get(
