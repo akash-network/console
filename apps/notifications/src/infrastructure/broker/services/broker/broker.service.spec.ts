@@ -46,7 +46,9 @@ describe(BrokerService.name, () => {
 
       await service.subscribe(eventName, options, handler);
 
-      expect(pgBoss.createQueue).toHaveBeenCalledWith(queueName);
+      expect(pgBoss.createQueue).toHaveBeenCalledWith(queueName, {
+        deleteAfterSeconds: configService.getOrThrow("broker.EVENT_BROKER_ARCHIVE_COMPLETED_AFTER_SECONDS")
+      });
       expect(pgBoss.subscribe).toHaveBeenCalledWith(eventName, queueName);
       expect(pgBoss.work).toHaveBeenCalledTimes(options.prefetchCount);
       expect(pgBoss.work).toHaveBeenCalledWith(queueName, expect.any(Function));
