@@ -8,7 +8,6 @@ import {
   TemplateHttpService,
   TxHttpService,
   UsageHttpService,
-  UserHttpService,
   WalletSettingsHttpService
 } from "@akashnetwork/http-sdk";
 import { StripeService as HttpStripeService } from "@akashnetwork/http-sdk/src/stripe/stripe.service";
@@ -52,18 +51,6 @@ export const createAppRootContainer = (config: ServicesConfig) => {
           response: [...(interceptors?.response || [])]
         });
     },
-    user: () =>
-      container.applyAxiosInterceptors(new UserHttpService(apiConfig), {
-        request: [withUserToken],
-        response: [
-          response => {
-            if (response.config.url?.startsWith("/v1/anonymous-users") && response.config.method === "post" && response.status === 200) {
-              container.analyticsService.track("anonymous_user_created", { category: "user", label: "Anonymous User Created" });
-            }
-            return response;
-          }
-        ]
-      }),
     stripe: () =>
       container.applyAxiosInterceptors(new HttpStripeService(apiConfig), {
         request: [withUserToken]

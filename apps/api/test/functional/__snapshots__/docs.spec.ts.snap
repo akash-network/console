@@ -2137,102 +2137,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
         ],
       },
     },
-    "/v1/anonymous-users": {
-      "post": {
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "data": {
-                      "properties": {
-                        "id": {
-                          "type": "string",
-                        },
-                      },
-                      "required": [
-                        "id",
-                      ],
-                      "type": "object",
-                    },
-                    "token": {
-                      "type": "string",
-                    },
-                  },
-                  "required": [
-                    "data",
-                    "token",
-                  ],
-                  "type": "object",
-                },
-              },
-            },
-            "description": "Returns a created anonymous user",
-          },
-        },
-        "security": [],
-        "summary": "Creates an anonymous user",
-        "tags": [
-          "Users",
-        ],
-      },
-    },
-    "/v1/anonymous-users/{id}": {
-      "get": {
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "type": "string",
-            },
-          },
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "data": {
-                      "properties": {
-                        "id": {
-                          "type": "string",
-                        },
-                      },
-                      "required": [
-                        "id",
-                      ],
-                      "type": "object",
-                    },
-                  },
-                  "required": [
-                    "data",
-                  ],
-                  "type": "object",
-                },
-              },
-            },
-            "description": "Returns an anonymous user",
-          },
-        },
-        "security": [
-          {
-            "BearerAuth": [],
-          },
-          {
-            "ApiKeyAuth": [],
-          },
-        ],
-        "summary": "Retrieves an anonymous user by id",
-        "tags": [
-          "Users",
-        ],
-      },
-    },
     "/v1/api-keys": {
       "get": {
         "responses": {
@@ -14874,12 +14778,52 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                   "properties": {
                     "data": {
                       "properties": {
+                        "bio": {
+                          "nullable": true,
+                          "type": "string",
+                        },
+                        "email": {
+                          "type": "string",
+                        },
+                        "emailVerified": {
+                          "type": "boolean",
+                        },
+                        "githubUsername": {
+                          "nullable": true,
+                          "type": "string",
+                        },
                         "id": {
+                          "type": "string",
+                        },
+                        "stripeCustomerId": {
+                          "nullable": true,
+                          "type": "string",
+                        },
+                        "subscribedToNewsletter": {
+                          "type": "boolean",
+                        },
+                        "twitterUsername": {
+                          "nullable": true,
+                          "type": "string",
+                        },
+                        "userId": {
+                          "type": "string",
+                        },
+                        "username": {
+                          "type": "string",
+                        },
+                        "youtubeUsername": {
+                          "nullable": true,
                           "type": "string",
                         },
                       },
                       "required": [
                         "id",
+                        "userId",
+                        "username",
+                        "email",
+                        "emailVerified",
+                        "subscribedToNewsletter",
                       ],
                       "type": "object",
                     },

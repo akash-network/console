@@ -1,4 +1,3 @@
-import type { UserHttpService } from "@akashnetwork/http-sdk";
 import type { AxiosInstance } from "axios";
 import { mock } from "jest-mock-extended";
 
@@ -9,7 +8,7 @@ import type { CustomUserProfile } from "@src/types/user";
 import { UserProviders } from "./UserProviders";
 
 import { act, render, screen, waitFor } from "@testing-library/react";
-import { buildAnonymousUser, buildUser } from "@tests/seeders/user";
+import { buildUser } from "@tests/seeders/user";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe(UserProviders.name, () => {
@@ -23,7 +22,6 @@ describe(UserProviders.name, () => {
 
   it("tracks user changes", async () => {
     const user = buildUser();
-    const anonymousUser = buildAnonymousUser();
     const userTracker = mock<UserTracker>();
     const analyticsService = mock<AnalyticsService>();
 
@@ -32,7 +30,6 @@ describe(UserProviders.name, () => {
         .fn()
         .mockImplementationOnce(async () => user)
         .mockImplementationOnce(async () => undefined),
-      getOrCreateAnonymousUser: jest.fn(async () => ({ data: anonymousUser })),
       userTracker,
       analyticsService
     });
@@ -54,21 +51,10 @@ describe(UserProviders.name, () => {
     });
 
     expect(userTracker.track).toHaveBeenCalledWith(undefined);
-    expect(userTracker.track).toHaveBeenCalledWith(anonymousUser);
-    expect(analyticsService.identify).toHaveBeenCalledTimes(3);
-    expect(analyticsService.identify).toHaveBeenCalledWith({
-      id: anonymousUser.id,
-      anonymous: !anonymousUser.userId,
-      emailVerified: anonymousUser.emailVerified
-    });
+    expect(analyticsService.identify).toHaveBeenCalledTimes(1);
   });
 
-  async function setup(input?: {
-    getProfile?: () => Promise<CustomUserProfile>;
-    userTracker?: UserTracker;
-    analyticsService?: AnalyticsService;
-    getOrCreateAnonymousUser?: UserHttpService["getOrCreateAnonymousUser"];
-  }) {
+  async function setup(input?: { getProfile?: () => Promise<CustomUserProfile>; userTracker?: UserTracker; analyticsService?: AnalyticsService }) {
     const services = {
       internalApiHttpClient: () =>
         mock<Omit<AxiosInstance, "defaults">>({
@@ -84,10 +70,6 @@ describe(UserProviders.name, () => {
       appConfig: () =>
         mock<BrowserEnvConfig>({
           NEXT_PUBLIC_BILLING_ENABLED: true
-        }),
-      user: () =>
-        mock<UserHttpService>({
-          getOrCreateAnonymousUser: input?.getOrCreateAnonymousUser || (async () => ({ data: buildAnonymousUser() }))
         })
     };
     let id = 0;

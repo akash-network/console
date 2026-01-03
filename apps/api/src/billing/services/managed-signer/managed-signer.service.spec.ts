@@ -19,8 +19,6 @@ import type { TrialValidationService } from "@src/billing/services/trial-validat
 import type { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import type { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import type { FeatureFlagValue } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { UserOutput, UserRepository } from "@src/user/repositories";
 import { createAkashAddress } from "../../../../test/seeders";
 import type { TxManagerService } from "../tx-manager/tx-manager.service";
@@ -53,18 +51,6 @@ describe(ManagedSignerService.name, () => {
 
       expect(userWalletRepository.accessibleBy).toHaveBeenCalledWith(authService.ability, "sign");
       expect(userWalletRepository.findOneByUserId).toHaveBeenCalledWith("user-123");
-    });
-
-    it("throws 404 error when user is not found", async () => {
-      const wallet = UserWalletSeeder.create({ userId: "user-123" });
-      const { service, userRepository } = setup({
-        findOneByUserId: jest.fn().mockResolvedValue(wallet),
-        findById: jest.fn().mockResolvedValue(null)
-      });
-
-      await expect(service.executeDerivedDecodedTxByUserId("user-456", [])).rejects.toThrow("User Not Found");
-
-      expect(userRepository.findById).toHaveBeenCalledWith("user-456");
     });
 
     it("throws 402 error when userWallet has no fee allowance", async () => {
@@ -100,45 +86,6 @@ describe(ManagedSignerService.name, () => {
       await expect(service.executeDerivedDecodedTxByUserId("user-123", [deploymentMessage])).rejects.toThrow("Not enough funds to cover the deployment costs");
     });
 
-    it("validates trial limits when anonymous free trial is enabled", async () => {
-      const wallet = UserWalletSeeder.create({
-        userId: "user-123",
-        feeAllowance: 100,
-        deploymentAllowance: 100
-      });
-      const user = UserSeeder.create({ userId: "user-123" });
-      const messages: EncodeObject[] = [
-        {
-          typeUrl: MsgCreateLease.$type,
-          value: MsgCreateLease.fromPartial({
-            bidId: {
-              dseq: Long.fromNumber(123)
-            }
-          })
-        }
-      ];
-
-      const { service, anonymousValidateService, featureFlagsService } = setup({
-        findOneByUserId: jest.fn().mockResolvedValue(wallet),
-        findById: jest.fn().mockResolvedValue(user),
-        enabledFeatures: [FeatureFlags.ANONYMOUS_FREE_TRIAL],
-        validateLeaseProviders: jest.fn().mockResolvedValue(undefined),
-        validateTrialLimit: jest.fn().mockResolvedValue(undefined),
-        signAndBroadcastWithDerivedWallet: jest.fn().mockResolvedValue({
-          code: 0,
-          hash: "tx-hash",
-          rawLog: "success"
-        }),
-        refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined)
-      });
-
-      await service.executeDerivedDecodedTxByUserId("user-123", messages);
-
-      expect(featureFlagsService.isEnabled).toHaveBeenCalledWith(FeatureFlags.ANONYMOUS_FREE_TRIAL);
-      expect(anonymousValidateService.validateLeaseProviders).toHaveBeenCalledWith(messages[0], wallet, user);
-      expect(anonymousValidateService.validateTrialLimit).toHaveBeenCalledWith(messages[0], wallet);
-    });
-
     it("skips trial validation when anonymous free trial is disabled", async () => {
       const wallet = UserWalletSeeder.create({
         userId: "user-123",
@@ -157,7 +104,7 @@ describe(ManagedSignerService.name, () => {
         }
       ];
 
-      const { service, anonymousValidateService, featureFlagsService } = setup({
+      const { service, anonymousValidateService } = setup({
         findOneByUserId: jest.fn().mockResolvedValue(wallet),
         findById: jest.fn().mockResolvedValue(user),
         enabledFeatures: [],
@@ -171,7 +118,6 @@ describe(ManagedSignerService.name, () => {
 
       await service.executeDerivedDecodedTxByUserId("user-123", messages);
 
-      expect(featureFlagsService.isEnabled).toHaveBeenCalledWith(FeatureFlags.ANONYMOUS_FREE_TRIAL);
       expect(anonymousValidateService.validateLeaseProviders).not.toHaveBeenCalled();
       expect(anonymousValidateService.validateTrialLimit).not.toHaveBeenCalled();
     });
@@ -278,42 +224,6 @@ describe(ManagedSignerService.name, () => {
         createdAt: expect.any(String),
         isFirstLease: false
       });
-    });
-
-    it("does not publish TrialDeploymentCreated event when anonymous trial is enabled", async () => {
-      const wallet = UserWalletSeeder.create({
-        userId: "user-123",
-        feeAllowance: 100,
-        deploymentAllowance: 100,
-        isTrialing: true
-      });
-      const user = UserSeeder.create({ userId: "user-123" });
-      const deploymentMessage: EncodeObject = {
-        typeUrl: MsgCreateDeployment.$type,
-        value: {
-          id: {
-            dseq: Long.fromNumber(123),
-            owner: wallet.address
-          }
-        }
-      };
-
-      const { service, domainEvents } = setup({
-        findOneByUserId: jest.fn().mockResolvedValue(wallet),
-        findById: jest.fn().mockResolvedValue(user),
-        enabledFeatures: [FeatureFlags.ANONYMOUS_FREE_TRIAL],
-        signAndBroadcastWithDerivedWallet: jest.fn().mockResolvedValue({
-          code: 0,
-          hash: "tx-hash",
-          rawLog: "success"
-        }),
-        refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined),
-        publish: jest.fn().mockResolvedValue(undefined)
-      });
-
-      await service.executeDerivedDecodedTxByUserId("user-123", [deploymentMessage]);
-
-      expect(domainEvents.publish).not.toHaveBeenCalled();
     });
 
     it("handles chain errors properly", async () => {
@@ -450,48 +360,6 @@ describe(ManagedSignerService.name, () => {
 
       expect(anonymousValidateService.validateLeaseProvidersAuditors).toHaveBeenCalledWith(messages, wallet);
     });
-
-    it("validates lease provider in anonymous trial mode", async () => {
-      const wallet = UserWalletSeeder.create({
-        userId: "user-123",
-        feeAllowance: 100,
-        deploymentAllowance: 100,
-        isTrialing: true
-      });
-      const user = UserSeeder.create({ userId: "user-123" });
-      const messages: EncodeObject[] = [
-        {
-          typeUrl: MsgCreateLease.$type,
-          value: MsgCreateLease.fromPartial({
-            bidId: {
-              dseq: Long.fromNumber(123),
-              provider: "akash1provider"
-            }
-          })
-        }
-      ];
-
-      const { service, anonymousValidateService } = setup({
-        findOneByUserId: jest.fn().mockResolvedValue(wallet),
-        findById: jest.fn().mockResolvedValue(user),
-        enabledFeatures: [FeatureFlags.ANONYMOUS_FREE_TRIAL],
-        validateLeaseProvidersAuditors: jest.fn().mockResolvedValue(undefined),
-        validateLeaseProviders: jest.fn().mockResolvedValue(undefined),
-        validateTrialLimit: jest.fn().mockResolvedValue(undefined),
-        signAndBroadcastWithDerivedWallet: jest.fn().mockResolvedValue({
-          code: 0,
-          hash: "tx-hash",
-          rawLog: "success"
-        }),
-        refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined)
-      });
-
-      await service.executeDerivedDecodedTxByUserId("user-123", messages);
-
-      expect(anonymousValidateService.validateLeaseProvidersAuditors).toHaveBeenCalledWith(messages, wallet);
-      expect(anonymousValidateService.validateLeaseProviders).toHaveBeenCalledWith(messages[0], wallet, user);
-      expect(anonymousValidateService.validateTrialLimit).toHaveBeenCalledWith(messages[0], wallet);
-    });
   });
 
   describe("executeDerivedEncodedTxByUserId", () => {
@@ -620,12 +488,7 @@ describe(ManagedSignerService.name, () => {
         toAppError: input?.transformChainError ?? jest.fn(async e => e)
       }),
       anonymousValidateService: mock<TrialValidationService>({
-        validateLeaseProviders: input?.validateLeaseProviders ?? jest.fn(),
-        validateTrialLimit: input?.validateTrialLimit ?? jest.fn(),
         validateLeaseProvidersAuditors: input?.validateLeaseProvidersAuditors ?? jest.fn()
-      }),
-      featureFlagsService: mock<FeatureFlagsService>({
-        isEnabled: jest.fn().mockImplementation(flag => !!input?.enabledFeatures?.includes(flag))
       }),
       txManagerService: mock<TxManagerService>({
         signAndBroadcastWithDerivedWallet: input?.signAndBroadcastWithDerivedWallet ?? jest.fn(),
@@ -663,7 +526,6 @@ describe(ManagedSignerService.name, () => {
       mocks.authService,
       mocks.chainErrorService,
       mocks.anonymousValidateService,
-      mocks.featureFlagsService,
       mocks.txManagerService,
       mocks.domainEvents,
       mocks.leaseHttpService,

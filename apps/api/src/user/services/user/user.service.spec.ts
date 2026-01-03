@@ -15,7 +15,7 @@ import type { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 
 describe(UserService.name, () => {
   describe("registerUser", () => {
-    it("registers a new user if no anonymousUserId and no userId is provided", async () => {
+    it("registers a new user", async () => {
       const createDefaultNotificationChannel = jest.fn(() => Promise.resolve());
       const { service, analyticsService, logger } = setup({ createDefaultNotificationChannel });
 
@@ -53,99 +53,6 @@ describe(UserService.name, () => {
       );
     });
 
-    it("updates anonymous user if anonymousUserId is provided", async () => {
-      const { service, analyticsService, logger } = setup();
-
-      const anonymousUser = await container.resolve(UserRepository).create({
-        userId: null,
-        emailVerified: false,
-        subscribedToNewsletter: false
-      });
-
-      const input: RegisterUserInput = {
-        userId: faker.string.uuid(),
-        anonymousUserId: anonymousUser.id,
-        wantedUsername: `test-user-${Date.now()}`,
-        email: faker.internet.email(),
-        emailVerified: faker.datatype.boolean(),
-        subscribedToNewsletter: faker.datatype.boolean(),
-        ip: faker.internet.ipv4(),
-        userAgent: faker.string.alphanumeric(32),
-        fingerprint: faker.string.alphanumeric(16)
-      };
-      const user = await service.registerUser(input);
-      const reloadedUser = await container.resolve(UserRepository).findById(anonymousUser.id);
-
-      expect(reloadedUser).toMatchObject(user);
-      expect(analyticsService.identify).toHaveBeenCalledWith(user.id, {
-        username: user.username,
-        email: user.email
-      });
-      expect(logger.info).toHaveBeenCalledWith({ event: "ANONYMOUS_USER_REGISTERED", id: user.id, userId: user.userId });
-    });
-
-    it("creates a new user if anonymousUserId is provided but no anonymous user exists", async () => {
-      const { service, analyticsService, logger } = setup();
-
-      const input: RegisterUserInput = {
-        userId: faker.string.uuid(),
-        anonymousUserId: faker.string.uuid(),
-        wantedUsername: `test-user-${Date.now()}`,
-        email: faker.internet.email(),
-        emailVerified: faker.datatype.boolean(),
-        subscribedToNewsletter: faker.datatype.boolean(),
-        ip: faker.internet.ipv4(),
-        userAgent: faker.string.alphanumeric(32),
-        fingerprint: faker.string.alphanumeric(16)
-      };
-      const user = await service.registerUser(input);
-
-      expect(user).toMatchObject({
-        id: expect.any(String),
-        userId: input.userId,
-        username: input.wantedUsername,
-        email: input.email,
-        emailVerified: input.emailVerified
-      });
-      expect(analyticsService.identify).toHaveBeenCalledWith(user.id, {
-        username: user.username,
-        email: user.email
-      });
-      expect(logger.info).toHaveBeenCalledWith({ event: "USER_REGISTERED", id: user.id, userId: user.userId });
-    });
-
-    it("creates a new user if anonymousUserId is provided, anonymous user exists but has non-nullable userId", async () => {
-      const { service, analyticsService, logger } = setup();
-
-      const anonymousUser = await container.resolve(UserRepository).create({
-        userId: faker.string.uuid(),
-        emailVerified: false,
-        subscribedToNewsletter: false
-      });
-
-      const input: RegisterUserInput = {
-        userId: faker.string.uuid(),
-        anonymousUserId: anonymousUser.id,
-        wantedUsername: `test-user-${Date.now()}`,
-        email: faker.internet.email(),
-        emailVerified: faker.datatype.boolean(),
-        subscribedToNewsletter: faker.datatype.boolean(),
-        ip: faker.internet.ipv4(),
-        userAgent: faker.string.alphanumeric(32),
-        fingerprint: faker.string.alphanumeric(16)
-      };
-      const user = await service.registerUser(input);
-      const reloadedUser = await container.resolve(UserRepository).findById(anonymousUser.id);
-
-      expect(reloadedUser!.id).not.toBe(user.id);
-      expect(reloadedUser!.userId).not.toBe(user.userId);
-      expect(analyticsService.identify).toHaveBeenCalledWith(user.id, {
-        username: user.username,
-        email: user.email
-      });
-      expect(logger.info).toHaveBeenCalledWith({ event: "USER_REGISTERED", id: user.id, userId: user.userId });
-    });
-
     it("resolves username collision by adjusting username", async () => {
       const { service } = setup();
 
@@ -177,108 +84,6 @@ describe(UserService.name, () => {
       expect(newUsers[0].username).toMatch(new RegExp(`^${conflictingUsername}`));
       expect(newUsers[1].username).not.toBe(existingUser.username);
       expect(newUsers[1].username).toMatch(new RegExp(`^${conflictingUsername}`));
-    });
-
-    it("transfers wallet from previous non-anonymous user to the newly registered user", async () => {
-      const { service } = setup();
-
-      const existingUser = await container.resolve(UserRepository).create({
-        userId: faker.string.uuid(),
-        emailVerified: false,
-        subscribedToNewsletter: false,
-        username: faker.internet.userName()
-      });
-
-      const wallet = await container.resolve(UserWalletRepository).create({
-        userId: existingUser.id,
-        address: faker.string.alphanumeric(40)
-      });
-
-      const input: RegisterUserInput = {
-        userId: faker.string.uuid(),
-        wantedUsername: faker.internet.userName(),
-        email: faker.internet.email(),
-        emailVerified: faker.datatype.boolean(),
-        subscribedToNewsletter: faker.datatype.boolean(),
-        ip: faker.internet.ipv4(),
-        userAgent: faker.string.alphanumeric(32),
-        fingerprint: faker.string.alphanumeric(16)
-      };
-      const newUser = await service.registerUser({ ...input, anonymousUserId: existingUser.id });
-
-      const updatedWallet = await container.resolve(UserWalletRepository).findById(wallet.id);
-      expect(updatedWallet?.userId).toBe(newUser.id);
-    });
-
-    it("ignores wallet transfer conflicts (destination already has wallet)", async () => {
-      const { service } = setup();
-
-      const existingUser = await container.resolve(UserRepository).create({
-        userId: faker.string.uuid(),
-        emailVerified: false,
-        subscribedToNewsletter: false,
-        username: faker.internet.userName()
-      });
-      const wallet = await container.resolve(UserWalletRepository).create({
-        userId: existingUser.id,
-        address: faker.string.alphanumeric(40)
-      });
-
-      const destinationUser = await container.resolve(UserRepository).create({
-        userId: faker.string.uuid(),
-        emailVerified: false,
-        subscribedToNewsletter: false,
-        username: faker.internet.userName()
-      });
-      await container.resolve(UserWalletRepository).create({ userId: destinationUser.id, address: faker.string.alphanumeric(40) });
-
-      const input: RegisterUserInput = {
-        userId: destinationUser.userId!,
-        wantedUsername: faker.internet.userName(),
-        email: faker.internet.email(),
-        emailVerified: faker.datatype.boolean(),
-        subscribedToNewsletter: faker.datatype.boolean(),
-        ip: faker.internet.ipv4(),
-        userAgent: faker.string.alphanumeric(32),
-        fingerprint: faker.string.alphanumeric(16)
-      };
-
-      await expect(service.registerUser({ ...input, anonymousUserId: existingUser.id })).resolves.toBeDefined();
-
-      const walletAfter = await container.resolve(UserWalletRepository).findById(wallet.id);
-      expect(walletAfter?.userId).toBe(existingUser.id);
-    });
-
-    it("returns existing user (unique by userId) when user is registered under different anonymous user", async () => {
-      const { service } = setup();
-
-      const anonymousUserSeed = {
-        emailVerified: false,
-        subscribedToNewsletter: false
-      };
-      const anonymousUser = await container.resolve(UserRepository).create(anonymousUserSeed);
-      const userWallet = await container.resolve(UserWalletRepository).create({ userId: anonymousUser.id });
-
-      const input: RegisterUserInput = {
-        userId: faker.string.uuid(),
-        anonymousUserId: anonymousUser.id,
-        wantedUsername: `test-user-${Date.now()}`,
-        email: faker.internet.email(),
-        emailVerified: faker.datatype.boolean(),
-        subscribedToNewsletter: faker.datatype.boolean(),
-        ip: faker.internet.ipv4(),
-        userAgent: faker.string.alphanumeric(32),
-        fingerprint: faker.string.alphanumeric(16)
-      };
-      const user = await service.registerUser(input);
-
-      const anotherAnonymousUser = await container.resolve(UserRepository).create(anonymousUserSeed);
-      await container.resolve(UserWalletRepository).create({ userId: anotherAnonymousUser.id });
-
-      const existingUser = await service.registerUser({ ...input, anonymousUserId: anotherAnonymousUser.id });
-
-      expect(existingUser.id).toBe(user.id);
-      expect(await container.resolve(UserWalletRepository).findOneByUserId(existingUser.id)).toHaveProperty("id", userWallet.id);
     });
 
     it("updates user if registering existing user", async () => {

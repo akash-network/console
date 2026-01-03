@@ -34,7 +34,6 @@ export class UserService {
     twitterUsername: string | null;
     githubUsername: string | null;
   }> {
-    let isAnonymous = false;
     const userDetails = {
       userId: data.userId,
       email: data.email,
@@ -45,35 +44,12 @@ export class UserService {
       lastFingerprint: data.fingerprint
     };
 
-    if (data.anonymousUserId) {
-      try {
-        const user = await this.userRepository.updateBy(
-          {
-            id: data.anonymousUserId,
-            userId: null
-          },
-          userDetails,
-          { returning: true }
-        );
-        isAnonymous = !!user;
-      } catch (error) {
-        if (!isUniqueViolation(error) || !error.constraint_name?.includes("userSetting_userId_unique")) {
-          throw error;
-        }
-      }
-    }
-
     const user = await this.upsertUser({
       ...userDetails,
       username: data.wantedUsername
     });
 
-    if (!isAnonymous && data.anonymousUserId && user.id !== data.anonymousUserId) {
-      await this.tryToTransferWallet(data.anonymousUserId, user.id);
-    }
-
-    const event = isAnonymous ? "ANONYMOUS_USER_REGISTERED" : "USER_REGISTERED";
-    this.logger.info({ event, id: user.id, userId: user.userId });
+    this.logger.info({ event: "USER_REGISTERED", id: user.id, userId: user.userId });
     this.analyticsService.identify(user.id, {
       username: user.username,
       email: user.email
@@ -118,16 +94,6 @@ export class UserService {
       }
 
       throw error;
-    }
-  }
-
-  private async tryToTransferWallet(prevUserId: string, nextUserId: string) {
-    try {
-      await this.userWalletRepository.updateBy({ userId: prevUserId }, { userId: nextUserId });
-    } catch (error) {
-      if (!isUniqueViolation(error) || error.constraint_name !== "user_wallets_user_id_unique") {
-        throw error;
-      }
     }
   }
 
@@ -177,7 +143,6 @@ type UpdateUserInput = Partial<{
 }>;
 
 export interface RegisterUserInput {
-  anonymousUserId?: string;
   userId: string;
   wantedUsername: string;
   email: string;
