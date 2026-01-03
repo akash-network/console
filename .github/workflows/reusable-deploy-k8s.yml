@@ -24,6 +24,7 @@ on:
           - provider-console
           - provider-console-api
           - provider-console-security
+          - stats-web
       appVersion:
         description: "The version of the app to deploy"
         required: true
