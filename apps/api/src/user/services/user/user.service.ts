@@ -3,7 +3,6 @@ import randomInt from "lodash/random";
 import { singleton } from "tsyringe";
 
 import { Auth0Service } from "@src/auth/services/auth0/auth0.service";
-import { UserWalletRepository } from "@src/billing/repositories/user-wallet/user-wallet.repository";
 import { LoggerService } from "@src/core/providers/logging.provider";
 import { isUniqueViolation } from "@src/core/repositories/base.repository";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
@@ -15,7 +14,6 @@ export class UserService {
   constructor(
     private readonly userRepository: UserRepository,
     private readonly analyticsService: AnalyticsService,
-    private readonly userWalletRepository: UserWalletRepository,
     private readonly logger: LoggerService,
     private readonly notificationService: NotificationService,
     private readonly auth0: Auth0Service

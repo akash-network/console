@@ -4,7 +4,6 @@ import { faker } from "@faker-js/faker";
 import { mock } from "jest-mock-extended";
 import { container } from "tsyringe";
 
-import { UserWalletRepository } from "@src/billing/repositories/user-wallet/user-wallet.repository";
 import type { LoggerService } from "@src/core/providers/logging.provider";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
@@ -12,6 +11,7 @@ import type { RegisterUserInput } from "./user.service";
 import { UserService } from "./user.service";
 import type { NotificationService } from "@src/notifications/services/notification/notification.service";
 import type { Auth0Service } from "@src/auth/services/auth0/auth0.service";
+import type { GetUsers200ResponseOneOfInner } from "auth0";
 
 describe(UserService.name, () => {
   describe("registerUser", () => {
@@ -147,20 +147,67 @@ describe(UserService.name, () => {
     });
   });
 
+  describe("syncEmailVerified", () => {
+    it("syncs `emailVerified` from auth0", async () => {
+      const { service, auth0Service } = setup();
+
+      const email = faker.internet.email();
+      await container.resolve(UserRepository).create({
+        email,
+        emailVerified: false
+      });
+
+      auth0Service.getUserByEmail.mockResolvedValue({
+        email_verified: true
+      } as GetUsers200ResponseOneOfInner);
+
+      const user = await service.syncEmailVerified({ email });
+      expect(user).toMatchObject({
+        emailVerified: true
+      });
+
+      auth0Service.getUserByEmail.mockResolvedValue({
+        email_verified: false
+      } as GetUsers200ResponseOneOfInner);
+      const sameUser = await service.syncEmailVerified({ email });
+      expect(sameUser).toMatchObject({
+        emailVerified: false
+      });
+    });
+
+    it("throws 404 when user is not found", async () => {
+      const { service, auth0Service } = setup();
+
+      const email = faker.internet.email();
+      auth0Service.getUserByEmail.mockResolvedValue(null);
+      await expect(service.syncEmailVerified({ email })).rejects.toThrow(/Not found/i);
+    });
+
+    it("throws 404 when user is not found in db", async () => {
+      const { service, auth0Service } = setup();
+
+      const email = faker.internet.email();
+      auth0Service.getUserByEmail.mockResolvedValue({
+        email_verified: true
+      } as GetUsers200ResponseOneOfInner);
+      await expect(service.syncEmailVerified({ email })).rejects.toThrow(/Not found/i);
+    });
+  });
+
   function setup(input?: { createDefaultNotificationChannel?: NotificationService["createDefaultChannel"] }) {
     const analyticsService = mock<AnalyticsService>();
     const logger = mock<LoggerService>();
+    const auth0Service = mock<Auth0Service>();
     const service = new UserService(
       container.resolve(UserRepository),
       analyticsService,
-      container.resolve(UserWalletRepository),
       logger,
       mock<NotificationService>({
         createDefaultChannel: input?.createDefaultNotificationChannel ?? (() => Promise.resolve())
       }),
-      mock<Auth0Service>()
+      auth0Service
     );
 
-    return { service, analyticsService, logger };
+    return { service, analyticsService, logger, auth0Service };
   }
 });
