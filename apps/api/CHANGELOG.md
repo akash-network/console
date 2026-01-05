@@ -1,5 +1,12 @@
 
 
+## [3.18.3](https://github.com/akash-network/console/compare/console-api/v3.18.2...console-api/v3.18.3) (2026-01-05)
+
+
+### Bug Fixes
+
+* sets lower values for template fetching runtime concurrency ([#2449](https://github.com/akash-network/console/issues/2449)) ([2cb7b9b](https://github.com/akash-network/console/commit/2cb7b9b63e0f7935849b9a1fd8008d4f86f0602b))
+
 ## [3.18.2](https://github.com/akash-network/console/compare/console-api/v3.18.1...console-api/v3.18.2) (2026-01-05)
 
 

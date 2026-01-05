@@ -1,5 +1,12 @@
 
 
+## [1.10.3](https://github.com/akash-network/console/compare/stats-web/v1.10.2...stats-web/v1.10.3) (2026-01-05)
+
+
+### Bug Fixes
+
+* add healthz endpoint for stats ([#2450](https://github.com/akash-network/console/issues/2450)) ([3b8c7a0](https://github.com/akash-network/console/commit/3b8c7a01d8fff344bfd8a1db61c6b9929ec55451))
+
 ## [1.10.2](https://github.com/akash-network/console/compare/stats-web/v1.10.1...stats-web/v1.10.2) (2025-12-29)
 
 
