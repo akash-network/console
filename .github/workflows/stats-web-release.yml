@@ -28,6 +28,17 @@ jobs:
       tag: ${{ needs.release.outputs.git_tag }}-beta
       deployment-env: staging
 
+  deploy-beta:
+    needs: build-beta
+    name: Deploy to beta
+    if: needs.build-beta.outputs.base_image_tag != ''
+    uses: ./.github/workflows/reusable-deploy-k8s.yml
+    secrets: inherit
+    with:
+      app: stats-web
+      appVersion: ${{ needs.build-beta.outputs.base_image_tag }}
+      environment: staging
+
   build-prod:
     needs: release
     name: Build Prod Docker image
