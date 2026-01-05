@@ -1,5 +1,12 @@
 
 
+## [2.9.2](https://github.com/akash-network/console/compare/log-collector/v2.9.1...log-collector/v2.9.2) (2026-01-05)
+
+
+### Code Refactoring
+
+* remove anonymous user feature ([#2436](https://github.com/akash-network/console/issues/2436)) ([d221387](https://github.com/akash-network/console/commit/d2213873df63dd85b477ad4b366527125bba10be))
+
 ## [2.9.1](https://github.com/akash-network/console/compare/log-collector/v2.9.0...log-collector/v2.9.1) (2025-12-29)
 
 
