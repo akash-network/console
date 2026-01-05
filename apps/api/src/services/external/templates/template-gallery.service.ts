@@ -10,6 +10,8 @@ import { TemplateProcessorService } from "./template-processor.service";
 type Options = {
   githubPAT?: string;
   dataFolderPath: string;
+  categoryProcessingConcurrency?: number;
+  templateSourceProcessingConcurrency?: number;
 };
 
 export class TemplateGalleryService {
@@ -21,7 +23,11 @@ export class TemplateGalleryService {
 
   constructor(private readonly options: Options) {
     this.templateProcessor = new TemplateProcessorService();
-    this.templateFetcher = new TemplateFetcherService(this.templateProcessor, this.options.githubPAT);
+    this.templateFetcher = new TemplateFetcherService(this.templateProcessor, {
+      githubPAT: this.options.githubPAT,
+      categoryProcessingConcurrency: this.options.categoryProcessingConcurrency,
+      templateSourceProcessingConcurrency: this.options.templateSourceProcessingConcurrency
+    });
   }
 
   @Memoize({ ttlInSeconds: minutesToSeconds(5) })

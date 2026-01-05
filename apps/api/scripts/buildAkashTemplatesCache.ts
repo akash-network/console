@@ -12,7 +12,9 @@ if (!githubPAT) {
 
 const templateGalleryService = new TemplateGalleryService({
   githubPAT,
-  dataFolderPath
+  dataFolderPath,
+  categoryProcessingConcurrency: 30,
+  templateSourceProcessingConcurrency: 30
 });
 
 templateGalleryService.getTemplateGallery().catch(err => {

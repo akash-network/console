@@ -7,10 +7,6 @@ import type { GithubChainRegistryChainResponse } from "@src/types";
 import type { GithubDirectoryItem } from "@src/types/github";
 import type { TemplateProcessorService } from "./template-processor.service";
 
-const MAP_CONCURRENTLY_OPTIONS = {
-  concurrency: 30
-};
-
 export const REPOSITORIES = {
   "awesome-akash": {
     repoOwner: "akash-network",
@@ -30,34 +26,39 @@ export const REPOSITORIES = {
 };
 
 export class TemplateFetcherService {
-  private _githubRequestsRemaining: string | null = null;
-  private _octokit: Octokit | undefined = undefined;
+  #githubRequestsRemaining: string | null = null;
+  readonly #octokit: Octokit | undefined = undefined;
+  readonly #options: Required<Omit<FetcherOptions, "githubPAT">>;
 
   constructor(
     private readonly templateProcessor: TemplateProcessorService,
-    githubPAT?: string
+    options: FetcherOptions = {}
   ) {
-    if (!githubPAT) throw new Error("Cannot fetch templates without GitHub PAT");
+    if (!options.githubPAT) throw new Error("Cannot fetch templates without GitHub PAT");
 
-    this._octokit = getOctokit(githubPAT);
+    this.#octokit = getOctokit(options.githubPAT);
+    this.#options = {
+      categoryProcessingConcurrency: options.categoryProcessingConcurrency ?? 10,
+      templateSourceProcessingConcurrency: options.templateSourceProcessingConcurrency ?? 10
+    };
   }
 
   get githubRequestsRemaining(): string | null {
-    return this._githubRequestsRemaining;
+    return this.#githubRequestsRemaining;
   }
 
   private setGithubRequestsRemaining(value?: string) {
     if (value) {
-      this._githubRequestsRemaining = value;
+      this.#githubRequestsRemaining = value;
     }
   }
 
   private get octokit(): Octokit {
-    if (!this._octokit) {
+    if (!this.#octokit) {
       throw new Error("Octokit client is not initialized");
     }
 
-    return this._octokit;
+    return this.#octokit;
   }
 
   async fetchLatestCommitSha(repository: keyof typeof REPOSITORIES) {
@@ -191,14 +192,14 @@ export class TemplateFetcherService {
           return null;
         }
       },
-      MAP_CONCURRENTLY_OPTIONS
+      { concurrency: this.#options.templateSourceProcessingConcurrency }
     );
 
     category.templates = templates.filter(x => !!x);
   }
 
   private async fetchTemplatesInfo(categories: Category[], options: { includeConfigJson?: boolean; ignoreList?: string[] } = {}): Promise<Category[]> {
-    await this.mapConcurrently(categories, category => this.processCategory(category, options), MAP_CONCURRENTLY_OPTIONS);
+    await this.mapConcurrently(categories, category => this.processCategory(category, options), { concurrency: this.#options.categoryProcessingConcurrency });
 
     return categories;
   }
@@ -289,7 +290,7 @@ export class TemplateFetcherService {
           console.error(err);
         }
       },
-      { concurrency: 5 }
+      { concurrency: this.#options.templateSourceProcessingConcurrency }
     );
 
     const categories: Category[] = [
@@ -340,4 +341,10 @@ export class TemplateFetcherService {
 
     return results.filter((value): value is U => typeof value !== "symbol");
   }
+}
+
+interface FetcherOptions {
+  githubPAT?: string;
+  categoryProcessingConcurrency?: number;
+  templateSourceProcessingConcurrency?: number;
 }
