@@ -1,15 +1,16 @@
 "use client";
 import { useEffect } from "react";
 
-import { browserEnvConfig } from "@src/config/browser-env.config";
+import { useServices } from "@src/context/ServicesProvider";
 import { addScriptToBody } from "@src/utils/domUtils";
 
 export const TrackingScripts = () => {
-  const isProduction = browserEnvConfig.NEXT_PUBLIC_NODE_ENV === "production";
+  const { publicConfig } = useServices();
+  const isProduction = publicConfig.NEXT_PUBLIC_NODE_ENV === "production";
 
   useEffect(() => {
-    const shouldShowTracking = browserEnvConfig.NEXT_PUBLIC_TRACKING_ENABLED;
-    const shouldShowGrowthChannel = browserEnvConfig.NEXT_PUBLIC_GROWTH_CHANNEL_TRACKING_ENABLED;
+    const shouldShowTracking = publicConfig.NEXT_PUBLIC_TRACKING_ENABLED;
+    const shouldShowGrowthChannel = publicConfig.NEXT_PUBLIC_GROWTH_CHANNEL_TRACKING_ENABLED;
 
     if (isProduction && shouldShowTracking) {
       // Google Tag Manager
@@ -21,14 +22,14 @@ export const TrackingScripts = () => {
           new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
           j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
           'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-          })(window,document,'script','dataLayer','${browserEnvConfig.NEXT_PUBLIC_GTM_ID}');
+          })(window,document,'script','dataLayer','${publicConfig.NEXT_PUBLIC_GTM_ID}');
         `
       });
 
       // GTM noscript fallback
       const gtmNoscript = document.createElement("noscript");
       const gtmIframe = document.createElement("iframe");
-      gtmIframe.src = `https://www.googletagmanager.com/ns.html?id=${browserEnvConfig.NEXT_PUBLIC_GTM_ID}`;
+      gtmIframe.src = `https://www.googletagmanager.com/ns.html?id=${publicConfig.NEXT_PUBLIC_GTM_ID}`;
       gtmIframe.height = "0";
       gtmIframe.width = "0";
       gtmIframe.style.display = "none";
