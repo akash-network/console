@@ -1,5 +1,12 @@
 
 
+## [3.18.2](https://github.com/akash-network/console/compare/console-web/v3.18.1...console-web/v3.18.2) (2026-01-05)
+
+
+### Code Refactoring
+
+* remove anonymous user feature ([#2436](https://github.com/akash-network/console/issues/2436)) ([d221387](https://github.com/akash-network/console/commit/d2213873df63dd85b477ad4b366527125bba10be))
+
 ## [3.18.1](https://github.com/akash-network/console/compare/console-web/v3.18.0...console-web/v3.18.1) (2026-01-02)
 
 
