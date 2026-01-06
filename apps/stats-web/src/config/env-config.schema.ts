@@ -1,9 +1,9 @@
-import { LoggerService } from "@akashnetwork/logging";
+import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { z } from "zod";
 
 export const networkId = z.enum(["mainnet", "sandbox", "testnet"]);
 const coercedBoolean = () => z.enum(["true", "false"]).transform(val => val === "true");
-const envLogger = LoggerService.forContext("apps/stats-web/src/config/env-config.schema.ts");
+const envLogger = createOtelLogger({ name: "env-config-schema" });
 
 export const browserEnvSchema = z.object({
   NEXT_PUBLIC_DEFAULT_NETWORK_ID: networkId.optional().default("mainnet"),
