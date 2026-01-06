@@ -1,5 +1,12 @@
 
 
+## [1.10.5](https://github.com/akash-network/console/compare/stats-web/v1.10.4...stats-web/v1.10.5) (2026-01-06)
+
+
+### Bug Fixes
+
+* add global-error handling ([#2456](https://github.com/akash-network/console/issues/2456)) ([08fedde](https://github.com/akash-network/console/commit/08feddea144d416a32e5f25593ce5f899be8cade))
+
 ## [1.10.4](https://github.com/akash-network/console/compare/stats-web/v1.10.3...stats-web/v1.10.4) (2026-01-06)
 
 
