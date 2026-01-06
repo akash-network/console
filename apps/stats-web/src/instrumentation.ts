@@ -1,6 +1,6 @@
-import { createOtelLogger } from "@akashnetwork/logging/otel";
+import { LoggerService } from "@akashnetwork/logging";
 
-const logger = createOtelLogger({ name: `instrumentation-${process.env.NEXT_RUNTIME}` });
+const logger = new LoggerService({ name: `instrumentation-${process.env.NEXT_RUNTIME}` });
 
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {

@@ -1,9 +1,9 @@
-import { createOtelLogger } from "@akashnetwork/logging/otel";
+import { LoggerService } from "@akashnetwork/logging";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
 const { MAINTENANCE_MODE } = process.env;
-const logger = createOtelLogger({ name: "middleware" });
+const logger = new LoggerService({ name: "middleware" });
 
 export function middleware(request: NextRequest) {
   const maintenancePage = "/maintenance";
