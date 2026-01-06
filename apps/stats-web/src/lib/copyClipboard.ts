@@ -1,6 +1,8 @@
+import "../config/logger.config";
+
 import { LoggerService } from "@akashnetwork/logging";
 
-const clipboardLogger = LoggerService.forContext("apps/stats-web/src/lib/copyClipboard.ts");
+const clipboardLogger = LoggerService.forContext("copyClipboard");
 
 function fallbackCopyTextToClipboard(text: string) {
   const textArea = document.createElement("textarea");
