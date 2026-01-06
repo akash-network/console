@@ -1,5 +1,12 @@
 
 
+## [1.10.4](https://github.com/akash-network/console/compare/stats-web/v1.10.3...stats-web/v1.10.4) (2026-01-06)
+
+
+### Bug Fixes
+
+* stats web styling + instrumentation ([#2454](https://github.com/akash-network/console/issues/2454)) ([e12b74a](https://github.com/akash-network/console/commit/e12b74a2a732de91bd78b4a52e54101813e8a9c6))
+
 ## [1.10.3](https://github.com/akash-network/console/compare/stats-web/v1.10.2...stats-web/v1.10.3) (2026-01-05)
 
 
