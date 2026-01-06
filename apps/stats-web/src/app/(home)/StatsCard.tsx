@@ -49,7 +49,12 @@ export const StatsCard: React.FunctionComponent<IStatsCardProps> = ({ number, te
       {graphPath && (
         <CardFooter className="p-0">
           <Link href={graphPath} className="w-full">
-            <Button aria-label="graph" size="sm" className="w-full rounded-t-[0px] text-sm" variant="secondary">
+            <Button
+              aria-label="graph"
+              size="sm"
+              className="w-full rounded-t-[0px] bg-secondary text-sm hover:bg-secondary/80 dark:bg-secondary/50"
+              variant="ghost"
+            >
               <span className="mr-2">Graph</span>
               <GraphUp className="text-xs" />
             </Button>
