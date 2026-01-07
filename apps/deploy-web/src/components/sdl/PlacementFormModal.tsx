@@ -41,7 +41,7 @@ export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, se
     const signedByAllToRemove: number[] = [];
 
     _placement.attributes?.forEach((e, i) => {
-      if (!e.key.trim() || !e.value.trim()) {
+      if (!e.key.trim() || !e.value?.trim()) {
         attributesToRemove.push(i);
       }
     });
