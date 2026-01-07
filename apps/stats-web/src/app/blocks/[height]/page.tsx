@@ -10,6 +10,7 @@ import { TransactionRow } from "@/components/blockchain/TransactionRow";
 import PageContainer from "@/components/PageContainer";
 import { Title } from "@/components/Title";
 import { networkId } from "@/config/env-config.schema";
+import { serverFetch } from "@/lib/serverFetch";
 import { serverApiUrlService } from "@/services/api-url/server-api-url.service";
 import type { BlockDetail } from "@/types";
 
@@ -31,7 +32,7 @@ export async function generateMetadata({ params: { height } }: BlockDetailPagePr
 
 async function fetchBlockData(height: string, network: Network["id"]): Promise<BlockDetail> {
   const apiUrl = serverApiUrlService.getBaseApiUrlFor(network);
-  const response = await fetch(`${apiUrl}/v1/blocks/${height}`);
+  const response = await serverFetch(`${apiUrl}/v1/blocks/${height}`);
 
   if (!response.ok) {
     // This will activate the closest `error.js` Error Boundary

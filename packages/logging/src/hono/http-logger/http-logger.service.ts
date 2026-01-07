@@ -18,7 +18,7 @@ type HttpRequestLog = {
   userId?: string;
 };
 
-export class HttpLoggerIntercepter {
+export class HttpLoggerInterceptor {
   constructor(private readonly logger?: LoggerService) {}
 
   intercept(): MiddlewareHandler {

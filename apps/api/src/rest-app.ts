@@ -1,7 +1,7 @@
 import "./app";
 
 import { LoggerService } from "@akashnetwork/logging";
-import { HttpLoggerIntercepter } from "@akashnetwork/logging/hono";
+import { HttpLoggerInterceptor } from "@akashnetwork/logging/hono";
 import { otel } from "@hono/otel";
 import { swaggerUI } from "@hono/swagger-ui";
 import { Hono } from "hono";
@@ -90,7 +90,7 @@ appHono.use(
   })
 );
 
-appHono.use(container.resolve(HttpLoggerIntercepter).intercept());
+appHono.use(container.resolve(HttpLoggerInterceptor).intercept());
 appHono.use(container.resolve(RequestContextInterceptor).intercept());
 appHono.use(container.resolve(AuthInterceptor).intercept());
 appHono.use(clientInfoMiddleware);
