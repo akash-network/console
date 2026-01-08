@@ -19,11 +19,12 @@ export const DashboardContainer: React.FunctionComponent = () => {
     <div className="mt-8">
       {dashboardData && marketData && (
         <>
-          <Title className="mb-4 text-xl font-bold sm:text-2xl md:text-3xl">Akash Network {selectedNetwork.title} Dashboard</Title>
+          <Title className="mb-4 text-2xl font-semibold">Akash Network {selectedNetwork.title} Dashboard</Title>
 
           <div className="mb-8">
             <p className="text-italic text-sm italic text-muted-foreground">
-              Last updated: {!!dashboardData?.now?.date && <FormattedDate value={dashboardData.now.date} />} {!!dashboardData?.now?.date && <FormattedTime value={dashboardData.now.date} />}
+              Last updated: {!!dashboardData?.now?.date && <FormattedDate value={dashboardData.now.date} />}{" "}
+              {!!dashboardData?.now?.date && <FormattedTime value={dashboardData.now.date} />}
             </p>
           </div>
 

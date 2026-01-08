@@ -20,17 +20,17 @@ interface IStatsCardProps {
 export const StatsCard: React.FunctionComponent<IStatsCardProps> = ({ number, text, tooltip, actionButton, graphPath, diffNumber, diffPercent }) => {
   return (
     <Card className="flex flex-col justify-between">
-      <CardHeader className="flex flex-row items-center space-y-0 pb-2 pl-4 pr-4">
-        <CardTitle className="text-sm font-medium">{text}</CardTitle>
+      <CardHeader className="flex flex-row items-center space-y-0 pb-4">
+        <CardTitle className="text-sm font-medium leading-none text-muted-foreground">{text}</CardTitle>
         {tooltip && (
           <CustomTooltip title={tooltip}>
             <HelpCircle className="ml-2 text-xs text-muted-foreground" />
           </CustomTooltip>
         )}
       </CardHeader>
-      <CardContent className="pl-4 pr-4">
+      <CardContent>
         <div className="flex items-end">
-          <div className="text-2xl font-bold leading-6">{number}</div>
+          <div className="text-2xl font-bold leading-none">{number}</div>
 
           {(!!diffNumber || !!diffPercent) && (
             <div className="inline-flex items-end">
