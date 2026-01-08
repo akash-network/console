@@ -1,4 +1,4 @@
-import { HttpLoggerIntercepter } from "@akashnetwork/logging/hono";
+import { HttpLoggerInterceptor } from "@akashnetwork/logging/hono";
 import { createOtelLogger } from "@akashnetwork/logging/otel";
 
 import { appConfigSchema } from "./config/env.config";
@@ -22,7 +22,7 @@ export function createContainer(untrustedConfig: Record<string, unknown>) {
   const providerProxy = new ProviderProxy(certificateValidator);
   const wsLogger = isLoggingDisabled ? undefined : createOtelLogger({ name: "ws" });
   const httpLogger = isLoggingDisabled ? undefined : createOtelLogger({ name: "http" });
-  const httpLoggerInterceptor = new HttpLoggerIntercepter(httpLogger);
+  const httpLoggerInterceptor = new HttpLoggerInterceptor(httpLogger);
 
   return {
     wsStats,

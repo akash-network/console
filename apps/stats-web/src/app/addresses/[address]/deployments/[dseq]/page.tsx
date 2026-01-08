@@ -7,6 +7,7 @@ import { DeploymentInfo } from "./DeploymentInfo";
 import PageContainer from "@/components/PageContainer";
 import { Title } from "@/components/Title";
 import { networkId } from "@/config/env-config.schema";
+import { serverFetch } from "@/lib/serverFetch";
 import { UrlService } from "@/lib/urlUtils";
 import { serverApiUrlService } from "@/services/api-url/server-api-url.service";
 import type { DeploymentDetail } from "@/types";
@@ -38,7 +39,7 @@ export async function generateMetadata({ params: { address, dseq } }: Deployment
 
 async function fetchDeploymentData(address: string, dseq: string, network: Network["id"]): Promise<DeploymentDetail> {
   const apiUrl = serverApiUrlService.getBaseApiUrlFor(network);
-  const response = await fetch(`${apiUrl}/v1/deployment/${address}/${dseq}`);
+  const response = await serverFetch(`${apiUrl}/v1/deployment/${address}/${dseq}`);
 
   if (!response.ok) {
     // This will activate the closest `error.js` Error Boundary
