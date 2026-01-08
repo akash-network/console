@@ -1,5 +1,12 @@
 
 
+## [2.10.0](https://github.com/akash-network/console/compare/log-collector/v2.9.2...log-collector/v2.10.0) (2026-01-08)
+
+
+### Features
+
+* **observability:** forward client IP headers in stats-web to API requests  ([7b23468](https://github.com/akash-network/console/commit/7b23468a25385c11e6b51fd560c9336e11116ec5))
+
 ## [2.9.2](https://github.com/akash-network/console/compare/log-collector/v2.9.1...log-collector/v2.9.2) (2026-01-05)
 
 
