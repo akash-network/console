@@ -1,8 +1,8 @@
 "use client";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Button, Spinner } from "@akashnetwork/ui/components";
+import { Alert, AlertDescription, AlertTitle, Button, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { OpenInWindow } from "iconoir-react";
+import { OpenInWindow, WarningCircle } from "iconoir-react";
 import Link from "next/link";
 
 import ViewPanel from "@src/components/shared/ViewPanel";
@@ -245,46 +245,62 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
         <>
           {selectedLease && (
             <>
-              <div className="flex h-[56px] items-center space-x-4 p-2">
-                <div className="flex items-center">
-                  {(leases?.length || 0) > 1 && <LeaseSelect leases={leases || []} defaultValue={selectedLease.id} onSelectedChange={handleLeaseChange} />}
+              {!isConnectionClosed && (
+                <>
+                  <div className="flex h-[56px] items-center space-x-4 p-2">
+                    <div className="flex items-center">
+                      {(leases?.length || 0) > 1 && <LeaseSelect leases={leases || []} defaultValue={selectedLease.id} onSelectedChange={handleLeaseChange} />}
 
-                  {services?.length > 0 && selectedService && (
-                    <div className={cn({ ["ml-2"]: (leases?.length || 0) > 1 })}>
-                      <ServiceSelect services={services} defaultValue={selectedService} onSelectedChange={onSelectedServiceChange} />
+                      {services?.length > 0 && selectedService && (
+                        <div className={cn({ ["ml-2"]: (leases?.length || 0) > 1 })}>
+                          <ServiceSelect services={services} defaultValue={selectedService} onSelectedChange={onSelectedServiceChange} />
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
 
-                <div className="flex items-center">
-                  <Button onClick={onDownloadFileClick} variant="default" size="sm" disabled={!isConnectionEstablished}>
-                    Download file
-                  </Button>
-                </div>
+                    <div className="flex items-center">
+                      <Button onClick={onDownloadFileClick} variant="default" size="sm" disabled={!isConnectionEstablished}>
+                        Download file
+                      </Button>
+                    </div>
 
-                {(isLoadingStatus || isLoadingData) && (
-                  <div>
-                    <Spinner size="small" />
+                    {(isLoadingStatus || isLoadingData) && (
+                      <div>
+                        <Spinner size="small" />
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
 
-              {showArrowAndTabWarning && (
-                <Alert variant="warning" className="mb-1 rounded-none">
-                  <Link href={UrlService.faq("shell-arrows-and-completion")} target="_blank" className="inline-flex items-center space-x-2">
-                    <span>Why is my UP arrow and TAB autocompletion not working?</span>
-                    <OpenInWindow className="text-xs" />
-                  </Link>
-                </Alert>
+                  {showArrowAndTabWarning && (
+                    <Alert variant="warning" className="mb-1 rounded-none">
+                      <Link href={UrlService.faq("shell-arrows-and-completion")} target="_blank" className="inline-flex items-center space-x-2">
+                        <span>Why is my UP arrow and TAB autocompletion not working?</span>
+                        <OpenInWindow className="text-xs" />
+                      </Link>
+                    </Alert>
+                  )}
+                </>
               )}
 
               <ViewPanel stickToBottom className="overflow-hidden">
-                {isConnectionClosed && (
-                  <Alert variant="warning" className="rounded-none">
-                    The connection to your Akash Console Shell was not established or lost.
+                {isConnectionClosed ? (
+                  <Alert variant="destructive" className="mt-6 bg-card">
+                    <WarningCircle className="mt-2 h-5 w-5" />
+                    <AlertTitle className="mb-4">Shell access unavailable</AlertTitle>
+                    <AlertDescription className="text-primary">
+                      <p>We recommend:</p>
+                      <ul className="mt-2 list-disc space-y-1 pl-5">
+                        <li>Reviewing your service logs to confirm the container is running normally</li>
+                        <li>Checking your manifest to ensure shell access is enabled (e.g., exec is configured)</li>
+                        <li>Waiting briefly if the deployment was just created</li>
+                        <li>Redeploying if the container appears stuck or unresponsive</li>
+                        <li>Verifying the provider is healthy</li>
+                      </ul>
+                    </AlertDescription>
                   </Alert>
+                ) : (
+                  <XTerm ref={terminalRef} onKey={onTerminalKey} onTerminalPaste={onTerminalPaste} />
                 )}
-                <XTerm ref={terminalRef} onKey={onTerminalKey} onTerminalPaste={onTerminalPaste} />
               </ViewPanel>
             </>
           )}
