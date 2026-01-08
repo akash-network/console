@@ -1,5 +1,18 @@
 
 
+## [3.19.0](https://github.com/akash-network/console/compare/console-web/v3.18.2...console-web/v3.19.0) (2026-01-08)
+
+
+### Features
+
+* **observability:** forward client IP headers in stats-web to API requests  ([7b23468](https://github.com/akash-network/console/commit/7b23468a25385c11e6b51fd560c9336e11116ec5))
+
+
+### Bug Fixes
+
+* **deployment:** improve shell error message ([#2462](https://github.com/akash-network/console/issues/2462)) ([09de352](https://github.com/akash-network/console/commit/09de3523692a0ecc5e6718c3d5820f69aa9ae6ba))
+* **sdl:** safely processes attribute value  ([2c39e87](https://github.com/akash-network/console/commit/2c39e87240d7ca3976449d44d62d01e5a14a353b))
+
 ## [3.18.2](https://github.com/akash-network/console/compare/console-web/v3.18.1...console-web/v3.18.2) (2026-01-05)
 
 

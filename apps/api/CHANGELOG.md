@@ -1,5 +1,12 @@
 
 
+## [3.19.0](https://github.com/akash-network/console/compare/console-api/v3.18.3...console-api/v3.19.0) (2026-01-08)
+
+
+### Features
+
+* **observability:** forward client IP headers in stats-web to API requests  ([7b23468](https://github.com/akash-network/console/commit/7b23468a25385c11e6b51fd560c9336e11116ec5))
+
 ## [3.18.3](https://github.com/akash-network/console/compare/console-api/v3.18.2...console-api/v3.18.3) (2026-01-05)
 
 

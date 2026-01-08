@@ -1,5 +1,13 @@
 
 
+## [1.11.0](https://github.com/akash-network/console/compare/stats-web/v1.10.5...stats-web/v1.11.0) (2026-01-08)
+
+
+### Features
+
+* improve stats app styling similar to console ([#2461](https://github.com/akash-network/console/issues/2461)) ([273c8dc](https://github.com/akash-network/console/commit/273c8dc2a31234c33c241547a3db3a9575b510db))
+* **observability:** forward client IP headers in stats-web to API requests  ([7b23468](https://github.com/akash-network/console/commit/7b23468a25385c11e6b51fd560c9336e11116ec5))
+
 ## [1.10.5](https://github.com/akash-network/console/compare/stats-web/v1.10.4...stats-web/v1.10.5) (2026-01-06)
 
 

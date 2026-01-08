@@ -1,5 +1,12 @@
 
 
+## [2.8.0](https://github.com/akash-network/console/compare/provider-proxy/v2.7.1...provider-proxy/v2.8.0) (2026-01-08)
+
+
+### Features
+
+* **observability:** forward client IP headers in stats-web to API requests  ([7b23468](https://github.com/akash-network/console/commit/7b23468a25385c11e6b51fd560c9336e11116ec5))
+
 ## [2.7.1](https://github.com/akash-network/console/compare/provider-proxy/v2.7.0...provider-proxy/v2.7.1) (2025-12-29)
 
 
