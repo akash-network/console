@@ -4,7 +4,6 @@ import { faker } from "@faker-js/faker";
 import { mock } from "jest-mock-extended";
 import { container } from "tsyringe";
 
-import { UserWalletRepository } from "@src/billing/repositories/user-wallet/user-wallet.repository";
 import type { LoggerService } from "@src/core/providers/logging.provider";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
@@ -12,10 +11,11 @@ import type { RegisterUserInput } from "./user.service";
 import { UserService } from "./user.service";
 import type { NotificationService } from "@src/notifications/services/notification/notification.service";
 import type { Auth0Service } from "@src/auth/services/auth0/auth0.service";
+import type { GetUsers200ResponseOneOfInner } from "auth0";
 
 describe(UserService.name, () => {
   describe("registerUser", () => {
-    it("registers a new user if no anonymousUserId and no userId is provided", async () => {
+    it("registers a new user", async () => {
       const createDefaultNotificationChannel = jest.fn(() => Promise.resolve());
       const { service, analyticsService, logger } = setup({ createDefaultNotificationChannel });
 
@@ -53,99 +53,6 @@ describe(UserService.name, () => {
       );
     });
 
-    it("updates anonymous user if anonymousUserId is provided", async () => {
-      const { service, analyticsService, logger } = setup();
-
-      const anonymousUser = await container.resolve(UserRepository).create({
-        userId: null,
-        emailVerified: false,
-        subscribedToNewsletter: false
-      });
-
-      const input: RegisterUserInput = {
-        userId: faker.string.uuid(),
-        anonymousUserId: anonymousUser.id,
-        wantedUsername: `test-user-${Date.now()}`,
-        email: faker.internet.email(),
-        emailVerified: faker.datatype.boolean(),
-        subscribedToNewsletter: faker.datatype.boolean(),
-        ip: faker.internet.ipv4(),
-        userAgent: faker.string.alphanumeric(32),
-        fingerprint: faker.string.alphanumeric(16)
-      };
-      const user = await service.registerUser(input);
-      const reloadedUser = await container.resolve(UserRepository).findById(anonymousUser.id);
-
-      expect(reloadedUser).toMatchObject(user);
-      expect(analyticsService.identify).toHaveBeenCalledWith(user.id, {
-        username: user.username,
-        email: user.email
-      });
-      expect(logger.info).toHaveBeenCalledWith({ event: "ANONYMOUS_USER_REGISTERED", id: user.id, userId: user.userId });
-    });
-
-    it("creates a new user if anonymousUserId is provided but no anonymous user exists", async () => {
-      const { service, analyticsService, logger } = setup();
-
-      const input: RegisterUserInput = {
-        userId: faker.string.uuid(),
-        anonymousUserId: faker.string.uuid(),
-        wantedUsername: `test-user-${Date.now()}`,
-        email: faker.internet.email(),
-        emailVerified: faker.datatype.boolean(),
-        subscribedToNewsletter: faker.datatype.boolean(),
-        ip: faker.internet.ipv4(),
-        userAgent: faker.string.alphanumeric(32),
-        fingerprint: faker.string.alphanumeric(16)
-      };
-      const user = await service.registerUser(input);
-
-      expect(user).toMatchObject({
-        id: expect.any(String),
-        userId: input.userId,
-        username: input.wantedUsername,
-        email: input.email,
-        emailVerified: input.emailVerified
-      });
-      expect(analyticsService.identify).toHaveBeenCalledWith(user.id, {
-        username: user.username,
-        email: user.email
-      });
-      expect(logger.info).toHaveBeenCalledWith({ event: "USER_REGISTERED", id: user.id, userId: user.userId });
-    });
-
-    it("creates a new user if anonymousUserId is provided, anonymous user exists but has non-nullable userId", async () => {
-      const { service, analyticsService, logger } = setup();
-
-      const anonymousUser = await container.resolve(UserRepository).create({
-        userId: faker.string.uuid(),
-        emailVerified: false,
-        subscribedToNewsletter: false
-      });
-
-      const input: RegisterUserInput = {
-        userId: faker.string.uuid(),
-        anonymousUserId: anonymousUser.id,
-        wantedUsername: `test-user-${Date.now()}`,
-        email: faker.internet.email(),
-        emailVerified: faker.datatype.boolean(),
-        subscribedToNewsletter: faker.datatype.boolean(),
-        ip: faker.internet.ipv4(),
-        userAgent: faker.string.alphanumeric(32),
-        fingerprint: faker.string.alphanumeric(16)
-      };
-      const user = await service.registerUser(input);
-      const reloadedUser = await container.resolve(UserRepository).findById(anonymousUser.id);
-
-      expect(reloadedUser!.id).not.toBe(user.id);
-      expect(reloadedUser!.userId).not.toBe(user.userId);
-      expect(analyticsService.identify).toHaveBeenCalledWith(user.id, {
-        username: user.username,
-        email: user.email
-      });
-      expect(logger.info).toHaveBeenCalledWith({ event: "USER_REGISTERED", id: user.id, userId: user.userId });
-    });
-
     it("resolves username collision by adjusting username", async () => {
       const { service } = setup();
 
@@ -177,108 +84,6 @@ describe(UserService.name, () => {
       expect(newUsers[0].username).toMatch(new RegExp(`^${conflictingUsername}`));
       expect(newUsers[1].username).not.toBe(existingUser.username);
       expect(newUsers[1].username).toMatch(new RegExp(`^${conflictingUsername}`));
-    });
-
-    it("transfers wallet from previous non-anonymous user to the newly registered user", async () => {
-      const { service } = setup();
-
-      const existingUser = await container.resolve(UserRepository).create({
-        userId: faker.string.uuid(),
-        emailVerified: false,
-        subscribedToNewsletter: false,
-        username: faker.internet.userName()
-      });
-
-      const wallet = await container.resolve(UserWalletRepository).create({
-        userId: existingUser.id,
-        address: faker.string.alphanumeric(40)
-      });
-
-      const input: RegisterUserInput = {
-        userId: faker.string.uuid(),
-        wantedUsername: faker.internet.userName(),
-        email: faker.internet.email(),
-        emailVerified: faker.datatype.boolean(),
-        subscribedToNewsletter: faker.datatype.boolean(),
-        ip: faker.internet.ipv4(),
-        userAgent: faker.string.alphanumeric(32),
-        fingerprint: faker.string.alphanumeric(16)
-      };
-      const newUser = await service.registerUser({ ...input, anonymousUserId: existingUser.id });
-
-      const updatedWallet = await container.resolve(UserWalletRepository).findById(wallet.id);
-      expect(updatedWallet?.userId).toBe(newUser.id);
-    });
-
-    it("ignores wallet transfer conflicts (destination already has wallet)", async () => {
-      const { service } = setup();
-
-      const existingUser = await container.resolve(UserRepository).create({
-        userId: faker.string.uuid(),
-        emailVerified: false,
-        subscribedToNewsletter: false,
-        username: faker.internet.userName()
-      });
-      const wallet = await container.resolve(UserWalletRepository).create({
-        userId: existingUser.id,
-        address: faker.string.alphanumeric(40)
-      });
-
-      const destinationUser = await container.resolve(UserRepository).create({
-        userId: faker.string.uuid(),
-        emailVerified: false,
-        subscribedToNewsletter: false,
-        username: faker.internet.userName()
-      });
-      await container.resolve(UserWalletRepository).create({ userId: destinationUser.id, address: faker.string.alphanumeric(40) });
-
-      const input: RegisterUserInput = {
-        userId: destinationUser.userId!,
-        wantedUsername: faker.internet.userName(),
-        email: faker.internet.email(),
-        emailVerified: faker.datatype.boolean(),
-        subscribedToNewsletter: faker.datatype.boolean(),
-        ip: faker.internet.ipv4(),
-        userAgent: faker.string.alphanumeric(32),
-        fingerprint: faker.string.alphanumeric(16)
-      };
-
-      await expect(service.registerUser({ ...input, anonymousUserId: existingUser.id })).resolves.toBeDefined();
-
-      const walletAfter = await container.resolve(UserWalletRepository).findById(wallet.id);
-      expect(walletAfter?.userId).toBe(existingUser.id);
-    });
-
-    it("returns existing user (unique by userId) when user is registered under different anonymous user", async () => {
-      const { service } = setup();
-
-      const anonymousUserSeed = {
-        emailVerified: false,
-        subscribedToNewsletter: false
-      };
-      const anonymousUser = await container.resolve(UserRepository).create(anonymousUserSeed);
-      const userWallet = await container.resolve(UserWalletRepository).create({ userId: anonymousUser.id });
-
-      const input: RegisterUserInput = {
-        userId: faker.string.uuid(),
-        anonymousUserId: anonymousUser.id,
-        wantedUsername: `test-user-${Date.now()}`,
-        email: faker.internet.email(),
-        emailVerified: faker.datatype.boolean(),
-        subscribedToNewsletter: faker.datatype.boolean(),
-        ip: faker.internet.ipv4(),
-        userAgent: faker.string.alphanumeric(32),
-        fingerprint: faker.string.alphanumeric(16)
-      };
-      const user = await service.registerUser(input);
-
-      const anotherAnonymousUser = await container.resolve(UserRepository).create(anonymousUserSeed);
-      await container.resolve(UserWalletRepository).create({ userId: anotherAnonymousUser.id });
-
-      const existingUser = await service.registerUser({ ...input, anonymousUserId: anotherAnonymousUser.id });
-
-      expect(existingUser.id).toBe(user.id);
-      expect(await container.resolve(UserWalletRepository).findOneByUserId(existingUser.id)).toHaveProperty("id", userWallet.id);
     });
 
     it("updates user if registering existing user", async () => {
@@ -342,20 +147,67 @@ describe(UserService.name, () => {
     });
   });
 
+  describe("syncEmailVerified", () => {
+    it("syncs `emailVerified` from auth0", async () => {
+      const { service, auth0Service } = setup();
+
+      const email = faker.internet.email();
+      await container.resolve(UserRepository).create({
+        email,
+        emailVerified: false
+      });
+
+      auth0Service.getUserByEmail.mockResolvedValue({
+        email_verified: true
+      } as GetUsers200ResponseOneOfInner);
+
+      const user = await service.syncEmailVerified({ email });
+      expect(user).toMatchObject({
+        emailVerified: true
+      });
+
+      auth0Service.getUserByEmail.mockResolvedValue({
+        email_verified: false
+      } as GetUsers200ResponseOneOfInner);
+      const sameUser = await service.syncEmailVerified({ email });
+      expect(sameUser).toMatchObject({
+        emailVerified: false
+      });
+    });
+
+    it("throws 404 when user is not found", async () => {
+      const { service, auth0Service } = setup();
+
+      const email = faker.internet.email();
+      auth0Service.getUserByEmail.mockResolvedValue(null);
+      await expect(service.syncEmailVerified({ email })).rejects.toThrow(/Not found/i);
+    });
+
+    it("throws 404 when user is not found in db", async () => {
+      const { service, auth0Service } = setup();
+
+      const email = faker.internet.email();
+      auth0Service.getUserByEmail.mockResolvedValue({
+        email_verified: true
+      } as GetUsers200ResponseOneOfInner);
+      await expect(service.syncEmailVerified({ email })).rejects.toThrow(/Not found/i);
+    });
+  });
+
   function setup(input?: { createDefaultNotificationChannel?: NotificationService["createDefaultChannel"] }) {
     const analyticsService = mock<AnalyticsService>();
     const logger = mock<LoggerService>();
+    const auth0Service = mock<Auth0Service>();
     const service = new UserService(
       container.resolve(UserRepository),
       analyticsService,
-      container.resolve(UserWalletRepository),
       logger,
       mock<NotificationService>({
         createDefaultChannel: input?.createDefaultNotificationChannel ?? (() => Promise.resolve())
       }),
-      mock<Auth0Service>()
+      auth0Service
     );
 
-    return { service, analyticsService, logger };
+    return { service, analyticsService, logger, auth0Service };
   }
 });

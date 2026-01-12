@@ -1,14 +1,15 @@
+import { Registry } from "@cosmjs/proto-signing";
+import type { MockProxy } from "jest-mock-extended";
 import { mock } from "jest-mock-extended";
 import { container } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
 import { TrialStarted } from "@src/billing/events/trial-started";
+import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
-import type { FeatureFlagValue } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { ProviderJwtTokenService } from "@src/provider/services/provider-jwt-token/provider-jwt-token.service";
 import { UserWalletRepository } from "../../repositories/user-wallet/user-wallet.repository";
+import { ManagedSignerService } from "../managed-signer/managed-signer.service";
 import { ManagedUserWalletService } from "../managed-user-wallet/managed-user-wallet.service";
 import { WalletInitializerService } from "./wallet-initializer.service";
 
@@ -23,20 +24,19 @@ describe(WalletInitializerService.name, () => {
       const newWallet = UserWalletSeeder.create({ userId });
       const chainWallet = createChainWallet();
       const getOrCreateWallet = jest.fn().mockImplementation(async () => ({ wallet: newWallet, isNew: true }));
-      const createAndAuthorizeTrialSpending = jest.fn().mockImplementation(async () => chainWallet);
       const updateWalletById = jest.fn().mockImplementation(async () => newWallet);
 
       const di = setup({
         getOrCreateWallet,
-        createAndAuthorizeTrialSpending,
         updateWalletById,
-        enabledFeatures: [FeatureFlags.ANONYMOUS_FREE_TRIAL]
       });
+      const managedUserWalletService = di.resolve(ManagedUserWalletService) as MockProxy<ManagedUserWalletService>;
+      managedUserWalletService.createAndAuthorizeTrialSpending.mockResolvedValue(chainWallet);
 
       await di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(userId);
 
       expect(getOrCreateWallet).toHaveBeenCalledWith({ userId });
-      expect(createAndAuthorizeTrialSpending).toHaveBeenCalledWith({ addressIndex: newWallet.id });
+      expect(managedUserWalletService.createAndAuthorizeTrialSpending).toHaveBeenCalledWith(di.resolve(ManagedSignerService), { addressIndex: newWallet.id });
       expect(updateWalletById).toHaveBeenCalledWith(
         newWallet.id,
         {
@@ -52,18 +52,16 @@ describe(WalletInitializerService.name, () => {
       const userId = "test-user-id";
       const existingWallet = UserWalletSeeder.create({ userId });
       const getOrCreateWallet = jest.fn().mockResolvedValue({ wallet: existingWallet, isNew: false });
-      const createAndAuthorizeTrialSpending = jest.fn().mockResolvedValue(undefined);
 
       const di = setup({
         getOrCreateWallet,
-        createAndAuthorizeTrialSpending,
-        enabledFeatures: [FeatureFlags.ANONYMOUS_FREE_TRIAL]
       });
+      const managedUserWalletService = di.resolve(ManagedUserWalletService);
 
       await di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(userId);
 
       expect(getOrCreateWallet).toHaveBeenCalledWith({ userId });
-      expect(createAndAuthorizeTrialSpending).not.toHaveBeenCalled();
+      expect(managedUserWalletService.createAndAuthorizeTrialSpending).not.toHaveBeenCalled();
     });
 
     it("throws an error when cannot authorize trial spending and deletes user wallet", async () => {
@@ -71,35 +69,34 @@ describe(WalletInitializerService.name, () => {
       const newWallet = UserWalletSeeder.create({ userId });
       const getOrCreateWallet = jest.fn().mockImplementation(async () => ({ wallet: newWallet, isNew: true }));
       const deleteWalletById = jest.fn().mockImplementation(async () => null);
-      const createAndAuthorizeTrialSpending = jest.fn().mockRejectedValue(new Error("Failed to authorize trial"));
 
       const di = setup({
         getOrCreateWallet,
         deleteWalletById,
-        createAndAuthorizeTrialSpending,
-        enabledFeatures: [FeatureFlags.ANONYMOUS_FREE_TRIAL]
       });
+      const managedUserWalletService = di.resolve(ManagedUserWalletService) as MockProxy<ManagedUserWalletService>;
+      managedUserWalletService.createAndAuthorizeTrialSpending.mockRejectedValue(new Error("Failed to authorize trial"));
 
       await expect(di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(userId)).rejects.toThrow("Failed to authorize trial");
-      expect(createAndAuthorizeTrialSpending).toHaveBeenCalledWith({ addressIndex: newWallet.id });
+      expect(managedUserWalletService.createAndAuthorizeTrialSpending).toHaveBeenCalledWith(di.resolve(ManagedSignerService), { addressIndex: newWallet.id });
       expect(deleteWalletById).toHaveBeenCalledWith(newWallet.id);
       expect(di.resolve(DomainEventsService).publish).not.toHaveBeenCalled();
     });
 
-    it(`publishes "TrialStarted" event when ANONYMOUS_FREE_TRIAL is disabled`, async () => {
+    it(`publishes "TrialStarted" event`, async () => {
       const userId = "test-user-id";
       const newWallet = UserWalletSeeder.create({ userId });
+      const chainWallet = createChainWallet();
       const getOrCreateWallet = jest.fn().mockImplementation(async () => ({ wallet: newWallet, isNew: true }));
-      const createAndAuthorizeTrialSpending = jest.fn().mockImplementation(async () => createChainWallet());
       const updateWalletById = jest.fn().mockImplementation(async () => newWallet);
 
       const di = setup({
         userId,
         getOrCreateWallet,
-        createAndAuthorizeTrialSpending,
         updateWalletById,
-        enabledFeatures: []
       });
+      const managedUserWalletService = di.resolve(ManagedUserWalletService) as MockProxy<ManagedUserWalletService>;
+      managedUserWalletService.createAndAuthorizeTrialSpending.mockResolvedValue(chainWallet);
 
       await di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(userId);
 
@@ -111,17 +108,11 @@ describe(WalletInitializerService.name, () => {
     getOrCreateWallet?: UserWalletRepository["getOrCreate"];
     updateWalletById?: UserWalletRepository["updateById"];
     deleteWalletById?: UserWalletRepository["deleteById"];
-    createAndAuthorizeTrialSpending?: ManagedUserWalletService["createAndAuthorizeTrialSpending"];
     userId?: string;
-    enabledFeatures?: FeatureFlagValue[];
   }) {
     const di = container.createChildContainer();
-    di.registerInstance(
-      ManagedUserWalletService,
-      mock<ManagedUserWalletService>({
-        createAndAuthorizeTrialSpending: input?.createAndAuthorizeTrialSpending
-      })
-    );
+    di.registerInstance(TYPE_REGISTRY, new Registry());
+    di.registerInstance(ManagedUserWalletService, mock<ManagedUserWalletService>());
     di.registerInstance(
       UserWalletRepository,
       mock<UserWalletRepository>({
@@ -146,17 +137,12 @@ describe(WalletInitializerService.name, () => {
     );
     di.registerInstance(DomainEventsService, mock<DomainEventsService>());
     di.registerInstance(
-      FeatureFlagsService,
-      mock<FeatureFlagsService>({
-        isEnabled: jest.fn(flag => !!input?.enabledFeatures?.includes(flag))
-      })
-    );
-    di.registerInstance(
       ProviderJwtTokenService,
       mock<ProviderJwtTokenService>({
         generateJwtToken: jest.fn().mockResolvedValue("mock-jwt-token")
       })
     );
+    di.registerInstance(ManagedSignerService, mock<ManagedSignerService>());
 
     container.clearInstances();
 

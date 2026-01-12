@@ -10,6 +10,7 @@ import { LatestTransactions } from "./LatestTransactions";
 
 import { Title } from "@/components/Title";
 import { networkId } from "@/config/env-config.schema";
+import { serverFetch } from "@/lib/serverFetch";
 import { UrlService } from "@/lib/urlUtils";
 import { serverApiUrlService } from "@/services/api-url/server-api-url.service";
 import type { AddressDetail } from "@/types";
@@ -40,7 +41,7 @@ export async function generateMetadata({ params: { address } }: AddressDetailPag
 
 async function fetchAddressData(address: string, network: Network["id"]): Promise<AddressDetail> {
   const apiUrl = serverApiUrlService.getBaseApiUrlFor(network);
-  const response = await fetch(`${apiUrl}/v1/addresses/${address}`);
+  const response = await serverFetch(`${apiUrl}/v1/addresses/${address}`);
 
   if (!response.ok) {
     // This will activate the closest `error.js` Error Boundary

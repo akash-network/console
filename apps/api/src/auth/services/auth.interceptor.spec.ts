@@ -16,12 +16,38 @@ import { AuthService } from "./auth.service";
 import { UserSeeder } from "@test/seeders/user.seeder";
 
 describe(AuthInterceptor.name, () => {
-  describe("Anonymous user", () => {
-    includeMarkUserAsActiveTests(() => UserSeeder.create({ userId: null }));
-  });
-
   describe("Regular user", () => {
-    includeMarkUserAsActiveTests(() => UserSeeder.create());
+    it("marks user as active once per 30 minutes", async () => {
+      const { di, callInterceptor } = setup({ user: UserSeeder.create() });
+
+      await Promise.all([callInterceptor(), callInterceptor()]);
+      await callInterceptor();
+      await callInterceptor();
+
+      expect(di.resolve(UserRepository).markAsActive).toHaveBeenCalledTimes(1);
+    });
+
+    it("marks user as active again after 30 minutes", async () => {
+      const { di, callInterceptor } = setup({ user: UserSeeder.create() });
+
+      await callInterceptor();
+      await callInterceptor();
+
+      jest.useFakeTimers();
+      try {
+        jest.setSystemTime(new Date(Date.now() + 25 * 60 * 1000));
+        await callInterceptor();
+        await callInterceptor();
+
+        jest.setSystemTime(new Date(Date.now() + 31 * 60 * 1000));
+        await callInterceptor();
+        await callInterceptor();
+
+        expect(di.resolve(UserRepository).markAsActive).toHaveBeenCalledTimes(2);
+      } finally {
+        jest.useRealTimers();
+      }
+    });
   });
 
   describe("API key user", () => {
@@ -58,40 +84,6 @@ describe(AuthInterceptor.name, () => {
     });
   });
 
-  function includeMarkUserAsActiveTests(createUser: () => UserOutput) {
-    it("marks user as active once per 30 minutes", async () => {
-      const { di, callInterceptor } = setup({ user: createUser() });
-
-      await Promise.all([callInterceptor(), callInterceptor()]);
-      await callInterceptor();
-      await callInterceptor();
-
-      expect(di.resolve(UserRepository).markAsActive).toHaveBeenCalledTimes(1);
-    });
-
-    it("marks user as active again after 30 minutes", async () => {
-      const { di, callInterceptor } = setup({ user: createUser() });
-
-      await callInterceptor();
-      await callInterceptor();
-
-      jest.useFakeTimers();
-      try {
-        jest.setSystemTime(new Date(Date.now() + 25 * 60 * 1000));
-        await callInterceptor();
-        await callInterceptor();
-
-        jest.setSystemTime(new Date(Date.now() + 31 * 60 * 1000));
-        await callInterceptor();
-        await callInterceptor();
-
-        expect(di.resolve(UserRepository).markAsActive).toHaveBeenCalledTimes(2);
-      } finally {
-        jest.useRealTimers();
-      }
-    });
-  }
-
   function setup(input?: SetupInput) {
     const di = globalContainer.createChildContainer();
 
@@ -99,7 +91,6 @@ describe(AuthInterceptor.name, () => {
     di.registerInstance(
       UserRepository,
       mock<UserRepository>({
-        findAnonymousById: jest.fn().mockImplementation(async () => input?.user ?? UserSeeder.create()),
         findByUserId: jest.fn().mockImplementation(async () => input?.user ?? UserSeeder.create()),
         findById: jest.fn().mockImplementation(async () => input?.user ?? UserSeeder.create()),
         markAsActive: jest.fn()

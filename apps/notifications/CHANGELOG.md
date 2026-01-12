@@ -1,5 +1,19 @@
 
 
+## [2.11.0](https://github.com/akash-network/console/compare/notifications/v2.10.2...notifications/v2.11.0) (2026-01-08)
+
+
+### Features
+
+* **observability:** forward client IP headers in stats-web to API requests  ([7b23468](https://github.com/akash-network/console/commit/7b23468a25385c11e6b51fd560c9336e11116ec5))
+
+## [2.10.2](https://github.com/akash-network/console/compare/notifications/v2.10.1...notifications/v2.10.2) (2026-01-05)
+
+
+### Code Refactoring
+
+* remove anonymous user feature ([#2436](https://github.com/akash-network/console/issues/2436)) ([d221387](https://github.com/akash-network/console/commit/d2213873df63dd85b477ad4b366527125bba10be))
+
 ## [2.10.1](https://github.com/akash-network/console/compare/notifications/v2.10.0...notifications/v2.10.1) (2025-12-29)
 
 

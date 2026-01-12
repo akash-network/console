@@ -1,5 +1,5 @@
 import { LoggerService as LoggerServiceOriginal } from "@akashnetwork/logging";
-import { HttpLoggerIntercepter } from "@akashnetwork/logging/hono";
+import { HttpLoggerInterceptor } from "@akashnetwork/logging/hono";
 import { collectOtel } from "@akashnetwork/logging/otel";
 import { container, injectable } from "tsyringe";
 
@@ -7,7 +7,7 @@ import { container, injectable } from "tsyringe";
 // This collects trace information and adds it to log entries
 LoggerServiceOriginal.mixin = collectOtel;
 
-container.register(HttpLoggerIntercepter, { useValue: new HttpLoggerIntercepter(LoggerServiceOriginal.forContext("HTTP")) });
+container.register(HttpLoggerInterceptor, { useValue: new HttpLoggerInterceptor(LoggerServiceOriginal.forContext("HTTP")) });
 
 @injectable()
 export class LoggerService extends LoggerServiceOriginal {}

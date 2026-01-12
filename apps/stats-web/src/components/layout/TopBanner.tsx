@@ -29,7 +29,7 @@ function NetworkDownBanner() {
 
   return (
     <div className="flex h-[40px] w-full items-center justify-center bg-primary px-3 py-2 md:space-x-4">
-      <span className="text-xs font-semibold text-white md:text-sm">
+      <span className="text-xs font-semibold text-primary-foreground md:text-sm">
         {isUpgrading ? "We are upgrading the blockchain. Stats are temporarily stale." : "Blockchain unavailable — stats are stale until service is restored."}
       </span>
     </div>
@@ -47,10 +47,10 @@ function MaintenanceBanner({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="flex h-[40px] w-full items-center justify-center bg-primary px-3 py-2 md:space-x-4">
-      <span className="text-xs font-semibold text-white md:text-sm">
+      <span className="text-xs font-semibold text-primary-foreground md:text-sm">
         Network upgrade scheduled{upgradeAt ? ` at ${upgradeAt}` : ""}. Stats will be stale until the upgrade is complete.
       </span>
-      <Button variant="text" className="rounded-full text-white hover:text-white" size="icon" onClick={onClose}>
+      <Button variant="text" className="rounded-full text-primary-foreground hover:text-primary-foreground" size="icon" onClick={onClose}>
         <Xmark />
       </Button>
     </div>
@@ -62,7 +62,7 @@ function GenericBanner() {
 
   return (
     <div className="flex h-[40px] w-full items-center justify-center bg-primary px-3 py-2 md:space-x-4">
-      <span className="text-xs font-semibold text-white md:text-sm">{statsMessage || message}</span>
+      <span className="text-xs font-semibold text-primary-foreground md:text-sm">{statsMessage || message}</span>
     </div>
   );
 }

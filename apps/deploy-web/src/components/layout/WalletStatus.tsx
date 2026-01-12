@@ -8,7 +8,6 @@ import { NavArrowDown, Wallet } from "iconoir-react";
 import { useAtom } from "jotai";
 
 import { ConnectManagedWalletButton } from "@src/components/wallet/ConnectManagedWalletButton";
-import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useWallet } from "@src/context/WalletProvider";
 import { getSplitText } from "@src/hooks/useShortText";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
@@ -16,8 +15,6 @@ import walletStore from "@src/store/walletStore";
 import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
 import { CustodialWalletPopup } from "../wallet/CustodialWalletPopup";
 import { ManagedWalletPopup } from "../wallet/ManagedWalletPopup";
-
-const withBilling = browserEnvConfig.NEXT_PUBLIC_BILLING_ENABLED;
 
 export function WalletStatus() {
   const { walletName, isWalletLoaded, isWalletConnected, isManaged, isWalletLoading, isTrialing } = useWallet();
@@ -84,7 +81,7 @@ export function WalletStatus() {
                   >
                     <div>
                       {!isManaged && <CustodialWalletPopup walletBalance={walletBalance} />}
-                      {withBilling && isManaged && <ManagedWalletPopup walletBalance={walletBalance} />}
+                      {isManaged && <ManagedWalletPopup walletBalance={walletBalance} />}
                     </div>
                   </ClickAwayListener>
                 </DropdownMenuContent>
@@ -93,7 +90,7 @@ export function WalletStatus() {
           </div>
         ) : (
           <div className="w-full">
-            {withBilling && !isSignedInWithTrial && <ConnectManagedWalletButton className="mb-2 mr-2 w-full md:mb-0 md:w-auto" />}
+            {!isSignedInWithTrial && <ConnectManagedWalletButton className="mb-2 mr-2 w-full md:mb-0 md:w-auto" />}
             <ConnectWalletButton className="w-full md:w-auto" />
           </div>
         )

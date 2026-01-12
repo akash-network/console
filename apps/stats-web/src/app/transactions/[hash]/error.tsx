@@ -9,6 +9,7 @@ import { useLogger } from "@/hooks/useLogger";
 
 export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   const transactionLogger = useLogger("apps/stats-web/src/app/transactions/[hash]/errors.tsx");
+
   useEffect(() => {
     // Log the error to an error reporting service
     transactionLogger.debug(error);

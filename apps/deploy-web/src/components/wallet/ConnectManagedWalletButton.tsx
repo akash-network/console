@@ -25,17 +25,12 @@ interface Props extends ButtonProps {
 
 export const ConnectManagedWalletButton: React.FunctionComponent<Props> = ({ className = "", dependencies: d = DEPENDENCIES, ...rest }) => {
   const { settings } = d.useSettings();
-  const { connectManagedWallet, hasManagedWallet, isWalletLoading } = useWallet();
-  const allowAnonymousUserTrial = d.useFlag("anonymous_free_trial");
+  const { hasManagedWallet, isWalletLoading } = useWallet();
   const router = d.useRouter();
 
   const startTrial: React.MouseEventHandler = useCallback(() => {
-    if (allowAnonymousUserTrial || hasManagedWallet) {
-      connectManagedWallet();
-    } else {
-      router.push(UrlService.onboarding());
-    }
-  }, [connectManagedWallet, allowAnonymousUserTrial, router, hasManagedWallet]);
+    router.push(UrlService.onboarding());
+  }, [router]);
 
   return (
     <Button variant="default" onClick={startTrial} className={className} {...rest} disabled={settings.isBlockchainDown || isWalletLoading}>

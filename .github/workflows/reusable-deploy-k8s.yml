@@ -24,6 +24,7 @@ on:
           - provider-console
           - provider-console-api
           - provider-console-security
+          - stats-web
       appVersion:
         description: "The version of the app to deploy"
         required: true
@@ -171,6 +172,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: beta-deployment-status
     if: needs.beta-deployment-status.outputs.can_deploy == 'true' || inputs.skip_beta_deployment_check == 'true'
+    environment: ${{ inputs.environment == 'prod' && 'production' || 'beta' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4

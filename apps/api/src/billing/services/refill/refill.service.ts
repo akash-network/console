@@ -7,6 +7,7 @@ import { singleton } from "tsyringe";
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
+import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { ManagedUserWalletService } from "@src/billing/services/managed-user-wallet/managed-user-wallet.service";
 import { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
 import { Semaphore } from "@src/core/lib/semaphore.decorator";
@@ -20,6 +21,7 @@ export class RefillService {
     @InjectBillingConfig() private readonly config: BillingConfig,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly managedUserWalletService: ManagedUserWalletService,
+    private readonly managedSignerService: ManagedSignerService,
     private readonly balancesService: BalancesService,
     private readonly walletInitializerService: WalletInitializerService,
     private readonly analyticsService: AnalyticsService
@@ -48,7 +50,7 @@ export class RefillService {
 
     const expiration = isInTrialWindow && userWallet.createdAt ? addDays(userWallet.createdAt, this.config.TRIAL_ALLOWANCE_EXPIRATION_DAYS) : undefined;
 
-    await this.managedUserWalletService.authorizeSpending({
+    await this.managedUserWalletService.authorizeSpending(this.managedSignerService, {
       address: userWallet.address!,
       limits: {
         fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT
@@ -69,7 +71,7 @@ export class RefillService {
 
     const nextLimit = currentLimit + amountUsd * 10000;
     const limits = { deployment: nextLimit, fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT };
-    await this.managedUserWalletService.authorizeSpending({
+    await this.managedUserWalletService.authorizeSpending(this.managedSignerService, {
       address: userWallet.address!,
       limits
     });
@@ -99,7 +101,7 @@ export class RefillService {
     const nextLimit = Math.max(0, currentLimit - reductionAmount);
     const limits = { deployment: nextLimit, fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT };
 
-    await this.managedUserWalletService.authorizeSpending({
+    await this.managedUserWalletService.authorizeSpending(this.managedSignerService, {
       address: userWallet.address,
       limits
     });

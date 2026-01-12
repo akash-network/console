@@ -90,7 +90,7 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
             Network Summary
           </Title>
 
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             {dashboardData.now.dailyUUsdSpent !== undefined && dashboardData.compare.dailyUUsdSpent !== undefined && (
               <StatsCard
                 number={
@@ -163,7 +163,7 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
             Resources leased
           </Title>
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-5">
             {dashboardData.now.activeLeaseCount !== undefined && dashboardData.compare.activeLeaseCount !== undefined && (
               <StatsCard
                 number={<FormattedNumber value={dashboardData.now.activeLeaseCount} notation="compact" compactDisplay="short" maximumFractionDigits={2} />}
@@ -242,7 +242,7 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
             Network Capacity
           </Title>
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-5">
             {dashboardData.networkCapacity.activeProviderCount !== undefined &&
               dashboardData.networkCapacityStats.now.count !== undefined &&
               dashboardData.networkCapacityStats.compare.count !== undefined && (
@@ -333,7 +333,7 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
             Spent Assets
           </Title>
 
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             {dashboardData.now.dailyUAktSpent !== undefined && dashboardData.compare.dailyUAktSpent !== undefined && (
               <StatsCard
                 number={
@@ -427,7 +427,7 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
             Blockchain
           </Title>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
             {dashboardData.chainStats.height > 0 && <StatsCard number={<FormattedNumber value={dashboardData.chainStats.height} />} text="Height" />}
 
             {dashboardData.chainStats.transactionCount > 0 && (
@@ -478,7 +478,7 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
         <SearchBar />
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
         <Card className="flex w-full flex-col justify-between">
           <CardHeader className="flex flex-row items-center space-y-0 pb-2 pl-4 pr-4">
             <CardTitle className="text-lg font-medium">Blocks</CardTitle>

@@ -182,6 +182,8 @@ const nextConfig = {
       : []
 };
 
+const REPOSITORY_URL = new URL(repository.url);
+
 /**
  * For all available options, see:
  * https://github.com/getsentry/sentry-webpack-plugin#options.
@@ -202,7 +204,7 @@ const sentryWebpackPluginOptions = {
   release: {
     name: version,
     setCommits: {
-      repo: repository.url,
+      repo: REPOSITORY_URL.pathname.slice(1).replace(/\.git$/, ""),
       commit: process.env.GIT_COMMIT_HASH
     }
   },

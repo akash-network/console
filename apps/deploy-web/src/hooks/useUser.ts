@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 
 import { useCustomUser } from "@src/hooks/useCustomUser";
-import { useStoredAnonymousUser } from "@src/hooks/useStoredAnonymousUser";
 import type { CustomUserProfile } from "@src/types/user";
 
 export const useUser = (): {
@@ -10,9 +9,8 @@ export const useUser = (): {
   checkSession: () => Promise<void>;
 } => {
   const { user: registeredUser, isLoading: isLoadingRegisteredUser, checkSession } = useCustomUser();
-  const { user: anonymousUser, isLoading: isLoadingAnonymousUser } = useStoredAnonymousUser();
-  const user = useMemo(() => registeredUser || anonymousUser, [registeredUser, anonymousUser]);
-  const isLoading = useMemo(() => isLoadingRegisteredUser || isLoadingAnonymousUser, [isLoadingRegisteredUser, isLoadingAnonymousUser]);
+  const user = useMemo(() => registeredUser, [registeredUser]);
+  const isLoading = useMemo(() => isLoadingRegisteredUser, [isLoadingRegisteredUser]);
 
   return {
     user,

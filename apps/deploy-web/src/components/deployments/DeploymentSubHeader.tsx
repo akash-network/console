@@ -14,7 +14,6 @@ import { TrialDeploymentBadge } from "@src/components/shared/TrialDeploymentBadg
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useDeploymentMetrics } from "@src/hooks/useDeploymentMetrics";
-import { useFlag } from "@src/hooks/useFlag";
 import { useTrialDeploymentTimeRemaining } from "@src/hooks/useTrialDeploymentTimeRemaining";
 import { useDenomData } from "@src/hooks/useWalletBalance";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
@@ -36,7 +35,6 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
   const hasGpu = leases?.some(l => l.state === "active" && l.gpuAmount && l.gpuAmount > 0);
   const denomData = useDenomData(deployment.escrowAccount.state.funds[0]?.denom || "");
   const { isCustodial, isTrialing } = useWallet();
-  const isAnonymousFreeTrialEnabled = useFlag("anonymous_free_trial");
   const { publicConfig: appConfig } = useServices();
 
   const trialDuration = appConfig.NEXT_PUBLIC_TRIAL_DEPLOYMENTS_DURATION_HOURS;
@@ -146,7 +144,7 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
               <div>{deployment.state}</div>
               <StatusPill state={deployment.state} size="small" />
 
-              {!isAnonymousFreeTrialEnabled && isTrialing && <TrialDeploymentBadge createdHeight={deployment.createdAt} />}
+              {isTrialing && <TrialDeploymentBadge createdHeight={deployment.createdAt} />}
             </div>
           }
         />
@@ -156,7 +154,7 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
           value={
             <div className="flex items-center space-x-2">
               {realTimeLeft && isValid(realTimeLeft?.timeLeft) && <span>~{formatDistanceToNow(realTimeLeft?.timeLeft)}</span>}
-              {!isAnonymousFreeTrialEnabled && isTrialing && trialTimeRemaining && <span className="text-xs text-primary">(Trial: {trialTimeRemaining})</span>}
+              {isTrialing && trialTimeRemaining && <span className="text-xs text-primary">(Trial: {trialTimeRemaining})</span>}
             </div>
           }
         />

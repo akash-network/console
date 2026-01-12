@@ -20,17 +20,17 @@ interface IStatsCardProps {
 export const StatsCard: React.FunctionComponent<IStatsCardProps> = ({ number, text, tooltip, actionButton, graphPath, diffNumber, diffPercent }) => {
   return (
     <Card className="flex flex-col justify-between">
-      <CardHeader className="flex flex-row items-center space-y-0 pb-2 pl-4 pr-4">
-        <CardTitle className="text-sm font-medium">{text}</CardTitle>
+      <CardHeader className="flex flex-row items-center space-y-0 pb-4">
+        <CardTitle className="text-sm font-medium leading-none text-muted-foreground">{text}</CardTitle>
         {tooltip && (
           <CustomTooltip title={tooltip}>
             <HelpCircle className="ml-2 text-xs text-muted-foreground" />
           </CustomTooltip>
         )}
       </CardHeader>
-      <CardContent className="pl-4 pr-4">
+      <CardContent>
         <div className="flex items-end">
-          <div className="text-2xl font-bold leading-6">{number}</div>
+          <div className="text-2xl font-bold leading-none">{number}</div>
 
           {(!!diffNumber || !!diffPercent) && (
             <div className="inline-flex items-end">
@@ -49,7 +49,12 @@ export const StatsCard: React.FunctionComponent<IStatsCardProps> = ({ number, te
       {graphPath && (
         <CardFooter className="p-0">
           <Link href={graphPath} className="w-full">
-            <Button aria-label="graph" size="sm" className="w-full rounded-t-[0px] text-sm" variant="secondary">
+            <Button
+              aria-label="graph"
+              size="sm"
+              className="w-full rounded-t-[0px] bg-secondary text-sm hover:bg-secondary/80 dark:bg-secondary/50"
+              variant="ghost"
+            >
               <span className="mr-2">Graph</span>
               <GraphUp className="text-xs" />
             </Button>

@@ -7,7 +7,6 @@ import { useAtom } from "jotai";
 import Link from "next/link";
 import { useRouter } from "next/router";
 
-import { browserEnvConfig } from "@src/config/browser-env.config";
 import { UAKT_DENOM } from "@src/config/denom.config";
 import { useWallet } from "@src/context/WalletProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
@@ -22,8 +21,6 @@ import { ConnectManagedWalletButton } from "./ConnectManagedWalletButton";
 interface CustodialWalletPopupProps extends React.PropsWithChildren {
   walletBalance?: WalletBalance | null;
 }
-
-const withBilling = browserEnvConfig.NEXT_PUBLIC_BILLING_ENABLED;
 
 export const CustodialWalletPopup: React.FC<CustodialWalletPopupProps> = ({ walletBalance }) => {
   const { address, logout } = useWallet();
@@ -85,18 +82,14 @@ export const CustodialWalletPopup: React.FC<CustodialWalletPopupProps> = ({ wall
           <LogOut />
           <span>Disconnect Wallet</span>
         </Button>
-        {withBilling && (
-          <>
-            <Separator className="my-4" />
+        <Separator className="my-4" />
 
-            {isSignedInWithTrial && !user ? (
-              <Link className={cn(buttonVariants({ variant: "outline" }), "w-full space-x-2")} href={UrlService.newLogin()}>
-                Sign in for USD Payments
-              </Link>
-            ) : (
-              <ConnectManagedWalletButton className="w-full" />
-            )}
-          </>
+        {isSignedInWithTrial && !user ? (
+          <Link className={cn(buttonVariants({ variant: "outline" }), "w-full space-x-2")} href={UrlService.newLogin()}>
+            Sign in for USD Payments
+          </Link>
+        ) : (
+          <ConnectManagedWalletButton className="w-full" />
         )}
       </div>
     </div>

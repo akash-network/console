@@ -1,5 +1,31 @@
 
 
+## [3.19.0](https://github.com/akash-network/console/compare/console-api/v3.18.3...console-api/v3.19.0) (2026-01-08)
+
+
+### Features
+
+* **observability:** forward client IP headers in stats-web to API requests  ([7b23468](https://github.com/akash-network/console/commit/7b23468a25385c11e6b51fd560c9336e11116ec5))
+
+## [3.18.3](https://github.com/akash-network/console/compare/console-api/v3.18.2...console-api/v3.18.3) (2026-01-05)
+
+
+### Bug Fixes
+
+* sets lower values for template fetching runtime concurrency ([#2449](https://github.com/akash-network/console/issues/2449)) ([2cb7b9b](https://github.com/akash-network/console/commit/2cb7b9b63e0f7935849b9a1fd8008d4f86f0602b))
+
+## [3.18.2](https://github.com/akash-network/console/compare/console-api/v3.18.1...console-api/v3.18.2) (2026-01-05)
+
+
+### Bug Fixes
+
+* **managed-wallet:** ensure fee authorization sync with blockchain and auto-refill for trial wallets ([c3ee8f0](https://github.com/akash-network/console/commit/c3ee8f03f528aaddf34fcca43c64708fef4da040)), closes [#2338](https://github.com/akash-network/console/issues/2338)
+
+
+### Code Refactoring
+
+* remove anonymous user feature ([#2436](https://github.com/akash-network/console/issues/2436)) ([d221387](https://github.com/akash-network/console/commit/d2213873df63dd85b477ad4b366527125bba10be))
+
 ## [3.18.1](https://github.com/akash-network/console/compare/console-api/v3.18.0...console-api/v3.18.1) (2026-01-02)
 
 
