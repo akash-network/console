@@ -13,7 +13,6 @@ import Link from "next/link";
 
 import { AddFundsLink } from "@src/components/user/AddFundsLink";
 import { ConnectManagedWalletButton } from "@src/components/wallet/ConnectManagedWalletButton";
-import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useWallet } from "@src/context/WalletProvider";
 import { useChainParam } from "@src/hooks/useChainParam/useChainParam";
 import { useCustomUser } from "@src/hooks/useCustomUser";
@@ -76,11 +75,11 @@ export const GetStartedStepper: React.FunctionComponent = () => {
           onClick={() => (activeStep > 0 ? onStepClick(0) : null)}
           classes={{ label: cn("text-xl tracking-tight", { ["cursor-pointer hover:text-primary"]: activeStep > 0, ["!font-bold"]: activeStep === 0 }) }}
         >
-          {browserEnvConfig.NEXT_PUBLIC_BILLING_ENABLED ? "Trial / Billing" : "Billing"}
+          Trial / Billing
         </StepLabel>
 
         <StepContent>
-          {browserEnvConfig.NEXT_PUBLIC_BILLING_ENABLED && !isWalletConnected && (
+          {!isWalletConnected && (
             <p className="text-muted-foreground">
               You can pay using either USD (fiat) or with crypto ($AKT or $USDC). To pay with USD, click "Start Trial". To pay with crypto, click "Connect
               Wallet"
@@ -143,7 +142,7 @@ export const GetStartedStepper: React.FunctionComponent = () => {
               </div>
 
               <div className="flex items-center gap-2">
-                {browserEnvConfig.NEXT_PUBLIC_BILLING_ENABLED && !isSignedInWithTrial && <ConnectManagedWalletButton className="mr-2 w-full md:w-auto" />}
+                {!isSignedInWithTrial && <ConnectManagedWalletButton className="mr-2 w-full md:w-auto" />}
                 <ConnectWalletButton />
 
                 {isSignedInWithTrial && !user && (

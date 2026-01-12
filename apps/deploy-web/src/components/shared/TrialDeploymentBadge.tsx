@@ -4,7 +4,7 @@ import { Badge, CustomTooltip } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { Info } from "lucide-react";
 
-import { browserEnvConfig } from "@src/config/browser-env.config";
+import { useServices } from "@src/context/ServicesProvider";
 import { useTrialDeploymentTimeRemaining } from "@src/hooks/useTrialDeploymentTimeRemaining";
 import { TrialDeploymentTooltip } from "./TrialDeploymentTooltip";
 
@@ -24,7 +24,8 @@ export const DEPENDENCIES = {
 };
 
 export function TrialDeploymentBadge({ createdHeight, trialDurationHours, averageBlockTime = 6, className, dependencies: d = DEPENDENCIES }: Props) {
-  const trialDuration = trialDurationHours ?? browserEnvConfig.NEXT_PUBLIC_TRIAL_DEPLOYMENTS_DURATION_HOURS;
+  const { publicConfig } = useServices();
+  const trialDuration = trialDurationHours ?? publicConfig.NEXT_PUBLIC_TRIAL_DEPLOYMENTS_DURATION_HOURS;
 
   const { isExpired, timeRemainingText } = d.useTrialTimeRemaining({
     createdHeight,

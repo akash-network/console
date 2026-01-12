@@ -1,7 +1,6 @@
 import type { AxiosInstance } from "axios";
 import { mock } from "jest-mock-extended";
 
-import type { BrowserEnvConfig } from "@src/config/browser-env.config";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { UserTracker } from "@src/services/user-tracker/user-tracker.service";
 import type { CustomUserProfile } from "@src/types/user";
@@ -66,11 +65,7 @@ describe(UserProviders.name, () => {
           }) as AxiosInstance["get"]
         }) as unknown as AxiosInstance,
       userTracker: () => input?.userTracker || mock<UserTracker>(),
-      analyticsService: () => input?.analyticsService || mock<AnalyticsService>(),
-      appConfig: () =>
-        mock<BrowserEnvConfig>({
-          NEXT_PUBLIC_BILLING_ENABLED: true
-        })
+      analyticsService: () => input?.analyticsService || mock<AnalyticsService>()
     };
     let id = 0;
     const genContent = () => (

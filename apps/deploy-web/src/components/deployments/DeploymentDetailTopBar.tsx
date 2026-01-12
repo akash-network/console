@@ -13,7 +13,6 @@ import { Edit, MoreHoriz, NavArrowLeft, Refresh, Upload, XmarkSquare } from "ico
 import { useRouter } from "next/navigation";
 
 import { CustomDropdownLinkItem } from "@src/components/shared/CustomDropdownLinkItem";
-import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
@@ -48,7 +47,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
   deployment,
   leases
 }) => {
-  const { analyticsService } = useServices();
+  const { analyticsService, publicConfig } = useServices();
   const { changeDeploymentName, getDeploymentData, getDeploymentName } = useLocalNotes();
   const { udenomToUsd } = usePricing();
   const router = useRouter();
@@ -232,7 +231,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
                     <div className="space-y-2">
                       <div>
                         <div>
-                          Estimated amount: ${udenomToUsd(deploymentSetting.data?.estimatedTopUpAmount || 0, browserEnvConfig.NEXT_PUBLIC_MANAGED_WALLET_DENOM)}
+                          Estimated amount: ${udenomToUsd(deploymentSetting.data?.estimatedTopUpAmount || 0, publicConfig.NEXT_PUBLIC_MANAGED_WALLET_DENOM)}
                         </div>
                         <div>Check period: {formatDuration(intervalToDuration({ start: 0, end: deploymentSetting.data?.topUpFrequencyMs || 0 }))}</div>
                       </div>
