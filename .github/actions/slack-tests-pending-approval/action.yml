@@ -1,0 +1,49 @@
+name: Slack notification
+description: Sends a notification to Slack to the user who merged the PR about pending deployment approval
+
+inputs:
+  url:
+    description: Base URL to Console API or UI
+    required: true
+  new-app-version:
+    description: New app version
+    required: true
+  slack-webhook-url:
+    description: Slack webhook URL
+    required: false
+  gh-user-to-slack-user:
+    description: GitHub user to Slack user mapping
+    required: false
+    default: "{}"
+  message-title:
+    description: Title of the message
+    required: false
+    default: "Deployment requires approval"
+
+runs:
+  using: "composite"
+  steps:
+    - uses: ./.github/actions/associated-pr
+      id: associated-pr
+      with:
+        gh-user-to-slack-user: ${{ inputs.gh-user-to-slack-user }}
+    - name: Notify in Slack
+      uses: slackapi/slack-github-action@v2.0.0
+      with:
+        webhook-type: incoming-webhook
+        webhook: ${{ inputs.slack-webhook-url }}
+        payload: |
+          blocks:
+            - type: "header"
+              text:
+                type: "plain_text"
+                text: |
+                  ${{ inputs.message-title }}
+            - type: "section"
+              text:
+                type: "mrkdwn"
+                text: |
+                  Hey ${{ steps.associated-pr.outputs.slack-user != '' && format('<@{0}>', steps.associated-pr.outputs.slack-user) || steps.associated-pr.outputs.author }},
+
+                  New version of ${{inputs.new-app-version}} is ready to be deployed to prod. Please test your changes on <${{ inputs.url }}|beta> and <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Confirm> deployment. It was triggered by the following PR:
+                  <${{ github.server_url }}/${{ github.repository }}/pull/${{ steps.associated-pr.outputs.number }}|${{ steps.associated-pr.outputs.title }}>

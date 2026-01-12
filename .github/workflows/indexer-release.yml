@@ -26,3 +26,31 @@ jobs:
       packages: write
     with:
       tag: ${{ needs.release.outputs.git_tag }}
+
+  deploy-prod-mainnet:
+    permissions:
+      contents: read
+      pull-requests: read
+    needs: build
+    name: Deploy to prod mainnet
+    uses: ./.github/workflows/reusable-deploy-k8s.yml
+    secrets: inherit
+    with:
+      app: indexer
+      appVersion: ${{ needs.build.outputs.image_tag }}
+      environment: prod
+      chain: mainnet
+
+  deploy-prod-sandbox:
+    permissions:
+      contents: read
+      pull-requests: read
+    needs: build
+    name: Deploy to prod sandbox
+    uses: ./.github/workflows/reusable-deploy-k8s.yml
+    secrets: inherit
+    with:
+      app: indexer
+      appVersion: ${{ needs.build.outputs.image_tag }}
+      environment: prod
+      chain: sandbox
