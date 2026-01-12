@@ -11,16 +11,12 @@ import type { FCWithChildren } from "@src/types/component";
  * which is a client only component.
  */
 export const UserProviders: FCWithChildren = ({ children }) => {
-  const { internalApiHttpClient, publicConfig } = useServices();
-  return publicConfig.NEXT_PUBLIC_BILLING_ENABLED ? (
+  const { internalApiHttpClient } = useServices();
+  return (
     <UserProvider fetcher={url => internalApiHttpClient.get(url).then(response => response.data)}>
       <UserInitLoader>
         <UserTracker>{children}</UserTracker>
       </UserInitLoader>
-    </UserProvider>
-  ) : (
-    <UserProvider>
-      <UserTracker>{children}</UserTracker>
     </UserProvider>
   );
 };
