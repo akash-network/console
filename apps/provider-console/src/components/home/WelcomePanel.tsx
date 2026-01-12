@@ -34,7 +34,7 @@ export const WelcomePanel: React.FC = () => {
                   <Link href={UrlService.getStarted()} className="font-semibold">
                     Get Started with providing compute on Akash
                   </Link>
-                  <span className="text-muted-foreground text-sm">Become a Akash Provider with simple and easy to follow steps.</span>
+                  <span className="text-muted-foreground text-sm">Become an Akash Provider with simple and easy to follow steps.</span>
                 </div>
               </li>
               <li className="flex items-center space-x-4">
