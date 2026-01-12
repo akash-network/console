@@ -8,10 +8,11 @@ import { useRouter } from "next/navigation";
 
 import { CI_CD_TEMPLATE_ID, CURRENT_SERVICE, DEFAULT_ENV_IN_YML, protectedEnvironmentVariables } from "@src/config/remote-deploy.config";
 import { useServices } from "@src/context/ServicesProvider";
+import { useDeployButtonFlow } from "@src/hooks/useDeployButtonFlow/useDeployButtonFlow";
 import { useWhen } from "@src/hooks/useWhen";
 import { useFetchAccessToken, useUserProfile } from "@src/queries/useGithubQuery";
 import { useGitLabFetchAccessToken, useGitLabUserProfile } from "@src/queries/useGitlabQuery";
-import { EnvVarUpdater } from "@src/services/remote-deploy/remote-deployment-controller.service";
+import { EnvVarManagerService } from "@src/services/remote-deploy/env-var-manager.service";
 import { tokens } from "@src/store/remoteDeployStore";
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { RouteStep } from "@src/types/route-steps.type";
@@ -24,6 +25,7 @@ import GithubManager from "./github/GithubManager";
 import GitlabManager from "./gitlab/GitlabManager";
 import AccountDropDown from "./AccountDropdown";
 import CustomInput from "./BoxTextInput";
+
 const RemoteRepositoryDeployManager = ({
   setValue,
   services,
@@ -41,6 +43,7 @@ const RemoteRepositoryDeployManager = ({
 }) => {
   const { githubService, bitbucketService, gitlabService } = useServices();
   const [token, setToken] = useAtom(tokens);
+  const { params: deployButtonParams, isDeployButtonFlow } = useDeployButtonFlow();
 
   const [selectedTab, setSelectedTab] = useState("git");
   const router = useRouter();
@@ -53,7 +56,7 @@ const RemoteRepositoryDeployManager = ({
 
   const shouldResetValue = isRepoUrlDefault(services?.[0]?.env || []);
 
-  const envVarUpdater = useMemo(() => new EnvVarUpdater(services), [services]);
+  const envVarManagerService = useMemo(() => new EnvVarManagerService(services || []), [services]);
 
   const { data: userProfile, isLoading: fetchingProfile } = useUserProfile();
   const { mutate: fetchAccessToken, isPending: fetchingToken } = useFetchAccessToken(navigateToNewDeployment);
@@ -63,6 +66,10 @@ const RemoteRepositoryDeployManager = ({
 
   const { data: userProfileGitLab, isLoading: fetchingProfileGitLab } = useGitLabUserProfile();
   const { mutate: fetchAccessTokenGitLab, isPending: fetchingTokenGitLab } = useGitLabFetchAccessToken(navigateToNewDeployment);
+
+  useWhen(isDeployButtonFlow, () => {
+    setSelectedTab("public");
+  });
 
   useWhen(isValid, () => {
     setIsRepoInputValid?.(true);
@@ -92,6 +99,42 @@ const RemoteRepositoryDeployManager = ({
     }
   }, [hydrated]);
 
+  useEffect(() => {
+    if (!isDeployButtonFlow || !services?.[0]) return;
+
+    const currentEnv = services[0].env || [];
+    const hasRepo = currentEnv.some(e => e.key === protectedEnvironmentVariables.REPO_URL);
+
+    if (hasRepo) return;
+
+    const envVars: Array<{ key: string; value: string; isSecret: boolean }> = [
+      { key: protectedEnvironmentVariables.REPO_URL, value: deployButtonParams.repoUrl, isSecret: false }
+    ];
+
+    const map = {
+      [protectedEnvironmentVariables.BRANCH_NAME]: deployButtonParams.branch,
+      [protectedEnvironmentVariables.BUILD_COMMAND]: deployButtonParams.buildCommand,
+      [protectedEnvironmentVariables.CUSTOM_SRC]: deployButtonParams.startCommand,
+      [protectedEnvironmentVariables.INSTALL_COMMAND]: deployButtonParams.installCommand,
+      [protectedEnvironmentVariables.BUILD_DIRECTORY]: deployButtonParams.buildDirectory,
+      [protectedEnvironmentVariables.NODE_VERSION]: deployButtonParams.nodeVersion
+    };
+
+    Object.entries(map).forEach(([key, value]) => {
+      if (value) {
+        envVars.push({ key, value, isSecret: false });
+      }
+    });
+
+    const repoName = deployButtonParams.repoUrl.split("/").pop() || "";
+    setDeploymentName(repoName);
+
+    setValue(CURRENT_SERVICE, envVarManagerService.addOrUpdateEnvironmentVariables(envVars), {
+      shouldValidate: false,
+      shouldDirty: true
+    });
+  }, [isDeployButtonFlow, deployButtonParams, services, setValue, setDeploymentName, envVarManagerService]);
+
   function navigateToNewDeployment() {
     router.replace(
       UrlService.newDeployment({
@@ -117,11 +160,11 @@ const RemoteRepositoryDeployManager = ({
 
         {
           <Tabs
+            value={selectedTab}
             onValueChange={value => {
               setSelectedTab(value);
               setValue(CURRENT_SERVICE, []);
             }}
-            defaultValue="git"
             className="mt-6"
           >
             <div className="mb-6 flex flex-col items-start gap-6 lg:flex-row lg:items-center lg:justify-between">
@@ -199,16 +242,21 @@ const RemoteRepositoryDeployManager = ({
                 label="Repository URL"
                 description="The link of the public repo to be deployed"
                 placeholder="eg. https://github.com/username/repo.git"
+                value={envVarManagerService.getEnvironmentVariableValue(protectedEnvironmentVariables.REPO_URL, "")}
                 onChange={e =>
-                  setValue(CURRENT_SERVICE, envVarUpdater.addOrUpdateEnvironmentVariable(protectedEnvironmentVariables.REPO_URL, e.target.value, false))
+                  setValue(CURRENT_SERVICE, envVarManagerService.addOrUpdateEnvironmentVariable(protectedEnvironmentVariables.REPO_URL, e.target.value, false))
                 }
               />
               <CustomInput
                 label="Branch Name"
                 description="The git branch branch which is to be deployed"
                 placeholder="eg. main"
+                value={envVarManagerService.getEnvironmentVariableValue(protectedEnvironmentVariables.BRANCH_NAME, "")}
                 onChange={e =>
-                  setValue(CURRENT_SERVICE, envVarUpdater.addOrUpdateEnvironmentVariable(protectedEnvironmentVariables.BRANCH_NAME, e.target.value, false))
+                  setValue(
+                    CURRENT_SERVICE,
+                    envVarManagerService.addOrUpdateEnvironmentVariable(protectedEnvironmentVariables.BRANCH_NAME, e.target.value, false)
+                  )
                 }
               />
             </TabsContent>

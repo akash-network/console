@@ -3,6 +3,7 @@ services:
     restart: always
     environment:
       PORT: 3000
+      GITHUB_PAT: ${GITHUB_PAT}
     env_file:
       - .env.sandbox.docker-compose-dev
     ports:

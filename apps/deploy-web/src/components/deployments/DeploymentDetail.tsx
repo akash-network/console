@@ -23,7 +23,7 @@ import { useWhen } from "@src/hooks/useWhen";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { useDeploymentLeaseList } from "@src/queries/useLeaseQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
-import { extractRepositoryUrl, isCiCdImageInYaml } from "@src/services/remote-deploy/remote-deployment-controller.service";
+import { extractRepositoryUrl, isCiCdImageInYaml } from "@src/services/remote-deploy/env-var-manager.service";
 import { RouteStep } from "@src/types/route-steps.type";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";

@@ -4,12 +4,14 @@ const BoxTextInput = ({
   label,
   description,
   placeholder,
-  onChange
+  onChange,
+  value
 }: {
   label: string;
   description?: string;
   placeholder: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  value?: string;
 }) => {
   return (
     <div className="flex flex-col gap-5 rounded border bg-card px-6 py-6 text-card-foreground">
@@ -17,7 +19,7 @@ const BoxTextInput = ({
         <h1 className="font-semibold">{label}</h1>
         {description && <p className="text-muted-foreground">{description}</p>}
       </div>
-      <Input onChange={onChange} placeholder={placeholder} />
+      <Input onChange={onChange} placeholder={placeholder} value={value || ""} />
     </div>
   );
 };

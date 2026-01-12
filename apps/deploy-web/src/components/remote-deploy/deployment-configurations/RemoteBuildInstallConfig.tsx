@@ -5,14 +5,15 @@ import { cn } from "@akashnetwork/ui/utils";
 import { NavArrowDown } from "iconoir-react";
 
 import { CURRENT_SERVICE, protectedEnvironmentVariables } from "@src/config/remote-deploy.config";
-import { EnvVarUpdater } from "@src/services/remote-deploy/remote-deployment-controller.service";
+import { EnvVarManagerService } from "@src/services/remote-deploy/env-var-manager.service";
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import BoxTextInput from "../BoxTextInput";
 
 const RemoteBuildInstallConfig = ({ services, setValue }: { services: ServiceType[]; setValue: UseFormSetValue<SdlBuilderFormValuesType> }) => {
   const [expanded, setExpanded] = useState(false);
   const currentService = services[0];
-  const envVarUpdater = useMemo(() => new EnvVarUpdater(services), [services]);
+  const envVarManagerService = useMemo(() => new EnvVarManagerService(services), [services]);
+
   return (
     <Collapsible
       open={expanded}
@@ -32,36 +33,56 @@ const RemoteBuildInstallConfig = ({ services, setValue }: { services: ServiceTyp
           <CollapsibleContent>
             <div className="grid gap-6 p-5 md:grid-cols-2">
               <BoxTextInput
+                value={envVarManagerService.getEnvironmentVariableValue(protectedEnvironmentVariables.INSTALL_COMMAND, "")}
                 onChange={e =>
-                  setValue(CURRENT_SERVICE, envVarUpdater.addOrUpdateEnvironmentVariable(protectedEnvironmentVariables.INSTALL_COMMAND, e.target.value, false))
+                  setValue(
+                    CURRENT_SERVICE,
+                    envVarManagerService.addOrUpdateEnvironmentVariable(protectedEnvironmentVariables.INSTALL_COMMAND, e.target.value, false)
+                  )
                 }
                 label="Install Command"
                 placeholder="npm install"
               />
               <BoxTextInput
+                value={envVarManagerService.getEnvironmentVariableValue(protectedEnvironmentVariables.BUILD_DIRECTORY, "")}
                 onChange={e =>
-                  setValue(CURRENT_SERVICE, envVarUpdater.addOrUpdateEnvironmentVariable(protectedEnvironmentVariables.BUILD_DIRECTORY, e.target.value, false))
+                  setValue(
+                    CURRENT_SERVICE,
+                    envVarManagerService.addOrUpdateEnvironmentVariable(protectedEnvironmentVariables.BUILD_DIRECTORY, e.target.value, false)
+                  )
                 }
                 label="Build Directory"
                 placeholder="dist"
               />
               <BoxTextInput
+                value={envVarManagerService.getEnvironmentVariableValue(protectedEnvironmentVariables.BUILD_COMMAND, "")}
                 onChange={e =>
-                  setValue(CURRENT_SERVICE, envVarUpdater.addOrUpdateEnvironmentVariable(protectedEnvironmentVariables.BUILD_COMMAND, e.target.value, false))
+                  setValue(
+                    CURRENT_SERVICE,
+                    envVarManagerService.addOrUpdateEnvironmentVariable(protectedEnvironmentVariables.BUILD_COMMAND, e.target.value, false)
+                  )
                 }
                 label="Build Command"
                 placeholder="npm run build"
               />
               <BoxTextInput
+                value={envVarManagerService.getEnvironmentVariableValue(protectedEnvironmentVariables.CUSTOM_SRC, "")}
                 onChange={e =>
-                  setValue(CURRENT_SERVICE, envVarUpdater.addOrUpdateEnvironmentVariable(protectedEnvironmentVariables.CUSTOM_SRC, e.target.value, false))
+                  setValue(
+                    CURRENT_SERVICE,
+                    envVarManagerService.addOrUpdateEnvironmentVariable(protectedEnvironmentVariables.CUSTOM_SRC, e.target.value, false)
+                  )
                 }
                 label="Start Command"
                 placeholder="npm start"
               />
               <BoxTextInput
+                value={envVarManagerService.getEnvironmentVariableValue(protectedEnvironmentVariables.NODE_VERSION, "")}
                 onChange={e =>
-                  setValue(CURRENT_SERVICE, envVarUpdater.addOrUpdateEnvironmentVariable(protectedEnvironmentVariables.NODE_VERSION, e.target.value, false))
+                  setValue(
+                    CURRENT_SERVICE,
+                    envVarManagerService.addOrUpdateEnvironmentVariable(protectedEnvironmentVariables.NODE_VERSION, e.target.value, false)
+                  )
                 }
                 label="Node Version"
                 placeholder="21"
@@ -78,7 +99,7 @@ const RemoteBuildInstallConfig = ({ services, setValue }: { services: ServiceTyp
                     defaultChecked={false}
                     onCheckedChange={value => {
                       const pull = !value ? "yes" : "no";
-                      setValue(CURRENT_SERVICE, envVarUpdater.addOrUpdateEnvironmentVariable(protectedEnvironmentVariables.DISABLE_PULL, pull, false));
+                      setValue(CURRENT_SERVICE, envVarManagerService.addOrUpdateEnvironmentVariable(protectedEnvironmentVariables.DISABLE_PULL, pull, false));
                     }}
                   />
                 </div>

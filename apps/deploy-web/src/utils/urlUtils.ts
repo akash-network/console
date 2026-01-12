@@ -9,6 +9,13 @@ export type NewDeploymentParams = {
   page?: "new-deployment" | "deploy-linux";
   gitProvider?: string;
   gitProviderCode?: string | null;
+  repoUrl?: string;
+  branch?: string;
+  buildCommand?: string;
+  startCommand?: string;
+  installCommand?: string;
+  buildDirectory?: string;
+  nodeVersion?: string;
 };
 
 export const domainName = "https://console.akash.network";
@@ -87,11 +94,24 @@ export class UrlService {
   static settings = () => "/settings";
   static settingsAuthorizations = () => "/settings/authorizations";
 
-  // New deployment
   static newDeployment = (params: NewDeploymentParams = {}) => {
-    const { step, dseq, redeploy, templateId, gitProviderCode, gitProvider } = params;
+    const {
+      step,
+      dseq,
+      redeploy,
+      templateId,
+      gitProviderCode,
+      gitProvider,
+      repoUrl,
+      branch,
+      buildCommand,
+      startCommand,
+      installCommand,
+      buildDirectory,
+      nodeVersion
+    } = params;
     const page = params.page || "new-deployment";
-    return `/${page}${appendSearchParams({ dseq, step, templateId, redeploy, gitProvider, code: gitProviderCode })}`;
+    return `/${page}${appendSearchParams({ dseq, step, templateId, redeploy, gitProvider, code: gitProviderCode, repoUrl, branch, buildCommand, startCommand, installCommand, buildDirectory, nodeVersion })}`;
   };
 }
 

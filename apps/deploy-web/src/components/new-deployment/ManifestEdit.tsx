@@ -104,9 +104,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
     if (selectedTemplate?.name) {
       setDeploymentName(selectedTemplate.name);
     }
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [selectedTemplate]);
 
   useEffect(() => {
     const timer = Timer(500);

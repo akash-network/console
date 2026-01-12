@@ -2,7 +2,7 @@
 import type { ReactNode } from "react";
 import React, { useCallback, useEffect, useState } from "react";
 import type { EncodeObject } from "@cosmjs/proto-signing";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useSnackbar } from "notistack";
 
 import { SuccessAnimation } from "@src/components/shared";
@@ -19,6 +19,7 @@ import { RouteStep } from "@src/types/route-steps.type";
 import { deploymentData } from "@src/utils/deploymentData";
 import { appendAuditorRequirement } from "@src/utils/deploymentData/v1beta3";
 import { validateDeploymentData } from "@src/utils/deploymentUtils";
+import { getValidInternalReturnToUrl } from "@src/utils/getValidInternalReturnToUrl/getValidInternalReturnToUrl";
 import { helloWorldTemplate } from "@src/utils/templates";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { type OnboardingStep } from "../OnboardingStepper/OnboardingStepper";
@@ -39,7 +40,7 @@ export type OnboardingContainerProps = {
     onStepComplete: (step: OnboardingStepIndex) => void;
     onStartTrial: () => void;
     onPaymentMethodComplete: () => void;
-    onComplete: (templateName: string) => Promise<void>;
+    onComplete: (templateName?: string) => Promise<void>;
   }) => ReactNode;
   dependencies?: typeof DEPENDENCIES;
 };
@@ -60,7 +61,8 @@ const DEPENDENCIES = {
   validateDeploymentData,
   appendAuditorRequirement,
   helloWorldTemplate,
-  TransactionMessageData
+  TransactionMessageData,
+  useSearchParams
 };
 
 export const OnboardingContainer: React.FunctionComponent<OnboardingContainerProps> = ({ children, dependencies: d = DEPENDENCIES }) => {
@@ -69,6 +71,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
   const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
 
   const router = d.useRouter();
+  const searchParams = d.useSearchParams();
   const { user } = d.useUser();
   const { data: paymentMethods = [] } = d.usePaymentMethodsQuery({ enabled: !!user?.stripeCustomerId });
   const { data: depositParams } = d.useDepositParams();
@@ -91,9 +94,10 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
   useEffect(() => {
     const savedStep = d.localStorage?.getItem(ONBOARDING_STEP_KEY);
     if (!isWalletLoading && hasManagedWallet && !savedStep) {
-      router.replace("/");
+      const returnTo = getValidInternalReturnToUrl(searchParams.get("returnTo"));
+      router.push(returnTo);
     }
-  }, [isWalletLoading, hasManagedWallet, router, d.localStorage]);
+  }, [isWalletLoading, hasManagedWallet, router, d.localStorage, searchParams]);
 
   useEffect(() => {
     const savedStep = d.localStorage?.getItem(ONBOARDING_STEP_KEY);
@@ -104,8 +108,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
       }
     }
 
-    const urlParams = new URLSearchParams(windowLocation.search);
-    const fromSignup = urlParams.get("fromSignup");
+    const fromSignup = searchParams.get("fromSignup");
     if (fromSignup === "true") {
       analyticsService.track("onboarding_account_created", {
         category: "onboarding"
@@ -119,7 +122,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
       newUrl.searchParams.delete("fromSignup");
       windowHistory.replaceState({}, "", newUrl.toString());
     }
-  }, [analyticsService, d.localStorage]);
+  }, [analyticsService, d.localStorage, searchParams, windowLocation, windowHistory]);
 
   const handleStepChange = useCallback(
     (step: number) => {
@@ -198,8 +201,16 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
     handleStepChange(OnboardingStepIndex.WELCOME);
   }, [handleStepChange]);
 
-  const handleComplete = useCallback(
-    async (templateName: string) => {
+  const complete = useCallback(
+    async (templateName?: string) => {
+      if (!templateName) {
+        const returnTo = searchParams.get("returnTo");
+        d.localStorage?.removeItem(ONBOARDING_STEP_KEY);
+        router.push(getValidInternalReturnToUrl(returnTo));
+
+        return;
+      }
+
       try {
         const templateMap: Record<string, { id?: string; sdl: string; name: string }> = {
           "hello-akash": {
@@ -298,6 +309,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
     [
       d,
       router,
+      urlService,
       connectManagedWallet,
       templates,
       chainApiHttpClient,
@@ -311,7 +323,8 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
       analyticsService,
       enqueueSnackbar,
       errorHandler,
-      managedDenom
+      managedDenom,
+      searchParams
     ]
   );
 
@@ -365,7 +378,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
         onStepComplete: handleStepComplete,
         onStartTrial: handleStartTrial,
         onPaymentMethodComplete: handlePaymentMethodComplete,
-        onComplete: handleComplete
+        onComplete: complete
       })}
       <SuccessAnimation show={showSuccessAnimation} onComplete={handleSuccessAnimationComplete} />
     </>
