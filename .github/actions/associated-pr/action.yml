@@ -1,5 +1,5 @@
-name: Slack notification
-description: Sends a notification to Slack to the user who merged the PR
+name: Get Associated PR
+description: Gets the associated PR for a commit (takes commit from github context)
 
 inputs:
   gh-user-to-slack-user:

@@ -1,5 +1,5 @@
-name: Slack notification
-description: Sends a notification to Slack to the user who merged the PR about pending deployment approval
+name: Slack notification about pending deployment approval
+description: Sends a notification to Slack, notifying the user who merged the PR, about pending deployment approval
 
 inputs:
   url:
@@ -34,16 +34,14 @@ runs:
         webhook: ${{ inputs.slack-webhook-url }}
         payload: |
           blocks:
-            - type: "header"
-              text:
-                type: "plain_text"
-                text: |
-                  ${{ inputs.message-title }}
             - type: "section"
               text:
                 type: "mrkdwn"
                 text: |
+                  :hourglass_flowing_sand: *${{ inputs.message-title }}*
+
                   Hey ${{ steps.associated-pr.outputs.slack-user != '' && format('<@{0}>', steps.associated-pr.outputs.slack-user) || steps.associated-pr.outputs.author }},
 
-                  New version of ${{inputs.new-app-version}} is ready to be deployed to prod. Please test your changes on <${{ inputs.url }}|beta> and <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Confirm> deployment. It was triggered by the following PR:
+                  A new version of *${{inputs.new-app-version}}* is ready to be deployed to production. Please test your changes on <${{ inputs.url }}|beta> and <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Confirm> the deployment.
+                  This was triggered by the following PR:
                   <${{ github.server_url }}/${{ github.repository }}/pull/${{ steps.associated-pr.outputs.number }}|${{ steps.associated-pr.outputs.title }}>

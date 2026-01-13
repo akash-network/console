@@ -31,18 +31,15 @@ runs:
         webhook: ${{ inputs.slack-webhook-url }}
         payload: |
           blocks:
-            - type: "header"
-              text:
-                type: "plain_text"
-                text: |
-                  ${{ inputs.message-title }}
             - type: "section"
               text:
                 type: "mrkdwn"
                 text: |
+                  :boom: *${{ inputs.message-title }}*
+
                   Hey ${{ steps.associated-pr.outputs.slack-user != '' && format('<@{0}>', steps.associated-pr.outputs.slack-user) || steps.associated-pr.outputs.author }},
 
-                  Please review the tests report and fix the issues. Some details:
-                  *Website:* ${{ inputs.url }}
-                  *Workflow:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-                  *Associated PR:* <${{ github.server_url }}/${{ github.repository }}/pull/${{ steps.associated-pr.outputs.number }}|${{ steps.associated-pr.outputs.title }}>
+                  Tests failed on <${{ inputs.url }}|${{ inputs.url }}> likely related to changes in this PR:
+                  <${{ github.server_url }}/${{ github.repository }}/pull/${{ steps.associated-pr.outputs.number }}|${{ steps.associated-pr.outputs.title }}>
+
+                  Please review the test report available in <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|the workflow> artifacts and resolve the issue.
