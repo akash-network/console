@@ -78,6 +78,6 @@ To contribute new AI guidelines:
 3. Once approved, add the `RFC:Landed` label
 4. The guidelines will be automatically added to CLAUDE.md
 
-See [`.contribution-guidelines/README.md`](./.contribution-guidelines/README.md) for more details.
+See [`.claude/README.md`](./.claude/README.md) for more details.
 
 *That your commitment to following these specs will make a difference.*
