@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { CI_CD_TEMPLATE_ID } from "@src/config/remote-deploy.config";
 import { defineServerSideProps } from "@src/lib/nextjs/defineServerSideProps/defineServerSideProps";
 
 export const createServerSideProps = (route: string) =>
@@ -7,10 +8,20 @@ export const createServerSideProps = (route: string) =>
     route,
     schema: z.object({
       query: z.object({
-        templateId: z.string().optional()
+        templateId: z.string().optional(),
+        repoUrl: z
+          .string()
+          .optional()
+          .refine(val => !val || /^https?:\/\/(www\.)?(github|gitlab|bitbucket)\.(com|org)(?:\/|[?#]|$)/i.test(val), {
+            message: "repoUrl must start with github, gitlab, or bitbucket URL"
+          })
       })
     }),
     async handler({ query, services }) {
+      if (query.repoUrl) {
+        return { props: { isDeployButtonFlow: true, templateId: CI_CD_TEMPLATE_ID } };
+      }
+
       if (!query.templateId) {
         return { props: {} };
       }

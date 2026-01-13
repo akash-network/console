@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Separator, Tabs, TabsContent, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { useMutation } from "@tanstack/react-query";
 import { DollarSignIcon, RocketIcon, ZapIcon } from "lucide-react";
@@ -12,7 +12,10 @@ import { AkashConsoleLogo } from "@src/components/icons/AkashConsoleLogo";
 import { RemoteApiError } from "@src/components/shared/RemoteApiError/RemoteApiError";
 import type { TurnstileRef } from "@src/components/turnstile/Turnstile";
 import { ClientOnlyTurnstile } from "@src/components/turnstile/Turnstile";
+import { ConnectWalletButton } from "@src/components/wallet/ConnectWalletButton";
 import { useServices } from "@src/context/ServicesProvider";
+import { useWallet as useWalletOriginal } from "@src/context/WalletProvider";
+import { useDeployButtonFlow } from "@src/hooks/useDeployButtonFlow/useDeployButtonFlow";
 import { useUser } from "@src/hooks/useUser";
 import { AuthLayout } from "../AuthLayout/AuthLayout";
 import { ForgotPasswordForm } from "../ForgotPasswordForm/ForgotPasswordForm";
@@ -42,7 +45,10 @@ export const DEPENDENCIES = {
   Separator,
   useUser,
   useSearchParams,
-  useRouter
+  useRouter,
+  ConnectWalletButton,
+  useDeployButtonFlow,
+  useWallet: useWalletOriginal
 };
 
 interface Props {
@@ -54,16 +60,28 @@ export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
   const router = d.useRouter();
   const searchParams = d.useSearchParams();
   const { checkSession } = d.useUser();
+  const { isWalletConnected } = d.useWallet();
   const [email, setEmail] = useState("");
   const turnstileRef = useRef<TurnstileRef | null>(null);
+  const { isDeployButtonFlow } = d.useDeployButtonFlow();
+  const returnUrl = useMemo(() => searchParams.get("from") || searchParams.get("returnTo") || "/", [searchParams]);
+
+  useEffect(
+    function redirectToDeployForCustodialWallet() {
+      if (isWalletConnected && isDeployButtonFlow && returnUrl) {
+        router.push(returnUrl);
+      }
+    },
+    [isWalletConnected, isDeployButtonFlow, returnUrl, router]
+  );
 
   const redirectToSocialLogin = useCallback(
     async (provider: "github" | "google-oauth2") => {
-      const returnUrl = searchParams.get("from") || searchParams.get("returnTo") || "/";
       await authService.loginViaOauth({ returnTo: returnUrl, connection: provider });
     },
-    [searchParams]
+    [authService, returnUrl]
   );
+
   const signInOrSignUp = useMutation({
     async mutationFn(input: Tagged<"signin", SignInFormValues> | Tagged<"signup", SignUpFormValues>) {
       if (!turnstileRef.current) {
@@ -94,6 +112,7 @@ export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
     },
     [searchParams, router]
   );
+
   const forgotPassword = useMutation({
     async mutationFn(input: { email: string }) {
       if (!turnstileRef.current) {
@@ -103,6 +122,7 @@ export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
       await authService.sendPasswordResetEmail({ email: input.email, captchaToken });
     }
   });
+
   const resetMutations = useCallback(() => {
     signInOrSignUp.reset();
     forgotPassword.reset();
@@ -208,6 +228,23 @@ export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
                 </div>
 
                 <d.SocialAuth onSocialLogin={redirectToSocialLogin} />
+
+                {isDeployButtonFlow && (
+                  <>
+                    <div className="relative flex items-center justify-center self-stretch py-2.5">
+                      <d.Separator className="absolute inset-0 top-1/2" />
+                      <div className="current relative top-[-1px] z-10 px-2" style={{ backgroundColor: "hsl(var(--background))" }}>
+                        <span className="relative top-1/2 text-xs font-normal text-neutral-500 dark:text-neutral-400">Or</span>
+                      </div>
+                    </div>
+                    <div className="mb-5">
+                      <d.ConnectWalletButton className="w-full" />
+                      <p className="mt-2 text-center text-xs text-neutral-500 dark:text-neutral-400">
+                        Connect a custodial wallet (Keplr, Leap) to skip authentication
+                      </p>
+                    </div>
+                  </>
+                )}
 
                 <div className="relative flex items-center justify-center self-stretch py-2.5">
                   <d.Separator className="absolute inset-0 top-1/2" />

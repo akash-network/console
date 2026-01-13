@@ -29,7 +29,7 @@ import { CURRENT_SERVICE, protectedEnvironmentVariables, ROOT_FOLDER_NAME } from
 import useRemoteDeployFramework from "@src/hooks/useRemoteDeployFramework";
 import { useSrcFolders } from "@src/queries/useGithubQuery";
 import { useGitlabSrcFolders } from "@src/queries/useGitlabQuery";
-import { EnvVarUpdater, formatUrlWithoutInitialPath } from "@src/services/remote-deploy/remote-deployment-controller.service";
+import { EnvVarManagerService, formatUrlWithoutInitialPath } from "@src/services/remote-deploy/env-var-manager.service";
 import { tokens } from "@src/store/remoteDeployStore";
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import type { CustomRepo, IGithubDirectoryItem } from "@src/types/remotedeploy";
@@ -85,7 +85,7 @@ const Repos = ({
     currentServiceEnv?.find(e => e.key === protectedEnvironmentVariables.GITLAB_PROJECT_ID)?.value
   );
   const isLoadingDirectories = isGithubLoading || isGitlabLoading || isBitLoading || isGettingDirectory || isGettingDirectoryBit || isGettingDirectoryGitlab;
-  const envVarUpdater = useMemo(() => new EnvVarUpdater(services), [services]);
+  const envVarManagerService = useMemo(() => new EnvVarManagerService(services), [services]);
 
   useEffect(() => {
     if (type === "github") {
@@ -268,11 +268,11 @@ const Repos = ({
                           className="gap-0"
                           onValueChange={value => {
                             if (value === ROOT_FOLDER_NAME) {
-                              setValue(CURRENT_SERVICE, envVarUpdater?.deleteEnvironmentVariable(protectedEnvironmentVariables.FRONTEND_FOLDER));
+                              setValue(CURRENT_SERVICE, envVarManagerService?.deleteEnvironmentVariable(protectedEnvironmentVariables.FRONTEND_FOLDER));
                             } else {
                               setValue(
                                 CURRENT_SERVICE,
-                                envVarUpdater?.addOrUpdateEnvironmentVariable(protectedEnvironmentVariables.FRONTEND_FOLDER, value, false)
+                                envVarManagerService?.addOrUpdateEnvironmentVariable(protectedEnvironmentVariables.FRONTEND_FOLDER, value, false)
                               );
                             }
                           }}
@@ -303,7 +303,7 @@ const Repos = ({
                         onChange={e =>
                           setValue(
                             CURRENT_SERVICE,
-                            envVarUpdater?.addOrUpdateEnvironmentVariable(protectedEnvironmentVariables.FRONTEND_FOLDER, e.target.value, false)
+                            envVarManagerService?.addOrUpdateEnvironmentVariable(protectedEnvironmentVariables.FRONTEND_FOLDER, e.target.value, false)
                           )
                         }
                         label="Frontend Folder"

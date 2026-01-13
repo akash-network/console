@@ -255,6 +255,94 @@ describe(AuthPage.name, () => {
     });
   });
 
+  describe("when deploy button flow is active", () => {
+    it("renders ConnectWalletButton when deploy button flow is active", () => {
+      const ConnectWalletButtonMock = jest.fn(() => <button data-testid="connect-wallet-btn">Connect Wallet</button>);
+      setup({
+        searchParams: {
+          tab: "login",
+          from: "/new-deployment?repoUrl=https://github.com/test/repo.git"
+        },
+        dependencies: {
+          useDeployButtonFlow: () => ({
+            isDeployButtonFlow: true,
+            params: {
+              repoUrl: "https://github.com/test/repo.git",
+              branch: null,
+              buildCommand: null,
+              startCommand: null,
+              installCommand: null,
+              buildDirectory: null,
+              nodeVersion: null,
+              templateId: null
+            },
+            buildReturnUrl: () => "/new-deployment",
+            buildUrlParams: () => ({ repoUrl: "https://github.com/test/repo.git" })
+          }),
+          ConnectWalletButton: ConnectWalletButtonMock
+        }
+      });
+
+      expect(screen.queryByTestId("connect-wallet-btn")).toBeInTheDocument();
+    });
+
+    it("does not render ConnectWalletButton when deploy button flow is inactive", () => {
+      setup({
+        searchParams: {
+          tab: "login"
+        }
+      });
+
+      expect(screen.queryByTestId("connect-wallet-btn")).not.toBeInTheDocument();
+    });
+
+    it("redirects to returnUrl when wallet connects during deploy button flow", async () => {
+      const { router } = setup({
+        searchParams: {
+          tab: "login",
+          from: "/new-deployment?repoUrl=https://github.com/test/repo.git"
+        },
+        dependencies: {
+          useDeployButtonFlow: () => ({
+            isDeployButtonFlow: true,
+            params: {
+              repoUrl: "https://github.com/test/repo.git",
+              branch: null,
+              buildCommand: null,
+              startCommand: null,
+              installCommand: null,
+              buildDirectory: null,
+              nodeVersion: null,
+              templateId: null
+            },
+            buildReturnUrl: () => "/new-deployment?repoUrl=https://github.com/test/repo.git",
+            buildUrlParams: () => ({ repoUrl: "https://github.com/test/repo.git" })
+          }),
+          useWallet: () => ({
+            address: "akash1test",
+            walletName: "test",
+            isWalletConnected: true,
+            isWalletLoaded: true,
+            connectManagedWallet: jest.fn(),
+            logout: jest.fn(),
+            signAndBroadcastTx: jest.fn(),
+            isManaged: false,
+            isCustodial: false,
+            isWalletLoading: false,
+            isTrialing: false,
+            isOnboarding: false,
+            switchWalletType: jest.fn(),
+            hasManagedWallet: false
+          })
+        }
+      });
+
+      await waitFor(() => {
+        expect(router.push).toHaveBeenCalledWith("/new-deployment?repoUrl=https://github.com/test/repo.git");
+      });
+    });
+  });
+
   function setup(input: {
     searchParams?: {
       tab?: "login" | "signup" | "forgot-password";
@@ -269,14 +357,48 @@ describe(AuthPage.name, () => {
       replace: jest.fn(url => {
         setRouterPageParams?.(new URL(url as string, "http://localunittest:8080").searchParams);
         return Promise.resolve(true);
-      })
+      }),
+      push: jest.fn().mockResolvedValue(true)
     });
     const checkSession = jest.fn(async () => undefined);
-    const useUserMock: typeof DEPENDENCIES.useUser = () => ({
+    const useUser: typeof DEPENDENCIES.useUser = () => ({
       checkSession,
       isLoading: false,
       error: undefined,
       user: {}
+    });
+
+    const useDeployButtonFlow: typeof DEPENDENCIES.useDeployButtonFlow = () => ({
+      isDeployButtonFlow: false,
+      params: {
+        repoUrl: null,
+        branch: null,
+        buildCommand: null,
+        startCommand: null,
+        installCommand: null,
+        buildDirectory: null,
+        nodeVersion: null,
+        templateId: null
+      },
+      buildReturnUrl: () => "/",
+      buildUrlParams: () => ({})
+    });
+
+    const useWallet: typeof DEPENDENCIES.useWallet = () => ({
+      address: "",
+      walletName: "",
+      isWalletConnected: false,
+      isWalletLoaded: false,
+      connectManagedWallet: jest.fn(),
+      logout: jest.fn(),
+      signAndBroadcastTx: jest.fn(),
+      isManaged: false,
+      isCustodial: false,
+      isWalletLoading: false,
+      isTrialing: false,
+      isOnboarding: false,
+      switchWalletType: jest.fn(),
+      hasManagedWallet: false
     });
 
     const params = new URLSearchParams();
@@ -287,13 +409,13 @@ describe(AuthPage.name, () => {
     if (input.searchParams?.returnTo) {
       params.set("returnTo", input.searchParams.returnTo);
     }
-    const useSearchParamsMock = () => {
+    const useSearchParams = () => {
       const [pageParams, setPageParams] = useState(params);
       setRouterPageParams = setPageParams;
       return pageParams as ReadonlyURLSearchParams;
     };
 
-    const TurnstileMock = jest.fn(({ turnstileRef }: { turnstileRef?: RefObject<TurnstileRef> }) => {
+    const Turnstile = jest.fn(({ turnstileRef }: { turnstileRef?: RefObject<TurnstileRef> }) => {
       if (turnstileRef) {
         (turnstileRef as { current: TurnstileRef }).current = {
           renderAndWaitResponse: jest.fn().mockResolvedValue({ token: "test-captcha-token" })
@@ -307,10 +429,12 @@ describe(AuthPage.name, () => {
         <AuthPage
           dependencies={{
             ...MockComponents(DEPENDENCIES),
-            useUser: useUserMock,
-            useSearchParams: useSearchParamsMock,
+            useUser,
+            useSearchParams,
             useRouter: () => router,
-            Turnstile: TurnstileMock,
+            useDeployButtonFlow: input.dependencies?.useDeployButtonFlow || useDeployButtonFlow,
+            useWallet: input.dependencies?.useWallet || useWallet,
+            Turnstile,
             ...input.dependencies
           }}
         />

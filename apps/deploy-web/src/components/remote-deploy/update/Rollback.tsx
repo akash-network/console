@@ -4,7 +4,7 @@ import type { Control } from "react-hook-form";
 import { protectedEnvironmentVariables } from "@src/config/remote-deploy.config";
 import { useCommits } from "@src/queries/useGithubQuery";
 import { useGitLabCommits } from "@src/queries/useGitlabQuery";
-import { formatUrlWithoutInitialPath } from "@src/services/remote-deploy/remote-deployment-controller.service";
+import { formatUrlWithoutInitialPath } from "@src/services/remote-deploy/env-var-manager.service";
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import type { RollBackType } from "@src/types/remotedeploy";
 import { useBitBucketCommits } from "../../../queries/useBitBucketQuery";

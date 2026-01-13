@@ -1,8 +1,9 @@
 import "@testing-library/jest-dom";
 
-import React from "react";
+import React, { useState } from "react";
 import { act } from "react-dom/test-utils";
 import { mock } from "jest-mock-extended";
+import type { ReadonlyURLSearchParams } from "next/navigation";
 import type { Router } from "next/router";
 
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
@@ -119,12 +120,11 @@ describe("OnboardingContainer", () => {
       wallet: { hasManagedWallet: true, isWalletLoading: false }
     });
 
-    // Wait for the useEffect to run
     await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise(resolve => setTimeout(resolve, 10));
     });
 
-    expect(mockRouter.replace).toHaveBeenCalledWith("/");
+    expect(mockRouter.push).toHaveBeenCalledWith("/");
   });
 
   it("should not redirect when user has managed wallet but has saved step", async () => {
@@ -133,7 +133,6 @@ describe("OnboardingContainer", () => {
       savedStep: "2"
     });
 
-    // Wait for the useEffect to run
     await act(async () => {
       await new Promise(resolve => setTimeout(resolve, 0));
     });
@@ -153,7 +152,6 @@ describe("OnboardingContainer", () => {
       }
     });
 
-    // Wait for the useEffect to run
     await act(async () => {
       await new Promise(resolve => setTimeout(resolve, 0));
     });
@@ -311,6 +309,18 @@ describe("OnboardingContainer", () => {
     });
     const mockUseManagedWalletDenom = jest.fn().mockReturnValue("uakt");
 
+    const params = new URLSearchParams();
+    if (input.windowLocation?.search) {
+      const searchParams = new URLSearchParams(input.windowLocation.search.replace("?", ""));
+      searchParams.forEach((value, key) => {
+        params.set(key, value);
+      });
+    }
+    const useSearchParams = () => {
+      const [pageParams] = useState(params);
+      return pageParams as ReadonlyURLSearchParams;
+    };
+
     const mockNewDeploymentData = jest.fn().mockResolvedValue({
       deploymentId: { dseq: "123" },
       hash: "mock-hash"
@@ -375,7 +385,8 @@ describe("OnboardingContainer", () => {
       validateDeploymentData: mockValidateDeploymentData,
       appendAuditorRequirement: mockAppendAuditorRequirement,
       helloWorldTemplate: mockHelloWorldTemplate,
-      TransactionMessageData: mockTransactionMessageData as unknown as typeof TransactionMessageData
+      TransactionMessageData: mockTransactionMessageData as unknown as typeof TransactionMessageData,
+      useSearchParams
     };
 
     const mockChildren = jest.fn().mockReturnValue(<div>Test</div>);
