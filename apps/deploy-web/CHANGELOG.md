@@ -1,5 +1,23 @@
 
 
+## [3.20.0](https://github.com/akash-network/console/compare/console-web/v3.19.0...console-web/v3.20.0) (2026-01-13)
+
+
+### Features
+
+* **deployment:** implements deploy button flow ([46004d4](https://github.com/akash-network/console/commit/46004d4429dc3b4ebb47bb88edf97cd99b1a0c0f)), closes [#2470](https://github.com/akash-network/console/issues/2470)
+
+
+### Bug Fixes
+
+* **analytics:** filter cookies in Amplitude proxy to prevent request rejections ([1245328](https://github.com/akash-network/console/commit/12453281c7c38b1ff288e3a99c1968b3463eddc5))
+* upgrade next-navigation-guard to 0.2.0 for Android 10 compatibility ([#2427](https://github.com/akash-network/console/issues/2427)) ([5a1ed1f](https://github.com/akash-network/console/commit/5a1ed1f03004475076c39f59fa570dc04082bf60))
+
+
+### Code Refactoring
+
+* injects browserEnvConfig from DI container ([#2453](https://github.com/akash-network/console/issues/2453)) ([869b02a](https://github.com/akash-network/console/commit/869b02ae088b9ca9167a175c1437c271ea08f6f3))
+
 ## [3.19.0](https://github.com/akash-network/console/compare/console-web/v3.18.2...console-web/v3.19.0) (2026-01-08)
 
 

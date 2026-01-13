@@ -1,5 +1,12 @@
 
 
+## [2.9.0](https://github.com/akash-network/console/compare/provider-proxy/v2.8.0...provider-proxy/v2.9.0) (2026-01-13)
+
+
+### Features
+
+* **deployment:** implements deploy button flow ([46004d4](https://github.com/akash-network/console/commit/46004d4429dc3b4ebb47bb88edf97cd99b1a0c0f)), closes [#2470](https://github.com/akash-network/console/issues/2470)
+
 ## [2.8.0](https://github.com/akash-network/console/compare/provider-proxy/v2.7.1...provider-proxy/v2.8.0) (2026-01-08)
 
 
