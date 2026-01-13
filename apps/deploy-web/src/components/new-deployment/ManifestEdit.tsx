@@ -38,6 +38,7 @@ import { DynamicMonacoEditor } from "../shared/DynamicMonacoEditor";
 import { LinkTo } from "../shared/LinkTo";
 import { PrerequisiteList } from "../shared/PrerequisiteList";
 import ViewPanel from "../shared/ViewPanel";
+import { ShareDeployButton } from "./ShareDeployButton/ShareDeployButton";
 import type { SdlBuilderRefType } from "./SdlBuilder";
 import { SdlBuilder } from "./SdlBuilder";
 
@@ -310,25 +311,28 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
               <InfoCircle className="mr-4 text-sm text-muted-foreground md:ml-4" />
             </CustomTooltip>
 
-            <div className="flex-grow">
-              <Button
-                variant="default"
-                disabled={settings.isBlockchainDown || isCreatingDeployment || !!parsingError || !editedManifest}
-                onClick={() => handleCreateDeployment()}
-                className="w-full whitespace-nowrap sm:w-auto"
-                data-testid="create-deployment-btn"
-              >
-                {isCreatingDeployment ? (
-                  <Spinner size="small" />
-                ) : (
-                  <>
-                    Create Deployment{" "}
-                    <span className="ml-2 flex items-center">
-                      <ArrowRight fontSize="small" />
-                    </span>
-                  </>
-                )}
-              </Button>
+            <div className="flex flex-grow items-center gap-2">
+              <ShareDeployButton services={services} />
+              <div className="flex-grow">
+                <Button
+                  variant="default"
+                  disabled={settings.isBlockchainDown || isCreatingDeployment || !!parsingError || !editedManifest}
+                  onClick={() => handleCreateDeployment()}
+                  className="w-full whitespace-nowrap sm:w-auto"
+                  data-testid="create-deployment-btn"
+                >
+                  {isCreatingDeployment ? (
+                    <Spinner size="small" />
+                  ) : (
+                    <>
+                      Create Deployment{" "}
+                      <span className="ml-2 flex items-center">
+                        <ArrowRight fontSize="small" />
+                      </span>
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
