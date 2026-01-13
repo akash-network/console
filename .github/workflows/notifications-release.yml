@@ -36,3 +36,18 @@ jobs:
       app: notifications
       appVersion: ${{ needs.build.outputs.image_tag }}
       environment: staging
+
+  deploy-prod:
+    permissions:
+      contents: read
+      pull-requests: read
+    needs:
+      - build
+      - deploy-beta
+    name: Deploy to prod
+    uses: ./.github/workflows/reusable-deploy-k8s.yml
+    secrets: inherit
+    with:
+      app: notifications
+      appVersion: ${{ needs.build.outputs.image_tag }}
+      environment: prod

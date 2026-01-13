@@ -19,7 +19,6 @@ inputs:
     description: E2E testing client token which allows to bypass captcha verification
     required: true
 
-
 runs:
   using: "composite"
   steps:
@@ -43,9 +42,9 @@ runs:
         USER_DATA_DIR: ${{ runner.temp }}/chrome-profile-${{ github.run_id }}-${{ github.run_attempt }}
         CI: "true"
       shell: bash
-      continue-on-error: true
       run: npm run test:e2e --workspace=apps/deploy-web
     - name: Tests cleanup
+      if: ${{ !cancelled() }}
       shell: bash
       env:
         TEST_WALLET_MNEMONIC: ${{ inputs.test-wallet-mnemonic }}
@@ -59,65 +58,16 @@ runs:
         path: apps/deploy-web/playwright-report/
         retention-days: 5
 
-    - uses: actions/github-script@v7
-      if: steps.e2e-tests.outcome == 'failure'
-      id: associated-pr
-      env:
-        GH_USER_TO_SLACK_USER: ${{ inputs.gh-user-to-slack-user }}
+    - uses: ./.github/actions/slack-tests-failed-notification
+      if: ${{ !cancelled() && steps.e2e-tests.outcome == 'failure' }}
       with:
-        script: |
-          let pr = context.payload.pull_request;
-          if (!pr) {
-            const response = (
-              await github.rest.repos.listPullRequestsAssociatedWithCommit({
-                commit_sha: context.sha,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-              })
-            );
-            pr = response.data[0];
-          }
-
-          if (!pr.merged_by) {
-            const { data } = await github.rest.pulls.get({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: pr.number,
-            });
-            pr = data;
-          }
-
-          core.setOutput('number', pr.number);
-          core.setOutput('title', pr.title);
-
-          const author = pr.merged_by?.login || pr.user.login;
-          core.setOutput('author', author);
-
-          const userMapping = JSON.parse(process.env.GH_USER_TO_SLACK_USER || '{}');
-          core.setOutput('slack-user', userMapping[author] || "");
-
-    - name: Notify in Slack if tests failed
-      if: steps.e2e-tests.outcome == 'failure' && inputs.slack-webhook-url != ''
-      uses: slackapi/slack-github-action@v2.0.0
-      with:
-        webhook-type: incoming-webhook
-        webhook: ${{ inputs.slack-webhook-url }}
-        payload: |
-          blocks:
-            - type: "header"
-              text:
-                type: "plain_text"
-                text: "UI tests failed on beta"
-            - type: "section"
-              text:
-                type: "mrkdwn"
-                text: |
-                  *Website:* ${{ inputs.url }}
-                  *Workflow:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-                  *Associated PR:* <${{ github.server_url }}/${{ github.repository }}/pull/${{ steps.associated-pr.outputs.number }}|${{ steps.associated-pr.outputs.title }}>
-                  *Author:* ${{ steps.associated-pr.outputs.slack-user != '' && format('<@{0}>', steps.associated-pr.outputs.slack-user) || steps.associated-pr.outputs.author }}
+        url: ${{ inputs.url }}
+        gh-user-to-slack-user: ${{ inputs.gh-user-to-slack-user }}
+        slack-webhook-url: ${{ inputs.slack-webhook-url }}
+        message-title: "Console web UI tests failed on beta"
 
     - name: Summarize Test Results
+      if: ${{ !cancelled() }}
       shell: bash
       run: |
         echo "### 📝 E2E Test Summary" >> $GITHUB_STEP_SUMMARY
@@ -126,7 +76,3 @@ runs:
           prefix=":x: Failed"
         fi
         echo "${prefix}, [download tests report](${{ steps.playwright-report.outputs.artifact-url }})" >> $GITHUB_STEP_SUMMARY
-
-        if [ "${{ steps.e2e-tests.outcome }}" == "failure" ]; then
-          exit 1;
-        fi

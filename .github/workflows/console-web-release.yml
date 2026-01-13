@@ -30,7 +30,7 @@ jobs:
 
   deploy-beta:
     needs: build-beta
-    name: Deploy to beta sandbox
+    name: Deploy to beta
     if: needs.build-beta.outputs.base_image_tag != ''
     uses: ./.github/workflows/reusable-deploy-k8s.yml
     secrets: inherit
@@ -63,3 +63,18 @@ jobs:
     with:
       tag: ${{ needs.release.outputs.git_tag }}
       deployment-env: production
+
+  deploy-prod:
+    permissions:
+      contents: read
+      pull-requests: read
+    needs:
+      - test-beta
+      - build-prod
+    name: Deploy to prod
+    uses: ./.github/workflows/reusable-deploy-k8s.yml
+    secrets: inherit
+    with:
+      app: console-web
+      appVersion: ${{ needs.build-prod.outputs.base_image_tag }}
+      environment: prod

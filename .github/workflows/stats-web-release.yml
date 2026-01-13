@@ -51,3 +51,17 @@ jobs:
     with:
       tag: ${{ needs.release.outputs.git_tag }}
       deployment-env: production
+
+  deploy-prod:
+    permissions:
+      contents: read
+    needs:
+      - build-prod
+      - deploy-beta
+    name: Deploy to prod
+    uses: ./.github/workflows/reusable-deploy-k8s.yml
+    secrets: inherit
+    with:
+      app: stats-web
+      appVersion: ${{ needs.build-prod.outputs.base_image_tag }}
+      environment: prod
