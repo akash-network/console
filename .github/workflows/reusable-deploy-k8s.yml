@@ -33,6 +33,7 @@ on:
         description: "The chain to deploy to"
         required: false
         type: choice
+        default: NA
         options:
           - NA
           - mainnet
@@ -77,6 +78,7 @@ on:
         description: "The chain to deploy to"
         required: false
         type: string
+        default: NA
       skip_beta_deployment_check:
         type: boolean
         required: false
@@ -100,7 +102,7 @@ on:
 
 # 1 pending + 1 in-progress workflows
 concurrency:
-  group: deploy-${{ inputs.app }}-${{ inputs.environment }}-${{ inputs.chain || 'default' }}
+  group: deploy-${{ inputs.app }}-${{ inputs.environment }}-${{ inputs.chain || 'NA' }}
 
 jobs:
   beta-deployment-status:
