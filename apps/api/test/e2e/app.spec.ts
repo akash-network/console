@@ -1,15 +1,11 @@
-import { app, initDb } from "@src/rest-app";
+import { apiClient } from "@test/services/api-client";
 
 describe("app", () => {
-  beforeAll(async () => {
-    await initDb();
-  });
-
   describe("GET /status", () => {
-    it("should return app stats and meta", async () => {
-      const res = await app.request("/status");
+    it("returns app stats and meta", async () => {
+      const res = await apiClient.get("/status");
       expect(res.status).toBe(200);
-      expect(await res.json()).toMatchObject({
+      expect(res.data).toMatchObject({
         memory: {
           external: expect.stringMatching(/^[0-9.]+ (M|G)B$/),
           heapTotal: expect.stringMatching(/^[0-9.]+ (M|G)B$/),

@@ -11,10 +11,10 @@ const common = {
   rootDir: ".",
   moduleNameMapper: {
     ...MAP_ALIASES
-  },
-  setupFiles: ["./test/setup.ts"]
+  }
 };
 
+/** @type {import('jest').Config} */
 const config = {
   collectCoverageFrom: ["src/**/*.ts", "!src/**/*.spec.ts", "!src/**/*.d.ts", "!src/main.ts", "!src/console.ts", "!src/test/**/*", "!src/**/index.ts"],
   projects: [
@@ -33,6 +33,11 @@ const config = {
       setupFiles: ["./test/setup-functional-env.ts"],
       globalSetup: "./test/setup-global-functional.ts",
       testEnvironment: "./test/custom-jest-environment.ts"
+    },
+    {
+      displayName: "e2e",
+      ...common,
+      testMatch: ["<rootDir>/test/e2e/**/*.spec.ts"]
     }
   ]
 };

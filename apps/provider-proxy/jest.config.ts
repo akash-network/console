@@ -1,12 +1,13 @@
+import type { Config } from "jest";
+
 const common = {
   transform: {
     "^.+\\.(t|j)s$": ["ts-jest", { tsconfig: "./tsconfig.json" }]
   },
   rootDir: "."
-};
+} satisfies Config;
 
-/** @type {import('jest').Config} */
-module.exports = {
+const config: Config = {
   collectCoverageFrom: [
     // keep new line
     "./src/**/*.{js,ts}",
@@ -26,6 +27,13 @@ module.exports = {
       displayName: "functional",
       ...common,
       testMatch: ["<rootDir>/test/functional/**/*.spec.ts"]
+    },
+    {
+      displayName: "e2e",
+      ...common,
+      testMatch: ["<rootDir>/test/e2e/**/*.spec.ts"]
     }
   ]
 };
+
+export default config;

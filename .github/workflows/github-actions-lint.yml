@@ -23,3 +23,27 @@ jobs:
         env:
           SHELLCHECK_OPTS: >-
             -e SC2129 # exclude Consider using { cmd1; cmd2; } >> file instead of individual redirects
+      - name: Ensure all local actions and workflows exist
+        run: |
+          has_errors=false
+          while IFS= read -r item; do
+            file_path="$item"
+            if [[ "$item" == .github/actions/* || "$item" == ./.github/actions/* ]]; then
+              file_path="$item/action.yml"
+            fi
+
+            echo "Checking: $file_path"
+            if [[ ! -f "$file_path" ]]; then
+              echo "Error: referencing non-existing action or workflow: $file_path"
+              has_errors=true
+            fi
+          done < <(
+            grep -RIn --include='*.yml' --include='*.yaml' -E '^[- \t]*uses:[ \t]*' .github/ \
+              | sed -E 's/^[^:]*:[0-9]+:[ \t-]*uses: *//' \
+              | awk '{$1=$1};1' \
+              | grep -E '^(\.\/|\.github\/)'
+          )
+
+          if $has_errors; then
+            exit 1
+          fi

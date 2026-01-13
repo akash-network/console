@@ -1,0 +1,61 @@
+name: Get Associated PR
+description: Gets the associated PR for a commit (takes commit from github context)
+
+inputs:
+  gh-user-to-slack-user:
+    description: GitHub user to Slack user mapping
+    required: false
+    default: "{}"
+
+outputs:
+  number:
+    description: The number of the associated PR
+    value: ${{ steps.associated-pr.outputs.number }}
+  title:
+    description: The title of the associated PR
+    value: ${{ steps.associated-pr.outputs.title }}
+  author:
+    description: The author of the associated PR
+    value: ${{ steps.associated-pr.outputs.author }}
+  slack-user:
+    description: The Slack user of the author
+    value: ${{ steps.associated-pr.outputs.slack-user }}
+
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/github-script@v7
+      id: associated-pr
+      env:
+        GH_USER_TO_SLACK_USER: ${{ inputs.gh-user-to-slack-user }}
+      with:
+        script: |
+          let pr = context.payload.pull_request;
+          if (!pr) {
+            const response = (
+              await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                commit_sha: context.sha,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+              })
+            );
+            pr = response.data[0];
+          }
+
+          if (pr && !pr.merged_by) {
+            const { data } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+            });
+            pr = data;
+          }
+
+          core.setOutput('number', pr.number);
+          core.setOutput('title', pr.title);
+
+          const author = pr.merged_by?.login || pr.user.login;
+          core.setOutput('author', author);
+
+          const userMapping = JSON.parse(process.env.GH_USER_TO_SLACK_USER || '{}');
+          core.setOutput('slack-user', userMapping[author] || "");
