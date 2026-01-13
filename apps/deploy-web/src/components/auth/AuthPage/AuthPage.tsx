@@ -196,80 +196,81 @@ export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
                   onGoBack={() => setActiveView("login")}
                 />
               </>
-            )) || (
-              <d.Tabs value={activeView} onValueChange={setActiveView} className="w-full">
-                <div className="mb-5 w-full">
-                  <d.TabsList className="m-0 flex h-auto max-w-[1304px] flex-1 items-center justify-start rounded-none border-0 border-l-0 border-r-0 border-t-0 bg-transparent p-0">
-                    <d.TabsTrigger
-                      value="login"
-                      className="flex-1 cursor-pointer rounded-none border-0 border-b-2 border-l-0 border-r-0 border-t-0 border-b-transparent bg-transparent py-1.5 shadow-none transition-colors data-[state=active]:border-b-neutral-900 data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:bg-transparent focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:data-[state=active]:border-b-neutral-100"
-                    >
-                      <div className="flex items-center justify-center gap-2 px-2.5 py-2">
-                        <span
-                          className={`text-sm font-normal leading-5 transition-colors ${activeView === "login" ? "text-neutral-950 dark:text-[var(--text-light)]" : "text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300"}`}
-                        >
-                          Log in
-                        </span>
-                      </div>
-                    </d.TabsTrigger>
-                    <d.TabsTrigger
-                      value="signup"
-                      className="flex-1 cursor-pointer rounded-none border-0 border-b-2 border-l-0 border-r-0 border-t-0 border-b-transparent bg-transparent py-1.5 shadow-none transition-colors data-[state=active]:border-b-neutral-900 data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:bg-transparent focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:data-[state=active]:border-b-neutral-100"
-                    >
-                      <div className="flex items-center justify-center gap-2 px-2.5 py-2">
-                        <span
-                          className={`text-sm font-normal leading-5 transition-colors ${activeView === "signup" ? "text-neutral-950 dark:text-[var(--text-light)]" : "text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300"}`}
-                        >
-                          Sign up
-                        </span>
-                      </div>
-                    </d.TabsTrigger>
-                  </d.TabsList>
-                </div>
+            )) ||
+              (isDeployButtonFlow && (
+                <>
+                  <d.SocialAuth onSocialLogin={redirectToSocialLogin} />
 
-                <d.SocialAuth onSocialLogin={redirectToSocialLogin} />
-
-                {isDeployButtonFlow && (
-                  <>
-                    <div className="relative flex items-center justify-center self-stretch py-2.5">
-                      <d.Separator className="absolute inset-0 top-1/2" />
-                      <div className="current relative top-[-1px] z-10 px-2" style={{ backgroundColor: "hsl(var(--background))" }}>
-                        <span className="relative top-1/2 text-xs font-normal text-neutral-500 dark:text-neutral-400">Or</span>
-                      </div>
+                  <div className="relative flex items-center justify-center self-stretch py-2.5">
+                    <d.Separator className="absolute inset-0 top-1/2" />
+                    <div className="current relative top-[-1px] z-10 px-2" style={{ backgroundColor: "hsl(var(--background))" }}>
+                      <span className="relative top-1/2 text-xs font-normal text-neutral-500 dark:text-neutral-400">Or</span>
                     </div>
-                    <div className="mb-5">
-                      <d.ConnectWalletButton className="w-full" />
-                      <p className="mt-2 text-center text-xs text-neutral-500 dark:text-neutral-400">
-                        Connect a custodial wallet (Keplr, Leap) to skip authentication
-                      </p>
-                    </div>
-                  </>
-                )}
-
-                <div className="relative flex items-center justify-center self-stretch py-2.5">
-                  <d.Separator className="absolute inset-0 top-1/2" />
-                  <div className="current relative top-[-1px] z-10 px-2" style={{ backgroundColor: "hsl(var(--background))" }}>
-                    <span className="relative top-1/2 text-xs font-normal text-neutral-500 dark:text-neutral-400">Or continue with</span>
                   </div>
-                </div>
+                  <div className="mb-5">
+                    <d.ConnectWalletButton className="w-full" />
+                    <p className="mt-2 text-center text-xs text-neutral-500 dark:text-neutral-400">
+                      Connect a custodial wallet (Keplr, Leap) to skip authentication
+                    </p>
+                  </div>
+                </>
+              )) || (
+                <d.Tabs value={activeView} onValueChange={setActiveView} className="w-full">
+                  <div className="mb-5 w-full">
+                    <d.TabsList className="m-0 flex h-auto max-w-[1304px] flex-1 items-center justify-start rounded-none border-0 border-l-0 border-r-0 border-t-0 bg-transparent p-0">
+                      <d.TabsTrigger
+                        value="login"
+                        className="flex-1 cursor-pointer rounded-none border-0 border-b-2 border-l-0 border-r-0 border-t-0 border-b-transparent bg-transparent py-1.5 shadow-none transition-colors data-[state=active]:border-b-neutral-900 data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:bg-transparent focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:data-[state=active]:border-b-neutral-100"
+                      >
+                        <div className="flex items-center justify-center gap-2 px-2.5 py-2">
+                          <span
+                            className={`text-sm font-normal leading-5 transition-colors ${activeView === "login" ? "text-neutral-950 dark:text-[var(--text-light)]" : "text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300"}`}
+                          >
+                            Log in
+                          </span>
+                        </div>
+                      </d.TabsTrigger>
+                      <d.TabsTrigger
+                        value="signup"
+                        className="flex-1 cursor-pointer rounded-none border-0 border-b-2 border-l-0 border-r-0 border-t-0 border-b-transparent bg-transparent py-1.5 shadow-none transition-colors data-[state=active]:border-b-neutral-900 data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:bg-transparent focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:data-[state=active]:border-b-neutral-100"
+                      >
+                        <div className="flex items-center justify-center gap-2 px-2.5 py-2">
+                          <span
+                            className={`text-sm font-normal leading-5 transition-colors ${activeView === "signup" ? "text-neutral-950 dark:text-[var(--text-light)]" : "text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300"}`}
+                          >
+                            Sign up
+                          </span>
+                        </div>
+                      </d.TabsTrigger>
+                    </d.TabsList>
+                  </div>
 
-                <d.RemoteApiError className="mb-5" error={signInOrSignUp.error} />
+                  <d.SocialAuth onSocialLogin={redirectToSocialLogin} />
 
-                <d.TabsContent value="login" className="mt-0">
-                  <d.SignInForm
-                    isLoading={signInOrSignUp.isPending}
-                    defaultEmail={email}
-                    onEmailChange={setEmail}
-                    onSubmit={value => signInOrSignUp.mutate({ type: "signin", value })}
-                    onForgotPasswordClick={() => setActiveView("forgot-password")}
-                  />
-                </d.TabsContent>
+                  <div className="relative flex items-center justify-center self-stretch py-2.5">
+                    <d.Separator className="absolute inset-0 top-1/2" />
+                    <div className="current relative top-[-1px] z-10 px-2" style={{ backgroundColor: "hsl(var(--background))" }}>
+                      <span className="relative top-1/2 text-xs font-normal text-neutral-500 dark:text-neutral-400">Or continue with</span>
+                    </div>
+                  </div>
 
-                <d.TabsContent value="signup" className="mt-0">
-                  <d.SignUpForm isLoading={signInOrSignUp.isPending} onSubmit={value => signInOrSignUp.mutate({ type: "signup", value })} />
-                </d.TabsContent>
-              </d.Tabs>
-            )}
+                  <d.RemoteApiError className="mb-5" error={signInOrSignUp.error} />
+
+                  <d.TabsContent value="login" className="mt-0">
+                    <d.SignInForm
+                      isLoading={signInOrSignUp.isPending}
+                      defaultEmail={email}
+                      onEmailChange={setEmail}
+                      onSubmit={value => signInOrSignUp.mutate({ type: "signin", value })}
+                      onForgotPasswordClick={() => setActiveView("forgot-password")}
+                    />
+                  </d.TabsContent>
+
+                  <d.TabsContent value="signup" className="mt-0">
+                    <d.SignUpForm isLoading={signInOrSignUp.isPending} onSubmit={value => signInOrSignUp.mutate({ type: "signup", value })} />
+                  </d.TabsContent>
+                </d.Tabs>
+              )}
             <d.Turnstile
               turnstileRef={turnstileRef}
               enabled={publicConfig.NEXT_PUBLIC_TURNSTILE_ENABLED}

@@ -341,6 +341,39 @@ describe(AuthPage.name, () => {
         expect(router.push).toHaveBeenCalledWith("/new-deployment?repoUrl=https://github.com/test/repo.git");
       });
     });
+
+    it("renders SocialAuth instead of Tabs when deploy button flow is active", () => {
+      const SocialAuthMock = jest.fn(ComponentMock);
+      const TabsMock = jest.fn(ComponentMock as typeof Tabs);
+      setup({
+        searchParams: {
+          tab: "login",
+          from: "/new-deployment?repoUrl=https://github.com/test/repo.git"
+        },
+        dependencies: {
+          useDeployButtonFlow: () => ({
+            isDeployButtonFlow: true,
+            params: {
+              repoUrl: "https://github.com/test/repo.git",
+              branch: null,
+              buildCommand: null,
+              startCommand: null,
+              installCommand: null,
+              buildDirectory: null,
+              nodeVersion: null,
+              templateId: null
+            },
+            buildReturnUrl: () => "/new-deployment",
+            buildUrlParams: () => ({ repoUrl: "https://github.com/test/repo.git" })
+          }),
+          SocialAuth: SocialAuthMock,
+          Tabs: TabsMock as unknown as typeof Tabs
+        }
+      });
+
+      expect(SocialAuthMock).toHaveBeenCalled();
+      expect(TabsMock).not.toHaveBeenCalled();
+    });
   });
 
   function setup(input: {
