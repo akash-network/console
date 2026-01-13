@@ -20,6 +20,13 @@ export type NewDeploymentParams = {
 
 export const domainName = "https://console.akash.network";
 
+export function getBaseUrl(): string {
+  if (typeof window !== "undefined") {
+    return window.location.origin;
+  }
+  return domainName;
+}
+
 export class UrlService {
   static home = () => "/";
   static getStarted = () => "/get-started";
