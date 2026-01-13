@@ -44,4 +44,6 @@ jobs:
               | grep -E '^(\.\/|\.github\/)'
           )
 
-          $has_errors && exit 1
+          if $has_errors; then
+            exit 1
+          fi
