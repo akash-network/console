@@ -40,6 +40,7 @@ import { getAvgCostPerMonth } from "@src/utils/priceUtils";
 import { LeaseSpecDetail } from "../shared/LeaseSpecDetail";
 import { PriceValue } from "../shared/PriceValue";
 import { EnvFormModal } from "./EnvFormModal/EnvFormModal";
+import { ImageCredentialsHost } from "./ImageCredentialsHost/ImageCredentialsHost";
 import { isLogCollectorService, LogCollectorControl } from "./LogCollectorControl/LogCollectorControl";
 import { CommandFormModal } from "./CommandFormModal";
 import { CommandList } from "./CommandList";
@@ -50,7 +51,6 @@ import { ExposeFormModal } from "./ExposeFormModal";
 import { ExposeList } from "./ExposeList";
 import { FormPaper } from "./FormPaper";
 import { GpuFormControl } from "./GpuFormControl";
-import { ImageCredentialsHost } from "./ImageCredentialsHost";
 import { ImageCredentialsPassword } from "./ImageCredentialsPassword";
 import { ImageCredentialsUsername } from "./ImageCredentialsUsername";
 import { ImageInput } from "./ImageInput";
@@ -274,7 +274,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                           {_services[serviceIndex]?.hasCredentials && (
                             <>
                               <div>
-                                <ImageCredentialsHost control={control} serviceIndex={serviceIndex} setValue={setValue} />
+                                <ImageCredentialsHost control={control} serviceIndex={serviceIndex} />
                               </div>
                               <div className="grid gap-2 sm:grid-cols-2">
                                 <div>

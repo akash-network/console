@@ -81,10 +81,25 @@ export const SignedBySchema = z.object({
   value: z.string().min(1, { message: "Value is required." })
 });
 
+export const CUSTOM_HOST_ID = "__CUSTOM__";
 export const CredentialsSchema = z
   .object({
-    host: z.enum(["docker.io", "ghcr.io", "gcr.io", "ecr", "azurecr.io", "registry.gitlab.com", "custom"]).default("docker.io"),
-    customRegistryUrl: z.string().optional(),
+    host: z
+      .string()
+      .min(1, { message: "Host is required." })
+      .refine(
+        value => {
+          if (value === CUSTOM_HOST_ID) return true;
+          try {
+            new URL(value.startsWith("http://") || value.startsWith("https://") ? value : `https://${value}`);
+            return true;
+          } catch {
+            return false;
+          }
+        },
+        { message: "Host is not a valid registry URL" }
+      )
+      .default("docker.io"),
     username: z.string(),
     password: z.string()
   })

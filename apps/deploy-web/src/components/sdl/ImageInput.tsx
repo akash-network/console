@@ -6,7 +6,7 @@ import { InfoCircle, OpenInWindow } from "iconoir-react";
 import Link from "next/link";
 
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
-import { ImageRegistryLogo } from "./ImageRegistryLogo";
+import { ImageRegistryLogo } from "./ImageRegistryLogo/ImageRegistryLogo";
 
 type Props = {
   serviceIndex: number;
