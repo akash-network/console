@@ -1,5 +1,17 @@
 
 
+## [3.20.0](https://github.com/akash-network/console/compare/console-api/v3.19.0...console-api/v3.20.0) (2026-01-13)
+
+
+### Features
+
+* **deployment:** implements deploy button flow ([46004d4](https://github.com/akash-network/console/commit/46004d4429dc3b4ebb47bb88edf97cd99b1a0c0f)), closes [#2470](https://github.com/akash-network/console/issues/2470)
+
+
+### Code Refactoring
+
+* injects browserEnvConfig from DI container ([#2453](https://github.com/akash-network/console/issues/2453)) ([869b02a](https://github.com/akash-network/console/commit/869b02ae088b9ca9167a175c1437c271ea08f6f3))
+
 ## [3.19.0](https://github.com/akash-network/console/compare/console-api/v3.18.3...console-api/v3.19.0) (2026-01-08)
 
 

@@ -1,5 +1,12 @@
 
 
+## [1.35.0](https://github.com/akash-network/console/compare/provider-console/v1.34.1...provider-console/v1.35.0) (2026-01-13)
+
+
+### Features
+
+* **deployment:** implements deploy button flow ([46004d4](https://github.com/akash-network/console/commit/46004d4429dc3b4ebb47bb88edf97cd99b1a0c0f)), closes [#2470](https://github.com/akash-network/console/issues/2470)
+
 ## [1.34.1](https://github.com/akash-network/console/compare/provider-console/v1.34.0...provider-console/v1.34.1) (2025-12-23)
 
 

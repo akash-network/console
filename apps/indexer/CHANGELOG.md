@@ -1,5 +1,12 @@
 
 
+## [1.23.0](https://github.com/akash-network/console/compare/indexer/v1.22.2...indexer/v1.23.0) (2026-01-13)
+
+
+### Features
+
+* **deployment:** implements deploy button flow ([46004d4](https://github.com/akash-network/console/commit/46004d4429dc3b4ebb47bb88edf97cd99b1a0c0f)), closes [#2470](https://github.com/akash-network/console/issues/2470)
+
 ## [1.22.2](https://github.com/akash-network/console/compare/indexer/v1.22.1...indexer/v1.22.2) (2025-12-05)
 
 
