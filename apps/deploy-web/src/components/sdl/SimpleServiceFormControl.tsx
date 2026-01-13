@@ -274,7 +274,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                           {_services[serviceIndex]?.hasCredentials && (
                             <>
                               <div>
-                                <ImageCredentialsHost control={control} serviceIndex={serviceIndex} />
+                                <ImageCredentialsHost control={control} serviceIndex={serviceIndex} setValue={setValue} />
                               </div>
                               <div className="grid gap-2 sm:grid-cols-2">
                                 <div>

@@ -15,8 +15,8 @@ type Props = {
   setValue: UseFormSetValue<SdlBuilderFormValuesType>;
 };
 
-const defaultCredentials = {
-  host: "docker.io" as "docker.io" | "ghcr.io",
+const defaultCredentials: NonNullable<ServiceType["credentials"]> = {
+  host: "docker.io",
   username: "",
   password: ""
 };

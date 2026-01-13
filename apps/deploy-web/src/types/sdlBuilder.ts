@@ -83,7 +83,8 @@ export const SignedBySchema = z.object({
 
 export const CredentialsSchema = z
   .object({
-    host: z.enum(["docker.io", "ghcr.io"]).default("docker.io"),
+    host: z.enum(["docker.io", "ghcr.io", "gcr.io", "ecr", "azurecr.io", "registry.gitlab.com", "custom"]).default("docker.io"),
+    customRegistryUrl: z.string().optional(),
     username: z.string(),
     password: z.string()
   })

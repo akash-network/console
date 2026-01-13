@@ -2,10 +2,10 @@
 import Image from "next/legacy/image";
 
 type Props = {
-  host?: "docker.io" | "ghcr.io";
+  host?: string;
 };
 
-const images = {
+const images: Record<string, { filename: string; height: number }> = {
   "docker.io": {
     filename: "docker",
     height: 18
@@ -13,9 +13,19 @@ const images = {
   "ghcr.io": {
     filename: "github",
     height: 24
+  },
+  "registry.gitlab.com": {
+    filename: "gitlab",
+    height: 24
   }
 };
 
-export const ImageRegistryLogo: React.FunctionComponent<Props> = ({ host = "docker.io" }) => {
-  return <Image alt="Docker Logo" src={`/images/${images[host].filename}.png`} layout="fixed" quality={100} width={24} height={images[host].height} priority />;
+export const ImageRegistryLogo: React.FunctionComponent<Props> = ({ host }) => {
+  const imageConfig = host ? images[host] : images["docker.io"];
+
+  if (!imageConfig) {
+    return null;
+  }
+
+  return <Image alt="Registry Logo" src={`/images/${imageConfig.filename}.png`} layout="fixed" quality={100} width={24} height={imageConfig.height} priority />;
 };
