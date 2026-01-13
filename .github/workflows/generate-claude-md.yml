@@ -1,0 +1,106 @@
+name: Generate CLAUDE.md
+
+on:
+  discussion:
+    types: [labeled, unlabeled, edited]
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  CONTRIBUTION_BRANCH: automated/claude-md-update
+
+jobs:
+  generate:
+    name: Generate CLAUDE.md
+    if: github.event.discussion.category.name == 'Contribution RFC'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Node.js
+        uses: volta-cli/action@v4
+
+      - name: Generate CLAUDE.md
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          node --experimental-strip-types --no-warnings script/generate-claude-md.ts
+
+      - name: Check for Changes
+        id: check-changes
+        run: |
+          if git diff --quiet CLAUDE.md .claude/instructions/; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "No changes detected"
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            echo "Changes detected"
+          fi
+
+      - name: Configure Git
+        if: steps.check-changes.outputs.has_changes == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Commit and Push Changes
+        if: steps.check-changes.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Create or switch to the branch
+          git fetch origin "${{ env.CONTRIBUTION_BRANCH }}" 2>/dev/null || true
+          git checkout -B "${{ env.CONTRIBUTION_BRANCH }}"
+
+          # Stage and commit changes
+          git add CLAUDE.md .claude/instructions/
+          git commit -m "chore: update CLAUDE.md from RFC discussions" \
+            -m "Discussion #${{ github.event.discussion.number }} was ${{ github.event.action }}"
+
+          # Push changes
+          git push -f origin "${{ env.CONTRIBUTION_BRANCH }}"
+
+      - name: Create or Update Pull Request
+        if: steps.check-changes.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Check if PR already exists
+          PR_NUMBER=$(gh pr list \
+            --base main \
+            --head "${{ env.CONTRIBUTION_BRANCH }}" \
+            --state open \
+            --limit 1 \
+            --json number \
+            --jq ".[0].number" || echo "")
+
+          if [ -z "$PR_NUMBER" ]; then
+            echo "Creating new PR..."
+
+            # Create PR body
+            printf "This PR automatically updates CLAUDE.md and contribution guidelines based on RFC discussions.\n\n" > /tmp/pr-body.md
+            printf "Triggered by: Discussion #%s (%s)\n\n" "${{ github.event.discussion.number }}" "${{ github.event.action }}" >> /tmp/pr-body.md
+            printf "Changes:\n- Generated/updated CLAUDE.md\n- Updated RFC files in .contribution-guidelines/\n\n" >> /tmp/pr-body.md
+            printf "Review Notes:\n- Verify that the extracted AI Instructions are correct\n" >> /tmp/pr-body.md
+            printf -- "- Check that all RFC:Landed discussions are included\n" >> /tmp/pr-body.md
+            printf -- "- Ensure removed RFCs are properly cleaned up\n" >> /tmp/pr-body.md
+
+            gh pr create \
+              --base main \
+              --head "${{ env.CONTRIBUTION_BRANCH }}" \
+              --title "chore: update CLAUDE.md from RFC discussions" \
+              --body-file /tmp/pr-body.md
+          else
+            echo "PR #$PR_NUMBER already exists and has been updated"
+          fi
