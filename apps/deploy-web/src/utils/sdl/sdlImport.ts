@@ -28,15 +28,30 @@ export const importSimpleSdl = (yamlStr: string) => {
     const services: ServiceType[] = [];
     if (!yamlJson.services) return services;
 
+    // Known registry hosts
+    const knownHosts = ["docker.io", "ghcr.io", "gcr.io", "ecr", "azurecr.io", "registry.gitlab.com"];
+
     Object.keys(yamlJson.services).forEach(svcName => {
       const svc = yamlJson.services[svcName];
+
+      // Handle credentials with custom registry detection
+      let credentials = svc.credentials;
+      if (credentials && !knownHosts.includes(credentials.host)) {
+        // Unknown host means custom registry
+        credentials = {
+          host: "custom",
+          customRegistryUrl: credentials.host,
+          username: credentials.username,
+          password: credentials.password
+        };
+      }
 
       const service: Partial<ServiceType> = {
         id: nanoid(),
         title: svcName,
         image: svc.image,
         hasCredentials: !!svc.credentials,
-        credentials: svc.credentials
+        credentials: credentials
       };
 
       const compute = yamlJson.profiles.compute[svcName];

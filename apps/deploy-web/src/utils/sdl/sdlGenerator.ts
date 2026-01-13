@@ -26,10 +26,24 @@ export const generateSdl = (services: ServiceType[], region?: string) => {
   const sdl: Record<string, any> = { version: "2.0", services: {}, profiles: { compute: {}, placement: {} }, deployment: {} };
 
   services.forEach(service => {
+    // Handle custom registry URL
+    let credentials = service.hasCredentials ? service.credentials : undefined;
+    if (credentials && credentials.host === "custom" && credentials.customRegistryUrl) {
+      credentials = {
+        host: credentials.customRegistryUrl,
+        username: credentials.username,
+        password: credentials.password
+      };
+    } else if (credentials) {
+      // Remove customRegistryUrl from non-custom hosts
+      const { customRegistryUrl, ...rest } = credentials;
+      credentials = rest;
+    }
+
     sdl.services[service.title] = {
       image: service.image,
 
-      credentials: service.hasCredentials ? service.credentials : undefined,
+      credentials: credentials,
 
       // Expose
       expose: service.expose.map(e => {
