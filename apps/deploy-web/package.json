@@ -19,6 +19,7 @@
     "lint": "eslint .",
     "release": "release-it",
     "start": "next start",
+    "test": "npm run test:unit",
     "test:cov": "NODE_ENV=test DEPLOYMENT_ENV=staging jest --coverage --reporters=default --reporters=jest-junit",
     "test:e2e": "playwright test",
     "test:unit": "NODE_ENV=test DEPLOYMENT_ENV=staging jest",

@@ -18,6 +18,19 @@ Object.defineProperty(globalThis, "crypto", {
   configurable: true
 });
 
+// Mock hasPointerCapture and scrollIntoView for jsdom compatibility with Radix UI
+Object.defineProperty(HTMLElement.prototype, "hasPointerCapture", {
+  value: jest.fn().mockReturnValue(false),
+  writable: true,
+  configurable: true
+});
+
+Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+  value: jest.fn(),
+  writable: true,
+  configurable: true
+});
+
 beforeAll(() => {
   Object.defineProperty(window, "matchMedia", {
     writable: true,
