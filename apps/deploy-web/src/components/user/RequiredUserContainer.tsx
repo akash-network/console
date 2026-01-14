@@ -3,6 +3,7 @@ import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 import { LoadingBlocker } from "@src/components/layout/LoadingBlocker/LoadingBlocker";
+import { useServices } from "@src/context/ServicesProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import type { CustomUserProfile } from "@src/types/user";
 
@@ -19,10 +20,11 @@ type RequiredUserContainerProps = {
 export const RequiredUserContainer: FC<RequiredUserContainerProps> = ({ children }) => {
   const { user, isLoading } = useCustomUser();
   const router = useRouter();
+  const { urlService } = useServices();
 
   useEffect(() => {
     if (!user && !isLoading) {
-      router.push("/404");
+      router.push(urlService.newLogin());
     }
   }, [user, isLoading, router]);
 
