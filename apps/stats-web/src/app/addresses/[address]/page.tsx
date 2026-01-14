@@ -1,3 +1,4 @@
+import { LoggerService } from "@akashnetwork/logging";
 import type { Network } from "@akashnetwork/network-store";
 import type { Metadata } from "next";
 import { z } from "zod";
@@ -14,6 +15,8 @@ import { serverFetch } from "@/lib/serverFetch";
 import { UrlService } from "@/lib/urlUtils";
 import { serverApiUrlService } from "@/services/api-url/server-api-url.service";
 import type { AddressDetail } from "@/types";
+
+const logger = new LoggerService({ context: "AddressDetailPage" });
 
 const AddressDetailPageSchema = z.object({
   params: z.object({
@@ -39,13 +42,16 @@ export async function generateMetadata({ params: { address } }: AddressDetailPag
   };
 }
 
-async function fetchAddressData(address: string, network: Network["id"]): Promise<AddressDetail> {
+async function fetchAddressData(address: string, network: Network["id"]): Promise<AddressDetail | null> {
   const apiUrl = serverApiUrlService.getBaseApiUrlFor(network);
   const response = await serverFetch(`${apiUrl}/v1/addresses/${address}`);
 
-  if (!response.ok) {
-    // This will activate the closest `error.js` Error Boundary
-    throw new Error("Error fetching address data");
+  if (!response.ok && response.status !== 404) {
+    logger.error({ event: "ADDRESS_FETCH_ERROR", address, network, status: response.status });
+    throw new Error(`Error fetching address data: ${address}`);
+  } else if (response.status === 404) {
+    logger.debug({ event: "ADDRESS_NOT_FOUND", address, network });
+    return null;
   }
 
   return response.json();
@@ -57,6 +63,14 @@ export default async function AddressDetailPage(props: AddressDetailPageProps) {
     searchParams: { network }
   } = AddressDetailPageSchema.parse(props);
   const addressDetail = await fetchAddressData(address, network);
+
+  if (!addressDetail) {
+    return (
+      <AddressLayout page="address" address={address}>
+        <div className="py-8 text-center text-muted-foreground">Address not found or not indexed yet. Please check the address and try again.</div>
+      </AddressLayout>
+    );
+  }
 
   return (
     <AddressLayout page="address" address={address}>
