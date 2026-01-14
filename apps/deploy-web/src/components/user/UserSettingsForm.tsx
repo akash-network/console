@@ -1,3 +1,4 @@
+import type { FC } from "react";
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { MdHighlightOff } from "react-icons/md";
@@ -7,12 +8,11 @@ import { NextSeo } from "next-seo";
 import { z } from "zod";
 
 import { LabelValue } from "@src/components/shared/LabelValue";
-import type { RequiredUserConsumer } from "@src/components/user/RequiredUserContainer";
 import { UserProfileLayout } from "@src/components/user/UserProfileLayout";
 import { useServices } from "@src/context/ServicesProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useSaveSettings } from "@src/queries/useSaveSettings";
-import type { UserSettings } from "@src/types/user";
+import type { CustomUserProfile, UserSettings } from "@src/types/user";
 import Layout from "../layout/Layout";
 
 const formSchema = z.object({
@@ -28,7 +28,7 @@ const formSchema = z.object({
   githubUsername: z.string().optional()
 });
 
-export const UserSettingsForm: RequiredUserConsumer = ({ user }) => {
+export const UserSettingsForm: FC<{ user: CustomUserProfile }> = ({ user }) => {
   const { consoleApiHttpClient, analyticsService } = useServices();
   const [isCheckingAvailability, setIsCheckingAvailability] = useState<boolean>(false);
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null);

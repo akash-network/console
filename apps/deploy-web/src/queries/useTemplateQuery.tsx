@@ -76,8 +76,8 @@ export function useDeleteTemplate(id: string) {
   return useMutation({
     mutationFn: () => consoleApiHttpClient.delete(`/user/deleteTemplate/${id}`),
     onSuccess: () => {
-      if (user.username) {
-        queryClient.setQueryData(QueryKeys.getUserTemplatesKey(user?.username), (oldData: ITemplate[] = []) => {
+      if (user?.username) {
+        queryClient.setQueryData(QueryKeys.getUserTemplatesKey(user.username), (oldData: ITemplate[] = []) => {
           return oldData.filter(t => t.id !== id);
         });
       }
