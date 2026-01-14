@@ -2,16 +2,7 @@
 // The config you add here will be used whenever a page is visited.
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
-import type { Event } from "@sentry/nextjs";
-import { init as initSentry, thirdPartyErrorFilterIntegration } from "@sentry/nextjs";
-
-function hasExtensionFrames(event: Event): boolean {
-  return (
-    event.exception?.values?.some(value =>
-      value.stacktrace?.frames?.some(frame => frame.filename?.startsWith("chrome-extension://") || frame.filename?.startsWith("moz-extension://"))
-    ) ?? false
-  );
-}
+import { inboundFiltersIntegration, init as initSentry, thirdPartyErrorFilterIntegration } from "@sentry/nextjs";
 
 initSentry({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
@@ -25,14 +16,12 @@ initSentry({
   // propagate sentry-trace and baggage headers to internal API only
   // everything else will be done with custom interceptor
   tracePropagationTargets: [/^\/api\//, /^\/_next\//],
-  beforeSend(event) {
-    // Drop errors that originate from browser extensions
-    if (hasExtensionFrames(event)) {
-      return null;
-    }
-    return event;
-  },
   integrations: [
+    // Filter out errors originating from browser extensions
+    // Note: uses inboundFiltersIntegration (not eventFiltersIntegration) to override defaultIntegrations
+    inboundFiltersIntegration({
+      denyUrls: [/^chrome-extension:\/\//, /^moz-extension:\/\//]
+    }),
     thirdPartyErrorFilterIntegration({
       filterKeys: [process.env.NEXT_PUBLIC_SENTRY_APPLICATION_KEY!],
       behaviour: "drop-error-if-exclusively-contains-third-party-frames"
