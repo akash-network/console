@@ -1,6 +1,6 @@
 {
   "name": "@akashnetwork/console-web",
-  "version": "3.21.0",
+  "version": "3.21.1",
   "private": true,
   "description": "Web UI to deploy on the Akash Network and view statistic about network usage.",
   "repository": {
