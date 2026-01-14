@@ -1,5 +1,13 @@
 
 
+## [3.21.1](https://github.com/akash-network/console/compare/console-web/v3.21.0...console-web/v3.21.1) (2026-01-14)
+
+
+### Bug Fixes
+
+* **deployment:** uses proper button image link ([73fc6a5](https://github.com/akash-network/console/commit/73fc6a531f3f8675b7676522e1fc3e82c15042cb)), closes [#2470](https://github.com/akash-network/console/issues/2470)
+* fixes types for useUser hook ([#2492](https://github.com/akash-network/console/issues/2492)) ([3c5f19d](https://github.com/akash-network/console/commit/3c5f19d0924aebab018c724e56626ba5c277c556))
+
 ## [3.21.0](https://github.com/akash-network/console/compare/console-web/v3.20.0...console-web/v3.21.0) (2026-01-14)
 
 
