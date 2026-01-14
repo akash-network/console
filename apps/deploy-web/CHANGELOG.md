@@ -1,5 +1,19 @@
 
 
+## [3.21.0](https://github.com/akash-network/console/compare/console-web/v3.20.0...console-web/v3.21.0) (2026-01-14)
+
+
+### Features
+
+* **auth:** only allows oauth login for the deploy button flow ([4f8926d](https://github.com/akash-network/console/commit/4f8926d180477319547bdf8340e4f3419ba0389e)), closes [#2470](https://github.com/akash-network/console/issues/2470)
+* **deployment:** implements deploy link constructor ([3c5bcd3](https://github.com/akash-network/console/commit/3c5bcd35739599e18ef9ac49cccf220a85a12d73)), closes [#2470](https://github.com/akash-network/console/issues/2470)
+* **sdl:** add support for additional private container registries ([#2479](https://github.com/akash-network/console/issues/2479)) ([5b68e84](https://github.com/akash-network/console/commit/5b68e8454f11b1f271e843826df558d6a222b613))
+
+
+### Bug Fixes
+
+* ensure usesr profile request does not error in case of 401 ([#2490](https://github.com/akash-network/console/issues/2490)) ([64b704e](https://github.com/akash-network/console/commit/64b704e02ec2cf1328a79c41e1b1a1f05c1f1874))
+
 ## [3.20.0](https://github.com/akash-network/console/compare/console-web/v3.19.0...console-web/v3.20.0) (2026-01-13)
 
 
