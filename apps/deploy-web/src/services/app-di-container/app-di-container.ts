@@ -32,7 +32,7 @@ import { StripeService } from "../stripe/stripe.service";
 import { UserTracker } from "../user-tracker/user-tracker.service";
 
 export const createAppRootContainer = (config: ServicesConfig) => {
-  const apiConfig = { baseURL: config.BASE_API_MAINNET_URL, adapter: "fetch" };
+  const apiConfig = { baseURL: config.BASE_API_MAINNET_URL, adapter: "fetch" as const };
   const container = createContainer({
     publicConfig: () => browserEnvConfig,
 
