@@ -121,7 +121,7 @@ export const NewDeploymentContainer: FC<NewDeploymentContainerProps> = ({
       }
 
       if (!user?.userId) {
-        router.push(UrlService.newSignup({ from: buildReturnUrl() }));
+        router.push(UrlService.newLogin({ from: buildReturnUrl() }));
         return;
       }
 
