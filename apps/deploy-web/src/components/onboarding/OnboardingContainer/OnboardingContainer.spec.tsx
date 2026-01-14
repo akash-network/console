@@ -277,7 +277,8 @@ describe("OnboardingContainer", () => {
 
     const mockUseUser = jest.fn().mockReturnValue(input.user || { emailVerified: false });
     const mockUsePaymentMethodsQuery = jest.fn().mockReturnValue({ data: input.paymentMethods || [] });
-    const mockUseDepositParams = jest.fn().mockReturnValue({ data: undefined });
+    const mockUseChainParam = jest.fn().mockReturnValue({ minDeposit: { akt: 0.5, usdc: 5 } });
+    const mockDenomToUdenom = jest.fn().mockImplementation((amount: number) => amount * 1_000_000);
     const mockErrorHandler = mock<ErrorHandlerService>();
 
     const mockUseServices = jest.fn().mockReturnValue({
@@ -372,7 +373,7 @@ describe("OnboardingContainer", () => {
     const dependencies = {
       useUser: mockUseUser,
       usePaymentMethodsQuery: mockUsePaymentMethodsQuery,
-      useDepositParams: mockUseDepositParams,
+      useChainParam: mockUseChainParam,
       useServices: mockUseServices,
       useRouter: mockUseRouter,
       useWallet: mockUseWallet,
@@ -386,7 +387,8 @@ describe("OnboardingContainer", () => {
       appendAuditorRequirement: mockAppendAuditorRequirement,
       helloWorldTemplate: mockHelloWorldTemplate,
       TransactionMessageData: mockTransactionMessageData as unknown as typeof TransactionMessageData,
-      useSearchParams
+      useSearchParams,
+      denomToUdenom: mockDenomToUdenom
     };
 
     const mockChildren = jest.fn().mockReturnValue(<div>Test</div>);
@@ -401,7 +403,8 @@ describe("OnboardingContainer", () => {
       authService,
       mockUseUser,
       mockUsePaymentMethodsQuery,
-      mockUseDepositParams,
+      mockUseChainParam,
+      mockDenomToUdenom,
       mockUseServices,
       mockUseRouter,
       mockConnectManagedWallet,
