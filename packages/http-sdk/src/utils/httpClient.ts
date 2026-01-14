@@ -1,9 +1,17 @@
-import type { AxiosInstance, CreateAxiosDefaults } from "axios";
+import type { AxiosInstance, AxiosResponse, CreateAxiosDefaults } from "axios";
 import axios from "axios";
-import axiosRetry from "axios-retry";
 
-export function createHttpClient(config: HttpClientOptions = {}): HttpClient {
+import { createFetchAdapter } from "./createFetchAdapter/createFetchAdapter";
+
+export function createHttpClient(fullConfig: HttpClientOptions = {}): HttpClient {
+  const { abortPendingWhenOneFail, ...config } = fullConfig;
+  const adapter = createFetchAdapter({
+    retries: 3,
+    abortPendingWhenOneFail
+  });
+
   const instance = axios.create({
+    adapter,
     ...config,
     headers: {
       "Content-Type": "application/json",
@@ -11,14 +19,8 @@ export function createHttpClient(config: HttpClientOptions = {}): HttpClient {
     }
   });
 
-  axiosRetry(instance, {
-    retries: 3,
-    retryDelay: axiosRetry.exponentialDelay,
-    retryCondition: axiosRetry.isNetworkOrIdempotentRequestError
-  });
-
   return instance;
 }
 
 export type HttpClient = AxiosInstance;
-export type HttpClientOptions = CreateAxiosDefaults;
+export type HttpClientOptions = CreateAxiosDefaults & { abortPendingWhenOneFail?: (response: AxiosResponse) => boolean };

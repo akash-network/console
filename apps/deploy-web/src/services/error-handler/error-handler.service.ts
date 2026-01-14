@@ -21,6 +21,10 @@ export class ErrorHandlerService {
   }
 
   reportError({ severity, error, tags, ...extra }: ErrorContext): void {
+    if (error && typeof error === "object" && "name" in error && error.name === "AbortError") {
+      return;
+    }
+
     const finalTags: Record<string, string> = { ...tags };
 
     if (isHttpError(error) && error.response && error.response.status !== 400) {

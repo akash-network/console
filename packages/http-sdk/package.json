@@ -15,7 +15,7 @@
   "dependencies": {
     "@akashnetwork/logging": "*",
     "axios": "^1.7.2",
-    "axios-retry": "^4.5.0",
+    "cockatiel": "^3.2.1",
     "date-fns": "^4.1.0",
     "lodash": "^4.17.21",
     "zod": "3.*"

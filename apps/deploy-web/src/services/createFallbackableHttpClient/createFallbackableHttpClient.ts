@@ -1,7 +1,6 @@
 import { type createHttpClient as createDefaultHttpClient, type HttpClient } from "@akashnetwork/http-sdk";
+import { createFetchAdapter, isNetworkOrIdempotentRequestError } from "@akashnetwork/http-sdk";
 import { ExponentialBackoff, isBrokenCircuitError } from "cockatiel";
-
-import { createFetchAdapter, isNetworkOrIdempotentRequestError } from "../createFetchAdapter/createFetchAdapter";
 
 export type FallbackableHttpClient = HttpClient & { isFallbackEnabled: boolean };
 export function createFallbackableHttpClient(
@@ -31,10 +30,7 @@ export function createFallbackableHttpClient(
         }
       },
       onSuccess: options.onSuccess
-    }),
-    "axios-retry": {
-      retries: 0
-    }
+    })
   });
 
   Object.defineProperty(httpClient, "isFallbackEnabled", {
