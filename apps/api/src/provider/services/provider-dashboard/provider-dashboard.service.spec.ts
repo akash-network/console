@@ -1,17 +1,19 @@
+import "@test/setup-functional-tests"; // eslint-disable-line simple-import-sort/imports
+
 import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
 import type { Block } from "@akashnetwork/database/dbSchemas/base/block";
 import { subDays } from "date-fns";
 
-import { app, initDb } from "@src/rest-app";
-
 import { createAkashBlock, createProvider } from "@test/seeders";
+import { chainDb } from "@src/db/dbConnection";
+import { ProviderDashboardService } from "./provider-dashboard.service";
 
 describe("Provider Dashboard", () => {
   let provider: Provider;
   let blocks: Block[];
 
   beforeAll(async () => {
-    await initDb();
+    await chainDb.authenticate();
 
     provider = await createProvider();
     blocks = await Promise.all([
@@ -34,11 +36,9 @@ describe("Provider Dashboard", () => {
 
   describe("GET /v1/provider-dashboard/{owner}", () => {
     it("returns dashboard data for the owner", async () => {
-      const response = await app.request(`/v1/provider-dashboard/${provider.owner}`);
+      const service = setup();
+      const data = await service.getProviderDashboard(provider.owner);
 
-      const data = (await response.json()) as any;
-
-      expect(response.status).toBe(200);
       expect(data.current.date).toEqual(blocks[0].datetime.toISOString());
       expect(data.current.height).toEqual(blocks[0].height);
       expect(data.previous.date).toEqual(blocks[1].datetime.toISOString());
@@ -46,12 +46,13 @@ describe("Provider Dashboard", () => {
     });
 
     it("returns 404 when provider not found", async () => {
-      const nonExistentOwner = "0x1234567890abcdef1234567890abcdef12345678";
-      const response = await app.request(`/v1/provider-dashboard/${nonExistentOwner}`);
+      const service = setup();
 
-      expect(response.status).toBe(404);
-      const data = (await response.json()) as any;
-      expect(data.message).toBe("Provider not found");
+      await expect(service.getProviderDashboard("0x1234567890abcdef1234567890abcdef12345678")).rejects.toThrow("Provider not found");
     });
+
+    function setup() {
+      return new ProviderDashboardService();
+    }
   });
 });

@@ -1,15 +1,18 @@
-import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
+import "@test/setup-functional-tests"; // eslint-disable-line simple-import-sort/imports
 
-import { app, initDb } from "@src/rest-app";
+import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
+import { chainDb } from "@src/db/dbConnection";
 
 import { createProvider, createProviderSnapshot } from "@test/seeders";
+import { ProviderVersionsService } from "./provider-versions.service";
+import { PROVIDER_CONFIG } from "@src/provider/providers/config.provider";
+import { container } from "tsyringe";
 
 describe("Provider Dashboard", () => {
   let providers: Provider[];
 
   beforeAll(async () => {
-    await initDb();
-
+    await chainDb.authenticate();
     providers = await Promise.all([
       createProvider({
         akashVersion: "1.0.0",
@@ -69,23 +72,22 @@ describe("Provider Dashboard", () => {
     );
   });
 
-  const expectVersion = (data: any, { version, count, ratio, providers }: { version: string; count: number; ratio: number; providers: Provider[] }) => {
-    expect(data[version].count).toEqual(count);
-    expect(data[version].ratio).toEqual(ratio);
-    expect(data[version].providers.sort()).toEqual(providers.map(provider => provider.hostUri).sort());
-  };
-
   describe("GET /v1/provider-versions", () => {
     it("returns providers grouped by akash version", async () => {
-      const response = await app.request("/v1/provider-versions");
+      const service = setup();
+      const data = await service.getProviderVersions();
+      const getUri = (provider: Provider) => provider.hostUri;
 
-      const data = await response.json();
-
-      expect(response.status).toBe(200);
-      expectVersion(data, { version: "1.0.0", count: 2, ratio: 0.4, providers: [providers[0], providers[2]] });
-      expectVersion(data, { version: "2.0.0", count: 1, ratio: 0.2, providers: [providers[1]] });
-      expectVersion(data, { version: "3.0.0", count: 1, ratio: 0.2, providers: [providers[3]] });
-      expectVersion(data, { version: "<UNKNOWN>", count: 1, ratio: 0.2, providers: [providers[4]] });
+      expect(data["1.0.0"]).toEqual(
+        expect.objectContaining({ count: 2, ratio: 0.4, providers: expect.arrayContaining([providers[0], providers[2]].map(getUri)) })
+      );
+      expect(data["2.0.0"]).toEqual(expect.objectContaining({ count: 1, ratio: 0.2, providers: [providers[1]].map(getUri) }));
+      expect(data["3.0.0"]).toEqual(expect.objectContaining({ count: 1, ratio: 0.2, providers: [providers[3]].map(getUri) }));
+      expect(data["<UNKNOWN>"]).toEqual(expect.objectContaining({ count: 1, ratio: 0.2, providers: [providers[4]].map(getUri) }));
     });
   });
+
+  function setup() {
+    return new ProviderVersionsService(container.resolve(PROVIDER_CONFIG));
+  }
 });
