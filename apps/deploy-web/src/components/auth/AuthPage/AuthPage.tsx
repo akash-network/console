@@ -56,7 +56,7 @@ interface Props {
 }
 
 export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
-  const { authService, publicConfig } = useServices();
+  const { authService, publicConfig, analyticsService } = useServices();
   const router = d.useRouter();
   const searchParams = d.useSearchParams();
   const { checkSession } = d.useUser();
@@ -77,13 +77,15 @@ export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
 
   const redirectToSocialLogin = useCallback(
     async (provider: "github" | "google-oauth2") => {
+      analyticsService.track("social_login_init", { provider });
       await authService.loginViaOauth({ returnTo: returnUrl, connection: provider });
     },
-    [authService, returnUrl]
+    [analyticsService, authService, returnUrl]
   );
 
   const signInOrSignUp = useMutation({
     async mutationFn(input: Tagged<"signin", SignInFormValues> | Tagged<"signup", SignUpFormValues>) {
+      analyticsService.track("password_auth_submit", { type: input.type });
       if (!turnstileRef.current) {
         throw new Error("Captcha has not been rendered");
       }

@@ -28,6 +28,8 @@ export type AnalyticsOptions = {
 type AnalyticsTarget = "Amplitude" | "GA";
 
 export type AnalyticsEvent =
+  | "social_login_init"
+  | "password_auth_submit"
   | "connect_wallet"
   | "connect_managed_wallet"
   | "disconnect_wallet"
