@@ -1,5 +1,6 @@
 import { isHttpError } from "@akashnetwork/http-sdk";
 import { wrapGetServerSidePropsWithSentry } from "@sentry/nextjs";
+import { once } from "lodash";
 import type { GetServerSideProps, GetServerSidePropsContext, GetServerSidePropsResult, PreviewData } from "next";
 import type { ParsedUrlQuery } from "querystring";
 import type { z } from "zod";
@@ -15,9 +16,7 @@ export interface WrapServerSideOptions<TSchema extends z.ZodSchema<any> | undefi
    */
   route: string;
   schema?: TSchema;
-  if?: (
-    context: AppTypedContext<TSchema, TParams, TPreviewData>
-  ) => boolean | Promise<boolean> | GetServerSidePropsResult<any> | Promise<GetServerSidePropsResult<any>>;
+  if?: (context: AppTypedContext<TSchema, TParams, TPreviewData>) => boolean | GetServerSidePropsResult<any> | Promise<GetServerSidePropsResult<any> | boolean>;
   handler?: (context: AppTypedContext<TSchema, TParams, TPreviewData>) => Promise<TProps> | TProps;
 }
 
@@ -27,7 +26,7 @@ export type AppTypedContext<
   TPreviewData extends PreviewData = PreviewData
 > = TypedContext<TSchema, TParams, TPreviewData> & {
   services: typeof services;
-  session?: Session | null;
+  getCurrentSession: () => Promise<Session | null>;
 };
 type TypedContext<TSchema extends z.ZodSchema<any> | undefined, TParams extends ParsedUrlQuery, TPreviewData extends PreviewData> =
   TSchema extends z.ZodSchema<any>
@@ -51,8 +50,11 @@ export function defineServerSideProps<
     return requestExecutionContext.run(createRequestExecutionContext(context.req), async () => {
       const requestServices = "services" in context ? (context.services as typeof services) : services;
 
-      const session = await requestServices.getSession(context.req, context.res);
-      requestServices.userTracker.track(session?.user);
+      const getCurrentSession = once(async () => {
+        const session = await requestServices.getSession(context.req, context.res);
+        requestServices.userTracker.track(session?.user);
+        return session;
+      });
 
       const validatedContext = options.schema ? options.schema.safeParse(context) : undefined;
       if (validatedContext && !validatedContext.success) {
@@ -64,7 +66,7 @@ export function defineServerSideProps<
         services: requestServices,
         ...context,
         ...validatedContext?.data,
-        session
+        getCurrentSession
       } as AppTypedContext<TSchema, TParams, TPreviewData>;
 
       const result = await options.if?.(newContext);

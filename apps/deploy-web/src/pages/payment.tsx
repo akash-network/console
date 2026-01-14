@@ -16,9 +16,9 @@ import { useWallet } from "@src/context/WalletProvider";
 import { use3DSecure } from "@src/hooks/use3DSecure";
 import { useUser } from "@src/hooks/useUser";
 import { defineServerSideProps } from "@src/lib/nextjs/defineServerSideProps/defineServerSideProps";
+import { redirectIfAccessTokenExpired } from "@src/lib/nextjs/pageGuards/pageGuards";
 import { usePaymentMethodsQuery, usePaymentMutations, useSetupIntentMutation } from "@src/queries";
 import { handleCouponError, handleStripeError } from "@src/utils/stripeErrorHandler";
-import { withCustomPageAuthRequired } from "@src/utils/withCustomPageAuthRequired";
 
 const MINIMUM_PAYMENT_AMOUNT = 20;
 
@@ -342,8 +342,7 @@ const PayPage: React.FunctionComponent = () => {
 
 export default PayPage;
 
-export const getServerSideProps = withCustomPageAuthRequired({
-  getServerSideProps: defineServerSideProps({
-    route: "/payment"
-  })
+export const getServerSideProps = defineServerSideProps({
+  if: redirectIfAccessTokenExpired,
+  route: "/payment"
 });

@@ -5,7 +5,7 @@ import { once } from "lodash";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 import type { Session } from "@src/lib/auth0";
-import { AccessTokenError, AccessTokenErrorCode, getSession } from "@src/lib/auth0";
+import { AccessTokenError, AccessTokenErrorCode } from "@src/lib/auth0";
 import { handleAuth, handleCallback, handleLogin, handleLogout } from "@src/lib/auth0";
 import { defineApiHandler } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
 import type { AppServices } from "@src/services/app-di-container/server-di-container.service";
@@ -71,7 +71,7 @@ const authHandler = once((services: AppServices) =>
     async profile(req: NextApiRequest, res: NextApiResponse) {
       services.logger.info({ event: "AUTH_PROFILE_REQUEST", url: req.url });
       try {
-        const session = await getSession(req, res);
+        const session = await services.getSession(req, res);
         if (!session) {
           services.logger.info({ event: "AUTH_PROFILE_REQUEST_NO_SESSION", url: req.url });
           res.status(401).json({ error: "Not authenticated" });
