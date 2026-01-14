@@ -1,10 +1,10 @@
-import { injectable } from "tsyringe";
+import { singleton } from "tsyringe";
 
 import { GpuBreakdownQuery } from "@src/gpu/http-schemas/gpu.schema";
 import { GpuService } from "@src/gpu/services/gpu.service";
 import { GpuPriceService } from "@src/gpu/services/gpu-price.service";
 
-@injectable()
+@singleton()
 export class GpuController {
   constructor(
     private readonly gpuService: GpuService,

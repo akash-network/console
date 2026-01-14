@@ -1,13 +1,13 @@
 import axios from "axios";
 import { minutesToSeconds } from "date-fns";
-import { injectable } from "tsyringe";
+import { singleton } from "tsyringe";
 
 import { Memoize } from "@src/caching/helpers";
 import { type GpuVendor, ProviderConfigGpusType } from "@src/types/gpu";
 import { type GpuBreakdownQuery } from "../http-schemas/gpu.schema";
 import { GpuRepository } from "../repositories/gpu.repository";
 
-@injectable()
+@singleton()
 export class GpuService {
   constructor(private readonly gpuRepository: GpuRepository) {}
 

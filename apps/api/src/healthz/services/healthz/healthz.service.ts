@@ -1,10 +1,10 @@
 import { millisecondsInMinute } from "date-fns";
-import { inject, injectable } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import { DB_HEALTHCHECK, DbHealthcheck, JOB_QUEUE_HEALTHCHECK, JobQueueHealthcheck } from "@src/core";
 import { LoggerService } from "@src/core/providers/logging.provider";
 
-@injectable()
+@singleton()
 export class HealthzService {
   private readonly healthchecks: Healthcheck[] = [];
 

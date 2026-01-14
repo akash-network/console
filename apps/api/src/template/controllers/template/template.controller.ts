@@ -1,12 +1,12 @@
 import assert from "http-assert";
-import { inject, injectable } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import { TemplateGalleryService } from "@src/services/external/templates/template-gallery.service";
 import { GetTemplatesListResponseSchema } from "@src/template/http-schemas/template.schema";
 import { TEMPLATE_CONFIG, type TemplateConfig } from "@src/template/providers/config.provider";
 import { dataFolderPath } from "@src/utils/constants";
 
-@injectable()
+@singleton()
 export class TemplateController {
   private readonly templateGalleryService: TemplateGalleryService;
 
