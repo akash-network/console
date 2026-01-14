@@ -9,10 +9,10 @@ import { SuccessAnimation } from "@src/components/shared";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useChainParam } from "@src/hooks/useChainParam/useChainParam";
 import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom";
 import { useUser } from "@src/hooks/useUser";
 import { usePaymentMethodsQuery } from "@src/queries/usePaymentQueries";
-import { useDepositParams } from "@src/queries/useSaveSettings";
 import { useTemplates } from "@src/queries/useTemplateQuery";
 import { ONBOARDING_STEP_KEY } from "@src/services/storage/keys";
 import { RouteStep } from "@src/types/route-steps.type";
@@ -20,6 +20,7 @@ import { deploymentData } from "@src/utils/deploymentData";
 import { appendAuditorRequirement } from "@src/utils/deploymentData/v1beta3";
 import { validateDeploymentData } from "@src/utils/deploymentUtils";
 import { getValidInternalReturnToUrl } from "@src/utils/getValidInternalReturnToUrl/getValidInternalReturnToUrl";
+import { denomToUdenom } from "@src/utils/mathHelpers";
 import { helloWorldTemplate } from "@src/utils/templates";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { type OnboardingStep } from "../OnboardingStepper/OnboardingStepper";
@@ -48,7 +49,7 @@ export type OnboardingContainerProps = {
 const DEPENDENCIES = {
   useUser,
   usePaymentMethodsQuery,
-  useDepositParams,
+  useChainParam,
   useServices,
   useRouter,
   useWallet,
@@ -62,7 +63,8 @@ const DEPENDENCIES = {
   appendAuditorRequirement,
   helloWorldTemplate,
   TransactionMessageData,
-  useSearchParams
+  useSearchParams,
+  denomToUdenom
 };
 
 export const OnboardingContainer: React.FunctionComponent<OnboardingContainerProps> = ({ children, dependencies: d = DEPENDENCIES }) => {
@@ -74,17 +76,8 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
   const searchParams = d.useSearchParams();
   const { user } = d.useUser();
   const { data: paymentMethods = [] } = d.usePaymentMethodsQuery({ enabled: !!user?.stripeCustomerId });
-  const { data: depositParams } = d.useDepositParams();
-  const {
-    analyticsService,
-    urlService,
-    chainApiHttpClient,
-    deploymentLocalStorage,
-    publicConfig: appConfig,
-    errorHandler,
-    windowLocation,
-    windowHistory
-  } = d.useServices();
+  const { minDeposit } = d.useChainParam();
+  const { analyticsService, urlService, chainApiHttpClient, deploymentLocalStorage, errorHandler, windowLocation, windowHistory } = d.useServices();
   const { hasManagedWallet, isWalletLoading, connectManagedWallet, address, signAndBroadcastTx } = d.useWallet();
   const { templates } = d.useTemplates();
   const { genNewCertificateIfLocalIsInvalid, updateSelectedCertificate } = d.useCertificate();
@@ -259,11 +252,13 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
         }
 
         sdl = d.appendAuditorRequirement(sdl);
-        if (managedDenom && managedDenom !== "uakt") {
+        const isUsdc = managedDenom && managedDenom !== "uakt";
+        if (isUsdc) {
           sdl = sdl.replace(/uakt/g, managedDenom);
         }
 
-        const deposit = depositParams || appConfig.NEXT_PUBLIC_DEFAULT_INITIAL_DEPOSIT;
+        const minDepositAmount = isUsdc ? minDeposit.usdc : minDeposit.akt;
+        const deposit = d.denomToUdenom(minDepositAmount);
         const dd = await d.deploymentData.NewDeploymentData(chainApiHttpClient, sdl, null, address, deposit);
         d.validateDeploymentData(dd, null);
 
@@ -314,8 +309,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
       templates,
       chainApiHttpClient,
       address,
-      appConfig,
-      depositParams,
+      minDeposit,
       genNewCertificateIfLocalIsInvalid,
       signAndBroadcastTx,
       updateSelectedCertificate,
