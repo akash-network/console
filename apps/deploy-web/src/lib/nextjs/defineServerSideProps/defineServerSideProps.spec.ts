@@ -5,7 +5,6 @@ import type { GetServerSidePropsContext, GetServerSidePropsResult } from "next";
 import type { z } from "zod";
 import { z as zod, ZodError } from "zod";
 
-import type { Session } from "@src/lib/auth0";
 import { services } from "@src/services/app-di-container/server-di-container.service";
 import { requestExecutionContext } from "../requestExecutionContext";
 import type { AppTypedContext } from "./defineServerSideProps";
@@ -39,39 +38,6 @@ describe(defineServerSideProps, () => {
       })
     );
     expect(result).toEqual({ props: { data: "test" } });
-  });
-
-  it("tracks current user", async () => {
-    const mockHandler = jest.fn().mockResolvedValue({ props: { data: "test" } });
-    const session: Session = {
-      user: {
-        id: "123"
-      }
-    };
-    const customServices = {
-      userTracker: mock<typeof services.userTracker>(),
-      getSession: jest.fn(async () => session)
-    };
-    const req = createRequest();
-    const res = mock<GetServerSidePropsContext["res"]>();
-
-    await setup({
-      route: "/test",
-      handler: mockHandler,
-      context: {
-        services: customServices,
-        req,
-        res
-      }
-    });
-
-    expect(mockHandler).toHaveBeenCalledWith(
-      expect.objectContaining({
-        session
-      })
-    );
-    expect(customServices.userTracker.track).toHaveBeenCalledWith(session.user);
-    expect(customServices.getSession).toHaveBeenCalledWith(req, res);
   });
 
   it("validates context with schema when provided", async () => {

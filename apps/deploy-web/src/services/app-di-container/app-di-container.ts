@@ -4,6 +4,7 @@ import {
   AuthHttpService,
   createHttpClient,
   DeploymentSettingHttpService,
+  isHttpError,
   ManagedDeploymentHttpService,
   TemplateHttpService,
   TxHttpService,
@@ -158,6 +159,13 @@ export const createAppRootContainer = (config: ServicesConfig) => {
       ),
     queryClient: () =>
       new QueryClient({
+        defaultOptions: {
+          queries: {
+            retry(failureCount, error) {
+              return isHttpError(error) && !!error.response && error.response.status >= 500 && failureCount < 3;
+            }
+          }
+        },
         queryCache: new QueryCache({
           onError: error => container.errorHandler.reportError({ error })
         }),

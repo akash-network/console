@@ -1,4 +1,6 @@
-import type { AxiosInstance } from "axios";
+import { useUser } from "@auth0/nextjs-auth0/client";
+import type { AxiosResponse } from "axios";
+import { type AxiosInstance } from "axios";
 import { mock } from "jest-mock-extended";
 
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
@@ -8,6 +10,7 @@ import { UserProviders } from "./UserProviders";
 
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { buildUser } from "@tests/seeders/user";
+import { ComponentMock } from "@tests/unit/mocks";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe(UserProviders.name, () => {
@@ -27,8 +30,8 @@ describe(UserProviders.name, () => {
     const { rerender } = await setup({
       getProfile: jest
         .fn()
-        .mockImplementationOnce(async () => user)
-        .mockImplementationOnce(async () => undefined),
+        .mockImplementationOnce(async () => ({ status: 200, data: user }))
+        .mockImplementationOnce(async () => ({ status: 401, data: undefined })),
       userTracker,
       analyticsService
     });
@@ -53,12 +56,41 @@ describe(UserProviders.name, () => {
     expect(analyticsService.identify).toHaveBeenCalledTimes(1);
   });
 
-  async function setup(input?: { getProfile?: () => Promise<CustomUserProfile>; userTracker?: UserTracker; analyticsService?: AnalyticsService }) {
+  it("does not error if user is not logged in", async () => {
+    await setup({
+      getProfile: jest.fn(() =>
+        Promise.resolve({
+          status: 401,
+          data: undefined
+        } as AxiosResponse<{ data: CustomUserProfile } | undefined>)
+      ),
+      Content: () => {
+        const { user, error } = useUser();
+        return (
+          <div>
+            User: {user?.sub || "not logged in"} Error: {error?.message || "no error"}
+          </div>
+        );
+      }
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/User: not logged/i)).toBeInTheDocument();
+      expect(screen.getByText(/Error: no error/i)).toBeInTheDocument();
+    });
+  });
+
+  async function setup(input?: {
+    getProfile?: () => Promise<AxiosResponse<{ data: CustomUserProfile } | undefined>>;
+    userTracker?: UserTracker;
+    analyticsService?: AnalyticsService;
+    Content?: React.ComponentType;
+  }) {
     const services = {
       internalApiHttpClient: () =>
         mock<Omit<AxiosInstance, "defaults">>({
           get: (() => {
-            if (input?.getProfile) return input.getProfile().then(data => ({ data }));
+            if (input?.getProfile) return input.getProfile();
             return Promise.resolve({
               data: buildUser()
             });
@@ -67,10 +99,13 @@ describe(UserProviders.name, () => {
       userTracker: () => input?.userTracker || mock<UserTracker>(),
       analyticsService: () => input?.analyticsService || mock<AnalyticsService>()
     };
+    const Content = input?.Content || ComponentMock;
     let id = 0;
     const genContent = () => (
       <TestContainerProvider services={services}>
-        <UserProviders key={++id}>content</UserProviders>
+        <UserProviders key={++id}>
+          <Content>content</Content>
+        </UserProviders>
       </TestContainerProvider>
     );
 

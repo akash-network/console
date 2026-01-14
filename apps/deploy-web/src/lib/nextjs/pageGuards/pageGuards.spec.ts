@@ -63,7 +63,7 @@ describe("pageGuards", () => {
   });
 
   describe("redirectIfAccessTokenExpired", () => {
-    it("returns null when access token is not expired", async () => {
+    it("returns true when access token is not expired", async () => {
       const context = setup({
         session: {
           accessTokenExpiresAt: Date.now() + 1000 * 60 * 60 * 24 * 30
@@ -72,7 +72,7 @@ describe("pageGuards", () => {
 
       const result = await redirectIfAccessTokenExpired(context);
 
-      expect(result).toBeNull();
+      expect(result).toBe(true);
     });
 
     it("returns redirect when access token is expired", async () => {
@@ -96,7 +96,7 @@ describe("pageGuards", () => {
 
 function setup(input?: { enabledFeatures?: string[]; session?: Partial<Session> }) {
   return mock<AppTypedContext>({
-    session: input?.session,
+    getCurrentSession: jest.fn().mockResolvedValue(input?.session || null),
     services: {
       featureFlagService: mock<FeatureFlagService>({
         isEnabledForCtx: jest.fn(async featureName => !!input?.enabledFeatures?.includes(featureName))
