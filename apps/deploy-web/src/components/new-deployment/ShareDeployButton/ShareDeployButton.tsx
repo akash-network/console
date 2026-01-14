@@ -214,7 +214,7 @@ export const ShareDeployButton: FC<ShareDeployButtonProps> = ({ services, depend
     if (nodeVersion) urlParams.nodeVersion = nodeVersion;
 
     const deployUrl = `${d.getBaseUrl()}${UrlService.newDeployment(urlParams)}`;
-    const buttonImageUrl = "https://raw.githubusercontent.com/akash-network/support/main/deploy-with-akash-btn.svg";
+    const buttonImageUrl = "https://raw.githubusercontent.com/akash-network/console/refs/heads/main/apps/deploy-web/public/images/deploy-with-akash-btn.svg";
     const markdownSnippet = `[![Deploy on Akash](${buttonImageUrl})](${deployUrl})`;
     const htmlSnippet = `<a href="${deployUrl}"><img src="${buttonImageUrl}" alt="Deploy on Akash"></a>`;
 

@@ -86,8 +86,8 @@ describe(ShareDeployButton.name, () => {
     const message = callArgs.message as React.ReactElement;
 
     const expectedDeployUrl = "https://console.akash.network/new-deployment?repoUrl=https%3A%2F%2Fgithub.com%2Ftest%2Frepo&branch=main";
-    const expectedMarkdownSnippet = `[![Deploy on Akash](https://raw.githubusercontent.com/akash-network/support/main/deploy-with-akash-btn.svg)](${expectedDeployUrl})`;
-    const expectedHtmlSnippet = `<a href="${expectedDeployUrl}"><img src="https://raw.githubusercontent.com/akash-network/support/main/deploy-with-akash-btn.svg" alt="Deploy on Akash"></a>`;
+    const expectedMarkdownSnippet = `[![Deploy on Akash](https://raw.githubusercontent.com/akash-network/console/refs/heads/main/apps/deploy-web/public/images/deploy-with-akash-btn.svg)](${expectedDeployUrl})`;
+    const expectedHtmlSnippet = `<a href="${expectedDeployUrl}"><img src="https://raw.githubusercontent.com/akash-network/console/refs/heads/main/apps/deploy-web/public/images/deploy-with-akash-btn.svg" alt="Deploy on Akash"></a>`;
 
     render(message);
 
