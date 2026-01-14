@@ -94,18 +94,18 @@ function isIdempotentRequestError(error: AxiosError): boolean {
 }
 
 function abortableAdapter(defaultAdapter: AxiosAdapter, abortWhen: (response: AxiosResponse) => boolean): AxiosAdapter {
-  let globalAbortController = new AbortController();
+  let adapterLevelAbortController = new AbortController();
   return async (requestConfig: InternalAxiosRequestConfig) => {
     if (requestConfig.signal) {
-      requestConfig.signal = AbortSignal.any([requestConfig.signal as AbortSignal, globalAbortController.signal]);
+      requestConfig.signal = AbortSignal.any([requestConfig.signal as AbortSignal, adapterLevelAbortController.signal]);
     } else {
-      requestConfig.signal = globalAbortController.signal;
+      requestConfig.signal = adapterLevelAbortController.signal;
     }
     return defaultAdapter(requestConfig).catch(error => {
       if (error.response && abortWhen(error.response)) {
         // abort all requests sent by this adapter
-        globalAbortController.abort();
-        globalAbortController = new AbortController();
+        adapterLevelAbortController.abort();
+        adapterLevelAbortController = new AbortController();
       }
       return Promise.reject(error);
     });
