@@ -25,8 +25,8 @@ export function createFetchAdapter(options: FetchAdapterOptions = {}): AxiosAdap
     // should be first, so we can retry multiple times and then open the circuit breaker
     policies.push(
       circuitBreaker(handleAll, {
-        breaker: options.circuitBreaker?.breaker || new ConsecutiveBreaker(options.circuitBreaker?.maxAttempts || 1),
-        halfOpenAfter: options.circuitBreaker?.halfOpenAfter || 15 * 1000
+        breaker: options.circuitBreaker?.breaker ?? new ConsecutiveBreaker(options.circuitBreaker?.maxAttempts ?? 1),
+        halfOpenAfter: options.circuitBreaker?.halfOpenAfter ?? 15 * 1000
       })
     );
   }
@@ -35,7 +35,7 @@ export function createFetchAdapter(options: FetchAdapterOptions = {}): AxiosAdap
   const noBackoff = new ConstantBackoff(0);
   policies.push(
     retry(handleNetworkOrIdempotentError, {
-      maxAttempts: options.retries || 3,
+      maxAttempts: options.retries ?? 3,
       backoff: {
         next: context => {
           if (!("error" in context.result) || !axios.isAxiosError(context.result.error)) return noBackoff.next();
@@ -62,7 +62,7 @@ export function createFetchAdapter(options: FetchAdapterOptions = {}): AxiosAdap
     fetchPolicy.onSuccess(options.onSuccess);
   }
 
-  const fetchAdapter = options.adapter || axios.getAdapter("fetch");
+  const fetchAdapter = options.adapter ?? axios.getAdapter("fetch");
   const axiosAdapter = async (config: InternalAxiosRequestConfig) => {
     return fetchPolicy
       .execute(() => fetchAdapter(config), config.signal as AbortSignal)
