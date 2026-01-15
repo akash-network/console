@@ -1,5 +1,22 @@
 
 
+## [3.22.0](https://github.com/akash-network/console/compare/console-web/v3.21.1...console-web/v3.22.0) (2026-01-15)
+
+
+### Features
+
+* **analytics:** adds login init events ([067a1ae](https://github.com/akash-network/console/commit/067a1ae3187d8d486a8e2157c0b5a6d15998e6af))
+
+
+### Bug Fixes
+
+* **deployment:** deployment deposit onboarding ([#2499](https://github.com/akash-network/console/issues/2499)) ([8f3383d](https://github.com/akash-network/console/commit/8f3383dcae4e3eafbc4f1c474d03cfc580f744b2))
+
+
+### Code Refactoring
+
+* adds support for automatic cancellation of unauthorized requests ([#2491](https://github.com/akash-network/console/issues/2491)) ([4c0db77](https://github.com/akash-network/console/commit/4c0db778fbb3e8b79c3c57f353c3aaaadcf6a609))
+
 ## [3.21.1](https://github.com/akash-network/console/compare/console-web/v3.21.0...console-web/v3.21.1) (2026-01-14)
 
 
