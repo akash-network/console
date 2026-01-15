@@ -167,14 +167,20 @@ function main(): void {
   // Track existing files to clean up removed RFCs
   const existingFiles = existsSync(GUIDELINES_DIR)
     ? readdirSync(GUIDELINES_DIR)
-        .filter(f => f.endsWith(".md") && f !== "README.md")
+        .filter(f => f.endsWith(".md") && !f.endsWith(".manual.md"))
         .map(f => join(GUIDELINES_DIR, f))
     : [];
 
   // Process each discussion
   log("INFO", "Processing discussions...");
   const processedFiles: string[] = [];
-  let claudeContent = "# Contribution Guidelines\n\nThis file aggregates all RFC (Request for Comments) contribution guidelines that have landed.\n\n";
+  let claudeContent = [
+    "# Contribution Guidelines\n",
+    "This file aggregates all RFC (Request for Comments) contribution guidelines that have landed.\n",
+    "## General Project Description\n",
+    "See details in @./.claude/instructions/general-projects-description.manual.md",
+    ""
+  ].join("\n");
   let rfcCount = 0;
 
   for (const discussion of discussions) {
