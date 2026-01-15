@@ -1,5 +1,12 @@
 
 
+## [2.11.1](https://github.com/akash-network/console/compare/log-collector/v2.11.0...log-collector/v2.11.1) (2026-01-15)
+
+
+### Code Refactoring
+
+* adds support for automatic cancellation of unauthorized requests ([#2491](https://github.com/akash-network/console/issues/2491)) ([4c0db77](https://github.com/akash-network/console/commit/4c0db778fbb3e8b79c3c57f353c3aaaadcf6a609))
+
 ## [2.11.0](https://github.com/akash-network/console/compare/log-collector/v2.10.0...log-collector/v2.11.0) (2026-01-13)
 
 
