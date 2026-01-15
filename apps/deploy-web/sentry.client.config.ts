@@ -2,19 +2,25 @@
 // The config you add here will be used whenever a page is visited.
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
-import { eventFiltersIntegration, init as initSentry, thirdPartyErrorFilterIntegration } from "@sentry/nextjs";
+import { inboundFiltersIntegration, init as initSentry, thirdPartyErrorFilterIntegration } from "@sentry/nextjs";
 
 initSentry({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
   // Adjust this value in production, or use tracesSampler for greater control
   tracesSampleRate: 0.1,
   enabled: process.env.NEXT_PUBLIC_SENTRY_ENABLED === "true",
+  ignoreErrors: [
+    // WalletConnect timeout - expected when users don't complete wallet connection
+    /Proposal expired/
+  ],
   // propagate sentry-trace and baggage headers to internal API only
   // everything else will be done with custom interceptor
   tracePropagationTargets: [/^\/api\//, /^\/_next\//],
   integrations: [
-    eventFiltersIntegration({
-      denyUrls: [/^chrome-extension:\/\//]
+    // Filter out errors originating from browser extensions
+    // Note: uses inboundFiltersIntegration (not eventFiltersIntegration) to override defaultIntegrations
+    inboundFiltersIntegration({
+      denyUrls: [/^chrome-extension:\/\//, /^moz-extension:\/\//]
     }),
     thirdPartyErrorFilterIntegration({
       filterKeys: [process.env.NEXT_PUBLIC_SENTRY_APPLICATION_KEY!],
