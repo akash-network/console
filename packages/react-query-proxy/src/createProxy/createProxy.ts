@@ -20,7 +20,7 @@ function createRecursiveProxyImpl<T extends Record<string, any>>(
   fullPath: PropertyKey[] = []
 ): RecursiveHooksProxy<T> {
   if (!proxyCache.has(object)) {
-    proxyCache.set(object, new Map());
+    proxyCache.set(object, {});
   }
 
   const inputToKey = proxyOptions?.inputToKey ?? defaultInputToKey;
@@ -36,17 +36,22 @@ function createRecursiveProxyImpl<T extends Record<string, any>>(
           return value;
         }
 
+        const fullPropPath = fullPath.concat(prop);
+
         if (typeof value === "function") {
           const key = `${stringifiedPath}.${prop as string}`;
-          const getKey = (input: unknown) => fullPath.concat(inputToKey(input) as PropertyKey[]);
+          const getKey = (input: unknown) => {
+            const key = inputToKey(input) as PropertyKey[];
+            return key && key.length > 0 ? fullPropPath.concat(key) : fullPropPath;
+          };
           const useQueryImpl = proxyOptions?.useQuery ?? useQuery;
           const useMutationImpl = proxyOptions?.useMutation ?? useMutation;
           valueByPath[key] ??= {
             getKey,
             useQuery: (input, options) => {
-              const queryKey = getKey(input);
+              let queryKey = getKey(input);
               if (options?.queryKey) {
-                queryKey.push(...(options.queryKey as PropertyKey[]));
+                queryKey = queryKey.concat(options.queryKey as PropertyKey[]);
               }
               return useQueryImpl({
                 ...options,
@@ -55,9 +60,9 @@ function createRecursiveProxyImpl<T extends Record<string, any>>(
               });
             },
             useMutation: options => {
-              const mutationKey = fullPath;
+              let mutationKey = fullPropPath;
               if (options?.mutationKey) {
-                mutationKey.push(...(options.mutationKey as PropertyKey[]));
+                mutationKey = mutationKey.concat(options.mutationKey as PropertyKey[]);
               }
               return useMutationImpl({
                 ...options,
@@ -69,7 +74,7 @@ function createRecursiveProxyImpl<T extends Record<string, any>>(
           return valueByPath[key];
         }
 
-        return createRecursiveProxyImpl(value, proxyOptions, fullPath.concat(prop));
+        return createRecursiveProxyImpl(value, proxyOptions, fullPropPath);
       }
     });
   }
