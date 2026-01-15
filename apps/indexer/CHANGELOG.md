@@ -1,5 +1,12 @@
 
 
+## [1.23.1](https://github.com/akash-network/console/compare/indexer/v1.23.0...indexer/v1.23.1) (2026-01-15)
+
+
+### Code Refactoring
+
+* migrates some parts of indexer to strict types ([#2504](https://github.com/akash-network/console/issues/2504)) ([fa870d0](https://github.com/akash-network/console/commit/fa870d012ef9118f2b57c77dd5be784626fadace))
+
 ## [1.23.0](https://github.com/akash-network/console/compare/indexer/v1.22.2...indexer/v1.23.0) (2026-01-13)
 
 
