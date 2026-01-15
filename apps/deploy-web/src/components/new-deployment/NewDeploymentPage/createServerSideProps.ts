@@ -18,15 +18,11 @@ export const createServerSideProps = (route: string) =>
       })
     }),
     async handler({ query, services }) {
-      if (query.repoUrl) {
-        return { props: { isDeployButtonFlow: true, templateId: CI_CD_TEMPLATE_ID } };
-      }
-
-      if (!query.templateId) {
+      if (!query.templateId && !query.repoUrl) {
         return { props: {} };
       }
 
-      const template = await services.template.findById(query.templateId).catch(error => {
+      const template = await services.template.findById(query.templateId || CI_CD_TEMPLATE_ID).catch(error => {
         services.logger.warn({ error });
         return null;
       });
