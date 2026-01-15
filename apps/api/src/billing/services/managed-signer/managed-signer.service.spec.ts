@@ -6,7 +6,6 @@ import type { MongoAbility } from "@casl/ability";
 import { createMongoAbility } from "@casl/ability";
 import type { EncodeObject, Registry } from "@cosmjs/proto-signing";
 import { mock } from "jest-mock-extended";
-import Long from "long";
 
 import type { AuthService } from "@src/auth/services/auth.service";
 import { TrialDeploymentLeaseCreated } from "@src/billing/events/trial-deployment-lease-created";
@@ -98,7 +97,7 @@ describe(ManagedSignerService.name, () => {
           typeUrl: MsgCreateLease.$type,
           value: MsgCreateLease.fromPartial({
             bidId: {
-              dseq: Long.fromNumber(123)
+              dseq: 123
             }
           })
         }
@@ -134,7 +133,7 @@ describe(ManagedSignerService.name, () => {
           typeUrl: MsgCreateLease.$type,
           value: MsgCreateLease.fromPartial({
             bidId: {
-              dseq: Long.fromNumber(123)
+              dseq: 123
             }
           })
         }
@@ -178,7 +177,7 @@ describe(ManagedSignerService.name, () => {
         typeUrl: MsgCreateLease.$type,
         value: MsgCreateLease.fromPartial({
           bidId: {
-            dseq: Long.fromNumber(123),
+            dseq: 123,
             owner: "akash1test",
             gseq: 1,
             oseq: 1,
@@ -238,7 +237,7 @@ describe(ManagedSignerService.name, () => {
           typeUrl: MsgCreateLease.$type,
           value: MsgCreateLease.fromPartial({
             bidId: {
-              dseq: Long.fromNumber(123)
+              dseq: 123
             }
           })
         }
@@ -265,7 +264,7 @@ describe(ManagedSignerService.name, () => {
           typeUrl: MsgCreateLease.$type,
           value: MsgCreateLease.fromPartial({
             bidId: {
-              dseq: Long.fromNumber(123)
+              dseq: 123
             }
           })
         }
@@ -300,7 +299,7 @@ describe(ManagedSignerService.name, () => {
           typeUrl: MsgCreateLease.$type,
           value: MsgCreateLease.fromPartial({
             bidId: {
-              dseq: Long.fromNumber(123),
+              dseq: 123,
               provider: "akash1provider"
             }
           })
@@ -337,7 +336,7 @@ describe(ManagedSignerService.name, () => {
           typeUrl: MsgCreateLease.$type,
           value: MsgCreateLease.fromPartial({
             bidId: {
-              dseq: Long.fromNumber(123),
+              dseq: 123,
               provider: "akash1provider"
             }
           })

@@ -8,7 +8,6 @@ import type { Day } from "@akashnetwork/database/dbSchemas/base/day";
 import type { Transaction } from "@akashnetwork/database/dbSchemas/base/transaction";
 import { faker } from "@faker-js/faker";
 import { format, setHours, setMinutes, setSeconds } from "date-fns";
-import Long from "long";
 import nock from "nock";
 
 import type { ListGpuResponse } from "@src/gpu/http-schemas/gpu.schema";
@@ -560,12 +559,12 @@ describe("GPU API", () => {
       createDeployment({
         owner: testData.providers[0].owner,
         createdHeight: block.height,
-        dseq: Long.fromNumber(1).toString()
+        dseq: "1"
       }),
       createDeployment({
         owner: testData.providers[1].owner,
         createdHeight: block.height,
-        dseq: Long.fromNumber(2).toString()
+        dseq: "2"
       })
     ]);
     const deploymentGroups = await Promise.all([
@@ -605,7 +604,7 @@ describe("GPU API", () => {
             MsgCreateBid.create({
               id: {
                 owner: testData.providers[0].owner,
-                dseq: Long.fromNumber(1),
+                dseq: 1,
                 oseq: 1,
                 gseq: 1,
                 provider: testData.providers[0].owner
@@ -669,7 +668,7 @@ describe("GPU API", () => {
             MsgCreateBid.create({
               id: {
                 owner: testData.providers[1].owner,
-                dseq: Long.fromNumber(2),
+                dseq: 2,
                 oseq: 1,
                 gseq: 1,
                 provider: testData.providers[1].owner
