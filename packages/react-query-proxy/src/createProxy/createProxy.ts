@@ -7,6 +7,8 @@ export function createProxy<T extends Record<string, any>>(object: T, proxyOptio
 
 export interface CreateProxyOptions {
   inputToKey?: (input: unknown) => PropertyKey[];
+  useQuery?: typeof useQuery;
+  useMutation?: typeof useMutation;
 }
 
 const proxyCache = new WeakMap<object, Record<string, any>>();
@@ -27,7 +29,7 @@ function createRecursiveProxyImpl<T extends Record<string, any>>(
   if (!valueByPath[stringifiedPath]) {
     valueByPath[stringifiedPath] = new Proxy(object, {
       get(target, prop) {
-        if (!Object.hasOwn(target, prop)) return undefined;
+        if (!(prop in target)) return undefined;
 
         const value = (target as any)[prop];
         if ((typeof value !== "function" && typeof value !== "object") || value === null) {
@@ -37,6 +39,8 @@ function createRecursiveProxyImpl<T extends Record<string, any>>(
         if (typeof value === "function") {
           const key = `${stringifiedPath}.${prop as string}`;
           const getKey = (input: unknown) => fullPath.concat(inputToKey(input) as PropertyKey[]);
+          const useQueryImpl = proxyOptions?.useQuery ?? useQuery;
+          const useMutationImpl = proxyOptions?.useMutation ?? useMutation;
           valueByPath[key] ??= {
             getKey,
             useQuery: (input, options) => {
@@ -44,7 +48,7 @@ function createRecursiveProxyImpl<T extends Record<string, any>>(
               if (options?.queryKey) {
                 queryKey.push(...(options.queryKey as PropertyKey[]));
               }
-              return useQuery({
+              return useQueryImpl({
                 ...options,
                 queryKey,
                 queryFn: () => (target as any)[prop](input)
@@ -55,7 +59,7 @@ function createRecursiveProxyImpl<T extends Record<string, any>>(
               if (options?.mutationKey) {
                 mutationKey.push(...(options.mutationKey as PropertyKey[]));
               }
-              return useMutation({
+              return useMutationImpl({
                 ...options,
                 mutationKey,
                 mutationFn: input => (target as any)[prop](input)

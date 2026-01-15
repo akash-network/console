@@ -1,14 +1,4 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
-
 import { createProxy } from "./createProxy";
-
-jest.mock("@tanstack/react-query", () => ({
-  useQuery: jest.fn(),
-  useMutation: jest.fn()
-}));
-
-const useQueryMock = useQuery as jest.Mock;
-const useMutationMock = useMutation as jest.Mock;
 
 interface User {
   id: number;
@@ -29,12 +19,6 @@ interface Sdk {
 }
 
 describe(createProxy.name, () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    useQueryMock.mockReturnValue({ data: undefined, isLoading: true });
-    useMutationMock.mockReturnValue({ mutate: jest.fn(), isPending: false });
-  });
-
   describe("getKey", () => {
     it("returns path segments with input when input is provided", () => {
       const { proxy } = setup();
@@ -57,25 +41,25 @@ describe(createProxy.name, () => {
 
   describe("useQuery", () => {
     it("calls useQuery with correct queryKey and queryFn", () => {
-      const { proxy, sdk } = setup();
+      const { proxy, sdk, useQuery } = setup();
       proxy.users.getById.useQuery({ id: 42 });
 
-      expect(useQueryMock).toHaveBeenCalledWith(
+      expect(useQuery).toHaveBeenCalledWith(
         expect.objectContaining({
           queryKey: ["users", { id: 42 }]
         })
       );
 
-      const queryFn = useQueryMock.mock.calls[0][0].queryFn;
+      const queryFn = useQuery.mock.calls[0][0].queryFn;
       queryFn();
       expect(sdk.users.getById).toHaveBeenCalledWith({ id: 42 });
     });
 
     it("appends custom queryKey to the generated key", () => {
-      const { proxy } = setup();
+      const { proxy, useQuery } = setup();
       proxy.users.getById.useQuery({ id: 1 }, { queryKey: ["extra", "key"] });
 
-      expect(useQueryMock).toHaveBeenCalledWith(
+      expect(useQuery).toHaveBeenCalledWith(
         expect.objectContaining({
           queryKey: ["users", { id: 1 }, "extra", "key"]
         })
@@ -83,10 +67,10 @@ describe(createProxy.name, () => {
     });
 
     it("passes through additional options to useQuery", () => {
-      const { proxy } = setup();
+      const { proxy, useQuery } = setup();
       proxy.users.getById.useQuery({ id: 1 }, { enabled: false, staleTime: 5000 });
 
-      expect(useQueryMock).toHaveBeenCalledWith(
+      expect(useQuery).toHaveBeenCalledWith(
         expect.objectContaining({
           enabled: false,
           staleTime: 5000
@@ -95,42 +79,59 @@ describe(createProxy.name, () => {
     });
 
     it("handles undefined input for optional parameters", () => {
-      const { proxy, sdk } = setup();
+      const { proxy, sdk, useQuery } = setup();
       proxy.users.list.useQuery(undefined);
 
-      expect(useQueryMock).toHaveBeenCalledWith(
+      expect(useQuery).toHaveBeenCalledWith(
         expect.objectContaining({
           queryKey: ["users"]
         })
       );
 
-      const queryFn = useQueryMock.mock.calls[0][0].queryFn;
+      const queryFn = useQuery.mock.calls[0][0].queryFn;
       queryFn();
       expect(sdk.users.list).toHaveBeenCalledWith(undefined);
+    });
+
+    it("can proxy class instance", () => {
+      class UserService {
+        async getById(input: { id: number }) {
+          return { id: input.id };
+        }
+      }
+      const userService = new UserService();
+      jest.spyOn(userService, "getById");
+      const useQuery = jest.fn();
+      const proxy = createProxy(userService, { useQuery });
+      proxy.getById.useQuery({ id: 1 });
+      const queryFn = useQuery.mock.calls[0][0].queryFn;
+      queryFn();
+
+      expect(userService.getById).toHaveBeenCalledWith({ id: 1 });
     });
   });
 
   describe("useMutation", () => {
     it("calls useMutation with correct mutationKey and mutationFn", () => {
-      const { proxy, sdk } = setup();
+      const { proxy, sdk, useMutation } = setup();
       proxy.users.create.useMutation();
 
-      expect(useMutationMock).toHaveBeenCalledWith(
+      expect(useMutation).toHaveBeenCalledWith(
         expect.objectContaining({
           mutationKey: ["users"]
         })
       );
 
-      const mutationFn = useMutationMock.mock.calls[0][0].mutationFn;
+      const mutationFn = useMutation.mock.calls[0][0].mutationFn;
       mutationFn({ name: "John" });
       expect(sdk.users.create).toHaveBeenCalledWith({ name: "John" });
     });
 
     it("appends custom mutationKey to the generated key", () => {
-      const { proxy } = setup();
+      const { proxy, useMutation } = setup();
       proxy.users.create.useMutation({ mutationKey: ["custom"] });
 
-      expect(useMutationMock).toHaveBeenCalledWith(
+      expect(useMutation).toHaveBeenCalledWith(
         expect.objectContaining({
           mutationKey: ["users", "custom"]
         })
@@ -139,10 +140,10 @@ describe(createProxy.name, () => {
 
     it("passes through additional options to useMutation", () => {
       const onSuccess = jest.fn();
-      const { proxy } = setup();
+      const { proxy, useMutation } = setup();
       proxy.users.create.useMutation({ onSuccess });
 
-      expect(useMutationMock).toHaveBeenCalledWith(
+      expect(useMutation).toHaveBeenCalledWith(
         expect.objectContaining({
           onSuccess
         })
@@ -152,16 +153,16 @@ describe(createProxy.name, () => {
 
   describe("nested objects", () => {
     it("creates proxy for deeply nested methods", () => {
-      const { proxy, sdk } = setup();
+      const { proxy, sdk, useQuery } = setup();
       proxy.admin.settings.update.useQuery({ theme: "dark" });
 
-      expect(useQueryMock).toHaveBeenCalledWith(
+      expect(useQuery).toHaveBeenCalledWith(
         expect.objectContaining({
           queryKey: ["admin", "settings", { theme: "dark" }]
         })
       );
 
-      const queryFn = useQueryMock.mock.calls[0][0].queryFn;
+      const queryFn = useQuery.mock.calls[0][0].queryFn;
       queryFn();
       expect(sdk.admin.settings.update).toHaveBeenCalledWith({ theme: "dark" });
     });
@@ -217,13 +218,15 @@ describe(createProxy.name, () => {
 
     it("applies custom inputToKey in useQuery", () => {
       const sdk = createSdk();
+      const useQuery = jest.fn();
       const proxy = createProxy(sdk, {
-        inputToKey: (input: unknown) => (input ? [JSON.stringify(input)] : [])
+        inputToKey: (input: unknown) => (input ? [JSON.stringify(input)] : []),
+        useQuery
       });
 
       proxy.users.getById.useQuery({ id: 5 });
 
-      expect(useQueryMock).toHaveBeenCalledWith(
+      expect(useQuery).toHaveBeenCalledWith(
         expect.objectContaining({
           queryKey: ["users", '{"id":5}']
         })
@@ -263,8 +266,13 @@ describe(createProxy.name, () => {
 
   function setup() {
     const sdk = createSdk();
-    const proxy = createProxy(sdk);
-    return { sdk, proxy };
+    const useQuery = jest.fn();
+    const useMutation = jest.fn();
+    const proxy = createProxy(sdk, {
+      useQuery,
+      useMutation
+    });
+    return { sdk, proxy, useQuery, useMutation };
   }
 
   function createSdk(): Sdk {
