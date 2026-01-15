@@ -11,7 +11,11 @@ export const HTTP_SDK_PROVIDERS: Provider[] = [
   {
     provide: CHAIN_API_HTTP_CLIENT_TOKEN,
     inject: [ConfigService],
-    useFactory: (configService: ConfigService<AlertConfig>) => createHttpClient({ baseURL: configService.getOrThrow("alert.API_NODE_ENDPOINT") })
+    useFactory: (configService: ConfigService<AlertConfig>) =>
+      createHttpClient({
+        baseURL: configService.getOrThrow("alert.API_NODE_ENDPOINT"),
+        adapter: "http"
+      })
   },
   {
     provide: DeploymentHttpService,

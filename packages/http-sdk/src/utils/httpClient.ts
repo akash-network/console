@@ -1,24 +1,31 @@
-import type { AxiosInstance, CreateAxiosDefaults } from "axios";
+import type { AxiosAdapter, AxiosInstance, AxiosResponse, CreateAxiosDefaults } from "axios";
 import axios from "axios";
-import axiosRetry from "axios-retry";
 
-export function createHttpClient(config: HttpClientOptions = {}): HttpClient {
+import { createFetchAdapter } from "./createFetchAdapter/createFetchAdapter";
+
+export function createHttpClient(fullConfig: HttpClientOptions = {}): HttpClient {
+  const { abortPendingWhenOneFail, adapter, ...config } = fullConfig;
+  const customAdapter = createFetchAdapter({
+    retries: 3,
+    adapter: typeof adapter === "function" ? adapter : axios.getAdapter(adapter || "fetch"),
+    abortPendingWhenOneFail
+  });
+
   const instance = axios.create({
     ...config,
+    adapter: customAdapter,
     headers: {
       "Content-Type": "application/json",
       ...config?.headers
     }
   });
 
-  axiosRetry(instance, {
-    retries: 3,
-    retryDelay: axiosRetry.exponentialDelay,
-    retryCondition: axiosRetry.isNetworkOrIdempotentRequestError
-  });
-
   return instance;
 }
 
 export type HttpClient = AxiosInstance;
-export type HttpClientOptions = CreateAxiosDefaults;
+export type HttpClientOptions = Omit<CreateAxiosDefaults, "adapter"> & {
+  /** @default 'fetch' */
+  adapter?: "fetch" | "xhr" | "http" | AxiosAdapter;
+  abortPendingWhenOneFail?: (response: AxiosResponse) => boolean;
+};

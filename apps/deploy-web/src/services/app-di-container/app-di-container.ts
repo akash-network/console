@@ -1,4 +1,5 @@
 import { certificateManager, type NetworkId } from "@akashnetwork/chain-sdk/web";
+import type { HttpClientOptions } from "@akashnetwork/http-sdk";
 import {
   ApiKeyHttpService,
   AuthHttpService,
@@ -14,7 +15,7 @@ import {
 import { StripeService as HttpStripeService } from "@akashnetwork/http-sdk/src/stripe/stripe.service";
 import { LoggerService } from "@akashnetwork/logging";
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
-import type { Axios, AxiosInstance, AxiosResponse, CreateAxiosDefaults, InternalAxiosRequestConfig } from "axios";
+import type { Axios, AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from "axios";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { AnalyticsService } from "@src/services/analytics/analytics.service";
@@ -31,7 +32,7 @@ import { StripeService } from "../stripe/stripe.service";
 import { UserTracker } from "../user-tracker/user-tracker.service";
 
 export const createAppRootContainer = (config: ServicesConfig) => {
-  const apiConfig = { baseURL: config.BASE_API_MAINNET_URL, adapter: "fetch" };
+  const apiConfig = { baseURL: config.BASE_API_MAINNET_URL, adapter: "fetch" as const };
   const container = createContainer({
     publicConfig: () => browserEnvConfig,
 
@@ -119,8 +120,8 @@ export const createAppRootContainer = (config: ServicesConfig) => {
     },
     createAxios:
       () =>
-      (options?: CreateAxiosDefaults): AxiosInstance =>
-        createHttpClient({ adapter: "fetch", ...options }),
+      (options?: HttpClientOptions): AxiosInstance =>
+        createHttpClient(options),
     certificateManager: () => certificateManager,
     analyticsService: () =>
       new AnalyticsService({

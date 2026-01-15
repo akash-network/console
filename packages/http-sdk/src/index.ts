@@ -25,3 +25,4 @@ export * from "./certificates/certificates.service";
 export * from "./wallet-settings/wallet-settings-http.service";
 export { getAllItems } from "./utils/pagination.utils";
 export { createHttpClient, type HttpClient, type HttpClientOptions } from "./utils/httpClient";
+export { createFetchAdapter, type FetchAdapterOptions, isNetworkOrIdempotentRequestError } from "./utils/createFetchAdapter/createFetchAdapter";
