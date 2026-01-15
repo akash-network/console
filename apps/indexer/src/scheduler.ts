@@ -8,10 +8,10 @@ class TaskDef {
   function: () => Promise<void>;
   interval: number;
   runAtStart: boolean;
-  runningPromise: Promise<void> = null;
+  runningPromise: Promise<void> | null = null;
   successfulRunCount: number = 0;
   failedRunCount: number = 0;
-  latestError: string | Error = null;
+  latestError: string | Error | null = null;
   healthchecksConfig?: HealthchecksConfig;
 
   get runCount() {
@@ -26,8 +26,8 @@ class TaskDef {
     this.name = name;
     this.function = fn;
     this.interval = interval;
-    this.runAtStart = runAtStart;
-    this.healthchecksConfig = healthchecksConfig?.id ? healthchecksConfig : null;
+    this.runAtStart = !!runAtStart;
+    this.healthchecksConfig = healthchecksConfig?.id ? healthchecksConfig : undefined;
   }
 }
 
@@ -63,11 +63,12 @@ export class Scheduler {
       throw new Error(`Task with name "${name}" already exists`);
     }
 
-    if (typeof interval === "string" && isNaN(humanInterval(interval))) {
+    const intervalMs = typeof interval === "string" ? humanInterval(interval) : interval;
+
+    if (intervalMs === undefined || intervalMs === null || Number.isNaN(intervalMs)) {
       throw new Error(`Invalid interval "${interval}"`);
     }
 
-    const intervalMs = typeof interval === "string" ? humanInterval(interval) : interval;
     console.log(`Registered task "${name}" to run every ${getPrettyTime(intervalMs)}`);
 
     this.tasks.set(name, new TaskDef(name, fn, intervalMs, runAtStart, healthchecksConfig));
@@ -81,6 +82,8 @@ export class Scheduler {
 
       setInterval(() => {
         const runningTask = this.tasks.get(task.name);
+        if (!runningTask) return;
+
         if (runningTask.runningPromise) {
           console.log(`Skipping task "${task.name}" because it is already running`);
           return;
@@ -111,7 +114,7 @@ export class Scheduler {
       .catch(err => {
         runningTask.failedRunCount++;
         runningTask.latestError = err;
-        this.config.errorHandler(runningTask, err);
+        this.config.errorHandler?.(runningTask, err);
 
         if (this.config.healthchecksEnabled && runningTask.healthchecksConfig) {
           pingStartPromise.finally(() => this.healthchecksPingFailure(runningTask));
@@ -123,6 +126,7 @@ export class Scheduler {
   }
 
   async healthchecksPingStart(runningTask: TaskDef): Promise<void> {
+    if (!runningTask.healthchecksConfig) return;
     try {
       await fetch(`https://hc-ping.com/${runningTask.healthchecksConfig.id}/start`);
     } catch (err) {
@@ -131,6 +135,7 @@ export class Scheduler {
   }
 
   async healthchecksPingSuccess(runningTask: TaskDef): Promise<void> {
+    if (!runningTask.healthchecksConfig) return;
     try {
       await fetch(`https://hc-ping.com/${runningTask.healthchecksConfig.id}`);
     } catch (err) {
@@ -139,6 +144,7 @@ export class Scheduler {
   }
 
   async healthchecksPingFailure(runningTask: TaskDef): Promise<void> {
+    if (!runningTask.healthchecksConfig) return;
     try {
       await fetch(`https://hc-ping.com/${runningTask.healthchecksConfig.id}/fail`);
     } catch (err) {

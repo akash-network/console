@@ -28,17 +28,17 @@ export async function fetchProviderStatusFromREST(provider: Provider, timeout: n
       activeGPU: activeResources.gpu,
       activeMemory: activeResources.memory,
       activeEphemeralStorage: activeResources.storage,
-      activePersistentStorage: null,
+      activePersistentStorage: 0,
       pendingCPU: pendingResources.cpu,
       pendingGPU: pendingResources.gpu,
       pendingMemory: pendingResources.memory,
       pendingEphemeralStorage: pendingResources.storage,
-      pendingPersistentStorage: null,
+      pendingPersistentStorage: 0,
       availableCPU: availableResources.cpu,
       availableGPU: availableResources.gpu,
       availableMemory: availableResources.memory,
       availableEphemeralStorage: availableResources.storage,
-      availablePersistentStorage: null
+      availablePersistentStorage: 0
     },
     nodes: [],
     storage: []

@@ -1,0 +1,13 @@
+{
+  "exclude": ["node_modules", "dist"],
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "strict": true
+  },
+  "include": [
+    "src/shared/**/*.ts",
+    "src/monitors/**/*.ts",
+    "src/tasks/**/*.ts",
+    "src/scheduler.ts"
+  ]
+}

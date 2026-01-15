@@ -12,7 +12,7 @@ export async function accountSettle(deployment: Deployment, height: number, bloc
 
   if (height === deployment.lastWithdrawHeight) return { blockRate };
 
-  const heightDelta = height - deployment.lastWithdrawHeight;
+  const heightDelta = height - (deployment.lastWithdrawHeight || 0);
 
   deployment.lastWithdrawHeight = height;
 

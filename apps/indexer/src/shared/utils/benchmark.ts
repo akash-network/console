@@ -13,14 +13,14 @@ type BenchmarkDetails = {
 };
 
 const benchmarkTimes: { [key: string]: BenchmarkDetails } = {};
-let firstTime = null;
-let lastTime = null;
-let activeTimer = null;
+let firstTime: number | null = null;
+let lastTime: number | null = null;
+let activeTimer: string | null = null;
 
 export function measureMethod(target: any, propertyKey: string, descriptor: PropertyDescriptor) {
   const originalMethod = descriptor.value;
 
-  descriptor.value = (...args: any[]) => {
+  descriptor.value = function (...args: any[]) {
     const timer = startTimer(`${target.constructor.name}.${propertyKey}`);
     const result = originalMethod.apply(this, args);
     timer.end();
@@ -63,7 +63,7 @@ export function startTimer(name: string) {
   if (!(name in benchmarkTimes)) {
     benchmarkTimes[name] = {
       name: name,
-      parent: parent,
+      parent: parent || undefined,
       firstTime: startTime,
       time: 0,
       frequency: 0
@@ -99,7 +99,7 @@ export function startTimer(name: string) {
 export function displayTimes(): void {
   const groups = Object.values(benchmarkTimes)
     .map(x => x.parent)
-    .filter((value, index, self) => self.indexOf(value) === index);
+    .filter((value, index, self): value is string => value !== undefined && self.indexOf(value) === index);
 
   for (const group of groups) {
     displayTimesForGroup(group);
@@ -113,7 +113,7 @@ export function displayTimesForGroup(group: string) {
     ? Object.values(benchmarkTimes)
         .filter(x => x.name == group)
         .reduce((acc, curr) => acc + curr.time, 0)
-    : lastTime - firstTime;
+    : (lastTime || 0) - (firstTime || 0);
   const totalRecordedTime = Object.values(benchmarkTimes)
     .filter(x => x.parent == group)
     .reduce((acc, curr) => acc + curr.time, 0);

@@ -24,7 +24,8 @@
     "prod": "node --max-old-space-size=8192 dist/server.js",
     "release": "release-it",
     "start": "webpack --mode development --config webpack.dev.js --watch",
-    "test": "jest"
+    "test": "jest",
+    "validate:types": "tsc -p tsconfig.strict.json --noEmit && echo"
   },
   "dependencies": {
     "@akashnetwork/akash-api": "^1.3.0",

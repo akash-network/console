@@ -4,7 +4,8 @@
     "noImplicitAny": false,
     "paths": {
       "@src/*": ["./src/*"]
-    }
+    },
+    "strict": true
   },
   "exclude": ["node_modules", "dist"],
   "extends": "@akashnetwork/dev-config/tsconfig.base-node.json",
