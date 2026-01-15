@@ -1,7 +1,7 @@
 import type { AxiosAdapter, AxiosError, AxiosResponse, InternalAxiosRequestConfig } from "axios";
 import axios from "axios";
 import type { IBreaker, ICircuitBreakerOptions, IPolicy } from "cockatiel";
-import { circuitBreaker, ConsecutiveBreaker, DelegateBackoff, handleAll, handleWhen, retry, wrap } from "cockatiel";
+import { circuitBreaker, ConsecutiveBreaker, ConstantBackoff, handleAll, handleWhen, IterableBackoff, retry, wrap } from "cockatiel";
 
 export interface FetchAdapterOptions {
   retries?: number;
@@ -31,25 +31,29 @@ export function createFetchAdapter(options: FetchAdapterOptions = {}): AxiosAdap
     );
   }
 
+  const retryBackoffFallback = new IterableBackoff([100, 500, 1000]);
+  const noBackoff = new ConstantBackoff(0);
   policies.push(
     retry(handleNetworkOrIdempotentError, {
       maxAttempts: options.retries || 3,
-      backoff: new DelegateBackoff(context => {
-        if (!("error" in context.result) || !axios.isAxiosError(context.result.error)) return 0;
+      backoff: {
+        next: context => {
+          if (!("error" in context.result) || !axios.isAxiosError(context.result.error)) return noBackoff.next();
 
-        const retryAfterHeader = context.result.error.response?.headers["retry-after"];
-        if (!retryAfterHeader) return 50;
+          const retryAfterHeader = context.result.error.response?.headers["retry-after"];
+          if (!retryAfterHeader) return retryBackoffFallback.next(context);
 
-        const retryAfterNumber = parseInt(retryAfterHeader, 10);
-        if (!Number.isNaN(retryAfterNumber)) return retryAfterNumber * 1000 + EXTRA_RETRY_AFTER_DELAY;
+          const retryAfterNumber = parseInt(retryAfterHeader, 10);
+          if (!Number.isNaN(retryAfterNumber)) return new ConstantBackoff(retryAfterNumber * 1000 + EXTRA_RETRY_AFTER_DELAY).next();
 
-        const retryAfterDate = new Date(retryAfterHeader);
-        if (!Number.isNaN(retryAfterDate.getTime())) {
-          return retryAfterDate.getTime() - Date.now() + EXTRA_RETRY_AFTER_DELAY;
+          const retryAfterDate = new Date(retryAfterHeader);
+          if (!Number.isNaN(retryAfterDate.getTime())) {
+            return new ConstantBackoff(retryAfterDate.getTime() - Date.now() + EXTRA_RETRY_AFTER_DELAY).next();
+          }
+
+          return noBackoff.next();
         }
-
-        return 0;
-      })
+      }
     })
   );
   const fetchPolicy = wrap(...policies);
