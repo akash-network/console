@@ -99,7 +99,6 @@ jobs:
       can_deploy: ${{ steps.beta-deployment-status.outputs.can_deploy }}
       require_approval: ${{ steps.approval-status.outputs.require_approval }}
       environment: ${{ steps.determine-environment.outputs.environment }}
-      chain-suffix: ${{ steps.determine-environment.outputs.chain-suffix }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -183,8 +182,11 @@ jobs:
           BLOCKCHAIN_NAME: ${{ inputs.chain != 'NA' && inputs.chain || '' }}
           DEPLOYMENT_ENVIRONMENT: ${{ inputs.environment == 'prod' && 'production' || 'beta' }}
         run: |
-          echo "chain-suffix=-$BLOCKCHAIN_NAME" >> "$GITHUB_OUTPUT"
-          echo "environment=$DEPLOYMENT_ENVIRONMENT-$BLOCKCHAIN_NAME" >> "$GITHUB_OUTPUT"
+          environment_suffix=""
+          if [[ -n "$BLOCKCHAIN_NAME" ]]; then
+            environment_suffix="-$BLOCKCHAIN_NAME"
+          fi
+          echo "environment=$DEPLOYMENT_ENVIRONMENT$environment_suffix" >> "$GITHUB_OUTPUT"
 
       - name: Check if approval is required
         id: approval-status
@@ -216,7 +218,8 @@ jobs:
           url: ${{ vars.CONSOLE_WEB_BETA_URL }}
           slack-webhook-url: ${{ secrets.FAILED_E2E_TESTS_SLACK_WEBHOOK_URL }}
           gh-user-to-slack-user: ${{ vars.GH_USER_TO_SLACK_USER }}
-          new-app-version: "${{ inputs.app }}${{ inputs.chain != 'NA' && format('-{0}', inputs.chain) || '' }}@${{ inputs.appVersion }}"
+          new-app-version: "${{ inputs.app }}@${{ inputs.appVersion }}"
+          environment: ${{ needs.deployment-prerequisites.outputs.environment }}
 
   deploy:
     runs-on: ubuntu-latest

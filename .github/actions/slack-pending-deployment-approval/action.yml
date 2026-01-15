@@ -19,6 +19,10 @@ inputs:
     description: Title of the message
     required: false
     default: "Deployment requires approval"
+  environment:
+    description: Environment name
+    required: false
+    default: "production"
 
 runs:
   using: "composite"
@@ -42,6 +46,6 @@ runs:
 
                   Hey ${{ steps.associated-pr.outputs.slack-user != '' && format('<@{0}>', steps.associated-pr.outputs.slack-user) || steps.associated-pr.outputs.author }},
 
-                  A new version of *${{inputs.new-app-version}}* is ready to be deployed to production. Please test your changes on <${{ inputs.url }}|beta> and <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Confirm> the deployment.
+                  A new version of *${{inputs.new-app-version}}* is ready to be deployed to *${{ inputs.environment }}*. Please test your changes on <${{ inputs.url }}|beta> and <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Confirm> the deployment.
                   This was triggered by the following PR:
                   <${{ github.server_url }}/${{ github.repository }}/pull/${{ steps.associated-pr.outputs.number }}|${{ steps.associated-pr.outputs.title }}>
