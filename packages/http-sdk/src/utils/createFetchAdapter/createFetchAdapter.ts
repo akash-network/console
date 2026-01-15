@@ -44,14 +44,14 @@ export function createFetchAdapter(options: FetchAdapterOptions = {}): AxiosAdap
           if (!retryAfterHeader) return retryBackoffFallback.next(context);
 
           const retryAfterNumber = parseInt(retryAfterHeader, 10);
-          if (!Number.isNaN(retryAfterNumber)) return new ConstantBackoff(retryAfterNumber * 1000 + EXTRA_RETRY_AFTER_DELAY).next();
+          if (!Number.isNaN(retryAfterNumber) && retryAfterNumber > 0) return new ConstantBackoff(retryAfterNumber * 1000 + EXTRA_RETRY_AFTER_DELAY).next();
 
           const retryAfterDate = new Date(retryAfterHeader);
-          if (!Number.isNaN(retryAfterDate.getTime())) {
+          if (!Number.isNaN(retryAfterDate.getTime()) && retryAfterDate.getTime() > Date.now()) {
             return new ConstantBackoff(retryAfterDate.getTime() - Date.now() + EXTRA_RETRY_AFTER_DELAY).next();
           }
 
-          return noBackoff.next();
+          return retryBackoffFallback.next(context);
         }
       }
     })
