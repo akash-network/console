@@ -1,9 +1,9 @@
-import { injectable } from "tsyringe";
+import { singleton } from "tsyringe";
 
 import type { HealthzResponse } from "@src/healthz/routes/healthz.router";
 import { HealthzService } from "@src/healthz/services/healthz/healthz.service";
 
-@injectable()
+@singleton()
 export class HealthzController {
   constructor(private readonly healthzService: HealthzService) {}
 
