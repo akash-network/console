@@ -2,7 +2,8 @@
 import "@interchain-ui/react/styles";
 import "@interchain-ui/react/globalStyles";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { Snackbar } from "@akashnetwork/ui/components";
 import { GasPrice } from "@cosmjs/stargate";
 import type { ChainContext, WalletModalProps } from "@cosmos-kit/core";
 import { wallets as metamask } from "@cosmos-kit/cosmos-extension-metamask";
@@ -11,6 +12,7 @@ import { wallets as keplr } from "@cosmos-kit/keplr";
 import { wallets as leap } from "@cosmos-kit/leap";
 import { ChainProvider, DefaultModal, useChain } from "@cosmos-kit/react";
 import { useAtom } from "jotai";
+import { useSnackbar } from "notistack";
 
 import { akash, akashSandbox, akashTestnet, assetLists } from "@src/chains";
 import networkStore from "@src/store/networkStore";
@@ -58,9 +60,40 @@ export function CustomChainProvider({ children }: Props) {
           }) as any
       }}
     >
+      <WalletConnectErrorHandler />
       {children}
     </ChainProvider>
   );
+}
+
+/**
+ * Watches wallet connection state and shows user-friendly messages for WalletConnect errors
+ */
+function WalletConnectErrorHandler() {
+  const { enqueueSnackbar } = useSnackbar();
+  const { chainRegistryName } = networkStore.useSelectedNetwork();
+  const { message, isWalletError } = useChain(chainRegistryName);
+  const lastShownErrorRef = useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    const isProposalExpired = isWalletError && message?.toLowerCase().includes("proposal expired");
+
+    // Only show snackbar if this is a new error (not already shown)
+    if (isProposalExpired && lastShownErrorRef.current !== message) {
+      lastShownErrorRef.current = message;
+      enqueueSnackbar(
+        <Snackbar title="Wallet connection timed out" subTitle="The connection request expired. Please try connecting again." iconVariant="warning" />,
+        { variant: "warning", autoHideDuration: 6000 }
+      );
+    }
+
+    // Reset when error clears
+    if (!isWalletError) {
+      lastShownErrorRef.current = undefined;
+    }
+  }, [isWalletError, message, enqueueSnackbar]);
+
+  return null;
 }
 
 export type { ChainContext };
