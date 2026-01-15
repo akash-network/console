@@ -1,8 +1,8 @@
 import { activeChain } from "@akashnetwork/database/chainDefinitions";
 import fs from "fs";
+import { setTimeout as sleep } from "node:timers/promises";
 
 import { concurrentNodeQuery, dataFolderPath } from "@src/shared/constants";
-import { sleep } from "@src/shared/utils/delay";
 import type { SavedNodeInfo } from "./nodeInfo";
 import { NodeInfo, NodeStatus } from "./nodeInfo";
 

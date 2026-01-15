@@ -68,7 +68,7 @@ export async function syncProvidersInfo() {
         } else {
           providerStatus = await fetchProviderStatusFromREST(provider, StatusCallTimeout);
         }
-      } catch (err) {
+      } catch (err: any) {
         errorMessage = err?.message?.toString() ?? err?.toString();
       }
 

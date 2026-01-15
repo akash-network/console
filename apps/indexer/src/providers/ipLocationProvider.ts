@@ -1,8 +1,7 @@
 import { Provider } from "@akashnetwork/database/dbSchemas/akash";
 import axios from "axios";
 import dns from "dns/promises";
-
-import { sleep } from "@src/shared/utils/delay";
+import { setTimeout as sleep } from "node:timers/promises";
 
 const IpLookupDelay = 2_000;
 

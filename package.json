@@ -53,6 +53,9 @@
     ],
     "./packages/database/**/*.ts": [
       "npm run validate:types -w packages/database"
+    ],
+    "./apps/indexer/**/*.ts": [
+      "npm run validate:types -w apps/indexer"
     ]
   },
   "dependencies": {
