@@ -23,19 +23,19 @@ describe(createProxy.name, () => {
     it("returns path segments with input when input is provided", () => {
       const { proxy } = setup();
       const key = proxy.users.getById.getKey({ id: 123 });
-      expect(key).toEqual(["users", { id: 123 }]);
+      expect(key).toEqual(["users", "getById", { id: 123 }]);
     });
 
     it("returns path segments without input when input is undefined", () => {
       const { proxy } = setup();
       const key = proxy.users.list.getKey(undefined);
-      expect(key).toEqual(["users"]);
+      expect(key).toEqual(["users", "list"]);
     });
 
     it("returns path segments without input when input is null", () => {
       const { proxy } = setup();
       const key = proxy.users.list.getKey(null as unknown as undefined);
-      expect(key).toEqual(["users"]);
+      expect(key).toEqual(["users", "list"]);
     });
   });
 
@@ -46,7 +46,7 @@ describe(createProxy.name, () => {
 
       expect(useQuery).toHaveBeenCalledWith(
         expect.objectContaining({
-          queryKey: ["users", { id: 42 }]
+          queryKey: ["users", "getById", { id: 42 }]
         })
       );
 
@@ -61,7 +61,7 @@ describe(createProxy.name, () => {
 
       expect(useQuery).toHaveBeenCalledWith(
         expect.objectContaining({
-          queryKey: ["users", { id: 1 }, "extra", "key"]
+          queryKey: ["users", "getById", { id: 1 }, "extra", "key"]
         })
       );
     });
@@ -84,7 +84,7 @@ describe(createProxy.name, () => {
 
       expect(useQuery).toHaveBeenCalledWith(
         expect.objectContaining({
-          queryKey: ["users"]
+          queryKey: ["users", "list"]
         })
       );
 
@@ -118,7 +118,7 @@ describe(createProxy.name, () => {
 
       expect(useMutation).toHaveBeenCalledWith(
         expect.objectContaining({
-          mutationKey: ["users"]
+          mutationKey: ["users", "create"]
         })
       );
 
@@ -133,7 +133,7 @@ describe(createProxy.name, () => {
 
       expect(useMutation).toHaveBeenCalledWith(
         expect.objectContaining({
-          mutationKey: ["users", "custom"]
+          mutationKey: ["users", "create", "custom"]
         })
       );
     });
@@ -158,7 +158,7 @@ describe(createProxy.name, () => {
 
       expect(useQuery).toHaveBeenCalledWith(
         expect.objectContaining({
-          queryKey: ["admin", "settings", { theme: "dark" }]
+          queryKey: ["admin", "settings", "update", { theme: "dark" }]
         })
       );
 
@@ -170,7 +170,7 @@ describe(createProxy.name, () => {
     it("generates correct getKey for nested methods", () => {
       const { proxy } = setup();
       const key = proxy.admin.settings.update.getKey({ theme: "light" });
-      expect(key).toEqual(["admin", "settings", { theme: "light" }]);
+      expect(key).toEqual(["admin", "settings", "update", { theme: "light" }]);
     });
   });
 
@@ -213,7 +213,7 @@ describe(createProxy.name, () => {
       });
 
       const key = proxy.users.getById.getKey({ id: 99 });
-      expect(key).toEqual(["users", 99]);
+      expect(key).toEqual(["users", "getById", 99]);
     });
 
     it("applies custom inputToKey in useQuery", () => {
@@ -228,7 +228,7 @@ describe(createProxy.name, () => {
 
       expect(useQuery).toHaveBeenCalledWith(
         expect.objectContaining({
-          queryKey: ["users", '{"id":5}']
+          queryKey: ["users", "getById", '{"id":5}']
         })
       );
     });
