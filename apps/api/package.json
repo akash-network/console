@@ -14,6 +14,7 @@
     "build:akash-templates": "ts-node -r tsconfig-paths/register scripts/buildAkashTemplatesCache.ts",
     "build:app": "webpack --config webpack.prod.js",
     "build:console": "webpack --config webpack.prod.js --entry ./src/console.ts --output-filename console.js",
+    "build:container": "dc build api",
     "console": "npm run build:console && node dist/console.js",
     "dev": "npm run start",
     "dev-nodc": "npm run start",

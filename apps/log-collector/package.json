@@ -15,6 +15,7 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "webpack --env production",
+    "build:container": "cd ../.. && docker build -f apps/log-collector/Dockerfile -t log-collector:local .",
     "dev": "webpack --env development",
     "format": "prettier --write ./*.{js,json} **/*.{ts,js,json}",
     "lint": "eslint .",

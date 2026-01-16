@@ -54,6 +54,7 @@ jobs:
 
   build-prod:
     needs: release
+    if: needs.release.outputs.git_tag != ''
     name: Build Prod Docker image
     uses: ./.github/workflows/reusable-build-image.yml
     secrets: inherit

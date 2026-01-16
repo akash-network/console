@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "build": "npm run build-env-schemas && next build",
+    "build:container": "dc build provider-console --build-arg DEPLOYMENT_ENV=production",
     "build-env-schemas": "tsc src/config/env-config.schema.ts --outDir . --skipLibCheck",
     "dev": "next -p 3000",
     "format": "prettier --write ./*.{ts,js,json} **/*.{ts,tsx,js,json}",
