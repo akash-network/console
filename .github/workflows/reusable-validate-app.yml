@@ -117,11 +117,14 @@ jobs:
       - name: Check statuses
         env:
           VALIDATE_RESULT: ${{ needs.validate.result }}
-          TEST_BUILD_RESULT: ${{ needs.should-validate.outputs.has_changes == 'false' && 'success' || needs.test-build.result }}
+          TEST_BUILD_RESULT: ${{ needs.test-build.result }}
         run: |
           echo "Validate: $VALIDATE_RESULT"
           echo "Test Build: $TEST_BUILD_RESULT"
 
-          if [[ "$VALIDATE_RESULT" != "success" || "$TEST_BUILD_RESULT" != "success" ]]; then
+          is_validation_ok=$(echo "$VALIDATE_RESULT" | grep -q -E "^(success|skipped)$" && echo "true" || echo "false")
+          is_test_build_ok=$(echo "$TEST_BUILD_RESULT" | grep -q -E "^(success|skipped)$" && echo "true" || echo "false")
+
+          if [[ "$is_validation_ok" != "true" || "$is_test_build_ok" != "true" ]]; then
             exit 1
           fi
