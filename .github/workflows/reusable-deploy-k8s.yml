@@ -193,6 +193,7 @@ jobs:
         env:
           DEPLOYMENT_ENVIRONMENT: ${{ steps.determine-environment.outputs.environment }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           require_approval=$(gh api "repos/$GITHUB_REPOSITORY/environments/$DEPLOYMENT_ENVIRONMENT" \
             --jq '.protection_rules | map(.type) | contains(["required_reviewers"])')
