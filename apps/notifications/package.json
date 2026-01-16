@@ -39,7 +39,7 @@
   },
   "dependencies": {
     "@akashnetwork/akash-api": "1.4.0",
-    "@akashnetwork/chain-sdk": "1.0.0-alpha.12",
+    "@akashnetwork/chain-sdk": "1.0.0-alpha.19",
     "@akashnetwork/env-loader": "*",
     "@akashnetwork/http-sdk": "*",
     "@akashnetwork/logging": "*",

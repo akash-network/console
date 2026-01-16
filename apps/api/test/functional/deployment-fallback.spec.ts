@@ -1,5 +1,3 @@
-import Long from "long";
-
 import { app, initDb } from "@src/rest-app";
 import type { RestAkashDeploymentListResponse } from "@src/types/rest/akashDeploymentListResponse";
 import { deploymentVersion } from "@src/utils/constants";
@@ -201,7 +199,7 @@ describe("Deployment Fallback API", () => {
       createDeployment({
         owner: testData.addresses[0],
         createdHeight: height1,
-        dseq: Long.fromNumber(1 + parseInt(uniqueId.slice(-3))).toString(),
+        dseq: 1 + parseInt(uniqueId.slice(-3)),
         denom: "uakt",
         balance: 1000000,
         withdrawnAmount: 500000,
@@ -210,7 +208,7 @@ describe("Deployment Fallback API", () => {
       createDeployment({
         owner: testData.addresses[1],
         createdHeight: height2,
-        dseq: Long.fromNumber(2 + parseInt(uniqueId.slice(-3))).toString(),
+        dseq: 2 + parseInt(uniqueId.slice(-3)),
         denom: "uakt",
         balance: 2000000,
         withdrawnAmount: 1000000,
