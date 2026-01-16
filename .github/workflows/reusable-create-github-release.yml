@@ -29,51 +29,64 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
+
+      - uses: ./.github/actions/associated-pr
+        id: associated-pr
         with:
-          fetch-depth: 0
+          gh-user-to-slack-user: ${{ vars.GH_USER_TO_SLACK_USER }}
 
       - name: Get Version and Changelog Updates
+        if: ${{ steps.associated-pr.outputs.number != '' }}
         id: bumps
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.associated-pr.outputs.number }}
+          PR_TITLE: ${{ steps.associated-pr.outputs.title }}
+          APP_NAME: ${{ inputs.app }}
+          APP_ALIASES: >-
+            {
+              "deploy-web": "console-web",
+              "api": "console-api"
+            }
         run: |
-          package_file="apps/${{ inputs.app }}/package.json"
+          if [ -z "$PR_NUMBER" ]; then
+            echo "Error: PR number is not set."
+            exit 0
+          fi
+
+          if [[ "$PR_TITLE" != "chore(release): update versions and changelogs"* ]]; then
+            echo "Error: Not a release PR"
+            exit 0
+          fi
+
+          pr_details="$(gh pr view "$PR_NUMBER" --json files)"
+          changelog_file="apps/$APP_NAME/CHANGELOG.md"
+          is_app_released=$(echo "$pr_details" | jq -e --arg file "$changelog_file" 'any(.files[]; .path == $file)')
+
+          if [ "$is_app_released" = "false" ]; then
+            echo "Error: App $APP_NAME has not been released in this PR."
+            exit 0
+          fi
+
+          package_file="apps/$APP_NAME/package.json"
 
           if [ ! -f "$package_file" ]; then
             echo "Error: Package file $package_file does not exist."
             exit 1
           fi
 
+          app_alias=$(echo "$APP_ALIASES" | jq -r --arg app "$APP_NAME" '.[$app] // $app')
           current_version=$(jq -r '.version' "$package_file")
-          git_tag="$current_version"
 
-          if [ "${{ inputs.app }}" = "deploy-web" ]; then
-            git_tag="console-web/v$git_tag"
-          elif [ "${{ inputs.app }}" = "api" ]; then
-            git_tag="console-api/v$git_tag"
-          elif [ "${{ inputs.app }}" = "provider-proxy" ]; then
-            git_tag="provider-proxy/v$git_tag"
-          elif [ "${{ inputs.app }}" = "provider-console" ]; then
-            git_tag="provider-console/v$git_tag"
-          elif [ "${{ inputs.app }}" = "stats-web" ]; then
-            git_tag="stats-web/v$git_tag"
-          elif [ "${{ inputs.app }}" = "notifications" ]; then
-            git_tag="notifications/v$git_tag"
-          elif [ "${{ inputs.app }}" = "indexer" ]; then
-            git_tag="indexer/v$git_tag"
-          elif [ "${{ inputs.app }}" = "log-collector" ]; then
-            git_tag="log-collector/v$git_tag"
-          else
-            echo "Error: Unsupported app type '${{ inputs.app }}'."
-            exit 1
-          fi
-
+          git_tag="$app_alias/v$current_version"
           tag_exists=$(git rev-parse "$git_tag" >/dev/null 2>&1 && echo "true" || echo "false")
 
           if [ "$tag_exists" = "false" ]; then
             echo "git_tag=$git_tag" >> "$GITHUB_OUTPUT"
             echo "git_tag=$git_tag"
 
-            changelog=$(script/extract-changelog.sh "$current_version" "apps/${{ inputs.app }}/CHANGELOG.md")
+            changelog=$(script/extract-changelog.sh "$current_version" "$changelog_file")
 
             if [ -n "$changelog" ]; then
               echo "changelog=$changelog"
