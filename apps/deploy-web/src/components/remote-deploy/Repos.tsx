@@ -1,5 +1,5 @@
 import type { Dispatch } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { UseFormSetValue } from "react-hook-form";
 import {
   Button,
@@ -65,6 +65,19 @@ const Repos = ({
   const [directory, setDirectory] = useState<IGithubDirectoryItem[] | null>(null);
   const [open, setOpen] = useState(false);
   const [accounts, setAccounts] = useState<string[]>([]);
+  const handleSetCpus = useCallback(
+    (cpus: number) => {
+      setValue("services.0.profile.cpu", +cpus > 2 ? +cpus : 2);
+    },
+    [setValue]
+  );
+  const setFolders = useCallback((data: IGithubDirectoryItem[]) => {
+    if (data?.length > 0) {
+      setDirectory(data);
+    } else {
+      setDirectory(null);
+    }
+  }, []);
   const repo = repos?.find(r => r.html_url === currentRepoUrl);
   const currentFolder = currentServiceEnv?.find(e => e.key === protectedEnvironmentVariables.FRONTEND_FOLDER);
   const { currentFramework, isLoading: frameworkLoading } = useRemoteDeployFramework({
@@ -72,7 +85,7 @@ const Repos = ({
     currentBranchName,
     currentGitlabProjectId: currentServiceEnv?.find(e => e.key === protectedEnvironmentVariables.GITLAB_PROJECT_ID)?.value,
     subFolder: currentFolder?.value,
-    setCpus: (cpus: number) => setValue("services.0.profile.cpu", +cpus > 2 ? +cpus : 2)
+    setCpus: handleSetCpus
   });
   const { isLoading: isGettingDirectory, isFetching: isGithubLoading } = useSrcFolders(setFolders, formatUrlWithoutInitialPath(currentRepoUrl));
   const { isLoading: isGettingDirectoryBit, isFetching: isBitLoading } = useBitSrcFolders(
@@ -101,14 +114,6 @@ const Repos = ({
     setFilteredRepos(repos);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repos, type, profile]);
-
-  function setFolders(data: IGithubDirectoryItem[]) {
-    if (data?.length > 0) {
-      setDirectory(data);
-    } else {
-      setDirectory(null);
-    }
-  }
 
   return (
     <div className="flex flex-col gap-5 rounded border bg-card px-6 py-6 text-card-foreground">
