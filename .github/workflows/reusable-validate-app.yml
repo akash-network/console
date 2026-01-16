@@ -12,8 +12,18 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.app }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
-  validate-app:
+  should-validate:
+    uses: ./.github/workflows/reusable-should-validate.yml
+    with:
+      path: apps/${{ inputs.app }}
+
+  validate:
+    needs: should-validate
+    if: needs.should-validate.outputs.enabled == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -82,3 +92,36 @@ jobs:
           directory: ./apps/${{ inputs.app }}/coverage
           flags: ${{ inputs.app }}
           token: ${{ secrets.CODECOV_TOKEN }}
+
+  test-build:
+    runs-on: ubuntu-latest
+    needs: should-validate
+    if: needs.should-validate.outputs.has_changes == 'true'
+
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build the Docker image for API
+        env:
+          GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # to not install node_modules inside this job
+          mkdir -p node_modules/.bin
+          ln -s "$PWD/packages/docker/script/dc.sh" node_modules/.bin/dc
+          npm run -w apps/${{ inputs.app }} build:container
+
+  result:
+    runs-on: ubuntu-latest
+    needs: [should-validate, validate, test-build]
+    if: always()
+    steps:
+      - name: Check statuses
+        env:
+          VALIDATE_RESULT: ${{ needs.validate.result }}
+          TEST_BUILD_RESULT: ${{ needs.should-validate.outputs.has_changes == 'false' && 'success' || needs.test-build.result }}
+        run: |
+          echo "Validate: $VALIDATE_RESULT"
+          echo "Test Build: $TEST_BUILD_RESULT"
+
+          if [[ "$VALIDATE_RESULT" != "success" || "$TEST_BUILD_RESULT" != "success" ]]; then
+            exit 1
+          fi

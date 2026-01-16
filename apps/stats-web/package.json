@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "build": "npm run build-env-schemas && next build",
+    "build:container": "dc build stats-web --build-arg DEPLOYMENT_ENV=production",
     "build-env-schemas": "tsc src/config/env-config.schema.ts --outDir . --skipLibCheck --target es2023 --moduleResolution node",
     "dev": "next dev",
     "dev:inspect": "cross-env NODE_OPTIONS=\"--inspect\" ../../node_modules/.bin/next start -p 3001",
