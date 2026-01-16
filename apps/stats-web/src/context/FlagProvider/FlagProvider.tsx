@@ -37,12 +37,14 @@ function WaitForFeatureFlags({ children }: { children: ReactNode }) {
     }
 
     let callback: (() => void) | undefined;
+    let timerId: ReturnType<typeof setTimeout> | undefined;
+
     if (!client.isReady()) {
       callback = () => {
         if (timerId) clearTimeout(timerId);
         setIsReady(true);
       };
-      const timerId = setTimeout(callback, 10_000);
+      timerId = setTimeout(callback, 10_000);
       client.once("ready", callback);
       client.once("error", callback);
     }
@@ -51,6 +53,9 @@ function WaitForFeatureFlags({ children }: { children: ReactNode }) {
       if (callback) {
         client.off("ready", callback);
         client.off("error", callback);
+      }
+      if (timerId) {
+        clearTimeout(timerId);
       }
     };
   }, [client]);

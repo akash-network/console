@@ -1,4 +1,7 @@
 import { LoggerService } from "@akashnetwork/logging";
+import { collectOtel } from "@akashnetwork/logging/otel";
+
+LoggerService.mixin = collectOtel;
 
 const logger = new LoggerService({ name: `instrumentation-${process.env.NEXT_RUNTIME}` });
 

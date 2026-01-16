@@ -41,6 +41,7 @@ export async function serverFetch(url: string, init?: RequestInit): Promise<Resp
 
   return fetch(url, {
     ...init,
+    cache: "no-store",
     headers: mergedHeaders
   });
 }
