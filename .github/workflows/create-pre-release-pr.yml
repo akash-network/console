@@ -93,8 +93,20 @@ jobs:
           git status
           git diff --staged package-lock.json
 
+      - name: Check for Changes
+        id: check-changes
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            echo "Changes detected, proceeding with commit and PR creation"
+          else
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "No changes detected, skipping commit and PR creation"
+          fi
+
       - name: Check Existing PR
         id: check-pr
+        if: steps.check-changes.outputs.has_changes == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -109,6 +121,7 @@ jobs:
           echo "pr_number=$PR_NUMBER" >> "$GITHUB_ENV"
 
       - name: Commit Changes
+        if: steps.check-changes.outputs.has_changes == 'true'
         run: |
           echo "Creating release commit..."
           BASE_SHA="${{ steps.get-base-sha.outputs.base_sha }}"
@@ -148,7 +161,7 @@ jobs:
           echo "commit_sha=$COMMIT_SHA" >> "$GITHUB_ENV"
 
       - name: Create Pull Request
-        if: env.pr_number == ''
+        if: env.pr_number == '' && steps.check-changes.outputs.has_changes == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
