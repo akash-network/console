@@ -31,7 +31,7 @@ const BitBucketManager = ({
   const { data: repos, isLoading } = useBitReposByWorkspace(workSpace);
 
   return (
-    <>
+    <div className="grid gap-6 md:grid-cols-2">
       <WorkSpaces isLoading={loading} workSpaces={workSpace} setWorkSpaces={setWorkSpace} />
       <Repos
         isLoading={isLoading}
@@ -51,7 +51,7 @@ const BitBucketManager = ({
         services={services}
       />
       <BitBucketBranches services={services} control={control} />
-    </>
+    </div>
   );
 };
 

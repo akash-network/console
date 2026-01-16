@@ -60,7 +60,8 @@ export class QueryKeys {
   static getCommitsByBranchKey = (repo?: string, branch?: string, accessToken?: string | null) => ["COMMITS_BY_BRANCH", repo, branch, accessToken];
   static getWorkspacesKey = (accessToken?: string | null) => ["WORKSPACES", accessToken];
   static getReposByWorkspaceKey = (workspace: string, accessToken: string | null) => ["REPOS", accessToken, workspace];
-  static getReposKey = (accessToken?: string | null) => ["REPOS", accessToken];
+  static getReposKey = (installationsIds: number[], accessToken?: string | null) => ["REPOS", installationsIds, accessToken];
+  static getInstallationsKey = (accessToken?: string | null) => ["INSTALLATIONS", accessToken];
   static getBranchesKey = (repo?: string, accessToken?: string | null) => ["BRANCHES", repo, accessToken];
   static getPackageJsonKey = (repo?: string, branch?: string, subFolder?: string) => ["PACKAGE_JSON", repo, branch, subFolder];
   static getSrcFoldersKey = (repo?: string, branch?: string) => ["SRC_FOLDERS", repo, branch];

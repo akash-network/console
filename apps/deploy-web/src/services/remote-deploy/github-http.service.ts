@@ -41,10 +41,18 @@ export class GitHubService {
   }
 
   loginWithGithub() {
-    window.location.href = this.#options.githubAppInstallationUrl;
+    window.location.href = this.getLoginUrl();
+  }
+
+  getLoginUrl() {
+    return this.#options.githubAppInstallationUrl;
   }
 
   reLoginWithGithub() {
+    window.location.href = this.getReLoginUrl();
+  }
+
+  getReLoginUrl() {
     if (!this.#options.githubClientId) {
       throw new Error("GitHub client ID is required to re-login with GitHub");
     }
@@ -57,7 +65,7 @@ export class GitHubService {
     authUrl.searchParams.set("client_id", this.#options.githubClientId);
     authUrl.searchParams.set("redirect_uri", redirect.toString());
 
-    window.location.href = authUrl.toString();
+    return authUrl.toString();
   }
 
   async fetchUserProfile(token?: string | null) {
@@ -69,20 +77,14 @@ export class GitHubService {
     return response.data;
   }
 
-  async fetchRepos(token?: string | null) {
-    const { data: installations } = await this.#githubApiService.get<GitHubInstallationsResponse>("/user/installations", {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    });
-
-    if (!installations.installations.length) {
+  async fetchRepos(installationsIds: number[], token?: string | null) {
+    if (!installationsIds.length) {
       return [];
     }
 
     const repoResults = await Promise.allSettled(
-      installations.installations.map(async installation => {
-        return this.#fetchAllReposForInstallation(installation.id, token);
+      installationsIds.map(async installationId => {
+        return this.#fetchAllReposForInstallation(installationId, token);
       })
     );
 
@@ -96,6 +98,15 @@ export class GitHubService {
     });
 
     return Array.from(uniqueRepos.values());
+  }
+
+  async fetchInstallationIds(token?: string | null) {
+    const response = await this.#githubApiService.get<GitHubInstallationsResponse>("/user/installations", {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+    return response.data.installations.map(installation => installation.id);
   }
 
   async #fetchAllReposForInstallation(installationId: number, token?: string | null) {
