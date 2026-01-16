@@ -1,5 +1,12 @@
 
 
+## [3.20.2](https://github.com/akash-network/console/compare/console-api/v3.20.1...console-api/v3.20.2) (2026-01-15)
+
+
+### Bug Fixes
+
+* replace [@injectable](https://github.com/injectable)() with [@singleton](https://github.com/singleton)() for templates and others ([#2501](https://github.com/akash-network/console/issues/2501)) ([3bfa541](https://github.com/akash-network/console/commit/3bfa5412e30831c54e8a5581b000bd3e1dee6516))
+
 ## [3.20.1](https://github.com/akash-network/console/compare/console-api/v3.20.0...console-api/v3.20.1) (2026-01-15)
 
 

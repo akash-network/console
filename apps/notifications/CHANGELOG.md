@@ -1,5 +1,12 @@
 
 
+## [2.12.2](https://github.com/akash-network/console/compare/notifications/v2.12.1...notifications/v2.12.2) (2026-01-15)
+
+
+### Bug Fixes
+
+* install autoinstrumentation otel for notifications ([#2505](https://github.com/akash-network/console/issues/2505)) ([87abd66](https://github.com/akash-network/console/commit/87abd6636acfbe462a0724fd043571e5e0bf7bf8))
+
 ## [2.12.1](https://github.com/akash-network/console/compare/notifications/v2.12.0...notifications/v2.12.1) (2026-01-15)
 
 

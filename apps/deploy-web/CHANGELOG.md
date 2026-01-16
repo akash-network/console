@@ -1,5 +1,12 @@
 
 
+## [3.22.1](https://github.com/akash-network/console/compare/console-web/v3.22.0...console-web/v3.22.1) (2026-01-15)
+
+
+### Bug Fixes
+
+* ignore chrome extension errors sentry ([#2485](https://github.com/akash-network/console/issues/2485)) ([72ca3c2](https://github.com/akash-network/console/commit/72ca3c2ea523ac588a86d96f0a51cca08e67734e))
+
 ## [3.22.0](https://github.com/akash-network/console/compare/console-web/v3.21.1...console-web/v3.22.0) (2026-01-15)
 
 
