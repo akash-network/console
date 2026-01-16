@@ -22,6 +22,7 @@ const withPWA = require("next-pwa")({
 });
 const { withSentryConfig } = require("@sentry/nextjs");
 const path = require("path");
+const CopyPlugin = require("copy-webpack-plugin");
 
 const transpilePackages = ["geist", "@akashnetwork/ui", "@auth0/nextjs-auth0"];
 
@@ -73,10 +74,35 @@ const nextConfig = {
     });
     config.externals.push("pino-pretty");
 
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      // Stub prettier to reduce bundle size (used by monaco-yaml for formatting, which we disable)
+      "prettier/standalone": false,
+      "prettier/plugins/yaml": false,
+      prettier: false
+    };
+
     if (options.isServer) {
       // see ./src/lib/auth0/setSession/setSession.ts for more details
       config.resolve.alias["@auth0/nextjs-auth0/session"] = path.join(require.resolve("@auth0/nextjs-auth0"), "..", "session", "index.js");
       config.resolve.alias["@auth0/nextjs-auth0/update-session"] = path.join(require.resolve("@auth0/nextjs-auth0"), "..", "session", "update-session.js");
+    } else {
+      config.plugins.push(
+        new CopyPlugin({
+          patterns: [
+            {
+              from: "node_modules/@akashnetwork/chain-sdk/dist/sdl-schema.yaml",
+              to: "../public/sdl-schema.yaml"
+            }
+          ]
+        })
+      );
+    }
+
+    if (process.env.ANALYZE === "true") {
+      // More readable in bundle analyzer
+      config.optimization.moduleIds = "named";
+      config.optimization.chunkIds = "named";
     }
 
     return config;

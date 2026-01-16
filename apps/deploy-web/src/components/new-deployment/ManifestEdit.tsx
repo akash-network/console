@@ -26,15 +26,15 @@ import { RouteStep } from "@src/types/route-steps.type";
 import { deploymentData } from "@src/utils/deploymentData";
 import { appendAuditorRequirement } from "@src/utils/deploymentData/v1beta3";
 import { validateDeploymentData } from "@src/utils/deploymentUtils";
-import { Timer } from "@src/utils/timer";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { domainName, handleDocClick, UrlService } from "@src/utils/urlUtils";
 import { useSettings } from "../../context/SettingsProvider";
 import { DeploymentDepositModal } from "../deployments/DeploymentDepositModal";
 import { DeploymentMinimumEscrowAlertText } from "../sdl/DeploymentMinimumEscrowAlertText";
+import type { SdlEditorRefType } from "../sdl/SDLEditor/SDLEditor";
+import { SDLEditor } from "../sdl/SDLEditor/SDLEditor";
 import { TrialDeploymentBadge } from "../shared";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
-import { DynamicMonacoEditor } from "../shared/DynamicMonacoEditor";
 import { LinkTo } from "../shared/LinkTo";
 import { PrerequisiteList } from "../shared/PrerequisiteList";
 import ViewPanel from "../shared/ViewPanel";
@@ -75,6 +75,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
   const muiTheme = useMuiTheme();
   const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
   const sdlBuilderRef = useRef<SdlBuilderRefType>(null);
+  const sdlEditorRef = useRef<SdlEditorRefType>(null);
   const { hasComponent } = useSdlBuilder();
   const searchParams = useSearchParams();
   const templateId = searchParams.get("templateId");
@@ -106,21 +107,6 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
       setDeploymentName(selectedTemplate.name);
     }
   }, [selectedTemplate]);
-
-  useEffect(() => {
-    const timer = Timer(500);
-
-    timer.start().then(() => {
-      if (editedManifest) createAndValidateDeploymentData(editedManifest, "TEST_DSEQ_VALIDATION");
-    });
-
-    return () => {
-      if (timer) {
-        timer.abort();
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editedManifest]);
 
   const onFileSelect = (file: File | null) => {
     if (!file) return;
@@ -181,9 +167,16 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
       return;
     }
 
+    let isValid = false;
     if (selectedSdlEditMode === "builder") {
-      const valid = await sdlBuilderRef.current?.validate();
-      if (!valid) return;
+      isValid = !!(await sdlBuilderRef.current?.validate());
+    } else if (selectedSdlEditMode === "yaml") {
+      isValid = !!(await sdlEditorRef.current?.validate());
+    }
+
+    if (!isValid) {
+      setParsingError("Error while parsing SDL");
+      return;
     }
 
     if (isManaged) {
@@ -389,7 +382,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
 
       {hasComponent("yml-editor") && selectedSdlEditMode === "yaml" && (
         <ViewPanel stickToBottom className={cn("overflow-hidden", { ["-mx-4"]: smallScreen })}>
-          <DynamicMonacoEditor value={editedManifest || ""} onChange={handleTextChange} />
+          <SDLEditor value={editedManifest || ""} onChange={handleTextChange} onValidate={() => setParsingError(null)} ref={sdlEditorRef} />
         </ViewPanel>
       )}
       {(hasComponent("ssh") || selectedSdlEditMode === "builder") && (

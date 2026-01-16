@@ -1,20 +1,13 @@
 "use client";
 import React from "react";
-import type { OnChange, OnMount } from "@monaco-editor/react";
 import isEqual from "lodash/isEqual";
 
-import { DynamicMonacoEditor } from "./DynamicMonacoEditor";
+import { DynamicMonacoEditor, type Props as DynamicMonacoEditorProps } from "./DynamicMonacoEditor/DynamicMonacoEditor";
 
-type Props = {
-  value: string;
-  language?: string;
-  onChange?: OnChange;
-  onMount?: OnMount;
-  options?: object;
-};
+type Props = DynamicMonacoEditorProps;
 
-const _MemoMonaco: React.FunctionComponent<Props> = ({ value, onChange, onMount, language, options = {} }) => {
-  return <DynamicMonacoEditor value={value} options={options} onChange={onChange} onMount={onMount} language={language} />;
+const _MemoMonaco: React.FunctionComponent<Props> = props => {
+  return <DynamicMonacoEditor {...props} options={{ ...props.options, height: props.height }} />;
 };
 
 export const MemoMonaco = React.memo(_MemoMonaco, (prevProps, nextProps) => {

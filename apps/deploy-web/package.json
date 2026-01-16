@@ -27,7 +27,7 @@
     "type-check": "tsc"
   },
   "dependencies": {
-    "@akashnetwork/chain-sdk": "1.0.0-alpha.19",
+    "@akashnetwork/chain-sdk": "1.0.0-alpha.20",
     "@akashnetwork/env-loader": "*",
     "@akashnetwork/http-sdk": "*",
     "@akashnetwork/logging": "*",
@@ -94,7 +94,8 @@
     "long": "^5.2.3",
     "lucide-react": "^0.292.0",
     "material-ui-popup-state": "^4.0.2",
-    "monaco-editor": "^0.52.2",
+    "monaco-editor": "^0.55.1",
+    "monaco-yaml": "^5.4.0",
     "murmurhash": "^2.0.1",
     "nanoid": "^3.3.4",
     "next": "^14.2.35",
@@ -131,6 +132,7 @@
     "usehooks-ts": "^2.9.1",
     "xterm": "^5.3.0",
     "xterm-addon-fit": "^0.7.0",
+    "yaml": "^2.8.2",
     "zod": "^3.22.4"
   },
   "devDependencies": {
@@ -164,6 +166,7 @@
     "@types/react-simple-maps": "^3.0.0",
     "@typescript-eslint/eslint-plugin": "^7.12.0",
     "autoprefixer": "^10.4.16",
+    "copy-webpack-plugin": "^13.0.1",
     "eslint": "^8.57.0",
     "eslint-config-next": "^14.2.3",
     "eslint-plugin-simple-import-sort": "^12.1.0",

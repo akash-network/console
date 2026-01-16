@@ -1,12 +1,12 @@
 "use client";
 import type { ReactNode } from "react";
 import { Button, Popup, Snackbar } from "@akashnetwork/ui/components";
-import Editor from "@monaco-editor/react";
 import { Copy } from "iconoir-react";
 import { useTheme } from "next-themes";
 import { useSnackbar } from "notistack";
 
 import { copyTextToClipboard } from "@src/utils/copyClipboard";
+import { SDLEditor } from "./SDLEditor/SDLEditor";
 
 type Props = {
   sdl: string;
@@ -52,7 +52,7 @@ export const PreviewSdl: React.FunctionComponent<Props> = ({ sdl, onClose }) => 
         </Button>
       </div>
       <div className="mb-2">
-        <Editor height="500px" defaultLanguage="yaml" value={sdl} theme={resolvedTheme === "dark" ? "vs-dark" : "light"} />
+        <SDLEditor height="500px" value={sdl} theme={resolvedTheme === "dark" ? "vs-dark" : "light"} readonly={true} />
       </div>
     </Popup>
   );
