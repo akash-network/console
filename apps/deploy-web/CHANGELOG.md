@@ -1,5 +1,12 @@
 
 
+## [3.22.2](https://github.com/akash-network/console/compare/console-web/v3.22.1...console-web/v3.22.2) (2026-01-16)
+
+
+### Bug Fixes
+
+* **deployment:** scope GitHub repo list to app installations ([4b7e316](https://github.com/akash-network/console/commit/4b7e31602f23581eb5288a873efe3d8a5db709b4)), closes [#2509](https://github.com/akash-network/console/issues/2509) [#2511](https://github.com/akash-network/console/issues/2511)
+
 ## [3.22.1](https://github.com/akash-network/console/compare/console-web/v3.22.0...console-web/v3.22.1) (2026-01-15)
 
 
