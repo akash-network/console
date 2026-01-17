@@ -1,7 +1,6 @@
 "use client";
 
 import * as amplitude from "@amplitude/analytics-browser";
-import { v3 as murmurhash } from "murmurhash";
 import { event } from "nextjs-google-analytics";
 
 export type AnalyticsUser = {
@@ -16,7 +15,6 @@ export type AnalyticsOptions = {
   amplitude: {
     apiKey: string;
     enabled: boolean;
-    samplingRate: number;
     serverUrl?: string;
   };
   ga: {
@@ -142,14 +140,14 @@ const isBrowser = typeof window !== "undefined";
 
 export type Amplitude = Pick<typeof amplitude, "init" | "Identify" | "identify" | "track" | "setUserId">;
 export type GoogleAnalytics = { event: typeof event };
-export type HashFn = typeof murmurhash;
 
 export class AnalyticsService {
   private readonly STORAGE_KEY = "analytics_values_cache";
 
   private readonly valuesCache: Map<string, string> = this.loadSwitchValuesFromStorage();
 
-  private isAmplitudeEnabled: boolean | undefined;
+  private readonly isAmplitudeEnabled: boolean;
+  private amplitudeInitialized = false;
 
   private get gtag() {
     return this.getGtag();
@@ -158,14 +156,11 @@ export class AnalyticsService {
   constructor(
     private readonly options: AnalyticsOptions,
     private readonly amplitudeClient: Amplitude = amplitude,
-    private readonly hash: HashFn = murmurhash,
     private readonly ga: GoogleAnalytics = { event },
     private readonly getGtag: () => Gtag.Gtag | undefined = () => (isBrowser ? window.gtag : undefined),
     private readonly storage: Pick<Storage, "getItem" | "setItem"> | undefined = isBrowser ? window.localStorage : undefined
   ) {
-    if (this.options.amplitude.enabled === false) {
-      this.isAmplitudeEnabled = false;
-    }
+    this.isAmplitudeEnabled = this.options.amplitude.enabled;
   }
 
   private loadSwitchValuesFromStorage() {
@@ -189,12 +184,11 @@ export class AnalyticsService {
       this.gtag("config", this.options.ga.measurementId, { user_id: user.id });
     }
 
-    this.ensureAmplitudeFor(user);
-
     if (!this.isAmplitudeEnabled) {
       return;
     }
 
+    this.initAmplitude();
     const event = new this.amplitudeClient.Identify();
 
     for (const key in user) {
@@ -210,26 +204,19 @@ export class AnalyticsService {
     }
   }
 
-  private ensureAmplitudeFor(user: AnalyticsUser) {
-    if (typeof this.isAmplitudeEnabled === "undefined" && user.id) {
-      this.isAmplitudeEnabled = this.shouldSampleUser(user.id);
-
-      if (this.isAmplitudeEnabled) {
-        const { serverUrl } = this.options.amplitude;
-        this.amplitudeClient.init(
-          this.options.amplitude.apiKey,
-          serverUrl
-            ? {
-                serverUrl
-              }
-            : undefined
-        );
-      }
+  private initAmplitude() {
+    if (this.amplitudeInitialized) {
+      return;
     }
+
+    const { serverUrl } = this.options.amplitude;
+    const initOptions = serverUrl ? { serverUrl } : undefined;
+    this.amplitudeClient.init(this.options.amplitude.apiKey, undefined, initOptions);
+    this.amplitudeInitialized = true;
   }
 
   trackSwitch(eventName: "connect_wallet", value: "managed" | "custodial", target?: AnalyticsTarget): void;
-  trackSwitch(eventName: any, value: any, target?: AnalyticsTarget) {
+  trackSwitch(eventName: AnalyticsEvent, value: string, target?: AnalyticsTarget) {
     if (!isBrowser) {
       return;
     }
@@ -260,6 +247,7 @@ export class AnalyticsService {
     const eventProperties = typeof eventPropertiesOrTarget === "object" ? eventPropertiesOrTarget : {};
 
     if (this.isAmplitudeEnabled && (!analyticsTarget || analyticsTarget === "Amplitude")) {
+      this.initAmplitude();
       this.amplitudeClient.track(eventName, eventProperties);
     }
 
@@ -274,11 +262,5 @@ export class AnalyticsService {
     }
 
     return [GA_EVENTS[eventName as keyof typeof GA_EVENTS] || eventName, eventProperties];
-  }
-
-  private shouldSampleUser(userId: string): boolean {
-    const hashValue = this.hash(userId);
-    const percentage = Math.abs(hashValue) % 100;
-    return percentage < this.options.amplitude.samplingRate * 100;
   }
 }

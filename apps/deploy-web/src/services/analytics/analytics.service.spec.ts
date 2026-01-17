@@ -1,6 +1,6 @@
 import { faker } from "@faker-js/faker";
 
-import type { Amplitude, AnalyticsOptions, GoogleAnalytics, HashFn } from "./analytics.service";
+import type { Amplitude, AnalyticsOptions, GoogleAnalytics } from "./analytics.service";
 import { AnalyticsService } from "./analytics.service";
 
 type Mocked<T> = {
@@ -12,12 +12,12 @@ describe(AnalyticsService.name, () => {
   const mockGaMeasurementId = faker.string.uuid();
 
   describe("initialization", () => {
-    it("should not initialize Amplitude when disabled", () => {
+    it("does not initialize Amplitude when disabled", () => {
       const init = jest.fn();
       const service = setup({
         amplitude: { init },
         options: {
-          amplitude: { enabled: false, apiKey: mockAmplitudeApiKey, samplingRate: 0.25 },
+          amplitude: { enabled: false, apiKey: mockAmplitudeApiKey },
           ga: { enabled: false, measurementId: mockGaMeasurementId }
         }
       });
@@ -26,54 +26,18 @@ describe(AnalyticsService.name, () => {
       expect(init).not.toHaveBeenCalled();
     });
 
-    it("should initialize Amplitude only for sampled users when enabled", () => {
+    it("initializes Amplitude when enabled", () => {
       const init = jest.fn();
       const service = setup({
         amplitude: { init },
         options: {
-          amplitude: { enabled: true, apiKey: mockAmplitudeApiKey, samplingRate: 0.25 },
+          amplitude: { enabled: true, apiKey: mockAmplitudeApiKey },
           ga: { enabled: false, measurementId: mockGaMeasurementId }
         }
       });
 
       service.identify({ id: faker.string.uuid() });
       expect(init).toHaveBeenCalled();
-    });
-  });
-
-  describe("user sampling", () => {
-    it("should sample amplitude users based on hash value", () => {
-      const init = jest.fn();
-      const hashFn = jest.fn().mockImplementation(() => 120);
-      const service = setup({
-        amplitude: { init },
-        hashFn,
-        options: {
-          amplitude: { enabled: true, apiKey: mockAmplitudeApiKey, samplingRate: 0.25 },
-          ga: { enabled: false, measurementId: mockGaMeasurementId }
-        }
-      });
-      service.identify({ id: faker.string.uuid() });
-
-      expect(hashFn).toHaveBeenCalled();
-      expect(init).toHaveBeenCalled();
-    });
-
-    it("should not sample amplitude users based on hash value", () => {
-      const init = jest.fn();
-      const hashFn = jest.fn().mockImplementation(() => 125);
-      const service = setup({
-        amplitude: { init },
-        hashFn,
-        options: {
-          amplitude: { enabled: true, apiKey: mockAmplitudeApiKey, samplingRate: 0.25 },
-          ga: { enabled: false, measurementId: mockGaMeasurementId }
-        }
-      });
-      service.identify({ id: faker.string.uuid() });
-
-      expect(hashFn).toHaveBeenCalled();
-      expect(init).not.toHaveBeenCalled();
     });
   });
 
@@ -93,7 +57,7 @@ describe(AnalyticsService.name, () => {
           setItem: jest.fn()
         },
         options: {
-          amplitude: { enabled: true, apiKey: mockAmplitudeApiKey, samplingRate: 0.25 },
+          amplitude: { enabled: true, apiKey: mockAmplitudeApiKey },
           ga: { enabled: false, measurementId: mockGaMeasurementId }
         }
       });
@@ -116,7 +80,7 @@ describe(AnalyticsService.name, () => {
         amplitude: { identify, setUserId },
         ga: { event: jest.fn() },
         options: {
-          amplitude: { enabled: true, apiKey: mockAmplitudeApiKey, samplingRate: 0.25 },
+          amplitude: { enabled: true, apiKey: mockAmplitudeApiKey },
           ga: { enabled: true, measurementId: mockGaMeasurementId }
         }
       });
@@ -134,7 +98,7 @@ describe(AnalyticsService.name, () => {
         amplitude: { identify, setUserId },
         gtag,
         options: {
-          amplitude: { enabled: false, apiKey: mockAmplitudeApiKey, samplingRate: 0.25 },
+          amplitude: { enabled: false, apiKey: mockAmplitudeApiKey },
           ga: { enabled: true, measurementId: mockGaMeasurementId }
         }
       });
@@ -156,7 +120,7 @@ describe(AnalyticsService.name, () => {
         amplitude: { track },
         ga: { event },
         options: {
-          amplitude: { enabled: true, apiKey: mockAmplitudeApiKey, samplingRate: 0.25 },
+          amplitude: { enabled: true, apiKey: mockAmplitudeApiKey },
           ga: { enabled: true, measurementId: mockGaMeasurementId }
         }
       });
@@ -180,7 +144,7 @@ describe(AnalyticsService.name, () => {
         amplitude: { track },
         ga: { event },
         options: {
-          amplitude: { enabled: true, apiKey: mockAmplitudeApiKey, samplingRate: 0.25 },
+          amplitude: { enabled: true, apiKey: mockAmplitudeApiKey },
           ga: { enabled: true, measurementId: mockGaMeasurementId }
         }
       });
@@ -199,7 +163,7 @@ describe(AnalyticsService.name, () => {
       const service = setup({
         ga: { event },
         options: {
-          amplitude: { enabled: false, apiKey: mockAmplitudeApiKey, samplingRate: 0.25 },
+          amplitude: { enabled: false, apiKey: mockAmplitudeApiKey },
           ga: { enabled: true, measurementId: mockGaMeasurementId }
         }
       });
@@ -215,7 +179,7 @@ describe(AnalyticsService.name, () => {
       const service = setup({
         ga: { event },
         options: {
-          amplitude: { enabled: false, apiKey: mockAmplitudeApiKey, samplingRate: 0.25 },
+          amplitude: { enabled: false, apiKey: mockAmplitudeApiKey },
           ga: { enabled: true, measurementId: mockGaMeasurementId }
         }
       });
@@ -236,7 +200,7 @@ describe(AnalyticsService.name, () => {
         amplitude: { track },
         ga: { event },
         options: {
-          amplitude: { enabled: false, apiKey: mockAmplitudeApiKey, samplingRate: 0.25 },
+          amplitude: { enabled: false, apiKey: mockAmplitudeApiKey },
           ga: { enabled: true, measurementId: mockGaMeasurementId }
         }
       });
@@ -253,10 +217,9 @@ describe(AnalyticsService.name, () => {
     amplitude?: Mocked<Amplitude>;
     ga?: Mocked<GoogleAnalytics>;
     gtag?: Gtag.Gtag;
-    hashFn?: HashFn;
     options?: AnalyticsOptions;
     storage?: Pick<Storage, "getItem" | "setItem">;
-  }): AnalyticsService {
+  }) {
     const amplitude = {
       init: jest.fn(),
       Identify: jest.fn().mockImplementation(() => ({
@@ -271,7 +234,6 @@ describe(AnalyticsService.name, () => {
       event: jest.fn(),
       ...(params.ga ?? {})
     };
-    const hash: HashFn = params.hashFn ?? jest.fn().mockImplementation(() => 0);
     const storage = params.storage ?? {
       getItem: jest.fn(),
       setItem: jest.fn()
@@ -279,11 +241,10 @@ describe(AnalyticsService.name, () => {
 
     return new AnalyticsService(
       params.options ?? {
-        amplitude: { enabled: false, apiKey: mockAmplitudeApiKey, samplingRate: 1 },
+        amplitude: { enabled: false, apiKey: mockAmplitudeApiKey },
         ga: { enabled: false, measurementId: mockGaMeasurementId }
       },
       amplitude,
-      hash,
       ga,
       () => params.gtag ?? jest.fn(),
       storage

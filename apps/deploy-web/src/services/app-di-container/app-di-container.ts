@@ -128,7 +128,6 @@ export const createAppRootContainer = (config: ServicesConfig) => {
         amplitude: {
           enabled: container.publicConfig.NEXT_PUBLIC_AMPLITUDE_ENABLED,
           apiKey: container.publicConfig.NEXT_PUBLIC_AMPLITUDE_API_KEY,
-          samplingRate: container.publicConfig.NEXT_PUBLIC_AMPLITUDE_SAMPLING,
           serverUrl: container.publicConfig.NEXT_PUBLIC_AMPLITUDE_PROXY_URL
         },
         ga: {
