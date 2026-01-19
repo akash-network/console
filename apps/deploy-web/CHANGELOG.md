@@ -1,5 +1,13 @@
 
 
+## [3.22.4](https://github.com/akash-network/console/compare/console-web/v3.22.3...console-web/v3.22.4) (2026-01-19)
+
+
+### Bug Fixes
+
+* **analytics:** remove amplitude sampling to restore full reporting ([0cc8def](https://github.com/akash-network/console/commit/0cc8def33c792dc55ee6567b3900732e08311264)), closes [#2525](https://github.com/akash-network/console/issues/2525)
+* **deployment:** improves build & deploy re-authentication ux ([9e4f7e8](https://github.com/akash-network/console/commit/9e4f7e854224319f409de5ebd04dea86271dbefd)), closes [#2516](https://github.com/akash-network/console/issues/2516)
+
 ## [3.22.3](https://github.com/akash-network/console/compare/console-web/v3.22.2...console-web/v3.22.3) (2026-01-17)
 
 
