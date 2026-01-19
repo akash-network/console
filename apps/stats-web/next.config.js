@@ -24,10 +24,19 @@ const nextConfig = {
   transpilePackages: ["geist", "@akashnetwork/ui"],
   experimental: {
     instrumentationHook: true
+  },
+  /**
+   *
+   * @param {import('webpack').Configuration} config
+   * @param {import('next').NextConfig} nextConfig
+   * @returns
+   */
+  webpack: (config, options) => {
+    config.externals.push("pino-pretty");
+
+    return config;
   }
 };
-
-const REPOSITORY_URL = new URL(repository.url);
 
 /**
  * For all available options, see:
@@ -46,13 +55,15 @@ const sentryWebpackPluginOptions = {
   authToken: process.env.SENTRY_AUTH_TOKEN,
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
-  release: {
-    name: version,
-    setCommits: {
-      repo: REPOSITORY_URL.pathname.slice(1).replace(/\.git$/, ""),
-      commit: process.env.GIT_COMMIT_HASH
-    }
-  },
+  release: repository
+    ? {
+        name: version,
+        setCommits: {
+          repo: new URL(repository.url).pathname.slice(1).replace(/\.git$/, ""),
+          commit: process.env.GIT_COMMIT_HASH
+        }
+      }
+    : { name: version },
   sourcemaps: {
     deleteSourcemapsAfterUpload: false
   },
