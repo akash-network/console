@@ -79,11 +79,11 @@
   },
   "packageManager": "npm@11.6.2",
   "engines": {
-    "node": "^24.11.1",
+    "node": "^24.13.0",
     "npm": "^11.6.2"
   },
   "volta": {
-    "node": "24.11.1",
+    "node": "24.13.0",
     "npm": "11.6.2"
   },
   "trustedDependencies": [

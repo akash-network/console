@@ -27,7 +27,7 @@ The monorepo contains multiple applications and shared packages:
 
 ## Tech Stack
 
-- **Node.js**: >= 24.11.1 (enforced via Volta)
+- **Node.js**: >= 24.13.0 (enforced via Volta)
 - **Package Manager**: npm 11.6.2
 - **Framework**: Next.js 14.x, Hono, Nest.js
 - **Database**: PostgreSQL with Drizzle ORM and legacy sequelize
