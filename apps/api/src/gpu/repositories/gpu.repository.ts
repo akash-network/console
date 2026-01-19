@@ -179,10 +179,12 @@ export class GpuRepository {
       SELECT s."hostUri", s."owner", n."name", n."gpuAllocatable" AS allocatable, LEAST(n."gpuAllocated", n."gpuAllocatable") AS allocated, gpu."modelId", gpu.vendor, gpu.name AS "modelName", gpu.interface, gpu."memorySize"
       FROM snapshots s
       INNER JOIN "providerSnapshotNode" n ON n."snapshotId"=s.id AND n."gpuAllocatable" > 0
-      LEFT JOIN (
-        SELECT DISTINCT ON (gpu."snapshotNodeId") gpu.*
+      LEFT JOIN LATERAL (
+        SELECT gpu.*
         FROM "providerSnapshotNodeGPU" gpu
-      ) gpu ON gpu."snapshotNodeId" = n.id
+        WHERE gpu."snapshotNodeId" = n.id
+        LIMIT 1
+      ) gpu ON true
       WHERE
         gpu.vendor IS NOT NULL
   `,
