@@ -2,7 +2,7 @@ import { faker } from "@faker-js/faker";
 import { mock } from "jest-mock-extended";
 
 import type { GitHubService } from "@src/services/remote-deploy/github-http.service";
-import { useBranches, useCommits, useFetchAccessToken, usePackageJson, useRepos, useSrcFolders, useUserProfile } from "./useGithubQuery";
+import { useBranches, useCommits, useFetchAccessToken, useInstallations, usePackageJson, useRepos, useSrcFolders, useUserProfile } from "./useGithubQuery";
 
 import { act, waitFor } from "@testing-library/react";
 import { setupQuery } from "@tests/unit/query-client";
@@ -60,18 +60,41 @@ describe("useGithubQuery", () => {
     it("fetches repos when token is available", async () => {
       writeToken({ accessToken: "test-token", refreshToken: "test-refresh-token", type: "github" });
       const mockData = [{ name: faker.lorem.word() }];
+      const installationsIds = [faker.number.int()];
       const mockGithubService = mock<GitHubService>({
         fetchRepos: jest.fn().mockResolvedValue(mockData)
       });
 
-      const { result } = setupQuery(() => useRepos(), {
+      const { result } = setupQuery(() => useRepos(installationsIds), {
         services: {
           githubService: () => mockGithubService
         }
       });
 
       await waitFor(() => {
-        expect(mockGithubService.fetchRepos).toHaveBeenCalledWith("test-token");
+        expect(mockGithubService.fetchRepos).toHaveBeenCalledWith(installationsIds, "test-token");
+        expect(result.current.isSuccess).toBe(true);
+        expect(result.current.data).toEqual(mockData);
+      });
+    });
+  });
+
+  describe("useInstallations", () => {
+    it("fetches installations when token is available", async () => {
+      writeToken({ accessToken: "test-token", refreshToken: "test-refresh-token", type: "github" });
+      const mockData = [faker.number.int()];
+      const mockGithubService = mock<GitHubService>({
+        fetchInstallationIds: jest.fn().mockResolvedValue(mockData)
+      });
+
+      const { result } = setupQuery(() => useInstallations(), {
+        services: {
+          githubService: () => mockGithubService
+        }
+      });
+
+      await waitFor(() => {
+        expect(mockGithubService.fetchInstallationIds).toHaveBeenCalledWith("test-token");
         expect(result.current.isSuccess).toBe(true);
         expect(result.current.data).toEqual(mockData);
       });

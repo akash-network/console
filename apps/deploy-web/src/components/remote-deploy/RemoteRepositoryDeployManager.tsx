@@ -1,8 +1,8 @@
 import type { Dispatch } from "react";
 import { useEffect, useMemo, useState } from "react";
 import type { Control, UseFormSetValue } from "react-hook-form";
-import { Button, Spinner, Tabs, TabsContent, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
-import { Bitbucket, Github as GitIcon, GitlabFull } from "iconoir-react";
+import { Button, Tabs, TabsContent, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
+import { Bitbucket, CoinsSwap, Github as GitIcon, GitlabFull } from "iconoir-react";
 import { useAtom } from "jotai";
 import { useRouter } from "next/navigation";
 
@@ -18,6 +18,7 @@ import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { RouteStep } from "@src/types/route-steps.type";
 import { UrlService } from "@src/utils/urlUtils";
 import { useBitFetchAccessToken, useBitUserProfile } from "../../queries/useBitBucketQuery";
+import { LoadingBlocker } from "../layout/LoadingBlocker/LoadingBlocker";
 import BitBucketManager from "./bitbucket/BitBucketManager";
 import RemoteBuildInstallConfig from "./deployment-configurations/RemoteBuildInstallConfig";
 import RemoteDeployEnvDropdown from "./deployment-configurations/RemoteDeployEnvDropdown";
@@ -46,6 +47,7 @@ const RemoteRepositoryDeployManager = ({
   const { params: deployButtonParams, isDeployButtonFlow } = useDeployButtonFlow();
 
   const [selectedTab, setSelectedTab] = useState("git");
+  const [isRedirectingAway, setIsRedirectingAway] = useState(false);
   const router = useRouter();
   const [hydrated, setHydrated] = useState(false);
   const isRepoAndBranchPresent = (env: Array<{ key: string }>) =>
@@ -58,7 +60,11 @@ const RemoteRepositoryDeployManager = ({
 
   const envVarManagerService = useMemo(() => new EnvVarManagerService(services || []), [services]);
 
-  const { data: userProfile, isLoading: fetchingProfile } = useUserProfile();
+  const { data: userProfile, isLoading: fetchingProfile, error: userProfileError } = useUserProfile();
+  const isGithubUnauthorized = useMemo(() => {
+    return userProfileError?.status === 401 && token?.type === "github";
+  }, [token?.type, userProfileError?.status]);
+
   const { mutate: fetchAccessToken, isPending: fetchingToken } = useFetchAccessToken(navigateToNewDeployment);
 
   const { data: userProfileBit, isLoading: fetchingProfileBit } = useBitUserProfile();
@@ -176,20 +182,57 @@ const RemoteRepositoryDeployManager = ({
                   Third-Party Git Repository
                 </TabsTrigger>
               </TabsList>
-              {token?.accessToken && (
-                <div className="hidden md:block">
-                  <AccountDropDown userProfile={userProfile} userProfileBit={userProfileBit} userProfileGitLab={userProfileGitLab} />
+              {(isGithubUnauthorized && (
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" asChild>
+                    <a
+                      className="flex items-center no-underline hover:no-underline"
+                      href={githubService.getReLoginUrl()}
+                      onClick={() => {
+                        setToken({ accessToken: null, refreshToken: null, type: "github", alreadyLoggedIn: token?.alreadyLoggedIn });
+                        setIsRedirectingAway(true);
+                      }}
+                    >
+                      <GitIcon className="mr-2" />
+                      Reconnect GitHub
+                    </a>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="flex items-center gap-2"
+                    onClick={() => {
+                      setToken(prev => ({
+                        ...prev,
+                        accessToken: null,
+                        refreshToken: null
+                      }));
+                    }}
+                  >
+                    <CoinsSwap className="text-sm" />
+                    Switch Git Provider
+                  </Button>
                 </div>
-              )}
+              )) ||
+                (token?.accessToken && !isGithubUnauthorized && (
+                  <div className="hidden md:block">
+                    <AccountDropDown userProfile={userProfile} userProfileBit={userProfileBit} userProfileGitLab={userProfileGitLab} />
+                  </div>
+                ))}
             </div>
             <TabsContent value="git">
-              {fetchingToken || fetchingProfile || fetchingTokenBit || fetchingProfileBit || fetchingTokenGitLab || fetchingProfileGitLab ? (
-                <div className="flex flex-col items-center justify-center gap-2 rounded border px-5 py-10">
-                  <Spinner size="large" />
-                  <p className="text-muted-foreground">Loading...</p>
-                </div>
-              ) : (
-                !token?.accessToken && (
+              <LoadingBlocker
+                isLoading={
+                  fetchingToken ||
+                  fetchingProfile ||
+                  fetchingTokenBit ||
+                  fetchingProfileBit ||
+                  fetchingTokenGitLab ||
+                  fetchingProfileGitLab ||
+                  isRedirectingAway
+                }
+                text="Loading..."
+              >
+                {!token?.accessToken && (
                   <div className="flex flex-col justify-center gap-6 rounded-sm border px-4 py-8 md:items-center">
                     <div className="flex flex-col items-center justify-center">
                       <h1 className="text-lg font-bold text-primary">Connect Account</h1>
@@ -217,24 +260,23 @@ const RemoteRepositoryDeployManager = ({
                         <GitlabFull className="mr-2" />
                         GitLab
                       </Button>
-                      <Button
-                        onClick={() => {
-                          setToken({ accessToken: null, refreshToken: null, type: "github", alreadyLoggedIn: token?.alreadyLoggedIn });
-                          if (token?.alreadyLoggedIn?.includes("github")) {
-                            githubService.reLoginWithGithub();
-                          } else {
-                            githubService.loginWithGithub();
-                          }
-                        }}
-                        variant="outline"
-                      >
-                        <GitIcon className="mr-2" />
-                        Github
+                      <Button variant="outline" asChild>
+                        <a
+                          className="flex items-center no-underline hover:no-underline"
+                          href={token?.alreadyLoggedIn?.includes("github") ? githubService.getReLoginUrl() : githubService.getLoginUrl()}
+                          onClick={() => {
+                            setToken({ accessToken: null, refreshToken: null, type: "github", alreadyLoggedIn: token?.alreadyLoggedIn });
+                            setIsRedirectingAway(true);
+                          }}
+                        >
+                          <GitIcon className="mr-2" />
+                          Github
+                        </a>
                       </Button>
                     </div>
                   </div>
-                )
-              )}
+                )}
+              </LoadingBlocker>
             </TabsContent>
 
             <TabsContent value="public" className="grid gap-6 lg:grid-cols-2">
@@ -264,8 +306,8 @@ const RemoteRepositoryDeployManager = ({
         }
 
         {selectedTab === "git" && token?.accessToken && (
-          <div className="grid gap-6 md:grid-cols-2">
-            {token?.type === "github" ? (
+          <>
+            {(token?.type === "github" && !isGithubUnauthorized && (
               <>
                 <GithubManager
                   setValue={setValue}
@@ -276,27 +318,29 @@ const RemoteRepositoryDeployManager = ({
                   profile={userProfile}
                 />
               </>
-            ) : token?.type === "bitbucket" ? (
-              <BitBucketManager
-                loading={fetchingProfileBit}
-                setValue={setValue}
-                services={services}
-                control={control}
-                setDeploymentName={setDeploymentName}
-                deploymentName={deploymentName}
-                profile={userProfileBit}
-              />
-            ) : (
-              <GitlabManager
-                loading={fetchingProfileGitLab}
-                setValue={setValue}
-                services={services}
-                control={control}
-                setDeploymentName={setDeploymentName}
-                deploymentName={deploymentName}
-              />
-            )}
-          </div>
+            )) ||
+              (token?.type === "bitbucket" && (
+                <BitBucketManager
+                  loading={fetchingProfileBit}
+                  setValue={setValue}
+                  services={services}
+                  control={control}
+                  setDeploymentName={setDeploymentName}
+                  deploymentName={deploymentName}
+                  profile={userProfileBit}
+                />
+              )) ||
+              (token?.type === "gitlab" && (
+                <GitlabManager
+                  loading={fetchingProfileGitLab}
+                  setValue={setValue}
+                  services={services}
+                  control={control}
+                  setDeploymentName={setDeploymentName}
+                  deploymentName={deploymentName}
+                />
+              ))}
+          </>
         )}
       </div>
       <RemoteBuildInstallConfig services={services} setValue={setValue} />
