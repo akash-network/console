@@ -1,5 +1,12 @@
 
 
+## [3.20.4](https://github.com/akash-network/console/compare/console-api/v3.20.3...console-api/v3.20.4) (2026-01-19)
+
+
+### Bug Fixes
+
+* **analytics:** remove amplitude sampling to restore full reporting ([0cc8def](https://github.com/akash-network/console/commit/0cc8def33c792dc55ee6567b3900732e08311264)), closes [#2525](https://github.com/akash-network/console/issues/2525)
+
 ## [3.20.3](https://github.com/akash-network/console/compare/console-api/v3.20.2...console-api/v3.20.3) (2026-01-17)
 
 
