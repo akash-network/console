@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { Button } from "@akashnetwork/ui/components";
+import * as Sentry from "@sentry/nextjs";
 
 import PageContainer from "@/components/PageContainer";
 import { Title } from "@/components/Title";
@@ -13,7 +14,9 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
   useEffect(() => {
     // Log the error to an error reporting service
     errorLogger.debug(error);
-  }, [error]);
+    // Capture error in Sentry
+    Sentry.captureException(error);
+  }, [error, errorLogger]);
 
   return (
     <PageContainer>
