@@ -1,6 +1,6 @@
 {
   "name": "@akashnetwork/indexer",
-  "version": "1.23.2",
+  "version": "1.23.3",
   "description": "Indexer for any Cosmos based blockchain",
   "homepage": "https://github.com/akash-network/console",
   "bugs": {
@@ -38,6 +38,8 @@
     "@cosmjs/math": "~0.36.1",
     "@cosmjs/proto-signing": "~0.36.1",
     "@cosmjs/stargate": "~0.36.1",
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/auto-instrumentations-node": "^0.57.1",
     "@sentry/node": "^7.52.0",
     "async": "^3.2.4",
     "axios": "^1.7.2",

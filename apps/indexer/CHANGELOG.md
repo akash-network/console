@@ -1,5 +1,12 @@
 
 
+## [1.23.3](https://github.com/akash-network/console/compare/indexer/v1.23.2...indexer/v1.23.3) (2026-01-19)
+
+
+### Bug Fixes
+
+* adds otel dependencies to indexer ([#2531](https://github.com/akash-network/console/issues/2531)) ([c2e811a](https://github.com/akash-network/console/commit/c2e811ae26a5ed69ef4c9a4d36d83d426cb710f5))
+
 ## [1.23.2](https://github.com/akash-network/console/compare/indexer/v1.23.1...indexer/v1.23.2) (2026-01-17)
 
 
