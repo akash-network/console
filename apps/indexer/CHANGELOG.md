@@ -1,5 +1,12 @@
 
 
+## [1.23.2](https://github.com/akash-network/console/compare/indexer/v1.23.1...indexer/v1.23.2) (2026-01-17)
+
+
+### Bug Fixes
+
+* upgrades chain-sdk dependency ([#2508](https://github.com/akash-network/console/issues/2508)) ([adae126](https://github.com/akash-network/console/commit/adae126f86b55250412a93f5a96e7505c0bf36df))
+
 ## [1.23.1](https://github.com/akash-network/console/compare/indexer/v1.23.0...indexer/v1.23.1) (2026-01-15)
 
 

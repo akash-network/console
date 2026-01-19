@@ -1,5 +1,13 @@
 
 
+## [1.12.1](https://github.com/akash-network/console/compare/stats-web/v1.12.0...stats-web/v1.12.1) (2026-01-17)
+
+
+### Bug Fixes
+
+* add proper logging for ssr ([#2502](https://github.com/akash-network/console/issues/2502)) ([563a7bb](https://github.com/akash-network/console/commit/563a7bbb61917c4070ba654fec7716212e2e1bee))
+* upgrades chain-sdk dependency ([#2508](https://github.com/akash-network/console/issues/2508)) ([adae126](https://github.com/akash-network/console/commit/adae126f86b55250412a93f5a96e7505c0bf36df))
+
 ## [1.12.0](https://github.com/akash-network/console/compare/stats-web/v1.11.0...stats-web/v1.12.0) (2026-01-13)
 
 

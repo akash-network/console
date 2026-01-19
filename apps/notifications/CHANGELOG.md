@@ -1,5 +1,12 @@
 
 
+## [2.12.3](https://github.com/akash-network/console/compare/notifications/v2.12.2...notifications/v2.12.3) (2026-01-17)
+
+
+### Bug Fixes
+
+* upgrades chain-sdk dependency ([#2508](https://github.com/akash-network/console/issues/2508)) ([adae126](https://github.com/akash-network/console/commit/adae126f86b55250412a93f5a96e7505c0bf36df))
+
 ## [2.12.2](https://github.com/akash-network/console/compare/notifications/v2.12.1...notifications/v2.12.2) (2026-01-15)
 
 
