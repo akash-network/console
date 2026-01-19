@@ -5,6 +5,9 @@
     "./apps/*"
   ],
   "scripts": {
+    "admin:dev": "npm run dev -w apps/admin-web & npm run dev -w apps/admin-api",
+    "admin:dev:api": "npm run dev -w apps/admin-api",
+    "admin:dev:web": "npm run dev -w apps/admin-web",
     "api:dev": "turbo dev --filter=\"./apps/api\"",
     "console:dev": "turbo dev --filter=\"./apps/deploy-web/\" --filter=\"./apps/api\" --filter=\"./apps/provider-proxy/\"",
     "console:dev:full-no-db": "cross-env SKIP_DC_DB=true turbo dev-nodc --filter=\"./apps/deploy-web/\" --filter=\"./apps/api\" --filter=\"./apps/indexer\" --filter=\"./apps/provider-proxy/\"",

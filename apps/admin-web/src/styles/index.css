@@ -1,0 +1,25 @@
+html {
+  -webkit-font-smoothing: auto;
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  height: 100% !important;
+  padding: 0 !important;
+}
+
+.text-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-floating-ui-portal] > div {
+  z-index: 2000 !important;
+  pointer-events: auto !important;
+}
+
+[data-radix-popper-content-wrapper] {
+  z-index: 1500 !important;
+}
