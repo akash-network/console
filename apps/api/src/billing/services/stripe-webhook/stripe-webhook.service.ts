@@ -182,12 +182,6 @@ export class StripeWebhookService {
       return;
     }
 
-    const refundedAmount = this.calculateRefundDelta(event);
-    if (refundedAmount <= 0) {
-      this.logger.warn({ event: "CHARGE_REFUNDED_NO_DELTA", chargeId: charge.id, totalRefunded: charge.amount_refunded });
-      return;
-    }
-
     const user = await this.userRepository.findOneBy({ stripeCustomerId: customerId });
     if (!user) {
       this.logger.error({ event: "CHARGE_REFUNDED_USER_NOT_FOUND", customerId, chargeId: charge.id });
@@ -201,8 +195,28 @@ export class StripeWebhookService {
       return;
     }
 
+    // Idempotency check: if we've already processed up to this refund amount, skip
+    if (transaction.amountRefunded >= charge.amount_refunded) {
+      this.logger.info({
+        event: "CHARGE_REFUND_ALREADY_PROCESSED",
+        chargeId: charge.id,
+        transactionId: transaction.id,
+        storedAmountRefunded: transaction.amountRefunded,
+        incomingAmountRefunded: charge.amount_refunded
+      });
+      return;
+    }
+
+    // Calculate delta based on what we've already processed, not previous_attributes
+    // This handles both retries and partial refunds correctly
+    const refundedAmount = charge.amount_refunded - transaction.amountRefunded;
+    if (refundedAmount <= 0) {
+      this.logger.warn({ event: "CHARGE_REFUNDED_NO_DELTA", chargeId: charge.id, totalRefunded: charge.amount_refunded });
+      return;
+    }
+
     // Only reduce wallet balance if the transaction was successful (user actually received credits)
-    if (transaction.status !== "succeeded") {
+    if (transaction.status !== "succeeded" && transaction.status !== "refunded") {
       this.logger.info({
         event: "CHARGE_REFUNDED_SKIPPED",
         chargeId: charge.id,
@@ -215,9 +229,11 @@ export class StripeWebhookService {
 
     const isFullyRefunded = charge.refunded;
 
-    if (isFullyRefunded) {
-      await this.stripeTransactionRepository.updateById(transaction.id, { status: "refunded" });
-    }
+    // Update transaction with new refund amount and status
+    await this.stripeTransactionRepository.updateById(transaction.id, {
+      amountRefunded: charge.amount_refunded,
+      ...(isFullyRefunded ? { status: "refunded" } : {})
+    });
 
     await this.refillService.reduceWalletBalance(refundedAmount, user.id);
 
@@ -227,20 +243,10 @@ export class StripeWebhookService {
       userId: user.id,
       refundedAmount,
       totalRefunded: charge.amount_refunded,
+      previouslyRefunded: transaction.amountRefunded,
       isFullyRefunded,
       transactionId: transaction.id
     });
-  }
-
-  /**
-   * Calculate the refund delta from a charge.refunded event.
-   * Uses previous_attributes to get the delta, not the cumulative amount_refunded.
-   */
-  private calculateRefundDelta(event: Stripe.ChargeRefundedEvent): number {
-    const charge = event.data.object;
-    const previousAttributes = event.data.previous_attributes as { amount_refunded?: number } | undefined;
-    const previousAmountRefunded = previousAttributes?.amount_refunded ?? 0;
-    return charge.amount_refunded - previousAmountRefunded;
   }
 
   @WithTransaction()
