@@ -1,5 +1,19 @@
 
 
+## [1.23.3](https://github.com/akash-network/console/compare/indexer/v1.23.2...indexer/v1.23.3) (2026-01-19)
+
+
+### Bug Fixes
+
+* adds otel dependencies to indexer ([#2531](https://github.com/akash-network/console/issues/2531)) ([c2e811a](https://github.com/akash-network/console/commit/c2e811ae26a5ed69ef4c9a4d36d83d426cb710f5))
+
+## [1.23.2](https://github.com/akash-network/console/compare/indexer/v1.23.1...indexer/v1.23.2) (2026-01-17)
+
+
+### Bug Fixes
+
+* upgrades chain-sdk dependency ([#2508](https://github.com/akash-network/console/issues/2508)) ([adae126](https://github.com/akash-network/console/commit/adae126f86b55250412a93f5a96e7505c0bf36df))
+
 ## [1.23.1](https://github.com/akash-network/console/compare/indexer/v1.23.0...indexer/v1.23.1) (2026-01-15)
 
 

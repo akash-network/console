@@ -31,15 +31,35 @@ runs:
       with:
         script: |
           let pr = context.payload.pull_request;
+
+          // Retry logic to handle timing issues with GitHub API
+          // Sometimes the commit-PR association isn't immediately available after merge
           if (!pr) {
-            const response = (
-              await github.rest.repos.listPullRequestsAssociatedWithCommit({
-                commit_sha: context.sha,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-              })
-            );
-            pr = response.data[0];
+            const maxRetries = 5;
+            const baseDelay = 2000; // 2 seconds
+
+            for (let attempt = 0; attempt < maxRetries; attempt++) {
+              if (attempt > 0) {
+                // Exponential backoff: 2s, 4s, 8s, 16s, 32s
+                const delay = baseDelay * Math.pow(2, attempt - 1);
+                core.info(`PR not found, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+              }
+
+              const response = (
+                await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                  commit_sha: context.sha,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                })
+              );
+
+              if (response.data && response.data.length > 0) {
+                pr = response.data[0];
+                core.info(`Found PR #${pr.number} on attempt ${attempt + 1}`);
+                break;
+              }
+            }
           }
 
           if (pr && !pr.merged_by) {
@@ -49,6 +69,15 @@ runs:
               pull_number: pr.number,
             });
             pr = data;
+          }
+
+          if (!pr) {
+            core.warning(`No PR found for commit ${context.sha} after retries`);
+            core.setOutput('number', '');
+            core.setOutput('title', '');
+            core.setOutput('author', '');
+            core.setOutput('slack-user', '');
+            return;
           }
 
           core.setOutput('number', pr.number);
