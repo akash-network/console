@@ -17,7 +17,6 @@ export const envSchema = z
     DEPLOYMENT_ENV: z.string().optional().default("production"),
     NETWORK: z.enum(["mainnet", "testnet", "sandbox"]).default("mainnet"),
     AMPLITUDE_API_KEY: z.string(),
-    AMPLITUDE_SAMPLING: z.number({ coerce: true }).optional().default(1),
     UNLEASH_SERVER_API_URL: z.string().optional(),
     UNLEASH_SERVER_API_TOKEN: z.string().optional(),
     UNLEASH_APP_NAME: z.string().optional().default("console-api"),
