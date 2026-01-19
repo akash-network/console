@@ -1,5 +1,12 @@
 
 
+## [3.20.3](https://github.com/akash-network/console/compare/console-api/v3.20.2...console-api/v3.20.3) (2026-01-17)
+
+
+### Bug Fixes
+
+* upgrades chain-sdk dependency ([#2508](https://github.com/akash-network/console/issues/2508)) ([adae126](https://github.com/akash-network/console/commit/adae126f86b55250412a93f5a96e7505c0bf36df))
+
 ## [3.20.2](https://github.com/akash-network/console/compare/console-api/v3.20.1...console-api/v3.20.2) (2026-01-15)
 
 

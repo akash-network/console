@@ -1,5 +1,13 @@
 
 
+## [3.22.3](https://github.com/akash-network/console/compare/console-web/v3.22.2...console-web/v3.22.3) (2026-01-17)
+
+
+### Bug Fixes
+
+* **deployment:** edit deployment name ([#2524](https://github.com/akash-network/console/issues/2524)) ([69ef149](https://github.com/akash-network/console/commit/69ef1493a5e2045a3d17019a9837af33ae17a29c))
+* upgrades chain-sdk dependency ([#2508](https://github.com/akash-network/console/issues/2508)) ([adae126](https://github.com/akash-network/console/commit/adae126f86b55250412a93f5a96e7505c0bf36df))
+
 ## [3.22.2](https://github.com/akash-network/console/compare/console-web/v3.22.1...console-web/v3.22.2) (2026-01-16)
 
 
