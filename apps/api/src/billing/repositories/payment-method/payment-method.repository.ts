@@ -132,4 +132,48 @@ export class PaymentMethodRepository extends BaseRepository<Table, PaymentMethod
   async deleteByFingerprint(fingerprint: string, paymentMethodId: string, userId: string) {
     return await this.deleteBy({ fingerprint, paymentMethodId, userId });
   }
+
+  /**
+   * Upserts a payment method - gets existing or creates new.
+   * Handles idempotency for webhook retries using onConflictDoNothing.
+   * Automatically sets isDefault=true if this is the user's first payment method.
+   */
+  async upsert(input: { userId: string; fingerprint: string; paymentMethodId: string }): Promise<{ paymentMethod: PaymentMethodOutput; isNew: boolean }> {
+    // Check if already exists (idempotency fast path)
+    const existing = await this.findOneBy({
+      fingerprint: input.fingerprint,
+      paymentMethodId: input.paymentMethodId
+    });
+
+    if (existing) {
+      return { paymentMethod: existing, isNew: false };
+    }
+
+    // Determine isDefault BEFORE insert - first payment method for user should be default
+    const existingCount = await this.countByUserId(input.userId);
+    const isDefault = existingCount === 0;
+
+    const [newRecord] = await this.cursor
+      .insert(this.table)
+      .values({
+        ...input,
+        isDefault
+      })
+      .onConflictDoNothing({
+        target: [this.table.fingerprint, this.table.paymentMethodId]
+      })
+      .returning();
+
+    if (newRecord) {
+      return { paymentMethod: this.toOutput(newRecord), isNew: true };
+    }
+
+    // Race condition: record was created by a concurrent request
+    const paymentMethod = await this.findOneBy({
+      fingerprint: input.fingerprint,
+      paymentMethodId: input.paymentMethodId
+    });
+
+    return { paymentMethod: paymentMethod!, isNew: false };
+  }
 }

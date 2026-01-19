@@ -87,6 +87,17 @@ export class StripeWebhookService {
       return;
     }
 
+    // Check if this payment was already processed (idempotency for Stripe webhook retries)
+    const existingTransaction = await this.stripeTransactionRepository.findByPaymentIntentId(paymentIntent.id);
+    if (existingTransaction?.status === "succeeded") {
+      this.logger.info({
+        event: "PAYMENT_ALREADY_PROCESSED",
+        paymentIntentId: paymentIntent.id,
+        transactionId: existingTransaction.id
+      });
+      return;
+    }
+
     // Update transaction status with charge details
     const chargeId = paymentIntent.latest_charge
       ? typeof paymentIntent.latest_charge === "string"
@@ -264,26 +275,36 @@ export class StripeWebhookService {
       return;
     }
 
-    const count = await this.paymentMethodRepository.countByUserId(user.id);
-    const isDefault = count === 0;
-
     assertIsPayingUser(user);
 
-    await Promise.all([
-      this.paymentMethodRepository.create({
-        userId: user.id,
-        fingerprint,
-        paymentMethodId: paymentMethod.id,
-        isDefault
-      }),
-      ...(isDefault ? [this.stripe.markRemotePaymentMethodAsDefault(paymentMethod.id, user)] : [])
-    ]);
+    // Use upsert for idempotency - handles Stripe webhook retries gracefully
+    const { paymentMethod: localPaymentMethod, isNew } = await this.paymentMethodRepository.upsert({
+      userId: user.id,
+      fingerprint,
+      paymentMethodId: paymentMethod.id
+    });
+
+    // Only set as default on Stripe if newly created AND is the first payment method (default)
+    if (isNew && localPaymentMethod.isDefault) {
+      try {
+        await this.stripe.markRemotePaymentMethodAsDefault(paymentMethod.id, user);
+      } catch (error) {
+        // Log but don't fail - local record exists, Stripe sync can be retried manually if needed
+        this.logger.warn({
+          event: "STRIPE_DEFAULT_PAYMENT_METHOD_SYNC_FAILED",
+          paymentMethodId: paymentMethod.id,
+          userId: user.id,
+          error
+        });
+      }
+    }
 
     this.logger.info({
       event: "PAYMENT_METHOD_ATTACHED",
       paymentMethodId: paymentMethod.id,
       userId: user.id,
-      isDefault
+      isDefault: localPaymentMethod.isDefault,
+      wasAlreadyProcessed: !isNew
     });
   }
 
