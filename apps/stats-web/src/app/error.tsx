@@ -16,7 +16,7 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
     errorLogger.debug(error);
     // Capture error in Sentry
     Sentry.captureException(error);
-  }, [error, errorLogger]);
+  }, [error]);
 
   return (
     <PageContainer>

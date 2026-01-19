@@ -28,10 +28,9 @@ const nextConfig = {
   /**
    *
    * @param {import('webpack').Configuration} config
-   * @param {import('next').NextConfig} nextConfig
    * @returns
    */
-  webpack: (config, options) => {
+  webpack: config => {
     config.externals.push("pino-pretty");
 
     return config;

@@ -19,17 +19,17 @@ export class ErrorHandlerService {
     };
   }
 
-  reportError({ severity, error, tags, ...extra }: ErrorContext): void {
+  reportError({ severity, error, tags, ...extraContext }: ErrorContext): void {
     if (error && typeof error === "object" && "name" in error && error.name === "AbortError") {
       return;
     }
 
     const finalTags: Record<string, string> = { ...tags };
 
-    this.logger.error({ ...extra, ...finalTags, error });
+    this.logger.error({ ...extraContext, ...finalTags, error });
     this.captureException(error, {
       level: severity || "error",
-      extra,
+      extra: extraContext,
       tags: finalTags
     });
   }
@@ -84,8 +84,8 @@ export function sentryTraceToW3C(sentryTrace?: string): string | undefined {
   if (!value) return;
 
   const [traceId, spanId, sampled] = value.split("-", 3);
-  // W3C spec disallows all-zero ids
-  if (!traceId || !spanId || Number(traceId) === 0 || Number(spanId) === 0) return;
+  // W3C spec disallows all-zero ids (check hex values)
+  if (!traceId || !spanId || parseInt(traceId, 16) === 0 || parseInt(spanId, 16) === 0) return;
 
   const flags = Number(sampled) === 1 ? "01" : "00";
   return `00-${traceId}-${spanId}-${flags}`;
