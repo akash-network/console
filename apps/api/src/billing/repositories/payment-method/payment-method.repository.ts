@@ -3,7 +3,7 @@ import { singleton } from "tsyringe";
 import { uuidv4 } from "unleash-client/lib/uuidv4";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
-import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
+import { type AbilityParams, BaseRepository, isUniqueViolation } from "@src/core/repositories/base.repository";
 import { type ApiTransaction, TxService } from "@src/core/services";
 
 type Table = ApiPgTables["PaymentMethods"];
@@ -137,6 +137,9 @@ export class PaymentMethodRepository extends BaseRepository<Table, PaymentMethod
    * Upserts a payment method - gets existing or creates new.
    * Handles idempotency for webhook retries using onConflictDoNothing.
    * Automatically sets isDefault=true if this is the user's first payment method.
+   *
+   * Also handles race conditions where two concurrent requests both try to set isDefault=true,
+   * which would violate the partial unique constraint on (userId, isDefault) WHERE isDefault=true.
    */
   async upsert(input: { userId: string; fingerprint: string; paymentMethodId: string }): Promise<{ paymentMethod: PaymentMethodOutput; isNew: boolean }> {
     // Check if already exists (idempotency fast path)
@@ -153,19 +156,43 @@ export class PaymentMethodRepository extends BaseRepository<Table, PaymentMethod
     const existingCount = await this.countByUserId(input.userId);
     const isDefault = existingCount === 0;
 
-    const [newRecord] = await this.cursor
-      .insert(this.table)
-      .values({
-        ...input,
-        isDefault
-      })
-      .onConflictDoNothing({
-        target: [this.table.fingerprint, this.table.paymentMethodId]
-      })
-      .returning();
+    try {
+      const [newRecord] = await this.cursor
+        .insert(this.table)
+        .values({
+          ...input,
+          isDefault
+        })
+        .onConflictDoNothing({
+          target: [this.table.fingerprint, this.table.paymentMethodId]
+        })
+        .returning();
 
-    if (newRecord) {
-      return { paymentMethod: this.toOutput(newRecord), isNew: true };
+      if (newRecord) {
+        return { paymentMethod: this.toOutput(newRecord), isNew: true };
+      }
+    } catch (error) {
+      // Handle race condition: another request set isDefault=true for this user concurrently,
+      // violating the partial unique constraint on (userId, isDefault) WHERE isDefault=true.
+      // In this case, retry the insert with isDefault=false.
+      if (isUniqueViolation(error)) {
+        const [retryRecord] = await this.cursor
+          .insert(this.table)
+          .values({
+            ...input,
+            isDefault: false
+          })
+          .onConflictDoNothing({
+            target: [this.table.fingerprint, this.table.paymentMethodId]
+          })
+          .returning();
+
+        if (retryRecord) {
+          return { paymentMethod: this.toOutput(retryRecord), isNew: true };
+        }
+      } else {
+        throw error;
+      }
     }
 
     // Race condition: record was created by a concurrent request
