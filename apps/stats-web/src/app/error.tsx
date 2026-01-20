@@ -2,11 +2,11 @@
 
 import { useEffect } from "react";
 import { Button } from "@akashnetwork/ui/components";
-import * as Sentry from "@sentry/nextjs";
 
 import PageContainer from "@/components/PageContainer";
 import { Title } from "@/components/Title";
 import { useLogger } from "@/hooks/useLogger";
+import { errorHandler } from "@/services/di";
 
 export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   const errorLogger = useLogger("apps/stats-web/src/app/error.tsx");
@@ -15,7 +15,7 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
     // Log the error to an error reporting service
     errorLogger.debug(error);
     // Capture error in Sentry
-    Sentry.captureException(error);
+    errorHandler.reportError({ error });
   }, [error]);
 
   return (

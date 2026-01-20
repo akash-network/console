@@ -1,7 +1,6 @@
-import { getTraceData } from "@sentry/nextjs";
 import { headers } from "next/headers";
 
-import { sentryTraceToW3C } from "@/services/error-handler/error-handler.service";
+import { errorHandler } from "@/services/di";
 
 /**
  * Extracts IP-related headers from Next.js request headers to forward to API requests.
@@ -31,12 +30,10 @@ export function getIpForwardingHeaders(): Headers {
  */
 export function getTraceparentHeaders(): Headers {
   const headersToForward = new Headers();
-  const traceData = getTraceData();
-  const traceId = traceData["sentry-trace"];
-  const traceIdW3C = sentryTraceToW3C(traceId);
+  const traceData = errorHandler.getTraceData();
 
-  if (traceIdW3C) {
-    headersToForward.set("traceparent", traceIdW3C);
+  if (traceData.traceIdW3C) {
+    headersToForward.set("traceparent", traceData.traceIdW3C);
   }
   if (traceData.baggage) {
     headersToForward.set("baggage", traceData.baggage);

@@ -2,7 +2,8 @@
 
 import { useEffect } from "react";
 import { LoggerService } from "@akashnetwork/logging";
-import * as Sentry from "@sentry/nextjs";
+
+import { errorHandler } from "@/services/di";
 
 const globalErrorLogger = new LoggerService({ name: "global-error" });
 
@@ -10,7 +11,7 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
   useEffect(() => {
     globalErrorLogger.error(error);
     // Capture error in Sentry
-    Sentry.captureException(error);
+    errorHandler.reportError({ error });
   }, [error]);
 
   return (
