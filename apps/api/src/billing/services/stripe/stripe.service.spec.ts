@@ -1436,6 +1436,7 @@ function setup(
     type: input.type,
     status: input.status ?? "created",
     amount: input.amount,
+    amountRefunded: input.amountRefunded ?? 0,
     currency: input.currency ?? "usd",
     stripePaymentIntentId: input.stripePaymentIntentId ?? null,
     stripeChargeId: input.stripeChargeId ?? null,

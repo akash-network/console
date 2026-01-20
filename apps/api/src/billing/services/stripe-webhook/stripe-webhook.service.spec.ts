@@ -83,6 +83,62 @@ describe(StripeWebhookService.name, () => {
       expect(userRepository.findOneBy).toHaveBeenCalledWith({ stripeCustomerId: "cus_unknown" });
       expect(refillService.topUpWallet).not.toHaveBeenCalled();
     });
+
+    it("returns early when payment was already processed (idempotency)", async () => {
+      const { service, userRepository, stripeTransactionRepository, refillService } = setup();
+      const mockUser = createTestUser();
+      const paymentIntentId = "pi_123";
+
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findByPaymentIntentId.mockResolvedValue(
+        createMockTransaction({ id: "tx-123", status: "succeeded", stripePaymentIntentId: paymentIntentId })
+      );
+
+      const event = createPaymentIntentSucceededEvent({
+        id: paymentIntentId,
+        customer: mockUser.stripeCustomerId,
+        amount: 10000
+      });
+
+      await service.tryToTopUpWalletFromPaymentIntent(event);
+
+      expect(stripeTransactionRepository.findByPaymentIntentId).toHaveBeenCalledWith(paymentIntentId);
+      expect(refillService.topUpWallet).not.toHaveBeenCalled();
+      expect(stripeTransactionRepository.updateStatusByPaymentIntentId).not.toHaveBeenCalled();
+    });
+
+    it("processes payment when transaction exists but is not succeeded", async () => {
+      const { service, userRepository, stripeTransactionRepository, refillService, stripeService } = setup();
+      const mockUser = createTestUser();
+      const chargeId = "ch_123";
+      const paymentIntentId = "pi_123";
+      const amount = 10000;
+
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findByPaymentIntentId.mockResolvedValue(
+        createMockTransaction({ id: "tx-123", status: "pending", stripePaymentIntentId: paymentIntentId })
+      );
+      stripeTransactionRepository.updateStatusByPaymentIntentId.mockResolvedValue(undefined);
+      refillService.topUpWallet.mockResolvedValue();
+      (stripeService.charges.retrieve as jest.Mock).mockResolvedValue({
+        id: chargeId,
+        payment_method_details: { card: { brand: "visa", last4: "4242" } },
+        receipt_url: "https://receipt.url"
+      });
+
+      const event = createPaymentIntentSucceededEvent({
+        id: paymentIntentId,
+        customer: mockUser.stripeCustomerId,
+        amount,
+        amount_received: amount,
+        latest_charge: chargeId,
+        payment_method_types: ["card"]
+      });
+
+      await service.tryToTopUpWalletFromPaymentIntent(event);
+
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(amount, mockUser.id);
+    });
   });
 
   describe("handlePaymentIntentFailed", () => {
@@ -152,7 +208,7 @@ describe(StripeWebhookService.name, () => {
       const refundedAmount = 5000;
 
       userRepository.findOneBy.mockResolvedValue(mockUser);
-      stripeTransactionRepository.findByChargeId.mockResolvedValue(createMockTransaction({ id: transactionId }));
+      stripeTransactionRepository.findByChargeId.mockResolvedValue(createMockTransaction({ id: transactionId, amountRefunded: 0 }));
       stripeTransactionRepository.updateById.mockResolvedValue(undefined);
       refillService.reduceWalletBalance.mockResolvedValue();
 
@@ -160,15 +216,14 @@ describe(StripeWebhookService.name, () => {
         id: chargeId,
         customer: mockUser.stripeCustomerId!,
         amount_refunded: refundedAmount,
-        refunded: true,
-        previous_amount_refunded: 0
+        refunded: true
       });
 
       await service.handleChargeRefunded(event);
 
       expect(userRepository.findOneBy).toHaveBeenCalledWith({ stripeCustomerId: mockUser.stripeCustomerId });
       expect(stripeTransactionRepository.findByChargeId).toHaveBeenCalledWith(chargeId);
-      expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(transactionId, { status: "refunded" });
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(transactionId, { amountRefunded: refundedAmount, status: "refunded" });
       expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(refundedAmount, mockUser.id);
     });
 
@@ -176,26 +231,51 @@ describe(StripeWebhookService.name, () => {
       const { service, userRepository, stripeTransactionRepository, refillService } = setup();
       const mockUser = createTestUser();
       const chargeId = "ch_123";
+      const transactionId = "tx-123";
 
       userRepository.findOneBy.mockResolvedValue(mockUser);
-      stripeTransactionRepository.findByChargeId.mockResolvedValue(createMockTransaction({ id: "tx-123" }));
+      // Transaction already has 3000 refunded
+      stripeTransactionRepository.findByChargeId.mockResolvedValue(createMockTransaction({ id: transactionId, amountRefunded: 3000 }));
+      stripeTransactionRepository.updateById.mockResolvedValue(undefined);
       refillService.reduceWalletBalance.mockResolvedValue();
 
-      // Second partial refund: total is now 8000, previously was 3000, so delta is 5000
+      // Second partial refund: total is now 8000, previously was 3000 in DB, so delta is 5000
       const event = createChargeRefundedEvent({
         id: chargeId,
         customer: mockUser.stripeCustomerId!,
         amount_refunded: 8000,
-        refunded: false, // Not fully refunded
-        previous_amount_refunded: 3000
+        refunded: false // Not fully refunded
       });
 
       await service.handleChargeRefunded(event);
 
       // Uses delta (8000 - 3000 = 5000), not cumulative (8000)
       expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(5000, mockUser.id);
-      // Does not update to "refunded" since not fully refunded
+      // Updates amountRefunded but not status since not fully refunded
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(transactionId, { amountRefunded: 8000 });
+    });
+
+    it("handles duplicate webhook delivery idempotently", async () => {
+      const { service, userRepository, stripeTransactionRepository, refillService } = setup();
+      const mockUser = createTestUser();
+      const chargeId = "ch_123";
+
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      // Transaction already has this refund processed (amountRefunded matches charge.amount_refunded)
+      stripeTransactionRepository.findByChargeId.mockResolvedValue(createMockTransaction({ id: "tx-123", amountRefunded: 5000 }));
+
+      const event = createChargeRefundedEvent({
+        id: chargeId,
+        customer: mockUser.stripeCustomerId!,
+        amount_refunded: 5000, // Same as stored amountRefunded
+        refunded: true
+      });
+
+      await service.handleChargeRefunded(event);
+
+      // Should not process again
       expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+      expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
     });
 
     it("returns early when customer ID is missing", async () => {
@@ -214,23 +294,6 @@ describe(StripeWebhookService.name, () => {
       expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
     });
 
-    it("returns early when refund delta is zero", async () => {
-      const { service, userRepository, refillService } = setup();
-
-      const event = createChargeRefundedEvent({
-        id: "ch_123",
-        customer: "cus_123",
-        amount_refunded: 5000,
-        refunded: true,
-        previous_amount_refunded: 5000 // Same as current, delta is 0
-      });
-
-      await service.handleChargeRefunded(event);
-
-      expect(userRepository.findOneBy).not.toHaveBeenCalled();
-      expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
-    });
-
     it("returns early when user is not found", async () => {
       const { service, userRepository, refillService } = setup();
 
@@ -240,8 +303,7 @@ describe(StripeWebhookService.name, () => {
         id: "ch_123",
         customer: "cus_unknown",
         amount_refunded: 5000,
-        refunded: true,
-        previous_amount_refunded: 0
+        refunded: true
       });
 
       await service.handleChargeRefunded(event);
@@ -261,8 +323,7 @@ describe(StripeWebhookService.name, () => {
         id: "ch_123",
         customer: mockUser.stripeCustomerId!,
         amount_refunded: 5000,
-        refunded: true,
-        previous_amount_refunded: 0
+        refunded: true
       });
 
       await service.handleChargeRefunded(event);
@@ -282,14 +343,200 @@ describe(StripeWebhookService.name, () => {
         id: "ch_123",
         customer: mockUser.stripeCustomerId!,
         amount_refunded: 5000,
-        refunded: true,
-        previous_amount_refunded: 0
+        refunded: true
       });
 
       await service.handleChargeRefunded(event);
 
       expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
       expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("handlePaymentMethodAttached", () => {
+    it("creates payment method for new card", async () => {
+      const { service, userRepository, paymentMethodRepository, stripeService } = setup();
+      const mockUser = createTestUser({ stripeCustomerId: "cus_123" });
+      const paymentMethodId = "pm_123";
+      const fingerprint = "fp_abc123";
+
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      paymentMethodRepository.upsert.mockResolvedValue({
+        paymentMethod: {
+          id: "local-pm-123",
+          userId: mockUser.id,
+          fingerprint,
+          paymentMethodId,
+          isDefault: true,
+          isValidated: false,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        },
+        isNew: true
+      });
+      stripeService.markRemotePaymentMethodAsDefault.mockResolvedValue(undefined);
+
+      const event = createPaymentMethodAttachedEvent({
+        id: paymentMethodId,
+        customer: mockUser.stripeCustomerId!,
+        fingerprint
+      });
+
+      await service.handlePaymentMethodAttached(event);
+
+      expect(paymentMethodRepository.upsert).toHaveBeenCalledWith({
+        userId: mockUser.id,
+        fingerprint,
+        paymentMethodId
+      });
+      expect(stripeService.markRemotePaymentMethodAsDefault).toHaveBeenCalledWith(paymentMethodId, mockUser);
+    });
+
+    it("handles duplicate webhook delivery gracefully (idempotency)", async () => {
+      const { service, userRepository, paymentMethodRepository, stripeService } = setup();
+      const mockUser = createTestUser({ stripeCustomerId: "cus_123" });
+      const paymentMethodId = "pm_123";
+      const fingerprint = "fp_abc123";
+
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      paymentMethodRepository.upsert.mockResolvedValue({
+        paymentMethod: {
+          id: "local-pm-123",
+          userId: mockUser.id,
+          fingerprint,
+          paymentMethodId,
+          isDefault: true,
+          isValidated: false,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        },
+        isNew: false // Already existed
+      });
+
+      const event = createPaymentMethodAttachedEvent({
+        id: paymentMethodId,
+        customer: mockUser.stripeCustomerId!,
+        fingerprint
+      });
+
+      await service.handlePaymentMethodAttached(event);
+
+      expect(paymentMethodRepository.upsert).toHaveBeenCalled();
+      // Should NOT call Stripe API when payment method already exists
+      expect(stripeService.markRemotePaymentMethodAsDefault).not.toHaveBeenCalled();
+    });
+
+    it("does not set as default on Stripe when not the first payment method", async () => {
+      const { service, userRepository, paymentMethodRepository, stripeService } = setup();
+      const mockUser = createTestUser({ stripeCustomerId: "cus_123" });
+      const paymentMethodId = "pm_456";
+      const fingerprint = "fp_def456";
+
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      paymentMethodRepository.upsert.mockResolvedValue({
+        paymentMethod: {
+          id: "local-pm-456",
+          userId: mockUser.id,
+          fingerprint,
+          paymentMethodId,
+          isDefault: false, // Not the default (not first payment method)
+          isValidated: false,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        },
+        isNew: true
+      });
+
+      const event = createPaymentMethodAttachedEvent({
+        id: paymentMethodId,
+        customer: mockUser.stripeCustomerId!,
+        fingerprint
+      });
+
+      await service.handlePaymentMethodAttached(event);
+
+      expect(stripeService.markRemotePaymentMethodAsDefault).not.toHaveBeenCalled();
+    });
+
+    it("logs warning but does not fail when Stripe default sync fails", async () => {
+      const { service, userRepository, paymentMethodRepository, stripeService } = setup();
+      const mockUser = createTestUser({ stripeCustomerId: "cus_123" });
+      const paymentMethodId = "pm_123";
+      const fingerprint = "fp_abc123";
+
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      paymentMethodRepository.upsert.mockResolvedValue({
+        paymentMethod: {
+          id: "local-pm-123",
+          userId: mockUser.id,
+          fingerprint,
+          paymentMethodId,
+          isDefault: true,
+          isValidated: false,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        },
+        isNew: true
+      });
+      stripeService.markRemotePaymentMethodAsDefault.mockRejectedValue(new Error("Stripe API error"));
+
+      const event = createPaymentMethodAttachedEvent({
+        id: paymentMethodId,
+        customer: mockUser.stripeCustomerId!,
+        fingerprint
+      });
+
+      // Should not throw
+      await expect(service.handlePaymentMethodAttached(event)).resolves.not.toThrow();
+    });
+
+    it("returns early when customer ID is missing", async () => {
+      const { service, userRepository, paymentMethodRepository } = setup();
+
+      const event = createPaymentMethodAttachedEvent({
+        id: "pm_123",
+        customer: null,
+        fingerprint: "fp_abc123"
+      });
+
+      await service.handlePaymentMethodAttached(event);
+
+      expect(userRepository.findOneBy).not.toHaveBeenCalled();
+      expect(paymentMethodRepository.upsert).not.toHaveBeenCalled();
+    });
+
+    it("returns early when user is not found", async () => {
+      const { service, userRepository, paymentMethodRepository } = setup();
+
+      userRepository.findOneBy.mockResolvedValue(undefined);
+
+      const event = createPaymentMethodAttachedEvent({
+        id: "pm_123",
+        customer: "cus_unknown",
+        fingerprint: "fp_abc123"
+      });
+
+      await service.handlePaymentMethodAttached(event);
+
+      expect(userRepository.findOneBy).toHaveBeenCalledWith({ stripeCustomerId: "cus_unknown" });
+      expect(paymentMethodRepository.upsert).not.toHaveBeenCalled();
+    });
+
+    it("returns early when fingerprint is missing", async () => {
+      const { service, userRepository, paymentMethodRepository } = setup();
+      const mockUser = createTestUser({ stripeCustomerId: "cus_123" });
+
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+
+      const event = createPaymentMethodAttachedEvent({
+        id: "pm_123",
+        customer: mockUser.stripeCustomerId!,
+        fingerprint: null
+      });
+
+      await service.handlePaymentMethodAttached(event);
+
+      expect(paymentMethodRepository.upsert).not.toHaveBeenCalled();
     });
   });
 
@@ -326,6 +573,7 @@ describe(StripeWebhookService.name, () => {
       type: "payment_intent",
       status: "succeeded",
       amount: 10000,
+      amountRefunded: 0,
       currency: "usd",
       stripePaymentIntentId: "pi_123",
       stripeChargeId: "ch_123",
@@ -374,13 +622,7 @@ describe(StripeWebhookService.name, () => {
     } as Stripe.PaymentIntentCanceledEvent;
   }
 
-  function createChargeRefundedEvent(params: {
-    id: string;
-    customer: string | null;
-    amount_refunded: number;
-    refunded: boolean;
-    previous_amount_refunded?: number;
-  }): Stripe.ChargeRefundedEvent {
+  function createChargeRefundedEvent(params: { id: string; customer: string | null; amount_refunded: number; refunded: boolean }): Stripe.ChargeRefundedEvent {
     return {
       id: "evt_123",
       type: "charge.refunded",
@@ -390,11 +632,22 @@ describe(StripeWebhookService.name, () => {
           customer: params.customer,
           amount_refunded: params.amount_refunded,
           refunded: params.refunded
-        } as Stripe.Charge,
-        previous_attributes: {
-          amount_refunded: params.previous_amount_refunded ?? 0
-        }
+        } as Stripe.Charge
       }
     } as Stripe.ChargeRefundedEvent;
+  }
+
+  function createPaymentMethodAttachedEvent(params: { id: string; customer: string | null; fingerprint: string | null }): Stripe.PaymentMethodAttachedEvent {
+    return {
+      id: "evt_123",
+      type: "payment_method.attached",
+      data: {
+        object: {
+          id: params.id,
+          customer: params.customer,
+          card: params.fingerprint ? { fingerprint: params.fingerprint } : undefined
+        } as Stripe.PaymentMethod
+      }
+    } as Stripe.PaymentMethodAttachedEvent;
   }
 });

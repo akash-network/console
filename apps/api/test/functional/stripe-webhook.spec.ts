@@ -58,6 +58,63 @@ describe("Stripe webhook", () => {
 
   describe("POST /v1/stripe-webhook", () => {
     describe("payment_intent.succeeded", () => {
+      it("handles duplicate webhook deliveries idempotently", async () => {
+        const paymentIntentId = `pi_${faker.string.alphanumeric(24)}`;
+        const chargeId = `ch_${faker.string.alphanumeric(24)}`;
+        const amount = 10000;
+
+        const { user } = await walletService.createUserAndWallet();
+        const stripeCustomerId = `cus_${faker.string.alphanumeric(14)}`;
+        await db.update(Users).set({ stripeCustomerId }).where(eq(Users.id, user.id));
+
+        await stripeTransactionRepository.create({
+          userId: user.id,
+          type: "payment_intent",
+          status: "created",
+          amount,
+          currency: "usd",
+          stripePaymentIntentId: paymentIntentId
+        });
+
+        nock("https://api.stripe.com")
+          .get(`/v1/charges/${chargeId}`)
+          .reply(200, {
+            id: chargeId,
+            payment_method_details: { card: { brand: "visa", last4: "4242" } },
+            receipt_url: "https://pay.stripe.com/receipts/test"
+          });
+
+        const payload = JSON.stringify({
+          data: {
+            object: {
+              id: paymentIntentId,
+              customer: stripeCustomerId,
+              amount,
+              amount_received: amount,
+              latest_charge: chargeId,
+              payment_method_types: ["card"]
+            }
+          },
+          type: "payment_intent.succeeded"
+        });
+
+        // First webhook delivery
+        const response1 = await getWebhookResponse(payload);
+        expect(response1.status).toBe(200);
+
+        const walletAfterFirst = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, user.id) });
+        const expectedBalance = billingConfig.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT + amount * 10000;
+        expect(walletAfterFirst?.deploymentAllowance).toBe(`${expectedBalance}.00`);
+
+        // Second webhook delivery (retry) - should not double-credit
+        const response2 = await getWebhookResponse(payload);
+        expect(response2.status).toBe(200);
+
+        const walletAfterSecond = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, user.id) });
+        // Balance should be unchanged - no double credit
+        expect(walletAfterSecond?.deploymentAllowance).toBe(`${expectedBalance}.00`);
+      });
+
       it("tops up wallet when payment intent succeeds", async () => {
         const paymentIntentId = `pi_${faker.string.alphanumeric(24)}`;
         const chargeId = `ch_${faker.string.alphanumeric(24)}`;
@@ -172,6 +229,43 @@ describe("Stripe webhook", () => {
     });
 
     describe("charge.refunded", () => {
+      it("handles duplicate refund webhook deliveries idempotently", async () => {
+        const paymentIntentId = `pi_${faker.string.alphanumeric(24)}`;
+        const chargeId = `ch_${faker.string.alphanumeric(24)}`;
+        const amount = 50;
+
+        const { user } = await walletService.createUserAndWallet();
+        const stripeCustomerId = `cus_${faker.string.alphanumeric(14)}`;
+        await db.update(Users).set({ stripeCustomerId }).where(eq(Users.id, user.id));
+
+        await stripeTransactionRepository.create({
+          userId: user.id,
+          type: "payment_intent",
+          status: "succeeded",
+          amount,
+          currency: "usd",
+          stripePaymentIntentId: paymentIntentId,
+          stripeChargeId: chargeId
+        });
+
+        const payload = generateChargeRefundedPayload(chargeId, stripeCustomerId, amount, 0);
+
+        // First webhook delivery
+        const response1 = await getWebhookResponse(payload);
+        expect(response1.status).toBe(200);
+
+        const walletAfterFirst = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, user.id) });
+        const balanceAfterFirstRefund = walletAfterFirst?.deploymentAllowance;
+
+        // Second webhook delivery (retry) - should not double-deduct
+        const response2 = await getWebhookResponse(payload);
+        expect(response2.status).toBe(200);
+
+        const walletAfterSecond = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, user.id) });
+        // Balance should be unchanged - no double deduction
+        expect(walletAfterSecond?.deploymentAllowance).toBe(balanceAfterFirstRefund);
+      });
+
       it("reduces wallet balance and updates transaction status on full refund", async () => {
         const paymentIntentId = `pi_${faker.string.alphanumeric(24)}`;
         const chargeId = `ch_${faker.string.alphanumeric(24)}`;
