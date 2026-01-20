@@ -1,5 +1,12 @@
 
 
+## [1.23.4](https://github.com/akash-network/console/compare/indexer/v1.23.3...indexer/v1.23.4) (2026-01-20)
+
+
+### Bug Fixes
+
+* improve sql perf ([#2535](https://github.com/akash-network/console/issues/2535)) ([7dcd048](https://github.com/akash-network/console/commit/7dcd0485f1ae0f483ba33ec81f2aae6ec376e1bb))
+
 ## [1.23.3](https://github.com/akash-network/console/compare/indexer/v1.23.2...indexer/v1.23.3) (2026-01-19)
 
 

@@ -1,5 +1,7 @@
 
 
+## [1.35.1](https://github.com/akash-network/console/compare/provider-console/v1.35.0...provider-console/v1.35.1) (2026-01-20)
+
 ## [1.35.0](https://github.com/akash-network/console/compare/provider-console/v1.34.1...provider-console/v1.35.0) (2026-01-13)
 
 
