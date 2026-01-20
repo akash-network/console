@@ -1,4 +1,3 @@
-import { LoggerService } from "@akashnetwork/logging";
 import type { Network } from "@akashnetwork/network-store";
 import { Card, CardContent, Table, TableBody, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import { SearchX } from "lucide-react";
@@ -11,11 +10,12 @@ import { TransactionRow } from "@/components/blockchain/TransactionRow";
 import PageContainer from "@/components/PageContainer";
 import { Title } from "@/components/Title";
 import { networkId } from "@/config/env-config.schema";
+import { createLogger } from "@/lib/createLogger/createLogger";
 import { serverFetch } from "@/lib/serverFetch";
 import { serverApiUrlService } from "@/services/api-url/server-api-url.service";
 import type { BlockDetail } from "@/types";
 
-const logger = new LoggerService({ context: "BlockDetailPage" });
+const logger = createLogger({ context: "BlockDetailPage" });
 
 const BlockDetailPageSchema = z.object({
   params: z.object({
