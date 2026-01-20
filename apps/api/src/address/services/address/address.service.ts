@@ -6,6 +6,7 @@ import { AxiosError } from "axios";
 import { singleton } from "tsyringe";
 
 import type { GetAddressResponse } from "@src/address/http-schemas/address.schema";
+import { Memoize } from "@src/caching/helpers";
 import { TransactionService } from "@src/transaction/services/transaction/transaction.service";
 import { ValidatorRepository } from "@src/validator/repositories/validator/validator.repository";
 
@@ -19,6 +20,7 @@ export class AddressService {
     private readonly validatorRepository: ValidatorRepository
   ) {}
 
+  @Memoize({ ttlInSeconds: 30 })
   async getAddressDetails(address: string): Promise<GetAddressResponse> {
     const [balancesResponse, delegationsResponse, rewardsResponse, redelegationsResponse, latestTransactions] = await Promise.all([
       this.cosmosHttpService.getBankBalancesByAddress(address),
