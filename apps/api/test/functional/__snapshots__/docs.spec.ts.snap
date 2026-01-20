@@ -15296,18 +15296,12 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
       "get": {
         "parameters": [
           {
+            "description": "The ID of the user to get the wallets for",
             "in": "query",
             "name": "userId",
             "required": true,
             "schema": {
-              "type": "string",
-            },
-          },
-          {
-            "in": "query",
-            "name": "awaitSessionId",
-            "required": false,
-            "schema": {
+              "format": "uuid",
               "type": "string",
             },
           },
