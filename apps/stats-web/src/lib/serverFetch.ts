@@ -1,5 +1,7 @@
 import { headers } from "next/headers";
 
+import { errorHandler } from "@/services/di";
+
 /**
  * Extracts IP-related headers from Next.js request headers to forward to API requests.
  * This preserves the real client IP address when making server-side API calls.
@@ -24,8 +26,25 @@ export function getIpForwardingHeaders(): Headers {
 }
 
 /**
- * Wrapper around fetch that automatically forwards IP-related headers.
- * Use this for all server-side API calls to preserve client IP.
+ * Gets Sentry trace data and converts to W3C traceparent format for distributed tracing
+ */
+export function getTraceparentHeaders(): Headers {
+  const headersToForward = new Headers();
+  const traceData = errorHandler.getTraceData();
+
+  if (traceData.traceIdW3C) {
+    headersToForward.set("traceparent", traceData.traceIdW3C);
+  }
+  if (traceData.baggage) {
+    headersToForward.set("baggage", traceData.baggage);
+  }
+
+  return headersToForward;
+}
+
+/**
+ * Wrapper around fetch that automatically forwards IP-related headers and distributed tracing headers.
+ * Use this for all server-side API calls to preserve client IP and enable distributed tracing.
  *
  * @param url - The URL to fetch
  * @param init - Optional fetch init options (headers will be merged)
@@ -33,9 +52,14 @@ export function getIpForwardingHeaders(): Headers {
  */
 export async function serverFetch(url: string, init?: RequestInit): Promise<Response> {
   const ipHeaders = getIpForwardingHeaders();
+  const traceHeaders = getTraceparentHeaders();
   const mergedHeaders = new Headers(init?.headers);
 
   ipHeaders.forEach((value, key) => {
+    mergedHeaders.set(key, value);
+  });
+
+  traceHeaders.forEach((value, key) => {
     mergedHeaders.set(key, value);
   });
 

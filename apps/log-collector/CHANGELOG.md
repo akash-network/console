@@ -1,5 +1,7 @@
 
 
+## [2.11.2](https://github.com/akash-network/console/compare/log-collector/v2.11.1...log-collector/v2.11.2) (2026-01-20)
+
 ## [2.11.1](https://github.com/akash-network/console/compare/log-collector/v2.11.0...log-collector/v2.11.1) (2026-01-15)
 
 

@@ -1,5 +1,12 @@
 
 
+## [1.13.0](https://github.com/akash-network/console/compare/stats-web/v1.12.1...stats-web/v1.13.0) (2026-01-20)
+
+
+### Features
+
+* **stats:** add Sentry observability with distributed tracing ([#2530](https://github.com/akash-network/console/issues/2530)) ([1a42dd4](https://github.com/akash-network/console/commit/1a42dd4fc9dc540a86bf23ce43b4520556c1ef56))
+
 ## [1.12.1](https://github.com/akash-network/console/compare/stats-web/v1.12.0...stats-web/v1.12.1) (2026-01-17)
 
 
