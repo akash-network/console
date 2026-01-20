@@ -1,16 +1,11 @@
 "use client";
 
 import { useEffect } from "react";
-import { LoggerService } from "@akashnetwork/logging";
 
 import { errorHandler } from "@/services/di";
 
-const globalErrorLogger = new LoggerService({ name: "global-error" });
-
 export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
-    globalErrorLogger.error(error);
-    // Capture error in Sentry
     errorHandler.reportError({ error });
   }, [error]);
 

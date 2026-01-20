@@ -1,5 +1,3 @@
-import React from "react";
-import { LoggerService } from "@akashnetwork/logging";
 import type { Network } from "@akashnetwork/network-store";
 import { Alert, Card, CardContent } from "@akashnetwork/ui/components";
 import type { Metadata } from "next";
@@ -12,11 +10,12 @@ import { Title } from "@/components/Title";
 import { TxMessageRow } from "@/components/transactions/TxMessageRow";
 import { networkId } from "@/config/env-config.schema";
 import { getSplitText } from "@/hooks/useShortText";
+import { createLogger } from "@/lib/createLogger/createLogger";
 import { serverFetch } from "@/lib/serverFetch";
 import { serverApiUrlService } from "@/services/api-url/server-api-url.service";
 import type { TransactionDetail } from "@/types";
 
-const logger = new LoggerService({ context: "TransactionDetailPage" });
+const logger = createLogger({ context: "TransactionDetailPage" });
 
 const TransactionDetailPageSchema = z.object({
   params: z.object({

@@ -1,16 +1,14 @@
-import { LoggerService } from "@akashnetwork/logging";
-import { collectOtel } from "@akashnetwork/logging/otel";
-import * as Sentry from "@sentry/nextjs";
+import { init as initSentry } from "@sentry/nextjs";
 
-LoggerService.mixin = collectOtel;
+import { createLogger } from "./lib/createLogger/createLogger";
 
-const logger = new LoggerService({ name: `instrumentation-${process.env.NEXT_RUNTIME}` });
+const logger = createLogger({ name: `instrumentation-${process.env.NEXT_RUNTIME}` });
 
 export async function register() {
   // Note: if you want to override the automatic release value, do not set a
   // `release` value here - use the environment variable `SENTRY_RELEASE`, so
   // that it will also get attached to your source maps
-  Sentry.init({
+  initSentry({
     dsn: process.env.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN,
     // Adjust this value in production, or use tracesSampler for greater control
     tracesSampleRate: 0.1,
