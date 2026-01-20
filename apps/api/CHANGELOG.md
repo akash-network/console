@@ -1,5 +1,12 @@
 
 
+## [3.21.1](https://github.com/akash-network/console/compare/console-api/v3.21.0...console-api/v3.21.1) (2026-01-20)
+
+
+### Bug Fixes
+
+* **wallet:** strictly validates user id when requesting a wallet ([046fb27](https://github.com/akash-network/console/commit/046fb27a51389cff5b3bb03c468f09b3325c3d71))
+
 ## [3.21.0](https://github.com/akash-network/console/compare/console-api/v3.20.4...console-api/v3.21.0) (2026-01-20)
 
 
