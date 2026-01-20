@@ -109,9 +109,13 @@ export class TransactionRepository {
     const txIdsQuery = chainDb.query<{ id: string }>(
       `
       SELECT t.id
-      FROM "addressReference" af
-      INNER JOIN "transaction" t ON t.id = af."transactionId"
-      WHERE af.address = ?
+      FROM "transaction" t
+      WHERE EXISTS (
+        SELECT 1
+        FROM "addressReference" af
+        WHERE af.address = ?
+          AND af."transactionId" = t.id
+      )
       ORDER BY t.height DESC, t.index DESC
       OFFSET ? LIMIT ?
       `,
