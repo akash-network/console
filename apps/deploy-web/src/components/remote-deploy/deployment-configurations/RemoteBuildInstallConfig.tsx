@@ -87,6 +87,18 @@ const RemoteBuildInstallConfig = ({ services, setValue }: { services: ServiceTyp
                 label="Node Version"
                 placeholder="21"
               />
+              <BoxTextInput
+                value={currentService?.expose?.[0]?.port !== undefined ? String(currentService.expose[0].port) : ""}
+                onChange={e => {
+                  const parsedPort = e.target.value ? Number(e.target.value) : undefined;
+                  if (Number.isNaN(parsedPort)) {
+                    return;
+                  }
+                  setValue("services.0.expose.0.port", parsedPort || 3000);
+                }}
+                label="Port"
+                placeholder="3000"
+              />
               <div className="flex flex-col gap-3 rounded border bg-card px-6 py-6 text-card-foreground">
                 <div className="flex items-center justify-between gap-5">
                   <Label htmlFor="disable-pull" className="text-base">
