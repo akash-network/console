@@ -15,8 +15,8 @@ try {
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "standalone",
-  publicRuntimeConfig: {
-    version
+  env: {
+    NEXT_PUBLIC_APP_VERSION: version
   },
   eslint: {
     ignoreDuringBuilds: true
