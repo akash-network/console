@@ -26,11 +26,18 @@ const config = {
       setupFiles: ["./test/setup-unit-env.ts"]
     },
     {
+      displayName: "integration",
+      ...common,
+      testMatch: ["<rootDir>/src/**/*.integration.ts"],
+      setupFilesAfterEnv: ["./test/setup-functional-n-integration-tests.ts"],
+      setupFiles: ["./test/setup-functional-n-integration-env.ts"]
+    },
+    {
       displayName: "functional",
       ...common,
       testMatch: ["<rootDir>/test/functional/**/*.spec.ts"],
-      setupFilesAfterEnv: ["./test/setup-functional-tests.ts"],
-      setupFiles: ["./test/setup-functional-env.ts"],
+      setupFilesAfterEnv: ["./test/setup-functional-n-integration-tests.ts"],
+      setupFiles: ["./test/setup-functional-n-integration-env.ts"],
       globalSetup: "./test/setup-global-functional.ts",
       testEnvironment: "./test/custom-jest-environment.ts"
     },
