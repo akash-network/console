@@ -630,6 +630,7 @@ export const transaction = pgTable(
     index("transaction_id_has_procesing_error_false")
       .using("btree", table.id.asc().nullsLast().op("uuid_ops"))
       .where(sql`("hasProcessingError" = false)`),
+    index("transaction_height_desc_index_desc").using("btree", table.height.desc().nullsLast().op("int4_ops"), table.index.desc().nullsLast().op("int4_ops")),
     foreignKey({
       columns: [table.height],
       foreignColumns: [block.height],

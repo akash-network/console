@@ -1,0 +1,2851 @@
+{
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "prevId": "9924f4ba-c830-4568-b993-0c299adcc3c5",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.addressReference": {
+      "name": "addressReference",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "transactionId": {
+          "name": "transactionId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "messageId": {
+          "name": "messageId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address": {
+          "name": "address",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "address_reference_address": {
+          "name": "address_reference_address",
+          "columns": [
+            {
+              "expression": "address",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "address_reference_transaction_id": {
+          "name": "address_reference_transaction_id",
+          "columns": [
+            {
+              "expression": "transactionId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "uuid_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "address_reference_address_transaction_id": {
+          "name": "address_reference_address_transaction_id",
+          "columns": [
+            {
+              "expression": "address",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "transactionId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "addressReference_messageId_fkey": {
+          "name": "addressReference_messageId_fkey",
+          "tableFrom": "addressReference",
+          "tableTo": "message",
+          "columnsFrom": [
+            "messageId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "cascade"
+        },
+        "addressReference_transactionId_fkey": {
+          "name": "addressReference_transactionId_fkey",
+          "tableFrom": "addressReference",
+          "tableTo": "transaction",
+          "columnsFrom": [
+            "transactionId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.bid": {
+      "name": "bid",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "owner": {
+          "name": "owner",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dseq": {
+          "name": "dseq",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "gseq": {
+          "name": "gseq",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "oseq": {
+          "name": "oseq",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bseq": {
+          "name": "bseq",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "provider": {
+          "name": "provider",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "price": {
+          "name": "price",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "createdHeight": {
+          "name": "createdHeight",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "bid_owner_dseq_gseq_oseq_provider_bseq": {
+          "name": "bid_owner_dseq_gseq_oseq_provider_bseq",
+          "columns": [
+            {
+              "expression": "owner",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops"
+            },
+            {
+              "expression": "dseq",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops"
+            },
+            {
+              "expression": "gseq",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "int4_ops"
+            },
+            {
+              "expression": "oseq",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "int4_ops"
+            },
+            {
+              "expression": "provider",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops"
+            },
+            {
+              "expression": "bseq",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "int4_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.block": {
+      "name": "block",
+      "schema": "",
+      "columns": {
+        "height": {
+          "name": "height",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "datetime": {
+          "name": "datetime",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "hash": {
+          "name": "hash",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "proposer": {
+          "name": "proposer",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dayId": {
+          "name": "dayId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "txCount": {
+          "name": "txCount",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "isProcessed": {
+          "name": "isProcessed",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "totalTxCount": {
+          "name": "totalTxCount",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "totalUAktSpent": {
+          "name": "totalUAktSpent",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "totalUUsdcSpent": {
+          "name": "totalUUsdcSpent",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "activeLeaseCount": {
+          "name": "activeLeaseCount",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "totalLeaseCount": {
+          "name": "totalLeaseCount",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "activeCPU": {
+          "name": "activeCPU",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "activeGPU": {
+          "name": "activeGPU",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "activeMemory": {
+          "name": "activeMemory",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "activeEphemeralStorage": {
+          "name": "activeEphemeralStorage",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "activePersistentStorage": {
+          "name": "activePersistentStorage",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "activeProviderCount": {
+          "name": "activeProviderCount",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "totalUUsdSpent": {
+          "name": "totalUUsdSpent",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "block_datetime": {
+          "name": "block_datetime",
+          "columns": [
+            {
+              "expression": "datetime",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "timestamptz_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "block_day_id": {
+          "name": "block_day_id",
+          "columns": [
+            {
+              "expression": "dayId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "uuid_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "block_height_is_processed": {
+          "name": "block_height_is_processed",
+          "columns": [
+            {
+              "expression": "height",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "int4_ops"
+            },
+            {
+              "expression": "isProcessed",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "bool_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "block_totaluusdspent_is_null": {
+          "name": "block_totaluusdspent_is_null",
+          "columns": [
+            {
+              "expression": "height",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "int4_ops"
+            }
+          ],
+          "isUnique": false,
+          "where": "(\"totalUUsdSpent\" IS NULL)",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.day": {
+      "name": "day",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "date": {
+          "name": "date",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "aktPrice": {
+          "name": "aktPrice",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "firstBlockHeight": {
+          "name": "firstBlockHeight",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "lastBlockHeight": {
+          "name": "lastBlockHeight",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "lastBlockHeightYet": {
+          "name": "lastBlockHeightYet",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "aktPriceChanged": {
+          "name": "aktPriceChanged",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        }
+      },
+      "indexes": {
+        "day_date": {
+          "name": "day_date",
+          "columns": [
+            {
+              "expression": "date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "timestamptz_ops"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "day_first_block_height": {
+          "name": "day_first_block_height",
+          "columns": [
+            {
+              "expression": "firstBlockHeight",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "int4_ops"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "day_last_block_height": {
+          "name": "day_last_block_height",
+          "columns": [
+            {
+              "expression": "lastBlockHeight",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "int4_ops"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.deployment": {
+      "name": "deployment",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "owner": {
+          "name": "owner",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dseq": {
+          "name": "dseq",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "createdHeight": {
+          "name": "createdHeight",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "balance": {
+          "name": "balance",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "deposit": {
+          "name": "deposit",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "denom": {
+          "name": "denom",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "lastWithdrawHeight": {
+          "name": "lastWithdrawHeight",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "withdrawnAmount": {
+          "name": "withdrawnAmount",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "closedHeight": {
+          "name": "closedHeight",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "deployment_created_height_closed_height": {
+          "name": "deployment_created_height_closed_height",
+          "columns": [
+            {
+              "expression": "createdHeight",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "int4_ops"
+            },
+            {
+              "expression": "closedHeight",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "int4_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "deployment_owner": {
+          "name": "deployment_owner",
+          "columns": [
+            {
+              "expression": "owner",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.deploymentGroup": {
+      "name": "deploymentGroup",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "deploymentId": {
+          "name": "deploymentId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "owner": {
+          "name": "owner",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dseq": {
+          "name": "dseq",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "gseq": {
+          "name": "gseq",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "deployment_group_owner_dseq_gseq": {
+          "name": "deployment_group_owner_dseq_gseq",
+          "columns": [
+            {
+              "expression": "owner",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops"
+            },
+            {
+              "expression": "dseq",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops"
+            },
+            {
+              "expression": "gseq",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "int4_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "deploymentGroup_deploymentId_fkey": {
+          "name": "deploymentGroup_deploymentId_fkey",
+          "tableFrom": "deploymentGroup",
+          "tableTo": "deployment",
+          "columnsFrom": [
+            "deploymentId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.deploymentGroupResource": {
+      "name": "deploymentGroupResource",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "deploymentGroupId": {
+          "name": "deploymentGroupId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cpuUnits": {
+          "name": "cpuUnits",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "gpuUnits": {
+          "name": "gpuUnits",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "gpuVendor": {
+          "name": "gpuVendor",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gpuModel": {
+          "name": "gpuModel",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "memoryQuantity": {
+          "name": "memoryQuantity",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ephemeralStorageQuantity": {
+          "name": "ephemeralStorageQuantity",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "persistentStorageQuantity": {
+          "name": "persistentStorageQuantity",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "count": {
+          "name": "count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "price": {
+          "name": "price",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "deployment_group_resource_deployment_group_id": {
+          "name": "deployment_group_resource_deployment_group_id",
+          "columns": [
+            {
+              "expression": "deploymentGroupId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "uuid_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "deploymentGroupResource_deploymentGroupId_fkey": {
+          "name": "deploymentGroupResource_deploymentGroupId_fkey",
+          "tableFrom": "deploymentGroupResource",
+          "tableTo": "deploymentGroup",
+          "columnsFrom": [
+            "deploymentGroupId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.lease": {
+      "name": "lease",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "deploymentId": {
+          "name": "deploymentId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "deploymentGroupId": {
+          "name": "deploymentGroupId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "owner": {
+          "name": "owner",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dseq": {
+          "name": "dseq",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "oseq": {
+          "name": "oseq",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "gseq": {
+          "name": "gseq",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bseq": {
+          "name": "bseq",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "providerAddress": {
+          "name": "providerAddress",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "createdHeight": {
+          "name": "createdHeight",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "closedHeight": {
+          "name": "closedHeight",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "predictedClosedHeight": {
+          "name": "predictedClosedHeight",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "price": {
+          "name": "price",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "withdrawnAmount": {
+          "name": "withdrawnAmount",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "denom": {
+          "name": "denom",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cpuUnits": {
+          "name": "cpuUnits",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "gpuUnits": {
+          "name": "gpuUnits",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "memoryQuantity": {
+          "name": "memoryQuantity",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ephemeralStorageQuantity": {
+          "name": "ephemeralStorageQuantity",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "persistentStorageQuantity": {
+          "name": "persistentStorageQuantity",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "lease_closed_height": {
+          "name": "lease_closed_height",
+          "columns": [
+            {
+              "expression": "closedHeight",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "int4_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "lease_deployment_id": {
+          "name": "lease_deployment_id",
+          "columns": [
+            {
+              "expression": "deploymentId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "uuid_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "lease_owner_dseq_gseq_oseq_provider_bseq": {
+          "name": "lease_owner_dseq_gseq_oseq_provider_bseq",
+          "columns": [
+            {
+              "expression": "owner",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops"
+            },
+            {
+              "expression": "dseq",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops"
+            },
+            {
+              "expression": "gseq",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "int4_ops"
+            },
+            {
+              "expression": "oseq",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "int4_ops"
+            },
+            {
+              "expression": "providerAddress",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops"
+            },
+            {
+              "expression": "bseq",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "int4_ops"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "lease_predicted_closed_height": {
+          "name": "lease_predicted_closed_height",
+          "columns": [
+            {
+              "expression": "predictedClosedHeight",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "int8_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "lease_provider_address_closed_height_created_height": {
+          "name": "lease_provider_address_closed_height_created_height",
+          "columns": [
+            {
+              "expression": "providerAddress",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops"
+            },
+            {
+              "expression": "closedHeight",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "int4_ops"
+            },
+            {
+              "expression": "createdHeight",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "int4_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {
+            "deduplicate_items": "true"
+          }
+        }
+      },
+      "foreignKeys": {
+        "lease_deploymentGroupId_fkey": {
+          "name": "lease_deploymentGroupId_fkey",
+          "tableFrom": "lease",
+          "tableTo": "deploymentGroup",
+          "columnsFrom": [
+            "deploymentGroupId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        },
+        "lease_deploymentId_fkey": {
+          "name": "lease_deploymentId_fkey",
+          "tableFrom": "lease",
+          "tableTo": "deployment",
+          "columnsFrom": [
+            "deploymentId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        },
+        "lease_providerAddress_fkey": {
+          "name": "lease_providerAddress_fkey",
+          "tableFrom": "lease",
+          "tableTo": "provider",
+          "columnsFrom": [
+            "providerAddress"
+          ],
+          "columnsTo": [
+            "owner"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.message": {
+      "name": "message",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "txId": {
+          "name": "txId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "height": {
+          "name": "height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "typeCategory": {
+          "name": "typeCategory",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "index": {
+          "name": "index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "indexInBlock": {
+          "name": "indexInBlock",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "isProcessed": {
+          "name": "isProcessed",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "isNotificationProcessed": {
+          "name": "isNotificationProcessed",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "amount": {
+          "name": "amount",
+          "type": "numeric(30, 0)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "data": {
+          "name": "data",
+          "type": "bytea",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "relatedDeploymentId": {
+          "name": "relatedDeploymentId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "message_height": {
+          "name": "message_height",
+          "columns": [
+            {
+              "expression": "height",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "int4_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "message_height_is_notification_processed": {
+          "name": "message_height_is_notification_processed",
+          "columns": [
+            {
+              "expression": "height",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "int4_ops"
+            },
+            {
+              "expression": "isNotificationProcessed",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "bool_ops"
+            }
+          ],
+          "isUnique": false,
+          "where": "(\"isNotificationProcessed\" = false)",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "message_height_is_notification_processed_false": {
+          "name": "message_height_is_notification_processed_false",
+          "columns": [
+            {
+              "expression": "height",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "int4_ops"
+            }
+          ],
+          "isUnique": false,
+          "where": "(\"isNotificationProcessed\" = false)",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "message_height_is_notification_processed_true": {
+          "name": "message_height_is_notification_processed_true",
+          "columns": [
+            {
+              "expression": "height",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "int4_ops"
+            }
+          ],
+          "isUnique": false,
+          "where": "(\"isNotificationProcessed\" = true)",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "message_height_type": {
+          "name": "message_height_type",
+          "columns": [
+            {
+              "expression": "height",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "int4_ops"
+            },
+            {
+              "expression": "type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "message_related_deployment_id": {
+          "name": "message_related_deployment_id",
+          "columns": [
+            {
+              "expression": "relatedDeploymentId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "uuid_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "message_tx_id": {
+          "name": "message_tx_id",
+          "columns": [
+            {
+              "expression": "txId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "uuid_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "message_tx_id_is_processed": {
+          "name": "message_tx_id_is_processed",
+          "columns": [
+            {
+              "expression": "txId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "uuid_ops"
+            },
+            {
+              "expression": "isProcessed",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "bool_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "message_height_fkey": {
+          "name": "message_height_fkey",
+          "tableFrom": "message",
+          "tableTo": "block",
+          "columnsFrom": [
+            "height"
+          ],
+          "columnsTo": [
+            "height"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        },
+        "message_txId_fkey": {
+          "name": "message_txId_fkey",
+          "tableFrom": "message",
+          "tableTo": "transaction",
+          "columnsFrom": [
+            "txId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.monitoredValue": {
+      "name": "monitoredValue",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "tracker": {
+          "name": "tracker",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "target": {
+          "name": "target",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "lastUpdateDate": {
+          "name": "lastUpdateDate",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "monitored_value_tracker_target": {
+          "name": "monitored_value_tracker_target",
+          "columns": [
+            {
+              "expression": "tracker",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops"
+            },
+            {
+              "expression": "target",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.provider": {
+      "name": "provider",
+      "schema": "",
+      "columns": {
+        "owner": {
+          "name": "owner",
+          "type": "varchar(255)",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "hostUri": {
+          "name": "hostUri",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "createdHeight": {
+          "name": "createdHeight",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "deletedHeight": {
+          "name": "deletedHeight",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email": {
+          "name": "email",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "website": {
+          "name": "website",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "akashVersion": {
+          "name": "akashVersion",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cosmosSdkVersion": {
+          "name": "cosmosSdkVersion",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "isOnline": {
+          "name": "isOnline",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "lastCheckDate": {
+          "name": "lastCheckDate",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "error": {
+          "name": "error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ip": {
+          "name": "ip",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ipRegion": {
+          "name": "ipRegion",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ipRegionCode": {
+          "name": "ipRegionCode",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ipCountry": {
+          "name": "ipCountry",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ipCountryCode": {
+          "name": "ipCountryCode",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ipLat": {
+          "name": "ipLat",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ipLon": {
+          "name": "ipLon",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "uptime1d": {
+          "name": "uptime1d",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "uptime7d": {
+          "name": "uptime7d",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "uptime30d": {
+          "name": "uptime30d",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updatedHeight": {
+          "name": "updatedHeight",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "lastSnapshotId": {
+          "name": "lastSnapshotId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nextCheckDate": {
+          "name": "nextCheckDate",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "failedCheckCount": {
+          "name": "failedCheckCount",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 0
+        },
+        "lastSuccessfulSnapshotId": {
+          "name": "lastSuccessfulSnapshotId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "downtimeFirstSnapshotId": {
+          "name": "downtimeFirstSnapshotId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "provider_owner": {
+          "name": "provider_owner",
+          "columns": [
+            {
+              "expression": "owner",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.providerAttribute": {
+      "name": "providerAttribute",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "provider": {
+          "name": "provider",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key": {
+          "name": "key",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "provider_attribute_provider": {
+          "name": "provider_attribute_provider",
+          "columns": [
+            {
+              "expression": "provider",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "providerAttribute_provider_fkey": {
+          "name": "providerAttribute_provider_fkey",
+          "tableFrom": "providerAttribute",
+          "tableTo": "provider",
+          "columnsFrom": [
+            "provider"
+          ],
+          "columnsTo": [
+            "owner"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.providerAttributeSignature": {
+      "name": "providerAttributeSignature",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "provider": {
+          "name": "provider",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "auditor": {
+          "name": "auditor",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key": {
+          "name": "key",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "provider_attribute_signature_provider": {
+          "name": "provider_attribute_signature_provider",
+          "columns": [
+            {
+              "expression": "provider",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "providerAttributeSignature_provider_fkey": {
+          "name": "providerAttributeSignature_provider_fkey",
+          "tableFrom": "providerAttributeSignature",
+          "tableTo": "provider",
+          "columnsFrom": [
+            "provider"
+          ],
+          "columnsTo": [
+            "owner"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.providerSnapshot": {
+      "name": "providerSnapshot",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "owner": {
+          "name": "owner",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "isOnline": {
+          "name": "isOnline",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "checkDate": {
+          "name": "checkDate",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "error": {
+          "name": "error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "deploymentCount": {
+          "name": "deploymentCount",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "leaseCount": {
+          "name": "leaseCount",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "activeCPU": {
+          "name": "activeCPU",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "activeGPU": {
+          "name": "activeGPU",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "activeMemory": {
+          "name": "activeMemory",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "activeEphemeralStorage": {
+          "name": "activeEphemeralStorage",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pendingCPU": {
+          "name": "pendingCPU",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pendingGPU": {
+          "name": "pendingGPU",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pendingMemory": {
+          "name": "pendingMemory",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pendingEphemeralStorage": {
+          "name": "pendingEphemeralStorage",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "availableCPU": {
+          "name": "availableCPU",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "availableGPU": {
+          "name": "availableGPU",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "availableMemory": {
+          "name": "availableMemory",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "availableEphemeralStorage": {
+          "name": "availableEphemeralStorage",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "isLastOfDay": {
+          "name": "isLastOfDay",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "isLastSuccessOfDay": {
+          "name": "isLastSuccessOfDay",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "activePersistentStorage": {
+          "name": "activePersistentStorage",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pendingPersistentStorage": {
+          "name": "pendingPersistentStorage",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "availablePersistentStorage": {
+          "name": "availablePersistentStorage",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "provider_snapshot_checkdate_where_islastsuccessofday": {
+          "name": "provider_snapshot_checkdate_where_islastsuccessofday",
+          "columns": [
+            {
+              "expression": "checkDate",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "timestamptz_ops"
+            }
+          ],
+          "isUnique": false,
+          "where": "(\"isLastSuccessOfDay\" = true)",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "provider_snapshot_id_where_islastsuccessofday": {
+          "name": "provider_snapshot_id_where_islastsuccessofday",
+          "columns": [
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "uuid_ops"
+            }
+          ],
+          "isUnique": false,
+          "where": "(\"isLastSuccessOfDay\" = true)",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "provider_snapshot_id_where_isonline_and_islastofday": {
+          "name": "provider_snapshot_id_where_isonline_and_islastofday",
+          "columns": [
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "uuid_ops"
+            }
+          ],
+          "isUnique": false,
+          "where": "((\"isOnline\" = true) AND (\"isLastOfDay\" = true))",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "provider_snapshot_owner": {
+          "name": "provider_snapshot_owner",
+          "columns": [
+            {
+              "expression": "owner",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "provider_snapshot_owner_check_date": {
+          "name": "provider_snapshot_owner_check_date",
+          "columns": [
+            {
+              "expression": "owner",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops"
+            },
+            {
+              "expression": "checkDate",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "timestamptz_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "providerSnapshot_owner_fkey": {
+          "name": "providerSnapshot_owner_fkey",
+          "tableFrom": "providerSnapshot",
+          "tableTo": "provider",
+          "columnsFrom": [
+            "owner"
+          ],
+          "columnsTo": [
+            "owner"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.providerSnapshotNode": {
+      "name": "providerSnapshotNode",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "snapshotId": {
+          "name": "snapshotId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cpuAllocatable": {
+          "name": "cpuAllocatable",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cpuAllocated": {
+          "name": "cpuAllocated",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "memoryAllocatable": {
+          "name": "memoryAllocatable",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "memoryAllocated": {
+          "name": "memoryAllocated",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ephemeralStorageAllocatable": {
+          "name": "ephemeralStorageAllocatable",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ephemeralStorageAllocated": {
+          "name": "ephemeralStorageAllocated",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "capabilitiesStorageHDD": {
+          "name": "capabilitiesStorageHDD",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "capabilitiesStorageSSD": {
+          "name": "capabilitiesStorageSSD",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "capabilitiesStorageNVME": {
+          "name": "capabilitiesStorageNVME",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gpuAllocatable": {
+          "name": "gpuAllocatable",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gpuAllocated": {
+          "name": "gpuAllocated",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "provider_snapshot_node_snapshot_id": {
+          "name": "provider_snapshot_node_snapshot_id",
+          "columns": [
+            {
+              "expression": "snapshotId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "uuid_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {
+            "deduplicate_items": "true"
+          }
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.providerSnapshotNodeCPU": {
+      "name": "providerSnapshotNodeCPU",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "snapshotNodeId": {
+          "name": "snapshotNodeId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "vendor": {
+          "name": "vendor",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "model": {
+          "name": "model",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vcores": {
+          "name": "vcores",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "provider_snapshot_node_c_p_u_snapshot_node_id": {
+          "name": "provider_snapshot_node_c_p_u_snapshot_node_id",
+          "columns": [
+            {
+              "expression": "snapshotNodeId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "uuid_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "provider_snapshot_node_cpu_snapshot_node_id": {
+          "name": "provider_snapshot_node_cpu_snapshot_node_id",
+          "columns": [
+            {
+              "expression": "snapshotNodeId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "uuid_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {
+            "deduplicate_items": "true"
+          }
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.providerSnapshotNodeGPU": {
+      "name": "providerSnapshotNodeGPU",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "snapshotNodeId": {
+          "name": "snapshotNodeId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "vendor": {
+          "name": "vendor",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "modelId": {
+          "name": "modelId",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "interface": {
+          "name": "interface",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "memorySize": {
+          "name": "memorySize",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "provider_snapshot_node_g_p_u_snapshot_node_id": {
+          "name": "provider_snapshot_node_g_p_u_snapshot_node_id",
+          "columns": [
+            {
+              "expression": "snapshotNodeId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "uuid_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "provider_snapshot_node_gpu_snapshot_node_id": {
+          "name": "provider_snapshot_node_gpu_snapshot_node_id",
+          "columns": [
+            {
+              "expression": "snapshotNodeId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "uuid_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {
+            "deduplicate_items": "true"
+          }
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.providerSnapshotStorage": {
+      "name": "providerSnapshotStorage",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "snapshotId": {
+          "name": "snapshotId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "class": {
+          "name": "class",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "allocatable": {
+          "name": "allocatable",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "allocated": {
+          "name": "allocated",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "provider_snapshot_storage_snapshot_id": {
+          "name": "provider_snapshot_storage_snapshot_id",
+          "columns": [
+            {
+              "expression": "snapshotId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "uuid_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {
+            "deduplicate_items": "true"
+          }
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.transaction": {
+      "name": "transaction",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "hash": {
+          "name": "hash",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "index": {
+          "name": "index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "height": {
+          "name": "height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "msgCount": {
+          "name": "msgCount",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "multisigThreshold": {
+          "name": "multisigThreshold",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gasUsed": {
+          "name": "gasUsed",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "gasWanted": {
+          "name": "gasWanted",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fee": {
+          "name": "fee",
+          "type": "numeric(30, 0)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "memo": {
+          "name": "memo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "isProcessed": {
+          "name": "isProcessed",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "hasProcessingError": {
+          "name": "hasProcessingError",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "log": {
+          "name": "log",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "transaction_hash": {
+          "name": "transaction_hash",
+          "columns": [
+            {
+              "expression": "hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "transaction_height": {
+          "name": "transaction_height",
+          "columns": [
+            {
+              "expression": "height",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "int4_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "transaction_height_is_processed_has_processing_error": {
+          "name": "transaction_height_is_processed_has_processing_error",
+          "columns": [
+            {
+              "expression": "height",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "bool_ops"
+            },
+            {
+              "expression": "isProcessed",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "bool_ops"
+            },
+            {
+              "expression": "hasProcessingError",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "int4_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "transaction_id_has_procesing_error_false": {
+          "name": "transaction_id_has_procesing_error_false",
+          "columns": [
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "uuid_ops"
+            }
+          ],
+          "isUnique": false,
+          "where": "(\"hasProcessingError\" = false)",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "transaction_height_desc_index_desc": {
+          "name": "transaction_height_desc_index_desc",
+          "columns": [
+            {
+              "expression": "height",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last",
+              "opclass": "int4_ops"
+            },
+            {
+              "expression": "index",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last",
+              "opclass": "int4_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "transaction_height_fkey": {
+          "name": "transaction_height_fkey",
+          "tableFrom": "transaction",
+          "tableTo": "block",
+          "columnsFrom": [
+            "height"
+          ],
+          "columnsTo": [
+            "height"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.validator": {
+      "name": "validator",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "operatorAddress": {
+          "name": "operatorAddress",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "accountAddress": {
+          "name": "accountAddress",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "hexAddress": {
+          "name": "hexAddress",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "createdMsgId": {
+          "name": "createdMsgId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "moniker": {
+          "name": "moniker",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "identity": {
+          "name": "identity",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "website": {
+          "name": "website",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "securityContact": {
+          "name": "securityContact",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rate": {
+          "name": "rate",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "maxRate": {
+          "name": "maxRate",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "maxChangeRate": {
+          "name": "maxChangeRate",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "minSelfDelegation": {
+          "name": "minSelfDelegation",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "keybaseUsername": {
+          "name": "keybaseUsername",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "keybaseAvatarUrl": {
+          "name": "keybaseAvatarUrl",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "validator_account_address": {
+          "name": "validator_account_address",
+          "columns": [
+            {
+              "expression": "accountAddress",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "validator_hex_address": {
+          "name": "validator_hex_address",
+          "columns": [
+            {
+              "expression": "hexAddress",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "validator_id": {
+          "name": "validator_id",
+          "columns": [
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "uuid_ops"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "validator_operator_address": {
+          "name": "validator_operator_address",
+          "columns": [
+            {
+              "expression": "operatorAddress",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "text_ops"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

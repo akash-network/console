@@ -29,6 +29,13 @@
       "when": 1762241598822,
       "tag": "0003_add_index_address_transaction_id_on_address_ref",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1737331200000,
+      "tag": "0004_add_index_transaction_height_desc_index_desc",
+      "breakpoints": true
     }
   ]
 }
