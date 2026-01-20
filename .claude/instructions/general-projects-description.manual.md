@@ -235,4 +235,4 @@ npm run lint -- --fix
 
 ### Commits
 
-The project uses **semantic release** with **conventional commits** for automated versioning and changelog generation.
+The project uses **semantic release** with **conventional commits** for automated versioning and changelog generation. All commit messages **must comply with the rules defined in `commitlintrc.json`**.
