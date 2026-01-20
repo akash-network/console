@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7-labs
 
-FROM node:24.11.1-alpine AS base
+FROM node:24.13.0-alpine AS base
 
 ARG CI
 ENV CI $CI
