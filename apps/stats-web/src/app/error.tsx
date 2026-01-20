@@ -5,16 +5,10 @@ import { Button } from "@akashnetwork/ui/components";
 
 import PageContainer from "@/components/PageContainer";
 import { Title } from "@/components/Title";
-import { useLogger } from "@/hooks/useLogger";
 import { errorHandler } from "@/services/di";
 
 export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
-  const errorLogger = useLogger("apps/stats-web/src/app/error.tsx");
-
   useEffect(() => {
-    // Log the error to an error reporting service
-    errorLogger.debug(error);
-    // Capture error in Sentry
     errorHandler.reportError({ error });
   }, [error]);
 
