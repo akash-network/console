@@ -201,6 +201,12 @@ export class PaymentMethodRepository extends BaseRepository<Table, PaymentMethod
       paymentMethodId: input.paymentMethodId
     });
 
-    return { paymentMethod: paymentMethod!, isNew: false };
+    if (!paymentMethod) {
+      throw new Error(
+        `Payment method not found after upsert conflict resolution. ` + `fingerprint: ${input.fingerprint}, paymentMethodId: ${input.paymentMethodId}`
+      );
+    }
+
+    return { paymentMethod, isNew: false };
   }
 }
