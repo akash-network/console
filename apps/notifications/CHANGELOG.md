@@ -1,5 +1,7 @@
 
 
+## [2.12.4](https://github.com/akash-network/console/compare/notifications/v2.12.3...notifications/v2.12.4) (2026-01-20)
+
 ## [2.12.3](https://github.com/akash-network/console/compare/notifications/v2.12.2...notifications/v2.12.3) (2026-01-17)
 
 

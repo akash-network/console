@@ -1,5 +1,17 @@
 
 
+## [3.21.0](https://github.com/akash-network/console/compare/console-api/v3.20.4...console-api/v3.21.0) (2026-01-20)
+
+
+### Features
+
+* **billing:** implement upsert for payment methods and enhance webhook handling for idempotency ([#2534](https://github.com/akash-network/console/issues/2534)) ([7d4f2dd](https://github.com/akash-network/console/commit/7d4f2dd2faa029914a39ce4ad5bd99c3e48f47b8))
+
+
+### Bug Fixes
+
+* improve sql perf ([#2535](https://github.com/akash-network/console/issues/2535)) ([7dcd048](https://github.com/akash-network/console/commit/7dcd0485f1ae0f483ba33ec81f2aae6ec376e1bb))
+
 ## [3.20.4](https://github.com/akash-network/console/compare/console-api/v3.20.3...console-api/v3.20.4) (2026-01-19)
 
 

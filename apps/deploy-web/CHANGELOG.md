@@ -1,5 +1,7 @@
 
 
+## [3.22.5](https://github.com/akash-network/console/compare/console-web/v3.22.4...console-web/v3.22.5) (2026-01-20)
+
 ## [3.22.4](https://github.com/akash-network/console/compare/console-web/v3.22.3...console-web/v3.22.4) (2026-01-19)
 
 

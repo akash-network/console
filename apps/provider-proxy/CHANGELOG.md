@@ -1,5 +1,7 @@
 
 
+## [2.9.2](https://github.com/akash-network/console/compare/provider-proxy/v2.9.1...provider-proxy/v2.9.2) (2026-01-20)
+
 ## [2.9.1](https://github.com/akash-network/console/compare/provider-proxy/v2.9.0...provider-proxy/v2.9.1) (2026-01-17)
 
 
