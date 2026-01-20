@@ -1,4 +1,4 @@
-import "@test/setup-functional-tests";
+import "@test/setup-functional-n-integration-tests";
 
 import { container } from "tsyringe";
 

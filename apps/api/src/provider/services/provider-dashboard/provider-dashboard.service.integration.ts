@@ -1,4 +1,4 @@
-import "@test/setup-functional-tests"; // eslint-disable-line simple-import-sort/imports
+import "@test/setup-functional-n-integration-tests"; // eslint-disable-line simple-import-sort/imports
 
 import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
 import type { Block } from "@akashnetwork/database/dbSchemas/base";

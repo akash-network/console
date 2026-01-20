@@ -1,4 +1,4 @@
-import "@test/setup-functional-tests";
+import "@test/setup-functional-n-integration-tests";
 
 import type { Deployment, DeploymentGroup, Lease, Provider } from "@akashnetwork/database/dbSchemas/akash";
 import type { Block, Day } from "@akashnetwork/database/dbSchemas/base";

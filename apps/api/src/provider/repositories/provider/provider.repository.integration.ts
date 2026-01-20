@@ -1,4 +1,4 @@
-import "@test/setup-functional-tests"; // eslint-disable-line simple-import-sort/imports
+import "@test/setup-functional-n-integration-tests"; // eslint-disable-line simple-import-sort/imports
 
 import { Provider, ProviderAttribute, ProviderAttributeSignature } from "@akashnetwork/database/dbSchemas/akash";
 import { CHAIN_DB } from "@src/chain";

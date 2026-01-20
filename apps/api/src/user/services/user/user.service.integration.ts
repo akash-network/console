@@ -1,4 +1,4 @@
-import "@test/setup-functional-tests"; // eslint-disable-line simple-import-sort/imports
+import "@test/setup-functional-n-integration-tests"; // eslint-disable-line simple-import-sort/imports
 
 import { faker } from "@faker-js/faker";
 import { mock } from "vitest-mock-extended";
