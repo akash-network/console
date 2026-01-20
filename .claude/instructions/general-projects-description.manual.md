@@ -35,7 +35,7 @@ The monorepo contains multiple applications and shared packages:
 - **Testing**: Jest (unit and functional), Playwright (e2e), React Testing Library
 - **Styling**: Material-UI, Emotion, Tailwind CSS
 - **State**: React Query, Jotai
-- **Blockchain**: CosmJS, AkashJS
+- **Blockchain**: Cosmos, Akash network
 
 ## Building the Project
 
@@ -221,7 +221,7 @@ npm run lint -- --fix
 - **Next.js config**: `packages/dev-config/.eslintrc.next.js` - Next.js-specific rules for web apps
 - **Root config**: `.eslintrc.js` - Monorepo-wide overrides
 
-### Key Linting Rules
+#### Key Linting Rules
 
 - **Import sorting**: Enforced via `eslint-plugin-simple-import-sort`
 - **Import validation**: `eslint-plugin-import-x` checks for:
@@ -231,3 +231,8 @@ npm run lint -- --fix
   - Useless path segments
 - **TypeScript**: Enforces consistent type imports and warns on `any` types
 - **Custom rules**: `eslint-plugin-akash` includes project-specific rules (e.g., `akash/no-mnemonic`)
+
+
+### Commits
+
+The project uses **semantic release** with **conventional commits** for automated versioning and changelog generation. All commit messages **must comply with the rules defined in `commitlintrc.json`**.
