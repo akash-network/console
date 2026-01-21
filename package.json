@@ -90,6 +90,7 @@
     "esbuild@0.24.2",
     "@swc/core@1.11.10",
     "@sentry/cli@2.39.1",
-    "unrs-resolver@1.3.3"
+    "unrs-resolver@1.3.3",
+    "sharp@0.34.5"
   ]
 }
