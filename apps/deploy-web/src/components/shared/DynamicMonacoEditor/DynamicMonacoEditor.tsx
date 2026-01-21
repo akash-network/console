@@ -51,7 +51,7 @@ const LazyMonacoEditor = dynamic(
       }
     };
 
-    import("yaml"); // preload yaml module, we will need it for validation
+    import("yaml"); // preload yaml module, we will need it for validation soon
     const [monacoReactModule, monacoModule, monacoYamlModule] = await Promise.all([
       import("@monaco-editor/react"),
       import("./monaco-editor"),
@@ -60,18 +60,25 @@ const LazyMonacoEditor = dynamic(
 
     monacoReactModule.loader.config({ monaco: monacoModule });
 
-    // Configure monaco-yaml AFTER loader.config
     // @ts-expect-error - partial monaco module works with monaco-yaml
     monacoYamlModule.configureMonacoYaml(monacoModule, {
       enableSchemaRequest: false,
       completion: true,
       format: false,
-      validate: false,
+      validate: true,
       hover: true,
       schemas: [
         {
           fileMatch: ["file:///akash-sdl.*.yaml"],
-          schema: validationSDLSchema,
+          schema: {
+            ...validationSDLSchema,
+            markdownDescription:
+              "Schema for Akash Stack Definition Language (SDL) YAML input files.\n" +
+              "Check [documentation](https://akash.network/docs/developers/deployment/akash-sdl/) for more info.",
+            description:
+              "Schema for Akash Stack Definition Language (SDL) YAML input files.\n" +
+              "Check https://akash.network/docs/developers/deployment/akash-sdl/ for more info."
+          },
           uri: new URL("/sdl-schema.yaml", window.location.origin).toString()
         }
       ]
@@ -118,6 +125,7 @@ export const DynamicMonacoEditor: React.FunctionComponent<Props> = ({
       onMount={onMount}
       onValidate={onValidate}
       options={{ ...MONACO_OPTIONS, ...options }}
+      wrapperProps={{ className: "test-me-wrapper" }}
       path={path}
     />
   );

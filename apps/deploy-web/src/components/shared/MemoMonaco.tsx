@@ -7,7 +7,7 @@ import { DynamicMonacoEditor, type Props as DynamicMonacoEditorProps } from "./D
 type Props = DynamicMonacoEditorProps;
 
 const _MemoMonaco: React.FunctionComponent<Props> = props => {
-  return <DynamicMonacoEditor {...props} options={{ ...props.options, height: props.height }} />;
+  return <DynamicMonacoEditor {...props} />;
 };
 
 export const MemoMonaco = React.memo(_MemoMonaco, (prevProps, nextProps) => {

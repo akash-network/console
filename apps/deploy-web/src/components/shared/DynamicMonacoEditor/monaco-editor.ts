@@ -141,7 +141,7 @@ import { editor, MarkerSeverity } from "monaco-editor/esm/vs/editor/editor.api.j
 const oldCreateWebWorker = editor.createWebWorker;
 editor.createWebWorker = opts => {
   if ("worker" in opts) return oldCreateWebWorker(opts);
-  return createWebWorker(opts) as any;
+  return createWebWorker(opts);
 };
 
 export * from "monaco-editor/esm/vs/editor/editor.api.js";
@@ -165,7 +165,7 @@ type CreateWebWorkerOpts = {
   host: Record<string, (...args: unknown[]) => unknown> | undefined;
   keepIdleModels: boolean | undefined;
 };
-function createWebWorker(opts: CreateWebWorkerOpts) {
+function createWebWorker<T extends object>(opts: CreateWebWorkerOpts) {
   const worker = Promise.resolve(
     getWorker({
       label: opts.label ?? "monaco-editor-worker",
@@ -177,7 +177,7 @@ function createWebWorker(opts: CreateWebWorkerOpts) {
     w.postMessage(opts.createData);
     return w;
   });
-  return editor.createWebWorker({
+  return editor.createWebWorker<T>({
     worker,
     host: opts.host,
     keepIdleModels: opts.keepIdleModels

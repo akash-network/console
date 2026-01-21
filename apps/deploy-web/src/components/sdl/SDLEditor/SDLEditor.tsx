@@ -61,7 +61,7 @@ export const SDLEditor = forwardRef<SdlEditorRefType, Props>(({ onChange, onVali
       monaco?.editor.setModelMarkers(model, MARKER_OWNER, markers);
       return isValid;
     },
-    [networkId, onChange, onValidate]
+    [networkId, onValidate]
   );
 
   const scheduleValidation = useCallback(
@@ -128,7 +128,7 @@ export const SDLEditor = forwardRef<SdlEditorRefType, Props>(({ onChange, onVali
         };
       });
     },
-    [scheduleValidation, onChange]
+    [scheduleValidation, onChange, props.onMount]
   );
 
   useImperativeHandle(ref, () => ({

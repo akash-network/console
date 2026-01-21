@@ -93,7 +93,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
   };
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full flex-col">
       <TopBanner />
 
       <div className="w-full flex-1" style={{ marginTop: `${ACCOUNT_BAR_HEIGHT + (hasBanner ? 40 : 0)}px` }}>

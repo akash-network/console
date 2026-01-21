@@ -381,7 +381,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
       {parsingError && <Alert variant="warning">{parsingError}</Alert>}
 
       {hasComponent("yml-editor") && selectedSdlEditMode === "yaml" && (
-        <ViewPanel stickToBottom className={cn("overflow-hidden", { ["-mx-4"]: smallScreen })}>
+        <ViewPanel stickToBottom className={cn({ ["-mx-4"]: smallScreen })}>
           <SDLEditor value={editedManifest || ""} onChange={handleTextChange} onValidate={() => setParsingError(null)} ref={sdlEditorRef} />
         </ViewPanel>
       )}
