@@ -1,5 +1,12 @@
 
 
+## [3.21.2](https://github.com/akash-network/console/compare/console-api/v3.21.1...console-api/v3.21.2) (2026-01-21)
+
+
+### Bug Fixes
+
+* **auth:** properly responds in case of failed jwt validation ([11d8d70](https://github.com/akash-network/console/commit/11d8d70512b14d9fbc5686dbdb2e7b6a401093c7))
+
 ## [3.21.1](https://github.com/akash-network/console/compare/console-api/v3.21.0...console-api/v3.21.1) (2026-01-20)
 
 

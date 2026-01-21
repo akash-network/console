@@ -1,5 +1,13 @@
 
 
+## [3.23.0](https://github.com/akash-network/console/compare/console-web/v3.22.5...console-web/v3.23.0) (2026-01-21)
+
+
+### Features
+
+* **deployment:** adds port configuration to build & deploy ([da6ca50](https://github.com/akash-network/console/commit/da6ca509c9f4f33439c97234ae9e8002c5204ce7)), closes [#2475](https://github.com/akash-network/console/issues/2475)
+* integrates SDL validation into monaco editor ([#2541](https://github.com/akash-network/console/issues/2541)) ([9ce5ccf](https://github.com/akash-network/console/commit/9ce5ccf6bd4e5a69a0730fd5cbda3aae9eb385fd))
+
 ## [3.22.5](https://github.com/akash-network/console/compare/console-web/v3.22.4...console-web/v3.22.5) (2026-01-20)
 
 ## [3.22.4](https://github.com/akash-network/console/compare/console-web/v3.22.3...console-web/v3.22.4) (2026-01-19)
