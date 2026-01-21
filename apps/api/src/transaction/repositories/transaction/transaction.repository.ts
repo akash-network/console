@@ -1,15 +1,23 @@
 import { AkashBlock as Block, AkashMessage as Message } from "@akashnetwork/database/dbSchemas/akash";
 import { AddressReference, Transaction } from "@akashnetwork/database/dbSchemas/base";
 import { QueryTypes } from "sequelize";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import { GetAddressTransactionsResponse } from "@src/address/http-schemas/address.schema";
+import type { Registry } from "@src/billing/providers/type-registry.provider";
+import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { chainDb } from "@src/db/dbConnection";
 import { GetTransactionByHashResponse, ListTransactionsResponse } from "@src/transaction/http-schemas/transaction.schema";
 import { msgToJSON } from "@src/utils/protobuf";
 
 @singleton()
 export class TransactionRepository {
+  readonly #typeRegistry: Registry;
+
+  constructor(@inject(TYPE_REGISTRY) typeRegistry: Registry) {
+    this.#typeRegistry = typeRegistry;
+  }
+
   async getTransactions(limit: number): Promise<ListTransactionsResponse> {
     const _limit = Math.min(limit, 100);
     const transactions = await Transaction.findAll({
@@ -93,7 +101,7 @@ export class TransactionRepository {
       messages: messages.map(msg => ({
         id: msg.id,
         type: msg.type,
-        data: msgToJSON(msg.type, msg.data),
+        data: msgToJSON(this.#typeRegistry, msg.type, msg.data),
         relatedDeploymentId: msg.relatedDeploymentId
       }))
     };

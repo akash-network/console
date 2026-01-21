@@ -1,38 +1,10 @@
-import * as v1beta1 from "@akashnetwork/akash-api/v1beta1";
-import * as v1beta2 from "@akashnetwork/akash-api/v1beta2";
-import * as v1beta3 from "@akashnetwork/akash-api/v1beta3";
-import * as prevV1beta4 from "@akashnetwork/akash-api/v1beta4";
-import * as v1 from "@akashnetwork/chain-sdk/private-types/akash.v1";
-import * as v1beta4 from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
-import * as v1beta5 from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
-import * as cosmosv1 from "@akashnetwork/chain-sdk/private-types/cosmos.v1";
-import * as cosmosv1alpha1 from "@akashnetwork/chain-sdk/private-types/cosmos.v1alpha1";
-import * as cosmosv1beta1 from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
-import type { GeneratedType } from "@cosmjs/proto-signing";
-import { isTsProtoGeneratedType, Registry } from "@cosmjs/proto-signing";
-import { defaultRegistryTypes as stargateDefaultRegistryTypes } from "@cosmjs/stargate";
-import omit from "lodash/omit";
+import type { Registry } from "@cosmjs/proto-signing";
+import { isTsProtoGeneratedType } from "@cosmjs/proto-signing";
 
-type DefaultRegistryType = [string, GeneratedType];
-const ibcTypes: DefaultRegistryType[] = stargateDefaultRegistryTypes.filter(([type]) => type.startsWith("/ibc"));
-const defaultRegistryTypes: DefaultRegistryType[] = [...Object.values(cosmosv1), ...Object.values(cosmosv1beta1), ...Object.values(cosmosv1alpha1)]
-  .filter(x => x && "$type" in x)
-  .map(x => ["/" + x.$type, x as unknown as GeneratedType])
-  .concat(ibcTypes) as DefaultRegistryType[];
-
-const akashTypes: ReadonlyArray<[string, GeneratedType]> = [
-  ...Object.values(v1beta1),
-  ...Object.values(omit(v1beta2, "Storage")),
-  ...Object.values(omit(v1beta3, ["DepositDeploymentAuthorization", "GPU"])),
-  ...Object.values(prevV1beta4)
-].map(x => ["/" + x.$type, x]);
-const newAkashTypes: ReadonlyArray<[string, GeneratedType]> = [...Object.values(v1), ...Object.values(v1beta4), ...Object.values(v1beta5)]
-  .filter(x => x && "$type" in x)
-  .map(x => ["/" + x.$type, x as unknown as GeneratedType]);
-
-export function decodeMsg(type: string, msg: Uint8Array) {
-  const myRegistry = new Registry([...defaultRegistryTypes, ...akashTypes, ...newAkashTypes]);
-
+/**
+ * @deprecated
+ */
+export function decodeMsg(myRegistry: Registry, type: string, msg: Uint8Array) {
   const msgType = myRegistry.lookupType(type);
 
   if (!msgType) {
@@ -46,9 +18,10 @@ export function decodeMsg(type: string, msg: Uint8Array) {
   return msgType.decode(msg) as unknown;
 }
 
-export function msgToJSON(type: string, msg: Uint8Array) {
-  const myRegistry = new Registry([...defaultRegistryTypes, ...akashTypes, ...newAkashTypes]);
-
+/**
+ * @deprecated
+ */
+export function msgToJSON(myRegistry: Registry, type: string, msg: Uint8Array) {
   const msgType = myRegistry.lookupType(type);
 
   if (!msgType) {
@@ -63,6 +36,9 @@ export function msgToJSON(type: string, msg: Uint8Array) {
   return msgType.toJSON(msgType.decode(msg));
 }
 
+/**
+ * @deprecated
+ */
 export function uint8arrayToString(arr: Uint8Array) {
   return new TextDecoder().decode(arr);
 }

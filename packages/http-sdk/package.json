@@ -7,8 +7,7 @@
   "author": "",
   "exports": {
     "./package.json": "./package.json",
-    ".": "./src/index.ts",
-    "./src/stripe/stripe.types": "./src/stripe/stripe.types.ts"
+    ".": "./src/index.ts"
   },
   "main": "src/index.ts",
   "scripts": {

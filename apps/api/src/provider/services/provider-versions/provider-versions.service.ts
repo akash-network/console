@@ -5,7 +5,8 @@ import { inject, singleton } from "tsyringe";
 
 import { chainDb } from "@src/db/dbConnection";
 import { ProviderVersionsResponse } from "@src/provider/http-schemas/provider-versions.schema";
-import { PROVIDER_CONFIG, ProviderConfig } from "@src/provider/providers/config.provider";
+import type { ProviderConfig } from "@src/provider/providers/config.provider";
+import { PROVIDER_CONFIG } from "@src/provider/providers/config.provider";
 import { toUTC } from "@src/utils";
 import { round } from "@src/utils/math";
 

@@ -6,7 +6,7 @@
       "@src/*": ["./src/*"],
       "@test/*": ["./test/*"]
     },
-    "strict": true
+    "strict": true,
   },
   "extends": "@akashnetwork/dev-config/tsconfig.base-node.json"
 }

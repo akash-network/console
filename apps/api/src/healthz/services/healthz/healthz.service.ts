@@ -1,7 +1,8 @@
 import { millisecondsInMinute } from "date-fns";
 import { inject, singleton } from "tsyringe";
 
-import { DB_HEALTHCHECK, DbHealthcheck, JOB_QUEUE_HEALTHCHECK, JobQueueHealthcheck } from "@src/core";
+import type { DbHealthcheck, JobQueueHealthcheck } from "@src/core";
+import { DB_HEALTHCHECK, JOB_QUEUE_HEALTHCHECK } from "@src/core";
 import { LoggerService } from "@src/core/providers/logging.provider";
 
 @singleton()

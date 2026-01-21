@@ -2,7 +2,8 @@ import { Lease } from "@akashnetwork/database/dbSchemas/akash";
 import { inject, singleton } from "tsyringe";
 
 import { USDC_IBC_DENOMS } from "@src/billing/config/network.config";
-import { CORE_CONFIG, CoreConfig } from "@src/core/providers/config.provider";
+import type { CoreConfig } from "@src/core/providers/config.provider";
+import { CORE_CONFIG } from "@src/core/providers/config.provider";
 import { type FallbackLeaseListResponse } from "@src/deployment/http-schemas/lease-rpc.schema";
 import { DatabaseLeaseListParams, LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
 

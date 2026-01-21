@@ -3,7 +3,8 @@ import axios from "axios";
 import type { ComponentsObject, OpenAPIObject, PathsObject, ReferenceObject } from "openapi3-ts/oas30";
 import { inject, singleton } from "tsyringe";
 
-import { CORE_CONFIG, CoreConfig } from "@src/core/providers/config.provider";
+import type { CoreConfig } from "@src/core/providers/config.provider";
+import { CORE_CONFIG } from "@src/core/providers/config.provider";
 import type { NotificationsConfig } from "@src/notifications/config/env.config";
 import { NOTIFICATIONS_CONFIG } from "@src/notifications/providers/notifications-config.provider";
 import type { OpenApiHonoHandler } from "../open-api-hono-handler/open-api-hono-handler";

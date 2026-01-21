@@ -1,5 +1,3 @@
-import "./app";
-
 import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { Hono } from "hono";
 import { container } from "tsyringe";

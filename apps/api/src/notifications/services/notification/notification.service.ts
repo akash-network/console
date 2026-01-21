@@ -1,7 +1,8 @@
 import { backOff, type BackoffOptions } from "exponential-backoff";
 import { inject, singleton } from "tsyringe";
 
-import { NOTIFICATIONS_API_CLIENT, NotificationsApiClient, operations } from "../../providers/notifications-api.provider";
+import type { NotificationsApiClient, operations } from "../../providers/notifications-api.provider";
+import { NOTIFICATIONS_API_CLIENT } from "../../providers/notifications-api.provider";
 
 const DEFAULT_BACKOFF_OPTIONS: BackoffOptions = {
   maxDelay: 5_000,
