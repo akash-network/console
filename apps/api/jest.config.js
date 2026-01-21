@@ -17,7 +17,7 @@ const common = {
 /** @type {import('jest').Config} */
 const config = {
   collectCoverageFrom: ["src/**/*.ts", "!src/**/*.spec.ts", "!src/**/*.d.ts", "!src/main.ts", "!src/console.ts", "!src/test/**/*", "!src/**/index.ts"],
-  maxWorkers: 2,
+  maxWorkers: 1,
   projects: [
     {
       displayName: "unit",
