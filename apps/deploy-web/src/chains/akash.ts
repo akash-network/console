@@ -1,5 +1,5 @@
-import type { AssetList, Chain } from "@chain-registry/types";
-import { assets } from "chain-registry";
+import type { Chain } from "@chain-registry/types";
+export { default as akashAssetList } from "chain-registry/mainnet/akash/assets";
 
 export const akash: Chain = {
   $schema: "../chain.schema.json",
@@ -520,5 +520,3 @@ export const akash: Chain = {
     }
   ]
 };
-
-export const akashAssetList = assets.find(x => x.chain_name === "akash") as AssetList;

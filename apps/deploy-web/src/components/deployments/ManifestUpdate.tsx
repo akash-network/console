@@ -5,7 +5,6 @@ import { InfoCircle, WarningCircle } from "iconoir-react";
 import yaml from "js-yaml";
 import { useSnackbar } from "notistack";
 
-import { DynamicMonacoEditor } from "@src/components/shared/DynamicMonacoEditor";
 import { LinearLoadingSkeleton } from "@src/components/shared/LinearLoadingSkeleton";
 import { LinkTo } from "@src/components/shared/LinkTo";
 import ViewPanel from "@src/components/shared/ViewPanel";
@@ -19,6 +18,7 @@ import type { ApiProviderList } from "@src/types/provider";
 import { deploymentData } from "@src/utils/deploymentData";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import RemoteDeployUpdate from "../remote-deploy/update/RemoteDeployUpdate";
+import { SDLEditor } from "../sdl/SDLEditor/SDLEditor";
 import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar/ManifestErrorSnackbar";
 import { Title } from "../shared/Title";
 import { CreateCredentialsButton } from "./CreateCredentialsButton/CreateCredentialsButton";
@@ -73,38 +73,6 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
 
     init();
   }, [deployment, address, deploymentLocalStorage]);
-
-  /**
-   * Validate the manifest periodically
-   */
-  useEffect(() => {
-    async function createAndValidateDeploymentData(yamlStr: string, dseq: string) {
-      try {
-        if (!editedManifest) return null;
-
-        await deploymentData.NewDeploymentData(chainApiHttpClient, yamlStr, dseq, address);
-
-        setParsingError(null);
-      } catch (err: any) {
-        if (err.name === "YAMLException" || err.name === "CustomValidationError") {
-          setParsingError(err.message);
-        } else {
-          setParsingError("Error while parsing SDL file");
-          console.error(err);
-        }
-      }
-    }
-
-    const timeoutId = setTimeout(async () => {
-      await createAndValidateDeploymentData(editedManifest, deployment.dseq);
-    }, 500);
-
-    return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-    };
-  }, [editedManifest, deployment.dseq, chainApiHttpClient, address]);
 
   function handleTextChange(value: string | undefined) {
     onManifestChange(value || "");
@@ -184,8 +152,13 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
 
         closeManifestEditor();
       }
-    } catch (error) {
-      console.error(error);
+    } catch (error: any) {
+      if (error.name === "YAMLException" || error.name === "CustomValidationError") {
+        setParsingError(error.message);
+      } else {
+        setParsingError("Error while parsing SDL file");
+        console.error(error);
+      }
       setIsSendingManifest(false);
 
       if (sendManifestKey) {
@@ -268,7 +241,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
               {isRemoteDeploy ? (
                 <RemoteDeployUpdate sdlString={editedManifest} onManifestChange={onManifestChange} />
               ) : (
-                <DynamicMonacoEditor value={editedManifest} onChange={handleTextChange} />
+                <SDLEditor value={editedManifest} onChange={handleTextChange} onValidate={() => setParsingError(null)} />
               )}
             </ViewPanel>
           </div>

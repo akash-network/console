@@ -9,7 +9,6 @@ import { NavArrowLeft, Rocket } from "iconoir-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-import { DynamicMonacoEditor } from "@src/components/shared/DynamicMonacoEditor";
 import Markdown from "@src/components/shared/Markdown";
 import ViewPanel from "@src/components/shared/ViewPanel";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
@@ -17,6 +16,7 @@ import type { ApiTemplate } from "@src/types";
 import { RouteStep } from "@src/types/route-steps.type";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
+import { SDLEditor } from "../sdl/SDLEditor/SDLEditor";
 
 export interface TemplateDetailProps {
   template: ApiTemplate;
@@ -92,7 +92,7 @@ export const TemplateDetail: FC<TemplateDetailProps> = ({ template }) => {
           {activeTab === "SDL" && (
             <ViewPanel stickToBottom className="overflow-hidden">
               <div className="container h-full p-6 pt-0">
-                <DynamicMonacoEditor height="100%" language="yaml" value={template.deploy || ""} options={{ readOnly: true }} />
+                <SDLEditor height="100%" value={template.deploy || ""} readonly={true} />
               </div>
             </ViewPanel>
           )}
