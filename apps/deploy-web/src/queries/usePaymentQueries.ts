@@ -5,7 +5,7 @@ import type {
   PaymentMethod,
   SetupIntentResponse,
   ThreeDSecureAuthParams
-} from "@akashnetwork/http-sdk/src/stripe/stripe.types";
+} from "@akashnetwork/http-sdk";
 import type { UseQueryOptions } from "@tanstack/react-query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 

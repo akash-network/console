@@ -1,5 +1,5 @@
 import { Provider, ProviderSnapshotNode, ProviderSnapshotNodeGPU } from "@akashnetwork/database/dbSchemas/akash";
-import { ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash/providerSnapshot";
+import { ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash";
 import { NetConfig, SupportedChainNetworks } from "@akashnetwork/net";
 import { AxiosError } from "axios";
 import { add } from "date-fns";

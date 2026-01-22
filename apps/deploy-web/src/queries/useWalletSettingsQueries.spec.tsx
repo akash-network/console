@@ -1,5 +1,4 @@
-import type { UpdateWalletSettingsParams, WalletSettings } from "@akashnetwork/http-sdk/src/wallet-settings/wallet-settings.types";
-import type { WalletSettingsHttpService } from "@akashnetwork/http-sdk/src/wallet-settings/wallet-settings-http.service";
+import type { UpdateWalletSettingsParams, WalletSettings, WalletSettingsHttpService } from "@akashnetwork/http-sdk";
 import { mock } from "jest-mock-extended";
 
 import { useWalletSettingsMutations, useWalletSettingsQuery } from "./useWalletSettingsQueries";
@@ -11,7 +10,7 @@ describe("useWalletSettingsQueries", () => {
   describe(useWalletSettingsQuery.name, () => {
     it("fetches wallet settings successfully", async () => {
       const mockSettings: WalletSettings = {
-        autoReloadEnabled: true,
+        autoReloadEnabled: true
       };
       const walletSettingsService = mock<WalletSettingsHttpService>({
         getWalletSettings: jest.fn().mockResolvedValue(mockSettings)
@@ -48,10 +47,10 @@ describe("useWalletSettingsQueries", () => {
     describe("updateWalletSettings", () => {
       it("updates wallet settings and invalidates queries", async () => {
         const updateParams: UpdateWalletSettingsParams = {
-          autoReloadEnabled: true,
+          autoReloadEnabled: true
         };
         const mockUpdatedSettings: WalletSettings = {
-          autoReloadEnabled: true,
+          autoReloadEnabled: true
         };
         const walletSettingsService = mock<WalletSettingsHttpService>({
           updateWalletSettings: jest.fn().mockResolvedValue(mockUpdatedSettings)
@@ -101,7 +100,7 @@ describe("useWalletSettingsQueries", () => {
     describe("createWalletSettings", () => {
       it("creates wallet settings and invalidates queries", async () => {
         const newSettings: WalletSettings = {
-          autoReloadEnabled: true,
+          autoReloadEnabled: true
         };
         const walletSettingsService = mock<WalletSettingsHttpService>({
           createWalletSettings: jest.fn().mockResolvedValue(newSettings)
@@ -123,7 +122,7 @@ describe("useWalletSettingsQueries", () => {
 
       it("handles error when creating wallet settings", async () => {
         const newSettings: WalletSettings = {
-          autoReloadEnabled: true,
+          autoReloadEnabled: true
         };
         const walletSettingsService = mock<WalletSettingsHttpService>({
           createWalletSettings: jest.fn().mockRejectedValue(new Error("Creation failed"))

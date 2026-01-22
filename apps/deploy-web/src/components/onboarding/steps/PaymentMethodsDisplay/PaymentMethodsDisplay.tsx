@@ -1,5 +1,5 @@
 import React from "react";
-import type { PaymentMethod } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
+import type { PaymentMethod } from "@akashnetwork/http-sdk";
 
 import { PaymentMethodsList } from "@src/components/shared/PaymentMethodsList";
 import { Title } from "@src/components/shared/Title";

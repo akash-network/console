@@ -1,4 +1,4 @@
-import type { UpdateWalletSettingsParams, WalletSettings } from "@akashnetwork/http-sdk/src/wallet-settings/wallet-settings.types";
+import type { UpdateWalletSettingsParams, WalletSettings } from "@akashnetwork/http-sdk";
 import type { UseQueryOptions } from "@tanstack/react-query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 

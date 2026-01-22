@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom";
 
 import React from "react";
-import type { Charge } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
+import type { Charge } from "@akashnetwork/http-sdk";
 import { TooltipProvider } from "@akashnetwork/ui/components";
 import { mock } from "jest-mock-extended";
 

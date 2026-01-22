@@ -7,12 +7,12 @@ import {
   DeploymentSettingHttpService,
   isHttpError,
   ManagedDeploymentHttpService,
+  StripeService as HttpStripeService,
   TemplateHttpService,
   TxHttpService,
   UsageHttpService,
   WalletSettingsHttpService
 } from "@akashnetwork/http-sdk";
-import { StripeService as HttpStripeService } from "@akashnetwork/http-sdk/src/stripe/stripe.service";
 import { LoggerService } from "@akashnetwork/logging";
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 import type { Axios, AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from "axios";

@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom";
 
 import React from "react";
-import type { PaymentMethod, SetupIntentResponse } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
+import type { PaymentMethod, SetupIntentResponse } from "@akashnetwork/http-sdk";
 
 import type { usePaymentMethodsQuery, usePaymentMutations, useSetupIntentMutation } from "@src/queries";
 import type { PaymentMethodsViewProps } from "../PaymentMethodsView/PaymentMethodsView";

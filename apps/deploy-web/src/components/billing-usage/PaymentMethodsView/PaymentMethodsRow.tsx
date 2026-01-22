@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from "react";
-import type { PaymentMethod } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
+import type { PaymentMethod } from "@akashnetwork/http-sdk";
 import { Badge, Button, DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, TableCell, TableRow } from "@akashnetwork/ui/components";
 import { ClickAwayListener } from "@mui/material";
 import { BadgeCheck, CheckCircle, MoreHoriz, Trash } from "iconoir-react";

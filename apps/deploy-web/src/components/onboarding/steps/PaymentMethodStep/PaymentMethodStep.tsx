@@ -1,7 +1,7 @@
 "use client";
 import React, { useMemo } from "react";
 import { ErrorBoundary } from "react-error-boundary";
-import type { PaymentMethod, SetupIntentResponse } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
+import type { PaymentMethod, SetupIntentResponse } from "@akashnetwork/http-sdk";
 import { Alert, AlertDescription, AlertTitle, Popup } from "@akashnetwork/ui/components";
 import { Elements } from "@stripe/react-stripe-js";
 import { CreditCard } from "iconoir-react";

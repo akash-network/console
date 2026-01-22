@@ -9,6 +9,7 @@
   "license": "Apache-2.0",
   "author": "Akash Network",
   "exports": {
+    "./package.json": "./package.json",
     ".": "./src/index.ts",
     "./hono": "./src/hono/index.ts",
     "./otel": "./src/otel.ts"
@@ -34,14 +35,18 @@
     "ts-jest": "^29.4.0"
   },
   "peerDependencies": {
+    "@opentelemetry/api": "^1.9.0",
     "hono": "4.6.12",
-    "@opentelemetry/api": "^1.9.0"
+    "pino-pretty": "^11.3.0"
   },
   "peerDependenciesMeta": {
+    "@opentelemetry/api": {
+      "optional": true
+    },
     "hono": {
       "optional": true
     },
-    "@opentelemetry/api": {
+    "pino-pretty": {
       "optional": true
     }
   }

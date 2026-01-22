@@ -1,7 +1,7 @@
 "use client";
 import type { FC } from "react";
 import { useCallback, useEffect, useState } from "react";
-import type { TemplateOutput } from "@akashnetwork/http-sdk/src/template/template-http.service";
+import type { TemplateOutput } from "@akashnetwork/http-sdk";
 import { useAtomValue } from "jotai";
 import { useRouter, useSearchParams } from "next/navigation";
 

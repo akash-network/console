@@ -1,6 +1,6 @@
 import React from "react";
 import { FormattedNumber } from "react-intl";
-import type { Charge } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
+import type { Charge } from "@akashnetwork/http-sdk";
 import {
   Alert,
   AlertDescription,

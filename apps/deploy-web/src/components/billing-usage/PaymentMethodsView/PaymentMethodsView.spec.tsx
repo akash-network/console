@@ -1,5 +1,5 @@
 import React from "react";
-import type { PaymentMethod, SetupIntentResponse } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
+import type { PaymentMethod, SetupIntentResponse } from "@akashnetwork/http-sdk";
 
 import type { DEPENDENCIES } from "./PaymentMethodsView";
 import { PaymentMethodsView } from "./PaymentMethodsView";

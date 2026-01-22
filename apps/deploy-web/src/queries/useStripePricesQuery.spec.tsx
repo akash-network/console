@@ -1,4 +1,4 @@
-import type { StripeService } from "@akashnetwork/http-sdk/src/stripe/stripe.service";
+import type { StripeService } from "@akashnetwork/http-sdk";
 import { mock } from "jest-mock-extended";
 
 import { useStripePricesQuery } from "./useStripePricesQuery";

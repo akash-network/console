@@ -1,5 +1,5 @@
 import type { Coin } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
-import { CosmosHttpService } from "@akashnetwork/http-sdk/src/cosmos/cosmos-http.service";
+import { CosmosHttpService } from "@akashnetwork/http-sdk";
 import { LoggerService } from "@akashnetwork/logging";
 import { asset_lists } from "@chain-registry/assets";
 import { AxiosError } from "axios";

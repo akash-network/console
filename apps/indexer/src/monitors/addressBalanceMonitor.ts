@@ -1,5 +1,5 @@
 import { activeChain } from "@akashnetwork/database/chainDefinitions";
-import { MonitoredValue } from "@akashnetwork/database/dbSchemas/base/monitoredValue";
+import { MonitoredValue } from "@akashnetwork/database/dbSchemas/base";
 import axios from "axios";
 
 export class AddressBalanceMonitor {

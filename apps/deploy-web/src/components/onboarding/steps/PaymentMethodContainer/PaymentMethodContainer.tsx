@@ -1,7 +1,7 @@
 "use client";
 import React, { type FC, useCallback, useEffect, useState } from "react";
-import type { ApiWalletWithOptional3DS } from "@akashnetwork/http-sdk/src/managed-wallet-http/managed-wallet-http.service";
-import type { PaymentMethod, SetupIntentResponse } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
+import type { ApiWalletWithOptional3DS } from "@akashnetwork/http-sdk";
+import type { PaymentMethod, SetupIntentResponse } from "@akashnetwork/http-sdk";
 import { useSnackbar } from "notistack";
 
 import { useServices } from "@src/context/ServicesProvider/ServicesProvider";
