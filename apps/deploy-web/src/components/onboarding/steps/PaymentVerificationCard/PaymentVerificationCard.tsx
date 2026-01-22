@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import type { SetupIntentResponse } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
+import type { SetupIntentResponse } from "@akashnetwork/http-sdk";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@akashnetwork/ui/components";
 import { CreditCard } from "iconoir-react";
 

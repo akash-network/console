@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom";
 
 import React from "react";
-import type { Charge } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
+import type { Charge } from "@akashnetwork/http-sdk";
 import type { PaginationState } from "@tanstack/react-table";
 import type { AxiosError } from "axios";
 import { mock } from "jest-mock-extended";

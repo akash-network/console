@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import type { PaymentMethod } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
+import type { PaymentMethod } from "@akashnetwork/http-sdk";
 import { Badge, Button, Card, CardDescription, CardHeader, CardTitle, RadioGroupItem } from "@akashnetwork/ui/components";
 import { CheckCircle, CreditCard } from "iconoir-react";
 

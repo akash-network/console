@@ -5,6 +5,12 @@
   "keywords": [],
   "license": "Apache-2.0",
   "author": "",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "default": "./src/index.ts"
+    }
+  },
   "main": "src/index.ts",
   "scripts": {
     "format": "prettier --write ./*.{ts,json} **/*.{ts,json}",
