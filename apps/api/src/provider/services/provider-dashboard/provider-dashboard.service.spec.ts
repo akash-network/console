@@ -1,7 +1,7 @@
 import "@test/setup-functional-tests"; // eslint-disable-line simple-import-sort/imports
 
 import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
-import type { Block } from "@akashnetwork/database/dbSchemas/base/block";
+import type { Block } from "@akashnetwork/database/dbSchemas/base";
 import { subDays } from "date-fns";
 
 import { createAkashBlock, createProvider } from "@test/seeders";

@@ -1,4 +1,4 @@
-import { LoggerService } from "@akashnetwork/logging";
+import { createOtelLogger } from "@akashnetwork/logging/otel";
 import axios from "axios";
 import type { ComponentsObject, OpenAPIObject, PathsObject, ReferenceObject } from "openapi3-ts/oas30";
 import { inject, singleton } from "tsyringe";
@@ -8,7 +8,7 @@ import type { NotificationsConfig } from "@src/notifications/config/env.config";
 import { NOTIFICATIONS_CONFIG } from "@src/notifications/providers/notifications-config.provider";
 import type { OpenApiHonoHandler } from "../open-api-hono-handler/open-api-hono-handler";
 
-const logger = LoggerService.forContext("OpenApiDocsService");
+const logger = createOtelLogger({ context: "OpenApiDocsService" });
 
 @singleton()
 export class OpenApiDocsService {

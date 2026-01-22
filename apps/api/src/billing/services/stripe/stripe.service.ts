@@ -12,13 +12,10 @@ import { PaymentIntentResult, PaymentMethodValidationResult, Transaction } from 
 import { PaymentMethodRepository, StripeTransactionInput, StripeTransactionRepository } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { RefillService } from "@src/billing/services/refill/refill.service";
-import { WithTransaction } from "@src/core";
-import { LoggerService } from "@src/core/providers/logging.provider";
+import { LoggerService, WithTransaction } from "@src/core";
 import { TransactionCsvRow } from "@src/types/transactions";
 import { UserOutput, UserRepository } from "@src/user/repositories/user/user.repository";
 import { PayingUser } from "../paying-user/paying-user";
-
-const logger = LoggerService.forContext("StripeService");
 
 interface StripePrices {
   unitAmount: number;
@@ -360,7 +357,7 @@ export class StripeService extends Stripe {
     updateField: "promotion_code" | "coupon";
     updateId: string;
   }): Promise<{ coupon: Stripe.Coupon | Stripe.PromotionCode; amountAdded: number }> {
-    logger.info({
+    this.loggerService.info({
       event: "APPLYING_COUPON",
       couponId: coupon.id,
       valid: coupon.valid,
@@ -395,7 +392,7 @@ export class StripeService extends Stripe {
         ...(updateField === "promotion_code" ? { discounts: [{ promotion_code: updateId }] } : { discounts: [{ coupon: updateId }] })
       });
 
-      logger.info({
+      this.loggerService.info({
         event: "INVOICE_CREATED_WITH_DISCOUNT",
         userId: currentUser.id,
         invoiceId: invoice.id,
@@ -406,7 +403,7 @@ export class StripeService extends Stripe {
       // A $0 invoice is automatically paid after finalization
       const finalizedInvoice = await this.invoices.finalizeInvoice(invoice.id);
 
-      logger.info({
+      this.loggerService.info({
         event: "INVOICE_FINALIZED_AND_PAID",
         userId: currentUser.id,
         invoiceId: finalizedInvoice.id,
@@ -436,7 +433,7 @@ export class StripeService extends Stripe {
       // Update transaction status to succeeded
       await this.stripeTransactionRepository.updateById(transaction.id, { status: "succeeded" });
 
-      logger.info({
+      this.loggerService.info({
         event: "COUPON_APPLICATION_SUCCESS",
         userId: currentUser.id,
         couponId: updateId,
@@ -446,7 +443,7 @@ export class StripeService extends Stripe {
 
       return { coupon: couponOrPromotion, amountAdded: amountToAdd / 100 };
     } catch (error) {
-      logger.error({
+      this.loggerService.error({
         event: "COUPON_APPLICATION_FAILED",
         userId: currentUser.id,
         couponId: updateId,
@@ -547,7 +544,7 @@ export class StripeService extends Stripe {
         yield typeof chunk === "string" ? chunk : (chunk as Buffer).toString("utf8");
       }
     } catch (error) {
-      logger.error({ event: "CSV_STREAM_ERROR", error });
+      this.loggerService.error({ event: "CSV_STREAM_ERROR", error });
       throw error;
     }
   }
@@ -579,7 +576,7 @@ export class StripeService extends Stripe {
         hasMore = batch.hasMore;
         startingAfter = batch.nextPage || undefined;
       } catch (error) {
-        logger.error({ event: "TRANSACTION_FETCH_ERROR", error, customerId, startingAfter });
+        this.loggerService.error({ event: "TRANSACTION_FETCH_ERROR", error, customerId, startingAfter });
         yield {
           id: `Error: ${(error as Error).message}`,
           date: "",
@@ -686,7 +683,7 @@ export class StripeService extends Stripe {
   }
 
   async hasDuplicateTrialAccount(paymentMethods: Stripe.PaymentMethod[], currentUserId: string): Promise<boolean> {
-    logger.info({
+    this.loggerService.info({
       event: "VALIDATING_PAYMENT_METHODS_FOR_TRIAL",
       paymentMethodCount: paymentMethods.length,
       paymentMethodIds: paymentMethods.map(pm => pm.id),
@@ -713,7 +710,7 @@ export class StripeService extends Stripe {
     if (user) {
       const validatedPaymentMethods = await this.paymentMethodRepository.findValidatedByUserId(user.id);
       if (validatedPaymentMethods.some(pm => pm.paymentMethodId === params.payment_method)) {
-        logger.info({
+        this.loggerService.info({
           event: "PAYMENT_METHOD_ALREADY_VALIDATED",
           customerId: params.customer,
           userId: user.id,
@@ -759,7 +756,7 @@ export class StripeService extends Stripe {
           // Check if payment method is already validated
           const existingValidation = await this.paymentMethodRepository.findValidatedByUserId(user.id);
           if (existingValidation.some(pm => pm.paymentMethodId === params.payment_method)) {
-            logger.info({
+            this.loggerService.info({
               event: "PAYMENT_METHOD_ALREADY_VALIDATED",
               customerId: params.customer,
               userId: user.id,
@@ -780,7 +777,7 @@ export class StripeService extends Stripe {
       case "requires_capture":
         // For manual capture, both succeeded and requires_capture mean the authorization was successful
         // We don't need to cancel it since it's not captured yet
-        logger.info({
+        this.loggerService.info({
           event: "CARD_VALIDATION_AUTHORIZATION_SUCCESSFUL",
           customerId: params.customer,
           paymentMethodId: params.payment_method,
@@ -792,7 +789,7 @@ export class StripeService extends Stripe {
 
       case "requires_action":
         // Card requires 3D Secure authentication
-        logger.info({
+        this.loggerService.info({
           event: "CARD_VALIDATION_REQUIRES_3DS",
           customerId: params.customer,
           paymentMethodId: params.payment_method,
@@ -807,7 +804,7 @@ export class StripeService extends Stripe {
 
       case "requires_payment_method":
         // Card was declined
-        logger.warn({
+        this.loggerService.warn({
           event: "CARD_VALIDATION_DECLINED",
           customerId: params.customer,
           paymentMethodId: params.payment_method,
@@ -818,7 +815,7 @@ export class StripeService extends Stripe {
 
       default:
         // Other statuses (processing, canceled, etc.)
-        logger.warn({
+        this.loggerService.warn({
           event: "CARD_VALIDATION_UNEXPECTED_STATUS",
           customerId: params.customer,
           paymentMethodId: params.payment_method,
@@ -844,7 +841,7 @@ export class StripeService extends Stripe {
         // Payment intent was successfully authenticated, mark payment method as validated
         await this.markPaymentMethodAsValidated(customerId, paymentMethodId, paymentIntentId);
 
-        logger.info({
+        this.loggerService.info({
           event: "PAYMENT_METHOD_VALIDATED_AFTER_3DS",
           customerId,
           paymentMethodId,
@@ -854,7 +851,7 @@ export class StripeService extends Stripe {
 
         return { success: true };
       } else {
-        logger.warn({
+        this.loggerService.warn({
           event: "PAYMENT_INTENT_NOT_SUCCESSFUL_AFTER_3DS",
           customerId,
           paymentMethodId,
@@ -865,7 +862,7 @@ export class StripeService extends Stripe {
         return { success: false };
       }
     } catch (error) {
-      logger.error({
+      this.loggerService.error({
         event: "FAILED_TO_CHECK_PAYMENT_INTENT_AFTER_3DS",
         customerId,
         paymentMethodId,
@@ -907,7 +904,7 @@ export class StripeService extends Stripe {
       const user = await this.userRepository.findOneBy({ stripeCustomerId: customerId });
       if (user) {
         await this.paymentMethodRepository.markAsValidated(paymentMethodId, user.id);
-        logger.info({
+        this.loggerService.info({
           event: "PAYMENT_METHOD_VALIDATED",
           customerId,
           userId: user.id,
@@ -915,14 +912,14 @@ export class StripeService extends Stripe {
           paymentIntentId
         });
       } else {
-        logger.error({
+        this.loggerService.error({
           event: "USER_NOT_FOUND_FOR_VALIDATION",
           customerId,
           paymentMethodId
         });
       }
     } catch (validationError) {
-      logger.error({
+      this.loggerService.error({
         event: "PAYMENT_METHOD_VALIDATION_UPDATE_FAILED",
         customerId,
         paymentMethodId,

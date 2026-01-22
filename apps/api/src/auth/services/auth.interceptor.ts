@@ -1,4 +1,4 @@
-import { LoggerService } from "@akashnetwork/logging";
+import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { secondsInMinute } from "date-fns";
 import { Context, Next } from "hono";
 import { Unauthorized } from "http-errors";
@@ -18,7 +18,7 @@ const LAST_USER_ACTIVITY_THROTTLE_TIME_SECONDS = 30 * secondsInMinute;
 
 @singleton()
 export class AuthInterceptor implements HonoInterceptor {
-  private readonly logger = LoggerService.forContext(AuthInterceptor.name);
+  private readonly logger = createOtelLogger({ context: AuthInterceptor.name });
   private readonly lastUserActivityCache = new LRUCache<string, Date>({
     max: 1e5,
     ttl: LAST_USER_ACTIVITY_THROTTLE_TIME_SECONDS * 1000,

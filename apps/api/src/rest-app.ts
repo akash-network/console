@@ -1,7 +1,7 @@
 import "./app";
 
-import { LoggerService } from "@akashnetwork/logging";
 import { HttpLoggerInterceptor } from "@akashnetwork/logging/hono";
+import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { otel } from "@hono/otel";
 import { swaggerUI } from "@hono/swagger-ui";
 import { Hono } from "hono";
@@ -185,7 +185,7 @@ appHono.onError(container.resolve(HonoErrorHandlerService).handle);
 export { appHono as app, connectUsingSequelize as initDb };
 
 export async function bootstrap(): Promise<void> {
-  await startServer(appHono, LoggerService.forContext("APP"), process, {
+  await startServer(appHono, createOtelLogger({ context: "APP" }), process, {
     port: container.resolve(CORE_CONFIG).PORT,
     beforeStart: migratePG
   });

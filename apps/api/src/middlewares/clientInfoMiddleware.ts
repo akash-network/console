@@ -1,4 +1,5 @@
-import { LoggerService } from "@akashnetwork/logging";
+import type { LoggerService } from "@akashnetwork/logging";
+import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { getConnInfo } from "@hono/node-server/conninfo";
 import crypto from "crypto";
 import type { Context, Next } from "hono";
@@ -37,7 +38,7 @@ export const clientInfoMiddleware = createMiddleware<{
       fingerprint: fingerprint
     });
   } catch (error) {
-    logger ??= LoggerService.forContext("clientInfoMiddleware");
+    logger ??= createOtelLogger({ context: "clientInfoMiddleware" });
     logger.error({ error });
   } finally {
     await next();

@@ -1,4 +1,4 @@
-import { LoggerService } from "@akashnetwork/logging";
+import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { container } from "tsyringe";
 
 import { createRoute } from "@src/core/lib/create-route/create-route";
@@ -8,7 +8,7 @@ import { GraphDataController } from "@src/dashboard/controllers/graph-data/graph
 import { GraphDataParamsSchema, GraphDataResponseSchema } from "@src/dashboard/http-schemas/graph-data/graph-data.schema";
 import { isValidGraphDataName } from "@src/services/db/statsService";
 
-const logger = LoggerService.forContext("GraphDataRouter");
+const logger = createOtelLogger({ context: "GraphDataRouter" });
 
 export const graphDataRouter = new OpenApiHonoHandler();
 

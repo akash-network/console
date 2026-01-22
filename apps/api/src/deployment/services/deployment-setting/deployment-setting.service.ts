@@ -1,4 +1,4 @@
-import { LoggerService } from "@akashnetwork/logging";
+import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { ForbiddenError } from "@casl/ability";
 import { millisecondsInHour } from "date-fns/constants";
 import assert from "http-assert";
@@ -19,7 +19,7 @@ type DeploymentSettingWithEstimatedTopUpAmount = DeploymentSettingsOutput & { es
 
 @singleton()
 export class DeploymentSettingService {
-  private readonly logger = LoggerService.forContext(DeploymentSettingService.name);
+  private readonly logger = createOtelLogger({ context: DeploymentSettingService.name });
 
   private readonly topUpFrequencyMs = this.config.get("AUTO_TOP_UP_JOB_INTERVAL_IN_H") * millisecondsInHour;
   constructor(

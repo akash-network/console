@@ -1,5 +1,6 @@
 import { chainModels, userModels } from "@akashnetwork/database/dbSchemas";
 import { Template, TemplateFavorite, UserSetting } from "@akashnetwork/database/dbSchemas/user";
+import { createOtelLogger } from "@akashnetwork/logging/otel";
 import pg from "pg";
 import { Transaction as DbTransaction } from "sequelize";
 import { Sequelize } from "sequelize-typescript";
@@ -74,7 +75,7 @@ container.register(APP_INITIALIZER, {
  * Create backups per version
  * Load from backup if exists for current version
  */
-export async function connectUsingSequelize(logger: LoggerService = LoggerService.forContext("DB")): Promise<void> {
+export async function connectUsingSequelize(logger = createOtelLogger({ context: "DB" })): Promise<void> {
   logger.debug(`Connecting to chain database (${chainDb.config.host}/${chainDb.config.database})...`);
   await chainDb.authenticate();
   logger.debug("Connection has been established successfully.");

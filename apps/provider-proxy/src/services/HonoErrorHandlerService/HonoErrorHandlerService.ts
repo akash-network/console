@@ -1,4 +1,5 @@
-import { LoggerService } from "@akashnetwork/logging";
+import type { LoggerService } from "@akashnetwork/logging";
+import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { ZodError } from "zod";
 
 import type { AppContext } from "../../types/AppContext";
@@ -6,7 +7,7 @@ import type { AppContext } from "../../types/AppContext";
 export class HonoErrorHandlerService {
   private readonly logger: LoggerService;
 
-  constructor(logger = LoggerService.forContext("ErrorHandler")) {
+  constructor(logger = createOtelLogger({ context: "ErrorHandler" })) {
     this.logger = logger;
     this.handle = this.handle.bind(this);
   }

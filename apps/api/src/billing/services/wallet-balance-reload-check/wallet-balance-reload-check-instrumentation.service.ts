@@ -1,4 +1,4 @@
-import { LoggerService } from "@akashnetwork/logging";
+import { createOtelLogger } from "@akashnetwork/logging/otel";
 import type { Counter, Histogram, Meter } from "@opentelemetry/api";
 import { singleton } from "tsyringe";
 
@@ -18,7 +18,7 @@ export class WalletBalanceReloadCheckInstrumentationService {
   private readonly balanceCoverageRatio: Histogram;
   private readonly projectedCost: Histogram;
 
-  private readonly logger = LoggerService.forContext("WalletBalanceReloadCheckHandler");
+  private readonly logger = createOtelLogger({ context: "WalletBalanceReloadCheckHandler" });
 
   constructor(private readonly metricsService: MetricsService) {
     this.meter = this.metricsService.getMeter("wallet-balance-reload-check", "1.0.0");

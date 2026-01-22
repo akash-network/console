@@ -1,6 +1,6 @@
 import type { Coin } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 import { CosmosHttpService } from "@akashnetwork/http-sdk";
-import { LoggerService } from "@akashnetwork/logging";
+import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { asset_lists } from "@chain-registry/assets";
 import { AxiosError } from "axios";
 import { singleton } from "tsyringe";
@@ -9,7 +9,7 @@ import type { GetAddressResponse } from "@src/address/http-schemas/address.schem
 import { TransactionService } from "@src/transaction/services/transaction/transaction.service";
 import { ValidatorRepository } from "@src/validator/repositories/validator/validator.repository";
 
-const logger = LoggerService.forContext("AddressService");
+const logger = createOtelLogger({ context: "AddressService" });
 
 @singleton()
 export class AddressService {
