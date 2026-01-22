@@ -5,6 +5,9 @@ import { container, injectable } from "tsyringe";
 
 container.register(HttpLoggerInterceptor, { useValue: new HttpLoggerInterceptor(createOtelLogger({ context: "HTTP" })) });
 
+/**
+ * Registered in DI as injectable service, so we get new instance on every injection.
+ */
 @injectable()
 export class LoggerService extends LoggerServiceOriginal {
   constructor() {

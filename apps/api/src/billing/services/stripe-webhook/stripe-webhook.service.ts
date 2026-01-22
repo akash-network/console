@@ -1,5 +1,5 @@
-import assert from "http-assert";
 import { createOtelLogger } from "@akashnetwork/logging/otel";
+import assert from "http-assert";
 import Stripe from "stripe";
 import { singleton } from "tsyringe";
 
