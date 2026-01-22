@@ -16,8 +16,8 @@
     "dc:up:dev": "dc up",
     "format": "prettier --write ./*.{js,json} **/*.{ts,tsx,js,json}",
     "indexer:dev": "turbo dev --filter=\"./apps/indexer\"",
-    "lint": "eslint .",
-    "lint:fix": "npm run lint -- --fix",
+    "lint": "turbo run lint",
+    "lint:fix": "turbo run lint -- --fix",
     "prepare": "husky || true",
     "pretty": "prettier --write \"./**/*.{js,jsx,mjs,cjs,ts,tsx,json}\"",
     "safe-install": "script/safe-deps-install.sh",
@@ -57,12 +57,6 @@
     "./apps/indexer/**/*.ts": [
       "npm run validate:types -w apps/indexer"
     ]
-  },
-  "dependencies": {
-    "@interchain-ui/react": "^1.23.31",
-    "drizzle-orm": "^0.31.2",
-    "nock": "^14.0.4",
-    "pg": "^8.11.6"
   },
   "devDependencies": {
     "@akashnetwork/dev-config": "*",

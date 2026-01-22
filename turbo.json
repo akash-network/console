@@ -2,6 +2,19 @@
   "$schema": "https://turbo.build/schema.json",
   "globalEnv": ["SKIP_DC_DB"],
   "tasks": {
+    "transit": {
+      "dependsOn": ["^transit"]
+    },
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+    },
+    "lint": {
+      "dependsOn": ["transit"]
+    },
+    "test": {
+      "dependsOn": ["transit"]
+    },
     "dev": {
       "persistent": true,
       "cache": false,
