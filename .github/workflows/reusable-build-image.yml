@@ -76,12 +76,14 @@ jobs:
         id: determine
         env:
           SENTRY_AUTH_TOKEN_CONSOLE_WEB: ${{ secrets.SENTRY_AUTH_TOKEN_CONSOLE_WEB }}
+          SENTRY_AUTH_TOKEN_STATS_WEB: ${{ secrets.SENTRY_AUTH_TOKEN_STATS_WEB }}
         run: |
           tag="${{ inputs.tag }}"
 
           if [[ "$tag" == console-api/* ]]; then
             echo "registry=${{ vars.API_REGISTRY }}" >> "$GITHUB_ENV"
             echo "app=api" >> "$GITHUB_ENV"
+            echo "GITHUB_PAT=${{ secrets.GITHUB_TOKEN }}" >> "$GITHUB_ENV" # used to fetch Akash templates
           elif [[ "$tag" == console-web/* ]]; then
             echo "registry=${{ vars.WEB_REGISTRY }}" >> "$GITHUB_ENV"
             echo "app=deploy-web" >> "$GITHUB_ENV"
@@ -96,6 +98,7 @@ jobs:
           elif [[ "$tag" == stats-web/* ]]; then
             echo "registry=${{ vars.STATS_WEB_REGISTRY }}" >> "$GITHUB_ENV"
             echo "app=stats-web" >> "$GITHUB_ENV"
+            echo "SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN_STATS_WEB}" >> "$GITHUB_ENV"
           elif [[ "$tag" == notifications/* ]]; then
             echo "registry=${{ vars.NOTIFICATIONS_REGISTRY }}" >> "$GITHUB_ENV"
             echo "app=notifications" >> "$GITHUB_ENV"
@@ -116,7 +119,6 @@ jobs:
       - name: Build Docker image
         env:
           DEPLOYMENT_ENV: ${{ inputs.deployment-env }}
-          GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }} # used by console-api to fetch Akash templates
           GIT_COMMIT_HASH: ${{ github.sha }}
         run: |
           if [[ -n "${{ env.force_build }}" ]]; then
