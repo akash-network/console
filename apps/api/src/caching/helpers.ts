@@ -1,9 +1,9 @@
-import { LoggerService } from "@akashnetwork/logging";
+import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { differenceInSeconds } from "date-fns";
 
 import MemoryCacheEngine from "./memoryCacheEngine";
 
-const logger = LoggerService.forContext("Caching");
+const logger = createOtelLogger({ context: "Caching" });
 
 export const cacheEngine = new MemoryCacheEngine();
 const pendingRequests = new Map<string, Promise<unknown>>();

@@ -1,4 +1,4 @@
-import { LoggerService } from "@akashnetwork/logging";
+import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { DefaultLogger } from "drizzle-orm/logger";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
@@ -15,7 +15,7 @@ import * as userSchemas from "@src/user/model-schemas";
 import type { CoreConfig } from "./config.provider";
 import { CORE_CONFIG } from "./config.provider";
 
-const logger = LoggerService.forContext("POSTGRES");
+const logger = createOtelLogger({ context: "POSTGRES" });
 
 const APP_PG_CLIENT = Symbol("appPgClient") as InjectionToken<postgres.Sql>;
 container.register(APP_PG_CLIENT, {

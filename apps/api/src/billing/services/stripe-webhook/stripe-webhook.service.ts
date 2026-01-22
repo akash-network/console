@@ -1,4 +1,4 @@
-import { LoggerService } from "@akashnetwork/logging";
+import { createOtelLogger } from "@akashnetwork/logging/otel";
 import assert from "http-assert";
 import Stripe from "stripe";
 import { singleton } from "tsyringe";
@@ -13,7 +13,7 @@ import { BillingConfigService } from "../billing-config/billing-config.service";
 
 @singleton()
 export class StripeWebhookService {
-  private readonly logger = LoggerService.forContext(StripeWebhookService.name);
+  private readonly logger = createOtelLogger({ context: StripeWebhookService.name });
 
   constructor(
     private readonly stripe: StripeService,

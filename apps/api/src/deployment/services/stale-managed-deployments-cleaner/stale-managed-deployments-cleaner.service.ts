@@ -1,4 +1,4 @@
-import { LoggerService } from "@akashnetwork/logging";
+import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { secondsInMinute } from "date-fns/constants";
 import { singleton } from "tsyringe";
 
@@ -14,7 +14,7 @@ import { averageBlockTime } from "@src/utils/constants";
 
 @singleton()
 export class StaleManagedDeploymentsCleanerService {
-  private readonly logger = LoggerService.forContext(StaleManagedDeploymentsCleanerService.name);
+  private readonly logger = createOtelLogger({ context: StaleManagedDeploymentsCleanerService.name });
 
   private readonly MAX_LIVE_BLOCKS = Math.floor((10 * secondsInMinute) / averageBlockTime);
 

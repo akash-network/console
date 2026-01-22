@@ -1,4 +1,4 @@
-import { LoggerService } from "@akashnetwork/logging";
+import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { PromisePool } from "@supercharge/promise-pool";
 import addDays from "date-fns/addDays";
 import subDays from "date-fns/subDays";
@@ -15,7 +15,7 @@ import { AnalyticsService } from "@src/core/services/analytics/analytics.service
 
 @singleton()
 export class RefillService {
-  private readonly logger = LoggerService.forContext(RefillService.name);
+  private readonly logger = createOtelLogger({ context: RefillService.name });
 
   constructor(
     @InjectBillingConfig() private readonly config: BillingConfig,

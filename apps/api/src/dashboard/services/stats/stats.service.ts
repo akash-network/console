@@ -1,7 +1,7 @@
 import { AkashBlock as Block, Lease, Provider, ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash";
 import { Day } from "@akashnetwork/database/dbSchemas/base";
 import { CoinGeckoHttpService, CosmosHttpService } from "@akashnetwork/http-sdk";
-import { LoggerService } from "@akashnetwork/logging";
+import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { differenceInSeconds, minutesToSeconds, sub, subHours } from "date-fns";
 import { cloneDeep } from "lodash";
 import uniqBy from "lodash/uniqBy";
@@ -20,7 +20,7 @@ import { createLoggingExecutor } from "@src/utils/logging";
 
 const numberOrZero: (x: number | undefined | null) => number = (x: number | undefined | null) => (typeof x === "number" ? x : 0);
 
-const logger = LoggerService.forContext("StatsService");
+const logger = createOtelLogger({ context: "StatsService" });
 const runOrLog = createLoggingExecutor(logger);
 
 type GpuUtilizationData = {

@@ -3,7 +3,7 @@ import "@akashnetwork/env-loader";
 import "./app"; // eslint-disable-line import/order
 import "@src/utils/protobuf";
 
-import { LoggerService } from "@akashnetwork/logging";
+import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { context, trace } from "@opentelemetry/api";
 import { Command } from "commander";
 import { once } from "lodash";
@@ -73,7 +73,7 @@ program
     });
   });
 
-const logger = LoggerService.forContext("CLI");
+const logger = createOtelLogger({ context: "CLI" });
 
 async function executeCliHandler(name: string, handler: () => Promise<unknown>, options?: { type?: "action" | "daemon" }) {
   await context.with(trace.setSpan(context.active(), tracer.startSpan(name)), async () => {

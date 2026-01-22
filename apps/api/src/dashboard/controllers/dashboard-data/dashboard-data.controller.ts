@@ -1,4 +1,4 @@
-import { LoggerService } from "@akashnetwork/logging";
+import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { cloneDeep } from "lodash";
 import { singleton } from "tsyringe";
 
@@ -9,7 +9,7 @@ import { emptyProviderGraphData, ProviderGraphDataService } from "@src/provider/
 import { TransactionService } from "@src/transaction/services/transaction/transaction.service";
 import { createLoggingExecutor } from "@src/utils/logging";
 
-const logger = LoggerService.forContext("DashboardData");
+const logger = createOtelLogger({ context: "DashboardData" });
 const runOrLog = createLoggingExecutor(logger);
 
 const emptyStats = {

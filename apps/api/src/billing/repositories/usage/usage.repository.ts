@@ -1,4 +1,4 @@
-import { LoggerService } from "@akashnetwork/logging";
+import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { QueryTypes } from "sequelize";
 import { singleton } from "tsyringe";
 
@@ -21,7 +21,7 @@ export interface BillingUsageRawResult {
 
 @singleton()
 export class UsageRepository {
-  private readonly logger = LoggerService.forContext(UsageRepository.name);
+  private readonly logger = createOtelLogger({ context: UsageRepository.name });
 
   constructor(
     private readonly userWalletRepository: UserWalletRepository,

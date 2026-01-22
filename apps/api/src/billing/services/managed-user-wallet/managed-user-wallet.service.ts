@@ -1,5 +1,5 @@
 import { AuthzHttpService } from "@akashnetwork/http-sdk";
-import { LoggerService } from "@akashnetwork/logging";
+import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import add from "date-fns/add";
 import addDays from "date-fns/addDays";
@@ -29,7 +29,7 @@ interface SpendingAuthorizationOptions {
 
 @singleton()
 export class ManagedUserWalletService {
-  private readonly logger = LoggerService.forContext(ManagedUserWalletService.name);
+  private readonly logger = createOtelLogger({ context: ManagedUserWalletService.name });
 
   constructor(
     @InjectBillingConfig() private readonly config: BillingConfig,

@@ -1,5 +1,5 @@
 import { TxRaw } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
-import { LoggerService } from "@akashnetwork/logging";
+import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { sha256 } from "@cosmjs/crypto";
 import { toHex } from "@cosmjs/encoding";
 import type { EncodeObject, Registry } from "@cosmjs/proto-signing";
@@ -126,7 +126,7 @@ export class BatchSigningClientService {
   /**
    * Logger instance for this service.
    */
-  private readonly logger = LoggerService.forContext(this.loggerContext);
+  private readonly logger = createOtelLogger({ context: this.loggerContext });
 
   /**
    * Checks if there are pending transactions waiting to be batched.
