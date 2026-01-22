@@ -28,7 +28,7 @@ export class AddressService {
       this.cosmosHttpService.getStakingDelegationsByAddress(address),
       this.cosmosHttpService.getDistributionDelegatorsRewardsByAddress(address),
       this.cosmosHttpService.getStakingDelegatorsRedelegationsByAddress(address),
-      this.transactionService.getTransactionsByAddress({ address, skip: 0, limit: 5 })
+      this.transactionService.getTransactionsByAddress(address, 0, 5)
     ]);
 
     const allValidatorsFromDb = await this.validatorRepository.findAll();

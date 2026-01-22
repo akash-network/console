@@ -3,6 +3,7 @@ import { AxiosError } from "axios";
 import type { MockProxy } from "jest-mock-extended";
 import { mock } from "jest-mock-extended";
 
+import { cacheEngine } from "@src/caching/helpers";
 import type { TransactionService } from "@src/transaction/services/transaction/transaction.service";
 import type { ValidatorRepository } from "@src/validator/repositories/validator/validator.repository";
 import { AddressService } from "./address.service";
@@ -238,6 +239,8 @@ describe(AddressService.name, () => {
     validatorRepository: MockProxy<ValidatorRepository>;
     service: AddressService;
   } {
+    cacheEngine.clearAllKeyInCache();
+
     const transactionService = mock<TransactionService>();
     const cosmosHttpService = mock<CosmosHttpService>();
     const validatorRepository = mock<ValidatorRepository>();

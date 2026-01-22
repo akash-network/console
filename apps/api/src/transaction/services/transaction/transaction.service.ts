@@ -1,6 +1,6 @@
 import { singleton } from "tsyringe";
 
-import { GetAddressTransactionsParams, GetAddressTransactionsResponse } from "@src/address/http-schemas/address.schema";
+import { GetAddressTransactionsResponse } from "@src/address/http-schemas/address.schema";
 import { Memoize } from "@src/caching/helpers";
 import { GetTransactionByHashResponse, ListTransactionsResponse } from "@src/transaction/http-schemas/transaction.schema";
 import { TransactionRepository } from "@src/transaction/repositories/transaction/transaction.repository";
@@ -21,7 +21,7 @@ export class TransactionService {
   }
 
   @Memoize({ ttlInSeconds: averageBlockTime })
-  async getTransactionsByAddress({ address, ...query }: GetAddressTransactionsParams): Promise<GetAddressTransactionsResponse> {
-    return await this.transactionRepository.getTransactionsByAddress({ address, ...query });
+  async getTransactionsByAddress(address: string, skip?: number, limit?: number): Promise<GetAddressTransactionsResponse> {
+    return await this.transactionRepository.getTransactionsByAddress(address, skip, limit);
   }
 }
