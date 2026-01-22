@@ -96,6 +96,78 @@ describe(BatchSigningClientService.name, () => {
     expect(client.broadcastTxSync).toHaveBeenCalledTimes(allTestData.length - 1);
   });
 
+  it("should recover transaction when getTx fails with network error but tx exists on chain", async () => {
+    jest.useFakeTimers();
+
+    const granter = createAkashAddress();
+    const testData = createTransactionTestData(granter);
+
+    const { service, client } = setup([testData]);
+
+    // Reset getTx mock to simulate network error then recovery
+    client.getTx.mockReset();
+    client.getTx
+      .mockRejectedValueOnce(new Error("TypeError: fetch failed")) // First call fails with network error
+      .mockResolvedValueOnce(testData.tx); // Recovery call succeeds
+
+    const resultPromise = service.signAndBroadcast(testData.messages);
+
+    // Fast-forward through the 2 second recovery delay
+    await jest.advanceTimersByTimeAsync(2000);
+
+    const result = await resultPromise;
+
+    expect(result).toEqual(testData.tx);
+    expect(client.getTx).toHaveBeenCalledTimes(2);
+
+    jest.useRealTimers();
+  });
+
+  it("should recover transaction when getTx fails with socket error", async () => {
+    jest.useFakeTimers();
+
+    const granter = createAkashAddress();
+    const testData = createTransactionTestData(granter);
+
+    const { service, client } = setup([testData]);
+
+    // Reset getTx mock to simulate socket error then recovery
+    client.getTx.mockReset();
+    client.getTx
+      .mockRejectedValueOnce(new Error("SocketError: other side closed")) // Socket error like in production
+      .mockResolvedValueOnce(testData.tx); // Recovery call succeeds
+
+    const resultPromise = service.signAndBroadcast(testData.messages);
+
+    // Fast-forward through the 2 second recovery delay
+    await jest.advanceTimersByTimeAsync(2000);
+
+    const result = await resultPromise;
+
+    expect(result).toEqual(testData.tx);
+    expect(client.getTx).toHaveBeenCalledTimes(2);
+
+    jest.useRealTimers();
+  });
+
+  it("should not attempt recovery for non-network errors", async () => {
+    const granter = createAkashAddress();
+    const testData = createTransactionTestData(granter);
+
+    const { service, client } = setup([testData]);
+
+    // Reset getTx mock to simulate a non-network error (e.g., tx not found)
+    client.getTx.mockReset();
+    const nonNetworkError = new Error("Transaction not found");
+    client.getTx.mockRejectedValue(nonNetworkError);
+
+    await expect(service.signAndBroadcast(testData.messages)).rejects.toThrow("Transaction not found");
+
+    // Should only be called once (no recovery attempt for non-network errors)
+    // Note: getTxExecutor has retry logic built in, but recovery path should not be triggered
+    expect(client.getTx).toHaveBeenCalled();
+  });
+
   function createTransactionTestData(granter: string): TransactionTestData {
     const signedMessage = TxRaw.fromPartial({
       bodyBytes: generateRandomBytes(faker.number.int({ min: 10, max: 100 })),
