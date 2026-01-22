@@ -1,5 +1,12 @@
 
 
+## [1.23.5](https://github.com/akash-network/console/compare/indexer/v1.23.4...indexer/v1.23.5) (2026-01-22)
+
+
+### Code Refactoring
+
+* defines explicit exports inside internal packages ([#2551](https://github.com/akash-network/console/issues/2551)) ([71f907f](https://github.com/akash-network/console/commit/71f907fe6b8b85a042bd351ec5b2b3621ba8d89d))
+
 ## [1.23.4](https://github.com/akash-network/console/compare/indexer/v1.23.3...indexer/v1.23.4) (2026-01-20)
 
 
