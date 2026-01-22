@@ -17,6 +17,7 @@ const common = {
 /** @type {import('jest').Config} */
 const config = {
   collectCoverageFrom: ["src/**/*.ts", "!src/**/*.spec.ts", "!src/**/*.d.ts", "!src/main.ts", "!src/console.ts", "!src/test/**/*", "!src/**/index.ts"],
+  maxWorkers: 1,
   projects: [
     {
       displayName: "unit",
@@ -26,11 +27,18 @@ const config = {
       setupFiles: ["./test/setup-unit-env.ts"]
     },
     {
+      displayName: "integration",
+      ...common,
+      testMatch: ["<rootDir>/src/**/*.integration.ts"],
+      setupFilesAfterEnv: ["./test/setup-functional-n-integration-tests.ts"],
+      setupFiles: ["./test/setup-functional-n-integration-env.ts"]
+    },
+    {
       displayName: "functional",
       ...common,
       testMatch: ["<rootDir>/test/functional/**/*.spec.ts"],
-      setupFilesAfterEnv: ["./test/setup-functional-tests.ts"],
-      setupFiles: ["./test/setup-functional-env.ts"],
+      setupFilesAfterEnv: ["./test/setup-functional-n-integration-tests.ts"],
+      setupFiles: ["./test/setup-functional-n-integration-env.ts"],
       globalSetup: "./test/setup-global-functional.ts",
       testEnvironment: "./test/custom-jest-environment.ts"
     },
