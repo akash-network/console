@@ -7,7 +7,7 @@ import type { SigningStargateClient } from "@cosmjs/stargate";
 import { calculateFee, GasPrice } from "@cosmjs/stargate";
 import type { IndexedTx } from "@cosmjs/stargate/build/stargateclient";
 import { Sema } from "async-sema";
-import { ExponentialBackoff, handleWhenResult, retry } from "cockatiel";
+import { ExponentialBackoff, handleWhen, handleWhenResult, retry } from "cockatiel";
 import DataLoader from "dataloader";
 import type { Result } from "ts-results";
 import { Err, Ok } from "ts-results";
@@ -101,6 +101,21 @@ export class BatchSigningClientService {
   private readonly getTxExecutor = retry(
     handleWhenResult(res => !res),
     { maxAttempts: 5, backoff: new ExponentialBackoff({ maxDelay: 7_000, initialDelay: 500 }) }
+  );
+
+  /**
+   * Retry executor for network error recovery.
+   *
+   * Retries up to 5 times with exponential backoff when network errors occur during
+   * transaction retrieval. This handles cases where the RPC connection fails but the
+   * transaction may have already been included in a block.
+   */
+  private readonly networkErrorRecoveryExecutor = retry(
+    handleWhen(err => this.isNetworkError(err)),
+    {
+      maxAttempts: 5,
+      backoff: new ExponentialBackoff({ maxDelay: 10_000, initialDelay: 1_000 })
+    }
   );
 
   /**
@@ -388,7 +403,8 @@ export class BatchSigningClientService {
   }
 
   /**
-   * Attempts to recover a transaction after a network error by retrying the lookup.
+   * Attempts to recover a transaction after a network error by retrying the lookup
+   * with exponential backoff.
    *
    * This is useful when the transaction was successfully broadcast and included
    * in a block, but the confirmation polling failed due to network issues.
@@ -397,12 +413,9 @@ export class BatchSigningClientService {
    * @returns The indexed transaction if found, or `null` if recovery failed.
    */
   private async tryRecoverTransaction(hash: string): Promise<IndexedTx | null> {
-    // Wait a bit for the transaction to be indexed and network to stabilize
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
     try {
-      // Use getTxExecutor which already has retry logic
-      return await this.getTxExecutor.execute(() => this.client.getTx(hash));
+      // Use exponential backoff retry for network errors
+      return await this.networkErrorRecoveryExecutor.execute(() => this.client.getTx(hash));
     } catch {
       return null;
     }

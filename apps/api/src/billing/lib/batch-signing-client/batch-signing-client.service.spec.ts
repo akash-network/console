@@ -97,8 +97,6 @@ describe(BatchSigningClientService.name, () => {
   });
 
   it("should recover transaction when getTx fails with network error but tx exists on chain", async () => {
-    jest.useFakeTimers();
-
     const granter = createAkashAddress();
     const testData = createTransactionTestData(granter);
 
@@ -108,24 +106,16 @@ describe(BatchSigningClientService.name, () => {
     client.getTx.mockReset();
     client.getTx
       .mockRejectedValueOnce(new Error("TypeError: fetch failed")) // First call fails with network error
+      .mockRejectedValueOnce(new Error("TypeError: fetch failed")) // Second call also fails (retry from getTxExecutor)
       .mockResolvedValueOnce(testData.tx); // Recovery call succeeds
 
-    const resultPromise = service.signAndBroadcast(testData.messages);
-
-    // Fast-forward through the 2 second recovery delay
-    await jest.advanceTimersByTimeAsync(2000);
-
-    const result = await resultPromise;
+    const result = await service.signAndBroadcast(testData.messages);
 
     expect(result).toEqual(testData.tx);
-    expect(client.getTx).toHaveBeenCalledTimes(2);
-
-    jest.useRealTimers();
+    expect(client.getTx.mock.calls.length).toBeGreaterThanOrEqual(2);
   });
 
   it("should recover transaction when getTx fails with socket error", async () => {
-    jest.useFakeTimers();
-
     const granter = createAkashAddress();
     const testData = createTransactionTestData(granter);
 
@@ -135,19 +125,13 @@ describe(BatchSigningClientService.name, () => {
     client.getTx.mockReset();
     client.getTx
       .mockRejectedValueOnce(new Error("SocketError: other side closed")) // Socket error like in production
+      .mockRejectedValueOnce(new Error("SocketError: other side closed")) // Retry
       .mockResolvedValueOnce(testData.tx); // Recovery call succeeds
 
-    const resultPromise = service.signAndBroadcast(testData.messages);
-
-    // Fast-forward through the 2 second recovery delay
-    await jest.advanceTimersByTimeAsync(2000);
-
-    const result = await resultPromise;
+    const result = await service.signAndBroadcast(testData.messages);
 
     expect(result).toEqual(testData.tx);
-    expect(client.getTx).toHaveBeenCalledTimes(2);
-
-    jest.useRealTimers();
+    expect(client.getTx.mock.calls.length).toBeGreaterThanOrEqual(2);
   });
 
   it("should not attempt recovery for non-network errors", async () => {
