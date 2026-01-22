@@ -1,5 +1,12 @@
 
 
+## [3.21.4](https://github.com/akash-network/console/compare/console-api/v3.21.3...console-api/v3.21.4) (2026-01-22)
+
+
+### Bug Fixes
+
+* **billing:** defers succeeded payment intent status update to process payments reliably ([75c3b66](https://github.com/akash-network/console/commit/75c3b66c9f0467728822467e02129bbe8bbdb282))
+
 ## [3.21.3](https://github.com/akash-network/console/compare/console-api/v3.21.2...console-api/v3.21.3) (2026-01-22)
 
 
