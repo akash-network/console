@@ -165,6 +165,9 @@ export class BatchSigningClientService {
    * are collected and executed together for efficiency. The method retries
    * on sequence mismatch errors with exponential backoff.
    *
+   * If a network error occurs during transaction retrieval, the method will
+   * attempt to recover by re-querying the transaction after a brief delay.
+   *
    * @param messages - The protocol buffer messages to include in the transaction.
    * @param options - Optional execution options (e.g., fee granter).
    * @returns The indexed transaction result after successful broadcast.
@@ -190,18 +193,43 @@ export class BatchSigningClientService {
       throw result.val;
     }
 
-    const tx = await this.getTx(result.val);
+    const txHash = result.val;
 
-    if (!tx) {
-      const error = new Error("Failed to sign and broadcast transaction");
-      this.logger.error({
-        event: "SIGN_AND_BROADCAST_ERROR",
-        error
-      });
+    try {
+      const tx = await this.getTx(txHash);
+
+      if (!tx) {
+        const error = new Error("Failed to sign and broadcast transaction");
+        this.logger.error({
+          event: "SIGN_AND_BROADCAST_ERROR",
+          error
+        });
+        throw error;
+      }
+
+      return tx;
+    } catch (error) {
+      // On network error, try to verify if tx actually succeeded on-chain
+      if (this.isNetworkError(error)) {
+        this.logger.warn({
+          event: "SIGN_AND_BROADCAST_NETWORK_ERROR_RECOVERY",
+          txHash,
+          error
+        });
+
+        const recoveredTx = await this.tryRecoverTransaction(txHash);
+        if (recoveredTx) {
+          this.logger.info({
+            event: "SIGN_AND_BROADCAST_RECOVERED",
+            txHash,
+            height: recoveredTx.height
+          });
+          return recoveredTx;
+        }
+      }
+
       throw error;
     }
-
-    return tx;
   }
 
   /**
@@ -335,6 +363,49 @@ export class BatchSigningClientService {
    */
   private async getTx(hash: string) {
     return await this.getTxExecutor.execute(() => this.client.getTx(hash));
+  }
+
+  /**
+   * Checks if an error is a network-related error that might be recoverable.
+   *
+   * Network errors can occur when the RPC connection is interrupted, but the
+   * transaction may have already been successfully included in a block.
+   *
+   * @param error - The error to check.
+   * @returns `true` if the error appears to be network-related.
+   */
+  private isNetworkError(error: unknown): boolean {
+    if (!(error instanceof Error)) return false;
+    const message = error.message.toLowerCase();
+    return (
+      message.includes("socket") ||
+      message.includes("fetch failed") ||
+      message.includes("econnreset") ||
+      message.includes("econnrefused") ||
+      message.includes("etimedout") ||
+      message.includes("network")
+    );
+  }
+
+  /**
+   * Attempts to recover a transaction after a network error by retrying the lookup.
+   *
+   * This is useful when the transaction was successfully broadcast and included
+   * in a block, but the confirmation polling failed due to network issues.
+   *
+   * @param hash - The transaction hash to recover.
+   * @returns The indexed transaction if found, or `null` if recovery failed.
+   */
+  private async tryRecoverTransaction(hash: string): Promise<IndexedTx | null> {
+    // Wait a bit for the transaction to be indexed and network to stabilize
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    try {
+      // Use getTxExecutor which already has retry logic
+      return await this.getTxExecutor.execute(() => this.client.getTx(hash));
+    } catch {
+      return null;
+    }
   }
 
   /**
