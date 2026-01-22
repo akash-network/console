@@ -21,7 +21,7 @@ export class TransactionService {
   }
 
   @Memoize({ ttlInSeconds: averageBlockTime })
-  async getTransactionsByAddress(address: string, skip?: number, limit?: number): Promise<GetAddressTransactionsResponse> {
-    return await this.transactionRepository.getTransactionsByAddress(address, skip, limit);
+  async getTransactionsByAddress(address: string, skip: number = -1, limit: number = -1): Promise<GetAddressTransactionsResponse> {
+    return await this.transactionRepository.getTransactionsByAddress(address, skip === -1 ? undefined : skip, limit === -1 ? undefined : limit);
   }
 }
