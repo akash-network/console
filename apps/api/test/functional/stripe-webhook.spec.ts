@@ -92,7 +92,8 @@ describe("Stripe webhook", () => {
               amount,
               amount_received: amount,
               latest_charge: chargeId,
-              payment_method_types: ["card"]
+              payment_method_types: ["card"],
+              metadata: {}
             }
           },
           type: "payment_intent.succeeded"
@@ -157,7 +158,8 @@ describe("Stripe webhook", () => {
               amount,
               amount_received: amount,
               latest_charge: chargeId,
-              payment_method_types: ["card"]
+              payment_method_types: ["card"],
+              metadata: {}
             }
           },
           type: "payment_intent.succeeded"

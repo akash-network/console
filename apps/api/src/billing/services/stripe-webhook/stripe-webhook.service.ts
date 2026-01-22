@@ -1,4 +1,5 @@
 import { LoggerService } from "@akashnetwork/logging";
+import assert from "http-assert";
 import Stripe from "stripe";
 import { singleton } from "tsyringe";
 
@@ -69,6 +70,14 @@ export class StripeWebhookService {
     const paymentIntent = event.data.object;
     const customerId = paymentIntent.customer as string;
 
+    if (paymentIntent.metadata.type === "payment_method_validation") {
+      this.logger.info({
+        event: "SKIP_PAYMENT_METHOD_VALIDATION_PROCESSING",
+        paymentIntentId: paymentIntent.id
+      });
+      return;
+    }
+
     if (!customerId) {
       this.logger.error({
         event: "PAYMENT_INTENT_MISSING_CUSTOMER_ID",
@@ -88,7 +97,15 @@ export class StripeWebhookService {
     }
 
     // Check if this payment was already processed (idempotency for Stripe webhook retries)
-    const existingTransaction = await this.stripeTransactionRepository.findByPaymentIntentId(paymentIntent.id);
+    const existingTransaction = paymentIntent.metadata.internal_transaction_id
+      ? await this.stripeTransactionRepository.findById(paymentIntent.metadata.internal_transaction_id)
+      : await this.stripeTransactionRepository.findByPaymentIntentId(paymentIntent.id);
+
+    assert(existingTransaction, 500, "Failed to find existing transaction for payment intent", {
+      paymentIntentId: paymentIntent.id,
+      stripeTransactionId: paymentIntent.metadata.internal_transaction_id
+    });
+
     if (existingTransaction?.status === "succeeded") {
       this.logger.info({
         event: "PAYMENT_ALREADY_PROCESSED",
@@ -127,13 +144,14 @@ export class StripeWebhookService {
       }
     }
 
-    await this.stripeTransactionRepository.updateStatusByPaymentIntentId(paymentIntent.id, {
+    await this.stripeTransactionRepository.updateById(existingTransaction.id, {
       status: "succeeded",
       stripeChargeId: chargeId,
       paymentMethodType: paymentMethodDetails,
       cardBrand,
       cardLast4,
-      receiptUrl
+      receiptUrl,
+      stripePaymentIntentId: paymentIntent.id
     });
 
     // Use amount_received when available (for partial captures), otherwise use amount
@@ -146,7 +164,7 @@ export class StripeWebhookService {
     const paymentIntent = event.data.object;
     const errorMessage = paymentIntent.last_payment_error?.message ?? "Payment failed";
 
-    await this.stripeTransactionRepository.updateStatusByPaymentIntentId(paymentIntent.id, {
+    await this.stripeTransactionRepository.updateByPaymentIntentId(paymentIntent.id, {
       status: "failed",
       errorMessage
     });
@@ -162,7 +180,7 @@ export class StripeWebhookService {
   async handlePaymentIntentCanceled(event: Stripe.PaymentIntentCanceledEvent) {
     const paymentIntent = event.data.object;
 
-    await this.stripeTransactionRepository.updateStatusByPaymentIntentId(paymentIntent.id, {
+    await this.stripeTransactionRepository.updateByPaymentIntentId(paymentIntent.id, {
       status: "canceled"
     });
 
