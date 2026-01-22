@@ -148,8 +148,7 @@ describe(BatchSigningClientService.name, () => {
     await expect(service.signAndBroadcast(testData.messages)).rejects.toThrow("Transaction not found");
 
     // Should only be called once (no recovery attempt for non-network errors)
-    // Note: getTxExecutor has retry logic built in, but recovery path should not be triggered
-    expect(client.getTx).toHaveBeenCalled();
+    expect(client.getTx).toHaveBeenCalledTimes(1);
   });
 
   function createTransactionTestData(granter: string): TransactionTestData {
