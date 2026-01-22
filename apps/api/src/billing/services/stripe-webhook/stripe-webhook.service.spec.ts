@@ -18,9 +18,11 @@ describe(StripeWebhookService.name, () => {
       const chargeId = "ch_123";
       const paymentIntentId = "pi_123";
       const amount = 10000;
+      const internalTransaction = createMockTransaction({ status: "created" });
 
       userRepository.findOneBy.mockResolvedValue(mockUser);
-      stripeTransactionRepository.updateStatusByPaymentIntentId.mockResolvedValue(undefined);
+      stripeTransactionRepository.findById.mockResolvedValue(internalTransaction);
+      stripeTransactionRepository.updateById.mockResolvedValue(undefined);
       refillService.topUpWallet.mockResolvedValue();
       (stripeService.charges.retrieve as jest.Mock).mockResolvedValue({
         id: chargeId,
@@ -34,20 +36,24 @@ describe(StripeWebhookService.name, () => {
         amount,
         amount_received: amount,
         latest_charge: chargeId,
-        payment_method_types: ["card"]
+        payment_method_types: ["card"],
+        metadata: {
+          internal_transaction_id: internalTransaction.id
+        }
       });
 
       await service.tryToTopUpWalletFromPaymentIntent(event);
 
       expect(userRepository.findOneBy).toHaveBeenCalledWith({ stripeCustomerId: mockUser.stripeCustomerId });
       expect(stripeService.charges.retrieve).toHaveBeenCalledWith(chargeId);
-      expect(stripeTransactionRepository.updateStatusByPaymentIntentId).toHaveBeenCalledWith(paymentIntentId, {
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(internalTransaction.id, {
         status: "succeeded",
         stripeChargeId: chargeId,
         paymentMethodType: "card",
         cardBrand: "visa",
         cardLast4: "4242",
-        receiptUrl: "https://receipt.url"
+        receiptUrl: "https://receipt.url",
+        stripePaymentIntentId: paymentIntentId
       });
       expect(refillService.topUpWallet).toHaveBeenCalledWith(amount, mockUser.id);
     });
@@ -58,7 +64,8 @@ describe(StripeWebhookService.name, () => {
       const event = createPaymentIntentSucceededEvent({
         id: "pi_123",
         customer: null,
-        amount: 10000
+        amount: 10000,
+        metadata: {}
       });
 
       await service.tryToTopUpWalletFromPaymentIntent(event);
@@ -75,7 +82,8 @@ describe(StripeWebhookService.name, () => {
       const event = createPaymentIntentSucceededEvent({
         id: "pi_123",
         customer: "cus_unknown",
-        amount: 10000
+        amount: 10000,
+        metadata: {}
       });
 
       await service.tryToTopUpWalletFromPaymentIntent(event);
@@ -88,56 +96,57 @@ describe(StripeWebhookService.name, () => {
       const { service, userRepository, stripeTransactionRepository, refillService } = setup();
       const mockUser = createTestUser();
       const paymentIntentId = "pi_123";
+      const internalTransaction = createMockTransaction({ id: "tx-123", status: "succeeded" });
 
       userRepository.findOneBy.mockResolvedValue(mockUser);
-      stripeTransactionRepository.findByPaymentIntentId.mockResolvedValue(
-        createMockTransaction({ id: "tx-123", status: "succeeded", stripePaymentIntentId: paymentIntentId })
-      );
+      stripeTransactionRepository.findById.mockResolvedValue(internalTransaction);
 
       const event = createPaymentIntentSucceededEvent({
         id: paymentIntentId,
         customer: mockUser.stripeCustomerId,
-        amount: 10000
+        amount: 10000,
+        metadata: {
+          internal_transaction_id: internalTransaction.id
+        }
       });
 
       await service.tryToTopUpWalletFromPaymentIntent(event);
 
-      expect(stripeTransactionRepository.findByPaymentIntentId).toHaveBeenCalledWith(paymentIntentId);
+      expect(stripeTransactionRepository.findById).toHaveBeenCalledWith(internalTransaction.id);
       expect(refillService.topUpWallet).not.toHaveBeenCalled();
-      expect(stripeTransactionRepository.updateStatusByPaymentIntentId).not.toHaveBeenCalled();
+      expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
     });
 
     it("processes payment when transaction exists but is not succeeded", async () => {
-      const { service, userRepository, stripeTransactionRepository, refillService, stripeService } = setup();
+      const { service, userRepository, stripeTransactionRepository, refillService } = setup();
       const mockUser = createTestUser();
-      const chargeId = "ch_123";
       const paymentIntentId = "pi_123";
+      const internalTransaction = createMockTransaction({ id: "tx-123", status: "created" });
       const amount = 10000;
 
       userRepository.findOneBy.mockResolvedValue(mockUser);
-      stripeTransactionRepository.findByPaymentIntentId.mockResolvedValue(
-        createMockTransaction({ id: "tx-123", status: "pending", stripePaymentIntentId: paymentIntentId })
-      );
-      stripeTransactionRepository.updateStatusByPaymentIntentId.mockResolvedValue(undefined);
-      refillService.topUpWallet.mockResolvedValue();
-      (stripeService.charges.retrieve as jest.Mock).mockResolvedValue({
-        id: chargeId,
-        payment_method_details: { card: { brand: "visa", last4: "4242" } },
-        receipt_url: "https://receipt.url"
-      });
+      stripeTransactionRepository.findById.mockResolvedValue(internalTransaction);
 
       const event = createPaymentIntentSucceededEvent({
         id: paymentIntentId,
         customer: mockUser.stripeCustomerId,
         amount,
-        amount_received: amount,
-        latest_charge: chargeId,
-        payment_method_types: ["card"]
+        metadata: {
+          internal_transaction_id: internalTransaction.id
+        }
       });
 
       await service.tryToTopUpWalletFromPaymentIntent(event);
 
+      expect(stripeTransactionRepository.findById).toHaveBeenCalledWith(internalTransaction.id);
       expect(refillService.topUpWallet).toHaveBeenCalledWith(amount, mockUser.id);
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(
+        "tx-123",
+        expect.objectContaining({
+          status: "succeeded",
+          stripePaymentIntentId: "pi_123"
+        })
+      );
     });
   });
 
@@ -147,7 +156,7 @@ describe(StripeWebhookService.name, () => {
       const paymentIntentId = "pi_123";
       const errorMessage = "Your card was declined.";
 
-      stripeTransactionRepository.updateStatusByPaymentIntentId.mockResolvedValue(undefined);
+      stripeTransactionRepository.updateByPaymentIntentId.mockResolvedValue(undefined);
 
       const event = createPaymentIntentFailedEvent({
         id: paymentIntentId,
@@ -156,7 +165,7 @@ describe(StripeWebhookService.name, () => {
 
       await service.handlePaymentIntentFailed(event);
 
-      expect(stripeTransactionRepository.updateStatusByPaymentIntentId).toHaveBeenCalledWith(paymentIntentId, {
+      expect(stripeTransactionRepository.updateByPaymentIntentId).toHaveBeenCalledWith(paymentIntentId, {
         status: "failed",
         errorMessage
       });
@@ -166,7 +175,7 @@ describe(StripeWebhookService.name, () => {
       const { service, stripeTransactionRepository } = setup();
       const paymentIntentId = "pi_123";
 
-      stripeTransactionRepository.updateStatusByPaymentIntentId.mockResolvedValue(undefined);
+      stripeTransactionRepository.updateByPaymentIntentId.mockResolvedValue(undefined);
 
       const event = createPaymentIntentFailedEvent({
         id: paymentIntentId,
@@ -175,7 +184,7 @@ describe(StripeWebhookService.name, () => {
 
       await service.handlePaymentIntentFailed(event);
 
-      expect(stripeTransactionRepository.updateStatusByPaymentIntentId).toHaveBeenCalledWith(paymentIntentId, {
+      expect(stripeTransactionRepository.updateByPaymentIntentId).toHaveBeenCalledWith(paymentIntentId, {
         status: "failed",
         errorMessage: "Payment failed"
       });
@@ -187,13 +196,13 @@ describe(StripeWebhookService.name, () => {
       const { service, stripeTransactionRepository } = setup();
       const paymentIntentId = "pi_123";
 
-      stripeTransactionRepository.updateStatusByPaymentIntentId.mockResolvedValue(undefined);
+      stripeTransactionRepository.updateByPaymentIntentId.mockResolvedValue(undefined);
 
       const event = createPaymentIntentCanceledEvent({ id: paymentIntentId });
 
       await service.handlePaymentIntentCanceled(event);
 
-      expect(stripeTransactionRepository.updateStatusByPaymentIntentId).toHaveBeenCalledWith(paymentIntentId, {
+      expect(stripeTransactionRepository.updateByPaymentIntentId).toHaveBeenCalledWith(paymentIntentId, {
         status: "canceled"
       });
     });

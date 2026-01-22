@@ -81,6 +81,9 @@ describe(StripeService.name, () => {
         automatic_payment_methods: {
           enabled: true,
           allow_redirects: "never"
+        },
+        metadata: {
+          internal_transaction_id: "test-transaction-id"
         }
       });
       expect(result).toEqual({

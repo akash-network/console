@@ -9,7 +9,7 @@ import Stripe from "stripe";
 import { singleton } from "tsyringe";
 
 import { PaymentIntentResult, PaymentMethodValidationResult, Transaction } from "@src/billing/http-schemas/stripe.schema";
-import { PaymentMethodRepository, StripeTransactionRepository } from "@src/billing/repositories";
+import { PaymentMethodRepository, StripeTransactionInput, StripeTransactionRepository } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { RefillService } from "@src/billing/services/refill/refill.service";
 import { WithTransaction } from "@src/core";
@@ -31,6 +31,11 @@ export type PaymentMethod = Stripe.PaymentMethod & { validated: boolean; isDefau
 @singleton()
 export class StripeService extends Stripe {
   readonly isProduction = this.billingConfig.get("STRIPE_SECRET_KEY").startsWith("sk_live");
+
+  /**
+   * Statuses that should be applied later via Stripe webhooks.
+   */
+  readonly #DEFERRED_STATUSES = new Set<Stripe.PaymentIntent.Status>(["succeeded"]);
 
   constructor(
     private readonly billingConfig: BillingConfigService,
@@ -189,7 +194,6 @@ export class StripeService extends Stripe {
   }): Promise<PaymentIntentResult> {
     const amountInCents = Math.round(params.amount * 100);
 
-    // Create transaction record before calling Stripe
     const transaction = await this.stripeTransactionRepository.create({
       userId: params.userId,
       type: "payment_intent",
@@ -205,7 +209,10 @@ export class StripeService extends Stripe {
         amount: amountInCents,
         currency: params.currency,
         confirm: params.confirm,
-        metadata: params.metadata,
+        metadata: {
+          ...params.metadata,
+          internal_transaction_id: transaction.id
+        },
         automatic_payment_methods: {
           enabled: true,
           allow_redirects: "never"
@@ -219,12 +226,13 @@ export class StripeService extends Stripe {
 
     try {
       const paymentIntent = await this.paymentIntents.create(...createOptions);
+      const update: Partial<Pick<StripeTransactionInput, "stripePaymentIntentId" | "status">> = { stripePaymentIntentId: paymentIntent.id };
 
-      // Update transaction with Stripe payment intent ID
-      await this.stripeTransactionRepository.updateById(transaction.id, {
-        stripePaymentIntentId: paymentIntent.id,
-        status: this.mapPaymentIntentStatusToTransactionStatus(paymentIntent.status)
-      });
+      if (!this.#DEFERRED_STATUSES.has(paymentIntent.status)) {
+        update.status = this.mapPaymentIntentStatusToTransactionStatus(paymentIntent.status);
+      }
+
+      await this.stripeTransactionRepository.updateById(transaction.id, update);
 
       switch (paymentIntent.status) {
         case "succeeded":

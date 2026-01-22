@@ -78,7 +78,7 @@ export class StripeTransactionRepository extends BaseRepository<Table, StripeTra
     return item ? this.toOutput(item) : undefined;
   }
 
-  async updateStatusByPaymentIntentId(paymentIntentId: string, update: Partial<StripeTransactionInput>): Promise<StripeTransactionOutput | undefined> {
+  async updateByPaymentIntentId(paymentIntentId: string, update: Partial<StripeTransactionInput>): Promise<StripeTransactionOutput | undefined> {
     const existing = await this.findByPaymentIntentId(paymentIntentId);
     if (!existing) return undefined;
 
