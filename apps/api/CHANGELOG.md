@@ -1,5 +1,17 @@
 
 
+## [3.21.3](https://github.com/akash-network/console/compare/console-api/v3.21.2...console-api/v3.21.3) (2026-01-22)
+
+
+### Bug Fixes
+
+* ensure provider address in managed wapi /leases is bech32 ([#2548](https://github.com/akash-network/console/issues/2548)) ([dcff23e](https://github.com/akash-network/console/commit/dcff23e5890d6e18575179e87c1c7e64aba012ca))
+
+
+### Code Refactoring
+
+* defines explicit exports inside internal packages ([#2551](https://github.com/akash-network/console/issues/2551)) ([71f907f](https://github.com/akash-network/console/commit/71f907fe6b8b85a042bd351ec5b2b3621ba8d89d))
+
 ## [3.21.2](https://github.com/akash-network/console/compare/console-api/v3.21.1...console-api/v3.21.2) (2026-01-21)
 
 

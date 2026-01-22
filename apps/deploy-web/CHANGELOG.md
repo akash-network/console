@@ -1,5 +1,12 @@
 
 
+## [3.23.1](https://github.com/akash-network/console/compare/console-web/v3.23.0...console-web/v3.23.1) (2026-01-22)
+
+
+### Code Refactoring
+
+* defines explicit exports inside internal packages ([#2551](https://github.com/akash-network/console/issues/2551)) ([71f907f](https://github.com/akash-network/console/commit/71f907fe6b8b85a042bd351ec5b2b3621ba8d89d))
+
 ## [3.23.0](https://github.com/akash-network/console/compare/console-web/v3.22.5...console-web/v3.23.0) (2026-01-21)
 
 

@@ -1,5 +1,17 @@
 
 
+## [1.13.1](https://github.com/akash-network/console/compare/stats-web/v1.13.0...stats-web/v1.13.1) (2026-01-22)
+
+
+### Bug Fixes
+
+* passes required vars for stats-web sentry to work ([#2554](https://github.com/akash-network/console/issues/2554)) ([2073e9f](https://github.com/akash-network/console/commit/2073e9fdc809259c0227fced997b455287b36061))
+
+
+### Code Refactoring
+
+* defines explicit exports inside internal packages ([#2551](https://github.com/akash-network/console/issues/2551)) ([71f907f](https://github.com/akash-network/console/commit/71f907fe6b8b85a042bd351ec5b2b3621ba8d89d))
+
 ## [1.13.0](https://github.com/akash-network/console/compare/stats-web/v1.12.1...stats-web/v1.13.0) (2026-01-20)
 
 
