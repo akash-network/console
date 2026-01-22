@@ -8,6 +8,7 @@ import { singleton } from "tsyringe";
 import type { GetAddressResponse } from "@src/address/http-schemas/address.schema";
 import { Memoize } from "@src/caching/helpers";
 import { TransactionService } from "@src/transaction/services/transaction/transaction.service";
+import { averageBlockTime } from "@src/utils/constants";
 import { ValidatorRepository } from "@src/validator/repositories/validator/validator.repository";
 
 const logger = LoggerService.forContext("AddressService");
@@ -20,7 +21,7 @@ export class AddressService {
     private readonly validatorRepository: ValidatorRepository
   ) {}
 
-  @Memoize({ ttlInSeconds: 30 })
+  @Memoize({ ttlInSeconds: averageBlockTime })
   async getAddressDetails(address: string): Promise<GetAddressResponse> {
     const [balancesResponse, delegationsResponse, rewardsResponse, redelegationsResponse, latestTransactions] = await Promise.all([
       this.cosmosHttpService.getBankBalancesByAddress(address),

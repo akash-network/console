@@ -4,12 +4,13 @@ import { GetAddressTransactionsParams, GetAddressTransactionsResponse } from "@s
 import { Memoize } from "@src/caching/helpers";
 import { GetTransactionByHashResponse, ListTransactionsResponse } from "@src/transaction/http-schemas/transaction.schema";
 import { TransactionRepository } from "@src/transaction/repositories/transaction/transaction.repository";
+import { averageBlockTime } from "@src/utils/constants";
 
 @singleton()
 export class TransactionService {
   constructor(private readonly transactionRepository: TransactionRepository) {}
 
-  @Memoize({ ttlInSeconds: 15 })
+  @Memoize({ ttlInSeconds: averageBlockTime })
   async getTransactions(limit: number): Promise<ListTransactionsResponse> {
     return await this.transactionRepository.getTransactions(limit);
   }
@@ -19,7 +20,7 @@ export class TransactionService {
     return await this.transactionRepository.getTransactionByHash(hash);
   }
 
-  @Memoize({ ttlInSeconds: 30 })
+  @Memoize({ ttlInSeconds: averageBlockTime })
   async getTransactionsByAddress({ address, ...query }: GetAddressTransactionsParams): Promise<GetAddressTransactionsResponse> {
     return await this.transactionRepository.getTransactionsByAddress({ address, ...query });
   }
