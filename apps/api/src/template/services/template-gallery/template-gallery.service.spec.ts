@@ -1,0 +1,238 @@
+import { mock } from "jest-mock-extended";
+
+import { cacheEngine } from "@src/caching/helpers";
+import type { LoggerService } from "@src/core";
+import type { Category } from "../../types/template";
+import type { TemplateFetcherService } from "../template-fetcher/template-fetcher.service";
+import type { TemplateProcessorService } from "../template-processor/template-processor.service";
+import type { FileSystemApi } from "./template-gallery.service";
+import { TemplateGalleryService } from "./template-gallery.service";
+
+describe(TemplateGalleryService.name, () => {
+  afterEach(() => {
+    cacheEngine.clearAllKeyInCache();
+  });
+
+  describe("getTemplateGallery", () => {
+    it("fetches templates from all repositories and merges them", async () => {
+      const { service, templateFetcher } = setup();
+      const awesomeAkashTemplates = [createCategory({ title: "AI", templates: [{ id: "ai-1" }] })];
+      const omnibusTemplates = [createCategory({ title: "Blockchain", templates: [{ id: "blockchain-1" }] })];
+      const linuxServerTemplates = [createCategory({ title: "Media", templates: [{ id: "media-1" }] })];
+
+      templateFetcher.fetchAwesomeAkashTemplates.mockResolvedValue(awesomeAkashTemplates);
+      templateFetcher.fetchOmnibusTemplates.mockResolvedValue(omnibusTemplates);
+      templateFetcher.fetchLinuxServerTemplates.mockResolvedValue(linuxServerTemplates);
+
+      const result = await service.getTemplateGallery();
+
+      expect(result.categories).toHaveLength(3);
+      expect(result.templatesIds).toEqual({
+        "blockchain-1": { categoryIndex: 0, templateIndex: 0 },
+        "ai-1": { categoryIndex: 1, templateIndex: 0 },
+        "media-1": { categoryIndex: 2, templateIndex: 0 }
+      });
+    });
+
+    it("returns cached gallery data on subsequent calls", async () => {
+      const { service, templateFetcher, fsMock } = setup();
+      const templates = [createCategory({ title: "AI", templates: [{ id: "t1" }] })];
+
+      templateFetcher.fetchAwesomeAkashTemplates.mockResolvedValue(templates);
+      fsMock.access.mockRejectedValue(new Error("File not found"));
+
+      const firstResult = await service.getTemplateGallery();
+      const secondResult = await service.getTemplateGallery();
+
+      expect(firstResult).toBe(secondResult);
+      expect(templateFetcher.fetchLatestCommitSha).toHaveBeenCalledTimes(3);
+    });
+
+    it("returns last gallery data when fetch fails and fallback exists", async () => {
+      const { service, templateFetcher, logger } = setup();
+      const templates = [createCategory({ title: "AI", templates: [{ id: "t1" }] })];
+
+      templateFetcher.fetchAwesomeAkashTemplates.mockResolvedValue(templates);
+
+      const firstResult = await service.getTemplateGallery();
+
+      cacheEngine.clearAllKeyInCache();
+      templateFetcher.fetchAwesomeAkashTemplates.mockRejectedValue(new Error("Network error"));
+
+      const secondResult = await service.getTemplateGallery();
+
+      expect(secondResult).toEqual(firstResult);
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: "GET_TEMPLATE_GALLERY_ERROR",
+          message: "Serving template gallery from last working version"
+        })
+      );
+    });
+
+    it("throws error when fetch fails and no fallback exists", async () => {
+      const { service, templateFetcher, logger } = setup();
+      const error = new Error("Network error");
+
+      templateFetcher.fetchAwesomeAkashTemplates.mockRejectedValue(error);
+
+      await expect(service.getTemplateGallery()).rejects.toThrow("Network error");
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: "GET_TEMPLATE_GALLERY_ERROR",
+          message: "no fallback available"
+        })
+      );
+    });
+
+    it("returns cached templates from filesystem when cache file exists", async () => {
+      const { service, templateFetcher, fsMock } = setup();
+      const cachedTemplates = [createCategory({ title: "Cached", templates: [{ id: "cached-1" }] })];
+
+      fsMock.access.mockResolvedValue(undefined);
+      fsMock.readFile.mockResolvedValue(JSON.stringify(cachedTemplates));
+
+      const result = await service.getTemplateGallery();
+
+      expect(result.categories[0].title).toBe("Cached");
+      expect(templateFetcher.fetchAwesomeAkashTemplates).not.toHaveBeenCalled();
+      expect(templateFetcher.fetchOmnibusTemplates).not.toHaveBeenCalled();
+      expect(templateFetcher.fetchLinuxServerTemplates).not.toHaveBeenCalled();
+    });
+
+    it("handles concurrent calls by sharing the same promise", async () => {
+      const { service, templateFetcher } = setup();
+      const templates = [createCategory({ title: "AI", templates: [{ id: "t1" }] })];
+
+      templateFetcher.fetchAwesomeAkashTemplates.mockResolvedValue(templates);
+
+      const [result1, result2, result3] = await Promise.all([service.getTemplateGallery(), service.getTemplateGallery(), service.getTemplateGallery()]);
+
+      expect(result1).toBe(result2);
+      expect(result2).toBe(result3);
+      expect(templateFetcher.fetchAwesomeAkashTemplates).toHaveBeenCalledTimes(1);
+      expect(templateFetcher.fetchOmnibusTemplates).toHaveBeenCalledTimes(1);
+      expect(templateFetcher.fetchLinuxServerTemplates).toHaveBeenCalledTimes(1);
+    });
+
+    it("returns cached gallery on filesystem if github request for latest commit sha fails", async () => {
+      const { service, templateFetcher, logger, fsMock } = setup();
+      const error = new Error("Network error");
+      const commitSha = "fallbacksha";
+
+      templateFetcher.fetchLatestCommitSha.mockRejectedValue(error);
+      fsMock.glob.mockImplementation(
+        createAsyncGenerator([`/data/templates/akash-network-awesome-akash-${commitSha}.json`, `/data/templates/akash-network-awesome-akash-anothersha.json`])
+      );
+      fsMock.access.mockResolvedValue(undefined);
+      fsMock.readFile.mockResolvedValue(JSON.stringify([]));
+
+      await service.getTemplateGallery();
+
+      expect(fsMock.readFile).toHaveBeenCalledWith(expect.stringContaining(`/data/templates/akash-network-awesome-akash-${commitSha}.json`), "utf8");
+      expect(logger.debug).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: "TEMPLATES_FALLBACK_LATEST_COMMIT_SHA_FOUND",
+          commitSha
+        })
+      );
+    });
+
+    it("throws error when github request for latest commit sha fails and no cached files exist", async () => {
+      const { service, templateFetcher, fsMock } = setup();
+      const error = new Error("Network error");
+
+      templateFetcher.fetchLatestCommitSha.mockRejectedValue(error);
+      fsMock.glob.mockImplementation(createAsyncGenerator([]));
+      fsMock.access.mockResolvedValue(undefined);
+      fsMock.readFile.mockResolvedValue(JSON.stringify([]));
+
+      await expect(service.getTemplateGallery()).rejects.toThrow("Network error");
+    });
+  });
+
+  describe("getTemplateById", () => {
+    it("returns template when found", async () => {
+      const { service, templateFetcher } = setup();
+      const template = { id: "t1", name: "Template 1" };
+      const templates = [createCategory({ title: "AI", templates: [template] })];
+
+      templateFetcher.fetchAwesomeAkashTemplates.mockResolvedValue(templates);
+
+      const result = await service.getTemplateById("t1");
+
+      expect(result).toEqual(template);
+    });
+
+    it("returns null when template ID not found in index", async () => {
+      const { service, templateFetcher } = setup();
+      const templates = [createCategory({ title: "AI", templates: [{ id: "t1" }] })];
+
+      templateFetcher.fetchAwesomeAkashTemplates.mockResolvedValue(templates);
+
+      const result = await service.getTemplateById("non-existent");
+
+      expect(result).toBeNull();
+    });
+
+    it("returns null when template not found at index", async () => {
+      const { service, templateFetcher } = setup();
+      const templates = [createCategory({ title: "AI", templates: [{ id: "t2" }] })];
+
+      templateFetcher.fetchAwesomeAkashTemplates.mockResolvedValue(templates);
+
+      const result = await service.getTemplateById("t1");
+
+      expect(result).toBeNull();
+    });
+  });
+
+  function setup() {
+    const logger = mock<LoggerService>();
+    const fsMock = mock<FileSystemApi>({
+      access: jest.fn(() => Promise.reject(new Error("File not found")))
+    });
+    const dataFolderPath = "/data";
+
+    const service = new TemplateGalleryService(logger, fsMock, {
+      githubPAT: "test-pat",
+      dataFolderPath
+    });
+
+    const templateFetcher = mock<TemplateFetcherService>({
+      fetchLatestCommitSha: jest.fn(() => Promise.resolve("abc123")),
+      fetchAwesomeAkashTemplates: jest.fn(() => Promise.resolve([])),
+      fetchOmnibusTemplates: jest.fn(() => Promise.resolve([])),
+      fetchLinuxServerTemplates: jest.fn(() => Promise.resolve([]))
+    });
+    const templateProcessor = mock<TemplateProcessorService>();
+
+    // HACK: assigning private properties to the service object. will refactor later
+    Object.assign(service, { templateFetcher });
+
+    return {
+      service,
+      templateFetcher,
+      templateProcessor,
+      logger,
+      fsMock
+    };
+  }
+
+  function createAsyncGenerator(items: string[]) {
+    return async function* () {
+      for (const item of items) {
+        yield item;
+      }
+    } as unknown as FileSystemApi["glob"];
+  }
+
+  function createCategory(overrides: Partial<Omit<Category, "templates">> & { templates?: Array<{ id: string; name?: string }> }): Category {
+    return {
+      title: "Category",
+      templateSources: [],
+      ...overrides,
+      templates: (overrides.templates || []) as Category["templates"]
+    };
+  }
+});

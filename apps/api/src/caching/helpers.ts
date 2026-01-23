@@ -147,3 +147,19 @@ export const cacheKeys = {
   getGpuUtilization: "getGpuUtilization",
   getGpuBreakdown: "getGpuBreakdown"
 };
+
+export function reusePendingPromise<T extends (...args: any[]) => Promise<unknown>>(fn: T, options?: { getKey?: (...args: Parameters<T>) => string }): T {
+  const pendingPromises = new Map<string, Promise<unknown>>();
+
+  return ((...args: Parameters<T>) => {
+    const key = options?.getKey ? options.getKey(...args) : JSON.stringify(args);
+
+    let pendingPromise = pendingPromises.get(key);
+    if (!pendingPromise) {
+      pendingPromise = fn(...args).finally(() => pendingPromises.delete(key)) as ReturnType<T>;
+      pendingPromises.set(key, pendingPromise);
+    }
+
+    return pendingPromise as ReturnType<T>;
+  }) as unknown as T;
+}

@@ -1,32 +1,36 @@
 import assert from "http-assert";
+import { promises as fsp } from "node:fs";
 import { inject, singleton } from "tsyringe";
 
-import { TemplateGalleryService } from "@src/services/external/templates/template-gallery.service";
+import { LoggerService } from "@src/core";
 import { GetTemplatesListResponseSchema } from "@src/template/http-schemas/template.schema";
 import { TEMPLATE_CONFIG, type TemplateConfig } from "@src/template/providers/config.provider";
 import { dataFolderPath } from "@src/utils/constants";
+import { TemplateGalleryService } from "../../services/template-gallery/template-gallery.service";
 
 @singleton()
 export class TemplateController {
   private readonly templateGalleryService: TemplateGalleryService;
 
-  constructor(@inject(TEMPLATE_CONFIG) templateConfig: TemplateConfig) {
-    this.templateGalleryService = new TemplateGalleryService({
+  constructor(@inject(TEMPLATE_CONFIG) templateConfig: TemplateConfig, logger: LoggerService) {
+    logger.setContext(TemplateGalleryService.name);
+    this.templateGalleryService = new TemplateGalleryService(logger, fsp, {
       githubPAT: templateConfig.GITHUB_PAT,
       dataFolderPath
     });
   }
 
   async getTemplatesFull() {
-    return await this.templateGalleryService.getTemplateGallery();
+    const result = await this.templateGalleryService.getTemplateGallery();
+    return result.categories;
   }
 
   async getTemplatesList() {
     const templatesPerCategory = await this.templateGalleryService.getTemplateGallery();
     // TODO: remove manual response filtering when https://github.com/honojs/middleware/issues/181 is done
     const arraySchema = GetTemplatesListResponseSchema.pick({ data: true }).shape.data;
-    const filteredTemplatesPerCategory = await arraySchema.safeParseAsync(templatesPerCategory);
-    const response = filteredTemplatesPerCategory.success ? filteredTemplatesPerCategory.data : templatesPerCategory;
+    const filteredTemplatesPerCategory = await arraySchema.safeParseAsync(templatesPerCategory.categories);
+    const response = filteredTemplatesPerCategory.success ? filteredTemplatesPerCategory.data : templatesPerCategory.categories;
 
     return { data: response };
   }
