@@ -104,15 +104,17 @@ describe(BatchSigningClientService.name, () => {
 
     // Reset getTx mock to simulate network error then recovery
     client.getTx.mockReset();
+    const networkError1 = Object.assign(new Error("fetch failed"), { code: "ECONNRESET" });
+    const networkError2 = Object.assign(new Error("fetch failed"), { code: "ECONNRESET" });
     client.getTx
-      .mockRejectedValueOnce(new Error("TypeError: fetch failed")) // First call fails with network error
-      .mockRejectedValueOnce(new Error("TypeError: fetch failed")) // Second call also fails (retry from getTxExecutor)
+      .mockRejectedValueOnce(networkError1) // First call fails with network error
+      .mockRejectedValueOnce(networkError2) // Second call also fails (retry)
       .mockResolvedValueOnce(testData.tx); // Recovery call succeeds
 
     const result = await service.signAndBroadcast(testData.messages);
 
     expect(result).toEqual(testData.tx);
-    expect(client.getTx.mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(client.getTx).toHaveBeenCalledTimes(3);
   });
 
   it("should recover transaction when getTx fails with socket error", async () => {
@@ -123,15 +125,17 @@ describe(BatchSigningClientService.name, () => {
 
     // Reset getTx mock to simulate socket error then recovery
     client.getTx.mockReset();
+    const socketError1 = Object.assign(new Error("other side closed"), { code: "UND_ERR_SOCKET" });
+    const socketError2 = Object.assign(new Error("other side closed"), { code: "UND_ERR_SOCKET" });
     client.getTx
-      .mockRejectedValueOnce(new Error("SocketError: other side closed")) // Socket error like in production
-      .mockRejectedValueOnce(new Error("SocketError: other side closed")) // Retry
+      .mockRejectedValueOnce(socketError1) // Socket error like in production
+      .mockRejectedValueOnce(socketError2) // Retry
       .mockResolvedValueOnce(testData.tx); // Recovery call succeeds
 
     const result = await service.signAndBroadcast(testData.messages);
 
     expect(result).toEqual(testData.tx);
-    expect(client.getTx.mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(client.getTx).toHaveBeenCalledTimes(3);
   });
 
   it("should not attempt recovery for non-network errors", async () => {
@@ -140,12 +144,12 @@ describe(BatchSigningClientService.name, () => {
 
     const { service, client } = setup([testData]);
 
-    // Reset getTx mock to simulate a non-network error (e.g., tx not found)
+    // Reset getTx mock to simulate a non-network error (e.g., invalid argument)
     client.getTx.mockReset();
-    const nonNetworkError = new Error("Transaction not found");
+    const nonNetworkError = Object.assign(new Error("Invalid argument"), { code: "INVALID_ARGUMENT" });
     client.getTx.mockRejectedValue(nonNetworkError);
 
-    await expect(service.signAndBroadcast(testData.messages)).rejects.toThrow("Transaction not found");
+    await expect(service.signAndBroadcast(testData.messages)).rejects.toThrow("Failed to sign and broadcast transaction");
 
     // Should only be called once (no recovery attempt for non-network errors)
     expect(client.getTx).toHaveBeenCalledTimes(1);
