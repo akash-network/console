@@ -149,7 +149,8 @@ describe(BatchSigningClientService.name, () => {
     const nonNetworkError = Object.assign(new Error("Invalid argument"), { code: "INVALID_ARGUMENT" });
     client.getTx.mockRejectedValue(nonNetworkError);
 
-    await expect(service.signAndBroadcast(testData.messages)).rejects.toThrow("Failed to sign and broadcast transaction");
+    // Non-network errors are rethrown, not swallowed
+    await expect(service.signAndBroadcast(testData.messages)).rejects.toThrow("Invalid argument");
 
     // Should only be called once (no recovery attempt for non-network errors)
     expect(client.getTx).toHaveBeenCalledTimes(1);

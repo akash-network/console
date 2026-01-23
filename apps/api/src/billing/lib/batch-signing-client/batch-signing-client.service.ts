@@ -380,8 +380,11 @@ export class BatchSigningClientService {
         return this.client.getTx(hash);
       });
     } catch (error) {
-      this.logger.warn({ event: "TX_RECOVERY_FAILED", txHash: hash, error });
-      return null;
+      if (this.isRetriableNetworkError(error)) {
+        this.logger.warn({ event: "TX_RECOVERY_FAILED", txHash: hash, error });
+        return null;
+      }
+      throw error;
     }
   }
 
