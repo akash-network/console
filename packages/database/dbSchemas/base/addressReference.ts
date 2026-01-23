@@ -15,7 +15,14 @@ import { Transaction } from "./transaction"; // eslint-disable-line import-x/no-
   indexes: [
     { unique: false, fields: ["transactionId"] },
     { unique: false, fields: ["address"] },
-    { unique: false, fields: ["address", "transactionId"] }
+    { unique: false, fields: ["address", "transactionId"] },
+    {
+      unique: false,
+      fields: [
+        { name: "address", order: "ASC" },
+        { name: "height", order: "DESC" }
+      ]
+    }
   ]
 })
 export class AddressReference extends Model {
@@ -36,6 +43,10 @@ export class AddressReference extends Model {
    * ex: Signer, Receiver, Sender.
    */
   @Required @Column type!: string;
+  /**
+   * The height of the transaction (denormalized for query optimization)
+   */
+  @Column(DataTypes.INTEGER) height?: number;
 
   /**
    * The message that this address reference belongs to

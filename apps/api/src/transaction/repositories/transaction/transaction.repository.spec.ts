@@ -69,7 +69,7 @@ describe(TransactionRepository.name, () => {
           });
         })
       );
-      const transactionsFound = await repository.getTransactionsByAddress({ address, skip: 0, limit: 10 });
+      const transactionsFound = await repository.getTransactionsByAddress(address, 0, 10);
       expect(transactionsFound.count).toBe(transactionsWithAddressRef.length);
       expect(transactionsFound.results.map(trx => trx.hash).toSorted()).toEqual(transactionsWithAddressRef.map(trx => trx.hash).toSorted());
     });
@@ -77,7 +77,7 @@ describe(TransactionRepository.name, () => {
     it("returns an empty list if the address has no transactions", async () => {
       const { repository } = await setup();
       const address = createAkashAddress();
-      const transactionsFound = await repository.getTransactionsByAddress({ address, skip: 0, limit: 5 });
+      const transactionsFound = await repository.getTransactionsByAddress(address, 0, 5);
       expect(transactionsFound.count).toBe(0);
       expect(transactionsFound.results).toEqual([]);
     });

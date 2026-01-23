@@ -1,6 +1,7 @@
 import { CosmosHttpService, RestCosmosStakingValidatorResponse } from "@akashnetwork/http-sdk";
 import { singleton } from "tsyringe";
 
+import { Memoize } from "@src/caching/helpers";
 import { GetValidatorByAddressResponse, GetValidatorListResponse } from "@src/validator/http-schemas/validator.schema";
 import { ValidatorRepository } from "@src/validator/repositories/validator/validator.repository";
 
@@ -11,6 +12,7 @@ export class ValidatorService {
     private readonly validatorRepository: ValidatorRepository
   ) {}
 
+  @Memoize({ ttlInSeconds: 60 })
   public async list(): Promise<GetValidatorListResponse> {
     const response = await this.cosmosHttpService.getValidatorList();
     const validators = response.validators.map(x => ({
@@ -36,6 +38,7 @@ export class ValidatorService {
     return sortedValidators;
   }
 
+  @Memoize({ ttlInSeconds: 60 })
   public async getByAddress(address: string): Promise<GetValidatorByAddressResponse | null> {
     let cosmosResponse: RestCosmosStakingValidatorResponse;
     try {

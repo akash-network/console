@@ -6,7 +6,9 @@ import { AxiosError } from "axios";
 import { singleton } from "tsyringe";
 
 import type { GetAddressResponse } from "@src/address/http-schemas/address.schema";
+import { Memoize } from "@src/caching/helpers";
 import { TransactionService } from "@src/transaction/services/transaction/transaction.service";
+import { averageBlockTime } from "@src/utils/constants";
 import { ValidatorRepository } from "@src/validator/repositories/validator/validator.repository";
 
 const logger = createOtelLogger({ context: "AddressService" });
@@ -19,13 +21,14 @@ export class AddressService {
     private readonly validatorRepository: ValidatorRepository
   ) {}
 
+  @Memoize({ ttlInSeconds: averageBlockTime })
   async getAddressDetails(address: string): Promise<GetAddressResponse> {
     const [balancesResponse, delegationsResponse, rewardsResponse, redelegationsResponse, latestTransactions] = await Promise.all([
       this.cosmosHttpService.getBankBalancesByAddress(address),
       this.cosmosHttpService.getStakingDelegationsByAddress(address),
       this.cosmosHttpService.getDistributionDelegatorsRewardsByAddress(address),
       this.cosmosHttpService.getStakingDelegatorsRedelegationsByAddress(address),
-      this.transactionService.getTransactionsByAddress({ address, skip: 0, limit: 5 })
+      this.transactionService.getTransactionsByAddress(address, 0, 5)
     ]);
 
     const allValidatorsFromDb = await this.validatorRepository.findAll();

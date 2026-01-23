@@ -3,7 +3,7 @@ import { AddressReference, Transaction } from "@akashnetwork/database/dbSchemas/
 import { QueryTypes } from "sequelize";
 import { singleton } from "tsyringe";
 
-import { GetAddressTransactionsParams, GetAddressTransactionsResponse } from "@src/address/http-schemas/address.schema";
+import { GetAddressTransactionsResponse } from "@src/address/http-schemas/address.schema";
 import { chainDb } from "@src/db/dbConnection";
 import { GetTransactionByHashResponse, ListTransactionsResponse } from "@src/transaction/http-schemas/transaction.schema";
 import { msgToJSON } from "@src/utils/protobuf";
@@ -99,7 +99,7 @@ export class TransactionRepository {
     };
   }
 
-  async getTransactionsByAddress({ address, ...query }: GetAddressTransactionsParams): Promise<GetAddressTransactionsResponse> {
+  async getTransactionsByAddress(address: string, skip?: number, limit?: number): Promise<GetAddressTransactionsResponse> {
     const countQuery = AddressReference.count({
       col: "transactionId",
       distinct: true,
@@ -109,18 +109,15 @@ export class TransactionRepository {
     const txIdsQuery = chainDb.query<{ id: string }>(
       `
       SELECT t.id
-      FROM "transaction" t
-      WHERE EXISTS (
-        SELECT 1
-        FROM "addressReference" af
-        WHERE af.address = ?
-          AND af."transactionId" = t.id
-      )
-      ORDER BY t.height DESC, t.index DESC
+      FROM "addressReference" af
+      INNER JOIN "transaction" t ON t.id = af."transactionId"
+      WHERE af.address = ?
+      GROUP BY t.id, af.height, t.index
+      ORDER BY af.height DESC, t.index DESC
       OFFSET ? LIMIT ?
       `,
       {
-        replacements: [address, query.skip, query.limit],
+        replacements: [address, skip, limit],
         type: QueryTypes.SELECT
       }
     );

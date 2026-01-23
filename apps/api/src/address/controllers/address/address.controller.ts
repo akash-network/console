@@ -16,6 +16,6 @@ export class AddressController {
   }
 
   async getTransactions({ address, ...query }: GetAddressTransactionsParams): Promise<GetAddressTransactionsResponse> {
-    return this.transactionService.getTransactionsByAddress({ address, ...query });
+    return this.transactionService.getTransactionsByAddress(address, query.skip, query.limit);
   }
 }
