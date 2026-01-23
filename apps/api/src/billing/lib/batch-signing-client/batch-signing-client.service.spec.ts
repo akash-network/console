@@ -138,6 +138,29 @@ describe(BatchSigningClientService.name, () => {
     expect(client.getTx).toHaveBeenCalledTimes(3);
   });
 
+  it("should recover transaction when getTx fails with cosmjs fetch failed error with cause", async () => {
+    const granter = createAkashAddress();
+    const testData = createTransactionTestData(granter);
+
+    const { service, client } = setup([testData]);
+
+    // Reset getTx mock to simulate cosmjs "fetch failed" error with network error in .cause
+    client.getTx.mockReset();
+    const causeError1 = Object.assign(new Error("connect ECONNRESET"), { code: "ECONNRESET" });
+    const fetchFailedError1 = Object.assign(new Error("fetch failed"), { cause: causeError1 });
+    const causeError2 = Object.assign(new Error("connect ECONNRESET"), { code: "ECONNRESET" });
+    const fetchFailedError2 = Object.assign(new Error("fetch failed"), { cause: causeError2 });
+    client.getTx
+      .mockRejectedValueOnce(fetchFailedError1) // First call fails with wrapped network error
+      .mockRejectedValueOnce(fetchFailedError2) // Second call also fails (retry)
+      .mockResolvedValueOnce(testData.tx); // Recovery call succeeds
+
+    const result = await service.signAndBroadcast(testData.messages);
+
+    expect(result).toEqual(testData.tx);
+    expect(client.getTx).toHaveBeenCalledTimes(3);
+  });
+
   it("should not attempt recovery for non-network errors", async () => {
     const granter = createAkashAddress();
     const testData = createTransactionTestData(granter);

@@ -350,15 +350,24 @@ export class BatchSigningClientService {
    *
    * Network errors can occur when the RPC connection is interrupted, but the
    * transaction may have already been successfully included in a block.
+   * Cosmjs wraps network errors in a "fetch failed" error with the actual
+   * error in the `.cause` property.
    *
    * @param error - The error to check.
    * @returns `true` if the error is a retriable network error.
    */
   private isRetriableNetworkError(error: unknown): boolean {
     if (!(error instanceof Error)) return false;
+
     if ("code" in error) {
       return isRetriableError(error as Error & { code: unknown });
     }
+
+    // Cosmjs wraps network errors in "fetch failed" with the actual error in .cause
+    if ("cause" in error && error.cause instanceof Error && "code" in error.cause) {
+      return isRetriableError(error.cause as Error & { code: unknown });
+    }
+
     return false;
   }
 
