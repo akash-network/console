@@ -64,7 +64,8 @@ ENV APP_GROUP_ID 1001
 ENV APP_GROUP nodejs
 ENV APP_USER app
 
-RUN addgroup --system --gid $APP_GROUP_ID $APP_GROUP \
+RUN apk add --no-cache libc6-compat \
+    && addgroup --system --gid $APP_GROUP_ID $APP_GROUP \
     && adduser --system --uid $APP_GROUP_ID $APP_USER
 
 COPY --from=builder /app/$WORKSPACE/package.json ./$WORKSPACE/package.json
@@ -88,7 +89,7 @@ FROM production AS production-nginx
 
 USER root
 
-RUN apk add --no-cache libcap nginx openssl \
+RUN apk add --no-cache libcap nginx openssl libc6-compat \
     && setcap cap_net_bind_service=+ep `readlink -f \`which node\`` \
     && mkdir -p /etc/nginx/ssl \
     && openssl req -x509 -newkey rsa:4096 -sha256 -nodes -keyout /etc/nginx/ssl/my_ssl_key.key -out /etc/nginx/ssl/my_ssl_cert.crt -subj "/CN=akash.network" -days 600 \
