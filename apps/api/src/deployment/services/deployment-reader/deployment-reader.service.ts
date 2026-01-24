@@ -17,6 +17,7 @@ import { Op } from "sequelize";
 import { singleton } from "tsyringe";
 
 import { WalletInitialized, WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
+import { Memoize } from "@src/caching/helpers";
 import { GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import { FallbackLeaseReaderService } from "@src/deployment/services/fallback-lease-reader/fallback-lease-reader.service";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
@@ -153,6 +154,7 @@ export class DeploymentReaderService {
     });
     const leaseResponse = await this.leaseHttpService.list({ owner: address, state: "active" });
     const providers = response.deployments.length ? await this.providerService.getProviderList() : ([] as ProviderList[]);
+    const providerMap = new Map(providers.map(p => [p.owner, p]));
 
     return {
       count: parseInt(response.pagination.total),
@@ -181,7 +183,7 @@ export class DeploymentReaderService {
         leases: leaseResponse.leases
           .filter(l => l.lease.id.dseq === x.deployment.id.dseq)
           .map(lease => {
-            const provider = providers.find(p => p.owner === lease.lease.id.provider);
+            const provider = providerMap.get(lease.lease.id.provider);
             return {
               id: lease.lease.id.dseq + lease.lease.id.gseq + lease.lease.id.oseq,
               owner: lease.lease.id.owner,
@@ -202,6 +204,7 @@ export class DeploymentReaderService {
     };
   }
 
+  @Memoize({ ttlInSeconds: 30 })
   public async getDeploymentByOwnerAndDseq(owner: string, dseq: string) {
     let deploymentData: RestAkashDeploymentInfoResponse | null = null;
     try {
@@ -253,10 +256,11 @@ export class DeploymentReaderService {
       },
       include: [{ model: ProviderAttribute }]
     });
+    const providerMap = new Map(providers.map(p => [p.owner, p]));
     const deploymentDenom = deploymentData.escrow_account.state.funds[0]?.denom || deploymentData.escrow_account.state.transferred[0]?.denom;
 
     const leases = leasesData.leases.map(x => {
-      const provider = providers.find(p => p.owner === x.lease.id.provider);
+      const provider = providerMap.get(x.lease.id.provider);
       const group = (deploymentData as DeploymentInfo).groups.find(g => g.id.gseq === x.lease.id.gseq);
       const dbLease = dbDeployment?.leases.find(l => l.gseq === x.lease.id.gseq && l.oseq === x.lease.id.oseq);
 

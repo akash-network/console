@@ -81,7 +81,8 @@ export class LeaseHttpService {
           "filters.state": state,
           "pagination.limit": pagination?.limit,
           "pagination.key": pagination?.key
-        }
+        },
+        timeout: 10000
       })
     );
   }

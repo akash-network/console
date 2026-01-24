@@ -5,6 +5,7 @@ import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { otel } from "@hono/otel";
 import { swaggerUI } from "@hono/swagger-ui";
 import { Hono } from "hono";
+import { compress } from "hono/compress";
 import { cors } from "hono/cors";
 import assert from "http-assert";
 import { container } from "tsyringe";
@@ -25,6 +26,7 @@ import { deploymentSettingRouter } from "./deployment/routes/deployment-setting/
 import { deploymentsRouter } from "./deployment/routes/deployments/deployments.router";
 import { leasesRouter } from "./deployment/routes/leases/leases.router";
 import { healthzRouter } from "./healthz/routes/healthz.router";
+import { cacheControlMiddleware } from "./middlewares/cacheControlMiddleware";
 import { clientInfoMiddleware } from "./middlewares/clientInfoMiddleware";
 import { notificationsApiProxy } from "./notifications/routes/proxy/proxy.route";
 import { apiRouter } from "./routers/apiRouter";
@@ -89,10 +91,12 @@ appHono.use(
     exposeHeaders: ["cf-mitigated"]
   })
 );
+appHono.use("*", compress());
 
 appHono.use(container.resolve(HttpLoggerInterceptor).intercept());
 appHono.use(container.resolve(RequestContextInterceptor).intercept());
 appHono.use(container.resolve(AuthInterceptor).intercept());
+appHono.use(cacheControlMiddleware);
 appHono.use(clientInfoMiddleware);
 
 appHono.route("/", legacyRouter);
