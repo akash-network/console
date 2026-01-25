@@ -82,9 +82,9 @@ export function isNetworkOrIdempotentRequestError(error: unknown): boolean {
 }
 
 type ErrorWithCode = Error & { code: unknown };
-function isRetriableError(error: ErrorWithCode): boolean {
+export function isRetriableError(error: ErrorWithCode): boolean {
   const code = error.code;
-  return code === "ECONNREFUSED" || code === "ECONNRESET" || code === "ETIMEDOUT" || code === "ESOCKETTIMEDOUT";
+  return code === "ECONNREFUSED" || code === "ECONNRESET" || code === "ETIMEDOUT" || code === "ESOCKETTIMEDOUT" || code === "UND_ERR_SOCKET";
 }
 
 const IDEMPOTENT_HTTP_METHODS = ["get", "head", "options", "delete", "put"];

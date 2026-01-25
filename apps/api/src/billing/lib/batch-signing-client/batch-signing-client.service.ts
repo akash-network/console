@@ -1,4 +1,5 @@
 import { TxRaw } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
+import { isRetriableError } from "@akashnetwork/http-sdk";
 import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { sha256 } from "@cosmjs/crypto";
 import { toHex } from "@cosmjs/encoding";
@@ -93,14 +94,21 @@ export class BatchSigningClientService {
   );
 
   /**
-   * Retry executor for transaction retrieval operations.
+   * Retry executor for transaction recovery.
    *
-   * Retries up to 5 times with exponential backoff when the transaction is not yet available (falsy result).
-   * Uses a longer max delay (7 seconds) to account for blockchain confirmation times.
+   * Retries up to 5 times with exponential backoff when:
+   * - The transaction is not found (null result)
+   * - Network errors occur during transaction retrieval
+   *
+   * This handles cases where the transaction may have been included in a block
+   * but is not yet indexed, or when the RPC connection fails.
    */
-  private readonly getTxExecutor = retry(
-    handleWhenResult(res => !res),
-    { maxAttempts: 5, backoff: new ExponentialBackoff({ maxDelay: 7_000, initialDelay: 500 }) }
+  private readonly txRecoveryExecutor = retry(
+    handleWhenResult(res => !res).orWhen(err => this.isRetriableNetworkError(err)),
+    {
+      maxAttempts: 5,
+      backoff: new ExponentialBackoff({ maxDelay: 10_000, initialDelay: 1_000 })
+    }
   );
 
   /**
@@ -165,6 +173,9 @@ export class BatchSigningClientService {
    * are collected and executed together for efficiency. The method retries
    * on sequence mismatch errors with exponential backoff.
    *
+   * If a network error occurs during transaction retrieval, the method will
+   * attempt to recover by re-querying the transaction after a brief delay.
+   *
    * @param messages - The protocol buffer messages to include in the transaction.
    * @param options - Optional execution options (e.g., fee granter).
    * @returns The indexed transaction result after successful broadcast.
@@ -190,16 +201,25 @@ export class BatchSigningClientService {
       throw result.val;
     }
 
-    const tx = await this.getTx(result.val);
+    const txHash = result.val;
+
+    const tx = await this.tryRecoverTransaction(txHash);
 
     if (!tx) {
       const error = new Error("Failed to sign and broadcast transaction");
       this.logger.error({
-        event: "SIGN_AND_BROADCAST_ERROR",
+        event: "SIGN_AND_BROADCAST_TX_NOT_FOUND",
+        txHash,
         error
       });
       throw error;
     }
+
+    this.logger.debug({
+      event: "SIGN_AND_BROADCAST_SUCCESS",
+      txHash,
+      height: tx.height
+    });
 
     return tx;
   }
@@ -326,15 +346,55 @@ export class BatchSigningClientService {
   }
 
   /**
-   * Retrieves a transaction from the blockchain by hash.
+   * Checks if an error is a retriable network error.
    *
-   * Retries with exponential backoff if the transaction is not yet available.
+   * Network errors can occur when the RPC connection is interrupted, but the
+   * transaction may have already been successfully included in a block.
+   * Cosmjs wraps network errors in a "fetch failed" error with the actual
+   * error in the `.cause` property.
    *
-   * @param hash - The transaction hash to look up.
-   * @returns The indexed transaction, or `undefined` if not found after retries.
+   * @param error - The error to check.
+   * @returns `true` if the error is a retriable network error.
    */
-  private async getTx(hash: string) {
-    return await this.getTxExecutor.execute(() => this.client.getTx(hash));
+  private isRetriableNetworkError(error: unknown): boolean {
+    if (!(error instanceof Error)) return false;
+
+    if ("code" in error) {
+      return isRetriableError(error as Error & { code: unknown });
+    }
+
+    // Cosmjs wraps network errors in "fetch failed" with the actual error in .cause
+    if ("cause" in error && error.cause instanceof Error && "code" in error.cause) {
+      return isRetriableError(error.cause as Error & { code: unknown });
+    }
+
+    return false;
+  }
+
+  /**
+   * Attempts to retrieve a transaction with retry logic for both network errors
+   * and cases where the transaction is not yet indexed.
+   *
+   * This handles cases where:
+   * - The transaction was broadcast but is not yet indexed
+   * - Network errors occur during retrieval
+   *
+   * @param hash - The transaction hash to retrieve.
+   * @returns The indexed transaction if found, or `null` if not found after retries.
+   */
+  private async tryRecoverTransaction(hash: string): Promise<IndexedTx | null> {
+    try {
+      return await this.txRecoveryExecutor.execute(context => {
+        this.logger.debug({ event: "TX_RECOVERY_ATTEMPT", txHash: hash, attempt: context.attempt });
+        return this.client.getTx(hash);
+      });
+    } catch (error) {
+      if (this.isRetriableNetworkError(error)) {
+        this.logger.warn({ event: "TX_RECOVERY_FAILED", txHash: hash, error });
+        return null;
+      }
+      throw error;
+    }
   }
 
   /**
