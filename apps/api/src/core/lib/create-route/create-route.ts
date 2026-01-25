@@ -16,21 +16,15 @@ export interface ExtendedRouteConfig<R extends RouteConfig> {
 const cacheConfigRegistry = new Map<string, CacheConfig>();
 
 export function getCacheConfig(path: string): CacheConfig | undefined {
-  // Try exact match first
+  // Try exact match first (for static paths)
   if (cacheConfigRegistry.has(path)) {
     return cacheConfigRegistry.get(path);
   }
 
-  // Try pattern matching (for paths with parameters like /v1/providers/{address})
-  for (const [pattern, config] of cacheConfigRegistry.entries()) {
-    const regexPattern = pattern.replace(/\{[^}]+\}/g, "[^/]+").replace(/\//g, "\\/");
-    const regex = new RegExp(`^${regexPattern}$`);
-    if (regex.test(path)) {
-      return config;
-    }
-  }
-
-  return undefined;
+  // Convert Hono's :param format to OpenAPI's {param} format for lookup
+  // e.g., /v1/nodes/:network -> /v1/nodes/{network}
+  const adjustedPath = path.replace(/:([^/]+)/g, "{$1}");
+  return cacheConfigRegistry.get(adjustedPath);
 }
 
 export function createRoute<

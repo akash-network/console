@@ -27,7 +27,7 @@ export class ProviderController {
 
   async getProviderList(scope: ProviderListQuery["scope"]): Promise<ProviderListResponse> {
     return cacheResponse(60, scope === "trial" ? cacheKeys.getTrialProviderList : cacheKeys.getProviderList, () =>
-      this.providerService.getProviderList({ trial: scope === "trial" })
+      this.providerService.getProviderList(scope === "trial")
     ) as unknown as Promise<ProviderListResponse>;
   }
 

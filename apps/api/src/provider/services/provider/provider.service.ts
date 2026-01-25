@@ -137,7 +137,7 @@ export class ProviderService {
   }
 
   @Memoize({ ttlInSeconds: 60 })
-  async getProviderList({ trial = false }: { trial?: boolean } = {}): Promise<ProviderList[]> {
+  async getProviderList(trial = false): Promise<ProviderList[]> {
     const providersWithAttributesAndAuditors = await this.providerRepository.getWithAttributesAndAuditors({ trial });
     const providerWithNodes = await this.providerRepository.getProviderWithNodes();
 
