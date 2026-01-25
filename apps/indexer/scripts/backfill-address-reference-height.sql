@@ -1,17 +1,11 @@
 -- Backfill height column in addressReference table from transaction table
 -- Run this after deploying migration 0005_add_height_to_address_reference.sql
--- Usage: psql $DATABASE_URL -f scripts/backfill-address-reference-height.sql
+-- Usage: psql $POSTGRES_URL -f scripts/backfill-address-reference-height.sql
 
--- Batched update to avoid long-running transactions
--- Updates 100,000 rows at a time until no more rows need updating
-
--- Create the backfill procedure (COMMIT is only allowed in procedures, not DO blocks)
-CREATE OR REPLACE PROCEDURE backfill_address_reference_height()
-LANGUAGE plpgsql
-AS $$
+DO $$
 DECLARE
   batch_size INT := 100000;
-  max_iterations INT := 1000;  -- Safety guard: max 100M rows (1000 * 100k)
+  max_iterations INT := 1000;
   rows_updated INT;
   total_updated INT := 0;
   batch_count INT := 0;
@@ -25,7 +19,6 @@ BEGIN
     WHERE ar."transactionId" = t.id
       AND ar.height IS NULL
       AND ar.id IN (
-        -- Only select rows that have a matching transaction (avoid orphans)
         SELECT ar2.id
         FROM "addressReference" ar2
         INNER JOIN "transaction" t2 ON ar2."transactionId" = t2.id
@@ -39,9 +32,6 @@ BEGIN
 
     RAISE NOTICE 'Batch %: Updated % rows (Total: %)', batch_count, rows_updated, total_updated;
 
-    -- Commit each batch to release locks
-    COMMIT;
-
     EXIT WHEN rows_updated = 0 OR batch_count >= max_iterations;
   END LOOP;
 
@@ -51,9 +41,3 @@ BEGIN
     RAISE NOTICE 'Backfill complete. Total rows updated: %', total_updated;
   END IF;
 END $$;
-
--- Run the backfill
-CALL backfill_address_reference_height();
-
--- Clean up the procedure after use (optional)
-DROP PROCEDURE IF EXISTS backfill_address_reference_height();
