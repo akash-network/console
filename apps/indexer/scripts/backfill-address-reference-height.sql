@@ -11,6 +11,7 @@ LANGUAGE plpgsql
 AS $$
 DECLARE
   batch_size INT := 100000;
+  max_iterations INT := 1000;  -- Safety guard: max 100M rows (1000 * 100k)
   rows_updated INT;
   total_updated INT := 0;
   batch_count INT := 0;
@@ -24,8 +25,10 @@ BEGIN
     WHERE ar."transactionId" = t.id
       AND ar.height IS NULL
       AND ar.id IN (
+        -- Only select rows that have a matching transaction (avoid orphans)
         SELECT ar2.id
         FROM "addressReference" ar2
+        INNER JOIN "transaction" t2 ON ar2."transactionId" = t2.id
         WHERE ar2.height IS NULL
         LIMIT batch_size
       );
@@ -39,10 +42,14 @@ BEGIN
     -- Commit each batch to release locks
     COMMIT;
 
-    EXIT WHEN rows_updated = 0;
+    EXIT WHEN rows_updated = 0 OR batch_count >= max_iterations;
   END LOOP;
 
-  RAISE NOTICE 'Backfill complete. Total rows updated: %', total_updated;
+  IF batch_count >= max_iterations THEN
+    RAISE NOTICE 'Backfill stopped at max iterations (%). Total rows updated: %', max_iterations, total_updated;
+  ELSE
+    RAISE NOTICE 'Backfill complete. Total rows updated: %', total_updated;
+  END IF;
 END $$;
 
 -- Run the backfill
