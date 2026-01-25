@@ -5,7 +5,10 @@
 -- Batched update to avoid long-running transactions
 -- Updates 100,000 rows at a time until no more rows need updating
 
-DO $$
+-- Create the backfill procedure (COMMIT is only allowed in procedures, not DO blocks)
+CREATE OR REPLACE PROCEDURE backfill_address_reference_height()
+LANGUAGE plpgsql
+AS $$
 DECLARE
   batch_size INT := 100000;
   rows_updated INT;
@@ -41,3 +44,9 @@ BEGIN
 
   RAISE NOTICE 'Backfill complete. Total rows updated: %', total_updated;
 END $$;
+
+-- Run the backfill
+CALL backfill_address_reference_height();
+
+-- Clean up the procedure after use (optional)
+DROP PROCEDURE IF EXISTS backfill_address_reference_height();
