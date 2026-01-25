@@ -13,6 +13,7 @@ const route = createRoute({
   path: "/v1/network-capacity",
   tags: ["Analytics"],
   security: SECURITY_NONE,
+  cache: { maxAge: 15, staleWhileRevalidate: 60 },
   responses: {
     200: {
       description: "Returns network capacity stats",

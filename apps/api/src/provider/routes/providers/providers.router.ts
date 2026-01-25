@@ -21,6 +21,7 @@ const providerListRoute = createRoute({
   summary: "Get a list of providers.",
   tags: ["Providers"],
   security: SECURITY_NONE,
+  cache: { maxAge: 60, staleWhileRevalidate: 120 },
   request: {
     query: ProviderListQuerySchema
   },
@@ -48,6 +49,7 @@ const providerRoute = createRoute({
   summary: "Get a provider details.",
   tags: ["Providers"],
   security: SECURITY_NONE,
+  cache: { maxAge: 60, staleWhileRevalidate: 120 },
   request: {
     params: ProviderParamsSchema
   },
@@ -88,6 +90,7 @@ const activeLeasesGraphDataRoute = createRoute({
   path: "/v1/providers/{providerAddress}/active-leases-graph-data",
   tags: ["Analytics", "Providers"],
   security: SECURITY_NONE,
+  cache: { maxAge: 60, staleWhileRevalidate: 120 },
   request: {
     params: ProviderActiveLeasesGraphDataParamsSchema
   },

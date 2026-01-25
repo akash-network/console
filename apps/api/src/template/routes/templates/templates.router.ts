@@ -18,6 +18,7 @@ const getTemplatesFullRoute = createRoute({
   path: "/v1/templates",
   tags: ["Other"],
   security: SECURITY_NONE,
+  cache: { maxAge: 300, staleWhileRevalidate: 600 },
   responses: {
     200: {
       description: "Returns a list of deployment templates grouped by categories",
@@ -40,6 +41,7 @@ const getTemplatesListRoute = createRoute({
   path: "/v1/templates-list",
   tags: ["Other"],
   security: SECURITY_NONE,
+  cache: { maxAge: 300, staleWhileRevalidate: 600 },
   responses: {
     200: {
       description: "Returns a list of deployment templates grouped by categories",
@@ -62,6 +64,7 @@ const getTemplateByIdRoute = createRoute({
   path: "/v1/templates/{id}",
   tags: ["Other"],
   security: SECURITY_NONE,
+  cache: { maxAge: 300, staleWhileRevalidate: 600 },
   request: {
     params: GetTemplateByIdParamsSchema
   },
