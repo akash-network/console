@@ -1,6 +1,6 @@
 import { createRoute, getCacheConfig } from "./create-route";
 
-describe("create-route", () => {
+describe(createRoute.name, () => {
   describe("getCacheConfig", () => {
     it("returns cache config for static paths", () => {
       createRoute({
