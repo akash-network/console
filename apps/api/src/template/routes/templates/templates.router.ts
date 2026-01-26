@@ -1,40 +1,14 @@
+import type { TypedResponse } from "hono";
 import { container } from "tsyringe";
 
 import { createRoute } from "@src/core/lib/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 import { TemplateController } from "@src/template/controllers/template/template.controller";
-import {
-  GetTemplateByIdParamsSchema,
-  GetTemplateByIdResponseSchema,
-  GetTemplatesFullResponseSchema,
-  GetTemplatesListResponseSchema
-} from "@src/template/http-schemas/template.schema";
+import type { GetTemplatesListResponse } from "@src/template/http-schemas/template.schema";
+import { GetTemplateByIdParamsSchema, GetTemplateByIdResponseSchema, GetTemplatesListResponseSchema } from "@src/template/http-schemas/template.schema";
 
 export const templatesRouter = new OpenApiHonoHandler();
-
-const getTemplatesFullRoute = createRoute({
-  method: "get",
-  path: "/v1/templates",
-  tags: ["Other"],
-  security: SECURITY_NONE,
-  cache: { maxAge: 300, staleWhileRevalidate: 600 },
-  responses: {
-    200: {
-      description: "Returns a list of deployment templates grouped by categories",
-      content: {
-        "application/json": {
-          schema: GetTemplatesFullResponseSchema
-        }
-      }
-    }
-  }
-});
-templatesRouter.openapi(getTemplatesFullRoute, async function routeGetTemplatesFullList(c) {
-  const result = await container.resolve(TemplateController).getTemplatesFull();
-
-  return c.json(result, 200);
-});
 
 const getTemplatesListRoute = createRoute({
   method: "get",
@@ -56,7 +30,8 @@ const getTemplatesListRoute = createRoute({
 templatesRouter.openapi(getTemplatesListRoute, async function routeGetTemplatesList(c) {
   const result = await container.resolve(TemplateController).getTemplatesList();
 
-  return c.json(result, 200);
+  c.header("Content-Type", "application/json");
+  return c.body(result, 200) as unknown as TypedResponse<GetTemplatesListResponse, 200, "json">;
 });
 
 const getTemplateByIdRoute = createRoute({

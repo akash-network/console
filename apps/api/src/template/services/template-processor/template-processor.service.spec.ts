@@ -8,8 +8,7 @@ describe(TemplateProcessorService.name, () => {
 
       const result = service.mergeTemplateCategories();
 
-      expect(result.categories).toHaveLength(0);
-      expect(Object.keys(result.templatesIds)).toHaveLength(0);
+      expect(result).toHaveLength(0);
     });
 
     it("returns categories unchanged when no duplicates exist", () => {
@@ -19,7 +18,7 @@ describe(TemplateProcessorService.name, () => {
 
       const result = service.mergeTemplateCategories(categoriesGroup, anotherCategoriesGroup);
 
-      expect(result.categories).toEqual([
+      expect(result).toEqual([
         expect.objectContaining({ title: categoriesGroup[0].title }),
         expect.objectContaining({ title: anotherCategoriesGroup[0].title })
       ]);
@@ -32,8 +31,8 @@ describe(TemplateProcessorService.name, () => {
 
       const result = service.mergeTemplateCategories(categoriesGroup, anotherCategoriesGroup);
 
-      expect(result.categories).toEqual([expect.objectContaining({ title: categoriesGroup[0].title })]);
-      expect(result.categories[0].templates).toEqual([expect.objectContaining({ id: "t1" }), expect.objectContaining({ id: "t2" })]);
+      expect(result).toEqual([expect.objectContaining({ title: categoriesGroup[0].title })]);
+      expect(result[0].templates).toEqual([expect.objectContaining({ id: "t1" }), expect.objectContaining({ id: "t2" })]);
     });
 
     it("merges categories case-insensitively", () => {
@@ -43,8 +42,8 @@ describe(TemplateProcessorService.name, () => {
 
       const result = service.mergeTemplateCategories(categoriesGroup, anotherCategoriesGroup);
 
-      expect(result.categories).toEqual([expect.objectContaining({ title: categoriesGroup[0].title })]);
-      expect(result.categories[0].templates).toEqual([expect.objectContaining({ id: "t1" }), expect.objectContaining({ id: "t2" })]);
+      expect(result).toEqual([expect.objectContaining({ title: categoriesGroup[0].title })]);
+      expect(result[0].templates).toEqual([expect.objectContaining({ id: "t1" }), expect.objectContaining({ id: "t2" })]);
     });
 
     it("handles categories with undefined templates", () => {
@@ -54,8 +53,8 @@ describe(TemplateProcessorService.name, () => {
 
       const result = service.mergeTemplateCategories(categoriesGroup, anotherCategoriesGroup);
 
-      expect(result.categories).toHaveLength(1);
-      expect(result.categories[0].templates).toHaveLength(1);
+      expect(result).toHaveLength(1);
+      expect(result[0].templates).toHaveLength(1);
     });
 
     it("creates deep copy of categories to avoid mutation", () => {
@@ -65,61 +64,8 @@ describe(TemplateProcessorService.name, () => {
 
       const result = service.mergeTemplateCategories(categories);
 
-      result.categories[0].title = "Modified";
+      result[0].title = "Modified";
       expect(originalCategory.title).toBe("AI");
-    });
-
-    it("returns templatesIds with correct indices for multiple categories", () => {
-      const { service } = setup();
-      const categoriesGroup: Category[] = [{ title: "AI", templateSources: [], templates: [{ id: "t1" }] as Category["templates"] }];
-      const anotherCategoriesGroup: Category[] = [{ title: "Gaming", templateSources: [], templates: [{ id: "t2" }, { id: "t3" }] as Category["templates"] }];
-
-      const result = service.mergeTemplateCategories(categoriesGroup, anotherCategoriesGroup);
-
-      expect(result.templatesIds).toEqual({
-        t1: { categoryIndex: 0, templateIndex: 0 },
-        t2: { categoryIndex: 1, templateIndex: 0 },
-        t3: { categoryIndex: 1, templateIndex: 1 }
-      });
-    });
-
-    it("returns templatesIds with offset indices when merging categories with same title", () => {
-      const { service } = setup();
-      const categoriesGroup: Category[] = [{ title: "AI", templateSources: [], templates: [{ id: "t1" }, { id: "t2" }] as Category["templates"] }];
-      const anotherCategoriesGroup: Category[] = [{ title: "AI", templateSources: [], templates: [{ id: "t3" }, { id: "t4" }] as Category["templates"] }];
-
-      const result = service.mergeTemplateCategories(categoriesGroup, anotherCategoriesGroup);
-
-      expect(result.templatesIds).toEqual({
-        t1: { categoryIndex: 0, templateIndex: 0 },
-        t2: { categoryIndex: 0, templateIndex: 1 },
-        t3: { categoryIndex: 0, templateIndex: 2 },
-        t4: { categoryIndex: 0, templateIndex: 3 }
-      });
-    });
-
-    it("returns templatesIds with correct indices for mixed merge scenario", () => {
-      const { service } = setup();
-      const categoriesGroup: Category[] = [
-        { title: "AI", templateSources: [], templates: [{ id: "ai-1" }] as Category["templates"] },
-        { title: "Gaming", templateSources: [], templates: [{ id: "game-1" }] as Category["templates"] }
-      ];
-      const anotherCategoriesGroup: Category[] = [
-        { title: "AI", templateSources: [], templates: [{ id: "ai-2" }] as Category["templates"] },
-        { title: "Tools", templateSources: [], templates: [{ id: "tool-1" }] as Category["templates"] },
-        { title: "ai", templateSources: [], templates: [{ id: "ai-3" }] as Category["templates"] },
-        { title: "ai", templateSources: [] }
-      ];
-
-      const result = service.mergeTemplateCategories(categoriesGroup, anotherCategoriesGroup);
-
-      expect(result.templatesIds).toEqual({
-        "ai-1": { categoryIndex: 0, templateIndex: 0 },
-        "game-1": { categoryIndex: 1, templateIndex: 0 },
-        "ai-2": { categoryIndex: 0, templateIndex: 1 },
-        "tool-1": { categoryIndex: 2, templateIndex: 0 },
-        "ai-3": { categoryIndex: 0, templateIndex: 2 }
-      });
     });
   });
 
