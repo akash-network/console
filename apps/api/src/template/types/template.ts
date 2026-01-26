@@ -12,10 +12,12 @@ export type Category = {
   title: string;
   description?: string;
   templateSources: TemplateSource[];
-  templates: Template[];
+  templates?: Template[];
 };
 
-export type FinalCategory = Omit<Category, "templateSources">;
+export type FinalCategory = Omit<Category, "templateSources" | "templates"> & {
+  templates: Template[];
+};
 
 export type TemplateConfig = {
   ssh?: boolean;

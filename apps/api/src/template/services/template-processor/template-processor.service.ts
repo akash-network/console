@@ -1,22 +1,34 @@
 import { markdownToTxt } from "markdown-to-txt";
 
-import type { Category, Template, TemplateConfig, TemplateSource } from "@src/template/types/template";
 import { safeParseJson } from "@src/utils/json";
 import { getLogoFromPath } from "@src/utils/templateReposLogos";
 import { isUrlAbsolute } from "@src/utils/urls";
+import type { Category, Template, TemplateConfig, TemplateSource } from "../../types/template";
 
 export class TemplateProcessorService {
-  mergeTemplateCategories(...categories: Category[][]): Category[] {
-    const mergedCategories: Category[] = [];
+  mergeTemplateCategories(...categories: Category[][]): MergedTemplateCategoriesResult {
+    const mergedCategories: MergedTemplateCategoriesResult["categories"] = [];
+    const templatesIds: MergedTemplateCategoriesResult["templatesIds"] = {};
     for (const category of categories.flat()) {
-      const existingCategory = mergedCategories.find(c => c.title.toLowerCase() === category.title.toLowerCase());
-      if (existingCategory) {
-        existingCategory.templates = (existingCategory.templates || []).concat(category.templates);
+      let categoryIndex = mergedCategories.findIndex(c => c.title.toLowerCase() === category.title.toLowerCase());
+      let templatesIndexOffset = 0;
+      if (categoryIndex !== -1) {
+        const existingCategory = mergedCategories[categoryIndex];
+        templatesIndexOffset = existingCategory.templates?.length || 0;
+        existingCategory.templates = (existingCategory.templates || []).concat(category.templates || []);
       } else {
-        mergedCategories.push(JSON.parse(JSON.stringify(category)));
+        categoryIndex = mergedCategories.length;
+        const categoryClone = JSON.parse(JSON.stringify(category));
+        categoryClone.templates ??= [];
+        mergedCategories.push(categoryClone);
+      }
+
+      for (let index = 0; index < (category.templates?.length || 0); index++) {
+        const template = category.templates![index];
+        templatesIds[template.id] = { categoryIndex, templateIndex: index + templatesIndexOffset };
       }
     }
-    return mergedCategories;
+    return { categories: mergedCategories, templatesIds };
   }
 
   getTemplateSummary(readme: string): string | null {
@@ -112,4 +124,9 @@ export class TemplateProcessorService {
 
     return template;
   }
+}
+
+export interface MergedTemplateCategoriesResult {
+  categories: Array<Omit<Category, "templates"> & { templates: Template[] }>;
+  templatesIds: Record<string, { categoryIndex: number; templateIndex: number }>;
 }

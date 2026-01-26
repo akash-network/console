@@ -1,11 +1,11 @@
 import type { Octokit } from "@octokit/rest";
 import PromisePool from "@supercharge/promise-pool";
 
-import { getOctokit } from "@src/services/external/githubService";
-import type { Category, TemplateSource } from "@src/template/types/template";
+import type { LoggerService } from "@src/core";
 import type { GithubChainRegistryChainResponse } from "@src/types";
 import type { GithubDirectoryItem } from "@src/types/github";
-import type { TemplateProcessorService } from "./template-processor.service";
+import type { Category, TemplateSource } from "../../types/template";
+import type { TemplateProcessorService } from "../template-processor/template-processor.service";
 
 export const REPOSITORIES = {
   "awesome-akash": {
@@ -26,17 +26,22 @@ export const REPOSITORIES = {
 };
 
 export class TemplateFetcherService {
+  readonly #logger: LoggerService;
   #githubRequestsRemaining: string | null = null;
   readonly #octokit: Octokit | undefined = undefined;
   readonly #options: Required<Omit<FetcherOptions, "githubPAT">>;
+  readonly #fetch: typeof globalThis.fetch;
 
   constructor(
     private readonly templateProcessor: TemplateProcessorService,
+    logger: LoggerService,
+    fetch: typeof globalThis.fetch,
+    octokit: Octokit,
     options: FetcherOptions = {}
   ) {
-    if (!options.githubPAT) throw new Error("Cannot fetch templates without GitHub PAT");
-
-    this.#octokit = getOctokit(options.githubPAT);
+    this.#octokit = octokit;
+    this.#fetch = fetch;
+    this.#logger = logger;
     this.#options = {
       categoryProcessingConcurrency: options.categoryProcessingConcurrency ?? 10,
       templateSourceProcessingConcurrency: options.templateSourceProcessingConcurrency ?? 10
@@ -119,7 +124,7 @@ export class TemplateFetcherService {
   }
 
   private async fetchChainRegistryData(chainPath: string): Promise<GithubChainRegistryChainResponse> {
-    const response = await fetch(`https://raw.githubusercontent.com/cosmos/chain-registry/master/${chainPath}/chain.json`);
+    const response = await this.#fetch(`https://raw.githubusercontent.com/cosmos/chain-registry/master/${chainPath}/chain.json`);
 
     if (response.status !== 200) {
       throw new Error(`Could not fetch chain.json for ${chainPath}`);
@@ -134,7 +139,7 @@ export class TemplateFetcherService {
 
     if (!fileDef) return null;
 
-    const response = await fetch(fileDef.download_url);
+    const response = await this.#fetch(fileDef.download_url);
     return response.text();
   }
 
@@ -156,12 +161,13 @@ export class TemplateFetcherService {
       ]);
 
       const template = this.templateProcessor.processTemplate(templateSource, readme, deploy, guide, configJsonText);
-      if (template) {
-        console.log(templateSource.name);
-      }
       return template;
-    } catch (err: any) {
-      console.warn(`Skipped ${templateSource.name} because of error: ${err.message || err}`);
+    } catch (error) {
+      this.#logger.warn({
+        event: "TEMPLATE_SOURCE_PROCESSING_SKIPPED",
+        templateSource: templateSource.name,
+        error
+      });
       return null;
     }
   }
@@ -187,8 +193,12 @@ export class TemplateFetcherService {
           }
 
           return this.processTemplateSource(templateSource, directoryItems, options);
-        } catch (err: any) {
-          console.warn(`Skipped ${templateSource.name} because of error: ${err.message || err}`);
+        } catch (error) {
+          this.#logger.warn({
+            event: "TEMPLATE_SOURCE_PROCESSING_SKIPPED",
+            templateSource: templateSource.name,
+            error
+          });
           return null;
         }
       },
@@ -285,9 +295,12 @@ export class TemplateFetcherService {
           templateSource.name = chainData.pretty_name;
           templateSource.summary = chainData.description ?? templateSource.summary;
           templateSource.logoUrl = Object.values(chainData.logo_URIs ?? {})[0];
-        } catch (err) {
-          console.log("Could not fetch chain for", templateSource.path);
-          console.error(err);
+        } catch (error) {
+          this.#logger.warn({
+            event: "CHAIN_REGISTRY_DATA_FETCH_FAILED",
+            templateSource: templateSource.path,
+            error
+          });
         }
       },
       { concurrency: this.#options.templateSourceProcessingConcurrency }
