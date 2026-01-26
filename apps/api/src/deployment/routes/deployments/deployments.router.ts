@@ -216,6 +216,7 @@ const listWithResourcesRoute = createRoute({
   summary: "Get a list of deployments by owner address.",
   tags: ["Addresses", "Deployments"],
   security: SECURITY_NONE,
+  cache: { maxAge: 6, staleWhileRevalidate: 30 },
   request: {
     params: ListWithResourcesParamsSchema,
     query: ListWithResourcesQuerySchema
@@ -254,6 +255,7 @@ const getByOwnerAndDseqRoute = createRoute({
   summary: "Get deployment details",
   tags: ["Deployments"],
   security: SECURITY_NONE,
+  cache: { maxAge: 30, staleWhileRevalidate: 60 },
   request: {
     params: GetDeploymentByOwnerDseqParamsSchema
   },

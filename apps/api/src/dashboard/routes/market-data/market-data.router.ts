@@ -13,6 +13,7 @@ const marketDataRoute = createRoute({
   path: "/v1/market-data/{coin?}",
   tags: ["Analytics"],
   security: SECURITY_NONE,
+  cache: { maxAge: 300, staleWhileRevalidate: 600 },
   request: {
     params: MarketDataParamsSchema
   },

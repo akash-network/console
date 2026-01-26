@@ -13,6 +13,7 @@ const getProposalsRoute = createRoute({
   path: "/v1/proposals",
   tags: ["Proposals"],
   security: SECURITY_NONE,
+  cache: { maxAge: 300, staleWhileRevalidate: 600 },
   responses: {
     200: {
       description: "Returns a list of proposals",
@@ -35,6 +36,7 @@ const getProposalByIdRoute = createRoute({
   path: "/v1/proposals/{id}",
   tags: ["Proposals"],
   security: SECURITY_NONE,
+  cache: { maxAge: 300, staleWhileRevalidate: 600 },
   request: {
     params: GetProposalByIdParamsSchema
   },

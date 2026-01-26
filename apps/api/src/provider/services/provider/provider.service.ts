@@ -10,6 +10,7 @@ import { setTimeout as delay } from "timers/promises";
 import { singleton } from "tsyringe";
 
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { Memoize } from "@src/caching/helpers";
 import { LeaseStatusResponse } from "@src/deployment/http-schemas/lease.schema";
 import { ProviderRepository } from "@src/provider/repositories/provider/provider.repository";
 import { ProviderAuth, ProviderIdentity, ProviderMtlsAuth, ProviderProxyService } from "@src/provider/services/provider/provider-proxy.service";
@@ -135,7 +136,8 @@ export class ProviderService {
     });
   }
 
-  async getProviderList({ trial = false }: { trial?: boolean } = {}): Promise<ProviderList[]> {
+  @Memoize({ ttlInSeconds: 60 })
+  async getProviderList(trial = false): Promise<ProviderList[]> {
     const providersWithAttributesAndAuditors = await this.providerRepository.getWithAttributesAndAuditors({ trial });
     const providerWithNodes = await this.providerRepository.getProviderWithNodes();
 
@@ -157,6 +159,7 @@ export class ProviderService {
     });
   }
 
+  @Memoize({ ttlInSeconds: 30 })
   async getProvider(address: string) {
     const nowUtc = toUTC(new Date());
     const provider = await this.providerRepository.getProviderByAddressWithAttributes(address);

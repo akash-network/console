@@ -25,6 +25,7 @@ const listGpusRoute = createRoute({
   summary: "Get a list of gpu models and their availability.",
   tags: ["Gpu"],
   security: SECURITY_NONE,
+  cache: { maxAge: 120, staleWhileRevalidate: 300 },
   request: {
     query: ListGpuQuerySchema
   },
@@ -94,6 +95,7 @@ const listGpuModelsRoute = createRoute({
     "Get a list of gpu models per vendor. Based on the content from https://raw.githubusercontent.com/akash-network/provider-configs/main/devices/pcie/gpus.json.",
   tags: ["Gpu"],
   security: SECURITY_NONE,
+  cache: { maxAge: 120, staleWhileRevalidate: 300 },
   responses: {
     200: {
       description: "List of gpu models per.",
@@ -131,6 +133,7 @@ const gpuBreakdownRoute = createRoute({
   path: "/v1/gpu-breakdown",
   tags: ["Gpu"],
   security: SECURITY_NONE,
+  cache: { maxAge: 120, staleWhileRevalidate: 300 },
   summary: "Gets gpu analytics breakdown by vendor and model. If no vendor or model is provided, all GPUs are returned.",
   request: {
     query: GpuBreakdownQuerySchema
@@ -159,6 +162,7 @@ const getGpuPricesRoute = createRoute({
   summary: "Get a list of gpu models with their availability and pricing.",
   tags: ["Gpu"],
   security: SECURITY_NONE,
+  cache: { maxAge: 120, staleWhileRevalidate: 300 },
   responses: {
     200: {
       description: "List of gpu models with their availability and pricing.",
