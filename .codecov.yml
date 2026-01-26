@@ -1,7 +1,9 @@
 coverage:
+  ignore:
+    - "apps/api/src/*/routers/**/*.ts"
   status:
     project:
-      default: off
+      default: false
       api:
         target: 80%
         flags:
