@@ -1,12 +1,13 @@
 import { Octokit } from "@octokit/rest";
-import { constants as fsConstants, promises as fsp } from "node:fs";
+import type { promises as fsp } from "node:fs";
+import { constants as fsConstants } from "node:fs";
 import path from "node:path";
+import type z from "zod";
 
-import { Memoize, reusePendingPromise } from "@src/caching/helpers";
-import { LoggerService } from "@src/core";
+import { reusePendingPromise } from "@src/caching/helpers";
+import type { LoggerService } from "@src/core";
 import type { Category, FinalCategory, Template } from "@src/template/types/template";
 import { REPOSITORIES, TemplateFetcherService } from "../template-fetcher/template-fetcher.service";
-import type { MergedTemplateCategoriesResult } from "../template-processor/template-processor.service";
 import { TemplateProcessorService } from "../template-processor/template-processor.service";
 
 type Options = {
@@ -17,32 +18,108 @@ type Options = {
 };
 
 export class TemplateGalleryService {
-  private lastGalleryData: {
-    categories: FinalCategory[];
-    templatesIds: MergedTemplateCategoriesResult["templatesIds"];
-  } | null = null;
+  #galleriesCache: GalleriesCache | null = null;
+  #parsedTemplates: Record<string, Template> = {};
 
-  private readonly templateFetcher: TemplateFetcherService;
+  private readonly templateFetcher: TemplateFetcherService | null;
   private readonly templateProcessor: TemplateProcessorService;
   readonly #logger: LoggerService;
   readonly #fs: FileSystemApi;
   readonly #options: Options;
+  readonly #galleriesCachePath: string;
 
   constructor(logger: LoggerService, fs: FileSystemApi, options: Options) {
     this.#logger = logger;
     this.#fs = fs;
     this.templateProcessor = new TemplateProcessorService();
-    this.templateFetcher = new TemplateFetcherService(this.templateProcessor, this.#logger, fetch, getOctokit(options.githubPAT), {
-      categoryProcessingConcurrency: options.categoryProcessingConcurrency,
-      templateSourceProcessingConcurrency: options.templateSourceProcessingConcurrency
-    });
+    this.templateFetcher = options.githubPAT
+      ? new TemplateFetcherService(this.templateProcessor, this.#logger, fetch, getOctokit(options.githubPAT), {
+          categoryProcessingConcurrency: options.categoryProcessingConcurrency,
+          templateSourceProcessingConcurrency: options.templateSourceProcessingConcurrency
+        })
+      : null;
     this.#options = options;
-    this.getTemplatesFromRepo = reusePendingPromise(this.getTemplatesFromRepo.bind(this), { getKey: options => options.repository });
-    this.getTemplateById = reusePendingPromise(this.getTemplateById.bind(this), { getKey: id => id });
+    this.#galleriesCachePath = `${options.dataFolderPath}/templates/templates-gallery.json`;
+    this.getTemplatesFromRepo = reusePendingPromise(this.getTemplatesFromRepo.bind(this), { getKey: options => `templates-from-repo-${options.repository}` });
+    this.getTemplateById = reusePendingPromise(this.getTemplateById.bind(this), { getKey: id => `template-by-id-${id}` });
+    this.getCachedTemplateGallery = reusePendingPromise(this.getCachedTemplateGallery.bind(this), { getKey: () => "cached-template-gallery" });
   }
 
-  @Memoize({ ttlInSeconds: Infinity })
-  async getTemplateGallery() {
+  async getCachedTemplateGallery(): Promise<GalleriesCache> {
+    if (this.#galleriesCache) return this.#galleriesCache;
+
+    const cacheFileExists = await this.#fs.access(this.#galleriesCachePath, fsConstants.R_OK).then(
+      () => true,
+      () => false
+    );
+
+    if (!cacheFileExists) {
+      throw new Error(`Template gallery cache file not found: ${this.#galleriesCachePath}`);
+    }
+
+    const cacheContent = await this.#fs.readFile(this.#galleriesCachePath, "utf8");
+    const metadataString = cacheContent.slice(0, cacheContent.indexOf("\n"));
+    const content = cacheContent.slice(metadataString.length + 1);
+    const metadata = JSON.parse(metadataString);
+    const categories = content.slice(0, metadata.templatesOffset).trim();
+    const templates = content.slice(metadata.templatesOffset).trim();
+
+    this.#galleriesCache = Object.freeze({
+      metadata,
+      categories,
+      templates
+    });
+    return this.#galleriesCache;
+  }
+
+  async buildTemplateGalleryCache(categoriesSchema: z.ZodSchema): Promise<GalleriesCache> {
+    const gallery = await this.getTemplateGallery();
+    const result = gallery.reduce<{ templates: Template[]; categories: FinalCategory[] }>(
+      (acc, category) => {
+        acc.templates.push(...category.templates);
+        acc.categories.push(category);
+        return acc;
+      },
+      { templates: [], categories: [] }
+    );
+
+    result.categories = categoriesSchema.parse(result.categories);
+    const serializedTemplates = result.templates.map(template => JSON.stringify(template));
+    const templatesRangesByIndex = buildContentRanges(serializedTemplates);
+    const templatesRangesById = result.templates.reduce(
+      (acc, template, index) => {
+        acc[template.id] = templatesRangesByIndex[index];
+        return acc;
+      },
+      {} as Record<string, [start: number, end: number]>
+    );
+    const serializedCategoriesContent = JSON.stringify(result.categories);
+
+    const metadata: GalleriesCache["metadata"] = {
+      templatesRanges: templatesRangesById,
+      templatesOffset: serializedCategoriesContent.length + 1 // +1 for the newline character
+    };
+    const serializeTemplatesContent = serializedTemplates.join("\n");
+    const content = `${JSON.stringify(metadata)}\n${serializedCategoriesContent}\n${serializeTemplatesContent}`;
+
+    await this.#fs.mkdir(path.dirname(this.#galleriesCachePath), { recursive: true });
+    await this.#fs.writeFile(this.#galleriesCachePath, content);
+
+    return {
+      metadata,
+      categories: serializedCategoriesContent,
+      templates: serializeTemplatesContent
+    };
+  }
+
+  /**
+   * !!! WARNING !!!
+   * DO NOT USE THIS METHOD to serve requests, it's event loop blocking because works with big JSON objects.
+   * Use getTemplateGallerySerialized instead.
+   */
+  async getTemplateGallery(): Promise<FinalCategory[]> {
+    if (!this.templateFetcher) return [];
+
     try {
       this.#logger.debug({
         event: "GET_TEMPLATE_GALLERY_START",
@@ -64,43 +141,49 @@ export class TemplateGalleryService {
       ]);
 
       const templateGallery = this.templateProcessor.mergeTemplateCategories(omnibusTemplates, awesomeAkashTemplates, linuxServerTemplates);
-      const categories = templateGallery.categories.map(({ templateSources, ...category }) => category);
-      this.lastGalleryData = { categories, templatesIds: templateGallery.templatesIds };
+      const categories = templateGallery.map(({ templateSources, ...category }) => category);
 
       this.#logger.debug({
         event: "GET_TEMPLATE_GALLERY_END",
         githubRequestsRemaining: this.templateFetcher.githubRequestsRemaining,
-        categoriesCount: templateGallery.categories.length
+        categoriesCount: categories.length
       });
 
-      return this.lastGalleryData;
+      return categories;
     } catch (error) {
-      if (this.lastGalleryData) {
-        this.#logger.error({
-          event: "GET_TEMPLATE_GALLERY_ERROR",
-          message: "Serving template gallery from last working version",
-          error
-        });
-        return this.lastGalleryData;
-      } else {
-        this.#logger.error({
-          event: "GET_TEMPLATE_GALLERY_ERROR",
-          message: "no fallback available",
-          error
-        });
-        throw error;
-      }
+      this.#logger.error({
+        event: "GET_TEMPLATE_GALLERY_ERROR",
+        message: "no fallback available",
+        error
+      });
+      throw error;
     }
   }
 
   async getTemplateById(id: Required<Template>["id"]): Promise<Template | null> {
-    const { templatesIds, categories } = await this.getTemplateGallery();
-    if (!templatesIds[id]) return null;
+    if (Object.hasOwn(this.#parsedTemplates, id)) return this.#parsedTemplates[id];
 
-    const { categoryIndex, templateIndex } = templatesIds[id];
-    const template = categories[categoryIndex].templates?.[templateIndex];
-    if (!template) return null;
-    return template;
+    const { templates, metadata } = await this.getCachedTemplateGallery();
+    if (!Object.hasOwn(metadata.templatesRanges, id)) return null;
+
+    const [start, end] = metadata.templatesRanges[id];
+
+    const templateContent = templates.slice(start, end).trim();
+
+    try {
+      this.#parsedTemplates[id] = JSON.parse(templateContent);
+      return this.#parsedTemplates[id];
+    } catch (error) {
+      this.#logger.error({
+        event: "GET_TEMPLATE_BY_ID_ERROR",
+        message: "Error parsing template content",
+        error,
+        templateId: id,
+        templateRange: metadata.templatesRanges[id],
+        templatesSize: templates.length
+      });
+      return null;
+    }
   }
 
   private async getTemplatesFromRepo({
@@ -110,6 +193,8 @@ export class TemplateGalleryService {
     repository: keyof typeof REPOSITORIES;
     fetchTemplates: (version: string) => Promise<Category[]>;
   }): Promise<Category[]> {
+    if (!this.templateFetcher) return [];
+
     const { repoName, repoOwner } = REPOSITORIES[repository];
     const cachePathPrefix = `${this.#options.dataFolderPath}/templates/${repoOwner}-${repoName}`;
     const latestCommitSha = await this.templateFetcher.fetchLatestCommitSha(repository).catch(async error => {
@@ -182,4 +267,25 @@ export interface FileSystemApi {
   readFile: typeof fsp.readFile;
   writeFile: typeof fsp.writeFile;
   mkdir: typeof fsp.mkdir;
+}
+
+export interface GalleriesCache {
+  metadata: {
+    templatesRanges: Record<string, [start: number, end: number]>;
+    templatesOffset: number;
+  };
+  categories: string;
+  templates: string;
+}
+
+function buildContentRanges(content: string[]): Record<number, [start: number, end: number]> {
+  let offset = 0;
+  return content.reduce(
+    (acc, chunk, index) => {
+      acc[index] = [offset, offset + chunk.length];
+      offset += chunk.length + 1; // +1 for the newline character
+      return acc;
+    },
+    {} as Record<number, [start: number, end: number]>
+  );
 }

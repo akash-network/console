@@ -6,15 +6,12 @@ import { isUrlAbsolute } from "@src/utils/urls";
 import type { Category, Template, TemplateConfig, TemplateSource } from "../../types/template";
 
 export class TemplateProcessorService {
-  mergeTemplateCategories(...categories: Category[][]): MergedTemplateCategoriesResult {
-    const mergedCategories: MergedTemplateCategoriesResult["categories"] = [];
-    const templatesIds: MergedTemplateCategoriesResult["templatesIds"] = {};
+  mergeTemplateCategories(...categories: Category[][]): MergedCategory[] {
+    const mergedCategories: MergedCategory[] = [];
     for (const category of categories.flat()) {
       let categoryIndex = mergedCategories.findIndex(c => c.title.toLowerCase() === category.title.toLowerCase());
-      let templatesIndexOffset = 0;
       if (categoryIndex !== -1) {
         const existingCategory = mergedCategories[categoryIndex];
-        templatesIndexOffset = existingCategory.templates?.length || 0;
         existingCategory.templates = (existingCategory.templates || []).concat(category.templates || []);
       } else {
         categoryIndex = mergedCategories.length;
@@ -22,13 +19,9 @@ export class TemplateProcessorService {
         categoryClone.templates ??= [];
         mergedCategories.push(categoryClone);
       }
-
-      for (let index = 0; index < (category.templates?.length || 0); index++) {
-        const template = category.templates![index];
-        templatesIds[template.id] = { categoryIndex, templateIndex: index + templatesIndexOffset };
-      }
     }
-    return { categories: mergedCategories, templatesIds };
+
+    return mergedCategories;
   }
 
   getTemplateSummary(readme: string): string | null {
@@ -126,7 +119,4 @@ export class TemplateProcessorService {
   }
 }
 
-export interface MergedTemplateCategoriesResult {
-  categories: Array<Omit<Category, "templates"> & { templates: Template[] }>;
-  templatesIds: Record<string, { categoryIndex: number; templateIndex: number }>;
-}
+export type MergedCategory = Omit<Category, "templates"> & { templates: Template[] };

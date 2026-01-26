@@ -4,6 +4,7 @@ import "@akashnetwork/env-loader";
 import { LoggerService } from "@akashnetwork/logging";
 import { promises as fsp } from "node:fs";
 
+import { GetTemplatesListResponseSchema } from "../src/template/http-schemas/template.schema";
 import { TemplateGalleryService } from "../src/template/services/template-gallery/template-gallery.service";
 import { dataFolderPath } from "../src/utils/constants";
 
@@ -21,7 +22,7 @@ const templateGalleryService = new TemplateGalleryService(LoggerService.forConte
   templateSourceProcessingConcurrency: 30
 });
 
-templateGalleryService.getTemplateGallery().catch(err => {
+templateGalleryService.buildTemplateGalleryCache(GetTemplatesListResponseSchema.shape.data).catch(err => {
   console.error("Encountered an error trying to warm up Akash templates cache");
   console.error(err);
   process.exit(1);

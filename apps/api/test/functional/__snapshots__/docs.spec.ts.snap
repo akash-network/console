@@ -13955,97 +13955,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
         ],
       },
     },
-    "/v1/templates": {
-      "get": {
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "properties": {
-                      "templates": {
-                        "items": {
-                          "properties": {
-                            "config": {
-                              "properties": {
-                                "ssh": {
-                                  "type": "boolean",
-                                },
-                              },
-                              "type": "object",
-                            },
-                            "deploy": {
-                              "type": "string",
-                            },
-                            "githubUrl": {
-                              "type": "string",
-                            },
-                            "guide": {
-                              "type": "string",
-                            },
-                            "id": {
-                              "type": "string",
-                            },
-                            "logoUrl": {
-                              "nullable": true,
-                              "type": "string",
-                            },
-                            "name": {
-                              "type": "string",
-                            },
-                            "path": {
-                              "type": "string",
-                            },
-                            "persistentStorageEnabled": {
-                              "type": "boolean",
-                            },
-                            "readme": {
-                              "type": "string",
-                            },
-                            "summary": {
-                              "type": "string",
-                            },
-                          },
-                          "required": [
-                            "id",
-                            "name",
-                            "path",
-                            "logoUrl",
-                            "summary",
-                            "readme",
-                            "deploy",
-                            "persistentStorageEnabled",
-                            "githubUrl",
-                            "config",
-                          ],
-                          "type": "object",
-                        },
-                        "type": "array",
-                      },
-                      "title": {
-                        "type": "string",
-                      },
-                    },
-                    "required": [
-                      "title",
-                      "templates",
-                    ],
-                    "type": "object",
-                  },
-                  "type": "array",
-                },
-              },
-            },
-            "description": "Returns a list of deployment templates grouped by categories",
-          },
-        },
-        "security": [],
-        "tags": [
-          "Other",
-        ],
-      },
-    },
     "/v1/templates-list": {
       "get": {
         "responses": {
@@ -14060,23 +13969,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                           "templates": {
                             "items": {
                               "properties": {
-                                "config": {
-                                  "properties": {
-                                    "ssh": {
-                                      "type": "boolean",
-                                    },
-                                  },
-                                  "type": "object",
-                                },
-                                "deploy": {
-                                  "type": "string",
-                                },
-                                "githubUrl": {
-                                  "type": "string",
-                                },
-                                "guide": {
-                                  "type": "string",
-                                },
                                 "id": {
                                   "type": "string",
                                 },
@@ -14087,15 +13979,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                 "name": {
                                   "type": "string",
                                 },
-                                "path": {
-                                  "type": "string",
-                                },
-                                "persistentStorageEnabled": {
-                                  "type": "boolean",
-                                },
-                                "readme": {
-                                  "type": "string",
-                                },
                                 "summary": {
                                   "type": "string",
                                 },
@@ -14103,14 +13986,8 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                               "required": [
                                 "id",
                                 "name",
-                                "path",
                                 "logoUrl",
                                 "summary",
-                                "readme",
-                                "deploy",
-                                "persistentStorageEnabled",
-                                "githubUrl",
-                                "config",
                               ],
                               "type": "object",
                             },

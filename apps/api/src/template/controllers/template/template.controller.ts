@@ -3,8 +3,8 @@ import { promises as fsp } from "node:fs";
 import { inject, singleton } from "tsyringe";
 
 import { LoggerService } from "@src/core";
-import { GetTemplatesListResponseSchema } from "@src/template/http-schemas/template.schema";
 import { TEMPLATE_CONFIG, type TemplateConfig } from "@src/template/providers/config.provider";
+import { Template } from "@src/template/types/template";
 import { dataFolderPath } from "@src/utils/constants";
 import { TemplateGalleryService } from "../../services/template-gallery/template-gallery.service";
 
@@ -20,22 +20,12 @@ export class TemplateController {
     });
   }
 
-  async getTemplatesFull() {
-    const result = await this.templateGalleryService.getTemplateGallery();
-    return result.categories;
+  async getTemplatesList(): Promise<string> {
+    const { categories } = await this.templateGalleryService.getCachedTemplateGallery();
+    return `{"data":${categories}}`;
   }
 
-  async getTemplatesList() {
-    const templatesPerCategory = await this.templateGalleryService.getTemplateGallery();
-    // TODO: remove manual response filtering when https://github.com/honojs/middleware/issues/181 is done
-    const arraySchema = GetTemplatesListResponseSchema.pick({ data: true }).shape.data;
-    const filteredTemplatesPerCategory = await arraySchema.safeParseAsync(templatesPerCategory.categories);
-    const response = filteredTemplatesPerCategory.success ? filteredTemplatesPerCategory.data : templatesPerCategory.categories;
-
-    return { data: response };
-  }
-
-  async getTemplateById(id: string) {
+  async getTemplateById(id: string): Promise<{ data: Template }> {
     const template = await this.templateGalleryService.getTemplateById(id);
     assert(template, 404, "Template not found");
 
