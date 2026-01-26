@@ -48,7 +48,7 @@ export class TemplateGalleryService {
   async getCachedTemplateGallery(): Promise<GalleriesCache> {
     if (this.#galleriesCache) return this.#galleriesCache;
 
-    const cacheFileExists = await this.#fs.access(this.#galleriesCachePath, fsConstants.W_OK | fsConstants.R_OK).then(
+    const cacheFileExists = await this.#fs.access(this.#galleriesCachePath, fsConstants.R_OK).then(
       () => true,
       () => false
     );
@@ -102,6 +102,7 @@ export class TemplateGalleryService {
     const serializeTemplatesContent = serializedTemplates.join("\n");
     const content = `${JSON.stringify(metadata)}\n${serializedCategoriesContent}\n${serializeTemplatesContent}`;
 
+    await this.#fs.mkdir(path.dirname(this.#galleriesCachePath), { recursive: true });
     await this.#fs.writeFile(this.#galleriesCachePath, content);
 
     return {
