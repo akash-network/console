@@ -2,15 +2,15 @@ import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import * as fs from "fs";
 import { sep as FOLDER_SEP } from "path";
 
-import { reusePendingPromise } from "@src/caching/helpers";
 import { WALLET_ADDRESS_PREFIX } from "../../src/billing/lib/wallet/wallet";
+import { reusePendingPromise } from "../../src/caching/helpers";
 
 export class TestWalletService {
   private mnemonics: Record<string, string> = {};
 
   constructor() {
     this.restoreCache();
-    this.getStoredMnemonic = reusePendingPromise(this.getStoredMnemonic, {
+    this.getStoredMnemonic = reusePendingPromise(this.getStoredMnemonic.bind(this), {
       getKey: (path: string) => `test-wallet-mnemonic-${this.getFileName(path)}`
     });
   }
