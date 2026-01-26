@@ -1,5 +1,17 @@
 
 
+## [2.9.4](https://github.com/akash-network/console/compare/provider-proxy/v2.9.3...provider-proxy/v2.9.4) (2026-01-26)
+
+
+### Bug Fixes
+
+* install sharp lib for image optimization ([#2546](https://github.com/akash-network/console/issues/2546)) ([4790cd6](https://github.com/akash-network/console/commit/4790cd6ff2053229ec6faaad26a7e18d67e60f74))
+
+
+### Code Refactoring
+
+* replaces LoggerService class with createOtelLogger ([#2555](https://github.com/akash-network/console/issues/2555)) ([fa01b2c](https://github.com/akash-network/console/commit/fa01b2cb4cd522758ae47f2e8b44253269051a57))
+
 ## [2.9.3](https://github.com/akash-network/console/compare/provider-proxy/v2.9.2...provider-proxy/v2.9.3) (2026-01-22)
 
 

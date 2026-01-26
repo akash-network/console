@@ -1,5 +1,12 @@
 
 
+## [1.13.3](https://github.com/akash-network/console/compare/stats-web/v1.13.2...stats-web/v1.13.3) (2026-01-26)
+
+
+### Bug Fixes
+
+* install sharp lib for image optimization ([#2546](https://github.com/akash-network/console/issues/2546)) ([4790cd6](https://github.com/akash-network/console/commit/4790cd6ff2053229ec6faaad26a7e18d67e60f74))
+
 ## [1.13.2](https://github.com/akash-network/console/compare/stats-web/v1.13.0...stats-web/v1.13.2) (2026-01-22)
 
 

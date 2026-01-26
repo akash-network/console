@@ -1,5 +1,12 @@
 
 
+## [1.35.3](https://github.com/akash-network/console/compare/provider-console/v1.35.2...provider-console/v1.35.3) (2026-01-26)
+
+
+### Bug Fixes
+
+* install sharp lib for image optimization ([#2546](https://github.com/akash-network/console/issues/2546)) ([4790cd6](https://github.com/akash-network/console/commit/4790cd6ff2053229ec6faaad26a7e18d67e60f74))
+
 ## [1.35.2](https://github.com/akash-network/console/compare/provider-console/v1.35.1...provider-console/v1.35.2) (2026-01-22)
 
 
