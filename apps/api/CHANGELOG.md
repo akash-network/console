@@ -1,5 +1,26 @@
 
 
+## [3.22.0](https://github.com/akash-network/console/compare/console-api/v3.21.4...console-api/v3.22.0) (2026-01-26)
+
+
+### Features
+
+* add cache control middleware and improve response handling ([#2565](https://github.com/akash-network/console/issues/2565)) ([2d922ba](https://github.com/akash-network/console/commit/2d922baf2aaced12330c33d75205f1d130d74da1))
+
+
+### Bug Fixes
+
+* **billing:** add network error recovery for transaction retrieval ([#2559](https://github.com/akash-network/console/issues/2559)) ([51b37e4](https://github.com/akash-network/console/commit/51b37e4d63b868060bbb930265e2dcb55aac99ba))
+* improve address fetching ([#2558](https://github.com/akash-network/console/issues/2558)) ([5f7a629](https://github.com/akash-network/console/commit/5f7a62975663d11872faaba3770d8c0f393c2a1c))
+* install sharp lib for image optimization ([#2546](https://github.com/akash-network/console/issues/2546)) ([4790cd6](https://github.com/akash-network/console/commit/4790cd6ff2053229ec6faaad26a7e18d67e60f74))
+
+
+### Code Refactoring
+
+* adds proper logger and move templates into module ([#2563](https://github.com/akash-network/console/issues/2563)) ([695c5a3](https://github.com/akash-network/console/commit/695c5a33e4132d1340e4ebc52f1613d3395e47a9))
+* replaces LoggerService class with createOtelLogger ([#2555](https://github.com/akash-network/console/issues/2555)) ([fa01b2c](https://github.com/akash-network/console/commit/fa01b2cb4cd522758ae47f2e8b44253269051a57))
+* skips parsing JSON cache when serving templates ([#2566](https://github.com/akash-network/console/issues/2566)) ([b02c3bd](https://github.com/akash-network/console/commit/b02c3bdf58e64422c49ea9229955228b92fabd0d))
+
 ## [3.21.4](https://github.com/akash-network/console/compare/console-api/v3.21.3...console-api/v3.21.4) (2026-01-22)
 
 

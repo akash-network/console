@@ -1,5 +1,18 @@
 
 
+## [3.24.0](https://github.com/akash-network/console/compare/console-web/v3.23.1...console-web/v3.24.0) (2026-01-26)
+
+
+### Features
+
+* add cache control middleware and improve response handling ([#2565](https://github.com/akash-network/console/issues/2565)) ([2d922ba](https://github.com/akash-network/console/commit/2d922baf2aaced12330c33d75205f1d130d74da1))
+
+
+### Bug Fixes
+
+* **billing:** add network error recovery for transaction retrieval ([#2559](https://github.com/akash-network/console/issues/2559)) ([51b37e4](https://github.com/akash-network/console/commit/51b37e4d63b868060bbb930265e2dcb55aac99ba))
+* install sharp lib for image optimization ([#2546](https://github.com/akash-network/console/issues/2546)) ([4790cd6](https://github.com/akash-network/console/commit/4790cd6ff2053229ec6faaad26a7e18d67e60f74))
+
 ## [3.23.1](https://github.com/akash-network/console/compare/console-web/v3.23.0...console-web/v3.23.1) (2026-01-22)
 
 
