@@ -8,6 +8,7 @@ const common = {
   transform: {
     "^.+\\.(t|j)s$": ["ts-jest", { tsconfig: "./test/tsconfig.json" }]
   },
+  transformIgnorePatterns: ["node_modules/(?!(@octokit|universal-user-agent|before-after-hook)/)"],
   rootDir: ".",
   moduleNameMapper: {
     ...MAP_ALIASES
