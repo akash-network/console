@@ -20,22 +20,19 @@ export default class CustomJestEnvironment extends NodeEnvironment {
 
   async setup() {
     await super.setup();
-    if (localConfig.FUNDING_WALLET_MNEMONIC) {
-      this.global.process.env.FUNDING_WALLET_MNEMONIC = localConfig.FUNDING_WALLET_MNEMONIC;
-    } else {
-      this.global.process.env.FUNDING_WALLET_MNEMONIC = this.#getTestWalletService().getMnemonic(this.#path);
-    }
+    await Promise.all([
+      this.#setOrGenerateWallet("FUNDING_WALLET_MNEMONIC", () => this.#getTestWalletService().getStoredMnemonic(this.#path)),
+      this.#setOrGenerateWallet("DERIVATION_WALLET_MNEMONIC"),
+      this.#setOrGenerateWallet("OLD_MASTER_WALLET_MNEMONIC")
+    ]);
+  }
 
-    if (localConfig.DERIVATION_WALLET_MNEMONIC) {
-      this.global.process.env.DERIVATION_WALLET_MNEMONIC = localConfig.DERIVATION_WALLET_MNEMONIC;
+  async #setOrGenerateWallet(key: keyof typeof localConfig, generate?: () => Promise<string>) {
+    if (localConfig[key]) {
+      this.global.process.env[key] = localConfig[key];
     } else {
-      this.global.process.env.DERIVATION_WALLET_MNEMONIC = await this.#getTestWalletService().generateMnemonic();
-    }
-
-    if (localConfig.OLD_MASTER_WALLET_MNEMONIC) {
-      this.global.process.env.OLD_MASTER_WALLET_MNEMONIC = localConfig.OLD_MASTER_WALLET_MNEMONIC;
-    } else {
-      this.global.process.env.OLD_MASTER_WALLET_MNEMONIC = await this.#getTestWalletService().generateMnemonic();
+      const newMnemonicPromise = generate ? generate() : this.#getTestWalletService().generateMnemonic();
+      this.global.process.env[key] = await newMnemonicPromise;
     }
   }
 }

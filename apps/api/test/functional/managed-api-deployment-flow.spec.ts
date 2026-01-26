@@ -25,6 +25,7 @@ import { app } from "@src/rest-app";
 
 import { createDeployment as createDeploymentSeed, createDeploymentGroup, createLease as createLeaseSeed, createProvider } from "@test/seeders";
 import { AppHttpService } from "@test/services/app-http.service";
+import { topUpWallet } from "@test/services/topUpWallet";
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
 jest.setTimeout(120_000);
@@ -34,6 +35,10 @@ type AuthType = "mTLS" | "JWT";
 
 describe("Managed Wallet API Deployment Flow", () => {
   const http = new AppHttpService(app);
+
+  beforeAll(async () => {
+    await topUpWallet({ minAmount: 6_100_000 });
+  });
 
   /**
    * Authentication types supported by the test.

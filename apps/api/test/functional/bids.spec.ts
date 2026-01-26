@@ -8,11 +8,16 @@ import { marketVersion } from "@src/utils/constants";
 
 import { createAkashAddress, createProvider } from "@test/seeders";
 import { BidSeeder } from "@test/seeders/bid.seeder";
+import { topUpWallet } from "@test/services/topUpWallet";
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
 jest.setTimeout(20000);
 
 describe("Bids API", () => {
+  beforeAll(async () => {
+    await topUpWallet();
+  });
+
   describe.each(["/v1/bids/:dseq", "/v1/bids?dseq=:dseq"])("GET %s", path => {
     it("should respond with bids list", async () => {
       const { dseq, user, providers } = await setup();

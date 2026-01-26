@@ -1,32 +1,18 @@
-import { BalanceHttpService } from "@akashnetwork/http-sdk";
-import type { EncodeObject } from "@cosmjs/proto-signing";
-import { coins, DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
-import { calculateFee, GasPrice, SigningStargateClient } from "@cosmjs/stargate";
-import dotenv from "dotenv";
-import dotenvExpand from "dotenv-expand";
+import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import * as fs from "fs";
-import path from "path";
 import { sep as FOLDER_SEP } from "path";
-import { setTimeout as delay } from "timers/promises";
 
-import { Wallet, WALLET_ADDRESS_PREFIX } from "../../src/billing/lib/wallet/wallet";
-
-const { parsed: config } = dotenvExpand.expand(dotenv.config({ path: "env/.env.functional.test" }));
-
-const MIN_AMOUNTS: Record<string, number> = {
-  "create-deployment.spec.ts": 5100000,
-  "managed-api-deployment-flow.spec.ts": 6100000
-};
+import { reusePendingPromise } from "@src/caching/helpers";
+import { WALLET_ADDRESS_PREFIX } from "../../src/billing/lib/wallet/wallet";
 
 export class TestWalletService {
-  private readonly balanceHttpService = new BalanceHttpService({
-    baseURL: config!.REST_API_NODE_URL
-  });
-
   private mnemonics: Record<string, string> = {};
 
   constructor() {
     this.restoreCache();
+    this.getStoredMnemonic = reusePendingPromise(this.getStoredMnemonic, {
+      getKey: (path: string) => `test-wallet-mnemonic-${this.getFileName(path)}`
+    });
   }
 
   private restoreCache() {
@@ -43,15 +29,14 @@ export class TestWalletService {
     fs.writeFileSync(".cache/test-wallets.json", JSON.stringify(this.mnemonics, null, 2));
   }
 
-  getMnemonic(path: string) {
+  async getStoredMnemonic(path: string): Promise<string> {
     const fileName = this.getFileName(path);
-    return fileName ? this.mnemonics[fileName] : undefined;
-  }
 
-  async init() {
-    const { wallet: faucetWallet, amount: faucetAmount } = await this.prepareFaucetWallet();
-    this.mnemonics = await this.prepareWallets(faucetWallet, faucetAmount!);
-    this.saveCache();
+    if (!this.mnemonics[fileName]) {
+      this.mnemonics[fileName] ??= await this.generateMnemonic();
+      this.saveCache();
+    }
+    return this.mnemonics[fileName];
   }
 
   async generateMnemonic() {
@@ -59,113 +44,7 @@ export class TestWalletService {
     return hdWallet.mnemonic;
   }
 
-  private async prepareWallets(faucetWallet: Wallet, totalDistributionAmount: number) {
-    const specPaths = fs.readdirSync(path.join(__dirname, "../functional")).filter(spec => spec.endsWith(".spec.ts"));
-    const faucetAddress = await faucetWallet.getFirstAddress();
-    const totalMinAmount = Object.values(MIN_AMOUNTS).reduce((acc, curr) => acc + curr, 0);
-    const amount = (totalDistributionAmount - totalMinAmount - totalDistributionAmount * 0.01) / specPaths.length;
-
-    const configs = await Promise.all(
-      specPaths.map(async path => {
-        const mnemonic = await this.generateMnemonic();
-        const wallet = new Wallet(mnemonic);
-        const address = await wallet.getFirstAddress();
-        const fileName = this.getFileName(path);
-        const coinAmount = MIN_AMOUNTS[fileName] || amount;
-        const coinAmountStr = Math.floor(coinAmount).toString();
-
-        return {
-          path,
-          mnemonic,
-          address,
-          message: {
-            typeUrl: "/cosmos.bank.v1beta1.MsgSend",
-            value: {
-              fromAddress: faucetAddress,
-              toAddress: address,
-              amount: coins(coinAmountStr, "uakt")
-            }
-          }
-        };
-      })
-    );
-    const messages = Object.values(configs).map(config => config.message) as readonly EncodeObject[];
-
-    const client = await SigningStargateClient.connectWithSigner(config!.RPC_NODE_ENDPOINT, faucetWallet);
-    const gasEstimation = await client.simulate(faucetAddress, messages, undefined);
-    const estimatedGas = Math.round(gasEstimation * 1.5);
-
-    const fee = calculateFee(estimatedGas, GasPrice.fromString("0.0025uakt"));
-
-    await client.signAndBroadcast(faucetAddress, messages, fee);
-
-    this.log("Created and filled wallets");
-    await Promise.all(
-      configs.map(async config => {
-        const balance = await this.balanceHttpService.getBalance(config.address, "uakt");
-        this.log(`Spec: ${config.path} - Address: ${config.address} - Balance: ${balance?.amount} uAKT`);
-      })
-    );
-
-    return configs.reduce(
-      (acc, curr) => {
-        acc[curr.path] = curr.mnemonic;
-        return acc;
-      },
-      {} as Record<string, string>
-    );
-  }
-
-  private async prepareFaucetWallet() {
-    const faucetWallet = new Wallet();
-    const faucetAddress = await faucetWallet.getFirstAddress();
-
-    const initialBalance = await this.balanceHttpService.getBalance(faucetAddress, "uakt");
-    const initialAmount = initialBalance?.amount;
-    let updatedAmount = initialAmount;
-
-    await this.topUpFaucetWallet(faucetAddress);
-
-    let maxAttempts = 10;
-    while (initialAmount === updatedAmount) {
-      const updatedBalance = await this.balanceHttpService.getBalance(faucetAddress, "uakt");
-      updatedAmount = updatedBalance?.amount;
-      maxAttempts--;
-      if (maxAttempts <= 0) {
-        throw new Error(`Wallet ${faucetAddress} balance has not been changed after top up for 10 seconds`);
-      }
-      await delay(1000);
-    }
-
-    return {
-      wallet: faucetWallet,
-      amount: updatedAmount
-    };
-  }
-
-  private async topUpFaucetWallet(address: string) {
-    const times = 1;
-    for (let i = 0; i < times; i++) {
-      const response = await fetch(config!.FAUCET_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded"
-        },
-        body: `address=${encodeURIComponent(address)}`
-      });
-      if (response.status >= 300 || response.status < 200) {
-        this.log(`Unable to top up wallet with faucet. Response: ${response.status}`);
-        this.log(await response.json());
-        throw new Error("Unable to top up wallet with faucet");
-      }
-    }
-  }
-
   private getFileName(path: string) {
     return path.split(FOLDER_SEP).pop()!;
-  }
-
-  private log(message: unknown) {
-    console.log(message);
   }
 }

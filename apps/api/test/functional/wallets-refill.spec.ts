@@ -7,11 +7,16 @@ import { UserWalletRepository } from "@src/billing/repositories";
 import { ManagedSignerService, ManagedUserWalletService } from "@src/billing/services";
 import { app } from "@src/rest-app";
 
+import { topUpWallet } from "@test/services/topUpWallet";
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
 jest.setTimeout(240000);
 
 describe("Wallets Refill", () => {
+  beforeAll(async () => {
+    await topUpWallet();
+  });
+
   describe("console refill-wallets", () => {
     it("should refill wallets low on fee allowance", async () => {
       const { managedUserWalletService, config, walletController, walletService, userWalletRepository } = setup();

@@ -11,6 +11,7 @@ import type { ApiPgDatabase } from "@src/core";
 import { POSTGRES_DB, resolveTable } from "@src/core";
 import { app } from "@src/rest-app";
 
+import { topUpWallet } from "@test/services/topUpWallet";
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
 jest.setTimeout(20000);
@@ -22,6 +23,10 @@ describe("start trial", () => {
   const userWalletsQuery = db.query.UserWallets;
   const authzHttpService = container.resolve(AuthzHttpService);
   const walletTestingService = new WalletTestingService(app);
+
+  beforeAll(async () => {
+    await topUpWallet();
+  });
 
   afterEach(() => {
     jest.restoreAllMocks();
