@@ -8,6 +8,7 @@ import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { app } from "@src/rest-app";
 
+import { topUpWallet } from "@test/services/topUpWallet";
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
 jest.setTimeout(30000);
@@ -15,6 +16,10 @@ jest.setTimeout(30000);
 describe("Tx Sign", () => {
   const registry = container.resolve<Registry>(TYPE_REGISTRY);
   const walletService = new WalletTestingService(app);
+
+  beforeAll(async () => {
+    await topUpWallet();
+  });
 
   describe("POST /v1/tx", () => {
     it("should create a wallet for a user", async () => {

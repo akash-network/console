@@ -11,6 +11,7 @@ import { POSTGRES_DB, resolveTable } from "@src/core";
 import { app } from "@src/rest-app";
 import { Users } from "@src/user/model-schemas/user/user.schema";
 
+import { topUpWallet } from "@test/services/topUpWallet";
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
 jest.setTimeout(30000);
@@ -55,6 +56,10 @@ describe("Stripe webhook", () => {
       })
     });
   };
+
+  beforeAll(async () => {
+    await topUpWallet();
+  });
 
   describe("POST /v1/stripe-webhook", () => {
     describe("payment_intent.succeeded", () => {

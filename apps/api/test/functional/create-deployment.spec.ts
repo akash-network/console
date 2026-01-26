@@ -14,6 +14,7 @@ import { CORE_CONFIG } from "@src/core";
 import { app } from "@src/rest-app";
 import { certVersion, deploymentVersion } from "@src/utils/constants";
 
+import { topUpWallet } from "@test/services/topUpWallet";
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
 jest.setTimeout(30000);
@@ -24,6 +25,10 @@ const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.ym
 describe("Tx Sign", () => {
   const registry = container.resolve<Registry>(TYPE_REGISTRY);
   const walletService = new WalletTestingService(app);
+
+  beforeAll(async () => {
+    await topUpWallet({ minAmount: 5_100_000 });
+  });
 
   afterEach(async () => {
     nock.cleanAll();

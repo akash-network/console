@@ -11,6 +11,7 @@ import { UserRepository } from "@src/user/repositories/user/user.repository";
 
 import { ApiKeySeeder } from "@test/seeders/api-key.seeder";
 import { stub } from "@test/services/stub";
+import { topUpWallet } from "@test/services/topUpWallet";
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
 const OBFUSCATED_API_KEY_PATTERN = /^ac\.sk\.test\.[A-Za-z0-9]{6}\*{3}[A-Za-z0-9]{6}$/;
@@ -54,6 +55,10 @@ describe("API Keys", () => {
 
     return { user: userWithId, token };
   }
+
+  beforeAll(async () => {
+    await topUpWallet();
+  });
 
   beforeEach(async () => {
     config = stub<CoreConfigService>({ get: jest.fn() });
