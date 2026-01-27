@@ -25,7 +25,7 @@ export async function redirectIfAccessTokenExpired(context: AppTypedContext): Pr
     return {
       redirect: {
         permanent: false,
-        destination: context.services.urlService.newLogin({ from: context.resolvedUrl })
+        destination: context.services.urlService.newLogin({ returnTo: context.resolvedUrl })
       }
     };
   }

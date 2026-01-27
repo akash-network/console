@@ -11,10 +11,8 @@ export default defineApiHandler({
         rewriteLocalRedirect(res, services.privateConfig);
       }
 
-      const returnUrl = decodeURIComponent((req.query.returnTo as string) ?? "/");
-
       await handleLogin(req, res, {
-        returnTo: returnUrl,
+        returnTo: req.url ? services.urlReturnToStack.getReturnTo(req.url) : undefined,
         authorizationParams: {
           // Note that this can be combined with prompt=login , which indicates if
           // you want to always show the authentication page or you want to skip
@@ -24,11 +22,12 @@ export default defineApiHandler({
           connection: req.query.connection as string | undefined
         }
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
       let severity: SeverityLevel = "error";
-      if (error?.status && error.status >= 400 && error.status < 500) {
+      if (error instanceof Error && "status" in error && typeof error.status === "number" && error.status >= 400 && error.status < 500) {
         severity = "warning";
-        res.status(400).send({ message: error.message });
+        res.status(400).send({ message });
       } else {
         res.status(503).send({ message: "An unexpected error occurred. Please try again later." });
       }

@@ -1,3 +1,4 @@
+import { UrlReturnToStack } from "@src/hooks/useReturnTo/UrlReturnToStack";
 import type { FaqAnchorType } from "@src/pages/faq";
 import networkStore from "@src/store/networkStore";
 
@@ -19,13 +20,28 @@ export type NewDeploymentParams = {
 };
 
 export const domainName = "https://console.akash.network";
-
 export function getBaseUrl(): string {
   if (typeof window !== "undefined") {
     return window.location.origin;
   }
   return domainName;
 }
+
+type ReturnableOptions = { returnTo?: string };
+const getSafeCurrentLocation = (preferredLocation?: string, fallbackLocation: string = "/") => {
+  if (preferredLocation) {
+    return preferredLocation;
+  }
+
+  if (typeof window !== "undefined") {
+    return `${window.location.pathname}${window.location.search}`;
+  }
+
+  return fallbackLocation;
+};
+
+const getSafeReturnableUrl = (destination: string, currentLocation?: string, extraReturnToParams: Record<string, string> = {}) =>
+  UrlReturnToStack.createReturnable(getSafeCurrentLocation(currentLocation), destination, { extraQueryParams: extraReturnToParams });
 
 export class UrlService {
   static home = () => "/";
@@ -55,31 +71,14 @@ export class UrlService {
   static paymentMethods = () => "/payment-methods";
   static billing = () => "/billing";
   /** @deprecated use .newLogin instead */
-  static login = (returnUrl?: string) => {
-    let from = "/";
-    if (returnUrl) {
-      from = returnUrl;
-    } else if (typeof window !== "undefined") {
-      from = window.location.pathname;
-    }
-    return `/api/auth/login${appendSearchParams({ from: from })}`;
-  };
+  static login = () => "/api/auth/login";
   /** @deprecated use .newSignup instead */
-  static signup = (returnTo?: string) => `/api/auth/signup${appendSearchParams({ returnTo })}`;
-  static newLogin = (input?: { from?: string }) =>
-    `/login${appendSearchParams({
-      from: typeof window === "undefined" ? undefined : window.location.pathname,
-      tab: "login",
-      ...input
-    })}`;
-  static newSignup = (input?: { from?: string }) =>
-    `/login${appendSearchParams({
-      from: typeof window === "undefined" ? undefined : window.location.pathname,
-      tab: "signup",
-      ...input
-    })}`;
+  static signup = () => "/api/auth/signup";
+  static newLogin = ({ returnTo }: ReturnableOptions = {}) => getSafeReturnableUrl(`/login${appendSearchParams({ tab: "login" })}`, returnTo);
+  static newSignup = ({ returnTo, ...extraReturnToParams }: ReturnableOptions & Record<string, string> = {}) =>
+    getSafeReturnableUrl(`/login${appendSearchParams({ tab: "signup" })}`, returnTo, extraReturnToParams);
   static logout = () => "/api/auth/logout";
-  static onboarding = (fromSignup?: boolean) => `/signup${appendSearchParams({ fromSignup })}`;
+  static onboarding = ({ returnTo }: ReturnableOptions = {}) => getSafeReturnableUrl("/signup", returnTo);
   static template = (id: string) => `/template/${id}`;
   static payment = () => "/payment";
 

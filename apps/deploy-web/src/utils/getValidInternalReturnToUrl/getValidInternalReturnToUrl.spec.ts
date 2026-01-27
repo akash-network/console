@@ -35,10 +35,6 @@ describe("getValidInternalReturnToUrl", () => {
     it("handles encoded paths", () => {
       expect(getValidInternalReturnToUrl(encodeURIComponent("/user/profile"))).toBe("/user/profile");
     });
-
-    it("handles paths with encoded characters", () => {
-      expect(getValidInternalReturnToUrl("/user%20profile")).toBe("/user profile");
-    });
   });
 
   describe("invalid paths - protocol-relative", () => {

@@ -22,13 +22,12 @@ export default defineApiHandler({
 const authHandler = once((services: AppServices) =>
   handleAuth({
     async login(req: NextApiRequest, res: NextApiResponse) {
-      const returnUrl = decodeURIComponent((req.query.from as string) ?? "/");
       if (services.privateConfig.AUTH0_LOCAL_ENABLED && services.privateConfig.AUTH0_REDIRECT_BASE_URL) {
         rewriteLocalRedirect(res, services.privateConfig);
       }
 
       await handleLogin(req, res, {
-        returnTo: returnUrl,
+        returnTo: req.url ? services.urlReturnToStack.getReturnTo(req.url) : undefined,
         // Reduce the scope to minimize session data
         authorizationParams: {
           scope: "openid profile email offline_access",
@@ -128,8 +127,8 @@ function clearSessionAndRedirectToLogin(req: NextApiRequest, res: NextApiRespons
     res.setHeader("Set-Cookie", expiredCookies);
   }
 
-  const returnUrl = encodeURIComponent(req.url || "/");
-  const loginUrl = `/api/auth/login?from=${returnUrl}`;
+  const returnTo = encodeURIComponent(req.url || "/");
+  const loginUrl = `/api/auth/login?returnTo=${returnTo}`;
   res.writeHead(302, { Location: loginUrl });
   res.end();
 }

@@ -9,9 +9,6 @@ import { USER_TEMPLATE_CODE } from "@src/config/deploy.config";
 import { CI_CD_TEMPLATE_ID } from "@src/config/remote-deploy.config";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider";
-import { useWallet } from "@src/context/WalletProvider";
-import { useDeployButtonFlow } from "@src/hooks/useDeployButtonFlow/useDeployButtonFlow";
-import { useUser } from "@src/hooks/useUser";
 import { useTemplates } from "@src/queries/useTemplateQuery";
 import { isCiCdImageInYaml } from "@src/services/remote-deploy/env-var-manager.service";
 import sdlStore from "@src/store/sdlStore";
@@ -20,7 +17,6 @@ import { RouteStep } from "@src/types/route-steps.type";
 import { hardcodedTemplates } from "@src/utils/templates";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
-import { LoadingBlocker } from "../layout/LoadingBlocker/LoadingBlocker";
 import { CreateLease } from "./CreateLease/CreateLease";
 import { ManifestEdit } from "./ManifestEdit";
 import { CustomizedSteppers } from "./Stepper";
@@ -32,11 +28,7 @@ export interface NewDeploymentContainerProps {
   isDeployButtonFlow?: boolean;
 }
 
-export const NewDeploymentContainer: FC<NewDeploymentContainerProps> = ({
-  template: requestedTemplate,
-  templateId,
-  isDeployButtonFlow: initialIsDeployButtonFlow = false
-}) => {
+export const NewDeploymentContainer: FC<NewDeploymentContainerProps> = ({ template: requestedTemplate, templateId }) => {
   const [isGitProviderTemplate, setIsGitProviderTemplate] = useState<boolean>(false);
   const { isLoading: isLoadingTemplates, templates } = useTemplates();
   const [activeStep, setActiveStep] = useState<number | null>(null);
@@ -48,10 +40,6 @@ export const NewDeploymentContainer: FC<NewDeploymentContainerProps> = ({
   const searchParams = useSearchParams();
   const dseq = searchParams?.get("dseq");
   const { toggleCmp, hasComponent } = useSdlBuilder();
-  const { isDeployButtonFlow, buildReturnUrl } = useDeployButtonFlow();
-  const { hasManagedWallet, isWalletLoading, isWalletConnected } = useWallet();
-  const { user, isLoading: isUserLoading } = useUser();
-  const [isInitializingDeployment, setIsInitializingDeployment] = useState<boolean>(initialIsDeployButtonFlow);
 
   useEffect(() => {
     const queryStep = searchParams?.get("step");
@@ -104,48 +92,13 @@ export const NewDeploymentContainer: FC<NewDeploymentContainerProps> = ({
       if (isRemoteYamlImage) {
         setIsGitProviderTemplate(true);
       }
-
       const newParams = isRemoteYamlImage
-        ? { ...searchParams, step: RouteStep.editDeployment, gitProvider: "github" }
-        : { ...searchParams, step: RouteStep.editDeployment };
-
+        ? { ...Object.fromEntries(searchParams.entries()), step: RouteStep.editDeployment, gitProvider: "github" }
+        : { ...Object.fromEntries(searchParams.entries()), step: RouteStep.editDeployment };
       router.replace(UrlService.newDeployment(newParams));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [templates, editedManifest, searchParams, router, toggleCmp, hasComponent, activeStep]);
-
-  useEffect(
-    function ensureAuthForDeploymentButtonFlow() {
-      if (!isDeployButtonFlow || isUserLoading || isWalletLoading || isWalletConnected) {
-        return;
-      }
-
-      if (!user?.userId) {
-        router.push(UrlService.newLogin({ from: buildReturnUrl() }));
-        return;
-      }
-
-      if (!hasManagedWallet) {
-        router.push(`${UrlService.onboarding()}?returnTo=${encodeURIComponent(buildReturnUrl())}`);
-        return;
-      }
-    },
-    [isDeployButtonFlow, hasManagedWallet, isWalletLoading, isUserLoading, isWalletConnected, user, buildReturnUrl, router]
-  );
-
-  useEffect(
-    function ensureTemplateIdForDeployButtonFlow() {
-      if (!isDeployButtonFlow) return;
-
-      const currentTemplateId = searchParams?.get("templateId");
-      if (!currentTemplateId) {
-        router.replace(buildReturnUrl());
-      } else if (isWalletConnected) {
-        setIsInitializingDeployment(false);
-      }
-    },
-    [isDeployButtonFlow, searchParams, router, buildReturnUrl, isWalletConnected]
-  );
 
   const getRedeployTemplate = () => {
     let template: Partial<TemplateCreation> | null = null;
@@ -199,27 +152,25 @@ export const NewDeploymentContainer: FC<NewDeploymentContainerProps> = ({
 
   return (
     <Layout isLoading={isLoadingTemplates} isUsingSettings isUsingWallet containerClassName="pb-0 h-full">
-      <LoadingBlocker isLoading={isInitializingDeployment} text="Preparing deployment...">
-        {!!activeStep && (
-          <div className="flex w-full items-center">
-            <CustomizedSteppers activeStep={activeStep} />
-          </div>
-        )}
+      {activeStep !== null && (
+        <div className="flex w-full items-center">
+          <CustomizedSteppers activeStep={activeStep} />
+        </div>
+      )}
 
-        {activeStep === 0 && (
-          <TemplateList onChangeGitProvider={setIsGitProviderTemplate} onTemplateSelected={setSelectedTemplate} setEditedManifest={setEditedManifest} />
-        )}
-        {activeStep === 1 && (
-          <ManifestEdit
-            selectedTemplate={selectedTemplate}
-            onTemplateSelected={setSelectedTemplate}
-            editedManifest={editedManifest}
-            setEditedManifest={setEditedManifest}
-            isGitProviderTemplate={isGitProviderTemplate}
-          />
-        )}
-        {activeStep === 2 && <CreateLease dseq={dseq as string} />}
-      </LoadingBlocker>
+      {activeStep === 0 && (
+        <TemplateList onChangeGitProvider={setIsGitProviderTemplate} onTemplateSelected={setSelectedTemplate} setEditedManifest={setEditedManifest} />
+      )}
+      {activeStep === 1 && (
+        <ManifestEdit
+          selectedTemplate={selectedTemplate}
+          onTemplateSelected={setSelectedTemplate}
+          editedManifest={editedManifest}
+          setEditedManifest={setEditedManifest}
+          isGitProviderTemplate={isGitProviderTemplate}
+        />
+      )}
+      {activeStep === 2 && <CreateLease dseq={dseq as string} />}
     </Layout>
   );
 };

@@ -11,6 +11,7 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useChainParam } from "@src/hooks/useChainParam/useChainParam";
 import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom";
+import { useReturnTo } from "@src/hooks/useReturnTo";
 import { useUser } from "@src/hooks/useUser";
 import { usePaymentMethodsQuery } from "@src/queries/usePaymentQueries";
 import { useTemplates } from "@src/queries/useTemplateQuery";
@@ -19,7 +20,6 @@ import { RouteStep } from "@src/types/route-steps.type";
 import { deploymentData } from "@src/utils/deploymentData";
 import { appendAuditorRequirement } from "@src/utils/deploymentData/v1beta3";
 import { validateDeploymentData } from "@src/utils/deploymentUtils";
-import { getValidInternalReturnToUrl } from "@src/utils/getValidInternalReturnToUrl/getValidInternalReturnToUrl";
 import { denomToUdenom } from "@src/utils/mathHelpers";
 import { helloWorldTemplate } from "@src/utils/templates";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
@@ -57,6 +57,7 @@ const DEPENDENCIES = {
   useCertificate,
   useSnackbar,
   useManagedWalletDenom,
+  useReturnTo,
   localStorage: typeof window !== "undefined" ? window.localStorage : null,
   deploymentData,
   validateDeploymentData,
@@ -83,14 +84,14 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
   const { genNewCertificateIfLocalIsInvalid, updateSelectedCertificate } = d.useCertificate();
   const { enqueueSnackbar } = d.useSnackbar();
   const managedDenom = d.useManagedWalletDenom();
+  const { navigateBack } = d.useReturnTo({ defaultReturnTo: "/" });
 
   useEffect(() => {
     const savedStep = d.localStorage?.getItem(ONBOARDING_STEP_KEY);
     if (!isWalletLoading && hasManagedWallet && !savedStep) {
-      const returnTo = getValidInternalReturnToUrl(searchParams.get("returnTo"));
-      router.push(returnTo);
+      navigateBack();
     }
-  }, [isWalletLoading, hasManagedWallet, router, d.localStorage, searchParams]);
+  }, [isWalletLoading, hasManagedWallet, d.localStorage, navigateBack]);
 
   useEffect(() => {
     const savedStep = d.localStorage?.getItem(ONBOARDING_STEP_KEY);
@@ -174,9 +175,9 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
         handleStepChange(OnboardingStepIndex.EMAIL_VERIFICATION);
       }
     } else {
-      router.push(urlService.newSignup({ from: urlService.onboarding(true) }));
+      router.push(urlService.newSignup({ fromSignup: "true" }));
     }
-  }, [analyticsService, handleStepComplete, urlService, user, handleStepChange, router]);
+  }, [analyticsService, handleStepComplete, user?.userId, user?.emailVerified, handleStepChange, router, urlService]);
 
   const handlePaymentMethodComplete = useCallback(() => {
     if (paymentMethods.length > 0) {
@@ -197,10 +198,8 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
   const complete = useCallback(
     async (templateName?: string) => {
       if (!templateName) {
-        const returnTo = searchParams.get("returnTo");
         d.localStorage?.removeItem(ONBOARDING_STEP_KEY);
-        router.push(getValidInternalReturnToUrl(returnTo));
-
+        navigateBack();
         return;
       }
 
@@ -318,7 +317,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
       enqueueSnackbar,
       errorHandler,
       managedDenom,
-      searchParams
+      navigateBack
     ]
   );
 

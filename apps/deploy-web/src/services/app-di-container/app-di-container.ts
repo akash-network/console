@@ -18,6 +18,7 @@ import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 import type { Axios, AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from "axios";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
+import { UrlReturnToStack } from "@src/hooks/useReturnTo/UrlReturnToStack";
 import { AnalyticsService } from "@src/services/analytics/analytics.service";
 import networkStore from "@src/store/networkStore";
 import { registry } from "@src/utils/customRegistry";
@@ -185,6 +186,7 @@ export const createAppRootContainer = (config: ServicesConfig) => {
         }
       }),
     urlService: () => UrlService,
+    urlReturnToStack: () => UrlReturnToStack,
     userTracker: () => new UserTracker()
   });
 

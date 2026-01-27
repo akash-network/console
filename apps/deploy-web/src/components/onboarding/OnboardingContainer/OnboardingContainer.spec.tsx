@@ -67,10 +67,8 @@ describe("OnboardingContainer", () => {
   });
 
   it("should track analytics and redirect when starting trial", async () => {
-    const { child, mockAnalyticsService, mockUrlService, mockRouter } = setup();
-
-    (mockUrlService.onboarding as jest.Mock).mockReturnValue("/onboarding");
-    (mockUrlService.signup as jest.Mock).mockReturnValue("/signup");
+    const { child, mockAnalyticsService, mockRouter, mockUrlService } = setup();
+    (mockUrlService.newSignup as jest.Mock).mockReturnValue("/login?tab=signup");
 
     const { onStartTrial } = child.mock.calls[0][0];
     await act(async () => {
@@ -80,7 +78,8 @@ describe("OnboardingContainer", () => {
     expect(mockAnalyticsService.track).toHaveBeenCalledWith("onboarding_free_trial_started", {
       category: "onboarding"
     });
-    expect(mockRouter.push).toHaveBeenCalledWith(expect.stringContaining(`/login?from=${encodeURIComponent("/onboarding")}`));
+    expect(mockUrlService.newSignup).toHaveBeenCalledWith({ fromSignup: "true" });
+    expect(mockRouter.push).toHaveBeenCalledWith("/login?tab=signup");
   });
 
   it("should track analytics when payment method is completed", async () => {
@@ -116,7 +115,7 @@ describe("OnboardingContainer", () => {
   });
 
   it("should redirect to home when user has managed wallet and no saved step", async () => {
-    const { mockRouter } = setup({
+    const { mockNavigateBack } = setup({
       wallet: { hasManagedWallet: true, isWalletLoading: false }
     });
 
@@ -124,7 +123,7 @@ describe("OnboardingContainer", () => {
       await new Promise(resolve => setTimeout(resolve, 10));
     });
 
-    expect(mockRouter.push).toHaveBeenCalledWith("/");
+    expect(mockNavigateBack).toHaveBeenCalled();
   });
 
   it("should not redirect when user has managed wallet but has saved step", async () => {
@@ -260,6 +259,7 @@ describe("OnboardingContainer", () => {
       ...UrlService,
       onboarding: jest.fn(() => "/onboarding"),
       signup: jest.fn(() => "/signup"),
+      newSignup: jest.fn(() => "/login?tab=signup"),
       newDeployment: jest.fn(() => "/deployments/new")
     };
 
@@ -309,6 +309,16 @@ describe("OnboardingContainer", () => {
       enqueueSnackbar: jest.fn()
     });
     const mockUseManagedWalletDenom = jest.fn().mockReturnValue("uakt");
+
+    const mockNavigateBack = jest.fn();
+    const mockNavigateWithReturnTo = jest.fn();
+    const mockUseReturnTo = jest.fn().mockReturnValue({
+      returnTo: "/",
+      navigateWithReturnTo: mockNavigateWithReturnTo,
+      navigateBack: mockNavigateBack,
+      hasReturnTo: true,
+      isDeploymentReturnTo: false
+    });
 
     const params = new URLSearchParams();
     if (input.windowLocation?.search) {
@@ -381,6 +391,7 @@ describe("OnboardingContainer", () => {
       useCertificate: mockUseCertificate,
       useSnackbar: mockUseSnackbar,
       useManagedWalletDenom: mockUseManagedWalletDenom,
+      useReturnTo: mockUseReturnTo,
       localStorage: mockLocalStorage,
       deploymentData: mockDeploymentData,
       validateDeploymentData: mockValidateDeploymentData,
@@ -408,6 +419,8 @@ describe("OnboardingContainer", () => {
       mockUseServices,
       mockUseRouter,
       mockConnectManagedWallet,
+      mockNavigateBack,
+      mockNavigateWithReturnTo,
       mockLocalStorage,
       mockSignAndBroadcastTx,
       mockGenNewCertificateIfLocalIsInvalid,
