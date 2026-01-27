@@ -1,7 +1,8 @@
 import { inject, singleton } from "tsyringe";
 
 import { LoggerService } from "@src/core";
-import { NOTIFICATION_DATA_RESOLVERS, NotificationDataResolvers } from "@src/notifications/providers/notification-data-resolvers.provider";
+import type { NotificationDataResolvers } from "@src/notifications/providers/notification-data-resolvers.provider";
+import { NOTIFICATION_DATA_RESOLVERS } from "@src/notifications/providers/notification-data-resolvers.provider";
 import { UserOutput } from "@src/user/repositories";
 
 declare const __resolved: unique symbol;

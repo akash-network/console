@@ -6,7 +6,7 @@ import { chainDb } from "@src/db/dbConnection";
 import { GpuBreakdownQuery } from "@src/gpu/http-schemas/gpu.schema";
 import type { GpuType } from "@src/gpu/types/gpu.type";
 import { toUTC } from "@src/utils";
-import { GpuConfig } from "../config/env.config";
+import type { GpuConfig } from "../config/env.config";
 import { GPU_CONFIG } from "../providers/config.provider";
 
 @injectable()

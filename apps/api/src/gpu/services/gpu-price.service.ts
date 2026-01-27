@@ -3,6 +3,8 @@ import { MsgCreateBid as MsgCreateBidV5 } from "@akashnetwork/chain-sdk/private-
 import { addDays, minutesToSeconds } from "date-fns";
 import { inject, injectable } from "tsyringe";
 
+import type { Registry } from "@src/billing/providers/type-registry.provider";
+import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { AkashBlockRepository } from "@src/block/repositories/akash-block/akash-block.repository";
 import { Memoize } from "@src/caching/helpers";
 import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
@@ -11,22 +13,25 @@ import type { GpuBidType, GpuProviderType, GpuWithPricesType, ProviderWithBestBi
 import { averageBlockCountInAMonth, averageBlockCountInAnHour } from "@src/utils/constants";
 import { average, median, round, weightedAverage } from "@src/utils/math";
 import { decodeMsg, uint8arrayToString } from "@src/utils/protobuf";
-import { GpuConfig } from "../config/env.config";
+import type { GpuConfig } from "../config/env.config";
 import { GPU_CONFIG } from "../providers/config.provider";
 import { DayRepository } from "../repositories/day.repository";
 
 @injectable()
 export class GpuPriceService {
   readonly #gpuConfig: GpuConfig;
+  readonly #typeRegistry: Registry;
 
   constructor(
     private readonly gpuRepository: GpuRepository,
     private readonly deploymentRepository: DeploymentRepository,
     private readonly akashBlockRepository: AkashBlockRepository,
     private readonly dayRepository: DayRepository,
-    @inject(GPU_CONFIG) gpuConfig: GpuConfig
+    @inject(GPU_CONFIG) gpuConfig: GpuConfig,
+    @inject(TYPE_REGISTRY) typeRegistry: Registry
   ) {
     this.#gpuConfig = gpuConfig;
+    this.#typeRegistry = typeRegistry;
   }
 
   /**
@@ -64,10 +69,10 @@ export class GpuPriceService {
           let provider: string;
 
           if (x.type.includes("v1beta5")) {
-            decodedBid = decodeMsg(`/${MsgCreateBidV5.$type}`, x.data) as MsgCreateBidV5;
+            decodedBid = decodeMsg(this.#typeRegistry, `/${MsgCreateBidV5.$type}`, x.data) as MsgCreateBidV5;
             provider = decodedBid.id?.provider || "";
           } else {
-            decodedBid = decodeMsg(`/${MsgCreateBidV4.$type}`, x.data) as MsgCreateBidV4;
+            decodedBid = decodeMsg(this.#typeRegistry, `/${MsgCreateBidV4.$type}`, x.data) as MsgCreateBidV4;
             provider = decodedBid.provider || "";
           }
 

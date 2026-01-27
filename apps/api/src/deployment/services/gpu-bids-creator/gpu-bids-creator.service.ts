@@ -12,7 +12,7 @@ import { inject, singleton } from "tsyringe";
 
 import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provider";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
-import { DEPLOYMENT_CONFIG, DeploymentConfig } from "@src/deployment/config/config.provider";
+import { DEPLOYMENT_CONFIG, type DeploymentConfig } from "@src/deployment/config/config.provider";
 import { GpuService } from "@src/gpu/services/gpu.service";
 import { sdlTemplateWithRam, sdlTemplateWithRamAndInterface } from "./sdl-templates";
 

@@ -6,12 +6,20 @@ import type * as v1beta5 from "@akashnetwork/chain-sdk/private-types/akash.v1bet
 import { Block, Message } from "@akashnetwork/database/dbSchemas";
 import { Transaction } from "@akashnetwork/database/dbSchemas/base";
 import { Op } from "sequelize";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
+import type { Registry } from "@src/billing/providers/type-registry.provider";
+import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { decodeMsg } from "@src/utils/protobuf";
 
 @singleton()
 export class MessageRepository {
+  readonly #typeRegistry: Registry;
+
+  constructor(@inject(TYPE_REGISTRY) typeRegistry: Registry) {
+    this.#typeRegistry = typeRegistry;
+  }
+
   async getDeploymentRelatedMessages(deploymentId: string) {
     const relatedMessages = await Message.findAll({
       where: {
@@ -35,7 +43,7 @@ export class MessageRepository {
     const createBidMsgs = relatedMessages
       .filter(msg => msg.type.endsWith("MsgCreateBid"))
       .map(msg => ({
-        decoded: decodeMsg(msg.type, msg.data) as
+        decoded: decodeMsg(this.#typeRegistry, msg.type, msg.data) as
           | v1beta1.MsgCreateBid
           | v1beta2.MsgCreateBid
           | v1beta3.MsgCreateBid
@@ -48,7 +56,7 @@ export class MessageRepository {
       .filter(x => x.type.endsWith("MsgCreateLease"))
       .map(
         msg =>
-          decodeMsg(msg.type, msg.data) as
+          decodeMsg(this.#typeRegistry, msg.type, msg.data) as
             | v1beta1.MsgCreateLease
             | v1beta2.MsgCreateLease
             | v1beta3.MsgCreateLease

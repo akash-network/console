@@ -1,6 +1,7 @@
 import { inject, singleton } from "tsyringe";
 
-import { CoreConfig, envSchema } from "../../config/env.config";
+import type { CoreConfig } from "../../config/env.config";
+import { envSchema } from "../../config/env.config";
 import { CORE_CONFIG } from "../../providers/config.provider";
 import { ConfigService } from "../config/config.service";
 

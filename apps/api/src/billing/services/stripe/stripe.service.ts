@@ -15,7 +15,7 @@ import { RefillService } from "@src/billing/services/refill/refill.service";
 import { LoggerService, WithTransaction } from "@src/core";
 import { TransactionCsvRow } from "@src/types/transactions";
 import { UserOutput, UserRepository } from "@src/user/repositories/user/user.repository";
-import { PayingUser } from "../paying-user/paying-user";
+import type { PayingUser } from "../paying-user/paying-user";
 
 interface StripePrices {
   unitAmount: number;

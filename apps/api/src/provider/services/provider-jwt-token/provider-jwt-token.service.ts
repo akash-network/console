@@ -6,7 +6,8 @@ import * as uuid from "uuid";
 
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { Memoize } from "@src/caching/helpers";
-import { JWT_MODULE, JWTModule } from "@src/provider/providers/jwt.provider";
+import type { JWTModule } from "@src/provider/providers/jwt.provider";
+import { JWT_MODULE } from "@src/provider/providers/jwt.provider";
 
 const JWT_TOKEN_TTL_IN_SECONDS = 30;
 
