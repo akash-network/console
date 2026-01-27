@@ -4,11 +4,11 @@ import { constants as fsConstants } from "node:fs";
 import path from "node:path";
 import type z from "zod";
 
-import { reusePendingPromise } from "@src/caching/helpers";
 import type { LoggerService } from "@src/core";
 import type { Category, FinalCategory, Template } from "@src/template/types/template";
-import { REPOSITORIES, TemplateFetcherService } from "../template-fetcher/template-fetcher.service";
-import { TemplateProcessorService } from "../template-processor/template-processor.service";
+import { reusePendingPromise } from "../../../caching/helpers.ts";
+import { REPOSITORIES, TemplateFetcherService } from "../template-fetcher/template-fetcher.service.ts";
+import { TemplateProcessorService } from "../template-processor/template-processor.service.ts";
 
 type Options = {
   githubPAT?: string;
@@ -33,7 +33,7 @@ export class TemplateGalleryService {
     this.#fs = fs;
     this.templateProcessor = new TemplateProcessorService();
     this.templateFetcher = options.githubPAT
-      ? new TemplateFetcherService(this.templateProcessor, this.#logger, fetch, getOctokit(options.githubPAT), {
+      ? new TemplateFetcherService(this.templateProcessor, this.#logger, getOctokit(options.githubPAT), {
           categoryProcessingConcurrency: options.categoryProcessingConcurrency,
           templateSourceProcessingConcurrency: options.templateSourceProcessingConcurrency
         })

@@ -4,8 +4,8 @@ import PromisePool from "@supercharge/promise-pool";
 import type { LoggerService } from "@src/core";
 import type { GithubChainRegistryChainResponse } from "@src/types";
 import type { GithubDirectoryItem } from "@src/types/github";
-import type { Category, TemplateSource } from "../../types/template";
-import type { TemplateProcessorService } from "../template-processor/template-processor.service";
+import type { Category, TemplateSource } from "../../types/template.ts";
+import type { TemplateProcessorService } from "../template-processor/template-processor.service.ts";
 
 export const REPOSITORIES = {
   "awesome-akash": {
@@ -27,20 +27,22 @@ export const REPOSITORIES = {
 
 export class TemplateFetcherService {
   readonly #logger: LoggerService;
+
+  /**
+   * Github API rate limits requests.
+   * See: https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api?apiVersion=2022-11-28#primary-rate-limit-for-authenticated-users
+   */
   #githubRequestsRemaining: string | null = null;
-  readonly #octokit: Octokit | undefined = undefined;
+  readonly #octokit: Octokit;
   readonly #options: Required<Omit<FetcherOptions, "githubPAT">>;
-  readonly #fetch: typeof globalThis.fetch;
 
   constructor(
     private readonly templateProcessor: TemplateProcessorService,
     logger: LoggerService,
-    fetch: typeof globalThis.fetch,
     octokit: Octokit,
     options: FetcherOptions = {}
   ) {
     this.#octokit = octokit;
-    this.#fetch = fetch;
     this.#logger = logger;
     this.#options = {
       categoryProcessingConcurrency: options.categoryProcessingConcurrency ?? 10,
@@ -53,22 +55,14 @@ export class TemplateFetcherService {
   }
 
   private setGithubRequestsRemaining(value?: string) {
-    if (value) {
+    if (value !== undefined) {
       this.#githubRequestsRemaining = value;
     }
   }
 
-  private get octokit(): Octokit {
-    if (!this.#octokit) {
-      throw new Error("Octokit client is not initialized");
-    }
-
-    return this.#octokit;
-  }
-
   async fetchLatestCommitSha(repository: keyof typeof REPOSITORIES) {
     const { repoOwner, repoName, mainBranch } = REPOSITORIES[repository];
-    const response = await this.octokit.rest.repos.getBranch({
+    const response = await this.#octokit.rest.repos.getBranch({
       owner: repoOwner,
       repo: repoName,
       branch: mainBranch
@@ -83,8 +77,8 @@ export class TemplateFetcherService {
     return response.data.commit.sha;
   }
 
-  private async fetchFileContent(owner: string, repo: string, path: string, ref: string): Promise<string> {
-    const response = await this.octokit.rest.repos.getContent({
+  private async fetchFileContent(owner: string, repo: string, path: string, ref?: string): Promise<string> {
+    const response = await this.#octokit.rest.repos.getContent({
       owner,
       repo,
       path,
@@ -104,7 +98,7 @@ export class TemplateFetcherService {
   }
 
   private async fetchDirectoryContent(owner: string, repo: string, path: string, ref: string): Promise<GithubDirectoryItem[]> {
-    const response = await this.octokit.rest.repos.getContent({
+    const response = await this.#octokit.rest.repos.getContent({
       owner,
       repo,
       path,
@@ -124,23 +118,17 @@ export class TemplateFetcherService {
   }
 
   private async fetchChainRegistryData(chainPath: string): Promise<GithubChainRegistryChainResponse> {
-    const response = await this.#fetch(`https://raw.githubusercontent.com/cosmos/chain-registry/master/${chainPath}/chain.json`);
-
-    if (response.status !== 200) {
-      throw new Error(`Could not fetch chain.json for ${chainPath}`);
-    }
-
-    return (await response.json()) as GithubChainRegistryChainResponse;
+    const content = await this.fetchFileContent("cosmos", "chain-registry", `${chainPath}/chain.json`);
+    return JSON.parse(content) as GithubChainRegistryChainResponse;
   }
 
-  private async findFileContentAsync(filename: string | string[], fileList: GithubDirectoryItem[]): Promise<string | null> {
+  private async findFileContentAsync(filename: string | string[], fileList: GithubDirectoryItem[], templateSource: TemplateSource): Promise<string | null> {
     const filenames = typeof filename === "string" ? [filename] : filename;
     const fileDef = fileList.find(f => filenames.some(x => x.toLowerCase() === f.name.toLowerCase()));
 
     if (!fileDef) return null;
 
-    const response = await this.#fetch(fileDef.download_url);
-    return response.text();
+    return await this.fetchFileContent(templateSource.repoOwner, templateSource.repoName, fileDef.path, templateSource.repoVersion);
   }
 
   private async processTemplateSource(
@@ -153,11 +141,11 @@ export class TemplateFetcherService {
         throw new Error("Absolute URL not supported");
       }
 
-      const readme = await this.findFileContentAsync("README.md", directoryItems);
+      const readme = await this.findFileContentAsync("README.md", directoryItems, templateSource);
       const [deploy, guide, configJsonText] = await Promise.all([
-        this.findFileContentAsync(["deploy.yaml", "deploy.yml"], directoryItems),
-        this.findFileContentAsync("GUIDE.md", directoryItems),
-        options.includeConfigJson ? this.findFileContentAsync("config.json", directoryItems) : Promise.resolve(null)
+        this.findFileContentAsync(["deploy.yaml", "deploy.yml"], directoryItems, templateSource),
+        this.findFileContentAsync("GUIDE.md", directoryItems, templateSource),
+        options.includeConfigJson ? this.findFileContentAsync("config.json", directoryItems, templateSource) : Promise.resolve(null)
       ]);
 
       const template = this.templateProcessor.processTemplate(templateSource, readme, deploy, guide, configJsonText);
@@ -172,11 +160,26 @@ export class TemplateFetcherService {
     }
   }
 
-  private async processCategory(category: Category, options: { includeConfigJson?: boolean; ignoreList?: string[] }): Promise<void> {
+  private async processCategory(category: Category, options: ProcessCategoryOptions): Promise<void> {
     const templates = await this.mapConcurrently(
       category.templateSources,
       async templateSource => {
         try {
+          if (
+            templateSource.path.startsWith("http:") ||
+            templateSource.path.startsWith("https:") ||
+            options.ignoreByPaths?.some(x => templateSource.path === x)
+          ) {
+            this.#logger.warn({
+              event: "TEMPLATE_SOURCE_PROCESSING_SKIPPED",
+              templateSource: templateSource.name,
+              templateSourcePath: templateSource.path,
+              message: "Template source ignored because it's an absolute URL or a path that matches an ignore path.",
+              ignoreByPaths: options.ignoreByPaths
+            });
+            return null;
+          }
+
           const directoryItems = await this.fetchDirectoryContent(
             templateSource.repoOwner,
             templateSource.repoName,
@@ -184,12 +187,17 @@ export class TemplateFetcherService {
             templateSource.repoVersion
           );
 
-          const readme = await this.findFileContentAsync("README.md", directoryItems);
+          const readme = await this.findFileContentAsync("README.md", directoryItems, templateSource);
+          const readmeText = readme?.toLowerCase();
 
-          if (options.ignoreList && readme) {
-            if (options.ignoreList.map(x => x.toLowerCase()).some(x => readme.toLowerCase().includes(x))) {
-              return null;
-            }
+          if (options.ignoreByKeywords && readmeText && options.ignoreByKeywords.some(x => readmeText.includes(x.toLowerCase()))) {
+            this.#logger.warn({
+              event: "TEMPLATE_SOURCE_PROCESSING_SKIPPED",
+              templateSource: templateSource.name,
+              message: "Template source ignored because its README.md contains keywords to ignore.",
+              keywords: options.ignoreByKeywords
+            });
+            return null;
           }
 
           return this.processTemplateSource(templateSource, directoryItems, options);
@@ -208,28 +216,29 @@ export class TemplateFetcherService {
     category.templates = templates.filter(x => !!x);
   }
 
-  private async fetchTemplatesInfo(categories: Category[], options: { includeConfigJson?: boolean; ignoreList?: string[] } = {}): Promise<Category[]> {
+  private async fetchTemplatesInfo(categories: Category[], options: ProcessCategoryOptions = {}): Promise<Category[]> {
     await this.mapConcurrently(categories, category => this.processCategory(category, options), { concurrency: this.#options.categoryProcessingConcurrency });
 
     return categories;
   }
 
-  private async fetchTemplatesFromReadme(options: {
-    repoOwner: string;
-    repoName: string;
-    repoVersion: string;
-    readmePath?: string;
-    includeConfigJson?: boolean;
-    ignoreList?: string[];
-    templateSourceMapper?: (name: string, path: string) => TemplateSource;
-  }): Promise<Category[]> {
+  private async fetchTemplatesFromReadme(
+    options: ProcessCategoryOptions & {
+      repoOwner: string;
+      repoName: string;
+      repoVersion: string;
+      readmePath?: string;
+      templateSourceMapper?: (name: string, path: string) => TemplateSource;
+    }
+  ): Promise<Category[]> {
     const {
       repoOwner,
       repoName,
       repoVersion,
       readmePath = "README.md",
       includeConfigJson,
-      ignoreList,
+      ignoreByKeywords,
+      ignoreByPaths,
       templateSourceMapper = (name, path) => ({
         name,
         path,
@@ -268,13 +277,13 @@ export class TemplateFetcherService {
       });
     }
 
-    return await this.fetchTemplatesInfo(categories, { includeConfigJson, ignoreList });
+    return await this.fetchTemplatesInfo(categories, { includeConfigJson, ignoreByKeywords, ignoreByPaths });
   }
 
   async fetchOmnibusTemplates(repoVersion: string): Promise<Category[]> {
     const { repoOwner, repoName } = REPOSITORIES["cosmos-omnibus"];
     const directoryItems = await this.fetchDirectoryContent(repoOwner, repoName, "", repoVersion);
-    const folders = directoryItems.filter(f => f.type === "dir" && !f.name.startsWith(".") && !f.name.startsWith("_"));
+    const folders = directoryItems.filter(f => f.type === "dir" && !f.name.startsWith(".") && !f.name.startsWith("_") && f.name !== "generic");
 
     const templateSources = folders.map<TemplateSource>(x => ({
       name: x.name,
@@ -333,11 +342,17 @@ export class TemplateFetcherService {
       repoOwner,
       repoName,
       repoVersion,
-      ignoreList: [
+      ignoreByKeywords: [
         "not recommended for use by the general public",
         "THIS IMAGE IS DEPRECATED",
         "container is not meant for public consumption",
         "Not for public consumption"
+      ],
+      ignoreByPaths: [
+        // these templates are listed but don't exist in the repository
+        "jenkins",
+        "mongodb",
+        "rtorrent"
       ]
     });
   }
@@ -360,4 +375,10 @@ interface FetcherOptions {
   githubPAT?: string;
   categoryProcessingConcurrency?: number;
   templateSourceProcessingConcurrency?: number;
+}
+
+interface ProcessCategoryOptions {
+  includeConfigJson?: boolean;
+  ignoreByKeywords?: string[];
+  ignoreByPaths?: string[];
 }

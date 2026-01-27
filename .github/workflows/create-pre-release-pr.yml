@@ -74,8 +74,6 @@ jobs:
         if: steps.deps-cache.outputs.cache-hit != 'true'
         run: |
           npm run safe-install -- -w packages/releaser
-          git status
-          git diff --staged package-lock.json
 
       - name: Generate Release Changes
         run: |
@@ -89,9 +87,16 @@ jobs:
           npm run release -w apps/log-collector -- --verbose --ci
 
           # update package-lock.json with new versions
-          npm install --package-lock-only
-          git status
-          git diff --staged package-lock.json
+          # shellcheck disable=SC2016
+          node -e '
+            const fs=require("fs");
+            const lockfile=require("./package-lock.json");
+            Object.entries(lockfile.packages).forEach(([pkgName, pkg]) => {
+              if (!pkgName.startsWith("apps/")) return;
+              pkg.version = require(`./${pkgName}/package.json`).version;
+            });
+            fs.writeFileSync("./package-lock.json", JSON.stringify(lockfile, null, 2));
+          ';
 
       - name: Check for Changes
         id: check-changes

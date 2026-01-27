@@ -1,6 +1,6 @@
 coverage:
   ignore:
-    - "apps/api/src/*/routers/**/*.ts"
+    - "apps/api/src/*/routes/**/*.ts"
   status:
     project:
       default: false
