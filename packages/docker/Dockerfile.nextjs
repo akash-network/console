@@ -28,7 +28,7 @@ COPY /$WORKSPACE/package.json /app/$WORKSPACE/package.json
 COPY --parents /packages/*/package.json /app
 # reset app version to 1.0.0 to avoid cache busting after every release
 RUN npm version --allow-same-version 1.0.0 -w $WORKSPACE --no-workspaces-update && \
-    npm install --package-lock-only
+    node -e "const fs=require('fs'); const lockfile=require('./package-lock.json'); lockfile.packages['$WORKSPACE'].version='1.0.0';fs.writeFileSync('./package-lock.json', JSON.stringify(lockfile, null, 2));"
 
 COPY script/safe-deps-install.sh /app/script/safe-deps-install.sh
 

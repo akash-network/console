@@ -17,9 +17,7 @@ if (!githubPAT) {
 
 const templateGalleryService = new TemplateGalleryService(LoggerService.forContext("TemplateGalleryService.script"), fsp, {
   githubPAT,
-  dataFolderPath,
-  categoryProcessingConcurrency: 30,
-  templateSourceProcessingConcurrency: 30
+  dataFolderPath
 });
 
 templateGalleryService.buildTemplateGalleryCache(GetTemplatesListResponseSchema.shape.data).catch(err => {

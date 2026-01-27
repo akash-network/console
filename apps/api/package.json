@@ -63,7 +63,6 @@
     "@hono/otel": "~0.4.0",
     "@hono/swagger-ui": "0.4.1",
     "@hono/zod-openapi": "0.18.4",
-    "@octokit/core": "^7.0.6",
     "@octokit/rest": "^22.0.1",
     "@openapi-qraft/react": "^2.6.0",
     "@opentelemetry/api": "^1.9.0",
