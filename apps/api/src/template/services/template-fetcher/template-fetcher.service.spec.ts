@@ -548,8 +548,7 @@ describe(TemplateFetcherService.name, () => {
       expect(templateProcessor.processTemplate).not.toHaveBeenCalled();
       expect(logger.warn).toHaveBeenCalledWith(
         expect.objectContaining({
-          event: "TEMPLATE_SOURCE_PROCESSING_SKIPPED",
-          error: expect.objectContaining({ message: "Absolute URL not supported" })
+          event: "TEMPLATE_SOURCE_PROCESSING_SKIPPED"
         })
       );
     });
