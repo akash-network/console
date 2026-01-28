@@ -1,4 +1,6 @@
 deploymentEnv: staging
+nodeOptions:
+  enabledOTEL: true
 
 chain: sandbox
 hostNames:
