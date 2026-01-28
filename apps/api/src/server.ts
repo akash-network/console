@@ -31,7 +31,6 @@ async function bootstrap(rawAppConfig: RawAppConfig): Promise<void> {
 
   await appModule.bootstrap();
   if (process.send) {
-    process.on("disconnect", () => process.exit(0));
     process.send("ready");
   }
 }
@@ -52,8 +51,12 @@ function bootstrapInChildProcess({ PORT, INTERFACE }: RawAppConfig): Promise<voi
     child.once("error", reject);
     child.once("exit", code => (code !== 0 ? reject(new Error(`[${INTERFACE}] exited ${code}`)) : undefined));
 
-    process.on("SIGTERM", () => child.kill("SIGTERM"));
-    process.on("SIGINT", () => child.kill("SIGINT"));
-    process.on("exit", () => child.kill());
+    const disconnect = (signal?: NodeJS.Signals) => {
+      child.disconnect();
+      child.kill(signal);
+    };
+    process.on("SIGTERM", disconnect);
+    process.on("SIGINT", disconnect);
+    process.on("exit", disconnect);
   });
 }
