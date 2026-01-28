@@ -1,5 +1,17 @@
 
 
+## [2.12.1](https://github.com/akash-network/console/compare/log-collector/v2.12.0...log-collector/v2.12.1) (2026-01-28)
+
+
+### Bug Fixes
+
+* replaces fetch API with octokit.getContent ([#2570](https://github.com/akash-network/console/issues/2570)) ([079f0d4](https://github.com/akash-network/console/commit/079f0d4640aa3936d6ef337e46ae4bcb2a8104d4))
+
+
+### Code Refactoring
+
+* migrates from webpack to tsup in console-api ([#2547](https://github.com/akash-network/console/issues/2547)) ([43c75c0](https://github.com/akash-network/console/commit/43c75c07282b88c3776545a6134754ab97901734))
+
 ## [2.12.0](https://github.com/akash-network/console/compare/log-collector/v2.11.3...log-collector/v2.12.0) (2026-01-26)
 
 
