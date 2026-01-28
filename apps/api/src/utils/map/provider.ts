@@ -33,10 +33,8 @@ export const mapProviderToList = (
     }
   };
 
-  // Fix 5: Build auditor Set once for O(1) lookup instead of O(a×b) nested .some()
   const auditorSet = new Set(auditors.map(a => a.address));
 
-  // Fix 2: Pre-index attribute signatures for O(1) lookup instead of O(m²) filtering
   const signatureIndex = new Map<string, string[]>();
   for (const sig of provider.providerAttributeSignatures) {
     const key = `${sig.key}|${sig.value}`;
@@ -46,7 +44,6 @@ export const mapProviderToList = (
     signatureIndex.get(key)!.push(sig.auditor);
   }
 
-  // Fix 3: Build attribute map once for O(1) lookups instead of 31 separate array scans
   const attrMap = buildAttributeMap(provider);
 
   return {
@@ -82,40 +79,37 @@ export const mapProviderToList = (
       auditedBy: signatureIndex.get(`${attr.key}|${attr.value}`) || []
     })),
 
-    // Attributes schema - using optimized getters with pre-built attrMap
-    host: getStringAttributeOptimized("host", attrMap, providerAttributeSchema),
-    organization: getStringAttributeOptimized("organization", attrMap, providerAttributeSchema),
-    statusPage: getStringAttributeOptimized("status-page", attrMap, providerAttributeSchema),
-    locationRegion: getStringAttributeOptimized("location-region", attrMap, providerAttributeSchema),
-    country: getStringAttributeOptimized("country", attrMap, providerAttributeSchema),
-    city: getStringAttributeOptimized("city", attrMap, providerAttributeSchema),
-    timezone: getStringAttributeOptimized("timezone", attrMap, providerAttributeSchema),
-    locationType: getStringAttributeOptimized("location-type", attrMap, providerAttributeSchema),
-    hostingProvider: getStringAttributeOptimized("hosting-provider", attrMap, providerAttributeSchema),
-    hardwareCpu: getStringAttributeOptimized("hardware-cpu", attrMap, providerAttributeSchema),
-    hardwareCpuArch: getStringAttributeOptimized("hardware-cpu-arch", attrMap, providerAttributeSchema),
-    hardwareGpuVendor: getStringAttributeOptimized("hardware-gpu", attrMap, providerAttributeSchema),
+    host: getStringAttribute("host", attrMap, providerAttributeSchema),
+    organization: getStringAttribute("organization", attrMap, providerAttributeSchema),
+    statusPage: getStringAttribute("status-page", attrMap, providerAttributeSchema),
+    locationRegion: getStringAttribute("location-region", attrMap, providerAttributeSchema),
+    country: getStringAttribute("country", attrMap, providerAttributeSchema),
+    city: getStringAttribute("city", attrMap, providerAttributeSchema),
+    timezone: getStringAttribute("timezone", attrMap, providerAttributeSchema),
+    locationType: getStringAttribute("location-type", attrMap, providerAttributeSchema),
+    hostingProvider: getStringAttribute("hosting-provider", attrMap, providerAttributeSchema),
+    hardwareCpu: getStringAttribute("hardware-cpu", attrMap, providerAttributeSchema),
+    hardwareCpuArch: getStringAttribute("hardware-cpu-arch", attrMap, providerAttributeSchema),
+    hardwareGpuVendor: getStringAttribute("hardware-gpu", attrMap, providerAttributeSchema),
     hardwareGpuModels: getStringArrayAttribute("hardware-gpu-model", provider, providerAttributeSchema),
     hardwareDisk: getStringArrayAttribute("hardware-disk", provider, providerAttributeSchema),
-    featPersistentStorage: getBooleanAttributeOptimized("feat-persistent-storage", attrMap, providerAttributeSchema),
+    featPersistentStorage: getBooleanAttribute("feat-persistent-storage", attrMap, providerAttributeSchema),
     featPersistentStorageType: getStringArrayAttribute("feat-persistent-storage-type", provider, providerAttributeSchema),
-    hardwareMemory: getStringAttributeOptimized("hardware-memory", attrMap, providerAttributeSchema),
-    networkProvider: getStringAttributeOptimized("network-provider", attrMap, providerAttributeSchema),
-    networkSpeedDown: getNumberAttributeOptimized("network-speed-down", attrMap, providerAttributeSchema),
-    networkSpeedUp: getNumberAttributeOptimized("network-speed-up", attrMap, providerAttributeSchema),
-    tier: getStringAttributeOptimized("tier", attrMap, providerAttributeSchema),
-    featEndpointCustomDomain: getBooleanAttributeOptimized("feat-endpoint-custom-domain", attrMap, providerAttributeSchema),
-    workloadSupportChia: getBooleanAttributeOptimized("workload-support-chia", attrMap, providerAttributeSchema),
+    hardwareMemory: getStringAttribute("hardware-memory", attrMap, providerAttributeSchema),
+    networkProvider: getStringAttribute("network-provider", attrMap, providerAttributeSchema),
+    networkSpeedDown: getNumberAttribute("network-speed-down", attrMap, providerAttributeSchema),
+    networkSpeedUp: getNumberAttribute("network-speed-up", attrMap, providerAttributeSchema),
+    tier: getStringAttribute("tier", attrMap, providerAttributeSchema),
+    featEndpointCustomDomain: getBooleanAttribute("feat-endpoint-custom-domain", attrMap, providerAttributeSchema),
+    workloadSupportChia: getBooleanAttribute("workload-support-chia", attrMap, providerAttributeSchema),
     workloadSupportChiaCapabilities: getStringArrayAttribute("workload-support-chia-capabilities", provider, providerAttributeSchema),
-    featEndpointIp: getBooleanAttributeOptimized("feat-endpoint-ip", attrMap, providerAttributeSchema)
+    featEndpointIp: getBooleanAttribute("feat-endpoint-ip", attrMap, providerAttributeSchema)
   };
 };
 
-// Fix 3: Build attribute map once per provider for O(1) lookups
 function buildAttributeMap(provider: Provider): Map<string, string> {
   const map = new Map<string, string>();
   for (const attr of provider.providerAttributes) {
-    // For attributes with same key, join values with comma (matching original behavior)
     const existing = map.get(attr.key);
     if (existing) {
       map.set(attr.key, `${existing},${attr.value}`);
@@ -126,19 +120,18 @@ function buildAttributeMap(provider: Provider): Map<string, string> {
   return map;
 }
 
-// Optimized attribute getters that use pre-built map for O(1) lookup
-function getStringAttributeOptimized(key: keyof ProviderAttributesSchema, attrMap: Map<string, string>, schema: ProviderAttributesSchema): string | null {
+function getStringAttribute(key: keyof ProviderAttributesSchema, attrMap: Map<string, string>, schema: ProviderAttributesSchema): string | null {
   const schemaKey = schema[key].key;
   return attrMap.get(schemaKey) || null;
 }
 
-function getBooleanAttributeOptimized(key: keyof ProviderAttributesSchema, attrMap: Map<string, string>, schema: ProviderAttributesSchema): boolean {
+function getBooleanAttribute(key: keyof ProviderAttributesSchema, attrMap: Map<string, string>, schema: ProviderAttributesSchema): boolean {
   const schemaKey = schema[key].key;
   const value = attrMap.get(schemaKey);
   return value === "true";
 }
 
-function getNumberAttributeOptimized(key: keyof ProviderAttributesSchema, attrMap: Map<string, string>, schema: ProviderAttributesSchema): number {
+function getNumberAttribute(key: keyof ProviderAttributesSchema, attrMap: Map<string, string>, schema: ProviderAttributesSchema): number {
   const schemaKey = schema[key].key;
   const value = attrMap.get(schemaKey);
   return value ? parseFloat(value) : 0;
@@ -167,7 +160,6 @@ function buildStatsItem<T extends StatsEntry>(suffix: T, snapshot: ProviderSnaps
   return item;
 }
 
-// Fix 1: Set-based O(n) deduplication instead of O(n²) createFilterUnique
 function getDistinctGpuModelsFromNodes(nodes: ProviderSnapshotNode[]) {
   const gpuModels = nodes
     .flatMap(x => x.gpus)
