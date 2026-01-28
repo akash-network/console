@@ -1,5 +1,17 @@
 
 
+## [1.35.4](https://github.com/akash-network/console/compare/provider-console/v1.35.3...provider-console/v1.35.4) (2026-01-28)
+
+
+### Bug Fixes
+
+* replaces fetch API with octokit.getContent ([#2570](https://github.com/akash-network/console/issues/2570)) ([079f0d4](https://github.com/akash-network/console/commit/079f0d4640aa3936d6ef337e46ae4bcb2a8104d4))
+
+
+### Code Refactoring
+
+* migrates from webpack to tsup in console-api ([#2547](https://github.com/akash-network/console/issues/2547)) ([43c75c0](https://github.com/akash-network/console/commit/43c75c07282b88c3776545a6134754ab97901734))
+
 ## [1.35.3](https://github.com/akash-network/console/compare/provider-console/v1.35.2...provider-console/v1.35.3) (2026-01-26)
 
 

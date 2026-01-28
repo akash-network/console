@@ -1,5 +1,18 @@
 
 
+## [3.22.1](https://github.com/akash-network/console/compare/console-api/v3.22.0...console-api/v3.22.1) (2026-01-28)
+
+
+### Bug Fixes
+
+* disconnecting child process on SIGINT and SIGNTERM to let parent  ([#2576](https://github.com/akash-network/console/issues/2576)) ([0488646](https://github.com/akash-network/console/commit/04886467da388e472ea8b50bdedfabab04de2233))
+* replaces fetch API with octokit.getContent ([#2570](https://github.com/akash-network/console/issues/2570)) ([079f0d4](https://github.com/akash-network/console/commit/079f0d4640aa3936d6ef337e46ae4bcb2a8104d4))
+
+
+### Code Refactoring
+
+* migrates from webpack to tsup in console-api ([#2547](https://github.com/akash-network/console/issues/2547)) ([43c75c0](https://github.com/akash-network/console/commit/43c75c07282b88c3776545a6134754ab97901734))
+
 ## [3.22.0](https://github.com/akash-network/console/compare/console-api/v3.21.4...console-api/v3.22.0) (2026-01-26)
 
 
