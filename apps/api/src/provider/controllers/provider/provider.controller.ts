@@ -1,3 +1,5 @@
+import { promisify } from "node:util";
+import { gzip } from "node:zlib";
 import { singleton } from "tsyringe";
 
 import { ProviderCleanupService } from "@src/billing/services/provider-cleanup/provider-cleanup.service";
@@ -8,6 +10,8 @@ import { ProviderListQuery, ProviderListResponse } from "@src/provider/http-sche
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { ProviderStatsService } from "@src/provider/services/provider-stats/provider-stats.service";
 import { TrialProvidersService } from "@src/provider/services/trial-providers/trial-providers.service";
+
+const gzipAsync = promisify(gzip);
 
 @singleton()
 export class ProviderController {
@@ -38,6 +42,15 @@ export class ProviderController {
     return cacheResponse(60, jsonCacheKey, async () => {
       const data = await this.getProviderList(scope);
       return stringifyAsync(data);
+    });
+  }
+
+  async getProviderListGzipped(scope: ProviderListQuery["scope"]): Promise<Buffer> {
+    const gzipCacheKey = scope === "trial" ? cacheKeys.getTrialProviderListGzipped : cacheKeys.getProviderListGzipped;
+
+    return cacheResponse(60, gzipCacheKey, async () => {
+      const json = await this.getProviderListJson(scope);
+      return gzipAsync(Buffer.from(json));
     });
   }
 
