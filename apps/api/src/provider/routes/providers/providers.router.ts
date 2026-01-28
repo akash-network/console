@@ -1,9 +1,11 @@
+import type { TypedResponse } from "hono";
 import { container } from "tsyringe";
 
 import { createRoute } from "@src/core/lib/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 import { ProviderController } from "@src/provider/controllers/provider/provider.controller";
+import type { ProviderListResponse } from "@src/provider/http-schemas/provider.schema";
 import {
   ProviderActiveLeasesGraphDataParamsSchema,
   ProviderActiveLeasesGraphDataResponseSchema,
@@ -38,9 +40,10 @@ const providerListRoute = createRoute({
 });
 providersRouter.openapi(providerListRoute, async function routeListProviders(c) {
   const { scope } = c.req.valid("query");
-  const providers = await container.resolve(ProviderController).getProviderList(scope);
+  const providersJson = await container.resolve(ProviderController).getProviderListJson(scope);
 
-  return c.json(providers);
+  c.header("Content-Type", "application/json");
+  return c.body(providersJson, 200) as unknown as TypedResponse<ProviderListResponse, 200, "json">;
 });
 
 const providerRoute = createRoute({

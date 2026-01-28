@@ -140,6 +140,8 @@ export const cacheKeys = {
   getMarketData: "getMarketData",
   getProviderList: "getProviderList",
   getTrialProviderList: "getTrialProviderList",
+  getProviderListJson: "getProviderListJson",
+  getTrialProviderListJson: "getTrialProviderListJson",
   getTrialRegisteredProviderList: "getTrialRegisteredProviderList",
   getChainStats: "getChainStats",
   getGpuModels: "getGpuModels",

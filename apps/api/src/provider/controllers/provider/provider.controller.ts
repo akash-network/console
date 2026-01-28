@@ -31,6 +31,15 @@ export class ProviderController {
     ) as unknown as Promise<ProviderListResponse>;
   }
 
+  async getProviderListJson(scope: ProviderListQuery["scope"]): Promise<string> {
+    const jsonCacheKey = scope === "trial" ? cacheKeys.getTrialProviderListJson : cacheKeys.getProviderListJson;
+
+    return cacheResponse(60, jsonCacheKey, async () => {
+      const data = await this.getProviderList(scope);
+      return JSON.stringify(data);
+    });
+  }
+
   async getProvider(address: string) {
     return this.providerService.getProvider(address);
   }
