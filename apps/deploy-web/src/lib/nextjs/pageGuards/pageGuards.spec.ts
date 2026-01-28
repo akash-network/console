@@ -103,6 +103,7 @@ function setup(input?: { enabledFeatures?: string[]; session?: Partial<Session> 
       }),
       logger: mock<LoggerService>(),
       urlService: UrlService
-    }
+    },
+    resolvedUrl: faker.internet.url()
   });
 }

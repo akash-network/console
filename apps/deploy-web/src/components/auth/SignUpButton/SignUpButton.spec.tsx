@@ -31,7 +31,7 @@ describe(SignUpButton.name, () => {
     expect(linkElement).toHaveClass("custom-class");
     expect(linkElement).toHaveAttribute("data-testid", "signup-link");
     expect(linkElement).toHaveAttribute("id", "signup-btn");
-    expect(linkElement).toHaveAttribute("href", `/login?from=${encodeURIComponent("/")}&tab=signup`);
+    expect(linkElement).toHaveAttribute("href", `/login?tab=signup&returnTo=${encodeURIComponent("/")}`);
   });
 
   it("renders as a button when specified", () => {
@@ -53,7 +53,7 @@ describe(SignUpButton.name, () => {
     fireEvent.click(buttonElement);
 
     await waitFor(() => {
-      expect(navigate).toHaveBeenCalledWith(`/login?from=${encodeURIComponent("/")}&tab=signup`);
+      expect(navigate).toHaveBeenCalledWith(`/login?tab=signup&returnTo=${encodeURIComponent("/")}`);
     });
   });
 

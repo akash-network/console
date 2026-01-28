@@ -4,7 +4,7 @@ import { Button, Spinner } from "@akashnetwork/ui/components";
 import Image from "next/image";
 
 import { useServices } from "@src/context/ServicesProvider";
-import { useDeployButtonFlow } from "@src/hooks/useDeployButtonFlow/useDeployButtonFlow";
+import { useReturnTo } from "@src/hooks/useReturnTo";
 import { TemplateCard } from "./TemplateCard";
 import { TrialStatusBar } from "./TrialStatusBar";
 
@@ -14,7 +14,7 @@ interface WelcomeStepProps {
 
 export const WelcomeStep: React.FunctionComponent<WelcomeStepProps> = ({ onComplete }) => {
   const { analyticsService } = useServices();
-  const { isDeployButtonFlow } = useDeployButtonFlow();
+  const { isDeploymentReturnTo } = useReturnTo();
   const [isDeploying, setIsDeploying] = useState(false);
   const [deployingTemplate, setDeployingTemplate] = useState<string | null>(null);
 
@@ -57,14 +57,14 @@ export const WelcomeStep: React.FunctionComponent<WelcomeStepProps> = ({ onCompl
 
       <div className="space-y-3">
         <h1 className="text-3xl font-semibold tracking-tight">Welcome to Akash Console</h1>
-        {isDeployButtonFlow ? (
+        {isDeploymentReturnTo ? (
           <p className="text-base text-muted-foreground">You&apos;re all set! Continue to complete your deployment.</p>
         ) : (
           <p className="text-base text-muted-foreground">Choose a template below to launch your first app in seconds.</p>
         )}
       </div>
 
-      {isDeployButtonFlow ? (
+      {isDeploymentReturnTo ? (
         <div className="flex justify-center">
           <Button onClick={goToDeployment} disabled={isDeploying} className="bg-primary px-8 py-6 text-lg text-primary-foreground hover:bg-primary/90">
             {isDeploying ? <Spinner size="small" /> : "Go to Deployment"}

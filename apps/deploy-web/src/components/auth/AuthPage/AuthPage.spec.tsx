@@ -94,7 +94,7 @@ describe(AuthPage.name, () => {
   describe("when SignIn tab is open", () => {
     it("runs sign-in flow and redirects to return url", async () => {
       const SignInFormMock = jest.fn(ComponentMock as typeof SignInForm);
-      const { authService, router, checkSession } = setup({
+      const { authService, checkSession, navigateBack } = setup({
         searchParams: {
           returnTo: "/dashboard"
         },
@@ -122,14 +122,14 @@ describe(AuthPage.name, () => {
         expect(checkSession).toHaveBeenCalled();
       });
       await waitFor(() => {
-        expect(router.push).toHaveBeenCalledWith("/dashboard");
+        expect(navigateBack).toHaveBeenCalled();
       });
     });
 
     it("shows alert when sign-in fails", async () => {
       const SignInFormMock = jest.fn(ComponentMock as typeof SignInForm);
       const RemoteApiErrorMock = jest.fn(({ error }) => error && <div>Unexpected error</div>);
-      const { authService, router } = setup({
+      const { authService, router, navigateBack } = setup({
         dependencies: {
           SignInForm: SignInFormMock,
           RemoteApiError: RemoteApiErrorMock
@@ -148,13 +148,14 @@ describe(AuthPage.name, () => {
         expect(screen.getByText(/unexpected error/i)).toBeInTheDocument();
       });
       expect(router.push).not.toHaveBeenCalled();
+      expect(navigateBack).not.toHaveBeenCalled();
     });
   });
 
   describe("when SignUp tab is open", () => {
     it("runs sign-up flow and redirects to return url", async () => {
       const SignUpFormMock = jest.fn(ComponentMock as typeof SignUpForm);
-      const { authService, router, checkSession } = setup({
+      const { authService, checkSession, navigateBack } = setup({
         searchParams: {
           returnTo: "/dashboard"
         },
@@ -183,14 +184,14 @@ describe(AuthPage.name, () => {
         expect(checkSession).toHaveBeenCalled();
       });
       await waitFor(() => {
-        expect(router.push).toHaveBeenCalledWith("/dashboard");
+        expect(navigateBack).toHaveBeenCalled();
       });
     });
 
     it("shows alert when sign-up fails", async () => {
       const SignUpFormMock = jest.fn(ComponentMock as typeof SignUpForm);
       const RemoteApiErrorMock = jest.fn(({ error }) => error && <div>Unexpected error</div>);
-      const { authService, router } = setup({
+      const { authService, router, navigateBack } = setup({
         dependencies: {
           SignUpForm: SignUpFormMock,
           RemoteApiError: RemoteApiErrorMock
@@ -210,6 +211,7 @@ describe(AuthPage.name, () => {
         expect(screen.getByText(/unexpected error/i)).toBeInTheDocument();
       });
       expect(router.push).not.toHaveBeenCalled();
+      expect(navigateBack).not.toHaveBeenCalled();
     });
   });
 
@@ -255,127 +257,6 @@ describe(AuthPage.name, () => {
     });
   });
 
-  describe("when deploy button flow is active", () => {
-    it("renders ConnectWalletButton when deploy button flow is active", () => {
-      const ConnectWalletButtonMock = jest.fn(() => <button data-testid="connect-wallet-btn">Connect Wallet</button>);
-      setup({
-        searchParams: {
-          tab: "login",
-          from: "/new-deployment?repoUrl=https://github.com/test/repo.git"
-        },
-        dependencies: {
-          useDeployButtonFlow: () => ({
-            isDeployButtonFlow: true,
-            params: {
-              repoUrl: "https://github.com/test/repo.git",
-              branch: null,
-              buildCommand: null,
-              startCommand: null,
-              installCommand: null,
-              buildDirectory: null,
-              nodeVersion: null,
-              templateId: null
-            },
-            buildReturnUrl: () => "/new-deployment",
-            buildUrlParams: () => ({ repoUrl: "https://github.com/test/repo.git" })
-          }),
-          ConnectWalletButton: ConnectWalletButtonMock
-        }
-      });
-
-      expect(screen.queryByTestId("connect-wallet-btn")).toBeInTheDocument();
-    });
-
-    it("does not render ConnectWalletButton when deploy button flow is inactive", () => {
-      setup({
-        searchParams: {
-          tab: "login"
-        }
-      });
-
-      expect(screen.queryByTestId("connect-wallet-btn")).not.toBeInTheDocument();
-    });
-
-    it("redirects to returnUrl when wallet connects during deploy button flow", async () => {
-      const { router } = setup({
-        searchParams: {
-          tab: "login",
-          from: "/new-deployment?repoUrl=https://github.com/test/repo.git"
-        },
-        dependencies: {
-          useDeployButtonFlow: () => ({
-            isDeployButtonFlow: true,
-            params: {
-              repoUrl: "https://github.com/test/repo.git",
-              branch: null,
-              buildCommand: null,
-              startCommand: null,
-              installCommand: null,
-              buildDirectory: null,
-              nodeVersion: null,
-              templateId: null
-            },
-            buildReturnUrl: () => "/new-deployment?repoUrl=https://github.com/test/repo.git",
-            buildUrlParams: () => ({ repoUrl: "https://github.com/test/repo.git" })
-          }),
-          useWallet: () => ({
-            address: "akash1test",
-            walletName: "test",
-            isWalletConnected: true,
-            isWalletLoaded: true,
-            connectManagedWallet: jest.fn(),
-            logout: jest.fn(),
-            signAndBroadcastTx: jest.fn(),
-            isManaged: false,
-            isCustodial: false,
-            isWalletLoading: false,
-            isTrialing: false,
-            isOnboarding: false,
-            switchWalletType: jest.fn(),
-            hasManagedWallet: false
-          })
-        }
-      });
-
-      await waitFor(() => {
-        expect(router.push).toHaveBeenCalledWith("/new-deployment?repoUrl=https://github.com/test/repo.git");
-      });
-    });
-
-    it("renders SocialAuth instead of Tabs when deploy button flow is active", () => {
-      const SocialAuthMock = jest.fn(ComponentMock);
-      const TabsMock = jest.fn(ComponentMock as typeof Tabs);
-      setup({
-        searchParams: {
-          tab: "login",
-          from: "/new-deployment?repoUrl=https://github.com/test/repo.git"
-        },
-        dependencies: {
-          useDeployButtonFlow: () => ({
-            isDeployButtonFlow: true,
-            params: {
-              repoUrl: "https://github.com/test/repo.git",
-              branch: null,
-              buildCommand: null,
-              startCommand: null,
-              installCommand: null,
-              buildDirectory: null,
-              nodeVersion: null,
-              templateId: null
-            },
-            buildReturnUrl: () => "/new-deployment",
-            buildUrlParams: () => ({ repoUrl: "https://github.com/test/repo.git" })
-          }),
-          SocialAuth: SocialAuthMock,
-          Tabs: TabsMock as unknown as typeof Tabs
-        }
-      });
-
-      expect(SocialAuthMock).toHaveBeenCalled();
-      expect(TabsMock).not.toHaveBeenCalled();
-    });
-  });
-
   function setup(input: {
     searchParams?: {
       tab?: "login" | "signup" | "forgot-password";
@@ -401,20 +282,13 @@ describe(AuthPage.name, () => {
       user: {}
     });
 
-    const useDeployButtonFlow: typeof DEPENDENCIES.useDeployButtonFlow = () => ({
-      isDeployButtonFlow: false,
-      params: {
-        repoUrl: null,
-        branch: null,
-        buildCommand: null,
-        startCommand: null,
-        installCommand: null,
-        buildDirectory: null,
-        nodeVersion: null,
-        templateId: null
-      },
-      buildReturnUrl: () => "/",
-      buildUrlParams: () => ({})
+    const navigateBack = jest.fn();
+    const useReturnTo: typeof DEPENDENCIES.useReturnTo = () => ({
+      returnTo: input.searchParams?.returnTo || input.searchParams?.from || "/",
+      navigateWithReturnTo: jest.fn(),
+      navigateBack,
+      hasReturnTo: true,
+      isDeploymentReturnTo: false
     });
 
     const useWallet: typeof DEPENDENCIES.useWallet = () => ({
@@ -465,7 +339,7 @@ describe(AuthPage.name, () => {
             useUser,
             useSearchParams,
             useRouter: () => router,
-            useDeployButtonFlow: input.dependencies?.useDeployButtonFlow || useDeployButtonFlow,
+            useReturnTo: input.dependencies?.useReturnTo || useReturnTo,
             useWallet: input.dependencies?.useWallet || useWallet,
             Turnstile,
             ...input.dependencies
@@ -477,7 +351,8 @@ describe(AuthPage.name, () => {
     return {
       authService,
       router,
-      checkSession
+      checkSession,
+      navigateBack
     };
   }
 });
