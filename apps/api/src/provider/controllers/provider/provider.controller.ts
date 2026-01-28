@@ -3,6 +3,7 @@ import { singleton } from "tsyringe";
 import { ProviderCleanupService } from "@src/billing/services/provider-cleanup/provider-cleanup.service";
 import { ProviderCleanupParams } from "@src/billing/types/provider-cleanup";
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
+import { stringifyAsync } from "@src/caching/json-stringify.service";
 import { ProviderListQuery, ProviderListResponse } from "@src/provider/http-schemas/provider.schema";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { ProviderStatsService } from "@src/provider/services/provider-stats/provider-stats.service";
@@ -36,7 +37,7 @@ export class ProviderController {
 
     return cacheResponse(60, jsonCacheKey, async () => {
       const data = await this.getProviderList(scope);
-      return JSON.stringify(data);
+      return stringifyAsync(data);
     });
   }
 

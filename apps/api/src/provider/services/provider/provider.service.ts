@@ -148,10 +148,8 @@ export class ProviderService {
       }, {})
     );
 
-    const [auditors, providerAttributeSchema] = await Promise.all([
-      this.auditorsService.getAuditors(),
-      this.providerAttributesSchemaService.getProviderAttributesSchema()
-    ]);
+    const auditors = this.auditorsService.getAuditors();
+    const providerAttributeSchema = await this.providerAttributesSchemaService.getProviderAttributesSchema();
 
     // Fix 4: Pre-index provider snapshots for O(1) lookup instead of O(n²) with .find()
     const snapshotByOwner = new Map(providerWithNodes.map(p => [p.owner, p.lastSuccessfulSnapshot]));
@@ -194,10 +192,8 @@ export class ProviderService {
         })
       : null;
 
-    const [auditors, providerAttributeSchema] = await Promise.all([
-      this.auditorsService.getAuditors(),
-      this.providerAttributesSchemaService.getProviderAttributesSchema()
-    ]);
+    const auditors = this.auditorsService.getAuditors();
+    const providerAttributeSchema = await this.providerAttributesSchemaService.getProviderAttributesSchema();
 
     return {
       ...mapProviderToList(provider, providerAttributeSchema, auditors, lastSuccessfulSnapshot ?? undefined),
