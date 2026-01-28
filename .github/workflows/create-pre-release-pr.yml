@@ -76,23 +76,29 @@ jobs:
           npm run safe-install -- -w packages/releaser
 
       - name: Generate Release Changes
+        env:
+          PACKAGES_TO_RELEASE: >-
+            apps/api,
+            apps/deploy-web,
+            apps/provider-proxy,
+            apps/provider-console,
+            apps/stats-web,
+            apps/notifications,
+            apps/indexer,
+            apps/log-collector
         run: |
-          npm run release -w apps/api -- --verbose --ci
-          npm run release -w apps/deploy-web -- --verbose --ci
-          npm run release -w apps/provider-proxy -- --verbose --ci
-          npm run release -w apps/provider-console -- --verbose --ci
-          npm run release -w apps/stats-web -- --verbose --ci
-          npm run release -w apps/notifications -- --verbose --ci
-          npm run release -w apps/indexer -- --verbose --ci
-          npm run release -w apps/log-collector -- --verbose --ci
+          echo "$PACKAGES_TO_RELEASE" | tr ',' '\n' | while read -r package; do
+            npm run release -w "$package" -- --verbose --ci
+          done
 
           # update package-lock.json with new versions
           # shellcheck disable=SC2016
           node -e '
             const fs=require("fs");
             const lockfile=require("./package-lock.json");
+            const packagesToRelease = process.env.PACKAGES_TO_RELEASE.split(",");
             Object.entries(lockfile.packages).forEach(([pkgName, pkg]) => {
-              if (!pkgName.startsWith("apps/")) return;
+              if (!packagesToRelease.includes(pkgName)) return;
               pkg.version = require(`./${pkgName}/package.json`).version;
             });
             fs.writeFileSync("./package-lock.json", JSON.stringify(lockfile, null, 2));
