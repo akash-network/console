@@ -117,7 +117,63 @@ jobs:
     runs-on: ubuntu-latest
     needs: [should-validate, validate, test-build]
     if: always()
+    permissions:
+      contents: read
+      checks: read
     steps:
+      - name: Conditionally required codecov/patch check
+        if: >-
+          needs.validate.result == 'success' && github.event_name == 'pull_request' && (
+            inputs.app == 'api' ||
+            inputs.app == 'deploy-web' ||
+            inputs.app == 'notifications' ||
+            inputs.app == 'provider-proxy'
+          )
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          APP: ${{ inputs.app }}
+        run: |
+          RETRIES=3
+          SLEEP_TIMEOUT=15
+          RETRY_ATTEMPT=0
+          CHECK_NAME="codecov/patch/$APP"
+          echo "Checking $CHECK_NAME for SHA=$SHA"
+
+          while [ $RETRY_ATTEMPT -lt $RETRIES ]; do
+            result="$(gh api -H "Accept: application/vnd.github+json" \
+              "/repos/$REPO/commits/$SHA/check-runs?check_name=$CHECK_NAME" \
+              --jq '.check_runs[0] | "\(.status) \(.conclusion)"')"
+
+            status="${result%% *}"
+            conclusion="${result#* }"
+
+            if [ -z "$status" ] || [ "$status" = "null" ]; then
+              echo "$CHECK_NAME not found on this commit"
+              exit 1
+            fi
+
+            if [ "$status" != "completed" ]; then
+              RETRY_ATTEMPT=$((RETRY_ATTEMPT + 1))
+              if [ $RETRY_ATTEMPT -lt $RETRIES ]; then
+                echo "Check not completed yet (status: $status). Retry $RETRY_ATTEMPT/$RETRIES in ${SLEEP_TIMEOUT}s..."
+                sleep $SLEEP_TIMEOUT
+                continue
+              fi
+              echo "$CHECK_NAME check did not complete after $RETRIES attempts (status: $status)"
+              exit 1
+            fi
+
+            if [ "$conclusion" != "success" ]; then
+              echo "$CHECK_NAME conclusion=$conclusion"
+              exit 1
+            fi
+
+            echo "$CHECK_NAME is success ✅"
+            break
+          done
+
       - name: Check statuses
         env:
           VALIDATE_RESULT: ${{ needs.validate.result }}
