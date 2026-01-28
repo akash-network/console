@@ -38,6 +38,7 @@ public/workbox-*
 out
 dist
 build.ps1
+apps/deploy-web/public/sdl-schema.yaml
 
 # Caches
 .npm

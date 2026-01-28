@@ -36,7 +36,8 @@ export const envSchema = z.object({
   MANAGED_WALLET_LEASE_ALLOWED_AUDITORS: z
     .string()
     .default(AUDITOR)
-    .transform(val => (val ? val.split(",").map(addr => addr.trim()) : []))
+    .transform(val => (val ? val.split(",").map(addr => addr.trim()) : [])),
+  TX_SIGNER_BASE_URL: z.string()
 });
 
 export type BillingConfig = z.infer<typeof envSchema>;

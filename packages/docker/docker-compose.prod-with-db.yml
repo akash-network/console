@@ -3,6 +3,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      tx-signer:
+        condition: service_started
 
   notifications:
     depends_on:

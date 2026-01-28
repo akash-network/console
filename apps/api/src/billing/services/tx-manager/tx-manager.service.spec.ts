@@ -4,7 +4,9 @@ import { mock } from "jest-mock-extended";
 
 import type { BatchSigningClientService, SignAndBroadcastOptions } from "@src/billing/lib/batch-signing-client/batch-signing-client.service";
 import type { Wallet } from "@src/billing/lib/wallet/wallet";
+import type { ExternalSignerHttpSdkService } from "@src/billing/services/external-signer-http-sdk/external-signer-http-sdk.service";
 import type { LoggerService } from "@src/core";
+import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { TxManagerService } from "./tx-manager.service";
 
 import { createAkashAddress } from "@test/seeders";
@@ -31,6 +33,31 @@ describe(TxManagerService.name, () => {
       const result = await service.signAndBroadcastWithFundingWallet(messages);
 
       expect(fundingSigningClient.signAndBroadcast).toHaveBeenCalledWith(messages);
+      expect(result).toEqual(txResult);
+    });
+
+    it("delegates to external signer when feature flag is enabled", async () => {
+      const messages: EncodeObject[] = [
+        {
+          typeUrl: "/test.MsgTest",
+          value: {}
+        }
+      ];
+      const txResult = mock<IndexedTx>({
+        code: 0,
+        hash: "external-tx-hash",
+        rawLog: "success"
+      });
+
+      const { service, fundingSigningClient, externalSignerHttpSdkService } = setup({
+        featureFlagsEnabled: true,
+        externalFundingResult: txResult
+      });
+
+      const result = await service.signAndBroadcastWithFundingWallet(messages);
+
+      expect(externalSignerHttpSdkService.signAndBroadcastWithFundingWallet).toHaveBeenCalledWith(messages);
+      expect(fundingSigningClient.signAndBroadcast).not.toHaveBeenCalled();
       expect(result).toEqual(txResult);
     });
   });
@@ -79,6 +106,35 @@ describe(TxManagerService.name, () => {
       expect(derivedWallet.getFirstAddress).toHaveBeenCalled();
       expect(batchSigningClientServiceFactory).toHaveBeenCalledWith(derivedWallet);
       expect(logger.debug).toHaveBeenCalledWith({ event: "DERIVED_SIGNING_CLIENT_CREATE", address });
+      expect(result).toEqual(txResult);
+    });
+
+    it("delegates to external signer when feature flag is enabled", async () => {
+      const derivationIndex = 1;
+      const messages: EncodeObject[] = [
+        {
+          typeUrl: "/test.MsgTest",
+          value: {}
+        }
+      ];
+      const options: SignAndBroadcastOptions = {
+        fee: { granter: createAkashAddress() }
+      };
+      const txResult = mock<IndexedTx>({
+        code: 0,
+        hash: "external-derived-hash",
+        rawLog: "success"
+      });
+
+      const { service, batchSigningClientServiceFactory, externalSignerHttpSdkService } = setup({
+        featureFlagsEnabled: true,
+        externalDerivedResult: txResult
+      });
+
+      const result = await service.signAndBroadcastWithDerivedWallet(derivationIndex, messages, options);
+
+      expect(externalSignerHttpSdkService.signAndBroadcastWithDerivedWallet).toHaveBeenCalledWith(derivationIndex, messages, options);
+      expect(batchSigningClientServiceFactory).not.toHaveBeenCalled();
       expect(result).toEqual(txResult);
     });
 
@@ -190,6 +246,9 @@ describe(TxManagerService.name, () => {
     fundingSignAndBroadcast?: BatchSigningClientService["signAndBroadcast"];
     derivedSignAndBroadcast?: BatchSigningClientService["signAndBroadcast"];
     hasPendingTransactions?: boolean;
+    featureFlagsEnabled?: boolean;
+    externalFundingResult?: IndexedTx;
+    externalDerivedResult?: IndexedTx;
   }) {
     const fundingWalletAddress = input?.fundingWalletAddress ?? createAkashAddress();
     const derivedWalletAddress = input?.derivedWalletAddress ?? createAkashAddress();
@@ -232,6 +291,27 @@ describe(TxManagerService.name, () => {
     });
 
     const logger = mock<LoggerService>();
+    const featureFlagsService = mock<FeatureFlagsService>({
+      isEnabled: jest.fn().mockReturnValue(input?.featureFlagsEnabled ?? false)
+    });
+    const externalSignerHttpSdkService = mock<ExternalSignerHttpSdkService>({
+      signAndBroadcastWithFundingWallet: jest.fn().mockResolvedValue(
+        input?.externalFundingResult ??
+          mock<IndexedTx>({
+            code: 0,
+            hash: "external-default-hash",
+            rawLog: "success"
+          })
+      ),
+      signAndBroadcastWithDerivedWallet: jest.fn().mockResolvedValue(
+        input?.externalDerivedResult ??
+          mock<IndexedTx>({
+            code: 0,
+            hash: "external-default-hash",
+            rawLog: "success"
+          })
+      )
+    });
 
     const walletResources = {
       v1: {
@@ -246,7 +326,7 @@ describe(TxManagerService.name, () => {
       }
     };
 
-    const service = new TxManagerService(walletResources, batchSigningClientServiceFactory, logger);
+    const service = new TxManagerService(walletResources, batchSigningClientServiceFactory, logger, featureFlagsService, externalSignerHttpSdkService);
 
     return {
       service,
@@ -259,7 +339,8 @@ describe(TxManagerService.name, () => {
       oldMasterSigningClient,
       derivedSigningClient,
       batchSigningClientServiceFactory,
-      logger
+      logger,
+      externalSignerHttpSdkService
     };
   }
 });
