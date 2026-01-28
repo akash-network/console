@@ -96,11 +96,18 @@ jobs:
           node -e '
             const fs=require("fs");
             const lockfile=require("./package-lock.json");
-            const packagesToRelease = process.env.PACKAGES_TO_RELEASE.split(",");
-            Object.entries(lockfile.packages).forEach(([pkgName, pkg]) => {
-              if (!packagesToRelease.includes(pkgName)) return;
-              pkg.version = require(`./${pkgName}/package.json`).version;
-            });
+            process.env.PACKAGES_TO_RELEASE.split(",")
+              .map(pkg => pkg.trim())
+              .forEach((pkgName) => {
+                const pkg = lockfile.packages[pkgName];
+                if (!pkg) {
+                  console.error(`Package ${pkgName} not found in package-lock.json`);
+                  return;
+                }
+                const newVersion = require(`./${pkgName}/package.json`).version;
+                console.log(`Updating ${pkgName} version from ${pkg.version} to ${newVersion}`);
+                pkg.version = newVersion;
+              });
             fs.writeFileSync("./package-lock.json", JSON.stringify(lockfile, null, 2));
           ';
 
