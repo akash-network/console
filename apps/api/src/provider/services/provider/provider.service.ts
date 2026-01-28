@@ -156,8 +156,11 @@ export class ProviderService {
       this.providerAttributesSchemaService.getProviderAttributesSchema()
     ]);
 
+    // Fix 4: Pre-index provider snapshots for O(1) lookup instead of O(n²) with .find()
+    const snapshotByOwner = new Map(providerWithNodes.map(p => [p.owner, p.lastSuccessfulSnapshot]));
+
     return distinctProviders.map(x => {
-      const lastSuccessfulSnapshot = providerWithNodes.find(p => p.owner === x.owner)?.lastSuccessfulSnapshot;
+      const lastSuccessfulSnapshot = snapshotByOwner.get(x.owner);
       return mapProviderToList(x, providerAttributeSchema, auditors, lastSuccessfulSnapshot);
     });
   }

@@ -3,7 +3,6 @@ import type { Auditor, ProviderAttributesSchema } from "@akashnetwork/http-sdk";
 import semver from "semver";
 
 import type { ProviderList, StatsItem } from "@src/types/provider";
-import { createFilterUnique } from "../array/array";
 
 export const mapProviderToList = (
   provider: Provider,
@@ -33,13 +32,29 @@ export const mapProviderToList = (
     }
   };
 
+  // Fix 5: Build auditor Set once for O(1) lookup instead of O(a×b) nested .some()
+  const auditorSet = new Set(auditors.map(a => a.address));
+
+  // Fix 2: Pre-index attribute signatures for O(1) lookup instead of O(m²) filtering
+  const signatureIndex = new Map<string, string[]>();
+  for (const sig of provider.providerAttributeSignatures) {
+    const key = `${sig.key}|${sig.value}`;
+    if (!signatureIndex.has(key)) {
+      signatureIndex.set(key, []);
+    }
+    signatureIndex.get(key)!.push(sig.auditor);
+  }
+
+  // Fix 3: Build attribute map once for O(1) lookups instead of 31 separate array scans
+  const attrMap = buildAttributeMap(provider);
+
   return {
     owner: provider.owner,
     name: name,
     hostUri: provider.hostUri,
     createdHeight: provider.createdHeight,
-    email: provider.email || getStringAttribute("email", provider, providerAttributeSchema),
-    website: provider.website || getStringAttribute("website", provider, providerAttributeSchema),
+    email: provider.email || attrMap.get(providerAttributeSchema["email"].key) || null,
+    website: provider.website || attrMap.get(providerAttributeSchema["website"].key) || null,
     lastCheckDate: provider.lastCheckDate || null,
     deploymentCount: lastSuccessfulSnapshot?.deploymentCount,
     leaseCount: lastSuccessfulSnapshot?.leaseCount,
@@ -59,41 +74,74 @@ export const mapProviderToList = (
     isValidVersion: isValidSdkVersion,
     isOnline: !!provider.isOnline,
     lastOnlineDate: lastSuccessfulSnapshot?.checkDate || null,
-    isAudited: provider.providerAttributeSignatures.some(a => auditors.some(y => y.address === a.auditor)),
+    isAudited: provider.providerAttributeSignatures.some(a => auditorSet.has(a.auditor)),
     attributes: provider.providerAttributes.map(attr => ({
       key: attr.key,
       value: attr.value,
-      auditedBy: provider.providerAttributeSignatures.filter(pas => pas.key === attr.key && pas.value === attr.value).map(pas => pas.auditor)
+      auditedBy: signatureIndex.get(`${attr.key}|${attr.value}`) || []
     })),
 
-    // Attributes schema
-    host: getStringAttribute("host", provider, providerAttributeSchema),
-    organization: getStringAttribute("organization", provider, providerAttributeSchema),
-    statusPage: getStringAttribute("status-page", provider, providerAttributeSchema),
-    locationRegion: getStringAttribute("location-region", provider, providerAttributeSchema),
-    country: getStringAttribute("country", provider, providerAttributeSchema),
-    city: getStringAttribute("city", provider, providerAttributeSchema),
-    timezone: getStringAttribute("timezone", provider, providerAttributeSchema),
-    locationType: getStringAttribute("location-type", provider, providerAttributeSchema),
-    hostingProvider: getStringAttribute("hosting-provider", provider, providerAttributeSchema),
-    hardwareCpu: getStringAttribute("hardware-cpu", provider, providerAttributeSchema),
-    hardwareCpuArch: getStringAttribute("hardware-cpu-arch", provider, providerAttributeSchema),
-    hardwareGpuVendor: getStringAttribute("hardware-gpu", provider, providerAttributeSchema),
+    // Attributes schema - using optimized getters with pre-built attrMap
+    host: getStringAttributeOptimized("host", attrMap, providerAttributeSchema),
+    organization: getStringAttributeOptimized("organization", attrMap, providerAttributeSchema),
+    statusPage: getStringAttributeOptimized("status-page", attrMap, providerAttributeSchema),
+    locationRegion: getStringAttributeOptimized("location-region", attrMap, providerAttributeSchema),
+    country: getStringAttributeOptimized("country", attrMap, providerAttributeSchema),
+    city: getStringAttributeOptimized("city", attrMap, providerAttributeSchema),
+    timezone: getStringAttributeOptimized("timezone", attrMap, providerAttributeSchema),
+    locationType: getStringAttributeOptimized("location-type", attrMap, providerAttributeSchema),
+    hostingProvider: getStringAttributeOptimized("hosting-provider", attrMap, providerAttributeSchema),
+    hardwareCpu: getStringAttributeOptimized("hardware-cpu", attrMap, providerAttributeSchema),
+    hardwareCpuArch: getStringAttributeOptimized("hardware-cpu-arch", attrMap, providerAttributeSchema),
+    hardwareGpuVendor: getStringAttributeOptimized("hardware-gpu", attrMap, providerAttributeSchema),
     hardwareGpuModels: getStringArrayAttribute("hardware-gpu-model", provider, providerAttributeSchema),
     hardwareDisk: getStringArrayAttribute("hardware-disk", provider, providerAttributeSchema),
-    featPersistentStorage: getBooleanAttribute("feat-persistent-storage", provider, providerAttributeSchema),
+    featPersistentStorage: getBooleanAttributeOptimized("feat-persistent-storage", attrMap, providerAttributeSchema),
     featPersistentStorageType: getStringArrayAttribute("feat-persistent-storage-type", provider, providerAttributeSchema),
-    hardwareMemory: getStringAttribute("hardware-memory", provider, providerAttributeSchema),
-    networkProvider: getStringAttribute("network-provider", provider, providerAttributeSchema),
-    networkSpeedDown: getNumberAttribute("network-speed-down", provider, providerAttributeSchema),
-    networkSpeedUp: getNumberAttribute("network-speed-up", provider, providerAttributeSchema),
-    tier: getStringAttribute("tier", provider, providerAttributeSchema),
-    featEndpointCustomDomain: getBooleanAttribute("feat-endpoint-custom-domain", provider, providerAttributeSchema),
-    workloadSupportChia: getBooleanAttribute("workload-support-chia", provider, providerAttributeSchema),
+    hardwareMemory: getStringAttributeOptimized("hardware-memory", attrMap, providerAttributeSchema),
+    networkProvider: getStringAttributeOptimized("network-provider", attrMap, providerAttributeSchema),
+    networkSpeedDown: getNumberAttributeOptimized("network-speed-down", attrMap, providerAttributeSchema),
+    networkSpeedUp: getNumberAttributeOptimized("network-speed-up", attrMap, providerAttributeSchema),
+    tier: getStringAttributeOptimized("tier", attrMap, providerAttributeSchema),
+    featEndpointCustomDomain: getBooleanAttributeOptimized("feat-endpoint-custom-domain", attrMap, providerAttributeSchema),
+    workloadSupportChia: getBooleanAttributeOptimized("workload-support-chia", attrMap, providerAttributeSchema),
     workloadSupportChiaCapabilities: getStringArrayAttribute("workload-support-chia-capabilities", provider, providerAttributeSchema),
-    featEndpointIp: getBooleanAttribute("feat-endpoint-ip", provider, providerAttributeSchema)
+    featEndpointIp: getBooleanAttributeOptimized("feat-endpoint-ip", attrMap, providerAttributeSchema)
   };
 };
+
+// Fix 3: Build attribute map once per provider for O(1) lookups
+function buildAttributeMap(provider: Provider): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const attr of provider.providerAttributes) {
+    // For attributes with same key, join values with comma (matching original behavior)
+    const existing = map.get(attr.key);
+    if (existing) {
+      map.set(attr.key, `${existing},${attr.value}`);
+    } else {
+      map.set(attr.key, attr.value);
+    }
+  }
+  return map;
+}
+
+// Optimized attribute getters that use pre-built map for O(1) lookup
+function getStringAttributeOptimized(key: keyof ProviderAttributesSchema, attrMap: Map<string, string>, schema: ProviderAttributesSchema): string | null {
+  const schemaKey = schema[key].key;
+  return attrMap.get(schemaKey) || null;
+}
+
+function getBooleanAttributeOptimized(key: keyof ProviderAttributesSchema, attrMap: Map<string, string>, schema: ProviderAttributesSchema): boolean {
+  const schemaKey = schema[key].key;
+  const value = attrMap.get(schemaKey);
+  return value === "true";
+}
+
+function getNumberAttributeOptimized(key: keyof ProviderAttributesSchema, attrMap: Map<string, string>, schema: ProviderAttributesSchema): number {
+  const schemaKey = schema[key].key;
+  const value = attrMap.get(schemaKey);
+  return value ? parseFloat(value) : 0;
+}
 
 type StatsEntry = "CPU" | "GPU" | "Memory" | "PersistentStorage" | "EphemeralStorage";
 function buildStatsItem<T extends StatsEntry>(suffix: T, snapshot: ProviderSnapshot | undefined | null, isValidSdkVersion: boolean): StatsItem {
@@ -118,13 +166,24 @@ function buildStatsItem<T extends StatsEntry>(suffix: T, snapshot: ProviderSnaps
   return item;
 }
 
+// Fix 1: Set-based O(n) deduplication instead of O(n²) createFilterUnique
 function getDistinctGpuModelsFromNodes(nodes: ProviderSnapshotNode[]) {
-  const gpuModels = nodes.flatMap(x => x.gpus).map(x => ({ vendor: x.vendor, model: x.name, ram: x.memorySize, interface: x.interface }));
-  const distinctGpuModels = gpuModels.filter(
-    createFilterUnique((a, b) => a.vendor === b.vendor && a.model === b.model && a.ram === b.ram && a.interface === b.interface)
-  );
+  const gpuModels = nodes
+    .flatMap(x => x.gpus)
+    .map(x => ({
+      vendor: x.vendor,
+      model: x.name,
+      ram: x.memorySize,
+      interface: x.interface
+    }));
 
-  return distinctGpuModels;
+  const seen = new Set<string>();
+  return gpuModels.filter(gpu => {
+    const key = `${gpu.vendor}|${gpu.model}|${gpu.ram}|${gpu.interface}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 export const getProviderAttributeValue = <TKey extends keyof ProviderAttributesSchema>(
@@ -175,22 +234,7 @@ export const getProviderAttributeValue = <TKey extends keyof ProviderAttributesS
   }
 };
 
-function getStringAttribute(key: keyof ProviderAttributesSchema, provider: Provider, schema: ProviderAttributesSchema): string | null {
-  const value = getProviderAttributeValue(key, provider, schema);
-  return typeof value === "string" ? value : null;
-}
-
 function getStringArrayAttribute(key: keyof ProviderAttributesSchema, provider: Provider, schema: ProviderAttributesSchema): string[] | null {
   const value = getProviderAttributeValue(key, provider, schema);
   return Array.isArray(value) ? value : null;
-}
-
-function getBooleanAttribute(key: keyof ProviderAttributesSchema, provider: Provider, schema: ProviderAttributesSchema): boolean {
-  const value = getProviderAttributeValue(key, provider, schema);
-  return typeof value === "boolean" ? value : false;
-}
-
-function getNumberAttribute(key: keyof ProviderAttributesSchema, provider: Provider, schema: ProviderAttributesSchema): number {
-  const value = getProviderAttributeValue(key, provider, schema);
-  return typeof value === "number" ? value : 0;
 }
