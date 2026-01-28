@@ -8,6 +8,15 @@ services:
       - /app/node_modules
       - /app/apps/api/node_modules
 
+  tx-signer:
+    build:
+      target: development
+    volumes:
+      - ../../apps/tx-signer:/app/apps/tx-signer
+      - ../../packages:/app/packages
+      - /app/node_modules
+      - /app/apps/tx-signer/node_modules
+
   notifications:
     build:
       target: development
