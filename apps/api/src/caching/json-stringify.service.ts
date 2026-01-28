@@ -1,13 +1,31 @@
+import fs from "fs";
 import path from "path";
 import { Worker } from "worker_threads";
 
 let worker: Worker | null = null;
+let workerDisabled = false;
 let nextId = 0;
 const pending = new Map<number, { resolve: (json: string) => void; reject: (err: Error) => void }>();
 
-function getWorker(): Worker {
+function resolveWorkerPath(): string | null {
+  // Built output: __dirname is dist/, worker at dist/workers/json-stringify.worker.js
+  const builtPath = path.join(__dirname, "workers", "json-stringify.worker.js");
+  if (fs.existsSync(builtPath)) return builtPath;
+
+  return null;
+}
+
+function getWorker(): Worker | null {
+  if (workerDisabled) return null;
+
   if (!worker) {
-    worker = new Worker(path.join(__dirname, "workers", "json-stringify.worker.js"));
+    const workerPath = resolveWorkerPath();
+    if (!workerPath) {
+      workerDisabled = true;
+      return null;
+    }
+
+    worker = new Worker(workerPath);
 
     worker.on("message", ({ id, json }: { id: number; json: string }) => {
       const entry = pending.get(id);
@@ -22,6 +40,7 @@ function getWorker(): Worker {
         entry.reject(err);
       }
       pending.clear();
+      workerDisabled = true;
       worker = null;
     });
 
@@ -38,15 +57,20 @@ function getWorker(): Worker {
 }
 
 export function stringifyAsync(data: unknown): Promise<string> {
+  const w = getWorker();
+
+  if (!w) {
+    return Promise.resolve(JSON.stringify(data));
+  }
+
   return new Promise<string>((resolve, reject) => {
     const id = nextId++;
     pending.set(id, { resolve, reject });
 
     try {
-      getWorker().postMessage({ id, data });
+      w.postMessage({ id, data });
     } catch (err) {
       pending.delete(id);
-      // Fall back to main-thread stringify
       try {
         resolve(JSON.stringify(data));
       } catch (stringifyErr) {
