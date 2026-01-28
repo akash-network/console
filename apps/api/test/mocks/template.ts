@@ -1,4 +1,4 @@
-import type { v2Sdl } from "@akashnetwork/akashjs/build/sdl/types";
+import type { v2Sdl } from "@akashnetwork/chain-sdk";
 import dot from "dot-object";
 import update, { type CustomCommands, type Spec } from "immutability-helper";
 import { dump } from "js-yaml";
