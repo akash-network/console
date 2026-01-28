@@ -147,7 +147,9 @@ export const cacheKeys = {
   getGpuModels: "getGpuModels",
   getTrialProviders: "getTrialProviders",
   getGpuUtilization: "getGpuUtilization",
-  getGpuBreakdown: "getGpuBreakdown"
+  getGpuBreakdown: "getGpuBreakdown",
+  getProviderListGzipped: "getProviderListGzipped",
+  getTrialProviderListGzipped: "getTrialProviderListGzipped"
 };
 
 export function reusePendingPromise<T extends (...args: any[]) => Promise<unknown>>(fn: T, options?: { getKey?: (...args: Parameters<T>) => string }): T {
