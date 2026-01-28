@@ -9,6 +9,15 @@ services:
         WORKSPACE: apps/api
         GITHUB_PAT: ${GITHUB_PAT}
 
+  tx-signer:
+    image: ${TX_SIGNER_REPO:-console-tx-signer}:${TX_SIGNER_TAG:-latest}
+    build:
+      context: ../..
+      dockerfile: packages/docker/Dockerfile.node
+      target: production
+      args:
+        WORKSPACE: apps/tx-signer
+
   notifications:
     image: ${NOTIFICATIONS_REPO:-notifications}:${NOTIFICATIONS_TAG:-latest}
     build:

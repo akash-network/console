@@ -1,4 +1,4 @@
-import { EncodeObject } from "@cosmjs/proto-signing";
+import type { EncodeObject } from "@cosmjs/proto-signing";
 import { container, inject, type InjectionToken, instancePerContainerCachingFactory, singleton } from "tsyringe";
 
 import { BatchSigningClientService, SignAndBroadcastOptions } from "@src/billing/lib/batch-signing-client/batch-signing-client.service";
@@ -6,7 +6,10 @@ import { createSigningStargateClient } from "@src/billing/lib/signing-stargate-c
 import { Wallet } from "@src/billing/lib/wallet/wallet";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { ExternalSignerHttpSdkService } from "@src/billing/services/external-signer-http-sdk/external-signer-http-sdk.service";
 import { LoggerService } from "@src/core";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 
 export type BatchSigningClientServiceFactory = (wallet: Wallet, loggerContext?: string) => BatchSigningClientService;
 const BATCH_SIGNING_CLIENT_FACTORY: InjectionToken<BatchSigningClientServiceFactory> = Symbol("BATCH_SIGNING_CLIENT_FACTORY");
@@ -79,7 +82,9 @@ export class TxManagerService {
   constructor(
     @inject(WALLET_RESOURCES) private readonly walletResources: WalletResources,
     @inject(BATCH_SIGNING_CLIENT_FACTORY) private readonly batchSigningClientServiceFactory: BatchSigningClientServiceFactory,
-    private readonly logger: LoggerService
+    private readonly logger: LoggerService,
+    private readonly featureFlagsService: FeatureFlagsService,
+    private readonly externalSignerHttpSdkService: ExternalSignerHttpSdkService
   ) {
     this.logger.setContext(TxManagerService.name);
   }
@@ -91,6 +96,10 @@ export class TxManagerService {
   }
 
   async signAndBroadcastWithFundingWallet(messages: readonly EncodeObject[]) {
+    if (this.featureFlagsService.isEnabled(FeatureFlags.EXTERNAL_TX_SIGNER)) {
+      return await this.externalSignerHttpSdkService.signAndBroadcastWithFundingWallet(messages);
+    }
+
     const { masterSigningClient } = this.#getWalletResources();
     return await masterSigningClient.signAndBroadcast(messages);
   }
@@ -101,6 +110,10 @@ export class TxManagerService {
   }
 
   async signAndBroadcastWithDerivedWallet(derivationIndex: number, messages: readonly EncodeObject[], options?: SignAndBroadcastOptions) {
+    if (this.featureFlagsService.isEnabled(FeatureFlags.EXTERNAL_TX_SIGNER)) {
+      return await this.externalSignerHttpSdkService.signAndBroadcastWithDerivedWallet(derivationIndex, messages, options);
+    }
+
     const { client, address } = await this.#getClient(derivationIndex);
 
     try {

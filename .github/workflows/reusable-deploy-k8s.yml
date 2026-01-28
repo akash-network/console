@@ -18,6 +18,7 @@ on:
           - console-web
           - console-web-testnet
           - console-api
+          - tx-signer
           - indexer
           - notifications
           - provider-proxy
@@ -198,7 +199,6 @@ jobs:
           require_approval=$(gh api "repos/$GITHUB_REPOSITORY/environments/$DEPLOYMENT_ENVIRONMENT" \
             --jq '.protection_rules | map(.type) | contains(["required_reviewers"])')
           echo "require_approval=$require_approval" >> "$GITHUB_OUTPUT"
-
 
   notify-about-pending-deployment:
     permissions:
