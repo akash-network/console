@@ -4,6 +4,8 @@ import { createRoute as createOpenApiRoute } from "@hono/zod-openapi";
 import type { MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
 
+import { contentTypeMiddleware } from "@src/middlewares/contentTypeMiddleware/contentTypeMiddleware";
+
 export interface CacheConfig {
   maxAge: number;
   staleWhileRevalidate?: number;
@@ -52,6 +54,14 @@ export function createRoute<
       bodyLimit({
         maxSize: 512 * 1024, // 512Kb
         ...bodyLimitOptions
+      })
+    );
+  }
+
+  if (routeConfig.request?.body?.content) {
+    middlewares.push(
+      contentTypeMiddleware({
+        supportedContentTypes: new Set(Object.keys(routeConfig.request.body.content))
       })
     );
   }
