@@ -33,7 +33,8 @@ export class TemplateGalleryService {
     this.#fs = fs;
     this.templateProcessor = new TemplateProcessorService();
     this.templateFetcher = options.githubPAT
-      ? new TemplateFetcherService(this.templateProcessor, this.#logger, getOctokit(options.githubPAT), {
+      ? new TemplateFetcherService(this.templateProcessor, this.#logger, getOctokit, {
+          githubPAT: options.githubPAT,
           categoryProcessingConcurrency: options.categoryProcessingConcurrency,
           templateSourceProcessingConcurrency: options.templateSourceProcessingConcurrency
         })
@@ -249,15 +250,14 @@ export class TemplateGalleryService {
   }
 }
 
-function getOctokit(githubPAT: string | undefined) {
-  if (!githubPAT) {
-    throw new Error("GITHUB_PAT is required to fetch akash templates from GitHub");
-  }
-
+function getOctokit(githubPAT: string | undefined, fetch = globalThis.fetch) {
   return new Octokit({
     auth: githubPAT,
     userAgent: "Console API",
-    baseUrl: "https://api.github.com"
+    baseUrl: "https://api.github.com",
+    request: {
+      fetch
+    }
   });
 }
 

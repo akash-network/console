@@ -1,4 +1,4 @@
-import type { Octokit } from "@octokit/rest";
+import type { Octokit, RestEndpointMethodTypes } from "@octokit/rest";
 import PromisePool from "@supercharge/promise-pool";
 
 import type { LoggerService } from "@src/core";
@@ -34,15 +34,23 @@ export class TemplateFetcherService {
    */
   #githubRequestsRemaining: string | null = null;
   readonly #octokit: Octokit;
+  readonly #anonymousOctokit: Octokit;
   readonly #options: Required<Omit<FetcherOptions, "githubPAT">>;
+  #isAnonymousOctokitFailed = false;
 
   constructor(
     private readonly templateProcessor: TemplateProcessorService,
     logger: LoggerService,
-    octokit: Octokit,
-    options: FetcherOptions = {}
+    createOctokit: (githubPAT?: string, fetch?: typeof globalThis.fetch) => Octokit,
+    options: FetcherOptions
   ) {
-    this.#octokit = octokit;
+    this.#octokit = createOctokit(options.githubPAT, async (...args) => {
+      const response = await fetch(...args);
+      const remaining = response.headers.get("x-ratelimit-remaining");
+      if (remaining) this.#githubRequestsRemaining = remaining;
+      return response;
+    });
+    this.#anonymousOctokit = createOctokit();
     this.#logger = logger;
     this.#options = {
       categoryProcessingConcurrency: options.categoryProcessingConcurrency ?? 10,
@@ -54,12 +62,6 @@ export class TemplateFetcherService {
     return this.#githubRequestsRemaining;
   }
 
-  private setGithubRequestsRemaining(value?: string) {
-    if (value !== undefined) {
-      this.#githubRequestsRemaining = value;
-    }
-  }
-
   async fetchLatestCommitSha(repository: keyof typeof REPOSITORIES) {
     const { repoOwner, repoName, mainBranch } = REPOSITORIES[repository];
     const response = await this.#octokit.rest.repos.getBranch({
@@ -67,8 +69,6 @@ export class TemplateFetcherService {
       repo: repoName,
       branch: mainBranch
     });
-
-    this.setGithubRequestsRemaining(response.headers["x-ratelimit-remaining"]);
 
     if (response.status !== 200) {
       throw new Error(`Failed to fetch latest version of ${repoOwner}/${repoName} from github`, { cause: response });
@@ -78,23 +78,51 @@ export class TemplateFetcherService {
   }
 
   private async fetchFileContent(owner: string, repo: string, path: string, ref?: string): Promise<string> {
-    const response = await this.#octokit.rest.repos.getContent({
-      owner,
-      repo,
-      path,
-      ref,
+    const fileParams = { owner, repo, path, ref };
+    let response = await this.#fetchFileContentAnonymously(fileParams);
+
+    if (!response) {
+      response = await this.#fetchFileContentUsing(this.#octokit, fileParams);
+    }
+
+    return String(response.data);
+  }
+
+  async #fetchFileContentAnonymously(params: RestEndpointMethodTypes["repos"]["getContent"]["parameters"]) {
+    if (this.#isAnonymousOctokitFailed) return;
+    try {
+      return await this.#fetchFileContentUsing(this.#anonymousOctokit, params);
+    } catch (error) {
+      this.#isAnonymousOctokitFailed = true;
+      this.#logger.warn({
+        event: "FETCH_TEMPLATE_CONTENT_FAILED_ANONYMOUSLY",
+        owner: params.owner,
+        repo: params.repo,
+        path: params.path,
+        ref: params.ref,
+        error: error
+      });
+      return;
+    }
+  }
+
+  async #fetchFileContentUsing(octokit: Octokit, params: RestEndpointMethodTypes["repos"]["getContent"]["parameters"]) {
+    const response = await octokit.rest.repos.getContent({
+      ...params,
       mediaType: {
         format: "raw"
       }
     });
-
-    this.setGithubRequestsRemaining(response.headers["x-ratelimit-remaining"]);
-
     if (response.status !== 200) {
-      throw new Error(`Failed to fetch content from ${owner}/${repo}/${path}`);
+      throw new Error(`Failed to fetch content from ${params.owner}/${params.repo}/${params.path}`, {
+        cause: {
+          status: response.status,
+          data: response.data
+        }
+      });
     }
 
-    return String(response.data);
+    return response as unknown as Omit<RestEndpointMethodTypes["repos"]["getContent"]["response"], "data"> & { data: string };
   }
 
   private async fetchDirectoryContent(owner: string, repo: string, path: string, ref: string): Promise<GithubDirectoryItem[]> {
@@ -107,8 +135,6 @@ export class TemplateFetcherService {
         format: "raw"
       }
     });
-
-    this.setGithubRequestsRemaining(response.headers["x-ratelimit-remaining"]);
 
     if (!Array.isArray(response.data)) {
       throw new Error(`Failed to fetch directory content from ${owner}/${repo}/${path}`);
@@ -372,7 +398,7 @@ export class TemplateFetcherService {
 }
 
 interface FetcherOptions {
-  githubPAT?: string;
+  githubPAT: string;
   categoryProcessingConcurrency?: number;
   templateSourceProcessingConcurrency?: number;
 }
