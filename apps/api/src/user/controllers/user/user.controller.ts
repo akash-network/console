@@ -27,6 +27,7 @@ export class UserController {
   async registerUser(data: RegisterUserInput): Promise<RegisterUserResponse> {
     const { req, env, var: httpVars } = this.httpContext;
     const userId = await this.userAuthTokenService.getValidUserId(req.header("authorization") || "", env);
+    assert(userId, 401, "Invalid or expired token");
     const user = await this.userService.registerUser({
       userId,
       wantedUsername: data.wantedUsername,
