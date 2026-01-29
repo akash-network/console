@@ -29,7 +29,6 @@ import { dashboardRouter } from "./routers/dashboardRouter";
 import { deploymentRouter } from "./routers/deploymentApiRouter";
 import { internalRouter } from "./routers/internalRouter";
 import { legacyRouter } from "./routers/legacyRouter";
-import { userRouter } from "./routers/userRouter";
 import { web3IndexRouter } from "./routers/web3indexRouter";
 import { bytesToHumanReadableSize } from "./utils/files";
 import { addressRouter } from "./address";
@@ -70,7 +69,7 @@ import {
 } from "./provider";
 import { templatesRouter } from "./template";
 import { transactionsRouter } from "./transaction";
-import { getCurrentUserRouter, registerUserRouter } from "./user";
+import { getCurrentUserRouter, registerUserRouter, userSettingsRouter, userTemplatesRouter } from "./user";
 import { validatorsRouter } from "./validator";
 
 const appHono = new Hono<AppEnv>();
@@ -96,7 +95,8 @@ appHono.use(clientInfoMiddleware);
 
 appHono.route("/", legacyRouter);
 appHono.route("/", apiRouter);
-appHono.route("/user", userRouter);
+appHono.route("/user", userSettingsRouter);
+appHono.route("/user", userTemplatesRouter);
 appHono.route("/web3-index", web3IndexRouter);
 appHono.route("/dashboard", dashboardRouter);
 appHono.route("/internal", internalRouter);
