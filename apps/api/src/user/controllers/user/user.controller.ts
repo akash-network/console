@@ -49,9 +49,7 @@ export class UserController {
 
   async getUserByUsername(username: string) {
     const user = await this.userService.getUserByUsername(username);
-    if (!user) {
-      throw new Error("User not found");
-    }
+    assert(user, 404, "User not found");
     return user;
   }
 
@@ -79,9 +77,7 @@ export class UserController {
 
   async getTemplateById(templateId: string, userId: string = "") {
     const template = await this.userService.getTemplateById(templateId, userId);
-    if (!template) {
-      throw new Error("Template not found");
-    }
+    assert(template, 404, "Template not found");
     return template;
   }
 
@@ -106,9 +102,7 @@ export class UserController {
 
   async getTemplates(username: string, userId: string = "") {
     const templates = await this.userService.getTemplates(username, userId);
-    if (!templates) {
-      throw new Error("User not found.");
-    }
+    assert(templates, 404, "User not found.");
     return templates;
   }
 
