@@ -15,10 +15,7 @@ import { APP_INITIALIZER, ON_APP_START } from "@src/core/providers/app-initializ
 import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 import { PostgresLoggerService } from "@src/core/services/postgres-logger/postgres-logger.service";
 
-const indexerDbUri = container
-  .resolve(ChainConfigService)
-  .get("CHAIN_INDEXER_POSTGRES_DB_URI")
-  .replace("%DB_PASSWORD", encodeURIComponent(process.env.DB_PASSWORD || ""));
+const indexerDbUri = container.resolve(ChainConfigService).get("CHAIN_INDEXER_POSTGRES_DB_URI");
 const coreConfig = container.resolve(CoreConfigService);
 const dbUri = coreConfig.get("POSTGRES_DB_URI");
 
