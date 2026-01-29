@@ -23,16 +23,6 @@ export function providerStatusToDto(providerStatus: ProviderStatus, providerVers
   };
 }
 
-export function getNetworkCapacityDto(networkCapacity: any) {
-  return {
-    ...networkCapacity,
-    activeCPU: networkCapacity.activeCPU / 1000,
-    pendingCPU: networkCapacity.pendingCPU / 1000,
-    availableCPU: networkCapacity.availableCPU / 1000,
-    totalCPU: networkCapacity.totalCPU / 1000
-  };
-}
-
 export function getProviderLocalData(): LocalProviderData {
   const dataStr = localStorage.getItem(`${networkStore.selectedNetworkId}/provider.data`);
   if (!dataStr) {

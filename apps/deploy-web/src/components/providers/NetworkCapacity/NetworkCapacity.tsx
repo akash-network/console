@@ -1,4 +1,5 @@
 "use client";
+import { useMemo } from "react";
 import { useIntl } from "react-intl";
 import type { PieSvgProps, PieTooltipProps } from "@nivo/pie";
 import { ResponsivePie } from "@nivo/pie";
@@ -6,6 +7,7 @@ import { BasicTooltip } from "@nivo/tooltip";
 import { useTheme } from "next-themes";
 
 import useTailwind from "@src/hooks/useTailwind";
+import type { NetworkCapacityStats } from "@src/queries/useProvidersQuery";
 import { roundDecimal } from "@src/utils/mathHelpers";
 import { bytesToShrink } from "@src/utils/unitUtils";
 
@@ -18,28 +20,40 @@ type NetworkCapacityDatum = {
 };
 
 export interface Props {
-  activeCPU: number;
-  pendingCPU: number;
-  totalCPU: number;
-  activeGPU: number;
-  pendingGPU: number;
-  totalGPU: number;
-  activeMemory: number;
-  pendingMemory: number;
-  totalMemory: number;
-  activeStorage: number;
-  pendingStorage: number;
-  totalStorage: number;
-  activeEphemeralStorage: number;
-  pendingEphemeralStorage: number;
-  availableEphemeralStorage: number;
-  activePersistentStorage: number;
-  pendingPersistentStorage: number;
-  availablePersistentStorage: number;
+  stats: NetworkCapacityStats["resources"];
+  dependencies?: typeof DEPENDENCIES;
 }
 
-const NetworkCapacity: React.FunctionComponent<Props> = props => {
-  const { activeCPU, totalCPU, activeGPU, totalGPU, activeMemory, totalMemory, activeStorage, totalStorage } = props;
+export const DEPENDENCIES = {
+  ResponsivePie,
+  TooltipLabel
+};
+
+const NetworkCapacity: React.FunctionComponent<Props> = ({ stats, dependencies: d = DEPENDENCIES }) => {
+  const networkCapacity = useMemo(() => {
+    return {
+      activeCPU: stats.cpu.active / 1000,
+      pendingCPU: stats.cpu.pending / 1000,
+      totalCPU: stats.cpu.total / 1000,
+      activeGPU: stats.gpu.active,
+      pendingGPU: stats.gpu.pending,
+      totalGPU: stats.gpu.total,
+      activeMemory: stats.memory.active,
+      pendingMemory: stats.memory.pending,
+      totalMemory: stats.memory.total,
+      activeStorage: stats.storage.ephemeral.active + stats.storage.persistent.active,
+      pendingStorage: stats.storage.ephemeral.pending + stats.storage.persistent.pending,
+      totalStorage: stats.storage.total.total,
+      activeEphemeralStorage: stats.storage.ephemeral.active,
+      pendingEphemeralStorage: stats.storage.ephemeral.pending,
+      availableEphemeralStorage: stats.storage.ephemeral.available,
+      activePersistentStorage: stats.storage.persistent.active,
+      pendingPersistentStorage: stats.storage.persistent.pending,
+      availablePersistentStorage: stats.storage.persistent.available
+    };
+  }, [stats]);
+  const { activeCPU, totalCPU, activeGPU, totalGPU, activeMemory, totalMemory, activeStorage, totalStorage } = networkCapacity;
+
   const activeMemoryBytes = activeMemory;
   const availableMemoryBytes = totalMemory - activeMemory;
   const activeStorageBytes = activeStorage;
@@ -51,7 +65,7 @@ const NetworkCapacity: React.FunctionComponent<Props> = props => {
   const cpuData = useData(activeCPU, totalCPU - activeCPU);
   const gpuData = useData(activeGPU, totalGPU - activeGPU);
   const memoryData = useData(activeMemoryBytes, availableMemoryBytes);
-  const storageData = useStorageData(props);
+  const storageData = useStorageData(stats.storage);
   const pieTheme = usePieTheme();
   const intl = useIntl();
 
@@ -63,7 +77,7 @@ const NetworkCapacity: React.FunctionComponent<Props> = props => {
           {Math.round(activeCPU)}&nbsp;CPU&nbsp;/&nbsp;{Math.round(totalCPU)}&nbsp;CPU
         </p>
         <div className="flex h-[200px] w-[200px] items-center justify-center">
-          <ResponsivePie
+          <d.ResponsivePie
             data={cpuData}
             margin={{ top: 15, right: 15, bottom: 15, left: 0 }}
             innerRadius={0.3}
@@ -86,7 +100,7 @@ const NetworkCapacity: React.FunctionComponent<Props> = props => {
             enableArcLinkLabels={false}
             arcLabelsSkipAngle={30}
             theme={pieTheme}
-            tooltip={TooltipLabel}
+            tooltip={d.TooltipLabel}
           />
         </div>
       </div>
@@ -97,7 +111,7 @@ const NetworkCapacity: React.FunctionComponent<Props> = props => {
           {Math.round(activeGPU)}&nbsp;GPU&nbsp;/&nbsp;{Math.round(totalGPU)}&nbsp;GPU
         </p>
         <div className="flex h-[200px] w-[200px] items-center justify-center">
-          <ResponsivePie
+          <d.ResponsivePie
             data={gpuData}
             margin={{ top: 15, right: 15, bottom: 15, left: 0 }}
             innerRadius={0.3}
@@ -119,7 +133,7 @@ const NetworkCapacity: React.FunctionComponent<Props> = props => {
             enableArcLinkLabels={false}
             arcLabelsSkipAngle={30}
             theme={pieTheme}
-            tooltip={TooltipLabel}
+            tooltip={d.TooltipLabel}
           />
         </div>
       </div>
@@ -130,7 +144,7 @@ const NetworkCapacity: React.FunctionComponent<Props> = props => {
           {`${roundDecimal(_activeMemory.value, 2)} ${_activeMemory.unit}`}&nbsp;/&nbsp;{`${roundDecimal(_totalMemory.value, 2)} ${_totalMemory.unit}`}
         </p>
         <div className="flex h-[200px] w-[200px] items-center justify-center">
-          <ResponsivePie
+          <d.ResponsivePie
             data={memoryData}
             margin={{ top: 15, right: 15, bottom: 15, left: 15 }}
             innerRadius={0.3}
@@ -151,7 +165,7 @@ const NetworkCapacity: React.FunctionComponent<Props> = props => {
             enableArcLinkLabels={false}
             arcLabelsSkipAngle={30}
             theme={pieTheme}
-            tooltip={TooltipLabel}
+            tooltip={d.TooltipLabel}
           />
         </div>
       </div>
@@ -162,7 +176,7 @@ const NetworkCapacity: React.FunctionComponent<Props> = props => {
           {`${roundDecimal(_activeStorage.value, 2)} ${_activeStorage.unit}`}&nbsp;/&nbsp;{`${roundDecimal(_totalStorage.value, 2)} ${_totalStorage.unit}`}
         </p>
         <div className="flex h-[200px] w-[200px] items-center justify-center">
-          <ResponsivePie
+          <d.ResponsivePie
             data={storageData}
             margin={{ top: 15, right: 15, bottom: 15, left: 15 }}
             innerRadius={0.3}
@@ -182,7 +196,7 @@ const NetworkCapacity: React.FunctionComponent<Props> = props => {
             enableArcLinkLabels={false}
             arcLabelsSkipAngle={30}
             theme={pieTheme}
-            tooltip={TooltipLabel}
+            tooltip={d.TooltipLabel}
           />
         </div>
       </div>
@@ -210,34 +224,34 @@ const useData = (active: number, available: number): NetworkCapacityDatum[] => {
   ];
 };
 
-function useStorageData(props: Props): NetworkCapacityDatum[] {
+function useStorageData(storageStats: NetworkCapacityStats["resources"]["storage"]): NetworkCapacityDatum[] {
   const { resolvedTheme } = useTheme();
   const tw = useTailwind();
 
   return [
     {
       id: "active-ephemeral",
-      label: "Active emphemeral",
+      label: "Active ephemeral",
       color: tw.theme.colors["primary"].DEFAULT,
-      value: props.activeEphemeralStorage
+      value: storageStats.ephemeral.active
     },
     {
       id: "active-persistent",
       label: "Active persistent",
       color: tw.theme.colors["primary"].visited,
-      value: props.activePersistentStorage
+      value: storageStats.persistent.active
     },
     {
-      id: "available-emphemeral",
-      label: "Available emphemeral",
+      id: "available-ephemeral",
+      label: "Available ephemeral",
       color: resolvedTheme === "dark" ? tw.theme.colors.neutral[400] : tw.theme.colors.neutral[500],
-      value: props.availableEphemeralStorage + props.pendingEphemeralStorage
+      value: storageStats.ephemeral.available + storageStats.ephemeral.pending
     },
     {
       id: "available-persistent",
       label: "Available persistent",
       color: resolvedTheme === "dark" ? tw.theme.colors.neutral[600] : tw.theme.colors.neutral[300],
-      value: props.availablePersistentStorage + props.pendingPersistentStorage
+      value: storageStats.persistent.available + storageStats.persistent.pending
     }
   ];
 }
@@ -261,8 +275,8 @@ const usePieTheme = () => {
   };
 };
 
-const TooltipLabel = <R,>({ datum }: PieTooltipProps<R>) => (
-  <BasicTooltip id={datum.label} value={datum.formattedValue} enableChip={true} color={datum.color} />
-);
+function TooltipLabel<R>({ datum }: PieTooltipProps<R>) {
+  return <BasicTooltip id={datum.label} value={datum.formattedValue} enableChip={true} color={datum.color} />;
+}
 
 export default NetworkCapacity;

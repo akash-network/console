@@ -3,10 +3,19 @@ import { useQuery } from "@tanstack/react-query";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useScopedFetchProviderUrl } from "@src/hooks/useScopedFetchProviderUrl";
-import type { ApiProviderDetail, ApiProviderList, ApiProviderRegion, Auditor, ProviderStatus, ProviderStatusDto, ProviderVersion } from "@src/types/provider";
+import type {
+  ApiProviderDetail,
+  ApiProviderList,
+  ApiProviderRegion,
+  Auditor,
+  ProviderStatus,
+  ProviderStatusDto,
+  ProviderVersion,
+  StatsItem
+} from "@src/types/provider";
 import type { ProviderAttributesSchema } from "@src/types/providerAttributes";
 import { ApiUrlService } from "@src/utils/apiUtils";
-import { getNetworkCapacityDto, providerStatusToDto } from "@src/utils/providerUtils";
+import { providerStatusToDto } from "@src/utils/providerUtils";
 import { QueryKeys } from "./queryKeys";
 
 export function useProviderDetail(
@@ -52,9 +61,23 @@ export function useNetworkCapacity(options = {}) {
   const { publicConsoleApiHttpClient } = useServices();
   return useQuery({
     queryKey: QueryKeys.getNetworkCapacity(),
-    queryFn: () => publicConsoleApiHttpClient.get(ApiUrlService.networkCapacity()).then(response => getNetworkCapacityDto(response.data)),
+    queryFn: () => publicConsoleApiHttpClient.get<NetworkCapacityStats>(ApiUrlService.networkCapacity()).then(response => response.data),
     ...options
   });
+}
+
+export interface NetworkCapacityStats {
+  activeProviderCount: number;
+  resources: {
+    cpu: StatsItem;
+    gpu: StatsItem;
+    memory: StatsItem;
+    storage: {
+      ephemeral: StatsItem;
+      persistent: StatsItem;
+      total: StatsItem;
+    };
+  };
 }
 
 export function useAuditors(options = {}) {

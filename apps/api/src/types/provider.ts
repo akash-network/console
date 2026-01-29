@@ -29,36 +29,7 @@ export interface ProviderList {
     ram: string;
     interface: string;
   }>;
-  stats: {
-    cpu: StatsItem;
-    gpu: StatsItem;
-    memory: StatsItem;
-    storage: {
-      ephemeral: StatsItem;
-      persistent: StatsItem;
-    };
-  };
-  /** @deprecated use `stats` instead */
-  activeStats: {
-    cpu: number;
-    gpu: number;
-    memory: number;
-    storage: number;
-  };
-  /** @deprecated use `stats` instead */
-  pendingStats: {
-    cpu: number;
-    gpu: number;
-    memory: number;
-    storage: number;
-  };
-  /** @deprecated use `stats` instead */
-  availableStats: {
-    cpu: number;
-    gpu: number;
-    memory: number;
-    storage: number;
-  };
+  stats: ProviderCapacityStats;
   attributes: Array<{
     key: string;
     value: string;
@@ -93,6 +64,17 @@ export interface ProviderList {
   featEndpointIp: boolean;
 }
 
+export interface ProviderCapacityStats {
+  cpu: StatsItem;
+  gpu: StatsItem;
+  memory: StatsItem;
+  storage: {
+    ephemeral: StatsItem;
+    persistent: StatsItem;
+    total: StatsItem;
+  };
+}
+
 export interface ProviderDetail extends ProviderList {
   uptime: {
     id: string;
@@ -105,4 +87,5 @@ export interface StatsItem {
   active: number;
   available: number;
   pending: number;
+  total: number;
 }

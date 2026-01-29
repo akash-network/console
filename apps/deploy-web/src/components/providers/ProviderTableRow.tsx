@@ -27,17 +27,24 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
   const router = useRouter();
   const { favoriteProviders, updateFavoriteProviders } = useLocalNotes();
   const isFavorite = favoriteProviders.some(x => provider.owner === x);
-  const activeCPU = provider.isOnline ? provider.activeStats.cpu / 1000 : 0;
-  const pendingCPU = provider.isOnline ? provider.pendingStats.cpu / 1000 : 0;
-  const totalCPU = provider.isOnline ? (provider.availableStats.cpu + provider.pendingStats.cpu + provider.activeStats.cpu) / 1000 : 0;
-  const activeGPU = provider.isOnline ? provider.activeStats.gpu : 0;
-  const pendingGPU = provider.isOnline ? provider.pendingStats.gpu : 0;
-  const totalGPU = provider.isOnline ? provider.availableStats.gpu + provider.pendingStats.gpu + provider.activeStats.gpu : 0;
-  const _activeMemory = provider.isOnline ? bytesToShrink(provider.activeStats.memory + provider.pendingStats.memory) : null;
-  const _totalMemory = provider.isOnline ? bytesToShrink(provider.availableStats.memory + provider.pendingStats.memory + provider.activeStats.memory) : null;
-  const _activeStorage = provider.isOnline ? bytesToShrink(provider.activeStats.storage + provider.pendingStats.storage) : null;
+  const activeCPU = provider.isOnline ? provider.stats.cpu.active / 1000 : 0;
+  const pendingCPU = provider.isOnline ? provider.stats.cpu.pending / 1000 : 0;
+  const totalCPU = provider.isOnline ? (provider.stats.cpu.available + provider.stats.cpu.pending + provider.stats.cpu.active) / 1000 : 0;
+  const activeGPU = provider.isOnline ? provider.stats.gpu.active : 0;
+  const pendingGPU = provider.isOnline ? provider.stats.gpu.pending : 0;
+  const totalGPU = provider.isOnline ? provider.stats.gpu.available + provider.stats.gpu.pending + provider.stats.gpu.active : 0;
+  const _activeMemory = provider.isOnline ? bytesToShrink(provider.stats.memory.active) : null;
+  const _totalMemory = provider.isOnline ? bytesToShrink(provider.stats.memory.available + provider.stats.memory.pending + provider.stats.memory.active) : null;
+  const _activeStorage = provider.isOnline ? bytesToShrink(provider.stats.storage.ephemeral.active + provider.stats.storage.persistent.active) : null;
   const _totalStorage = provider.isOnline
-    ? bytesToShrink(provider.availableStats.storage + provider.pendingStats.storage + provider.activeStats.storage)
+    ? bytesToShrink(
+        provider.stats.storage.ephemeral.available +
+          provider.stats.storage.ephemeral.pending +
+          provider.stats.storage.ephemeral.active +
+          provider.stats.storage.persistent.available +
+          provider.stats.storage.persistent.pending +
+          provider.stats.storage.persistent.active
+      )
     : null;
   const gpuModels = provider.gpuModels.map(x => x.model).filter(createFilterUnique());
 
@@ -167,8 +174,8 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
           <div className="flex items-center">
             <CapacityIcon
               value={
-                (provider.activeStats.memory + provider.pendingStats.memory) /
-                (provider.availableStats.memory + provider.pendingStats.memory + provider.activeStats.memory)
+                (provider.stats.memory.active + provider.stats.memory.pending) /
+                (provider.stats.memory.available + provider.stats.memory.pending + provider.stats.memory.active)
               }
               fontSize="small"
             />
@@ -185,8 +192,16 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
           <div className="flex items-center">
             <CapacityIcon
               value={
-                (provider.activeStats.storage + provider.pendingStats.storage) /
-                (provider.availableStats.storage + provider.pendingStats.storage + provider.activeStats.storage)
+                (provider.stats.storage.ephemeral.active +
+                  provider.stats.storage.ephemeral.pending +
+                  provider.stats.storage.persistent.active +
+                  provider.stats.storage.persistent.pending) /
+                (provider.stats.storage.ephemeral.available +
+                  provider.stats.storage.ephemeral.pending +
+                  provider.stats.storage.ephemeral.active +
+                  provider.stats.storage.persistent.available +
+                  provider.stats.storage.persistent.pending +
+                  provider.stats.storage.persistent.active)
               }
               fontSize="small"
             />

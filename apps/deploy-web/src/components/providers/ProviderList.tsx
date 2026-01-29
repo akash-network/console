@@ -33,7 +33,7 @@ import { Title } from "../shared/Title";
 import { ProviderMap } from "./ProviderMap";
 import { ProviderTable } from "./ProviderTable";
 
-const NetworkCapacity = dynamic(() => import("./NetworkCapacity"), {
+const NetworkCapacity = dynamic(() => import("./NetworkCapacity/NetworkCapacity"), {
   ssr: false
 });
 
@@ -125,8 +125,8 @@ export const ProviderList: React.FunctionComponent = () => {
         } else if (sort === "my-active-leases-desc") {
           return b.userActiveLeases - a.userActiveLeases;
         } else if (sort === "gpu-available-desc") {
-          const totalGpuB = b.availableStats.gpu + b.pendingStats.gpu + b.activeStats.gpu;
-          const totalGpuA = a.availableStats.gpu + a.pendingStats.gpu + a.activeStats.gpu;
+          const totalGpuB = b.stats.gpu.available + b.stats.gpu.pending + b.stats.gpu.active;
+          const totalGpuA = a.stats.gpu.available + a.stats.gpu.pending + a.stats.gpu.active;
           return totalGpuB - totalGpuA;
         } else {
           return 1;
@@ -201,7 +201,7 @@ export const ProviderList: React.FunctionComponent = () => {
 
       {providers && networkCapacity && (
         <div className="mb-8">
-          <NetworkCapacity {...networkCapacity} />
+          <NetworkCapacity stats={networkCapacity.resources} />
         </div>
       )}
 

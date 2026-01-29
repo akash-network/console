@@ -14,13 +14,22 @@ export const mapProviderToList = (
   const isValidSdkVersion = provider.cosmosSdkVersion ? semver.gte(provider.cosmosSdkVersion, "v0.45.9") : false;
   const name = provider.isOnline ? new URL(provider.hostUri).hostname : null;
   const gpuModels = getDistinctGpuModelsFromNodes(lastSuccessfulSnapshot?.nodes || []);
+  const storage = {
+    ephemeral: buildStatsItem("EphemeralStorage", lastSuccessfulSnapshot, isValidSdkVersion),
+    persistent: buildStatsItem("PersistentStorage", lastSuccessfulSnapshot, isValidSdkVersion)
+  };
   const stats: ProviderList["stats"] = {
     cpu: buildStatsItem("CPU", lastSuccessfulSnapshot, isValidSdkVersion),
     gpu: buildStatsItem("GPU", lastSuccessfulSnapshot, isValidSdkVersion),
     memory: buildStatsItem("Memory", lastSuccessfulSnapshot, isValidSdkVersion),
     storage: {
-      ephemeral: buildStatsItem("EphemeralStorage", lastSuccessfulSnapshot, isValidSdkVersion),
-      persistent: buildStatsItem("PersistentStorage", lastSuccessfulSnapshot, isValidSdkVersion)
+      ...storage,
+      total: {
+        active: storage.ephemeral.active + storage.persistent.active,
+        available: storage.ephemeral.available + storage.persistent.available,
+        pending: storage.ephemeral.pending + storage.persistent.pending,
+        total: storage.ephemeral.total + storage.persistent.total
+      }
     }
   };
 
@@ -43,9 +52,6 @@ export const mapProviderToList = (
     ipLat: provider.ipLat || null,
     ipLon: provider.ipLon || null,
     stats,
-    activeStats: buildLegacyStatsItem(stats, "active"),
-    pendingStats: buildLegacyStatsItem(stats, "pending"),
-    availableStats: buildLegacyStatsItem(stats, "available"),
     gpuModels: gpuModels,
     uptime1d: provider.uptime1d || null,
     uptime7d: provider.uptime7d || null,
@@ -95,24 +101,21 @@ function buildStatsItem<T extends StatsEntry>(suffix: T, snapshot: ProviderSnaps
     return {
       active: snapshot?.[`active${suffix}`] || 0,
       available: 0,
-      pending: 0
+      pending: 0,
+      total: 0
     };
   }
 
-  return {
+  const item: StatsItem = {
     active: snapshot?.[`active${suffix}`] || 0,
     available: snapshot?.[`available${suffix}`] || 0,
-    pending: snapshot?.[`pending${suffix}`] || 0
+    pending: snapshot?.[`pending${suffix}`] || 0,
+    total: 0
   };
-}
 
-function buildLegacyStatsItem(stats: ProviderList["stats"], type: keyof StatsItem) {
-  return {
-    cpu: stats.cpu[type],
-    gpu: stats.gpu[type],
-    memory: stats.memory[type],
-    storage: stats.storage.ephemeral[type] + stats.storage.persistent[type]
-  };
+  item.total = item.active + item.available + item.pending;
+
+  return item;
 }
 
 function getDistinctGpuModelsFromNodes(nodes: ProviderSnapshotNode[]) {

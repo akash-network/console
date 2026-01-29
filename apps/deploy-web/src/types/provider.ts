@@ -57,24 +57,6 @@ export interface ApiProvider {
     value: string;
     auditedBy: Array<string>;
   }>;
-  activeStats: {
-    cpu: number;
-    gpu: number;
-    memory: number;
-    storage: number;
-  };
-  pendingStats: {
-    cpu: number;
-    gpu: number;
-    memory: number;
-    storage: number;
-  };
-  availableStats: {
-    cpu: number;
-    gpu: number;
-    memory: number;
-    storage: number;
-  };
   isValidVersion: boolean;
 }
 
@@ -208,27 +190,6 @@ export interface ApiProviderList {
   lastOnlineDate: string;
   isAudited: boolean;
   gpuModels: { vendor: string; model: string; ram: string; interface: string }[];
-  /** @deprecated use `stats` instead */
-  activeStats: {
-    cpu: number;
-    gpu: number;
-    memory: number;
-    storage: number;
-  };
-  /** @deprecated use `stats` instead */
-  pendingStats: {
-    cpu: number;
-    gpu: number;
-    memory: number;
-    storage: number;
-  };
-  /** @deprecated use `stats` instead */
-  availableStats: {
-    cpu: number;
-    gpu: number;
-    memory: number;
-    storage: number;
-  };
   stats: {
     cpu: StatsItem;
     gpu: StatsItem;
@@ -236,6 +197,7 @@ export interface ApiProviderList {
     storage: {
       ephemeral: StatsItem;
       persistent: StatsItem;
+      total: StatsItem;
     };
   };
   attributes: Array<{
@@ -309,4 +271,5 @@ export interface StatsItem {
   active: number;
   available: number;
   pending: number;
+  total: number;
 }

@@ -3,7 +3,6 @@ import { Day } from "@akashnetwork/database/dbSchemas/base";
 import { CoinGeckoHttpService, CosmosHttpService } from "@akashnetwork/http-sdk";
 import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { differenceInSeconds, minutesToSeconds, sub, subHours } from "date-fns";
-import { cloneDeep } from "lodash";
 import uniqBy from "lodash/uniqBy";
 import { Op, QueryTypes } from "sequelize";
 import { inject, singleton } from "tsyringe";
@@ -16,7 +15,9 @@ import type { DashboardConfig } from "@src/dashboard/providers/config.provider";
 import { DASHBOARD_CONFIG } from "@src/dashboard/providers/config.provider";
 import { chainDb } from "@src/db/dbConnection";
 import { AuthorizedGraphDataName } from "@src/services/db/statsService";
+import { ProviderCapacityStats, StatsItem } from "@src/types/provider";
 import { toUTC } from "@src/utils";
+import { forEachInChunks } from "@src/utils/array/array";
 import { createLoggingExecutor } from "@src/utils/logging";
 
 const numberOrZero: (x: number | undefined | null) => number = (x: number | undefined | null) => (typeof x === "number" ? x : 0);
@@ -57,7 +58,9 @@ export const emptyNetworkCapacity = {
   availableEphemeralStorage: 0,
   activePersistentStorage: 0,
   pendingPersistentStorage: 0,
-  availablePersistentStorage: 0
+  availablePersistentStorage: 0,
+  totalEphemeralStorage: 0,
+  totalPersistentStorage: 0
 };
 
 @singleton()
@@ -276,29 +279,29 @@ export class StatsService {
 
   @Memoize({ ttlInSeconds: minutesToSeconds(5) })
   async getChainStats() {
-    const bondedTokensAsPromised = await runOrLog(async () => {
+    const bondedTokensAsPromised = runOrLog(async () => {
       const stakingPool = await this.cosmosHttpService.getStakingPool();
 
       return parseInt(stakingPool.bonded_tokens);
     }, 0);
 
-    const totalSupplyAsPromised = await runOrLog(async () => {
+    const totalSupplyAsPromised = runOrLog(async () => {
       const supply = await this.cosmosHttpService.getBankSupply();
 
       return parseInt(supply.find(x => x.denom === "uakt")?.amount || "0");
     }, 0);
 
-    const communityPoolAsPromised = await runOrLog(async () => {
+    const communityPoolAsPromised = runOrLog(async () => {
       const pool = await this.cosmosHttpService.getCommunityPool();
 
       return parseFloat(pool.find(x => x.denom === "uakt")?.amount || "0");
     }, 0);
 
-    const inflationAsPromised = await runOrLog(async () => {
+    const inflationAsPromised = runOrLog(async () => {
       return await this.cosmosHttpService.getInflation();
     }, 0);
 
-    const communityTaxAsPromised = await runOrLog(async () => {
+    const communityTaxAsPromised = runOrLog(async () => {
       const params = await this.cosmosHttpService.getDistributionParams();
 
       return parseFloat(params.community_tax || "0");
@@ -326,8 +329,45 @@ export class StatsService {
     };
   }
 
+  async getLegacyNetworkCapacity() {
+    const capacity = await this.getNetworkCapacity();
+
+    return {
+      activeProviderCount: capacity.activeProviderCount,
+      activeCPU: capacity.resources.cpu.active,
+      pendingCPU: capacity.resources.cpu.pending,
+      availableCPU: capacity.resources.cpu.available,
+      totalCPU: capacity.resources.cpu.total,
+
+      activeGPU: capacity.resources.gpu.active,
+      pendingGPU: capacity.resources.gpu.pending,
+      availableGPU: capacity.resources.gpu.available,
+      totalGPU: capacity.resources.gpu.total,
+
+      activeMemory: capacity.resources.memory.active,
+      pendingMemory: capacity.resources.memory.pending,
+      availableMemory: capacity.resources.memory.available,
+      totalMemory: capacity.resources.memory.total,
+
+      activeEphemeralStorage: capacity.resources.storage.ephemeral.active,
+      pendingEphemeralStorage: capacity.resources.storage.ephemeral.pending,
+      availableEphemeralStorage: capacity.resources.storage.ephemeral.available,
+      totalEphemeralStorage: capacity.resources.storage.ephemeral.total,
+
+      activePersistentStorage: capacity.resources.storage.persistent.active,
+      pendingPersistentStorage: capacity.resources.storage.persistent.pending,
+      availablePersistentStorage: capacity.resources.storage.persistent.available,
+      totalPersistentStorage: capacity.resources.storage.persistent.total,
+
+      activeStorage: capacity.resources.storage.total.active,
+      pendingStorage: capacity.resources.storage.total.pending,
+      availableStorage: capacity.resources.storage.total.available,
+      totalStorage: capacity.resources.storage.total.total
+    };
+  }
+
   @Memoize({ ttlInSeconds: 15 })
-  async getNetworkCapacity() {
+  async getNetworkCapacity(): Promise<{ resources: ProviderCapacityStats; activeProviderCount: number }> {
     const providers = await Provider.findAll({
       where: {
         deletedHeight: null
@@ -343,41 +383,56 @@ export class StatsService {
     });
 
     const filteredProviders = uniqBy(providers, provider => provider.hostUri);
-    const stats = filteredProviders.reduce((all, provider) => {
-      all.activeCPU += provider.lastSuccessfulSnapshot.activeCPU || 0;
-      all.pendingCPU += provider.lastSuccessfulSnapshot.pendingCPU || 0;
-      all.availableCPU += provider.lastSuccessfulSnapshot.availableCPU || 0;
+    const stats = {
+      cpu: buildStatItem(0, 0, 0),
+      gpu: buildStatItem(0, 0, 0),
+      memory: buildStatItem(0, 0, 0),
+      storage: {
+        ephemeral: buildStatItem(0, 0, 0),
+        persistent: buildStatItem(0, 0, 0),
+        total: buildStatItem(0, 0, 0)
+      }
+    };
 
-      all.activeGPU += provider.lastSuccessfulSnapshot.activeGPU || 0;
-      all.pendingGPU += provider.lastSuccessfulSnapshot.pendingGPU || 0;
-      all.availableGPU += provider.lastSuccessfulSnapshot.availableGPU || 0;
+    await forEachInChunks(
+      filteredProviders,
+      provider => {
+        stats.cpu.active += provider.lastSuccessfulSnapshot.activeCPU || 0;
+        stats.cpu.pending += provider.lastSuccessfulSnapshot.pendingCPU || 0;
+        stats.cpu.available += provider.lastSuccessfulSnapshot.availableCPU || 0;
+        stats.cpu.total = stats.cpu.active + stats.cpu.pending + stats.cpu.available;
 
-      all.activeMemory += provider.lastSuccessfulSnapshot.activeMemory || 0;
-      all.pendingMemory += provider.lastSuccessfulSnapshot.pendingMemory || 0;
-      all.availableMemory += provider.lastSuccessfulSnapshot.availableMemory || 0;
+        stats.gpu.active += provider.lastSuccessfulSnapshot.activeGPU || 0;
+        stats.gpu.pending += provider.lastSuccessfulSnapshot.pendingGPU || 0;
+        stats.gpu.available += provider.lastSuccessfulSnapshot.availableGPU || 0;
+        stats.gpu.total = stats.gpu.active + stats.gpu.pending + stats.gpu.available;
 
-      all.activeEphemeralStorage += provider.lastSuccessfulSnapshot.activeEphemeralStorage || 0;
-      all.pendingEphemeralStorage += provider.lastSuccessfulSnapshot.pendingEphemeralStorage || 0;
-      all.availableEphemeralStorage += provider.lastSuccessfulSnapshot.availableEphemeralStorage || 0;
+        stats.memory.active += provider.lastSuccessfulSnapshot.activeMemory || 0;
+        stats.memory.pending += provider.lastSuccessfulSnapshot.pendingMemory || 0;
+        stats.memory.available += provider.lastSuccessfulSnapshot.availableMemory || 0;
+        stats.memory.total = stats.memory.active + stats.memory.pending + stats.memory.available;
 
-      all.activePersistentStorage += provider.lastSuccessfulSnapshot.activePersistentStorage || 0;
-      all.pendingPersistentStorage += provider.lastSuccessfulSnapshot.pendingPersistentStorage || 0;
-      all.availablePersistentStorage += provider.lastSuccessfulSnapshot.availablePersistentStorage || 0;
+        stats.storage.ephemeral.active += provider.lastSuccessfulSnapshot.activeEphemeralStorage || 0;
+        stats.storage.ephemeral.pending += provider.lastSuccessfulSnapshot.pendingEphemeralStorage || 0;
+        stats.storage.ephemeral.available += provider.lastSuccessfulSnapshot.availableEphemeralStorage || 0;
+        stats.storage.ephemeral.total = stats.storage.ephemeral.active + stats.storage.ephemeral.pending + stats.storage.ephemeral.available;
 
-      return all;
-    }, cloneDeep(emptyNetworkCapacity));
+        stats.storage.persistent.active += provider.lastSuccessfulSnapshot.activePersistentStorage || 0;
+        stats.storage.persistent.pending += provider.lastSuccessfulSnapshot.pendingPersistentStorage || 0;
+        stats.storage.persistent.available += provider.lastSuccessfulSnapshot.availablePersistentStorage || 0;
+        stats.storage.persistent.total = stats.storage.persistent.active + stats.storage.persistent.pending + stats.storage.persistent.available;
+      },
+      { maxTimeSpentPerChunk: 15 }
+    );
 
-    stats.activeStorage = stats.activeEphemeralStorage + stats.activePersistentStorage;
-    stats.pendingStorage = stats.pendingEphemeralStorage + stats.pendingPersistentStorage;
-    stats.availableStorage = stats.availableEphemeralStorage + stats.availablePersistentStorage;
+    stats.storage.total.active = stats.storage.ephemeral.active + stats.storage.persistent.active;
+    stats.storage.total.pending = stats.storage.ephemeral.pending + stats.storage.persistent.pending;
+    stats.storage.total.available = stats.storage.ephemeral.available + stats.storage.persistent.available;
+    stats.storage.total.total = stats.storage.ephemeral.total + stats.storage.persistent.total;
 
     return {
-      ...stats,
-      activeProviderCount: filteredProviders.length,
-      totalCPU: stats.activeCPU + stats.pendingCPU + stats.availableCPU,
-      totalGPU: stats.activeGPU + stats.pendingGPU + stats.availableGPU,
-      totalMemory: stats.activeMemory + stats.pendingMemory + stats.availableMemory,
-      totalStorage: stats.activeStorage + stats.pendingStorage + stats.availableStorage
+      resources: stats,
+      activeProviderCount: filteredProviders.length
     };
   }
 
@@ -439,4 +494,13 @@ export class StatsService {
       leases
     };
   }
+}
+
+function buildStatItem(active: number, pending: number, available: number): StatsItem {
+  return {
+    active,
+    pending,
+    available,
+    total: active + pending + available
+  };
 }
