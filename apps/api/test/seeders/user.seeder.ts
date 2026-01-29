@@ -19,6 +19,7 @@ export class UserSeeder {
     lastIp = faker.internet.ip(),
     lastUserAgent = faker.internet.userAgent(),
     lastFingerprint = faker.word.noun(),
+    isBlocked = false,
     createdAt = faker.date.recent(),
     trial = false
   }: Partial<UserOutput> = {}): UserOutput {
@@ -38,6 +39,7 @@ export class UserSeeder {
       lastIp,
       lastUserAgent,
       lastFingerprint,
+      isBlocked,
       createdAt,
       trial
     };

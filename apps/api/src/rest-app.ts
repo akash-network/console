@@ -10,6 +10,7 @@ import { container } from "tsyringe";
 
 import { verifyEmailRouter } from "./auth/routes/verify-email/verify-email.router";
 import { AuthInterceptor } from "./auth/services/auth.interceptor";
+import { BlockedUserInterceptor } from "./auth/services/blocked-user.interceptor";
 import { bidsRouter } from "./bid/routes/bids/bids.router";
 import { certificateRouter } from "./certificate/routes/certificate.router";
 import { HonoErrorHandlerService } from "./core/services/hono-error-handler/hono-error-handler.service";
@@ -93,6 +94,7 @@ appHono.use("*", compress());
 appHono.use(container.resolve(HttpLoggerInterceptor).intercept());
 appHono.use(container.resolve(RequestContextInterceptor).intercept());
 appHono.use(container.resolve(AuthInterceptor).intercept());
+appHono.use(container.resolve(BlockedUserInterceptor).intercept());
 appHono.use(cacheControlMiddleware);
 appHono.use(clientInfoMiddleware);
 

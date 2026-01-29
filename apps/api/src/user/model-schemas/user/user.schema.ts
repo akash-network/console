@@ -24,6 +24,7 @@ export const Users = pgTable("userSetting", {
   lastIp: varchar("last_ip", { length: 255 }),
   lastUserAgent: varchar("last_user_agent", { length: userAgentMaxLength }),
   lastFingerprint: varchar("last_fingerprint", { length: 255 }),
+  isBlocked: boolean("is_blocked").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow()
 });
 

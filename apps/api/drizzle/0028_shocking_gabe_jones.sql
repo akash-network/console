@@ -1,0 +1,1 @@
+ALTER TABLE "userSetting" ADD COLUMN "is_blocked" boolean DEFAULT false NOT NULL;

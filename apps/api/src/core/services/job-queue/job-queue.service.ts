@@ -216,6 +216,7 @@ export class JobQueueService implements Disposable {
                 githubUsername: null,
                 userId: "system:bg-job-user",
                 username: "___bg_job_user___",
+                isBlocked: false,
                 trial: false
               });
               this.executionContextService.set("ABILITY", createMongoAbility<MongoAbility>());

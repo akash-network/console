@@ -98,6 +98,16 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
     };
   }
 
+  async blockUser(id: UserOutput["id"]): Promise<UserOutput | undefined> {
+    const [item] = await this.cursor.update(this.table).set({ isBlocked: true }).where(eq(this.table.id, id)).returning();
+    return item ? this.toOutput(item) : undefined;
+  }
+
+  async unblockUser(id: UserOutput["id"]): Promise<UserOutput | undefined> {
+    const [item] = await this.cursor.update(this.table).set({ isBlocked: false }).where(eq(this.table.id, id)).returning();
+    return item ? this.toOutput(item) : undefined;
+  }
+
   toInput(payload: Partial<UserInput>): Partial<UserInput> {
     if (!payload.lastUserAgent) return payload;
     return {
