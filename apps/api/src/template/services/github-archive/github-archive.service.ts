@@ -1,4 +1,7 @@
+import { LRUCache } from "lru-cache";
 import yauzl from "yauzl";
+
+import type { LoggerService } from "@src/core";
 
 export interface DirectoryEntry {
   name: string;
@@ -17,7 +20,12 @@ interface ParsedArchive {
 }
 
 export class GitHubArchiveService {
-  readonly #cache = new Map<string, Promise<ArchiveReader>>();
+  readonly #cache = new LRUCache<string, Promise<ArchiveReader>>({ max: 10 });
+  readonly #logger: LoggerService;
+
+  constructor(logger: LoggerService) {
+    this.#logger = logger;
+  }
 
   async getArchive(owner: string, repo: string, ref: string): Promise<ArchiveReader> {
     const cacheKey = `${owner}/${repo}/${ref}`;
@@ -94,6 +102,11 @@ export class GitHubArchiveService {
 
           zipfile.openReadStream(entry, (streamErr, readStream) => {
             if (streamErr || !readStream) {
+              this.#logger.warn({
+                event: "ARCHIVE_OPEN_READ_STREAM_FAILED",
+                relativePath,
+                error: streamErr ?? new Error("readStream is null")
+              });
               zipfile.readEntry();
               return;
             }
@@ -104,7 +117,14 @@ export class GitHubArchiveService {
               files.set(relativePath, Buffer.concat(chunks).toString("utf-8"));
               zipfile.readEntry();
             });
-            readStream.on("error", () => zipfile.readEntry());
+            readStream.on("error", (error: Error) => {
+              this.#logger.warn({
+                event: "ARCHIVE_READ_STREAM_ERROR",
+                relativePath,
+                error
+              });
+              zipfile.readEntry();
+            });
           });
         });
 

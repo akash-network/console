@@ -261,38 +261,39 @@ describe(TemplateFetcherService.name, () => {
         logo_URIs: { svg: "https://osmosis.zone/logo.svg" }
       };
 
-      mockArchive(archiveService, async () =>
-        createMockArchiveReader({
-          files: {
-            "cosmos/README.md": "# README content",
-            "cosmos/deploy.yaml": "deploy: content",
-            "osmosis/README.md": "# README content",
-            "osmosis/deploy.yaml": "deploy: content"
-          },
-          directories: {
-            "": [
-              { name: "cosmos", path: "cosmos", type: "dir" },
-              { name: "osmosis", path: "osmosis", type: "dir" },
-              { name: ".github", path: ".github", type: "dir" },
-              { name: "_scripts", path: "_scripts", type: "dir" },
-              { name: "README.md", path: "README.md", type: "file" }
-            ],
-            cosmos: [
-              { name: "README.md", path: "cosmos/README.md", type: "file" },
-              { name: "deploy.yaml", path: "cosmos/deploy.yaml", type: "file" }
-            ],
-            osmosis: [
-              { name: "README.md", path: "osmosis/README.md", type: "file" },
-              { name: "deploy.yaml", path: "osmosis/deploy.yaml", type: "file" }
-            ]
-          }
-        })
+      mockArchiveWithChainRegistry(
+        archiveService,
+        async () =>
+          createMockArchiveReader({
+            files: {
+              "cosmos/README.md": "# README content",
+              "cosmos/deploy.yaml": "deploy: content",
+              "osmosis/README.md": "# README content",
+              "osmosis/deploy.yaml": "deploy: content"
+            },
+            directories: {
+              "": [
+                { name: "cosmos", path: "cosmos", type: "dir" },
+                { name: "osmosis", path: "osmosis", type: "dir" },
+                { name: ".github", path: ".github", type: "dir" },
+                { name: "_scripts", path: "_scripts", type: "dir" },
+                { name: "README.md", path: "README.md", type: "file" }
+              ],
+              cosmos: [
+                { name: "README.md", path: "cosmos/README.md", type: "file" },
+                { name: "deploy.yaml", path: "cosmos/deploy.yaml", type: "file" }
+              ],
+              osmosis: [
+                { name: "README.md", path: "osmosis/README.md", type: "file" },
+                { name: "deploy.yaml", path: "osmosis/deploy.yaml", type: "file" }
+              ]
+            }
+          }),
+        {
+          cosmos: cosmosChainData,
+          osmosis: osmosisChainData
+        }
       );
-
-      mockFetchChainRegistry({
-        cosmos: cosmosChainData,
-        osmosis: osmosisChainData
-      });
 
       templateProcessor.processTemplate.mockReturnValue(createTemplate({ id: "processed" }));
 
@@ -311,29 +312,30 @@ describe(TemplateFetcherService.name, () => {
         logo_URIs: {}
       };
 
-      mockArchive(archiveService, async () =>
-        createMockArchiveReader({
-          files: {
-            "cosmos/README.md": "content",
-            "cosmos/deploy.yaml": "content"
-          },
-          directories: {
-            "": [
-              { name: "cosmos", path: "cosmos", type: "dir" },
-              { name: ".hidden", path: ".hidden", type: "dir" },
-              { name: "_internal", path: "_internal", type: "dir" }
-            ],
-            cosmos: [
-              { name: "README.md", path: "cosmos/README.md", type: "file" },
-              { name: "deploy.yaml", path: "cosmos/deploy.yaml", type: "file" }
-            ]
-          }
-        })
+      mockArchiveWithChainRegistry(
+        archiveService,
+        async () =>
+          createMockArchiveReader({
+            files: {
+              "cosmos/README.md": "content",
+              "cosmos/deploy.yaml": "content"
+            },
+            directories: {
+              "": [
+                { name: "cosmos", path: "cosmos", type: "dir" },
+                { name: ".hidden", path: ".hidden", type: "dir" },
+                { name: "_internal", path: "_internal", type: "dir" }
+              ],
+              cosmos: [
+                { name: "README.md", path: "cosmos/README.md", type: "file" },
+                { name: "deploy.yaml", path: "cosmos/deploy.yaml", type: "file" }
+              ]
+            }
+          }),
+        {
+          cosmos: cosmosChainData
+        }
       );
-
-      mockFetchChainRegistry({
-        cosmos: cosmosChainData
-      });
 
       templateProcessor.processTemplate.mockReturnValue(createTemplate({ id: "t1" }));
 
@@ -346,23 +348,24 @@ describe(TemplateFetcherService.name, () => {
     it("uses default summary when chain registry fetch fails", async () => {
       const { service, archiveService, templateProcessor, logger } = setup();
 
-      mockArchive(archiveService, async () =>
-        createMockArchiveReader({
-          files: {
-            "unknown-chain/README.md": "content",
-            "unknown-chain/deploy.yaml": "content"
-          },
-          directories: {
-            "": [{ name: "unknown-chain", path: "unknown-chain", type: "dir" }],
-            "unknown-chain": [
-              { name: "README.md", path: "unknown-chain/README.md", type: "file" },
-              { name: "deploy.yaml", path: "unknown-chain/deploy.yaml", type: "file" }
-            ]
-          }
-        })
+      mockArchiveWithChainRegistry(
+        archiveService,
+        async () =>
+          createMockArchiveReader({
+            files: {
+              "unknown-chain/README.md": "content",
+              "unknown-chain/deploy.yaml": "content"
+            },
+            directories: {
+              "": [{ name: "unknown-chain", path: "unknown-chain", type: "dir" }],
+              "unknown-chain": [
+                { name: "README.md", path: "unknown-chain/README.md", type: "file" },
+                { name: "deploy.yaml", path: "unknown-chain/deploy.yaml", type: "file" }
+              ]
+            }
+          }),
+        {}
       );
-
-      mockFetchChainRegistry({});
 
       templateProcessor.processTemplate.mockReturnValue(createTemplate({ id: "t1" }));
 
@@ -382,31 +385,67 @@ describe(TemplateFetcherService.name, () => {
         logo_URIs: { png: "https://first.png", svg: "https://second.svg" }
       };
 
-      mockArchive(archiveService, async () =>
-        createMockArchiveReader({
-          files: {
-            "cosmos/README.md": "content",
-            "cosmos/deploy.yaml": "content"
-          },
-          directories: {
-            "": [{ name: "cosmos", path: "cosmos", type: "dir" }],
-            cosmos: [
-              { name: "README.md", path: "cosmos/README.md", type: "file" },
-              { name: "deploy.yaml", path: "cosmos/deploy.yaml", type: "file" }
-            ]
-          }
-        })
+      mockArchiveWithChainRegistry(
+        archiveService,
+        async () =>
+          createMockArchiveReader({
+            files: {
+              "cosmos/README.md": "content",
+              "cosmos/deploy.yaml": "content"
+            },
+            directories: {
+              "": [{ name: "cosmos", path: "cosmos", type: "dir" }],
+              cosmos: [
+                { name: "README.md", path: "cosmos/README.md", type: "file" },
+                { name: "deploy.yaml", path: "cosmos/deploy.yaml", type: "file" }
+              ]
+            }
+          }),
+        {
+          cosmos: cosmosChainData
+        }
       );
-
-      mockFetchChainRegistry({
-        cosmos: cosmosChainData
-      });
 
       templateProcessor.processTemplate.mockReturnValue(createTemplate({ id: "t1" }));
 
       const result = await service.fetchOmnibusTemplates("v1");
 
       expect(result[0].templateSources[0].logoUrl).toBe("https://first.png");
+    });
+  });
+
+  describe("when archive download fails", () => {
+    it("returns empty array and logs warning instead of throwing", async () => {
+      const { service, archiveService, logger } = setup();
+      archiveService.getArchive.mockRejectedValue(new Error("Failed to download archive"));
+
+      const result = await service.fetchAwesomeAkashTemplates("v1");
+
+      expect(result).toEqual([]);
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: "FETCH_TEMPLATES_FROM_README_FAILED",
+          repoOwner: "akash-network",
+          repoName: "awesome-akash",
+          repoVersion: "v1"
+        })
+      );
+    });
+
+    it("returns empty array for linux server templates when archive fails", async () => {
+      const { service, archiveService, logger } = setup();
+      archiveService.getArchive.mockRejectedValue(new Error("Network error"));
+
+      const result = await service.fetchLinuxServerTemplates("v1");
+
+      expect(result).toEqual([]);
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: "FETCH_TEMPLATES_FROM_README_FAILED",
+          repoOwner: "cryptoandcoffee",
+          repoName: "akash-linuxserver"
+        })
+      );
     });
   });
 
@@ -565,21 +604,26 @@ describe(TemplateFetcherService.name, () => {
     archiveService.getArchive.mockImplementation(factory);
   }
 
-  function mockFetchChainRegistry(chains: Record<string, Partial<GithubChainRegistryChainResponse>>) {
-    const originalFetch = globalThis.fetch;
-    jest.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
-      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
-      if (url.startsWith("https://raw.githubusercontent.com/cosmos/chain-registry/master/")) {
-        const chainPath = url.replace("https://raw.githubusercontent.com/cosmos/chain-registry/master/", "").replace("/chain.json", "");
-        if (Object.hasOwn(chains, chainPath)) {
-          return new Response(JSON.stringify(chains[chainPath]), {
-            status: 200,
-            headers: { "Content-Type": "application/json" }
-          });
-        }
-        return new Response("Not Found", { status: 404 });
+  function mockArchiveWithChainRegistry(
+    archiveService: ReturnType<typeof mock<GitHubArchiveService>>,
+    templateFactory: () => Promise<ArchiveReader>,
+    chains: Record<string, Partial<GithubChainRegistryChainResponse>>
+  ) {
+    const chainRegistryFiles: Record<string, string> = {};
+    for (const [chainPath, data] of Object.entries(chains)) {
+      chainRegistryFiles[`${chainPath}/chain.json`] = JSON.stringify(data);
+    }
+
+    const chainRegistryReader = createMockArchiveReader({
+      files: chainRegistryFiles,
+      directories: {}
+    });
+
+    archiveService.getArchive.mockImplementation(async (owner, repo) => {
+      if (owner === "cosmos" && repo === "chain-registry") {
+        return chainRegistryReader;
       }
-      return originalFetch(input, init);
+      return templateFactory();
     });
   }
 

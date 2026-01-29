@@ -34,7 +34,7 @@ export class TemplateGalleryService {
     this.#fs = fs;
     this.templateProcessor = new TemplateProcessorService();
     this.templateFetcher = options.githubPAT
-      ? new TemplateFetcherService(this.templateProcessor, this.#logger, getOctokit, new GitHubArchiveService(), {
+      ? new TemplateFetcherService(this.templateProcessor, this.#logger, getOctokit, new GitHubArchiveService(this.#logger), {
           githubPAT: options.githubPAT,
           categoryProcessingConcurrency: options.categoryProcessingConcurrency,
           templateSourceProcessingConcurrency: options.templateSourceProcessingConcurrency

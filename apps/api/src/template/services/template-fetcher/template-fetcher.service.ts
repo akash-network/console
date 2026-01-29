@@ -120,14 +120,14 @@ export class TemplateFetcherService {
   }
 
   private async fetchChainRegistryData(chainPath: string): Promise<GithubChainRegistryChainResponse> {
-    const url = `https://raw.githubusercontent.com/cosmos/chain-registry/master/${chainPath}/chain.json`;
-    const response = await fetch(url);
+    const archive = await this.#archiveService.getArchive("cosmos", "chain-registry", "master");
+    const content = await archive.readFile(`${chainPath}/chain.json`);
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch chain registry data from ${url}: ${response.status} ${response.statusText}`);
+    if (content === null) {
+      throw new Error(`Chain registry data not found for ${chainPath}`);
     }
 
-    return (await response.json()) as GithubChainRegistryChainResponse;
+    return JSON.parse(content) as GithubChainRegistryChainResponse;
   }
 
   private async findFileContentAsync(filename: string | string[], fileList: GithubDirectoryItem[], templateSource: TemplateSource): Promise<string | null> {
@@ -256,36 +256,47 @@ export class TemplateFetcherService {
       })
     } = options;
 
-    const data = await this.fetchFileContent(repoOwner, repoName, readmePath, repoVersion);
+    try {
+      const data = await this.fetchFileContent(repoOwner, repoName, readmePath, repoVersion);
 
-    const categoryRegex = /### (.+)\n*([\w ]+)?\n*((?:- \[(?:.+)]\((?:.+)\)\n?)*)/gm;
-    const templateRegex = /(- \[(.+)]\((.+)\)\n?)/gm;
+      const categoryRegex = /### (.+)\n*([\w ]+)?\n*((?:- \[(?:.+)]\((?:.+)\)\n?)*)/gm;
+      const templateRegex = /(- \[(.+)]\((.+)\)\n?)/gm;
 
-    const categories: Category[] = [];
+      const categories: Category[] = [];
 
-    const matches = data.matchAll(categoryRegex);
-    for (const match of matches) {
-      const title = match[1];
-      const description = match[2];
-      const templatesStr = match[3];
+      const matches = data.matchAll(categoryRegex);
+      for (const match of matches) {
+        const title = match[1];
+        const description = match[2];
+        const templatesStr = match[3];
 
-      if (categories.some(x => x.title === title) || !templatesStr) continue;
+        if (categories.some(x => x.title === title) || !templatesStr) continue;
 
-      const templateSources: TemplateSource[] = [];
-      const templateMatches = templatesStr.matchAll(templateRegex);
-      for (const templateMatch of templateMatches) {
-        templateSources.push(templateSourceMapper(templateMatch[2], templateMatch[3]));
+        const templateSources: TemplateSource[] = [];
+        const templateMatches = templatesStr.matchAll(templateRegex);
+        for (const templateMatch of templateMatches) {
+          templateSources.push(templateSourceMapper(templateMatch[2], templateMatch[3]));
+        }
+
+        categories.push({
+          title: title,
+          description: description,
+          templateSources: templateSources,
+          templates: []
+        });
       }
 
-      categories.push({
-        title: title,
-        description: description,
-        templateSources: templateSources,
-        templates: []
+      return await this.fetchTemplatesInfo(categories, { includeConfigJson, ignoreByKeywords, ignoreByPaths });
+    } catch (error) {
+      this.#logger.warn({
+        event: "FETCH_TEMPLATES_FROM_README_FAILED",
+        repoOwner,
+        repoName,
+        repoVersion,
+        error
       });
+      return [];
     }
-
-    return await this.fetchTemplatesInfo(categories, { includeConfigJson, ignoreByKeywords, ignoreByPaths });
   }
 
   async fetchOmnibusTemplates(repoVersion: string): Promise<Category[]> {
