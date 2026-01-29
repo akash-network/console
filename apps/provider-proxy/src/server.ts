@@ -8,5 +8,5 @@ startAppServer(process.env).then(server => {
 
   process.on("SIGTERM", () => server.close("SIGTERM"));
   process.on("SIGINT", () => server.close("SIGINT"));
-  process.on("exit", exitCode => server.close(`EXIT:${exitCode}`));
+  process.on("beforeExit", exitCode => server.close(`EXIT:${exitCode}`));
 });

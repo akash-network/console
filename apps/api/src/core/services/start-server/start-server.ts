@@ -55,7 +55,7 @@ export async function startServer(
     server.on("close", disposeContainerOnce);
     processEvents.on("SIGTERM", () => shutdown("SIGTERM"));
     processEvents.on("SIGINT", () => shutdown("SIGINT"));
-    processEvents.on("exit", exitCode => shutdown(`EXIT:${exitCode}`));
+    processEvents.on("beforeExit", exitCode => shutdown(`EXIT:${exitCode}`));
     return server;
   } catch (error) {
     logger.error({ event: "SERVER_START_ERROR", error });
