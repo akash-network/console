@@ -60,7 +60,7 @@ type CachedClient = {
 
 @singleton()
 export class TxManagerService {
-  readonly #clientsByAddress: Map<string, CachedClient> = new Map();
+  readonly #clientsByDerivationIndex: Map<number, CachedClient> = new Map();
   readonly #DEFAULT_WALLET_VERSION: WalletVersion = "v2";
 
   constructor(
@@ -88,14 +88,14 @@ export class TxManagerService {
   }
 
   async signAndBroadcastWithDerivedWallet(derivationIndex: number, messages: readonly EncodeObject[], options?: SignAndBroadcastOptions) {
-    const { client, address } = await this.#getClient(derivationIndex);
+    const { client } = await this.#getClient(derivationIndex);
 
     try {
       return await client.signAndBroadcast(messages, options);
     } finally {
-      if (!client.hasPendingTransactions && this.#clientsByAddress.has(address)) {
-        this.logger.debug({ event: "DEDUPE_SIGNING_CLIENT_CLEAN_UP", address });
-        this.#clientsByAddress.delete(address);
+      if (!client.hasPendingTransactions && this.#clientsByDerivationIndex.has(derivationIndex)) {
+        this.logger.debug({ event: "DEDUPE_SIGNING_CLIENT_CLEAN_UP", derivationIndex });
+        this.#clientsByDerivationIndex.delete(derivationIndex);
       }
     }
   }
@@ -105,18 +105,18 @@ export class TxManagerService {
   }
 
   async #getClient(derivationIndex: number): Promise<CachedClient> {
-    const wallet = this.getDerivedWallet(derivationIndex);
-    const address = await wallet.getFirstAddress();
+    if (!this.#clientsByDerivationIndex.has(derivationIndex)) {
+      const wallet = this.getDerivedWallet(derivationIndex);
+      const address = await wallet.getFirstAddress();
 
-    if (!this.#clientsByAddress.has(address)) {
-      this.logger.debug({ event: "DERIVED_SIGNING_CLIENT_CREATE", address });
-      this.#clientsByAddress.set(address, {
+      this.logger.debug({ event: "DERIVED_SIGNING_CLIENT_CREATE", derivationIndex });
+      this.#clientsByDerivationIndex.set(derivationIndex, {
         address,
         client: this.batchSigningClientServiceFactory(wallet)
       });
     }
 
-    return this.#clientsByAddress.get(address)!;
+    return this.#clientsByDerivationIndex.get(derivationIndex)!;
   }
 
   getDerivedWallet(index: number) {

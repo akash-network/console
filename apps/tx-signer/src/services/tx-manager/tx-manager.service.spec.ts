@@ -77,7 +77,7 @@ describe(TxManagerService.name, () => {
 
       expect(derivedWallet.getFirstAddress).toHaveBeenCalled();
       expect(batchSigningClientServiceFactory).toHaveBeenCalledWith(derivedWallet);
-      expect(logger.debug).toHaveBeenCalledWith({ event: "DERIVED_SIGNING_CLIENT_CREATE", address });
+      expect(logger.debug).toHaveBeenCalledWith({ event: "DERIVED_SIGNING_CLIENT_CREATE", derivationIndex });
       expect(result).toEqual(txResult);
     });
 
@@ -104,7 +104,7 @@ describe(TxManagerService.name, () => {
 
       await service.signAndBroadcastWithDerivedWallet(derivationIndex, messages);
 
-      expect(logger.debug).toHaveBeenCalledWith({ event: "DEDUPE_SIGNING_CLIENT_CLEAN_UP", address });
+      expect(logger.debug).toHaveBeenCalledWith({ event: "DEDUPE_SIGNING_CLIENT_CLEAN_UP", derivationIndex });
     });
 
     it("keeps client when has pending transactions", async () => {
@@ -130,7 +130,7 @@ describe(TxManagerService.name, () => {
 
       await service.signAndBroadcastWithDerivedWallet(derivationIndex, messages);
 
-      expect(logger.debug).not.toHaveBeenCalledWith({ event: "DEDUPE_SIGNING_CLIENT_CLEAN_UP", address });
+      expect(logger.debug).not.toHaveBeenCalledWith({ event: "DEDUPE_SIGNING_CLIENT_CLEAN_UP", derivationIndex });
     });
 
     it("cleans up client even when transaction fails", async () => {
@@ -152,7 +152,7 @@ describe(TxManagerService.name, () => {
 
       await expect(service.signAndBroadcastWithDerivedWallet(derivationIndex, messages)).rejects.toThrow("Transaction failed");
 
-      expect(logger.debug).toHaveBeenCalledWith({ event: "DEDUPE_SIGNING_CLIENT_CLEAN_UP", address });
+      expect(logger.debug).toHaveBeenCalledWith({ event: "DEDUPE_SIGNING_CLIENT_CLEAN_UP", derivationIndex });
     });
   });
 

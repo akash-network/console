@@ -1,4 +1,4 @@
-import { SpanStatusCode, trace } from "@opentelemetry/api";
+import { context, SpanStatusCode, trace } from "@opentelemetry/api";
 
 export function createSpan(name: string) {
   return trace.getTracer("default").startSpan(name);
@@ -6,20 +6,19 @@ export function createSpan(name: string) {
 
 export async function withSpan<T>(spanName: string, fn: () => Promise<T>): Promise<T> {
   const span = createSpan(spanName);
+  const spanContext = trace.setSpan(context.active(), span);
 
   try {
-    const result = await fn();
+    const result = await context.with(spanContext, fn);
     span.setStatus({ code: SpanStatusCode.OK });
     return result;
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Unknown error";
+    const exception = error instanceof Error ? error : new Error(String(error));
     span.setStatus({
       code: SpanStatusCode.ERROR,
-      message
+      message: exception.message
     });
-    if (error instanceof Error) {
-      span.recordException(error);
-    }
+    span.recordException(exception);
     throw error;
   } finally {
     span.end();
