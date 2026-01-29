@@ -1,4 +1,4 @@
-import type { v2Sdl } from "@akashnetwork/akashjs/build/sdl/types";
+import type { v2Sdl } from "@akashnetwork/chain-sdk";
 import yaml from "js-yaml";
 
 import type { BillingConfig } from "@src/billing/providers";

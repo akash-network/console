@@ -1,4 +1,4 @@
-import { cpSync, existsSync } from "node:fs";
+import { existsSync } from "node:fs";
 import fs from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,12 +9,12 @@ type EsBuildPlugin = Required<Options>["esbuildPlugins"][number];
 
 export const copyDrizzlePlugin: Plugin = {
   name: "copy-drizzle",
-  buildEnd() {
+  async buildEnd() {
     const drizzleDir = "drizzle";
     const destDir = join("dist", drizzleDir);
 
     if (existsSync(drizzleDir)) {
-      cpSync(drizzleDir, destDir, { recursive: true });
+      await fs.cp(drizzleDir, destDir, { recursive: true });
     }
   }
 };
@@ -60,6 +60,7 @@ export const applyDefaults = async ({ packageJson, prependEffectsToEntries, ...o
     outDir: "dist",
     splitting: true,
     bundle: true,
+    platform: "node",
     format: ["cjs"],
     ...options,
     noExternal: [...noExternal, ...(options.noExternal ?? [])],
@@ -98,27 +99,25 @@ interface ApplyDefaultsOptions extends Options {
 }
 
 async function getExternalConfig(packageJson: Record<string, any>): Promise<Required<Pick<Options, "noExternal" | "external">>> {
-  const pkgDeps = { ...packageJson.dependencies, ...packageJson.peerDependencies };
   const internalPackages = Object.keys(packageJson.dependencies).filter(
     name => name !== "@akashnetwork/env-loader" && name.startsWith("@akashnetwork/") && packageJson.dependencies[name] === "*"
   );
 
   const externalDeps = new Set<string>();
   await Promise.all(
-    internalPackages.map(async name => {
-      const pkgJsonPath = fileURLToPath(import.meta.resolve(`${name}/package.json`));
+    internalPackages.map(async internalPackageName => {
+      const pkgJsonPath = fileURLToPath(import.meta.resolve(`${internalPackageName}/package.json`));
       const pkgJson = JSON.parse(await fs.readFile(pkgJsonPath, "utf8"));
       const deps = { ...pkgJson.dependencies, ...pkgJson.peerDependencies };
       Object.keys(deps).forEach(dep => {
-        if (!internalPackages.includes(dep) && Object.hasOwn(pkgDeps, dep)) {
-          // we must bundle dependencies of internal packages
-          // if there are no such dependency in pkg deps because this dependencies are not hoisted
-          // and live in packages/<internal>/node_modules and when we run built js files,
-          // we will get ModuleNotFoundError
-          // So for now, we are externalizing only dependencies which are in common
-          // TODO: instead we should build internal packages and use them as external dependencies rather than bundling them
-          //      we can do this by using `build` helper function from tsup but in this case all internal packages must be built the same way
-          //      this cannot be achieved right with some of them (e.g., packages/database)
+        if (internalPackages.includes(dep)) return;
+        if (isInternalPackageDependency(internalPackageName, dep)) {
+          // if package is not hoisted, we need to bundle it inside the app
+          // otherwise this package won't be found in runtime
+          console.warn(
+            `\x1b[33mWARN\x1b[0m: Bundling "${dep}" internal package dependency of "${internalPackageName}" inside app. Use "npm ls ${dep}" to check why it's not hoisted.`
+          );
+        } else {
           externalDeps.add(dep);
         }
       });
@@ -126,4 +125,10 @@ async function getExternalConfig(packageJson: Record<string, any>): Promise<Requ
   );
 
   return { noExternal: internalPackages, external: [...externalDeps] };
+}
+
+function isInternalPackageDependency(packageName: string, dependency: string): boolean {
+  const pathToPackage = import.meta.resolve(join(packageName, "package.json"));
+  const possiblyInternalPackagePath = fileURLToPath(import.meta.resolve(join(pathToPackage, "..", "node_modules", dependency)));
+  return existsSync(possiblyInternalPackagePath);
 }
