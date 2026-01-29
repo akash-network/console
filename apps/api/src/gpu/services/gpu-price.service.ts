@@ -88,6 +88,8 @@ export class GpuPriceService {
             aktTokenPrice: day.aktPrice,
             hourlyPrice: this.blockPriceToHourlyPrice(parseFloat(decodedBid.price.amount), day?.aktPrice),
             monthlyPrice: this.blockPriceToMonthlyPrice(parseFloat(decodedBid.price.amount), day?.aktPrice),
+            hourlyPriceUakt: this.blockPriceToHourlyUakt(parseFloat(decodedBid.price.amount)),
+            monthlyPriceUakt: this.blockPriceToMonthlyUakt(parseFloat(decodedBid.price.amount)),
             deployment: {
               owner: d.owner,
               cpuUnits: decodedBid.resourcesOffer
@@ -182,6 +184,7 @@ export class GpuPriceService {
             providers: debug ? x.providers : undefined
           },
           price: this.getPricing(providersWithBestBid),
+          priceUakt: this.getPricingUakt(providersWithBestBid),
           bidCount: debug ? x.prices.length : undefined,
           providersWithBestBid: debug ? providersWithBestBid : undefined
         };
@@ -210,6 +213,31 @@ export class GpuPriceService {
       };
     } catch (e) {
       console.error("Error calculating pricing", e);
+      return null;
+    }
+  }
+
+  private getPricingUakt(
+    providersWithBestBid: {
+      provider: GpuProviderType;
+      bestBid: GpuBidType;
+    }[]
+  ) {
+    try {
+      if (!providersWithBestBid || providersWithBestBid.length === 0) return null;
+
+      const prices = providersWithBestBid.map(x => x.bestBid.hourlyPriceUakt);
+
+      return {
+        currency: "uakt",
+        min: Math.min(...prices),
+        max: Math.max(...prices),
+        avg: round(average(prices), 2),
+        weightedAverage: round(weightedAverage(providersWithBestBid.map(p => ({ value: p.bestBid.hourlyPriceUakt, weight: p.provider.allocatable }))), 2),
+        med: round(median(prices), 2)
+      };
+    } catch (e) {
+      console.error("Error calculating uakt pricing", e);
       return null;
     }
   }
@@ -255,5 +283,13 @@ export class GpuPriceService {
 
   private blockPriceToHourlyPrice(uaktPerBlock: number, aktPrice: number) {
     return round((averageBlockCountInAnHour * uaktPerBlock * aktPrice) / 1_000_000, 2);
+  }
+
+  private blockPriceToMonthlyUakt(uaktPerBlock: number) {
+    return round(averageBlockCountInAMonth * uaktPerBlock, 2);
+  }
+
+  private blockPriceToHourlyUakt(uaktPerBlock: number) {
+    return round(averageBlockCountInAnHour * uaktPerBlock, 2);
   }
 }
