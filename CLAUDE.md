@@ -10,3 +10,8 @@ See details in @./.claude/instructions/general-projects-description.manual.md
 
 See detailed guidelines:
 @./.claude/instructions/setup-function-instead-of-beforeeach-in-unit-service-level-tests.md
+
+## Use `LoggerService` instead of `console.log/warn/error`
+
+See detailed guidelines:
+@./.claude/instructions/use-logger-service-instead-of-console.md
