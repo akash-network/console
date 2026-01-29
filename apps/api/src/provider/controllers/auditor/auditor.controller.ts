@@ -6,7 +6,7 @@ import { AuditorService } from "@src/provider/services/auditors/auditors.service
 export class AuditorController {
   constructor(private readonly auditorService: AuditorService) {}
 
-  getAuditors() {
-    return this.auditorService.getAuditors();
+  async getAuditors() {
+    return await this.auditorService.getAuditors();
   }
 }
