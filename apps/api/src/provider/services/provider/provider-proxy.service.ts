@@ -50,7 +50,7 @@ export class ProviderProxyService {
         network: chainNetwork,
         ...(proxyTimeout && { timeout: proxyTimeout })
       },
-      { ...(timeout && { timeout }) }
+      { ...(proxyTimeout && { timeout: proxyTimeout }) }
     );
     return response.data;
   }
