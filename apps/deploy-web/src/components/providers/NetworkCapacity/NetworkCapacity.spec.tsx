@@ -133,9 +133,9 @@ describe(NetworkCapacity.name, () => {
       expect(storagePieData).toHaveLength(4);
       expect(storagePieData).toEqual(
         expect.arrayContaining([
-          expect.objectContaining({ id: "active-ephemeral", label: "Active emphemeral" }),
+          expect.objectContaining({ id: "active-ephemeral", label: "Active ephemeral" }),
           expect.objectContaining({ id: "active-persistent", label: "Active persistent" }),
-          expect.objectContaining({ id: "available-emphemeral", label: "Available emphemeral" }),
+          expect.objectContaining({ id: "available-ephemeral", label: "Available ephemeral" }),
           expect.objectContaining({ id: "available-persistent", label: "Available persistent" })
         ])
       );
@@ -154,7 +154,7 @@ describe(NetworkCapacity.name, () => {
       const { pieProps } = setup({ stats });
 
       const storagePieData = pieProps[3].data;
-      const availableEphemeral = storagePieData.find(d => d.id === "available-emphemeral");
+      const availableEphemeral = storagePieData.find(d => d.id === "available-ephemeral");
       const availablePersistent = storagePieData.find(d => d.id === "available-persistent");
 
       expect(availableEphemeral?.value).toBe(500 * oneGB + 100 * oneGB);
