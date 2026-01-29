@@ -28,7 +28,8 @@ export class GitHubArchiveService {
   }
 
   async getArchive(owner: string, repo: string, ref: string, fileFilter?: (relativePath: string) => boolean): Promise<ArchiveReader> {
-    const cacheKey = `${owner}/${repo}/${ref}`;
+    const filterKey = fileFilter ? fileFilter.name || "filtered" : "unfiltered";
+    const cacheKey = `${owner}/${repo}/${ref}:${filterKey}`;
 
     const cached = this.#cache.get(cacheKey);
     if (cached) return cached;
