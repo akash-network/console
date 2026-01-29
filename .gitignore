@@ -91,3 +91,7 @@ junit.xml
 
 # Leap extension local storage for e2e tests with playwright
 apps/deploy-web/tests/ui/fixture/leapExtensionLocalStorage.*.json
+
+# Clinic.js diagnostic artifacts
+.clinic
+profile-results.json

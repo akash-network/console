@@ -12,7 +12,7 @@ export default defineConfig(async overrideOptions =>
     // this is to ensure that this modules are loaded before the entry point,
     // even if tsup messes up imports tree
     prependEffectsToEntries: ["reflect-metadata", "@akashnetwork/env-loader"],
-    entry: ["./src/server.ts", "./src/rest-app.ts", "./src/background-jobs-app.ts", "./src/console.ts"],
+    entry: ["./src/server.ts", "./src/rest-app.ts", "./src/background-jobs-app.ts", "./src/console.ts", "./src/workers/json-stringify.worker.ts"],
     target: tsconfig.compilerOptions.target,
     tsconfig: "tsconfig.build.json",
     external: ["pino-pretty"],

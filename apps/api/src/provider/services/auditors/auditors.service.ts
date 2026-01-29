@@ -1,15 +1,19 @@
-import { GitHubHttpService } from "@akashnetwork/http-sdk";
-import { minutesToSeconds } from "date-fns";
 import { singleton } from "tsyringe";
 
-import { Memoize } from "@src/caching/helpers";
+import type { Auditor } from "@src/provider/http-schemas/auditor.schema";
+
+const AUDITORS: Auditor[] = [
+  {
+    id: "akash-network",
+    name: "Akash Network",
+    address: "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63",
+    website: "https://akash.network"
+  }
+];
 
 @singleton()
 export class AuditorService {
-  constructor(private readonly gitHubHttpService: GitHubHttpService) {}
-
-  @Memoize({ ttlInSeconds: minutesToSeconds(5) })
-  async getAuditors() {
-    return await this.gitHubHttpService.getAuditors();
+  getAuditors(): Auditor[] {
+    return AUDITORS;
   }
 }

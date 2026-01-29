@@ -148,13 +148,13 @@ export class ProviderService {
       }, {})
     );
 
-    const [auditors, providerAttributeSchema] = await Promise.all([
-      this.auditorsService.getAuditors(),
-      this.providerAttributesSchemaService.getProviderAttributesSchema()
-    ]);
+    const auditors = this.auditorsService.getAuditors();
+    const providerAttributeSchema = await this.providerAttributesSchemaService.getProviderAttributesSchema();
+
+    const snapshotByOwner = new Map(providerWithNodes.map(p => [p.owner, p.lastSuccessfulSnapshot]));
 
     return distinctProviders.map(x => {
-      const lastSuccessfulSnapshot = providerWithNodes.find(p => p.owner === x.owner)?.lastSuccessfulSnapshot;
+      const lastSuccessfulSnapshot = snapshotByOwner.get(x.owner);
       return mapProviderToList(x, providerAttributeSchema, auditors, lastSuccessfulSnapshot);
     });
   }
@@ -191,10 +191,8 @@ export class ProviderService {
         })
       : null;
 
-    const [auditors, providerAttributeSchema] = await Promise.all([
-      this.auditorsService.getAuditors(),
-      this.providerAttributesSchemaService.getProviderAttributesSchema()
-    ]);
+    const auditors = this.auditorsService.getAuditors();
+    const providerAttributeSchema = await this.providerAttributesSchemaService.getProviderAttributesSchema();
 
     return {
       ...mapProviderToList(provider, providerAttributeSchema, auditors, lastSuccessfulSnapshot ?? undefined),

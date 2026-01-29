@@ -138,14 +138,16 @@ export const cacheKeys = {
   getProviderActiveLeasesGraphData: "getProviderActiveLeasesGraphData",
   getTemplates: "getTemplates",
   getMarketData: "getMarketData",
-  getProviderList: "getProviderList",
-  getTrialProviderList: "getTrialProviderList",
+  getProviderListJson: "getProviderListJson",
+  getTrialProviderListJson: "getTrialProviderListJson",
   getTrialRegisteredProviderList: "getTrialRegisteredProviderList",
   getChainStats: "getChainStats",
   getGpuModels: "getGpuModels",
   getTrialProviders: "getTrialProviders",
   getGpuUtilization: "getGpuUtilization",
-  getGpuBreakdown: "getGpuBreakdown"
+  getGpuBreakdown: "getGpuBreakdown",
+  getProviderListGzipped: "getProviderListGzipped",
+  getTrialProviderListGzipped: "getTrialProviderListGzipped"
 };
 
 export function reusePendingPromise<T extends (...args: any[]) => Promise<unknown>>(fn: T, options?: { getKey?: (...args: Parameters<T>) => string }): T {
