@@ -4247,10 +4247,16 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                         "totalCPU": {
                           "type": "number",
                         },
+                        "totalEphemeralStorage": {
+                          "type": "number",
+                        },
                         "totalGPU": {
                           "type": "number",
                         },
                         "totalMemory": {
+                          "type": "number",
+                        },
+                        "totalPersistentStorage": {
                           "type": "number",
                         },
                         "totalStorage": {
@@ -4281,6 +4287,8 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                         "activePersistentStorage",
                         "pendingPersistentStorage",
                         "availablePersistentStorage",
+                        "totalEphemeralStorage",
+                        "totalPersistentStorage",
                       ],
                       "type": "object",
                     },

@@ -58,7 +58,9 @@ export const emptyNetworkCapacity = {
   availableEphemeralStorage: 0,
   activePersistentStorage: 0,
   pendingPersistentStorage: 0,
-  availablePersistentStorage: 0
+  availablePersistentStorage: 0,
+  totalEphemeralStorage: 0,
+  totalPersistentStorage: 0
 };
 
 @singleton()
