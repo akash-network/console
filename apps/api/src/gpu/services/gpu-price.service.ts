@@ -7,6 +7,7 @@ import type { Registry } from "@src/billing/providers/type-registry.provider";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { AkashBlockRepository } from "@src/block/repositories/akash-block/akash-block.repository";
 import { Memoize } from "@src/caching/helpers";
+import { LoggerService } from "@src/core";
 import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import { GpuRepository } from "@src/gpu/repositories/gpu.repository";
 import type { GpuBidType, GpuProviderType, GpuWithPricesType, ProviderWithBestBid } from "@src/gpu/types/gpu.type";
@@ -28,7 +29,8 @@ export class GpuPriceService {
     private readonly akashBlockRepository: AkashBlockRepository,
     private readonly dayRepository: DayRepository,
     @inject(GPU_CONFIG) gpuConfig: GpuConfig,
-    @inject(TYPE_REGISTRY) typeRegistry: Registry
+    @inject(TYPE_REGISTRY) typeRegistry: Registry,
+    private readonly logger: LoggerService
   ) {
     this.#gpuConfig = gpuConfig;
     this.#typeRegistry = typeRegistry;
@@ -212,7 +214,7 @@ export class GpuPriceService {
         med: round(median(prices), 2)
       };
     } catch (e) {
-      console.error("Error calculating pricing", e);
+      this.logger.error({ event: "GPU_PRICING_CALCULATION_FAILED", error: e });
       return null;
     }
   }
@@ -237,7 +239,7 @@ export class GpuPriceService {
         med: round(median(prices), 2)
       };
     } catch (e) {
-      console.error("Error calculating uakt pricing", e);
+      this.logger.error({ event: "GPU_UAKT_PRICING_CALCULATION_FAILED", error: e });
       return null;
     }
   }
