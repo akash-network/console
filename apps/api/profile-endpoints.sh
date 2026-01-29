@@ -87,9 +87,10 @@ for endpoint in "${ENDPOINTS[@]}"; do
   echo "=== Profiling: $endpoint ==="
 
   cd "$SCRIPT_DIR"
-  INTERFACE=rest clinic doctor --open=false --on-port "autocannon -c ${AUTOCANNON_CONNECTIONS} -d ${AUTOCANNON_DURATION} localhost:${SERVER_PORT}${endpoint}" -- node "$SERVER_ENTRY" > "$CLINIC_OUTPUT" 2>&1
+  AUTOCANNON_JSON="${SCRIPT_DIR}/.clinic/autocannon-result.json"
+  INTERFACE=rest clinic doctor --open=false --on-port "autocannon -c ${AUTOCANNON_CONNECTIONS} -d ${AUTOCANNON_DURATION} --json localhost:${SERVER_PORT}${endpoint} > ${AUTOCANNON_JSON}" -- node "$SERVER_ENTRY" > "$CLINIC_OUTPUT" 2>&1
 
-  HTML_FILE=$(ls -t .clinic/*.clinic-doctor.html 2>/dev/null | head -1)
+  HTML_FILE=$(find .clinic -name "*.clinic-doctor.html" -newer "$CLINIC_OUTPUT" -type f 2>/dev/null | head -1)
 
   if [ -z "$HTML_FILE" ]; then
     echo "  No HTML report generated, skipping..."
@@ -138,20 +139,18 @@ for endpoint in "${ENDPOINTS[@]}"; do
       clinic_issue_category: null,
     };
 
-    // ── Autocannon stats ──
-    const latMatch = output.match(/│ Latency │[^│]*│[^│]*│\s*([0-9.]+)\s*ms\s*│\s*([0-9.]+)\s*ms\s*│\s*([0-9.]+)\s*ms\s*│/);
-    if (latMatch) {
-      result.latency_p50_ms = parseFloat(latMatch[1]);
-      result.latency_p97_ms = parseFloat(latMatch[2]);
-      result.latency_avg_ms = parseFloat(latMatch[3]);
+    // ── Autocannon stats (from JSON output) ──
+    try {
+      const ac = JSON.parse(fs.readFileSync('$AUTOCANNON_JSON', 'utf8'));
+      result.latency_p50_ms = ac.latency?.p50 ?? null;
+      result.latency_p97_ms = ac.latency?.p97_5 ?? null;
+      result.latency_avg_ms = ac.latency?.average ?? null;
+      result.req_sec_p50 = ac.requests?.p50 ?? null;
+      result.req_sec_avg = ac.requests?.average ?? null;
+      result.total_requests = ac.requests?.total ?? null;
+    } catch (e) {
+      console.error('  Warning: failed to parse autocannon JSON output:', e.message);
     }
-    const reqMatch = output.match(/│ Req\/Sec[^│]*│[^│]*│[^│]*│\s*([0-9.]+)\s*│[^│]*│\s*([0-9.]+)\s*│/);
-    if (reqMatch) {
-      result.req_sec_p50 = parseFloat(reqMatch[1]);
-      result.req_sec_avg = parseFloat(reqMatch[2]);
-    }
-    const totalMatch = output.match(/(\d+) requests? in/);
-    if (totalMatch) result.total_requests = parseInt(totalMatch[1]);
 
     // ── Clinic doctor data ──
     if (clinicMatch) {

@@ -27,11 +27,15 @@ function getWorker(): Worker | null {
 
     worker = new Worker(workerPath);
 
-    worker.on("message", ({ id, json }: { id: number; json: string }) => {
+    worker.on("message", ({ id, json, error }: { id: number; json?: string; error?: string }) => {
       const entry = pending.get(id);
       if (entry) {
         pending.delete(id);
-        entry.resolve(json);
+        if (error) {
+          entry.reject(new Error(error));
+        } else {
+          entry.resolve(json!);
+        }
       }
     });
 
