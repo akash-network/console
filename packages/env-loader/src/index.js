@@ -8,6 +8,7 @@ const CUSTOM_LEVELS = {
 
 const logger = pino(
   {
+    timestamp: () => `,"time":"${new Date().toISOString()}"`,
     formatters: {
       level(label) {
         return { level: CUSTOM_LEVELS[label] || label };
