@@ -7,6 +7,7 @@ import type z from "zod";
 import type { LoggerService } from "@src/core";
 import type { Category, FinalCategory, Template } from "@src/template/types/template";
 import { reusePendingPromise } from "../../../caching/helpers.ts";
+import { GitHubArchiveService } from "../github-archive/github-archive.service.ts";
 import { REPOSITORIES, TemplateFetcherService } from "../template-fetcher/template-fetcher.service.ts";
 import { TemplateProcessorService } from "../template-processor/template-processor.service.ts";
 
@@ -33,7 +34,7 @@ export class TemplateGalleryService {
     this.#fs = fs;
     this.templateProcessor = new TemplateProcessorService();
     this.templateFetcher = options.githubPAT
-      ? new TemplateFetcherService(this.templateProcessor, this.#logger, getOctokit, {
+      ? new TemplateFetcherService(this.templateProcessor, this.#logger, getOctokit, new GitHubArchiveService(this.#logger), {
           githubPAT: options.githubPAT,
           categoryProcessingConcurrency: options.categoryProcessingConcurrency,
           templateSourceProcessingConcurrency: options.templateSourceProcessingConcurrency
@@ -71,6 +72,13 @@ export class TemplateGalleryService {
       templates
     });
     return this.#galleriesCache;
+  }
+
+  async refreshCache(categoriesSchema: z.ZodSchema): Promise<void> {
+    await this.buildTemplateGalleryCache(categoriesSchema);
+    this.#galleriesCache = null;
+    this.#parsedTemplates = {};
+    this.templateFetcher?.clearArchiveCache();
   }
 
   async buildTemplateGalleryCache(categoriesSchema: z.ZodSchema): Promise<GalleriesCache> {
@@ -126,7 +134,7 @@ export class TemplateGalleryService {
         event: "GET_TEMPLATE_GALLERY_START",
         msg: "Getting template gallery"
       });
-      const [awesomeAkashTemplates, omnibusTemplates, linuxServerTemplates] = await Promise.all([
+      const [awesomeAkashTemplates, omnibusTemplates] = await Promise.all([
         this.getTemplatesFromRepo({
           repository: "awesome-akash",
           fetchTemplates: this.templateFetcher.fetchAwesomeAkashTemplates.bind(this.templateFetcher)
@@ -134,14 +142,10 @@ export class TemplateGalleryService {
         this.getTemplatesFromRepo({
           repository: "cosmos-omnibus",
           fetchTemplates: this.templateFetcher.fetchOmnibusTemplates.bind(this.templateFetcher)
-        }),
-        this.getTemplatesFromRepo({
-          repository: "akash-linuxserver",
-          fetchTemplates: this.templateFetcher.fetchLinuxServerTemplates.bind(this.templateFetcher)
         })
       ]);
 
-      const templateGallery = this.templateProcessor.mergeTemplateCategories(omnibusTemplates, awesomeAkashTemplates, linuxServerTemplates);
+      const templateGallery = this.templateProcessor.mergeTemplateCategories(omnibusTemplates, awesomeAkashTemplates);
       const categories = templateGallery.map(({ templateSources, ...category }) => category);
 
       this.#logger.debug({

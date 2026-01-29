@@ -1,10 +1,11 @@
-import type { Octokit, RestEndpointMethodTypes } from "@octokit/rest";
+import type { Octokit } from "@octokit/rest";
 import PromisePool from "@supercharge/promise-pool";
 
 import type { LoggerService } from "@src/core";
 import type { GithubChainRegistryChainResponse } from "@src/types";
 import type { GithubDirectoryItem } from "@src/types/github";
 import type { Category, TemplateSource } from "../../types/template.ts";
+import type { GitHubArchiveService } from "../github-archive/github-archive.service.ts";
 import type { TemplateProcessorService } from "../template-processor/template-processor.service.ts";
 
 export const REPOSITORIES = {
@@ -17,13 +18,15 @@ export const REPOSITORIES = {
     repoOwner: "akash-network",
     repoName: "cosmos-omnibus",
     mainBranch: "master"
-  },
-  "akash-linuxserver": {
-    repoOwner: "cryptoandcoffee",
-    repoName: "akash-linuxserver",
-    mainBranch: "main"
   }
 };
+
+const TEMPLATE_FILE_NAMES = new Set(["readme.md", "deploy.yaml", "deploy.yml", "guide.md", "config.json", "chain.json"]);
+
+export function isTemplateFile(relativePath: string): boolean {
+  const fileName = relativePath.split("/").pop()?.toLowerCase() ?? "";
+  return TEMPLATE_FILE_NAMES.has(fileName);
+}
 
 export class TemplateFetcherService {
   readonly #logger: LoggerService;
@@ -34,14 +37,14 @@ export class TemplateFetcherService {
    */
   #githubRequestsRemaining: string | null = null;
   readonly #octokit: Octokit;
-  readonly #anonymousOctokit: Octokit;
+  readonly #archiveService: GitHubArchiveService;
   readonly #options: Required<Omit<FetcherOptions, "githubPAT">>;
-  #isAnonymousOctokitFailed = false;
 
   constructor(
     private readonly templateProcessor: TemplateProcessorService,
     logger: LoggerService,
     createOctokit: (githubPAT?: string, fetch?: typeof globalThis.fetch) => Octokit,
+    archiveService: GitHubArchiveService,
     options: FetcherOptions
   ) {
     this.#octokit = createOctokit(options.githubPAT, async (...args) => {
@@ -50,7 +53,7 @@ export class TemplateFetcherService {
       if (remaining) this.#githubRequestsRemaining = remaining;
       return response;
     });
-    this.#anonymousOctokit = createOctokit();
+    this.#archiveService = archiveService;
     this.#logger = logger;
     this.#options = {
       categoryProcessingConcurrency: options.categoryProcessingConcurrency ?? 10,
@@ -60,6 +63,10 @@ export class TemplateFetcherService {
 
   get githubRequestsRemaining(): string | null {
     return this.#githubRequestsRemaining;
+  }
+
+  clearArchiveCache(): void {
+    this.#archiveService.clearCache();
   }
 
   async fetchLatestCommitSha(repository: keyof typeof REPOSITORIES) {
@@ -78,73 +85,50 @@ export class TemplateFetcherService {
   }
 
   private async fetchFileContent(owner: string, repo: string, path: string, ref?: string): Promise<string> {
-    const fileParams = { owner, repo, path, ref };
-    let response = await this.#fetchFileContentAnonymously(fileParams);
-
-    if (!response) {
-      response = await this.#fetchFileContentUsing(this.#octokit, fileParams);
+    if (!ref) {
+      throw new Error(`Cannot fetch file content without a ref for ${owner}/${repo}/${path}`);
     }
 
-    return String(response.data);
-  }
+    const archive = await this.#archiveService.getArchive(owner, repo, ref, isTemplateFile);
+    const content = await archive.readFile(path);
 
-  async #fetchFileContentAnonymously(params: RestEndpointMethodTypes["repos"]["getContent"]["parameters"]) {
-    if (this.#isAnonymousOctokitFailed) return;
-    try {
-      return await this.#fetchFileContentUsing(this.#anonymousOctokit, params);
-    } catch (error) {
-      this.#isAnonymousOctokitFailed = true;
-      this.#logger.warn({
-        event: "FETCH_TEMPLATE_CONTENT_FAILED_ANONYMOUSLY",
-        owner: params.owner,
-        repo: params.repo,
-        path: params.path,
-        ref: params.ref,
-        error: error
-      });
-      return;
-    }
-  }
-
-  async #fetchFileContentUsing(octokit: Octokit, params: RestEndpointMethodTypes["repos"]["getContent"]["parameters"]) {
-    const response = await octokit.rest.repos.getContent({
-      ...params,
-      mediaType: {
-        format: "raw"
-      }
-    });
-    if (response.status !== 200) {
-      throw new Error(`Failed to fetch content from ${params.owner}/${params.repo}/${params.path}`, {
-        cause: {
-          status: response.status,
-          data: response.data
-        }
-      });
+    if (content === null) {
+      throw new Error(`File not found in archive: ${owner}/${repo}/${path}@${ref}`);
     }
 
-    return response as unknown as Omit<RestEndpointMethodTypes["repos"]["getContent"]["response"], "data"> & { data: string };
+    return content;
   }
 
   private async fetchDirectoryContent(owner: string, repo: string, path: string, ref: string): Promise<GithubDirectoryItem[]> {
-    const response = await this.#octokit.rest.repos.getContent({
-      owner,
-      repo,
-      path,
-      ref,
-      mediaType: {
-        format: "raw"
+    const archive = await this.#archiveService.getArchive(owner, repo, ref, isTemplateFile);
+    const entries = archive.listDirectory(path);
+
+    return entries.map(entry => ({
+      type: entry.type,
+      size: 0,
+      name: entry.name,
+      path: entry.path,
+      sha: "",
+      url: "",
+      git_url: "",
+      html_url: "",
+      download_url: "",
+      _links: {
+        git: "",
+        html: "",
+        self: ""
       }
-    });
-
-    if (!Array.isArray(response.data)) {
-      throw new Error(`Failed to fetch directory content from ${owner}/${repo}/${path}`);
-    }
-
-    return response.data as GithubDirectoryItem[];
+    }));
   }
 
   private async fetchChainRegistryData(chainPath: string): Promise<GithubChainRegistryChainResponse> {
-    const content = await this.fetchFileContent("cosmos", "chain-registry", `${chainPath}/chain.json`);
+    const archive = await this.#archiveService.getArchive("cosmos", "chain-registry", "master", isTemplateFile);
+    const content = await archive.readFile(`${chainPath}/chain.json`);
+
+    if (content === null) {
+      throw new Error(`Chain registry data not found for ${chainPath}`);
+    }
+
     return JSON.parse(content) as GithubChainRegistryChainResponse;
   }
 
@@ -274,36 +258,47 @@ export class TemplateFetcherService {
       })
     } = options;
 
-    const data = await this.fetchFileContent(repoOwner, repoName, readmePath, repoVersion);
+    try {
+      const data = await this.fetchFileContent(repoOwner, repoName, readmePath, repoVersion);
 
-    const categoryRegex = /### (.+)\n*([\w ]+)?\n*((?:- \[(?:.+)]\((?:.+)\)\n?)*)/gm;
-    const templateRegex = /(- \[(.+)]\((.+)\)\n?)/gm;
+      const categoryRegex = /### (.+)\n*([\w ]+)?\n*((?:- \[(?:.+)]\((?:.+)\)\n?)*)/gm;
+      const templateRegex = /(- \[(.+)]\((.+)\)\n?)/gm;
 
-    const categories: Category[] = [];
+      const categories: Category[] = [];
 
-    const matches = data.matchAll(categoryRegex);
-    for (const match of matches) {
-      const title = match[1];
-      const description = match[2];
-      const templatesStr = match[3];
+      const matches = data.matchAll(categoryRegex);
+      for (const match of matches) {
+        const title = match[1];
+        const description = match[2];
+        const templatesStr = match[3];
 
-      if (categories.some(x => x.title === title) || !templatesStr) continue;
+        if (categories.some(x => x.title === title) || !templatesStr) continue;
 
-      const templateSources: TemplateSource[] = [];
-      const templateMatches = templatesStr.matchAll(templateRegex);
-      for (const templateMatch of templateMatches) {
-        templateSources.push(templateSourceMapper(templateMatch[2], templateMatch[3]));
+        const templateSources: TemplateSource[] = [];
+        const templateMatches = templatesStr.matchAll(templateRegex);
+        for (const templateMatch of templateMatches) {
+          templateSources.push(templateSourceMapper(templateMatch[2], templateMatch[3]));
+        }
+
+        categories.push({
+          title: title,
+          description: description,
+          templateSources: templateSources,
+          templates: []
+        });
       }
 
-      categories.push({
-        title: title,
-        description: description,
-        templateSources: templateSources,
-        templates: []
+      return await this.fetchTemplatesInfo(categories, { includeConfigJson, ignoreByKeywords, ignoreByPaths });
+    } catch (error) {
+      this.#logger.warn({
+        event: "FETCH_TEMPLATES_FROM_README_FAILED",
+        repoOwner,
+        repoName,
+        repoVersion,
+        error
       });
+      return [];
     }
-
-    return await this.fetchTemplatesInfo(categories, { includeConfigJson, ignoreByKeywords, ignoreByPaths });
   }
 
   async fetchOmnibusTemplates(repoVersion: string): Promise<Category[]> {
@@ -359,27 +354,6 @@ export class TemplateFetcherService {
       repoName,
       repoVersion,
       includeConfigJson: true
-    });
-  }
-
-  async fetchLinuxServerTemplates(repoVersion: string): Promise<Category[]> {
-    const { repoOwner, repoName } = REPOSITORIES["akash-linuxserver"];
-    return this.fetchTemplatesFromReadme({
-      repoOwner,
-      repoName,
-      repoVersion,
-      ignoreByKeywords: [
-        "not recommended for use by the general public",
-        "THIS IMAGE IS DEPRECATED",
-        "container is not meant for public consumption",
-        "Not for public consumption"
-      ],
-      ignoreByPaths: [
-        // these templates are listed but don't exist in the repository
-        "jenkins",
-        "mongodb",
-        "rtorrent"
-      ]
     });
   }
 
