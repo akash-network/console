@@ -287,7 +287,8 @@ describe("GPU API", () => {
               total: 1,
               available: 1
             },
-            price: null
+            price: null,
+            priceUakt: null
           },
           {
             vendor: "amd",
@@ -309,6 +310,14 @@ describe("GPU API", () => {
               avg: 1.2,
               weightedAverage: 1.2,
               med: 1.2
+            },
+            priceUakt: {
+              currency: "uakt",
+              min: 1200000,
+              max: 1200000,
+              avg: 1200000,
+              weightedAverage: 1200000,
+              med: 1200000
             }
           },
           {
@@ -331,6 +340,14 @@ describe("GPU API", () => {
               avg: 0.6,
               weightedAverage: 0.6,
               med: 0.6
+            },
+            priceUakt: {
+              currency: "uakt",
+              min: 600000,
+              max: 600000,
+              avg: 600000,
+              weightedAverage: 600000,
+              med: 600000
             }
           },
           {
@@ -346,7 +363,8 @@ describe("GPU API", () => {
               total: 1,
               available: 1
             },
-            price: null
+            price: null,
+            priceUakt: null
           }
         ]
       });
