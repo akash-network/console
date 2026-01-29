@@ -20,6 +20,11 @@ export class TemplateRefreshService implements AppInitializer, Disposable {
   ) {}
 
   async [ON_APP_START](): Promise<void> {
+    if (!this.config.TEMPLATE_REFRESH_ENABLED) {
+      this.logger.info({ event: "TEMPLATE_REFRESH_DISABLED", message: "Template refresh disabled via TEMPLATE_REFRESH_ENABLED" });
+      return;
+    }
+
     if (!this.config.GITHUB_PAT) {
       this.logger.info({ event: "TEMPLATE_REFRESH_DISABLED", message: "GITHUB_PAT not configured, template refresh disabled" });
       return;

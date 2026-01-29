@@ -18,13 +18,15 @@ export const REPOSITORIES = {
     repoOwner: "akash-network",
     repoName: "cosmos-omnibus",
     mainBranch: "master"
-  },
-  "akash-linuxserver": {
-    repoOwner: "cryptoandcoffee",
-    repoName: "akash-linuxserver",
-    mainBranch: "main"
   }
 };
+
+const TEMPLATE_FILE_NAMES = new Set(["readme.md", "deploy.yaml", "deploy.yml", "guide.md", "config.json", "chain.json"]);
+
+export function isTemplateFile(relativePath: string): boolean {
+  const fileName = relativePath.split("/").pop()?.toLowerCase() ?? "";
+  return TEMPLATE_FILE_NAMES.has(fileName);
+}
 
 export class TemplateFetcherService {
   readonly #logger: LoggerService;
@@ -87,7 +89,7 @@ export class TemplateFetcherService {
       throw new Error(`Cannot fetch file content without a ref for ${owner}/${repo}/${path}`);
     }
 
-    const archive = await this.#archiveService.getArchive(owner, repo, ref);
+    const archive = await this.#archiveService.getArchive(owner, repo, ref, isTemplateFile);
     const content = await archive.readFile(path);
 
     if (content === null) {
@@ -98,7 +100,7 @@ export class TemplateFetcherService {
   }
 
   private async fetchDirectoryContent(owner: string, repo: string, path: string, ref: string): Promise<GithubDirectoryItem[]> {
-    const archive = await this.#archiveService.getArchive(owner, repo, ref);
+    const archive = await this.#archiveService.getArchive(owner, repo, ref, isTemplateFile);
     const entries = archive.listDirectory(path);
 
     return entries.map(entry => ({
@@ -120,7 +122,7 @@ export class TemplateFetcherService {
   }
 
   private async fetchChainRegistryData(chainPath: string): Promise<GithubChainRegistryChainResponse> {
-    const archive = await this.#archiveService.getArchive("cosmos", "chain-registry", "master");
+    const archive = await this.#archiveService.getArchive("cosmos", "chain-registry", "master", isTemplateFile);
     const content = await archive.readFile(`${chainPath}/chain.json`);
 
     if (content === null) {
@@ -352,27 +354,6 @@ export class TemplateFetcherService {
       repoName,
       repoVersion,
       includeConfigJson: true
-    });
-  }
-
-  async fetchLinuxServerTemplates(repoVersion: string): Promise<Category[]> {
-    const { repoOwner, repoName } = REPOSITORIES["akash-linuxserver"];
-    return this.fetchTemplatesFromReadme({
-      repoOwner,
-      repoName,
-      repoVersion,
-      ignoreByKeywords: [
-        "not recommended for use by the general public",
-        "THIS IMAGE IS DEPRECATED",
-        "container is not meant for public consumption",
-        "Not for public consumption"
-      ],
-      ignoreByPaths: [
-        // these templates are listed but don't exist in the repository
-        "jenkins",
-        "mongodb",
-        "rtorrent"
-      ]
     });
   }
 

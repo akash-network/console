@@ -18,16 +18,14 @@ describe(TemplateGalleryService.name, () => {
       const { service, templateFetcher } = setup();
       const awesomeAkashTemplates = [createCategory({ title: "AI", templates: [{ id: "ai-1" }] })];
       const omnibusTemplates = [createCategory({ title: "Blockchain", templates: [{ id: "blockchain-1" }] })];
-      const linuxServerTemplates = [createCategory({ title: "Media", templates: [{ id: "media-1" }] })];
 
       templateFetcher.fetchAwesomeAkashTemplates.mockResolvedValue(awesomeAkashTemplates);
       templateFetcher.fetchOmnibusTemplates.mockResolvedValue(omnibusTemplates);
-      templateFetcher.fetchLinuxServerTemplates.mockResolvedValue(linuxServerTemplates);
 
       const result = await service.getTemplateGallery();
 
-      expect(result).toHaveLength(3);
-      expect(result.map(c => c.title)).toEqual(["Blockchain", "AI", "Media"]);
+      expect(result).toHaveLength(2);
+      expect(result.map(c => c.title)).toEqual(["Blockchain", "AI"]);
     });
 
     it("throws error when fetch fails", async () => {
@@ -57,7 +55,6 @@ describe(TemplateGalleryService.name, () => {
       expect(result[0].title).toBe("Cached");
       expect(templateFetcher.fetchAwesomeAkashTemplates).not.toHaveBeenCalled();
       expect(templateFetcher.fetchOmnibusTemplates).not.toHaveBeenCalled();
-      expect(templateFetcher.fetchLinuxServerTemplates).not.toHaveBeenCalled();
     });
 
     it("handles concurrent calls by sharing the same promise", async () => {
@@ -72,7 +69,6 @@ describe(TemplateGalleryService.name, () => {
       expect(result2).toEqual(result3);
       expect(templateFetcher.fetchAwesomeAkashTemplates).toHaveBeenCalledTimes(1);
       expect(templateFetcher.fetchOmnibusTemplates).toHaveBeenCalledTimes(1);
-      expect(templateFetcher.fetchLinuxServerTemplates).toHaveBeenCalledTimes(1);
     });
 
     it("returns cached gallery on filesystem if github request for latest commit sha fails", async () => {
@@ -262,8 +258,7 @@ describe(TemplateGalleryService.name, () => {
     const templateFetcher = mock<TemplateFetcherService>({
       fetchLatestCommitSha: jest.fn(() => Promise.resolve("abc123")),
       fetchAwesomeAkashTemplates: jest.fn(() => Promise.resolve([])),
-      fetchOmnibusTemplates: jest.fn(() => Promise.resolve([])),
-      fetchLinuxServerTemplates: jest.fn(() => Promise.resolve([]))
+      fetchOmnibusTemplates: jest.fn(() => Promise.resolve([]))
     });
 
     // HACK: assigning private properties to the service object. will refactor later

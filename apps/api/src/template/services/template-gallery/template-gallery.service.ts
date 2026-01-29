@@ -134,7 +134,7 @@ export class TemplateGalleryService {
         event: "GET_TEMPLATE_GALLERY_START",
         msg: "Getting template gallery"
       });
-      const [awesomeAkashTemplates, omnibusTemplates, linuxServerTemplates] = await Promise.all([
+      const [awesomeAkashTemplates, omnibusTemplates] = await Promise.all([
         this.getTemplatesFromRepo({
           repository: "awesome-akash",
           fetchTemplates: this.templateFetcher.fetchAwesomeAkashTemplates.bind(this.templateFetcher)
@@ -142,14 +142,10 @@ export class TemplateGalleryService {
         this.getTemplatesFromRepo({
           repository: "cosmos-omnibus",
           fetchTemplates: this.templateFetcher.fetchOmnibusTemplates.bind(this.templateFetcher)
-        }),
-        this.getTemplatesFromRepo({
-          repository: "akash-linuxserver",
-          fetchTemplates: this.templateFetcher.fetchLinuxServerTemplates.bind(this.templateFetcher)
         })
       ]);
 
-      const templateGallery = this.templateProcessor.mergeTemplateCategories(omnibusTemplates, awesomeAkashTemplates, linuxServerTemplates);
+      const templateGallery = this.templateProcessor.mergeTemplateCategories(omnibusTemplates, awesomeAkashTemplates);
       const categories = templateGallery.map(({ templateSources, ...category }) => category);
 
       this.#logger.debug({

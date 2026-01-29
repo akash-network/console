@@ -48,25 +48,6 @@ describe(TemplateFetcherService.name, () => {
       });
     });
 
-    it("returns commit SHA for akash-linuxserver repository", async () => {
-      const { service, octokit } = setup();
-      const expectedSha = "linux456";
-      octokit.rest.repos.getBranch.mockResolvedValue({
-        status: 200,
-        headers: { "x-ratelimit-remaining": "4997" },
-        data: { commit: { sha: expectedSha } }
-      } as never);
-
-      const result = await service.fetchLatestCommitSha("akash-linuxserver");
-
-      expect(result).toBe(expectedSha);
-      expect(octokit.rest.repos.getBranch).toHaveBeenCalledWith({
-        owner: REPOSITORIES["akash-linuxserver"].repoOwner,
-        repo: REPOSITORIES["akash-linuxserver"].repoName,
-        branch: REPOSITORIES["akash-linuxserver"].mainBranch
-      });
-    });
-
     it("throws error when API returns non-200 status", async () => {
       const { service, octokit } = setup();
       octokit.rest.repos.getBranch.mockResolvedValue({
@@ -179,68 +160,6 @@ describe(TemplateFetcherService.name, () => {
       await service.fetchAwesomeAkashTemplates("v1");
 
       expect(templateProcessor.processTemplate).toHaveBeenCalledWith(expect.any(Object), "# README", "deploy", null, '{"ssh": true}');
-    });
-  });
-
-  describe("fetchLinuxServerTemplates", () => {
-    it("fetches templates with ignore list filtering", async () => {
-      const { service, archiveService, templateProcessor } = setup();
-      const readmeContent = `### Media\n` + `- [Plex](./plex)\n` + `- [Deprecated](./deprecated)\n`;
-
-      mockArchive(archiveService, async () =>
-        createMockArchiveReader({
-          files: {
-            "README.md": readmeContent,
-            "./plex/README.md": "# Plex Media Server",
-            "./plex/deploy.yaml": "deploy content",
-            "./deprecated/README.md": "THIS IMAGE IS DEPRECATED and should not be used",
-            "./deprecated/deploy.yaml": "deploy content"
-          },
-          directories: {
-            "./plex": [
-              { name: "README.md", path: "./plex/README.md", type: "file" },
-              { name: "deploy.yaml", path: "./plex/deploy.yaml", type: "file" }
-            ],
-            "./deprecated": [
-              { name: "README.md", path: "./deprecated/README.md", type: "file" },
-              { name: "deploy.yaml", path: "./deprecated/deploy.yaml", type: "file" }
-            ]
-          }
-        })
-      );
-
-      templateProcessor.processTemplate.mockReturnValue(createTemplate({ id: "plex" }));
-
-      const result = await service.fetchLinuxServerTemplates("v1");
-
-      expect(result[0].templates).toHaveLength(1);
-      expect(templateProcessor.processTemplate).toHaveBeenCalledTimes(1);
-    });
-
-    it("filters templates containing 'not recommended for use by the general public'", async () => {
-      const { service, archiveService, templateProcessor } = setup();
-      const readmeContent = `### Tools\n` + `- [Internal](./internal)\n`;
-
-      mockArchive(archiveService, async () =>
-        createMockArchiveReader({
-          files: {
-            "README.md": readmeContent,
-            "./internal/README.md": "This tool is not recommended for use by the general public",
-            "./internal/deploy.yaml": "deploy"
-          },
-          directories: {
-            "./internal": [
-              { name: "README.md", path: "./internal/README.md", type: "file" },
-              { name: "deploy.yaml", path: "./internal/deploy.yaml", type: "file" }
-            ]
-          }
-        })
-      );
-
-      const result = await service.fetchLinuxServerTemplates("v1");
-
-      expect(result[0].templates).toHaveLength(0);
-      expect(templateProcessor.processTemplate).not.toHaveBeenCalled();
     });
   });
 
@@ -428,22 +347,6 @@ describe(TemplateFetcherService.name, () => {
           repoOwner: "akash-network",
           repoName: "awesome-akash",
           repoVersion: "v1"
-        })
-      );
-    });
-
-    it("returns empty array for linux server templates when archive fails", async () => {
-      const { service, archiveService, logger } = setup();
-      archiveService.getArchive.mockRejectedValue(new Error("Network error"));
-
-      const result = await service.fetchLinuxServerTemplates("v1");
-
-      expect(result).toEqual([]);
-      expect(logger.warn).toHaveBeenCalledWith(
-        expect.objectContaining({
-          event: "FETCH_TEMPLATES_FROM_README_FAILED",
-          repoOwner: "cryptoandcoffee",
-          repoName: "akash-linuxserver"
         })
       );
     });

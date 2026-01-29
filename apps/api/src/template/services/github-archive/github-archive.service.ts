@@ -27,13 +27,13 @@ export class GitHubArchiveService {
     this.#logger = logger;
   }
 
-  async getArchive(owner: string, repo: string, ref: string): Promise<ArchiveReader> {
+  async getArchive(owner: string, repo: string, ref: string, fileFilter?: (relativePath: string) => boolean): Promise<ArchiveReader> {
     const cacheKey = `${owner}/${repo}/${ref}`;
 
     const cached = this.#cache.get(cacheKey);
     if (cached) return cached;
 
-    const promise = this.#downloadAndParse(owner, repo, ref);
+    const promise = this.#downloadAndParse(owner, repo, ref, fileFilter);
     this.#cache.set(cacheKey, promise);
 
     try {
@@ -48,7 +48,7 @@ export class GitHubArchiveService {
     this.#cache.clear();
   }
 
-  async #downloadAndParse(owner: string, repo: string, ref: string): Promise<ArchiveReader> {
+  async #downloadAndParse(owner: string, repo: string, ref: string, fileFilter?: (relativePath: string) => boolean): Promise<ArchiveReader> {
     const url = `https://github.com/${owner}/${repo}/archive/${ref}.zip`;
     const response = await fetch(url, { signal: AbortSignal.timeout(60_000) });
 
@@ -57,12 +57,12 @@ export class GitHubArchiveService {
     }
 
     const buffer = Buffer.from(await response.arrayBuffer());
-    const parsed = await this.#extractArchive(buffer);
+    const parsed = await this.#extractArchive(buffer, fileFilter);
 
     return this.#createArchiveReader(parsed);
   }
 
-  #extractArchive(buffer: Buffer): Promise<ParsedArchive> {
+  #extractArchive(buffer: Buffer, fileFilter?: (relativePath: string) => boolean): Promise<ParsedArchive> {
     return new Promise((resolve, reject) => {
       yauzl.fromBuffer(buffer, { lazyEntries: true }, (err, zipfile) => {
         if (err || !zipfile) return reject(err ?? new Error("Failed to open ZIP"));
@@ -96,6 +96,11 @@ export class GitHubArchiveService {
             if (!dirChildren.has(relativePath.slice(0, -1))) {
               dirChildren.set(relativePath.slice(0, -1), new Map());
             }
+            zipfile.readEntry();
+            return;
+          }
+
+          if (fileFilter && !fileFilter(relativePath)) {
             zipfile.readEntry();
             return;
           }

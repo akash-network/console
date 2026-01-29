@@ -5,7 +5,8 @@ export const envSchema = z.object({
   TEMPLATE_REFRESH_INTERVAL_SECONDS: z.coerce
     .number()
     .optional()
-    .default(15 * 60)
+    .default(15 * 60),
+  TEMPLATE_REFRESH_ENABLED: z.coerce.boolean().optional().default(true)
 });
 
 export type TemplateConfig = z.infer<typeof envSchema>;
