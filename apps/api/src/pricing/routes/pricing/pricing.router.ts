@@ -14,6 +14,9 @@ const postPricingRoute = createRoute({
   tags: ["Other"],
   security: SECURITY_NONE,
   summary: "Estimate the price of a deployment on akash and other cloud providers.",
+  bodyLimit: {
+    maxSize: 512 // 512 bytes
+  },
   request: {
     body: {
       description:

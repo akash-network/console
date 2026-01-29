@@ -3,7 +3,6 @@ import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { otel } from "@hono/otel";
 import { swaggerUI } from "@hono/swagger-ui";
 import { Hono } from "hono";
-import { compress } from "hono/compress";
 import { cors } from "hono/cors";
 import assert from "http-assert";
 import { container } from "tsyringe";
@@ -88,7 +87,6 @@ appHono.use(
     exposeHeaders: ["cf-mitigated"]
   })
 );
-appHono.use("*", compress());
 
 appHono.use(container.resolve(HttpLoggerInterceptor).intercept());
 appHono.use(container.resolve(RequestContextInterceptor).intercept());
