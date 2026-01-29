@@ -197,6 +197,7 @@ export interface ApiProviderList {
     storage: {
       ephemeral: StatsItem;
       persistent: StatsItem;
+      total: StatsItem;
     };
   };
   attributes: Array<{

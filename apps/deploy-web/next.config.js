@@ -27,7 +27,37 @@ const CopyPlugin = require("copy-webpack-plugin");
 const transpilePackages = ["geist", "@akashnetwork/ui", "@auth0/nextjs-auth0"];
 
 if (process.env.NODE_ENV === "test") {
-  transpilePackages.push("nanoid", "uint8arrays", "multiformats", "@marsidev/react-turnstile", "@panva/hkdf", "jose", "@nivo/pie", "@nivo/tooltip");
+  transpilePackages.push(
+    "nanoid",
+    "uint8arrays",
+    "multiformats",
+    "@marsidev/react-turnstile",
+    "@panva/hkdf",
+    "jose",
+    "@nivo/pie",
+    "@nivo/tooltip",
+    "d3-interpolate",
+    "d3-color",
+    "d3-scale",
+    "d3-array",
+    "internmap",
+    "d3-time",
+    "d3-scale-chromatic",
+    "d3-delaunay",
+    "d3-dispatch",
+    "d3-drag",
+    "d3-ease",
+    "d3-format",
+    "d3-geo",
+    "d3-path",
+    "d3-selection",
+    "d3-shape",
+    "d3-time",
+    "d3-time-format",
+    "d3-timer",
+    "d3-transition",
+    "d3-zoom"
+  );
 }
 
 /**
