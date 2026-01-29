@@ -231,7 +231,7 @@ function useStorageData(storageStats: NetworkCapacityStats["resources"]["storage
   return [
     {
       id: "active-ephemeral",
-      label: "Active emphemeral",
+      label: "Active ephemeral",
       color: tw.theme.colors["primary"].DEFAULT,
       value: storageStats.ephemeral.active
     },
@@ -242,8 +242,8 @@ function useStorageData(storageStats: NetworkCapacityStats["resources"]["storage
       value: storageStats.persistent.active
     },
     {
-      id: "available-emphemeral",
-      label: "Available emphemeral",
+      id: "available-ephemeral",
+      label: "Available ephemeral",
       color: resolvedTheme === "dark" ? tw.theme.colors.neutral[400] : tw.theme.colors.neutral[500],
       value: storageStats.ephemeral.available + storageStats.ephemeral.pending
     },

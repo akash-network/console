@@ -23,7 +23,9 @@ const LegacyNetworkCapacityResponseSchema = z.object({
   availableEphemeralStorage: z.number(),
   activePersistentStorage: z.number(),
   pendingPersistentStorage: z.number(),
-  availablePersistentStorage: z.number()
+  availablePersistentStorage: z.number(),
+  totalEphemeralStorage: z.number(),
+  totalPersistentStorage: z.number()
 });
 
 export const DashboardDataResponseSchema = z.object({
