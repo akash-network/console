@@ -205,28 +205,16 @@ describe("Network Capacity", () => {
       expect(response.status).toBe(200);
       expect(data).toEqual({
         activeProviderCount: 2,
-        activeCPU: 902,
-        pendingCPU: 912,
-        availableCPU: 922,
-        activeGPU: 904,
-        pendingGPU: 914,
-        availableGPU: 924,
-        activeMemory: 906,
-        pendingMemory: 916,
-        availableMemory: 926,
-        activeStorage: 1818,
-        pendingStorage: 1838,
-        availableStorage: 1858,
-        activeEphemeralStorage: 910,
-        pendingEphemeralStorage: 920,
-        availableEphemeralStorage: 930,
-        activePersistentStorage: 908,
-        pendingPersistentStorage: 918,
-        availablePersistentStorage: 928,
-        totalCPU: 2736,
-        totalGPU: 2742,
-        totalMemory: 2748,
-        totalStorage: 5514
+        resources: {
+          cpu: { active: 902, pending: 912, available: 922, total: 2736 },
+          gpu: { active: 904, pending: 914, available: 924, total: 2742 },
+          memory: { active: 906, pending: 916, available: 926, total: 2748 },
+          storage: {
+            ephemeral: { active: 910, pending: 920, available: 930, total: 2760 },
+            persistent: { active: 908, pending: 918, available: 928, total: 2754 },
+            total: { active: 1818, pending: 1838, available: 1858, total: 5514 }
+          }
+        }
       });
     });
   });

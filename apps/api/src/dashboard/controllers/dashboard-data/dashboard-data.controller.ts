@@ -54,7 +54,7 @@ export class DashboardDataController {
         inflation: 0,
         stakingAPR: undefined
       }),
-      runOrLog(() => this.statsService.getNetworkCapacity(), cloneDeep(emptyNetworkCapacity)),
+      runOrLog(() => this.statsService.getLegacyNetworkCapacity(), cloneDeep(emptyNetworkCapacity)),
       runOrLog(() => this.providerGraphDataService.getProviderGraphData("count"), cloneDeep(emptyProviderGraphData)),
       runOrLog(() => this.akashBlockService.getBlocks(5), []),
       runOrLog(() => this.transactionService.getTransactions(5), [])

@@ -8502,100 +8502,172 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
               "application/json": {
                 "schema": {
                   "properties": {
-                    "activeCPU": {
-                      "type": "number",
-                    },
-                    "activeEphemeralStorage": {
-                      "type": "number",
-                    },
-                    "activeGPU": {
-                      "type": "number",
-                    },
-                    "activeMemory": {
-                      "type": "number",
-                    },
-                    "activePersistentStorage": {
-                      "type": "number",
-                    },
                     "activeProviderCount": {
                       "type": "number",
                     },
-                    "activeStorage": {
-                      "type": "number",
-                    },
-                    "availableCPU": {
-                      "type": "number",
-                    },
-                    "availableEphemeralStorage": {
-                      "type": "number",
-                    },
-                    "availableGPU": {
-                      "type": "number",
-                    },
-                    "availableMemory": {
-                      "type": "number",
-                    },
-                    "availablePersistentStorage": {
-                      "type": "number",
-                    },
-                    "availableStorage": {
-                      "type": "number",
-                    },
-                    "pendingCPU": {
-                      "type": "number",
-                    },
-                    "pendingEphemeralStorage": {
-                      "type": "number",
-                    },
-                    "pendingGPU": {
-                      "type": "number",
-                    },
-                    "pendingMemory": {
-                      "type": "number",
-                    },
-                    "pendingPersistentStorage": {
-                      "type": "number",
-                    },
-                    "pendingStorage": {
-                      "type": "number",
-                    },
-                    "totalCPU": {
-                      "type": "number",
-                    },
-                    "totalGPU": {
-                      "type": "number",
-                    },
-                    "totalMemory": {
-                      "type": "number",
-                    },
-                    "totalStorage": {
-                      "type": "number",
+                    "resources": {
+                      "properties": {
+                        "cpu": {
+                          "properties": {
+                            "active": {
+                              "type": "number",
+                            },
+                            "available": {
+                              "type": "number",
+                            },
+                            "pending": {
+                              "type": "number",
+                            },
+                            "total": {
+                              "type": "number",
+                            },
+                          },
+                          "required": [
+                            "active",
+                            "pending",
+                            "available",
+                            "total",
+                          ],
+                          "type": "object",
+                        },
+                        "gpu": {
+                          "properties": {
+                            "active": {
+                              "type": "number",
+                            },
+                            "available": {
+                              "type": "number",
+                            },
+                            "pending": {
+                              "type": "number",
+                            },
+                            "total": {
+                              "type": "number",
+                            },
+                          },
+                          "required": [
+                            "active",
+                            "pending",
+                            "available",
+                            "total",
+                          ],
+                          "type": "object",
+                        },
+                        "memory": {
+                          "properties": {
+                            "active": {
+                              "type": "number",
+                            },
+                            "available": {
+                              "type": "number",
+                            },
+                            "pending": {
+                              "type": "number",
+                            },
+                            "total": {
+                              "type": "number",
+                            },
+                          },
+                          "required": [
+                            "active",
+                            "pending",
+                            "available",
+                            "total",
+                          ],
+                          "type": "object",
+                        },
+                        "storage": {
+                          "properties": {
+                            "ephemeral": {
+                              "properties": {
+                                "active": {
+                                  "type": "number",
+                                },
+                                "available": {
+                                  "type": "number",
+                                },
+                                "pending": {
+                                  "type": "number",
+                                },
+                                "total": {
+                                  "type": "number",
+                                },
+                              },
+                              "required": [
+                                "active",
+                                "pending",
+                                "available",
+                                "total",
+                              ],
+                              "type": "object",
+                            },
+                            "persistent": {
+                              "properties": {
+                                "active": {
+                                  "type": "number",
+                                },
+                                "available": {
+                                  "type": "number",
+                                },
+                                "pending": {
+                                  "type": "number",
+                                },
+                                "total": {
+                                  "type": "number",
+                                },
+                              },
+                              "required": [
+                                "active",
+                                "pending",
+                                "available",
+                                "total",
+                              ],
+                              "type": "object",
+                            },
+                            "total": {
+                              "properties": {
+                                "active": {
+                                  "type": "number",
+                                },
+                                "available": {
+                                  "type": "number",
+                                },
+                                "pending": {
+                                  "type": "number",
+                                },
+                                "total": {
+                                  "type": "number",
+                                },
+                              },
+                              "required": [
+                                "active",
+                                "pending",
+                                "available",
+                                "total",
+                              ],
+                              "type": "object",
+                            },
+                          },
+                          "required": [
+                            "ephemeral",
+                            "persistent",
+                            "total",
+                          ],
+                          "type": "object",
+                        },
+                      },
+                      "required": [
+                        "cpu",
+                        "gpu",
+                        "memory",
+                        "storage",
+                      ],
+                      "type": "object",
                     },
                   },
                   "required": [
                     "activeProviderCount",
-                    "activeCPU",
-                    "activeGPU",
-                    "activeMemory",
-                    "activeStorage",
-                    "pendingCPU",
-                    "pendingGPU",
-                    "pendingMemory",
-                    "pendingStorage",
-                    "availableCPU",
-                    "availableGPU",
-                    "availableMemory",
-                    "availableStorage",
-                    "totalCPU",
-                    "totalGPU",
-                    "totalMemory",
-                    "totalStorage",
-                    "activeEphemeralStorage",
-                    "pendingEphemeralStorage",
-                    "availableEphemeralStorage",
-                    "activePersistentStorage",
-                    "pendingPersistentStorage",
-                    "availablePersistentStorage",
+                    "resources",
                   ],
                   "type": "object",
                 },
@@ -11164,29 +11236,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                 "schema": {
                   "items": {
                     "properties": {
-                      "activeStats": {
-                        "properties": {
-                          "cpu": {
-                            "type": "number",
-                          },
-                          "gpu": {
-                            "type": "number",
-                          },
-                          "memory": {
-                            "type": "number",
-                          },
-                          "storage": {
-                            "type": "number",
-                          },
-                        },
-                        "required": [
-                          "cpu",
-                          "gpu",
-                          "memory",
-                          "storage",
-                        ],
-                        "type": "object",
-                      },
                       "akashVersion": {
                         "type": "string",
                       },
@@ -11214,29 +11263,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                           "type": "object",
                         },
                         "type": "array",
-                      },
-                      "availableStats": {
-                        "properties": {
-                          "cpu": {
-                            "type": "number",
-                          },
-                          "gpu": {
-                            "type": "number",
-                          },
-                          "memory": {
-                            "type": "number",
-                          },
-                          "storage": {
-                            "type": "number",
-                          },
-                        },
-                        "required": [
-                          "cpu",
-                          "gpu",
-                          "memory",
-                          "storage",
-                        ],
-                        "type": "object",
                       },
                       "city": {
                         "nullable": true,
@@ -11417,29 +11443,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                       "owner": {
                         "type": "string",
                       },
-                      "pendingStats": {
-                        "properties": {
-                          "cpu": {
-                            "type": "number",
-                          },
-                          "gpu": {
-                            "type": "number",
-                          },
-                          "memory": {
-                            "type": "number",
-                          },
-                          "storage": {
-                            "type": "number",
-                          },
-                        },
-                        "required": [
-                          "cpu",
-                          "gpu",
-                          "memory",
-                          "storage",
-                        ],
-                        "type": "object",
-                      },
                       "statusPage": {
                         "nullable": true,
                         "type": "string",
@@ -11499,9 +11502,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                       "isOnline",
                       "lastOnlineDate",
                       "isAudited",
-                      "activeStats",
-                      "pendingStats",
-                      "availableStats",
                       "gpuModels",
                       "attributes",
                       "host",
@@ -11566,29 +11566,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
               "application/json": {
                 "schema": {
                   "properties": {
-                    "activeStats": {
-                      "properties": {
-                        "cpu": {
-                          "type": "number",
-                        },
-                        "gpu": {
-                          "type": "number",
-                        },
-                        "memory": {
-                          "type": "number",
-                        },
-                        "storage": {
-                          "type": "number",
-                        },
-                      },
-                      "required": [
-                        "cpu",
-                        "gpu",
-                        "memory",
-                        "storage",
-                      ],
-                      "type": "object",
-                    },
                     "akashVersion": {
                       "type": "string",
                     },
@@ -11616,29 +11593,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                         "type": "object",
                       },
                       "type": "array",
-                    },
-                    "availableStats": {
-                      "properties": {
-                        "cpu": {
-                          "type": "number",
-                        },
-                        "gpu": {
-                          "type": "number",
-                        },
-                        "memory": {
-                          "type": "number",
-                        },
-                        "storage": {
-                          "type": "number",
-                        },
-                      },
-                      "required": [
-                        "cpu",
-                        "gpu",
-                        "memory",
-                        "storage",
-                      ],
-                      "type": "object",
                     },
                     "city": {
                       "nullable": true,
@@ -11794,6 +11748,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                       "type": "string",
                     },
                     "name": {
+                      "nullable": true,
                       "type": "string",
                     },
                     "networkProvider": {
@@ -11812,29 +11767,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                     },
                     "owner": {
                       "type": "string",
-                    },
-                    "pendingStats": {
-                      "properties": {
-                        "cpu": {
-                          "type": "number",
-                        },
-                        "gpu": {
-                          "type": "number",
-                        },
-                        "memory": {
-                          "type": "number",
-                        },
-                        "storage": {
-                          "type": "number",
-                        },
-                      },
-                      "required": [
-                        "cpu",
-                        "gpu",
-                        "memory",
-                        "storage",
-                      ],
-                      "type": "object",
                     },
                     "stats": {
                       "properties": {
@@ -12034,9 +11966,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                     "lastOnlineDate",
                     "isAudited",
                     "stats",
-                    "activeStats",
-                    "pendingStats",
-                    "availableStats",
                     "gpuModels",
                     "attributes",
                     "host",

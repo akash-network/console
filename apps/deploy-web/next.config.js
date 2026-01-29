@@ -27,7 +27,7 @@ const CopyPlugin = require("copy-webpack-plugin");
 const transpilePackages = ["geist", "@akashnetwork/ui", "@auth0/nextjs-auth0"];
 
 if (process.env.NODE_ENV === "test") {
-  transpilePackages.push("nanoid", "uint8arrays", "multiformats", "@marsidev/react-turnstile", "@panva/hkdf", "jose");
+  transpilePackages.push("nanoid", "uint8arrays", "multiformats", "@marsidev/react-turnstile", "@panva/hkdf", "jose", "@nivo/pie", "@nivo/tooltip");
 }
 
 /**

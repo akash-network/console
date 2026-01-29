@@ -32,24 +32,6 @@ export const ProviderListResponseSchema = z.array(
     isOnline: z.boolean(),
     lastOnlineDate: z.string().nullable(),
     isAudited: z.boolean(),
-    activeStats: z.object({
-      cpu: z.number(),
-      gpu: z.number(),
-      memory: z.number(),
-      storage: z.number()
-    }),
-    pendingStats: z.object({
-      cpu: z.number(),
-      gpu: z.number(),
-      memory: z.number(),
-      storage: z.number()
-    }),
-    availableStats: z.object({
-      cpu: z.number(),
-      gpu: z.number(),
-      memory: z.number(),
-      storage: z.number()
-    }),
     gpuModels: z.array(
       z.object({
         vendor: z.string(),
@@ -108,7 +90,7 @@ export const ProviderParamsSchema = z.object({
 
 export const ProviderResponseSchema = z.object({
   owner: z.string(),
-  name: z.string(),
+  name: z.string().nullable(),
   hostUri: z.string(),
   createdHeight: z.number(),
   email: z.string().nullable(),
@@ -139,24 +121,6 @@ export const ProviderResponseSchema = z.object({
       ephemeral: statsItemSchema,
       persistent: statsItemSchema
     })
-  }),
-  activeStats: z.object({
-    cpu: z.number(),
-    gpu: z.number(),
-    memory: z.number(),
-    storage: z.number()
-  }),
-  pendingStats: z.object({
-    cpu: z.number(),
-    gpu: z.number(),
-    memory: z.number(),
-    storage: z.number()
-  }),
-  availableStats: z.object({
-    cpu: z.number(),
-    gpu: z.number(),
-    memory: z.number(),
-    storage: z.number()
   }),
   gpuModels: z.array(
     z.object({
