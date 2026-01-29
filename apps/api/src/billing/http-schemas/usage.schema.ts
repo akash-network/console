@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import { format } from "date-fns";
 
 import { AkashAddressSchema } from "@src/utils/schema";
 
@@ -15,7 +16,7 @@ export const GetUsageHistoryQuerySchema = z
     endDate: z
       .string()
       .date()
-      .default(() => new Date().toISOString().split("T")[0])
+      .default(() => format(new Date(), "yyyy-MM-dd"))
       .openapi({
         description: "End date (YYYY-MM-DD). Defaults to today by UTC 23:59:59",
         example: "2024-01-31"
