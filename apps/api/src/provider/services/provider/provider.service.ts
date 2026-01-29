@@ -146,21 +146,20 @@ export class ProviderService {
     const BATCH_SIZE = 200;
     const providersWithAttributesAndAuditors: Provider[] = [];
     let offset = 0;
-    while (offset < 10_000) {
-      const batch = await this.providerRepository.getWithAttributesAndAuditors({ trial, limit: BATCH_SIZE, offset });
-      if (batch.length === 0) break;
+    let batch: Provider[];
+    do {
+      batch = await this.providerRepository.getWithAttributesAndAuditors({ trial, limit: BATCH_SIZE, offset });
       providersWithAttributesAndAuditors.push(...batch);
       offset += BATCH_SIZE;
-    }
+    } while (batch.length === BATCH_SIZE);
 
     const providerWithNodes: Provider[] = [];
     offset = 0;
-    while (offset < 10_000) {
-      const batch = await this.providerRepository.getProviderWithNodes({ limit: BATCH_SIZE, offset });
-      if (batch.length === 0) break;
+    do {
+      batch = await this.providerRepository.getProviderWithNodes({ limit: BATCH_SIZE, offset });
       providerWithNodes.push(...batch);
       offset += BATCH_SIZE;
-    }
+    } while (batch.length === BATCH_SIZE);
 
     const seenProviders = new Set<string>();
     const distinctProviders: Provider[] = [];
