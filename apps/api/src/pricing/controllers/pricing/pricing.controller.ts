@@ -7,7 +7,7 @@ import { PricingService } from "@src/pricing/services/pricing/pricing.service";
 export class PricingController {
   constructor(private readonly pricingService: PricingService) {}
 
-  public getPricing(specs: PricingBody): PricingResponse {
+  async getPricing(specs: PricingBody): Promise<PricingResponse> {
     return this.pricingService.getPricing(specs);
   }
 }

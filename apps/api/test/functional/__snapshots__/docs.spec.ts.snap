@@ -8856,6 +8856,8 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                       ],
                       "type": "object",
                     },
+                    "maxItems": 10,
+                    "minItems": 1,
                     "type": "array",
                   },
                 ],
@@ -8985,7 +8987,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                 },
               },
             },
-            "description": "Returns a list of deployment templates grouped by cateogories",
+            "description": "Returns a list of deployment templates grouped by categories",
           },
           "400": {
             "description": "Invalid parameters",
