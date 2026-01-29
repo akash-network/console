@@ -69,19 +69,6 @@ describe(TemplateFetcherService.name, () => {
       });
     });
 
-    it("updates githubRequestsRemaining from response headers", async () => {
-      const { service, octokit } = setup();
-      octokit.rest.repos.getBranch.mockResolvedValue({
-        status: 200,
-        headers: { "x-ratelimit-remaining": "4500" },
-        data: { commit: { sha: "abc" } }
-      } as never);
-
-      await service.fetchLatestCommitSha("awesome-akash");
-
-      expect(service.githubRequestsRemaining).toBe("4500");
-    });
-
     it("throws error when API returns non-200 status", async () => {
       const { service, octokit } = setup();
       octokit.rest.repos.getBranch.mockResolvedValue({
@@ -633,7 +620,9 @@ describe(TemplateFetcherService.name, () => {
     const logger = mock<LoggerService>();
     const octokit = mockDeep<Octokit>();
 
-    const service = new TemplateFetcherService(templateProcessor, logger, octokit);
+    const service = new TemplateFetcherService(templateProcessor, logger, () => octokit, {
+      githubPAT: "test-pat"
+    });
 
     return { service, templateProcessor, logger, octokit };
   }

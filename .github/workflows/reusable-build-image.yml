@@ -83,7 +83,7 @@ jobs:
           if [[ "$tag" == console-api/* ]]; then
             echo "registry=${{ vars.API_REGISTRY }}" >> "$GITHUB_ENV"
             echo "app=api" >> "$GITHUB_ENV"
-            echo "GITHUB_PAT=${{ secrets.GITHUB_TOKEN }}" >> "$GITHUB_ENV" # used to fetch Akash templates
+            echo "GITHUB_PAT=${{ secrets.TEMPLATES_GITHUB_PAT || secrets.GITHUB_TOKEN }}" >> "$GITHUB_ENV" # used to fetch Akash templates
           elif [[ "$tag" == console-web/* ]]; then
             echo "registry=${{ vars.WEB_REGISTRY }}" >> "$GITHUB_ENV"
             echo "app=deploy-web" >> "$GITHUB_ENV"
