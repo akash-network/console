@@ -13,7 +13,7 @@ const AUDITORS: Auditor[] = [
 
 @singleton()
 export class AuditorService {
-  getAuditors(): Auditor[] {
+  async getAuditors(): Promise<Auditor[]> {
     return AUDITORS;
   }
 }

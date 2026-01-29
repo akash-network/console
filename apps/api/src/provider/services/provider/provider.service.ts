@@ -17,6 +17,7 @@ import { ProviderAuth, ProviderIdentity, ProviderMtlsAuth, ProviderProxyService 
 import { ProviderJwtTokenService } from "@src/provider/services/provider-jwt-token/provider-jwt-token.service";
 import { ProviderList } from "@src/types/provider";
 import { toUTC } from "@src/utils";
+import { forEachInChunks } from "@src/utils/array/array";
 import { mapProviderToList } from "@src/utils/map/provider";
 import { AuditorService } from "../auditors/auditors.service";
 import { ProviderAttributesSchemaService } from "../provider-attributes-schema/provider-attributes-schema.service";
@@ -141,25 +142,52 @@ export class ProviderService {
 
   @Memoize({ ttlInSeconds: 60 })
   async getProviderList(trial = false): Promise<ProviderList[]> {
-    const providersWithAttributesAndAuditors = await this.providerRepository.getWithAttributesAndAuditors({ trial });
-    const providerWithNodes = await this.providerRepository.getProviderWithNodes();
+    // Fetch providers in batches to avoid blocking event loop during Sequelize hydration
+    const BATCH_SIZE = 200;
+    const providersWithAttributesAndAuditors: Provider[] = [];
+    let offset = 0;
+    while (offset < 10_000) {
+      const batch = await this.providerRepository.getWithAttributesAndAuditors({ trial, limit: BATCH_SIZE, offset });
+      if (batch.length === 0) break;
+      providersWithAttributesAndAuditors.push(...batch);
+      offset += BATCH_SIZE;
+    }
 
-    const distinctProviders = Object.values(
-      providersWithAttributesAndAuditors.reduce((acc: Record<string, Provider>, provider: Provider) => {
-        acc[provider.hostUri] = provider;
-        return acc;
-      }, {})
-    );
+    const providerWithNodes: Provider[] = [];
+    offset = 0;
+    while (offset < 10_000) {
+      const batch = await this.providerRepository.getProviderWithNodes({ limit: BATCH_SIZE, offset });
+      if (batch.length === 0) break;
+      providerWithNodes.push(...batch);
+      offset += BATCH_SIZE;
+    }
 
-    const auditors = this.auditorsService.getAuditors();
-    const providerAttributeSchema = await this.providerAttributesSchemaService.getProviderAttributesSchema();
-
-    const snapshotByOwner = new Map(providerWithNodes.map(p => [p.owner, p.lastSuccessfulSnapshot]));
-
-    return distinctProviders.map(x => {
-      const lastSuccessfulSnapshot = snapshotByOwner.get(x.owner);
-      return mapProviderToList(x, providerAttributeSchema, auditors, lastSuccessfulSnapshot);
+    const seenProviders = new Set<string>();
+    const distinctProviders: Provider[] = [];
+    await forEachInChunks(providersWithAttributesAndAuditors, provider => {
+      if (!seenProviders.has(provider.hostUri)) {
+        seenProviders.add(provider.hostUri);
+        distinctProviders.push(provider);
+      }
     });
+
+    const [auditors, providerAttributeSchema] = await Promise.all([
+      this.auditorsService.getAuditors(),
+      this.providerAttributesSchemaService.getProviderAttributesSchema()
+    ]);
+
+    const providerByOwner = new Map<string, Provider>();
+    await forEachInChunks(providerWithNodes, provider => {
+      providerByOwner.set(provider.owner, provider);
+    });
+    const finalProviders: ProviderList[] = [];
+
+    await forEachInChunks(distinctProviders, provider => {
+      const lastSuccessfulSnapshot = providerByOwner.get(provider.owner)?.lastSuccessfulSnapshot;
+      finalProviders.push(mapProviderToList(provider, providerAttributeSchema, auditors, lastSuccessfulSnapshot));
+    });
+
+    return finalProviders;
   }
 
   @Memoize({ ttlInSeconds: 30 })
@@ -194,8 +222,10 @@ export class ProviderService {
         })
       : null;
 
-    const auditors = this.auditorsService.getAuditors();
-    const providerAttributeSchema = await this.providerAttributesSchemaService.getProviderAttributesSchema();
+    const [auditors, providerAttributeSchema] = await Promise.all([
+      this.auditorsService.getAuditors(),
+      this.providerAttributesSchemaService.getProviderAttributesSchema()
+    ]);
 
     return {
       ...mapProviderToList(provider, providerAttributeSchema, auditors, lastSuccessfulSnapshot ?? undefined),

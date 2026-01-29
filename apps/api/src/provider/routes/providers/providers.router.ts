@@ -38,26 +38,16 @@ const providerListRoute = createRoute({
     }
   }
 });
+
 providersRouter.openapi(providerListRoute, async function routeListProviders(c) {
   const { scope } = c.req.valid("query");
   const controller = container.resolve(ProviderController);
 
-  const acceptEncoding = c.req.header("Accept-Encoding") || "";
-  if (acceptEncoding.includes("gzip")) {
-    const gzipped = await controller.getProviderListGzipped(scope);
-    return new Response(gzipped as unknown as BodyInit, {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Content-Encoding": "gzip",
-        Vary: "Accept-Encoding"
-      }
-    }) as unknown as TypedResponse<ProviderListResponse, 200, "json">;
-  }
-
-  const providersJson = await controller.getProviderListJson(scope);
-  c.header("Content-Type", "application/json");
-  return c.body(providersJson, 200) as unknown as TypedResponse<ProviderListResponse, 200, "json">;
+  const buffer = await controller.getProviderListBuffer(scope);
+  return new Response(buffer as unknown as BodyInit, {
+    status: 200,
+    headers: { "Content-Type": "application/json" }
+  }) as unknown as TypedResponse<ProviderListResponse, 200, "json">;
 });
 
 const providerRoute = createRoute({
