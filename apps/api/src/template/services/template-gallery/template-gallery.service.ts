@@ -74,6 +74,13 @@ export class TemplateGalleryService {
     return this.#galleriesCache;
   }
 
+  async refreshCache(categoriesSchema: z.ZodSchema): Promise<void> {
+    await this.buildTemplateGalleryCache(categoriesSchema);
+    this.#galleriesCache = null;
+    this.#parsedTemplates = {};
+    this.templateFetcher?.clearArchiveCache();
+  }
+
   async buildTemplateGalleryCache(categoriesSchema: z.ZodSchema): Promise<GalleriesCache> {
     const gallery = await this.getTemplateGallery();
     const result = gallery.reduce<{ templates: Template[]; categories: FinalCategory[] }>(

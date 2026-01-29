@@ -63,6 +63,10 @@ export class TemplateFetcherService {
     return this.#githubRequestsRemaining;
   }
 
+  clearArchiveCache(): void {
+    this.#archiveService.clearCache();
+  }
+
   async fetchLatestCommitSha(repository: keyof typeof REPOSITORIES) {
     const { repoOwner, repoName, mainBranch } = REPOSITORIES[repository];
     const response = await this.#octokit.rest.repos.getBranch({

@@ -1,4 +1,4 @@
-import JSZip from "jszip";
+import yauzl from "yauzl";
 
 export interface DirectoryEntry {
   name: string;
@@ -9,6 +9,11 @@ export interface DirectoryEntry {
 export interface ArchiveReader {
   readFile(path: string): Promise<string | null>;
   listDirectory(path: string): DirectoryEntry[];
+}
+
+interface ParsedArchive {
+  files: Map<string, string>;
+  directories: Map<string, DirectoryEntry[]>;
 }
 
 export class GitHubArchiveService {
@@ -31,6 +36,10 @@ export class GitHubArchiveService {
     }
   }
 
+  clearCache(): void {
+    this.#cache.clear();
+  }
+
   async #downloadAndParse(owner: string, repo: string, ref: string): Promise<ArchiveReader> {
     const url = `https://github.com/${owner}/${repo}/archive/${ref}.zip`;
     const response = await fetch(url);
@@ -39,62 +48,107 @@ export class GitHubArchiveService {
       throw new Error(`Failed to download archive from ${url}: ${response.status} ${response.statusText}`);
     }
 
-    const buffer = await response.arrayBuffer();
-    const zip = await JSZip.loadAsync(buffer);
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const parsed = await this.#extractArchive(buffer);
 
-    const rootPrefix = this.#detectRootPrefix(zip);
-
-    return this.#createArchiveReader(zip, rootPrefix);
+    return this.#createArchiveReader(parsed);
   }
 
-  #detectRootPrefix(zip: JSZip): string {
-    const firstEntry = Object.keys(zip.files)[0];
-    if (!firstEntry) return "";
+  #extractArchive(buffer: Buffer): Promise<ParsedArchive> {
+    return new Promise((resolve, reject) => {
+      yauzl.fromBuffer(buffer, { lazyEntries: true }, (err, zipfile) => {
+        if (err || !zipfile) return reject(err ?? new Error("Failed to open ZIP"));
 
-    const slashIndex = firstEntry.indexOf("/");
-    if (slashIndex === -1) return "";
+        const files = new Map<string, string>();
+        const dirChildren = new Map<string, Map<string, DirectoryEntry>>();
+        let rootPrefix = "";
+        let rootDetected = false;
 
-    return firstEntry.slice(0, slashIndex + 1);
-  }
+        zipfile.readEntry();
 
-  #createArchiveReader(zip: JSZip, rootPrefix: string): ArchiveReader {
-    return {
-      async readFile(path: string): Promise<string | null> {
-        const fullPath = rootPrefix + path;
-        const file = zip.file(fullPath);
-        if (!file) return null;
-        return file.async("string");
-      },
+        zipfile.on("entry", (entry: yauzl.Entry) => {
+          if (!rootDetected) {
+            const slashIndex = entry.fileName.indexOf("/");
+            rootPrefix = slashIndex !== -1 ? entry.fileName.slice(0, slashIndex + 1) : "";
+            rootDetected = true;
+          }
 
-      listDirectory(path: string): DirectoryEntry[] {
-        const dirPath = rootPrefix + (path ? path + "/" : "");
-        const entries: DirectoryEntry[] = [];
-        const seen = new Set<string>();
+          const relativePath = entry.fileName.startsWith(rootPrefix) ? entry.fileName.slice(rootPrefix.length) : entry.fileName;
 
-        zip.forEach((relativePath, entry) => {
-          if (!relativePath.startsWith(dirPath)) return;
+          if (!relativePath) {
+            zipfile.readEntry();
+            return;
+          }
 
-          const remainder = relativePath.slice(dirPath.length);
-          if (!remainder) return;
+          const isDir = entry.fileName.endsWith("/");
 
-          const slashIndex = remainder.indexOf("/");
-          const isDirectChild = slashIndex === -1 || slashIndex === remainder.length - 1;
-          if (!isDirectChild) return;
+          this.#registerInParentDirectory(dirChildren, relativePath, isDir);
 
-          const name = slashIndex === -1 ? remainder : remainder.slice(0, slashIndex);
-          if (seen.has(name)) return;
-          seen.add(name);
+          if (isDir) {
+            if (!dirChildren.has(relativePath.slice(0, -1))) {
+              dirChildren.set(relativePath.slice(0, -1), new Map());
+            }
+            zipfile.readEntry();
+            return;
+          }
 
-          const entryPath = path ? `${path}/${name}` : name;
+          zipfile.openReadStream(entry, (streamErr, readStream) => {
+            if (streamErr || !readStream) {
+              zipfile.readEntry();
+              return;
+            }
 
-          entries.push({
-            name,
-            path: entryPath,
-            type: entry.dir ? "dir" : "file"
+            const chunks: Buffer[] = [];
+            readStream.on("data", (chunk: Buffer) => chunks.push(chunk));
+            readStream.on("end", () => {
+              files.set(relativePath, Buffer.concat(chunks).toString("utf-8"));
+              zipfile.readEntry();
+            });
+            readStream.on("error", () => zipfile.readEntry());
           });
         });
 
-        return entries;
+        zipfile.on("end", () => {
+          const directories = new Map<string, DirectoryEntry[]>();
+          for (const [dirPath, childMap] of dirChildren) {
+            directories.set(dirPath, Array.from(childMap.values()));
+          }
+          resolve({ files, directories });
+        });
+
+        zipfile.on("error", reject);
+      });
+    });
+  }
+
+  #registerInParentDirectory(dirChildren: Map<string, Map<string, DirectoryEntry>>, relativePath: string, isDir: boolean): void {
+    const cleanPath = isDir ? relativePath.slice(0, -1) : relativePath;
+    const lastSlash = cleanPath.lastIndexOf("/");
+    const parentPath = lastSlash === -1 ? "" : cleanPath.slice(0, lastSlash);
+    const name = lastSlash === -1 ? cleanPath : cleanPath.slice(lastSlash + 1);
+
+    if (!dirChildren.has(parentPath)) {
+      dirChildren.set(parentPath, new Map());
+    }
+
+    const parent = dirChildren.get(parentPath)!;
+    if (!parent.has(name)) {
+      parent.set(name, {
+        name,
+        path: cleanPath,
+        type: isDir ? "dir" : "file"
+      });
+    }
+  }
+
+  #createArchiveReader(parsed: ParsedArchive): ArchiveReader {
+    return {
+      async readFile(path: string): Promise<string | null> {
+        return parsed.files.get(path) ?? null;
+      },
+
+      listDirectory(path: string): DirectoryEntry[] {
+        return parsed.directories.get(path) ?? [];
       }
     };
   }
