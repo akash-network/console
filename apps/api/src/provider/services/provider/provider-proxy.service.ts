@@ -33,17 +33,25 @@ export interface ProviderProxyPayload {
 
 @singleton()
 export class ProviderProxyService {
+  private readonly PROVIDER_PROXY_MAX_TIMEOUT = 10_000;
+
   constructor(private readonly configService: DeploymentConfigService) {}
 
   async request<T>(url: string, options: ProviderProxyPayload): Promise<T> {
     const { chainNetwork, providerIdentity, timeout, ...params } = options;
-    const response = await axios.post(this.configService.get("PROVIDER_PROXY_URL"), {
-      ...params,
-      method: options.method || "GET",
-      url: providerIdentity.hostUri + url,
-      providerAddress: providerIdentity.owner,
-      network: chainNetwork
-    });
+    const proxyTimeout = timeout ? Math.min(timeout, this.PROVIDER_PROXY_MAX_TIMEOUT) : undefined;
+    const response = await axios.post(
+      this.configService.get("PROVIDER_PROXY_URL"),
+      {
+        ...params,
+        method: options.method || "GET",
+        url: providerIdentity.hostUri + url,
+        providerAddress: providerIdentity.owner,
+        network: chainNetwork,
+        ...(proxyTimeout && { timeout: proxyTimeout })
+      },
+      { ...(proxyTimeout && { timeout: proxyTimeout }) }
+    );
     return response.data;
   }
 }
