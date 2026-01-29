@@ -1,6 +1,8 @@
 import type { RouteConfig } from "@hono/zod-openapi";
 // eslint-disable-next-line no-restricted-imports
 import { createRoute as createOpenApiRoute } from "@hono/zod-openapi";
+import type { MiddlewareHandler } from "hono";
+import { bodyLimit } from "hono/body-limit";
 
 export interface CacheConfig {
   maxAge: number;
@@ -9,6 +11,10 @@ export interface CacheConfig {
 
 export interface ExtendedRouteConfig<R extends RouteConfig> {
   cache?: CacheConfig;
+  /**
+   * Max size of the body in bytes. If not provided, the body limit will be set to 512Kb.
+   */
+  bodyLimit?: Parameters<typeof bodyLimit>[0];
   routeConfig: R;
 }
 
@@ -31,12 +37,31 @@ export function createRoute<
   R extends Omit<RouteConfig, "security"> & {
     security: Required<RouteConfig>["security"];
     cache?: CacheConfig;
+    bodyLimit?: Parameters<typeof bodyLimit>[0];
   }
 >(routeConfig: R) {
-  const { cache, ...openApiConfig } = routeConfig;
+  const { cache, bodyLimit: bodyLimitOptions, ...openApiConfig } = routeConfig;
+  let middlewares: MiddlewareHandler[] = [];
 
   if (cache) {
     cacheConfigRegistry.set(openApiConfig.path, cache);
+  }
+
+  if (routeConfig.method !== "get" && routeConfig.method !== "head") {
+    middlewares.push(
+      bodyLimit({
+        maxSize: 512 * 1024, // 512Kb
+        ...bodyLimitOptions
+      })
+    );
+  }
+
+  if (openApiConfig.middleware) {
+    middlewares = middlewares.concat(openApiConfig.middleware);
+  }
+
+  if (middlewares.length > 0) {
+    openApiConfig.middleware = middlewares;
   }
 
   return createOpenApiRoute(openApiConfig as Omit<R, "cache">);
