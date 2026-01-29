@@ -1,29 +1,13 @@
+import { UserSetting } from "@akashnetwork/database/dbSchemas/user";
 import assert from "http-assert";
 import randomInt from "lodash/random";
 import { singleton } from "tsyringe";
-import * as uuid from "uuid";
 
 import { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import { LoggerService } from "@src/core/providers/logging.provider";
 import { isUniqueViolation } from "@src/core/repositories/base.repository";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
-import {
-  addTemplateFavorite as addTemplateFavoriteDb,
-  deleteTemplate as deleteTemplateDb,
-  getFavoriteTemplates as getFavoriteTemplatesDb,
-  getTemplateById as getTemplateByIdDb,
-  getTemplates as getTemplatesDb,
-  removeTemplateFavorite as removeTemplateFavoriteDb,
-  saveTemplate as saveTemplateDb,
-  saveTemplateDesc as saveTemplateDescDb
-} from "@src/services/db/templateService";
-import {
-  checkUsernameAvailable as checkUsernameAvailableDb,
-  getUserByUsername as getUserByUsernameDb,
-  subscribeToNewsletter as subscribeToNewsletterDb,
-  updateSettings as updateSettingsDb
-} from "@src/services/db/userDataService";
 import { type UserOutput, UserRepository } from "../../repositories/user/user.repository";
 
 @singleton()
@@ -134,7 +118,14 @@ export class UserService {
   }
 
   async getUserByUsername(username: string) {
-    return await getUserByUsernameDb(username);
+    const user = await UserSetting.findOne({ where: { username: username } });
+
+    if (!user) return null;
+
+    return {
+      username: user.username,
+      bio: user.bio
+    };
   }
 
   async updateSettings(
@@ -146,80 +137,43 @@ export class UserService {
     twitterUsername: string,
     githubUsername: string
   ) {
-    if (!/^[a-zA-Z0-9_-]*$/.test(username)) {
-      throw new Error("Username can only contain letters, numbers, dashes and underscores");
+    assert(/^[a-zA-Z0-9_-]*$/.test(username), 400, "Username can only contain letters, numbers, dashes and underscores");
+
+    const settings = await UserSetting.findOne({ where: { userId: userId } });
+    assert(settings, 404, "User settings not found: " + userId);
+
+    if (username !== settings.username) {
+      const isAvailable = await this.checkUsernameAvailable(username);
+      assert(isAvailable, 400, `Username not available: ${username} (${userId})`);
+
+      settings.username = username;
     }
-    await updateSettingsDb(userId, username, subscribedToNewsletter, bio, youtubeUsername, twitterUsername, githubUsername);
+
+    settings.subscribedToNewsletter = subscribedToNewsletter;
+    settings.bio = bio;
+    settings.youtubeUsername = youtubeUsername;
+    settings.twitterUsername = twitterUsername;
+    settings.githubUsername = githubUsername;
+
+    await settings.save();
   }
 
-  async getTemplateById(templateId: string, userId: string = "") {
-    if (!uuid.validate(templateId)) {
-      throw new Error("Invalid template id");
-    }
-    return await getTemplateByIdDb(templateId, userId);
-  }
-
-  async saveTemplate(
-    id: string,
-    userId: string,
-    sdl: string,
-    title: string,
-    cpu: number,
-    ram: number,
-    storage: number,
-    isPublic: boolean
-  ) {
-    if (!sdl) {
-      throw new Error("Sdl is required");
-    }
-    if (!title) {
-      throw new Error("Title is required");
-    }
-    return await saveTemplateDb(id, userId, sdl, title, cpu, ram, storage, isPublic);
-  }
-
-  async saveTemplateDesc(id: string, userId: string, description: string) {
-    await saveTemplateDescDb(id, userId, description);
-  }
-
-  async getTemplates(username: string, userId: string = "") {
-    return await getTemplatesDb(username, userId);
-  }
-
-  async deleteTemplate(userId: string, templateId: string) {
-    if (!templateId) {
-      throw new Error("Template id is required");
-    }
-    if (!uuid.validate(templateId)) {
-      throw new Error("Invalid template id");
-    }
-    await deleteTemplateDb(userId, templateId);
-  }
-
-  async checkUsernameAvailable(username: string) {
-    return await checkUsernameAvailableDb(username);
-  }
-
-  async getFavoriteTemplates(userId: string) {
-    return await getFavoriteTemplatesDb(userId);
-  }
-
-  async addFavoriteTemplate(userId: string, templateId: string) {
-    if (!templateId) {
-      throw new Error("Template id is required");
-    }
-    await addTemplateFavoriteDb(userId, templateId);
-  }
-
-  async removeFavoriteTemplate(userId: string, templateId: string) {
-    if (!templateId) {
-      throw new Error("Template id is required");
-    }
-    await removeTemplateFavoriteDb(userId, templateId);
+  async checkUsernameAvailable(username: string): Promise<boolean> {
+    const existingUser = await UserSetting.findOne({ where: { username: username } });
+    return !existingUser;
   }
 
   async subscribeToNewsletter(userId: string) {
-    await subscribeToNewsletterDb(userId);
+    await UserSetting.update(
+      {
+        subscribedToNewsletter: true
+      },
+      {
+        where: {
+          userId: userId
+        }
+      }
+    );
   }
 }
 

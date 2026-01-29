@@ -53,17 +53,16 @@ export class UserController {
     return user;
   }
 
-  async updateSettings(
-    userId: string,
-    data: {
-      username: string;
-      subscribedToNewsletter: boolean;
-      bio: string;
-      youtubeUsername: string;
-      twitterUsername: string;
-      githubUsername: string;
-    }
-  ) {
+  async updateSettings(data: {
+    username: string;
+    subscribedToNewsletter: boolean;
+    bio: string;
+    youtubeUsername: string;
+    twitterUsername: string;
+    githubUsername: string;
+  }) {
+    assert(this.authService.currentUser, 401);
+    const userId = this.authService.currentUser.userId;
     await this.userService.updateSettings(
       userId,
       data.username,
@@ -75,59 +74,14 @@ export class UserController {
     );
   }
 
-  async getTemplateById(templateId: string, userId: string = "") {
-    const template = await this.userService.getTemplateById(templateId, userId);
-    assert(template, 404, "Template not found");
-    return template;
-  }
-
-  async saveTemplate(
-    userId: string,
-    data: {
-      id: string;
-      sdl: string;
-      isPublic: boolean;
-      title: string;
-      cpu: number;
-      ram: number;
-      storage: number;
-    }
-  ) {
-    return await this.userService.saveTemplate(data.id, userId, data.sdl, data.title, data.cpu, data.ram, data.storage, data.isPublic);
-  }
-
-  async saveTemplateDesc(userId: string, data: { id: string; description: string }) {
-    await this.userService.saveTemplateDesc(data.id, userId, data.description);
-  }
-
-  async getTemplates(username: string, userId: string = "") {
-    const templates = await this.userService.getTemplates(username, userId);
-    assert(templates, 404, "User not found.");
-    return templates;
-  }
-
-  async deleteTemplate(userId: string, templateId: string) {
-    await this.userService.deleteTemplate(userId, templateId);
-  }
-
   async checkUsernameAvailable(username: string) {
     const isAvailable = await this.userService.checkUsernameAvailable(username);
     return { isAvailable };
   }
 
-  async getFavoriteTemplates(userId: string) {
-    return await this.userService.getFavoriteTemplates(userId);
-  }
-
-  async addFavoriteTemplate(userId: string, templateId: string) {
-    await this.userService.addFavoriteTemplate(userId, templateId);
-  }
-
-  async removeFavoriteTemplate(userId: string, templateId: string) {
-    await this.userService.removeFavoriteTemplate(userId, templateId);
-  }
-
-  async subscribeToNewsletter(userId: string) {
+  async subscribeToNewsletter() {
+    assert(this.authService.currentUser, 401);
+    const userId = this.authService.currentUser.userId;
     await this.userService.subscribeToNewsletter(userId);
   }
 }
