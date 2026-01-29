@@ -50,7 +50,7 @@ export class GitHubArchiveService {
 
   async #downloadAndParse(owner: string, repo: string, ref: string): Promise<ArchiveReader> {
     const url = `https://github.com/${owner}/${repo}/archive/${ref}.zip`;
-    const response = await fetch(url);
+    const response = await fetch(url, { signal: AbortSignal.timeout(60_000) });
 
     if (!response.ok) {
       throw new Error(`Failed to download archive from ${url}: ${response.status} ${response.statusText}`);
@@ -161,14 +161,18 @@ export class GitHubArchiveService {
     }
   }
 
+  static #normalizePath(value: string): string {
+    return value.replace(/^(?:\.\/|\/)+/, "").replace(/\/+$/, "");
+  }
+
   #createArchiveReader(parsed: ParsedArchive): ArchiveReader {
     return {
       async readFile(path: string): Promise<string | null> {
-        return parsed.files.get(path) ?? null;
+        return parsed.files.get(GitHubArchiveService.#normalizePath(path)) ?? null;
       },
 
       listDirectory(path: string): DirectoryEntry[] {
-        return parsed.directories.get(path) ?? [];
+        return parsed.directories.get(GitHubArchiveService.#normalizePath(path)) ?? [];
       }
     };
   }
