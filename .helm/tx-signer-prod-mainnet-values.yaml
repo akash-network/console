@@ -1,2 +1,4 @@
 deploymentEnv: production
 chain: mainnet
+nodeOptions:
+  enabledOTEL: true
