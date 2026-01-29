@@ -27,7 +27,7 @@ type WalletVersionConfig = {
   derivedWalletFactory: WalletFactory;
 };
 
-type WalletVersion = "v1" | "v2";
+type WalletVersion = "v2";
 type WalletResources = Record<WalletVersion, WalletVersionConfig>;
 
 const WALLET_RESOURCES: InjectionToken<WalletResources> = Symbol("WALLET_RESOURCES");
@@ -37,23 +37,13 @@ container.register(WALLET_RESOURCES, {
     const config = c.resolve(AppConfigService);
     const batchSigningClientFactory = c.resolve<BatchSigningClientServiceFactory>(BATCH_SIGNING_CLIENT_FACTORY);
 
-    const v1MasterWallet = new Wallet(config.get("FUNDING_WALLET_MNEMONIC_V1") ?? config.get("OLD_MASTER_WALLET_MNEMONIC"));
-    const v2MasterWallet = new Wallet(config.get("FUNDING_WALLET_MNEMONIC_V2") ?? config.get("FUNDING_WALLET_MNEMONIC"));
-
-    const v1DerivedWalletFactory: WalletFactory = (walletIndex?: number) => {
-      return new Wallet(config.get("DERIVATION_WALLET_MNEMONIC_V1") ?? config.get("OLD_MASTER_WALLET_MNEMONIC"), walletIndex ?? 0);
-    };
+    const v2MasterWallet = new Wallet(config.get("FUNDING_WALLET_MNEMONIC_V2"));
 
     const v2DerivedWalletFactory: WalletFactory = (walletIndex?: number) => {
-      return new Wallet(config.get("DERIVATION_WALLET_MNEMONIC_V2") ?? config.get("DERIVATION_WALLET_MNEMONIC"), walletIndex ?? 0);
+      return new Wallet(config.get("DERIVATION_WALLET_MNEMONIC_V2"), walletIndex ?? 0);
     };
 
     return {
-      v1: {
-        masterWallet: v1MasterWallet,
-        masterSigningClient: batchSigningClientFactory(v1MasterWallet, "V1_MASTER_SIGNING_CLIENT"),
-        derivedWalletFactory: v1DerivedWalletFactory
-      },
       v2: {
         masterWallet: v2MasterWallet,
         masterSigningClient: batchSigningClientFactory(v2MasterWallet, "V2_MASTER_SIGNING_CLIENT"),
@@ -66,10 +56,6 @@ container.register(WALLET_RESOURCES, {
 type CachedClient = {
   address: string;
   client: BatchSigningClientService;
-};
-
-type WalletOptions = {
-  walletVersion?: WalletVersion;
 };
 
 @singleton()
@@ -85,8 +71,8 @@ export class TxManagerService {
     this.logger.setContext(TxManagerService.name);
   }
 
-  #getWalletResources(options?: WalletOptions): WalletVersionConfig {
-    const version = options?.walletVersion ?? this.#DEFAULT_WALLET_VERSION;
+  #getWalletResources(): WalletVersionConfig {
+    const version = this.#DEFAULT_WALLET_VERSION;
     const { [version]: resources } = this.walletResources;
     return resources;
   }
@@ -114,8 +100,8 @@ export class TxManagerService {
     }
   }
 
-  async getDerivedWalletAddress(index: number, options?: WalletOptions) {
-    return await this.getDerivedWallet(index, options).getFirstAddress();
+  async getDerivedWalletAddress(index: number) {
+    return await this.getDerivedWallet(index).getFirstAddress();
   }
 
   async #getClient(derivationIndex: number): Promise<CachedClient> {
@@ -133,8 +119,8 @@ export class TxManagerService {
     return this.#clientsByAddress.get(address)!;
   }
 
-  getDerivedWallet(index: number, options?: WalletOptions) {
-    const { derivedWalletFactory } = this.#getWalletResources(options);
+  getDerivedWallet(index: number) {
+    const { derivedWalletFactory } = this.#getWalletResources();
     return derivedWalletFactory(index);
   }
 }
