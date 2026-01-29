@@ -70,7 +70,7 @@ import {
 } from "./provider";
 import { templatesRouter } from "./template";
 import { transactionsRouter } from "./transaction";
-import { getCurrentUserRouter, registerUserRouter, userSettingsRouter, userTemplatesRouter } from "./user";
+import { getCurrentUserRouter, registerUserRouter, userSettingsRouterV2, userTemplatesRouterV2 } from "./user";
 import { validatorsRouter } from "./validator";
 
 const appHono = new Hono<AppEnv>();
@@ -97,8 +97,6 @@ appHono.use(clientInfoMiddleware);
 
 appHono.route("/", legacyRouter);
 appHono.route("/", apiRouter);
-appHono.route("/user", userSettingsRouter);
-appHono.route("/user", userTemplatesRouter);
 appHono.route("/web3-index", web3IndexRouter);
 appHono.route("/dashboard", dashboardRouter);
 appHono.route("/internal", internalRouter);
@@ -118,6 +116,8 @@ const openApiHonoHandlers: OpenApiHonoHandler[] = [
   usageRouter,
   registerUserRouter,
   getCurrentUserRouter,
+  userSettingsRouterV2,
+  userTemplatesRouterV2,
   sendVerificationEmailRouter,
   verifyEmailRouter,
   deploymentSettingRouter,
