@@ -13,7 +13,6 @@ import { createAkashAddress } from "@test/seeders";
 
 describe(TxController.name, () => {
   it("returns a successful derived wallet transaction", async () => {
-    container.clearInstances();
     const registry = container.resolve<Registry>(TYPE_REGISTRY);
     const address = createAkashAddress();
     const message = {
