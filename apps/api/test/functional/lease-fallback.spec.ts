@@ -1,4 +1,3 @@
-import { format } from "date-fns";
 import { subDays } from "date-fns";
 
 import type { FallbackLeaseListResponse } from "@src/deployment/http-schemas/lease-rpc.schema";
@@ -11,6 +10,7 @@ import { createDeploymentGroup } from "@test/seeders";
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { createAkashBlock } from "@test/seeders/akash-block.seeder";
 import { createDay } from "@test/seeders/day.seeder";
+import { formatUTCDate } from "@test/utils";
 
 type LeaseListTestParams = {
   owner?: string;
@@ -320,7 +320,7 @@ describe("Lease Fallback API", () => {
     await initDb();
 
     const now = new Date();
-    now.setHours(12, 0, 0, 0);
+    now.setUTCHours(12, 0, 0, 0);
 
     const dates = [subDays(now, 7), subDays(now, 6), subDays(now, 5), subDays(now, 4), subDays(now, 3), subDays(now, 2), subDays(now, 1), now];
 
@@ -345,56 +345,56 @@ describe("Lease Fallback API", () => {
 
     await Promise.all([
       createDay({
-        date: format(dates[0], "yyyy-MM-dd"),
+        date: formatUTCDate(dates[0]),
         firstBlockHeight: 1,
         lastBlockHeight: 100,
         lastBlockHeightYet: 100,
         aktPrice: 2.5
       }),
       createDay({
-        date: format(dates[1], "yyyy-MM-dd"),
+        date: formatUTCDate(dates[1]),
         firstBlockHeight: 101,
         lastBlockHeight: 200,
         lastBlockHeightYet: 200,
         aktPrice: 2.75
       }),
       createDay({
-        date: format(dates[2], "yyyy-MM-dd"),
+        date: formatUTCDate(dates[2]),
         firstBlockHeight: 201,
         lastBlockHeight: 300,
         lastBlockHeightYet: 300,
         aktPrice: 3.0
       }),
       createDay({
-        date: format(dates[3], "yyyy-MM-dd"),
+        date: formatUTCDate(dates[3]),
         firstBlockHeight: 301,
         lastBlockHeight: 400,
         lastBlockHeightYet: 400,
         aktPrice: 3.25
       }),
       createDay({
-        date: format(dates[4], "yyyy-MM-dd"),
+        date: formatUTCDate(dates[4]),
         firstBlockHeight: 401,
         lastBlockHeight: 500,
         lastBlockHeightYet: 500,
         aktPrice: 3.5
       }),
       createDay({
-        date: format(dates[5], "yyyy-MM-dd"),
+        date: formatUTCDate(dates[5]),
         firstBlockHeight: 501,
         lastBlockHeight: 600,
         lastBlockHeightYet: 600,
         aktPrice: 3.75
       }),
       createDay({
-        date: format(dates[6], "yyyy-MM-dd"),
+        date: formatUTCDate(dates[6]),
         firstBlockHeight: 601,
         lastBlockHeight: 700,
         lastBlockHeightYet: 700,
         aktPrice: 4.0
       }),
       createDay({
-        date: format(dates[7], "yyyy-MM-dd"),
+        date: formatUTCDate(dates[7]),
         firstBlockHeight: 701,
         lastBlockHeight: 800,
         lastBlockHeightYet: 800,
