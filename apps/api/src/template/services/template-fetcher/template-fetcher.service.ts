@@ -1,10 +1,11 @@
-import type { Octokit, RestEndpointMethodTypes } from "@octokit/rest";
+import type { Octokit } from "@octokit/rest";
 import PromisePool from "@supercharge/promise-pool";
 
 import type { LoggerService } from "@src/core";
 import type { GithubChainRegistryChainResponse } from "@src/types";
 import type { GithubDirectoryItem } from "@src/types/github";
 import type { Category, TemplateSource } from "../../types/template.ts";
+import type { GitHubArchiveService } from "../github-archive/github-archive.service.ts";
 import type { TemplateProcessorService } from "../template-processor/template-processor.service.ts";
 
 export const REPOSITORIES = {
@@ -34,14 +35,14 @@ export class TemplateFetcherService {
    */
   #githubRequestsRemaining: string | null = null;
   readonly #octokit: Octokit;
-  readonly #anonymousOctokit: Octokit;
+  readonly #archiveService: GitHubArchiveService;
   readonly #options: Required<Omit<FetcherOptions, "githubPAT">>;
-  #isAnonymousOctokitFailed = false;
 
   constructor(
     private readonly templateProcessor: TemplateProcessorService,
     logger: LoggerService,
     createOctokit: (githubPAT?: string, fetch?: typeof globalThis.fetch) => Octokit,
+    archiveService: GitHubArchiveService,
     options: FetcherOptions
   ) {
     this.#octokit = createOctokit(options.githubPAT, async (...args) => {
@@ -50,7 +51,7 @@ export class TemplateFetcherService {
       if (remaining) this.#githubRequestsRemaining = remaining;
       return response;
     });
-    this.#anonymousOctokit = createOctokit();
+    this.#archiveService = archiveService;
     this.#logger = logger;
     this.#options = {
       categoryProcessingConcurrency: options.categoryProcessingConcurrency ?? 10,
@@ -78,74 +79,51 @@ export class TemplateFetcherService {
   }
 
   private async fetchFileContent(owner: string, repo: string, path: string, ref?: string): Promise<string> {
-    const fileParams = { owner, repo, path, ref };
-    let response = await this.#fetchFileContentAnonymously(fileParams);
-
-    if (!response) {
-      response = await this.#fetchFileContentUsing(this.#octokit, fileParams);
+    if (!ref) {
+      throw new Error(`Cannot fetch file content without a ref for ${owner}/${repo}/${path}`);
     }
 
-    return String(response.data);
-  }
+    const archive = await this.#archiveService.getArchive(owner, repo, ref);
+    const content = await archive.readFile(path);
 
-  async #fetchFileContentAnonymously(params: RestEndpointMethodTypes["repos"]["getContent"]["parameters"]) {
-    if (this.#isAnonymousOctokitFailed) return;
-    try {
-      return await this.#fetchFileContentUsing(this.#anonymousOctokit, params);
-    } catch (error) {
-      this.#isAnonymousOctokitFailed = true;
-      this.#logger.warn({
-        event: "FETCH_TEMPLATE_CONTENT_FAILED_ANONYMOUSLY",
-        owner: params.owner,
-        repo: params.repo,
-        path: params.path,
-        ref: params.ref,
-        error: error
-      });
-      return;
-    }
-  }
-
-  async #fetchFileContentUsing(octokit: Octokit, params: RestEndpointMethodTypes["repos"]["getContent"]["parameters"]) {
-    const response = await octokit.rest.repos.getContent({
-      ...params,
-      mediaType: {
-        format: "raw"
-      }
-    });
-    if (response.status !== 200) {
-      throw new Error(`Failed to fetch content from ${params.owner}/${params.repo}/${params.path}`, {
-        cause: {
-          status: response.status,
-          data: response.data
-        }
-      });
+    if (content === null) {
+      throw new Error(`File not found in archive: ${owner}/${repo}/${path}@${ref}`);
     }
 
-    return response as unknown as Omit<RestEndpointMethodTypes["repos"]["getContent"]["response"], "data"> & { data: string };
+    return content;
   }
 
   private async fetchDirectoryContent(owner: string, repo: string, path: string, ref: string): Promise<GithubDirectoryItem[]> {
-    const response = await this.#octokit.rest.repos.getContent({
-      owner,
-      repo,
-      path,
-      ref,
-      mediaType: {
-        format: "raw"
+    const archive = await this.#archiveService.getArchive(owner, repo, ref);
+    const entries = archive.listDirectory(path);
+
+    return entries.map(entry => ({
+      type: entry.type,
+      size: 0,
+      name: entry.name,
+      path: entry.path,
+      sha: "",
+      url: "",
+      git_url: "",
+      html_url: "",
+      download_url: "",
+      _links: {
+        git: "",
+        html: "",
+        self: ""
       }
-    });
-
-    if (!Array.isArray(response.data)) {
-      throw new Error(`Failed to fetch directory content from ${owner}/${repo}/${path}`);
-    }
-
-    return response.data as GithubDirectoryItem[];
+    }));
   }
 
   private async fetchChainRegistryData(chainPath: string): Promise<GithubChainRegistryChainResponse> {
-    const content = await this.fetchFileContent("cosmos", "chain-registry", `${chainPath}/chain.json`);
-    return JSON.parse(content) as GithubChainRegistryChainResponse;
+    const url = `https://raw.githubusercontent.com/cosmos/chain-registry/master/${chainPath}/chain.json`;
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch chain registry data from ${url}: ${response.status} ${response.statusText}`);
+    }
+
+    return (await response.json()) as GithubChainRegistryChainResponse;
   }
 
   private async findFileContentAsync(filename: string | string[], fileList: GithubDirectoryItem[], templateSource: TemplateSource): Promise<string | null> {

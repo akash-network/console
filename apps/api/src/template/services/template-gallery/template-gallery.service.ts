@@ -7,6 +7,7 @@ import type z from "zod";
 import type { LoggerService } from "@src/core";
 import type { Category, FinalCategory, Template } from "@src/template/types/template";
 import { reusePendingPromise } from "../../../caching/helpers.ts";
+import { GitHubArchiveService } from "../github-archive/github-archive.service.ts";
 import { REPOSITORIES, TemplateFetcherService } from "../template-fetcher/template-fetcher.service.ts";
 import { TemplateProcessorService } from "../template-processor/template-processor.service.ts";
 
@@ -33,7 +34,7 @@ export class TemplateGalleryService {
     this.#fs = fs;
     this.templateProcessor = new TemplateProcessorService();
     this.templateFetcher = options.githubPAT
-      ? new TemplateFetcherService(this.templateProcessor, this.#logger, getOctokit, {
+      ? new TemplateFetcherService(this.templateProcessor, this.#logger, getOctokit, new GitHubArchiveService(), {
           githubPAT: options.githubPAT,
           categoryProcessingConcurrency: options.categoryProcessingConcurrency,
           templateSourceProcessingConcurrency: options.templateSourceProcessingConcurrency

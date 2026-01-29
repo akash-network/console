@@ -3,12 +3,10 @@ import { mock, mockDeep } from "jest-mock-extended";
 
 import type { LoggerService } from "@src/core";
 import type { GithubChainRegistryChainResponse } from "@src/types";
-import type { GithubDirectoryItem } from "@src/types/github";
 import type { Template } from "../../types/template";
+import type { ArchiveReader, DirectoryEntry, GitHubArchiveService } from "../github-archive/github-archive.service";
 import type { TemplateProcessorService } from "../template-processor/template-processor.service";
 import { REPOSITORIES, TemplateFetcherService } from "./template-fetcher.service";
-
-type GetContentParams = { path: string; owner?: string; repo?: string; ref?: string };
 
 describe(TemplateFetcherService.name, () => {
   describe("fetchLatestCommitSha", () => {
@@ -83,7 +81,7 @@ describe(TemplateFetcherService.name, () => {
 
   describe("fetchAwesomeAkashTemplates", () => {
     it("fetches templates from README.md", async () => {
-      const { service, octokit, templateProcessor } = setup();
+      const { service, archiveService, templateProcessor } = setup();
       const repoVersion = "abc123";
       const readmeContent =
         `# Awesome Akash\n` +
@@ -94,28 +92,33 @@ describe(TemplateFetcherService.name, () => {
         `### Gaming\n` +
         `- [Game1](./games/game1)\n`;
 
-      mockGetContent(octokit, async (params: GetContentParams) => {
-        if (params.path === "README.md") {
-          return { status: 200, headers: {}, data: readmeContent };
-        }
-        if (params.path === "./template1" || params.path === "./template2" || params.path === "./games/game1") {
-          return {
-            status: 200,
-            headers: {},
-            data: [
-              createDirectoryItem({ name: "README.md", path: `${params.path}/README.md` }),
-              createDirectoryItem({ name: "deploy.yaml", path: `${params.path}/deploy.yaml` })
+      mockArchive(archiveService, async () =>
+        createMockArchiveReader({
+          files: {
+            "README.md": readmeContent,
+            "./template1/README.md": "# Template README",
+            "./template1/deploy.yaml": "deploy content",
+            "./template2/README.md": "# Template README",
+            "./template2/deploy.yaml": "deploy content",
+            "./games/game1/README.md": "# Template README",
+            "./games/game1/deploy.yaml": "deploy content"
+          },
+          directories: {
+            "./template1": [
+              { name: "README.md", path: "./template1/README.md", type: "file" },
+              { name: "deploy.yaml", path: "./template1/deploy.yaml", type: "file" }
+            ],
+            "./template2": [
+              { name: "README.md", path: "./template2/README.md", type: "file" },
+              { name: "deploy.yaml", path: "./template2/deploy.yaml", type: "file" }
+            ],
+            "./games/game1": [
+              { name: "README.md", path: "./games/game1/README.md", type: "file" },
+              { name: "deploy.yaml", path: "./games/game1/deploy.yaml", type: "file" }
             ]
-          };
-        }
-        if (params.path.endsWith("/README.md")) {
-          return { status: 200, headers: {}, data: "# Template README" };
-        }
-        if (params.path.endsWith("/deploy.yaml")) {
-          return { status: 200, headers: {}, data: "deploy content" };
-        }
-        return { status: 200, headers: {}, data: [] };
-      });
+          }
+        })
+      );
 
       templateProcessor.processTemplate.mockReturnValue(createTemplate({ id: "processed-template" }));
 
@@ -127,25 +130,20 @@ describe(TemplateFetcherService.name, () => {
     });
 
     it("skips templates without deploy file", async () => {
-      const { service, octokit, templateProcessor } = setup();
+      const { service, archiveService, templateProcessor } = setup();
       const readmeContent = `### AI\n\n` + `- [Template1](./template1)\n`;
 
-      mockGetContent(octokit, async (params: GetContentParams) => {
-        if (params.path === "README.md") {
-          return { status: 200, headers: {}, data: readmeContent };
-        }
-        if (params.path === "./template1") {
-          return {
-            status: 200,
-            headers: {},
-            data: [createDirectoryItem({ name: "README.md", path: "./template1/README.md" })]
-          };
-        }
-        if (params.path === "./template1/README.md") {
-          return { status: 200, headers: {}, data: "# Template README" };
-        }
-        return { status: 200, headers: {}, data: [] };
-      });
+      mockArchive(archiveService, async () =>
+        createMockArchiveReader({
+          files: {
+            "README.md": readmeContent,
+            "./template1/README.md": "# Template README"
+          },
+          directories: {
+            "./template1": [{ name: "README.md", path: "./template1/README.md", type: "file" }]
+          }
+        })
+      );
 
       templateProcessor.processTemplate.mockReturnValue(null);
 
@@ -155,35 +153,26 @@ describe(TemplateFetcherService.name, () => {
     });
 
     it("includes config.json when fetching templates", async () => {
-      const { service, octokit, templateProcessor } = setup();
+      const { service, archiveService, templateProcessor } = setup();
       const readmeContent = `### AI\n` + `- [Template1](./template1)\n`;
 
-      mockGetContent(octokit, async (params: GetContentParams) => {
-        if (params.path === "README.md") {
-          return { status: 200, headers: {}, data: readmeContent };
-        }
-        if (params.path === "./template1") {
-          return {
-            status: 200,
-            headers: {},
-            data: [
-              createDirectoryItem({ name: "README.md", path: "./template1/README.md" }),
-              createDirectoryItem({ name: "deploy.yaml", path: "./template1/deploy.yaml" }),
-              createDirectoryItem({ name: "config.json", path: "./template1/config.json" })
+      mockArchive(archiveService, async () =>
+        createMockArchiveReader({
+          files: {
+            "README.md": readmeContent,
+            "./template1/README.md": "# README",
+            "./template1/deploy.yaml": "deploy",
+            "./template1/config.json": '{"ssh": true}'
+          },
+          directories: {
+            "./template1": [
+              { name: "README.md", path: "./template1/README.md", type: "file" },
+              { name: "deploy.yaml", path: "./template1/deploy.yaml", type: "file" },
+              { name: "config.json", path: "./template1/config.json", type: "file" }
             ]
-          };
-        }
-        if (params.path === "./template1/README.md") {
-          return { status: 200, headers: {}, data: "# README" };
-        }
-        if (params.path === "./template1/deploy.yaml") {
-          return { status: 200, headers: {}, data: "deploy" };
-        }
-        if (params.path === "./template1/config.json") {
-          return { status: 200, headers: {}, data: '{"ssh": true}' };
-        }
-        return { status: 200, headers: {}, data: [] };
-      });
+          }
+        })
+      );
 
       templateProcessor.processTemplate.mockReturnValue(createTemplate({ id: "t1" }));
 
@@ -195,46 +184,30 @@ describe(TemplateFetcherService.name, () => {
 
   describe("fetchLinuxServerTemplates", () => {
     it("fetches templates with ignore list filtering", async () => {
-      const { service, octokit, templateProcessor } = setup();
+      const { service, archiveService, templateProcessor } = setup();
       const readmeContent = `### Media\n` + `- [Plex](./plex)\n` + `- [Deprecated](./deprecated)\n`;
-      mockGetContent(octokit, async (params: GetContentParams) => {
-        if (params.path === "README.md") {
-          return { status: 200, headers: {}, data: readmeContent };
-        }
-        if (params.path === "./plex") {
-          return {
-            status: 200,
-            headers: {},
-            data: [
-              createDirectoryItem({ name: "README.md", path: "./plex/README.md" }),
-              createDirectoryItem({ name: "deploy.yaml", path: "./plex/deploy.yaml" })
+
+      mockArchive(archiveService, async () =>
+        createMockArchiveReader({
+          files: {
+            "README.md": readmeContent,
+            "./plex/README.md": "# Plex Media Server",
+            "./plex/deploy.yaml": "deploy content",
+            "./deprecated/README.md": "THIS IMAGE IS DEPRECATED and should not be used",
+            "./deprecated/deploy.yaml": "deploy content"
+          },
+          directories: {
+            "./plex": [
+              { name: "README.md", path: "./plex/README.md", type: "file" },
+              { name: "deploy.yaml", path: "./plex/deploy.yaml", type: "file" }
+            ],
+            "./deprecated": [
+              { name: "README.md", path: "./deprecated/README.md", type: "file" },
+              { name: "deploy.yaml", path: "./deprecated/deploy.yaml", type: "file" }
             ]
-          };
-        }
-        if (params.path === "./deprecated") {
-          return {
-            status: 200,
-            headers: {},
-            data: [
-              createDirectoryItem({ name: "README.md", path: "./deprecated/README.md" }),
-              createDirectoryItem({ name: "deploy.yaml", path: "./deprecated/deploy.yaml" })
-            ]
-          };
-        }
-        if (params.path === "./plex/README.md") {
-          return { status: 200, headers: {}, data: "# Plex Media Server" };
-        }
-        if (params.path === "./plex/deploy.yaml") {
-          return { status: 200, headers: {}, data: "deploy content" };
-        }
-        if (params.path === "./deprecated/README.md") {
-          return { status: 200, headers: {}, data: "THIS IMAGE IS DEPRECATED and should not be used" };
-        }
-        if (params.path === "./deprecated/deploy.yaml") {
-          return { status: 200, headers: {}, data: "deploy content" };
-        }
-        return { status: 200, headers: {}, data: [] };
-      });
+          }
+        })
+      );
 
       templateProcessor.processTemplate.mockReturnValue(createTemplate({ id: "plex" }));
 
@@ -245,30 +218,24 @@ describe(TemplateFetcherService.name, () => {
     });
 
     it("filters templates containing 'not recommended for use by the general public'", async () => {
-      const { service, octokit, templateProcessor } = setup();
+      const { service, archiveService, templateProcessor } = setup();
       const readmeContent = `### Tools\n` + `- [Internal](./internal)\n`;
-      mockGetContent(octokit, async (params: GetContentParams) => {
-        if (params.path === "README.md") {
-          return { status: 200, headers: {}, data: readmeContent };
-        }
-        if (params.path === "./internal") {
-          return {
-            status: 200,
-            headers: {},
-            data: [
-              createDirectoryItem({ name: "README.md", path: "./internal/README.md" }),
-              createDirectoryItem({ name: "deploy.yaml", path: "./internal/deploy.yaml" })
+
+      mockArchive(archiveService, async () =>
+        createMockArchiveReader({
+          files: {
+            "README.md": readmeContent,
+            "./internal/README.md": "This tool is not recommended for use by the general public",
+            "./internal/deploy.yaml": "deploy"
+          },
+          directories: {
+            "./internal": [
+              { name: "README.md", path: "./internal/README.md", type: "file" },
+              { name: "deploy.yaml", path: "./internal/deploy.yaml", type: "file" }
             ]
-          };
-        }
-        if (params.path === "./internal/README.md") {
-          return { status: 200, headers: {}, data: "This tool is not recommended for use by the general public" };
-        }
-        if (params.path === "./internal/deploy.yaml") {
-          return { status: 200, headers: {}, data: "deploy" };
-        }
-        return { status: 200, headers: {}, data: [] };
-      });
+          }
+        })
+      );
 
       const result = await service.fetchLinuxServerTemplates("v1");
 
@@ -279,7 +246,7 @@ describe(TemplateFetcherService.name, () => {
 
   describe("fetchOmnibusTemplates", () => {
     it("fetches templates from directory listing", async () => {
-      const { service, octokit, templateProcessor } = setup();
+      const { service, archiveService, templateProcessor } = setup();
       const repoVersion = "v1.0.0";
 
       const cosmosChainData: Partial<GithubChainRegistryChainResponse> = {
@@ -294,45 +261,37 @@ describe(TemplateFetcherService.name, () => {
         logo_URIs: { svg: "https://osmosis.zone/logo.svg" }
       };
 
-      mockGetContent(octokit, async (params: GetContentParams) => {
-        if (params.owner === "cosmos" && params.repo === "chain-registry") {
-          if (params.path === "cosmos/chain.json") {
-            return { status: 200, headers: {}, data: JSON.stringify(cosmosChainData) };
-          }
-          if (params.path === "osmosis/chain.json") {
-            return { status: 200, headers: {}, data: JSON.stringify(osmosisChainData) };
-          }
-        }
-        if (params.path === "") {
-          return {
-            status: 200,
-            headers: {},
-            data: [
-              createDirectoryItem({ name: "cosmos", path: "cosmos", type: "dir" }),
-              createDirectoryItem({ name: "osmosis", path: "osmosis", type: "dir" }),
-              createDirectoryItem({ name: ".github", path: ".github", type: "dir" }),
-              createDirectoryItem({ name: "_scripts", path: "_scripts", type: "dir" }),
-              createDirectoryItem({ name: "README.md", path: "README.md", type: "file" })
+      mockArchive(archiveService, async () =>
+        createMockArchiveReader({
+          files: {
+            "cosmos/README.md": "# README content",
+            "cosmos/deploy.yaml": "deploy: content",
+            "osmosis/README.md": "# README content",
+            "osmosis/deploy.yaml": "deploy: content"
+          },
+          directories: {
+            "": [
+              { name: "cosmos", path: "cosmos", type: "dir" },
+              { name: "osmosis", path: "osmosis", type: "dir" },
+              { name: ".github", path: ".github", type: "dir" },
+              { name: "_scripts", path: "_scripts", type: "dir" },
+              { name: "README.md", path: "README.md", type: "file" }
+            ],
+            cosmos: [
+              { name: "README.md", path: "cosmos/README.md", type: "file" },
+              { name: "deploy.yaml", path: "cosmos/deploy.yaml", type: "file" }
+            ],
+            osmosis: [
+              { name: "README.md", path: "osmosis/README.md", type: "file" },
+              { name: "deploy.yaml", path: "osmosis/deploy.yaml", type: "file" }
             ]
-          };
-        }
-        if (params.path === "cosmos" || params.path === "osmosis") {
-          return {
-            status: 200,
-            headers: {},
-            data: [
-              createDirectoryItem({ name: "README.md", path: `${params.path}/README.md` }),
-              createDirectoryItem({ name: "deploy.yaml", path: `${params.path}/deploy.yaml` })
-            ]
-          };
-        }
-        if (params.path.endsWith("/README.md")) {
-          return { status: 200, headers: {}, data: "# README content" };
-        }
-        if (params.path.endsWith("/deploy.yaml")) {
-          return { status: 200, headers: {}, data: "deploy: content" };
-        }
-        return { status: 200, headers: {}, data: [] };
+          }
+        })
+      );
+
+      mockFetchChainRegistry({
+        cosmos: cosmosChainData,
+        osmosis: osmosisChainData
       });
 
       templateProcessor.processTemplate.mockReturnValue(createTemplate({ id: "processed" }));
@@ -345,42 +304,35 @@ describe(TemplateFetcherService.name, () => {
     });
 
     it("excludes hidden directories and directories starting with underscore", async () => {
-      const { service, octokit, templateProcessor } = setup();
+      const { service, archiveService, templateProcessor } = setup();
 
       const cosmosChainData: Partial<GithubChainRegistryChainResponse> = {
         pretty_name: "Cosmos",
         logo_URIs: {}
       };
 
-      mockGetContent(octokit, async (params: GetContentParams) => {
-        if (params.owner === "cosmos" && params.repo === "chain-registry" && params.path === "cosmos/chain.json") {
-          return { status: 200, headers: {}, data: JSON.stringify(cosmosChainData) };
-        }
-        if (params.path === "") {
-          return {
-            status: 200,
-            headers: {},
-            data: [
-              createDirectoryItem({ name: "cosmos", path: "cosmos", type: "dir" }),
-              createDirectoryItem({ name: ".hidden", path: ".hidden", type: "dir" }),
-              createDirectoryItem({ name: "_internal", path: "_internal", type: "dir" })
+      mockArchive(archiveService, async () =>
+        createMockArchiveReader({
+          files: {
+            "cosmos/README.md": "content",
+            "cosmos/deploy.yaml": "content"
+          },
+          directories: {
+            "": [
+              { name: "cosmos", path: "cosmos", type: "dir" },
+              { name: ".hidden", path: ".hidden", type: "dir" },
+              { name: "_internal", path: "_internal", type: "dir" }
+            ],
+            cosmos: [
+              { name: "README.md", path: "cosmos/README.md", type: "file" },
+              { name: "deploy.yaml", path: "cosmos/deploy.yaml", type: "file" }
             ]
-          };
-        }
-        if (params.path === "cosmos") {
-          return {
-            status: 200,
-            headers: {},
-            data: [
-              createDirectoryItem({ name: "README.md", path: "cosmos/README.md" }),
-              createDirectoryItem({ name: "deploy.yaml", path: "cosmos/deploy.yaml" })
-            ]
-          };
-        }
-        if (params.path === "cosmos/README.md" || params.path === "cosmos/deploy.yaml") {
-          return { status: 200, headers: {}, data: "content" };
-        }
-        return { status: 200, headers: {}, data: [] };
+          }
+        })
+      );
+
+      mockFetchChainRegistry({
+        cosmos: cosmosChainData
       });
 
       templateProcessor.processTemplate.mockReturnValue(createTemplate({ id: "t1" }));
@@ -392,34 +344,25 @@ describe(TemplateFetcherService.name, () => {
     });
 
     it("uses default summary when chain registry fetch fails", async () => {
-      const { service, octokit, templateProcessor, logger } = setup();
+      const { service, archiveService, templateProcessor, logger } = setup();
 
-      mockGetContent(octokit, async (params: GetContentParams) => {
-        if (params.owner === "cosmos" && params.repo === "chain-registry") {
-          throw new Error("Not found");
-        }
-        if (params.path === "") {
-          return {
-            status: 200,
-            headers: {},
-            data: [createDirectoryItem({ name: "unknown-chain", path: "unknown-chain", type: "dir" })]
-          };
-        }
-        if (params.path === "unknown-chain") {
-          return {
-            status: 200,
-            headers: {},
-            data: [
-              createDirectoryItem({ name: "README.md", path: "unknown-chain/README.md" }),
-              createDirectoryItem({ name: "deploy.yaml", path: "unknown-chain/deploy.yaml" })
+      mockArchive(archiveService, async () =>
+        createMockArchiveReader({
+          files: {
+            "unknown-chain/README.md": "content",
+            "unknown-chain/deploy.yaml": "content"
+          },
+          directories: {
+            "": [{ name: "unknown-chain", path: "unknown-chain", type: "dir" }],
+            "unknown-chain": [
+              { name: "README.md", path: "unknown-chain/README.md", type: "file" },
+              { name: "deploy.yaml", path: "unknown-chain/deploy.yaml", type: "file" }
             ]
-          };
-        }
-        if (params.path === "unknown-chain/README.md" || params.path === "unknown-chain/deploy.yaml") {
-          return { status: 200, headers: {}, data: "content" };
-        }
-        return { status: 200, headers: {}, data: [] };
-      });
+          }
+        })
+      );
+
+      mockFetchChainRegistry({});
 
       templateProcessor.processTemplate.mockReturnValue(createTemplate({ id: "t1" }));
 
@@ -432,38 +375,31 @@ describe(TemplateFetcherService.name, () => {
     });
 
     it("uses first logo URI from chain data", async () => {
-      const { service, octokit, templateProcessor } = setup();
+      const { service, archiveService, templateProcessor } = setup();
 
       const cosmosChainData: Partial<GithubChainRegistryChainResponse> = {
         pretty_name: "Cosmos",
         logo_URIs: { png: "https://first.png", svg: "https://second.svg" }
       };
 
-      mockGetContent(octokit, async (params: GetContentParams) => {
-        if (params.owner === "cosmos" && params.repo === "chain-registry" && params.path === "cosmos/chain.json") {
-          return { status: 200, headers: {}, data: JSON.stringify(cosmosChainData) };
-        }
-        if (params.path === "") {
-          return {
-            status: 200,
-            headers: {},
-            data: [createDirectoryItem({ name: "cosmos", path: "cosmos", type: "dir" })]
-          };
-        }
-        if (params.path === "cosmos") {
-          return {
-            status: 200,
-            headers: {},
-            data: [
-              createDirectoryItem({ name: "README.md", path: "cosmos/README.md" }),
-              createDirectoryItem({ name: "deploy.yaml", path: "cosmos/deploy.yaml" })
+      mockArchive(archiveService, async () =>
+        createMockArchiveReader({
+          files: {
+            "cosmos/README.md": "content",
+            "cosmos/deploy.yaml": "content"
+          },
+          directories: {
+            "": [{ name: "cosmos", path: "cosmos", type: "dir" }],
+            cosmos: [
+              { name: "README.md", path: "cosmos/README.md", type: "file" },
+              { name: "deploy.yaml", path: "cosmos/deploy.yaml", type: "file" }
             ]
-          };
-        }
-        if (params.path === "cosmos/README.md" || params.path === "cosmos/deploy.yaml") {
-          return { status: 200, headers: {}, data: "content" };
-        }
-        return { status: 200, headers: {}, data: [] };
+          }
+        })
+      );
+
+      mockFetchChainRegistry({
+        cosmos: cosmosChainData
       });
 
       templateProcessor.processTemplate.mockReturnValue(createTemplate({ id: "t1" }));
@@ -476,34 +412,25 @@ describe(TemplateFetcherService.name, () => {
 
   describe("when template source processing fails", () => {
     it("logs warning and continues processing other templates", async () => {
-      const { service, octokit, templateProcessor, logger } = setup();
+      const { service, archiveService, templateProcessor, logger } = setup();
       const readmeContent = `### AI\n` + `- [Working](./working)\n` + `- [Failing](./failing)\n`;
 
-      mockGetContent(octokit, async (params: GetContentParams) => {
-        if (params.path === "README.md") {
-          return { status: 200, headers: {}, data: readmeContent };
-        }
-        if (params.path === "./working") {
-          return {
-            status: 200,
-            headers: {},
-            data: [
-              createDirectoryItem({ name: "README.md", path: "./working/README.md" }),
-              createDirectoryItem({ name: "deploy.yaml", path: "./working/deploy.yaml" })
-            ]
-          };
-        }
-        if (params.path === "./working/README.md") {
-          return { status: 200, headers: {}, data: "# Working README" };
-        }
-        if (params.path === "./working/deploy.yaml") {
-          return { status: 200, headers: {}, data: "deploy" };
-        }
-        if (params.path === "./failing") {
-          throw new Error("Network error");
-        }
-        return { status: 200, headers: {}, data: [] };
-      });
+      mockArchive(archiveService, async () =>
+        createMockArchiveReader({
+          files: {
+            "README.md": readmeContent,
+            "./working/README.md": "# Working README",
+            "./working/deploy.yaml": "deploy"
+          },
+          directories: {
+            "./working": [
+              { name: "README.md", path: "./working/README.md", type: "file" },
+              { name: "deploy.yaml", path: "./working/deploy.yaml", type: "file" }
+            ],
+            "./failing": "THROW"
+          }
+        })
+      );
 
       templateProcessor.processTemplate.mockReturnValue(createTemplate({ id: "working" }));
 
@@ -516,18 +443,17 @@ describe(TemplateFetcherService.name, () => {
 
   describe("when template path is absolute URL", () => {
     it("logs warning and skips the template", async () => {
-      const { service, octokit, templateProcessor, logger } = setup();
+      const { service, archiveService, templateProcessor, logger } = setup();
       const readmeContent = `### External\n` + `- [External](https://external.com/template)\n`;
-      mockGetContent(octokit, async (params: GetContentParams) => {
-        if (params.path === "README.md") {
-          return { status: 200, headers: {}, data: readmeContent };
-        }
-        return {
-          status: 200,
-          headers: {},
-          data: [createDirectoryItem({ name: "README.md", path: "README.md" }), createDirectoryItem({ name: "deploy.yaml", path: "deploy.yaml" })]
-        };
-      });
+
+      mockArchive(archiveService, async () =>
+        createMockArchiveReader({
+          files: {
+            "README.md": readmeContent
+          },
+          directories: {}
+        })
+      );
 
       const result = await service.fetchAwesomeAkashTemplates("v1");
 
@@ -543,34 +469,26 @@ describe(TemplateFetcherService.name, () => {
 
   describe("when GUIDE.md exists", () => {
     it("includes guide content in template processing", async () => {
-      const { service, octokit, templateProcessor } = setup();
+      const { service, archiveService, templateProcessor } = setup();
       const readmeContent = `### AI\n` + `- [WithGuide](./with-guide)\n`;
-      mockGetContent(octokit, async (params: GetContentParams) => {
-        if (params.path === "README.md") {
-          return { status: 200, headers: {}, data: readmeContent };
-        }
-        if (params.path === "./with-guide") {
-          return {
-            status: 200,
-            headers: {},
-            data: [
-              createDirectoryItem({ name: "README.md", path: "./with-guide/README.md" }),
-              createDirectoryItem({ name: "deploy.yaml", path: "./with-guide/deploy.yaml" }),
-              createDirectoryItem({ name: "GUIDE.md", path: "./with-guide/GUIDE.md" })
+
+      mockArchive(archiveService, async () =>
+        createMockArchiveReader({
+          files: {
+            "README.md": readmeContent,
+            "./with-guide/README.md": "# README",
+            "./with-guide/deploy.yaml": "deploy content",
+            "./with-guide/GUIDE.md": "# Step by Step Guide"
+          },
+          directories: {
+            "./with-guide": [
+              { name: "README.md", path: "./with-guide/README.md", type: "file" },
+              { name: "deploy.yaml", path: "./with-guide/deploy.yaml", type: "file" },
+              { name: "GUIDE.md", path: "./with-guide/GUIDE.md", type: "file" }
             ]
-          };
-        }
-        if (params.path === "./with-guide/README.md") {
-          return { status: 200, headers: {}, data: "# README" };
-        }
-        if (params.path === "./with-guide/deploy.yaml") {
-          return { status: 200, headers: {}, data: "deploy content" };
-        }
-        if (params.path === "./with-guide/GUIDE.md") {
-          return { status: 200, headers: {}, data: "# Step by Step Guide" };
-        }
-        return { status: 200, headers: {}, data: [] };
-      });
+          }
+        })
+      );
 
       templateProcessor.processTemplate.mockReturnValue(createTemplate({ id: "t1" }));
 
@@ -582,30 +500,24 @@ describe(TemplateFetcherService.name, () => {
 
   describe("when deploy.yml is used instead of deploy.yaml", () => {
     it("finds deploy.yml file", async () => {
-      const { service, octokit, templateProcessor } = setup();
+      const { service, archiveService, templateProcessor } = setup();
       const readmeContent = `### AI\n` + `- [YmlDeploy](./yml-deploy)\n`;
-      mockGetContent(octokit, async (params: GetContentParams) => {
-        if (params.path === "README.md") {
-          return { status: 200, headers: {}, data: readmeContent };
-        }
-        if (params.path === "./yml-deploy") {
-          return {
-            status: 200,
-            headers: {},
-            data: [
-              createDirectoryItem({ name: "README.md", path: "./yml-deploy/README.md" }),
-              createDirectoryItem({ name: "deploy.yml", path: "./yml-deploy/deploy.yml" })
+
+      mockArchive(archiveService, async () =>
+        createMockArchiveReader({
+          files: {
+            "README.md": readmeContent,
+            "./yml-deploy/README.md": "# README",
+            "./yml-deploy/deploy.yml": "deploy content"
+          },
+          directories: {
+            "./yml-deploy": [
+              { name: "README.md", path: "./yml-deploy/README.md", type: "file" },
+              { name: "deploy.yml", path: "./yml-deploy/deploy.yml", type: "file" }
             ]
-          };
-        }
-        if (params.path === "./yml-deploy/README.md") {
-          return { status: 200, headers: {}, data: "# README" };
-        }
-        if (params.path === "./yml-deploy/deploy.yml") {
-          return { status: 200, headers: {}, data: "deploy content" };
-        }
-        return { status: 200, headers: {}, data: [] };
-      });
+          }
+        })
+      );
 
       templateProcessor.processTemplate.mockReturnValue(createTemplate({ id: "t1" }));
 
@@ -619,32 +531,56 @@ describe(TemplateFetcherService.name, () => {
     const templateProcessor = mock<TemplateProcessorService>();
     const logger = mock<LoggerService>();
     const octokit = mockDeep<Octokit>();
+    const archiveService = mock<GitHubArchiveService>();
 
-    const service = new TemplateFetcherService(templateProcessor, logger, () => octokit, {
+    const service = new TemplateFetcherService(templateProcessor, logger, () => octokit, archiveService, {
       githubPAT: "test-pat"
     });
 
-    return { service, templateProcessor, logger, octokit };
+    return { service, templateProcessor, logger, octokit, archiveService };
   }
 
-  function createDirectoryItem(overrides: Partial<GithubDirectoryItem>): GithubDirectoryItem {
+  function createMockArchiveReader(config: { files: Record<string, string>; directories: Record<string, DirectoryEntry[] | "THROW"> }): ArchiveReader {
     return {
-      type: "file",
-      size: 100,
-      name: "file.txt",
-      path: "file.txt",
-      sha: "abc123",
-      url: "https://api.github.com/file",
-      git_url: "https://api.github.com/git/file",
-      html_url: "https://github.com/file",
-      download_url: "https://raw.githubusercontent.com/file",
-      _links: {
-        git: "https://api.github.com/git",
-        html: "https://github.com",
-        self: "https://api.github.com"
+      async readFile(path: string): Promise<string | null> {
+        if (Object.hasOwn(config.files, path)) {
+          return config.files[path];
+        }
+        return null;
       },
-      ...overrides
+      listDirectory(path: string): DirectoryEntry[] {
+        if (Object.hasOwn(config.directories, path)) {
+          const value = config.directories[path];
+          if (value === "THROW") {
+            throw new Error(`Directory listing failed for ${path}`);
+          }
+          return value;
+        }
+        return [];
+      }
     };
+  }
+
+  function mockArchive(archiveService: ReturnType<typeof mock<GitHubArchiveService>>, factory: () => Promise<ArchiveReader>) {
+    archiveService.getArchive.mockImplementation(factory);
+  }
+
+  function mockFetchChainRegistry(chains: Record<string, Partial<GithubChainRegistryChainResponse>>) {
+    const originalFetch = globalThis.fetch;
+    jest.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+      if (url.startsWith("https://raw.githubusercontent.com/cosmos/chain-registry/master/")) {
+        const chainPath = url.replace("https://raw.githubusercontent.com/cosmos/chain-registry/master/", "").replace("/chain.json", "");
+        if (Object.hasOwn(chains, chainPath)) {
+          return new Response(JSON.stringify(chains[chainPath]), {
+            status: 200,
+            headers: { "Content-Type": "application/json" }
+          });
+        }
+        return new Response("Not Found", { status: 404 });
+      }
+      return originalFetch(input, init);
+    });
   }
 
   function createTemplate(overrides: Partial<Template>): Template {
@@ -661,9 +597,5 @@ describe(TemplateFetcherService.name, () => {
       config: { ssh: false, logoUrl: "" },
       ...overrides
     };
-  }
-
-  function mockGetContent(octokit: ReturnType<typeof mockDeep<Octokit>>, impl: (params: GetContentParams) => Promise<unknown>) {
-    (octokit.rest.repos.getContent.mockImplementation as jest.Mock)(impl);
   }
 });
