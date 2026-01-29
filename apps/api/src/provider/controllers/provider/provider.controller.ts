@@ -26,7 +26,7 @@ export class ProviderController {
     return await this.providerCleanupService.cleanup(options);
   }
 
-  async getProviderListBuffer(scope: ProviderListQuery["scope"]): Promise<any> {
+  async getProviderListBuffer(scope: ProviderListQuery["scope"]): Promise<Uint8Array> {
     const cacheKey = scope === "trial" ? cacheKeys.getTrialProviderListJson : cacheKeys.getProviderListJson;
 
     return cacheResponse(60, cacheKey, async () => {
