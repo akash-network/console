@@ -53,13 +53,16 @@ export class ProviderService {
     return await this.sendManifestToProvider({ dseq: options.dseq, manifest, auth: options.auth, providerIdentity });
   }
 
-  async toProviderAuth(auth: Omit<ProviderMtlsAuth, "type"> | { walletId: number; provider: string }): Promise<ProviderAuth> {
+  async toProviderAuth(
+    auth: Omit<ProviderMtlsAuth, "type"> | { walletId: number; provider: string },
+    scope: Parameters<ProviderJwtTokenService["getGranularLeases"]>[0]["scope"] = ["send-manifest"]
+  ): Promise<ProviderAuth> {
     if ("walletId" in auth) {
       const result = await this.jwtTokenService.generateJwtToken({
         walletId: auth.walletId,
         leases: this.jwtTokenService.getGranularLeases({
           provider: auth.provider,
-          scope: ["send-manifest"]
+          scope
         })
       });
 
