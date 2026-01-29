@@ -6,7 +6,7 @@ import { ProviderCleanupService } from "@src/billing/services/provider-cleanup/p
 import { ProviderCleanupParams } from "@src/billing/types/provider-cleanup";
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
 import { stringifyAsync } from "@src/caching/json-stringify.service";
-import { ProviderListQuery, ProviderListResponse } from "@src/provider/http-schemas/provider.schema";
+import { ProviderListQuery } from "@src/provider/http-schemas/provider.schema";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { ProviderStatsService } from "@src/provider/services/provider-stats/provider-stats.service";
 import { TrialProvidersService } from "@src/provider/services/trial-providers/trial-providers.service";
@@ -30,17 +30,11 @@ export class ProviderController {
     return await this.providerCleanupService.cleanup(options);
   }
 
-  async getProviderList(scope: ProviderListQuery["scope"]): Promise<ProviderListResponse> {
-    return cacheResponse(60, scope === "trial" ? cacheKeys.getTrialProviderList : cacheKeys.getProviderList, () =>
-      this.providerService.getProviderList(scope === "trial")
-    ) as unknown as Promise<ProviderListResponse>;
-  }
-
   async getProviderListJson(scope: ProviderListQuery["scope"]): Promise<string> {
     const jsonCacheKey = scope === "trial" ? cacheKeys.getTrialProviderListJson : cacheKeys.getProviderListJson;
 
     return cacheResponse(60, jsonCacheKey, async () => {
-      const data = await this.getProviderList(scope);
+      const data = await this.providerService.getProviderList(scope === "trial");
       return stringifyAsync(data);
     });
   }

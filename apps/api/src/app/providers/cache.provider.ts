@@ -12,7 +12,7 @@ container.register(APP_INITIALIZER, {
     async [ON_APP_START]() {
       try {
         const controller = container.resolve(ProviderController);
-        await controller.getProviderListJson("all");
+        await controller.getProviderListGzipped("all");
         logger.info({ event: "PROVIDER_CACHE_WARMED" });
       } catch (error) {
         logger.error({ event: "PROVIDER_CACHE_WARMUP_FAILED", error });
