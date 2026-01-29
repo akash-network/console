@@ -138,8 +138,6 @@ export const cacheKeys = {
   getProviderActiveLeasesGraphData: "getProviderActiveLeasesGraphData",
   getTemplates: "getTemplates",
   getMarketData: "getMarketData",
-  getProviderList: "getProviderList",
-  getTrialProviderList: "getTrialProviderList",
   getProviderListJson: "getProviderListJson",
   getTrialProviderListJson: "getTrialProviderListJson",
   getTrialRegisteredProviderList: "getTrialRegisteredProviderList",
