@@ -12,7 +12,7 @@ export const MsgAccountDeposit = createMsgView(["v1"], ({ message }) => {
   return (
     <>
       <LabelValue label="Owner" value={<AddressLink address={data?.signer} />} />
-      <LabelValue label="Account" value={<DynamicReactJson src={JSON.parse(JSON.stringify(data?.account))} />} />
+      <LabelValue label="Account" value={<DynamicReactJson src={JSON.parse(JSON.stringify(data?.id))} />} />
       <DepositDetail value={data?.deposit} />
     </>
   );
