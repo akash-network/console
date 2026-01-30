@@ -100,6 +100,7 @@
     "pg-boss": "^11.0.4",
     "pg-hstore": "^2.3.4",
     "postgres": "^3.4.4",
+    "protobufjs": "~6.11.2",
     "reflect-metadata": "^0.2.2",
     "semver": "^7.3.8",
     "sequelize": "^6.21.3",
