@@ -21,7 +21,7 @@ const route = createRoute({
           schema: z.string()
         },
         "application/json": {
-          schema: z.string()
+          schema: z.any()
         }
       }
     }
