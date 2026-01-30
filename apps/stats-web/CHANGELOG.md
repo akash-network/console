@@ -1,5 +1,13 @@
 
 
+## [1.13.5](https://github.com/akash-network/console/compare/stats-web/v1.13.4...stats-web/v1.13.5) (2026-01-30)
+
+
+### Bug Fixes
+
+* ensure that tsbuild picks proper dependencies for internal packages ([#2596](https://github.com/akash-network/console/issues/2596)) ([c869c78](https://github.com/akash-network/console/commit/c869c78a19e7a6569d62bf1cdd2ab5be0340cdd6))
+* set timestamp setting in env-loader ([#2594](https://github.com/akash-network/console/issues/2594)) ([ab74ab0](https://github.com/akash-network/console/commit/ab74ab03465148ce9761e2f21408f33c6ac1c2e0))
+
 ## [1.13.4](https://github.com/akash-network/console/compare/stats-web/v1.13.3...stats-web/v1.13.4) (2026-01-28)
 
 
