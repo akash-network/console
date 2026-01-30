@@ -85,7 +85,8 @@ jobs:
             apps/stats-web,
             apps/notifications,
             apps/indexer,
-            apps/log-collector
+            apps/log-collector,
+            apps/tx-signer
         run: |
           echo "$PACKAGES_TO_RELEASE" | tr ',' '\n' | while read -r package; do
             npm run release -w "$package" -- --verbose --ci
