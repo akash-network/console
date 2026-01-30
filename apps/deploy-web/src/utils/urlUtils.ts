@@ -49,7 +49,6 @@ export class UrlService {
   static getStartedWallet = (section?: string) => `/get-started/wallet${appendSearchParams({ section })}`;
 
   static sdlBuilder = (id?: string) => `/sdl-builder${appendSearchParams({ id })}`;
-  static rentGpus = () => `/rent-gpu`;
   static plainLinux = () => `/deploy-linux`;
   static priceCompare = () => "/price-compare";
   static analytics = () => "/analytics";

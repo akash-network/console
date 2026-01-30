@@ -1,6 +1,6 @@
 import { nanoid } from "nanoid";
 
-import type { ProviderRegionValueType, ServiceType } from "@src/types";
+import type { ServiceType } from "@src/types";
 
 export const protoTypes = [
   { id: 1, name: "http" },
@@ -114,68 +114,6 @@ export const defaultSshVMService: ServiceType = {
   ...defaultService,
   image: sshVmDistros[0],
   expose: []
-};
-
-export const defaultRentGpuService: ServiceType = {
-  id: nanoid(),
-  title: "service-1",
-  image: "",
-  profile: {
-    cpu: 0.1,
-    gpu: 1,
-    gpuModels: [{ vendor: "nvidia" }],
-    hasGpu: true,
-    ram: 512,
-    ramUnit: "Mi",
-    storage: [
-      {
-        size: 1,
-        unit: "Gi",
-        isPersistent: false
-      }
-    ]
-  },
-  expose: [
-    {
-      id: nanoid(),
-      port: 80,
-      as: 80,
-      proto: "http",
-      global: true,
-      to: [],
-      accept: [],
-      ipName: "",
-      httpOptions: {
-        maxBodySize: defaultHttpOptions.maxBodySize,
-        readTimeout: defaultHttpOptions.readTimeout,
-        sendTimeout: defaultHttpOptions.sendTimeout,
-        nextCases: defaultHttpOptions.nextCases,
-        nextTries: defaultHttpOptions.nextTries,
-        nextTimeout: defaultHttpOptions.nextTimeout
-      }
-    }
-  ],
-  command: { command: "", arg: "" },
-  env: [],
-  placement: {
-    name: "dcloud",
-    pricing: {
-      amount: 100000,
-      denom: "uakt"
-    },
-    signedBy: {
-      anyOf: [],
-      allOf: []
-    },
-    attributes: []
-  },
-  count: 1
-};
-
-export const defaultAnyRegion: ProviderRegionValueType = {
-  key: "any",
-  value: "any",
-  description: "Any region"
 };
 
 export const nextCases = [

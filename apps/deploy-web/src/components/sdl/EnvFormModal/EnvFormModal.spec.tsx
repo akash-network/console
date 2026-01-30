@@ -3,7 +3,7 @@ import type { UseFormReturn } from "react-hook-form";
 import { useForm } from "react-hook-form";
 
 import { protectedEnvironmentVariables } from "@src/config/remote-deploy.config";
-import type { RentGpusFormValuesType, SdlBuilderFormValuesType } from "@src/types";
+import type { SdlBuilderFormValuesType } from "@src/types";
 import type { EnvFormModalProps } from "./EnvFormModal";
 import { COMPONENTS, EnvFormModal } from "./EnvFormModal";
 
@@ -211,10 +211,10 @@ describe(EnvFormModal.name, () => {
     return render(<EnvFormModalWrapper {...props} />);
   }
 
-  type EnvFormModalForm = UseFormReturn<SdlBuilderFormValuesType | RentGpusFormValuesType>;
+  type EnvFormModalForm = UseFormReturn<SdlBuilderFormValuesType>;
   type EnvFormModalWrapperProps = Omit<EnvFormModalProps, "control"> & { formRef: (form: EnvFormModalForm) => void };
   function EnvFormModalWrapper(props: EnvFormModalWrapperProps) {
-    const form = useForm<SdlBuilderFormValuesType | RentGpusFormValuesType>();
+    const form = useForm<SdlBuilderFormValuesType>();
     // `isMounted` state is needed to ensure that props provided value is set as form value
     // before child component mounted `useEffect` is called which adds new environment variable row
     // if there are no environment variables

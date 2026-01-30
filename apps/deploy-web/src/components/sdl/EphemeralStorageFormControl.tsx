@@ -19,7 +19,7 @@ import {
 } from "@akashnetwork/ui/components";
 import { InfoCircle } from "iconoir-react";
 
-import type { RentGpusFormValuesType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { storageUnits } from "@src/utils/akash/units";
 import { AddStorageButton } from "./AddStorageButton";
 import { FormPaper } from "./FormPaper";
@@ -28,8 +28,8 @@ type Props = {
   services: ServiceType[];
   serviceIndex: number;
   children?: ReactNode;
-  control: Control<SdlBuilderFormValuesType | RentGpusFormValuesType, any>;
-  appendStorage?: UseFieldArrayAppend<SdlBuilderFormValuesType | RentGpusFormValuesType, `services.${number}.profile.storage`>;
+  control: Control<SdlBuilderFormValuesType, any>;
+  appendStorage?: UseFieldArrayAppend<SdlBuilderFormValuesType, `services.${number}.profile.storage`>;
 };
 
 export const EphemeralStorageFormControl: React.FunctionComponent<Props> = ({ control, services, serviceIndex, appendStorage }) => {

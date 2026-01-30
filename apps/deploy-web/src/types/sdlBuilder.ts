@@ -441,18 +441,6 @@ export const SdlBuilderFormValuesSchema = z
     }
   });
 
-export const ProviderRegionValueSchema = z.object({
-  key: z.string().optional(),
-  description: z.string().optional(),
-  providers: z.array(z.string()).optional(),
-  value: z.any().optional()
-});
-
-export const RentGpusFormValuesSchema = z.object({
-  services: z.array(ServiceSchema),
-  region: ProviderRegionValueSchema.optional()
-});
-
 export type ServiceType = z.infer<typeof ServiceSchema>;
 export type SdlBuilderFormValuesType = z.infer<typeof SdlBuilderFormValuesSchema>;
 export type ProfileGpuModelType = z.infer<typeof ProfileGpuModelSchema>;
@@ -467,5 +455,3 @@ export type SignedByType = z.infer<typeof SignedBySchema>;
 export type ProfileType = z.infer<typeof ProfileSchema>;
 export type ExposeType = z.infer<typeof ExposeSchema>;
 export type PlacementType = z.infer<typeof PlacementSchema>;
-export type ProviderRegionValueType = z.infer<typeof ProviderRegionValueSchema>;
-export type RentGpusFormValuesType = z.infer<typeof RentGpusFormValuesSchema>;
