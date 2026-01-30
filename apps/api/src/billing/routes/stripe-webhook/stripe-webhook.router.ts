@@ -19,6 +19,9 @@ const route = createRoute({
       content: {
         "text/plain": {
           schema: z.string()
+        },
+        "application/json": {
+          schema: z.string()
         }
       }
     }
