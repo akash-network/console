@@ -40,9 +40,10 @@ export function createRoute<
     security: Required<RouteConfig>["security"];
     cache?: CacheConfig;
     bodyLimit?: Parameters<typeof bodyLimit>[0];
+    additionalContentTypes?: string[];
   }
 >(routeConfig: R) {
-  const { cache, bodyLimit: bodyLimitOptions, ...openApiConfig } = routeConfig;
+  const { cache, bodyLimit: bodyLimitOptions, additionalContentTypes, ...openApiConfig } = routeConfig;
   let middlewares: MiddlewareHandler[] = [];
 
   if (cache) {
@@ -59,9 +60,15 @@ export function createRoute<
   }
 
   if (routeConfig.request?.body?.content) {
+    const supportedContentTypes = new Set(Object.keys(routeConfig.request.body.content));
+    if (additionalContentTypes) {
+      for (const ct of additionalContentTypes) {
+        supportedContentTypes.add(ct);
+      }
+    }
     middlewares.push(
       contentTypeMiddleware({
-        supportedContentTypes: new Set(Object.keys(routeConfig.request.body.content))
+        supportedContentTypes
       })
     );
   }
