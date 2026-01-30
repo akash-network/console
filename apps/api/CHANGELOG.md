@@ -1,5 +1,12 @@
 
 
+## [3.24.0](https://github.com/akash-network/console/compare/console-api/v3.23.1...console-api/v3.24.0) (2026-01-30)
+
+
+### Features
+
+* add JSON schema support to Stripe webhook route ([#2626](https://github.com/akash-network/console/issues/2626)) ([594d0d3](https://github.com/akash-network/console/commit/594d0d34b0be8d4c91449314731046287d35e9db))
+
 ## [3.23.1](https://github.com/akash-network/console/compare/console-api/v3.23.0...console-api/v3.23.1) (2026-01-30)
 
 
