@@ -4,6 +4,8 @@ This project consists of essential config files for Akash Console.
 
 Here's a short description of the purpose of each files.
 
+- [Auditors](https://github.com/akash-network/console/blob/main/config/auditors.json)
+  - The list of provider auditors that are listed on Akash Console.
 - [Mainnet Nodes](https://github.com/akash-network/console/blob/main/config/mainnet-nodes.json)
   - The list of api/rpc nodes for the Mainnet.
 - [Testnet Nodes](https://github.com/akash-network/console/blob/main/config/testnet-nodes.json)
