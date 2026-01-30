@@ -1,7 +1,7 @@
 import { container } from "tsyringe";
 
 import { HealthzController } from "@src/controllers/healthz/healthz.controller";
-import { HealthzResponseSchema } from "@src/http-schemas/healthz/healthz.schema";
+import { HealthzResponseSchema } from "@src/http-schemas/healthz.schema";
 import { createRoute } from "@src/lib/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/services/open-api-hono-handler/open-api-hono-handler";
 

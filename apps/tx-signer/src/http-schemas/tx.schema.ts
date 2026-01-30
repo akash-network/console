@@ -13,7 +13,7 @@ export const SignAndBroadcastFundingRequestInputSchema = z.object({
 
 export const SignAndBroadcastDerivedRequestInputSchema = z.object({
   data: z.object({
-    derivationIndex: z.number(),
+    derivationIndex: z.number().int().nonnegative(),
     messages: z.array(EncodedMessageSchema).min(1),
     options: z
       .object({

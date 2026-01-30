@@ -5,7 +5,7 @@ import {
   SignAndBroadcastDerivedRequestInputSchema,
   SignAndBroadcastFundingRequestInputSchema,
   SignAndBroadcastResponseOutputSchema
-} from "@src/http-schemas/tx-signer/tx-signer.schema";
+} from "@src/http-schemas/tx.schema";
 import { createRoute } from "@src/lib/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/services/open-api-hono-handler/open-api-hono-handler";
 

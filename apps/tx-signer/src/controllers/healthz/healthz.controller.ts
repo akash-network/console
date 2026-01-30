@@ -1,6 +1,6 @@
 import { singleton } from "tsyringe";
 
-import type { HealthzResponse } from "@src/http-schemas/healthz/healthz.schema";
+import type { HealthzResponse } from "@src/http-schemas/healthz.schema";
 
 @singleton()
 export class HealthzController {

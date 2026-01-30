@@ -3,6 +3,7 @@ import type { TemplateCategory, TemplateHttpService, TemplateOutputSummary } fro
 import { Snackbar } from "@akashnetwork/ui/components";
 import type { QueryKey, UseQueryOptions } from "@tanstack/react-query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { secondsInDay } from "date-fns/constants";
 import { useSnackbar } from "notistack";
 
 import { useServices } from "@src/context/ServicesProvider/ServicesProvider";
@@ -152,11 +153,13 @@ export function useTemplates(options = {}): CategoriesAndTemplatesResult {
   const query = useQuery({
     queryKey: QueryKeys.getTemplatesKey(),
     queryFn: () => getTemplates(templateService),
-    ...options,
-    refetchInterval: 60000 * 2, // Refetch templates every 2 minutes
+    staleTime: secondsInDay * 1000,
+    gcTime: secondsInDay * 1000,
+    refetchInterval: false,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: false,
-    refetchOnReconnect: false
+    refetchOnReconnect: false,
+    ...options
   });
 
   return useMemo(

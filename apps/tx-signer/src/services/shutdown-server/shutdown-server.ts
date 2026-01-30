@@ -8,7 +8,8 @@ export async function shutdownServer(server: ServerType, appLogger: Logger, onSh
         appLogger.error({ event: "SERVER_CLOSE_ERROR", error });
       }
 
-      Promise.resolve(onShutdown?.())
+      Promise.resolve()
+        .then(() => onShutdown?.())
         .catch(onShutdownError => {
           appLogger.error({ event: "ON_SHUTDOWN_ERROR", error: onShutdownError });
         })

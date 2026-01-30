@@ -28,7 +28,7 @@ type SignAndBroadcastDerivedRequest = {
 };
 
 type SignAndBroadcastResponse = {
-  data: IndexedTx;
+  data: Pick<IndexedTx, "code" | "hash" | "rawLog">;
 };
 
 @singleton()

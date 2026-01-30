@@ -1,11 +1,7 @@
 import type { EncodeObject, Registry } from "@cosmjs/proto-signing";
 import { inject, singleton } from "tsyringe";
 
-import type {
-  SignAndBroadcastDerivedRequestInput,
-  SignAndBroadcastFundingRequestInput,
-  SignAndBroadcastResponseOutput
-} from "@src/http-schemas/tx-signer/tx-signer.schema";
+import type { SignAndBroadcastDerivedRequestInput, SignAndBroadcastFundingRequestInput, SignAndBroadcastResponseOutput } from "@src/http-schemas/tx.schema";
 import { InjectTypeRegistry } from "@src/providers/type-registry.provider";
 import { TxManagerService } from "@src/services/tx-manager/tx-manager.service";
 
