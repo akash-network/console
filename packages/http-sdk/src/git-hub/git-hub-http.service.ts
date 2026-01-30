@@ -42,13 +42,6 @@ export type ProviderAttributesSchema = {
   "feat-endpoint-custom-domain": ProviderAttributeSchemaDetail;
 };
 
-export type Auditor = {
-  id: string;
-  name: string;
-  address: string;
-  website: string;
-};
-
 export class GitHubHttpService extends HttpService {
   private readonly organization = "akash-network";
   private readonly repository = "console";
@@ -60,10 +53,6 @@ export class GitHubHttpService extends HttpService {
 
   async getProviderAttributesSchema() {
     return this.extractData(await this.get<ProviderAttributesSchema>(this.getFullPath("/config/provider-attributes.json")));
-  }
-
-  async getAuditors() {
-    return this.extractData(await this.get<Auditor[]>(this.getFullPath("/config/auditors.json")));
   }
 
   private getFullPath(path: string) {

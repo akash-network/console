@@ -138,16 +138,19 @@ export const cacheKeys = {
   getProviderActiveLeasesGraphData: "getProviderActiveLeasesGraphData",
   getTemplates: "getTemplates",
   getMarketData: "getMarketData",
-  getProviderList: "getProviderList",
-  getTrialProviderList: "getTrialProviderList",
+  getProviderListJson: "getProviderListJson",
+  getTrialProviderListJson: "getTrialProviderListJson",
   getTrialRegisteredProviderList: "getTrialRegisteredProviderList",
   getChainStats: "getChainStats",
   getGpuModels: "getGpuModels",
   getTrialProviders: "getTrialProviders",
   getGpuUtilization: "getGpuUtilization",
-  getGpuBreakdown: "getGpuBreakdown"
+  getGpuBreakdown: "getGpuBreakdown",
+  getProviderListGzipped: "getProviderListGzipped",
+  getTrialProviderListGzipped: "getTrialProviderListGzipped"
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function reusePendingPromise<T extends (...args: any[]) => Promise<unknown>>(fn: T, options?: { getKey?: (...args: Parameters<T>) => string }): T {
   const pendingPromises = new Map<string, Promise<unknown>>();
 
