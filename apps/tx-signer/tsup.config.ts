@@ -10,11 +10,11 @@ export default defineConfig(async overrideOptions =>
   applyDefaults({
     packageJson,
     prependEffectsToEntries: ["reflect-metadata", "@akashnetwork/env-loader"],
-    entry: ["./src/index.ts"],
+    entry: ["./src/server.ts"],
     target: tsconfig.compilerOptions.target,
     tsconfig: "tsconfig.build.json",
     external: ["pino-pretty"],
-    onSuccess: overrideOptions.watch && !isProduction ? "node --enable-source-maps dist/index.js" : undefined,
+    onSuccess: overrideOptions.watch && !isProduction ? "node --enable-source-maps dist/server.js" : undefined,
     ...overrideOptions
   })
 );
