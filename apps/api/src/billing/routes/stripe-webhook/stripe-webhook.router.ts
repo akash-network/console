@@ -14,14 +14,12 @@ const route = createRoute({
   summary: "Stripe Webhook Handler",
   tags: ["Payment"],
   security: SECURITY_NONE,
+  additionalContentTypes: ["application/json"],
   request: {
     body: {
       content: {
         "text/plain": {
           schema: z.string()
-        },
-        "application/json": {
-          schema: z.any()
         }
       }
     }
