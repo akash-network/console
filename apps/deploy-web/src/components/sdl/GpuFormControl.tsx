@@ -16,7 +16,7 @@ import flow from "lodash/flow";
 import flatMap from "lodash/fp/flatMap";
 import keyBy from "lodash/fp/keyBy";
 
-import type { RentGpusFormValuesType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import type { GpuModel, GpuVendor } from "@src/types/gpu";
 import { gpuVendors as hardCodedGpuVendors } from "@src/utils/akash/gpu";
 import { validationConfig } from "@src/utils/akash/units";
@@ -27,10 +27,10 @@ type Props = {
   hasGpu: boolean;
   hideHasGpu?: boolean;
   children?: ReactNode;
-  control: Control<SdlBuilderFormValuesType | RentGpusFormValuesType, any>;
+  control: Control<SdlBuilderFormValuesType, any>;
   gpuModels: GpuVendor[] | undefined;
   currentService: ServiceType;
-  setValue: UseFormSetValue<RentGpusFormValuesType | SdlBuilderFormValuesType>;
+  setValue: UseFormSetValue<SdlBuilderFormValuesType>;
 };
 
 export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, control, serviceIndex, hasGpu, currentService, setValue, hideHasGpu }) => {

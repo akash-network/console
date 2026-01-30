@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import type { Control } from "react-hook-form";
+import type { Control, FieldValues } from "react-hook-form";
 import { Controller } from "react-hook-form";
 import { CustomTooltip } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
@@ -10,11 +10,10 @@ import TextField from "@mui/material/TextField";
 import { InfoCircle } from "iconoir-react";
 
 import { useProviderRegions } from "@src/queries/useProvidersQuery";
-import type { RentGpusFormValuesType } from "@src/types";
 import type { ProviderAttributeSchemaDetailValue, ProviderRegionValue } from "@src/types/providerAttributes";
 
 type RegionSelectProps = {
-  control: Control<RentGpusFormValuesType, any>;
+  control: Control<FieldValues, any>;
   className?: string;
 };
 

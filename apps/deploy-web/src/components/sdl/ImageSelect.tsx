@@ -16,11 +16,11 @@ import Link from "next/link";
 
 import { useGpuTemplates } from "@src/hooks/useGpuTemplates";
 import type { TemplateOutputSummaryWithCategory } from "@src/queries/useTemplateQuery";
-import type { RentGpusFormValuesType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 
 type Props = {
   children?: ReactNode;
-  control: Control<SdlBuilderFormValuesType | RentGpusFormValuesType, any>;
+  control: Control<SdlBuilderFormValuesType, any>;
   currentService: ServiceType;
   onSelectTemplate: (template: TemplateOutputSummaryWithCategory) => void;
 };
