@@ -1,4 +1,5 @@
 import { createOtelLogger } from "@akashnetwork/logging/otel";
+import { createMongoAbility, type MongoAbility } from "@casl/ability";
 import { context, trace } from "@opentelemetry/api";
 import { Command } from "commander";
 import { once } from "lodash";
@@ -7,6 +8,7 @@ import { container } from "tsyringe";
 import { z } from "zod";
 
 import { WalletController } from "@src/billing/controllers/wallet/wallet.controller";
+import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { chainDb } from "@src/db/dbConnection";
 import { TopUpDeploymentsController } from "@src/deployment/controllers/deployment/top-up-deployments.controller";
 import { GpuBotController } from "@src/deployment/controllers/gpu-bot/gpu-bot.controller";
@@ -79,7 +81,30 @@ async function executeCliHandler(name: string, handler: () => Promise<unknown>, 
     try {
       await Promise.all([migratePG(), chainDb.authenticate(), ...container.resolveAll(APP_INITIALIZER).map(initializer => initializer[ON_APP_START]())]);
 
-      const result = await handler();
+      const executionContextService = container.resolve(ExecutionContextService);
+      const result = await executionContextService.runWithContext(async () => {
+        executionContextService.set("CURRENT_USER", {
+          id: "cli-user",
+          bio: null,
+          email: null,
+          emailVerified: false,
+          stripeCustomerId: null,
+          subscribedToNewsletter: false,
+          createdAt: new Date(),
+          lastActiveAt: new Date(),
+          lastIp: null,
+          lastUserAgent: null,
+          lastFingerprint: null,
+          youtubeUsername: null,
+          twitterUsername: null,
+          githubUsername: null,
+          userId: "system:cli-user",
+          username: "___cli_user___",
+          trial: false
+        });
+        executionContextService.set("ABILITY", createMongoAbility<MongoAbility>());
+        return await handler();
+      });
 
       if (result && result instanceof Err) {
         logger.error({ event: "COMMAND_ERROR", name, result: result.val });

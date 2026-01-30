@@ -6,8 +6,11 @@ import { AUDITOR } from "@src/deployment/config/provider.config";
 dotenv.config({ path: "env/.env.funding-wallet-index" });
 
 export const envSchema = z.object({
+  OLD_MASTER_WALLET_MNEMONIC: z.string().optional(),
+  FUNDING_WALLET_MNEMONIC: z.string().optional(),
   FUNDING_WALLET_MNEMONIC_V1: z.string().optional(),
   FUNDING_WALLET_MNEMONIC_V2: z.string().optional(),
+  DERIVATION_WALLET_MNEMONIC: z.string().optional(),
   DERIVATION_WALLET_MNEMONIC_V1: z.string().optional(),
   DERIVATION_WALLET_MNEMONIC_V2: z.string().optional(),
   NETWORK: z.enum(["mainnet", "testnet", "sandbox"]),
