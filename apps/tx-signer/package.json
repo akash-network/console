@@ -12,7 +12,7 @@
     "dev-nodc": "npm run start",
     "format": "prettier --write ./*.{ts,js,json} **/*.{ts,js,json}",
     "lint": "eslint .",
-    "prod": "node dist/server.js",
+    "prod": "node dist/index.js",
     "release": "release-it",
     "start": "tsup --watch",
     "start:dev": "tsup src/index.ts --watch",
