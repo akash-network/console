@@ -1,5 +1,12 @@
 
 
+## [3.23.1](https://github.com/akash-network/console/compare/console-api/v3.23.0...console-api/v3.23.1) (2026-01-30)
+
+
+### Code Refactoring
+
+* extracts tx signer into a dedicated service ([8a74b7e](https://github.com/akash-network/console/commit/8a74b7e3346e5aee6249a6baeb3e91099db97677))
+
 ## [3.23.0](https://github.com/akash-network/console/compare/console-api/v3.22.1...console-api/v3.23.0) (2026-01-30)
 
 
