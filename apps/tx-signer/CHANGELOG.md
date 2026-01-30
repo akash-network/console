@@ -1,5 +1,12 @@
 
 
+## [1.0.1](https://github.com/akash-network/console/compare/tx-signer/v1.0.0...tx-signer/v1.0.1) (2026-01-30)
+
+
+### Bug Fixes
+
+* updates tx-signer entry point  ([08134d9](https://github.com/akash-network/console/commit/08134d93843c25f272bd92f3f6cdc6ef3e0bd49b))
+
 ## 1.0.0 (2026-01-30)
 
 ### Code Refactoring
