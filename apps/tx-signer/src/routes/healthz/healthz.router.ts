@@ -9,7 +9,7 @@ export const healthzRouter = new OpenApiHonoHandler();
 
 const healthzRoute = createRoute({
   method: "get",
-  path: "/healthz",
+  path: "/v1/healthz/{type}",
   summary: "Health check",
   tags: ["Healthz"],
   request: {},
