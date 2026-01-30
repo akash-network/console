@@ -6,7 +6,7 @@ import { APP_INITIALIZER, AppInitializer, ON_APP_START } from "@src/core/provide
 import type { AppContext } from "@src/core/types/app-context";
 import { CoreConfigService } from "../core-config/core-config.service";
 import { ExecutionContextService } from "../execution-context/execution-context.service";
-import { FeatureFlagValue } from "./feature-flags";
+import { FeatureFlags, FeatureFlagValue } from "./feature-flags";
 
 @registry([{ token: APP_INITIALIZER, useToken: FeatureFlagsService }])
 @singleton()
@@ -28,6 +28,7 @@ export class FeatureFlagsService implements Disposable, AppInitializer {
   }
 
   isEnabled(featureFlag: FeatureFlagValue): boolean {
+    if (featureFlag === FeatureFlags.EXTERNAL_TX_SIGNER && this.configService.get("FEATURE_FLAGS_EXTERNAL_TX_SIGNER_DISABLED")) return false;
     if (this.configService.get("FEATURE_FLAGS_ENABLE_ALL")) return true;
 
     assert(this.client, "Feature flags service was not initialized. Call initialize() method first.");

@@ -105,6 +105,9 @@ jobs:
           elif [[ "$tag" == indexer/* ]]; then
             echo "registry=${{ vars.INDEXER_REGISTRY }}" >> "$GITHUB_ENV"
             echo "app=indexer" >> "$GITHUB_ENV"
+          elif [[ "$tag" == tx-signer/* ]]; then
+            echo "registry=${{ vars.TX_SIGNER_REGISTRY }}" >> "$GITHUB_ENV"
+            echo "app=tx-signer" >> "$GITHUB_ENV"
           else
             echo "Error: Unknown tag format = $tag"
             exit 1

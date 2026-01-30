@@ -1,0 +1,99 @@
+name: Release TX Signer
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/tx-signer/package.json"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  release:
+    name: Create Release
+    uses: ./.github/workflows/reusable-create-github-release.yml
+    secrets: inherit
+    permissions:
+      contents: write
+    with:
+      app: tx-signer
+
+  build:
+    needs: release
+    name: Build Docker image
+    if: needs.release.outputs.git_tag != ''
+    uses: ./.github/workflows/reusable-build-image.yml
+    secrets: inherit
+    permissions:
+      contents: write
+      packages: write
+    with:
+      tag: ${{ needs.release.outputs.git_tag }}
+
+  deploy-beta-mainnet:
+    needs: build
+    name: Deploy to beta mainnet
+    uses: ./.github/workflows/reusable-deploy-k8s.yml
+    secrets: inherit
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
+    with:
+      app: tx-signer
+      appVersion: ${{ needs.build.outputs.image_tag }}
+      environment: staging
+      chain: mainnet
+
+  deploy-beta-sandbox:
+    needs: build
+    name: Deploy to beta sandbox
+    uses: ./.github/workflows/reusable-deploy-k8s.yml
+    secrets: inherit
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
+    with:
+      app: tx-signer
+      appVersion: ${{ needs.build.outputs.image_tag }}
+      environment: staging
+      chain: sandbox
+
+  deploy-prod-mainnet:
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
+    needs:
+      - build
+      - deploy-beta-mainnet
+      - deploy-beta-sandbox
+    name: Deploy to prod mainnet
+    uses: ./.github/workflows/reusable-deploy-k8s.yml
+    secrets: inherit
+    with:
+      app: tx-signer
+      appVersion: ${{ needs.build.outputs.image_tag }}
+      environment: prod
+      chain: mainnet
+
+  deploy-prod-sandbox:
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
+    needs:
+      - build
+      - deploy-beta-sandbox
+    name: Deploy to prod sandbox
+    uses: ./.github/workflows/reusable-deploy-k8s.yml
+    secrets: inherit
+    with:
+      app: tx-signer
+      appVersion: ${{ needs.build.outputs.image_tag }}
+      environment: prod
+      chain: sandbox
