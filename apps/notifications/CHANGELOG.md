@@ -1,5 +1,12 @@
 
 
+## [2.13.3](https://github.com/akash-network/console/compare/notifications/v2.13.2...notifications/v2.13.3) (2026-01-30)
+
+
+### Code Refactoring
+
+* extracts tx signer into a dedicated service ([8a74b7e](https://github.com/akash-network/console/commit/8a74b7e3346e5aee6249a6baeb3e91099db97677))
+
 ## [2.13.2](https://github.com/akash-network/console/compare/notifications/v2.13.0...notifications/v2.13.2) (2026-01-30)
 
 
