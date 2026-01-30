@@ -1,16 +1,17 @@
-import { format, subDays } from "date-fns";
+import { subDays } from "date-fns";
 
 import type { UsageHistoryResponse, UsageHistoryStats } from "@src/billing/http-schemas/usage.schema";
 import { app, initDb } from "@src/rest-app";
 
 import { createAkashAddress, createAkashBlock, createDay, createDeployment, createDeploymentGroup, createLease, createProvider } from "@test/seeders";
+import { formatUTCDate } from "@test/utils";
 
 describe("GET /v1/usage/history", () => {
   let isDbInitialized = false;
 
   async function setup() {
     const now = new Date();
-    now.setHours(12, 0, 0, 0);
+    now.setUTCHours(12, 0, 0, 0);
 
     const dates = [subDays(now, 7), subDays(now, 6), subDays(now, 5), subDays(now, 4), subDays(now, 3), subDays(now, 2), subDays(now, 1), now];
 
@@ -30,56 +31,56 @@ describe("GET /v1/usage/history", () => {
 
     await Promise.all([
       createDay({
-        date: format(dates[0], "yyyy-MM-dd"),
+        date: formatUTCDate(dates[0]),
         firstBlockHeight: 1,
         lastBlockHeight: 100,
         lastBlockHeightYet: 100,
         aktPrice: 2.5
       }),
       createDay({
-        date: format(dates[1], "yyyy-MM-dd"),
+        date: formatUTCDate(dates[1]),
         firstBlockHeight: 101,
         lastBlockHeight: 200,
         lastBlockHeightYet: 200,
         aktPrice: 2.75
       }),
       createDay({
-        date: format(dates[2], "yyyy-MM-dd"),
+        date: formatUTCDate(dates[2]),
         firstBlockHeight: 201,
         lastBlockHeight: 300,
         lastBlockHeightYet: 300,
         aktPrice: 3.0
       }),
       createDay({
-        date: format(dates[3], "yyyy-MM-dd"),
+        date: formatUTCDate(dates[3]),
         firstBlockHeight: 301,
         lastBlockHeight: 400,
         lastBlockHeightYet: 400,
         aktPrice: 3.25
       }),
       createDay({
-        date: format(dates[4], "yyyy-MM-dd"),
+        date: formatUTCDate(dates[4]),
         firstBlockHeight: 401,
         lastBlockHeight: 500,
         lastBlockHeightYet: 500,
         aktPrice: 3.5
       }),
       createDay({
-        date: format(dates[5], "yyyy-MM-dd"),
+        date: formatUTCDate(dates[5]),
         firstBlockHeight: 501,
         lastBlockHeight: 600,
         lastBlockHeightYet: 600,
         aktPrice: 3.75
       }),
       createDay({
-        date: format(dates[6], "yyyy-MM-dd"),
+        date: formatUTCDate(dates[6]),
         firstBlockHeight: 601,
         lastBlockHeight: 700,
         lastBlockHeightYet: 700,
         aktPrice: 4.0
       }),
       createDay({
-        date: format(dates[7], "yyyy-MM-dd"),
+        date: formatUTCDate(dates[7]),
         firstBlockHeight: 701,
         lastBlockHeight: 800,
         lastBlockHeightYet: 800,
@@ -302,8 +303,8 @@ describe("GET /v1/usage/history", () => {
 
   it("returns usage history for a valid address with custom date range", async () => {
     const { dates, owners } = await setup();
-    const startDate = format(dates[1], "yyyy-MM-dd");
-    const endDate = format(dates[4], "yyyy-MM-dd");
+    const startDate = formatUTCDate(dates[1]);
+    const endDate = formatUTCDate(dates[4]);
 
     const response = await app.request(`/v1/usage/history?address=${owners[0]}&startDate=${startDate}&endDate=${endDate}`);
     const data = await expectUsageHistory(response, 4);
@@ -330,8 +331,8 @@ describe("GET /v1/usage/history", () => {
 
   it("returns usage history with correct cost calculations", async () => {
     const { dates, owners } = await setup();
-    const startDate = format(dates[2], "yyyy-MM-dd");
-    const endDate = format(dates[3], "yyyy-MM-dd");
+    const startDate = formatUTCDate(dates[2]);
+    const endDate = formatUTCDate(dates[3]);
 
     const response = await app.request(`/v1/usage/history?address=${owners[0]}&startDate=${startDate}&endDate=${endDate}`);
     const data = await expectUsageHistory(response, 2);
@@ -344,8 +345,8 @@ describe("GET /v1/usage/history", () => {
 
   it("handles mixed currency leases correctly", async () => {
     const { dates, owners } = await setup();
-    const startDate = format(dates[1], "yyyy-MM-dd");
-    const endDate = format(dates[2], "yyyy-MM-dd");
+    const startDate = formatUTCDate(dates[1]);
+    const endDate = formatUTCDate(dates[2]);
 
     const response = await app.request(`/v1/usage/history?address=${owners[0]}&startDate=${startDate}&endDate=${endDate}`);
     const data = await expectUsageHistory(response, 2);
@@ -369,8 +370,8 @@ describe("GET /v1/usage/history", () => {
 
   it("responds with 400 when endDate is before startDate", async () => {
     const { owners, dates } = await setup();
-    const startDate = format(dates[4], "yyyy-MM-dd");
-    const endDate = format(dates[2], "yyyy-MM-dd");
+    const startDate = formatUTCDate(dates[4]);
+    const endDate = formatUTCDate(dates[2]);
 
     const response = await app.request(`/v1/usage/history?address=${owners[0]}&startDate=${startDate}&endDate=${endDate}`);
     expect(response.status).toBe(400);
@@ -378,8 +379,8 @@ describe("GET /v1/usage/history", () => {
 
   it("responds with 400 when date range exceeds 365 days", async () => {
     const { owners, now } = await setup();
-    const startDate = format(subDays(now, 400), "yyyy-MM-dd");
-    const endDate = format(now, "yyyy-MM-dd");
+    const startDate = formatUTCDate(subDays(now, 400));
+    const endDate = formatUTCDate(now);
 
     const response = await app.request(`/v1/usage/history?address=${owners[0]}&startDate=${startDate}&endDate=${endDate}`);
     expect(response.status).toBe(400);
@@ -387,7 +388,7 @@ describe("GET /v1/usage/history", () => {
 
   it("uses default startDate when not provided", async () => {
     const { now, owners } = await setup();
-    const endDate = format(now, "yyyy-MM-dd");
+    const endDate = formatUTCDate(now);
 
     const response = await app.request(`/v1/usage/history?address=${owners[0]}&endDate=${endDate}`);
     await expectUsageHistory(response, 31); // 30 days before endDate + endDate itself
@@ -395,7 +396,7 @@ describe("GET /v1/usage/history", () => {
 
   it("uses current date as default endDate when not provided", async () => {
     const { now, owners } = await setup();
-    const startDate = format(subDays(now, 5), "yyyy-MM-dd");
+    const startDate = formatUTCDate(subDays(now, 5));
 
     const response = await app.request(`/v1/usage/history?address=${owners[0]}&startDate=${startDate}`);
     await expectUsageHistory(response, 6); // 5 days + today
@@ -435,8 +436,8 @@ describe("GET /v1/usage/history/stats", () => {
   it("returns usage stats for a valid address with custom date range", async () => {
     const { owners, expectUsageStats } = setup();
     const now = new Date();
-    const startDate = format(subDays(now, 7), "yyyy-MM-dd");
-    const endDate = format(now, "yyyy-MM-dd");
+    const startDate = formatUTCDate(subDays(now, 7));
+    const endDate = formatUTCDate(now);
 
     const response = await app.request(`/v1/usage/history/stats?address=${owners[0]}&startDate=${startDate}&endDate=${endDate}`);
     const data = await expectUsageStats(response);
@@ -471,8 +472,8 @@ describe("GET /v1/usage/history/stats", () => {
   it("responds with 400 when endDate is before startDate", async () => {
     const { owners } = setup();
     const now = new Date();
-    const startDate = format(now, "yyyy-MM-dd");
-    const endDate = format(subDays(now, 1), "yyyy-MM-dd");
+    const startDate = formatUTCDate(now);
+    const endDate = formatUTCDate(subDays(now, 1));
 
     const response = await app.request(`/v1/usage/history/stats?address=${owners[0]}&startDate=${startDate}&endDate=${endDate}`);
     expect(response.status).toBe(400);
@@ -481,8 +482,8 @@ describe("GET /v1/usage/history/stats", () => {
   it("responds with 400 when date range exceeds 365 days", async () => {
     const { owners } = setup();
     const now = new Date();
-    const startDate = format(subDays(now, 400), "yyyy-MM-dd");
-    const endDate = format(now, "yyyy-MM-dd");
+    const startDate = formatUTCDate(subDays(now, 400));
+    const endDate = formatUTCDate(now);
 
     const response = await app.request(`/v1/usage/history/stats?address=${owners[0]}&startDate=${startDate}&endDate=${endDate}`);
     expect(response.status).toBe(400);
@@ -491,8 +492,8 @@ describe("GET /v1/usage/history/stats", () => {
   it("calculates correct averages based on date range", async () => {
     const { owners, expectUsageStats } = setup();
     const now = new Date();
-    const startDate = format(subDays(now, 6), "yyyy-MM-dd");
-    const endDate = format(now, "yyyy-MM-dd");
+    const startDate = formatUTCDate(subDays(now, 6));
+    const endDate = formatUTCDate(now);
 
     const response = await app.request(`/v1/usage/history/stats?address=${owners[0]}&startDate=${startDate}&endDate=${endDate}`);
     const data = await expectUsageStats(response);

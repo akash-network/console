@@ -1,10 +1,11 @@
 import type { AkashBlock, Deployment, DeploymentGroup, Provider } from "@akashnetwork/database/dbSchemas/akash";
 import { faker } from "@faker-js/faker";
-import { format, subWeeks } from "date-fns";
+import { subWeeks } from "date-fns";
 
 import { app, initDb } from "@src/rest-app";
 
 import { createAkashBlock, createDeployment, createDeploymentGroup, createLease, createProvider } from "@test/seeders";
+import { formatUTCDate } from "@test/utils";
 
 describe("GET /v1/leases-duration/{owner}", () => {
   let providers: Provider[];
@@ -13,7 +14,7 @@ describe("GET /v1/leases-duration/{owner}", () => {
   let deploymentGroups: DeploymentGroup[];
   let owners: string[];
   const now = new Date();
-  now.setHours(12, 0, 0, 0);
+  now.setUTCHours(12, 0, 0, 0);
 
   const dates = [subWeeks(now, 6), subWeeks(now, 5), subWeeks(now, 4), subWeeks(now, 3), subWeeks(now, 2), subWeeks(now, 1), now];
   const blockDates = [dates[0], dates[2], dates[4], dates[6]];
@@ -164,7 +165,7 @@ describe("GET /v1/leases-duration/{owner}", () => {
   });
 
   it("can filter by startDate", async () => {
-    const response = await app.request(`/v1/leases-duration/${owners[0]}?startDate=${format(searchDates[0], "yyyy-MM-dd")}`);
+    const response = await app.request(`/v1/leases-duration/${owners[0]}?startDate=${formatUTCDate(searchDates[0])}`);
 
     expect(response.status).toBe(200);
     await expectLeasesDuration(response, {
@@ -176,7 +177,7 @@ describe("GET /v1/leases-duration/{owner}", () => {
   });
 
   it("can filter by endDate", async () => {
-    const response = await app.request(`/v1/leases-duration/${owners[0]}?endDate=${format(searchDates[1], "yyyy-MM-dd")}`);
+    const response = await app.request(`/v1/leases-duration/${owners[0]}?endDate=${formatUTCDate(searchDates[1])}`);
 
     expect(response.status).toBe(200);
     await expectLeasesDuration(response, {
@@ -188,9 +189,7 @@ describe("GET /v1/leases-duration/{owner}", () => {
   });
 
   it("can filter by startDate and endDate at the same time", async () => {
-    const response = await app.request(
-      `/v1/leases-duration/${owners[0]}?startDate=${format(searchDates[0], "yyyy-MM-dd")}&endDate=${format(searchDates[1], "yyyy-MM-dd")}`
-    );
+    const response = await app.request(`/v1/leases-duration/${owners[0]}?startDate=${formatUTCDate(searchDates[0])}&endDate=${formatUTCDate(searchDates[1])}`);
 
     expect(response.status).toBe(200);
     await expectLeasesDuration(response, {
@@ -226,9 +225,7 @@ describe("GET /v1/leases-duration/{owner}", () => {
   });
 
   it("responds with 400 if endDate is before startDate", async () => {
-    const response = await app.request(
-      `/v1/leases-duration/${owners[0]}?startDate=${format(searchDates[1], "yyyy-MM-dd")}&endDate=${format(searchDates[0], "yyyy-MM-dd")}`
-    );
+    const response = await app.request(`/v1/leases-duration/${owners[0]}?startDate=${formatUTCDate(searchDates[1])}&endDate=${formatUTCDate(searchDates[0])}`);
 
     expect(response.status).toBe(400);
   });

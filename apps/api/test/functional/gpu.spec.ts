@@ -5,7 +5,6 @@ import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
 import type { ProviderSnapshot, ProviderSnapshotNode } from "@akashnetwork/database/dbSchemas/akash";
 import type { Day, Transaction } from "@akashnetwork/database/dbSchemas/base";
 import { faker } from "@faker-js/faker";
-import { format, setHours, setMinutes, setSeconds } from "date-fns";
 import nock from "nock";
 
 import type { ListGpuResponse } from "@src/gpu/http-schemas/gpu.schema";
@@ -24,10 +23,12 @@ import {
   createProviderSnapshotNodeGpu,
   createTransaction
 } from "@test/seeders";
+import { formatUTCDate } from "@test/utils";
 
 describe("GPU API", () => {
-  const now = setSeconds(setMinutes(setHours(new Date(), 12), 0), 0);
-  const date = format(now, "yyyy-MM-dd");
+  const now = new Date();
+  now.setUTCHours(12, 0, 0, 0);
+  const date = formatUTCDate(now);
 
   afterAll(async () => {
     nock.cleanAll();

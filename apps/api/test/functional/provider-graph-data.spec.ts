@@ -1,16 +1,17 @@
 import type { Provider, ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash";
-import { format, subDays } from "date-fns";
+import { subDays } from "date-fns";
 import { container } from "tsyringe";
 
 import { app, initDb } from "@src/rest-app";
 
 import { createAkashBlock, createDay, createProvider, createProviderSnapshot } from "@test/seeders";
+import { formatUTCDate } from "@test/utils";
 
 describe("Provider Graph Data", () => {
   let providers: Provider[];
   let providerSnapshots: ProviderSnapshot[];
   const date = new Date();
-  date.setHours(12, 0, 0, 0);
+  date.setUTCHours(12, 0, 0, 0);
   const yesterday = subDays(date, 1);
   const twoDaysAgo = subDays(date, 2);
   const threeDaysAgo = subDays(date, 3);
@@ -20,19 +21,19 @@ describe("Provider Graph Data", () => {
 
     await Promise.all([
       createDay({
-        date: format(threeDaysAgo, "yyyy-MM-dd"),
+        date: formatUTCDate(threeDaysAgo),
         firstBlockHeight: 1,
         lastBlockHeight: 100,
         lastBlockHeightYet: 100
       }),
       createDay({
-        date: format(twoDaysAgo, "yyyy-MM-dd"),
+        date: formatUTCDate(twoDaysAgo),
         firstBlockHeight: 101,
         lastBlockHeight: 200,
         lastBlockHeightYet: 200
       }),
       createDay({
-        date: format(yesterday, "yyyy-MM-dd"),
+        date: formatUTCDate(yesterday),
         firstBlockHeight: 201,
         lastBlockHeight: 300,
         lastBlockHeightYet: 300
@@ -211,9 +212,9 @@ describe("Provider Graph Data", () => {
           currentValue: data.now[dataName],
           compareValue: data.compare[dataName],
           snapshots: [
-            { date: format(threeDaysAgo, "yyyy-MM-dd") + "T00:00:00.000Z", value: expect.any(Number) },
-            { date: format(twoDaysAgo, "yyyy-MM-dd") + "T00:00:00.000Z", value: data.compare[dataName] },
-            { date: format(yesterday, "yyyy-MM-dd") + "T00:00:00.000Z", value: data.now[dataName] }
+            { date: formatUTCDate(threeDaysAgo) + "T00:00:00.000Z", value: expect.any(Number) },
+            { date: formatUTCDate(twoDaysAgo) + "T00:00:00.000Z", value: data.compare[dataName] },
+            { date: formatUTCDate(yesterday) + "T00:00:00.000Z", value: data.now[dataName] }
           ],
           now: {
             count: 2,
@@ -272,7 +273,7 @@ describe("Provider Graph Data", () => {
         });
 
         await createDay({
-          date: today.toISOString().split("T")[0],
+          date: formatUTCDate(today),
           firstBlockHeight: 301,
           lastBlockHeight: 400,
           lastBlockHeightYet: 400
@@ -288,7 +289,7 @@ describe("Provider Graph Data", () => {
 
         expect(response.status).toBe(200);
 
-        expect(data.snapshots[data.snapshots.length - 1].date).toBe(testYesterday.toISOString().split("T")[0] + "T00:00:00.000Z");
+        expect(data.snapshots[data.snapshots.length - 1].date).toBe(formatUTCDate(testYesterday) + "T00:00:00.000Z");
       } finally {
         // Restore real timers
         jest.useRealTimers();

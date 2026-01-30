@@ -1,7 +1,6 @@
 import { AkashBlock, AkashMessage, Deployment, DeploymentGroup, Lease, Provider } from "@akashnetwork/database/dbSchemas/akash";
 import { AddressReference, Day, Transaction, Validator } from "@akashnetwork/database/dbSchemas/base";
 import { faker } from "@faker-js/faker";
-import { format } from "date-fns";
 import nock from "nock";
 import { container } from "tsyringe";
 
@@ -23,6 +22,7 @@ import { createLease } from "@test/seeders/lease.seeder";
 import { createProvider } from "@test/seeders/provider.seeder";
 import { createTransaction } from "@test/seeders/transaction.seeder";
 import { createValidator } from "@test/seeders/validator.seeder";
+import { formatUTCDate } from "@test/utils";
 
 describe("Addresses API", () => {
   afterEach(async () => {
@@ -513,7 +513,7 @@ describe("Addresses API", () => {
     const height = 100;
 
     await createDay({
-      date: format(now, "yyyy-MM-dd"),
+      date: formatUTCDate(now),
       firstBlockHeight: height,
       lastBlockHeight: height,
       lastBlockHeightYet: height

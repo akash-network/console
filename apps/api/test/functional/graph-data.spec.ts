@@ -1,17 +1,18 @@
 import type { Provider, ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash";
-import { format, subDays } from "date-fns";
+import { subDays } from "date-fns";
 import { container } from "tsyringe";
 
 import { app, initDb } from "@src/rest-app";
 import { AuthorizedGraphDataNames } from "@src/services/db/statsService";
 
 import { createAkashBlock, createDay, createProvider, createProviderSnapshot, createProviderSnapshotNode, createProviderSnapshotNodeGpu } from "@test/seeders";
+import { formatUTCDate } from "@test/utils";
 
 describe("Graph Data", () => {
   let providers: Provider[];
   let providerSnapshots: ProviderSnapshot[];
   const date = new Date();
-  date.setHours(12, 0, 0, 0);
+  date.setUTCHours(12, 0, 0, 0);
   const yesterday = subDays(date, 1);
   const twoDaysAgo = subDays(date, 2);
   const threeDaysAgo = subDays(date, 3);
@@ -21,19 +22,19 @@ describe("Graph Data", () => {
 
     await Promise.all([
       createDay({
-        date: format(threeDaysAgo, "yyyy-MM-dd"),
+        date: formatUTCDate(threeDaysAgo),
         firstBlockHeight: 1,
         lastBlockHeight: 100,
         lastBlockHeightYet: 100
       }),
       createDay({
-        date: format(twoDaysAgo, "yyyy-MM-dd"),
+        date: formatUTCDate(twoDaysAgo),
         firstBlockHeight: 101,
         lastBlockHeight: 200,
         lastBlockHeightYet: 200
       }),
       createDay({
-        date: format(yesterday, "yyyy-MM-dd"),
+        date: formatUTCDate(yesterday),
         firstBlockHeight: 201,
         lastBlockHeight: 300,
         lastBlockHeightYet: 300
@@ -183,9 +184,9 @@ describe("Graph Data", () => {
           currentValue: expect.any(Number),
           compareValue: expect.any(Number),
           snapshots: [
-            { date: format(threeDaysAgo, "yyyy-MM-dd") + "T00:00:00.000Z", value: expect.any(Number) },
-            { date: format(twoDaysAgo, "yyyy-MM-dd") + "T00:00:00.000Z", value: data.compareValue },
-            { date: format(yesterday, "yyyy-MM-dd") + "T00:00:00.000Z", value: data.currentValue }
+            { date: formatUTCDate(threeDaysAgo) + "T00:00:00.000Z", value: expect.any(Number) },
+            { date: formatUTCDate(twoDaysAgo) + "T00:00:00.000Z", value: data.compareValue },
+            { date: formatUTCDate(yesterday) + "T00:00:00.000Z", value: data.currentValue }
           ]
         });
       });
