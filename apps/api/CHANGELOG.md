@@ -1,5 +1,35 @@
 
 
+## [3.23.0](https://github.com/akash-network/console/compare/console-api/v3.22.1...console-api/v3.23.0) (2026-01-30)
+
+
+### Features
+
+* add uakt pricing calculations to GpuPriceService ([#2604](https://github.com/akash-network/console/issues/2604)) ([fe08aea](https://github.com/akash-network/console/commit/fe08aea62658d48c0f3a464e408eb1ab7f3df1e2))
+* add utility function for formatting UTC dates and update tests … ([#2611](https://github.com/akash-network/console/issues/2611)) ([d80986f](https://github.com/akash-network/console/commit/d80986fa061b66bf364e0d0bfd25fc2c0f5c42ae))
+* enhance deployment reader service with logging and improve prov… ([#2606](https://github.com/akash-network/console/issues/2606)) ([b8b2317](https://github.com/akash-network/console/commit/b8b231732e26c58eda36c43a0e685ef55b6e9b46))
+
+
+### Bug Fixes
+
+* adds body limit to all openapi routes ([#2601](https://github.com/akash-network/console/issues/2601)) ([9fb1719](https://github.com/akash-network/console/commit/9fb1719e4048900fe17a850406025d2ea2651345))
+* ensure that tsbuild picks proper dependencies for internal packages ([#2596](https://github.com/akash-network/console/issues/2596)) ([c869c78](https://github.com/akash-network/console/commit/c869c78a19e7a6569d62bf1cdd2ab5be0340cdd6))
+* set timestamp setting in env-loader ([#2594](https://github.com/akash-network/console/issues/2594)) ([ab74ab0](https://github.com/akash-network/console/commit/ab74ab03465148ce9761e2f21408f33c6ac1c2e0))
+
+
+### Code Refactoring
+
+* makes /pricing endpoint to be async ([#2602](https://github.com/akash-network/console/issues/2602)) ([13bfeeb](https://github.com/akash-network/console/commit/13bfeeb2eb045503683d65dd844111d49ddb6d66))
+* removes legacy stats from provider responses ([#2608](https://github.com/akash-network/console/issues/2608)) ([3c72572](https://github.com/akash-network/console/commit/3c7257295793e44e3b36d8998b8ccdece5fe2e45))
+* replace per-file GitHub API calls with ZIP archive downloads ([#2607](https://github.com/akash-network/console/issues/2607)) ([c9cc429](https://github.com/akash-network/console/commit/c9cc4297d08d0ced5e59a635879ed385af0712ca))
+* utilizes anonymous gh access and then fallback to our token ([#2599](https://github.com/akash-network/console/issues/2599)) ([9e642b3](https://github.com/akash-network/console/commit/9e642b3a50f00139f7345234969b2a8bd3940903))
+
+
+### Performance Improvements
+
+* **api:** optimize /v1/providers ([#2595](https://github.com/akash-network/console/issues/2595)) ([cbc50e3](https://github.com/akash-network/console/commit/cbc50e3fcf8301e48c8e7b45a0c4c90ee0344439))
+* optimizes gpu-prices endpoint ([#2613](https://github.com/akash-network/console/issues/2613)) ([4fd2c43](https://github.com/akash-network/console/commit/4fd2c437db3f8af09e75cf6af2eac1f7347a2c71))
+
 ## [3.22.1](https://github.com/akash-network/console/compare/console-api/v3.22.0...console-api/v3.22.1) (2026-01-28)
 
 
