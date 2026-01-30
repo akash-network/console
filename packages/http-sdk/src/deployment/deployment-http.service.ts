@@ -146,7 +146,7 @@ export class DeploymentHttpService {
           "id.owner": owner,
           "id.dseq": dseq
         },
-        timeout: 10000,
+        timeout: 30000,
         validateStatus: status => (status >= 200 && status < 300) || (status >= 400 && status < 500)
       })
     );
@@ -196,7 +196,7 @@ export class DeploymentHttpService {
     return extractData(
       await this.httpClient.get<DeploymentListResponse>("/akash/deployment/v1beta4/deployments/list", {
         params,
-        timeout: 10000
+        timeout: 30000
       })
     );
   }
