@@ -1,5 +1,12 @@
 
 
+## [3.25.0](https://github.com/akash-network/console/compare/console-api/v3.24.1...console-api/v3.25.0) (2026-01-30)
+
+
+### Features
+
+* enhance Stripe webhook route with additional content type support ([#2631](https://github.com/akash-network/console/issues/2631)) ([1d9e86b](https://github.com/akash-network/console/commit/1d9e86b2a960436e4ec066cd83adf95795db9baf))
+
 ## [3.24.1](https://github.com/akash-network/console/compare/console-api/v3.24.0...console-api/v3.24.1) (2026-01-30)
 
 
