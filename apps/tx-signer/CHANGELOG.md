@@ -1,5 +1,12 @@
 
 
+## [1.0.3](https://github.com/akash-network/console/compare/tx-signer/v1.0.2...tx-signer/v1.0.3) (2026-01-30)
+
+
+### Bug Fixes
+
+* updates tx-signer ports and healthz endpoints ([95f601f](https://github.com/akash-network/console/commit/95f601f06729b3ae83e2a0fb686ad0b62fb41332))
+
 ## [1.0.2](https://github.com/akash-network/console/compare/tx-signer/v1.0.1...tx-signer/v1.0.2) (2026-01-30)
 
 
