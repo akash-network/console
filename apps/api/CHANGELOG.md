@@ -1,5 +1,12 @@
 
 
+## [3.26.0](https://github.com/akash-network/console/compare/console-api/v3.25.0...console-api/v3.26.0) (2026-01-30)
+
+
+### Features
+
+* integrate execution context service and MongoAbility in CLI han… ([#2630](https://github.com/akash-network/console/issues/2630)) ([cbf18ce](https://github.com/akash-network/console/commit/cbf18cebb18f90f19cc7310f725b5fb8cacfdb5a))
+
 ## [3.25.0](https://github.com/akash-network/console/compare/console-api/v3.24.1...console-api/v3.25.0) (2026-01-30)
 
 
