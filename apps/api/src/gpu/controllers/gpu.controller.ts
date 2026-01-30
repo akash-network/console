@@ -2,7 +2,7 @@ import { singleton } from "tsyringe";
 
 import { GpuBreakdownQuery } from "@src/gpu/http-schemas/gpu.schema";
 import { GpuService } from "@src/gpu/services/gpu.service";
-import { GpuPriceService } from "@src/gpu/services/gpu-price.service";
+import { GpuPriceService } from "@src/gpu/services/gpu-price/gpu-price.service";
 
 @singleton()
 export class GpuController {

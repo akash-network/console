@@ -11,14 +11,14 @@ import { Memoize } from "@src/caching/helpers";
 import { LoggerService } from "@src/core";
 import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import { GpuRepository } from "@src/gpu/repositories/gpu.repository";
-import type { GpuBidType, GpuProviderType, GpuWithPricesType, ProviderWithBestBid } from "@src/gpu/types/gpu.type";
+import type { GpuBidType, GpuPriceModel, GpuProviderType, GpuWithPricesType, ProviderWithBestBid } from "@src/gpu/types/gpu.type";
 import { forEachInChunks } from "@src/utils/array/array";
 import { averageBlockCountInAMonth, averageBlockCountInAnHour } from "@src/utils/constants";
 import { average, median, round, weightedAverage } from "@src/utils/math";
 import { decodeMsg, uint8arrayToString } from "@src/utils/protobuf";
-import type { GpuConfig } from "../config/env.config";
-import { GPU_CONFIG } from "../providers/config.provider";
-import { DayRepository } from "../repositories/day.repository";
+import type { GpuConfig } from "../../config/env.config";
+import { GPU_CONFIG } from "../../providers/config.provider";
+import { DayRepository } from "../../repositories/day.repository";
 
 @injectable()
 export class GpuPriceService {
@@ -138,7 +138,7 @@ export class GpuPriceService {
 
     let totalAllocatable = 0;
     let totalAllocated = 0;
-    const models: unknown[] = [];
+    const models: GpuPriceModel[] = [];
     await forEachInChunks(gpuModels, async x => {
       totalAllocatable += x.allocatable;
       totalAllocated += x.allocated;
@@ -218,7 +218,7 @@ export class GpuPriceService {
       const prices = providersWithBestBid.map(x => x.bestBid.hourlyPrice);
 
       return {
-        currency: "USD",
+        currency: "USD" as const,
         min: Math.min(...prices),
         max: Math.max(...prices),
         avg: round(average(prices), 2),
@@ -243,7 +243,7 @@ export class GpuPriceService {
       const prices = providersWithBestBid.map(x => x.bestBid.hourlyPriceUakt);
 
       return {
-        currency: "uakt",
+        currency: "uakt" as const,
         min: Math.min(...prices),
         max: Math.max(...prices),
         avg: round(average(prices), 2),
