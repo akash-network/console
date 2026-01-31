@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import type { ApiManagedWalletOutput } from "@akashnetwork/http-sdk";
 import { useAtom } from "jotai";
 
@@ -18,9 +18,11 @@ export const useManagedWallet = () => {
   const isLoading = isInitialLoading || isCreating;
   const [, setIsSignedInWithTrial] = useAtom(walletStore.isSignedInWithTrial);
   const selected = getSelectedStorageWallet();
+  const hasAutoSwitched = useRef(false);
 
   useEffect(() => {
-    if (selectedWalletType === "custodial" && queried) {
+    if (!hasAutoSwitched.current && selectedWalletType === "custodial" && queried) {
+      hasAutoSwitched.current = true;
       setSelectedWalletType("managed");
     }
   }, [queried, selectedWalletType, setSelectedWalletType]);
