@@ -175,7 +175,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
         handleStepChange(OnboardingStepIndex.EMAIL_VERIFICATION);
       }
     } else {
-      router.push(urlService.newSignup({ fromSignup: "true" }));
+      router.push(urlService.newSignup({ fromSignup: "true" }) + "&fromSignup=true");
     }
   }, [analyticsService, handleStepComplete, user?.userId, user?.emailVerified, handleStepChange, router, urlService]);
 
