@@ -12,7 +12,7 @@ export class UserAuthTokenService {
     this.#authConfigService = authConfigService;
   }
 
-  async getValidUserId(bearer: string, options?: VerifyRsaJwtEnv) {
+  async getValidUserId(bearer: string, options?: VerifyRsaJwtEnv): Promise<string | null> {
     const token = bearer.replace(/^Bearer\s+/i, "");
     const jwksUri = this.#authConfigService.get("AUTH0_JWKS_URI") || options?.JWKS_URI;
 
@@ -22,6 +22,10 @@ export class UserAuthTokenService {
 
     const jwks = await getJwks(jwksUri, useKVStore(kvStore || options?.VERIFY_RSA_JWT), options?.VERIFY_RSA_JWT_JWKS_CACHE_KEY);
     const result = await verify(token, jwks);
+
+    if (!result.payload) {
+      return null;
+    }
 
     return (result.payload as { sub: string }).sub;
   }

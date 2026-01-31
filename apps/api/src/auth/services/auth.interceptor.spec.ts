@@ -50,6 +50,26 @@ describe(AuthInterceptor.name, () => {
     });
   });
 
+  describe("Invalid bearer token", () => {
+    it("proceeds as unauthenticated when getValidUserId returns null", async () => {
+      const { di, callInterceptor } = setup({ bearer: "Bearer invalid-token", tokenBehavior: "null" });
+
+      const response = await callInterceptor();
+
+      expect(response.status).toBe(200);
+      expect(di.resolve(UserRepository).findByUserId).not.toHaveBeenCalled();
+    });
+
+    it("proceeds as unauthenticated when getValidUserId throws", async () => {
+      const { di, callInterceptor } = setup({ bearer: "Bearer malformed-token", tokenBehavior: "throw" });
+
+      const response = await callInterceptor();
+
+      expect(response.status).toBe(200);
+      expect(di.resolve(UserRepository).findByUserId).not.toHaveBeenCalled();
+    });
+  });
+
   describe("API key user", () => {
     it("marks user and its api key as active once per 30 minutes", async () => {
       const { di, callInterceptor } = setup({ apiKey: "123", user: UserSeeder.create() });
@@ -108,7 +128,15 @@ describe(AuthInterceptor.name, () => {
     di.registerInstance(
       UserAuthTokenService,
       mock<UserAuthTokenService>({
-        getValidUserId: jest.fn().mockImplementation(async () => (input?.apiKey ? undefined : input?.user?.userId))
+        getValidUserId: jest.fn().mockImplementation(async () => {
+          if (input?.tokenBehavior === "throw") {
+            throw new Error("Invalid token");
+          }
+          if (input?.tokenBehavior === "null") {
+            return null;
+          }
+          return input?.apiKey ? undefined : input?.user?.userId;
+        })
       })
     );
     di.registerInstance(ApiKeyRepository, mock());
@@ -143,7 +171,9 @@ describe(AuthInterceptor.name, () => {
     const app = new Hono().use(di.resolve(AuthInterceptor).intercept()).get("/", c => c.text("Ok"));
     const headers: Record<string, string> = {};
 
-    if (input?.user) {
+    if (input?.bearer) {
+      headers.authorization = input.bearer;
+    } else if (input?.user) {
       headers.authorization = `Bearer ${input.user.userId}`;
     }
 
@@ -163,5 +193,7 @@ describe(AuthInterceptor.name, () => {
   interface SetupInput {
     user?: UserOutput;
     apiKey?: string;
+    bearer?: string;
+    tokenBehavior?: "null" | "throw";
   }
 });

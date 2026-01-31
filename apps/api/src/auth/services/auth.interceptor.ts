@@ -39,7 +39,14 @@ export class AuthInterceptor implements HonoInterceptor {
     return async (c: Context, next: Next) => {
       const bearer = c.req.header("authorization");
 
-      const userId = bearer && (await this.userAuthService.getValidUserId(bearer, c.env));
+      let userId: string | null | undefined;
+      if (bearer) {
+        try {
+          userId = await this.userAuthService.getValidUserId(bearer, c.env);
+        } catch (error) {
+          this.logger.warn({ event: "AUTH_TOKEN_VALIDATION_FAILED", error });
+        }
+      }
 
       if (userId) {
         const currentUser = await this.userRepository.findByUserId(userId);
