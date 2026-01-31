@@ -9,7 +9,6 @@ import { z } from "zod";
 
 import { WalletController } from "@src/billing/controllers/wallet/wallet.controller";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
-import { chainDb } from "@src/db/dbConnection";
 import { TopUpDeploymentsController } from "@src/deployment/controllers/deployment/top-up-deployments.controller";
 import { GpuBotController } from "@src/deployment/controllers/gpu-bot/gpu-bot.controller";
 import { ProviderController } from "@src/provider/controllers/provider/provider.controller";
@@ -79,7 +78,7 @@ async function executeCliHandler(name: string, handler: () => Promise<unknown>, 
     const { migratePG } = require("../core/providers/postgres.provider");
 
     try {
-      await Promise.all([migratePG(), chainDb.authenticate(), ...container.resolveAll(APP_INITIALIZER).map(initializer => initializer[ON_APP_START]())]);
+      await Promise.all([migratePG(), ...container.resolveAll(APP_INITIALIZER).map(initializer => initializer[ON_APP_START]())]);
 
       const executionContextService = container.resolve(ExecutionContextService);
       const result = await executionContextService.runWithContext(async () => {

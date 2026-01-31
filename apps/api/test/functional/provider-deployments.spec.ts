@@ -14,7 +14,6 @@ describe("Provider deployments", () => {
 
   beforeAll(async () => {
     await initDb();
-
     const day = await createDay({
       date: new Date(),
       firstBlockHeight: 1,
@@ -108,6 +107,10 @@ describe("Provider deployments", () => {
         timestamp: day.date
       })
     ]);
+  });
+
+  beforeEach(async () => {
+    await initDb();
   });
 
   afterAll(async () => {

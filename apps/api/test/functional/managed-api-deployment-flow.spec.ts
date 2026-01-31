@@ -21,7 +21,7 @@ import type { ListDeploymentsResponseSchema } from "@src/deployment/http-schemas
 
 type ListDeploymentsResponse = z.infer<typeof ListDeploymentsResponseSchema>;
 import { CORE_CONFIG } from "@src/core";
-import { app } from "@src/rest-app";
+import { app, initDb } from "@src/rest-app";
 
 import { createDeployment as createDeploymentSeed, createDeploymentGroup, createLease as createLeaseSeed, createProvider } from "@test/seeders";
 import { AppHttpService } from "@test/services/app-http.service";
@@ -327,6 +327,7 @@ describe("Managed Wallet API Deployment Flow", () => {
    *   - unblockNode: Function to restore blockchain connectivity
    */
   async function setup() {
+    await initDb();
     await prepareIndexedProviders();
     const { token, wallet } = await prepareUser();
     const apiKey = await createApiKey(token);

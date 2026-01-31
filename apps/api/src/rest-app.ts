@@ -17,7 +17,6 @@ import { OpenApiDocsService } from "./core/services/openapi-docs/openapi-docs.se
 import { RequestContextInterceptor } from "./core/services/request-context-interceptor/request-context.interceptor";
 import { startServer } from "./core/services/start-server/start-server";
 import type { AppEnv } from "./core/types/app-context";
-import { connectUsingSequelize } from "./db/dbConnection";
 import { deploymentSettingRouter } from "./deployment/routes/deployment-setting/deployment-setting.router";
 import { deploymentsRouter } from "./deployment/routes/deployments/deployments.router";
 import { leasesRouter } from "./deployment/routes/leases/leases.router";
@@ -50,6 +49,7 @@ import {
   walletSettingRouter
 } from "./billing";
 import { blockPredictionRouter, blocksRouter } from "./block";
+import { connectUsingSequelize } from "./chain";
 import { CORE_CONFIG, migratePG } from "./core";
 import { dashboardDataRouter, graphDataRouter, leasesDurationRouter, marketDataRouter, networkCapacityRouter } from "./dashboard";
 import { gpuRouter } from "./gpu";

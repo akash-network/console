@@ -1,7 +1,7 @@
 import "@test/setup-functional-tests"; // eslint-disable-line simple-import-sort/imports
 
 import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
-import { chainDb } from "@src/db/dbConnection";
+import { CHAIN_DB } from "@src/chain";
 
 import { createProvider, createProviderSnapshot } from "@test/seeders";
 import { ProviderVersionsService } from "./provider-versions.service";
@@ -12,7 +12,7 @@ describe("Provider Dashboard", () => {
   let providers: Provider[];
 
   beforeAll(async () => {
-    await chainDb.authenticate();
+    await container.resolve(CHAIN_DB).authenticate();
     providers = await Promise.all([
       createProvider({
         akashVersion: "1.0.0",
@@ -88,6 +88,6 @@ describe("Provider Dashboard", () => {
   });
 
   function setup() {
-    return new ProviderVersionsService(container.resolve(PROVIDER_CONFIG));
+    return new ProviderVersionsService(container.resolve(CHAIN_DB), container.resolve(PROVIDER_CONFIG));
   }
 });

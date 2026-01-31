@@ -5,15 +5,16 @@ import type { Block } from "@akashnetwork/database/dbSchemas/base";
 import { subDays } from "date-fns";
 
 import { createAkashBlock, createProvider } from "@test/seeders";
-import { chainDb } from "@src/db/dbConnection";
+import { CHAIN_DB } from "@src/chain";
 import { ProviderDashboardService } from "./provider-dashboard.service";
+import { container } from "tsyringe";
 
 describe("Provider Dashboard", () => {
   let provider: Provider;
   let blocks: Block[];
 
   beforeAll(async () => {
-    await chainDb.authenticate();
+    await container.resolve(CHAIN_DB).authenticate();
 
     provider = await createProvider();
     blocks = await Promise.all([
