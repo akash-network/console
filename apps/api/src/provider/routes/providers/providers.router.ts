@@ -44,7 +44,7 @@ providersRouter.openapi(providerListRoute, async function routeListProviders(c) 
   const controller = container.resolve(ProviderController);
 
   const buffer = await controller.getProviderListBuffer(scope);
-  return new Response(buffer as unknown as BodyInit, {
+  return new Response(buffer, {
     status: 200,
     headers: { "Content-Type": "application/json" }
   }) as unknown as TypedResponse<ProviderListResponse, 200, "json">;
