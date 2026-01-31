@@ -1,12 +1,13 @@
 import "@test/setup-functional-tests"; // eslint-disable-line simple-import-sort/imports
 
 import { Provider, ProviderAttribute, ProviderAttributeSignature } from "@akashnetwork/database/dbSchemas/akash";
-import { chainDb } from "@src/db/dbConnection";
+import { CHAIN_DB } from "@src/chain";
 import { createAkashAddress, createProviderSeed } from "@test/seeders";
 import type { CreationAttributes } from "sequelize";
 import { Op } from "sequelize";
 import type { ModelCtor } from "sequelize-typescript";
 import { ProviderRepository } from "./provider.repository";
+import { container } from "tsyringe";
 
 describe(ProviderRepository.name, () => {
   describe("getProvidersUrlsByAttributes", () => {
@@ -273,7 +274,7 @@ describe(ProviderRepository.name, () => {
   let providerIndex = 0;
   const providerIds = new Set<string>();
   async function createProvider(overrides: Partial<CreationAttributes<Provider>> = {}) {
-    const height = overrides.createdHeight || (await chainDb.models.block.max("height"));
+    const height = overrides.createdHeight || (await container.resolve(CHAIN_DB).models.block.max("height"));
     const includes: ModelCtor[] = [];
     if (overrides.providerAttributes) includes.push(ProviderAttribute);
     if (overrides.providerAttributeSignatures) includes.push(ProviderAttributeSignature);

@@ -1,20 +1,25 @@
 import { Provider } from "@akashnetwork/database/dbSchemas/akash";
 import { CosmosHttpService } from "@akashnetwork/http-sdk";
-import { Op, QueryTypes } from "sequelize";
-import { singleton } from "tsyringe";
+import { Op, QueryTypes, Sequelize } from "sequelize";
+import { inject, singleton } from "tsyringe";
 
 import { USDC_IBC_DENOMS } from "@src/billing/config/network.config";
 import { UserWalletRepository } from "@src/billing/repositories";
-import { chainDb } from "@src/db/dbConnection";
+import { CHAIN_DB } from "@src/chain";
 import { TxManagerService } from "../tx-manager/tx-manager.service";
 
 @singleton()
 export class FinancialStatsService {
+  readonly #chainDb: Sequelize;
+
   constructor(
+    @inject(CHAIN_DB) chainDb: Sequelize,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly cosmosHttpService: CosmosHttpService,
     private readonly txManagerService: TxManagerService
-  ) {}
+  ) {
+    this.#chainDb = chainDb;
+  }
 
   async getPayingUserCount() {
     return this.userWalletRepository.payingUserCount();
@@ -52,7 +57,7 @@ export class FinancialStatsService {
   }
 
   async getProviderRevenues() {
-    const results = await chainDb.query<{ hostUri: string; usdEarned: string }>(
+    const results = await this.#chainDb.query<{ hostUri: string; usdEarned: string }>(
       `
   WITH trial_deployments_ids AS (
       SELECT DISTINCT m."relatedDeploymentId" AS "deployment_id"

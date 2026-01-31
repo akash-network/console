@@ -1,8 +1,10 @@
 import { Provider, ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash";
 import type { CoinGeckoHttpService, CosmosHttpService } from "@akashnetwork/http-sdk";
 import { mock } from "jest-mock-extended";
+import { container } from "tsyringe";
 
 import { cacheEngine } from "@src/caching/helpers";
+import { CHAIN_DB } from "@src/chain";
 import type { DashboardConfig } from "../../providers/config.provider";
 import { StatsService } from "./stats.service";
 
@@ -366,7 +368,7 @@ describe(StatsService.name, () => {
       PROVIDER_UPTIME_GRACE_PERIOD_MINUTES: input?.PROVIDER_UPTIME_GRACE_PERIOD_MINUTES ?? 15
     };
 
-    const service = new StatsService(dashboardConfig, cosmosHttpService, coinGeckoHttpService);
+    const service = new StatsService(dashboardConfig, container.resolve(CHAIN_DB), cosmosHttpService, coinGeckoHttpService);
 
     return {
       service,

@@ -6,16 +6,17 @@ import fs from "fs/promises";
 import path from "path";
 
 import type { GitHubHttpService } from "@akashnetwork/http-sdk";
-import { chainDb } from "@src/db/dbConnection";
+import { CHAIN_DB } from "@src/chain";
 import { createProvider } from "@test/seeders";
 import { ProviderAttributesSchemaService } from "../provider-attributes-schema/provider-attributes-schema.service";
 import { ProviderRegionsService } from "./provider-regions.service";
+import { container } from "tsyringe";
 
 describe("ProviderRegions", () => {
   let providers: Provider[];
 
   beforeAll(async () => {
-    await chainDb.authenticate();
+    await container.resolve(CHAIN_DB).authenticate();
     providers = await Promise.all([createProvider(), createProvider(), createProvider()]);
     await Promise.all([
       ProviderAttribute.create({

@@ -15,6 +15,7 @@ describe("GET /v1/usage/history", () => {
 
     const dates = [subDays(now, 7), subDays(now, 6), subDays(now, 5), subDays(now, 4), subDays(now, 3), subDays(now, 2), subDays(now, 1), now];
 
+    await initDb();
     const providers = await Promise.all([createProvider({ deletedHeight: null }), createProvider({ deletedHeight: null })]);
 
     const owners = [createAkashAddress(), createAkashAddress(), createAkashAddress()];
@@ -26,8 +27,6 @@ describe("GET /v1/usage/history", () => {
         owners
       };
     }
-
-    await initDb();
 
     await Promise.all([
       createDay({

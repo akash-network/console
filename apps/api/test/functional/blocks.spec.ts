@@ -1,7 +1,7 @@
 import type { AkashBlock } from "@akashnetwork/database/dbSchemas/akash";
 import { addMinutes, addSeconds, getUnixTime, subSeconds } from "date-fns";
 
-import { app } from "@src/rest-app";
+import { app, initDb } from "@src/rest-app";
 
 import { createAkashBlock, createValidator } from "@test/seeders";
 
@@ -17,6 +17,7 @@ describe("Blocks", () => {
       return testData;
     }
 
+    await initDb();
     const validator = await createValidator();
 
     const baseTime = new Date();

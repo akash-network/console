@@ -1,8 +1,8 @@
 import { sub } from "date-fns";
-import { QueryTypes } from "sequelize";
+import { QueryTypes, Sequelize } from "sequelize";
 import { inject, injectable } from "tsyringe";
 
-import { chainDb } from "@src/db/dbConnection";
+import { CHAIN_DB } from "@src/chain";
 import { GpuBreakdownQuery } from "@src/gpu/http-schemas/gpu.schema";
 import type { GpuType } from "@src/gpu/types/gpu.type";
 import { toUTC } from "@src/utils";
@@ -12,8 +12,10 @@ import { GPU_CONFIG } from "../providers/config.provider";
 @injectable()
 export class GpuRepository {
   readonly #gpuConfig: GpuConfig;
+  readonly #chainDb: Sequelize;
 
-  constructor(@inject(GPU_CONFIG) gpuConfig: GpuConfig) {
+  constructor(@inject(CHAIN_DB) chainDb: Sequelize, @inject(GPU_CONFIG) gpuConfig: GpuConfig) {
+    this.#chainDb = chainDb;
     this.#gpuConfig = gpuConfig;
   }
 
@@ -30,7 +32,7 @@ export class GpuRepository {
     model?: string;
     memorySize?: string;
   }) {
-    return await chainDb.query<{
+    return await this.#chainDb.query<{
       hostUri: string;
       name: string;
       allocatable: number;
@@ -77,7 +79,7 @@ export class GpuRepository {
   }
 
   async getGpuBreakdown({ vendor, model }: GpuBreakdownQuery) {
-    const result = await chainDb.query<{
+    const result = await this.#chainDb.query<{
       date: Date;
       vendor: string;
       model: string;
@@ -153,7 +155,7 @@ export class GpuRepository {
   }
 
   async getGpusForPricing() {
-    const gpuNodes = await chainDb.query<{
+    const gpuNodes = await this.#chainDb.query<{
       hostUri: string;
       owner: string;
       name: string;
