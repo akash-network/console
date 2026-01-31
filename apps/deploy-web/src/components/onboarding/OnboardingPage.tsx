@@ -6,6 +6,7 @@ import Link from "next/link";
 
 import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
 import { useServices } from "@src/context/ServicesProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import { useReturnTo } from "@src/hooks/useReturnTo";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 import { OnboardingContainer } from "./OnboardingContainer/OnboardingContainer";
@@ -14,6 +15,7 @@ import { OnboardingView } from "./OnboardingView/OnboardingView";
 export const OnboardingPage: FC = () => {
   const { analyticsService } = useServices();
   const { isDeploymentReturnTo } = useReturnTo();
+  const { hasManagedWallet, isWalletConnected } = useWallet();
 
   const handleBackToConsole = () => {
     analyticsService.track("onboarding_back_to_console", {
@@ -27,7 +29,7 @@ export const OnboardingPage: FC = () => {
       <div className="container mx-auto px-4 py-12">
         <OnboardingContainer>{props => <OnboardingView {...props} />}</OnboardingContainer>
 
-        {!isDeploymentReturnTo && (
+        {!isDeploymentReturnTo && (hasManagedWallet || isWalletConnected) && (
           <div className="py-8 text-center">
             <Link href={UrlService.home()} className={cn(buttonVariants({ variant: "ghost" }), "inline-flex items-center gap-2")} onClick={handleBackToConsole}>
               <NavArrowLeft className="h-4 w-4" />

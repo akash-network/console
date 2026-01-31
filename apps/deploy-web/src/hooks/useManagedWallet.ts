@@ -2,7 +2,6 @@ import { useEffect, useMemo } from "react";
 import type { ApiManagedWalletOutput } from "@akashnetwork/http-sdk";
 import { useAtom } from "jotai";
 
-import { useSelectedChain } from "@src/context/CustomChainProvider";
 import { useUser } from "@src/hooks/useUser";
 import { useCreateManagedWalletMutation, useManagedWalletQuery } from "@src/queries/useManagedWalletQuery";
 import walletStore from "@src/store/walletStore";
@@ -12,7 +11,6 @@ import { useCustomUser } from "./useCustomUser";
 export const useManagedWallet = () => {
   const { user } = useUser();
   const { user: signedInUser } = useCustomUser();
-  const userWallet = useSelectedChain();
   const [selectedWalletType, setSelectedWalletType] = useAtom(walletStore.selectedWalletType);
   const { data: queried, isLoading: isInitialLoading, isFetching, refetch } = useManagedWalletQuery(user?.id);
   const { mutate: create, data: created, isPending: isCreating, isSuccess: isCreated, error: createError } = useCreateManagedWalletMutation();
@@ -22,10 +20,10 @@ export const useManagedWallet = () => {
   const selected = getSelectedStorageWallet();
 
   useEffect(() => {
-    if (selectedWalletType === "custodial" && queried && !userWallet.isWalletConnected && !userWallet.isWalletConnecting) {
+    if (selectedWalletType === "custodial" && queried) {
       setSelectedWalletType("managed");
     }
-  }, [queried, selectedWalletType, setSelectedWalletType, userWallet.isWalletConnected, userWallet.isWalletConnecting]);
+  }, [queried, selectedWalletType, setSelectedWalletType]);
 
   useEffect(() => {
     if (signedInUser?.id && (!!queried || !!created)) {
