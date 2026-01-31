@@ -1,9 +1,9 @@
 import { sub } from "date-fns";
 import * as semver from "semver";
-import { QueryTypes } from "sequelize";
+import { QueryTypes, Sequelize } from "sequelize";
 import { inject, singleton } from "tsyringe";
 
-import { chainDb } from "@src/db/dbConnection";
+import { CHAIN_DB } from "@src/chain";
 import { ProviderVersionsResponse } from "@src/provider/http-schemas/provider-versions.schema";
 import type { ProviderConfig } from "@src/provider/providers/config.provider";
 import { PROVIDER_CONFIG } from "@src/provider/providers/config.provider";
@@ -13,13 +13,15 @@ import { round } from "@src/utils/math";
 @singleton()
 export class ProviderVersionsService {
   readonly #providerConfig: ProviderConfig;
+  readonly #chainDb: Sequelize;
 
-  constructor(@inject(PROVIDER_CONFIG) providerConfig: ProviderConfig) {
+  constructor(@inject(CHAIN_DB) chainDb: Sequelize, @inject(PROVIDER_CONFIG) providerConfig: ProviderConfig) {
+    this.#chainDb = chainDb;
     this.#providerConfig = providerConfig;
   }
 
   async getProviderVersions(): Promise<ProviderVersionsResponse> {
-    const providers = await chainDb.query<{ hostUri: string; akashVersion: string }>(
+    const providers = await this.#chainDb.query<{ hostUri: string; akashVersion: string }>(
       `
     SELECT DISTINCT ON ("hostUri") "hostUri","akashVersion"
     FROM provider p

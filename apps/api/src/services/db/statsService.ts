@@ -1,6 +1,7 @@
 import { QueryTypes } from "sequelize";
+import { container } from "tsyringe";
 
-import { chainDb } from "@src/db/dbConnection";
+import { CHAIN_DB } from "@src/chain";
 
 export type AuthorizedGraphDataName =
   | "dailyUAktSpent"
@@ -40,19 +41,18 @@ export function isValidGraphDataName(x: string): x is AuthorizedGraphDataName {
 }
 
 export async function getProviderTotalLeaseCountAtHeight(provider: string, height: number) {
-  const [{ count: totalLeaseCount }] = await chainDb.query<{ count: number }>(
-    `SELECT COUNT(*) FROM lease l WHERE "providerAddress"=:provider AND l."createdHeight" <= :height`,
-    {
+  const [{ count: totalLeaseCount }] = await container
+    .resolve(CHAIN_DB)
+    .query<{ count: number }>(`SELECT COUNT(*) FROM lease l WHERE "providerAddress"=:provider AND l."createdHeight" <= :height`, {
       type: QueryTypes.SELECT,
       replacements: { provider: provider, height: height }
-    }
-  );
+    });
 
   return totalLeaseCount;
 }
 
 export async function getProviderActiveResourcesAtHeight(provider: string, height: number) {
-  const [activeStats] = await chainDb.query<{
+  const [activeStats] = await container.resolve(CHAIN_DB).query<{
     count: number;
     cpu: number;
     memory: number;
@@ -86,7 +86,7 @@ export async function getProviderActiveResourcesAtHeight(provider: string, heigh
 }
 
 export async function getProviderEarningsAtHeight(provider: string, providerCreatedHeight: number, height: number) {
-  const days = await chainDb.query<{ date: string; aktPrice: number; totalUAkt: number; totalUUsdc: number }>(
+  const days = await container.resolve(CHAIN_DB).query<{ date: string; aktPrice: number; totalUAkt: number; totalUUsdc: number }>(
     `
     WITH provider_leases AS (
       SELECT dseq, price, "createdHeight", "closedHeight","predictedClosedHeight", "denom"

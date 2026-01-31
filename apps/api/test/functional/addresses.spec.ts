@@ -6,9 +6,8 @@ import { container } from "tsyringe";
 
 import type { GetAddressTransactionsResponse } from "@src/address/http-schemas/address.schema";
 import { CORE_CONFIG } from "@src/core";
-import { connectUsingSequelize } from "@src/db/dbConnection";
 import type { ListWithResourcesResponse } from "@src/deployment/http-schemas/deployment.schema";
-import { app } from "@src/rest-app";
+import { app, initDb } from "@src/rest-app";
 import { deploymentVersion, marketVersion } from "@src/utils/constants";
 
 import { createAddressReferenceInDatabase } from "@test/seeders/address-reference.seeder";
@@ -213,7 +212,7 @@ describe("Addresses API", () => {
   });
 
   const setup = async () => {
-    await connectUsingSequelize();
+    await initDb();
 
     const address = createAkashAddress();
     const validators = await Promise.all([

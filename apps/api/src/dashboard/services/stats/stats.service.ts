@@ -4,16 +4,16 @@ import { CoinGeckoHttpService, CosmosHttpService } from "@akashnetwork/http-sdk"
 import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { differenceInSeconds, minutesToSeconds, sub, subHours } from "date-fns";
 import uniqBy from "lodash/uniqBy";
-import { Op, QueryTypes } from "sequelize";
+import { Op, QueryTypes, Sequelize } from "sequelize";
 import { inject, singleton } from "tsyringe";
 
 import { Memoize } from "@src/caching/helpers";
+import { CHAIN_DB } from "@src/chain";
 import { GraphDataResponse } from "@src/dashboard/http-schemas/graph-data/graph-data.schema";
 import { LeasesDurationParams, LeasesDurationQuery, LeasesDurationResponse } from "@src/dashboard/http-schemas/leases-duration/leases-duration.schema";
 import { MarketDataParams } from "@src/dashboard/http-schemas/market-data/market-data.schema";
 import type { DashboardConfig } from "@src/dashboard/providers/config.provider";
 import { DASHBOARD_CONFIG } from "@src/dashboard/providers/config.provider";
-import { chainDb } from "@src/db/dbConnection";
 import { AuthorizedGraphDataName } from "@src/services/db/statsService";
 import { ProviderCapacityStats, StatsItem } from "@src/types/provider";
 import { toUTC } from "@src/utils";
@@ -66,13 +66,16 @@ export const emptyNetworkCapacity = {
 @singleton()
 export class StatsService {
   readonly #dashboardConfig: DashboardConfig;
+  readonly #chainDb: Sequelize;
 
   constructor(
     @inject(DASHBOARD_CONFIG) dashboardConfig: DashboardConfig,
+    @inject(CHAIN_DB) chainDb: Sequelize,
     private readonly cosmosHttpService: CosmosHttpService,
     private readonly coinGeckoHttpService: CoinGeckoHttpService
   ) {
     this.#dashboardConfig = dashboardConfig;
+    this.#chainDb = chainDb;
   }
 
   async getDashboardData() {
@@ -225,7 +228,7 @@ export class StatsService {
 
   @Memoize({ ttlInSeconds: minutesToSeconds(5) })
   private async getGpuUtilization() {
-    const result = await chainDb.query<GpuUtilizationData>(
+    const result = await this.#chainDb.query<GpuUtilizationData>(
       `SELECT
           d."date",
           ROUND(

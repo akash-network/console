@@ -4,10 +4,11 @@ import type { Deployment, DeploymentGroup, Lease, Provider } from "@akashnetwork
 import type { Block, Day } from "@akashnetwork/database/dbSchemas/base";
 import type { CreationAttributes } from "sequelize";
 import { Op } from "sequelize";
+import { container } from "tsyringe";
 
 import type { UserWalletRepository } from "@src/billing/repositories/user-wallet/user-wallet.repository";
 import type { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
-import { chainDb } from "@src/db/dbConnection";
+import { CHAIN_DB } from "@src/chain";
 import { UsageRepository } from "./usage.repository";
 
 import { createAkashAddress, createAkashBlock, createDay, createDeployment, createDeploymentGroup, createLease, createProvider } from "@test/seeders";
@@ -23,6 +24,7 @@ describe(UsageRepository.name, () => {
     let createdProviderAddresses: string[] = [];
 
     afterEach(async () => {
+      const chainDb = container.resolve(CHAIN_DB);
       await chainDb.models.lease.destroy({
         where: {
           id: { [Op.in]: createdLeaseIds }
@@ -418,7 +420,7 @@ describe(UsageRepository.name, () => {
       getDerivedWalletAddress: jest.fn().mockResolvedValue("")
     } as unknown as TxManagerService;
 
-    const usageRepository = new UsageRepository(userWalletRepository, txManagerService);
+    const usageRepository = new UsageRepository(container.resolve(CHAIN_DB), userWalletRepository, txManagerService);
 
     return {
       usageRepository,
