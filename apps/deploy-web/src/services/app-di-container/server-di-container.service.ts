@@ -1,7 +1,6 @@
 import { createAPIClient } from "@akashnetwork/react-query-sdk/notifications";
 import { requestFn } from "@openapi-qraft/react";
 import * as unleashModule from "@unleash/nextjs";
-import httpProxy from "http-proxy";
 
 import { serverEnvConfig } from "@src/config/server-env.config";
 import { getSession } from "@src/lib/auth0";
@@ -24,7 +23,6 @@ const rootContainer = createAppRootContainer({
 
 export const services = createChildContainer(rootContainer, {
   getSession: () => getSession,
-  httpProxy: () => ({ createProxyServer: httpProxy.createProxyServer }),
   featureFlagService: () => new FeatureFlagService(unleashModule, serverEnvConfig),
   notificationsApi: () =>
     createAPIClient({
