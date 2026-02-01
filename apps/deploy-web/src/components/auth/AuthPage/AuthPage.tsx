@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Button, Separator, Tabs, TabsContent, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { useMutation } from "@tanstack/react-query";
 import { DollarSignIcon, RocketIcon, Undo2, ZapIcon } from "lucide-react";
@@ -16,7 +16,6 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useWallet as useWalletOriginal } from "@src/context/WalletProvider";
 import { useReturnTo } from "@src/hooks/useReturnTo";
 import { useUser } from "@src/hooks/useUser";
-import { UrlService } from "@src/utils/urlUtils";
 import { AuthLayout } from "../AuthLayout/AuthLayout";
 import { ForgotPasswordForm } from "../ForgotPasswordForm/ForgotPasswordForm";
 import type { SignInFormValues } from "../SignInForm/SignInForm";
@@ -92,14 +91,9 @@ export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
   });
 
   const activeView = searchParams.get("tab") || "login";
-  const isFromSignup = searchParams.has("fromSignup");
   const setActiveView = useCallback(
     (value: string) => {
-      if (value === "signup") {
-        router.push(UrlService.onboarding({ returnTo: "/" }));
-        return;
-      }
-      const tabId = value !== "login" && value !== "forgot-password" ? "login" : value;
+      const tabId = value !== "login" && value !== "signup" && value !== "forgot-password" ? "login" : value;
       const newSearchParams = new URLSearchParams(searchParams);
       newSearchParams.set("tab", tabId);
       resetMutations();
@@ -107,12 +101,6 @@ export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
     },
     [searchParams, router]
   );
-
-  useEffect(() => {
-    if (activeView === "signup" && !isFromSignup) {
-      router.replace(UrlService.onboarding({ returnTo: "/" }));
-    }
-  }, [activeView, isFromSignup, router]);
 
   const forgotPassword = useMutation({
     async mutationFn(input: { email: string }) {
