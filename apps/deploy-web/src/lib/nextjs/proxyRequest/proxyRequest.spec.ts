@@ -196,7 +196,8 @@ describe(proxyRequest.name, () => {
     it("merges custom headers with request headers", async () => {
       const { mockFetch } = await setup({
         reqHeaders: {
-          "x-original": "original"
+          "x-original": "original",
+          "x-custom": "request-value"
         },
         customHeaders: {
           "x-custom": "custom-value"

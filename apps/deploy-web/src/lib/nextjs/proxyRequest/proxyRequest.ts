@@ -55,9 +55,11 @@ interface ProxyOptions {
 }
 
 async function forwardRequestStream(req: NextApiRequest, res: NextApiResponse, options: ProxyOptions) {
-  const headers = new Headers();
+  const headers = new Headers(options.headers);
 
   Object.entries(req.headers).forEach(([key, value]) => {
+    if (headers.has(key)) return;
+
     const lowKey = key.toLowerCase();
     if (lowKey === "host" || lowKey === "connection" || lowKey === "cookie") return;
     if (HEADERS_TO_SKIP.has(lowKey)) return;
@@ -67,11 +69,6 @@ async function forwardRequestStream(req: NextApiRequest, res: NextApiResponse, o
     }
     value.forEach(v => headers.append(key, v));
   });
-  if (options.headers) {
-    Object.entries(options.headers).forEach(([key, value]) => {
-      headers.set(key, value as string);
-    });
-  }
 
   const method = req.method?.toUpperCase() || "GET";
   const body = method === "GET" || method === "HEAD" ? undefined : Readable.toWeb(req);
