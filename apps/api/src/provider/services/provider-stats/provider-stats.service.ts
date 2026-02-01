@@ -1,13 +1,19 @@
-import { QueryTypes } from "sequelize";
-import { singleton } from "tsyringe";
+import { QueryTypes, Sequelize } from "sequelize";
+import { inject, singleton } from "tsyringe";
 
-import { chainDb } from "@src/db/dbConnection";
+import { CHAIN_DB } from "@src/chain";
 import type { ProviderActiveLeasesStats } from "@src/types/graph";
 
 @singleton()
 export class ProviderStatsService {
+  readonly #chainDb: Sequelize;
+
+  constructor(@inject(CHAIN_DB) chainDb: Sequelize) {
+    this.#chainDb = chainDb;
+  }
+
   async getProviderActiveLeasesGraphData(providerAddress: string) {
-    const result = await chainDb.query<ProviderActiveLeasesStats>(
+    const result = await this.#chainDb.query<ProviderActiveLeasesStats>(
       `SELECT "date" AS date, COUNT(l."id") AS count
     FROM "day" d
     LEFT JOIN "lease" l

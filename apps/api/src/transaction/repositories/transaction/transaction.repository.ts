@@ -1,20 +1,22 @@
 import { AkashBlock as Block, AkashMessage as Message } from "@akashnetwork/database/dbSchemas/akash";
 import { AddressReference, Transaction } from "@akashnetwork/database/dbSchemas/base";
-import { QueryTypes } from "sequelize";
+import { QueryTypes, Sequelize } from "sequelize";
 import { inject, singleton } from "tsyringe";
 
 import { GetAddressTransactionsResponse } from "@src/address/http-schemas/address.schema";
 import type { Registry } from "@src/billing/providers/type-registry.provider";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
-import { chainDb } from "@src/db/dbConnection";
+import { CHAIN_DB } from "@src/chain";
 import { GetTransactionByHashResponse, ListTransactionsResponse } from "@src/transaction/http-schemas/transaction.schema";
 import { msgToJSON } from "@src/utils/protobuf";
 
 @singleton()
 export class TransactionRepository {
   readonly #typeRegistry: Registry;
+  readonly #chainDb: Sequelize;
 
-  constructor(@inject(TYPE_REGISTRY) typeRegistry: Registry) {
+  constructor(@inject(CHAIN_DB) chainDb: Sequelize, @inject(TYPE_REGISTRY) typeRegistry: Registry) {
+    this.#chainDb = chainDb;
     this.#typeRegistry = typeRegistry;
   }
 
@@ -114,7 +116,7 @@ export class TransactionRepository {
       where: { address: address }
     });
 
-    const txIdsQuery = chainDb.query<{ id: string }>(
+    const txIdsQuery = this.#chainDb.query<{ id: string }>(
       `
       SELECT t.id
       FROM "addressReference" af

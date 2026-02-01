@@ -1,13 +1,5 @@
+import { isRetriableError } from "@akashnetwork/http-sdk";
 import { ExponentialBackoff, handleWhen, retry } from "cockatiel";
-
-/**
- * Logs debug messages when DEBUG_FAUCET=1 is set.
- */
-function debugLog(message: string, ...args: unknown[]): void {
-  if (process.env.DEBUG_FAUCET === "1") {
-    console.log(`[retry-policies] ${message}`, ...args);
-  }
-}
 
 /**
  * Extracts error message from various error types.
@@ -46,10 +38,6 @@ const SEQUENCE_MISMATCH_PATTERNS = [/account sequence mismatch/i, /incorrect acc
 export function isAccountSequenceMismatch(err: unknown): boolean {
   const message = getErrorMessage(err);
   const isMatch = SEQUENCE_MISMATCH_PATTERNS.some(pattern => pattern.test(message));
-
-  if (isMatch) {
-    debugLog("Detected account sequence mismatch:", message);
-  }
 
   return isMatch;
 }
@@ -106,12 +94,12 @@ const FAUCET_TRANSIENT_PATTERNS = [
  * }
  */
 export function isFaucetTransient(err: unknown): boolean {
+  if (err && err instanceof Error && (isRetriableError(err as Error & { code: unknown }) || (err.cause && isFaucetTransient(err.cause)))) {
+    return true;
+  }
+
   const message = getErrorMessage(err);
   const isMatch = FAUCET_TRANSIENT_PATTERNS.some(pattern => pattern.test(message));
-
-  if (isMatch) {
-    debugLog("Detected transient faucet error:", message);
-  }
 
   return isMatch;
 }
@@ -143,42 +131,16 @@ export function isFaucetTransient(err: unknown): boolean {
  *   return response;
  * });
  */
-export const faucetRetryPolicy = retry(handleWhen(isFaucetTransient), {
-  maxAttempts: 8,
-  backoff: new ExponentialBackoff({
-    initialDelay: 250,
-    maxDelay: 3000
-  })
-});
-
-/**
- * Retry policy for account sequence mismatch errors.
- *
- * Configuration:
- * - Max attempts: 5
- * - Initial delay: 150ms
- * - Max delay: 2000ms (2 seconds)
- * - Backoff: Exponential with randomization
- *
- * Use this when broadcasting transactions from shared signers.
- *
- * @example
- * const result = await sequenceRetryPolicy.execute(async () => {
- *   return await signingClient.sendTokens(
- *     fromAddress,
- *     toAddress,
- *     coins(amount, denom),
- *     fee
- *   );
- * });
- */
-export const sequenceRetryPolicy = retry(handleWhen(isAccountSequenceMismatch), {
-  maxAttempts: 5,
-  backoff: new ExponentialBackoff({
-    initialDelay: 150,
-    maxDelay: 2000
-  })
-});
+export const faucetRetryPolicy = retry(
+  handleWhen(error => isFaucetTransient(error) || isAccountSequenceMismatch(error)),
+  {
+    maxAttempts: 8,
+    backoff: new ExponentialBackoff({
+      initialDelay: 250,
+      maxDelay: 3000
+    })
+  }
+);
 
 /**
  * Retry policy for waiting for balance updates after faucet topup.
