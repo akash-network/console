@@ -11,58 +11,52 @@ export class UserTemplatesController {
     private readonly userTemplatesService: UserTemplatesService
   ) {}
 
-  async getTemplateById(templateId: string, userId: string = "") {
+  async getTemplateById(templateId: string) {
+    const userId = this.authService.currentUser?.userId || "";
     const template = await this.userTemplatesService.getTemplateById(templateId, userId);
     assert(template, 404, "Template not found");
     return template;
   }
 
-  async saveTemplate(data: {
-    id: string;
-    sdl: string;
-    isPublic: boolean;
-    title: string;
-    cpu: number;
-    ram: number;
-    storage: number;
-  }) {
-    assert(this.authService.currentUser, 401);
+  async saveTemplate(data: { id: string; sdl: string; isPublic: boolean; title: string; cpu: number; ram: number; storage: number }) {
+    assert(this.authService.currentUser?.userId, 401);
     const userId = this.authService.currentUser.userId;
-    return await this.userTemplatesService.saveTemplate(data.id, userId, data.sdl, data.title, data.cpu, data.ram, data.storage, data.isPublic);
+    return await this.userTemplatesService.saveTemplate(data.id, userId, data);
   }
 
   async saveTemplateDesc(data: { id: string; description: string }) {
-    assert(this.authService.currentUser, 401);
+    assert(this.authService.currentUser?.userId, 401);
     const userId = this.authService.currentUser.userId;
     await this.userTemplatesService.saveTemplateDesc(data.id, userId, data.description);
   }
 
-  async getTemplates(username: string, userId: string = "") {
+  async getTemplates(username: string) {
+    const userId = this.authService.currentUser?.userId || "";
     const templates = await this.userTemplatesService.getTemplates(username, userId);
     assert(templates, 404, "User not found.");
     return templates;
   }
 
   async deleteTemplate(templateId: string) {
-    assert(this.authService.currentUser, 401);
+    assert(this.authService.currentUser?.userId, 401);
     const userId = this.authService.currentUser.userId;
     await this.userTemplatesService.deleteTemplate(userId, templateId);
   }
 
   async getFavoriteTemplates() {
-    assert(this.authService.currentUser, 401);
+    assert(this.authService.currentUser?.userId, 401);
     const userId = this.authService.currentUser.userId;
     return await this.userTemplatesService.getFavoriteTemplates(userId);
   }
 
   async addFavoriteTemplate(templateId: string) {
-    assert(this.authService.currentUser, 401);
+    assert(this.authService.currentUser?.userId, 401);
     const userId = this.authService.currentUser.userId;
     await this.userTemplatesService.addFavoriteTemplate(userId, templateId);
   }
 
   async removeFavoriteTemplate(templateId: string) {
-    assert(this.authService.currentUser, 401);
+    assert(this.authService.currentUser?.userId, 401);
     const userId = this.authService.currentUser.userId;
     await this.userTemplatesService.removeFavoriteTemplate(userId, templateId);
   }

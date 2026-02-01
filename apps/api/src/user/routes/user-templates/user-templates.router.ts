@@ -1,15 +1,13 @@
 import { container } from "tsyringe";
 import { z } from "zod";
 
-import { AuthService } from "@src/auth/services/auth.service";
 import { createRoute } from "@src/core/lib/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_BEARER_OR_API_KEY, SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 import { UserTemplatesController } from "@src/user/controllers/user-templates/user-templates.controller";
 
-export const userTemplatesRouterV2 = new OpenApiHonoHandler();
+export const userTemplatesRouter = new OpenApiHonoHandler();
 
-// GET /template/:id - optional auth
 const getTemplateByIdRoute = createRoute({
   method: "get",
   path: "/user/template/{id}",
@@ -18,7 +16,7 @@ const getTemplateByIdRoute = createRoute({
   security: SECURITY_NONE,
   request: {
     params: z.object({
-      id: z.string()
+      id: z.string().uuid()
     })
   },
   responses: {
@@ -34,15 +32,12 @@ const getTemplateByIdRoute = createRoute({
   }
 });
 
-userTemplatesRouterV2.openapi(getTemplateByIdRoute, async function getTemplateById(c) {
+userTemplatesRouter.openapi(getTemplateByIdRoute, async function getTemplateById(c) {
   const { id } = c.req.valid("param");
-  const authService = container.resolve(AuthService);
-  const userId = authService.currentUser?.userId || "";
   const template = await container.resolve(UserTemplatesController).getTemplateById(id, userId);
   return c.json(template, 200);
 });
 
-// POST /saveTemplate - requires auth
 const saveTemplateRoute = createRoute({
   method: "post",
   path: "/user/saveTemplate",
@@ -54,7 +49,7 @@ const saveTemplateRoute = createRoute({
       content: {
         "application/json": {
           schema: z.object({
-            id: z.string(),
+            id: z.string().uuid(),
             sdl: z.string(),
             isPublic: z.boolean(),
             title: z.string(),
@@ -79,13 +74,12 @@ const saveTemplateRoute = createRoute({
   }
 });
 
-userTemplatesRouterV2.openapi(saveTemplateRoute, async function saveTemplate(c) {
+userTemplatesRouter.openapi(saveTemplateRoute, async function saveTemplate(c) {
   const data = c.req.valid("json");
   const templateId = await container.resolve(UserTemplatesController).saveTemplate(data);
   return c.text(templateId, 200);
 });
 
-// POST /saveTemplateDesc - requires auth
 const saveTemplateDescRoute = createRoute({
   method: "post",
   path: "/user/saveTemplateDesc",
@@ -97,7 +91,7 @@ const saveTemplateDescRoute = createRoute({
       content: {
         "application/json": {
           schema: z.object({
-            id: z.string(),
+            id: z.string().uuid(),
             description: z.string()
           })
         }
@@ -114,13 +108,12 @@ const saveTemplateDescRoute = createRoute({
   }
 });
 
-userTemplatesRouterV2.openapi(saveTemplateDescRoute, async function saveTemplateDesc(c) {
+userTemplatesRouter.openapi(saveTemplateDescRoute, async function saveTemplateDesc(c) {
   const data = c.req.valid("json");
   await container.resolve(UserTemplatesController).saveTemplateDesc(data);
-  return c.text("Saved", 200);
+  return c.body(null, 204);
 });
 
-// GET /templates/:username - optional auth
 const getTemplatesRoute = createRoute({
   method: "get",
   path: "/user/templates/{username}",
@@ -142,15 +135,12 @@ const getTemplatesRoute = createRoute({
   }
 });
 
-userTemplatesRouterV2.openapi(getTemplatesRoute, async function getTemplates(c) {
+userTemplatesRouter.openapi(getTemplatesRoute, async function getTemplates(c) {
   const { username } = c.req.valid("param");
-  const authService = container.resolve(AuthService);
-  const userId = authService.currentUser?.userId || "";
-  const templates = await container.resolve(UserTemplatesController).getTemplates(username, userId);
+  const templates = await container.resolve(UserTemplatesController).getTemplates(username);
   return c.json(templates, 200);
 });
 
-// DELETE /deleteTemplate/:id - requires auth
 const deleteTemplateRoute = createRoute({
   method: "delete",
   path: "/user/deleteTemplate/{id}",
@@ -159,7 +149,7 @@ const deleteTemplateRoute = createRoute({
   security: SECURITY_BEARER_OR_API_KEY,
   request: {
     params: z.object({
-      id: z.string()
+      id: z.string().uuid()
     })
   },
   responses: {
@@ -175,13 +165,12 @@ const deleteTemplateRoute = createRoute({
   }
 });
 
-userTemplatesRouterV2.openapi(deleteTemplateRoute, async function deleteTemplate(c) {
+userTemplatesRouter.openapi(deleteTemplateRoute, async function deleteTemplate(c) {
   const { id } = c.req.valid("param");
   await container.resolve(UserTemplatesController).deleteTemplate(id);
-  return c.text("Removed", 200);
+  return c.body(null, 204);
 });
 
-// GET /favoriteTemplates - requires auth
 const getFavoriteTemplatesRoute = createRoute({
   method: "get",
   path: "/user/favoriteTemplates",
@@ -198,12 +187,11 @@ const getFavoriteTemplatesRoute = createRoute({
   }
 });
 
-userTemplatesRouterV2.openapi(getFavoriteTemplatesRoute, async function getFavoriteTemplates(c) {
+userTemplatesRouter.openapi(getFavoriteTemplatesRoute, async function getFavoriteTemplates(c) {
   const templates = await container.resolve(UserTemplatesController).getFavoriteTemplates();
   return c.json(templates, 200);
 });
 
-// POST /addFavoriteTemplate/:templateId - requires auth
 const addFavoriteTemplateRoute = createRoute({
   method: "post",
   path: "/user/addFavoriteTemplate/{templateId}",
@@ -212,7 +200,7 @@ const addFavoriteTemplateRoute = createRoute({
   security: SECURITY_BEARER_OR_API_KEY,
   request: {
     params: z.object({
-      templateId: z.string()
+      templateId: z.string().uuid()
     })
   },
   responses: {
@@ -228,13 +216,12 @@ const addFavoriteTemplateRoute = createRoute({
   }
 });
 
-userTemplatesRouterV2.openapi(addFavoriteTemplateRoute, async function addFavoriteTemplate(c) {
+userTemplatesRouter.openapi(addFavoriteTemplateRoute, async function addFavoriteTemplate(c) {
   const { templateId } = c.req.valid("param");
   await container.resolve(UserTemplatesController).addFavoriteTemplate(templateId);
-  return c.text("Added", 200);
+  return c.body(null, 204);
 });
 
-// DELETE /removeFavoriteTemplate/:templateId - requires auth
 const removeFavoriteTemplateRoute = createRoute({
   method: "delete",
   path: "/user/removeFavoriteTemplate/{templateId}",
@@ -243,7 +230,7 @@ const removeFavoriteTemplateRoute = createRoute({
   security: SECURITY_BEARER_OR_API_KEY,
   request: {
     params: z.object({
-      templateId: z.string()
+      templateId: z.string().uuid()
     })
   },
   responses: {
@@ -259,8 +246,8 @@ const removeFavoriteTemplateRoute = createRoute({
   }
 });
 
-userTemplatesRouterV2.openapi(removeFavoriteTemplateRoute, async function removeFavoriteTemplate(c) {
+userTemplatesRouter.openapi(removeFavoriteTemplateRoute, async function removeFavoriteTemplate(c) {
   const { templateId } = c.req.valid("param");
   await container.resolve(UserTemplatesController).removeFavoriteTemplate(templateId);
-  return c.text("Removed", 200);
+  return c.body(null, 204);
 });

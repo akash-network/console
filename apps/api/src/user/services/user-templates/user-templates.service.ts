@@ -1,16 +1,12 @@
 import { Template, TemplateFavorite, UserSetting } from "@akashnetwork/database/dbSchemas/user";
-import assert from "http-assert";
 import { Op } from "sequelize";
 import { singleton } from "tsyringe";
-import * as uuid from "uuid";
 
 import { toUTC } from "@src/utils";
 
 @singleton()
 export class UserTemplatesService {
   async getTemplateById(id: string, userId: string = "") {
-    assert(uuid.validate(id), 400, "Invalid template id");
-
     const template = await Template.findOne({
       include: [
         { model: UserSetting, required: true },
@@ -65,27 +61,26 @@ export class UserTemplatesService {
   async saveTemplate(
     id: string,
     userId: string,
-    sdl: string,
-    title: string,
-    cpu: number,
-    ram: number,
-    storage: number,
-    isPublic: boolean = false
+    data: {
+      sdl: string;
+      title: string;
+      cpu: number;
+      ram: number;
+      storage: number;
+      isPublic: boolean;
+    }
   ) {
-    assert(sdl, 400, "Sdl is required");
-    assert(title, 400, "Title is required");
-
     let template = await Template.findOne({
       where: {
         id: id || null,
-        userId: userId
+        userId
       }
     });
 
     if (!id || !template) {
       // Create
       template = Template.build({
-        id: uuid.v4(),
+        id: crypto.randomUUID(),
         userId
       });
 
@@ -94,12 +89,12 @@ export class UserTemplatesService {
       }
     }
 
-    template.sdl = sdl;
-    template.title = title;
-    template.cpu = cpu;
-    template.ram = ram;
-    template.storage = storage;
-    template.isPublic = isPublic;
+    template.sdl = data.sdl;
+    template.title = data.title;
+    template.cpu = data.cpu;
+    template.ram = data.ram;
+    template.storage = data.storage;
+    template.isPublic = data.isPublic;
     await template.save();
 
     return template.id;
@@ -108,8 +103,8 @@ export class UserTemplatesService {
   async saveTemplateDesc(id: string, userId: string, description: string = "") {
     const template = await Template.findOne({
       where: {
-        id: id,
-        userId: userId
+        id,
+        userId
       }
     });
 
@@ -123,9 +118,6 @@ export class UserTemplatesService {
   }
 
   async deleteTemplate(userId: string, id: string) {
-    assert(id, 400, "Template id is required");
-    assert(uuid.validate(id), 400, "Invalid template id");
-
     await Template.destroy({ where: { userId, id } });
   }
 
@@ -145,12 +137,10 @@ export class UserTemplatesService {
   }
 
   async addFavoriteTemplate(userId: string, templateId: string) {
-    assert(templateId, 400, "Template id is required");
-
     const template = await TemplateFavorite.findOne({
       where: {
-        templateId: templateId,
-        userId: userId
+        templateId,
+        userId
       }
     });
 
@@ -159,7 +149,7 @@ export class UserTemplatesService {
     }
 
     await TemplateFavorite.create({
-      id: uuid.v4(),
+      id: crypto.randomUUID(),
       userId,
       templateId,
       addedDate: toUTC(new Date())
@@ -167,8 +157,6 @@ export class UserTemplatesService {
   }
 
   async removeFavoriteTemplate(userId: string, templateId: string) {
-    assert(templateId, 400, "Template id is required");
-
-    await TemplateFavorite.destroy({ where: { userId: userId, templateId: templateId } });
+    await TemplateFavorite.destroy({ where: { userId, templateId } });
   }
 }

@@ -60,18 +60,11 @@ export class UserController {
     youtubeUsername: string;
     twitterUsername: string;
     githubUsername: string;
-  }) {
-    assert(this.authService.currentUser, 401);
+  }): Promise<void> {
+    assert(this.authService.currentUser?.userId, 401);
+
     const userId = this.authService.currentUser.userId;
-    await this.userService.updateSettings(
-      userId,
-      data.username,
-      data.subscribedToNewsletter,
-      data.bio,
-      data.youtubeUsername,
-      data.twitterUsername,
-      data.githubUsername
-    );
+    await this.userService.updateUserDetails(userId, data);
   }
 
   async checkUsernameAvailable(username: string) {
@@ -80,7 +73,7 @@ export class UserController {
   }
 
   async subscribeToNewsletter() {
-    assert(this.authService.currentUser, 401);
+    assert(this.authService.currentUser?.userId, 401);
     const userId = this.authService.currentUser.userId;
     await this.userService.subscribeToNewsletter(userId);
   }

@@ -6,9 +6,8 @@ import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/ope
 import { SECURITY_BEARER_OR_API_KEY, SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 import { UserController } from "@src/user/controllers/user/user.controller";
 
-export const userSettingsRouterV2 = new OpenApiHonoHandler();
+export const userSettingsRouter = new OpenApiHonoHandler();
 
-// GET /byUsername/:username - optional auth
 const getUserByUsernameRoute = createRoute({
   method: "get",
   path: "/user/byUsername/{username}",
@@ -38,13 +37,12 @@ const getUserByUsernameRoute = createRoute({
   }
 });
 
-userSettingsRouterV2.openapi(getUserByUsernameRoute, async function getUserByUsername(c) {
+userSettingsRouter.openapi(getUserByUsernameRoute, async function getUserByUsername(c) {
   const { username } = c.req.valid("param");
   const user = await container.resolve(UserController).getUserByUsername(username);
   return c.json(user, 200);
 });
 
-// PUT /updateSettings - requires auth
 const updateSettingsRoute = createRoute({
   method: "put",
   path: "/user/updateSettings",
@@ -56,12 +54,12 @@ const updateSettingsRoute = createRoute({
       content: {
         "application/json": {
           schema: z.object({
-            username: z.string(),
+            username: z.string().regex(/^[a-zA-Z0-9_-]+$/, "Username can only contain letters, numbers, dashes and underscores"),
             subscribedToNewsletter: z.boolean(),
-            bio: z.string(),
-            youtubeUsername: z.string(),
-            twitterUsername: z.string(),
-            githubUsername: z.string()
+            bio: z.string().max(5000),
+            youtubeUsername: z.string().max(200),
+            twitterUsername: z.string().max(200),
+            githubUsername: z.string().max(200)
           })
         }
       }
@@ -80,13 +78,12 @@ const updateSettingsRoute = createRoute({
   }
 });
 
-userSettingsRouterV2.openapi(updateSettingsRoute, async function updateSettings(c) {
+userSettingsRouter.openapi(updateSettingsRoute, async function updateSettings(c) {
   const data = c.req.valid("json");
   await container.resolve(UserController).updateSettings(data);
-  return c.text("Saved", 200);
+  return c.body(null, 204);
 });
 
-// GET /checkUsernameAvailability/:username
 const checkUsernameAvailabilityRoute = createRoute({
   method: "get",
   path: "/user/checkUsernameAvailability/{username}",
@@ -112,13 +109,12 @@ const checkUsernameAvailabilityRoute = createRoute({
   }
 });
 
-userSettingsRouterV2.openapi(checkUsernameAvailabilityRoute, async function checkUsernameAvailability(c) {
+userSettingsRouter.openapi(checkUsernameAvailabilityRoute, async function checkUsernameAvailability(c) {
   const { username } = c.req.valid("param");
   const result = await container.resolve(UserController).checkUsernameAvailable(username);
   return c.json(result, 200);
 });
 
-// POST /subscribeToNewsletter - requires auth
 const subscribeToNewsletterRoute = createRoute({
   method: "post",
   path: "/user/subscribeToNewsletter",
@@ -135,7 +131,7 @@ const subscribeToNewsletterRoute = createRoute({
   }
 });
 
-userSettingsRouterV2.openapi(subscribeToNewsletterRoute, async function subscribeToNewsletter(c) {
+userSettingsRouter.openapi(subscribeToNewsletterRoute, async function subscribeToNewsletter(c) {
   await container.resolve(UserController).subscribeToNewsletter();
-  return c.text("Subscribed", 200);
+  return c.body(null, 204);
 });

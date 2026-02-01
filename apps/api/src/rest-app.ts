@@ -69,7 +69,7 @@ import {
 } from "./provider";
 import { templatesRouter } from "./template";
 import { transactionsRouter } from "./transaction";
-import { getCurrentUserRouter, registerUserRouter, userSettingsRouterV2, userTemplatesRouterV2 } from "./user";
+import { getCurrentUserRouter, registerUserRouter, userSettingsRouter, userTemplatesRouter } from "./user";
 import { validatorsRouter } from "./validator";
 
 const appHono = new Hono<AppEnv>();
@@ -114,8 +114,8 @@ const openApiHonoHandlers: OpenApiHonoHandler[] = [
   usageRouter,
   registerUserRouter,
   getCurrentUserRouter,
-  userSettingsRouterV2,
-  userTemplatesRouterV2,
+  userSettingsRouter,
+  userTemplatesRouter,
   sendVerificationEmailRouter,
   verifyEmailRouter,
   deploymentSettingRouter,

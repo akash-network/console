@@ -1,4 +1,3 @@
-import { UserSetting } from "@akashnetwork/database/dbSchemas/user";
 import assert from "http-assert";
 import randomInt from "lodash/random";
 import { singleton } from "tsyringe";
@@ -8,7 +7,7 @@ import { LoggerService } from "@src/core/providers/logging.provider";
 import { isUniqueViolation } from "@src/core/repositories/base.repository";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
-import { type UserOutput, UserRepository } from "../../repositories/user/user.repository";
+import { UserInput, type UserOutput, UserRepository } from "../../repositories/user/user.repository";
 
 @singleton()
 export class UserService {
@@ -117,8 +116,8 @@ export class UserService {
     return user;
   }
 
-  async getUserByUsername(username: string) {
-    const user = await UserSetting.findOne({ where: { username: username } });
+  async getUserByUsername(username: string): Promise<Pick<UserOutput, "username" | "bio"> | null> {
+    const user = await this.userRepository.findOneBy({ username: username });
 
     if (!user) return null;
 
@@ -128,52 +127,33 @@ export class UserService {
     };
   }
 
-  async updateSettings(
+  async updateUserDetails(
     userId: string,
-    username: string,
-    subscribedToNewsletter: boolean,
-    bio: string,
-    youtubeUsername: string,
-    twitterUsername: string,
-    githubUsername: string
-  ) {
-    assert(/^[a-zA-Z0-9_-]*$/.test(username), 400, "Username can only contain letters, numbers, dashes and underscores");
+    data: Pick<UserInput, "username" | "subscribedToNewsletter" | "bio" | "youtubeUsername" | "twitterUsername" | "githubUsername">
+  ): Promise<void> {
+    const user = await this.userRepository.findById(userId);
+    assert(user, 404, "User settings not found: " + userId);
 
-    const settings = await UserSetting.findOne({ where: { userId: userId } });
-    assert(settings, 404, "User settings not found: " + userId);
+    const changes: Partial<UserInput> = {
+      ...data
+    };
 
-    if (username !== settings.username) {
-      const isAvailable = await this.checkUsernameAvailable(username);
-      assert(isAvailable, 400, `Username not available: ${username} (${userId})`);
-
-      settings.username = username;
+    if (data.username && user.username !== data.username) {
+      const isAvailable = await this.checkUsernameAvailable(data.username);
+      assert(isAvailable, 422, `Username not available: ${data.username} (${userId})`);
+      changes.username = data.username;
     }
 
-    settings.subscribedToNewsletter = subscribedToNewsletter;
-    settings.bio = bio;
-    settings.youtubeUsername = youtubeUsername;
-    settings.twitterUsername = twitterUsername;
-    settings.githubUsername = githubUsername;
-
-    await settings.save();
+    await this.userRepository.updateById(userId, changes);
   }
 
   async checkUsernameAvailable(username: string): Promise<boolean> {
-    const existingUser = await UserSetting.findOne({ where: { username: username } });
+    const existingUser = await this.userRepository.findOneBy({ username: username });
     return !existingUser;
   }
 
   async subscribeToNewsletter(userId: string) {
-    await UserSetting.update(
-      {
-        subscribedToNewsletter: true
-      },
-      {
-        where: {
-          userId: userId
-        }
-      }
-    );
+    await this.userRepository.updateById(userId, { subscribedToNewsletter: true });
   }
 }
 
