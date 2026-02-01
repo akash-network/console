@@ -5,7 +5,7 @@ import type { Control, UseFieldArrayAppend, UseFieldArrayRemove, UseFormSetValue
 import { Button, Card, CardContent, Collapsible, CollapsibleContent, CollapsibleTrigger } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 
-import type { RentGpusFormValuesType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { ExpandMore } from "../shared/ExpandMore";
 import { EnvFormModal } from "./EnvFormModal/EnvFormModal";
 import { CommandFormModal } from "./CommandFormModal";
@@ -17,10 +17,10 @@ import { MountedStorageFormControl } from "./MountedStorageFormControl";
 
 type Props = {
   currentService: ServiceType;
-  control: Control<RentGpusFormValuesType, any>;
+  control: Control<SdlBuilderFormValuesType, any>;
   children?: ReactNode;
   storages: any[];
-  setValue: UseFormSetValue<RentGpusFormValuesType>;
+  setValue: UseFormSetValue<SdlBuilderFormValuesType>;
   appendStorage: UseFieldArrayAppend<SdlBuilderFormValuesType, `services.${number}.profile.storage`>;
   removeStorage: UseFieldArrayRemove;
 };

@@ -19,14 +19,14 @@ import {
 } from "@akashnetwork/ui/components";
 import { InfoCircle } from "iconoir-react";
 
-import type { RentGpusFormValuesType, SdlBuilderFormValuesType } from "@src/types";
+import type { SdlBuilderFormValuesType } from "@src/types";
 import { memoryUnits } from "@src/utils/akash/units";
 import { FormPaper } from "./FormPaper";
 
 type Props = {
   serviceIndex: number;
   children?: ReactNode;
-  control: Control<SdlBuilderFormValuesType | RentGpusFormValuesType, any>;
+  control: Control<SdlBuilderFormValuesType, any>;
 };
 
 export const MemoryFormControl: React.FunctionComponent<Props> = ({ control, serviceIndex }) => {
