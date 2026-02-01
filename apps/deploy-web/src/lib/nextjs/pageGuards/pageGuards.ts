@@ -9,7 +9,12 @@ export async function isFeatureEnabled(featureName: string, context: AppTypedCon
 
 export async function isAuthenticated(context: AppTypedContext): Promise<boolean> {
   const session = await context.getCurrentSession();
-  return !!session?.user;
+  if (!session?.user) return false;
+
+  const accessTokenExpiry = new Date((session.accessTokenExpiresAt || 0) * 1_000);
+  if (accessTokenExpiry <= new Date()) return false;
+
+  return true;
 }
 
 export async function redirectIfAccessTokenExpired(context: AppTypedContext): Promise<{ redirect: Redirect } | true> {
