@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { Separator, Tabs, TabsContent, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
+import { Button, Separator, Tabs, TabsContent, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { useMutation } from "@tanstack/react-query";
-import { DollarSignIcon, RocketIcon, ZapIcon } from "lucide-react";
+import { DollarSignIcon, RocketIcon, Undo2, ZapIcon } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "next/router";
 import { NextSeo } from "next-seo";
@@ -41,6 +41,7 @@ export const DEPENDENCIES = {
   RocketIcon,
   ZapIcon,
   AkashConsoleLogo,
+  Button,
   Separator,
   useUser,
   useSearchParams,
@@ -188,6 +189,12 @@ export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
               (isDeploymentReturnTo && (
                 <>
                   <d.SocialAuth onSocialLogin={redirectToSocialLogin} />
+                  <div className="mt-4 flex">
+                    <d.Button type="button" onClick={navigateBack} variant="outline" className="h-9 flex-1 border-neutral-200 dark:border-neutral-800">
+                      <Undo2 className="mr-2 h-4 w-4" />
+                      Go Back
+                    </d.Button>
+                  </div>
                 </>
               )) || (
                 <d.Tabs value={activeView} onValueChange={setActiveView} className="w-full">
