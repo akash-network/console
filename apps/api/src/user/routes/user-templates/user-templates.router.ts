@@ -34,7 +34,7 @@ const getTemplateByIdRoute = createRoute({
 
 userTemplatesRouter.openapi(getTemplateByIdRoute, async function getTemplateById(c) {
   const { id } = c.req.valid("param");
-  const template = await container.resolve(UserTemplatesController).getTemplateById(id, userId);
+  const template = await container.resolve(UserTemplatesController).getTemplateById(id);
   return c.json(template, 200);
 });
 
@@ -49,13 +49,14 @@ const saveTemplateRoute = createRoute({
       content: {
         "application/json": {
           schema: z.object({
-            id: z.string().uuid(),
+            id: z.string().uuid().optional(),
             sdl: z.string(),
-            isPublic: z.boolean(),
             title: z.string(),
             cpu: z.number(),
             ram: z.number(),
-            storage: z.number()
+            storage: z.number(),
+            isPublic: z.boolean(),
+            description: z.string().max(2000).optional()
           })
         }
       }
@@ -110,7 +111,7 @@ const saveTemplateDescRoute = createRoute({
 
 userTemplatesRouter.openapi(saveTemplateDescRoute, async function saveTemplateDesc(c) {
   const data = c.req.valid("json");
-  await container.resolve(UserTemplatesController).saveTemplateDesc(data);
+  await container.resolve(UserTemplatesController).updateTemplate(data);
   return c.body(null, 204);
 });
 

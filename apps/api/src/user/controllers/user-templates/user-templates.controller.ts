@@ -24,10 +24,10 @@ export class UserTemplatesController {
     return await this.userTemplatesService.saveTemplate(data.id, userId, data);
   }
 
-  async saveTemplateDesc(data: { id: string; description: string }) {
+  async updateTemplate(data: { id: string; description: string }) {
     assert(this.authService.currentUser?.userId, 401);
     const userId = this.authService.currentUser.userId;
-    await this.userTemplatesService.saveTemplateDesc(data.id, userId, data.description);
+    await this.userTemplatesService.update(data.id, userId, data);
   }
 
   async getTemplates(username: string) {

@@ -139,17 +139,12 @@ export class UserService {
     };
 
     if (data.username && user.username !== data.username) {
-      const isAvailable = await this.checkUsernameAvailable(data.username);
-      assert(isAvailable, 422, `Username not available: ${data.username} (${userId})`);
+      const existingUser = await this.userRepository.findOneBy({ username: data.username });
+      assert(!existingUser, 422, `Username not available: ${data.username} (${userId})`);
       changes.username = data.username;
     }
 
     await this.userRepository.updateById(userId, changes);
-  }
-
-  async checkUsernameAvailable(username: string): Promise<boolean> {
-    const existingUser = await this.userRepository.findOneBy({ username: username });
-    return !existingUser;
   }
 
   async subscribeToNewsletter(userId: string) {

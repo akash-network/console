@@ -68,7 +68,8 @@ export class UserController {
   }
 
   async checkUsernameAvailable(username: string) {
-    const isAvailable = await this.userService.checkUsernameAvailable(username);
+    const existingUser = await this.userService.getUserByUsername(username);
+    const isAvailable = !existingUser;
     return { isAvailable };
   }
 

@@ -194,12 +194,153 @@ describe(UserService.name, () => {
     });
   });
 
+  describe("getUserByUsername", () => {
+    it("returns user with username and bio", async () => {
+      const { service, userRepository } = setup();
+
+      const user = await userRepository.create({
+        userId: faker.string.uuid(),
+        username: `test-user-${Date.now()}`,
+        email: faker.internet.email(),
+        emailVerified: false,
+        subscribedToNewsletter: false,
+        bio: "Test bio"
+      });
+
+      const result = await service.getUserByUsername(user.username!);
+
+      expect(result).toEqual({
+        username: user.username,
+        bio: user.bio
+      });
+    });
+
+    it("returns null when user is not found", async () => {
+      const { service } = setup();
+
+      const result = await service.getUserByUsername("nonexistent-user");
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe("updateUserDetails", () => {
+    it("updates user details", async () => {
+      const { service, userRepository } = setup();
+
+      const user = await userRepository.create({
+        userId: faker.string.uuid(),
+        username: `test-user-${Date.now()}`,
+        email: faker.internet.email(),
+        emailVerified: false,
+        subscribedToNewsletter: false
+      });
+
+      const newBio = "Updated bio";
+      const newYoutubeUsername = "youtube_user";
+
+      await service.updateUserDetails(user.id, {
+        bio: newBio,
+        youtubeUsername: newYoutubeUsername
+      });
+
+      const updatedUser = await userRepository.findById(user.id);
+      expect(updatedUser).toMatchObject({
+        bio: newBio,
+        youtubeUsername: newYoutubeUsername
+      });
+    });
+
+    it("updates username when new username is provided", async () => {
+      const { service, userRepository } = setup();
+
+      const user = await userRepository.create({
+        userId: faker.string.uuid(),
+        username: `test-user-${Date.now()}`,
+        email: faker.internet.email(),
+        emailVerified: false,
+        subscribedToNewsletter: false
+      });
+
+      const newUsername = `new-username-${Date.now()}`;
+
+      await service.updateUserDetails(user.id, { username: newUsername });
+
+      const updatedUser = await userRepository.findById(user.id);
+      expect(updatedUser?.username).toBe(newUsername);
+    });
+
+    it("throws 404 when user is not found", async () => {
+      const { service } = setup();
+
+      await expect(service.updateUserDetails(faker.string.uuid(), { bio: "test" })).rejects.toThrow(/Not found/i);
+    });
+
+    it("throws 422 when username is already taken", async () => {
+      const { service, userRepository } = setup();
+
+      const existingUsername = `existing-user-${Date.now()}`;
+      await userRepository.create({
+        userId: faker.string.uuid(),
+        username: existingUsername,
+        email: faker.internet.email(),
+        emailVerified: false,
+        subscribedToNewsletter: false
+      });
+
+      const user = await userRepository.create({
+        userId: faker.string.uuid(),
+        username: `another-user-${Date.now()}`,
+        email: faker.internet.email(),
+        emailVerified: false,
+        subscribedToNewsletter: false
+      });
+
+      await expect(service.updateUserDetails(user.id, { username: existingUsername })).rejects.toThrow(/Username not available/i);
+    });
+
+    it("does not throw when username is unchanged", async () => {
+      const { service, userRepository } = setup();
+
+      const username = `test-user-${Date.now()}`;
+      const user = await userRepository.create({
+        userId: faker.string.uuid(),
+        username,
+        email: faker.internet.email(),
+        emailVerified: false,
+        subscribedToNewsletter: false
+      });
+
+      await expect(service.updateUserDetails(user.id, { username })).resolves.not.toThrow();
+    });
+  });
+
+  describe("subscribeToNewsletter", () => {
+    it("updates subscribedToNewsletter to true", async () => {
+      const { service, userRepository } = setup();
+
+      const user = await userRepository.create({
+        userId: faker.string.uuid(),
+        username: `test-user-${Date.now()}`,
+        email: faker.internet.email(),
+        emailVerified: false,
+        subscribedToNewsletter: false
+      });
+
+      await service.subscribeToNewsletter(user.id);
+
+      const updatedUser = await userRepository.findById(user.id);
+      expect(updatedUser?.subscribedToNewsletter).toBe(true);
+    });
+  });
+
   function setup(input?: { createDefaultNotificationChannel?: NotificationService["createDefaultChannel"] }) {
     const analyticsService = mock<AnalyticsService>();
     const logger = mock<LoggerService>();
     const auth0Service = mock<Auth0Service>();
+    const userRepository = container.resolve(UserRepository);
     const service = new UserService(
-      container.resolve(UserRepository),
+      userRepository,
       analyticsService,
       logger,
       mock<NotificationService>({
@@ -208,6 +349,6 @@ describe(UserService.name, () => {
       auth0Service
     );
 
-    return { service, analyticsService, logger, auth0Service };
+    return { service, analyticsService, logger, auth0Service, userRepository };
   }
 });
