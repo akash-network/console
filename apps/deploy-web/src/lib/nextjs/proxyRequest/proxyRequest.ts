@@ -58,13 +58,14 @@ async function forwardRequestStream(req: NextApiRequest, res: NextApiResponse, o
   const headers = new Headers(options.headers);
 
   Object.entries(req.headers).forEach(([key, value]) => {
+    if (value === undefined || value === null) return;
     if (headers.has(key)) return;
 
     const lowKey = key.toLowerCase();
     if (lowKey === "host" || lowKey === "connection" || lowKey === "cookie") return;
     if (HEADERS_TO_SKIP.has(lowKey)) return;
     if (!Array.isArray(value)) {
-      headers.set(key, value as string);
+      headers.set(key, value);
       return;
     }
     value.forEach(v => headers.append(key, v));

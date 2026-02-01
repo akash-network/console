@@ -128,7 +128,8 @@ describe(proxyRequest.name, () => {
           connection: "keep-alive",
           cookie: "session=abc",
           "content-type": "application/json",
-          authorization: "Bearer token"
+          authorization: "Bearer token",
+          "x-custom-header": undefined
         },
         fetchResponse: {
           status: 200,
@@ -141,6 +142,7 @@ describe(proxyRequest.name, () => {
       expect(passedHeaders.has("host")).toBe(false);
       expect(passedHeaders.has("connection")).toBe(false);
       expect(passedHeaders.has("cookie")).toBe(false);
+      expect(passedHeaders.has("x-custom-header")).toBe(false);
       expect(passedHeaders.get("content-type")).toBe("application/json");
       expect(passedHeaders.get("authorization")).toBe("Bearer token");
     });

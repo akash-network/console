@@ -77,7 +77,7 @@ const authHandler = once((services: AppServices) =>
           return;
         }
 
-        const accessTokenExpiry = new Date((session?.accessTokenExpiresAt || 0) * 1_000);
+        const accessTokenExpiry = new Date((session.accessTokenExpiresAt || 0) * 1_000);
         if (accessTokenExpiry <= new Date()) {
           services.logger.info({ event: "AUTH_PROFILE_REQUEST_ACCESS_TOKEN_EXPIRED", url: req.url });
           res.status(401).json({ error: "Not authenticated" });
