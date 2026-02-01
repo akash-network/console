@@ -18,7 +18,7 @@ export class UserTemplatesController {
     return template;
   }
 
-  async saveTemplate(data: { id: string; sdl: string; isPublic: boolean; title: string; cpu: number; ram: number; storage: number }) {
+  async saveTemplate(data: { id?: string; sdl: string; isPublic: boolean; title: string; cpu: number; ram: number; storage: number }) {
     assert(this.authService.safeCurrentUser?.userId, 401);
     const userId = this.authService.safeCurrentUser.userId;
     return await this.userTemplatesService.saveTemplate(data.id, userId, data);

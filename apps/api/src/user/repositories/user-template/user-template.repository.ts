@@ -96,7 +96,7 @@ export class UserTemplateRepository {
     return templateFavorites.map(t => this.#toOutput(t.template));
   }
 
-  async upsert(id: string, userId: string, data: TemplateInput): Promise<string> {
+  async upsert(id: string | undefined | null, userId: string, data: TemplateInput): Promise<string> {
     let template = id
       ? await Template.findOne({
           where: {

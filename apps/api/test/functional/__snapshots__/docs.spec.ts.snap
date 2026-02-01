@@ -1520,6 +1520,499 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/user/addFavoriteTemplate/{templateId}": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "templateId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+        ],
+        "responses": {
+          "200": {
+            "description": "Template added to favorites",
+          },
+          "400": {
+            "description": "Invalid template ID",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Add favorite template",
+        "tags": [
+          "Users",
+        ],
+      },
+    },
+    "/user/byUsername/{username}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "username",
+            "required": true,
+            "schema": {
+              "type": "string",
+            },
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "bio": {
+                      "nullable": true,
+                      "type": "string",
+                    },
+                    "username": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "username",
+                    "bio",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Returns user profile",
+          },
+          "404": {
+            "description": "User not found",
+          },
+        },
+        "security": [],
+        "summary": "Get user by username",
+        "tags": [
+          "Users",
+        ],
+      },
+    },
+    "/user/checkUsernameAvailability/{username}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "username",
+            "required": true,
+            "schema": {
+              "type": "string",
+            },
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "isAvailable": {
+                      "type": "boolean",
+                    },
+                  },
+                  "required": [
+                    "isAvailable",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Returns username availability",
+          },
+        },
+        "security": [],
+        "summary": "Check if username is available",
+        "tags": [
+          "Users",
+        ],
+      },
+    },
+    "/user/deleteTemplate/{id}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+        ],
+        "responses": {
+          "200": {
+            "description": "Template deleted successfully",
+          },
+          "400": {
+            "description": "Invalid template ID",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Delete template",
+        "tags": [
+          "Users",
+        ],
+      },
+    },
+    "/user/favoriteTemplates": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Returns favorite templates",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Get favorite templates",
+        "tags": [
+          "Users",
+        ],
+      },
+    },
+    "/user/removeFavoriteTemplate/{templateId}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "templateId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+        ],
+        "responses": {
+          "200": {
+            "description": "Template removed from favorites",
+          },
+          "400": {
+            "description": "Invalid template ID",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Remove favorite template",
+        "tags": [
+          "Users",
+        ],
+      },
+    },
+    "/user/saveTemplate": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "cpu": {
+                    "type": "number",
+                  },
+                  "description": {
+                    "maxLength": 2000,
+                    "type": "string",
+                  },
+                  "id": {
+                    "format": "uuid",
+                    "type": "string",
+                  },
+                  "isPublic": {
+                    "type": "boolean",
+                  },
+                  "ram": {
+                    "type": "number",
+                  },
+                  "sdl": {
+                    "type": "string",
+                  },
+                  "storage": {
+                    "type": "number",
+                  },
+                  "title": {
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "sdl",
+                  "title",
+                  "cpu",
+                  "ram",
+                  "storage",
+                  "isPublic",
+                ],
+                "type": "object",
+              },
+            },
+          },
+        },
+        "responses": {
+          "200": {
+            "description": "Template saved successfully",
+          },
+          "400": {
+            "description": "Invalid input",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Save template",
+        "tags": [
+          "Users",
+        ],
+      },
+    },
+    "/user/saveTemplateDesc": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "description": {
+                    "type": "string",
+                  },
+                  "id": {
+                    "format": "uuid",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "id",
+                  "description",
+                ],
+                "type": "object",
+              },
+            },
+          },
+        },
+        "responses": {
+          "200": {
+            "description": "Template description saved successfully",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Save template description",
+        "tags": [
+          "Users",
+        ],
+      },
+    },
+    "/user/subscribeToNewsletter": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Subscribed successfully",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Subscribe to newsletter",
+        "tags": [
+          "Users",
+        ],
+      },
+    },
+    "/user/template/{id}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns template",
+          },
+          "400": {
+            "description": "Invalid template ID",
+          },
+          "404": {
+            "description": "Template not found",
+          },
+        },
+        "security": [],
+        "summary": "Get template by ID",
+        "tags": [
+          "Users",
+        ],
+      },
+    },
+    "/user/templates/{username}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "username",
+            "required": true,
+            "schema": {
+              "type": "string",
+            },
+          },
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns templates",
+          },
+          "404": {
+            "description": "User not found",
+          },
+        },
+        "security": [],
+        "summary": "Get templates by username",
+        "tags": [
+          "Users",
+        ],
+      },
+    },
+    "/user/updateSettings": {
+      "put": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "bio": {
+                    "maxLength": 5000,
+                    "type": "string",
+                  },
+                  "githubUsername": {
+                    "maxLength": 200,
+                    "type": "string",
+                  },
+                  "subscribedToNewsletter": {
+                    "type": "boolean",
+                  },
+                  "twitterUsername": {
+                    "maxLength": 200,
+                    "type": "string",
+                  },
+                  "username": {
+                    "pattern": "^[a-zA-Z0-9_-]+$",
+                    "type": "string",
+                  },
+                  "youtubeUsername": {
+                    "maxLength": 200,
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "username",
+                  "subscribedToNewsletter",
+                  "bio",
+                  "youtubeUsername",
+                  "twitterUsername",
+                  "githubUsername",
+                ],
+                "type": "object",
+              },
+            },
+          },
+        },
+        "responses": {
+          "200": {
+            "description": "Settings updated successfully",
+          },
+          "400": {
+            "description": "Invalid input",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Update user settings",
+        "tags": [
+          "Users",
+        ],
+      },
+    },
     "/v1/addresses/{address}": {
       "get": {
         "parameters": [

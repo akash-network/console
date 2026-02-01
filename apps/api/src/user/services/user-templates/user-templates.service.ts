@@ -31,7 +31,7 @@ export class UserTemplatesService {
     return templates;
   }
 
-  async saveTemplate(id: string, userId: string, data: TemplateInput): Promise<string> {
+  async saveTemplate(id: string | undefined | null, userId: string, data: TemplateInput): Promise<string> {
     return this.#userTemplateRepository.upsert(id, userId, data);
   }
 
