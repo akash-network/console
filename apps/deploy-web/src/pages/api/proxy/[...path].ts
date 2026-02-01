@@ -25,12 +25,14 @@ export default defineApiHandler({
     const session = await services.getSession(req, res);
 
     // Extract and forward cf_clearance and unleash-session-id cookies
-    const cookies = req.headers.cookie?.split(";").map(c => c.trim());
-    const cfClearance = cookies?.find(c => c.startsWith("cf_clearance="));
-    const unleashSessionId = cookies?.find(c => c.startsWith("unleash-session-id="));
+    const cookiesToForward = req.headers.cookie
+      ?.split(";")
+      .map(c => c.trim())
+      .filter(c => c.startsWith("cf_clearance=") || c.startsWith("unleash-session-id="));
 
-    const cookiesToForward = [cfClearance, unleashSessionId].filter(Boolean);
-    headers.cookie = cookiesToForward.join("; ");
+    if (cookiesToForward?.length) {
+      headers.cookie = cookiesToForward.join("; ");
+    }
 
     if (session?.accessToken) {
       headers.authorization = `Bearer ${session.accessToken}`;

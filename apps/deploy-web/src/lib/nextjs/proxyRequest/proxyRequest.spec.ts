@@ -231,6 +231,43 @@ describe(proxyRequest.name, () => {
         "content-type": "application/json"
       });
     });
+
+    it("preserves multiple Set-Cookie headers as an array", async () => {
+      const responseHeaders = new Headers();
+      responseHeaders.append("set-cookie", "session=abc; Path=/; HttpOnly");
+      responseHeaders.append("set-cookie", "token=xyz; Path=/; Secure");
+      responseHeaders.append("content-type", "application/json");
+
+      const { res } = await setup({
+        fetchResponse: {
+          status: 200,
+          headers: responseHeaders,
+          body: null
+        }
+      });
+
+      expect(res.writeHead).toHaveBeenCalledWith(200, {
+        "content-type": "application/json",
+        "set-cookie": ["session=abc; Path=/; HttpOnly", "token=xyz; Path=/; Secure"]
+      });
+    });
+
+    it("handles single Set-Cookie header as an array", async () => {
+      const responseHeaders = new Headers();
+      responseHeaders.append("set-cookie", "session=abc; Path=/; HttpOnly");
+
+      const { res } = await setup({
+        fetchResponse: {
+          status: 200,
+          headers: responseHeaders,
+          body: null
+        }
+      });
+
+      expect(res.writeHead).toHaveBeenCalledWith(200, {
+        "set-cookie": ["session=abc; Path=/; HttpOnly"]
+      });
+    });
   });
 
   describe("when request fails", () => {

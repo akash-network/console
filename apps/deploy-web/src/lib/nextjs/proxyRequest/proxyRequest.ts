@@ -90,10 +90,18 @@ async function forwardRequestStream(req: NextApiRequest, res: NextApiResponse, o
 }
 
 function filterResponseHeaders(headers: Headers) {
-  const result: Record<string, string> = {};
+  const result: Record<string, string | string[]> = {};
+
   for (const [k, v] of headers.entries()) {
-    if (HEADERS_TO_SKIP.has(k.toLowerCase())) continue;
+    const lowKey = k.toLowerCase();
+    if (HEADERS_TO_SKIP.has(lowKey) || lowKey === "set-cookie") continue;
     result[k] = v;
   }
+
+  const setCookies = headers.getSetCookie();
+  if (setCookies.length > 0) {
+    result["set-cookie"] = setCookies;
+  }
+
   return result;
 }
