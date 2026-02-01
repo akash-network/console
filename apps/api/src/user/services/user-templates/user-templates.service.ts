@@ -27,7 +27,8 @@ export class UserTemplatesService {
       return this.#userTemplateRepository.findAllByUserId(userId);
     }
 
-    return this.#userTemplateRepository.findAllByUsername(username);
+    const templates = await this.#userTemplateRepository.findAllByUsername(username);
+    return templates;
   }
 
   async saveTemplate(id: string, userId: string, data: TemplateInput): Promise<string> {

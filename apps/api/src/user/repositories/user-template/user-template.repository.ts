@@ -159,7 +159,10 @@ export class UserTemplateRepository {
       return [];
     }
 
-    return user.templates.map(t => this.#toOutput({ ...t, userSetting: user } as Template));
+    return user.templates.map(t => {
+      t.userSetting = user;
+      return this.#toOutput(t);
+    });
   }
 
   async findAllByUserId(userId: string): Promise<TemplateOutput[]> {
