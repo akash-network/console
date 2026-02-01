@@ -20,7 +20,7 @@ import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 
 type Props = {
   children?: ReactNode;
-  control: Control<SdlBuilderFormValuesType, any>;
+  control: Control<SdlBuilderFormValuesType>;
   currentService: ServiceType;
   onSelectTemplate: (template: TemplateOutputSummaryWithCategory) => void;
 };

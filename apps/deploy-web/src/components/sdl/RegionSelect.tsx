@@ -13,7 +13,7 @@ import { useProviderRegions } from "@src/queries/useProvidersQuery";
 import type { ProviderAttributeSchemaDetailValue, ProviderRegionValue } from "@src/types/providerAttributes";
 
 type RegionSelectProps = {
-  control: Control<FieldValues, any>;
+  control: Control<FieldValues>;
   className?: string;
 };
 
