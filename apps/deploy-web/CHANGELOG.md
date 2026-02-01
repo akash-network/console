@@ -1,5 +1,12 @@
 
 
+## [3.25.2](https://github.com/akash-network/console/compare/console-web/v3.25.1...console-web/v3.25.2) (2026-02-01)
+
+
+### Bug Fixes
+
+* corrects wallet balance calculation ([#2624](https://github.com/akash-network/console/issues/2624)) ([bdf7846](https://github.com/akash-network/console/commit/bdf78463c3b166e1ff8bcfbde9af863dd0e1ecb1))
+
 ## [3.25.1](https://github.com/akash-network/console/compare/console-web/v3.25.0...console-web/v3.25.1) (2026-01-30)
 
 
