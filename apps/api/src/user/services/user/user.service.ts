@@ -1,3 +1,4 @@
+import { UserSetting } from "@akashnetwork/database/dbSchemas/user";
 import assert from "http-assert";
 import randomInt from "lodash/random";
 import { singleton } from "tsyringe";
@@ -114,6 +115,65 @@ export class UserService {
     assert(user, 404);
 
     return user;
+  }
+
+  async getUserByUsername(username: string) {
+    const user = await UserSetting.findOne({ where: { username: username } });
+
+    if (!user) return null;
+
+    return {
+      username: user.username,
+      bio: user.bio
+    };
+  }
+
+  async updateSettings(
+    userId: string,
+    username: string,
+    subscribedToNewsletter: boolean,
+    bio: string,
+    youtubeUsername: string,
+    twitterUsername: string,
+    githubUsername: string
+  ) {
+    assert(/^[a-zA-Z0-9_-]*$/.test(username), 400, "Username can only contain letters, numbers, dashes and underscores");
+
+    const settings = await UserSetting.findOne({ where: { userId: userId } });
+    assert(settings, 404, "User settings not found: " + userId);
+
+    if (username !== settings.username) {
+      const isAvailable = await this.checkUsernameAvailable(username);
+      assert(isAvailable, 400, `Username not available: ${username} (${userId})`);
+
+      settings.username = username;
+    }
+
+    settings.subscribedToNewsletter = subscribedToNewsletter;
+    settings.bio = bio;
+    settings.youtubeUsername = youtubeUsername;
+    settings.twitterUsername = twitterUsername;
+    settings.githubUsername = githubUsername;
+
+    await settings.save();
+  }
+
+  async checkUsernameAvailable(username: string): Promise<boolean> {
+    const existingUser = await UserSetting.findOne({ where: { username: username } });
+    return !existingUser;
+  }
+
+  async subscribeToNewsletter(userId: string) {
+    await UserSetting.update(
+      {
+        subscribedToNewsletter: true
+      },
+      {
+        where: {
+          userId: userId
+        }
+      }
+    );
   }
 }
 
