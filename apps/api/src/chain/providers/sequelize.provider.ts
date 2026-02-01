@@ -15,20 +15,23 @@ import { LoggerService } from "@src/core/providers/logging.provider";
 import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 import { PostgresLoggerService } from "@src/core/services/postgres-logger/postgres-logger.service";
 
-const coreConfig = container.resolve(CoreConfigService);
-
-const logger = new PostgresLoggerService({ orm: "sequelize", useFormat: coreConfig.get("SQL_LOG_FORMAT") === "pretty" });
-const logging = (msg: string) => logger.write(msg);
+const SEQUELIZE_LOGGER = Symbol("SEQUELIZE_LOGGER") as InjectionToken<PostgresLoggerService>;
+container.register(SEQUELIZE_LOGGER, {
+  useFactory: instancePerContainerCachingFactory(c => {
+    return new PostgresLoggerService({ orm: "sequelize", useFormat: c.resolve(CoreConfigService).get("SQL_LOG_FORMAT") === "pretty" });
+  })
+});
 
 export const CHAIN_DB = Symbol("CHAIN_DB") as InjectionToken<Sequelize>;
 
 pg.defaults.parseInt8 = true;
 container.register(CHAIN_DB, {
   useFactory: instancePerContainerCachingFactory(c => {
+    const logger = c.resolve(SEQUELIZE_LOGGER);
     const dbUri = c.resolve(ChainConfigService).get("CHAIN_INDEXER_POSTGRES_DB_URI");
     return new Sequelize(dbUri, {
       dialectModule: pg,
-      logging,
+      logging: msg => logger.write(msg),
       logQueryParameters: true,
       transactionType: DbTransaction.TYPES.IMMEDIATE,
       define: { timestamps: false, freezeTableName: true },
@@ -41,10 +44,11 @@ export const USER_DB = Symbol("USER_DB") as InjectionToken<Sequelize>;
 
 container.register(USER_DB, {
   useFactory: instancePerContainerCachingFactory(c => {
+    const logger = c.resolve(SEQUELIZE_LOGGER);
     const dbUri = c.resolve(CoreConfigService).get("POSTGRES_DB_URI");
     return new Sequelize(dbUri, {
       dialectModule: pg,
-      logging,
+      logging: msg => logger.write(msg),
       logQueryParameters: true,
       transactionType: DbTransaction.TYPES.IMMEDIATE,
       define: { timestamps: false, freezeTableName: true },
