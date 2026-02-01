@@ -77,6 +77,13 @@ const authHandler = once((services: AppServices) =>
           return;
         }
 
+        const accessTokenExpiry = new Date((session.accessTokenExpiresAt || 0) * 1_000);
+        if (accessTokenExpiry <= new Date()) {
+          services.logger.info({ event: "AUTH_PROFILE_REQUEST_ACCESS_TOKEN_EXPIRED", url: req.url });
+          res.status(401).json({ error: "Not authenticated" });
+          return;
+        }
+
         const userSettings = await services.sessionService.getLocalUserDetails(session).catch(error => {
           services.errorHandler.reportError({ error, tags: { category: "auth0", event: "AUTH_GET_LOCAL_PROFILE_ERROR" } });
           return undefined;
