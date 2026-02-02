@@ -9,9 +9,8 @@ import { TemplateGalleryService } from "../../services/template-gallery/template
 export class TemplateController {
   constructor(@inject(TEMPLATE_GALLERY_SERVICE) private readonly templateGalleryService: TemplateGalleryService) {}
 
-  async getTemplatesList(): Promise<string> {
-    const { categories } = await this.templateGalleryService.getCachedTemplateGallery();
-    return `{"data":${categories}}`;
+  async getTemplatesListJson(): Promise<Buffer> {
+    return await this.templateGalleryService.getGallerySummaryBuffer();
   }
 
   async getTemplateById(id: string): Promise<{ data: Template }> {

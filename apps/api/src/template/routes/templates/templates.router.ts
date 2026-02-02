@@ -28,10 +28,13 @@ const getTemplatesListRoute = createRoute({
   }
 });
 templatesRouter.openapi(getTemplatesListRoute, async function routeGetTemplatesList(c) {
-  const result = await container.resolve(TemplateController).getTemplatesList();
+  const buffer = await container.resolve(TemplateController).getTemplatesListJson();
 
   c.header("Content-Type", "application/json");
-  return c.body(result, 200) as unknown as TypedResponse<GetTemplatesListResponse, 200, "json">;
+  return new Response(buffer, {
+    status: 200,
+    headers: { "Content-Type": "application/json" }
+  }) as unknown as TypedResponse<GetTemplatesListResponse, 200, "json">;
 });
 
 const getTemplateByIdRoute = createRoute({

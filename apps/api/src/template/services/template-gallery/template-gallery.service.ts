@@ -1,4 +1,6 @@
 import { Octokit } from "@octokit/rest";
+import PromisePool from "@supercharge/promise-pool";
+import { LRUCache } from "lru-cache";
 import type { promises as fsp } from "node:fs";
 import { constants as fsConstants } from "node:fs";
 import path from "node:path";
@@ -19,8 +21,8 @@ type Options = {
 };
 
 export class TemplateGalleryService {
-  #galleriesCache: GalleriesCache | null = null;
-  #parsedTemplates: Record<string, Template> = {};
+  #templatesSummaryCache: Promise<Buffer> | undefined;
+  #parsedTemplates = new LRUCache<string, Template>({ max: 100 });
 
   private readonly templateFetcher: TemplateFetcherService | null;
   private readonly templateProcessor: TemplateProcessorService;
@@ -41,84 +43,47 @@ export class TemplateGalleryService {
         })
       : null;
     this.#options = options;
-    this.#galleriesCachePath = `${options.dataFolderPath}/templates/templates-gallery.json`;
+    this.#galleriesCachePath = `${options.dataFolderPath}/templates`;
     this.getTemplatesFromRepo = reusePendingPromise(this.getTemplatesFromRepo.bind(this), { getKey: options => `templates-from-repo-${options.repository}` });
     this.getTemplateById = reusePendingPromise(this.getTemplateById.bind(this), { getKey: id => `template-by-id-${id}` });
-    this.getCachedTemplateGallery = reusePendingPromise(this.getCachedTemplateGallery.bind(this), { getKey: () => "cached-template-gallery" });
+    this.getGallerySummaryBuffer = reusePendingPromise(this.getGallerySummaryBuffer.bind(this), { getKey: () => "cached-template-gallery" });
   }
 
-  async getCachedTemplateGallery(): Promise<GalleriesCache> {
-    if (this.#galleriesCache) return this.#galleriesCache;
-
-    const cacheFileExists = await this.#fs.access(this.#galleriesCachePath, fsConstants.R_OK).then(
-      () => true,
-      () => false
-    );
-
-    if (!cacheFileExists) {
-      throw new Error(`Template gallery cache file not found: ${this.#galleriesCachePath}`);
-    }
-
-    const cacheContent = await this.#fs.readFile(this.#galleriesCachePath, "utf8");
-    const metadataString = cacheContent.slice(0, cacheContent.indexOf("\n"));
-    const content = cacheContent.slice(metadataString.length + 1);
-    const metadata = JSON.parse(metadataString);
-    const categories = content.slice(0, metadata.templatesOffset).trim();
-    const templates = content.slice(metadata.templatesOffset).trim();
-
-    this.#galleriesCache = Object.freeze({
-      metadata,
-      categories,
-      templates
-    });
-    return this.#galleriesCache;
+  async getGallerySummaryBuffer(): Promise<Buffer> {
+    this.#templatesSummaryCache ??= this.#fs.readFile(this.#summaryCachePath());
+    return this.#templatesSummaryCache;
   }
 
   async refreshCache(categoriesSchema: z.ZodSchema): Promise<void> {
     await this.buildTemplateGalleryCache(categoriesSchema);
-    this.#galleriesCache = null;
-    this.#parsedTemplates = {};
+    this.#parsedTemplates.clear();
     this.templateFetcher?.clearArchiveCache();
   }
 
-  async buildTemplateGalleryCache(categoriesSchema: z.ZodSchema): Promise<GalleriesCache> {
+  async buildTemplateGalleryCache(categoriesSchema: z.ZodSchema): Promise<void> {
     const gallery = await this.getTemplateGallery();
-    const result = gallery.reduce<{ templates: Template[]; categories: FinalCategory[] }>(
-      (acc, category) => {
-        acc.templates.push(...category.templates);
-        acc.categories.push(category);
-        return acc;
-      },
-      { templates: [], categories: [] }
-    );
+    const allTemplates = gallery.reduce<Template[]>((templates, category) => {
+      templates.push(...category.templates);
+      return templates;
+    }, []);
 
-    result.categories = categoriesSchema.parse(result.categories);
-    const serializedTemplates = result.templates.map(template => JSON.stringify(template));
-    const templatesRangesByIndex = buildContentRanges(serializedTemplates);
-    const templatesRangesById = result.templates.reduce(
-      (acc, template, index) => {
-        acc[template.id] = templatesRangesByIndex[index];
-        return acc;
-      },
-      {} as Record<string, [start: number, end: number]>
-    );
-    const serializedCategoriesContent = JSON.stringify(result.categories);
+    await this.#fs.mkdir(`${this.#galleriesCachePath}/by-id`, { recursive: true });
 
-    const metadata: GalleriesCache["metadata"] = {
-      templatesRanges: templatesRangesById,
-      templatesOffset: serializedCategoriesContent.length + 1 // +1 for the newline character
-    };
-    const serializeTemplatesContent = serializedTemplates.join("\n");
-    const content = `${JSON.stringify(metadata)}\n${serializedCategoriesContent}\n${serializeTemplatesContent}`;
+    const summary = categoriesSchema.parse(gallery);
+    await this.#fs.writeFile(this.#summaryCachePath(), JSON.stringify({ data: summary }));
+    await PromisePool.for(allTemplates)
+      .withConcurrency(100)
+      .process(async template => {
+        await this.#fs.writeFile(this.#templateCachePath(template.id), JSON.stringify(template));
+      });
+  }
 
-    await this.#fs.mkdir(path.dirname(this.#galleriesCachePath), { recursive: true });
-    await this.#fs.writeFile(this.#galleriesCachePath, content);
+  #templateCachePath(templateId: string): string {
+    return `${this.#galleriesCachePath}/by-id/${templateId}.json`;
+  }
 
-    return {
-      metadata,
-      categories: serializedCategoriesContent,
-      templates: serializeTemplatesContent
-    };
+  #summaryCachePath(): string {
+    return `${this.#galleriesCachePath}/summary.json`;
   }
 
   /**
@@ -166,26 +131,19 @@ export class TemplateGalleryService {
   }
 
   async getTemplateById(id: Required<Template>["id"]): Promise<Template | null> {
-    if (Object.hasOwn(this.#parsedTemplates, id)) return this.#parsedTemplates[id];
-
-    const { templates, metadata } = await this.getCachedTemplateGallery();
-    if (!Object.hasOwn(metadata.templatesRanges, id)) return null;
-
-    const [start, end] = metadata.templatesRanges[id];
-
-    const templateContent = templates.slice(start, end).trim();
+    if (this.#parsedTemplates.has(id)) return this.#parsedTemplates.get(id)!;
 
     try {
-      this.#parsedTemplates[id] = JSON.parse(templateContent);
-      return this.#parsedTemplates[id];
+      const templateContent = await this.#fs.readFile(this.#templateCachePath(id), "utf8");
+      const template = JSON.parse(templateContent);
+      this.#parsedTemplates.set(id, template);
+      return template;
     } catch (error) {
       this.#logger.error({
         event: "GET_TEMPLATE_BY_ID_ERROR",
         message: "Error parsing template content",
-        error,
         templateId: id,
-        templateRange: metadata.templatesRanges[id],
-        templatesSize: templates.length
+        error
       });
       return null;
     }
@@ -271,25 +229,4 @@ export interface FileSystemApi {
   readFile: typeof fsp.readFile;
   writeFile: typeof fsp.writeFile;
   mkdir: typeof fsp.mkdir;
-}
-
-export interface GalleriesCache {
-  metadata: {
-    templatesRanges: Record<string, [start: number, end: number]>;
-    templatesOffset: number;
-  };
-  categories: string;
-  templates: string;
-}
-
-function buildContentRanges(content: string[]): Record<number, [start: number, end: number]> {
-  let offset = 0;
-  return content.reduce(
-    (acc, chunk, index) => {
-      acc[index] = [offset, offset + chunk.length];
-      offset += chunk.length + 1; // +1 for the newline character
-      return acc;
-    },
-    {} as Record<number, [start: number, end: number]>
-  );
 }

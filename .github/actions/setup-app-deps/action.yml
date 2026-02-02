@@ -14,8 +14,10 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Setup Node.js
-      uses: volta-cli/action@v4
+    - name: Setup Nodejs
+      uses: actions/setup-node@v6
+      with:
+        node-version-file: "package.json"
 
     - name: Restore root node_modules cache
       if: inputs.setup-only-nodejs == 'false' && inputs.app != 'all'
