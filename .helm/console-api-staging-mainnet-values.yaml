@@ -5,3 +5,15 @@ nodeOptions:
 chain: mainnet
 hostNames:
   - console-api-mainnet-staging.akash.network
+
+replicas: 2
+
+resources:
+  limits:
+    cpu: "4"
+    ephemeral-storage: "2Gi"
+    memory: "8Gi"
+  requests:
+    cpu: "0.5"
+    ephemeral-storage: "0.5Gi"
+    memory: "1Gi"
