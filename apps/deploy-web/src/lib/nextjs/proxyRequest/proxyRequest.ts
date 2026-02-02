@@ -72,7 +72,9 @@ async function forwardRequestStream(req: NextApiRequest, res: NextApiResponse, o
   });
 
   const method = req.method?.toUpperCase() || "GET";
-  const body = method === "GET" || method === "HEAD" ? undefined : Readable.toWeb(req);
+  const contentLength = Number(req.headers["content-length"]) || 0;
+  const hasBody = method !== "GET" && method !== "HEAD" && (contentLength > 0 || req.headers["transfer-encoding"]);
+  const body = hasBody ? Readable.toWeb(req) : undefined;
 
   const fetch = options.fetch ?? globalThis.fetch;
   const response = await fetch(options.target, {

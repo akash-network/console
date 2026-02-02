@@ -55,6 +55,26 @@ describe(proxyRequest.name, () => {
       );
     });
 
+    it("forwards POST request without body", async () => {
+      const { mockFetch } = await setup({
+        method: "POST",
+        fetchResponse: {
+          status: 201,
+          headers: new Headers(),
+          body: createReadableStream("created")
+        }
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "http://target.com/api",
+        expect.objectContaining({
+          method: "POST",
+          body: undefined,
+          duplex: undefined
+        })
+      );
+    });
+
     it("does not include body for GET requests", async () => {
       const { mockFetch } = await setup({
         method: "GET",
@@ -404,9 +424,7 @@ describe(proxyRequest.name, () => {
 
     if (input.requestBody) {
       const readable = Readable.from([input.requestBody]);
-      Object.assign(req, readable);
-    } else {
-      const readable = Readable.from([]);
+      req.headers["content-length"] = input.requestBody.length.toString();
       Object.assign(req, readable);
     }
 

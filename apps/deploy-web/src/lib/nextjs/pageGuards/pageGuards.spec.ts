@@ -15,7 +15,8 @@ describe("pageGuards", () => {
         session: {
           user: {
             id: faker.string.uuid()
-          }
+          },
+          accessTokenExpiresAt: Date.now() + 1000 * 60 * 60 * 24 * 30
         }
       });
 
@@ -96,7 +97,13 @@ describe("pageGuards", () => {
 
 function setup(input?: { enabledFeatures?: string[]; session?: Partial<Session> }) {
   return mock<AppTypedContext>({
-    getCurrentSession: jest.fn().mockResolvedValue(input?.session || null),
+    getCurrentSession: jest.fn().mockImplementation(async () => {
+      if (!input?.session) return null;
+      return {
+        ...input.session,
+        accessTokenExpiresAt: input.session.accessTokenExpiresAt ? new Date(input.session.accessTokenExpiresAt).getTime() / 1000 : undefined
+      };
+    }),
     services: {
       featureFlagService: mock<FeatureFlagService>({
         isEnabledForCtx: jest.fn(async featureName => !!input?.enabledFeatures?.includes(featureName))
