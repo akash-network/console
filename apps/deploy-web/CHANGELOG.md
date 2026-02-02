@@ -1,5 +1,13 @@
 
 
+## [3.25.3](https://github.com/akash-network/console/compare/console-web/v3.25.2...console-web/v3.25.3) (2026-02-02)
+
+
+### Bug Fixes
+
+* adds amplitude proxy request to otel ignore ([#2651](https://github.com/akash-network/console/issues/2651)) ([8ea2e41](https://github.com/akash-network/console/commit/8ea2e41d164daf896a72a7ea0340cec6ffffc709))
+* moves amplitude on a separate subdomain ([#2652](https://github.com/akash-network/console/issues/2652)) ([411a48a](https://github.com/akash-network/console/commit/411a48a4d6f146922135401fa141992257943b06))
+
 ## [3.25.2](https://github.com/akash-network/console/compare/console-web/v3.25.1...console-web/v3.25.2) (2026-02-02)
 
 
