@@ -1,4 +1,4 @@
-import React, { type FC } from "react";
+import React, { type FC, useEffect, useState } from "react";
 import { buttonVariants } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { LogOut } from "iconoir-react";
@@ -11,6 +11,12 @@ import { OnboardingView } from "./OnboardingView/OnboardingView";
 
 export const OnboardingPage: FC = () => {
   const { analyticsService, authService } = useServices();
+  const [isLoginVisible, setIsLoginVisible] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoginVisible(true), 1500);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleLogout = () => {
     analyticsService.track("onboarding_logout", {
@@ -20,17 +26,20 @@ export const OnboardingPage: FC = () => {
   };
 
   return (
-    <div>
+    <div className="flex min-h-full flex-col">
       <CustomNextSeo title="Free Trial Onboarding" url={`${domainName}${UrlService.newSignup()}`} />
-      <div className="container mx-auto px-4 py-12">
+      <div className="container mx-auto flex-1 px-4 py-12">
         <OnboardingContainer>{props => <OnboardingView {...props} />}</OnboardingContainer>
+      </div>
 
-        <div className="py-8 text-center">
-          <button className={cn(buttonVariants({ variant: "ghost" }), "inline-flex items-center gap-2")} onClick={handleLogout}>
-            <LogOut className="h-4 w-4" />
-            Logout
-          </button>
-        </div>
+      <div className={cn("pb-4 text-center transition-opacity duration-500", isLoginVisible ? "opacity-100" : "opacity-0")}>
+        <button
+          className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "inline-flex items-center gap-1.5 text-xs text-muted-foreground")}
+          onClick={handleLogout}
+        >
+          <LogOut className="h-3 w-3" />
+          Logout
+        </button>
       </div>
     </div>
   );

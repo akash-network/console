@@ -5,6 +5,7 @@ import { useTheme } from "next-themes";
 import { useSnackbar } from "notistack";
 
 import Layout from "@src/components/layout/Layout";
+import OnboardingRedirect from "@src/components/onboarding/OnboardingRedirect/OnboardingRedirect";
 import { ThreeDSecurePopup } from "@src/components/shared/PaymentMethodForm/ThreeDSecurePopup";
 import { PaymentMethodsList } from "@src/components/shared/PaymentMethodsList";
 import { Title } from "@src/components/shared/Title";
@@ -13,7 +14,9 @@ import { PaymentSuccessAnimation } from "@src/components/user/payment/PaymentSuc
 import { usePaymentPolling } from "@src/context/PaymentPollingProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { Guard } from "@src/hoc/guard/guard.hoc";
 import { use3DSecure } from "@src/hooks/use3DSecure";
+import { useIsOnboarded } from "@src/hooks/useIsOnboarded";
 import { useUser } from "@src/hooks/useUser";
 import { defineServerSideProps } from "@src/lib/nextjs/defineServerSideProps/defineServerSideProps";
 import { redirectIfAccessTokenExpired } from "@src/lib/nextjs/pageGuards/pageGuards";
@@ -340,7 +343,7 @@ const PayPage: React.FunctionComponent = () => {
   );
 };
 
-export default PayPage;
+export default Guard(PayPage, useIsOnboarded, OnboardingRedirect);
 
 export const getServerSideProps = defineServerSideProps({
   if: redirectIfAccessTokenExpired,

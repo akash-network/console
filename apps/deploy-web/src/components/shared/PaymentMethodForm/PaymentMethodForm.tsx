@@ -7,6 +7,7 @@ import { StripeInput } from "../StripeInput";
 
 interface PaymentMethodFormProps {
   onSuccess: (organization?: string) => void;
+  onReady?: () => void;
   buttonText?: string;
   processingText?: string;
   className?: string;
@@ -14,6 +15,7 @@ interface PaymentMethodFormProps {
 
 export const PaymentMethodForm: React.FC<PaymentMethodFormProps> = ({
   onSuccess,
+  onReady,
   buttonText = "Add Card",
   processingText = "Processing...",
   className = ""
@@ -83,6 +85,7 @@ export const PaymentMethodForm: React.FC<PaymentMethodFormProps> = ({
           options={{
             layout: "tabs"
           }}
+          onReady={onReady}
         />
       </div>
 
