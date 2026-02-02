@@ -1,7 +1,7 @@
 import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { secondsInMinute } from "date-fns";
 import { Context, Next } from "hono";
-import { Unauthorized } from "http-errors";
+import { BadRequest, Unauthorized } from "http-errors";
 import { LRUCache } from "lru-cache";
 import { singleton } from "tsyringe";
 
@@ -38,8 +38,20 @@ export class AuthInterceptor implements HonoInterceptor {
   intercept() {
     return async (c: Context, next: Next) => {
       const bearer = c.req.header("authorization");
+      const apiKey = c.req.header("x-api-key");
 
-      const userId = bearer && (await this.userAuthService.getValidUserId(bearer, c.env));
+      if (bearer && apiKey) {
+        throw new BadRequest("Authorization and X-Api-Key headers are mutually exclusive");
+      }
+
+      let userId: string | null | undefined;
+      if (bearer) {
+        try {
+          userId = await this.userAuthService.getValidUserId(bearer, c.env);
+        } catch (error) {
+          this.logger.warn({ event: "AUTH_TOKEN_VALIDATION_FAILED", error });
+        }
+      }
 
       if (userId) {
         const currentUser = await this.userRepository.findByUserId(userId);
@@ -47,8 +59,6 @@ export class AuthInterceptor implements HonoInterceptor {
         c.set("user", currentUser);
         return await next();
       }
-
-      const apiKey = c.req.header("x-api-key");
 
       if (apiKey) {
         try {
