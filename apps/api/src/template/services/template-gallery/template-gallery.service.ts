@@ -50,12 +50,16 @@ export class TemplateGalleryService {
   }
 
   async getGallerySummaryBuffer(): Promise<Buffer> {
-    this.#templatesSummaryCache ??= this.#fs.readFile(this.#summaryCachePath());
+    this.#templatesSummaryCache ??= this.#fs.readFile(this.#summaryCachePath()).catch(error => {
+      this.#templatesSummaryCache = undefined;
+      throw error;
+    });
     return this.#templatesSummaryCache;
   }
 
   async refreshCache(categoriesSchema: z.ZodSchema): Promise<void> {
     await this.buildTemplateGalleryCache(categoriesSchema);
+    this.#templatesSummaryCache = undefined;
     this.#parsedTemplates.clear();
     this.templateFetcher?.clearArchiveCache();
   }
@@ -71,11 +75,15 @@ export class TemplateGalleryService {
 
     const summary = categoriesSchema.parse(gallery);
     await this.#fs.writeFile(this.#summaryCachePath(), JSON.stringify({ data: summary }));
-    await PromisePool.for(allTemplates)
+    const { errors } = await PromisePool.for(allTemplates)
       .withConcurrency(100)
       .process(async template => {
         await this.#fs.writeFile(this.#templateCachePath(template.id), JSON.stringify(template));
       });
+
+    if (errors.length > 0) {
+      throw errors[0];
+    }
   }
 
   #templateCachePath(templateId: string): string {
