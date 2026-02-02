@@ -135,8 +135,8 @@ jobs:
           SHA: ${{ github.event.pull_request.head.sha }}
           APP: ${{ inputs.app }}
         run: |
-          RETRIES=3
-          SLEEP_TIMEOUT=15
+          RETRIES=5
+          SLEEP_TIMEOUT=30
           RETRY_ATTEMPT=0
           CHECK_NAME="codecov/patch/$APP"
           echo "Checking $CHECK_NAME for SHA=$SHA"
@@ -149,12 +149,7 @@ jobs:
             status="${result%% *}"
             conclusion="${result#* }"
 
-            if [ -z "$status" ] || [ "$status" = "null" ]; then
-              echo "$CHECK_NAME not found on this commit"
-              exit 1
-            fi
-
-            if [ "$status" != "completed" ]; then
+            if [[ "$status" != "completed" ]]; then
               RETRY_ATTEMPT=$((RETRY_ATTEMPT + 1))
               if [ $RETRY_ATTEMPT -lt $RETRIES ]; then
                 echo "Check not completed yet (status: $status). Retry $RETRY_ATTEMPT/$RETRIES in ${SLEEP_TIMEOUT}s..."

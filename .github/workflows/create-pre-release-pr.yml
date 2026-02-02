@@ -59,8 +59,10 @@ jobs:
           echo "Getting base branch SHA..."
           echo "base_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
-      - name: Setup Node.js
-        uses: volta-cli/action@v4
+      - name: Setup Nodejs
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: "package.json"
 
       - name: Restore Dependencies Cache
         uses: actions/cache@v4
