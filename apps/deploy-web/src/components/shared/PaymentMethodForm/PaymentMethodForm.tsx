@@ -7,7 +7,7 @@ import { StripeInput } from "../StripeInput";
 
 interface PaymentMethodFormProps {
   onSuccess: (organization?: string) => void;
-  onReady?: () => void;
+  onReady?: React.ComponentProps<typeof PaymentElement>["onReady"];
   buttonText?: string;
   processingText?: string;
   className?: string;
