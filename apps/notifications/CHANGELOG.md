@@ -1,5 +1,12 @@
 
 
+## [2.13.4](https://github.com/akash-network/console/compare/notifications/v2.13.3...notifications/v2.13.4) (2026-02-02)
+
+
+### Code Refactoring
+
+* outputs built templates into separate files for summary and templates ([#2643](https://github.com/akash-network/console/issues/2643)) ([3bdb346](https://github.com/akash-network/console/commit/3bdb3469bda4a77503df66f6b7eb1960f876f376))
+
 ## [2.13.3](https://github.com/akash-network/console/compare/notifications/v2.13.2...notifications/v2.13.3) (2026-01-30)
 
 
