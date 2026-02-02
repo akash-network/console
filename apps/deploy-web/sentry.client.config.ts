@@ -15,7 +15,7 @@ initSentry({
   ],
   // propagate sentry-trace and baggage headers to internal API only
   // everything else will be done with custom interceptor
-  tracePropagationTargets: [/^\/api\//, /^\/_next\//],
+  tracePropagationTargets: [/^\/api\/(?!collect)/, /^\/_next\//],
   integrations: [
     // Filter out errors originating from browser extensions
     // Note: uses inboundFiltersIntegration (not eventFiltersIntegration) to override defaultIntegrations
