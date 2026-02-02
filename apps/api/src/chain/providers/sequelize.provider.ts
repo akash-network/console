@@ -65,17 +65,18 @@ async function syncUserSchema() {
 
 container.register(APP_INITIALIZER, {
   useFactory: instancePerContainerCachingFactory(
-    DisposableRegistry.registerFromFactory(
-      c =>
-        ({
-          async [ON_APP_START]() {
-            await connectUsingSequelize(c.resolve(LoggerService));
-          },
-          async dispose() {
-            await Promise.all([c.resolve(CHAIN_DB).close(), c.resolve(USER_DB).close()]);
-          }
-        }) satisfies AppInitializer & Disposable
-    )
+    DisposableRegistry.registerFromFactory(c => {
+      const chainDb = c.resolve(CHAIN_DB);
+      const userDb = c.resolve(USER_DB);
+      return {
+        async [ON_APP_START]() {
+          await connectUsingSequelize(c.resolve(LoggerService));
+        },
+        async dispose() {
+          await Promise.all([chainDb.close(), userDb.close()]);
+        }
+      } satisfies AppInitializer & Disposable;
+    })
   )
 });
 
