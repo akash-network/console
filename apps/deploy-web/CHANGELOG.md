@@ -1,5 +1,20 @@
 
 
+## [3.25.2](https://github.com/akash-network/console/compare/console-web/v3.25.1...console-web/v3.25.2) (2026-02-02)
+
+
+### Bug Fixes
+
+* corrects wallet balance calculation ([#2624](https://github.com/akash-network/console/issues/2624)) ([bdf7846](https://github.com/akash-network/console/commit/bdf78463c3b166e1ff8bcfbde9af863dd0e1ecb1))
+* properly proxy body-less requests ([#2641](https://github.com/akash-network/console/issues/2641)) ([adb6f56](https://github.com/akash-network/console/commit/adb6f5647c202aafa92e38324aafe8f60c03f1f8))
+
+
+### Code Refactoring
+
+* outputs built templates into separate files for summary and templates ([#2643](https://github.com/akash-network/console/issues/2643)) ([3bdb346](https://github.com/akash-network/console/commit/3bdb3469bda4a77503df66f6b7eb1960f876f376))
+* remove RentGpusForm ([#2634](https://github.com/akash-network/console/issues/2634)) ([2ed168e](https://github.com/akash-network/console/commit/2ed168e6ecd8b40885583dd85cf7e2a05c9ade56))
+* replaces http-proxy package in deploy-web with fetch API and nginx proxy ([#2638](https://github.com/akash-network/console/issues/2638)) ([cdb480b](https://github.com/akash-network/console/commit/cdb480b1bc4df71c865a7757a0382b3e67795302))
+
 ## [3.25.1](https://github.com/akash-network/console/compare/console-web/v3.25.0...console-web/v3.25.1) (2026-01-30)
 
 

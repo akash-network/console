@@ -1,5 +1,18 @@
 
 
+## [3.26.1](https://github.com/akash-network/console/compare/console-api/v3.26.0...console-api/v3.26.1) (2026-02-02)
+
+
+### Bug Fixes
+
+* fixes dispose of sequelize db connections ([#2642](https://github.com/akash-network/console/issues/2642)) ([da3610e](https://github.com/akash-network/console/commit/da3610ee444af84df6b33d0ba45e6b1b137560e3))
+
+
+### Code Refactoring
+
+* moves sequelize creation into DI container factory ([#2636](https://github.com/akash-network/console/issues/2636)) ([977950b](https://github.com/akash-network/console/commit/977950b2ba88058bccf31c4725e6ec21fe72dc85))
+* outputs built templates into separate files for summary and templates ([#2643](https://github.com/akash-network/console/issues/2643)) ([3bdb346](https://github.com/akash-network/console/commit/3bdb3469bda4a77503df66f6b7eb1960f876f376))
+
 ## [3.26.0](https://github.com/akash-network/console/compare/console-api/v3.25.0...console-api/v3.26.0) (2026-01-30)
 
 
