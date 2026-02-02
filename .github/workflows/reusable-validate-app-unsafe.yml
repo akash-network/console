@@ -12,6 +12,19 @@ on:
         description: "The path to the workspace to validate"
         required: true
         type: string
+      pr_head_ref:
+        description: "PR head branch ref (optional, defaults to github.event.pull_request.head.ref)"
+        required: false
+        type: string
+      pr_head_repo:
+        description: "PR head repository full name (optional, defaults to github.event.pull_request.head.repo.full_name)"
+        required: false
+        type: string
+      skip_change_detection:
+        description: "Skip change detection and always run (useful when called from workflow_run context)"
+        required: false
+        type: boolean
+        default: false
     secrets:
       gh-token:
         description: "github token used to fetch changed files in PR"
@@ -22,6 +35,7 @@ on:
 
 jobs:
   should-validate-unsafe:
+    if: ${{ !inputs.skip_change_detection }}
     uses: ./.github/workflows/reusable-should-validate.yml
     secrets:
       gh-token: ${{ secrets.gh-token }}
@@ -31,13 +45,13 @@ jobs:
   validate-unsafe:
     needs: should-validate-unsafe
     runs-on: ubuntu-latest
-    if: needs.should-validate-unsafe.outputs.has_changes == 'true'
+    if: always() && (inputs.skip_change_detection || needs.should-validate-unsafe.outputs.has_changes == 'true')
     steps:
       - name: Checkout UNTRUSTED user's fork
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ inputs.pr_head_ref || github.event.pull_request.head.ref }}
+          repository: ${{ inputs.pr_head_repo || github.event.pull_request.head.repo.full_name }}
           path: ./untrusted-user-fork
       - name: Copy .dcignore
         shell: bash

@@ -1,17 +1,17 @@
-# We need a separate workflow to get access to secrets because github doesn't share secrets on pull_request events.
-# https://docs.github.com/en/actions/reference/events-that-trigger-workflows#pull_request_target
+# Security scan workflow triggered after CI completes successfully.
+# Uses workflow_run to run in base repo context, giving access to secrets for fork PRs.
 #
 # !!!! PLEASE be extra careful here and treat forked repository as untrusted user input !!!!
 
-name: Unsafe CI
+name: Security Scan
 on:
-  pull_request_target:
-    branches:
-      - main
-      - main-sdk-next
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.workflow_run.head_branch }}
   cancel-in-progress: true
 
 permissions:
@@ -20,39 +20,122 @@ permissions:
 
 jobs:
   setup:
+    # Only run on successful CI for pull requests
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request'
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.matrix.outputs.value }}
+      should_run: ${{ steps.check_label.outputs.should_run }}
+      skip_reason: ${{ steps.check_label.outputs.skip_reason }}
+      pr_head_ref: ${{ steps.associated_pr.outputs.head_ref }}
+      pr_head_repo: ${{ steps.associated_pr.outputs.head_repo }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Get associated PR
+        id: associated_pr
+        uses: ./.github/actions/associated-pr
         with:
-          ref: ${{ github.event.pull_request.head.repo.full_name == github.repository &&
-            github.event.pull_request.head.ref ||
-            github.event.pull_request.base.ref }}
-      - id: matrix
+          sha: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Check for skip label
+        id: check_label
+        env:
+          PR_NUMBER: ${{ steps.associated_pr.outputs.number }}
+          PR_LABELS: ${{ steps.associated_pr.outputs.labels }}
         run: |
-          # validate packages all at once because they are shared and validate each app separately
-          results=("packages")
-          for pattern in $(jq -r '.workspaces[] | select(. | startswith("./packages/") | not)' package.json); do
-            for dir in $pattern; do
-              [[ -d "$dir" ]] && results+=("${dir#./}")
-            done
+          if [[ -z "$PR_NUMBER" ]]; then
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            echo "skip_reason=No PR found for commit" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if echo "$PR_LABELS" | grep -q "ignore-static-security-analysis"; then
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            echo "skip_reason=Label 'ignore-static-security-analysis' is present" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "skip_reason=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build matrix from changed files
+        if: steps.check_label.outputs.should_run == 'true'
+        id: matrix
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.associated_pr.outputs.number }}
+        run: |
+          # Get changed files from PR
+          changed_files=$(gh api "/repos/${{ github.repository }}/pulls/$PR_NUMBER/files" \
+            --paginate --jq '.[].filename')
+
+          # Get all apps
+          all_apps=$(find apps/* -type d -print0 -maxdepth 0 | xargs -0 -n1 basename)
+
+          # Filter apps that have changes
+          changed_apps=()
+          for app in $all_apps; do
+            if echo "$changed_files" | grep -q "^apps/$app/"; then
+              changed_apps+=("$app")
+            fi
           done
 
-          workspaces=$(printf '"%s",' "${results[@]}")
-          workspaces="[${workspaces%,}]"
-          echo "workspaces=$workspaces"
+          if [ ${#changed_apps[@]} -eq 0 ]; then
+            echo "No apps have changes, skipping security scan"
+            echo "value=" >> "$GITHUB_OUTPUT"
+          else
+            workspaces=$(printf '"%s",' "${changed_apps[@]}")
+            workspaces="[${workspaces%,}]"
+            echo "Apps with changes: $workspaces"
+            echo 'value={"workspace":'"$workspaces"'}' >> "$GITHUB_OUTPUT"
+          fi
 
-          echo 'value={"workspace":'"$workspaces"'}' >> "$GITHUB_OUTPUT"
-
-  validate:
+  security-scan:
     needs: setup
+    if: needs.setup.outputs.should_run == 'true' && needs.setup.outputs.matrix != ''
     strategy:
       matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
+      fail-fast: false
     uses: ./.github/workflows/reusable-validate-app-unsafe.yml
     secrets:
       gh-token: ${{ secrets.GITHUB_TOKEN }}
       snyk-token: ${{ secrets.SNYK_TOKEN }}
     with:
-      path: ${{ matrix.workspace }}
+      path: apps/${{ matrix.workspace }}
+      pr_head_ref: ${{ needs.setup.outputs.pr_head_ref }}
+      pr_head_repo: ${{ needs.setup.outputs.pr_head_repo }}
+      skip_change_detection: true
+
+  # Result job creates a single check that can be used as a required status check.
+  # This ensures a check is always created for PRs, even when security scan is skipped.
+  result:
+    runs-on: ubuntu-latest
+    needs: [setup, security-scan]
+    if: always() && needs.setup.result == 'success'
+    steps:
+      - name: Check result
+        env:
+          SHOULD_RUN: ${{ needs.setup.outputs.should_run }}
+          SKIP_REASON: ${{ needs.setup.outputs.skip_reason }}
+          MATRIX: ${{ needs.setup.outputs.matrix }}
+          SCAN_RESULT: ${{ needs.security-scan.result }}
+        run: |
+          if [[ "$SHOULD_RUN" != "true" ]]; then
+            echo "SKIPPED: $SKIP_REASON"
+            exit 0
+          fi
+
+          if [[ -z "$MATRIX" ]]; then
+            echo "SKIPPED: No apps have changes in this PR"
+            exit 0
+          fi
+
+          if [[ "$SCAN_RESULT" != "success" ]]; then
+            echo "Security scan failed with result: $SCAN_RESULT"
+            exit 1
+          fi
+
+          echo "Security scan completed successfully ✅"
