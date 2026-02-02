@@ -5,7 +5,7 @@ import { cacheEngine } from "@src/caching/helpers";
 import type { LoggerService } from "@src/core";
 import type { Category, Template } from "../../types/template";
 import type { TemplateFetcherService } from "../template-fetcher/template-fetcher.service";
-import type { FileSystemApi, GalleriesCache } from "./template-gallery.service";
+import type { FileSystemApi } from "./template-gallery.service";
 import { TemplateGalleryService } from "./template-gallery.service";
 
 describe(TemplateGalleryService.name, () => {
@@ -107,129 +107,145 @@ describe(TemplateGalleryService.name, () => {
     });
   });
 
-  describe("getCachedTemplateGallery", () => {
-    it("returns cached gallery from file", async () => {
+  describe("getGallerySummaryBuffer", () => {
+    it("reads and returns summary buffer from file", async () => {
       const { service, fsMock } = setup();
-      const cache = createGalleriesCache({
-        templates: [{ id: "t1", name: "Template 1" }],
-        categories: [{ title: "AI" }]
-      });
+      const summaryData = { data: [{ title: "AI" }] };
+      const summaryBuffer = Buffer.from(JSON.stringify(summaryData));
 
-      fsMock.access.mockResolvedValue(undefined);
-      fsMock.readFile.mockResolvedValue(serializeGalleriesCache(cache));
+      fsMock.readFile.mockResolvedValue(summaryBuffer);
 
-      const result = await service.getCachedTemplateGallery();
+      const result = await service.getGallerySummaryBuffer();
 
-      expect(result.metadata).toEqual(cache.metadata);
-      expect(result.categories).toBe(cache.categories);
-      expect(result.templates).toBe(cache.templates);
-    });
-
-    it("throws error when cache file not found", async () => {
-      const { service, fsMock } = setup();
-
-      fsMock.access.mockRejectedValue(new Error("File not found"));
-
-      await expect(service.getCachedTemplateGallery()).rejects.toThrow("Template gallery cache file not found");
+      expect(result).toEqual(summaryBuffer);
+      expect(fsMock.readFile).toHaveBeenCalledWith("/data/templates/v1/templates-list.json");
     });
 
     it("caches result in memory on subsequent calls", async () => {
       const { service, fsMock } = setup();
-      const cache = createGalleriesCache({
-        templates: [{ id: "t1", name: "Template 1" }],
-        categories: [{ title: "AI" }]
-      });
+      const summaryBuffer = Buffer.from(JSON.stringify({ data: [] }));
 
-      fsMock.access.mockResolvedValue(undefined);
-      fsMock.readFile.mockResolvedValue(serializeGalleriesCache(cache));
+      fsMock.readFile.mockResolvedValue(summaryBuffer);
 
-      const firstResult = await service.getCachedTemplateGallery();
-      const secondResult = await service.getCachedTemplateGallery();
+      const firstResult = await service.getGallerySummaryBuffer();
+      const secondResult = await service.getGallerySummaryBuffer();
 
       expect(firstResult).toBe(secondResult);
       expect(fsMock.readFile).toHaveBeenCalledTimes(1);
     });
   });
 
-  describe("buildTemplateGalleryCache", () => {
-    it("builds cache from template gallery and writes to file", async () => {
+  describe("refreshCache", () => {
+    it("rebuilds cache and clears parsed templates", async () => {
       const { service, templateFetcher, fsMock } = setup();
       const template = { id: "t1", name: "Template 1" } as Template;
       const templates = [createCategory({ title: "AI", templates: [template] })];
       const categoriesSchema = z.array(z.object({ title: z.string() }));
 
       templateFetcher.fetchAwesomeAkashTemplates.mockResolvedValue(templates);
+      fsMock.mkdir.mockResolvedValue(undefined);
+      fsMock.writeFile.mockResolvedValue(undefined);
 
-      const result = await service.buildTemplateGalleryCache(categoriesSchema);
+      await service.refreshCache(categoriesSchema);
 
-      expect(fsMock.writeFile).toHaveBeenCalledWith("/data/templates/templates-gallery.json", expect.any(String));
-      expect(result.metadata.templatesRanges).toHaveProperty("t1");
-      expect(result.categories).toContain('"title":"AI"');
+      expect(fsMock.writeFile).toHaveBeenCalledWith("/data/templates/v1/templates-list.json", expect.any(String));
+    });
+
+    it("clears template fetcher archive cache", async () => {
+      const { service, templateFetcher, fsMock } = setup();
+      const categoriesSchema = z.array(z.object({ title: z.string() }));
+
+      templateFetcher.fetchAwesomeAkashTemplates.mockResolvedValue([]);
+      fsMock.mkdir.mockResolvedValue(undefined);
+      fsMock.writeFile.mockResolvedValue(undefined);
+
+      await service.refreshCache(categoriesSchema);
+
+      expect(templateFetcher.clearArchiveCache).toHaveBeenCalled();
+    });
+  });
+
+  describe("buildTemplateGalleryCache", () => {
+    it("creates templates directory and writes summary file", async () => {
+      const { service, templateFetcher, fsMock } = setup();
+      const template = { id: "t1", name: "Template 1" } as Template;
+      const templates = [createCategory({ title: "AI", templates: [template] })];
+      const categoriesSchema = z.array(z.object({ title: z.string() }));
+
+      templateFetcher.fetchAwesomeAkashTemplates.mockResolvedValue(templates);
+      fsMock.mkdir.mockResolvedValue(undefined);
+      fsMock.writeFile.mockResolvedValue(undefined);
+
+      await service.buildTemplateGalleryCache(categoriesSchema);
+
+      expect(fsMock.mkdir).toHaveBeenCalledWith("/data/templates/v1/templates", { recursive: true });
+      expect(fsMock.writeFile).toHaveBeenCalledWith("/data/templates/v1/templates-list.json", expect.stringContaining('"data"'));
+    });
+
+    it("writes individual template files", async () => {
+      const { service, templateFetcher, fsMock } = setup();
+      const template1 = { id: "t1", name: "Template 1" } as Template;
+      const template2 = { id: "t2", name: "Template 2" } as Template;
+      const templates = [createCategory({ title: "AI", templates: [template1, template2] })];
+      const categoriesSchema = z.array(z.object({ title: z.string() }));
+
+      templateFetcher.fetchAwesomeAkashTemplates.mockResolvedValue(templates);
+      fsMock.mkdir.mockResolvedValue(undefined);
+      fsMock.writeFile.mockResolvedValue(undefined);
+
+      await service.buildTemplateGalleryCache(categoriesSchema);
+
+      expect(fsMock.writeFile).toHaveBeenCalledWith("/data/templates/v1/templates/t1.json", JSON.stringify(template1));
+      expect(fsMock.writeFile).toHaveBeenCalledWith("/data/templates/v1/templates/t2.json", JSON.stringify(template2));
     });
   });
 
   describe("getTemplateById", () => {
-    it("returns template when found in cache", async () => {
+    it("returns template when found in file", async () => {
       const { service, fsMock } = setup();
       const template = { id: "t1", name: "Template 1" };
-      const cache = createGalleriesCache({
-        templates: [template],
-        categories: [{ title: "AI" }]
-      });
 
-      fsMock.access.mockResolvedValue(undefined);
-      fsMock.readFile.mockResolvedValue(serializeGalleriesCache(cache));
+      fsMock.readFile.mockResolvedValue(JSON.stringify(template));
 
       const result = await service.getTemplateById("t1");
 
       expect(result).toEqual(template);
+      expect(fsMock.readFile).toHaveBeenCalledWith("/data/templates/v1/templates/t1.json", "utf8");
     });
 
-    it("returns null when template ID not found in cache", async () => {
-      const { service, fsMock } = setup();
-      const cache = createGalleriesCache({
-        templates: [{ id: "t1", name: "Template 1" }],
-        categories: [{ title: "AI" }]
-      });
+    it("returns null when template file not found", async () => {
+      const { service, fsMock, logger } = setup();
 
-      fsMock.access.mockResolvedValue(undefined);
-      fsMock.readFile.mockResolvedValue(serializeGalleriesCache(cache));
+      fsMock.readFile.mockRejectedValue(new Error("File not found"));
 
       const result = await service.getTemplateById("non-existent");
 
       expect(result).toBeNull();
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: "GET_TEMPLATE_BY_ID_ERROR",
+          templateId: "non-existent"
+        })
+      );
     });
 
     it("caches parsed template in memory", async () => {
       const { service, fsMock } = setup();
       const template = { id: "t1", name: "Template 1" };
-      const cache = createGalleriesCache({
-        templates: [template],
-        categories: [{ title: "AI" }]
-      });
 
-      fsMock.access.mockResolvedValue(undefined);
-      fsMock.readFile.mockResolvedValue(serializeGalleriesCache(cache));
+      fsMock.readFile.mockResolvedValue(JSON.stringify(template));
 
       const firstResult = await service.getTemplateById("t1");
       const secondResult = await service.getTemplateById("t1");
 
       expect(firstResult).toBe(secondResult);
+      expect(fsMock.readFile).toHaveBeenCalledTimes(1);
     });
 
     it("returns null and logs error when template content is invalid JSON", async () => {
       const { service, fsMock, logger } = setup();
-      const invalidCache: GalleriesCache = {
-        metadata: {
-          templatesRanges: { t1: [0, 10] },
-          templatesOffset: 5
-        },
-        categories: "[]",
-        templates: "invalid-json"
-      };
 
-      fsMock.access.mockResolvedValue(undefined);
-      fsMock.readFile.mockResolvedValue(serializeGalleriesCache(invalidCache));
+      fsMock.readFile.mockResolvedValue("invalid-json");
 
       const result = await service.getTemplateById("t1");
 
@@ -258,10 +274,10 @@ describe(TemplateGalleryService.name, () => {
     const templateFetcher = mock<TemplateFetcherService>({
       fetchLatestCommitSha: jest.fn(() => Promise.resolve("abc123")),
       fetchAwesomeAkashTemplates: jest.fn(() => Promise.resolve([])),
-      fetchOmnibusTemplates: jest.fn(() => Promise.resolve([]))
+      fetchOmnibusTemplates: jest.fn(() => Promise.resolve([])),
+      clearArchiveCache: jest.fn()
     });
 
-    // HACK: assigning private properties to the service object. will refactor later
     Object.assign(service, { templateFetcher });
 
     return {
@@ -287,34 +303,5 @@ describe(TemplateGalleryService.name, () => {
       ...overrides,
       templates: (overrides.templates || []) as Category["templates"]
     };
-  }
-
-  function createGalleriesCache(data: { templates: Array<{ id: string; name?: string }>; categories: Array<{ title: string }> }): GalleriesCache {
-    const serializedTemplates = data.templates.map(t => JSON.stringify(t));
-    const serializedCategories = JSON.stringify(data.categories);
-
-    let offset = 0;
-    const templatesRanges = data.templates.reduce(
-      (acc, template, index) => {
-        const serialized = serializedTemplates[index];
-        acc[template.id] = [offset, offset + serialized.length];
-        offset += serialized.length + 1;
-        return acc;
-      },
-      {} as Record<string, [number, number]>
-    );
-
-    return {
-      metadata: {
-        templatesRanges,
-        templatesOffset: serializedCategories.length + 1
-      },
-      categories: serializedCategories,
-      templates: serializedTemplates.join("\n")
-    };
-  }
-
-  function serializeGalleriesCache(cache: GalleriesCache): string {
-    return `${JSON.stringify(cache.metadata)}\n${cache.categories}\n${cache.templates}`;
   }
 });

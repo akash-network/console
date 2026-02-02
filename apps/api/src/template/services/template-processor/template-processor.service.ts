@@ -89,7 +89,7 @@ export class TemplateProcessorService {
   ): Template | null {
     if (!readme || !deploy) return null;
 
-    const id = `${templateSource.repoOwner}-${templateSource.repoName}-${templateSource.path}`;
+    const id = `${templateSource.repoOwner}-${templateSource.repoName}-${templateSource.path.replace(/[\\/]+/g, "-")}`;
     const defaultConfig: TemplateConfig = { ssh: false, logoUrl: "" };
     const template = {
       id,

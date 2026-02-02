@@ -68,7 +68,17 @@ export const createAppRootContainer = (config: ServicesConfig) => {
       container.applyAxiosInterceptors(new TxHttpService(registry, apiConfig), {
         request: [withUserToken]
       }),
-    template: () => container.applyAxiosInterceptors(new TemplateHttpService(apiConfig)),
+    template: () => {
+      const httpClient = container.createAxios({
+        baseURL: container.publicConfig.NEXT_PUBLIC_BASE_TEMPLATES_URL
+      });
+      if (config.runtimeEnv === "browser") {
+        // Need to remove these extra headers to avoid CORS preflight requests
+        delete httpClient.defaults.headers["Content-Type"];
+        delete httpClient.defaults.headers.common.Accept;
+      }
+      return new TemplateHttpService(httpClient);
+    },
     usage: () =>
       container.applyAxiosInterceptors(new UsageHttpService(apiConfig), {
         request: [withUserToken]

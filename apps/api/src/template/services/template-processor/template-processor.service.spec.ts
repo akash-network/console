@@ -286,7 +286,7 @@ describe(TemplateProcessorService.name, () => {
 
       const result = service.processTemplate(templateSource, "readme", "deploy", null, null);
 
-      expect(result?.id).toBe("test-owner-test-repo-templates/app");
+      expect(result?.id).toBe("test-owner-test-repo-templates-app");
     });
 
     it("sets persistentStorageEnabled to true when deploy contains persistent: true", () => {
