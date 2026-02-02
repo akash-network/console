@@ -14,7 +14,6 @@ import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom";
 import { useReturnTo } from "@src/hooks/useReturnTo";
 import { useUser } from "@src/hooks/useUser";
 import { usePaymentMethodsQuery } from "@src/queries/usePaymentQueries";
-import { useTemplates } from "@src/queries/useTemplateQuery";
 import { ONBOARDING_STEP_KEY } from "@src/services/storage/keys";
 import { RouteStep } from "@src/types/route-steps.type";
 import { deploymentData } from "@src/utils/deploymentData";
@@ -53,7 +52,6 @@ const DEPENDENCIES = {
   useServices,
   useRouter,
   useWallet,
-  useTemplates,
   useCertificate,
   useSnackbar,
   useManagedWalletDenom,
@@ -78,9 +76,17 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
   const { user } = d.useUser();
   const { data: paymentMethods = [] } = d.usePaymentMethodsQuery({ enabled: !!user?.stripeCustomerId });
   const { minDeposit } = d.useChainParam();
-  const { analyticsService, urlService, chainApiHttpClient, deploymentLocalStorage, errorHandler, windowLocation, windowHistory } = d.useServices();
+  const {
+    analyticsService,
+    urlService,
+    chainApiHttpClient,
+    deploymentLocalStorage,
+    errorHandler,
+    windowLocation,
+    windowHistory,
+    template: templateService
+  } = d.useServices();
   const { hasManagedWallet, isWalletLoading, connectManagedWallet, address, signAndBroadcastTx } = d.useWallet();
-  const { templates } = d.useTemplates();
   const { genNewCertificateIfLocalIsInvalid, updateSelectedCertificate } = d.useCertificate();
   const { enqueueSnackbar } = d.useSnackbar();
   const managedDenom = d.useManagedWalletDenom();
@@ -236,7 +242,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
         let sdl = templateConfig.sdl;
 
         if (templateConfig.id) {
-          const template = templates.find(t => t.id === templateConfig.id);
+          const template = await templateService.findById(templateConfig.id);
           if (!template || !template.deploy) {
             const error = new Error(`Template ${templateName} SDL not found`);
             errorHandler.reportError({
@@ -305,7 +311,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
       router,
       urlService,
       connectManagedWallet,
-      templates,
+      templateService,
       chainApiHttpClient,
       address,
       minDeposit,

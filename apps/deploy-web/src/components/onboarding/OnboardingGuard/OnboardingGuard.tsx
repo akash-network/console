@@ -20,7 +20,12 @@ export const OnboardingGuard: FC<{ children: ReactNode }> = ({ children }) => {
   const isExcluded = EXCLUDED_PREFIXES.some(prefix => router.pathname.startsWith(prefix));
 
   useEffect(() => {
-    if (isUserLoading || isWalletLoading || isExcluded) {
+    if (isExcluded) {
+      setIsRedirecting(false);
+      return;
+    }
+
+    if (isUserLoading || isWalletLoading) {
       return;
     }
 
