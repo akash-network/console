@@ -12,7 +12,7 @@
   "scripts": {
     "build": "npm run build:app && npm run build:akash-templates",
     "build:akash-templates": "tsup scripts/buildAkashTemplatesCache.ts -d dist/scripts && node dist/scripts/buildAkashTemplatesCache.js",
-    "build:app": "NODE_ENV=production tsup",
+    "build:app": "NODE_ENV=production tsup && tsc -p tsconfig.json --noEmit",
     "build:container": "dc build api",
     "console": "npm run build:app && node dist/console.js",
     "dev": "npm run start",

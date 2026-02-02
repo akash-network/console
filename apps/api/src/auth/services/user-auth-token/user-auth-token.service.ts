@@ -1,6 +1,6 @@
 import { singleton } from "tsyringe";
 
-import { kvStore } from "@src/middlewares/userMiddleware";
+import { cacheEngine } from "@src/caching/helpers";
 import { getJwks, useKVStore, verify, VerifyRsaJwtEnv } from "@src/verify-rsa-jwt-cloudflare-worker-main";
 import { AuthConfigService } from "../auth-config/auth-config.service";
 
@@ -20,7 +20,7 @@ export class UserAuthTokenService {
       throw new Error("Environment variable AUTH0_JWKS_URI is not set and options.JWKS_URI is not provided");
     }
 
-    const jwks = await getJwks(jwksUri, useKVStore(kvStore || options?.VERIFY_RSA_JWT), options?.VERIFY_RSA_JWT_JWKS_CACHE_KEY);
+    const jwks = await getJwks(jwksUri, useKVStore(kvStore), options?.VERIFY_RSA_JWT_JWKS_CACHE_KEY);
     const result = await verify(token, jwks);
 
     if (!result.payload) {
@@ -30,3 +30,19 @@ export class UserAuthTokenService {
     return (result.payload as { sub: string }).sub;
   }
 }
+
+const kvStore = {
+  async get(key: string, format: string) {
+    const result = cacheEngine.getFromCache(key);
+    if (!result) {
+      return null;
+    } else if (format === "json" && typeof result === "string") {
+      return JSON.parse(result);
+    } else {
+      return cacheEngine.getFromCache(key);
+    }
+  },
+  async put(key: string, value: unknown) {
+    cacheEngine.storeInCache(key, value);
+  }
+};

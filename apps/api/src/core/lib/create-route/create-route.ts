@@ -4,36 +4,24 @@ import { createRoute as createOpenApiRoute } from "@hono/zod-openapi";
 import type { MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
 
+import { type CacheConfig, cacheControlMiddleware } from "@src/middlewares/cacheControlMiddleware/cacheControlMiddleware";
 import { contentTypeMiddleware } from "@src/middlewares/contentTypeMiddleware/contentTypeMiddleware";
 
-export interface CacheConfig {
-  maxAge: number;
-  staleWhileRevalidate?: number;
-}
-
 export interface ExtendedRouteConfig<R extends RouteConfig> {
+  /**
+   * HTTP Cache-Control configuration. If not provided, the route will not be cached.
+   * Only supported for GET, HEAD, and OPTIONS methods.
+   */
   cache?: CacheConfig;
   /**
    * Max size of the body in bytes. If not provided, the body limit will be set to 512Kb.
+   * Only supported for POST, PUT, PATCH, and DELETE methods.
    */
   bodyLimit?: Parameters<typeof bodyLimit>[0];
   routeConfig: R;
 }
 
-// Registry to store cache configs by path pattern
-const cacheConfigRegistry = new Map<string, CacheConfig>();
-
-export function getCacheConfig(path: string): CacheConfig | undefined {
-  // Try exact match first (for static paths)
-  if (cacheConfigRegistry.has(path)) {
-    return cacheConfigRegistry.get(path);
-  }
-
-  // Convert Hono's :param format to OpenAPI's {param} format for lookup
-  // e.g., /v1/nodes/:network -> /v1/nodes/{network}
-  const adjustedPath = path.replace(/:([^/]+)/g, "{$1}");
-  return cacheConfigRegistry.get(adjustedPath);
-}
+const NO_CACHE = cacheControlMiddleware({ maxAge: 0 });
 
 export function createRoute<
   R extends Omit<RouteConfig, "security"> & {
@@ -45,10 +33,6 @@ export function createRoute<
 >(routeConfig: R) {
   const { cache, bodyLimit: bodyLimitOptions, additionalContentTypes, ...openApiConfig } = routeConfig;
   let middlewares: MiddlewareHandler[] = [];
-
-  if (cache) {
-    cacheConfigRegistry.set(openApiConfig.path, cache);
-  }
 
   if (routeConfig.method !== "get" && routeConfig.method !== "head") {
     middlewares.push(
@@ -71,6 +55,10 @@ export function createRoute<
         supportedContentTypes
       })
     );
+  }
+
+  if (routeConfig.method === "get" || routeConfig.method === "head" || routeConfig.method === "options") {
+    middlewares.push(cache ? cacheControlMiddleware(cache) : NO_CACHE);
   }
 
   if (openApiConfig.middleware) {
