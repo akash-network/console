@@ -1,4 +1,4 @@
-import React, { type FC, useEffect, useState } from "react";
+import React, { type FC } from "react";
 import { buttonVariants } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { LogOut } from "iconoir-react";
@@ -11,12 +11,6 @@ import { OnboardingView } from "./OnboardingView/OnboardingView";
 
 export const OnboardingPage: FC = () => {
   const { analyticsService, authService } = useServices();
-  const [isLoginVisible, setIsLoginVisible] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoginVisible(true), 1500);
-    return () => clearTimeout(timer);
-  }, []);
 
   const handleLogout = () => {
     analyticsService.track("onboarding_logout", {
@@ -32,7 +26,7 @@ export const OnboardingPage: FC = () => {
         <OnboardingContainer>{props => <OnboardingView {...props} />}</OnboardingContainer>
       </div>
 
-      <div className={cn("pb-4 text-center transition-opacity duration-500", isLoginVisible ? "opacity-100" : "opacity-0")}>
+      <div className="pb-4 text-center transition-opacity duration-500">
         <button
           className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "inline-flex items-center gap-1.5 text-xs text-muted-foreground")}
           onClick={handleLogout}
