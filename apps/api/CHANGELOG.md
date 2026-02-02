@@ -1,5 +1,12 @@
 
 
+## [3.26.2](https://github.com/akash-network/console/compare/console-api/v3.26.1...console-api/v3.26.2) (2026-02-02)
+
+
+### Code Refactoring
+
+*  moves userRouter into modular user service architecture with AuthService ([#2600](https://github.com/akash-network/console/issues/2600)) ([45124ed](https://github.com/akash-network/console/commit/45124edb39cf83536331b2741a8eb28ccdc1d2eb))
+
 ## [3.26.1](https://github.com/akash-network/console/compare/console-api/v3.26.0...console-api/v3.26.1) (2026-02-02)
 
 
