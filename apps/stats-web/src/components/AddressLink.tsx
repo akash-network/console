@@ -12,6 +12,8 @@ type Props = {
 };
 
 export const AddressLink: React.FunctionComponent<Props> = ({ address }) => {
+  if (!address) return null;
+
   let href = null;
   if (address.startsWith("akashvaloper")) {
     href = UrlService.validator(address);
