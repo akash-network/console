@@ -187,3 +187,12 @@ legacyRouter.get("/getGraphData/:dataName", async c => {
   const dataName = c.req.param("dataName");
   return c.redirect(`/v1/graph-data/${dataName}`, redirectStatusCode);
 });
+
+legacyRouter.get("/v1/templates-list.json", async c => {
+  return c.redirect("/v1/templates-list", redirectStatusCode);
+});
+
+legacyRouter.get("/v1/templates/:id.json", async c => {
+  const id = c.req.param("id");
+  return c.redirect(`/v1/templates/${id}`, redirectStatusCode);
+});

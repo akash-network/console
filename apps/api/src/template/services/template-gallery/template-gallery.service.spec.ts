@@ -118,7 +118,7 @@ describe(TemplateGalleryService.name, () => {
       const result = await service.getGallerySummaryBuffer();
 
       expect(result).toEqual(summaryBuffer);
-      expect(fsMock.readFile).toHaveBeenCalledWith("/data/templates/summary.json");
+      expect(fsMock.readFile).toHaveBeenCalledWith("/data/templates/v1/templates-list.json");
     });
 
     it("caches result in memory on subsequent calls", async () => {
@@ -148,7 +148,7 @@ describe(TemplateGalleryService.name, () => {
 
       await service.refreshCache(categoriesSchema);
 
-      expect(fsMock.writeFile).toHaveBeenCalledWith("/data/templates/summary.json", expect.any(String));
+      expect(fsMock.writeFile).toHaveBeenCalledWith("/data/templates/v1/templates-list.json", expect.any(String));
     });
 
     it("clears template fetcher archive cache", async () => {
@@ -178,8 +178,8 @@ describe(TemplateGalleryService.name, () => {
 
       await service.buildTemplateGalleryCache(categoriesSchema);
 
-      expect(fsMock.mkdir).toHaveBeenCalledWith("/data/templates/by-id", { recursive: true });
-      expect(fsMock.writeFile).toHaveBeenCalledWith("/data/templates/summary.json", expect.stringContaining('"data"'));
+      expect(fsMock.mkdir).toHaveBeenCalledWith("/data/templates/v1/templates", { recursive: true });
+      expect(fsMock.writeFile).toHaveBeenCalledWith("/data/templates/v1/templates-list.json", expect.stringContaining('"data"'));
     });
 
     it("writes individual template files", async () => {
@@ -195,8 +195,8 @@ describe(TemplateGalleryService.name, () => {
 
       await service.buildTemplateGalleryCache(categoriesSchema);
 
-      expect(fsMock.writeFile).toHaveBeenCalledWith("/data/templates/by-id/t1.json", JSON.stringify(template1));
-      expect(fsMock.writeFile).toHaveBeenCalledWith("/data/templates/by-id/t2.json", JSON.stringify(template2));
+      expect(fsMock.writeFile).toHaveBeenCalledWith("/data/templates/v1/templates/t1.json", JSON.stringify(template1));
+      expect(fsMock.writeFile).toHaveBeenCalledWith("/data/templates/v1/templates/t2.json", JSON.stringify(template2));
     });
   });
 
@@ -210,7 +210,7 @@ describe(TemplateGalleryService.name, () => {
       const result = await service.getTemplateById("t1");
 
       expect(result).toEqual(template);
-      expect(fsMock.readFile).toHaveBeenCalledWith("/data/templates/by-id/t1.json", "utf8");
+      expect(fsMock.readFile).toHaveBeenCalledWith("/data/templates/v1/templates/t1.json", "utf8");
     });
 
     it("returns null when template file not found", async () => {

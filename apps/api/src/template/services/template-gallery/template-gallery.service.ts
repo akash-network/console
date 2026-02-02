@@ -67,7 +67,7 @@ export class TemplateGalleryService {
       return templates;
     }, []);
 
-    await this.#fs.mkdir(`${this.#galleriesCachePath}/by-id`, { recursive: true });
+    await this.#fs.mkdir(`${this.#galleriesCachePath}/v1/templates`, { recursive: true });
 
     const summary = categoriesSchema.parse(gallery);
     await this.#fs.writeFile(this.#summaryCachePath(), JSON.stringify({ data: summary }));
@@ -79,11 +79,11 @@ export class TemplateGalleryService {
   }
 
   #templateCachePath(templateId: string): string {
-    return `${this.#galleriesCachePath}/by-id/${templateId}.json`;
+    return `${this.#galleriesCachePath}/v1/templates/${templateId}.json`;
   }
 
   #summaryCachePath(): string {
-    return `${this.#galleriesCachePath}/summary.json`;
+    return `${this.#galleriesCachePath}/v1/templates-list.json`;
   }
 
   /**
