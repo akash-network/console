@@ -1,42 +1,28 @@
-name: Release Deploy Web
+name: Deploy Console Web
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "apps/deploy-web/package.json"
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to deploy (e.g., latest, 1.0.0, v1.0.0)"
+        required: true
+        type: string
+        default: latest
 
 jobs:
-  release:
-    name: Create Release
-    uses: ./.github/workflows/reusable-create-github-release.yml
-    secrets: inherit
+  setup:
+    uses: ./.github/workflows/reusable-deploy-setup.yml
     with:
-      app: deploy-web
-
-  build-beta:
-    needs: release
-    name: Build Beta Docker image
-    if: needs.release.outputs.git_tag != ''
-    uses: ./.github/workflows/reusable-build-image.yml
-    secrets: inherit
-    permissions:
-      contents: write
-      packages: write
-    with:
-      tag: ${{ needs.release.outputs.git_tag }}-beta
-      deployment-env: staging
+      image_tag: console-web/${{ inputs.image_tag }}
 
   deploy-beta:
-    needs: build-beta
+    needs: setup
     name: Deploy to beta
-    if: needs.build-beta.outputs.base_image_tag != ''
     uses: ./.github/workflows/reusable-deploy-k8s.yml
     secrets: inherit
     with:
       app: console-web
-      appVersion: ${{ needs.build-beta.outputs.base_image_tag }}
+      appVersion: ${{ needs.setup.outputs.image_tag }}
       environment: staging
 
   test-beta:
@@ -52,30 +38,15 @@ jobs:
           gh-user-to-slack-user: ${{ vars.GH_USER_TO_SLACK_USER }}
           testing-client-token: ${{ secrets.CONSOLE_WEB_E2E_TESTING_CLIENT_TOKEN_BETA }}
 
-  build-prod:
-    needs: release
-    if: needs.release.outputs.git_tag != ''
-    name: Build Prod Docker image
-    uses: ./.github/workflows/reusable-build-image.yml
-    secrets: inherit
-    permissions:
-      contents: write
-      packages: write
-    with:
-      tag: ${{ needs.release.outputs.git_tag }}
-      deployment-env: production
-
   deploy-prod:
     permissions:
       contents: read
       pull-requests: read
-    needs:
-      - test-beta
-      - build-prod
+    needs: [setup, test-beta]
     name: Deploy to prod
     uses: ./.github/workflows/reusable-deploy-k8s.yml
     secrets: inherit
     with:
       app: console-web
-      appVersion: ${{ needs.build-prod.outputs.base_image_tag }}
+      appVersion: ${{ needs.setup.outputs.image_tag }}
       environment: prod

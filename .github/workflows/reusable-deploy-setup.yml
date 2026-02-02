@@ -1,0 +1,43 @@
+name: Deploy Setup
+
+on:
+  workflow_call:
+    inputs:
+      image_tag:
+        description: "Full image tag (e.g., console-api/latest, console-api/1.0.0, console-api/v1.0.0)"
+        required: true
+        type: string
+    outputs:
+      image_tag:
+        description: "Resolved image tag to deploy"
+        value: ${{ jobs.setup.outputs.image_tag }}
+
+permissions:
+  contents: read
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.extract.outputs.image_tag }}
+    steps:
+      - id: extract
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${{ inputs.image_tag }}"
+          package_name="${tag%%/*}"
+          version="${tag#*/}"
+
+          # Remove 'v' prefix if present
+          version="${version#v}"
+
+          if [[ "$version" == "latest" ]]; then
+            # Fetch latest from registry
+            version=$(gh api "/orgs/${{ github.repository_owner }}/packages/container/${package_name}/versions" --jq '.[0].metadata.container.tags[0]')
+          fi
+
+          # Remove beta suffix if present
+          version="${version%-beta}"
+
+          echo "image_tag=$version" >> "$GITHUB_OUTPUT"

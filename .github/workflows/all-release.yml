@@ -1,0 +1,88 @@
+name: Release app
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "apps/*/package.json"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: read
+  actions: write
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      backends: ${{ steps.matrix.outputs.backends }}
+      nextjs: ${{ steps.matrix.outputs.nextjs }}
+    steps:
+      - uses: actions/checkout@v6
+      - id: matrix
+        env:
+          COMMITS: ${{ toJson(github.event.commits) }}
+        # shellcheck disable=SC2016
+        run: |
+          node -e '
+            const fs = require("fs");
+            const commits = JSON.parse(process.env.COMMITS);
+
+            // App to deploy workflow mapping
+            const APP_ALIASES = {
+              "api": "console-api",
+              "deploy-web": "console-web",
+            };
+            const workflowFile = (app) => (APP_ALIASES[app] || app) + "-release.yml";
+
+            // Get all changed files from all commits
+            const changedFiles = commits.flatMap(c => [...c.added, ...c.modified]);
+            const apps = Array.from(new Set(
+              changedFiles
+                .filter(f => f.match(/^apps\/[^/]+\/package\.json$/))
+                .map(f => f.split("/")[1])
+            ));
+
+            const nextjs = apps
+              .filter(a => fs.readdirSync("apps/" + a).some(f => f.startsWith("next.config")))
+              .map(a => ({ app: a, deploy_workflow: workflowFile(a) }));
+            const backends = apps
+              .filter(a => !nextjs.some(n => n.app === a) && a !== "log-collector")
+              .map(a => ({ app: a, deploy_workflow: workflowFile(a) }));
+
+            console.log("nextjs=" + JSON.stringify({ include: nextjs }));
+            console.log("backends=" + JSON.stringify({ include: backends }));
+          ' >> "$GITHUB_OUTPUT"
+
+  release-backends:
+    needs: setup
+    if: fromJson(needs.setup.outputs.backends).include[0]
+    strategy:
+      matrix: ${{ fromJson(needs.setup.outputs.backends) }}
+    uses: ./.github/workflows/reusable-release-app.yml
+    secrets: inherit
+    permissions:
+      contents: write
+      packages: write
+      actions: write
+    with:
+      app: ${{ matrix.app }}
+      deploy_workflow: ${{ matrix.deploy_workflow }}
+
+  release-nextjs:
+    needs: setup
+    if: fromJson(needs.setup.outputs.nextjs).include[0]
+    strategy:
+      matrix: ${{ fromJson(needs.setup.outputs.nextjs) }}
+    uses: ./.github/workflows/reusable-release-nextjs-app.yml
+    secrets: inherit
+    permissions:
+      contents: write
+      packages: write
+      actions: write
+    with:
+      app: ${{ matrix.app }}
+      deploy_workflow: ${{ matrix.deploy_workflow }}
