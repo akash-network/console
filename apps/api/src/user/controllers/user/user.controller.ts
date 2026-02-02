@@ -46,4 +46,36 @@ export class UserController {
 
     return { data: this.authService.currentUser as UserSchema };
   }
+
+  async getUserByUsername(username: string) {
+    const user = await this.userService.getUserByUsername(username);
+    assert(user, 404, "User not found");
+    return user;
+  }
+
+  async updateSettings(data: {
+    username: string;
+    subscribedToNewsletter: boolean;
+    bio: string;
+    youtubeUsername: string;
+    twitterUsername: string;
+    githubUsername: string;
+  }): Promise<void> {
+    assert(this.authService.currentUser?.userId, 401);
+
+    const userId = this.authService.currentUser.userId;
+    await this.userService.updateUserDetails(userId, data);
+  }
+
+  async checkUsernameAvailable(username: string) {
+    const existingUser = await this.userService.getUserByUsername(username);
+    const isAvailable = !existingUser;
+    return { isAvailable };
+  }
+
+  async subscribeToNewsletter() {
+    assert(this.authService.currentUser?.userId, 401);
+    const userId = this.authService.currentUser.userId;
+    await this.userService.subscribeToNewsletter(userId);
+  }
 }

@@ -7,7 +7,7 @@ import { LoggerService } from "@src/core/providers/logging.provider";
 import { isUniqueViolation } from "@src/core/repositories/base.repository";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
-import { type UserOutput, UserRepository } from "../../repositories/user/user.repository";
+import { UserInput, type UserOutput, UserRepository } from "../../repositories/user/user.repository";
 
 @singleton()
 export class UserService {
@@ -114,6 +114,41 @@ export class UserService {
     assert(user, 404);
 
     return user;
+  }
+
+  async getUserByUsername(username: string): Promise<Pick<UserOutput, "username" | "bio"> | null> {
+    const user = await this.userRepository.findOneBy({ username: username });
+
+    if (!user) return null;
+
+    return {
+      username: user.username,
+      bio: user.bio
+    };
+  }
+
+  async updateUserDetails(
+    userId: string,
+    data: Pick<UserInput, "username" | "subscribedToNewsletter" | "bio" | "youtubeUsername" | "twitterUsername" | "githubUsername">
+  ): Promise<void> {
+    const user = await this.userRepository.findById(userId);
+    assert(user, 404, "User settings not found: " + userId);
+
+    const changes: Partial<UserInput> = {
+      ...data
+    };
+
+    if (data.username && user.username !== data.username) {
+      const existingUser = await this.userRepository.findOneBy({ username: data.username });
+      assert(!existingUser, 422, `Username not available: ${data.username} (${userId})`);
+      changes.username = data.username;
+    }
+
+    await this.userRepository.updateById(userId, changes);
+  }
+
+  async subscribeToNewsletter(userId: string) {
+    await this.userRepository.updateById(userId, { subscribedToNewsletter: true });
   }
 }
 
