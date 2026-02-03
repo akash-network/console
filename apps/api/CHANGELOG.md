@@ -1,5 +1,12 @@
 
 
+## [3.27.1](https://github.com/akash-network/console/compare/console-api/v3.27.0...console-api/v3.27.1) (2026-02-03)
+
+
+### Code Refactoring
+
+* removes dead code related to user endpoints ([#2650](https://github.com/akash-network/console/issues/2650)) ([823030c](https://github.com/akash-network/console/commit/823030cf2635d641fb1838e247e1459ac1b395c1))
+
 ## [3.27.0](https://github.com/akash-network/console/compare/console-api/v3.26.2...console-api/v3.27.0) (2026-02-03)
 
 
