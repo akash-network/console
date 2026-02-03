@@ -1,7 +1,11 @@
 name: Get Associated PR
-description: Gets the associated PR for a commit (takes commit from github context)
+description: Gets the associated PR for a commit (takes commit from github context or sha input)
 
 inputs:
+  sha:
+    description: Commit SHA to look up (defaults to github.sha)
+    required: false
+    default: ""
   gh-user-to-slack-user:
     description: GitHub user to Slack user mapping
     required: false
@@ -20,6 +24,15 @@ outputs:
   slack-user:
     description: The Slack user of the author
     value: ${{ steps.associated-pr.outputs.slack-user }}
+  head_ref:
+    description: The head branch ref of the PR
+    value: ${{ steps.associated-pr.outputs.head_ref }}
+  head_repo:
+    description: The head repository full name of the PR
+    value: ${{ steps.associated-pr.outputs.head_repo }}
+  labels:
+    description: Comma-separated list of PR labels
+    value: ${{ steps.associated-pr.outputs.labels }}
 
 runs:
   using: "composite"
@@ -28,8 +41,10 @@ runs:
       id: associated-pr
       env:
         GH_USER_TO_SLACK_USER: ${{ inputs.gh-user-to-slack-user }}
+        INPUT_SHA: ${{ inputs.sha }}
       with:
         script: |
+          const commitSha = process.env.INPUT_SHA || context.sha;
           let pr = context.payload.pull_request;
 
           // Retry logic to handle timing issues with GitHub API
@@ -48,7 +63,7 @@ runs:
 
               const response = (
                 await github.rest.repos.listPullRequestsAssociatedWithCommit({
-                  commit_sha: context.sha,
+                  commit_sha: commitSha,
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                 })
@@ -72,16 +87,22 @@ runs:
           }
 
           if (!pr) {
-            core.warning(`No PR found for commit ${context.sha} after retries`);
+            core.warning(`No PR found for commit ${commitSha} after retries`);
             core.setOutput('number', '');
             core.setOutput('title', '');
             core.setOutput('author', '');
             core.setOutput('slack-user', '');
+            core.setOutput('head_ref', '');
+            core.setOutput('head_repo', '');
+            core.setOutput('labels', '');
             return;
           }
 
           core.setOutput('number', pr.number);
           core.setOutput('title', pr.title);
+          core.setOutput('head_ref', pr.head.ref);
+          core.setOutput('head_repo', pr.head.repo?.full_name || '');
+          core.setOutput('labels', (pr.labels || []).map(l => l.name).join(','));
 
           const author = pr.merged_by?.login || pr.user.login;
           core.setOutput('author', author);
