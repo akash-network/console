@@ -21,11 +21,9 @@ export const useManagedWallet = () => {
   const hasAutoSwitched = useRef(false);
 
   useEffect(() => {
-    if (!hasAutoSwitched.current && queried) {
+    if (!hasAutoSwitched.current && queried && selectedWalletType === "custodial") {
+      setSelectedWalletType("managed");
       hasAutoSwitched.current = true;
-      if (selectedWalletType === "custodial") {
-        setSelectedWalletType("managed");
-      }
     }
   }, [queried, selectedWalletType, setSelectedWalletType]);
 
