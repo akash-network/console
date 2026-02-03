@@ -2,6 +2,8 @@ import { defineConfig, devices } from "@playwright/test";
 import dotenv from "dotenv";
 import path from "path";
 
+import { getUserAgent } from "./tests/ui/fixture/base-test"; // for process.env types
+
 dotenv.config({ path: path.resolve(__dirname, "env/.env.test") });
 
 /**
@@ -35,7 +37,8 @@ export default defineConfig({
       name: "chromium",
       use: {
         ...devices["Desktop Chrome"],
-        channel: "chromium" // https://github.com/microsoft/playwright/issues/33566
+        channel: "chromium", // https://github.com/microsoft/playwright/issues/33566
+        userAgent: getUserAgent()
       }
     }
 

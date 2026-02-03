@@ -4,7 +4,7 @@ import os from "os";
 import path from "path";
 
 import { selectChainNetwork } from "../actions/selectChainNetwork";
-import { injectUIConfig, test as baseTest } from "./base-test";
+import { getUserAgent, injectUIConfig, test as baseTest } from "./base-test";
 import { testEnvConfig } from "./test-env.config";
 import { awaitWalletAndApprove, connectWalletViaLeap, getExtensionPage, setupWallet } from "./wallet-setup";
 
@@ -13,7 +13,7 @@ export const PATH_TO_EXTENSION = path.join(os.tmpdir(), "console-deploy-web-e2e-
 // @see https://playwright.dev/docs/chrome-extensions
 export const test = baseTest.extend<ExtensionContext>({
   // eslint-disable-next-line no-empty-pattern
-  context: async ({}, use) => {
+  context: async ({ contextOptions }, use) => {
     const args = [
       // keep new line
       `--disable-extensions-except=${PATH_TO_EXTENSION}`,
@@ -22,9 +22,11 @@ export const test = baseTest.extend<ExtensionContext>({
 
     const userDataDirForTest = `${testEnvConfig.USER_DATA_DIR}-${crypto.randomUUID()}`;
     const context = await chromium.launchPersistentContext(userDataDirForTest, {
+      ...contextOptions,
+      userAgent: getUserAgent(),
       channel: "chromium",
       args,
-      permissions: ["clipboard-read", "clipboard-write"]
+      permissions: (contextOptions.permissions ?? []).concat(["clipboard-read", "clipboard-write"])
     });
 
     try {

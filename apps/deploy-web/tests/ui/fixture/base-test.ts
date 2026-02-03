@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { test as baseTest } from "@playwright/test";
+import { devices, test as baseTest } from "@playwright/test";
 
 export * from "@playwright/test";
 
@@ -19,4 +19,8 @@ export async function injectUIConfig(page: Page) {
       NEXT_PUBLIC_TURNSTILE_SITE_KEY: "1x00000000000000000000AA"
     });
   });
+}
+
+export function getUserAgent() {
+  return `${devices["Desktop Chrome"].userAgent} UIT/${process.env.E2E_TESTING_CLIENT_TOKEN}.`;
 }
