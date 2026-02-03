@@ -1,5 +1,12 @@
 
 
+## [3.25.5](https://github.com/akash-network/console/compare/console-web/v3.25.4...console-web/v3.25.5) (2026-02-03)
+
+
+### Bug Fixes
+
+* adds E2E_TESTING_CLIENT_TOKEN to userAgent to disable rate limiting ([#2660](https://github.com/akash-network/console/issues/2660)) ([e9e4a7c](https://github.com/akash-network/console/commit/e9e4a7cef28e5cce1e0c502af5f442d39cdcc999))
+
 ## [3.25.4](https://github.com/akash-network/console/compare/console-web/v3.25.3...console-web/v3.25.4) (2026-02-03)
 
 
