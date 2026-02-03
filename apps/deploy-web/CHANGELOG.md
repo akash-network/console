@@ -1,5 +1,13 @@
 
 
+## [3.25.4](https://github.com/akash-network/console/compare/console-web/v3.25.3...console-web/v3.25.4) (2026-02-03)
+
+
+### Bug Fixes
+
+* hides deployment stepper on the first step and fixes wallet btn spacing ([4f246dd](https://github.com/akash-network/console/commit/4f246dd7332567d5b1e57224b00722a57920d4f1))
+* switch container build target to production ([#2647](https://github.com/akash-network/console/issues/2647)) ([d583e61](https://github.com/akash-network/console/commit/d583e615431f543ba84c1302efec9b878645acd8))
+
 ## [3.25.3](https://github.com/akash-network/console/compare/console-web/v3.25.2...console-web/v3.25.3) (2026-02-02)
 
 

@@ -1,5 +1,12 @@
 
 
+## [1.24.4](https://github.com/akash-network/console/compare/indexer/v1.24.3...indexer/v1.24.4) (2026-02-03)
+
+
+### Bug Fixes
+
+* switch container build target to production ([#2647](https://github.com/akash-network/console/issues/2647)) ([d583e61](https://github.com/akash-network/console/commit/d583e615431f543ba84c1302efec9b878645acd8))
+
 ## [1.24.3](https://github.com/akash-network/console/compare/indexer/v1.24.2...indexer/v1.24.3) (2026-01-30)
 
 

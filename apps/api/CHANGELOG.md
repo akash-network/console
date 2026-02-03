@@ -1,5 +1,17 @@
 
 
+## [3.27.0](https://github.com/akash-network/console/compare/console-api/v3.26.2...console-api/v3.27.0) (2026-02-03)
+
+
+### Features
+
+* enhance AuthInterceptor to handle invalid bearer tokens ([#2612](https://github.com/akash-network/console/issues/2612)) ([a4ece4b](https://github.com/akash-network/console/commit/a4ece4b5a935f92f7a5b42a60e2db14f1875dc70))
+
+
+### Bug Fixes
+
+* switch container build target to production ([#2647](https://github.com/akash-network/console/issues/2647)) ([d583e61](https://github.com/akash-network/console/commit/d583e615431f543ba84c1302efec9b878645acd8))
+
 ## [3.26.2](https://github.com/akash-network/console/compare/console-api/v3.26.1...console-api/v3.26.2) (2026-02-02)
 
 

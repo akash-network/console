@@ -1,5 +1,12 @@
 
 
+## [2.12.5](https://github.com/akash-network/console/compare/log-collector/v2.12.4...log-collector/v2.12.5) (2026-02-03)
+
+
+### Bug Fixes
+
+* switch container build target to production ([#2647](https://github.com/akash-network/console/issues/2647)) ([d583e61](https://github.com/akash-network/console/commit/d583e615431f543ba84c1302efec9b878645acd8))
+
 ## [2.12.4](https://github.com/akash-network/console/compare/log-collector/v2.12.3...log-collector/v2.12.4) (2026-02-02)
 
 
