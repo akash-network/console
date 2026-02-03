@@ -1,0 +1,3 @@
+deploymentEnv: production
+
+hostName: console-admin-api.akash.network

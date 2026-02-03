@@ -1,4 +1,23 @@
 services:
+  admin-api:
+    image: ${ADMIN_API_REPO:-console-admin-api}:${ADMIN_API_TAG:-latest}
+    build:
+      context: ../..
+      dockerfile: packages/docker/Dockerfile.node
+      target: production
+      args:
+        WORKSPACE: apps/admin-api
+
+  admin-web:
+    image: ${ADMIN_WEB_REPO:-console-admin-web}:${ADMIN_WEB_TAG:-latest}
+    build:
+      context: ../..
+      dockerfile: packages/docker/Dockerfile.nextjs
+      target: production
+      args:
+        WORKSPACE: apps/admin-web
+        DEPLOYMENT_ENV: ${DEPLOYMENT_ENV}
+
   api:
     image: ${API_REPO:-console-api}:${API_TAG:-latest}
     build:

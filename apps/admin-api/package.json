@@ -11,6 +11,7 @@
   "main": "dist/server.js",
   "scripts": {
     "build": "NODE_ENV=production tsup",
+    "build:container": "dc build admin-api",
     "dev": "npm run start",
     "format": "prettier --write ./*.{js,json} **/*.{ts,js,json}",
     "lint": "eslint .",

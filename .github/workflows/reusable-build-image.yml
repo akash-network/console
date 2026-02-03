@@ -80,7 +80,13 @@ jobs:
         run: |
           tag="${{ inputs.tag }}"
 
-          if [[ "$tag" == console-api/* ]]; then
+          if [[ "$tag" == admin-api/* ]]; then
+            echo "registry=${{ vars.ADMIN_API_REGISTRY }}" >> "$GITHUB_ENV"
+            echo "app=admin-api" >> "$GITHUB_ENV"
+          elif [[ "$tag" == admin-web/* ]]; then
+            echo "registry=${{ vars.ADMIN_WEB_REGISTRY }}" >> "$GITHUB_ENV"
+            echo "app=admin-web" >> "$GITHUB_ENV"
+          elif [[ "$tag" == console-api/* ]]; then
             echo "registry=${{ vars.API_REGISTRY }}" >> "$GITHUB_ENV"
             echo "app=api" >> "$GITHUB_ENV"
             echo "GITHUB_PAT=${{ secrets.TEMPLATES_GITHUB_PAT || secrets.GITHUB_TOKEN }}" >> "$GITHUB_ENV" # used to fetch Akash templates

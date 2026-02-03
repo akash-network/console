@@ -15,6 +15,8 @@ on:
         required: true
         type: choice
         options:
+          - admin-api
+          - admin-web
           - console-web
           - console-web-testnet
           - console-api
