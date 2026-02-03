@@ -67,7 +67,7 @@ describe("useTemplateQuery", () => {
       });
 
       await waitFor(() => {
-        expect(consoleApiHttpClient.get).toHaveBeenCalledWith("/user/templates/test-user");
+        expect(consoleApiHttpClient.get).toHaveBeenCalledWith("/v1/user/templates/test-user");
         expect(result.current.isSuccess).toBe(true);
         expect(result.current.data).toEqual([mockTemplate]);
       });
@@ -100,7 +100,7 @@ describe("useTemplateQuery", () => {
       });
 
       await waitFor(() => {
-        expect(consoleApiHttpClient.get).toHaveBeenCalledWith("/user/favoriteTemplates");
+        expect(consoleApiHttpClient.get).toHaveBeenCalledWith("/v1/user/favoriteTemplates");
         expect(result.current.isSuccess).toBe(true);
         expect(result.current.data).toEqual(favoriteTemplates);
       });
@@ -141,7 +141,7 @@ describe("useTemplateQuery", () => {
       });
 
       await waitFor(() => {
-        expect(consoleApiHttpClient.get).toHaveBeenCalledWith("/user/template/template-1");
+        expect(consoleApiHttpClient.get).toHaveBeenCalledWith("/v1/user/template/template-1");
         expect(result.current.isSuccess).toBe(true);
         expect(result.current.data).toEqual(mockTemplate);
       });
@@ -188,7 +188,7 @@ describe("useTemplateQuery", () => {
 
       act(() => result.current.mutate(templateData));
       await waitFor(() => {
-        expect(consoleApiHttpClient.post).toHaveBeenCalledWith("/user/saveTemplate", {
+        expect(consoleApiHttpClient.post).toHaveBeenCalledWith("/v1/user/saveTemplate", {
           id: undefined,
           sdl: "version: '2.0'",
           isPublic: true,
@@ -240,7 +240,7 @@ describe("useTemplateQuery", () => {
 
       act(() => result.current.mutate());
       await waitFor(() => {
-        expect(consoleApiHttpClient.delete).toHaveBeenCalledWith("/user/deleteTemplate/template-1");
+        expect(consoleApiHttpClient.delete).toHaveBeenCalledWith("/v1/user/deleteTemplate/template-1");
         expect(result.current.isSuccess).toBe(true);
       });
     });
@@ -282,7 +282,7 @@ describe("useTemplateQuery", () => {
 
       act(() => result.current.mutate());
       await waitFor(async () => {
-        expect(consoleApiHttpClient.post).toHaveBeenCalledWith("/user/addFavoriteTemplate/template-1");
+        expect(consoleApiHttpClient.post).toHaveBeenCalledWith("/v1/user/addFavoriteTemplate/template-1");
         expect(result.current.isSuccess).toBe(true);
         expect(await screen.findByText(/Favorite added!/i)).toBeInTheDocument();
       });
@@ -325,7 +325,7 @@ describe("useTemplateQuery", () => {
 
       act(() => result.current.mutate());
       await waitFor(async () => {
-        expect(consoleApiHttpClient.delete).toHaveBeenCalledWith("/user/removeFavoriteTemplate/template-1");
+        expect(consoleApiHttpClient.delete).toHaveBeenCalledWith("/v1/user/removeFavoriteTemplate/template-1");
         expect(result.current.isSuccess).toBe(true);
         expect(await screen.findByText(/Favorite removed/i)).toBeInTheDocument();
       });

@@ -17,7 +17,7 @@ export function useSaveSettings() {
   const { checkSession } = useCustomUser();
 
   return useMutation<AxiosResponse<unknown, unknown>, Error, UserSettings>({
-    mutationFn: newSettings => consoleApiHttpClient.put("/user/updateSettings", newSettings),
+    mutationFn: newSettings => consoleApiHttpClient.put("/v1/user/updateSettings", newSettings),
     onSuccess: () => {
       enqueueSnackbar("Settings saved", { variant: "success" });
       checkSession();

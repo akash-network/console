@@ -38,7 +38,7 @@ export const EditDescriptionForm: React.FunctionComponent<Props> = ({ id, descri
 
   const onSubmit = async (data: FormValues) => {
     setIsSaving(true);
-    await consoleApiHttpClient.post("/user/saveTemplateDesc", {
+    await consoleApiHttpClient.post("/v1/user/saveTemplateDesc", {
       id: id,
       description: data.description
     });

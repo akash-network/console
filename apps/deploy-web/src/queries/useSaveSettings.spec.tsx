@@ -30,7 +30,7 @@ describe("Settings management", () => {
       act(() => result.current.mutate(newSettings));
       await waitFor(async () => !result.current.isPending);
 
-      expect(consoleApiHttpClient.put).toHaveBeenCalledWith(expect.stringContaining("user/updateSettings"), newSettings);
+      expect(consoleApiHttpClient.put).toHaveBeenCalledWith(expect.stringContaining("/v1/user/updateSettings"), newSettings);
       expect(fetchUser).toHaveBeenCalledTimes(2);
       expect(result.current.isSuccess).toBe(true);
       expect(await screen.findByText(/Settings saved/i)).toBeInTheDocument();
