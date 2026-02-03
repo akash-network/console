@@ -1,5 +1,12 @@
 
 
+## [3.25.6](https://github.com/akash-network/console/compare/console-web/v3.25.5...console-web/v3.25.6) (2026-02-03)
+
+
+### Bug Fixes
+
+* prepends /v1 to all user/template urls and added proxies ([#2659](https://github.com/akash-network/console/issues/2659)) ([4834db0](https://github.com/akash-network/console/commit/4834db0a26f50134710639d51c284079c98cd024))
+
 ## [3.25.5](https://github.com/akash-network/console/compare/console-web/v3.25.4...console-web/v3.25.5) (2026-02-03)
 
 
