@@ -1,6 +1,6 @@
 import type { HttpClient } from "@akashnetwork/http-sdk";
 
-import { IS_SIGNED_IN_WITH_TRIAL_KEY, ONBOARDING_STEP_KEY } from "../../storage/keys";
+import { ONBOARDING_STEP_KEY } from "../../storage/keys";
 
 export class AuthService {
   constructor(
@@ -46,7 +46,6 @@ export class AuthService {
 
   logout() {
     this.localStorage.removeItem(ONBOARDING_STEP_KEY);
-    this.localStorage.removeItem(IS_SIGNED_IN_WITH_TRIAL_KEY);
     this.location.assign(this.urlService.logout());
   }
 }
