@@ -1,5 +1,13 @@
 
 
+## [3.27.2](https://github.com/akash-network/console/compare/console-api/v3.27.1...console-api/v3.27.2) (2026-02-03)
+
+
+### Bug Fixes
+
+* adds execution context to http handling in bg jobs server ([#2662](https://github.com/akash-network/console/issues/2662)) ([bbec329](https://github.com/akash-network/console/commit/bbec329fcc95dbeac82a4b44a6eb5a2b294d0c3f))
+* prepends /v1 to all user/template urls and added proxies ([#2659](https://github.com/akash-network/console/issues/2659)) ([4834db0](https://github.com/akash-network/console/commit/4834db0a26f50134710639d51c284079c98cd024))
+
 ## [3.27.1](https://github.com/akash-network/console/compare/console-api/v3.27.0...console-api/v3.27.1) (2026-02-03)
 
 
