@@ -78,7 +78,7 @@ export class TemplateGalleryService {
     const { errors } = await PromisePool.for(allTemplates)
       .withConcurrency(100)
       .process(async template => {
-        await this.#fs.writeFile(this.#templateCachePath(template.id), JSON.stringify(template));
+        await this.#fs.writeFile(this.#templateCachePath(template.id), JSON.stringify({ data: template }));
       });
 
     if (errors.length > 0) {
@@ -143,7 +143,7 @@ export class TemplateGalleryService {
 
     try {
       const templateContent = await this.#fs.readFile(this.#templateCachePath(id), "utf8");
-      const template = JSON.parse(templateContent);
+      const template = JSON.parse(templateContent).data;
       this.#parsedTemplates.set(id, template);
       return template;
     } catch (error) {

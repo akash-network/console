@@ -41,5 +41,5 @@ export const GetTemplateByIdParamsSchema = z.object({
   })
 });
 
-export const GetTemplateByIdResponseSchema = TemplateSchema;
+export const GetTemplateByIdResponseSchema = z.object({ data: TemplateSchema });
 export type GetTemplateByIdResponse = z.infer<typeof GetTemplateByIdResponseSchema>;

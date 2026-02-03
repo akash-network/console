@@ -39,7 +39,8 @@ export class TemplateHttpService {
   }
 
   async findById(id: string): Promise<TemplateOutput> {
-    return extractData(await this.#httpClient.get<TemplateOutput>(`/v1/templates/${id}.json`));
+    const response = extractData(await this.#httpClient.get<{ data: TemplateOutput }>(`/v1/templates/${id}.json`));
+    return response.data;
   }
 
   async findGroupedByCategory(): Promise<ApiOutput<TemplateCategory[]>> {
