@@ -7,6 +7,7 @@ import { pipeline } from "node:stream/promises";
 import path from "path";
 
 import { selectChainNetwork } from "../actions/selectChainNetwork";
+import { getUserAgent } from "../fixture/base-test";
 import { PATH_TO_EXTENSION } from "../fixture/context-with-extension";
 import { testEnvConfig } from "../fixture/test-env.config";
 import { connectWalletViaLeap, getExtensionPage, importWalletToLeap, topUpWallet } from "../fixture/wallet-setup";
@@ -52,7 +53,8 @@ export default async () => {
     channel: "chromium",
     args,
     headless: !!process.env.CI,
-    permissions: ["clipboard-read", "clipboard-write"]
+    permissions: ["clipboard-read", "clipboard-write"],
+    userAgent: getUserAgent()
   });
 
   const extPage = await context.waitForEvent("page", { timeout: 5_000 }).catch(() => getExtensionPage(context));
