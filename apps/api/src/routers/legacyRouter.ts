@@ -191,9 +191,13 @@ legacyRouter.get("/v1/templates-list.json", async c => {
   return c.redirect("/v1/templates-list", redirectStatusCode);
 });
 
-legacyRouter.get("/v1/templates/:id.json", async c => {
+legacyRouter.get("/v1/templates/:id", async (c, next) => {
   const id = c.req.param("id");
-  return c.redirect(`/v1/templates/${id}`, redirectStatusCode);
+  if (!id?.endsWith(".json")) {
+    return next();
+  }
+  const templateId = id.slice(0, -5); // Remove ".json" suffix
+  return c.redirect(`/v1/templates/${templateId}`, redirectStatusCode);
 });
 
 legacyRouter.post("/user/subscribeToNewsletter", proxyToV1);

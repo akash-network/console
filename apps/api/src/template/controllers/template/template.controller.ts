@@ -13,10 +13,10 @@ export class TemplateController {
     return await this.templateGalleryService.getGallerySummaryBuffer();
   }
 
-  async getTemplateById(id: string): Promise<{ data: Template }> {
+  async getTemplateById(id: string): Promise<Template> {
     const template = await this.templateGalleryService.getTemplateById(id);
     assert(template, 404, "Template not found");
 
-    return { data: template };
+    return template;
   }
 }
