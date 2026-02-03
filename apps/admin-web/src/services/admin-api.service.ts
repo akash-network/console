@@ -1,10 +1,22 @@
 import type { ListUsersParams, PaginatedUsers, SearchUsersParams, User, UserStats } from "@src/types/user";
-import { browserEnvConfig } from "../config/browser-env.config";
 
-const API_BASE_URL = browserEnvConfig.NEXT_PUBLIC_ADMIN_API_URL;
+const PROXY_BASE_URL = "/api/proxy";
+
+interface ApiPaginatedResponse<T> {
+  data: {
+    users: T[];
+    total: number;
+    page: number;
+    pageSize: number;
+  };
+}
+
+interface ApiResponse<T> {
+  data: T;
+}
 
 async function fetchWithAuth<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const response = await fetch(`${PROXY_BASE_URL}${endpoint}`, {
     ...options,
     credentials: "include",
     headers: {
@@ -29,7 +41,11 @@ export const adminApiService = {
       pageSize: pageSize.toString()
     }).toString();
 
-    return fetchWithAuth<PaginatedUsers>(`/v1/admin/users?${queryString}`);
+    const response = await fetchWithAuth<ApiPaginatedResponse<User>>(`/v1/admin/users?${queryString}`);
+    return {
+      ...response.data,
+      totalPages: Math.ceil(response.data.total / response.data.pageSize)
+    };
   },
 
   async searchUsers(params: SearchUsersParams): Promise<PaginatedUsers> {
@@ -40,14 +56,20 @@ export const adminApiService = {
       pageSize: pageSize.toString()
     }).toString();
 
-    return fetchWithAuth<PaginatedUsers>(`/v1/admin/users/search?${queryString}`);
+    const response = await fetchWithAuth<ApiPaginatedResponse<User>>(`/v1/admin/users/search?${queryString}`);
+    return {
+      ...response.data,
+      totalPages: Math.ceil(response.data.total / response.data.pageSize)
+    };
   },
 
   async getUserById(id: string): Promise<User> {
-    return fetchWithAuth<User>(`/v1/admin/users/${id}`);
+    const response = await fetchWithAuth<ApiResponse<User>>(`/v1/admin/users/${id}`);
+    return response.data;
   },
 
   async getUserStats(): Promise<UserStats> {
-    return fetchWithAuth<UserStats>(`/v1/admin/analytics/users`);
+    const response = await fetchWithAuth<ApiResponse<UserStats>>(`/v1/admin/analytics/users`);
+    return response.data;
   }
 };

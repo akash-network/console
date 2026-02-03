@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import { cn } from "@akashnetwork/ui/utils";
-import { Group, StatsUpSquare } from "iconoir-react";
+import { Group } from "iconoir-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -17,11 +17,6 @@ const navItems: NavItem[] = [
     title: "Users",
     href: "/users",
     icon: Group
-  },
-  {
-    title: "Analytics",
-    href: "/analytics",
-    icon: StatsUpSquare
   }
 ];
 

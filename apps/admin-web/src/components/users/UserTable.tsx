@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
+import { Address, Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import { NavArrowLeft, NavArrowRight } from "iconoir-react";
 
 import type { User } from "@src/types/user";
@@ -18,13 +18,7 @@ interface UserTableProps {
 export const UserTable: React.FunctionComponent<UserTableProps> = ({ users, page, pageSize, totalPages, total, onPageChange, isLoading }) => {
   const formatCurrency = (value: number | null) => {
     if (value === null || value === undefined) return "-";
-    return `$${value.toFixed(2)}`;
-  };
-
-  const truncateAddress = (address: string | null) => {
-    if (!address) return "-";
-    if (address.length <= 16) return address;
-    return `${address.slice(0, 8)}...${address.slice(-8)}`;
+    return `$${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
   const formatDate = (dateString: string | null) => {
@@ -42,10 +36,7 @@ export const UserTable: React.FunctionComponent<UserTableProps> = ({ users, page
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[100px]">User ID</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Username</TableHead>
-              <TableHead>Wallet Address</TableHead>
+              <TableHead>Wallet Address / User</TableHead>
               <TableHead className="text-right">USD Spent</TableHead>
               <TableHead className="text-right">Credits</TableHead>
               <TableHead>Created</TableHead>
@@ -55,23 +46,29 @@ export const UserTable: React.FunctionComponent<UserTableProps> = ({ users, page
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={8} className="h-24 text-center">
+                <TableCell colSpan={5} className="h-24 text-center">
                   Loading...
                 </TableCell>
               </TableRow>
             ) : users.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="h-24 text-center">
+                <TableCell colSpan={5} className="h-24 text-center">
                   No users found.
                 </TableCell>
               </TableRow>
             ) : (
               users.map(user => (
                 <TableRow key={user.id}>
-                  <TableCell className="font-mono text-xs">{user.id.slice(0, 8)}...</TableCell>
-                  <TableCell>{user.email || "-"}</TableCell>
-                  <TableCell>{user.username || "-"}</TableCell>
-                  <TableCell className="font-mono text-xs">{truncateAddress(user.walletAddress)}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-medium">{user.email || "-"}</span>
+                      {user.walletAddress ? (
+                        <Address address={user.walletAddress} isCopyable className="text-muted-foreground text-xs" />
+                      ) : (
+                        <span className="text-muted-foreground text-xs">No wallet</span>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell className="text-right">{formatCurrency(user.totalSpent)}</TableCell>
                   <TableCell className="text-right">{formatCurrency(user.totalCredits)}</TableCell>
                   <TableCell>{formatDate(user.createdAt)}</TableCell>
