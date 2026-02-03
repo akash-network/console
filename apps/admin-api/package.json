@@ -1,5 +1,5 @@
 {
-  "name": "@akashnetwork/console-admin-api",
+  "name": "@akashnetwork/admin-api",
   "version": "1.0.0",
   "description": "Admin API for managing Akash Console users",
   "repository": {
@@ -10,11 +10,12 @@
   "author": "Akash Network",
   "main": "dist/server.js",
   "scripts": {
-    "build": "webpack --config webpack.prod.js",
-    "dev": "webpack --config webpack.dev.js --watch",
+    "build": "NODE_ENV=production tsup",
+    "dev": "npm run start",
     "format": "prettier --write ./*.{js,json} **/*.{ts,js,json}",
     "lint": "eslint .",
-    "start": "node dist/server.js",
+    "prod": "node dist/server.js",
+    "start": "tsup --watch",
     "test": "jest --selectProjects unit"
   },
   "dependencies": {
@@ -41,16 +42,10 @@
     "@types/node": "^22.13.11",
     "@typescript-eslint/eslint-plugin": "^7.12.0",
     "@typescript-eslint/parser": "^7.18.0",
-    "alias-hq": "^5.1.6",
-    "copy-webpack-plugin": "^12.0.2",
     "eslint": "^8.57.0",
-    "nodemon-webpack-plugin": "^4.8.2",
     "prettier": "^3.3.0",
-    "ts-loader": "^9.5.2",
     "ts-node": "^10.9.2",
-    "typescript": "~5.8.2",
-    "webpack": "^5.91.0",
-    "webpack-cli": "4.10.0",
-    "webpack-node-externals": "^3.0.0"
+    "tsup": "^8.5.1",
+    "typescript": "~5.8.2"
   }
 }
