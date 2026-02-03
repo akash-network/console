@@ -197,7 +197,8 @@ legacyRouter.get("/v1/templates/:id", async (c, next) => {
     return next();
   }
   const templateId = id.slice(0, -5); // Remove ".json" suffix
-  return c.redirect(`/v1/templates/${templateId}`, redirectStatusCode);
+  const queryString = new URL(c.req.url).search;
+  return c.redirect(`/v1/templates/${templateId}${queryString}`, redirectStatusCode);
 });
 
 legacyRouter.post("/user/subscribeToNewsletter", proxyToV1);
