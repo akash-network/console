@@ -1,5 +1,12 @@
 
 
+## [3.25.7](https://github.com/akash-network/console/compare/console-web/v3.25.6...console-web/v3.25.7) (2026-02-03)
+
+
+### Bug Fixes
+
+* force user onboarding ([#2639](https://github.com/akash-network/console/issues/2639)) ([c10dddb](https://github.com/akash-network/console/commit/c10dddb15705591b3c948a1ad2ff6bf06d9e9fe3))
+
 ## [3.25.6](https://github.com/akash-network/console/compare/console-web/v3.25.5...console-web/v3.25.6) (2026-02-03)
 
 
