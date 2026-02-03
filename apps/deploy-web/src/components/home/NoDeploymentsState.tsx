@@ -33,7 +33,7 @@ export const NoDeploymentsState: React.FC<Props> = ({ onDeployClick, hasDeployme
         <h3 className="mb-2 text-xl font-bold">{title}</h3>
 
         {isSignedInWithTrial && !user && (
-          <p className="mb-4 text-center text-sm text-muted-foreground">If you are expecting to see some, you may need to sign-in or connect a wallet</p>
+          <p className="mb-4 text-center text-sm text-muted-foreground">If you are expecting to see some, you may need to sign in or connect a wallet</p>
         )}
 
         {showTemplatesButton && (
