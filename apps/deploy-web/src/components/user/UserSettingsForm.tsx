@@ -73,7 +73,7 @@ export const UserSettingsForm: FC<{ user: CustomUserProfile }> = ({ user }) => {
     if (user && username && username.length >= 3 && username.length <= 40 && username !== user.username) {
       const timeoutId = setTimeout(async () => {
         setIsCheckingAvailability(true);
-        const response = await consoleApiHttpClient.get(`/user/checkUsernameAvailability/${username}`);
+        const response = await consoleApiHttpClient.get(`/v1/user/checkUsernameAvailability/${username}`);
 
         setIsCheckingAvailability(false);
         setIsAvailable(response.data.isAvailable);

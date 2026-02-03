@@ -10,7 +10,7 @@ export const userTemplatesRouter = new OpenApiHonoHandler();
 
 const getTemplateByIdRoute = createRoute({
   method: "get",
-  path: "/user/template/{id}",
+  path: "/v1/user/template/{id}",
   summary: "Get template by ID",
   tags: ["Users"],
   security: SECURITY_NONE,
@@ -40,7 +40,7 @@ userTemplatesRouter.openapi(getTemplateByIdRoute, async function getTemplateById
 
 const saveTemplateRoute = createRoute({
   method: "post",
-  path: "/user/saveTemplate",
+  path: "/v1/user/saveTemplate",
   summary: "Save template",
   tags: ["Users"],
   security: SECURITY_BEARER_OR_API_KEY,
@@ -83,7 +83,7 @@ userTemplatesRouter.openapi(saveTemplateRoute, async function saveTemplate(c) {
 
 const saveTemplateDescRoute = createRoute({
   method: "post",
-  path: "/user/saveTemplateDesc",
+  path: "/v1/user/saveTemplateDesc",
   summary: "Save template description",
   tags: ["Users"],
   security: SECURITY_BEARER_OR_API_KEY,
@@ -117,7 +117,7 @@ userTemplatesRouter.openapi(saveTemplateDescRoute, async function saveTemplateDe
 
 const getTemplatesRoute = createRoute({
   method: "get",
-  path: "/user/templates/{username}",
+  path: "/v1/user/templates/{username}",
   summary: "Get templates by username",
   tags: ["Users"],
   security: SECURITY_NONE,
@@ -144,7 +144,7 @@ userTemplatesRouter.openapi(getTemplatesRoute, async function getTemplates(c) {
 
 const deleteTemplateRoute = createRoute({
   method: "delete",
-  path: "/user/deleteTemplate/{id}",
+  path: "/v1/user/deleteTemplate/{id}",
   summary: "Delete template",
   tags: ["Users"],
   security: SECURITY_BEARER_OR_API_KEY,
@@ -174,7 +174,7 @@ userTemplatesRouter.openapi(deleteTemplateRoute, async function deleteTemplate(c
 
 const getFavoriteTemplatesRoute = createRoute({
   method: "get",
-  path: "/user/favoriteTemplates",
+  path: "/v1/user/favoriteTemplates",
   summary: "Get favorite templates",
   tags: ["Users"],
   security: SECURITY_BEARER_OR_API_KEY,
@@ -195,7 +195,7 @@ userTemplatesRouter.openapi(getFavoriteTemplatesRoute, async function getFavorit
 
 const addFavoriteTemplateRoute = createRoute({
   method: "post",
-  path: "/user/addFavoriteTemplate/{templateId}",
+  path: "/v1/user/addFavoriteTemplate/{templateId}",
   summary: "Add favorite template",
   tags: ["Users"],
   security: SECURITY_BEARER_OR_API_KEY,
@@ -225,7 +225,7 @@ userTemplatesRouter.openapi(addFavoriteTemplateRoute, async function addFavorite
 
 const removeFavoriteTemplateRoute = createRoute({
   method: "delete",
-  path: "/user/removeFavoriteTemplate/{templateId}",
+  path: "/v1/user/removeFavoriteTemplate/{templateId}",
   summary: "Remove favorite template",
   tags: ["Users"],
   security: SECURITY_BEARER_OR_API_KEY,

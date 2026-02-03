@@ -56,15 +56,15 @@ export class UserController {
 
   async updateSettings(data: {
     username: string;
-    subscribedToNewsletter: boolean;
-    bio: string;
-    youtubeUsername: string;
-    twitterUsername: string;
-    githubUsername: string;
+    subscribedToNewsletter?: boolean;
+    bio: string | null;
+    youtubeUsername: string | null;
+    twitterUsername: string | null;
+    githubUsername: string | null;
   }): Promise<void> {
     assert(this.authService.currentUser?.userId, 401);
 
-    const userId = this.authService.currentUser.userId;
+    const userId = this.authService.currentUser.id;
     await this.userService.updateUserDetails(userId, data);
   }
 
@@ -76,7 +76,7 @@ export class UserController {
 
   async subscribeToNewsletter() {
     assert(this.authService.currentUser?.userId, 401);
-    const userId = this.authService.currentUser.userId;
+    const userId = this.authService.currentUser.id;
     await this.userService.subscribeToNewsletter(userId);
   }
 }

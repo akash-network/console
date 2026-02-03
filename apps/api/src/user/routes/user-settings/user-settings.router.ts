@@ -10,7 +10,7 @@ export const userSettingsRouter = new OpenApiHonoHandler();
 
 const getUserByUsernameRoute = createRoute({
   method: "get",
-  path: "/user/byUsername/{username}",
+  path: "/v1/user/byUsername/{username}",
   summary: "Get user by username",
   tags: ["Users"],
   security: SECURITY_NONE,
@@ -45,7 +45,7 @@ userSettingsRouter.openapi(getUserByUsernameRoute, async function getUserByUsern
 
 const updateSettingsRoute = createRoute({
   method: "put",
-  path: "/user/updateSettings",
+  path: "/v1/user/updateSettings",
   summary: "Update user settings",
   tags: ["Users"],
   security: SECURITY_BEARER_OR_API_KEY,
@@ -55,11 +55,11 @@ const updateSettingsRoute = createRoute({
         "application/json": {
           schema: z.object({
             username: z.string().regex(/^[a-zA-Z0-9_-]+$/, "Username can only contain letters, numbers, dashes and underscores"),
-            subscribedToNewsletter: z.boolean(),
-            bio: z.string().max(5000),
-            youtubeUsername: z.string().max(200),
-            twitterUsername: z.string().max(200),
-            githubUsername: z.string().max(200)
+            subscribedToNewsletter: z.boolean().optional(),
+            bio: z.string().max(5000).nullable(),
+            youtubeUsername: z.string().max(200).nullable(),
+            twitterUsername: z.string().max(200).nullable(),
+            githubUsername: z.string().max(200).nullable()
           })
         }
       }
@@ -86,7 +86,7 @@ userSettingsRouter.openapi(updateSettingsRoute, async function updateSettings(c)
 
 const checkUsernameAvailabilityRoute = createRoute({
   method: "get",
-  path: "/user/checkUsernameAvailability/{username}",
+  path: "/v1/user/checkUsernameAvailability/{username}",
   summary: "Check if username is available",
   tags: ["Users"],
   security: SECURITY_NONE,
@@ -117,7 +117,7 @@ userSettingsRouter.openapi(checkUsernameAvailabilityRoute, async function checkU
 
 const subscribeToNewsletterRoute = createRoute({
   method: "post",
-  path: "/user/subscribeToNewsletter",
+  path: "/v1/user/subscribeToNewsletter",
   summary: "Subscribe to newsletter",
   tags: ["Users"],
   security: SECURITY_BEARER_OR_API_KEY,
