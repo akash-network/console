@@ -56,10 +56,10 @@ const updateSettingsRoute = createRoute({
           schema: z.object({
             username: z.string().regex(/^[a-zA-Z0-9_-]+$/, "Username can only contain letters, numbers, dashes and underscores"),
             subscribedToNewsletter: z.boolean().optional(),
-            bio: z.string().max(5000).nullable(),
-            youtubeUsername: z.string().max(200).nullable(),
-            twitterUsername: z.string().max(200).nullable(),
-            githubUsername: z.string().max(200).nullable()
+            bio: z.string().max(5000).nullable().optional(),
+            youtubeUsername: z.string().max(200).nullable().optional(),
+            twitterUsername: z.string().max(200).nullable().optional(),
+            githubUsername: z.string().max(200).nullable().optional()
           })
         }
       }
