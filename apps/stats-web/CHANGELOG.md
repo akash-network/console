@@ -1,5 +1,13 @@
 
 
+## [1.13.7](https://github.com/akash-network/console/compare/stats-web/v1.13.6...stats-web/v1.13.7) (2026-02-03)
+
+
+### Bug Fixes
+
+* stats-web transaction page crashes and SSR memory leak ([#2625](https://github.com/akash-network/console/issues/2625)) ([b6e038d](https://github.com/akash-network/console/commit/b6e038d6bee42b36181ab7ef7a26a9fe6adcf2a6))
+* switch container build target to production ([#2647](https://github.com/akash-network/console/issues/2647)) ([d583e61](https://github.com/akash-network/console/commit/d583e615431f543ba84c1302efec9b878645acd8))
+
 ## [1.13.6](https://github.com/akash-network/console/compare/stats-web/v1.13.5...stats-web/v1.13.6) (2026-01-30)
 
 

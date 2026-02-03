@@ -1,5 +1,12 @@
 
 
+## [1.35.7](https://github.com/akash-network/console/compare/provider-console/v1.35.6...provider-console/v1.35.7) (2026-02-03)
+
+
+### Bug Fixes
+
+* switch container build target to production ([#2647](https://github.com/akash-network/console/issues/2647)) ([d583e61](https://github.com/akash-network/console/commit/d583e615431f543ba84c1302efec9b878645acd8))
+
 ## [1.35.6](https://github.com/akash-network/console/compare/provider-console/v1.35.5...provider-console/v1.35.6) (2026-01-30)
 
 
