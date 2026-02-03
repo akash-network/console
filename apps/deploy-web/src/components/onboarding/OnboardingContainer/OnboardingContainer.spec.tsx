@@ -79,7 +79,7 @@ describe("OnboardingContainer", () => {
       category: "onboarding"
     });
     expect(mockUrlService.newSignup).toHaveBeenCalledWith({ fromSignup: "true" });
-    expect(mockRouter.push).toHaveBeenCalledWith("/login?tab=signup&fromSignup=true");
+    expect(mockRouter.push).toHaveBeenCalledWith("/login?tab=signup");
   });
 
   it("should track analytics when payment method is completed", async () => {
