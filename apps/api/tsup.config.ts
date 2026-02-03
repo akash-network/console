@@ -16,6 +16,7 @@ export default defineConfig(async overrideOptions =>
     target: tsconfig.compilerOptions.target,
     tsconfig: "tsconfig.build.json",
     external: ["pino-pretty"],
+    dts: false,
     plugins: [...(isProduction ? [copyDrizzlePlugin] : [])],
     onSuccess: overrideOptions.watch && !isProduction ? "node --enable-source-maps dist/server.js" : undefined,
     ...overrideOptions
