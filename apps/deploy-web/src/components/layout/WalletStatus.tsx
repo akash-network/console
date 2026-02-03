@@ -89,7 +89,7 @@ export function WalletStatus() {
             </div>
           </div>
         ) : (
-          <div className="w-full">
+          <div>
             {!isSignedInWithTrial && <ConnectManagedWalletButton className="mb-2 mr-2 w-full md:mb-0 md:w-auto" />}
             <ConnectWalletButton className="w-full md:w-auto" />
           </div>

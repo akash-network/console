@@ -150,9 +150,11 @@ export const NewDeploymentContainer: FC<NewDeploymentContainerProps> = ({ templa
     }
   }
 
+  const isFirstStepCompleted = activeStep !== null && activeStep >= 1;
+
   return (
     <Layout isLoading={isLoadingTemplates} isUsingSettings isUsingWallet containerClassName="pb-0 h-full">
-      {activeStep !== null && (
+      {isFirstStepCompleted && (
         <div className="flex w-full items-center">
           <CustomizedSteppers activeStep={activeStep} />
         </div>
