@@ -21,6 +21,7 @@ export default () => {
       const destination = getAuthRedirectDestination({
         currentLocation: windowLocation.href,
         tab: searchParams.get("tab"),
+        fromSignup: searchParams.has("fromSignup"),
         services: { urlService, urlReturnToStack }
       });
       windowLocation.assign(destination);
@@ -57,6 +58,7 @@ export const getServerSideProps = defineServerSideProps({
       const destination = getAuthRedirectDestination({
         currentLocation: ctx.resolvedUrl,
         tab: ctx.query.tab,
+        fromSignup: ctx.resolvedUrl.includes("fromSignup"),
         services: {
           urlService: ctx.services.urlService,
           urlReturnToStack: ctx.services.urlReturnToStack
@@ -74,8 +76,13 @@ export const getServerSideProps = defineServerSideProps({
 function getAuthRedirectDestination(options: {
   currentLocation: string;
   tab: string | null;
+  fromSignup?: boolean;
   services: { urlService: typeof UrlService; urlReturnToStack: typeof UrlReturnToStack };
 }): string {
+  if (options.tab === "signup" && !options.fromSignup) {
+    return options.services.urlService.onboarding({ returnTo: "/" });
+  }
+
   const redirectUrl = options.tab === "signup" ? options.services.urlService.signup() : options.services.urlService.login();
   const returnTo = options.services.urlReturnToStack.getReturnTo(options.currentLocation);
   const separator = redirectUrl.includes("?") ? "&" : "?";

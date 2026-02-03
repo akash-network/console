@@ -103,7 +103,7 @@ export type AnalyticsEvent =
   | "onboarding_email_verified"
   | "onboarding_payment_method_added"
   | "onboarding_completed"
-  | "onboarding_back_to_console";
+  | "onboarding_logout";
 
 export type AnalyticsCategory =
   | "user"

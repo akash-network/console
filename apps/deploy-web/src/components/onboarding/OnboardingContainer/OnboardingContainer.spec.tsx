@@ -280,6 +280,9 @@ describe("OnboardingContainer", () => {
     const mockUseChainParam = jest.fn().mockReturnValue({ minDeposit: { akt: 0.5, usdc: 5 } });
     const mockDenomToUdenom = jest.fn().mockImplementation((amount: number) => amount * 1_000_000);
     const mockErrorHandler = mock<ErrorHandlerService>();
+    const mockTemplateService = {
+      findById: jest.fn().mockResolvedValue({ deploy: "mock-template-sdl" })
+    };
 
     const mockUseServices = jest.fn().mockReturnValue({
       analyticsService: mockAnalyticsService,
@@ -290,7 +293,8 @@ describe("OnboardingContainer", () => {
       publicConfig: mockAppConfig,
       errorHandler: mockErrorHandler,
       windowLocation,
-      windowHistory
+      windowHistory,
+      template: mockTemplateService
     });
     const mockUseRouter = jest.fn().mockReturnValue(mockRouter);
     const mockUseWallet = jest.fn().mockReturnValue({
@@ -300,7 +304,6 @@ describe("OnboardingContainer", () => {
       address: "akash1test",
       signAndBroadcastTx: mockSignAndBroadcastTx
     });
-    const mockUseTemplates = jest.fn().mockReturnValue({ templates: [] });
     const mockUseCertificate = jest.fn().mockReturnValue({
       genNewCertificateIfLocalIsInvalid: mockGenNewCertificateIfLocalIsInvalid,
       updateSelectedCertificate: mockUpdateSelectedCertificate
@@ -387,7 +390,6 @@ describe("OnboardingContainer", () => {
       useServices: mockUseServices,
       useRouter: mockUseRouter,
       useWallet: mockUseWallet,
-      useTemplates: mockUseTemplates,
       useCertificate: mockUseCertificate,
       useSnackbar: mockUseSnackbar,
       useManagedWalletDenom: mockUseManagedWalletDenom,

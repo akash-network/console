@@ -1,16 +1,12 @@
 "use client";
-import { Button, buttonVariants } from "@akashnetwork/ui/components";
+import { Button } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import type { ClassValue } from "clsx";
 import { Menu, Xmark } from "iconoir-react";
-import { useAtom } from "jotai";
 import Link from "next/link";
 
 import { ACCOUNT_BAR_HEIGHT } from "@src/config/ui.config";
-import { useCustomUser } from "@src/hooks/useCustomUser";
 import useCookieTheme from "@src/hooks/useTheme";
-import walletStore from "@src/store/walletStore";
-import { UrlService } from "@src/utils/urlUtils";
 import { AccountMenu } from "./AccountMenu";
 import { AkashLogo } from "./AkashLogo";
 import { WalletStatus } from "./WalletStatus";
@@ -25,8 +21,6 @@ export const Nav = ({
   className?: ClassValue;
 }>) => {
   const theme = useCookieTheme();
-  const [isSignedInWithTrial] = useAtom(walletStore.isSignedInWithTrial);
-  const { user } = useCustomUser();
 
   return (
     <header className={cn("fixed top-0 z-50 w-full border-b border-border bg-header", className)}>
@@ -47,12 +41,6 @@ export const Nav = ({
           <div className="flex items-center gap-2">
             <div className="ml-4 flex items-center gap-2">
               <WalletStatus />
-
-              {isSignedInWithTrial && !user && (
-                <Link className={cn(buttonVariants({ variant: "outline" }))} href={UrlService.newLogin()} passHref prefetch={false}>
-                  Sign in
-                </Link>
-              )}
             </div>
 
             <AccountMenu />

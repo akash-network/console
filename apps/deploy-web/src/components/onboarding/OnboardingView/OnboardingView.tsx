@@ -1,6 +1,11 @@
 import type { FC } from "react";
 import React from "react";
+import { buttonVariants } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
+import { LogOut } from "iconoir-react";
 
+import { useServices } from "@src/context/ServicesProvider";
+import { useUser } from "@src/hooks/useUser";
 import { OnboardingStepIndex } from "../OnboardingContainer/OnboardingContainer";
 import { type OnboardingStep, OnboardingStepper } from "../OnboardingStepper/OnboardingStepper";
 import { EmailVerificationContainer } from "../steps/EmailVerificationContainer/EmailVerificationContainer";
@@ -66,5 +71,30 @@ export const OnboardingView: FC<OnboardingViewProps> = ({
     }
   ];
 
-  return <d.OnboardingStepper steps={stepsWithComponents} currentStep={currentStep} />;
+  const { analyticsService, authService } = useServices();
+  const { user } = useUser();
+
+  const handleLogout = () => {
+    analyticsService.track("onboarding_logout", {
+      category: "onboarding"
+    });
+    authService.logout();
+  };
+
+  return (
+    <>
+      <d.OnboardingStepper steps={stepsWithComponents} currentStep={currentStep} />
+      {user && currentStep !== OnboardingStepIndex.WELCOME && (
+        <div className="pb-4 text-center transition-opacity duration-500">
+          <button
+            className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "inline-flex items-center gap-1.5 text-xs text-muted-foreground")}
+            onClick={handleLogout}
+          >
+            <LogOut className="h-3 w-3" />
+            Logout
+          </button>
+        </div>
+      )}
+    </>
+  );
 };

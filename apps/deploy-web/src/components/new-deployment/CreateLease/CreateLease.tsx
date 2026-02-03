@@ -37,7 +37,6 @@ import { useWallet } from "@src/context/WalletProvider";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useWhen } from "@src/hooks/useWhen";
 import { useBidList } from "@src/queries/useBidQuery";
-import { useBlock } from "@src/queries/useBlocksQuery";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import type { SendManifestToProviderOptions } from "@src/services/provider-proxy/provider-proxy.service";
@@ -99,7 +98,6 @@ export const DEPENDENCIES = {
   useSnackbar,
   useManagedDeploymentConfirm,
   useRouter,
-  useBlock,
   useSettings
 };
 
@@ -109,7 +107,6 @@ const REFRESH_BIDS_INTERVAL = 7000;
 const MAX_NUM_OF_BID_REQUESTS = Math.floor((5.5 * 60 * 1000) / REFRESH_BIDS_INTERVAL);
 // Show a warning after 1 minute
 const WARNING_NUM_OF_BID_REQUESTS = Math.round((60 * 1000) / REFRESH_BIDS_INTERVAL);
-const TRIAL_SIGNUP_WARNING_TIMEOUT = 33_000;
 
 export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies: d = DEPENDENCIES }) => {
   const { settings } = d.useSettings();
@@ -297,25 +294,6 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, bids, providers, isFilteringFavorites, isFilteringAudited, favoriteProviders]);
 
-  const [zeroBidsForTrialWarningDisplayed, setZeroBidsForTrialWarningDisplayed] = useState(false);
-  const { data: block } = d.useBlock(dseq);
-
-  useEffect(() => {
-    if (!isTrialing || numberOfRequests === 0 || (bids && bids.length > 0)) {
-      setZeroBidsForTrialWarningDisplayed(false);
-      return;
-    }
-
-    const timerId = setTimeout(() => {
-      if (block) {
-        const blockTime = new Date(block.block.header.time).getTime();
-        setZeroBidsForTrialWarningDisplayed(Date.now() - blockTime > TRIAL_SIGNUP_WARNING_TIMEOUT);
-      }
-    }, 1000);
-
-    return () => clearTimeout(timerId);
-  }, [block, bids, isTrialing, numberOfRequests]);
-
   const selectBid = (bid: BidDto) => {
     setSelectedBids(prev => ({ ...prev, [bid.gseq]: bid }));
   };
@@ -463,7 +441,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
           </d.Button>
         )}
 
-        {!settings.isBlockchainDown && !zeroBidsForTrialWarningDisplayed && warningRequestsReached && !maxRequestsReached && (bids?.length || 0) === 0 && (
+        {!settings.isBlockchainDown && warningRequestsReached && !maxRequestsReached && (bids?.length || 0) === 0 && (
           <div className="pt-6">
             <d.Alert variant="warning">
               There should be bids by now... You can wait longer in case a bid shows up or close the deployment and try again with a different configuration.
@@ -476,18 +454,19 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
           </div>
         )}
 
-        {!settings.isBlockchainDown &&
-          (isLoadingBids || (bids?.length || 0) === 0) &&
-          !maxRequestsReached &&
-          !isSendingManifest &&
-          !zeroBidsForTrialWarningDisplayed && (
-            <div className="flex flex-col items-center justify-center pt-6 text-center">
-              <d.Spinner size="large" />
-              <div className="pt-6">Waiting for bids...</div>
+        {!settings.isBlockchainDown && (isLoadingBids || (bids?.length || 0) === 0) && !maxRequestsReached && !isSendingManifest && (
+          <div className="flex flex-col items-center justify-center pt-6 text-center">
+            <d.Spinner size="large" />
+            <div className="pt-6">Waiting for bids...</div>
+            <div className="pt-8">
+              <d.Button variant="secondary" size="sm" onClick={handleCloseDeployment} disabled={settings.isBlockchainDown}>
+                Close Deployment
+              </d.Button>
             </div>
-          )}
+          </div>
+        )}
 
-        {!settings.isBlockchainDown && !zeroBidsForTrialWarningDisplayed && maxRequestsReached && (bids?.length || 0) === 0 && (
+        {!settings.isBlockchainDown && maxRequestsReached && (bids?.length || 0) === 0 && (
           <div className="pt-6">
             <d.Alert variant="warning">
               There's no bid for the current deployment. You can close the deployment and try again with a different configuration.
