@@ -4,7 +4,7 @@ services:
     build:
       context: ../..
       dockerfile: packages/docker/Dockerfile.node
-      target: production-nginx
+      target: production
       args:
         WORKSPACE: apps/api
         GITHUB_PAT: ${GITHUB_PAT}
@@ -41,7 +41,7 @@ services:
     build:
       context: ../..
       dockerfile: packages/docker/Dockerfile.node
-      target: production-nginx
+      target: production
       args:
         WORKSPACE: apps/provider-proxy
 
@@ -50,7 +50,7 @@ services:
     build:
       context: ../..
       dockerfile: packages/docker/Dockerfile.nextjs
-      target: production-nginx
+      target: production
       args:
         WORKSPACE: apps/deploy-web
         DEPLOYMENT_ENV: ${DEPLOYMENT_ENV}
