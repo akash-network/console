@@ -1,6 +1,9 @@
 {
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "**/*.spec.ts",
+    "vitest-setup.ts",
+    "vitest.config.ts"
   ],
   "extends": "./tsconfig.build.json",
   "include": [

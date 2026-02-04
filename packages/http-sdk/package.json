@@ -13,7 +13,8 @@
   "scripts": {
     "format": "prettier --write ./*.{ts,json} **/*.{ts,json}",
     "lint": "eslint .",
-    "test": "jest",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "validate:types": "tsc --noEmit && echo"
   },
   "dependencies": {
@@ -26,10 +27,8 @@
   },
   "devDependencies": {
     "@akashnetwork/net": "*",
-    "@types/jest": "^29.5.14",
     "@types/lodash": "^4.17.7",
-    "jest": "^29.7.0",
-    "ts-jest": "^29.4.0"
+    "vitest": "^4.0.0"
   },
   "peerDependencies": {
     "@cosmjs/proto-signing": "^0.36.2",
