@@ -1,0 +1,75 @@
+name: Release Next.js App
+
+on:
+  workflow_call:
+    inputs:
+      app:
+        description: "The app to release (directory name in ./apps/*)"
+        required: true
+        type: string
+      deploy_workflow:
+        description: "Deployment workflow filename (e.g., console-web-release.yml)"
+        required: false
+        type: string
+    outputs:
+      git_tag:
+        description: "The git tag released"
+        value: ${{ jobs.release.outputs.git_tag }}
+      beta_image_tag:
+        description: "The beta Docker image tag"
+        value: ${{ jobs.build-beta.outputs.image_tag }}
+      prod_image_tag:
+        description: "The prod Docker image tag"
+        value: ${{ jobs.build-prod.outputs.image_tag }}
+
+jobs:
+  release:
+    name: Create Release
+    uses: ./.github/workflows/reusable-create-github-release.yml
+    secrets: inherit
+    permissions:
+      contents: write
+    with:
+      app: ${{ inputs.app }}
+
+  build-beta:
+    needs: release
+    name: Build Beta Docker image
+    if: needs.release.outputs.git_tag != ''
+    uses: ./.github/workflows/reusable-build-image.yml
+    secrets: inherit
+    permissions:
+      contents: write
+      packages: write
+    with:
+      tag: ${{ needs.release.outputs.git_tag }}-beta
+      deployment-env: staging
+
+  build-prod:
+    needs: release
+    name: Build Prod Docker image
+    if: needs.release.outputs.git_tag != ''
+    uses: ./.github/workflows/reusable-build-image.yml
+    secrets: inherit
+    permissions:
+      contents: write
+      packages: write
+    with:
+      tag: ${{ needs.release.outputs.git_tag }}
+      deployment-env: production
+
+  deploy:
+    needs: [release, build-beta, build-prod]
+    if: needs.release.outputs.git_tag != '' && inputs.deploy_workflow != ''
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Trigger deployment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run ${{ inputs.deploy_workflow }} \
+            --repo ${{ github.repository }} \
+            --ref ${{ needs.release.outputs.git_tag }} \
+            -f image_tag=${{ needs.release.outputs.git_tag }}

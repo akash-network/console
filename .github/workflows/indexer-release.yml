@@ -1,43 +1,31 @@
-name: Release INDEXER
+name: Deploy Indexer
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "apps/indexer/package.json"
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to deploy (e.g., latest, 1.0.0, v1.0.0)"
+        required: true
+        type: string
+        default: latest
 
 jobs:
-  release:
-    name: Create Release
-    uses: ./.github/workflows/reusable-create-github-release.yml
-    secrets: inherit
+  setup:
+    uses: ./.github/workflows/reusable-deploy-setup.yml
     with:
-      app: indexer
-
-  build:
-    needs: release
-    name: Build Docker image
-    if: needs.release.outputs.git_tag != ''
-    uses: ./.github/workflows/reusable-build-image.yml
-    secrets: inherit
-    permissions:
-      contents: write
-      packages: write
-    with:
-      tag: ${{ needs.release.outputs.git_tag }}
+      image_tag: indexer/${{ inputs.image_tag }}
 
   deploy-prod-mainnet:
     permissions:
       contents: read
       pull-requests: read
-    needs: build
+    needs: setup
     name: Deploy to prod mainnet
     uses: ./.github/workflows/reusable-deploy-k8s.yml
     secrets: inherit
     with:
       app: indexer
-      appVersion: ${{ needs.build.outputs.image_tag }}
+      appVersion: ${{ needs.setup.outputs.image_tag }}
       environment: prod
       chain: mainnet
 
@@ -45,12 +33,12 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
-    needs: build
+    needs: setup
     name: Deploy to prod sandbox
     uses: ./.github/workflows/reusable-deploy-k8s.yml
     secrets: inherit
     with:
       app: indexer
-      appVersion: ${{ needs.build.outputs.image_tag }}
+      appVersion: ${{ needs.setup.outputs.image_tag }}
       environment: prod
       chain: sandbox

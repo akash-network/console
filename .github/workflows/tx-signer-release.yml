@@ -1,75 +1,48 @@
-name: Release TX Signer
+name: Deploy TX Signer
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "apps/tx-signer/package.json"
-
-permissions:
-  contents: read
-  actions: read
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to deploy (e.g., latest, 1.0.0, v1.0.0)"
+        required: true
+        type: string
+        default: latest
 
 jobs:
-  release:
-    name: Create Release
-    uses: ./.github/workflows/reusable-create-github-release.yml
-    secrets: inherit
-    permissions:
-      contents: write
+  setup:
+    uses: ./.github/workflows/reusable-deploy-setup.yml
     with:
-      app: tx-signer
-
-  build:
-    needs: release
-    name: Build Docker image
-    if: needs.release.outputs.git_tag != ''
-    uses: ./.github/workflows/reusable-build-image.yml
-    secrets: inherit
-    permissions:
-      contents: write
-      packages: write
-    with:
-      tag: ${{ needs.release.outputs.git_tag }}
+      image_tag: tx-signer/${{ inputs.image_tag }}
 
   deploy-beta-mainnet:
-    needs: build
+    needs: setup
     name: Deploy to beta mainnet
     uses: ./.github/workflows/reusable-deploy-k8s.yml
     secrets: inherit
-    permissions:
-      actions: read
-      contents: read
-      pull-requests: read
     with:
       app: tx-signer
-      appVersion: ${{ needs.build.outputs.image_tag }}
+      appVersion: ${{ needs.setup.outputs.image_tag }}
       environment: staging
       chain: mainnet
 
   deploy-beta-sandbox:
-    needs: build
+    needs: setup
     name: Deploy to beta sandbox
     uses: ./.github/workflows/reusable-deploy-k8s.yml
     secrets: inherit
-    permissions:
-      actions: read
-      contents: read
-      pull-requests: read
     with:
       app: tx-signer
-      appVersion: ${{ needs.build.outputs.image_tag }}
+      appVersion: ${{ needs.setup.outputs.image_tag }}
       environment: staging
       chain: sandbox
 
   deploy-prod-mainnet:
     permissions:
-      actions: read
       contents: read
       pull-requests: read
     needs:
-      - build
+      - setup
       - deploy-beta-mainnet
       - deploy-beta-sandbox
     name: Deploy to prod mainnet
@@ -77,23 +50,22 @@ jobs:
     secrets: inherit
     with:
       app: tx-signer
-      appVersion: ${{ needs.build.outputs.image_tag }}
+      appVersion: ${{ needs.setup.outputs.image_tag }}
       environment: prod
       chain: mainnet
 
   deploy-prod-sandbox:
     permissions:
-      actions: read
       contents: read
       pull-requests: read
     needs:
-      - build
+      - setup
       - deploy-beta-sandbox
     name: Deploy to prod sandbox
     uses: ./.github/workflows/reusable-deploy-k8s.yml
     secrets: inherit
     with:
       app: tx-signer
-      appVersion: ${{ needs.build.outputs.image_tag }}
+      appVersion: ${{ needs.setup.outputs.image_tag }}
       environment: prod
       chain: sandbox
