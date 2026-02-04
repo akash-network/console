@@ -218,6 +218,10 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
 
       if (isManaged) {
         sdl = appendAuditorRequirement(sdl);
+        // Ensure managed wallet denom is used (synchronous replacement to avoid race condition with useWhen hook)
+        if (managedDenom && managedDenom !== "uakt") {
+          sdl = sdl.replace(/uakt/g, managedDenom);
+        }
       }
 
       const [dd, newCert] = await Promise.all([createAndValidateDeploymentData(sdl, null, deposit), genNewCertificateIfLocalIsInvalid()]);
