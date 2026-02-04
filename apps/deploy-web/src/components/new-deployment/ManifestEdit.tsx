@@ -218,6 +218,10 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
 
       if (isManaged) {
         sdl = appendAuditorRequirement(sdl);
+
+        if (managedDenom && managedDenom !== "uakt") {
+          sdl = sdl.replace(/uakt/g, managedDenom);
+        }
       }
 
       const [dd, newCert] = await Promise.all([createAndValidateDeploymentData(sdl, null, deposit), genNewCertificateIfLocalIsInvalid()]);
