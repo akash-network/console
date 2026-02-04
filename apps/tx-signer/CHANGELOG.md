@@ -1,5 +1,12 @@
 
 
+## [1.0.6](https://github.com/akash-network/console/compare/tx-signer/v1.0.5...tx-signer/v1.0.6) (2026-02-04)
+
+
+### Bug Fixes
+
+* update chain-sdk to alpha.21 ([#2666](https://github.com/akash-network/console/issues/2666)) ([7db8f76](https://github.com/akash-network/console/commit/7db8f76e1ffe53bd800bb1c8ef67e17dbeb0d58e))
+
 ## [1.0.5](https://github.com/akash-network/console/compare/tx-signer/v1.0.4...tx-signer/v1.0.5) (2026-02-03)
 
 

@@ -1,5 +1,12 @@
 
 
+## [1.13.8](https://github.com/akash-network/console/compare/stats-web/v1.13.7...stats-web/v1.13.8) (2026-02-04)
+
+
+### Bug Fixes
+
+* update chain-sdk to alpha.21 ([#2666](https://github.com/akash-network/console/issues/2666)) ([7db8f76](https://github.com/akash-network/console/commit/7db8f76e1ffe53bd800bb1c8ef67e17dbeb0d58e))
+
 ## [1.13.7](https://github.com/akash-network/console/compare/stats-web/v1.13.6...stats-web/v1.13.7) (2026-02-03)
 
 
