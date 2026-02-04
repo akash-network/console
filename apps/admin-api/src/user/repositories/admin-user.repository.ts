@@ -1,4 +1,4 @@
-import { count, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, count, desc, eq, ilike, isNotNull, or, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { inject, singleton } from "tsyringe";
 
@@ -58,11 +58,12 @@ export class AdminUserRepository {
       })
       .from(schema.Users)
       .leftJoin(schema.UserWallets, eq(schema.Users.id, schema.UserWallets.userId))
+      .where(isNotNull(schema.Users.email))
       .orderBy(desc(schema.Users.createdAt))
       .limit(pageSize)
       .offset(offset);
 
-    const [{ total }] = await this.db.select({ total: count() }).from(schema.Users);
+    const [{ total }] = await this.db.select({ total: count() }).from(schema.Users).where(isNotNull(schema.Users.email));
 
     return {
       users,
@@ -94,11 +95,14 @@ export class AdminUserRepository {
       .from(schema.Users)
       .leftJoin(schema.UserWallets, eq(schema.Users.id, schema.UserWallets.userId))
       .where(
-        or(
-          ilike(schema.Users.email, searchPattern),
-          ilike(schema.Users.username, searchPattern),
-          ilike(schema.Users.userId, searchPattern),
-          ilike(schema.UserWallets.address, searchPattern)
+        and(
+          isNotNull(schema.Users.email),
+          or(
+            ilike(schema.Users.email, searchPattern),
+            ilike(schema.Users.username, searchPattern),
+            ilike(schema.Users.userId, searchPattern),
+            ilike(schema.UserWallets.address, searchPattern)
+          )
         )
       )
       .orderBy(desc(schema.Users.createdAt))
@@ -111,11 +115,14 @@ export class AdminUserRepository {
       .from(schema.Users)
       .leftJoin(schema.UserWallets, eq(schema.Users.id, schema.UserWallets.userId))
       .where(
-        or(
-          ilike(schema.Users.email, searchPattern),
-          ilike(schema.Users.username, searchPattern),
-          ilike(schema.Users.userId, searchPattern),
-          ilike(schema.UserWallets.address, searchPattern)
+        and(
+          isNotNull(schema.Users.email),
+          or(
+            ilike(schema.Users.email, searchPattern),
+            ilike(schema.Users.username, searchPattern),
+            ilike(schema.Users.userId, searchPattern),
+            ilike(schema.UserWallets.address, searchPattern)
+          )
         )
       );
 
@@ -163,7 +170,8 @@ export class AdminUserRepository {
         newUsersLast30Days: count(sql`CASE WHEN ${schema.Users.createdAt} > ${thirtyDaysAgo} THEN 1 END`),
         activeUsersLast30Days: count(sql`CASE WHEN ${schema.Users.lastActiveAt} > ${thirtyDaysAgo} THEN 1 END`)
       })
-      .from(schema.Users);
+      .from(schema.Users)
+      .where(isNotNull(schema.Users.email));
 
     return {
       totalUsers: stats.totalUsers,

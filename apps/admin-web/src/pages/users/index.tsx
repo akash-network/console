@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { Card, CardContent } from "@akashnetwork/ui/components";
 import { withPageAuthRequired } from "@auth0/nextjs-auth0/client";
 import { Activity, Group, PlusCircle } from "iconoir-react";
+import Head from "next/head";
 import { useDebounceValue } from "usehooks-ts";
 
 import { AdminLayout } from "@src/components/layout/AdminLayout";
@@ -13,9 +14,9 @@ import { useSearchUsersQuery, useUsersQuery } from "@src/queries/useUsersQuery";
 
 const UsersPage: React.FunctionComponent = () => {
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch] = useDebounceValue(searchQuery, 300);
-  const pageSize = 20;
 
   const isSearching = debouncedSearch.length > 0;
 
@@ -42,6 +43,11 @@ const UsersPage: React.FunctionComponent = () => {
     setSearchQuery(value);
   }, []);
 
+  const handlePageSizeChange = useCallback((size: number) => {
+    setPageSize(size);
+    setPage(1);
+  }, []);
+
   const formatNumber = (value: number | undefined) => {
     if (value === undefined) return "-";
     return value.toLocaleString();
@@ -49,6 +55,9 @@ const UsersPage: React.FunctionComponent = () => {
 
   return (
     <AdminLayout>
+      <Head>
+        <title>Users | Akash Admin</title>
+      </Head>
       <div className="space-y-6">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Users</h2>
@@ -111,6 +120,7 @@ const UsersPage: React.FunctionComponent = () => {
             totalPages={data?.totalPages || 1}
             total={data?.total || 0}
             onPageChange={handlePageChange}
+            onPageSizeChange={handlePageSizeChange}
             isLoading={isLoading}
           />
         )}

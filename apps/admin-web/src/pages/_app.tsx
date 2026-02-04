@@ -1,7 +1,6 @@
 import "@akashnetwork/ui/styles";
 import "../styles/index.css";
 
-import React from "react";
 import { TooltipProvider } from "@akashnetwork/ui/components";
 import { CustomSnackbarProvider } from "@akashnetwork/ui/context";
 import { cn } from "@akashnetwork/ui/utils";
@@ -19,7 +18,7 @@ const queryClient = new QueryClient({
   }
 });
 
-const App: React.FunctionComponent<AppProps> = ({ Component, pageProps }) => {
+export default function App({ Component, pageProps }: AppProps) {
   return (
     <main className={cn("bg-background h-full font-sans antialiased", GeistSans.variable)}>
       <QueryClientProvider client={queryClient}>
@@ -35,6 +34,4 @@ const App: React.FunctionComponent<AppProps> = ({ Component, pageProps }) => {
       </QueryClientProvider>
     </main>
   );
-};
-
-export default App;
+}

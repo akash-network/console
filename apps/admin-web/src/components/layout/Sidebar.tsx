@@ -28,7 +28,7 @@ export const Sidebar: React.FunctionComponent = () => {
       <div className="border-border flex h-16 items-center border-b px-6">
         <Link href="/users" className="flex items-center gap-2">
           <Image src="/images/akash-logo.svg" alt="Akash Logo" width={28} height={28} />
-          <span className="text-lg font-semibold">Admin</span>
+          <span className="text-lg font-semibold">Akash</span>
         </Link>
       </div>
 

@@ -1,0 +1,18 @@
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# Compiled TypeScript files (exclude from git - only .ts/.tsx should be committed)
+/src/**/*.js
+/script/**/*.js
+/tests/**/*.js
+*.config.js
+!next.config.js
+
+# misc
+.DS_Store
+
+env-config.schema.js

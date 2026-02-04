@@ -1,6 +1,20 @@
 "use client";
 import React from "react";
-import { Address, Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
+import {
+  Address,
+  Button,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@akashnetwork/ui/components";
 import { NavArrowLeft, NavArrowRight } from "iconoir-react";
 
 import type { User } from "@src/types/user";
@@ -12,10 +26,11 @@ interface UserTableProps {
   totalPages: number;
   total: number;
   onPageChange: (page: number) => void;
+  onPageSizeChange?: (size: number) => void;
   isLoading?: boolean;
 }
 
-export const UserTable: React.FunctionComponent<UserTableProps> = ({ users, page, pageSize, totalPages, total, onPageChange, isLoading }) => {
+export const UserTable: React.FunctionComponent<UserTableProps> = ({ users, page, pageSize, totalPages, total, onPageChange, onPageSizeChange, isLoading }) => {
   const formatCurrency = (value: number | null) => {
     if (value === null || value === undefined) return "-";
     return `$${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -81,9 +96,25 @@ export const UserTable: React.FunctionComponent<UserTableProps> = ({ users, page
       </div>
 
       <div className="flex items-center justify-between">
-        <p className="text-muted-foreground text-sm">
-          Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, total)} of {total} users
-        </p>
+        <div className="flex items-center gap-2">
+          <p className="text-muted-foreground text-sm">
+            Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, total)} of {total} users
+          </p>
+          {onPageSizeChange && (
+            <Select value={`${pageSize}`} onValueChange={v => onPageSizeChange(Number(v))}>
+              <SelectTrigger className="h-8 w-[70px]">
+                <SelectValue placeholder={pageSize} />
+              </SelectTrigger>
+              <SelectContent>
+                {[10, 20, 50].map(size => (
+                  <SelectItem key={size} value={`${size}`}>
+                    {size}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
 
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => onPageChange(page - 1)} disabled={page <= 1 || isLoading}>

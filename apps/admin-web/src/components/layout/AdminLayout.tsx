@@ -1,6 +1,6 @@
 "use client";
 import type { ReactNode } from "react";
-import React from "react";
+import { useEffect } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { ErrorFallback, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
@@ -9,13 +9,25 @@ import { useUser } from "@auth0/nextjs-auth0/client";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
 
-type Props = {
+const ALLOWED_DOMAIN = "akash.network";
+
+interface Props {
   children?: ReactNode;
   isLoading?: boolean;
-};
+}
 
-export const AdminLayout: React.FunctionComponent<Props> = ({ children, isLoading }) => {
+export function AdminLayout({ children, isLoading }: Props) {
   const { user, isLoading: isAuthLoading } = useUser();
+
+  const userEmail = user?.email?.toLowerCase() || "";
+  const userDomain = userEmail.split("@")[1];
+  const isAuthorized = !user || userDomain === ALLOWED_DOMAIN;
+
+  useEffect(() => {
+    if (user && !isAuthorized) {
+      window.location.href = "/unauthorized";
+    }
+  }, [user, isAuthorized]);
 
   if (isAuthLoading) {
     return (
@@ -43,6 +55,17 @@ export const AdminLayout: React.FunctionComponent<Props> = ({ children, isLoadin
     );
   }
 
+  if (!isAuthorized) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Spinner size="large" />
+          <p className="text-muted-foreground">Redirecting...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen">
       <Sidebar />
@@ -62,6 +85,6 @@ export const AdminLayout: React.FunctionComponent<Props> = ({ children, isLoadin
       </div>
     </div>
   );
-};
+}
 
 export default AdminLayout;
