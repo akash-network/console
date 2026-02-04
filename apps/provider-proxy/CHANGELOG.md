@@ -1,5 +1,12 @@
 
 
+## [2.9.9](https://github.com/akash-network/console/compare/provider-proxy/v2.9.8...provider-proxy/v2.9.9) (2026-02-04)
+
+
+### Bug Fixes
+
+* update chain-sdk to alpha.21 ([#2666](https://github.com/akash-network/console/issues/2666)) ([7db8f76](https://github.com/akash-network/console/commit/7db8f76e1ffe53bd800bb1c8ef67e17dbeb0d58e))
+
 ## [2.9.8](https://github.com/akash-network/console/compare/provider-proxy/v2.9.7...provider-proxy/v2.9.8) (2026-02-03)
 
 

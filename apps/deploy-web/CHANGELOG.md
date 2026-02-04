@@ -1,5 +1,13 @@
 
 
+## [3.25.8](https://github.com/akash-network/console/compare/console-web/v3.25.7...console-web/v3.25.8) (2026-02-04)
+
+
+### Bug Fixes
+
+* managed wallet deposit denom ([#2669](https://github.com/akash-network/console/issues/2669)) ([d34a13c](https://github.com/akash-network/console/commit/d34a13cbf0561c31dca3fc501c2ab1a413e433eb))
+* update chain-sdk to alpha.21 ([#2666](https://github.com/akash-network/console/issues/2666)) ([7db8f76](https://github.com/akash-network/console/commit/7db8f76e1ffe53bd800bb1c8ef67e17dbeb0d58e))
+
 ## [3.25.7](https://github.com/akash-network/console/compare/console-web/v3.25.6...console-web/v3.25.7) (2026-02-03)
 
 
