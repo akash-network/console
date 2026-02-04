@@ -121,7 +121,7 @@ const nextConfig = {
         new CopyPlugin({
           patterns: [
             {
-              from: "node_modules/@akashnetwork/chain-sdk/dist/sdl-schema.yaml",
+              from: path.join(require.resolve("@akashnetwork/chain-sdk"), "..", "..", "sdl-schema.yaml"),
               to: "../public/sdl-schema.yaml"
             }
           ]

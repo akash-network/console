@@ -618,7 +618,7 @@ describe("GPU API", () => {
         height: block.height,
         data: Buffer.from(
           MsgCreateBid.encode(
-            MsgCreateBid.create({
+            MsgCreateBid.fromPartial({
               id: {
                 owner: testData.providers[0].owner,
                 dseq: 1,
@@ -682,7 +682,7 @@ describe("GPU API", () => {
         height: block.height,
         data: Buffer.from(
           MsgCreateBid.encode(
-            MsgCreateBid.create({
+            MsgCreateBid.fromPartial({
               id: {
                 owner: testData.providers[1].owner,
                 dseq: 2,
