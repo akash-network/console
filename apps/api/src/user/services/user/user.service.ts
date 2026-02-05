@@ -79,7 +79,7 @@ export class UserService {
 
   private async upsertUser(userDetails: UpdateUserInput, attempt = 0): Promise<UserOutput> {
     try {
-      return await this.userRepository.upsertByUserId(userDetails);
+      return await this.userRepository.upsertOnExternalIdConflict(userDetails);
     } catch (error) {
       if (userDetails.username && isUniqueViolation(error) && error.constraint_name?.includes("username") && attempt < 10) {
         return this.upsertUser(
