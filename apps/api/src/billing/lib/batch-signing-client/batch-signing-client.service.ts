@@ -7,7 +7,6 @@ import type { EncodeObject, Registry } from "@cosmjs/proto-signing";
 import type { SigningStargateClient } from "@cosmjs/stargate";
 import { calculateFee, GasPrice } from "@cosmjs/stargate";
 import type { IndexedTx } from "@cosmjs/stargate/build/stargateclient";
-import { Sema } from "async-sema";
 import { ExponentialBackoff, handleWhenResult, retry } from "cockatiel";
 import DataLoader from "dataloader";
 import type { Result } from "ts-results";
@@ -17,6 +16,8 @@ import type { CreateSigningStargateClient } from "@src/billing/lib/signing-starg
 import type { Wallet } from "@src/billing/lib/wallet/wallet";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { memoizeAsync } from "@src/caching/helpers";
+import type { Semaphore } from "@src/core/lib/pg-semaphore";
+import { SemaphoreFactory } from "@src/core/lib/pg-semaphore";
 import { withSpan } from "@src/core/services/tracing/tracing.service";
 
 /**
@@ -67,9 +68,19 @@ export class BatchSigningClientService {
   private client: SigningStargateClient;
 
   /**
-   * Semaphore to ensure only one batch is processed at a time.
+   * Cached semaphore instance, initialized lazily by wallet address.
+   * Uses PostgreSQL advisory locks for distributed coordination across instances.
    */
-  private readonly semaphore = new Sema(1);
+  private semaphore: Semaphore | null = null;
+
+  /**
+   * Lazily initializes and returns the semaphore keyed by wallet address.
+   */
+  private readonly getSemaphore = memoizeAsync(async () => {
+    const address = await this.wallet.getFirstAddress();
+    this.semaphore = SemaphoreFactory.create(`BatchSigningClientService:${address}`);
+    return this.semaphore;
+  });
 
   /**
    * DataLoader instance that batches transaction requests and schedules execution.
@@ -142,7 +153,7 @@ export class BatchSigningClientService {
    * @returns `true` if there are transactions waiting in the semaphore, `false` otherwise.
    */
   get hasPendingTransactions() {
-    return this.semaphore.nrWaiting() > 0;
+    return (this.semaphore?.nrInFlight() ?? 0) > 0;
   }
 
   /**
@@ -231,12 +242,8 @@ export class BatchSigningClientService {
    * @returns Array of results, each containing either a transaction hash (Ok) or an error (Err).
    */
   private async signAndBroadcastBatchBlocking(inputs: readonly SignAndBroadcastBatchOptions[]): Promise<Result<string, unknown>[]> {
-    await this.semaphore.acquire();
-    try {
-      return await this.executeAndBroadcastBatch(inputs);
-    } finally {
-      this.semaphore.release();
-    }
+    const semaphore = await this.getSemaphore();
+    return semaphore.withLock(() => this.executeAndBroadcastBatch(inputs));
   }
 
   /**

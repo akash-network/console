@@ -50,7 +50,7 @@ describe("Deployment Settings", () => {
           id: expect.any(String),
           userId: user.id,
           dseq,
-          autoTopUpEnabled: false,
+          autoTopUpEnabled: true,
           createdAt: expect.any(String),
           updatedAt: expect.any(String),
           estimatedTopUpAmount: expect.any(Number),

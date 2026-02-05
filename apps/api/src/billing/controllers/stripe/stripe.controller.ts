@@ -21,7 +21,7 @@ import {
 import { UserWalletRepository } from "@src/billing/repositories";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
 import { StripeErrorService } from "@src/billing/services/stripe-error/stripe-error.service";
-import { Semaphore } from "@src/core/lib/semaphore.decorator";
+import { Semaphore } from "@src/core/lib/pg-semaphore/semaphore.decorator";
 
 @singleton()
 export class StripeController {

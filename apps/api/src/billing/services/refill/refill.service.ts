@@ -10,7 +10,7 @@ import { BalancesService } from "@src/billing/services/balances/balances.service
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { ManagedUserWalletService } from "@src/billing/services/managed-user-wallet/managed-user-wallet.service";
 import { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
-import { Semaphore } from "@src/core/lib/semaphore.decorator";
+import { Semaphore } from "@src/core/lib/pg-semaphore/semaphore.decorator";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 
 @singleton()

@@ -7,6 +7,7 @@ import type { BalancesService } from "@src/billing/services/balances/balances.se
 import { RefillService } from "@src/billing/services/refill/refill.service";
 import type { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
+import { SemaphoreFactory } from "../../../core/lib/pg-semaphore";
 
 import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
 
@@ -91,6 +92,7 @@ describe(RefillService.name, () => {
     });
 
     function setup() {
+      SemaphoreFactory.useMemory();
       const billingConfig = mock<BillingConfig>();
       const userWalletRepository = mock<UserWalletRepository>();
       const managedUserWalletService = mock<ManagedUserWalletService>();
@@ -194,6 +196,7 @@ describe(RefillService.name, () => {
     });
 
     function setup() {
+      SemaphoreFactory.useMemory();
       const billingConfig = mock<BillingConfig>();
       const userWalletRepository = mock<UserWalletRepository>();
       const managedUserWalletService = mock<ManagedUserWalletService>();
