@@ -117,6 +117,17 @@ export const WelcomeStep: React.FunctionComponent<WelcomeStepProps> = ({ onCompl
               isLoading={deployingTemplate === "llama-3.1-8b"}
             />
           </div>
+          <div className="flex justify-center">
+            <Button variant="link" size="sm" onClick={goToDeployment} disabled={isDeploying} className="gap-1 text-xs text-muted-foreground">
+              {isDeploying ? (
+                <Spinner size="small" />
+              ) : (
+                <>
+                  Go to Console <ArrowRight className="h-3 w-3" />
+                </>
+              )}
+            </Button>
+          </div>
         </>
       )}
     </div>
