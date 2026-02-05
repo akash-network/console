@@ -37,5 +37,4 @@ jobs:
       appVersion: ${{ needs.build.outputs.image_tag }}
       environment: staging
       chain: testnet
-      skip_beta_deployment_check: true
       force-rollout: true

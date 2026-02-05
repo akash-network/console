@@ -40,14 +40,6 @@ on:
           - mainnet
           - sandbox
           - testnet
-      skip_beta_deployment_check:
-        type: boolean
-        required: false
-        default: false
-        description: >-
-          Bypass beta deployment check.
-          Use with caution — this will deploy directly to production without verifying the beta environment.
-          Skipping this check may result in deploying an unstable version with potential bugs.
       force-rollout:
         type: boolean
         required: false
@@ -74,14 +66,6 @@ on:
         required: false
         type: string
         default: NA
-      skip_beta_deployment_check:
-        type: boolean
-        required: false
-        default: false
-        description: >-
-          Bypass beta deployment check.
-          Use with caution — this will deploy directly to production without verifying the beta environment.
-          Skipping this check may result in deploying an unstable version with potential bugs.
       force-rollout:
         type: boolean
         required: false
@@ -97,31 +81,13 @@ jobs:
   deployment-prerequisites:
     runs-on: ubuntu-latest
     outputs:
-      require_approval: ${{ steps.approval-status.outputs.require_approval }}
       environment: ${{ steps.determine-environment.outputs.environment }}
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Notify in Slack if beta deployment check was skipped
-        if: github.event_name == 'workflow_dispatch' && (inputs.skip_beta_deployment_check == 'true' || inputs.skip_beta_deployment_check == true)
-        uses: slackapi/slack-github-action@v2.0.0
-        with:
-          webhook-type: incoming-webhook
-          webhook: ${{ secrets.FAILED_E2E_TESTS_SLACK_WEBHOOK_URL }}
-          payload: |
-            blocks:
-              - type: "header"
-                text:
-                  type: "plain_text"
-                  text: "Deployment to production without beta deployment check"
-              - type: "section"
-                text:
-                  type: "mrkdwn"
-                  text: |
-                    *App:* ${{ inputs.app }}@${{ inputs.appVersion }}
-                    *Workflow:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-                    *Author:* ${{ github.actor }}
+        uses: actions/checkout@v6
 
       - name: Determine environment
         id: determine-environment
@@ -145,27 +111,15 @@ jobs:
           require_approval=$(gh api "repos/$GITHUB_REPOSITORY/environments/$DEPLOYMENT_ENVIRONMENT" \
             --jq '.protection_rules | map(.type) | contains(["required_reviewers"])')
           echo "require_approval=$require_approval" >> "$GITHUB_OUTPUT"
-
-  notify-about-pending-deployment:
-    permissions:
-      contents: read
-      pull-requests: read
-    runs-on: ubuntu-latest
-    needs: deployment-prerequisites
-    if: >-
-      github.event_name != 'workflow_dispatch' &&
-      needs.deployment-prerequisites.outputs.require_approval == 'true'
-
-    steps:
-      - uses: actions/checkout@v6
       - name: Notify in Slack about pending deployment
+        if: steps.approval-status.outputs.require_approval == 'true'
         uses: ./.github/actions/slack-pending-deployment-approval
         with:
           url: ${{ vars.CONSOLE_WEB_BETA_URL }}
           slack-webhook-url: ${{ secrets.FAILED_E2E_TESTS_SLACK_WEBHOOK_URL }}
           gh-user-to-slack-user: ${{ vars.GH_USER_TO_SLACK_USER }}
           new-app-version: "${{ inputs.app }}@${{ inputs.appVersion }}"
-          environment: ${{ needs.deployment-prerequisites.outputs.environment }}
+          environment: ${{ steps.determine-environment.outputs.environment }}
 
   deploy:
     runs-on: ubuntu-latest
