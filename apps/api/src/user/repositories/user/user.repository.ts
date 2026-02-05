@@ -1,7 +1,8 @@
-import { and, eq, lt, SQL, sql } from "drizzle-orm";
+import { and, eq, lt, ne, SQL, sql } from "drizzle-orm";
 import { PgUpdateSetSource } from "drizzle-orm/pg-core";
 import { singleton } from "tsyringe";
 
+import { UserWallets } from "@src/billing/model-schemas";
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
 import { TxService } from "@src/core/services";
@@ -77,6 +78,14 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
       })
       .returning();
     return this.toOutput(item);
+  }
+
+  async findTrialUsersByFingerprint(fingerprint: string, excludeUserId: string): Promise<{ id: string }[]> {
+    return this.pg
+      .select({ id: this.table.id })
+      .from(this.table)
+      .innerJoin(UserWallets, and(eq(UserWallets.userId, this.table.id), eq(UserWallets.isTrialing, true)))
+      .where(and(eq(this.table.lastFingerprint, fingerprint), ne(this.table.id, excludeUserId)));
   }
 
   private async findUserWithWallet(whereClause: SQL<unknown>) {

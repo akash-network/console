@@ -8,6 +8,7 @@ import { AuthService } from "@src/auth/services/auth.service";
 import { WalletInitializerService } from "@src/billing/services";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
 import type { UserOutput } from "@src/user/repositories";
+import { UserRepository } from "@src/user/repositories";
 import { WalletController } from "./wallet.controller";
 
 import { generatePaymentMethod } from "@test/seeders/payment-method.seeder";
@@ -71,6 +72,48 @@ describe("WalletController", () => {
       })
     ).rejects.toThrow(/associated with another trial account/i);
     expect(container.resolve(WalletInitializerService).initializeAndGrantTrialLimits).not.toHaveBeenCalled();
+  });
+
+  it("forbids starting a trial for a user with duplicate fingerprint", async () => {
+    const user = UserSeeder.create({
+      emailVerified: true,
+      stripeCustomerId: faker.string.uuid(),
+      lastFingerprint: "duplicate-fingerprint"
+    });
+    const container = setup({
+      user,
+      hasDuplicateFingerprint: true,
+      hasPaymentMethods: true
+    });
+    const walletController = container.resolve(WalletController);
+    await expect(() =>
+      walletController.create({
+        data: {
+          userId: user.id
+        }
+      })
+    ).rejects.toThrow(/Unable to start trial/i);
+    expect(container.resolve(WalletInitializerService).initializeAndGrantTrialLimits).not.toHaveBeenCalled();
+  });
+
+  it("allows starting a trial when user has no fingerprint", async () => {
+    const user = UserSeeder.create({
+      emailVerified: true,
+      stripeCustomerId: faker.string.uuid(),
+      lastFingerprint: null
+    });
+    const container = setup({
+      user,
+      hasPaymentMethods: true,
+      hasDuplicateTrialAccount: false
+    });
+    const walletController = container.resolve(WalletController);
+    await walletController.create({
+      data: {
+        userId: user.id
+      }
+    });
+    expect(container.resolve(WalletInitializerService).initializeAndGrantTrialLimits).toHaveBeenCalledWith(user.id);
   });
 
   it("creates a wallet for a user with all valid requirements", async () => {
@@ -177,6 +220,7 @@ describe("WalletController", () => {
     user?: UserOutput;
     hasPaymentMethods?: boolean;
     hasDuplicateTrialAccount?: boolean;
+    hasDuplicateFingerprint?: boolean;
     requires3DS?: boolean;
     validationFails?: boolean;
     stripeError?: boolean;
@@ -224,6 +268,11 @@ describe("WalletController", () => {
             requires3DS: false
           });
         })
+      })
+    });
+    rootContainer.register(UserRepository, {
+      useValue: mock<UserRepository>({
+        findTrialUsersByFingerprint: jest.fn().mockResolvedValue(input?.hasDuplicateFingerprint ? [{ id: faker.string.uuid() }] : [])
       })
     });
 

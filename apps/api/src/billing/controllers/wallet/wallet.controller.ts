@@ -16,6 +16,7 @@ import { StripeService } from "@src/billing/services/stripe/stripe.service";
 import { StripeErrorService } from "@src/billing/services/stripe-error/stripe-error.service";
 import { GetWalletOptions, WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
+import { UserRepository } from "@src/user/repositories";
 
 @scoped(Lifecycle.ResolutionScoped)
 export class WalletController {
@@ -29,7 +30,8 @@ export class WalletController {
     private readonly userWalletRepository: UserWalletRepository,
     private readonly stripeService: StripeService,
     private readonly stripeErrorService: StripeErrorService,
-    private readonly featureFlagsService: FeatureFlagsService
+    private readonly featureFlagsService: FeatureFlagsService,
+    private readonly userRepository: UserRepository
   ) {}
 
   @Protected([{ action: "create", subject: "UserWallet" }])
@@ -45,6 +47,11 @@ export class WalletController {
     if (this.stripeService.isProduction) {
       const hasDuplicateTrialAccount = await this.stripeService.hasDuplicateTrialAccount(paymentMethods, currentUser.id);
       assert(!hasDuplicateTrialAccount, 400, "This payment method is already associated with another trial account. Please use a different payment method.");
+
+      if (currentUser.lastFingerprint) {
+        const usersWithSameFingerprint = await this.userRepository.findTrialUsersByFingerprint(currentUser.lastFingerprint, currentUser.id);
+        assert(usersWithSameFingerprint.length === 0, 400, "Unable to start trial. Please contact support for assistance.");
+      }
     }
 
     const latestPaymentMethod = paymentMethods[0];
