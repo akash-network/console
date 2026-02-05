@@ -1,5 +1,13 @@
 
 
+## [2.13.7](https://github.com/akash-network/console/compare/notifications/v2.13.5...notifications/v2.13.7) (2026-02-05)
+
+
+### Bug Fixes
+
+* ensure SDL is not reset on changes during redeploy ([#2674](https://github.com/akash-network/console/issues/2674)) ([ae0d6a9](https://github.com/akash-network/console/commit/ae0d6a9fbea8b1362aecc57faaca4da26bd44b00))
+* update chain-sdk to alpha.21 ([#2666](https://github.com/akash-network/console/issues/2666)) ([7db8f76](https://github.com/akash-network/console/commit/7db8f76e1ffe53bd800bb1c8ef67e17dbeb0d58e))
+
 ## [2.13.6](https://github.com/akash-network/console/compare/notifications/v2.13.5...notifications/v2.13.6) (2026-02-04)
 
 
