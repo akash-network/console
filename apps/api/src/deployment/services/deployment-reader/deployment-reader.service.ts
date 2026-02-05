@@ -216,6 +216,12 @@ export class DeploymentReaderService {
 
   @Memoize({ ttlInSeconds: 30 })
   public async getDeploymentByOwnerAndDseq(owner: string, dseq: string) {
+    // Quick existence check - avoids expensive blockchain HTTP call for non-existent deployments
+    const count = await Deployment.count({ where: { owner, dseq } });
+    if (count === 0) {
+      return null;
+    }
+
     let deploymentData: RestAkashDeploymentInfoResponse | null = null;
     try {
       deploymentData = await this.getDeployment(owner, dseq);
