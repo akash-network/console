@@ -112,7 +112,6 @@ describe(UserService.name, () => {
       expect(newUser).toMatchObject({
         id: existingUser.id,
         userId: existingUser.userId!,
-        username: input.wantedUsername,
         email: input.email,
         emailVerified: input.emailVerified,
         subscribedToNewsletter: input.subscribedToNewsletter

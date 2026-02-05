@@ -117,7 +117,7 @@ export class SessionService {
     const isUserExists = signupResponse.status === 409 || (signupResponse.status === 400 && signupResponse.data.code === "invalid_signup");
     if (signupResponse.status >= 400 && !isUserExists) {
       return Err({
-        message: signupResponse.data.message || signupResponse.data.description || "Signup failed",
+        message: signupResponse.data.friendly_message || signupResponse.data.message || signupResponse.data.description || "Signup failed",
         code: "signup_failed",
         cause: extractResponseDetails(signupResponse)
       });
