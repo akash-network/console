@@ -1,5 +1,14 @@
 
 
+## [3.25.10](https://github.com/akash-network/console/compare/console-web/v3.25.7...console-web/v3.25.10) (2026-02-05)
+
+
+### Bug Fixes
+
+* ensure SDL is not reset on changes during redeploy ([#2674](https://github.com/akash-network/console/issues/2674)) ([ae0d6a9](https://github.com/akash-network/console/commit/ae0d6a9fbea8b1362aecc57faaca4da26bd44b00))
+* managed wallet deposit denom ([#2669](https://github.com/akash-network/console/issues/2669)) ([d34a13c](https://github.com/akash-network/console/commit/d34a13cbf0561c31dca3fc501c2ab1a413e433eb))
+* update chain-sdk to alpha.21 ([#2666](https://github.com/akash-network/console/issues/2666)) ([7db8f76](https://github.com/akash-network/console/commit/7db8f76e1ffe53bd800bb1c8ef67e17dbeb0d58e))
+
 ## [3.25.9](https://github.com/akash-network/console/compare/console-web/v3.25.7...console-web/v3.25.9) (2026-02-05)
 
 
