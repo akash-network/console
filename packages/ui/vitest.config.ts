@@ -12,10 +12,5 @@ export default defineConfig({
         classNameStrategy: "non-scoped"
       }
     }
-  },
-  resolve: {
-    alias: {
-      "\\.(css|less|scss|sass)$": "identity-obj-proxy"
-    }
   }
 });
