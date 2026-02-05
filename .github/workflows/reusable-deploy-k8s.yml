@@ -46,6 +46,16 @@ on:
         default: false
         description: >-
           Force a Kubernetes rollout restart even if the Deployment spec is unchanged.
+      approve:
+        type: boolean
+        required: false
+        default: false
+        description: >-
+          Whether to require manual approval before proceeding with the deployment.
+      linked-workflow-run-id:
+        description: "The ID of the workflow run that triggered this deployment"
+        required: false
+        type: string
 
   workflow_call:
     inputs:
@@ -72,6 +82,12 @@ on:
         default: false
         description: >-
           Force a Kubernetes rollout restart even if the Deployment spec is unchanged.
+      approve:
+        type: boolean
+        required: false
+        default: false
+        description: >-
+          Whether to require manual approval before proceeding with the deployment.
 
 # 1 pending + 1 in-progress workflows
 concurrency:
@@ -82,12 +98,18 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       environment: ${{ steps.determine-environment.outputs.environment }}
+      require_approval: ${{ steps.approval-status.outputs.require_approval }}
     permissions:
       contents: read
       pull-requests: read
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      - name: Display linked workflow run ID
+        if: ${{ inputs.linked-workflow-run-id }}
+        run: |
+          echo "Linked workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Determine environment
         id: determine-environment
@@ -108,8 +130,8 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          require_approval=$(gh api "repos/$GITHUB_REPOSITORY/environments/$DEPLOYMENT_ENVIRONMENT" \
-            --jq '.protection_rules | map(.type) | contains(["required_reviewers"])')
+          env="${{ inputs.environment }}-${{ inputs.chain }}"
+          require_approval=$([[ "$env" == "prod-NA" || "$env" == "prod" ]] && echo "true" || echo "false")
           echo "require_approval=$require_approval" >> "$GITHUB_OUTPUT"
       - name: Notify in Slack about pending deployment
         if: steps.approval-status.outputs.require_approval == 'true'
@@ -118,13 +140,17 @@ jobs:
           url: ${{ vars.CONSOLE_WEB_BETA_URL }}
           slack-webhook-url: ${{ secrets.FAILED_E2E_TESTS_SLACK_WEBHOOK_URL }}
           gh-user-to-slack-user: ${{ vars.GH_USER_TO_SLACK_USER }}
-          new-app-version: "${{ inputs.app }}@${{ inputs.appVersion }}"
-          environment: ${{ steps.determine-environment.outputs.environment }}
+          app: ${{ inputs.app }}
+          new-version: ${{ inputs.appVersion }}
+          environment: ${{ inputs.environment }}
+          chain: ${{ inputs.chain != 'NA' && inputs.chain || '' }}
+          linked-workflow-run-id: ${{ github.run_id }}
 
   deploy:
     runs-on: ubuntu-latest
     needs: deployment-prerequisites
-    environment: ${{ needs.deployment-prerequisites.outputs.environment }}
+    if: >-
+      needs.deployment-prerequisites.outputs.require_approval != 'true' || inputs.approve == 'true' || inputs.approve == true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -217,3 +243,24 @@ jobs:
         if: success() && inputs.force-rollout
         run: |
           kubectl --kubeconfig kubeconfig -n "${{ inputs.environment }}" rollout restart deploy "${{ env.release_name }}"
+
+      - name: Create deployment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          APP_ENV: ${{ needs.deployment-prerequisites.outputs.environment }}
+          GH_REF: ${{ inputs.app }}/v${{ inputs.appVersion }}
+        run: |
+          DEPLOYMENT_ID=$(
+            gh api -X POST "repos/$REPOSITORY/deployments" \
+              -f ref="$GH_REF" \
+              -f environment="$APP_ENV" \
+              -f auto_merge=false \
+              -f required_contexts='[]' \
+              --jq '.id'
+          )
+          echo "Deployment: $DEPLOYMENT_ID"
+
+          gh api -X POST "repos/$REPOSITORY/deployments/$DEPLOYMENT_ID/statuses" \
+            -f state="success" \
+            -f description="Deploy finished"

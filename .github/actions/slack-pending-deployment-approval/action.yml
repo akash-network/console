@@ -5,7 +5,10 @@ inputs:
   url:
     description: Base URL to Console API or UI
     required: true
-  new-app-version:
+  app:
+    description: Application name
+    required: true
+  new-version:
     description: New app version
     required: true
   slack-webhook-url:
@@ -22,7 +25,15 @@ inputs:
   environment:
     description: Environment name
     required: false
-    default: "production"
+    default: "staging" # or prod
+  chain:
+    description: Blockchain name (if applicable)
+    required: false
+    default: ""
+  linked-workflow-run-id:
+    description: The ID of the workflow run that called this action
+    required: false
+    default: ""
 
 runs:
   using: "composite"
@@ -46,6 +57,15 @@ runs:
 
                   Hey ${{ steps.associated-pr.outputs.slack-user != '' && format('<@{0}>', steps.associated-pr.outputs.slack-user) || steps.associated-pr.outputs.author }},
 
-                  A new version of *${{inputs.new-app-version}}* is ready to be deployed to *${{ inputs.environment }}*. Please test your changes on <${{ inputs.url }}|beta> and <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Confirm> the deployment.
+                  A new version of *${{inputs.app}}* `${{ inputs.new-version }}` is ready to be deployed to *${{ inputs.environment }}${{ inputs.chain != '' && format('-{0}', inputs.chain) || '' }}*. Please test your changes on <${{ inputs.url }}|beta> and <${{ github.server_url }}/${{ github.repository }}/actions/workflows/reusable-deploy-k8s.yml|Confirm> the deployment.
                   This was triggered by the following PR:
                   <${{ github.server_url }}/${{ github.repository }}/pull/${{ steps.associated-pr.outputs.number }}|${{ steps.associated-pr.outputs.title }}>
+
+                  Alternatively, use gh cli to run workflow:
+                  ```
+                  gh workflow run reusable-deploy-k8s.yml \
+                    -f app=${{ inputs.app }} \
+                    -f appVersion=${{ inputs.new-version }}
+                    -f approve=true ${{ inputs.linked-workflow-run-id && format('-f linked-workflow-run-id={0}', inputs.linked-workflow-run-id) || '' }} \
+                    -f environment=${{ inputs.environment }} ${{ inputs.chain && format('-f chain={0}', inputs.chain) || '' }}
+                  ```
