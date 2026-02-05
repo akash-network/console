@@ -83,7 +83,7 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
     return this.pg
       .select({ id: this.table.id })
       .from(this.table)
-      .innerJoin(UserWallets, eq(UserWallets.userId, this.table.id))
+      .innerJoin(UserWallets, and(eq(UserWallets.userId, this.table.id), eq(UserWallets.isTrialing, true)))
       .where(and(eq(this.table.lastFingerprint, fingerprint), ne(this.table.id, excludeUserId)));
   }
 
