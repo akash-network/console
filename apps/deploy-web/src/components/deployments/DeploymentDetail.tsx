@@ -23,7 +23,7 @@ import { useWhen } from "@src/hooks/useWhen";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { useDeploymentLeaseList } from "@src/queries/useLeaseQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
-import { extractRepositoryUrl, isCiCdImageInYaml } from "@src/services/remote-deploy/env-var-manager.service";
+import { extractRepositoryUrl } from "@src/services/remote-deploy/env-var-manager.service";
 import { RouteStep } from "@src/types/route-steps.type";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
@@ -43,7 +43,7 @@ export interface DeploymentDetailProps {
 type Tab = "ALERTS" | "EVENTS" | "LOGS" | "SHELL" | "EDIT" | "LEASES";
 
 export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
-  const { analyticsService, deploymentLocalStorage } = useServices();
+  const { analyticsService, deploymentLocalStorage, sdlAnalyzer } = useServices();
   const router = useRouter();
 
   const [activeTab, setActiveTab] = useState<Tab>("LEASES");
@@ -53,7 +53,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
   const { isSettingsInit } = useSettings();
   const [leaseRefs, setLeaseRefs] = useState<Array<any>>([]);
   const [deploymentManifest, setDeploymentManifest] = useState<string | null>(null);
-  const isRemoteDeploy: boolean = !!editedManifest && !!isCiCdImageInYaml(editedManifest);
+  const isRemoteDeploy = sdlAnalyzer.hasCiCdImage(editedManifest);
   const repo: string | null = isRemoteDeploy ? extractRepositoryUrl(editedManifest) : null;
   const { user } = useUser();
   const isAlertsEnabled = useFlag("alerts") && !!user?.userId && isManaged;

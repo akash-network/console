@@ -1,4 +1,4 @@
-import { NewDeploymentContainer } from "@src/components/new-deployment/NewDeploymentContainer";
+import { NewDeploymentContainer } from "@src/components/new-deployment/NewDeploymentContainer/NewDeploymentContainer";
 import { createServerSideProps } from "@src/components/new-deployment/NewDeploymentPage/createServerSideProps";
 import { withSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
 

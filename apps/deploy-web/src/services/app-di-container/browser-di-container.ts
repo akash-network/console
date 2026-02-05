@@ -11,6 +11,7 @@ import { DeploymentStorageService } from "../deployment-storage/deployment-stora
 import { BitbucketService } from "../remote-deploy/bitbucket-http.service";
 import { GitHubService } from "../remote-deploy/github-http.service";
 import { GitLabService } from "../remote-deploy/gitlab-http.service";
+import { SDLAnalyzer } from "../sdl-analyzer/sdl-analyzer";
 import { createAppRootContainer } from "./app-di-container";
 
 const rootContainer = createAppRootContainer({
@@ -56,5 +57,6 @@ export const services = createChildContainer(rootContainer, {
   storedWalletsService: () => walletUtils,
   deploymentLocalStorage: () => new DeploymentStorageService(localStorage, services.networkStore),
   windowLocation: () => window.location,
-  windowHistory: () => window.history
+  windowHistory: () => window.history,
+  sdlAnalyzer: () => new SDLAnalyzer({ ciCdImageName: services.publicConfig.NEXT_PUBLIC_CI_CD_IMAGE_NAME })
 });
