@@ -296,7 +296,7 @@ describe("API Keys", () => {
       });
     });
 
-    it("should reject API key creation for trial users", async () => {
+    it("should allow API key creation for trial users", async () => {
       const { token } = await createTestUser(true);
 
       const response = await app.request("/v1/api-keys", {
@@ -312,12 +312,11 @@ describe("API Keys", () => {
         })
       });
 
-      expect(response.status).toBe(403);
-      expect(await response.json()).toEqual({
-        error: "ForbiddenError",
-        message: "Forbidden",
-        code: "forbidden",
-        type: "client_error"
+      expect(response.status).toBe(201);
+      const result = (await response.json()) as any;
+      expect(result.data).toMatchObject({
+        name: "Test key",
+        apiKey: expect.stringMatching(FULL_API_KEY_PATTERN)
       });
     });
   });
