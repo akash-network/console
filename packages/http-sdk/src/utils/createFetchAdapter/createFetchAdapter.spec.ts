@@ -2,21 +2,22 @@ import type { InternalAxiosRequestConfig } from "axios";
 import { AxiosError, AxiosHeaders } from "axios";
 import { BrokenCircuitError } from "cockatiel";
 import { setTimeout as wait } from "timers/promises";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createFetchAdapter } from "./createFetchAdapter";
 
 describe(createFetchAdapter.name, () => {
   beforeEach(() => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   describe("retries", () => {
     it("retries request 3 times if it fails with 5xx", async () => {
-      const adapter = jest
+      const adapter = vi
         .fn()
         .mockImplementationOnce(async (config: InternalAxiosRequestConfig) => {
           throw new AxiosError(
@@ -39,14 +40,14 @@ describe(createFetchAdapter.name, () => {
         adapter
       });
 
-      const [result] = await Promise.all([fetch({ method: "GET", url: "/test", headers: new AxiosHeaders() }), jest.runAllTimersAsync()]);
+      const [result] = await Promise.all([fetch({ method: "GET", url: "/test", headers: new AxiosHeaders() }), vi.runAllTimersAsync()]);
 
       expect(adapter).toHaveBeenCalledTimes(2);
       expect(result.data).toEqual("test");
     });
 
     it("retries request 3 times if it fails with 429", async () => {
-      const adapter = jest
+      const adapter = vi
         .fn()
         .mockImplementationOnce(async (config: InternalAxiosRequestConfig) => {
           throw new AxiosError(
@@ -69,14 +70,14 @@ describe(createFetchAdapter.name, () => {
         adapter
       });
 
-      const [result] = await Promise.all([fetch({ method: "GET", url: "/test", headers: new AxiosHeaders() }), jest.runAllTimersAsync()]);
+      const [result] = await Promise.all([fetch({ method: "GET", url: "/test", headers: new AxiosHeaders() }), vi.runAllTimersAsync()]);
 
       expect(adapter).toHaveBeenCalledTimes(2);
       expect(result.data).toEqual("test");
     });
 
     it("does not retry request if it fails with 400", async () => {
-      const adapter = jest.fn().mockImplementationOnce(async (config: InternalAxiosRequestConfig) => {
+      const adapter = vi.fn().mockImplementationOnce(async (config: InternalAxiosRequestConfig) => {
         throw new AxiosError(
           "test",
           "500",
@@ -98,7 +99,7 @@ describe(createFetchAdapter.name, () => {
 
       const [result] = await Promise.all([
         fetch({ method: "GET", url: "/test", headers: new AxiosHeaders() }).catch(error => error as AxiosError),
-        jest.runAllTimersAsync()
+        vi.runAllTimersAsync()
       ]);
 
       expect(adapter).toHaveBeenCalledTimes(1);
@@ -106,7 +107,7 @@ describe(createFetchAdapter.name, () => {
     });
 
     it("respects numeric retry-after header", async () => {
-      const adapter = jest
+      const adapter = vi
         .fn()
         .mockImplementationOnce(async (config: InternalAxiosRequestConfig) => {
           throw new AxiosError(
@@ -130,7 +131,7 @@ describe(createFetchAdapter.name, () => {
       });
 
       const start = Date.now();
-      const [result] = await Promise.all([fetch({ method: "GET", url: "/test", headers: new AxiosHeaders() }), jest.runAllTimersAsync()]);
+      const [result] = await Promise.all([fetch({ method: "GET", url: "/test", headers: new AxiosHeaders() }), vi.runAllTimersAsync()]);
 
       expect(adapter).toHaveBeenCalledTimes(2);
       expect(Date.now() - start).toBeGreaterThanOrEqual(60 * 1000);
@@ -138,7 +139,7 @@ describe(createFetchAdapter.name, () => {
     });
 
     it("respects date retry-after header", async () => {
-      const adapter = jest
+      const adapter = vi
         .fn()
         .mockImplementationOnce(async (config: InternalAxiosRequestConfig) => {
           throw new AxiosError(
@@ -162,7 +163,7 @@ describe(createFetchAdapter.name, () => {
       });
 
       const start = Date.now();
-      const [result] = await Promise.all([fetch({ method: "GET", url: "/test", headers: new AxiosHeaders() }), jest.runAllTimersAsync()]);
+      const [result] = await Promise.all([fetch({ method: "GET", url: "/test", headers: new AxiosHeaders() }), vi.runAllTimersAsync()]);
 
       expect(adapter).toHaveBeenCalledTimes(2);
       expect(Date.now() - start).toBeGreaterThanOrEqual(60 * 1000);
@@ -172,7 +173,7 @@ describe(createFetchAdapter.name, () => {
 
   describe("circuit breaker", () => {
     it("opens the circuit breaker if it fails 3 times", async () => {
-      const adapter = jest.fn().mockImplementation(async (config: InternalAxiosRequestConfig) => {
+      const adapter = vi.fn().mockImplementation(async (config: InternalAxiosRequestConfig) => {
         throw new AxiosError(
           "test",
           "500",
@@ -195,14 +196,14 @@ describe(createFetchAdapter.name, () => {
         }
       });
 
-      await Promise.all([fetch({ method: "GET", url: "/test", headers: new AxiosHeaders() }).catch(error => error as AxiosError), jest.runAllTimersAsync()]);
+      await Promise.all([fetch({ method: "GET", url: "/test", headers: new AxiosHeaders() }).catch(error => error as AxiosError), vi.runAllTimersAsync()]);
 
       await expect(fetch({ method: "GET", url: "/test", headers: new AxiosHeaders() })).rejects.toThrow(BrokenCircuitError);
       expect(adapter).toHaveBeenCalledTimes(4);
     });
 
     it("closes the circuit breaker after halfOpenAfter it succeeds", async () => {
-      const adapter = jest.fn().mockImplementation(async (config: InternalAxiosRequestConfig) => {
+      const adapter = vi.fn().mockImplementation(async (config: InternalAxiosRequestConfig) => {
         throw new AxiosError(
           "test",
           "500",
@@ -225,19 +226,19 @@ describe(createFetchAdapter.name, () => {
         }
       });
 
-      await Promise.all([fetch({ method: "GET", url: "/test", headers: new AxiosHeaders() }).catch(error => error as AxiosError), jest.runAllTimersAsync()]);
+      await Promise.all([fetch({ method: "GET", url: "/test", headers: new AxiosHeaders() }).catch(error => error as AxiosError), vi.runAllTimersAsync()]);
 
       await expect(fetch({ method: "GET", url: "/test", headers: new AxiosHeaders() })).rejects.toThrow(BrokenCircuitError);
 
       adapter.mockImplementationOnce(async () => ({ status: 200, data: "test" }));
-      jest.advanceTimersByTime(30 * 1000);
+      vi.advanceTimersByTime(30 * 1000);
 
       expect(await fetch({ method: "GET", url: "/test", headers: new AxiosHeaders() })).toEqual({ status: 200, data: "test" });
     });
 
     it("calls onSuccess callback when request succeeds", async () => {
-      const adapter = jest.fn().mockImplementation(async () => ({ status: 200, data: "test" }));
-      const onSuccess = jest.fn();
+      const adapter = vi.fn().mockImplementation(async () => ({ status: 200, data: "test" }));
+      const onSuccess = vi.fn();
       const fetch = createFetchAdapter({
         adapter,
         onSuccess
@@ -250,7 +251,7 @@ describe(createFetchAdapter.name, () => {
     });
 
     it("calls onFailure callback when request finally fails", async () => {
-      const adapter = jest.fn().mockImplementation(async (config: InternalAxiosRequestConfig) => {
+      const adapter = vi.fn().mockImplementation(async (config: InternalAxiosRequestConfig) => {
         throw new AxiosError(
           "test",
           "500",
@@ -265,13 +266,13 @@ describe(createFetchAdapter.name, () => {
           }
         );
       });
-      const onFailure = jest.fn();
+      const onFailure = vi.fn();
       const fetch = createFetchAdapter({
         adapter,
         onFailure
       });
 
-      await Promise.all([fetch({ method: "GET", url: "/test", headers: new AxiosHeaders() }).catch(error => error as AxiosError), jest.runAllTimersAsync()]);
+      await Promise.all([fetch({ method: "GET", url: "/test", headers: new AxiosHeaders() }).catch(error => error as AxiosError), vi.runAllTimersAsync()]);
 
       expect(adapter).toHaveBeenCalledTimes(4);
       expect(onFailure).toHaveBeenCalledTimes(1);
@@ -281,7 +282,7 @@ describe(createFetchAdapter.name, () => {
   describe("abortPendingWhenOneFail", () => {
     it("aborts all pending requests when one request fails with matching condition", async () => {
       let i = 0;
-      const adapter = jest.fn().mockImplementation(async (config: InternalAxiosRequestConfig) => {
+      const adapter = vi.fn().mockImplementation(async (config: InternalAxiosRequestConfig) => {
         await wait(i * 100, undefined, { signal: config.signal as AbortSignal });
         i += 2;
         throw new AxiosError(
@@ -321,7 +322,7 @@ describe(createFetchAdapter.name, () => {
 
     it("allows new requests after abort", async () => {
       let callCount = 0;
-      const adapter = jest.fn().mockImplementation(async (config: InternalAxiosRequestConfig) => {
+      const adapter = vi.fn().mockImplementation(async (config: InternalAxiosRequestConfig) => {
         callCount++;
         if (callCount === 1) {
           throw new AxiosError(
@@ -354,7 +355,7 @@ describe(createFetchAdapter.name, () => {
     });
 
     it("does not abort requests when condition does not match", async () => {
-      const adapter = jest.fn().mockImplementation(async (config: InternalAxiosRequestConfig) => {
+      const adapter = vi.fn().mockImplementation(async (config: InternalAxiosRequestConfig) => {
         if (config.url === "/failing") {
           throw new AxiosError(
             "Bad Request",
@@ -390,7 +391,7 @@ describe(createFetchAdapter.name, () => {
 
     it("preserves existing signal when provided", async () => {
       const externalAbortController = new AbortController();
-      const adapter = jest.fn().mockImplementation(async () => ({ status: 200, data: "success" }));
+      const adapter = vi.fn().mockImplementation(async () => ({ status: 200, data: "success" }));
 
       const fetch = createFetchAdapter({
         adapter,

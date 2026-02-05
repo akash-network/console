@@ -1,13 +1,5 @@
 {
-  "exclude": ["node_modules", "dist", "test", "src/**/*.spec.ts"],
   "extends": "./tsconfig.build.json",
-  "include": ["src/**/*"],
-  "compilerOptions": {
-    "target": "es2022",
-    "useDefineForClassFields": false,
-    "module": "NodeNext",
-    "lib": ["esnext"],
-    "allowImportingTsExtensions": true,
-    "rewriteRelativeImportExtensions": true
-  }
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules", "dist"]
 }

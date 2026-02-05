@@ -14,7 +14,7 @@
   "scripts": {
     "format": "prettier --write ./*.{ts,json} **/*.{ts,json}",
     "lint": "eslint .",
-    "validate:types": "tsc --noEmit && echo"
+    "validate:types": "tsc -p tsconfig.build.json --noEmit && echo"
   },
   "dependencies": {
     "@akashnetwork/net": "*",

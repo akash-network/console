@@ -1,10 +1,7 @@
 {
   "exclude": [
-    "node_modules"
+    "node_modules",
   ],
   "extends": "./tsconfig.build.json",
-  "include": [
-    "**/*.ts"
-  ],
   "compileOnSave": false
 }

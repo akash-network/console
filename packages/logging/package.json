@@ -18,8 +18,9 @@
   "scripts": {
     "format": "prettier --write ./*.{ts,json} **/*.{ts,json}",
     "lint": "eslint .",
-    "test": "jest",
-    "validate:types": "tsc --noEmit && echo"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "validate:types": "tsc -p tsconfig.build.json --noEmit && echo"
   },
   "dependencies": {
     "http-errors": "^2.0.0",
@@ -28,11 +29,9 @@
   },
   "devDependencies": {
     "@types/http-errors": "^2.0.4",
-    "@types/jest": "^29.5.14",
     "@types/node": "^22.8.6",
-    "jest": "^29.7.0",
     "pino-pretty": "^11.3.0",
-    "ts-jest": "^29.4.0"
+    "vitest": "^4.0.0"
   },
   "peerDependencies": {
     "@opentelemetry/api": "^1.9.0",

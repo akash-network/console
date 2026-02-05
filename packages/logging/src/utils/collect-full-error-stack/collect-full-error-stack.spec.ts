@@ -1,3 +1,5 @@
+import { describe, expect, it } from "vitest";
+
 import { collectFullErrorStack } from "./collect-full-error-stack";
 
 describe(collectFullErrorStack.name, () => {

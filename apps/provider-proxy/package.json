@@ -6,7 +6,7 @@
   "author": "Akash Network",
   "main": "main.js",
   "scripts": {
-    "build": "rm -rf dist/* && tsc && esbuild src/server.ts --bundle --sourcemap --platform=node --target=$(node -v | sed 's/^v/node/') --outdir=dist",
+    "build": "rm -rf dist/* && tsc -p tsconfig.build.json && esbuild src/server.ts --bundle --sourcemap --platform=node --target=$(node -v | sed 's/^v/node/') --outdir=dist",
     "build:container": "dc build provider-proxy",
     "dev": "nodemon src/server.ts",
     "dev:inspect": "nodemon --exec node --inspect -r ts-node/register src/server.ts",
@@ -62,6 +62,7 @@
     "nodemon": "^3.1.9",
     "prettier": "^3.3.0",
     "prettier-plugin-tailwindcss": "^0.6.1",
+    "ts-jest": "^29.4.6",
     "ts-node": "^10.9.2",
     "typescript": "~5.8.2"
   }

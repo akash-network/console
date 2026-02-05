@@ -6,7 +6,7 @@ const MAP_ALIASES = {
 
 const common = {
   transform: {
-    "^.+\\.(t|j)s$": ["ts-jest", { tsconfig: "./test/tsconfig.json" }]
+    "^.+\\.(t|j)s$": ["ts-jest", { tsconfig: "./tsconfig.json" }]
   },
   transformIgnorePatterns: ["node_modules/(?!(@octokit|universal-user-agent|before-after-hook)/)"],
   rootDir: ".",

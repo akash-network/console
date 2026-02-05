@@ -2,6 +2,7 @@ import createHttpError from "http-errors";
 import { Transform, Writable } from "node:stream";
 import type { LoggerOptions } from "pino";
 import pino from "pino";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { config } from "../../config";
 import type { Logger } from "./logger.service";
@@ -31,7 +32,7 @@ describe("LoggerService", () => {
   describe("prototype.initPino", () => {
     it("should initialize pino with pretty formatting when STD_OUT_LOG_FORMAT is 'pretty'", () => {
       config.STD_OUT_LOG_FORMAT = "pretty";
-      const pinoMock = jest.fn();
+      const pinoMock = vi.fn();
       new LoggerService({ createPino: pinoMock });
 
       expect(pinoMock).toHaveBeenCalledWith(COMMON_EXPECTED_OPTIONS, expect.any(Transform));
@@ -39,7 +40,7 @@ describe("LoggerService", () => {
 
     it("should initialize pino without pretty formatting for other formats", () => {
       config.STD_OUT_LOG_FORMAT = "json";
-      const pinoMock = jest.fn();
+      const pinoMock = vi.fn();
       new LoggerService({ createPino: pinoMock });
 
       expect(pinoMock).toHaveBeenCalledWith(COMMON_EXPECTED_OPTIONS);
@@ -50,7 +51,7 @@ describe("LoggerService", () => {
         return {};
       }
       LoggerService.mixin = globalMixin;
-      const pinoMock = jest.fn();
+      const pinoMock = vi.fn();
       new LoggerService({ createPino: pinoMock });
 
       expect(pinoMock).toHaveBeenCalledWith({ ...COMMON_EXPECTED_OPTIONS, mixin: globalMixin });
@@ -65,7 +66,7 @@ describe("LoggerService", () => {
         return {};
       }
       LoggerService.mixin = globalMixin;
-      const pinoMock = jest.fn();
+      const pinoMock = vi.fn();
       new LoggerService({ mixin: localMixin, createPino: pinoMock });
 
       expect(pinoMock).toHaveBeenCalledWith({ ...COMMON_EXPECTED_OPTIONS, mixin: localMixin });
@@ -74,7 +75,7 @@ describe("LoggerService", () => {
     });
 
     it("should initialize pino with provided log level overriding global log level", () => {
-      const pinoMock = jest.fn();
+      const pinoMock = vi.fn();
       new LoggerService({ level: "debug", createPino: pinoMock });
 
       expect(pinoMock).toHaveBeenCalledWith({ ...COMMON_EXPECTED_OPTIONS, level: "debug" });
@@ -83,7 +84,7 @@ describe("LoggerService", () => {
     });
 
     it("should initialize pino with provided browser options", () => {
-      const pinoMock = jest.fn();
+      const pinoMock = vi.fn();
       new LoggerService({ createPino: pinoMock, browser: { disabled: false } });
 
       expect(pinoMock).toHaveBeenCalledWith({ ...COMMON_EXPECTED_OPTIONS, browser: { ...COMMON_EXPECTED_OPTIONS.browser, disabled: false } });
@@ -94,13 +95,13 @@ describe("LoggerService", () => {
     (["info", "error", "warn", "debug", "fatal"] satisfies Array<keyof Logger>).forEach(method => {
       it(`should call pino.${method} when calling ${method} method`, () => {
         const pinoLogger = {
-          info: jest.fn(),
-          error: jest.fn(),
-          warn: jest.fn(),
-          debug: jest.fn(),
-          log: jest.fn(),
-          fatal: jest.fn(),
-          child: jest.fn().mockReturnThis()
+          info: vi.fn(),
+          error: vi.fn(),
+          warn: vi.fn(),
+          debug: vi.fn(),
+          log: vi.fn(),
+          fatal: vi.fn(),
+          child: vi.fn().mockReturnThis()
         } as unknown as pino.Logger;
         const logger = new LoggerService({
           createPino: () => pinoLogger

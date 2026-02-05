@@ -21,12 +21,15 @@
   },
   "extends": "@akashnetwork/dev-config/tsconfig.base-next.json",
   "include": [
-    "next-env.d.ts",
     "src/**/*.ts",
     "src/**/*.tsx",
+    "next-env.d.ts",
     ".next/types/**/*.ts"
   ],
   "exclude": [
+    "src/**/*.spec.ts",
+    "src/**/*.spec.tsx",
+    "src/lib/nextjs/setup-node-tests.ts",
     "node_modules"
-  ]
+  ],
 }

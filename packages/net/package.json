@@ -19,13 +19,14 @@
     "format": "prettier --write ./*.{ts,json} './src/**/*.{ts,json}'",
     "generate": "node --experimental-strip-types scripts/generate.ts && npm run format",
     "lint": "eslint .",
-    "test": "npm run generate && jest",
+    "test": "npm run generate && vitest run",
     "test:cov": "npm run test -- --coverage",
-    "validate:types": "tsc --noEmit && echo"
+    "test:watch": "vitest",
+    "validate:types": "tsc -p tsconfig.build.json --noEmit && echo"
   },
   "devDependencies": {
-    "jest": "^29.7.0",
     "typescript": "~5.8.2",
+    "vitest": "^4.0.0",
     "zod": "3.*"
   }
 }
