@@ -5,6 +5,7 @@ import assert from "http-assert";
 import { singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
+import { UserWalletRepository } from "@src/billing/repositories";
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { FindDeploymentSettingParams } from "@src/deployment/http-schemas/deployment-setting.schema";
 import {
@@ -27,7 +28,8 @@ export class DeploymentSettingService {
     private readonly authService: AuthService,
     private readonly drainingDeploymentService: DrainingDeploymentService,
     private readonly walletReloadJobService: WalletReloadJobService,
-    private readonly config: DeploymentConfigService
+    private readonly config: DeploymentConfigService,
+    private readonly userWalletRepository: UserWalletRepository
   ) {}
 
   async findOrCreateByUserIdAndDseq(params: FindDeploymentSettingParams): Promise<DeploymentSettingWithEstimatedTopUpAmount | undefined> {
@@ -38,7 +40,8 @@ export class DeploymentSettingService {
     }
 
     try {
-      return await this.create(params);
+      const userWallet = await this.userWalletRepository.findOneByUserId(params.userId);
+      return await this.create({ ...params, autoTopUpEnabled: !!userWallet });
     } catch (error) {
       if (error instanceof ForbiddenError) {
         return undefined;
