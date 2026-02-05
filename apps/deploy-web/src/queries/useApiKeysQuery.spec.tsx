@@ -42,23 +42,6 @@ describe("useApiKeysQuery", () => {
       expect(result.current.query.isSuccess).toBe(false);
     });
 
-    it("should return undefined and not fetch when user is trialing", async () => {
-      const apiKeyService = mock<ApiKeyHttpService>({
-        getApiKeys: jest.fn()
-      });
-      const { result } = setupApiKeysQuery({
-        user: mockUser,
-        wallet: { ...mockWallet, isTrialing: true },
-        services: {
-          apiKey: () => apiKeyService
-        }
-      });
-
-      expect(result.current.query.fetchStatus).toBe("idle");
-      expect(apiKeyService.getApiKeys).not.toHaveBeenCalled();
-      expect(result.current.query.data).toBeUndefined();
-    });
-
     it("should return undefined and not fetch when wallet is not managed", async () => {
       const apiKeyService = mock<ApiKeyHttpService>({
         getApiKeys: jest.fn()

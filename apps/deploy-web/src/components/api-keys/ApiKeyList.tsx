@@ -6,7 +6,6 @@ import { Trash } from "iconoir-react";
 
 import { ApiKeyDocsBanner } from "@src/components/api-keys/ApiKeyDocsBanner";
 import { CreateApiKeyModal } from "@src/components/api-keys/CreateApiKeyModal";
-import { VerifiedPayingCustomerRequiredLink } from "@src/components/user/VerifiedPayingCustomerRequiredLink";
 import { useWallet } from "@src/context/WalletProvider";
 
 interface Props {
@@ -19,7 +18,7 @@ interface Props {
 }
 
 export function ApiKeyList({ apiKeys, onDeleteApiKey, onDeleteClose, isDeleting, apiKeyToDelete, updateApiKeyToDelete }: Props) {
-  const { isTrialing, isManaged } = useWallet();
+  const { isManaged } = useWallet();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   return (
@@ -62,9 +61,9 @@ export function ApiKeyList({ apiKeys, onDeleteApiKey, onDeleteClose, isDeleting,
           <div>
             <h1 className="text-2xl font-bold">API Keys</h1>
           </div>
-          <VerifiedPayingCustomerRequiredLink onClick={() => setIsCreateModalOpen(true)}>
-            <Button size="sm">Create Key</Button>
-          </VerifiedPayingCustomerRequiredLink>
+          <Button size="sm" onClick={() => setIsCreateModalOpen(true)}>
+            Create Key
+          </Button>
         </div>
 
         <div className="rounded-lg bg-card p-4">
@@ -103,7 +102,7 @@ export function ApiKeyList({ apiKeys, onDeleteApiKey, onDeleteClose, isDeleting,
                   </TableRow>
                 ))}
 
-              {(apiKeys?.length === 0 || isTrialing || !isManaged) && (
+              {(apiKeys?.length === 0 || !isManaged) && (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center">
                     No API keys found
