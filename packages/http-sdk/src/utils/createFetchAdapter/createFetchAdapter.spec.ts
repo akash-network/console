@@ -2,7 +2,7 @@ import type { InternalAxiosRequestConfig } from "axios";
 import { AxiosError, AxiosHeaders } from "axios";
 import { BrokenCircuitError } from "cockatiel";
 import { setTimeout as wait } from "timers/promises";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createFetchAdapter } from "./createFetchAdapter";
 

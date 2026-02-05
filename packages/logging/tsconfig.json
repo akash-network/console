@@ -1,13 +1,7 @@
 {
   "exclude": [
     "node_modules",
-    "**/*.spec.ts",
-    "vitest-setup.ts",
-    "vitest.config.ts"
   ],
   "extends": "./tsconfig.build.json",
-  "include": [
-    "**/*.ts"
-  ],
   "compileOnSave": false
 }

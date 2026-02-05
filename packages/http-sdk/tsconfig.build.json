@@ -1,9 +1,11 @@
 {
+  "extends": "@akashnetwork/dev-config/tsconfig.base-node.json",
   "compilerOptions": {
     "baseUrl": ".",
     "noImplicitAny": true,
     "strict": true,
     "isolatedModules": true
   },
-  "extends": "@akashnetwork/dev-config/tsconfig.base-node.json"
+  "include": ["src/**/*"],
+  "exclude": ["**/*.spec.ts", "vitest.config.ts"]
 }

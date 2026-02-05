@@ -2,7 +2,7 @@ import createHttpError from "http-errors";
 import { Transform, Writable } from "node:stream";
 import type { LoggerOptions } from "pino";
 import pino from "pino";
-import { afterEach, describe, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { config } from "../../config";
 import type { Logger } from "./logger.service";

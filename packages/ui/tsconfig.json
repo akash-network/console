@@ -1,9 +1,8 @@
 {
-  "exclude": ["node_modules", "vitest-setup.ts", "vitest.config.ts"],
+  "exclude": ["node_modules"],
   "extends": "./tsconfig.build.json",
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "compileOnSave": false,
   "compilerOptions": {
-    "types": ["vitest/globals", "@testing-library/jest-dom"]
+    "types": ["@testing-library/jest-dom"]
   }
 }

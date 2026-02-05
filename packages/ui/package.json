@@ -22,7 +22,7 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "validate:types": "tsc --noEmit && echo"
+    "validate:types": "tsc -p tsconfig.build.json --noEmit && echo"
   },
   "dependencies": {
     "@mui/material": "^5.15.20",

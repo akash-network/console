@@ -22,7 +22,7 @@
     "test": "npm run generate && vitest run",
     "test:cov": "npm run test -- --coverage",
     "test:watch": "vitest",
-    "validate:types": "tsc --noEmit && echo"
+    "validate:types": "tsc -p tsconfig.build.json --noEmit && echo"
   },
   "devDependencies": {
     "typescript": "~5.8.2",
