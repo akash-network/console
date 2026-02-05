@@ -2,7 +2,7 @@ import type { InternalAxiosRequestConfig } from "axios";
 
 import { requestExecutionContext } from "@src/lib/nextjs/requestExecutionContext";
 
-const headerNames = ["cf-connecting-ip", "x-forwarded-for"];
+const headerNames = ["cf-connecting-ip", "x-forwarded-for", "user-agent"];
 export function clientIpForwardingInterceptor(config: InternalAxiosRequestConfig) {
   const context = requestExecutionContext.getStore();
 
