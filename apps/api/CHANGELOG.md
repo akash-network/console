@@ -1,5 +1,19 @@
 
 
+## [3.28.0](https://github.com/akash-network/console/compare/console-api/v3.27.5...console-api/v3.28.0) (2026-02-05)
+
+
+### Features
+
+* add existence check for deployments ([#2671](https://github.com/akash-network/console/issues/2671)) ([24e860b](https://github.com/akash-network/console/commit/24e860bba88f6713aa0e907c8462d5a9aef74e57))
+* api key + auto top up enabled ([#2682](https://github.com/akash-network/console/issues/2682)) ([c8d7137](https://github.com/akash-network/console/commit/c8d7137960e76483f8acca6667a11f3cdd45df2a))
+* enhance wallet trial creation logic ([#2670](https://github.com/akash-network/console/issues/2670)) ([ade6999](https://github.com/akash-network/console/commit/ade6999ebd570cee7194bbea42be328451140c69))
+
+
+### Bug Fixes
+
+* **user:** shows friendly auth0 message and skips username update ([3501687](https://github.com/akash-network/console/commit/35016878c280263deb05d235137ab0a22035c50a))
+
 ## [3.27.5](https://github.com/akash-network/console/compare/console-api/v3.27.2...console-api/v3.27.5) (2026-02-05)
 
 
