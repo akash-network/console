@@ -5,15 +5,14 @@ on:
     inputs:
       image_tag:
         description: "Image tag to deploy (e.g., latest, 1.0.0, v1.0.0)"
-        required: true
+        required: false
         type: string
-        default: latest
-
 jobs:
   setup:
     uses: ./.github/workflows/reusable-deploy-setup.yml
     with:
-      image_tag: console-web/${{ inputs.image_tag }}
+      app: console-web
+      image_tag: ${{ inputs.image_tag || github.ref_name }}
 
   deploy-beta:
     needs: setup
