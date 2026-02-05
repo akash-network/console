@@ -2,7 +2,7 @@ import { applyDefaults, copyDrizzlePlugin } from "@akashnetwork/dev-config/tsup-
 import { defineConfig } from "tsup";
 
 import packageJson from "./package.json";
-import tsconfig from "./tsconfig.json";
+import tsconfig from "./tsconfig.build.json";
 
 const isProduction = process.env.NODE_ENV === "production";
 
