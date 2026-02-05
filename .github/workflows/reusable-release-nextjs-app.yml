@@ -72,4 +72,3 @@ jobs:
           gh workflow run ${{ inputs.deploy_workflow }} \
             --repo ${{ github.repository }} \
             --ref ${{ needs.release.outputs.git_tag }} \
-            -f image_tag=${{ needs.release.outputs.git_tag }}

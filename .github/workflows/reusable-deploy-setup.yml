@@ -7,6 +7,10 @@ on:
         description: "Full image tag (e.g., console-api/latest, console-api/1.0.0, console-api/v1.0.0)"
         required: true
         type: string
+      app:
+        description: "Application name (e.g., console-api, tx-signer)"
+        required: true
+        type: string
     outputs:
       image_tag:
         description: "Resolved image tag to deploy"
@@ -23,19 +27,22 @@ jobs:
     steps:
       - id: extract
         env:
-          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ inputs.image_tag }}
+          APP: ${{ inputs.app }}
         run: |
-          tag="${{ inputs.image_tag }}"
-          package_name="${tag%%/*}"
-          version="${tag#*/}"
+          package_name="${TAG_NAME%%/*}"
+          version="${TAG_NAME#*/}"
+
+          if [[ "$TAG_NAME" = v* ]] || [[ "$TAG_NAME" = [0-9]* ]] || [[ "$package_name" = "$APP" ]]; then
+            echo "✅ Deployment tag is valid."
+          else
+            echo "❌ This deployment workflow (app=$APP) can be started from $APP/v* tags or from specific version (e.g., v1.2.3, 1.2.3)."
+            echo "You started it from: $TAG_NAME"
+            # exit 1
+          fi
 
           # Remove 'v' prefix if present
           version="${version#v}"
-
-          if [[ "$version" == "latest" ]]; then
-            # Fetch latest from registry
-            version=$(gh api "/orgs/${{ github.repository_owner }}/packages/container/${package_name}/versions" --jq '.[0].metadata.container.tags[0]')
-          fi
 
           # Remove beta suffix if present
           version="${version%-beta}"
