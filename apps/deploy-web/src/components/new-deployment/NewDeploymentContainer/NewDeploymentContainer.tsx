@@ -9,37 +9,53 @@ import { USER_TEMPLATE_CODE } from "@src/config/deploy.config";
 import { CI_CD_TEMPLATE_ID } from "@src/config/remote-deploy.config";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider";
+import { useServices } from "@src/context/ServicesProvider";
 import { useTemplates } from "@src/queries/useTemplateQuery";
-import { isCiCdImageInYaml } from "@src/services/remote-deploy/env-var-manager.service";
 import sdlStore from "@src/store/sdlStore";
 import type { TemplateCreation } from "@src/types";
 import { RouteStep } from "@src/types/route-steps.type";
 import { hardcodedTemplates } from "@src/utils/templates";
-import { UrlService } from "@src/utils/urlUtils";
-import Layout from "../layout/Layout";
-import { CreateLease } from "./CreateLease/CreateLease";
-import { ManifestEdit } from "./ManifestEdit";
-import { CustomizedSteppers } from "./Stepper";
-import { TemplateList } from "./TemplateList";
+import Layout from "../../layout/Layout";
+import { CreateLease } from "../CreateLease/CreateLease";
+import { ManifestEdit } from "../ManifestEdit";
+import { CustomizedSteppers } from "../Stepper";
+import { TemplateList } from "../TemplateList";
 
 export interface NewDeploymentContainerProps {
   template?: TemplateOutput;
   templateId?: string;
   isDeployButtonFlow?: boolean;
+  dependencies?: typeof DEPENDENCIES;
 }
 
-export const NewDeploymentContainer: FC<NewDeploymentContainerProps> = ({ template: requestedTemplate, templateId }) => {
+export const DEPENDENCIES = {
+  Layout,
+  TemplateList,
+  ManifestEdit,
+  CreateLease,
+  CustomizedSteppers,
+  useRouter,
+  useSearchParams,
+  useSdlBuilder,
+  useLocalNotes,
+  useTemplates,
+  useServices
+};
+
+export const NewDeploymentContainer: FC<NewDeploymentContainerProps> = ({ template: requestedTemplate, templateId, dependencies: d = DEPENDENCIES }) => {
+  const { urlService, sdlAnalyzer } = d.useServices();
   const [isGitProviderTemplate, setIsGitProviderTemplate] = useState<boolean>(false);
-  const { isLoading: isLoadingTemplates, templates } = useTemplates();
   const [activeStep, setActiveStep] = useState<number | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateCreation | null>(null);
   const [editedManifest, setEditedManifest] = useState("");
   const deploySdl = useAtomValue(sdlStore.deploySdl);
-  const { getDeploymentData } = useLocalNotes();
-  const router = useRouter();
-  const searchParams = useSearchParams();
+  const { getDeploymentData } = d.useLocalNotes();
+  const router = d.useRouter();
+  const searchParams = d.useSearchParams();
+  const { toggleCmp, hasComponent } = d.useSdlBuilder();
+  const { isLoading: isLoadingTemplates, templates } = d.useTemplates();
+
   const dseq = searchParams?.get("dseq");
-  const { toggleCmp, hasComponent } = useSdlBuilder();
 
   useEffect(() => {
     const queryStep = searchParams?.get("step");
@@ -56,7 +72,7 @@ export const NewDeploymentContainer: FC<NewDeploymentContainerProps> = ({ templa
 
     if (shouldRedirectToGitlab) {
       router.replace(
-        UrlService.newDeployment({
+        urlService.newDeployment({
           step: RouteStep.editDeployment,
           gitProvider: "github",
           gitProviderCode: code,
@@ -86,7 +102,7 @@ export const NewDeploymentContainer: FC<NewDeploymentContainerProps> = ({ templa
       toggleCmp("ssh");
     }
 
-    const isRemoteYamlImage = isCiCdImageInYaml(template?.content as string);
+    const isRemoteYamlImage = sdlAnalyzer.hasCiCdImage(template?.content);
     const queryStep = searchParams?.get("step");
     if (queryStep !== RouteStep.editDeployment) {
       if (isRemoteYamlImage) {
@@ -95,10 +111,10 @@ export const NewDeploymentContainer: FC<NewDeploymentContainerProps> = ({ templa
       const newParams = isRemoteYamlImage
         ? { ...Object.fromEntries(searchParams.entries()), step: RouteStep.editDeployment, gitProvider: "github" }
         : { ...Object.fromEntries(searchParams.entries()), step: RouteStep.editDeployment };
-      router.replace(UrlService.newDeployment(newParams));
+      router.replace(urlService.newDeployment(newParams));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [templates, editedManifest, searchParams, router, toggleCmp, hasComponent, activeStep]);
+  }, [templates, !!editedManifest, searchParams, router, toggleCmp, hasComponent, activeStep]);
 
   const getRedeployTemplate = () => {
     let template: Partial<TemplateCreation> | null = null;
@@ -153,18 +169,18 @@ export const NewDeploymentContainer: FC<NewDeploymentContainerProps> = ({ templa
   const isFirstStepCompleted = activeStep !== null && activeStep >= 1;
 
   return (
-    <Layout isLoading={isLoadingTemplates} isUsingSettings isUsingWallet containerClassName="pb-0 h-full">
+    <d.Layout isLoading={isLoadingTemplates} isUsingSettings isUsingWallet containerClassName="pb-0 h-full">
       {isFirstStepCompleted && (
         <div className="flex w-full items-center">
-          <CustomizedSteppers activeStep={activeStep} />
+          <d.CustomizedSteppers activeStep={activeStep} />
         </div>
       )}
 
       {activeStep === 0 && (
-        <TemplateList onChangeGitProvider={setIsGitProviderTemplate} onTemplateSelected={setSelectedTemplate} setEditedManifest={setEditedManifest} />
+        <d.TemplateList onChangeGitProvider={setIsGitProviderTemplate} onTemplateSelected={setSelectedTemplate} setEditedManifest={setEditedManifest} />
       )}
       {activeStep === 1 && (
-        <ManifestEdit
+        <d.ManifestEdit
           selectedTemplate={selectedTemplate}
           onTemplateSelected={setSelectedTemplate}
           editedManifest={editedManifest}
@@ -172,7 +188,7 @@ export const NewDeploymentContainer: FC<NewDeploymentContainerProps> = ({ templa
           isGitProviderTemplate={isGitProviderTemplate}
         />
       )}
-      {activeStep === 2 && <CreateLease dseq={dseq as string} />}
-    </Layout>
+      {activeStep === 2 && <d.CreateLease dseq={dseq as string} />}
+    </d.Layout>
   );
 };

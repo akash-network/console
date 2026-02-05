@@ -5,7 +5,7 @@ import type { FCWithChildren } from "@src/types/component";
 import { sshVmDistros } from "@src/utils/sdl/data";
 
 type ComponentNames = "command" | "service-count" | "ssh" | "ssh-toggle" | "yml-editor" | "yml-uploader";
-interface SdlContextProps {
+export interface SdlContextProps {
   hasComponent: (component: ComponentNames) => boolean;
   toggleCmp: (component: ComponentNames) => void;
   imageList?: string[];

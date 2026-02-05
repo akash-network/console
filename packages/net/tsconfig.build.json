@@ -6,7 +6,5 @@
     "strict": true
   },
   "include": ["src/**/*"],
-  "exclude": [
-    "vitest.config.ts"
-  ]
+  "exclude": ["vitest.config.ts"]
 }
