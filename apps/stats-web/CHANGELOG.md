@@ -1,5 +1,13 @@
 
 
+## [1.13.10](https://github.com/akash-network/console/compare/stats-web/v1.13.7...stats-web/v1.13.10) (2026-02-05)
+
+
+### Bug Fixes
+
+* ensure SDL is not reset on changes during redeploy ([#2674](https://github.com/akash-network/console/issues/2674)) ([ae0d6a9](https://github.com/akash-network/console/commit/ae0d6a9fbea8b1362aecc57faaca4da26bd44b00))
+* update chain-sdk to alpha.21 ([#2666](https://github.com/akash-network/console/issues/2666)) ([7db8f76](https://github.com/akash-network/console/commit/7db8f76e1ffe53bd800bb1c8ef67e17dbeb0d58e))
+
 ## [1.13.9](https://github.com/akash-network/console/compare/stats-web/v1.13.7...stats-web/v1.13.9) (2026-02-05)
 
 
