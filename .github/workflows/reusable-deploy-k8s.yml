@@ -97,7 +97,6 @@ jobs:
   deployment-prerequisites:
     runs-on: ubuntu-latest
     outputs:
-      can_deploy: ${{ steps.beta-deployment-status.outputs.can_deploy }}
       require_approval: ${{ steps.approval-status.outputs.require_approval }}
       environment: ${{ steps.determine-environment.outputs.environment }}
     steps:
@@ -123,59 +122,6 @@ jobs:
                     *App:* ${{ inputs.app }}@${{ inputs.appVersion }}
                     *Workflow:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
                     *Author:* ${{ github.actor }}
-
-      - name: Check status of beta deployment
-        id: beta-deployment-status
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          app_name="${{ inputs.app }}"
-          environment="${{ inputs.environment }}"
-          app_version="${{ inputs.appVersion }}"
-          workflow_name="${app_name}-release.yml"
-          skip_beta_deployment_check="${{ inputs.skip_beta_deployment_check }}"
-
-          echo "## Deployment status" >> "$GITHUB_STEP_SUMMARY"
-
-          if [[ "$environment" != "prod" || ! -f ".github/workflows/$workflow_name" || "$skip_beta_deployment_check" == "true" ]]; then
-            echo "Beta deployment check skipped because the environment is not production or the workflow file does not exist." >> "$GITHUB_STEP_SUMMARY"
-            echo "can_deploy=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          version_tag="${app_name}/v${app_version}"
-          commit_hash=$(gh -X GET api "repos/akash-network/console/commits/tags/$version_tag" --jq '.sha')
-          workflow_run_details=$(gh run list -w "$workflow_name" \
-            --limit 1 \
-            --commit "$commit_hash" \
-            --status "completed" \
-            --json conclusion,url \
-            --jq '.[0]')
-
-          if [ -z "$workflow_run_details" ]; then
-            echo "Beta deployment check skipped because beta workflow run details are empty." >> "$GITHUB_STEP_SUMMARY"
-            echo "can_deploy=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          can_deploy=$(echo "$workflow_run_details" | jq -r '.conclusion == "success"')
-
-          if [ "$can_deploy" == "false" ]; then
-            echo "## Deployment status" >> "$GITHUB_STEP_SUMMARY"
-            workflow_run_url=$(echo "$workflow_run_details" | jq -r '.url')
-
-            if [ "$skip_beta_deployment_check" == "true" ]; then
-              echo "Force deployed to production ignoring failed [deployment to staging]($workflow_run_url)" >> "$GITHUB_STEP_SUMMARY"
-            else
-              echo "The deployment aborted because [deployment to beta]($workflow_run_url) failed." >> "$GITHUB_STEP_SUMMARY"
-            fi
-          fi
-
-          if [ "$skip_beta_deployment_check" == "true" ]; then
-            echo "can_deploy=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "can_deploy=$can_deploy" >> "$GITHUB_OUTPUT"
-          fi
 
       - name: Determine environment
         id: determine-environment
@@ -208,7 +154,6 @@ jobs:
     needs: deployment-prerequisites
     if: >-
       github.event_name != 'workflow_dispatch' &&
-      needs.deployment-prerequisites.outputs.can_deploy == 'true' &&
       needs.deployment-prerequisites.outputs.require_approval == 'true'
 
     steps:
@@ -225,7 +170,6 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: deployment-prerequisites
-    if: needs.deployment-prerequisites.outputs.can_deploy == 'true'
     environment: ${{ needs.deployment-prerequisites.outputs.environment }}
     steps:
       - name: Checkout
