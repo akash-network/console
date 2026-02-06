@@ -27,9 +27,14 @@ jobs:
     steps:
       - id: extract
         env:
+          GH_TOKEN: ${{ github.token }}
           TAG_NAME: ${{ inputs.image_tag }}
           APP: ${{ inputs.app }}
         run: |
+          if [[ "$TAG_NAME" == "latest" ]]; then
+            TAG_NAME=$(gh api "repos/${{ github.repository }}/releases/latest" --jq '.tag_name')
+          fi
+
           package_name="${TAG_NAME%%/*}"
           version="${TAG_NAME#*/}"
 
@@ -38,7 +43,7 @@ jobs:
           else
             echo "❌ This deployment workflow (app=$APP) can be started from $APP/v* tags or from specific version (e.g., v1.2.3, 1.2.3)."
             echo "You started it from: $TAG_NAME"
-            # exit 1
+            exit 1
           fi
 
           # Remove 'v' prefix if present

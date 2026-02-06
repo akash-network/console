@@ -127,11 +127,8 @@ jobs:
         id: approval-status
         env:
           DEPLOYMENT_ENVIRONMENT: ${{ steps.determine-environment.outputs.environment }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          env="${{ inputs.environment }}-${{ inputs.chain }}"
-          require_approval=$([[ "$env" == "prod-NA" || "$env" == "prod" ]] && echo "true" || echo "false")
+          require_approval=$([[ "$DEPLOYMENT_ENVIRONMENT" == "production" || "$DEPLOYMENT_ENVIRONMENT" == "production-mainnet" ]] && echo "true" || echo "false")
           echo "require_approval=$require_approval" >> "$GITHUB_OUTPUT"
       - name: Notify in Slack about pending deployment
         if: steps.approval-status.outputs.require_approval == 'true'
@@ -253,11 +250,14 @@ jobs:
         run: |
           DEPLOYMENT_ID=$(
             gh api -X POST "repos/$REPOSITORY/deployments" \
-              -f ref="$GH_REF" \
-              -f environment="$APP_ENV" \
-              -f auto_merge=false \
-              -f required_contexts='[]' \
-              --jq '.id'
+              --input - --jq '.id' <<EOF
+          {
+            "ref": "$GH_REF",
+            "environment": "$APP_ENV",
+            "auto_merge": false,
+            "required_contexts": []
+          }
+          EOF
           )
           echo "Deployment: $DEPLOYMENT_ID"
 
