@@ -82,7 +82,7 @@ export class LeaseHttpService {
           "pagination.limit": pagination?.limit,
           "pagination.key": pagination?.key
         },
-        timeout: 10000
+        timeout: 30000
       })
     );
   }
