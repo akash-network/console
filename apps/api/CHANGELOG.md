@@ -1,5 +1,13 @@
 
 
+## [3.29.0](https://github.com/akash-network/console/compare/console-api/v3.28.0...console-api/v3.29.0) (2026-02-06)
+
+
+### Features
+
+* implements distributed semaphore using PostgreSQL advisory locks in api ([772c422](https://github.com/akash-network/console/commit/772c4223948b423c91e3ff7d2f198ecbd3cfddb5))
+* put browser fingerprint trial check behind feature flag ([#2685](https://github.com/akash-network/console/issues/2685)) ([b93c248](https://github.com/akash-network/console/commit/b93c248e03e4d6ba656c05aed4d5ba1a711cf9bb))
+
 ## [3.28.0](https://github.com/akash-network/console/compare/console-api/v3.27.5...console-api/v3.28.0) (2026-02-05)
 
 
