@@ -4,6 +4,8 @@ import type { PaymentMethod } from "@akashnetwork/http-sdk";
 import { Badge, Button, Card, CardDescription, CardHeader, CardTitle, RadioGroupItem } from "@akashnetwork/ui/components";
 import { CheckCircle, CreditCard } from "iconoir-react";
 
+import { capitalizeFirstLetter } from "@src/utils/stringUtils";
+
 interface PaymentMethodCardProps {
   method: PaymentMethod;
   isRemoving: boolean;
@@ -52,11 +54,19 @@ export const PaymentMethodCard: React.FC<PaymentMethodCardProps> = ({
           <div className="flex items-center gap-4">
             <div>
               <div className="text-base font-medium">
-                {method.card?.brand?.toUpperCase()} •••• {method.card?.last4}
+                {method.card ? (
+                  <>
+                    {method.card.brand?.toUpperCase()} •••• {method.card.last4}
+                  </>
+                ) : (
+                  <>{method.type ? capitalizeFirstLetter(method.type) : "Payment Method"}</>
+                )}
               </div>
-              <div className="text-sm text-muted-foreground">
-                Expires {method.card?.exp_month}/{method.card?.exp_year}
-              </div>
+              {method.card && (
+                <div className="text-sm text-muted-foreground">
+                  Expires {method.card.exp_month}/{method.card.exp_year}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -80,11 +90,19 @@ export const PaymentMethodCard: React.FC<PaymentMethodCardProps> = ({
             </div>
             <div>
               <CardTitle className="text-left text-base">
-                {method.card?.brand?.toUpperCase()} •••• {method.card?.last4}
+                {method.card ? (
+                  <>
+                    {method.card.brand?.toUpperCase()} •••• {method.card.last4}
+                  </>
+                ) : (
+                  <>{method.type ? capitalizeFirstLetter(method.type) : "Payment Method"}</>
+                )}
               </CardTitle>
-              <CardDescription>
-                Expires {method.card?.exp_month}/{method.card?.exp_year}
-              </CardDescription>
+              {method.card && (
+                <CardDescription>
+                  Expires {method.card.exp_month}/{method.card.exp_year}
+                </CardDescription>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2">
