@@ -4,8 +4,6 @@ import { setTimeout as delay } from "timers/promises";
 
 import { PgSemaphore } from "./pg-semaphore";
 
-jest.setTimeout(30000);
-
 describe(PgSemaphore.name, () => {
   const db = postgres(process.env.POSTGRES_DB_URI!);
 

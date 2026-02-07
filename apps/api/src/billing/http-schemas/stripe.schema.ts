@@ -1,5 +1,5 @@
+import { z } from "@hono/zod-openapi";
 import { differenceInDays } from "date-fns";
-import { z } from "zod";
 
 export const SetupIntentResponseSchema = z.object({
   data: z.object({

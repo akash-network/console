@@ -1,7 +1,7 @@
 import type { JwtTokenManager, JwtTokenPayload } from "@akashnetwork/chain-sdk";
 import type { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import { faker } from "@faker-js/faker";
-import { mock } from "jest-mock-extended";
+import { mock } from "vitest-mock-extended";
 
 import type { Wallet } from "../../../billing/lib/wallet/wallet";
 import type { TxManagerService } from "../../../billing/services/tx-manager/tx-manager.service";
@@ -71,8 +71,8 @@ describe(ProviderJwtTokenService.name, () => {
     directSecp256k1HdWallet.getAccounts.mockResolvedValue([{ address, pubkey: new Uint8Array([1, 2, 3]), algo: "secp256k1" }]);
 
     const wallet = mock<Wallet>({
-      getFirstAddress: jest.fn().mockResolvedValue(address),
-      signAmino: jest.fn().mockResolvedValue({
+      getFirstAddress: vi.fn().mockResolvedValue(address),
+      signAmino: vi.fn().mockResolvedValue({
         signature: {
           signature: "test-signature"
         }
@@ -80,16 +80,21 @@ describe(ProviderJwtTokenService.name, () => {
     });
 
     const jwtToken = mock<JwtTokenManager>({
-      validatePayload: jest.fn().mockReturnValue({ errors: undefined }),
-      generateToken: jest.fn().mockResolvedValue(jwtTokenValue)
+      validatePayload: vi.fn().mockReturnValue({ errors: undefined }),
+      generateToken: vi.fn().mockResolvedValue(jwtTokenValue)
+    });
+
+    // Create a constructor function for JwtTokenManager
+    const JwtTokenManagerConstructor = vi.fn().mockImplementation(function () {
+      return jwtToken;
     });
 
     const jwtModule = mock<JWTModule>({
-      JwtTokenManager: jest.fn(() => jwtToken)
+      JwtTokenManager: JwtTokenManagerConstructor as unknown as typeof JwtTokenManager
     });
 
     const txManagerService = mock<TxManagerService>({
-      getDerivedWallet: jest.fn().mockReturnValue(wallet)
+      getDerivedWallet: vi.fn().mockReturnValue(wallet)
     });
 
     const providerJwtTokenService = new ProviderJwtTokenService(jwtModule, txManagerService);

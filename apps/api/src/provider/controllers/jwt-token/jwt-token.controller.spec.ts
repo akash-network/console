@@ -1,6 +1,6 @@
 import { faker } from "@faker-js/faker";
-import { mock } from "jest-mock-extended";
 import { Ok } from "ts-results";
+import { mock } from "vitest-mock-extended";
 
 import { UserSeeder } from "../../../../test/seeders/user.seeder";
 import { UserWalletSeeder } from "../../../../test/seeders/user-wallet.seeder";

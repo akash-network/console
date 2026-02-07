@@ -1,4 +1,4 @@
-import { mock, type MockProxy } from "jest-mock-extended";
+import { mock, type MockProxy } from "vitest-mock-extended";
 import type { z, ZodEffects, ZodObject, ZodRawShape } from "zod";
 
 import type { ConfigService } from "@src/core/services/config/config.service";

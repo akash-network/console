@@ -5,7 +5,7 @@ import type { LeaseHttpService } from "@akashnetwork/http-sdk";
 import type { MongoAbility } from "@casl/ability";
 import { createMongoAbility } from "@casl/ability";
 import type { EncodeObject, Registry } from "@cosmjs/proto-signing";
-import { mock } from "jest-mock-extended";
+import { mock } from "vitest-mock-extended";
 
 import type { AuthService } from "@src/auth/services/auth.service";
 import { TrialDeploymentLeaseCreated } from "@src/billing/events/trial-deployment-lease-created";

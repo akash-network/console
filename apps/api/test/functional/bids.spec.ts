@@ -11,8 +11,6 @@ import { BidSeeder } from "@test/seeders/bid.seeder";
 import { topUpWallet } from "@test/services/topUpWallet";
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
-jest.setTimeout(20000);
-
 describe("Bids API", () => {
   beforeAll(async () => {
     await topUpWallet();

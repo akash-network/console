@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { isHttpError } from "http-errors";
-import { mock } from "jest-mock-extended";
 import { container as globalContainer } from "tsyringe";
+import { mock } from "vitest-mock-extended";
 
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyAuthService } from "@src/auth/services/api-key/api-key-auth.service";

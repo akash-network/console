@@ -1,5 +1,5 @@
 import { faker } from "@faker-js/faker";
-import { mock } from "jest-mock-extended";
+import { mock } from "vitest-mock-extended";
 
 import type { Amplitude } from "@src/core/providers/amplitude.provider";
 import type { LoggerService } from "@src/core/providers/logging.provider";
@@ -86,10 +86,14 @@ describe(AnalyticsService.name, () => {
   });
 
   function setup() {
+    const mockIdentifyInstance = {
+      set: vi.fn()
+    };
+    const IdentifyConstructor = vi.fn().mockImplementation(function () {
+      return mockIdentifyInstance;
+    });
     const amplitude = mock<Amplitude>({
-      Identify: jest.fn().mockImplementation(() => ({
-        set: jest.fn()
-      }))
+      Identify: IdentifyConstructor
     });
     const logger = mock<LoggerService>();
     const service = new AnalyticsService(amplitude, logger);

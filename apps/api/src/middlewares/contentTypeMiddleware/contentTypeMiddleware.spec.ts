@@ -1,5 +1,5 @@
 import type { Context, Next } from "hono";
-import { mock } from "jest-mock-extended";
+import { mock } from "vitest-mock-extended";
 
 import { contentTypeMiddleware } from "./contentTypeMiddleware";
 

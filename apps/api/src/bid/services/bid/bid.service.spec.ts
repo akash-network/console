@@ -1,7 +1,7 @@
 import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
 import type { BidHttpService } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
-import { mock } from "jest-mock-extended";
+import { mock } from "vitest-mock-extended";
 
 import type { AuthService } from "@src/auth/services/auth.service";
 import type { UserWalletRepository } from "@src/billing/repositories";

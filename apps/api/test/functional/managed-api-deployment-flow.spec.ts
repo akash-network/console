@@ -5,6 +5,7 @@ import * as assert from "node:assert";
 import fs from "node:fs";
 import path from "node:path";
 import { container } from "tsyringe";
+import { beforeAll, describe, it } from "vitest";
 import type { z } from "zod";
 
 import type { ApiKeyVisibleResponse } from "@src/auth/http-schemas/api-key.schema";
@@ -28,8 +29,6 @@ import { AppHttpService } from "@test/services/app-http.service";
 import { topUpWallet } from "@test/services/topUpWallet";
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
-jest.setTimeout(120_000);
-
 type ApiKey = NonNullable<ApiKeyVisibleResponse["data"]["apiKey"]>;
 type AuthType = "mTLS" | "JWT";
 
@@ -47,7 +46,7 @@ describe("Managed Wallet API Deployment Flow", () => {
    */
   const authTypes: AuthType[] = ["mTLS", "JWT"];
 
-  it.each(authTypes)("should execute a full deployment cycle with provider %s auth", async auth => {
+  it.each(authTypes)("should execute a full deployment cycle with provider %s auth", { timeout: 180000 }, async auth => {
     // Setup: Prepare test environment with providers, user, and API key
     const { apiKey, walletAddress } = await setup();
 
@@ -176,7 +175,7 @@ describe("Managed Wallet API Deployment Flow", () => {
     }
   });
 
-  it("should maintain read-only operations during blockchain node outages", async () => {
+  it("should maintain read-only operations during blockchain node outages", { timeout: 180000 }, async () => {
     // Setup: Prepare test environment with providers, user, and API key
     const { apiKey, walletAddress, blockNode, unblockNode } = await setup();
 
