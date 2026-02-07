@@ -50,8 +50,6 @@ export const TemplateGallery: React.FunctionComponent = () => {
   const searchParams = useSearchParams();
   const allTemplatesRef = useRef<HTMLDivElement>(null);
 
-  const hasActiveFilter = !!searchParams?.get("category") || !!searchParams?.get("search");
-
   const scrollToAllTemplates = () => {
     allTemplatesRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -162,7 +160,7 @@ export const TemplateGallery: React.FunctionComponent = () => {
         </Title>
       </div>
 
-      {!hasActiveFilter && templates.length > 0 && <CuratedTemplatesSection templates={templates} onViewAllClick={scrollToAllTemplates} />}
+      {templates.length > 0 && <CuratedTemplatesSection templates={templates} onViewAllClick={scrollToAllTemplates} />}
 
       <div ref={allTemplatesRef} className="mb-4">
         <div className="hidden md:block">{searchBar}</div>
