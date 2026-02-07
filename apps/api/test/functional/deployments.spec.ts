@@ -28,8 +28,6 @@ import { LeaseStatusSeeder } from "@test/seeders/lease-status.seeder";
 import { UserSeeder } from "@test/seeders/user.seeder";
 import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
 
-jest.setTimeout(20000);
-
 describe("Deployments API", () => {
   const userRepository = container.resolve(UserRepository);
   const apiKeyAuthService = container.resolve(ApiKeyAuthService);

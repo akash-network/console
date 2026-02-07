@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
+exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
 {
   "components": {
     "schemas": {},

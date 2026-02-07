@@ -2,7 +2,7 @@ import "@test/mocks/logger-service.mock";
 
 import type { LoggerService } from "@akashnetwork/logging";
 import { faker } from "@faker-js/faker";
-import { mock } from "jest-mock-extended";
+import { mock } from "vitest-mock-extended";
 
 import { ErrorService } from "./error.service";
 

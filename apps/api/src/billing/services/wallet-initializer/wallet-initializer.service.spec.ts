@@ -1,7 +1,7 @@
 import { Registry } from "@cosmjs/proto-signing";
-import type { MockProxy } from "jest-mock-extended";
-import { mock } from "jest-mock-extended";
 import { container } from "tsyringe";
+import type { MockProxy } from "vitest-mock-extended";
+import { mock } from "vitest-mock-extended";
 
 import { AuthService } from "@src/auth/services/auth.service";
 import { TrialStarted } from "@src/billing/events/trial-started";
@@ -28,7 +28,7 @@ describe(WalletInitializerService.name, () => {
 
       const di = setup({
         getOrCreateWallet,
-        updateWalletById,
+        updateWalletById
       });
       const managedUserWalletService = di.resolve(ManagedUserWalletService) as MockProxy<ManagedUserWalletService>;
       managedUserWalletService.createAndAuthorizeTrialSpending.mockResolvedValue(chainWallet);
@@ -54,7 +54,7 @@ describe(WalletInitializerService.name, () => {
       const getOrCreateWallet = jest.fn().mockResolvedValue({ wallet: existingWallet, isNew: false });
 
       const di = setup({
-        getOrCreateWallet,
+        getOrCreateWallet
       });
       const managedUserWalletService = di.resolve(ManagedUserWalletService);
 
@@ -72,7 +72,7 @@ describe(WalletInitializerService.name, () => {
 
       const di = setup({
         getOrCreateWallet,
-        deleteWalletById,
+        deleteWalletById
       });
       const managedUserWalletService = di.resolve(ManagedUserWalletService) as MockProxy<ManagedUserWalletService>;
       managedUserWalletService.createAndAuthorizeTrialSpending.mockRejectedValue(new Error("Failed to authorize trial"));
@@ -93,7 +93,7 @@ describe(WalletInitializerService.name, () => {
       const di = setup({
         userId,
         getOrCreateWallet,
-        updateWalletById,
+        updateWalletById
       });
       const managedUserWalletService = di.resolve(ManagedUserWalletService) as MockProxy<ManagedUserWalletService>;
       managedUserWalletService.createAndAuthorizeTrialSpending.mockResolvedValue(chainWallet);

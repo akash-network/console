@@ -1,5 +1,5 @@
-import type { MockProxy } from "jest-mock-extended";
-import { mock } from "jest-mock-extended";
+import type { MockProxy } from "vitest-mock-extended";
+import { mock } from "vitest-mock-extended";
 
 import type { HealthzService } from "@src/healthz/services/healthz/healthz.service";
 import { HealthzController } from "./healthz.controller";

@@ -1,8 +1,8 @@
 import type { BalanceHttpService } from "@akashnetwork/http-sdk";
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import { BadRequest, PaymentRequired, ServiceUnavailable } from "http-errors";
-import type { MockProxy } from "jest-mock-extended";
-import { mock } from "jest-mock-extended";
+import type { MockProxy } from "vitest-mock-extended";
+import { mock } from "vitest-mock-extended";
 
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { TxManagerService } from "../tx-manager/tx-manager.service";

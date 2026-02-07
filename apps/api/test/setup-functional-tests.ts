@@ -6,6 +6,7 @@ import { container } from "tsyringe";
 import { cacheEngine } from "@src/caching/helpers";
 import { SemaphoreFactory } from "@src/core/lib/pg-semaphore";
 import { CORE_CONFIG } from "@src/core/providers/config.provider";
+import { RAW_APP_CONFIG } from "@src/core/providers/raw-app-config.provider";
 import { TestDatabaseService } from "./services/test-database.service";
 
 const testPath = expect.getState().testPath;
@@ -37,8 +38,11 @@ export function clearCache(keyOrPrefix?: string) {
   }
 }
 
+container.register(RAW_APP_CONFIG, { useValue: process.env });
+
 beforeAll(async () => {
   cacheEngine.clearAllKeyInCache();
+
   semaphoreClient = postgres(container.resolve(CORE_CONFIG).POSTGRES_DB_URI, {
     max: 1,
     idle_timeout: 30,

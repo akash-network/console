@@ -3,8 +3,8 @@ import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
 import { netConfig } from "@akashnetwork/net";
 import { faker } from "@faker-js/faker";
 import { AxiosError } from "axios";
-import { mock } from "jest-mock-extended";
 import { Ok } from "ts-results";
+import { mock } from "vitest-mock-extended";
 
 import { mockConfigService } from "../../../../test/mocks/config-service.mock";
 import { LeaseStatusSeeder } from "../../../../test/seeders/lease-status.seeder";

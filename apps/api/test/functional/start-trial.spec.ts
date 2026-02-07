@@ -14,8 +14,6 @@ import { app } from "@src/rest-app";
 import { topUpWallet } from "@test/services/topUpWallet";
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
-jest.setTimeout(20000);
-
 describe("start trial", () => {
   const userWalletsTable = resolveTable("UserWallets");
   const config = container.resolve<BillingConfig>(BILLING_CONFIG);
@@ -33,7 +31,7 @@ describe("start trial", () => {
   });
 
   describe("POST /v1/start-trial", () => {
-    xit("creates a wallet for a user", async () => {
+    it.skip("creates a wallet for a user", async () => {
       // TODO: this test requires rework because of payments validations in /start-trial
       const { user, token } = await walletTestingService.createRegisteredUser();
       const userId = user.id;

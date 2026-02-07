@@ -1,5 +1,5 @@
 import type { Octokit } from "@octokit/rest";
-import { mock, mockDeep } from "jest-mock-extended";
+import { mock, mockDeep } from "vitest-mock-extended";
 
 import type { LoggerService } from "@src/core";
 import type { GithubChainRegistryChainResponse } from "@src/types";

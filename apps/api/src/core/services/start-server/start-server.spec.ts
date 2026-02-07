@@ -2,9 +2,9 @@ import type { LoggerService } from "@akashnetwork/logging";
 import type { ServerType } from "@hono/node-server";
 import EventEmitter from "events";
 import type { Hono } from "hono";
-import { mock } from "jest-mock-extended";
 import { setTimeout as delay } from "timers/promises";
 import type { DependencyContainer } from "tsyringe";
+import { mock } from "vitest-mock-extended";
 
 import type { AppInitializer } from "@src/core/providers/app-initializer";
 import { APP_INITIALIZER, ON_APP_START } from "@src/core/providers/app-initializer";

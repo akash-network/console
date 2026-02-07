@@ -1,6 +1,6 @@
 import type { LoggerService } from "@akashnetwork/logging";
 import { millisecondsInMinute } from "date-fns";
-import { mock } from "jest-mock-extended";
+import { mock } from "vitest-mock-extended";
 
 import { cacheEngine } from "@src/caching/helpers";
 import type { DbHealthcheck, JobQueueHealthcheck } from "@src/core";

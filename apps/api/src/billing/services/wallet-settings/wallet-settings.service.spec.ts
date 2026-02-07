@@ -1,7 +1,7 @@
 import { createMongoAbility } from "@casl/ability";
 import { faker } from "@faker-js/faker";
-import { mock } from "jest-mock-extended";
 import { PostgresError } from "postgres";
+import { mock } from "vitest-mock-extended";
 
 import type { AuthService } from "@src/auth/services/auth.service";
 import type { UserWalletRepository, WalletSettingRepository } from "@src/billing/repositories";

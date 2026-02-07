@@ -17,8 +17,6 @@ import { WalletTestingService } from "@test/services/wallet-testing.service";
 const OBFUSCATED_API_KEY_PATTERN = /^ac\.sk\.test\.[A-Za-z0-9]{6}\*{3}[A-Za-z0-9]{6}$/;
 const FULL_API_KEY_PATTERN = /^ac\.sk\.test\.[A-Za-z0-9]{64}$/;
 
-jest.setTimeout(30000);
-
 describe("API Keys", () => {
   const walletService = new WalletTestingService(app);
   const apiKeyRepository = container.resolve(ApiKeyRepository);

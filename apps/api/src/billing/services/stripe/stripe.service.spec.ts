@@ -1,6 +1,6 @@
 import { createMongoAbility } from "@casl/ability";
-import { mock } from "jest-mock-extended";
 import type Stripe from "stripe";
+import { mock } from "vitest-mock-extended";
 
 import type { PaymentMethodRepository, StripeTransactionRepository } from "@src/billing/repositories";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";

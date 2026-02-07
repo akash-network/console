@@ -1,5 +1,5 @@
-import type { MockProxy } from "jest-mock-extended";
-import { mock } from "jest-mock-extended";
+import type { MockProxy } from "vitest-mock-extended";
+import { mock } from "vitest-mock-extended";
 import type { z } from "zod";
 
 import type { ConfigService } from "@src/core/services/config/config.service";

@@ -12,11 +12,6 @@ export class TestDatabaseService {
 
   private readonly postgresUri: string;
 
-  private get postgres() {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    return require("../../src/core/providers/postgres.provider");
-  }
-
   constructor(testPath: string) {
     this.testFileName = path.basename(testPath, ".spec.ts");
     const timestamp = Date.now();
@@ -32,7 +27,10 @@ export class TestDatabaseService {
     console.log(`Setting up test databases for: ${this.testFileName}: ${this.dbName}, ${this.indexerDbName}`);
     await Promise.all([this.createDatabase(this.dbName), this.createDatabase(this.indexerDbName)]);
 
-    await Promise.all([this.postgres.migratePG(), this.migrateIndexerDb()]);
+    // Need to load it dynamically to ensure it doesn't trigger side effects too early
+    const { migratePG } = await import("../../src/core/providers/postgres.provider.ts");
+
+    await Promise.all([migratePG(), this.migrateIndexerDb()]);
   }
 
   private async migrateIndexerDb() {

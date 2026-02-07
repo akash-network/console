@@ -5,8 +5,6 @@ import { TopUpSummarizer } from "./top-up-summarizer";
 
 import { createAkashAddress } from "@test/seeders";
 
-jest.mock("@akashnetwork/logging");
-
 describe(TopUpSummarizer.name, () => {
   let summarizer: TopUpSummarizer;
 

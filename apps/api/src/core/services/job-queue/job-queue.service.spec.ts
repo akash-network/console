@@ -1,6 +1,6 @@
 import { faker } from "@faker-js/faker";
-import { mock, mockDeep } from "jest-mock-extended";
 import type PgBoss from "pg-boss";
+import { mock, mockDeep } from "vitest-mock-extended";
 
 import type { LoggerService } from "@src/core/providers/logging.provider";
 import type { CoreConfigService } from "../core-config/core-config.service";
@@ -295,7 +295,10 @@ describe(JobQueueService.name, () => {
           send: jest.fn().mockResolvedValue("job-id"),
           work: jest.fn().mockResolvedValue(undefined),
           start: jest.fn().mockResolvedValue(undefined),
-          stop: jest.fn().mockResolvedValue(undefined)
+          stop: jest.fn().mockResolvedValue(undefined),
+          cancel: jest.fn().mockResolvedValue(undefined),
+          on: jest.fn().mockReturnValue(undefined),
+          getDb: jest.fn().mockReturnValue({ executeSql: jest.fn().mockResolvedValue(undefined) })
         }),
       executionContextService: mock<ExecutionContextService>({
         set: jest.fn().mockResolvedValue(undefined),

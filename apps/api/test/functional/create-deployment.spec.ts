@@ -17,8 +17,6 @@ import { certVersion, deploymentVersion } from "@src/utils/constants";
 import { topUpWallet } from "@test/services/topUpWallet";
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
-jest.setTimeout(30000);
-
 const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
 
 // TODO: finish this test to create a lease and then close the deployment

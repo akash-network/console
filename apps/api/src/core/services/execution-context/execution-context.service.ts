@@ -34,11 +34,6 @@ export class ExecutionContextService {
   }
 
   async runWithContext<R>(cb: (...args: any[]) => Promise<R>): Promise<R> {
-    return await new Promise((resolve, reject) => {
-      this.storage.run(new Map(), () => {
-        this.storage.getStore();
-        cb().then(resolve).catch(reject);
-      });
-    });
+    return this.storage.run(new Map(), cb);
   }
 }

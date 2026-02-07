@@ -1,7 +1,7 @@
 import type { Context, Next } from "hono";
 import type { MiddlewareHandler } from "hono";
-import { mock } from "jest-mock-extended";
 import { container } from "tsyringe";
+import { mock } from "vitest-mock-extended";
 
 import { AuthService } from "../../../auth/services/auth.service";
 import { SECURITY_NONE } from "../../services/openapi-docs/openapi-security";

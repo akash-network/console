@@ -1,6 +1,6 @@
 import { faker } from "@faker-js/faker";
 import { addMilliseconds, millisecondsInHour } from "date-fns";
-import { mock } from "jest-mock-extended";
+import { mock } from "vitest-mock-extended";
 
 import { WalletBalanceReloadCheck } from "@src/billing/events/wallet-balance-reload-check";
 import type { WalletSettingRepository } from "@src/billing/repositories";

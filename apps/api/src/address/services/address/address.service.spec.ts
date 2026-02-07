@@ -1,7 +1,7 @@
 import type { CosmosHttpService } from "@akashnetwork/http-sdk/src/cosmos/cosmos-http.service";
 import { AxiosError } from "axios";
-import type { MockProxy } from "jest-mock-extended";
-import { mock } from "jest-mock-extended";
+import type { MockProxy } from "vitest-mock-extended";
+import { mock } from "vitest-mock-extended";
 
 import { cacheEngine } from "@src/caching/helpers";
 import type { TransactionService } from "@src/transaction/services/transaction/transaction.service";

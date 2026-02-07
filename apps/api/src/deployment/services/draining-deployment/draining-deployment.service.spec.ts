@@ -3,8 +3,8 @@ import "@test/mocks/logger-service.mock";
 import type { AnyAbility } from "@casl/ability";
 import { faker } from "@faker-js/faker";
 import { addWeeks } from "date-fns";
-import { mock } from "jest-mock-extended";
 import { groupBy } from "lodash";
+import { mock } from "vitest-mock-extended";
 
 import type { UserWalletRepository } from "@src/billing/repositories";
 import type { BalancesService } from "@src/billing/services/balances/balances.service";

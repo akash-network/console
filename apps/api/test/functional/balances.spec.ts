@@ -18,8 +18,6 @@ import { stub } from "@test/services/stub";
 import { topUpWallet } from "@test/services/topUpWallet";
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
-jest.setTimeout(20000);
-
 describe("Balances", () => {
   const mockMasterWalletAddress = "akash1testmasterwalletaddress";
   const mockDeploymentGrantDenom = "uakt";

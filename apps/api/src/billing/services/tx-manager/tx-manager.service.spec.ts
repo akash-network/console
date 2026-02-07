@@ -1,6 +1,6 @@
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import type { IndexedTx } from "@cosmjs/stargate/build/stargateclient";
-import { mock } from "jest-mock-extended";
+import { mock } from "vitest-mock-extended";
 
 import type { BatchSigningClientService, SignAndBroadcastOptions } from "@src/billing/lib/batch-signing-client/batch-signing-client.service";
 import type { Wallet } from "@src/billing/lib/wallet/wallet";
