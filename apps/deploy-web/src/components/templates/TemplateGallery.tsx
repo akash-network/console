@@ -1,6 +1,6 @@
 "use client";
 import type { ChangeEventHandler } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MdSearchOff } from "react-icons/md";
 import { Button, buttonVariants, Input, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
@@ -14,11 +14,31 @@ import { domainName, UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 import { Title } from "../shared/Title";
+import { CuratedTemplatesSection } from "./CuratedTemplatesSection";
 import type { Props as MobileTemplatesFilterProps } from "./MobileTemplatesFilter";
 import { MobileTemplatesFilter } from "./MobileTemplatesFilter";
 import { TemplateBox } from "./TemplateBox";
 
 let timeoutId: NodeJS.Timeout | null = null;
+
+const categoryPriority: Record<string, number> = {
+  "AI - GPU": 0,
+  "AI - CPU": 1,
+  "Machine Learning": 2,
+  Databases: 3,
+  "CI/CD, DevOps": 4,
+  Monitoring: 5,
+  Blogging: 6,
+  Business: 7,
+  Chat: 8,
+  "Data Analytics": 9,
+  Gaming: 10,
+  Hosting: 11,
+  Media: 12,
+  Social: 13,
+  Storage: 14,
+  Tools: 15
+};
 
 export const TemplateGallery: React.FunctionComponent = () => {
   const [selectedCategoryTitle, setSelectedCategoryTitle] = useState<string | null>(null);
@@ -28,6 +48,13 @@ export const TemplateGallery: React.FunctionComponent = () => {
   const router = useRouter();
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const searchParams = useSearchParams();
+  const allTemplatesRef = useRef<HTMLDivElement>(null);
+
+  const hasActiveFilter = !!searchParams?.get("category") || !!searchParams?.get("search");
+
+  const scrollToAllTemplates = () => {
+    allTemplatesRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
   useEffect(() => {
     const queryCategory = searchParams?.get("category") as string;
@@ -51,7 +78,12 @@ export const TemplateGallery: React.FunctionComponent = () => {
       const selectedCategory = categories.find(x => x.title === queryCategory);
       _templates = selectedCategory?.templates || [];
     } else {
-      _templates = templates;
+      _templates = [...templates].sort((a, b) => {
+        const priorityA = categoryPriority[a.category] ?? 999;
+        const priorityB = categoryPriority[b.category] ?? 999;
+        if (priorityA !== priorityB) return priorityA - priorityB;
+        return (a.name || "").localeCompare(b.name || "");
+      });
     }
 
     if (querySearch) {
@@ -122,18 +154,24 @@ export const TemplateGallery: React.FunctionComponent = () => {
         description="Explore all the templates made by the community to easily deploy any docker container on the Akash Network."
       />
 
-      <div className="mb-6 sm:mb-8 md:mb-12">
-        <Title className="mb-2">Find your Template</Title>
+      <div className="mb-6">
+        <Title className="mb-2">Deploy an App</Title>
 
         <Title subTitle className="text-base font-normal text-muted-foreground sm:text-lg">
           Jumpstart your app development process with our pre-built solutions.
         </Title>
       </div>
 
+      {!hasActiveFilter && templates.length > 0 && <CuratedTemplatesSection templates={templates} onViewAllClick={scrollToAllTemplates} />}
+
+      <div ref={allTemplatesRef} className="mb-4">
+        <div className="hidden md:block">{searchBar}</div>
+      </div>
+
       <div className="mb-4 block md:hidden">
         {searchBar}
 
-        <Button onClick={() => setIsMobileSearchOpen(true)} className="flex w-full items-center" variant="outline">
+        <Button onClick={() => setIsMobileSearchOpen(true)} className="mt-2 flex w-full items-center" variant="outline">
           Filter Templates
           <FilterList className="ml-2 text-xs" />
         </Button>
@@ -154,8 +192,6 @@ export const TemplateGallery: React.FunctionComponent = () => {
           <div className="mr-12 hidden w-[222px] md:block">
             <p className="mb-4 font-bold">Filter Templates</p>
 
-            <div className="mb-6">{searchBar}</div>
-
             <ul className="flex flex-col items-start">
               {templates && (
                 <li
@@ -174,7 +210,12 @@ export const TemplateGallery: React.FunctionComponent = () => {
               )}
 
               {categories
-                .sort((a, b) => (a.title < b.title ? -1 : 1))
+                .sort((a, b) => {
+                  const priorityA = categoryPriority[a.title] ?? 999;
+                  const priorityB = categoryPriority[b.title] ?? 999;
+                  if (priorityA !== priorityB) return priorityA - priorityB;
+                  return a.title < b.title ? -1 : 1;
+                })
                 .map(category => (
                   <li
                     key={category.title}
