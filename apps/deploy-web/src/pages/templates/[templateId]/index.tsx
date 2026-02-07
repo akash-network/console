@@ -38,14 +38,16 @@ export const getServerSideProps = defineServerSideProps({
             title,
             description,
             url,
-            images: [
-              {
-                url: template.logoUrl,
-                width: 1200,
-                height: 630,
-                alt: "Template image"
-              }
-            ]
+            ...(template.logoUrl && {
+              images: [
+                {
+                  url: template.logoUrl,
+                  width: 1200,
+                  height: 630,
+                  alt: "Template image"
+                }
+              ]
+            })
           }
         }
       }

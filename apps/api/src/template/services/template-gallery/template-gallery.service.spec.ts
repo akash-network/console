@@ -195,8 +195,8 @@ describe(TemplateGalleryService.name, () => {
 
       await service.buildTemplateGalleryCache(categoriesSchema);
 
-      expect(fsMock.writeFile).toHaveBeenCalledWith("/data/templates/v1/templates/t1.json", JSON.stringify(template1));
-      expect(fsMock.writeFile).toHaveBeenCalledWith("/data/templates/v1/templates/t2.json", JSON.stringify(template2));
+      expect(fsMock.writeFile).toHaveBeenCalledWith("/data/templates/v1/templates/t1.json", JSON.stringify({ data: template1 }));
+      expect(fsMock.writeFile).toHaveBeenCalledWith("/data/templates/v1/templates/t2.json", JSON.stringify({ data: template2 }));
     });
   });
 
@@ -205,7 +205,7 @@ describe(TemplateGalleryService.name, () => {
       const { service, fsMock } = setup();
       const template = { id: "t1", name: "Template 1" };
 
-      fsMock.readFile.mockResolvedValue(JSON.stringify(template));
+      fsMock.readFile.mockResolvedValue(JSON.stringify({ data: template }));
 
       const result = await service.getTemplateById("t1");
 
@@ -233,7 +233,7 @@ describe(TemplateGalleryService.name, () => {
       const { service, fsMock } = setup();
       const template = { id: "t1", name: "Template 1" };
 
-      fsMock.readFile.mockResolvedValue(JSON.stringify(template));
+      fsMock.readFile.mockResolvedValue(JSON.stringify({ data: template }));
 
       const firstResult = await service.getTemplateById("t1");
       const secondResult = await service.getTemplateById("t1");
