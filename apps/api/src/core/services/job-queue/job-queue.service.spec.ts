@@ -209,6 +209,70 @@ describe(JobQueueService.name, () => {
     });
   });
 
+  describe("cancelCreatedBy", () => {
+    it("cancels created jobs by singleton key and logs cancelled ids", async () => {
+      const { service, pgBoss, logger, coreConfig } = setup();
+      const executeSql = jest.fn().mockResolvedValue({ rows: [{ id: "job-1" }, { id: "job-2" }] });
+      jest.spyOn(pgBoss, "getDb").mockReturnValue({ executeSql } as ReturnType<PgBoss["getDb"]>);
+      jest.spyOn(coreConfig, "get").mockReturnValue("pgboss");
+
+      await service.cancelCreatedBy({ name: "TestJob", singletonKey: "test.key.123" });
+
+      expect(executeSql).toHaveBeenCalledWith(expect.stringContaining("singleton_key = $2"), ["TestJob", "test.key.123"]);
+      expect(logger.info).toHaveBeenCalledWith({
+        event: "JOBS_CANCELLED",
+        jobIds: ["job-1", "job-2"]
+      });
+    });
+
+    it("logs empty array when no jobs match", async () => {
+      const { service, pgBoss, logger, coreConfig } = setup();
+      const executeSql = jest.fn().mockResolvedValue({ rows: [] });
+      jest.spyOn(pgBoss, "getDb").mockReturnValue({ executeSql } as ReturnType<PgBoss["getDb"]>);
+      jest.spyOn(coreConfig, "get").mockReturnValue("pgboss");
+
+      await service.cancelCreatedBy({ name: "TestJob", singletonKey: "test.key.999" });
+
+      expect(logger.info).toHaveBeenCalledWith({
+        event: "JOBS_CANCELLED",
+        jobIds: []
+      });
+    });
+  });
+
+  describe("cancelCreatedByPattern", () => {
+    it("cancels created jobs by singleton key pattern using LIKE and logs cancelled ids", async () => {
+      const { service, pgBoss, logger, coreConfig } = setup();
+      const executeSql = jest.fn().mockResolvedValue({ rows: [{ id: "job-1" }, { id: "job-2" }] });
+      jest.spyOn(pgBoss, "getDb").mockReturnValue({ executeSql } as ReturnType<PgBoss["getDb"]>);
+      jest.spyOn(coreConfig, "get").mockReturnValue("pgboss");
+
+      await service.cancelCreatedByPattern({ name: "CloseTrialDeployment", singletonKeyPattern: "closeTrialDeployment.%.42" });
+
+      expect(executeSql).toHaveBeenCalledWith(expect.stringContaining("singleton_key LIKE $2"), ["CloseTrialDeployment", "closeTrialDeployment.%.42"]);
+      expect(logger.info).toHaveBeenCalledWith({
+        event: "JOBS_CANCELLED_BY_PATTERN",
+        pattern: "closeTrialDeployment.%.42",
+        jobIds: ["job-1", "job-2"]
+      });
+    });
+
+    it("logs empty array when no jobs match the pattern", async () => {
+      const { service, pgBoss, logger, coreConfig } = setup();
+      const executeSql = jest.fn().mockResolvedValue({ rows: [] });
+      jest.spyOn(pgBoss, "getDb").mockReturnValue({ executeSql } as ReturnType<PgBoss["getDb"]>);
+      jest.spyOn(coreConfig, "get").mockReturnValue("pgboss");
+
+      await service.cancelCreatedByPattern({ name: "NotificationJob", singletonKeyPattern: "notification.%.999" });
+
+      expect(logger.info).toHaveBeenCalledWith({
+        event: "JOBS_CANCELLED_BY_PATTERN",
+        pattern: "notification.%.999",
+        jobIds: []
+      });
+    });
+  });
+
   describe("startWorkers", () => {
     it("throws error when handlers are not registered", async () => {
       const { service } = setup();
