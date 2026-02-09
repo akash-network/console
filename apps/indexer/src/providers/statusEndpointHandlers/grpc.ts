@@ -1,5 +1,5 @@
 import { createProviderSDK } from "@akashnetwork/chain-sdk";
-import type { NodeResources, ResourcesMetric, Status } from "@akashnetwork/chain-sdk/private-types/provider.akash.v1";
+import type { NodeResources, ResourcesMetric, Status as ProviderStatus } from "@akashnetwork/chain-sdk/private-types/provider.akash.v1";
 import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
 import { minutesToMilliseconds } from "date-fns";
 import memoize from "lodash/memoize";
@@ -10,10 +10,10 @@ import type { ProviderStatusInfo } from "./types";
 export async function fetchProviderStatusFromGRPC(provider: Provider, timeout: number): Promise<ProviderStatusInfo> {
   const data = await queryStatus(provider.hostUri, timeout);
 
-  const activeResources = parseResources(data.cluster.inventory.reservations.active.resources);
-  const pendingResources = parseResources(data.cluster.inventory.reservations.pending.resources);
-  const availableResources = data.cluster.inventory.cluster.nodes
-    .map(x => getAvailableResources(x.resources))
+  const activeResources = parseResources(data.cluster?.inventory?.reservations?.active?.resources);
+  const pendingResources = parseResources(data.cluster?.inventory?.reservations?.pending?.resources);
+  const availableResources = data.cluster?.inventory?.cluster?.nodes
+    .map(x => getAvailableResources(x.resources!))
     .reduce(
       (prev, next) => ({
         cpu: prev.cpu + next.cpu,
@@ -31,16 +31,16 @@ export async function fetchProviderStatusFromGRPC(provider: Provider, timeout: n
       }
     );
 
-  const storage = data.cluster.inventory.cluster.storage.map(storage => ({
-    class: storage.info.class,
-    allocatable: parseSizeStr(storage.quantity.allocatable.string),
-    allocated: parseSizeStr(storage.quantity.allocated.string)
+  const storage = data.cluster?.inventory?.cluster?.storage.map(storage => ({
+    class: storage?.info?.class,
+    allocatable: parseSizeStr(storage?.quantity?.allocatable?.string),
+    allocated: parseSizeStr(storage?.quantity?.allocated?.string)
   }));
 
   return {
     resources: {
-      deploymentCount: data.manifest.deployments,
-      leaseCount: data.cluster.leases.active ?? 0,
+      deploymentCount: data.manifest?.deployments ?? 0,
+      leaseCount: data.cluster?.leases?.active ?? 0,
       activeCPU: activeResources.cpu,
       activeGPU: activeResources.gpu,
       activeMemory: activeResources.memory,
@@ -51,13 +51,13 @@ export async function fetchProviderStatusFromGRPC(provider: Provider, timeout: n
       pendingMemory: pendingResources.memory,
       pendingEphemeralStorage: pendingResources.ephemeralStorage,
       pendingPersistentStorage: pendingResources.persistentStorage,
-      availableCPU: availableResources.cpu,
-      availableGPU: availableResources.gpu,
-      availableMemory: availableResources.memory,
-      availableEphemeralStorage: availableResources.ephemeralStorage,
-      availablePersistentStorage: storage.map(x => Math.max(0, x.allocatable - x.allocated)).reduce((a, b) => a + b, 0)
+      availableCPU: availableResources?.cpu ?? 0,
+      availableGPU: availableResources?.gpu ?? 0,
+      availableMemory: availableResources?.memory ?? 0,
+      availableEphemeralStorage: availableResources?.ephemeralStorage ?? 0,
+      availablePersistentStorage: storage?.map(x => Math.max(0, x.allocatable - x.allocated)).reduce((a, b) => a + b, 0) ?? 0
     },
-    nodes: data.cluster.inventory.cluster.nodes.map(node => {
+    nodes: (data.cluster?.inventory?.cluster?.nodes ?? []).map(node => {
       const parsedResources = parseNodeResources(node.resources);
 
       return {
@@ -68,17 +68,17 @@ export async function fetchProviderStatusFromGRPC(provider: Provider, timeout: n
         memoryAllocated: parsedResources.allocatedMemory,
         ephemeralStorageAllocatable: parsedResources.allocatableStorage,
         ephemeralStorageAllocated: parsedResources.allocatedStorage,
-        capabilitiesStorageHDD: node.capabilities.storageClasses.includes("beta1"),
-        capabilitiesStorageSSD: node.capabilities.storageClasses.includes("beta2"),
-        capabilitiesStorageNVME: node.capabilities.storageClasses.includes("beta3"),
+        capabilitiesStorageHDD: !!node.capabilities?.storageClasses.includes("beta1"),
+        capabilitiesStorageSSD: !!node.capabilities?.storageClasses.includes("beta2"),
+        capabilitiesStorageNVME: !!node.capabilities?.storageClasses.includes("beta3"),
         gpuAllocatable: parsedResources.allocatableGPU,
         gpuAllocated: parsedResources.allocatedGPU,
-        cpus: node.resources.cpu.info.map(cpuInfo => ({
+        cpus: (node.resources?.cpu?.info ?? []).map(cpuInfo => ({
           vendor: cpuInfo.vendor,
           model: cpuInfo.model,
           vcores: cpuInfo.vcores
         })),
-        gpus: node.resources.gpu.info.map(gpuInfo => ({
+        gpus: (node.resources?.gpu?.info ?? []).map(gpuInfo => ({
           vendor: gpuInfo.vendor,
           name: gpuInfo.name,
           modelId: gpuInfo.modelid,
@@ -87,11 +87,11 @@ export async function fetchProviderStatusFromGRPC(provider: Provider, timeout: n
         }))
       };
     }),
-    storage: storage
+    storage: storage as unknown as ProviderStatusInfo["storage"]
   };
 }
 
-async function queryStatus(hostUri: string, timeoutMs: number): Promise<Status> {
+async function queryStatus(hostUri: string, timeoutMs: number): Promise<ProviderStatus> {
   try {
     return await getProviderSDK(hostUri).akash.provider.v1.getStatus({}, { timeoutMs });
   } catch (error) {
@@ -112,28 +112,28 @@ const getProviderSDK = memoize((hostUri: string) => {
   });
 });
 
-function parseResources(resources: ResourcesMetric) {
+function parseResources(resources: ResourcesMetric | undefined) {
   return {
-    cpu: Math.round(parseDecimalKubernetesString(resources.cpu.string) * 1_000),
-    memory: parseSizeStr(resources.memory.string),
-    ephemeralStorage: parseSizeStr(resources.ephemeralStorage.string),
-    persistentStorage: Object.values(resources.storage)
+    cpu: Math.round(parseDecimalKubernetesString(resources?.cpu?.string) * 1_000),
+    memory: parseSizeStr(resources?.memory?.string),
+    ephemeralStorage: parseSizeStr(resources?.ephemeralStorage?.string),
+    persistentStorage: Object.values(resources?.storage ?? {})
       .map(s => parseSizeStr(s.string))
       .reduce((a, b) => a + b, 0),
-    gpu: parseDecimalKubernetesString(resources.gpu.string)
+    gpu: parseDecimalKubernetesString(resources?.gpu?.string)
   };
 }
 
-function parseNodeResources(resources: NodeResources) {
+function parseNodeResources(resources: NodeResources | undefined) {
   return {
-    allocatableCPU: Math.round(parseDecimalKubernetesString(resources.cpu.quantity.allocatable.string) * 1_000),
-    allocatedCPU: Math.round(parseDecimalKubernetesString(resources.cpu.quantity.allocated.string) * 1_000),
-    allocatableMemory: parseSizeStr(resources.memory.quantity.allocatable.string),
-    allocatedMemory: parseSizeStr(resources.memory.quantity.allocated.string),
-    allocatableStorage: parseSizeStr(resources.ephemeralStorage.allocatable.string),
-    allocatedStorage: parseSizeStr(resources.ephemeralStorage.allocated.string),
-    allocatableGPU: parseDecimalKubernetesString(resources.gpu.quantity.allocatable.string),
-    allocatedGPU: parseDecimalKubernetesString(resources.gpu.quantity.allocated.string)
+    allocatableCPU: Math.round(parseDecimalKubernetesString(resources?.cpu?.quantity?.allocatable?.string) * 1_000),
+    allocatedCPU: Math.round(parseDecimalKubernetesString(resources?.cpu?.quantity?.allocated?.string) * 1_000),
+    allocatableMemory: parseSizeStr(resources?.memory?.quantity?.allocatable?.string),
+    allocatedMemory: parseSizeStr(resources?.memory?.quantity?.allocated?.string),
+    allocatableStorage: parseSizeStr(resources?.ephemeralStorage?.allocatable?.string),
+    allocatedStorage: parseSizeStr(resources?.ephemeralStorage?.allocated?.string),
+    allocatableGPU: parseDecimalKubernetesString(resources?.gpu?.quantity?.allocatable?.string),
+    allocatedGPU: parseDecimalKubernetesString(resources?.gpu?.quantity?.allocated?.string)
   };
 }
 
