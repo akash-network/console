@@ -6,7 +6,6 @@ import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers"
 import { type UserWalletInput, type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { Memoize } from "@src/caching/helpers";
-import { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import { Trace } from "@src/core/services/tracing/tracing.service";
 import { StatsService } from "@src/dashboard/services/stats/stats.service";
 import { averageBlockTime } from "@src/utils/constants";
@@ -25,8 +24,7 @@ export class BalancesService {
     private txManagerService: TxManagerService,
     private readonly authzHttpService: AuthzHttpService,
     private readonly deploymentHttpService: DeploymentHttpService,
-    private readonly statsService: StatsService,
-    private readonly jobQueueService: JobQueueService
+    private readonly statsService: StatsService
   ) {}
 
   @Trace()
@@ -35,7 +33,6 @@ export class BalancesService {
 
     if (options?.endTrial && userWallet.isTrialing) {
       update.isTrialing = false;
-      await this.cancelTrialJobsByWalletId(userWallet.id);
     }
 
     if (!Object.keys(update).length) {
@@ -43,19 +40,6 @@ export class BalancesService {
     }
 
     await this.userWalletRepository.updateById(userWallet.id, update);
-  }
-
-  private async cancelTrialJobsByWalletId(walletId: number): Promise<void> {
-    await Promise.all([
-      this.jobQueueService.cancelCreatedByPattern({
-        name: "CloseTrialDeployment",
-        singletonKeyPattern: `closeTrialDeployment.%.${walletId}`
-      }),
-      this.jobQueueService.cancelCreatedByPattern({
-        name: "NotificationJob",
-        singletonKeyPattern: `notification.beforeCloseTrialDeployment.%.${walletId}`
-      })
-    ]);
   }
 
   async getFreshLimitsUpdate(userWallet: UserWalletOutput): Promise<Partial<UserWalletInput>> {
