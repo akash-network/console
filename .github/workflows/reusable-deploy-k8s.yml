@@ -125,13 +125,14 @@ jobs:
 
       - name: Check if approval is required
         id: approval-status
+        if: inputs.approve == 'false' || inputs.approve == false
         env:
           DEPLOYMENT_ENVIRONMENT: ${{ steps.determine-environment.outputs.environment }}
         run: |
           require_approval=$([[ "$DEPLOYMENT_ENVIRONMENT" == "production" || "$DEPLOYMENT_ENVIRONMENT" == "production-mainnet" ]] && echo "true" || echo "false")
           echo "require_approval=$require_approval" >> "$GITHUB_OUTPUT"
       - name: Notify in Slack about pending deployment
-        if: steps.approval-status.outputs.require_approval == 'true'
+        if: steps.approval-status.outputs.require_approval == 'true' && (inputs.approve == 'false' || inputs.approve == false)
         uses: ./.github/actions/slack-pending-deployment-approval
         with:
           url: ${{ vars.CONSOLE_WEB_BETA_URL }}
@@ -260,6 +261,11 @@ jobs:
           EOF
           )
           echo "Deployment: $DEPLOYMENT_ID"
+
+          if [ -z "$DEPLOYMENT_ID" ]; then
+            echo "Failed to create deployment"
+            exit 1
+          fi
 
           gh api -X POST "repos/$REPOSITORY/deployments/$DEPLOYMENT_ID/statuses" \
             -f state="success" \
