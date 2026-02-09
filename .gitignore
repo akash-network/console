@@ -96,3 +96,5 @@ apps/deploy-web/tests/ui/fixture/leapExtensionLocalStorage.*.json
 # Clinic.js diagnostic artifacts
 .clinic
 profile-results.json
+
+.claude/settings.local.json

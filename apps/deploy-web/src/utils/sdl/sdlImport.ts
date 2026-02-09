@@ -54,7 +54,7 @@ export const importSimpleSdl = (yamlStr: string) => {
         storage: storages.map((storage: any) => {
           const type = storage.attributes?.class || "beta3";
           const isPersistent = storage.attributes?.persistent || false;
-          const isReadOnly = svc.params?.storage[storage.name]?.readOnly || false;
+          const isReadOnly = svc.params?.storage?.[storage.name]?.readOnly || false;
 
           if (type === "ram") {
             if (isPersistent) {
@@ -72,7 +72,7 @@ export const importSimpleSdl = (yamlStr: string) => {
             isPersistent,
             type,
             name: storage.name,
-            mount: svc.params?.storage[storage.name]?.mount || "",
+            mount: svc.params?.storage?.[storage.name]?.mount || "",
             isReadOnly
           };
         })
