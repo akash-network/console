@@ -6,7 +6,7 @@ import { Registry } from "@cosmjs/proto-signing";
 import type { Account, DeliverTxResponse, SigningStargateClient } from "@cosmjs/stargate";
 import type { IndexedTx } from "@cosmjs/stargate/build/stargateclient";
 import { faker } from "@faker-js/faker";
-import { mock } from "jest-mock-extended";
+import { mock } from "vitest-mock-extended";
 
 import { createAkashAddress } from "../../../../test/seeders";
 import { SemaphoreFactory } from "../../../core/lib/pg-semaphore";

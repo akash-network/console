@@ -1,5 +1,5 @@
 import { faker } from "@faker-js/faker";
-import { mock } from "jest-mock-extended";
+import { mock } from "vitest-mock-extended";
 
 import type { LoggerService } from "@src/core/providers/logging.provider";
 import type { JobPayload } from "@src/core/services/job-queue/job-queue.service";

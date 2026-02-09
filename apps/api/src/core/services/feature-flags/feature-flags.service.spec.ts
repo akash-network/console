@@ -1,5 +1,5 @@
-import { mock } from "jest-mock-extended";
 import type { Unleash, UnleashConfig } from "unleash-client";
+import { mock } from "vitest-mock-extended";
 
 import type { ClientInfoContextVariables } from "@src/middlewares/clientInfoMiddleware";
 import type { CoreConfig } from "../../config/env.config";

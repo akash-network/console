@@ -1,8 +1,8 @@
 import type { MongoAbility } from "@casl/ability";
 import { createMongoAbility } from "@casl/ability";
 import { faker } from "@faker-js/faker";
-import { mock } from "jest-mock-extended";
 import { container as rootContainer } from "tsyringe";
+import { mock } from "vitest-mock-extended";
 
 import { AuthService } from "@src/auth/services/auth.service";
 import { WalletInitializerService } from "@src/billing/services";

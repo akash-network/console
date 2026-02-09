@@ -9,8 +9,6 @@ import { DrainingDeploymentSeeder } from "@test/seeders/draining-deployment.seed
 import { topUpWallet } from "@test/services/topUpWallet";
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
-jest.setTimeout(30000);
-
 describe("Deployment Settings", () => {
   const walletService = new WalletTestingService(app);
   const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);

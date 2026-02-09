@@ -1,4 +1,3 @@
-import { Unauthorized } from "http-errors";
 import { container } from "tsyringe";
 
 import type { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
@@ -31,21 +30,21 @@ describe("ApiKeyAuthService", () => {
 
   describe("validateApiKeyFromHeader", () => {
     it("should throw for undefined key", async () => {
-      await expect(service.getAndValidateApiKeyFromHeader(undefined)).rejects.toThrow(new Unauthorized("Invalid API key"));
+      await expect(service.getAndValidateApiKeyFromHeader(undefined)).rejects.toThrow("Invalid API key");
     });
 
     it("should throw for invalid format", async () => {
-      await expect(service.getAndValidateApiKeyFromHeader("invalid-key")).rejects.toThrow(new Unauthorized("Invalid API key format"));
+      await expect(service.getAndValidateApiKeyFromHeader("invalid-key")).rejects.toThrow("Invalid API key format");
     });
 
     it("should throw for wrong prefix", async () => {
       const key = apiKeyGenerator.generateApiKey().replace("ac", "wrong");
-      await expect(service.getAndValidateApiKeyFromHeader(key)).rejects.toThrow(new Unauthorized("Invalid API key format"));
+      await expect(service.getAndValidateApiKeyFromHeader(key)).rejects.toThrow("Invalid API key format");
     });
 
     it("should throw for wrong type", async () => {
       const key = apiKeyGenerator.generateApiKey().replace("sk", "wrong");
-      await expect(service.getAndValidateApiKeyFromHeader(key)).rejects.toThrow(new Unauthorized("Invalid API key format"));
+      await expect(service.getAndValidateApiKeyFromHeader(key)).rejects.toThrow("Invalid API key format");
     });
 
     it("should throw for wrong environment", async () => {
@@ -53,14 +52,14 @@ describe("ApiKeyAuthService", () => {
       const testApiKeyGeneratorService = new ApiKeyGeneratorService(config);
       const testApiKeyAuthService = new ApiKeyAuthService(testApiKeyGeneratorService, apiKeyRepository, config);
       const key = testApiKeyGeneratorService.generateApiKey().replace("live", "test");
-      await expect(testApiKeyAuthService.getAndValidateApiKeyFromHeader(key)).rejects.toThrow(new Unauthorized("Invalid API key format"));
+      await expect(testApiKeyAuthService.getAndValidateApiKeyFromHeader(key)).rejects.toThrow("Invalid API key format");
     });
 
     it("should throw when key not found in database", async () => {
       const key = apiKeyGenerator.generateApiKey();
       apiKeyRepository.find.mockResolvedValue([]);
 
-      await expect(service.getAndValidateApiKeyFromHeader(key)).rejects.toThrow(new Unauthorized("API key not found"));
+      await expect(service.getAndValidateApiKeyFromHeader(key)).rejects.toThrow("API key not found");
     });
 
     it("should throw for expired key", async () => {
@@ -76,7 +75,7 @@ describe("ApiKeyAuthService", () => {
 
       apiKeyRepository.find.mockResolvedValue([data]);
 
-      await expect(service.getAndValidateApiKeyFromHeader(apiKey)).rejects.toThrow(new Unauthorized("API key has expired"));
+      await expect(service.getAndValidateApiKeyFromHeader(apiKey)).rejects.toThrow("API key has expired");
     });
 
     it("should return API key data for valid key with future expiration", async () => {

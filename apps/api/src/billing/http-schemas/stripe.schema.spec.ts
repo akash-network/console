@@ -1,11 +1,3 @@
-import { ZodType } from "zod";
-
-if (!ZodType.prototype.openapi) {
-  ZodType.prototype.openapi = function () {
-    return this;
-  };
-}
-
 import { secondsInDay } from "date-fns/constants";
 
 import { CustomerTransactionsCsvExportQuerySchema, CustomerTransactionsQuerySchema } from "./stripe.schema";

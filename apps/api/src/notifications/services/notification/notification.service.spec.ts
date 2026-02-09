@@ -1,4 +1,4 @@
-import { mockDeep } from "jest-mock-extended";
+import { mockDeep } from "vitest-mock-extended";
 
 import type { NotificationsApiClient } from "../../providers/notifications-api.provider";
 import { type CreateNotificationInput, NotificationService } from "./notification.service";

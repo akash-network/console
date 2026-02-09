@@ -3,8 +3,8 @@ import type { NetConfig } from "@akashnetwork/net";
 import { AxiosError } from "axios";
 import type { HttpError } from "http-errors";
 import { NotFound } from "http-errors";
-import type { MockProxy } from "jest-mock-extended";
-import { mock } from "jest-mock-extended";
+import type { MockProxy } from "vitest-mock-extended";
+import { mock } from "vitest-mock-extended";
 
 import { cacheEngine } from "@src/caching/helpers";
 import { NetworkService } from "./network.service";

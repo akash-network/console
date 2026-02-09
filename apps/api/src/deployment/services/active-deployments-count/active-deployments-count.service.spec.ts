@@ -1,5 +1,5 @@
 import { faker } from "@faker-js/faker";
-import { mock } from "jest-mock-extended";
+import { mock } from "vitest-mock-extended";
 
 import type { UserWalletRepository } from "@src/billing/repositories";
 import type { LoggerService } from "@src/core/providers/logging.provider";

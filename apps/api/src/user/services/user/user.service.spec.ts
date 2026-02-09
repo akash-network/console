@@ -1,7 +1,7 @@
 import "@test/setup-functional-tests"; // eslint-disable-line simple-import-sort/imports
 
 import { faker } from "@faker-js/faker";
-import { mock } from "jest-mock-extended";
+import { mock } from "vitest-mock-extended";
 import { container } from "tsyringe";
 
 import type { LoggerService } from "@src/core/providers/logging.provider";

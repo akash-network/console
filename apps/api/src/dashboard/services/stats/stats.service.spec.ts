@@ -1,7 +1,7 @@
 import { Provider, ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash";
 import type { CoinGeckoHttpService, CosmosHttpService } from "@akashnetwork/http-sdk";
-import { mock } from "jest-mock-extended";
 import { container } from "tsyringe";
+import { mock } from "vitest-mock-extended";
 
 import { cacheEngine } from "@src/caching/helpers";
 import { CHAIN_DB } from "@src/chain";

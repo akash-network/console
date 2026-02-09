@@ -1,5 +1,5 @@
-import { mock } from "jest-mock-extended";
 import { container } from "tsyringe";
+import { mock } from "vitest-mock-extended";
 
 import { AuthService } from "@src/auth/services/auth.service";
 import type { WalletSettingService } from "@src/billing/services/wallet-settings/wallet-settings.service";

@@ -1,6 +1,6 @@
 import { faker } from "@faker-js/faker";
 import { addDays, subDays } from "date-fns";
-import { mock } from "jest-mock-extended";
+import { mock } from "vitest-mock-extended";
 
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { LoggerService } from "@src/core/providers/logging.provider";

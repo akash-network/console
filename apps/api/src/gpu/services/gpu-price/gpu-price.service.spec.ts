@@ -4,8 +4,8 @@ import type { AkashBlock } from "@akashnetwork/database/dbSchemas/akash";
 import type { Day } from "@akashnetwork/database/dbSchemas/base";
 import { faker } from "@faker-js/faker";
 import { subDays } from "date-fns";
-import { mock } from "jest-mock-extended";
 import { container } from "tsyringe";
+import { mock } from "vitest-mock-extended";
 
 import type { Registry } from "@src/billing/providers/type-registry.provider";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";

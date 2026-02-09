@@ -1,5 +1,5 @@
 import { addHours } from "date-fns";
-import { mock } from "jest-mock-extended";
+import { mock } from "vitest-mock-extended";
 
 import { TrialDeploymentLeaseCreated } from "@src/billing/events/trial-deployment-lease-created";
 import type { UserWalletRepository } from "@src/billing/repositories";
