@@ -1,5 +1,12 @@
 
 
+## [1.24.8](https://github.com/akash-network/console/compare/indexer/v1.24.7...indexer/v1.24.8) (2026-02-10)
+
+
+### Bug Fixes
+
+* migrates another part of indexer to strict types ([#2686](https://github.com/akash-network/console/issues/2686)) ([d41c7c3](https://github.com/akash-network/console/commit/d41c7c3582c208005b9443b4baf428dd2289026c))
+
 ## [1.24.7](https://github.com/akash-network/console/compare/indexer/v1.24.4...indexer/v1.24.7) (2026-02-05)
 
 

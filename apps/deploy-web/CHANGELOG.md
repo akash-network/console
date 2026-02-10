@@ -1,5 +1,12 @@
 
 
+## [3.27.0](https://github.com/akash-network/console/compare/console-web/v3.26.0...console-web/v3.27.0) (2026-02-10)
+
+
+### Features
+
+* **deployment:** implements log forwarding permissions params ([d06b65b](https://github.com/akash-network/console/commit/d06b65b855550fefed934bc5839c58fe7fdf56ef))
+
 ## [3.26.0](https://github.com/akash-network/console/compare/console-web/v3.25.10...console-web/v3.26.0) (2026-02-05)
 
 
