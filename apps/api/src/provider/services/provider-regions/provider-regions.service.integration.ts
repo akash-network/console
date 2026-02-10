@@ -1,16 +1,15 @@
-import "@test/setup-functional-tests"; // eslint-disable-line simple-import-sort/imports
-
 import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
 import { ProviderAttribute } from "@akashnetwork/database/dbSchemas/akash";
+import type { GitHubHttpService } from "@akashnetwork/http-sdk";
 import fs from "fs/promises";
 import path from "path";
+import { container } from "tsyringe";
 
-import type { GitHubHttpService } from "@akashnetwork/http-sdk";
 import { CHAIN_DB } from "@src/chain";
-import { createProvider } from "@test/seeders";
 import { ProviderAttributesSchemaService } from "../provider-attributes-schema/provider-attributes-schema.service";
 import { ProviderRegionsService } from "./provider-regions.service";
-import { container } from "tsyringe";
+
+import { createProvider } from "@test/seeders";
 
 describe("ProviderRegions", () => {
   let providers: Provider[];

@@ -1,12 +1,11 @@
-import "@test/setup-functional-tests"; // eslint-disable-line simple-import-sort/imports
-
 import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
+import { container } from "tsyringe";
+
 import { CHAIN_DB } from "@src/chain";
+import { PROVIDER_CONFIG } from "@src/provider/providers/config.provider";
+import { ProviderVersionsService } from "./provider-versions.service";
 
 import { createProvider, createProviderSnapshot } from "@test/seeders";
-import { ProviderVersionsService } from "./provider-versions.service";
-import { PROVIDER_CONFIG } from "@src/provider/providers/config.provider";
-import { container } from "tsyringe";
 
 describe("Provider Dashboard", () => {
   let providers: Provider[];

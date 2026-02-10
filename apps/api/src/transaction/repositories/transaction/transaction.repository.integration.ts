@@ -1,5 +1,3 @@
-import "@test/setup-functional-tests";
-
 import { container } from "tsyringe";
 
 import { TransactionRepository } from "./transaction.repository";

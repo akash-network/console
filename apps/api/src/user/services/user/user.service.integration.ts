@@ -1,17 +1,15 @@
-import "@test/setup-functional-tests"; // eslint-disable-line simple-import-sort/imports
-
 import { faker } from "@faker-js/faker";
-import { mock } from "vitest-mock-extended";
+import type { GetUsers200ResponseOneOfInner } from "auth0";
 import { container } from "tsyringe";
+import { mock } from "vitest-mock-extended";
 
+import type { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import type { LoggerService } from "@src/core/providers/logging.provider";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
+import type { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 import type { RegisterUserInput } from "./user.service";
 import { UserService } from "./user.service";
-import type { NotificationService } from "@src/notifications/services/notification/notification.service";
-import type { Auth0Service } from "@src/auth/services/auth0/auth0.service";
-import type { GetUsers200ResponseOneOfInner } from "auth0";
 
 describe(UserService.name, () => {
   describe("registerUser", () => {

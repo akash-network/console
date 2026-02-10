@@ -1,13 +1,13 @@
-import "@test/setup-functional-tests"; // eslint-disable-line simple-import-sort/imports
-
 import { Provider, ProviderAttribute, ProviderAttributeSignature } from "@akashnetwork/database/dbSchemas/akash";
-import { CHAIN_DB } from "@src/chain";
-import { createAkashAddress, createProviderSeed } from "@test/seeders";
 import type { CreationAttributes } from "sequelize";
 import { Op } from "sequelize";
 import type { ModelCtor } from "sequelize-typescript";
-import { ProviderRepository } from "./provider.repository";
 import { container } from "tsyringe";
+
+import { CHAIN_DB } from "@src/chain";
+import { ProviderRepository } from "./provider.repository";
+
+import { createAkashAddress, createProviderSeed } from "@test/seeders";
 
 describe(ProviderRepository.name, () => {
   describe("getProvidersUrlsByAttributes", () => {
