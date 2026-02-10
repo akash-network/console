@@ -1,5 +1,3 @@
-import "@test/setup-functional-n-integration-tests";
-
 import { container } from "tsyringe";
 
 import { TransactionRepository } from "./transaction.repository";
