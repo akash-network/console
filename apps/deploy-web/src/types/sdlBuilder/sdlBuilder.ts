@@ -350,7 +350,14 @@ export const ServiceSchema = z
     env: z.array(EnvironmentVariableSchema).optional(),
     placement: PlacementSchema,
     count: z.number().min(1, { message: "Service count is required." }),
-    sshPubKey: z.string().optional()
+    sshPubKey: z.string().optional(),
+    params: z
+      .object({
+        permissions: z.object({
+          read: z.array(z.enum(["deployment", "logs"]))
+        })
+      })
+      .optional()
   })
   .superRefine((data, ctx) => {
     validateCpuAmount(data.profile.cpu, data.count, ctx);
@@ -444,14 +451,9 @@ export const SdlBuilderFormValuesSchema = z
 export type ServiceType = z.infer<typeof ServiceSchema>;
 export type SdlBuilderFormValuesType = z.infer<typeof SdlBuilderFormValuesSchema>;
 export type ProfileGpuModelType = z.infer<typeof ProfileGpuModelSchema>;
-export type ServiceStorageType = z.infer<typeof ServiceStorageSchema>;
-export type CommandType = z.infer<typeof CommandSchema>;
 export type EnvironmentVariableType = z.infer<typeof EnvironmentVariableSchema>;
-export type ToType = z.infer<typeof ToSchema>;
 export type AcceptType = z.infer<typeof AcceptSchema>;
-export type ServiceExposeHTTPOptionsType = z.infer<typeof ServiceExposeHTTPOptionsSchema>;
 export type PlacementAttributeType = z.infer<typeof PlacementAttributeSchema>;
 export type SignedByType = z.infer<typeof SignedBySchema>;
-export type ProfileType = z.infer<typeof ProfileSchema>;
 export type ExposeType = z.infer<typeof ExposeSchema>;
 export type PlacementType = z.infer<typeof PlacementSchema>;

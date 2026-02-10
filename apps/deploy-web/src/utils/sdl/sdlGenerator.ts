@@ -1,5 +1,6 @@
 import yaml from "js-yaml";
 
+import { isLogCollectorService } from "@src/components/sdl/LogCollectorControl/LogCollectorControl";
 import type { ExposeType, ProfileGpuModelType, ServiceType } from "@src/types";
 import { defaultHttpOptions } from "./data";
 
@@ -175,6 +176,15 @@ export const generateSdl = (services: ServiceType[], region?: string) => {
           }
         });
       });
+    }
+
+    if (isLogCollectorService(service)) {
+      sdl.services[service.title].params = {
+        ...sdl.services[service.title].params,
+        permissions: {
+          read: ["deployment", "logs"]
+        }
+      };
     }
 
     // Placement
