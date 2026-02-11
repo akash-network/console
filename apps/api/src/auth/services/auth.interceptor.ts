@@ -8,6 +8,7 @@ import { singleton } from "tsyringe";
 import { AbilityService } from "@src/auth/services/ability/ability.service";
 import { AuthService } from "@src/auth/services/auth.service";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import { withSpan } from "@src/core/services/tracing/tracing.service";
 import type { HonoInterceptor } from "@src/core/types/hono-interceptor.type";
 import { UserOutput, UserRepository } from "@src/user/repositories";
 import { ApiKeyOutput, ApiKeyRepository } from "../repositories/api-key/api-key.repository";
@@ -37,46 +38,48 @@ export class AuthInterceptor implements HonoInterceptor {
 
   intercept() {
     return async (c: Context, next: Next) => {
-      const bearer = c.req.header("authorization");
-      const apiKey = c.req.header("x-api-key");
+      return withSpan("AuthInterceptor.intercept", async () => {
+        const bearer = c.req.header("authorization");
+        const apiKey = c.req.header("x-api-key");
 
-      if (bearer && apiKey) {
-        throw new BadRequest("Authorization and X-Api-Key headers are mutually exclusive");
-      }
-
-      let userId: string | null | undefined;
-      if (bearer) {
-        try {
-          userId = await this.userAuthService.getValidUserId(bearer, c.env);
-        } catch (error) {
-          this.logger.warn({ event: "AUTH_TOKEN_VALIDATION_FAILED", error });
+        if (bearer && apiKey) {
+          throw new BadRequest("Authorization and X-Api-Key headers are mutually exclusive");
         }
-      }
 
-      if (userId) {
-        const currentUser = await this.userRepository.findByUserId(userId);
-        await this.auth(currentUser);
-        c.set("user", currentUser);
-        return await next();
-      }
+        let userId: string | null | undefined;
+        if (bearer) {
+          try {
+            userId = await this.userAuthService.getValidUserId(bearer, c.env);
+          } catch (error) {
+            this.logger.warn({ event: "AUTH_TOKEN_VALIDATION_FAILED", error });
+          }
+        }
 
-      if (apiKey) {
-        try {
-          const apiKeyOutput = await this.apiKeyAuthService.getAndValidateApiKeyFromHeader(apiKey);
-          const currentUser = await this.userRepository.findById(apiKeyOutput.userId);
-
-          await Promise.all([currentUser ? this.markApiKeyAsUsed(apiKeyOutput) : null, this.auth(currentUser)]);
+        if (userId) {
+          const currentUser = await this.userRepository.findByUserId(userId);
+          await this.auth(currentUser);
           c.set("user", currentUser);
-
           return await next();
-        } catch (error) {
-          this.logger.error(error);
-          throw new Unauthorized("Invalid API key");
         }
-      }
 
-      this.authService.ability = this.abilityService.EMPTY_ABILITY;
-      return await next();
+        if (apiKey) {
+          try {
+            const apiKeyOutput = await this.apiKeyAuthService.getAndValidateApiKeyFromHeader(apiKey);
+            const currentUser = await this.userRepository.findById(apiKeyOutput.userId);
+
+            await Promise.all([currentUser ? this.markApiKeyAsUsed(apiKeyOutput) : null, this.auth(currentUser)]);
+            c.set("user", currentUser);
+
+            return await next();
+          } catch (error) {
+            this.logger.error(error);
+            throw new Unauthorized("Invalid API key");
+          }
+        }
+
+        this.authService.ability = this.abilityService.EMPTY_ABILITY;
+        return await next();
+      });
     };
   }
 

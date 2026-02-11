@@ -6,6 +6,7 @@ import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers"
 import { type UserWalletInput, type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { Memoize } from "@src/caching/helpers";
+import { Trace } from "@src/core/services/tracing/tracing.service";
 import { StatsService } from "@src/dashboard/services/stats/stats.service";
 import { averageBlockTime } from "@src/utils/constants";
 
@@ -26,6 +27,7 @@ export class BalancesService {
     private readonly statsService: StatsService
   ) {}
 
+  @Trace()
   async refreshUserWalletLimits(userWallet: UserWalletOutput, options?: { endTrial: boolean }): Promise<void> {
     const update = await this.getFreshLimitsUpdate(userWallet);
 
@@ -60,6 +62,7 @@ export class BalancesService {
     return { fee, deployment };
   }
 
+  @Trace()
   async retrieveAndCalcFeeLimit(userWallet: Pick<UserWalletOutput, "address">): Promise<number> {
     const fundingWalletAddress = await this.txManagerService.getFundingWalletAddress();
     const feeAllowance = await this.authzHttpService.getFeeAllowanceForGranterAndGrantee(fundingWalletAddress, userWallet.address!);
@@ -71,6 +74,7 @@ export class BalancesService {
     return feeAllowance.allowance.spend_limit.reduce((acc, { denom, amount }) => (denom === "uakt" ? acc + parseInt(amount) : acc), 0);
   }
 
+  @Trace()
   async retrieveDeploymentLimit(userWallet: Pick<UserWalletOutput, "address">): Promise<number> {
     const fundingWalletAddress = await this.txManagerService.getFundingWalletAddress();
     const depositDeploymentGrant = await this.authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee(fundingWalletAddress, userWallet.address!);
