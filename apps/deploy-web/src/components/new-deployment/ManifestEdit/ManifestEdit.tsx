@@ -1,5 +1,5 @@
 "use client";
-import type { Dispatch, SetStateAction } from "react";
+import type { ComponentProps, Dispatch, SetStateAction } from "react";
 import { useEffect, useRef, useState } from "react";
 import { Alert, Button, CustomTooltip, FileButton, Input, Snackbar, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
@@ -28,19 +28,18 @@ import { appendAuditorRequirement } from "@src/utils/deploymentData/v1beta3";
 import { validateDeploymentData } from "@src/utils/deploymentUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { domainName, handleDocClick, UrlService } from "@src/utils/urlUtils";
-import { useSettings } from "../../context/SettingsProvider";
-import { DeploymentDepositModal } from "../deployments/DeploymentDepositModal";
-import { DeploymentMinimumEscrowAlertText } from "../sdl/DeploymentMinimumEscrowAlertText";
-import type { SdlEditorRefType } from "../sdl/SDLEditor/SDLEditor";
-import { SDLEditor } from "../sdl/SDLEditor/SDLEditor";
-import { TrialDeploymentBadge } from "../shared";
-import { CustomNextSeo } from "../shared/CustomNextSeo";
-import { LinkTo } from "../shared/LinkTo";
-import { PrerequisiteList } from "../shared/PrerequisiteList";
-import ViewPanel from "../shared/ViewPanel";
-import { ShareDeployButton } from "./ShareDeployButton/ShareDeployButton";
-import type { SdlBuilderRefType } from "./SdlBuilder";
-import { SdlBuilder } from "./SdlBuilder";
+import { useSettings } from "../../../context/SettingsProvider";
+import { DeploymentDepositModal } from "../../deployments/DeploymentDepositModal";
+import { DeploymentMinimumEscrowAlertText } from "../../sdl/DeploymentMinimumEscrowAlertText";
+import { SDLEditor } from "../../sdl/SDLEditor/SDLEditor";
+import { TrialDeploymentBadge } from "../../shared";
+import { CustomNextSeo } from "../../shared/CustomNextSeo";
+import { LinkTo } from "../../shared/LinkTo";
+import { PrerequisiteList } from "../../shared/PrerequisiteList";
+import ViewPanel from "../../shared/ViewPanel";
+import type { SdlBuilderRefType } from "../SdlBuilder";
+import { SdlBuilder } from "../SdlBuilder";
+import { ShareDeployButton } from "../ShareDeployButton/ShareDeployButton";
 
 type Props = {
   onTemplateSelected: Dispatch<TemplateCreation | null>;
@@ -58,6 +57,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
   isGitProviderTemplate
 }) => {
   const [parsingError, setParsingError] = useState<string | null>(null);
+  const [isValidSdl, setIsValidSdl] = useState(false);
   const [deploymentName, setDeploymentName] = useState("");
   const [isCreatingDeployment, setIsCreatingDeployment] = useState(false);
   const [isDepositingDeployment, setIsDepositingDeployment] = useState(false);
@@ -75,7 +75,6 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
   const muiTheme = useMuiTheme();
   const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
   const sdlBuilderRef = useRef<SdlBuilderRefType>(null);
-  const sdlEditorRef = useRef<SdlEditorRefType>(null);
   const { hasComponent } = useSdlBuilder();
   const searchParams = useSearchParams();
   const templateId = searchParams.get("templateId");
@@ -84,7 +83,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
   const wallet = useWallet();
   const managedDenom = useManagedWalletDenom();
   const { enqueueSnackbar } = useSnackbar();
-  const services = useImportSimpleSdl(editedManifest);
+  const services = useImportSimpleSdl(isValidSdl ? editedManifest : null);
 
   useWhen(
     wallet.isManaged && sdlDenom === "uakt" && editedManifest,
@@ -167,24 +166,12 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
       return;
     }
 
-    let isValid = false;
-    if (selectedSdlEditMode === "builder") {
-      isValid = !!(await sdlBuilderRef.current?.validate());
-    } else if (selectedSdlEditMode === "yaml") {
-      isValid = !!(await sdlEditorRef.current?.validate());
-    }
-
-    if (!isValid) {
-      setParsingError("Error while parsing SDL");
+    if (!isValidSdl) {
+      if (!parsingError) setParsingError("Error while parsing SDL");
       return;
     }
 
     if (isManaged) {
-      if (!services || services?.length === 0) {
-        setParsingError("Error while parsing SDL file");
-        return;
-      }
-
       setIsDepositingDeployment(true);
     } else {
       setIsCheckingPrerequisites(true);
@@ -281,6 +268,11 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
     }
 
     setSelectedSdlEditMode(mode);
+  };
+
+  const syncSDLValidity: ComponentProps<typeof SDLEditor>["onValidate"] = async event => {
+    setParsingError(null);
+    setIsValidSdl(event.isValid);
   };
 
   return (
@@ -386,12 +378,13 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
 
       {hasComponent("yml-editor") && selectedSdlEditMode === "yaml" && (
         <ViewPanel stickToBottom className={cn({ ["-mx-4"]: smallScreen })}>
-          <SDLEditor value={editedManifest || ""} onChange={handleTextChange} onValidate={() => setParsingError(null)} ref={sdlEditorRef} />
+          <SDLEditor value={editedManifest || ""} onChange={handleTextChange} onValidate={syncSDLValidity} />
         </ViewPanel>
       )}
       {(hasComponent("ssh") || selectedSdlEditMode === "builder") && (
         <SdlBuilder
           sdlString={editedManifest}
+          onValidate={syncSDLValidity}
           ref={sdlBuilderRef}
           isGitProviderTemplate={isGitProviderTemplate}
           setEditedManifest={setEditedManifest}
