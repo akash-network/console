@@ -9,8 +9,9 @@ import assert from "http-assert";
 import { singleton } from "tsyringe";
 
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
-import { UserWalletOutput } from "@src/billing/repositories";
+import type { UserWalletOutput } from "@src/billing/repositories";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
+import { Trace, withSpan } from "@src/core/services/tracing/tracing.service";
 import type { ManagedSignerService } from "../managed-signer/managed-signer.service";
 import { RpcMessageService, SpendingAuthorizationMsgOptions } from "../rpc-message-service/rpc-message.service";
 
@@ -61,6 +62,7 @@ export class ManagedUserWalletService {
     return { address };
   }
 
+  @Trace()
   async authorizeSpending(signer: ManagedSignerService, options: SpendingAuthorizationOptions) {
     const fundingWalletAddress = await this.txManagerService.getFundingWalletAddress();
     const msgOptions = {
@@ -93,6 +95,7 @@ export class ManagedUserWalletService {
    * @param signer - The ManagedSignerService instance to use for authorization
    * @param userWallet - The user wallet to refill fees for
    */
+  @Trace()
   async refillWalletFees(signer: ManagedSignerService, { address, ...userWallet }: UserWalletOutput) {
     assert(address, 402, "Wallet is not initialized");
 
@@ -111,20 +114,24 @@ export class ManagedUserWalletService {
   }
 
   private async authorizeFeeSpending(signer: ManagedSignerService, options: Omit<SpendingAuthorizationMsgOptions, "denom">) {
-    const messages: EncodeObject[] = [];
-    const hasValidFeeAllowance = await this.authzHttpService.hasFeeAllowance(options.granter, options.grantee);
+    return withSpan("ManagedUserWalletService.authorizeFeeSpending", async () => {
+      const messages: EncodeObject[] = [];
+      const hasValidFeeAllowance = await this.authzHttpService.hasFeeAllowance(options.granter, options.grantee);
 
-    if (hasValidFeeAllowance) {
-      messages.push(this.rpcMessageService.getRevokeAllowanceMsg(options));
-    }
+      if (hasValidFeeAllowance) {
+        messages.push(this.rpcMessageService.getRevokeAllowanceMsg(options));
+      }
 
-    messages.push(this.rpcMessageService.getFeesAllowanceGrantMsg(options));
+      messages.push(this.rpcMessageService.getFeesAllowanceGrantMsg(options));
 
-    return await signer.executeFundingTx(messages);
+      return await signer.executeFundingTx(messages);
+    });
   }
 
   private async authorizeDeploymentSpending(signer: ManagedSignerService, options: SpendingAuthorizationMsgOptions) {
-    const deploymentAllowanceMsg = this.rpcMessageService.getDepositDeploymentGrantMsg(options);
-    return await signer.executeFundingTx([deploymentAllowanceMsg]);
+    return withSpan("ManagedUserWalletService.authorizeDeploymentSpending", async () => {
+      const deploymentAllowanceMsg = this.rpcMessageService.getDepositDeploymentGrantMsg(options);
+      return await signer.executeFundingTx([deploymentAllowanceMsg]);
+    });
   }
 }

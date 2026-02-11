@@ -1,7 +1,8 @@
 import { singleton } from "tsyringe";
 
 import { cacheEngine } from "@src/caching/helpers";
-import { getJwks, useKVStore, verify, VerifyRsaJwtEnv } from "@src/verify-rsa-jwt-cloudflare-worker-main";
+import { Trace } from "@src/core/services/tracing/tracing.service";
+import { getJwks, useKVStore, verify, type VerifyRsaJwtEnv } from "@src/verify-rsa-jwt-cloudflare-worker-main";
 import { AuthConfigService } from "../auth-config/auth-config.service";
 
 @singleton()
@@ -12,6 +13,7 @@ export class UserAuthTokenService {
     this.#authConfigService = authConfigService;
   }
 
+  @Trace()
   async getValidUserId(bearer: string, options?: VerifyRsaJwtEnv): Promise<string | null> {
     const token = bearer.replace(/^Bearer\s+/i, "");
     const jwksUri = this.#authConfigService.get("AUTH0_JWKS_URI") || options?.JWKS_URI;

@@ -1,4 +1,4 @@
-import { SpanStatusCode, trace } from "@opentelemetry/api";
+import { context, SpanStatusCode, trace } from "@opentelemetry/api";
 
 /**
  * Decorator for tracing method execution
@@ -41,11 +41,12 @@ export function Trace(spanName?: string) {
       const name = spanName || `${target.constructor.name}.${methodName}`;
 
       const span = tracer.startSpan(name);
+      const ctx = trace.setSpan(context.active(), span);
 
       try {
         if (originalMethod.constructor.name === "AsyncFunction" || originalMethod.toString().includes("return __awaiter")) {
-          return originalMethod
-            .apply(this, args)
+          return context
+            .with(ctx, () => originalMethod.apply(this, args))
             .then((result: any) => {
               span.setStatus({ code: SpanStatusCode.OK });
               span.end();
@@ -62,7 +63,7 @@ export function Trace(spanName?: string) {
             });
         }
 
-        const result = originalMethod.apply(this, args);
+        const result = context.with(ctx, () => originalMethod.apply(this, args));
         span.setStatus({ code: SpanStatusCode.OK });
         span.end();
         return result;
@@ -164,9 +165,10 @@ export function createSpan(name: string) {
  */
 export async function withSpan<T>(spanName: string, fn: () => Promise<T>): Promise<T> {
   const span = createSpan(spanName);
+  const ctx = trace.setSpan(context.active(), span);
 
   try {
-    const result = await fn();
+    const result = await context.with(ctx, fn);
     span.setStatus({ code: SpanStatusCode.OK });
     return result;
   } catch (error: any) {

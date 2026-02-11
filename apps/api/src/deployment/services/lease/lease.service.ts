@@ -2,6 +2,7 @@ import { singleton } from "tsyringe";
 
 import { ManagedSignerService, RpcMessageService } from "@src/billing/services";
 import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
+import { Trace } from "@src/core/services/tracing/tracing.service";
 import { GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import { CreateLeaseRequest } from "@src/deployment/http-schemas/lease.schema";
 import { LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
@@ -19,6 +20,7 @@ export class LeaseService {
     private readonly walletReaderService: WalletReaderService
   ) {}
 
+  @Trace()
   public async createLeasesAndSendManifest({
     leases,
     manifest,
