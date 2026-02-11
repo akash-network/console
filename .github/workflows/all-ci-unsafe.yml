@@ -4,11 +4,11 @@
 # !!!! PLEASE be extra careful here and treat forked repository as untrusted user input !!!!
 
 name: Security Scan
+
 on:
   workflow_run:
     workflows: ["CI"]
-    types:
-      - completed
+    types: [completed]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.workflow_run.head_branch }}
@@ -17,13 +17,88 @@ concurrency:
 permissions:
   contents: read
   pull-requests: read
+  checks: write # to create check run on related PR
 
 jobs:
+  create-check-run:
+    runs-on: ubuntu-latest
+    outputs:
+      run_scan: ${{ steps.decide.outputs.run_scan }}
+      check_run_id: ${{ steps.create_check.outputs.check_run_id }}
+      skip_reason: ${{ steps.decide.outputs.skip_reason }}
+    steps:
+      - name: Decide whether to run scan
+        id: decide
+        run: |
+          # If upstream CI failed, we must report failure (required check)
+          if [ "${{ github.event.workflow_run.conclusion }}" != "success" ]; then
+            echo "run_scan=false" >> "$GITHUB_OUTPUT"
+            echo "skip_reason=Upstream CI conclusion is '${{ github.event.workflow_run.conclusion }}'" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # workflow_run.event is the triggering event of the upstream workflow (e.g. pull_request)
+          if [ "${{ github.event.workflow_run.event }}" != "pull_request" ]; then
+            echo "run_scan=false" >> "$GITHUB_OUTPUT"
+            echo "skip_reason=Upstream CI was not triggered by pull_request (event=${{ github.event.workflow_run.event }})" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "run_scan=true" >> "$GITHUB_OUTPUT"
+          echo "skip_reason=" >> "$GITHUB_OUTPUT"
+
+      - name: Create check run
+        id: create_check
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const sha = context.payload.workflow_run.head_sha;
+            const res = await github.rest.checks.create({
+              name: "security-scan",
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              head_sha: sha,
+              status: "in_progress",
+              output: {
+                title: "Security scan",
+                summary: "Initializing..."
+              }
+            });
+
+            core.setOutput("check_run_id", String(res.data.id));
+
+      - name: Early-complete check as success when not running scan
+        if: ${{ steps.decide.outputs.run_scan != 'true' }}
+        uses: actions/github-script@v7
+        env:
+          CHECK_RUN_ID: ${{ steps.create_check.outputs.check_run_id }}
+          SKIP_REASON: ${{ steps.decide.outputs.skip_reason }}
+          RELATED_WORKFLOW_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+        with:
+          script: |
+            const sha = context.payload.workflow_run.head_sha;
+            const checkRunId = Number(process.env.CHECK_RUN_ID);
+            const conclusion = process.env.RELATED_WORKFLOW_CONCLUSION === 'success' ? 'success' : 'failure';
+            const summary = process.env.RELATED_WORKFLOW_CONCLUSION === 'success'
+              ? `Skipped (treated as pass)`
+              : `Blocked`;
+
+            await github.rest.checks.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              check_run_id: checkRunId,
+              head_sha: sha,
+              status: "completed",
+              conclusion,
+              output: {
+                title: "Security scan",
+                summary: `${summary}: ${process.env.SKIP_REASON}`
+              }
+            });
+
   setup:
-    # Only run on successful CI for pull requests
-    if: >-
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.event == 'pull_request'
+    needs: [create-check-run]
+    if: ${{ needs.create-check-run.outputs.run_scan == 'true' }}
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.matrix.outputs.value }}
@@ -33,7 +108,7 @@ jobs:
       pr_head_repo: ${{ steps.associated_pr.outputs.head_repo }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Get associated PR
         id: associated_pr
@@ -68,14 +143,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ steps.associated_pr.outputs.number }}
         run: |
-          # Get changed files from PR
           changed_files=$(gh api "/repos/${{ github.repository }}/pulls/$PR_NUMBER/files" \
             --paginate --jq '.[].filename')
 
-          # Get all apps
-          all_apps=$(find apps/* -type d -print0 -maxdepth 0 | xargs -0 -n1 basename)
+          all_apps=$(find apps/* -maxdepth 0 -type d -print0 | xargs -0 -n1 basename)
 
-          # Filter apps that have changes
           changed_apps=()
           for app in $all_apps; do
             if echo "$changed_files" | grep -q "^apps/$app/"; then
@@ -84,18 +156,16 @@ jobs:
           done
 
           if [ ${#changed_apps[@]} -eq 0 ]; then
-            echo "No apps have changes, skipping security scan"
             echo "value=" >> "$GITHUB_OUTPUT"
           else
             workspaces=$(printf '"%s",' "${changed_apps[@]}")
             workspaces="[${workspaces%,}]"
-            echo "Apps with changes: $workspaces"
             echo 'value={"workspace":'"$workspaces"'}' >> "$GITHUB_OUTPUT"
           fi
 
   security-scan:
-    needs: setup
-    if: needs.setup.outputs.should_run == 'true' && needs.setup.outputs.matrix != ''
+    needs: [setup]
+    if: ${{ needs.setup.outputs.should_run == 'true' && needs.setup.outputs.matrix != '' }}
     strategy:
       matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
       fail-fast: false
@@ -109,33 +179,56 @@ jobs:
       pr_head_repo: ${{ needs.setup.outputs.pr_head_repo }}
       skip_change_detection: true
 
-  # Result job creates a single check that can be used as a required status check.
-  # This ensures a check is always created for PRs, even when security scan is skipped.
-  result:
+  finalize:
     runs-on: ubuntu-latest
-    needs: [setup, security-scan]
-    if: always() && needs.setup.result == 'success'
+    needs: [create-check-run, setup, security-scan]
+    if: ${{ always() && needs.create-check-run.outputs.run_scan == 'true' }}
     steps:
-      - name: Check result
+      - name: Decide final conclusion and summary
+        id: final
         env:
-          SHOULD_RUN: ${{ needs.setup.outputs.should_run }}
-          SKIP_REASON: ${{ needs.setup.outputs.skip_reason }}
+          SETUP_SHOULD_RUN: ${{ needs.setup.outputs.should_run }}
+          SETUP_SKIP_REASON: ${{ needs.setup.outputs.skip_reason }}
           MATRIX: ${{ needs.setup.outputs.matrix }}
           SCAN_RESULT: ${{ needs.security-scan.result }}
         run: |
-          if [[ "$SHOULD_RUN" != "true" ]]; then
-            echo "SKIPPED: $SKIP_REASON"
-            exit 0
+          conclusion="success"
+          summary="Security scan passed."
+
+          if [[ "$SETUP_SHOULD_RUN" != "true" ]]; then
+            conclusion="success"
+            summary="Skipped (treated as pass): $SETUP_SKIP_REASON"
+          elif [[ -z "$MATRIX" ]]; then
+            conclusion="success"
+            summary="Skipped (treated as pass): No apps changed in this PR"
+          elif [[ "$SCAN_RESULT" != "success" ]]; then
+            conclusion="failure"
+            summary="Security scan failed (result=$SCAN_RESULT)"
           fi
 
-          if [[ -z "$MATRIX" ]]; then
-            echo "SKIPPED: No apps have changes in this PR"
-            exit 0
-          fi
+          echo "conclusion=$conclusion" >> "$GITHUB_OUTPUT"
+          echo "summary=$summary" >> "$GITHUB_OUTPUT"
 
-          if [[ "$SCAN_RESULT" != "success" ]]; then
-            echo "Security scan failed with result: $SCAN_RESULT"
-            exit 1
-          fi
+      - name: Complete check run
+        uses: actions/github-script@v7
+        env:
+          CHECK_RUN_ID: ${{ needs.create-check-run.outputs.check_run_id }}
+          CONCLUSION: ${{ steps.final.outputs.conclusion }}
+          SUMMARY: ${{ steps.final.outputs.summary }}
+        with:
+          script: |
+            const sha = context.payload.workflow_run.head_sha;
+            const checkRunId = Number(process.env.CHECK_RUN_ID);
 
-          echo "Security scan completed successfully ✅"
+            await github.rest.checks.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              check_run_id: checkRunId,
+              head_sha: sha,
+              status: "completed",
+              conclusion: process.env.CONCLUSION,
+              output: {
+                title: "Security scan",
+                summary: process.env.SUMMARY
+              }
+            });
