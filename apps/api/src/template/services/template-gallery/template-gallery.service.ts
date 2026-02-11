@@ -32,18 +32,27 @@ export const DEFAULT_CATEGORY_PRIORITY: Record<string, number> = {
   "AI - CPU": 1,
   "Machine Learning": 2,
   Databases: 3,
+  "Databases and Administration": 3,
   "CI/CD, DevOps": 4,
   Monitoring: 5,
   Blogging: 6,
   Business: 7,
   Chat: 8,
   "Data Analytics": 9,
+  "Data Visualization": 9,
   Gaming: 10,
+  Games: 10,
+  "Game Servers": 10,
   Hosting: 11,
   Media: 12,
   Social: 13,
   Storage: 14,
-  Tools: 15
+  "Decentralized Storage": 14,
+  Tools: 15,
+  Benchmarking: 16,
+  Blockchain: 17,
+  "Built with Cosmos-SDK": 18,
+  DeFi: 19
 };
 
 export type TemplateTagsConfig = {
@@ -143,6 +152,15 @@ export class TemplateGalleryService {
         return (a.name || "").localeCompare(b.name || "");
       });
     }
+
+    this.#logger.info({
+      event: "TEMPLATE_GALLERY_CACHE_BUILD_STATS",
+      categoryCount: gallery.length,
+      categoryNames: gallery.map(c => c.title),
+      totalTemplates: allTemplates.length,
+      taggedRecommended: allTemplates.filter(t => config.recommendedIds.has(t.id)).length,
+      taggedPopular: allTemplates.filter(t => config.popularIds.has(t.id)).length
+    });
 
     await this.#fs.mkdir(`${this.#galleriesCachePath}/v1/templates`, { recursive: true });
 

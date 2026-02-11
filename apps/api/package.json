@@ -110,11 +110,11 @@
     "sequelize-typescript": "^2.1.5",
     "sql-formatter": "^15.3.2",
     "stripe": "^19.3.0",
+    "tar": "^6.2.1",
     "ts-results": "^3.3.0",
     "tsyringe": "^4.10.0",
     "unleash-client": "^6.6.0",
     "uuid": "^9.0.1",
-    "yauzl": "^3.2.0",
     "zod": "3.*"
   },
   "devDependencies": {
@@ -135,9 +135,8 @@
     "@types/node": "^22.13.11",
     "@types/pg": "^8.11.6",
     "@types/semver": "^7.5.2",
+    "@types/tar": "^6.1.13",
     "@types/uuid": "^8.3.1",
-    "@types/yauzl": "^2.10.3",
-    "@types/yazl": "^3.3.0",
     "@typescript-eslint/eslint-plugin": "^7.12.0",
     "@vitest/coverage-v8": "^4.0.18",
     "@vitest/ui": "^4.0.18",
@@ -157,7 +156,6 @@
     "typescript": "~5.8.2",
     "unplugin-swc": "^1.5.9",
     "vitest": "^4.0.18",
-    "vitest-mock-extended": "^3.1.0",
-    "yazl": "^3.3.1"
+    "vitest-mock-extended": "^3.1.0"
   }
 }

@@ -1,5 +1,8 @@
 import { LRUCache } from "lru-cache";
-import yauzl from "yauzl";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
+import { createGunzip } from "node:zlib";
+import tar from "tar";
 
 import type { LoggerService } from "@src/core";
 
@@ -50,7 +53,7 @@ export class GitHubArchiveService {
   }
 
   async #downloadAndParse(owner: string, repo: string, ref: string, fileFilter?: (relativePath: string) => boolean): Promise<ArchiveReader> {
-    const url = `https://github.com/${owner}/${repo}/archive/${ref}.zip`;
+    const url = `https://github.com/${owner}/${repo}/archive/${ref}.tar.gz`;
     const response = await fetch(url, { signal: AbortSignal.timeout(60_000) });
 
     if (!response.ok) {
@@ -63,92 +66,72 @@ export class GitHubArchiveService {
     return this.#createArchiveReader(parsed);
   }
 
-  #extractArchive(buffer: Buffer, fileFilter?: (relativePath: string) => boolean): Promise<ParsedArchive> {
-    return new Promise((resolve, reject) => {
-      yauzl.fromBuffer(buffer, { lazyEntries: true }, (err, zipfile) => {
-        if (err || !zipfile) return reject(err ?? new Error("Failed to open ZIP"));
+  async #extractArchive(buffer: Buffer, fileFilter?: (relativePath: string) => boolean): Promise<ParsedArchive> {
+    const files = new Map<string, string>();
+    const dirChildren = new Map<string, Map<string, DirectoryEntry>>();
+    let rootPrefix = "";
+    let rootDetected = false;
 
-        const files = new Map<string, string>();
-        const dirChildren = new Map<string, Map<string, DirectoryEntry>>();
-        let rootPrefix = "";
-        let rootDetected = false;
+    const parser = new tar.Parse({
+      onentry: (entry: tar.ReadEntry) => {
+        if (!rootDetected) {
+          const slashIndex = entry.path.indexOf("/");
+          rootPrefix = slashIndex !== -1 ? entry.path.slice(0, slashIndex + 1) : "";
+          rootDetected = true;
+        }
 
-        zipfile.readEntry();
+        const relativePath = entry.path.startsWith(rootPrefix) ? entry.path.slice(rootPrefix.length) : entry.path;
 
-        zipfile.on("entry", (entry: yauzl.Entry) => {
-          if (!rootDetected) {
-            const slashIndex = entry.fileName.indexOf("/");
-            rootPrefix = slashIndex !== -1 ? entry.fileName.slice(0, slashIndex + 1) : "";
-            rootDetected = true;
+        if (!relativePath) {
+          entry.resume();
+          return;
+        }
+
+        const isDir = entry.type === "Directory";
+
+        this.#registerInParentDirectory(dirChildren, relativePath, isDir);
+
+        if (isDir) {
+          const cleanPath = relativePath.endsWith("/") ? relativePath.slice(0, -1) : relativePath;
+          if (!dirChildren.has(cleanPath)) {
+            dirChildren.set(cleanPath, new Map());
           }
+          entry.resume();
+          return;
+        }
 
-          const relativePath = entry.fileName.startsWith(rootPrefix) ? entry.fileName.slice(rootPrefix.length) : entry.fileName;
+        if (fileFilter && !fileFilter(relativePath)) {
+          entry.resume();
+          return;
+        }
 
-          if (!relativePath) {
-            zipfile.readEntry();
-            return;
-          }
-
-          const isDir = entry.fileName.endsWith("/");
-
-          this.#registerInParentDirectory(dirChildren, relativePath, isDir);
-
-          if (isDir) {
-            if (!dirChildren.has(relativePath.slice(0, -1))) {
-              dirChildren.set(relativePath.slice(0, -1), new Map());
-            }
-            zipfile.readEntry();
-            return;
-          }
-
-          if (fileFilter && !fileFilter(relativePath)) {
-            zipfile.readEntry();
-            return;
-          }
-
-          zipfile.openReadStream(entry, (streamErr, readStream) => {
-            if (streamErr || !readStream) {
-              this.#logger.warn({
-                event: "ARCHIVE_OPEN_READ_STREAM_FAILED",
-                relativePath,
-                error: streamErr ?? new Error("readStream is null")
-              });
-              zipfile.readEntry();
-              return;
-            }
-
-            const chunks: Buffer[] = [];
-            readStream.on("data", (chunk: Buffer) => chunks.push(chunk));
-            readStream.on("end", () => {
-              files.set(relativePath, Buffer.concat(chunks).toString("utf-8"));
-              zipfile.readEntry();
-            });
-            readStream.on("error", (error: Error) => {
-              this.#logger.warn({
-                event: "ARCHIVE_READ_STREAM_ERROR",
-                relativePath,
-                error
-              });
-              zipfile.readEntry();
-            });
+        const chunks: Buffer[] = [];
+        entry.on("data", (chunk: Buffer) => chunks.push(chunk));
+        entry.on("end", () => {
+          files.set(relativePath, Buffer.concat(chunks).toString("utf-8"));
+        });
+        entry.on("error", (error: Error) => {
+          this.#logger.warn({
+            event: "ARCHIVE_READ_STREAM_ERROR",
+            relativePath,
+            error
           });
         });
-
-        zipfile.on("end", () => {
-          const directories = new Map<string, DirectoryEntry[]>();
-          for (const [dirPath, childMap] of dirChildren) {
-            directories.set(dirPath, Array.from(childMap.values()));
-          }
-          resolve({ files, directories });
-        });
-
-        zipfile.on("error", reject);
-      });
+      }
     });
+
+    await pipeline(Readable.from(buffer), createGunzip(), parser);
+
+    const directories = new Map<string, DirectoryEntry[]>();
+    for (const [dirPath, childMap] of dirChildren) {
+      directories.set(dirPath, Array.from(childMap.values()));
+    }
+
+    return { files, directories };
   }
 
   #registerInParentDirectory(dirChildren: Map<string, Map<string, DirectoryEntry>>, relativePath: string, isDir: boolean): void {
-    const cleanPath = isDir ? relativePath.slice(0, -1) : relativePath;
+    const cleanPath = isDir ? (relativePath.endsWith("/") ? relativePath.slice(0, -1) : relativePath) : relativePath;
     const lastSlash = cleanPath.lastIndexOf("/");
     const parentPath = lastSlash === -1 ? "" : cleanPath.slice(0, lastSlash);
     const name = lastSlash === -1 ? cleanPath : cleanPath.slice(lastSlash + 1);

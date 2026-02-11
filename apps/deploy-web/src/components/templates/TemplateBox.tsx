@@ -23,7 +23,7 @@ export const TemplateBox: React.FunctionComponent<Props> = ({ template, linkHref
       prefetch={false}
     >
       <CardHeader>
-        <div className="flex items-center">
+        <div className="flex items-start justify-between">
           <Avatar className="h-10 w-10">
             <AvatarImage src={template.logoUrl || undefined} alt={template.name} className="object-contain" />
             <AvatarFallback>
@@ -31,22 +31,20 @@ export const TemplateBox: React.FunctionComponent<Props> = ({ template, linkHref
             </AvatarFallback>
           </Avatar>
 
-          <div className="ml-4 min-w-0 flex-1 font-bold tracking-tight">
-            <div className="truncate text-nowrap">{template.name}</div>
-          </div>
           {isRecommended && (
-            <Badge className="ml-2 shrink-0 gap-1">
-              <Rocket className="h-3 w-3" /> Recommended
+            <Badge className="gap-1 px-1.5 py-0.5 text-[10px]">
+              <Rocket className="h-2.5 w-2.5" /> Recommended
             </Badge>
           )}
           {isPopular && !isRecommended && (
-            <Badge variant="secondary" className="ml-2 shrink-0 gap-1">
-              <FireFlame className="h-3 w-3" /> Popular
+            <Badge variant="outline" className="gap-1 border-orange-500/50 px-1.5 py-0.5 text-[10px] text-orange-500">
+              <FireFlame className="h-2.5 w-2.5" /> Popular
             </Badge>
           )}
         </div>
       </CardHeader>
-      <CardContent className="pt-0">
+      <CardContent className="mt-0 pt-0">
+        <div className="mb-2 truncate font-bold tracking-tight">{template.name}</div>
         <p className="line-clamp-2 text-xs text-muted-foreground">{template.summary}</p>
       </CardContent>
     </Link>
