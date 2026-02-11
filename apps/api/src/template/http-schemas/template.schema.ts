@@ -21,6 +21,8 @@ export const TemplateSummarySchema = TemplateSchema.pick({
   name: true,
   logoUrl: true,
   summary: true
+}).extend({
+  tags: z.array(z.string()).optional()
 });
 
 export const TemplateCategorySchema = z.object({

@@ -1,7 +1,7 @@
 "use client";
-import { Avatar, AvatarFallback, AvatarImage, cardClasses, CardContent, CardHeader } from "@akashnetwork/ui/components";
+import { Avatar, AvatarFallback, AvatarImage, Badge, cardClasses, CardContent, CardHeader } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { MediaImage } from "iconoir-react";
+import { FireFlame, MediaImage, Rocket } from "iconoir-react";
 import Link from "next/link";
 
 import type { TemplateOutputSummaryWithCategory } from "@src/queries/useTemplateQuery";
@@ -11,9 +11,11 @@ type Props = {
   template: TemplateOutputSummaryWithCategory;
   linkHref?: string;
   children?: React.ReactNode;
+  isRecommended?: boolean;
+  isPopular?: boolean;
 };
 
-export const TemplateBox: React.FunctionComponent<Props> = ({ template, linkHref }) => {
+export const TemplateBox: React.FunctionComponent<Props> = ({ template, linkHref, isRecommended, isPopular }) => {
   return (
     <Link
       className={cn(cardClasses, "min-h-[100px] cursor-pointer !no-underline hover:bg-secondary/60 dark:hover:bg-secondary/30")}
@@ -32,6 +34,16 @@ export const TemplateBox: React.FunctionComponent<Props> = ({ template, linkHref
           <div className="ml-4 min-w-0 flex-1 font-bold tracking-tight">
             <div className="truncate text-nowrap">{template.name}</div>
           </div>
+          {isRecommended && (
+            <Badge className="ml-2 shrink-0 gap-1">
+              <Rocket className="h-3 w-3" /> Recommended
+            </Badge>
+          )}
+          {isPopular && !isRecommended && (
+            <Badge variant="secondary" className="ml-2 shrink-0 gap-1">
+              <FireFlame className="h-3 w-3" /> Popular
+            </Badge>
+          )}
         </div>
       </CardHeader>
       <CardContent className="pt-0">

@@ -24,6 +24,7 @@ export interface TemplateOutputSummary {
   logoUrl?: string | null;
   summary: string;
   deploy: string;
+  tags?: string[];
 }
 
 export interface TemplateCategory {
