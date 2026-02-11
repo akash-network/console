@@ -46,7 +46,7 @@ describe("EmailVerificationContainer", () => {
   });
 
   it("should handle resend email error", async () => {
-    const { child, mockSendVerificationEmail, mockEnqueueSnackbar } = setup();
+    const { child, mockSendVerificationEmail, mockNotificator } = setup();
     mockSendVerificationEmail.mockRejectedValue(new Error("Failed"));
 
     const { onResendEmail } = child.mock.calls[0][0];
@@ -55,16 +55,7 @@ describe("EmailVerificationContainer", () => {
     });
 
     expect(mockSendVerificationEmail).toHaveBeenCalledWith("test-user");
-    expect(mockEnqueueSnackbar).toHaveBeenCalledWith(
-      expect.objectContaining({
-        props: expect.objectContaining({
-          title: "Failed to send verification email",
-          subTitle: "Please try again later or contact support",
-          iconVariant: "error"
-        })
-      }),
-      { variant: "error" }
-    );
+    expect(mockNotificator.error).toHaveBeenCalledWith("Failed to send verification email. Please try again later");
   });
 
   it("should handle check verification success", async () => {
@@ -90,7 +81,7 @@ describe("EmailVerificationContainer", () => {
   });
 
   it("should handle check verification error", async () => {
-    const { child, mockCheckSession, mockEnqueueSnackbar } = setup();
+    const { child, mockCheckSession, mockNotificator } = setup();
     mockCheckSession.mockRejectedValue(new Error("Failed"));
 
     const { onCheckVerification } = child.mock.calls[0][0];
@@ -99,16 +90,7 @@ describe("EmailVerificationContainer", () => {
     });
 
     expect(mockCheckSession).toHaveBeenCalled();
-    expect(mockEnqueueSnackbar).toHaveBeenCalledWith(
-      expect.objectContaining({
-        props: expect.objectContaining({
-          title: "Failed to check verification",
-          subTitle: "Please try again or refresh the page",
-          iconVariant: "error"
-        })
-      }),
-      { variant: "error" }
-    );
+    expect(mockNotificator.error).toHaveBeenCalledWith("Failed to check verification. Please try again or refresh the page");
   });
 
   it("should call onComplete when email is verified", () => {
@@ -167,11 +149,15 @@ describe("EmailVerificationContainer", () => {
       <div data-testid="snackbar" data-title={title} data-subtitle={subTitle} data-icon-variant={iconVariant} />
     );
 
+    const mockNotificator = { success: jest.fn(), error: jest.fn() };
+    const mockUseNotificator = jest.fn().mockReturnValue(mockNotificator);
+
     const dependencies = {
       useCustomUser: mockUseCustomUser,
       useSnackbar: mockUseSnackbar,
       useServices: mockUseServices,
-      Snackbar: mockSnackbar
+      Snackbar: mockSnackbar,
+      useNotificator: mockUseNotificator
     };
 
     const mockChildren = jest.fn().mockReturnValue(<div>Test</div>);
@@ -188,6 +174,7 @@ describe("EmailVerificationContainer", () => {
       mockSendVerificationEmail,
       mockCheckSession,
       mockEnqueueSnackbar,
+      mockNotificator,
       mockAnalyticsService
     };
   }
