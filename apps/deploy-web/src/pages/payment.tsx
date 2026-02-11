@@ -124,7 +124,7 @@ const PayPage: React.FunctionComponent = () => {
 
       setError(errorInfo.message);
       setErrorAction(errorInfo.userAction);
-      notificator.error(errorInfo.message);
+      notificator.error(errorInfo.message, { title: "Payment Failed" });
     }
   };
 
@@ -147,7 +147,7 @@ const PayPage: React.FunctionComponent = () => {
 
       if (response.error) {
         const errorInfo = handleCouponError(response);
-        notificator.error(errorInfo.message);
+        notificator.error(errorInfo.message, { title: "Payment Failed" });
         return;
       }
 
@@ -160,7 +160,7 @@ const PayPage: React.FunctionComponent = () => {
       setCoupon("");
     } catch (error: unknown) {
       const errorInfo = handleStripeError(error);
-      notificator.error(errorInfo.message);
+      notificator.error(errorInfo.message, { title: "Payment Failed" });
       console.error("Coupon application error:", error);
     }
   };
@@ -181,7 +181,7 @@ const PayPage: React.FunctionComponent = () => {
       console.error("Failed to remove payment method:", error);
 
       const errorInfo = handleStripeError(error);
-      notificator.error(errorInfo.message);
+      notificator.error(errorInfo.message, { title: "Payment Failed" });
     } finally {
       setShowDeleteConfirmation(false);
       setCardToDelete(undefined);
@@ -239,7 +239,6 @@ const PayPage: React.FunctionComponent = () => {
       <div className="py-12">
         <Title className="text-center">Payment Methods</Title>
         <p className="mt-4 text-center text-gray-600">Manage your payment methods and make payments.</p>
-
         <div className="mx-auto max-w-md py-6">
           <PaymentSuccessAnimation
             show={showPaymentSuccess.show}
