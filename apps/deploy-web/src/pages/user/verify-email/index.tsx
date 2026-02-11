@@ -7,8 +7,10 @@ import { useSearchParams } from "next/navigation";
 import { NextSeo } from "next-seo";
 
 import Layout, { Loading } from "@src/components/layout/Layout";
+import { OnboardingStepIndex } from "@src/components/onboarding/OnboardingContainer/OnboardingContainer";
 import { useWhen } from "@src/hooks/useWhen";
 import { useVerifyEmail } from "@src/queries/useVerifyEmailQuery";
+import { ONBOARDING_STEP_KEY } from "@src/services/storage/keys";
 import { UrlService } from "@src/utils/urlUtils";
 
 type VerificationResultProps = {
@@ -17,6 +19,7 @@ type VerificationResultProps = {
 
 function VerificationResult({ isVerified }: VerificationResultProps) {
   const gotoOnboarding = useCallback(() => {
+    window.localStorage?.setItem(ONBOARDING_STEP_KEY, OnboardingStepIndex.PAYMENT_METHOD.toString());
     window.location.href = UrlService.onboarding();
   }, []);
 

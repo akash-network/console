@@ -17,6 +17,7 @@ import { useWallet } from "@src/context/WalletProvider";
 import { Guard } from "@src/hoc/guard/guard.hoc";
 import { use3DSecure } from "@src/hooks/use3DSecure";
 import { useIsOnboarded } from "@src/hooks/useIsOnboarded";
+import { useNotificator } from "@src/hooks/useNotificator";
 import { useUser } from "@src/hooks/useUser";
 import { defineServerSideProps } from "@src/lib/nextjs/defineServerSideProps/defineServerSideProps";
 import { redirectIfAccessTokenExpired } from "@src/lib/nextjs/pageGuards/pageGuards";
@@ -40,6 +41,7 @@ const PayPage: React.FunctionComponent = () => {
   const submittedAmountRef = useRef<string>("");
   const isDarkMode = resolvedTheme === "dark";
   const { enqueueSnackbar } = useSnackbar();
+  const notificator = useNotificator();
   const { user } = useUser();
   const { data: paymentMethods = [], isLoading: isLoadingPaymentMethods, refetch: refetchPaymentMethods } = usePaymentMethodsQuery();
   const { data: setupIntent, mutate: createSetupIntent, reset: resetSetupIntent } = useSetupIntentMutation();
@@ -122,7 +124,7 @@ const PayPage: React.FunctionComponent = () => {
 
       setError(errorInfo.message);
       setErrorAction(errorInfo.userAction);
-      enqueueSnackbar(<Snackbar title={errorInfo.message} iconVariant="error" />, { variant: "error" });
+      notificator.error(errorInfo.message);
     }
   };
 
@@ -145,7 +147,7 @@ const PayPage: React.FunctionComponent = () => {
 
       if (response.error) {
         const errorInfo = handleCouponError(response);
-        enqueueSnackbar(<Snackbar title={errorInfo.message} iconVariant="error" />, { variant: "error" });
+        notificator.error(errorInfo.message);
         return;
       }
 
@@ -158,7 +160,7 @@ const PayPage: React.FunctionComponent = () => {
       setCoupon("");
     } catch (error: unknown) {
       const errorInfo = handleStripeError(error);
-      enqueueSnackbar(<Snackbar title={errorInfo.message} iconVariant="error" />, { variant: "error" });
+      notificator.error(errorInfo.message);
       console.error("Coupon application error:", error);
     }
   };
@@ -179,7 +181,7 @@ const PayPage: React.FunctionComponent = () => {
       console.error("Failed to remove payment method:", error);
 
       const errorInfo = handleStripeError(error);
-      enqueueSnackbar(<Snackbar title={errorInfo.message} iconVariant="error" />, { variant: "error" });
+      notificator.error(errorInfo.message);
     } finally {
       setShowDeleteConfirmation(false);
       setCardToDelete(undefined);

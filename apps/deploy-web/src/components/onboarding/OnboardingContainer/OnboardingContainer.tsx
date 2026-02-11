@@ -3,7 +3,6 @@ import type { ReactNode } from "react";
 import React, { useCallback, useEffect, useState } from "react";
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useSnackbar } from "notistack";
 
 import { SuccessAnimation } from "@src/components/shared";
 import { useCertificate } from "@src/context/CertificateProvider";
@@ -11,6 +10,7 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useChainParam } from "@src/hooks/useChainParam/useChainParam";
 import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom";
+import { useNotificator } from "@src/hooks/useNotificator";
 import { useReturnTo } from "@src/hooks/useReturnTo";
 import { useUser } from "@src/hooks/useUser";
 import { usePaymentMethodsQuery } from "@src/queries/usePaymentQueries";
@@ -53,7 +53,7 @@ const DEPENDENCIES = {
   useRouter,
   useWallet,
   useCertificate,
-  useSnackbar,
+  useNotificator,
   useManagedWalletDenom,
   useReturnTo,
   localStorage: typeof window !== "undefined" ? window.localStorage : null,
@@ -88,7 +88,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
   } = d.useServices();
   const { hasManagedWallet, isWalletLoading, connectManagedWallet, address, signAndBroadcastTx } = d.useWallet();
   const { genNewCertificateIfLocalIsInvalid, updateSelectedCertificate } = d.useCertificate();
-  const { enqueueSnackbar } = d.useSnackbar();
+  const notificator = d.useNotificator();
   const managedDenom = d.useManagedWalletDenom();
   const { navigateBack } = d.useReturnTo({ defaultReturnTo: "/" });
 
@@ -235,7 +235,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
             severity: "warning",
             tags: { component: "onboarding", template: templateName }
           });
-          enqueueSnackbar(`Template "${templateName}" is no longer supported, please choose another one`, { variant: "error" });
+          notificator.error(`Template "${templateName}" is no longer supported, please choose another one`);
           return;
         }
 
@@ -250,7 +250,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
               severity: "warning",
               tags: { component: "onboarding", template: templateName, templateId: templateConfig.id }
             });
-            enqueueSnackbar(`Template "${templateConfig.name}" is no longer supported, please choose another one`, { variant: "error" });
+            notificator.error(`Template "${templateConfig.name}" is no longer supported, please choose another one`);
             return;
           }
           sdl = template.deploy;
@@ -303,7 +303,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
           router.push(urlService.newDeployment({ step: RouteStep.createLeases, dseq: dd.deploymentId.dseq }));
         }
       } catch (error) {
-        enqueueSnackbar("Failed to deploy template. Please try again.", { variant: "error" });
+        notificator.error("Failed to deploy template. Please try again.");
       }
     },
     [
@@ -320,7 +320,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
       updateSelectedCertificate,
       deploymentLocalStorage,
       analyticsService,
-      enqueueSnackbar,
+      notificator,
       errorHandler,
       managedDenom,
       navigateBack

@@ -53,9 +53,11 @@ export const CreateCredentialsButton: FC<Props> = ({ afterCreate, containerClass
 
   return (
     <div className={containerClassName}>
-      <d.Alert variant="warning" className={cn({ "py-2 text-sm": buttonProps?.size === "sm" }, "truncate")}>
-        {warningText}
-      </d.Alert>
+      {warningText && (
+        <d.Alert variant="warning" className={cn({ "py-2 text-sm": buttonProps?.size === "sm" }, "truncate")}>
+          {warningText}
+        </d.Alert>
+      )}
       <d.Button
         className={warningText ? "mt-4" : ""}
         {...buttonProps}

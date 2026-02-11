@@ -2,11 +2,11 @@
 import React, { type FC, useCallback, useEffect, useState } from "react";
 import type { ApiWalletWithOptional3DS } from "@akashnetwork/http-sdk";
 import type { PaymentMethod, SetupIntentResponse } from "@akashnetwork/http-sdk";
-import { useSnackbar } from "notistack";
 
 import { useServices } from "@src/context/ServicesProvider/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { use3DSecure } from "@src/hooks/use3DSecure";
+import { useNotificator } from "@src/hooks/useNotificator";
 import { useUser } from "@src/hooks/useUser";
 import { useCreateManagedWalletMutation } from "@src/queries/useManagedWalletQuery";
 import { usePaymentMethodsQuery, usePaymentMutations, useSetupIntentMutation } from "@src/queries/usePaymentQueries";
@@ -62,7 +62,7 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
   const { isWalletLoading, hasManagedWallet, managedWalletError } = d.useWallet();
   const { user } = d.useUser();
   const { stripe, errorHandler } = useServices();
-  const { enqueueSnackbar } = useSnackbar();
+  const notificator = useNotificator();
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
@@ -102,7 +102,7 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
         console.error("Wallet creation failed after 3D Secure:", error);
         setIsConnectingWallet(false);
         const errorMessage = extractErrorMessage(error as AppError);
-        enqueueSnackbar(errorMessage, { variant: "error", autoHideDuration: 5000 });
+        notificator.error(errorMessage);
       }
     },
     onError: (error: string) => {
@@ -119,13 +119,13 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
       // Validate required fields
       if (!clientSecret || clientSecret.trim() === "") {
         console.error("3D Secure validation failed: clientSecret is missing or empty");
-        enqueueSnackbar("Authentication data is incomplete. Please try again.", { variant: "error" });
+        notificator.error("Authentication data is incomplete. Please try again.");
         return false;
       }
 
       if ((!paymentIntentId || paymentIntentId.trim() === "") && (!paymentMethodId || paymentMethodId.trim() === "")) {
         console.error("3D Secure validation failed: both paymentIntentId and paymentMethodId are missing or empty");
-        enqueueSnackbar("Payment method information is incomplete. Please try again.", { variant: "error" });
+        notificator.error("Payment method information is incomplete. Please try again.");
         return false;
       }
 
@@ -136,7 +136,7 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
       });
       return true;
     },
-    [threeDSecure, enqueueSnackbar]
+    [threeDSecure, notificator]
   );
 
   useEffect(() => {
@@ -195,10 +195,7 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
       console.error("Failed to remove payment method:", error);
       const errorMessage = extractErrorMessage(error as AppError);
 
-      enqueueSnackbar(errorMessage, {
-        variant: "error",
-        autoHideDuration: 5000
-      });
+      notificator.error(errorMessage);
     }
   };
 
@@ -235,10 +232,7 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
 
       const errorMessage = extractErrorMessage(error as AppError);
 
-      enqueueSnackbar(errorMessage, {
-        variant: "error",
-        autoHideDuration: 5000
-      });
+      notificator.error(errorMessage);
     }
   };
 
