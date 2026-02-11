@@ -1,6 +1,8 @@
 coverage:
   ignore:
     - "apps/api/src/*/routes/**/*.ts"
+    - "apps/api/src/routes/**/*.ts"
+    - "apps/api/src/routers/**/*.ts"
     - "apps/api/src/server.ts"
     - "apps/api/src/console.ts"
     - "apps/api/src/background-jobs-app.ts"
