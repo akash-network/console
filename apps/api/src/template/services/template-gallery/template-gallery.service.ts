@@ -13,11 +13,51 @@ import { GitHubArchiveService } from "../github-archive/github-archive.service.t
 import { REPOSITORIES, TemplateFetcherService } from "../template-fetcher/template-fetcher.service.ts";
 import { TemplateProcessorService } from "../template-processor/template-processor.service.ts";
 
+export const DEFAULT_RECOMMENDED_TEMPLATE_IDS = new Set([
+  "akash-network-awesome-akash-openclaw",
+  "akash-network-awesome-akash-comfyui",
+  "akash-network-awesome-akash-DeepSeek-V3.1",
+  "akash-network-awesome-akash-DeepSeek-R1"
+]);
+
+export const DEFAULT_MOST_POPULAR_TEMPLATE_IDS = new Set([
+  "akash-network-awesome-akash-openclaw",
+  "akash-network-awesome-akash-ssh-ubuntu",
+  "akash-network-awesome-akash-comfyui",
+  "akash-network-awesome-akash-DeepSeek-V3.1"
+]);
+
+export const DEFAULT_CATEGORY_PRIORITY: Record<string, number> = {
+  "AI - GPU": 0,
+  "AI - CPU": 1,
+  "Machine Learning": 2,
+  Databases: 3,
+  "CI/CD, DevOps": 4,
+  Monitoring: 5,
+  Blogging: 6,
+  Business: 7,
+  Chat: 8,
+  "Data Analytics": 9,
+  Gaming: 10,
+  Hosting: 11,
+  Media: 12,
+  Social: 13,
+  Storage: 14,
+  Tools: 15
+};
+
+export type TemplateTagsConfig = {
+  recommendedIds: Set<string>;
+  popularIds: Set<string>;
+  categoryPriority: Record<string, number>;
+};
+
 type Options = {
   githubPAT?: string;
   dataFolderPath: string;
   categoryProcessingConcurrency?: number;
   templateSourceProcessingConcurrency?: number;
+  getTagsConfig?: () => TemplateTagsConfig;
 };
 
 export class TemplateGalleryService {
@@ -70,6 +110,39 @@ export class TemplateGalleryService {
       templates.push(...category.templates);
       return templates;
     }, []);
+
+    const config = this.#options.getTagsConfig?.() ?? {
+      recommendedIds: DEFAULT_RECOMMENDED_TEMPLATE_IDS,
+      popularIds: DEFAULT_MOST_POPULAR_TEMPLATE_IDS,
+      categoryPriority: DEFAULT_CATEGORY_PRIORITY
+    };
+
+    for (const category of gallery) {
+      for (const template of category.templates) {
+        const tags: string[] = [];
+        if (config.recommendedIds.has(template.id)) tags.push("recommended");
+        if (config.popularIds.has(template.id)) tags.push("popular");
+        if (tags.length > 0) {
+          (template as Template & { tags?: string[] }).tags = tags;
+        }
+      }
+    }
+
+    gallery.sort((a, b) => {
+      const priorityA = config.categoryPriority[a.title] ?? 999;
+      const priorityB = config.categoryPriority[b.title] ?? 999;
+      if (priorityA !== priorityB) return priorityA - priorityB;
+      return a.title.localeCompare(b.title);
+    });
+
+    for (const category of gallery) {
+      category.templates.sort((a, b) => {
+        const aTagged = config.recommendedIds.has(a.id) || config.popularIds.has(a.id);
+        const bTagged = config.recommendedIds.has(b.id) || config.popularIds.has(b.id);
+        if (aTagged !== bTagged) return aTagged ? -1 : 1;
+        return (a.name || "").localeCompare(b.name || "");
+      });
+    }
 
     await this.#fs.mkdir(`${this.#galleriesCachePath}/v1/templates`, { recursive: true });
 
