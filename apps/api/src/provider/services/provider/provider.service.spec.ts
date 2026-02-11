@@ -60,7 +60,7 @@ describe(ProviderService.name, () => {
           owner: provider.owner,
           hostUri: provider.hostUri
         },
-        timeout: 60000
+        timeout: 30_000
       });
       expect(result).toEqual({ success: true });
     });
