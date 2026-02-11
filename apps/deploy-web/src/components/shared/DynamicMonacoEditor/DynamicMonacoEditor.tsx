@@ -36,21 +36,15 @@ export const MONACO_OPTIONS = {
 
 const LazyMonacoEditor = dynamic(
   async () => {
-    const quiet = (worker: Worker) => {
-      // ignore worker errors since they are 3rd party and we cannot not do much
-      // user will in UX but everything still should work
-      worker.onerror = event => event.preventDefault();
-      return worker;
-    };
     // Set up Monaco environment for workers - must be done before importing monaco
     // This is inside dynamic() to ensure it's not included in server bundle
     globalThis.MonacoEnvironment = {
       getWorker(_moduleId: string, label: string) {
         switch (label) {
           case "editorWorkerService":
-            return quiet(new Worker(new URL("./monaco.worker.ts", import.meta.url), { type: "module" }));
+            return new Worker(new URL("./monaco.worker.ts", import.meta.url), { type: "module" });
           case "yaml":
-            return quiet(new Worker(new URL("./yaml.worker.ts", import.meta.url), { type: "module" }));
+            return new Worker(new URL("./yaml.worker.ts", import.meta.url), { type: "module" });
           default:
             throw new Error(`Unknown label ${label}`);
         }
@@ -99,7 +93,7 @@ export type Props = {
   theme?: string;
   value: string;
   height?: string | number;
-  language?: string;
+  language?: "yaml" | "plaintext";
   onChange?: OnChange;
   onMount?: OnMount;
   onValidate?: OnValidate;
@@ -115,7 +109,7 @@ export const DynamicMonacoEditor: React.FunctionComponent<Props> = ({
   onChange,
   onMount,
   onValidate,
-  language = "yaml",
+  language = "plaintext",
   options = {}
 }) => {
   const { resolvedTheme } = useTheme();

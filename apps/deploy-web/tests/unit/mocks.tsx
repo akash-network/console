@@ -1,4 +1,4 @@
-import type { FC } from "react";
+import { type FC, forwardRef } from "react";
 
 /**
  * Dump component that just renders children in React.Fragment
@@ -6,6 +6,14 @@ import type { FC } from "react";
 export function ComponentMock(props: Record<string, any>) {
   return <>{props.children}</>;
 }
+
+export const createRefComponentMock = () => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const renderFn = jest.fn((props: Record<string, any>, _ref: unknown) => {
+    return <>{props.children}</>;
+  });
+  return Object.assign(forwardRef(renderFn), { renderFn });
+};
 
 export function MockComponents<T extends Record<string, any>>(components: T, overrides?: Partial<T>): Mocked<T> {
   return Object.keys(components).reduce((all, name: keyof T) => {
