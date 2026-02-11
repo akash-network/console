@@ -23,6 +23,8 @@ let timeoutId: NodeJS.Timeout | null = null;
 const isRecommended = (t: TemplateOutputSummaryWithCategory) => t.tags?.includes("recommended") ?? false;
 const isPopular = (t: TemplateOutputSummaryWithCategory) => t.tags?.includes("popular") ?? false;
 
+const FEATURED_TEMPLATE_IDS = ["akash-network-awesome-akash-openclaw"];
+
 export const TemplateGallery: React.FunctionComponent = () => {
   const [selectedCategoryTitle, setSelectedCategoryTitle] = useState<string | null>(null);
   const [searchTerms, setSearchTerms] = useState("");
@@ -58,6 +60,10 @@ export const TemplateGallery: React.FunctionComponent = () => {
     }
 
     _templates.sort((a, b) => {
+      const aFeatured = FEATURED_TEMPLATE_IDS.indexOf(a.id) !== -1 ? FEATURED_TEMPLATE_IDS.indexOf(a.id) : Infinity;
+      const bFeatured = FEATURED_TEMPLATE_IDS.indexOf(b.id) !== -1 ? FEATURED_TEMPLATE_IDS.indexOf(b.id) : Infinity;
+      if (aFeatured !== bFeatured) return aFeatured - bFeatured;
+
       const aTag = isRecommended(a) ? 0 : isPopular(a) ? 1 : 2;
       const bTag = isRecommended(b) ? 0 : isPopular(b) ? 1 : 2;
       return aTag - bTag;
