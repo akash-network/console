@@ -93,7 +93,7 @@ export type Props = {
   theme?: string;
   value: string;
   height?: string | number;
-  language?: string;
+  language?: "yaml" | "plaintext";
   onChange?: OnChange;
   onMount?: OnMount;
   onValidate?: OnValidate;
@@ -109,7 +109,7 @@ export const DynamicMonacoEditor: React.FunctionComponent<Props> = ({
   onChange,
   onMount,
   onValidate,
-  language = "yaml",
+  language = "plaintext",
   options = {}
 }) => {
   const { resolvedTheme } = useTheme();

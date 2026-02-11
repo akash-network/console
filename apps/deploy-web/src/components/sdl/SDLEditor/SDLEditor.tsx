@@ -5,6 +5,7 @@ import { forwardRef, useCallback, useImperativeHandle, useRef } from "react";
 import type { SDLInput } from "@akashnetwork/chain-sdk/web";
 import { validateSDL } from "@akashnetwork/chain-sdk/web";
 import type * as monacoModule from "monaco-editor";
+import type { Document } from "yaml";
 
 import type { IStandaloneCodeEditor } from "@src/components/shared/DynamicMonacoEditor/DynamicMonacoEditor";
 import { MemoMonaco } from "@src/components/shared/MemoMonaco";
@@ -46,9 +47,15 @@ export const SDLEditor = forwardRef<SdlEditorRefType, Props>(({ onChange, onVali
       const model = editor?.getModel();
       if (!model) return false;
 
-      const { parseDocument } = await import("yaml");
+      let doc: Document.Parsed;
+      try {
+        const { parseDocument } = await import("yaml");
+        doc = parseDocument(value, { keepSourceTokens: true });
+      } catch (error) {
+        onValidate?.({ isValid: false });
+        return false;
+      }
 
-      const doc = parseDocument(value, { keepSourceTokens: true });
       if (doc.errors.length) {
         onValidate?.({ isValid: false });
         // if there are errors, yaml is invalid and builtin monaco editor yaml service will show errors

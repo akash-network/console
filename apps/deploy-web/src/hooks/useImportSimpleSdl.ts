@@ -8,8 +8,7 @@ export function useImportSimpleSdl(sdl: string | null | undefined) {
 
     try {
       return importSimpleSdl(sdl);
-    } catch (error) {
-      console.error("Failed to parse SDL:", error);
+    } catch {
       return [];
     }
   }, [sdl]);

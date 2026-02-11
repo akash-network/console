@@ -159,7 +159,7 @@ export const importSimpleSdl = (yamlStr: string) => {
 
     return services;
   } catch (error) {
-    console.log(error);
+    console.error(error);
     throw error;
   }
 };

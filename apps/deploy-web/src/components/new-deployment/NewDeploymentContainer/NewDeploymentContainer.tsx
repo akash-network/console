@@ -17,7 +17,7 @@ import { RouteStep } from "@src/types/route-steps.type";
 import { hardcodedTemplates } from "@src/utils/templates";
 import Layout from "../../layout/Layout";
 import { CreateLease } from "../CreateLease/CreateLease";
-import { ManifestEdit } from "../ManifestEdit";
+import { ManifestEdit } from "../ManifestEdit/ManifestEdit";
 import { CustomizedSteppers } from "../Stepper";
 import { TemplateList } from "../TemplateList";
 
