@@ -1,7 +1,7 @@
-import axios from "axios";
-import { singleton } from "tsyringe";
+import type { HttpClient } from "@akashnetwork/http-sdk";
+import { inject, singleton } from "tsyringe";
 
-import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
+import { PROVIDER_PROXY_HTTP_CLIENT } from "@src/provider/providers/provider-proxy.provider";
 
 export interface ProviderIdentity {
   owner: string;
@@ -33,15 +33,18 @@ export interface ProviderProxyPayload {
 
 @singleton()
 export class ProviderProxyService {
-  private readonly PROVIDER_PROXY_MAX_TIMEOUT = 10_000;
+  readonly #PROVIDER_PROXY_MAX_TIMEOUT = 30_000;
+  readonly #httpClient: HttpClient;
 
-  constructor(private readonly configService: DeploymentConfigService) {}
+  constructor(@inject(PROVIDER_PROXY_HTTP_CLIENT) httpClient: HttpClient) {
+    this.#httpClient = httpClient;
+  }
 
   async request<T>(url: string, options: ProviderProxyPayload): Promise<T> {
     const { chainNetwork, providerIdentity, timeout, ...params } = options;
-    const proxyTimeout = timeout ? Math.min(timeout, this.PROVIDER_PROXY_MAX_TIMEOUT) : undefined;
-    const response = await axios.post(
-      this.configService.get("PROVIDER_PROXY_URL"),
+    const proxyTimeout = timeout ? Math.min(timeout, this.#PROVIDER_PROXY_MAX_TIMEOUT) : undefined;
+    const response = await this.#httpClient.post(
+      "/",
       {
         ...params,
         method: options.method || "GET",

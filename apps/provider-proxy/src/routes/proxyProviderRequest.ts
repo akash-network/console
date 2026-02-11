@@ -12,7 +12,7 @@ const RequestPayload = addProviderAuthValidation(
   providerRequestSchema.extend({
     method: z.enum(["GET", "POST", "PUT", "DELETE"]),
     body: z.string().optional(),
-    timeout: z.number().max(10_000).min(0).default(9_000).optional()
+    timeout: z.number().max(30_000).min(0).default(9_000).optional()
   })
 );
 

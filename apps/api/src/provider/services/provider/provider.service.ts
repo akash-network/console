@@ -35,7 +35,7 @@ export class ProviderService {
     private readonly auditorsService: AuditorService,
     private readonly jwtTokenService: ProviderJwtTokenService,
     private readonly config: BillingConfigService,
-    private readonly netConfig: NetConfig
+    netConfig: NetConfig
   ) {
     this.chainNetwork = netConfig.mapped(this.config.get("NETWORK"));
   }
@@ -87,7 +87,7 @@ export class ProviderService {
           auth: options.auth,
           chainNetwork: this.chainNetwork,
           providerIdentity: options.providerIdentity,
-          timeout: 60000
+          timeout: 30_000
         });
 
         if (result) return result;
