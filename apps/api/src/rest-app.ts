@@ -172,7 +172,7 @@ appHono.get("/status", c => {
 
 appHono.get("/v1/doc", async c => {
   const scope = c.req.query("scope") || "full";
-  assert(["full", "console"].includes(scope), 403, '"scope" query is invalid. Valid options: "full", "api"');
+  assert(["full", "console"].includes(scope), 403, '"scope" query is invalid. Valid options: "full", "console"');
   return c.json(await container.resolve(OpenApiDocsService).generateDocs(openApiHonoHandlers, { scope }));
 });
 appHono.get("/v1/swagger", swaggerUI({ url: "/v1/doc" }));
