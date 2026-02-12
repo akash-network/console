@@ -6,7 +6,7 @@ import { PaymentMethodsRow } from "./PaymentMethodsRow";
 
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { createMockPaymentMethod } from "@tests/seeders/payment";
+import { createMockLinkPaymentMethod, createMockPaymentMethod } from "@tests/seeders/payment";
 
 // Mock implementations for dependencies
 const MockTableRow = ({ children, className }: any) => <tr className={className}>{children}</tr>;
@@ -327,7 +327,8 @@ describe(PaymentMethodsRow.name, () => {
       setup({ paymentMethod });
 
       // Component should still render without crashing
-      expect(screen.getByText(/Valid until/)).toBeInTheDocument();
+      expect(screen.getByText("Card")).toBeInTheDocument();
+      expect(screen.queryByText(/Valid until/)).not.toBeInTheDocument();
     });
 
     it("handles two-digit month without padding", () => {
@@ -344,6 +345,24 @@ describe(PaymentMethodsRow.name, () => {
       });
 
       expect(screen.getByText(/12\/2025/)).toBeInTheDocument();
+    });
+
+    it("renders Link payment method without card details", () => {
+      setup({
+        paymentMethod: createMockLinkPaymentMethod({ link: undefined })
+      });
+
+      expect(screen.getByText("Link")).toBeInTheDocument();
+      expect(screen.queryByText(/Valid until/)).not.toBeInTheDocument();
+    });
+
+    it("renders Link payment method with email", () => {
+      setup({
+        paymentMethod: createMockLinkPaymentMethod({ link: { email: "email@example.com" } })
+      });
+
+      expect(screen.getByText(/Link \(email@example\.com\)/)).toBeInTheDocument();
+      expect(screen.queryByText(/Valid until/)).not.toBeInTheDocument();
     });
   });
 

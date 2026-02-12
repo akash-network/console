@@ -4,6 +4,30 @@ import type { PaymentMethod } from "@akashnetwork/http-sdk";
 import { Badge, Button, Card, CardDescription, CardHeader, CardTitle, RadioGroupItem } from "@akashnetwork/ui/components";
 import { CheckCircle, CreditCard } from "iconoir-react";
 
+import { capitalizeFirstLetter } from "@src/utils/stringUtils";
+
+function getPaymentMethodDisplay(method: PaymentMethod): { label: string; expiry: string | null } {
+  if (method.card) {
+    return {
+      label: `${method.card.brand?.toUpperCase() || ""} •••• ${method.card.last4 || ""}`,
+      expiry: `Expires ${method.card.exp_month}/${method.card.exp_year}`
+    };
+  }
+
+  if (method.type === "link") {
+    const email = method.link?.email;
+    return {
+      label: email ? `Link (${email})` : "Link",
+      expiry: null
+    };
+  }
+
+  return {
+    label: capitalizeFirstLetter(method.type),
+    expiry: null
+  };
+}
+
 interface PaymentMethodCardProps {
   method: PaymentMethod;
   isRemoving: boolean;
@@ -38,6 +62,8 @@ export const PaymentMethodCard: React.FC<PaymentMethodCardProps> = ({
     onRemove(method.id);
   };
 
+  const display = getPaymentMethodDisplay(method);
+
   if (isSelectable) {
     // Selection mode - used in payment page
     return (
@@ -51,12 +77,8 @@ export const PaymentMethodCard: React.FC<PaymentMethodCardProps> = ({
           <RadioGroupItem value={method.id} id={method.id} />
           <div className="flex items-center gap-4">
             <div>
-              <div className="text-base font-medium">
-                {method.card?.brand?.toUpperCase()} •••• {method.card?.last4}
-              </div>
-              <div className="text-sm text-muted-foreground">
-                Expires {method.card?.exp_month}/{method.card?.exp_year}
-              </div>
+              <div className="text-base font-medium">{display.label}</div>
+              {display.expiry && <div className="text-sm text-muted-foreground">{display.expiry}</div>}
             </div>
           </div>
         </div>
@@ -79,12 +101,8 @@ export const PaymentMethodCard: React.FC<PaymentMethodCardProps> = ({
               <CreditCard className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <CardTitle className="text-left text-base">
-                {method.card?.brand?.toUpperCase()} •••• {method.card?.last4}
-              </CardTitle>
-              <CardDescription>
-                Expires {method.card?.exp_month}/{method.card?.exp_year}
-              </CardDescription>
+              <CardTitle className="text-left text-base">{display.label}</CardTitle>
+              {display.expiry && <CardDescription>{display.expiry}</CardDescription>}
             </div>
           </div>
           <div className="flex items-center gap-2">

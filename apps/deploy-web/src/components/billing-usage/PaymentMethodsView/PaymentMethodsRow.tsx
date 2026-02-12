@@ -44,21 +44,36 @@ export const PaymentMethodsRow: React.FC<PaymentMethodsRowProps> = ({
   };
 
   const card = useCallback((paymentMethod: PaymentMethod) => {
+    if (paymentMethod.card) {
+      return (
+        <>
+          {capitalizeFirstLetter(paymentMethod.card.brand || "")} {paymentMethod.card.funding} **** {paymentMethod.card.last4}
+        </>
+      );
+    }
+
+    if (paymentMethod.type === "link") {
+      const email = paymentMethod.link?.email;
+      return <>{email ? `Link (${email})` : "Link"}</>;
+    }
+
+    return <>{capitalizeFirstLetter(paymentMethod.type)}</>;
+  }, []);
+
+  const validUntil = useCallback((paymentMethod: PaymentMethod) => {
+    if (!paymentMethod.card) {
+      return null;
+    }
+
+    const month = paymentMethod.card.exp_month?.toString().padStart(2, "0");
     return (
       <>
-        {capitalizeFirstLetter(paymentMethod.card?.brand || "")} {paymentMethod.card?.funding} **** {paymentMethod.card?.last4}
+        {month}/{paymentMethod.card.exp_year}
       </>
     );
   }, []);
 
-  const validUntil = useCallback((paymentMethod: PaymentMethod) => {
-    const month = paymentMethod.card?.exp_month?.toString().padStart(2, "0");
-    return (
-      <>
-        {month}/{paymentMethod.card?.exp_year}
-      </>
-    );
-  }, []);
+  const validUntilContent = validUntil(paymentMethod);
 
   const defaultBadge = useMemo(() => {
     if (!paymentMethod.isDefault) {
@@ -88,7 +103,7 @@ export const PaymentMethodsRow: React.FC<PaymentMethodsRowProps> = ({
       <d.TableCell className="flex items-center">
         {card(paymentMethod)} {defaultBadge}
       </d.TableCell>
-      <d.TableCell className="flex flex-grow items-center justify-end">Valid until {validUntil(paymentMethod)}</d.TableCell>
+      {validUntilContent && <d.TableCell className="flex flex-grow items-center justify-end">Valid until {validUntilContent}</d.TableCell>}
       {hasOtherPaymentMethods && (
         <d.TableCell className="min-h-[72px] min-w-[72px]">
           {!paymentMethod.isDefault && (
