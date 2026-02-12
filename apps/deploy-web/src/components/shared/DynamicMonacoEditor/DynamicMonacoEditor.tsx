@@ -93,7 +93,7 @@ export type Props = {
   theme?: string;
   value: string;
   height?: string | number;
-  language?: "yaml" | "plaintext";
+  language?: "yaml" | "plaintext" | "log";
   onChange?: OnChange;
   onMount?: OnMount;
   onValidate?: OnValidate;

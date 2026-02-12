@@ -291,6 +291,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
               <ViewPanel stickToBottom style={{ overflow: "hidden" }}>
                 <MemoMonaco
                   value={logText}
+                  language="log"
                   onMount={handleEditorDidMount}
                   options={{
                     readOnly: true
