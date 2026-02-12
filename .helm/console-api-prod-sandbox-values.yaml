@@ -6,7 +6,7 @@ chain: sandbox
 hostNames:
   - console-api-sandbox.akash.network
 
-replicas: 1
+replicas: 2
 
 resources:
   limits:
