@@ -1,5 +1,13 @@
 
 
+## [2.12.6](https://github.com/akash-network/console/compare/log-collector/v2.12.5...log-collector/v2.12.6) (2026-02-12)
+
+
+### Bug Fixes
+
+* increase HTTP request timeout from 10s to 30s ([#2635](https://github.com/akash-network/console/issues/2635)) ([a231221](https://github.com/akash-network/console/commit/a2312219ee15c9d0c9bb735459ea1a7a752e1c0b))
+* update template retrieval and response handling ([#2663](https://github.com/akash-network/console/issues/2663)) ([cee7d45](https://github.com/akash-network/console/commit/cee7d45bfddede2290ccc5da4b7009ed31b0ad83))
+
 ## [2.12.5](https://github.com/akash-network/console/compare/log-collector/v2.12.4...log-collector/v2.12.5) (2026-02-03)
 
 

@@ -1,5 +1,17 @@
 
 
+## [2.10.0](https://github.com/akash-network/console/compare/provider-proxy/v2.9.11...provider-proxy/v2.10.0) (2026-02-12)
+
+
+### Features
+
+* upgrades chain sdk to latest ([a5cbbf7](https://github.com/akash-network/console/commit/a5cbbf7c909329e122942ca1a965c4c7b8dfcd62))
+
+
+### Bug Fixes
+
+* increases timeout on provider-proxy requests ([#2699](https://github.com/akash-network/console/issues/2699)) ([d238bac](https://github.com/akash-network/console/commit/d238bac7984e5df3b9d0564a1cdeceb5e3c5e332))
+
 ## [2.9.11](https://github.com/akash-network/console/compare/provider-proxy/v2.9.8...provider-proxy/v2.9.11) (2026-02-05)
 
 

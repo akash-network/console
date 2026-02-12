@@ -1,5 +1,20 @@
 
 
+## [3.30.0](https://github.com/akash-network/console/compare/console-api/v3.29.0...console-api/v3.30.0) (2026-02-12)
+
+
+### Features
+
+* **observability:** adds detailed tracing for the lease endpoint  ([a6a49e7](https://github.com/akash-network/console/commit/a6a49e70a973b483cd36c5668150872d70d44ec4))
+* upgrades chain sdk to latest ([a5cbbf7](https://github.com/akash-network/console/commit/a5cbbf7c909329e122942ca1a965c4c7b8dfcd62))
+
+
+### Bug Fixes
+
+* increase HTTP request timeout from 10s to 30s ([#2635](https://github.com/akash-network/console/issues/2635)) ([a231221](https://github.com/akash-network/console/commit/a2312219ee15c9d0c9bb735459ea1a7a752e1c0b))
+* increases timeout on provider-proxy requests ([#2699](https://github.com/akash-network/console/issues/2699)) ([d238bac](https://github.com/akash-network/console/commit/d238bac7984e5df3b9d0564a1cdeceb5e3c5e332))
+* update template retrieval and response handling ([#2663](https://github.com/akash-network/console/issues/2663)) ([cee7d45](https://github.com/akash-network/console/commit/cee7d45bfddede2290ccc5da4b7009ed31b0ad83))
+
 ## [3.29.0](https://github.com/akash-network/console/compare/console-api/v3.28.0...console-api/v3.29.0) (2026-02-06)
 
 
