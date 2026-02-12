@@ -1,5 +1,12 @@
 
 
+## [3.28.1](https://github.com/akash-network/console/compare/console-web/v3.28.0...console-web/v3.28.1) (2026-02-12)
+
+
+### Bug Fixes
+
+* **sdl:** ensures proper validation and upgrades chain sdk  ([3381424](https://github.com/akash-network/console/commit/3381424e554f76c09ad52850b650e18c21ea76fa))
+
 ## [3.28.0](https://github.com/akash-network/console/compare/console-web/v3.27.0...console-web/v3.28.0) (2026-02-12)
 
 
