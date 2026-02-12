@@ -1,5 +1,12 @@
 
 
+## [1.14.0](https://github.com/akash-network/console/compare/stats-web/v1.13.10...stats-web/v1.14.0) (2026-02-12)
+
+
+### Features
+
+* upgrades chain sdk to latest ([a5cbbf7](https://github.com/akash-network/console/commit/a5cbbf7c909329e122942ca1a965c4c7b8dfcd62))
+
 ## [1.13.10](https://github.com/akash-network/console/compare/stats-web/v1.13.7...stats-web/v1.13.10) (2026-02-05)
 
 

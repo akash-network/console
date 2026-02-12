@@ -1,5 +1,18 @@
 
 
+## [1.1.0](https://github.com/akash-network/console/compare/tx-signer/v1.0.8...tx-signer/v1.1.0) (2026-02-12)
+
+
+### Features
+
+* upgrades chain sdk to latest ([a5cbbf7](https://github.com/akash-network/console/commit/a5cbbf7c909329e122942ca1a965c4c7b8dfcd62))
+
+
+### Bug Fixes
+
+* increase HTTP request timeout from 10s to 30s ([#2635](https://github.com/akash-network/console/issues/2635)) ([a231221](https://github.com/akash-network/console/commit/a2312219ee15c9d0c9bb735459ea1a7a752e1c0b))
+* update template retrieval and response handling ([#2663](https://github.com/akash-network/console/issues/2663)) ([cee7d45](https://github.com/akash-network/console/commit/cee7d45bfddede2290ccc5da4b7009ed31b0ad83))
+
 ## [1.0.8](https://github.com/akash-network/console/compare/tx-signer/v1.0.5...tx-signer/v1.0.8) (2026-02-05)
 
 
