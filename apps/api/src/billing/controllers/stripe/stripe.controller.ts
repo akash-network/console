@@ -124,7 +124,6 @@ export class StripeController {
     }
   }
 
-  @Semaphore()
   @Protected([{ action: "create", subject: "StripePayment" }])
   async applyCoupon(
     params: ApplyCouponRequest["data"]
@@ -136,8 +135,14 @@ export class StripeController {
     assert(params.userId, 400, "User ID is required");
 
     try {
-      const result = await this.stripe.applyCoupon(currentUser, params.couponId);
-      return { data: { coupon: result.coupon, amountAdded: result.amountAdded } };
+      const result = await this.redeemCouponWithLock(params);
+      const amountAdded = result.amountToAdd / 100;
+
+      // Wallet top-up runs outside the semaphore since it involves slow blockchain transactions
+      // and doesn't need mutual exclusion (the Stripe redemption above already prevents double-spend)
+      await this.stripe.completeCouponTopUp(currentUser.id, result.amountToAdd, result.transactionId);
+
+      return { data: { coupon: result.coupon, amountAdded } };
     } catch (error: unknown) {
       if (this.stripeErrorService.isKnownError(error, "coupon")) {
         return { data: this.stripeErrorService.toCouponResponseError(error) };
@@ -145,6 +150,12 @@ export class StripeController {
 
       throw error;
     }
+  }
+
+  @Semaphore()
+  private async redeemCouponWithLock(params: ApplyCouponRequest["data"]) {
+    const { currentUser } = this.authService;
+    return this.stripe.redeemCoupon(currentUser, params.couponId);
   }
 
   @Protected([{ action: "delete", subject: "StripePayment" }])

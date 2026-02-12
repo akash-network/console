@@ -308,7 +308,10 @@ export class StripeService extends Stripe {
     return promotionCodes[0];
   }
 
-  async applyCoupon(currentUser: UserOutput, couponCode: string): Promise<{ coupon: Stripe.Coupon | Stripe.PromotionCode; amountAdded: number }> {
+  async redeemCoupon(
+    currentUser: UserOutput,
+    couponCode: string
+  ): Promise<{ coupon: Stripe.Coupon | Stripe.PromotionCode; amountToAdd: number; transactionId: string }> {
     const promotionCode = await this.findPromotionCodeByCode(couponCode);
 
     if (promotionCode) {
@@ -318,7 +321,7 @@ export class StripeService extends Stripe {
         throw new Error("Promotion code coupon was not expanded");
       }
 
-      return this.applyCouponOrPromotionCode({
+      return this.redeemCouponOrPromotionCode({
         currentUser,
         couponOrPromotion: promotionCode,
         coupon,
@@ -332,7 +335,7 @@ export class StripeService extends Stripe {
     const matchingCoupon = coupons.find(coupon => coupon.id === couponCode);
 
     if (matchingCoupon) {
-      return this.applyCouponOrPromotionCode({
+      return this.redeemCouponOrPromotionCode({
         currentUser,
         couponOrPromotion: matchingCoupon,
         coupon: matchingCoupon,
@@ -344,7 +347,33 @@ export class StripeService extends Stripe {
     throw new Error("No valid promotion code or coupon found with the provided code");
   }
 
-  private async applyCouponOrPromotionCode({
+  async completeCouponTopUp(userId: string, amountToAdd: number, transactionId: string): Promise<void> {
+    try {
+      if (amountToAdd > 0) {
+        await this.refillService.topUpWallet(amountToAdd, userId);
+      }
+
+      await this.stripeTransactionRepository.updateById(transactionId, { status: "succeeded" });
+
+      this.loggerService.info({
+        event: "COUPON_TOP_UP_SUCCESS",
+        userId,
+        transactionId,
+        amountAdded: amountToAdd / 100
+      });
+    } catch (error) {
+      this.loggerService.error({
+        event: "COUPON_TOP_UP_FAILED",
+        userId,
+        transactionId,
+        error
+      });
+
+      throw error;
+    }
+  }
+
+  private async redeemCouponOrPromotionCode({
     currentUser,
     couponOrPromotion,
     coupon,
@@ -356,7 +385,7 @@ export class StripeService extends Stripe {
     coupon: Stripe.Coupon;
     updateField: "promotion_code" | "coupon";
     updateId: string;
-  }): Promise<{ coupon: Stripe.Coupon | Stripe.PromotionCode; amountAdded: number }> {
+  }): Promise<{ coupon: Stripe.Coupon | Stripe.PromotionCode; amountToAdd: number; transactionId: string }> {
     this.loggerService.info({
       event: "APPLYING_COUPON",
       couponId: coupon.id,
@@ -425,26 +454,19 @@ export class StripeService extends Stripe {
         description: `Coupon: ${coupon.name || coupon.id}`
       });
 
-      // Add credit to wallet
-      if (amountToAdd > 0) {
-        await this.refillService.topUpWallet(amountToAdd, currentUser.id);
-      }
-
-      // Update transaction status to succeeded
-      await this.stripeTransactionRepository.updateById(transaction.id, { status: "succeeded" });
-
       this.loggerService.info({
-        event: "COUPON_APPLICATION_SUCCESS",
+        event: "COUPON_REDEEMED",
         userId: currentUser.id,
         couponId: updateId,
         invoiceId: invoice.id,
-        amountAdded: amountToAdd / 100
+        transactionId: transaction.id,
+        amountToAdd: amountToAdd / 100
       });
 
-      return { coupon: couponOrPromotion, amountAdded: amountToAdd / 100 };
+      return { coupon: couponOrPromotion, amountToAdd, transactionId: transaction.id };
     } catch (error) {
       this.loggerService.error({
-        event: "COUPON_APPLICATION_FAILED",
+        event: "COUPON_REDEMPTION_FAILED",
         userId: currentUser.id,
         couponId: updateId,
         error

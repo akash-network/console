@@ -10,7 +10,7 @@ container.register(APP_INITIALIZER, {
   useFactory: instancePerContainerCachingFactory(c => {
     const config = c.resolve(CORE_CONFIG);
     const client = postgres(config.POSTGRES_DB_URI, {
-      max: 1,
+      max: 10,
       idle_timeout: 30,
       connect_timeout: 10
     });
