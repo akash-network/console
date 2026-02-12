@@ -35,6 +35,12 @@ export const PaymentMethodSchema = z.object({
     })
     .nullable()
     .optional(),
+  link: z
+    .object({
+      email: z.string().nullable().optional()
+    })
+    .nullable()
+    .optional(),
   billing_details: z
     .object({
       address: z
