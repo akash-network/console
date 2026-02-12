@@ -1,5 +1,12 @@
 
 
+## [1.1.1](https://github.com/akash-network/console/compare/tx-signer/v1.1.0...tx-signer/v1.1.1) (2026-02-12)
+
+
+### Bug Fixes
+
+* **sdl:** ensures proper validation and upgrades chain sdk  ([3381424](https://github.com/akash-network/console/commit/3381424e554f76c09ad52850b650e18c21ea76fa))
+
 ## [1.1.0](https://github.com/akash-network/console/compare/tx-signer/v1.0.8...tx-signer/v1.1.0) (2026-02-12)
 
 

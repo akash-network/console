@@ -1,5 +1,12 @@
 
 
+## [2.14.1](https://github.com/akash-network/console/compare/notifications/v2.14.0...notifications/v2.14.1) (2026-02-12)
+
+
+### Bug Fixes
+
+* **sdl:** ensures proper validation and upgrades chain sdk  ([3381424](https://github.com/akash-network/console/commit/3381424e554f76c09ad52850b650e18c21ea76fa))
+
 ## [2.14.0](https://github.com/akash-network/console/compare/notifications/v2.13.8...notifications/v2.14.0) (2026-02-12)
 
 

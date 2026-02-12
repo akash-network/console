@@ -1,5 +1,12 @@
 
 
+## [3.30.1](https://github.com/akash-network/console/compare/console-api/v3.30.0...console-api/v3.30.1) (2026-02-12)
+
+
+### Bug Fixes
+
+* **sdl:** ensures proper validation and upgrades chain sdk  ([3381424](https://github.com/akash-network/console/commit/3381424e554f76c09ad52850b650e18c21ea76fa))
+
 ## [3.30.0](https://github.com/akash-network/console/compare/console-api/v3.29.0...console-api/v3.30.0) (2026-02-12)
 
 

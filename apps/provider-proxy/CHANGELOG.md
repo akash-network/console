@@ -1,5 +1,12 @@
 
 
+## [2.10.1](https://github.com/akash-network/console/compare/provider-proxy/v2.10.0...provider-proxy/v2.10.1) (2026-02-12)
+
+
+### Bug Fixes
+
+* **sdl:** ensures proper validation and upgrades chain sdk  ([3381424](https://github.com/akash-network/console/commit/3381424e554f76c09ad52850b650e18c21ea76fa))
+
 ## [2.10.0](https://github.com/akash-network/console/compare/provider-proxy/v2.9.11...provider-proxy/v2.10.0) (2026-02-12)
 
 
