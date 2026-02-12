@@ -1,5 +1,12 @@
 
 
+## [3.30.2](https://github.com/akash-network/console/compare/console-api/v3.30.1...console-api/v3.30.2) (2026-02-12)
+
+
+### Bug Fixes
+
+* switch to in-memory semaphore ([#2718](https://github.com/akash-network/console/issues/2718)) ([5ff03f5](https://github.com/akash-network/console/commit/5ff03f5dc73318ad8aa9f452cee8c9bd843f4027))
+
 ## [3.30.1](https://github.com/akash-network/console/compare/console-api/v3.30.0...console-api/v3.30.1) (2026-02-12)
 
 
