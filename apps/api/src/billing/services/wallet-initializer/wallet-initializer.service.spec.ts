@@ -124,7 +124,8 @@ describe(WalletInitializerService.name, () => {
         },
         toPublic: value => ({
           ...value,
-          isTrialing: !!value.isTrialing
+          isTrialing: !!value.isTrialing,
+          reviewStatus: value.reviewStatus ?? null
         })
       }) as unknown as UserWalletRepository
     );

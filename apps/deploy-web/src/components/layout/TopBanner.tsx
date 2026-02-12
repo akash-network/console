@@ -73,6 +73,14 @@ function MaintenanceBanner({ onClose }: { onClose: () => void }) {
   );
 }
 
+function ReviewBanner() {
+  return (
+    <div className="fixed top-0 z-10 flex h-[40px] w-full items-center justify-center bg-amber-500 px-3 py-2 text-white md:space-x-4">
+      <span className="text-xs font-semibold md:text-sm">Your account is under review. You have limited trial credits while we verify your payment.</span>
+    </div>
+  );
+}
+
 function GenericBanner({ onClose }: { onClose: () => void }) {
   const { message } = useGenericBannerDetails();
 
@@ -95,9 +103,14 @@ export function TopBanner() {
     isBlockchainDown,
     hasCreditCardBanner
   } = useTopBanner();
+  const { isInReview } = useWallet();
 
   if (isBlockchainDown) {
     return <NetworkDownBanner />;
+  }
+
+  if (isInReview) {
+    return <ReviewBanner />;
   }
 
   if (isMaintananceBannerOpen) {

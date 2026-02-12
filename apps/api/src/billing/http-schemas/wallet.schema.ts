@@ -6,6 +6,7 @@ const WalletOutputSchema = z.object({
   creditAmount: z.number().openapi({}),
   address: z.string().nullable().openapi({}),
   isTrialing: z.boolean(),
+  reviewStatus: z.string().nullable().optional(),
   createdAt: z.coerce.date().nullable().openapi({})
 });
 

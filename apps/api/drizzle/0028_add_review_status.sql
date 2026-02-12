@@ -1,0 +1,1 @@
+ALTER TABLE "user_wallets" ADD COLUMN "review_status" varchar;

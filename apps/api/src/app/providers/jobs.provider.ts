@@ -6,6 +6,9 @@ import { APP_INITIALIZER, ON_APP_START } from "@src/core/providers/app-initializ
 import { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import { NotificationHandler } from "@src/notifications/services/notification-handler/notification.handler";
 import { CloseTrialDeploymentHandler } from "../services/close-trial-deployment/close-trial-deployment.handler";
+import { ReviewTrialApprovedHandler } from "../services/review-trial-approved/review-trial-approved.handler";
+import { ReviewTrialRejectedHandler } from "../services/review-trial-rejected/review-trial-rejected.handler";
+import { ReviewTrialStartedHandler } from "../services/review-trial-started/review-trial-started.handler";
 import { TrialDeploymentLeaseCreatedHandler } from "../services/trial-deployment-lease-created/trial-deployment-lease-created.handler";
 import { TrialStartedHandler } from "../services/trial-started/trial-started.handler";
 
@@ -16,6 +19,9 @@ container.register(APP_INITIALIZER, {
       await jobQueueManager.setup();
       await jobQueueManager.registerHandlers([
         container.resolve(TrialStartedHandler),
+        container.resolve(ReviewTrialStartedHandler),
+        container.resolve(ReviewTrialApprovedHandler),
+        container.resolve(ReviewTrialRejectedHandler),
         container.resolve(NotificationHandler),
         container.resolve(CloseTrialDeploymentHandler),
         container.resolve(TrialDeploymentLeaseCreatedHandler),
