@@ -201,7 +201,13 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
       return;
     }
 
-    if (!isValidSdl) {
+    let isValid = isValidSdl;
+
+    if (selectedSdlEditMode === "builder") {
+      isValid = !!(await sdlBuilderRef.current?.validate());
+    }
+
+    if (!isValid) {
       if (!parsingError) setParsingError("Error while parsing SDL");
       return;
     }
@@ -340,7 +346,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
               <div className="flex-grow">
                 <d.Button
                   variant="default"
-                  disabled={settings.isBlockchainDown || isCreatingDeployment || !!parsingError || !editedManifest}
+                  disabled={settings.isBlockchainDown || isCreatingDeployment || !editedManifest}
                   onClick={() => handleCreateDeployment()}
                   className="w-full whitespace-nowrap sm:w-auto"
                   data-testid="create-deployment-btn"

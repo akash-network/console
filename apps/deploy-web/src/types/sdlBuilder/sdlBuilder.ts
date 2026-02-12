@@ -350,14 +350,7 @@ export const ServiceSchema = z
     env: z.array(EnvironmentVariableSchema).optional(),
     placement: PlacementSchema,
     count: z.number().min(1, { message: "Service count is required." }),
-    sshPubKey: z.string().optional(),
-    params: z
-      .object({
-        permissions: z.object({
-          read: z.array(z.enum(["deployment", "logs"]))
-        })
-      })
-      .optional()
+    sshPubKey: z.string().optional()
   })
   .superRefine((data, ctx) => {
     validateCpuAmount(data.profile.cpu, data.count, ctx);
