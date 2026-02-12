@@ -72,12 +72,19 @@ export class WalletController {
             address: null,
             creditAmount: 0,
             isTrialing: false,
+            reviewStatus: null,
             createdAt: null,
             requires3DS: true,
             clientSecret: validationResult.clientSecret || null,
             paymentIntentId: validationResult.paymentIntentId || null,
             paymentMethodId: validationResult.paymentMethodId || null
           }
+        };
+      }
+
+      if (validationResult.reviewRequired) {
+        return {
+          data: await this.walletInitializer.initializeAndGrantReviewTrialLimits(userId)
         };
       }
     } catch (error: unknown) {

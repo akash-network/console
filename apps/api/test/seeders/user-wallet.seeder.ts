@@ -11,6 +11,7 @@ export class UserWalletSeeder {
     deploymentAllowance = faker.number.float({ min: 0, max: 1000000 }),
     feeAllowance = faker.number.float({ min: 0, max: 1000000 }),
     isTrialing = faker.helpers.arrayElement([true, false]),
+    reviewStatus = null,
     createdAt = faker.date.past(),
     updatedAt = faker.date.past()
   }: Partial<UserWalletOutput> = {}): UserWalletOutput {
@@ -21,6 +22,7 @@ export class UserWalletSeeder {
       deploymentAllowance,
       feeAllowance,
       isTrialing,
+      reviewStatus,
       creditAmount: deploymentAllowance,
       createdAt,
       updatedAt

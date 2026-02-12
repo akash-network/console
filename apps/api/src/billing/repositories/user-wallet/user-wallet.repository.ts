@@ -28,6 +28,7 @@ export interface UserWalletPublicOutput {
   address: UserWalletOutput["address"];
   creditAmount: UserWalletOutput["creditAmount"];
   isTrialing: boolean;
+  reviewStatus: UserWalletOutput["reviewStatus"];
   createdAt: UserWalletOutput["createdAt"];
 }
 
@@ -153,6 +154,16 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
     return dbInput;
   }
 
+  async findByReviewStatus(status: string, options?: { limit?: number; offset?: number }) {
+    return this.toOutputList(
+      await this.cursor.query.UserWallets.findMany({
+        where: this.whereAccessibleBy(eq(this.table.reviewStatus, status)),
+        limit: options?.limit ?? 50,
+        offset: options?.offset ?? 0
+      })
+    );
+  }
+
   toPublic(output: UserWalletOutput): UserWalletPublicOutput {
     return {
       id: output.id,
@@ -160,6 +171,7 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
       address: output.address,
       creditAmount: output.creditAmount,
       isTrialing: !!output.isTrialing,
+      reviewStatus: output.reviewStatus,
       createdAt: output.createdAt
     };
   }

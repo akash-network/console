@@ -6,6 +6,7 @@ export interface ApiWalletOutput {
   address: string;
   creditAmount: number;
   isTrialing: boolean;
+  reviewStatus?: string | null;
   createdAt: Date;
 }
 

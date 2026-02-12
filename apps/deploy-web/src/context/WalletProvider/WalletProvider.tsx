@@ -56,12 +56,14 @@ export type ContextType = {
   switchWalletType: () => void;
   hasManagedWallet: boolean;
   managedWalletError?: AppError;
+  reviewStatus?: string | null;
+  isInReview: boolean;
 };
 
 /**
  * @private for testing only
  */
-export const WalletProviderContext = React.createContext<ContextType>({} as ContextType);
+export const WalletProviderContext = React.createContext<ContextType>({ isInReview: false } as ContextType);
 
 const MESSAGE_STATES: Record<string, LoadingState> = {
   "/akash.deployment.v1beta4.MsgCloseDeployment": "closingDeployment",
@@ -350,7 +352,9 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         creditAmount: isManaged ? managedWallet?.creditAmount : 0,
         hasManagedWallet: !!managedWallet,
         managedWalletError,
-        switchWalletType
+        switchWalletType,
+        reviewStatus: isManaged ? managedWallet?.reviewStatus : null,
+        isInReview: isManaged && managedWallet?.reviewStatus === "pending"
       }}
     >
       {children}

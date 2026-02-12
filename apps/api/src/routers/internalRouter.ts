@@ -23,5 +23,6 @@ const swaggerInstance = swaggerUI({ url: `/internal/doc` });
 internalRouter.get(`/swagger`, swaggerInstance);
 
 internalRouter.use("/financial", privateMiddleware);
+internalRouter.use("/admin/*", privateMiddleware);
 
 routes.forEach(route => internalRouter.route(`/`, route));

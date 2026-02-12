@@ -768,7 +768,15 @@ export class StripeService extends Stripe {
   async createTestCharge(params: {
     customer: string;
     payment_method: string;
-  }): Promise<{ success: boolean; paymentIntentId?: string; requiresAction?: boolean; clientSecret?: string }> {
+  }): Promise<{
+    success: boolean;
+    paymentIntentId?: string;
+    requiresAction?: boolean;
+    clientSecret?: string;
+    riskLevel?: string;
+    riskScore?: number;
+    declineCode?: string;
+  }> {
     const user = await this.userRepository.findOneBy({ stripeCustomerId: params.customer });
 
     if (user) {
@@ -799,6 +807,7 @@ export class StripeService extends Stripe {
           customer: params.customer,
           payment_method: params.payment_method,
           confirm: true,
+          expand: ["latest_charge"],
           metadata: {
             type: "payment_method_validation",
             description: "Payment method validation charge"
@@ -838,18 +847,25 @@ export class StripeService extends Stripe {
     // Handle different payment intent statuses
     switch (paymentIntent.status) {
       case "succeeded":
-      case "requires_capture":
+      case "requires_capture": {
         // For manual capture, both succeeded and requires_capture mean the authorization was successful
         // We don't need to cancel it since it's not captured yet
+        const charge = typeof paymentIntent.latest_charge === "object" ? paymentIntent.latest_charge : null;
+        const riskLevel = charge?.outcome?.risk_level;
+        const riskScore = charge?.outcome?.risk_score;
+
         this.loggerService.info({
           event: "CARD_VALIDATION_AUTHORIZATION_SUCCESSFUL",
           customerId: params.customer,
           paymentMethodId: params.payment_method,
-          paymentIntentId: paymentIntent.id
+          paymentIntentId: paymentIntent.id,
+          riskLevel,
+          riskScore
         });
 
         await this.markPaymentMethodAsValidated(params.customer, params.payment_method, paymentIntent.id);
-        return { success: true, paymentIntentId: paymentIntent.id };
+        return { success: true, paymentIntentId: paymentIntent.id, riskLevel: riskLevel ?? undefined, riskScore: riskScore ?? undefined };
+      }
 
       case "requires_action":
         // Card requires 3D Secure authentication
@@ -866,16 +882,19 @@ export class StripeService extends Stripe {
           clientSecret: paymentIntent.client_secret || undefined
         };
 
-      case "requires_payment_method":
+      case "requires_payment_method": {
         // Card was declined
+        const declineCode = paymentIntent.last_payment_error?.decline_code ?? undefined;
         this.loggerService.warn({
           event: "CARD_VALIDATION_DECLINED",
           customerId: params.customer,
           paymentMethodId: params.payment_method,
           paymentIntentId: paymentIntent.id,
-          lastPaymentError: paymentIntent.last_payment_error
+          lastPaymentError: paymentIntent.last_payment_error,
+          declineCode
         });
-        return { success: false, paymentIntentId: paymentIntent.id };
+        return { success: false, paymentIntentId: paymentIntent.id, declineCode };
+      }
 
       default:
         // Other statuses (processing, canceled, etc.)
@@ -955,7 +974,27 @@ export class StripeService extends Stripe {
     }
 
     if (!validationResult.success) {
+      // Fraud-related declines should be flagged for review rather than rejected outright
+      if (validationResult.declineCode === "fraudulent" || validationResult.declineCode === "stolen_card") {
+        this.loggerService.warn({
+          event: "PAYMENT_METHOD_FRAUD_DECLINE_REVIEW",
+          userId: params.userId,
+          declineCode: validationResult.declineCode
+        });
+        return { success: false, reviewRequired: true };
+      }
       throw new Error("Card validation failed. Please ensure your payment method is valid and try again.");
+    }
+
+    // If the charge succeeded but risk is elevated or highest, flag for review
+    if (validationResult.riskLevel === "elevated" || validationResult.riskLevel === "highest") {
+      this.loggerService.warn({
+        event: "PAYMENT_METHOD_ELEVATED_RISK_REVIEW",
+        userId: params.userId,
+        riskLevel: validationResult.riskLevel,
+        riskScore: validationResult.riskScore
+      });
+      return { success: true, reviewRequired: true };
     }
 
     return {

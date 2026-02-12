@@ -99,7 +99,8 @@ export const PaymentMethodValidationResultSchema = z.object({
   requires3DS: z.boolean().optional(),
   clientSecret: z.string().optional(),
   paymentIntentId: z.string().optional(),
-  paymentMethodId: z.string().optional()
+  paymentMethodId: z.string().optional(),
+  reviewRequired: z.boolean().optional()
 });
 
 export const ConfirmPaymentResponseSchema = z.object({

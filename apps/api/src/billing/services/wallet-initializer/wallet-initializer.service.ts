@@ -1,6 +1,7 @@
 import { singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
+import { ReviewTrialStarted } from "@src/billing/events/review-trial-started";
 import { TrialStarted } from "@src/billing/events/trial-started";
 import { UserWalletPublicOutput, UserWalletRepository } from "@src/billing/repositories";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
@@ -47,6 +48,35 @@ export class WalletInitializerService {
     if (isTrialSpendingAuthorized) {
       await this.domainEvents.publish(new TrialStarted({ userId }));
     }
+
+    return walletOutput;
+  }
+
+  async initializeAndGrantReviewTrialLimits(userId: string, riskInfo?: { riskLevel?: string; riskScore?: number }): Promise<UserWalletPublicOutput> {
+    const { wallet, isNew } = await this.userWalletRepository.accessibleBy(this.authService.ability, "create").getOrCreate({ userId });
+    let userWallet = wallet;
+    if (!isNew) return this.userWalletRepository.toPublic(userWallet);
+
+    try {
+      const reviewWallet = await this.walletManager.createAndAuthorizeReviewTrialSpending(this.managedSignerService, { addressIndex: userWallet.id });
+      userWallet = await this.userWalletRepository.updateById(
+        userWallet.id,
+        {
+          address: reviewWallet.address,
+          deploymentAllowance: reviewWallet.limits.deployment,
+          feeAllowance: reviewWallet.limits.fees,
+          reviewStatus: "pending"
+        },
+        { returning: true }
+      );
+    } catch (error) {
+      await this.userWalletRepository.deleteById(userWallet.id);
+      throw error;
+    }
+
+    const walletOutput = this.userWalletRepository.toPublic(userWallet);
+
+    await this.domainEvents.publish(new ReviewTrialStarted({ userId, ...riskInfo }));
 
     return walletOutput;
   }

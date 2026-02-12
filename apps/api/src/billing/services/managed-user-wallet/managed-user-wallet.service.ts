@@ -55,6 +55,22 @@ export class ManagedUserWalletService {
     return { address, limits };
   }
 
+  async createAndAuthorizeReviewTrialSpending(signer: ManagedSignerService, { addressIndex }: { addressIndex: number }) {
+    const address = await this.txManagerService.getDerivedWalletAddress(addressIndex);
+
+    const limits = {
+      deployment: this.config.REVIEW_TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT,
+      fees: this.config.REVIEW_TRIAL_FEES_ALLOWANCE_AMOUNT
+    };
+    await this.authorizeSpending(signer, {
+      address,
+      limits,
+      expiration: add(new Date(), { days: this.config.TRIAL_ALLOWANCE_EXPIRATION_DAYS })
+    });
+
+    return { address, limits };
+  }
+
   async createWallet({ addressIndex }: { addressIndex: number }) {
     const address = await this.txManagerService.getDerivedWalletAddress(addressIndex);
     this.logger.debug({ event: "WALLET_CREATED", address });
