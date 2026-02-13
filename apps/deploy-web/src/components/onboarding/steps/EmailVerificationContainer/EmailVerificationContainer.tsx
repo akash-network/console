@@ -6,12 +6,14 @@ import { useSnackbar } from "notistack";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
+import { useNotificator } from "@src/hooks/useNotificator";
 
 const DEPENDENCIES = {
   useCustomUser,
   useSnackbar,
   useServices,
-  Snackbar
+  Snackbar,
+  useNotificator
 };
 
 export type EmailVerificationContainerProps = {
@@ -30,6 +32,7 @@ export type EmailVerificationContainerProps = {
 export const EmailVerificationContainer: FC<EmailVerificationContainerProps> = ({ children, onComplete, dependencies: d = DEPENDENCIES }) => {
   const { user, checkSession } = d.useCustomUser();
   const { enqueueSnackbar } = d.useSnackbar();
+  const notificator = d.useNotificator();
   const [isResending, setIsResending] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const { analyticsService, auth } = d.useServices();
@@ -46,13 +49,11 @@ export const EmailVerificationContainer: FC<EmailVerificationContainerProps> = (
         variant: "success"
       });
     } catch (error) {
-      enqueueSnackbar(<d.Snackbar title="Failed to send verification email" subTitle="Please try again later or contact support" iconVariant="error" />, {
-        variant: "error"
-      });
+      notificator.error("Failed to send verification email. Please try again later");
     } finally {
       setIsResending(false);
     }
-  }, [user?.id, auth, enqueueSnackbar, d.Snackbar]);
+  }, [user?.id, auth, enqueueSnackbar, d.Snackbar, notificator]);
 
   const handleCheckVerification = useCallback(async () => {
     setIsChecking(true);
@@ -62,13 +63,11 @@ export const EmailVerificationContainer: FC<EmailVerificationContainerProps> = (
         variant: "success"
       });
     } catch (error) {
-      enqueueSnackbar(<d.Snackbar title="Failed to check verification" subTitle="Please try again or refresh the page" iconVariant="error" />, {
-        variant: "error"
-      });
+      notificator.error("Failed to check verification. Please try again or refresh the page");
     } finally {
       setIsChecking(false);
     }
-  }, [checkSession, enqueueSnackbar, d.Snackbar]);
+  }, [checkSession, enqueueSnackbar, d.Snackbar, notificator]);
 
   const handleContinue = useCallback(() => {
     if (isEmailVerified) {

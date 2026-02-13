@@ -311,6 +311,8 @@ describe("OnboardingContainer", () => {
     const mockUseSnackbar = jest.fn().mockReturnValue({
       enqueueSnackbar: jest.fn()
     });
+    const mockNotificator = { success: jest.fn(), error: jest.fn() };
+    const mockUseNotificator = jest.fn().mockReturnValue(mockNotificator);
     const mockUseManagedWalletDenom = jest.fn().mockReturnValue("uakt");
 
     const mockNavigateBack = jest.fn();
@@ -392,6 +394,7 @@ describe("OnboardingContainer", () => {
       useWallet: mockUseWallet,
       useCertificate: mockUseCertificate,
       useSnackbar: mockUseSnackbar,
+      useNotificator: mockUseNotificator,
       useManagedWalletDenom: mockUseManagedWalletDenom,
       useReturnTo: mockUseReturnTo,
       localStorage: mockLocalStorage,

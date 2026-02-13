@@ -316,7 +316,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     enqueueSnackbar(
       <Snackbar
         title={snackTitle}
-        subTitle={<TransactionSnackbarContent snackMessage={snackMessage} transactionHash={transactionHash} />}
+        subTitle={<TransactionSnackbarContent snackMessage={snackMessage} transactionHash={transactionHash} isError={snackVariant === "error"} />}
         iconVariant={snackVariant}
       />,
       {
@@ -365,7 +365,13 @@ export function useIsManagedWalletUser() {
   return { canVisit, isLoading };
 }
 
-const TransactionSnackbarContent: React.FC<{ snackMessage: string; transactionHash: string }> = ({ snackMessage, transactionHash }) => {
+const SUPPORT_EMAIL = "support@akash.network";
+
+const TransactionSnackbarContent: React.FC<{ snackMessage: string; transactionHash: string; isError?: boolean }> = ({
+  snackMessage,
+  transactionHash,
+  isError
+}) => {
   const { publicConfig: appConfig } = useServices();
   const selectedNetworkId = networkStore.useSelectedNetworkId();
   const txUrl = transactionHash && `${appConfig.NEXT_PUBLIC_STATS_APP_URL}/transactions/${transactionHash}?network=${selectedNetworkId}`;
@@ -379,6 +385,14 @@ const TransactionSnackbarContent: React.FC<{ snackMessage: string; transactionHa
           <span>View transaction</span>
           <OpenNewWindow className="text-xs" />
         </Link>
+      )}
+      {isError && (
+        <div className="mt-2 text-xs">
+          Need help?{" "}
+          <a href={`mailto:${SUPPORT_EMAIL}?subject=Transaction Error&body=${encodeURIComponent(snackMessage)}`} className="underline">
+            Contact {SUPPORT_EMAIL}
+          </a>
+        </div>
       )}
     </>
   );
