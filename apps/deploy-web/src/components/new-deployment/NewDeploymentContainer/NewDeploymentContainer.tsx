@@ -41,7 +41,8 @@ export const DEPENDENCIES = {
   useSdlBuilder,
   useLocalNotes,
   useTemplates,
-  useServices
+  useServices,
+  loadMonacoEditor
 };
 
 const STEPS = [RouteStep.chooseTemplate, RouteStep.editDeployment, RouteStep.createLeases] as const;
@@ -117,7 +118,7 @@ export const NewDeploymentContainer: FC<NewDeploymentContainerProps> = ({ templa
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [templates, !!editedManifest, searchParams, router, toggleCmp, hasComponent, activeStep]);
 
-  useWhen(activeStepName === RouteStep.chooseTemplate, () => loadMonacoEditor());
+  useWhen(activeStepName === RouteStep.chooseTemplate, () => d.loadMonacoEditor());
 
   const getRedeployTemplate = () => {
     let template: Partial<TemplateCreation> | null = null;

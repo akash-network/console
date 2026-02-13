@@ -343,6 +343,7 @@ describe(NewDeploymentContainer.name, () => {
 
     const dependencies = {
       ...DEPENDENCIES,
+      loadMonacoEditor: jest.fn(),
       Layout,
       TemplateList,
       ManifestEdit,
