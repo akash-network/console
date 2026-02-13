@@ -1,18 +1,13 @@
 import "reflect-metadata";
 
-import postgres from "postgres";
 import { container } from "tsyringe";
 
 import { cacheEngine } from "@src/caching/helpers";
-import { SemaphoreFactory } from "@src/core/lib/pg-semaphore";
-import { CORE_CONFIG } from "@src/core/providers/config.provider";
 import { RAW_APP_CONFIG } from "@src/core/providers/raw-app-config.provider";
 import { TestDatabaseService } from "./services/test-database.service";
 
 const testPath = expect.getState().testPath;
 const dbService = new TestDatabaseService(testPath!);
-
-let semaphoreClient: ReturnType<typeof postgres>;
 
 /**
  * Test helper for targeted cache invalidation
@@ -42,13 +37,6 @@ container.register(RAW_APP_CONFIG, { useValue: process.env });
 
 beforeAll(async () => {
   cacheEngine.clearAllKeyInCache();
-
-  semaphoreClient = postgres(container.resolve(CORE_CONFIG).POSTGRES_DB_URI, {
-    max: 1,
-    idle_timeout: 30,
-    connect_timeout: 10
-  });
-  SemaphoreFactory.configure(semaphoreClient);
   await dbService.setup();
 }, 20000);
 
@@ -57,11 +45,6 @@ afterAll(async () => {
     await container.dispose();
   } catch {
     // could be disposed in tests
-  }
-  try {
-    await semaphoreClient?.end();
-  } catch {
-    // could fail if not initialized
   }
   await dbService.teardown();
   cacheEngine.clearAllKeyInCache();

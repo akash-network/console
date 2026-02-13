@@ -6,7 +6,7 @@ chain: mainnet
 hostNames:
   - console-api-mainnet-staging.akash.network
 
-replicas: 1
+replicas: 2
 
 resources:
   limits:

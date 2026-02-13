@@ -21,8 +21,6 @@ import {
 import { UserWalletRepository } from "@src/billing/repositories";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
 import { StripeErrorService } from "@src/billing/services/stripe-error/stripe-error.service";
-import { Semaphore } from "@src/core/lib/pg-semaphore/semaphore.decorator";
-
 @singleton()
 export class StripeController {
   constructor(
@@ -78,7 +76,6 @@ export class StripeController {
     return { data: [] };
   }
 
-  @Semaphore()
   @Protected([{ action: "create", subject: "StripePayment" }])
   async confirmPayment(params: ConfirmPaymentRequest["data"]): Promise<ConfirmPaymentResponse> {
     const currentUser = this.authService.getCurrentPayingUser({ strict: false });
@@ -124,7 +121,6 @@ export class StripeController {
     }
   }
 
-  @Semaphore()
   @Protected([{ action: "create", subject: "StripePayment" }])
   async applyCoupon(
     params: ApplyCouponRequest["data"]

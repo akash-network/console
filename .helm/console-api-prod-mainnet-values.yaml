@@ -33,7 +33,7 @@ jobs:
       - dist/console.js
       - gpu-pricing-bot
 
-replicas: 1
+replicas: 3
 
 resources:
   limits:

@@ -9,7 +9,6 @@ import { faker } from "@faker-js/faker";
 import { mock } from "vitest-mock-extended";
 
 import { createAkashAddress } from "../../../../test/seeders";
-import { SemaphoreFactory } from "../../../core/lib/pg-semaphore";
 import { RpcMessageService } from "../../services";
 import type { BillingConfigService } from "../../services/billing-config/billing-config.service";
 import type { Wallet } from "../wallet/wallet";
@@ -220,7 +219,6 @@ describe(BatchSigningClientService.name, () => {
   }
 
   function setup(testData: TransactionTestData[]) {
-    SemaphoreFactory.useMemory();
     const wallet = mock<Wallet>({
       getFirstAddress: jest.fn(() => Promise.resolve(createAkashAddress()))
     });

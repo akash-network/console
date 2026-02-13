@@ -7,7 +7,6 @@ import type { BalancesService } from "@src/billing/services/balances/balances.se
 import { RefillService } from "@src/billing/services/refill/refill.service";
 import type { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
-import { SemaphoreFactory } from "../../../core/lib/pg-semaphore";
 
 import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
 
@@ -60,39 +59,7 @@ describe(RefillService.name, () => {
       expect(analyticsService.track).toHaveBeenCalledWith(userId, "balance_top_up");
     });
 
-    it("should handle race condition when creating wallet", async () => {
-      const { service, userWalletRepository, managedUserWalletService, managedSignerService, balancesService, walletInitializerService, analyticsService } =
-        setup();
-      const existingWallet = UserWalletSeeder.create({ userId });
-      userWalletRepository.findOneBy.mockResolvedValue(undefined);
-      managedUserWalletService.authorizeSpending.mockResolvedValue();
-      balancesService.retrieveDeploymentLimit.mockResolvedValue(0);
-      balancesService.refreshUserWalletLimits.mockResolvedValue();
-      walletInitializerService.initialize.mockImplementation(async () => {
-        userWalletRepository.findOneBy.mockResolvedValue(existingWallet);
-        return existingWallet;
-      });
-
-      await Promise.all([service.topUpWallet(amountUsd, userId), service.topUpWallet(2 * amountUsd, userId)]);
-
-      expect(userWalletRepository.findOneBy).toHaveBeenCalledWith({ userId });
-      expect(userWalletRepository.findOneBy).toHaveBeenCalledTimes(2);
-      expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith(managedSignerService, {
-        address: existingWallet.address,
-        limits: { deployment: 1000000, fees: 1000 }
-      });
-      expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith(managedSignerService, {
-        address: existingWallet.address,
-        limits: { deployment: 2 * 1000000, fees: 1000 }
-      });
-      expect(balancesService.refreshUserWalletLimits).toHaveBeenCalledWith(existingWallet, { endTrial: true });
-      expect(walletInitializerService.initialize).toHaveBeenCalledWith(userId);
-      expect(walletInitializerService.initialize).toHaveBeenCalledTimes(1);
-      expect(analyticsService.track).toHaveBeenCalledWith(userId, "balance_top_up");
-    });
-
     function setup() {
-      SemaphoreFactory.useMemory();
       const billingConfig = mock<BillingConfig>();
       const userWalletRepository = mock<UserWalletRepository>();
       const managedUserWalletService = mock<ManagedUserWalletService>();
@@ -196,7 +163,6 @@ describe(RefillService.name, () => {
     });
 
     function setup() {
-      SemaphoreFactory.useMemory();
       const billingConfig = mock<BillingConfig>();
       const userWalletRepository = mock<UserWalletRepository>();
       const managedUserWalletService = mock<ManagedUserWalletService>();

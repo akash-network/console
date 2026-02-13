@@ -10,7 +10,6 @@ import { BalancesService } from "@src/billing/services/balances/balances.service
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { ManagedUserWalletService } from "@src/billing/services/managed-user-wallet/managed-user-wallet.service";
 import { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
-import { Semaphore } from "@src/core/lib/pg-semaphore/semaphore.decorator";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 
 @singleton()
@@ -111,7 +110,6 @@ export class RefillService {
     this.logger.info({ event: "WALLET_BALANCE_REDUCED", userId, amountUsd, previousLimit: currentLimit, nextLimit });
   }
 
-  @Semaphore()
   private async getOrCreateUserWallet(userId: UserWalletOutput["userId"]) {
     const userWallet = await this.userWalletRepository.findOneBy({ userId });
     if (userWallet) {
