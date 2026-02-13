@@ -1,5 +1,12 @@
 
 
+## [3.30.3](https://github.com/akash-network/console/compare/console-api/v3.30.2...console-api/v3.30.3) (2026-02-13)
+
+
+### Bug Fixes
+
+* remove PgSemaphore to fix the payment deadlock ([5e19905](https://github.com/akash-network/console/commit/5e19905ad7aa50d0f83e14dadf1757f13ae05a50))
+
 ## [3.30.2](https://github.com/akash-network/console/compare/console-api/v3.30.1...console-api/v3.30.2) (2026-02-12)
 
 
