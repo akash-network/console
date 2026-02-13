@@ -10,7 +10,7 @@ function errorMessageWithSupport(message: string) {
       <div>{message}</div>
       <div className="mt-2 text-xs">
         Need help? Contact{" "}
-        <a href={`mailto:${SUPPORT_EMAIL}?subject=Console Error&body=${encodeURIComponent(message)}`} className="underline">
+        <a href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Console Error")}&body=${encodeURIComponent(message)}`} className="underline">
           {SUPPORT_EMAIL}
         </a>
       </div>
