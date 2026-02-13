@@ -107,7 +107,7 @@ export const SDLEditor = forwardRef<SdlEditorRefType, Props>(({ onChange, onVali
 
       const initialValue = model.getValue();
       if (initialValue) {
-        scheduleValidation(initialValue);
+        validate(initialValue, stateRef.current.validationVersion);
       }
 
       const contentDisposable = model.onDidChangeContent(event => {

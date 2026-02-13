@@ -1,6 +1,7 @@
 "use client";
 import { validationSDLSchema } from "@akashnetwork/chain-sdk/web";
-import type { OnValidate } from "@monaco-editor/react";
+import { Skeleton } from "@akashnetwork/ui/components";
+import type { Editor, OnValidate } from "@monaco-editor/react";
 import { type OnChange, type OnMount } from "@monaco-editor/react";
 import type * as monaco from "monaco-editor";
 import dynamic from "next/dynamic";
@@ -34,32 +35,33 @@ export const MONACO_OPTIONS = {
   formatOnType: true
 };
 
-const LazyMonacoEditor = dynamic(
-  async () => {
-    // Set up Monaco environment for workers - must be done before importing monaco
-    // This is inside dynamic() to ensure it's not included in server bundle
-    globalThis.MonacoEnvironment = {
-      getWorker(_moduleId: string, label: string) {
-        switch (label) {
-          case "editorWorkerService":
-            return new Worker(new URL("./monaco.worker.ts", import.meta.url), { type: "module" });
-          case "yaml":
-            return new Worker(new URL("./yaml.worker.ts", import.meta.url), { type: "module" });
-          default:
-            throw new Error(`Unknown label ${label}`);
-        }
+export async function loadMonacoEditor(): Promise<typeof Editor> {
+  // Set up Monaco environment for workers - must be done before importing monaco
+  // This is inside dynamic() to ensure it's not included in server bundle
+  globalThis.MonacoEnvironment = {
+    getWorker(_moduleId: string, label: string) {
+      switch (label) {
+        case "editorWorkerService":
+          return new Worker(new URL("./monaco.worker.ts", import.meta.url), { type: "module" });
+        case "yaml":
+          return new Worker(new URL("./yaml.worker.ts", import.meta.url), { type: "module" });
+        default:
+          throw new Error(`Unknown label ${label}`);
       }
-    };
+    }
+  };
 
-    import("yaml"); // preload yaml module, we will need it for validation soon
-    const [monacoReactModule, monacoModule, monacoYamlModule] = await Promise.all([
-      import("@monaco-editor/react"),
-      import("./monaco-editor"),
-      import("monaco-yaml")
-    ]);
+  import("yaml"); // preload yaml module, we will need it for validation soon
+  const [monacoReactModule, monacoModule, monacoYamlModule] = await Promise.all([
+    import("@monaco-editor/react"),
+    import("./monaco-editor"),
+    import("monaco-yaml")
+  ]);
 
-    monacoReactModule.loader.config({ monaco: monacoModule });
+  monacoReactModule.loader.config({ monaco: monacoModule });
 
+  if (typeof monacoYamlModule.configureMonacoYaml === "function") {
+    // can be stubbed in tests, so check if function exists before calling
     // @ts-expect-error - partial monaco module works with monaco-yaml
     monacoYamlModule.configureMonacoYaml(monacoModule, {
       enableSchemaRequest: false,
@@ -83,11 +85,10 @@ const LazyMonacoEditor = dynamic(
         }
       ]
     });
+  }
 
-    return monacoReactModule.Editor;
-  },
-  { ssr: false, loading: () => <div>Loading...</div> }
-);
+  return monacoReactModule.Editor;
+}
 
 export type Props = {
   theme?: string;
@@ -101,6 +102,26 @@ export type Props = {
   path?: string;
 };
 
+function EditorSkeleton() {
+  const lines = [75, 60, 85, 45, 70, 55, 80, 40, 65, 50, 90, 35, 70, 60, 75];
+  const skeletonBar = "bg-[#e0e0e0] dark:bg-[#3c3c3c]";
+  return (
+    <div className="flex h-full w-full bg-white dark:bg-[#1e1e1e]">
+      <div className="flex w-[60px] shrink-0 flex-col items-end gap-[6px] border-r border-[#e8e8e8] py-1 pr-3 dark:border-[#333]">
+        {lines.map((_, i) => (
+          <Skeleton key={i} className={`h-[18px] w-5 rounded-sm ${skeletonBar}`} />
+        ))}
+      </div>
+      <div className="flex flex-1 flex-col gap-[6px] py-1 pl-4">
+        {lines.map((width, i) => (
+          <Skeleton key={i} className={`h-[18px] rounded-sm ${skeletonBar}`} style={{ width: `${width}%` }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const LazyMonacoEditor = dynamic(loadMonacoEditor, { ssr: false, loading: () => <EditorSkeleton /> });
 export const DynamicMonacoEditor: React.FunctionComponent<Props> = ({
   path,
   theme,
@@ -125,7 +146,7 @@ export const DynamicMonacoEditor: React.FunctionComponent<Props> = ({
       onMount={onMount}
       onValidate={onValidate}
       options={{ ...MONACO_OPTIONS, ...options }}
-      wrapperProps={{ className: "test-me-wrapper" }}
+      wrapperProps={{ "data-testid": "monaco-editor" }}
       path={path}
     />
   );
