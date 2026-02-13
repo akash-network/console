@@ -113,7 +113,8 @@ export class DeploymentReaderService {
     skip?: number;
     limit?: number;
   }): Promise<{ deployments: GetDeploymentResponse["data"][]; total: number; hasMore: boolean }> {
-    const { address: owner } = await this.walletReaderService.getWalletByUserId(query.userId);
+    const wallet = await this.walletReaderService.getWalletByUserId(query.userId);
+    const { address: owner } = wallet;
     const pagination = skip !== undefined || limit !== undefined ? { offset: skip, limit } : undefined;
     const deploymentReponse = await this.getDeploymentsList({ owner, state: "active", pagination });
     const deployments = deploymentReponse.deployments;
@@ -123,12 +124,14 @@ export class DeploymentReaderService {
       .for(deployments)
       .process(async deployment => this.leaseHttpService.list({ owner, dseq: deployment.deployment.id.dseq }));
 
+    const statusByLeaseKey = await this.fetchLeaseStatuses(leaseResults, wallet);
+
     const deploymentsWithLeases = deployments.map((deployment, index) => ({
       deployment: deployment.deployment,
       leases:
         leaseResults[index]?.leases?.map(({ lease }) => ({
           ...lease,
-          status: null as null
+          status: statusByLeaseKey.get(`${lease.id.dseq}-${lease.id.gseq}-${lease.id.oseq}`) ?? null
         })) ?? [],
       escrow_account: deployment.escrow_account
     }));
@@ -137,6 +140,43 @@ export class DeploymentReaderService {
       total,
       hasMore: skip !== undefined && limit !== undefined ? total > skip + limit : false
     };
+  }
+
+  private async fetchLeaseStatuses(leaseResults: (RestAkashLeaseListResponse | undefined)[], wallet: WalletInitialized) {
+    const activeLeases = leaseResults.flatMap(result => (result?.leases ?? []).filter(({ lease }) => lease.state === "active").map(({ lease }) => lease));
+
+    const uniqueProviders = [...new Set(activeLeases.map(lease => lease.id.provider))];
+    const providerAuthMap = new Map<string, Awaited<ReturnType<ProviderService["toProviderAuth"]>>>();
+    await PromisePool.withConcurrency(10)
+      .for(uniqueProviders)
+      .process(async provider => {
+        const auth = await this.providerService.toProviderAuth({ walletId: wallet.id, provider }, ["status"]);
+        providerAuthMap.set(provider, auth);
+      });
+
+    const statusMap = new Map<string, Awaited<ReturnType<ProviderService["getLeaseStatus"]>> | null>();
+    await PromisePool.withConcurrency(100)
+      .for(activeLeases)
+      .process(async lease => {
+        const key = `${lease.id.dseq}-${lease.id.gseq}-${lease.id.oseq}`;
+        try {
+          const auth = providerAuthMap.get(lease.id.provider);
+          const status = await this.providerService.getLeaseStatus(lease.id.provider, lease.id.dseq, lease.id.gseq, lease.id.oseq, auth!);
+          statusMap.set(key, status);
+        } catch (error) {
+          this.logger.warn({
+            event: "LEASE_STATUS_FETCH_FAILED",
+            provider: lease.id.provider,
+            dseq: lease.id.dseq,
+            gseq: lease.id.gseq,
+            oseq: lease.id.oseq,
+            error
+          });
+          statusMap.set(key, null);
+        }
+      });
+
+    return statusMap;
   }
 
   public async listWithResources({
