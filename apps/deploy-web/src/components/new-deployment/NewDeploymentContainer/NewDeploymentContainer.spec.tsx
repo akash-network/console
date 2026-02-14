@@ -16,6 +16,7 @@ import { UrlService } from "@src/utils/urlUtils";
 import { DEPENDENCIES, NewDeploymentContainer } from "./NewDeploymentContainer";
 
 import { render, screen, waitFor } from "@testing-library/react";
+import { ComponentMock } from "@tests/unit/mocks";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe(NewDeploymentContainer.name, () => {
@@ -343,6 +344,7 @@ describe(NewDeploymentContainer.name, () => {
 
     const dependencies = {
       ...DEPENDENCIES,
+      Editor: Object.assign(jest.fn(ComponentMock), { preload: jest.fn() }),
       Layout,
       TemplateList,
       ManifestEdit,

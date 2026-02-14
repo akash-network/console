@@ -1,0 +1,123 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`Editor EditorSkeleton renders skeleton lines with varying widths 1`] = `
+<div>
+  <div
+    class="flex h-full w-full bg-white dark:bg-[#1e1e1e]"
+  >
+    <div
+      class="flex w-[60px] shrink-0 flex-col items-end gap-[6px] border-r border-[#e8e8e8] py-1 pr-3 dark:border-[#333]"
+    >
+      <div
+        class="animate-pulse h-[18px] w-5 rounded-sm bg-[#e0e0e0] dark:bg-[#3c3c3c]"
+      />
+      <div
+        class="animate-pulse h-[18px] w-5 rounded-sm bg-[#e0e0e0] dark:bg-[#3c3c3c]"
+      />
+      <div
+        class="animate-pulse h-[18px] w-5 rounded-sm bg-[#e0e0e0] dark:bg-[#3c3c3c]"
+      />
+      <div
+        class="animate-pulse h-[18px] w-5 rounded-sm bg-[#e0e0e0] dark:bg-[#3c3c3c]"
+      />
+      <div
+        class="animate-pulse h-[18px] w-5 rounded-sm bg-[#e0e0e0] dark:bg-[#3c3c3c]"
+      />
+      <div
+        class="animate-pulse h-[18px] w-5 rounded-sm bg-[#e0e0e0] dark:bg-[#3c3c3c]"
+      />
+      <div
+        class="animate-pulse h-[18px] w-5 rounded-sm bg-[#e0e0e0] dark:bg-[#3c3c3c]"
+      />
+      <div
+        class="animate-pulse h-[18px] w-5 rounded-sm bg-[#e0e0e0] dark:bg-[#3c3c3c]"
+      />
+      <div
+        class="animate-pulse h-[18px] w-5 rounded-sm bg-[#e0e0e0] dark:bg-[#3c3c3c]"
+      />
+      <div
+        class="animate-pulse h-[18px] w-5 rounded-sm bg-[#e0e0e0] dark:bg-[#3c3c3c]"
+      />
+      <div
+        class="animate-pulse h-[18px] w-5 rounded-sm bg-[#e0e0e0] dark:bg-[#3c3c3c]"
+      />
+      <div
+        class="animate-pulse h-[18px] w-5 rounded-sm bg-[#e0e0e0] dark:bg-[#3c3c3c]"
+      />
+      <div
+        class="animate-pulse h-[18px] w-5 rounded-sm bg-[#e0e0e0] dark:bg-[#3c3c3c]"
+      />
+      <div
+        class="animate-pulse h-[18px] w-5 rounded-sm bg-[#e0e0e0] dark:bg-[#3c3c3c]"
+      />
+      <div
+        class="animate-pulse h-[18px] w-5 rounded-sm bg-[#e0e0e0] dark:bg-[#3c3c3c]"
+      />
+    </div>
+    <div
+      class="flex flex-1 flex-col gap-[6px] py-1 pl-4"
+    >
+      <div
+        class="animate-pulse h-[18px] rounded-sm bg-[#e0e0e0] dark:bg-[#3c3c3c]"
+        style="width: 75%;"
+      />
+      <div
+        class="animate-pulse h-[18px] rounded-sm bg-[#e0e0e0] dark:bg-[#3c3c3c]"
+        style="width: 60%;"
+      />
+      <div
+        class="animate-pulse h-[18px] rounded-sm bg-[#e0e0e0] dark:bg-[#3c3c3c]"
+        style="width: 85%;"
+      />
+      <div
+        class="animate-pulse h-[18px] rounded-sm bg-[#e0e0e0] dark:bg-[#3c3c3c]"
+        style="width: 45%;"
+      />
+      <div
+        class="animate-pulse h-[18px] rounded-sm bg-[#e0e0e0] dark:bg-[#3c3c3c]"
+        style="width: 70%;"
+      />
+      <div
+        class="animate-pulse h-[18px] rounded-sm bg-[#e0e0e0] dark:bg-[#3c3c3c]"
+        style="width: 55%;"
+      />
+      <div
+        class="animate-pulse h-[18px] rounded-sm bg-[#e0e0e0] dark:bg-[#3c3c3c]"
+        style="width: 80%;"
+      />
+      <div
+        class="animate-pulse h-[18px] rounded-sm bg-[#e0e0e0] dark:bg-[#3c3c3c]"
+        style="width: 40%;"
+      />
+      <div
+        class="animate-pulse h-[18px] rounded-sm bg-[#e0e0e0] dark:bg-[#3c3c3c]"
+        style="width: 65%;"
+      />
+      <div
+        class="animate-pulse h-[18px] rounded-sm bg-[#e0e0e0] dark:bg-[#3c3c3c]"
+        style="width: 50%;"
+      />
+      <div
+        class="animate-pulse h-[18px] rounded-sm bg-[#e0e0e0] dark:bg-[#3c3c3c]"
+        style="width: 90%;"
+      />
+      <div
+        class="animate-pulse h-[18px] rounded-sm bg-[#e0e0e0] dark:bg-[#3c3c3c]"
+        style="width: 35%;"
+      />
+      <div
+        class="animate-pulse h-[18px] rounded-sm bg-[#e0e0e0] dark:bg-[#3c3c3c]"
+        style="width: 70%;"
+      />
+      <div
+        class="animate-pulse h-[18px] rounded-sm bg-[#e0e0e0] dark:bg-[#3c3c3c]"
+        style="width: 60%;"
+      />
+      <div
+        class="animate-pulse h-[18px] rounded-sm bg-[#e0e0e0] dark:bg-[#3c3c3c]"
+        style="width: 75%;"
+      />
+    </div>
+  </div>
+</div>
+`;

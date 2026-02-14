@@ -31,6 +31,8 @@ Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
   configurable: true
 });
 
+document.queryCommandSupported ??= () => false;
+
 beforeAll(() => {
   Object.defineProperty(window, "matchMedia", {
     writable: true,

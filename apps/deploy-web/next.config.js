@@ -56,7 +56,8 @@ if (process.env.NODE_ENV === "test") {
     "d3-time-format",
     "d3-timer",
     "d3-transition",
-    "d3-zoom"
+    "d3-zoom",
+    "monaco-editor"
   );
 }
 

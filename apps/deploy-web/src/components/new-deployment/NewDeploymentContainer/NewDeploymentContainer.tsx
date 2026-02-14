@@ -1,15 +1,17 @@
 "use client";
 import type { FC } from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { TemplateOutput } from "@akashnetwork/http-sdk";
 import { useAtomValue } from "jotai";
 import { useRouter, useSearchParams } from "next/navigation";
 
+import { Editor } from "@src/components/shared/Editor/Editor";
 import { USER_TEMPLATE_CODE } from "@src/config/deploy.config";
 import { CI_CD_TEMPLATE_ID } from "@src/config/remote-deploy.config";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider";
 import { useServices } from "@src/context/ServicesProvider";
+import { useWhen } from "@src/hooks/useWhen";
 import { useTemplates } from "@src/queries/useTemplateQuery";
 import sdlStore from "@src/store/sdlStore";
 import type { TemplateCreation } from "@src/types";
@@ -33,6 +35,7 @@ export const DEPENDENCIES = {
   TemplateList,
   ManifestEdit,
   CreateLease,
+  Editor,
   CustomizedSteppers,
   useRouter,
   useSearchParams,
@@ -42,10 +45,11 @@ export const DEPENDENCIES = {
   useServices
 };
 
+const STEPS = [RouteStep.chooseTemplate, RouteStep.editDeployment, RouteStep.createLeases] as const;
+
 export const NewDeploymentContainer: FC<NewDeploymentContainerProps> = ({ template: requestedTemplate, templateId, dependencies: d = DEPENDENCIES }) => {
   const { urlService, sdlAnalyzer } = d.useServices();
   const [isGitProviderTemplate, setIsGitProviderTemplate] = useState<boolean>(false);
-  const [activeStep, setActiveStep] = useState<number | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateCreation | null>(null);
   const [editedManifest, setEditedManifest] = useState("");
   const deploySdl = useAtomValue(sdlStore.deploySdl);
@@ -54,14 +58,12 @@ export const NewDeploymentContainer: FC<NewDeploymentContainerProps> = ({ templa
   const searchParams = d.useSearchParams();
   const { toggleCmp, hasComponent } = d.useSdlBuilder();
   const { isLoading: isLoadingTemplates, templates } = d.useTemplates();
+  const activeStep = useMemo(() => getStepIndexByParam(searchParams?.get("step") as RouteStep), [searchParams]);
+  const activeStepName = STEPS[activeStep];
 
   const dseq = searchParams?.get("dseq");
 
   useEffect(() => {
-    const queryStep = searchParams?.get("step");
-    const _activeStep = getStepIndexByParam(queryStep as RouteStep);
-    setActiveStep(_activeStep);
-
     const redeploy = searchParams?.get("redeploy");
     const code = searchParams?.get("code");
     const gitProvider = searchParams?.get("gitProvider");
@@ -116,6 +118,8 @@ export const NewDeploymentContainer: FC<NewDeploymentContainerProps> = ({ templa
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [templates, !!editedManifest, searchParams, router, toggleCmp, hasComponent, activeStep]);
 
+  useWhen(activeStepName === RouteStep.chooseTemplate, () => d.Editor.preload());
+
   const getRedeployTemplate = () => {
     let template: Partial<TemplateCreation> | null = null;
     const queryRedeploy = searchParams?.get("redeploy");
@@ -154,16 +158,10 @@ export const NewDeploymentContainer: FC<NewDeploymentContainerProps> = ({ templa
       : hardcodedTemplates.find(t => t.code === templateId);
   }, [requestedTemplate, templateId]);
 
-  function getStepIndexByParam(step: (typeof RouteStep)[keyof typeof RouteStep] | null) {
-    switch (step) {
-      case RouteStep.editDeployment:
-        return 1;
-      case RouteStep.createLeases:
-        return 2;
-      case RouteStep.chooseTemplate:
-      default:
-        return 0;
-    }
+  function getStepIndexByParam(step: (typeof RouteStep)[keyof typeof RouteStep] | null | undefined) {
+    if (!step) return 0;
+    const index = STEPS.indexOf(step);
+    return index === -1 ? 0 : index;
   }
 
   const isFirstStepCompleted = activeStep !== null && activeStep >= 1;
@@ -176,10 +174,10 @@ export const NewDeploymentContainer: FC<NewDeploymentContainerProps> = ({ templa
         </div>
       )}
 
-      {activeStep === 0 && (
+      {activeStepName === RouteStep.chooseTemplate && (
         <d.TemplateList onChangeGitProvider={setIsGitProviderTemplate} onTemplateSelected={setSelectedTemplate} setEditedManifest={setEditedManifest} />
       )}
-      {activeStep === 1 && (
+      {activeStepName === RouteStep.editDeployment && (
         <d.ManifestEdit
           selectedTemplate={selectedTemplate}
           onTemplateSelected={setSelectedTemplate}
@@ -188,7 +186,7 @@ export const NewDeploymentContainer: FC<NewDeploymentContainerProps> = ({ templa
           isGitProviderTemplate={isGitProviderTemplate}
         />
       )}
-      {activeStep === 2 && <d.CreateLease dseq={dseq as string} />}
+      {activeStepName === RouteStep.createLeases && <d.CreateLease dseq={dseq as string} />}
     </d.Layout>
   );
 };
