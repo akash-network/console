@@ -5,6 +5,7 @@ import type { ReadonlyURLSearchParams } from "next/navigation";
 import type { NextRouter } from "next/router";
 
 import type { TurnstileRef } from "@src/components/turnstile/Turnstile";
+import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { AuthService } from "@src/services/auth/auth/auth.service";
 import type { SignInForm, SignInFormValues } from "../SignInForm/SignInForm";
 import type { SignUpForm, SignUpFormValues } from "../SignUpForm/SignUpForm";
@@ -330,9 +331,10 @@ describe(AuthPage.name, () => {
       }
       return null;
     });
+    const analyticsService = mock<AnalyticsService>();
 
     render(
-      <TestContainerProvider services={{ authService: () => authService }}>
+      <TestContainerProvider services={{ authService: () => authService, analyticsService: () => analyticsService }}>
         <AuthPage
           dependencies={{
             ...MockComponents(DEPENDENCIES),
@@ -350,6 +352,7 @@ describe(AuthPage.name, () => {
 
     return {
       authService,
+      analyticsService,
       router,
       checkSession,
       navigateBack

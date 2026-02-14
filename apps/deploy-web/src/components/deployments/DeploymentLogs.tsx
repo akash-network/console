@@ -9,8 +9,8 @@ import { Download, MoreHoriz } from "iconoir-react";
 import type { editor } from "monaco-editor";
 
 import { CustomDropdownLinkItem } from "@src/components/shared/CustomDropdownLinkItem";
+import { Editor } from "@src/components/shared/Editor/Editor";
 import { LinearLoadingSkeleton } from "@src/components/shared/LinearLoadingSkeleton";
-import { MemoMonaco } from "@src/components/shared/MemoMonaco";
 import { SelectCheckbox } from "@src/components/shared/SelectCheckbox";
 import ViewPanel from "@src/components/shared/ViewPanel";
 import { useServices } from "@src/context/ServicesProvider";
@@ -289,7 +289,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
               <LinearLoadingSkeleton isLoading={isLoadingLogs} />
 
               <ViewPanel stickToBottom style={{ overflow: "hidden" }}>
-                <MemoMonaco
+                <Editor
                   value={logText}
                   language="log"
                   onMount={handleEditorDidMount}

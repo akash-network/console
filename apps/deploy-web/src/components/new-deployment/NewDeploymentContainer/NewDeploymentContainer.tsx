@@ -5,7 +5,7 @@ import type { TemplateOutput } from "@akashnetwork/http-sdk";
 import { useAtomValue } from "jotai";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { loadMonacoEditor } from "@src/components/shared/DynamicMonacoEditor/DynamicMonacoEditor";
+import { Editor } from "@src/components/shared/Editor/Editor";
 import { USER_TEMPLATE_CODE } from "@src/config/deploy.config";
 import { CI_CD_TEMPLATE_ID } from "@src/config/remote-deploy.config";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
@@ -35,14 +35,14 @@ export const DEPENDENCIES = {
   TemplateList,
   ManifestEdit,
   CreateLease,
+  Editor,
   CustomizedSteppers,
   useRouter,
   useSearchParams,
   useSdlBuilder,
   useLocalNotes,
   useTemplates,
-  useServices,
-  loadMonacoEditor
+  useServices
 };
 
 const STEPS = [RouteStep.chooseTemplate, RouteStep.editDeployment, RouteStep.createLeases] as const;
@@ -118,7 +118,7 @@ export const NewDeploymentContainer: FC<NewDeploymentContainerProps> = ({ templa
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [templates, !!editedManifest, searchParams, router, toggleCmp, hasComponent, activeStep]);
 
-  useWhen(activeStepName === RouteStep.chooseTemplate, () => d.loadMonacoEditor());
+  useWhen(activeStepName === RouteStep.chooseTemplate, () => d.Editor.preload());
 
   const getRedeployTemplate = () => {
     let template: Partial<TemplateCreation> | null = null;

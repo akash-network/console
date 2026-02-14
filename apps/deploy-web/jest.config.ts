@@ -32,8 +32,7 @@ const getConfig = createJestConfig({
     ...common.moduleNameMapper,
     "@interchain-ui\\/react\\/styles$": styleMockPath,
     "@interchain-ui\\/react\\/globalStyles$": styleMockPath,
-    "^next-navigation-guard$": "<rootDir>/../../node_modules/next-navigation-guard/dist/index.js",
-    "^monaco-yaml$": styleMockPath
+    "^next-navigation-guard$": "<rootDir>/../../node_modules/next-navigation-guard/dist/index.js"
   },
   setupFilesAfterEnv: ["<rootDir>/tests/unit/setup.ts"]
 });

@@ -5,6 +5,7 @@
  * taken from: node_modules/monaco-editor/esm/vs/editor/edcore.main.js
  */
 
+/** eslint-disable simple-import-sort/imports */
 //
 // ============================================================================
 // 0) Bootstrap / initialization
@@ -133,8 +134,8 @@ import "monaco-editor/esm/vs/editor/standalone/browser/iPadShowKeyboard/iPadShow
 // NOTE: Do NOT import from monaco-editor/esm/vs/basic-languages/yaml/yaml.contribution.js
 // Those files import ALL editor contributions, negating our selective imports.
 // Instead, we copied the YAML language definition here:
-import "./monaco-log-definitions";
 import "./monaco-yaml-definitions";
+import "./monaco-log-definitions";
 
 import { editor, MarkerSeverity } from "monaco-editor/esm/vs/editor/editor.api.js";
 

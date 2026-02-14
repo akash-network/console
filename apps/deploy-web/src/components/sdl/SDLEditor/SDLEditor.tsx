@@ -7,19 +7,19 @@ import { validateSDL } from "@akashnetwork/chain-sdk/web";
 import type * as monacoModule from "monaco-editor";
 import type { Document } from "yaml";
 
-import type { IStandaloneCodeEditor } from "@src/components/shared/DynamicMonacoEditor/DynamicMonacoEditor";
-import { MemoMonaco } from "@src/components/shared/MemoMonaco";
+import type { IStandaloneCodeEditor } from "@src/components/shared/Editor/Editor";
+import { Editor } from "@src/components/shared/Editor/Editor";
 import { useServices } from "@src/context/ServicesProvider";
 import { getMonacoErrorMarkers } from "./getMonacoErrorMarkers";
 
-export type Props = Omit<ComponentProps<typeof MemoMonaco>, "language" | "onValidate"> & {
+export type Props = Omit<ComponentProps<typeof Editor>, "language" | "onValidate"> & {
   readonly?: boolean;
   onValidate?: (event: { isValid: boolean }) => void;
   dependencies?: typeof DEPENDENCIES;
 };
 
 export const DEPENDENCIES = {
-  Editor: MemoMonaco
+  Editor
 };
 
 const MARKER_OWNER = "akash-sdl";
