@@ -18,26 +18,38 @@ const chartConfig = {
   }
 } satisfies ChartConfig;
 
-export const COMPONENTS = {
-  LineChart
+export const DEPENDENCIES = {
+  LineChart,
+  ChartContainer,
+  CartesianGrid,
+  XAxis,
+  ChartTooltip,
+  ChartTooltipContent,
+  Line,
+  TrendIndicator,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Spinner
 };
 
 export type CumulativeSpendingLineChartProps = {
   isFetching: boolean;
   data: CumulativeSpendingChartData;
-  components?: typeof COMPONENTS;
+  dependencies?: typeof DEPENDENCIES;
 };
 
-export const CumulativeSpendingLineChart: FC<CumulativeSpendingLineChartProps> = ({ isFetching, data, components: C = COMPONENTS }) => {
+export const CumulativeSpendingLineChart: FC<CumulativeSpendingLineChartProps> = ({ isFetching, data, dependencies: d = DEPENDENCIES }) => {
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center gap-3 space-y-0 px-6">
-        <CardTitle className="text-lg">Cumulative Spending</CardTitle>
-        {isFetching && <Spinner size="small" variant="dark" />}
-      </CardHeader>
-      <CardContent>
-        <ChartContainer config={chartConfig} className={cn("h-[298px] w-full", isFetching && "pointer-events-none")} role="chart-container">
-          <C.LineChart
+    <d.Card>
+      <d.CardHeader className="flex flex-row items-center gap-3 space-y-0 px-6">
+        <d.CardTitle className="text-lg">Cumulative Spending</d.CardTitle>
+        {isFetching && <d.Spinner size="small" variant="dark" />}
+      </d.CardHeader>
+      <d.CardContent>
+        <d.ChartContainer config={chartConfig} className={cn("h-[298px] w-full", isFetching && "pointer-events-none")} role="chart-container">
+          <d.LineChart
             accessibilityLayer
             data={data}
             margin={{
@@ -46,8 +58,8 @@ export const CumulativeSpendingLineChart: FC<CumulativeSpendingLineChartProps> =
             }}
             role="line-chart"
           >
-            <CartesianGrid vertical={false} />
-            <XAxis
+            <d.CartesianGrid vertical={false} />
+            <d.XAxis
               dataKey="date"
               tickLine={false}
               axisLine={false}
@@ -57,9 +69,9 @@ export const CumulativeSpendingLineChart: FC<CumulativeSpendingLineChartProps> =
                 return isNaN(date.getTime()) ? value : format(date, "M/d");
               }}
             />
-            <ChartTooltip
+            <d.ChartTooltip
               content={
-                <ChartTooltipContent
+                <d.ChartTooltipContent
                   className="w-[180px]"
                   nameKey="totalUsdSpent"
                   labelFormatter={value => {
@@ -69,7 +81,7 @@ export const CumulativeSpendingLineChart: FC<CumulativeSpendingLineChartProps> =
                 />
               }
             />
-            <Line
+            <d.Line
               dataKey="totalUsdSpent"
               type="linear"
               stroke="hsl(var(--primary))"
@@ -79,10 +91,10 @@ export const CumulativeSpendingLineChart: FC<CumulativeSpendingLineChartProps> =
               strokeWidth={2}
               className={cn(isFetching && "opacity-50")}
             />
-          </C.LineChart>
-        </ChartContainer>
-        <TrendIndicator isFetching={isFetching} data={data} field="totalUsdSpent" />
-      </CardContent>
-    </Card>
+          </d.LineChart>
+        </d.ChartContainer>
+        <d.TrendIndicator isFetching={isFetching} data={data} field="totalUsdSpent" />
+      </d.CardContent>
+    </d.Card>
   );
 };
