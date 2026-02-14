@@ -1,5 +1,6 @@
 import { faker } from "@faker-js/faker";
 import type PgBoss from "pg-boss";
+import { describe, expect, it, vi } from "vitest";
 import { mock, mockDeep } from "vitest-mock-extended";
 
 import type { LoggerService } from "@src/core/providers/logging.provider";
@@ -10,7 +11,7 @@ import { type Job, JOB_NAME, type JobHandler, JobQueueService } from "./job-queu
 describe(JobQueueService.name, () => {
   describe("registerHandlers", () => {
     it("creates queues for all handlers and stores them", async () => {
-      const handleFn = jest.fn().mockResolvedValue(undefined);
+      const handleFn = vi.fn().mockResolvedValue(undefined);
       const handler = new TestHandler(handleFn);
       const { service, pgBoss } = setup();
 
@@ -26,8 +27,8 @@ describe(JobQueueService.name, () => {
     });
 
     it("handles multiple handlers", async () => {
-      const handleFn1 = jest.fn().mockResolvedValue(undefined);
-      const handleFn2 = jest.fn().mockResolvedValue(undefined);
+      const handleFn1 = vi.fn().mockResolvedValue(undefined);
+      const handleFn2 = vi.fn().mockResolvedValue(undefined);
 
       class AnotherTestJob implements Job {
         static readonly [JOB_NAME] = "another";
@@ -66,8 +67,8 @@ describe(JobQueueService.name, () => {
     });
 
     it("throws error when multiple handlers register for the same queue", async () => {
-      const handleFn1 = jest.fn().mockResolvedValue(undefined);
-      const handleFn2 = jest.fn().mockResolvedValue(undefined);
+      const handleFn1 = vi.fn().mockResolvedValue(undefined);
+      const handleFn2 = vi.fn().mockResolvedValue(undefined);
       const handler1 = new TestHandler(handleFn1);
       const handler2 = new TestHandler(handleFn2);
       const { service } = setup();
@@ -83,7 +84,7 @@ describe(JobQueueService.name, () => {
         userId: "user-123"
       });
       const { service, pgBoss, logger } = setup();
-      jest.spyOn(pgBoss, "send").mockResolvedValue("job-id-123");
+      vi.spyOn(pgBoss, "send").mockResolvedValue("job-id-123");
 
       const result = await service.enqueue(job, { startAfter: new Date() });
 
@@ -107,7 +108,7 @@ describe(JobQueueService.name, () => {
         userId: "user-123"
       });
       const { service, pgBoss } = setup();
-      jest.spyOn(pgBoss, "send").mockResolvedValue("job-id-456");
+      vi.spyOn(pgBoss, "send").mockResolvedValue("job-id-456");
 
       const result = await service.enqueue(job);
 
@@ -124,16 +125,87 @@ describe(JobQueueService.name, () => {
     it("cancels a job", async () => {
       const { service, pgBoss, logger } = setup();
       const jobId = faker.string.uuid();
-      jest.spyOn(pgBoss, "cancel").mockResolvedValue();
+      vi.spyOn(pgBoss, "cancel").mockResolvedValue();
 
       await service.cancel("test", jobId);
 
       expect(pgBoss.cancel).toHaveBeenCalledWith("test", jobId);
       expect(logger.info).toHaveBeenCalledWith({
         event: "JOB_CANCELLED",
-        id: jobId,
+        jobId,
         name: "test"
       });
+    });
+
+    it("logs warning when trying to cancel a job in terminal state", async () => {
+      const { service, pgBoss, logger } = setup();
+      const jobId = faker.string.uuid();
+      const error = new Error("job already cancelled");
+      vi.spyOn(pgBoss, "cancel").mockRejectedValue(error);
+
+      await service.cancel("test", jobId);
+
+      expect(pgBoss.cancel).toHaveBeenCalledWith("test", jobId);
+      expect(logger.warn).toHaveBeenCalledWith({
+        event: "JOB_CANCEL_FAILED",
+        jobId,
+        name: "test",
+        error
+      });
+    });
+
+    it("re-throws error when cancel fails for reasons other than terminal state", async () => {
+      const { service, pgBoss } = setup();
+      const jobId = faker.string.uuid();
+      const error = new Error("database connection failed");
+      vi.spyOn(pgBoss, "cancel").mockRejectedValue(error);
+
+      await expect(service.cancel("test", jobId)).rejects.toThrow(error);
+      expect(pgBoss.cancel).toHaveBeenCalledWith("test", jobId);
+    });
+  });
+
+  describe("complete()", () => {
+    it("completes a job and logs completion", async () => {
+      const { service, pgBoss, logger } = setup();
+      const jobId = faker.string.uuid();
+      pgBoss.complete = vi.fn().mockResolvedValue(undefined);
+
+      await service.complete("test", jobId);
+
+      expect(pgBoss.complete).toHaveBeenCalledWith("test", jobId);
+      expect(logger.info).toHaveBeenCalledWith({
+        event: "JOB_COMPLETED",
+        jobId,
+        name: "test"
+      });
+    });
+
+    it("logs warning when trying to complete a job in terminal state", async () => {
+      const { service, pgBoss, logger } = setup();
+      const jobId = faker.string.uuid();
+      const error = new Error("job already completed");
+      pgBoss.complete = vi.fn().mockRejectedValue(error);
+
+      await service.complete("test", jobId);
+
+      expect(pgBoss.complete).toHaveBeenCalledWith("test", jobId);
+      expect(logger.warn).toHaveBeenCalledWith({
+        event: "JOB_COMPLETE_FAILED",
+        jobId,
+        name: "test",
+        error
+      });
+    });
+
+    it("re-throws error when complete fails for reasons other than terminal state", async () => {
+      const { service, pgBoss } = setup();
+      const jobId = faker.string.uuid();
+      const error = new Error("database connection failed");
+      pgBoss.complete = vi.fn().mockRejectedValue(error);
+
+      await expect(service.complete("test", jobId)).rejects.toThrow(error);
+      expect(pgBoss.complete).toHaveBeenCalledWith("test", jobId);
     });
   });
 
@@ -145,13 +217,13 @@ describe(JobQueueService.name, () => {
     });
 
     it("processes job successfully", async () => {
-      const handleFn = jest.fn().mockResolvedValue(undefined);
+      const handleFn = vi.fn().mockResolvedValue(undefined);
       const handler = new TestHandler(handleFn);
       const { service, pgBoss, logger } = setup();
 
       const job = { id: "1", data: { message: "Job 1", userId: "user-1" } };
 
-      jest.spyOn(pgBoss, "work").mockImplementation(async (queueName: string, options: unknown, processFn: PgBoss.WorkHandler<unknown>) => {
+      vi.spyOn(pgBoss, "work").mockImplementation(async (queueName: string, options: unknown, processFn: PgBoss.WorkHandler<unknown>) => {
         await processFn([job as PgBoss.Job<unknown>]);
         return "work-id";
       });
@@ -182,13 +254,13 @@ describe(JobQueueService.name, () => {
 
     it("handles job failures and logs errors", async () => {
       const error = new Error("Job processing failed");
-      const handleFn = jest.fn().mockRejectedValue(error);
+      const handleFn = vi.fn().mockRejectedValue(error);
       const handler = new TestHandler(handleFn);
       const { service, pgBoss, logger } = setup();
 
       const job = { id: "1", data: { message: "Job 1", userId: "user-1" } };
 
-      jest.spyOn(pgBoss, "work").mockImplementation(async (queueName: string, options: unknown, processFn: PgBoss.WorkHandler<unknown>) => {
+      vi.spyOn(pgBoss, "work").mockImplementation(async (queueName: string, options: unknown, processFn: PgBoss.WorkHandler<unknown>) => {
         await processFn([job as PgBoss.Job<unknown>]);
         return "work-id";
       });
@@ -208,12 +280,12 @@ describe(JobQueueService.name, () => {
     });
 
     it("uses default options when none provided", async () => {
-      const handleFn = jest.fn().mockResolvedValue(undefined);
+      const handleFn = vi.fn().mockResolvedValue(undefined);
       const handler = new TestHandler(handleFn);
       const { service, pgBoss } = setup();
       const job = { id: "1", data: { message: "Job 1", userId: "user-1" } };
 
-      jest.spyOn(pgBoss, "work").mockImplementation(async (queueName: string, options: unknown, processFn: PgBoss.WorkHandler<unknown>) => {
+      vi.spyOn(pgBoss, "work").mockImplementation(async (queueName: string, options: unknown, processFn: PgBoss.WorkHandler<unknown>) => {
         await processFn([job as PgBoss.Job<unknown>]);
         return "work-id";
       });
@@ -245,7 +317,7 @@ describe(JobQueueService.name, () => {
       const mockError = new Error("PgBoss connection failed");
 
       let errorHandler: (error: Error) => void;
-      jest.spyOn(pgBoss, "on").mockImplementation(((event, handler) => {
+      vi.spyOn(pgBoss, "on").mockImplementation(((event, handler) => {
         if (event === "error") {
           errorHandler = handler as (error: Error) => void;
         }
@@ -275,7 +347,7 @@ describe(JobQueueService.name, () => {
   describe("ping", () => {
     it("pings PgBoss", async () => {
       const { service, pgBoss } = setup();
-      jest.spyOn(pgBoss, "getDb").mockReturnValue({ executeSql: jest.fn().mockResolvedValue(undefined) });
+      vi.spyOn(pgBoss, "getDb").mockReturnValue({ executeSql: vi.fn().mockResolvedValue(undefined) });
       await service.ping();
 
       expect(pgBoss.getDb().executeSql).toHaveBeenCalledWith("SELECT 1", []);
@@ -286,23 +358,23 @@ describe(JobQueueService.name, () => {
     const mocks = {
       logger: mock<LoggerService>(),
       coreConfig: mock<CoreConfigService>({
-        get: jest.fn().mockReturnValue(input?.postgresDbUri ?? "postgresql://localhost:5432/test")
+        get: vi.fn().mockReturnValue(input?.postgresDbUri ?? "postgresql://localhost:5432/test")
       }),
       pgBoss:
         input?.pgBoss ??
         mockDeep<PgBoss>({
-          createQueue: jest.fn().mockResolvedValue(undefined),
-          send: jest.fn().mockResolvedValue("job-id"),
-          work: jest.fn().mockResolvedValue(undefined),
-          start: jest.fn().mockResolvedValue(undefined),
-          stop: jest.fn().mockResolvedValue(undefined),
-          cancel: jest.fn().mockResolvedValue(undefined),
-          on: jest.fn().mockReturnValue(undefined),
-          getDb: jest.fn().mockReturnValue({ executeSql: jest.fn().mockResolvedValue(undefined) })
+          createQueue: vi.fn().mockResolvedValue(undefined),
+          send: vi.fn().mockResolvedValue("job-id"),
+          work: vi.fn().mockResolvedValue(undefined),
+          start: vi.fn().mockResolvedValue(undefined),
+          stop: vi.fn().mockResolvedValue(undefined),
+          cancel: vi.fn().mockResolvedValue(undefined),
+          on: vi.fn().mockReturnValue(undefined),
+          getDb: vi.fn().mockReturnValue({ executeSql: vi.fn().mockResolvedValue(undefined) })
         }),
       executionContextService: mock<ExecutionContextService>({
-        set: jest.fn().mockResolvedValue(undefined),
-        runWithContext: jest.fn(async (cb: () => Promise<unknown>) => await cb()) as ExecutionContextService["runWithContext"]
+        set: vi.fn().mockResolvedValue(undefined),
+        runWithContext: vi.fn(async (cb: () => Promise<unknown>) => await cb()) as ExecutionContextService["runWithContext"]
       })
     };
 

@@ -35,7 +35,20 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["src/**/*.ts"],
-      exclude: ["src/**/*.spec.ts", "src/**/*.integration.ts", "src/**/*.d.ts", "src/main.ts", "src/console.ts", "src/test/**/*", "src/**/index.ts"],
+      exclude: [
+        "src/**/*.spec.ts",
+        "src/**/*.integration.ts",
+        "src/**/*.d.ts",
+        "src/**/index.ts",
+        "src/*/routes/**/*.ts",
+        "src/*/routers/**/*.ts",
+        "src/routers/**/*.ts",
+        "src/server.ts",
+        "src/background-jobs-app.ts",
+        "src/bootstrap-entry.ts",
+        "src/console.ts",
+        "test/**/*"
+      ],
       reportsDirectory: "./coverage"
     },
     projects: [

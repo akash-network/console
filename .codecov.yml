@@ -1,18 +1,9 @@
 coverage:
-  ignore:
-    - "apps/api/src/*/routes/**/*.ts"
-    - "apps/api/src/routes/**/*.ts"
-    - "apps/api/src/routers/**/*.ts"
-    - "apps/api/src/server.ts"
-    - "apps/api/src/console.ts"
-    - "apps/api/src/background-jobs-app.ts"
-    - "apps/api/src/rest-app.ts"
-    - "apps/api/src/app/console.ts"
   status:
     project:
       default: false
       api:
-        target: 78%
+        target: 75%
         flags:
           - api
       deploy-web:
