@@ -87,7 +87,6 @@
     "npm": "11.6.2"
   },
   "trustedDependencies": [
-    "esbuild@0.24.2",
     "@swc/core@1.11.10",
     "@swc/core@1.15.10",
     "@sentry/cli@2.39.1",
