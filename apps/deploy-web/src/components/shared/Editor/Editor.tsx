@@ -94,7 +94,7 @@ export type Props = {
   theme?: string;
   value: string;
   height?: string | number;
-  language?: "yaml" | "plaintext" | "log";
+  language?: "yaml" | "plaintext" | "log" | "k8s-events";
   onChange?: OnChange;
   onMount?: OnMount;
   onValidate?: OnValidate;

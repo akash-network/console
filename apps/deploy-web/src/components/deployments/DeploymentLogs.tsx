@@ -291,7 +291,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
               <ViewPanel stickToBottom style={{ overflow: "hidden" }}>
                 <Editor
                   value={logText}
-                  language="log"
+                  language={selectedLogsMode === "logs" ? "log" : "k8s-events"}
                   onMount={handleEditorDidMount}
                   options={{
                     readOnly: true
