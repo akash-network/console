@@ -1,4 +1,4 @@
-import { adminReviewRouter } from "@src/billing/routes/admin-review/admin-review.router";
+import { adminReviewRouter } from "@src/billing/routes";
 import { leasesDurationInternalRouter } from "@src/dashboard";
 import { getGpuPricesInternalRouter, listGpuModelsInternalRouter, listGpusInternalRouter } from "@src/gpu";
 import financial from "./financial";

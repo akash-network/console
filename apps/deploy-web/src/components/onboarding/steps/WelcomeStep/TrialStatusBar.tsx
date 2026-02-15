@@ -4,12 +4,15 @@ import { FormattedDate } from "react-intl";
 import { Card, Skeleton } from "@akashnetwork/ui/components";
 import { Check, InfoCircle, WarningTriangle, Xmark } from "iconoir-react";
 
+import { useServices } from "@src/context/ServicesProvider/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useTrialBalance } from "@src/hooks/useTrialBalance";
 
 export const TrialStatusBar: React.FC = () => {
   const { remaining: creditsRemaining, isLoading, trialEndDate, daysRemaining } = useTrialBalance();
   const { reviewStatus } = useWallet();
+  const { publicConfig } = useServices();
+  const reviewTrialCredits = publicConfig.NEXT_PUBLIC_REVIEW_TRIAL_CREDITS_AMOUNT;
 
   if (isLoading) {
     return (
@@ -66,7 +69,7 @@ export const TrialStatusBar: React.FC = () => {
             <div className="space-y-1">
               <div className="text-base font-semibold sm:text-lg">Free Trial Credits: ${creditsRemaining.toFixed(2)}</div>
               <div className="text-xs text-muted-foreground sm:text-sm">
-                Your account is under review. You have limited trial credits ($10) while we verify your payment.
+                Your account is under review. You have limited trial credits (${reviewTrialCredits}) while we verify your payment.
               </div>
             </div>
           </div>

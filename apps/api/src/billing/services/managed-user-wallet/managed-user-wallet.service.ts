@@ -60,7 +60,7 @@ export class ManagedUserWalletService {
 
     const limits = {
       deployment: this.config.REVIEW_TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT,
-      fees: this.config.REVIEW_TRIAL_FEES_ALLOWANCE_AMOUNT
+      fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT
     };
     await this.authorizeSpending(signer, {
       address,
@@ -127,6 +127,25 @@ export class ManagedUserWalletService {
       },
       expiration
     });
+  }
+
+  async revokeSpending(signer: ManagedSignerService, address: string) {
+    const fundingWalletAddress = await this.txManagerService.getFundingWalletAddress();
+    const options = { granter: fundingWalletAddress, grantee: address };
+    const messages: EncodeObject[] = [];
+
+    const hasValidFeeAllowance = await this.authzHttpService.hasFeeAllowance(options.granter, options.grantee);
+    if (hasValidFeeAllowance) {
+      messages.push(this.rpcMessageService.getRevokeAllowanceMsg(options));
+    }
+
+    messages.push(this.rpcMessageService.getRevokeDepositDeploymentGrantMsg(options));
+
+    if (messages.length) {
+      await signer.executeFundingTx(messages);
+    }
+
+    this.logger.debug({ event: "SPENDING_REVOKED", address });
   }
 
   private async authorizeFeeSpending(signer: ManagedSignerService, options: Omit<SpendingAuthorizationMsgOptions, "denom">) {

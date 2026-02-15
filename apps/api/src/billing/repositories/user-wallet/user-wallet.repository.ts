@@ -154,16 +154,6 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
     return dbInput;
   }
 
-  async findByReviewStatus(status: string, options?: { limit?: number; offset?: number }) {
-    return this.toOutputList(
-      await this.cursor.query.UserWallets.findMany({
-        where: this.whereAccessibleBy(eq(this.table.reviewStatus, status)),
-        limit: options?.limit ?? 50,
-        offset: options?.offset ?? 0
-      })
-    );
-  }
-
   toPublic(output: UserWalletOutput): UserWalletPublicOutput {
     return {
       id: output.id,

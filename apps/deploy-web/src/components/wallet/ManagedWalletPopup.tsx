@@ -17,7 +17,7 @@ interface ManagedWalletPopupProps extends React.PropsWithChildren {
 }
 
 export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBalance }) => {
-  const { isManaged, isTrialing, switchWalletType } = useWallet();
+  const { isManaged, isTrialing, isInReview, switchWalletType } = useWallet();
   const { showManagedEscrowFaqModal } = useManagedEscrowFaqModal();
   const { connect, isWalletConnected } = useSelectedChain();
 
@@ -25,7 +25,7 @@ export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBa
     <div className="w-[300px] p-2">
       {isManaged && isTrialing && (
         <div className="mb-2 text-sm font-bold">
-          <p className="text-center">Free Trial</p>
+          <p className={cn("text-center", isInReview && "text-amber-500")}>{isInReview ? "Under Review" : "Free Trial"}</p>
         </div>
       )}
       <Card>
