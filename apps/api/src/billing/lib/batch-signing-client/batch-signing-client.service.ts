@@ -56,6 +56,8 @@ interface SignAndBroadcastBatchOptions {
  * Transactions are signed locally and then broadcast to the blockchain network.
  */
 export class BatchSigningClientService {
+  private readonly MEMO = "akash console";
+
   /**
    * The denomination for transaction fees (uakt = micro AKT).
    */
@@ -280,7 +282,7 @@ export class BatchSigningClientService {
         const { messages, options } = input;
         const fee = await this.estimateFee(messages, this.FEES_DENOM, options?.fee?.granter);
 
-        const signedTx = await this.client.sign(accountInfo.address, messages, fee, "", {
+        const signedTx = await this.client.sign(accountInfo.address, messages, fee, this.MEMO, {
           accountNumber: accountInfo.accountNumber,
           sequence: currentSequence,
           chainId
@@ -410,7 +412,7 @@ export class BatchSigningClientService {
    * @returns The calculated fee structure.
    */
   private async estimateFee(messages: readonly EncodeObject[], denom: string, granter?: string) {
-    const gasEstimation = await this.client.simulate(await this.getAddress(), messages, "");
+    const gasEstimation = await this.client.simulate(await this.getAddress(), messages, this.MEMO);
     const estimatedGas = Math.ceil(gasEstimation * this.config.get("GAS_SAFETY_MULTIPLIER"));
 
     const fee = calculateFee(estimatedGas, GasPrice.fromString(`${this.config.get("AVERAGE_GAS_PRICE")}${denom}`));
