@@ -64,6 +64,7 @@ export class ReviewTrialService {
 
     if (wallet.address) {
       await this.closeAllDeployments(wallet.id, wallet.address);
+      await this.managedUserWalletService.revokeSpending(this.managedSignerService, wallet.address);
     }
 
     const updated = await this.userWalletRepository.updateById(

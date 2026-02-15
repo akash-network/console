@@ -1,3 +1,4 @@
+export * from "@src/billing/routes/admin-review/admin-review.router";
 export * from "@src/billing/routes/start-trial/start-trial.router";
 export * from "@src/billing/routes/get-wallet-list/get-wallet-list.router";
 export * from "@src/billing/routes/sign-and-broadcast-tx/sign-and-broadcast-tx.router";

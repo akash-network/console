@@ -14,7 +14,7 @@ import { ManagedWalletPopup } from "../wallet/ManagedWalletPopup";
 import { WalletConnectionButtons } from "../wallet/WalletConnectionButtons";
 
 export function WalletStatus() {
-  const { walletName, isWalletLoaded, isWalletConnected, isManaged, isWalletLoading, isTrialing } = useWallet();
+  const { walletName, isWalletLoaded, isWalletConnected, isManaged, isWalletLoading, isTrialing, isInReview } = useWallet();
   const { balance: walletBalance, isLoading: isWalletBalanceLoading } = useWalletBalance();
   const [open, setOpen] = useState(false);
   const isLoadingBalance = isWalletBalanceLoading && !walletBalance;
@@ -34,7 +34,9 @@ export function WalletStatus() {
                   >
                     <div className="flex items-center space-x-2" aria-label="Connected wallet name and balance">
                       <Wallet className="text-xs" />
-                      {isManaged && isTrialing && <span className="text-xs">Trial</span>}
+                      {isManaged && isTrialing && (
+                        <span className={cn("text-xs", isInReview && "text-amber-500")}>{isInReview ? "Under Review" : "Trial"}</span>
+                      )}
                       {!isManaged && (
                         <>
                           {walletName?.length > 20 ? (
