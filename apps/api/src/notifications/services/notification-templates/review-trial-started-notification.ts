@@ -7,7 +7,7 @@ export function reviewTrialStartedNotification(user: UserOutput): CreateNotifica
     payload: {
       summary: "Welcome - your account is under review",
       description:
-        "Your account is under review. You've been granted $10 in trial credits while we verify your payment. " +
+        "Your account is under review. You've been granted $5 in trial credits while we verify your payment. " +
         "You'll receive an email once the review is complete."
     },
     user: {
