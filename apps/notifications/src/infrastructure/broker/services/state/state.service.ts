@@ -1,5 +1,5 @@
 import { Injectable, OnApplicationBootstrap, OnApplicationShutdown } from "@nestjs/common";
-import { Client } from "pg";
+import { Pool } from "pg";
 import PgBoss from "pg-boss";
 
 import { PgBossHandlerService } from "@src/infrastructure/broker/services/pg-boss-handler/pg-boss-handler.service";
@@ -10,7 +10,7 @@ export class StateService implements OnApplicationBootstrap, OnApplicationShutdo
 
   constructor(
     private readonly pgBossHandlerService: PgBossHandlerService,
-    private readonly pg: Client,
+    private readonly pg: Pool,
     private readonly boss: PgBoss
   ) {
     boss.on("stopped", () => {

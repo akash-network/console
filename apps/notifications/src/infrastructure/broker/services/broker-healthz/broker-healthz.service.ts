@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { differenceInMilliseconds } from "date-fns";
 import { millisecondsInMinute } from "date-fns/constants";
-import { Client } from "pg";
+import { Pool } from "pg";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import { HealthzService, ProbeResult } from "@src/common/types/healthz.type";
@@ -15,7 +15,7 @@ export class BrokerHealthzService implements HealthzService {
 
   constructor(
     private readonly stateService: StateService,
-    private readonly db: Client,
+    private readonly db: Pool,
     private readonly loggerService: LoggerService
   ) {}
 

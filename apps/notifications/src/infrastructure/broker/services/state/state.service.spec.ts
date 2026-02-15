@@ -1,6 +1,6 @@
 import { Test, type TestingModule } from "@nestjs/testing";
 import type { MockProxy } from "jest-mock-extended";
-import { Client } from "pg";
+import { Pool } from "pg";
 import PgBoss from "pg-boss";
 
 import { PgBossHandlerService } from "@src/infrastructure/broker/services/pg-boss-handler/pg-boss-handler.service";
@@ -28,7 +28,7 @@ describe(StateService.name, () => {
     expect(service.getState()).toBe("active");
   });
 
-  it("should stop pgBoss and pg client and set state to 'stopped' on shutdown", async () => {
+  it("should stop pgBoss and pg pool and set state to 'stopped' on shutdown", async () => {
     const { service, boss, pg } = await setup();
 
     await service.onApplicationShutdown();
@@ -54,16 +54,16 @@ describe(StateService.name, () => {
     service: StateService;
     pgBossHandlerService: MockProxy<PgBossHandlerService>;
     boss: MockProxy<PgBoss>;
-    pg: MockProxy<Client>;
+    pg: MockProxy<Pool>;
   }> {
     const module = await Test.createTestingModule({
-      providers: [StateService, MockProvider(PgBossHandlerService), MockProvider(PgBoss), MockProvider(Client)]
+      providers: [StateService, MockProvider(PgBossHandlerService), MockProvider(PgBoss), MockProvider(Pool)]
     }).compile();
 
     const service = module.get(StateService);
     const pgBossHandlerService = module.get<MockProxy<PgBossHandlerService>>(PgBossHandlerService);
     const boss = module.get<MockProxy<PgBoss>>(PgBoss);
-    const pg = module.get<MockProxy<Client>>(Client);
+    const pg = module.get<MockProxy<Pool>>(Pool);
 
     return {
       module,
