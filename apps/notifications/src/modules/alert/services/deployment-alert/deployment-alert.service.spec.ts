@@ -2,9 +2,10 @@ import type { MongoAbility } from "@casl/ability";
 import { faker } from "@faker-js/faker";
 import { ConfigModule } from "@nestjs/config";
 import { Test } from "@nestjs/testing";
-import type { MockProxy } from "jest-mock-extended";
 import merge from "lodash/merge";
 import { Ok } from "ts-results";
+import { describe, expect, it, vi } from "vitest";
+import type { MockProxy } from "vitest-mock-extended";
 
 import moduleConfig from "@src/modules/alert/config";
 import { AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
@@ -24,8 +25,7 @@ describe(DeploymentAlertService.name, () => {
       const input = generateDeploymentBalanceAlertInput({});
       const output = generateDeploymentBalanceAlertOutput({});
 
-      jest
-        .spyOn(service, "get")
+      vi.spyOn(service, "get")
         .mockResolvedValueOnce({
           dseq: input.dseq,
           alerts: {}
@@ -110,7 +110,7 @@ describe(DeploymentAlertService.name, () => {
 
       const output = merge({}, existing, input);
 
-      jest.spyOn(service, "get").mockResolvedValueOnce(existing).mockResolvedValueOnce(output);
+      vi.spyOn(service, "get").mockResolvedValueOnce(existing).mockResolvedValueOnce(output);
       const userId = faker.string.uuid();
 
       const result = await service.upsert(input, { ability: {} as MongoAbility, userId });

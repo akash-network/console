@@ -1,8 +1,10 @@
+import { describe, expect, it, vi } from "vitest";
+
 import { MESSAGE, valueBackoff } from "./value-backoff";
 
 describe("valueBackoff", () => {
   it("should return value immediately when available on first attempt", async () => {
-    const mockRequest = jest.fn().mockResolvedValue("success");
+    const mockRequest = vi.fn().mockResolvedValue("success");
 
     const promise = valueBackoff(mockRequest);
 
@@ -12,7 +14,7 @@ describe("valueBackoff", () => {
   });
 
   it("should retry until value is available", async () => {
-    const mockRequest = jest.fn().mockResolvedValueOnce(null).mockResolvedValueOnce(undefined).mockResolvedValueOnce("success");
+    const mockRequest = vi.fn().mockResolvedValueOnce(null).mockResolvedValueOnce(undefined).mockResolvedValueOnce("success");
 
     const promise = valueBackoff(mockRequest, {
       numOfAttempts: 5,
@@ -26,7 +28,7 @@ describe("valueBackoff", () => {
   });
 
   it("should return null if request consistently returns null and safe option is provided", async () => {
-    const mockRequest = jest.fn().mockResolvedValue(null);
+    const mockRequest = vi.fn().mockResolvedValue(null);
 
     const promise = valueBackoff(mockRequest, {
       numOfAttempts: 3,
@@ -41,7 +43,7 @@ describe("valueBackoff", () => {
   });
 
   it("should return undefined if request consistently returns undefined and safe option is provided", async () => {
-    const mockRequest = jest.fn().mockResolvedValue(undefined);
+    const mockRequest = vi.fn().mockResolvedValue(undefined);
 
     const promise = valueBackoff(mockRequest, {
       numOfAttempts: 3,
@@ -56,7 +58,7 @@ describe("valueBackoff", () => {
   });
 
   it("should throw if request consistently returns null and safe option is not provided", async () => {
-    const mockRequest = jest.fn().mockResolvedValue(null);
+    const mockRequest = vi.fn().mockResolvedValue(null);
 
     const promise = valueBackoff(mockRequest, {
       numOfAttempts: 3,
@@ -69,7 +71,7 @@ describe("valueBackoff", () => {
   });
 
   it("should throw if request consistently returns undefined and safe option is not provided", async () => {
-    const mockRequest = jest.fn().mockResolvedValue(undefined);
+    const mockRequest = vi.fn().mockResolvedValue(undefined);
 
     const promise = valueBackoff(mockRequest, {
       numOfAttempts: 3,
@@ -83,7 +85,7 @@ describe("valueBackoff", () => {
 
   it("should reject with original error when request fails with non-empty error", async () => {
     const originalError = new Error("Original error");
-    const mockRequest = jest.fn().mockRejectedValue(originalError);
+    const mockRequest = vi.fn().mockRejectedValue(originalError);
 
     const promise = valueBackoff(mockRequest);
 
@@ -92,7 +94,7 @@ describe("valueBackoff", () => {
   });
 
   it("should use provided backoff options", async () => {
-    const mockRequest = jest.fn().mockResolvedValueOnce(null).mockResolvedValueOnce("success");
+    const mockRequest = vi.fn().mockResolvedValueOnce(null).mockResolvedValueOnce("success");
 
     const customOptions = {
       numOfAttempts: 2,

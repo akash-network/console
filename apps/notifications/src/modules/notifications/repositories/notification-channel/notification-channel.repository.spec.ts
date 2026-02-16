@@ -2,6 +2,7 @@ import { faker } from "@faker-js/faker";
 import { ConfigModule } from "@nestjs/config";
 import type { TestingModule } from "@nestjs/testing";
 import { Test } from "@nestjs/testing";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { DRIZZLE_PROVIDER_TOKEN } from "@src/infrastructure/db/config/db.config";
 import { register } from "@src/infrastructure/db/db.module";

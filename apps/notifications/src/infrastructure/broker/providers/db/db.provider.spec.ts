@@ -1,6 +1,7 @@
 import { ConfigService } from "@nestjs/config";
-import { mock } from "jest-mock-extended";
 import type { Pool } from "pg";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { createPgPoolFactory } from "./db.provider";
 
@@ -10,7 +11,9 @@ describe("createPgPool", () => {
   it("should create a pool with the correct connection string", async () => {
     const config = generateBrokerConfig();
     const poolInstance = mock<Pool>();
-    const MockPool = jest.fn().mockImplementation(() => poolInstance);
+    const MockPool = vi.fn(function () {
+      return poolInstance;
+    });
 
     const pool = await createPgPoolFactory(MockPool as unknown as typeof Pool)(new ConfigService(config));
 

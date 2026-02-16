@@ -3,6 +3,7 @@ import { faker } from "@faker-js/faker";
 import { INestApplication, Module } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import request from "supertest";
+import { describe, expect, it } from "vitest";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import { notificationChannelCreateInputSchema } from "@src/interfaces/rest/controllers/notification-channel/notification-channel.controller";

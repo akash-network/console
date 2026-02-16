@@ -2,8 +2,9 @@ import type { TestingModule } from "@nestjs/testing";
 import { Test } from "@nestjs/testing";
 import { millisecondsInMinute } from "date-fns/constants";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
-import { type MockProxy } from "jest-mock-extended";
 import type { QueryResult } from "pg";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { type MockProxy } from "vitest-mock-extended";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import { DRIZZLE_PROVIDER_TOKEN } from "@src/infrastructure/db/config/db.config";
@@ -45,11 +46,11 @@ describe(DbHealthzService.name, () => {
 
   describe("getLivenessStatus", () => {
     beforeEach(() => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it("returns ok if db is alive", async () => {
@@ -65,11 +66,11 @@ describe(DbHealthzService.name, () => {
     it("returns ok if db failed recently (within threshold)", async () => {
       const { service, db } = await setup();
 
-      jest.setSystemTime(new Date("2025-01-01T00:00:00Z"));
+      vi.setSystemTime(new Date("2025-01-01T00:00:00Z"));
       db.execute.mockRejectedValueOnce(new Error("fail"));
       await service.getLivenessStatus();
 
-      jest.setSystemTime(new Date("2025-01-01T00:00:30Z"));
+      vi.setSystemTime(new Date("2025-01-01T00:00:30Z"));
       db.execute.mockRejectedValueOnce(new Error("fail"));
 
       const result = await service.getLivenessStatus(millisecondsInMinute);
@@ -81,11 +82,11 @@ describe(DbHealthzService.name, () => {
     it("returns error if db failed long ago (exceeds threshold)", async () => {
       const { service, db } = await setup();
 
-      jest.setSystemTime(new Date("2025-01-01T00:00:00Z"));
+      vi.setSystemTime(new Date("2025-01-01T00:00:00Z"));
       db.execute.mockRejectedValueOnce(new Error("fail"));
       await service.getLivenessStatus();
 
-      jest.setSystemTime(new Date("2025-01-01T00:02:00Z"));
+      vi.setSystemTime(new Date("2025-01-01T00:02:00Z"));
       db.execute.mockRejectedValueOnce(new Error("fail"));
 
       const result = await service.getLivenessStatus(millisecondsInMinute);

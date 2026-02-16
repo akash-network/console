@@ -3,7 +3,8 @@ import type { DecodedTxRaw } from "@cosmjs/proto-signing";
 import { faker } from "@faker-js/faker";
 import type { TestingModule } from "@nestjs/testing";
 import { Test } from "@nestjs/testing";
-import type { MockProxy } from "jest-mock-extended";
+import { describe, expect, it } from "vitest";
+import type { MockProxy } from "vitest-mock-extended";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import { CosmjsDecodingService } from "../cosmjs-decoding/cosmjs-decoding.service";

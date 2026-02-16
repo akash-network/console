@@ -1,8 +1,9 @@
 import { faker } from "@faker-js/faker";
 import { ConfigModule } from "@nestjs/config";
 import { Test, type TestingModule } from "@nestjs/testing";
-import type { MockProxy } from "jest-mock-extended";
 import { Err, Ok } from "ts-results";
+import { describe, expect, it, type Mock, vi } from "vitest";
+import type { MockProxy } from "vitest-mock-extended";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import { RichError } from "@src/lib/rich-error/rich-error";
@@ -151,7 +152,7 @@ describe(DeploymentBalanceAlertsService.name, () => {
 
       const balance = { balance: 9000000 };
       deploymentService.getDeploymentBalance.mockResolvedValue(Ok(balance));
-      const onMessage = jest.fn();
+      const onMessage = vi.fn();
 
       await service.alertFor({ height: 1000 }, onMessage);
 
@@ -219,7 +220,7 @@ describe(DeploymentBalanceAlertsService.name, () => {
       const error = new Error("test");
       alertRepository.paginateAll.mockRejectedValue(error);
       const block = { height: 1000 };
-      const onMessage = jest.fn();
+      const onMessage = vi.fn();
 
       await expect(service.alertFor(block, onMessage)).rejects.toBe(error);
 
@@ -243,7 +244,7 @@ describe(DeploymentBalanceAlertsService.name, () => {
       const error = new Error("test");
       deploymentService.getDeploymentBalance.mockRejectedValue(error);
       const block = { height: 1000 };
-      const onMessage = jest.fn();
+      const onMessage = vi.fn();
       await service.alertFor(block, onMessage);
 
       expect(alertMessageService.getMessage).not.toHaveBeenCalled();
@@ -263,7 +264,7 @@ describe(DeploymentBalanceAlertsService.name, () => {
     conditionsMatcherService: ConditionsMatcherService;
     alertMessageService: MockProxy<AlertMessageService>;
     deploymentService: MockProxy<DeploymentService>;
-    onMessage: jest.Mock;
+    onMessage: Mock;
   }> {
     const module: TestingModule = await Test.createTestingModule({
       imports: [ConfigModule.forFeature(moduleConfig)],
@@ -277,7 +278,7 @@ describe(DeploymentBalanceAlertsService.name, () => {
         MockProvider(LoggerService)
       ]
     }).compile();
-    const onMessage = jest.fn();
+    const onMessage = vi.fn();
 
     return {
       service: module.get<DeploymentBalanceAlertsService>(DeploymentBalanceAlertsService),

@@ -1,7 +1,8 @@
 import { ConfigService } from "@nestjs/config";
-import { mock } from "jest-mock-extended";
 import type { Pool, QueryResult } from "pg";
 import type { PgBoss } from "pg-boss";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { createPgBossFactory } from "./pg-boss.provider";
 
@@ -16,16 +17,15 @@ describe("createPgBoss", () => {
 
     mockInstance.start.mockResolvedValue(mockInstance);
 
-    const MockPgBoss = jest
-      .fn()
-      .mockImplementationOnce(() => mockInstance)
-      .mockImplementationOnce(() => mockInstance);
+    const MockPgBoss = vi.fn(function (..._args: any[]) {
+      return mockInstance;
+    });
 
     const pgBoss = await createPgBossFactory(MockPgBoss as unknown as typeof PgBoss)(new ConfigService(config), pool);
 
     expect(MockPgBoss).toHaveBeenCalledTimes(2);
-    expect(MockPgBoss.mock.calls[0][0]).toEqual(config["broker.EVENT_BROKER_POSTGRES_URI"]);
-    expect(MockPgBoss.mock.calls[1][0]).toEqual({
+    expect(MockPgBoss).toHaveBeenNthCalledWith(1, config["broker.EVENT_BROKER_POSTGRES_URI"]);
+    expect(MockPgBoss).toHaveBeenNthCalledWith(2, {
       db: {
         executeSql: expect.any(Function)
       }
@@ -55,13 +55,12 @@ describe("createPgBoss", () => {
     const mockInstance = mock<PgBoss>();
     mockInstance.start.mockResolvedValue(mockInstance);
 
-    const MockPgBoss = jest
-      .fn()
-      .mockImplementationOnce(() => mockInstance)
-      .mockImplementationOnce(options => {
+    const MockPgBoss = vi.fn(function (options?: any) {
+      if (options?.db?.executeSql) {
         capturedExecuteSql = options.db.executeSql;
-        return mockInstance;
-      });
+      }
+      return mockInstance;
+    });
 
     await createPgBossFactory(MockPgBoss as unknown as typeof PgBoss)(new ConfigService(config), pool);
 

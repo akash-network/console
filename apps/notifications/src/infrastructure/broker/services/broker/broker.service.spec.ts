@@ -2,10 +2,11 @@ import { faker } from "@faker-js/faker";
 import { ConfigModule, ConfigService, registerAs } from "@nestjs/config";
 import type { TestingModule } from "@nestjs/testing";
 import { Test } from "@nestjs/testing";
-import type { MockProxy } from "jest-mock-extended";
-import { mock } from "jest-mock-extended";
 import type { PoolClient } from "pg";
 import { Pool } from "pg";
+import { describe, expect, it, vi } from "vitest";
+import type { MockProxy } from "vitest-mock-extended";
+import { mock } from "vitest-mock-extended";
 import { PgBoss } from "pg-boss";
 
 import { eventKeyRegistry } from "@src/common/config/event-key-registry.config";
@@ -44,7 +45,7 @@ describe(BrokerService.name, () => {
       const eventName = faker.string.alphanumeric(10);
       const queueName = `${configService.getOrThrow("broker.APP_NAME")}.${eventName}`;
       const options = { prefetchCount: faker.number.int({ min: 1, max: 5 }) };
-      const handler = jest.fn();
+      const handler = vi.fn();
 
       await service.subscribe(eventName, options, handler);
 
@@ -59,7 +60,8 @@ describe(BrokerService.name, () => {
     it("should publish multiple events in a transaction", async () => {
       const { service, pgBoss, pool } = await setup();
       const poolClient = mock<PoolClient>();
-      (pool.connect as jest.Mock).mockResolvedValue(poolClient);
+      // @ts-expect-error Pool.connect has overloaded signatures; TS resolves to the callback variant returning void
+      pool.connect.mockResolvedValue(poolClient);
 
       const events = [
         {
@@ -86,7 +88,8 @@ describe(BrokerService.name, () => {
     it("should rollback the transaction if publishing fails", async () => {
       const { service, pgBoss, pool } = await setup();
       const poolClient = mock<PoolClient>();
-      (pool.connect as jest.Mock).mockResolvedValue(poolClient);
+      // @ts-expect-error Pool.connect has overloaded signatures; TS resolves to the callback variant returning void
+      pool.connect.mockResolvedValue(poolClient);
 
       const events = [
         {

@@ -1,7 +1,8 @@
 import type { StargateClient } from "@cosmjs/stargate";
 import { faker } from "@faker-js/faker";
 import type { ConfigService } from "@nestjs/config";
-import { mock } from "jest-mock-extended";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { createStargateClientFactory } from "./stargate-client.provider";
 
@@ -10,7 +11,7 @@ describe("createStargateClient", () => {
     const config = mock<ConfigService>();
     const mockClient = mock<StargateClient>();
     const MockStargateClient = {
-      connect: jest.fn().mockResolvedValue(mockClient)
+      connect: vi.fn().mockResolvedValue(mockClient)
     };
     const rpcNodeEndpoint = faker.internet.url();
     config.getOrThrow.mockReturnValue(rpcNodeEndpoint);

@@ -5,6 +5,7 @@ import type { TestingModule } from "@nestjs/testing";
 import { Test } from "@nestjs/testing";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import nock from "nock";
+import { describe, expect, it, vi } from "vitest";
 
 import { eventKeyRegistry } from "@src/common/config/event-key-registry.config";
 import { BrokerService } from "@src/infrastructure/broker";
@@ -32,7 +33,7 @@ describe("balance alerts", () => {
       const throttlingDseq = faker.number.int({ min: 0, max: 999999 });
       const CURRENT_HEIGHT = 1000;
 
-      jest.spyOn(brokerService, "publish").mockResolvedValue(undefined);
+      vi.spyOn(brokerService, "publish").mockResolvedValue(undefined);
 
       const [notificationChannel] = await db
         .insert(schema.NotificationChannel)

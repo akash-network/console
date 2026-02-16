@@ -1,6 +1,7 @@
 import { generateMock } from "@anatine/zod-mock";
 import { faker } from "@faker-js/faker";
 import { Test } from "@nestjs/testing";
+import { describe, expect, it, vi } from "vitest";
 
 import { eventKeyRegistry } from "@src/common/config/event-key-registry.config";
 import { BrokerService } from "@src/infrastructure/broker";
@@ -27,7 +28,7 @@ describe("chain message alerts", () => {
       const owner = mockAkashAddress();
       const dseq = faker.number.int({ min: 0, max: 999999 });
 
-      jest.spyOn(brokerService, "publish").mockResolvedValue(undefined);
+      vi.spyOn(brokerService, "publish").mockResolvedValue(undefined);
 
       const [notificationChannel] = await db
         .insert(NotificationChannel)

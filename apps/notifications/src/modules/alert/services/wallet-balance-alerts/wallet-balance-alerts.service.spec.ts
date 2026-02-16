@@ -1,6 +1,7 @@
 import { BalanceHttpService, type Denom } from "@akashnetwork/http-sdk";
 import { Test, type TestingModule } from "@nestjs/testing";
-import type { MockProxy } from "jest-mock-extended";
+import { describe, expect, it, type Mock, vi } from "vitest";
+import type { MockProxy } from "vitest-mock-extended";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import type { AlertOutput, WalletBalanceAlertOutput } from "@src/modules/alert/repositories/alert/alert.repository";
@@ -148,7 +149,7 @@ describe(WalletBalanceAlertsService.name, () => {
 
       const balance = { amount: 9000000, denom: "uakt" as Denom };
       balanceHttpService.getBalance.mockResolvedValue(balance);
-      const onMessage = jest.fn();
+      const onMessage = vi.fn();
 
       await service.alertFor({ height: 1000 }, onMessage);
 
@@ -195,7 +196,7 @@ describe(WalletBalanceAlertsService.name, () => {
       const error = new Error("test");
       alertRepository.paginateAll.mockRejectedValue(error);
       const block = { height: 1000 };
-      const onMessage = jest.fn();
+      const onMessage = vi.fn();
 
       await expect(service.alertFor(block, onMessage)).rejects.toBe(error);
 
@@ -219,7 +220,7 @@ describe(WalletBalanceAlertsService.name, () => {
       const error = new Error("test");
       balanceHttpService.getBalance.mockRejectedValue(error);
       const block = { height: 1000 };
-      const onMessage = jest.fn();
+      const onMessage = vi.fn();
       await service.alertFor(block, onMessage);
 
       expect(alertMessageService.getMessage).not.toHaveBeenCalled();
@@ -239,7 +240,7 @@ describe(WalletBalanceAlertsService.name, () => {
     conditionsMatcherService: ConditionsMatcherService;
     alertMessageService: MockProxy<AlertMessageService>;
     balanceHttpService: MockProxy<BalanceHttpService>;
-    onMessage: jest.Mock;
+    onMessage: Mock;
   }> {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -252,7 +253,7 @@ describe(WalletBalanceAlertsService.name, () => {
         MockProvider(LoggerService)
       ]
     }).compile();
-    const onMessage = jest.fn();
+    const onMessage = vi.fn();
 
     return {
       service: module.get<WalletBalanceAlertsService>(WalletBalanceAlertsService),
