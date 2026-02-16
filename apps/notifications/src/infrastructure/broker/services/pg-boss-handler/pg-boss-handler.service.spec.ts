@@ -3,10 +3,11 @@ import { faker } from "@faker-js/faker";
 import type { DiscoveredMethod } from "@golevelup/nestjs-discovery";
 import { DiscoveryService } from "@golevelup/nestjs-discovery";
 import { Test, type TestingModule } from "@nestjs/testing";
-import type { MockProxy } from "jest-mock-extended";
 import type { ZodDto } from "nestjs-zod";
 import { createZodDto } from "nestjs-zod";
 import type { Job } from "pg-boss";
+import { describe, expect, it, type Mock, vi } from "vitest";
+import type { MockProxy } from "vitest-mock-extended";
 import { z } from "zod";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
@@ -77,7 +78,7 @@ describe(PgBossHandlerService.name, () => {
     brokerService: MockProxy<BrokerService>;
     loggerService: MockProxy<LoggerService>;
     discoveryService: MockProxy<DiscoveryService>;
-    handlerMethod: jest.Mock;
+    handlerMethod: Mock;
     dto: ZodDto;
     testKey: string;
   }> {
@@ -88,7 +89,7 @@ describe(PgBossHandlerService.name, () => {
     class TestMessageDto extends createZodDto(TestMessageSchema) {}
 
     const key = faker.lorem.word();
-    const handlerMethod = jest.fn();
+    const handlerMethod = vi.fn();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [PgBossHandlerService, MockProvider(DiscoveryService), MockProvider(BrokerService), MockProvider(LoggerService)]

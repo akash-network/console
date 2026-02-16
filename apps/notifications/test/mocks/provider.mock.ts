@@ -1,5 +1,5 @@
 import type { InjectionToken, Provider } from "@nestjs/common";
-import { mock } from "jest-mock-extended";
+import { mock } from "vitest-mock-extended";
 
 export const MockProvider = <T>(token: InjectionToken<T>, override?: DeepPartial<T>): Provider => {
   return { provide: token, useValue: mock<T>(override as Parameters<typeof mock<T>>[0]) };

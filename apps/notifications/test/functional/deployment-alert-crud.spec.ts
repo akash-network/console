@@ -6,6 +6,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import nock from "nock";
 import request from "supertest";
+import { describe, expect, it } from "vitest";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import { DRIZZLE_PROVIDER_TOKEN } from "@src/infrastructure/db/config/db.config";

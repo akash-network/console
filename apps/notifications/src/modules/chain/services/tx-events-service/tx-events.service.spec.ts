@@ -1,8 +1,9 @@
 import { Comet38Client } from "@cosmjs/tendermint-rpc";
 import type { BlockResultsResponse } from "@cosmjs/tendermint-rpc/build/comet38";
 import { Test } from "@nestjs/testing";
-import type { MockProxy } from "jest-mock-extended";
-import { mock } from "jest-mock-extended";
+import { describe, expect, it } from "vitest";
+import type { MockProxy } from "vitest-mock-extended";
+import { mock } from "vitest-mock-extended";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import { TxEventsService } from "@src/modules/chain/services/tx-events-service/tx-events.service";

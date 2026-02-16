@@ -1,5 +1,7 @@
 import "reflect-metadata";
 
+import { afterAll, beforeAll, expect } from "vitest";
+
 import { TestDatabaseService } from "./services/test-database.service";
 
 const testPath = expect.getState().testPath;

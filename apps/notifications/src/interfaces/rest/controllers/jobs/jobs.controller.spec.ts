@@ -1,6 +1,7 @@
 import { generateMock } from "@anatine/zod-mock";
 import { Test } from "@nestjs/testing";
 import { hoursToMilliseconds } from "date-fns";
+import { describe, expect, it, vi } from "vitest";
 
 import { eventKeyRegistry } from "@src/common/config/event-key-registry.config";
 import { BrokerService } from "@src/infrastructure/broker/services/broker/broker.service";
@@ -14,7 +15,7 @@ import { MockProvider } from "@test/mocks/provider.mock";
 describe(JobsController.name, () => {
   describe("createNotification", () => {
     it("returns 400 if notificationChannelId is not specified and no default notification channel exists", async () => {
-      const findDefaultByUserId = jest.fn(async () => undefined);
+      const findDefaultByUserId = vi.fn(async () => undefined);
       const module = await setup({
         findDefaultByUserId
       });
@@ -32,7 +33,7 @@ describe(JobsController.name, () => {
     });
 
     it("returns 400 if notificationChannelId is specified and no notification channel exists", async () => {
-      const findById = jest.fn(async () => undefined);
+      const findById = vi.fn(async () => undefined);
       const module = await setup({
         findById
       });
@@ -52,7 +53,7 @@ describe(JobsController.name, () => {
 
     it("creates a notification job if notificationChannelId is specified and notification channel exists", async () => {
       const channel = generateMock(notificationChannelOutputSchema);
-      const findDefaultByUserId = jest.fn(async () => channel);
+      const findDefaultByUserId = vi.fn(async () => channel);
       const module = await setup({
         findDefaultByUserId
       });
@@ -84,7 +85,7 @@ describe(JobsController.name, () => {
 
     it("creates a notification job if notificationChannelId is not specified and default notification channel exists", async () => {
       const channel = generateMock(notificationChannelOutputSchema);
-      const findById = jest.fn(async () => channel);
+      const findById = vi.fn(async () => channel);
       const module = await setup({
         findById
       });
@@ -117,7 +118,7 @@ describe(JobsController.name, () => {
 
     it("publishes a notification job which startsAfter specified time and expires in 24 hours", async () => {
       const channel = generateMock(notificationChannelOutputSchema);
-      const findDefaultByUserId = jest.fn(async () => channel);
+      const findDefaultByUserId = vi.fn(async () => channel);
       const module = await setup({
         findDefaultByUserId
       });

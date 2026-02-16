@@ -1,8 +1,9 @@
 import type { TestingModule } from "@nestjs/testing";
 import { Test } from "@nestjs/testing";
 import { millisecondsInMinute } from "date-fns/constants";
-import { type MockProxy } from "jest-mock-extended";
 import { Pool } from "pg";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { type MockProxy } from "vitest-mock-extended";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import { StateService } from "@src/infrastructure/broker/services/state/state.service";
@@ -64,11 +65,11 @@ describe(BrokerHealthzService.name, () => {
 
   describe("getLivenessStatus", () => {
     beforeEach(() => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it("returns ok if db is alive", async () => {
@@ -85,11 +86,11 @@ describe(BrokerHealthzService.name, () => {
       const { service, db } = await setup();
 
       const failureTime = new Date("2025-01-01T00:00:00Z");
-      jest.setSystemTime(failureTime);
+      vi.setSystemTime(failureTime);
       db.query.mockRejectedValueOnce(new Error("fail") as never);
       await service.getLivenessStatus();
 
-      jest.setSystemTime(new Date("2025-01-01T00:00:30Z"));
+      vi.setSystemTime(new Date("2025-01-01T00:00:30Z"));
       db.query.mockRejectedValueOnce(new Error("fail") as never);
 
       const result = await service.getLivenessStatus(millisecondsInMinute);
@@ -102,11 +103,11 @@ describe(BrokerHealthzService.name, () => {
       const { service, db } = await setup();
 
       const failureTime = new Date("2025-01-01T00:00:00Z");
-      jest.setSystemTime(failureTime);
+      vi.setSystemTime(failureTime);
       db.query.mockRejectedValueOnce(new Error("fail") as never);
       await service.getLivenessStatus();
 
-      jest.setSystemTime(new Date("2025-01-01T00:02:00Z"));
+      vi.setSystemTime(new Date("2025-01-01T00:02:00Z"));
       db.query.mockRejectedValueOnce(new Error("fail") as never);
 
       const result = await service.getLivenessStatus(millisecondsInMinute);

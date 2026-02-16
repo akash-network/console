@@ -4,6 +4,7 @@ import { UnauthorizedException } from "@nestjs/common";
 import type { TestingModule } from "@nestjs/testing";
 import { Test } from "@nestjs/testing";
 import type { Request } from "express";
+import { describe, expect, it } from "vitest";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import { AuthService } from "./auth.service";

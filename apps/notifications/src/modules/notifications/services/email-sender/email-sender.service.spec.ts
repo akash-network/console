@@ -3,7 +3,8 @@ import { ConfigService } from "@nestjs/config";
 import type { TestingModule } from "@nestjs/testing";
 import { Test } from "@nestjs/testing";
 import { Novu } from "@novu/api";
-import type { MockProxy } from "jest-mock-extended";
+import { describe, expect, it } from "vitest";
+import type { MockProxy } from "vitest-mock-extended";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import { AnalyticsService } from "@src/modules/notifications/services/analytics/analytics.service";
