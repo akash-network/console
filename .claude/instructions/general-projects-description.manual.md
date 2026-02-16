@@ -87,26 +87,6 @@ npm run build
 
 ## Running Tests
 
-### Test Frameworks
-
-The monorepo is migrating from Jest to Vitest. Check the project's `package.json` test scripts to confirm which framework it uses.
-
-**Vitest projects:**
-- `apps/api`
-- `packages/http-sdk`
-- `packages/logging`
-- `packages/net`
-- `packages/ui`
-
-**Jest projects:**
-- `apps/deploy-web`
-- `apps/indexer`
-- `apps/log-collector`
-- `apps/notifications`
-- `apps/provider-console`
-- `apps/provider-proxy`
-- `apps/tx-signer`
-
 ### Unit Tests
 
 **In applications:**
