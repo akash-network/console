@@ -17,18 +17,39 @@ import { TEMPLATE_CONFIG } from "./config.provider";
 
 export const TEMPLATE_GALLERY_SERVICE: InjectionToken<TemplateGalleryService> = Symbol("TEMPLATE_GALLERY_SERVICE");
 
-function getTagsConfigFromFlags(featureFlags: FeatureFlagsService): TemplateTagsConfig {
+function getTagsConfigFromFlags(featureFlags: FeatureFlagsService, logger: LoggerService): TemplateTagsConfig {
   const recommendedVariant = featureFlags.getVariant(FeatureFlags.TEMPLATE_RECOMMENDED_IDS);
   const popularVariant = featureFlags.getVariant(FeatureFlags.TEMPLATE_POPULAR_IDS);
   const priorityVariant = featureFlags.getVariant(FeatureFlags.TEMPLATE_CATEGORY_PRIORITY);
 
-  return {
-    recommendedIds:
-      recommendedVariant?.payload?.type === "json" ? new Set(JSON.parse(recommendedVariant.payload.value) as string[]) : DEFAULT_RECOMMENDED_TEMPLATE_IDS,
-    popularIds: popularVariant?.payload?.type === "json" ? new Set(JSON.parse(popularVariant.payload.value) as string[]) : DEFAULT_MOST_POPULAR_TEMPLATE_IDS,
-    categoryPriority:
-      priorityVariant?.payload?.type === "json" ? (JSON.parse(priorityVariant.payload.value) as Record<string, number>) : DEFAULT_CATEGORY_PRIORITY
-  };
+  let recommendedIds: Set<string> = DEFAULT_RECOMMENDED_TEMPLATE_IDS;
+  if (recommendedVariant?.payload?.type === "json") {
+    try {
+      recommendedIds = new Set(JSON.parse(recommendedVariant.payload.value) as string[]);
+    } catch (error) {
+      logger.warn({ event: "FEATURE_FLAG_PARSE_ERROR", flag: FeatureFlags.TEMPLATE_RECOMMENDED_IDS, error });
+    }
+  }
+
+  let popularIds: Set<string> = DEFAULT_MOST_POPULAR_TEMPLATE_IDS;
+  if (popularVariant?.payload?.type === "json") {
+    try {
+      popularIds = new Set(JSON.parse(popularVariant.payload.value) as string[]);
+    } catch (error) {
+      logger.warn({ event: "FEATURE_FLAG_PARSE_ERROR", flag: FeatureFlags.TEMPLATE_POPULAR_IDS, error });
+    }
+  }
+
+  let categoryPriority: Record<string, number> = DEFAULT_CATEGORY_PRIORITY;
+  if (priorityVariant?.payload?.type === "json") {
+    try {
+      categoryPriority = JSON.parse(priorityVariant.payload.value) as Record<string, number>;
+    } catch (error) {
+      logger.warn({ event: "FEATURE_FLAG_PARSE_ERROR", flag: FeatureFlags.TEMPLATE_CATEGORY_PRIORITY, error });
+    }
+  }
+
+  return { recommendedIds, popularIds, categoryPriority };
 }
 
 container.register(TEMPLATE_GALLERY_SERVICE, {
@@ -40,7 +61,7 @@ container.register(TEMPLATE_GALLERY_SERVICE, {
     return new TemplateGalleryService(logger, fsp, {
       githubPAT: config.GITHUB_PAT,
       dataFolderPath,
-      getTagsConfig: () => getTagsConfigFromFlags(featureFlags)
+      getTagsConfig: () => getTagsConfigFromFlags(featureFlags, logger)
     });
   })
 });
