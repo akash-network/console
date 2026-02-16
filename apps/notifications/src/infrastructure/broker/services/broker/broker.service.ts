@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { Client } from "pg";
+import { Pool } from "pg";
 import PgBoss from "pg-boss";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
@@ -18,7 +18,7 @@ export type SingleMsgWorkHandler<ReqData> = (job: PgBoss.Job<ReqData>) => Promis
 export class BrokerService {
   constructor(
     private readonly boss: PgBoss,
-    private readonly pg: Client,
+    private readonly pool: Pool,
     private readonly configService: ConfigService<BrokerConfig>,
     private readonly logger: LoggerService
   ) {
@@ -50,19 +50,33 @@ export class BrokerService {
   }
 
   async publishAll(events: Event[]) {
-    try {
-      await this.pg.query("BEGIN");
+    const client = await this.pool.connect();
 
-      await Promise.all(events.map(async event => this.boss.publish(event.eventName, event.event)));
+    try {
+      await client.query("BEGIN");
+
+      await Promise.all(
+        events.map(async event =>
+          this.boss.publish(event.eventName, event.event, {
+            db: {
+              executeSql(text: string, values: any[]): Promise<{ rows: any[] }> {
+                return client.query(text, values);
+              }
+            }
+          })
+        )
+      );
       this.logger.log({
         event: "EVENT_PUBLISHED",
         eventName: events.map(({ eventName }) => eventName)
       });
 
-      await this.pg.query("COMMIT");
+      await client.query("COMMIT");
     } catch (error) {
-      await this.pg.query("ROLLBACK");
+      await client.query("ROLLBACK");
       throw error;
+    } finally {
+      client.release();
     }
   }
 

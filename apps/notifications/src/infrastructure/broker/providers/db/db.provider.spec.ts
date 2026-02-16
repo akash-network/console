@@ -1,20 +1,20 @@
 import { ConfigService } from "@nestjs/config";
 import { mock } from "jest-mock-extended";
-import type { Client } from "pg";
+import type { Pool } from "pg";
 
-import { createPgClientFactory } from "./db.provider";
+import { createPgPoolFactory } from "./db.provider";
 
 import { generateBrokerConfig } from "@test/seeders/broker-config.seeder";
 
-describe("createPgClient", () => {
-  it("should create a client with the correct connection string", async () => {
+describe("createPgPool", () => {
+  it("should create a pool with the correct connection string", async () => {
     const config = generateBrokerConfig();
-    const clientInstance = mock<Client>();
-    const MockClient = jest.fn().mockImplementation(() => clientInstance);
+    const poolInstance = mock<Pool>();
+    const MockPool = jest.fn().mockImplementation(() => poolInstance);
 
-    const client = await createPgClientFactory(MockClient as unknown as typeof Client)(new ConfigService(config));
+    const pool = await createPgPoolFactory(MockPool as unknown as typeof Pool)(new ConfigService(config));
 
-    expect(MockClient).toHaveBeenCalledWith(config["broker.EVENT_BROKER_POSTGRES_URI"]);
-    expect(client.connect).toHaveBeenCalled();
+    expect(MockPool).toHaveBeenCalledWith({ connectionString: config["broker.EVENT_BROKER_POSTGRES_URI"] });
+    expect(pool).toBe(poolInstance);
   });
 });

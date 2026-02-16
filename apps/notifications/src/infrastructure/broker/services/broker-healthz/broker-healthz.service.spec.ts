@@ -2,7 +2,7 @@ import type { TestingModule } from "@nestjs/testing";
 import { Test } from "@nestjs/testing";
 import { millisecondsInMinute } from "date-fns/constants";
 import { type MockProxy } from "jest-mock-extended";
-import { Client } from "pg";
+import { Pool } from "pg";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import { StateService } from "@src/infrastructure/broker/services/state/state.service";
@@ -119,18 +119,18 @@ describe(BrokerHealthzService.name, () => {
   async function setup(): Promise<{
     module: TestingModule;
     service: BrokerHealthzService;
-    db: MockProxy<Client>;
+    db: MockProxy<Pool>;
     stateService: MockProxy<StateService>;
     logger: MockProxy<LoggerService>;
   }> {
     const module = await Test.createTestingModule({
-      providers: [BrokerHealthzService, MockProvider(Client), MockProvider(StateService), MockProvider(LoggerService)]
+      providers: [BrokerHealthzService, MockProvider(Pool), MockProvider(StateService), MockProvider(LoggerService)]
     }).compile();
 
     return {
       module,
       service: module.get(BrokerHealthzService),
-      db: module.get(Client),
+      db: module.get(Pool),
       stateService: module.get(StateService),
       logger: module.get(LoggerService)
     };
