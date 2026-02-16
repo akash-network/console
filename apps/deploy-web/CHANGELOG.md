@@ -1,5 +1,12 @@
 
 
+## [3.28.3](https://github.com/akash-network/console/compare/console-web/v3.28.2...console-web/v3.28.3) (2026-02-16)
+
+
+### Bug Fixes
+
+* handles more cases on manifest error to show user the actual issue ([#2726](https://github.com/akash-network/console/issues/2726)) ([a8f6054](https://github.com/akash-network/console/commit/a8f6054e8d6cc5b5fe05520d6d59e7e4b5ba9be8))
+
 ## [3.28.2](https://github.com/akash-network/console/compare/console-web/v3.28.1...console-web/v3.28.2) (2026-02-16)
 
 
