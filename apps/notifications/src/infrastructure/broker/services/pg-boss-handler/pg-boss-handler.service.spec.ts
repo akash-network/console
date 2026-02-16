@@ -6,7 +6,7 @@ import { Test, type TestingModule } from "@nestjs/testing";
 import type { MockProxy } from "jest-mock-extended";
 import type { ZodDto } from "nestjs-zod";
 import { createZodDto } from "nestjs-zod";
-import type PgBoss from "pg-boss";
+import type { Job } from "pg-boss";
 import { z } from "zod";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
@@ -32,7 +32,7 @@ describe(PgBossHandlerService.name, () => {
   it("should process messages correctly when subscribed", async () => {
     const { service, brokerService, loggerService, dto, handlerMethod, testKey } = await setup();
     const mockMessage = generateMock(dto.schema);
-    const mockJob = { data: mockMessage } as PgBoss.Job<any>;
+    const mockJob = { data: mockMessage } as Job<any>;
 
     brokerService.subscribe.mockImplementation(async (key, options, callback) => {
       await callback(mockJob);
@@ -51,7 +51,7 @@ describe(PgBossHandlerService.name, () => {
     const { service, brokerService, loggerService, dto, handlerMethod, testKey } = await setup();
     const mockError = new Error(faker.lorem.sentence());
     const mockMessage = generateMock(dto.schema);
-    const mockJob = { data: mockMessage } as PgBoss.Job<any>;
+    const mockJob = { data: mockMessage } as Job<any>;
 
     brokerService.subscribe.mockImplementation(async (key, options, callback) => {
       try {

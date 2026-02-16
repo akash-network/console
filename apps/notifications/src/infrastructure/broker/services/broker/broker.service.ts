@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Pool } from "pg";
-import PgBoss from "pg-boss";
+import { type Job, PgBoss, type SendOptions } from "pg-boss";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import { BrokerConfig } from "@src/infrastructure/broker/config";
@@ -12,7 +12,7 @@ type Event = {
   event: object;
 };
 
-export type SingleMsgWorkHandler<ReqData> = (job: PgBoss.Job<ReqData>) => Promise<any>;
+export type SingleMsgWorkHandler<ReqData> = (job: Job<ReqData>) => Promise<any>;
 
 @Injectable()
 export class BrokerService {
@@ -41,7 +41,7 @@ export class BrokerService {
 
     await Promise.all(
       Array.from({ length: options.prefetchCount }).map(() =>
-        this.boss.work(queueName, async ([job]: PgBoss.Job<ReqData>[]) => {
+        this.boss.work(queueName, async ([job]: Job<ReqData>[]) => {
           await handler(job);
         })
       )
@@ -85,4 +85,4 @@ export class BrokerService {
   }
 }
 
-export type PublishOptions = PgBoss.SendOptions;
+export type PublishOptions = SendOptions;
