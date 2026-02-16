@@ -12,11 +12,32 @@ describe(ManifestErrorSnackbar.name, () => {
     expect(screen.queryByText(/You don't have local certificate/)).toBeInTheDocument();
   });
 
-  it("renders default error message for 400 error without issues", () => {
-    const err = createAxiosError(400, { error: {} });
+  it("renders message from provider for 400 error with message", () => {
+    const err = createAxiosError(400, { message: "Bad Request" });
+    setup({ err });
+
+    expect(screen.queryByText(/Bad Request/)).toBeInTheDocument();
+  });
+
+  it("renders text response from provider for 400 error with message", () => {
+    const err = createAxiosError(400, "Bad manifest format");
+    setup({ err });
+
+    expect(screen.queryByText(/Bad manifest format/)).toBeInTheDocument();
+  });
+
+  it("renders default error message if provider returns nothing for 400 error", () => {
+    const err = createAxiosError(400, "");
     setup({ err });
 
     expect(screen.queryByText(/Something went wrong/)).toBeInTheDocument();
+  });
+
+  it("renders stringified response if provider returns non-string data for 400 error", () => {
+    const err = createAxiosError(400, { foo: "bar" });
+    setup({ err });
+
+    expect(screen.queryByText(/{"foo":"bar"}/)).toBeInTheDocument();
   });
 
   it("renders expired certificate error for 400 with expired cert issue", () => {
@@ -131,6 +152,13 @@ describe(ManifestErrorSnackbar.name, () => {
     setup({ err });
 
     expect(screen.queryByText(/Some raw error/)).toBeInTheDocument();
+  });
+
+  it("renders exception message for non-HTTP errors", () => {
+    const err = new Error("Some exception occurred");
+    setup({ err });
+
+    expect(screen.queryByText(/Some exception occurred/)).toBeInTheDocument();
   });
 
   it("renders error title", () => {
