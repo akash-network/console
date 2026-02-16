@@ -27,6 +27,8 @@ import { useServices } from "../ServicesProvider";
 import { useSettings } from "../SettingsProvider";
 import { settingsIdAtom } from "../SettingsProvider/settingsStore";
 
+const CONSOLE_MEMO = "akash console";
+
 const ERROR_MESSAGES = {
   5: "Insufficient funds",
   9: "Unknown address",
@@ -224,11 +226,15 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           });
         };
         setLoadingState("waitingForApproval");
-        const estimatedFees = await userWallet.estimateFee(msgs);
-        const txRaw = await userWallet.sign(msgs, {
-          ...estimatedFees,
-          granter: feeGranter
-        });
+        const estimatedFees = await userWallet.estimateFee(msgs, undefined, CONSOLE_MEMO);
+        const txRaw = await userWallet.sign(
+          msgs,
+          {
+            ...estimatedFees,
+            granter: feeGranter
+          },
+          CONSOLE_MEMO
+        );
 
         setLoadingState("broadcasting");
         enqueueTxSnackbar();
