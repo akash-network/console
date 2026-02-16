@@ -1,4 +1,7 @@
-import mcache from "memory-cache";
+import { LRUCache } from "lru-cache";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const cache = new LRUCache<string, any>({ max: 500 });
 
 export default class MemoryCacheEngine {
   /**
@@ -6,8 +9,8 @@ export default class MemoryCacheEngine {
    * @param {*} key
    */
   getFromCache<T>(key: string): T | false {
-    const cachedBody = mcache.get(key);
-    if (cachedBody) {
+    const cachedBody = cache.get(key);
+    if (cachedBody !== undefined) {
       return cachedBody as T;
     }
     return false;
@@ -20,14 +23,14 @@ export default class MemoryCacheEngine {
    * @param {*} duration
    */
   storeInCache<T>(key: string, data: T, duration?: number) {
-    mcache.put(key, data, duration);
+    cache.set(key, data, duration ? { ttl: duration } : undefined);
   }
 
   /**
    * Used to delete all keys in a memcache
    */
   clearAllKeyInCache() {
-    mcache.clear();
+    cache.clear();
   }
 
   /**
@@ -35,7 +38,7 @@ export default class MemoryCacheEngine {
    * @param {*} key
    */
   clearKeyInCache(key: string) {
-    mcache.del(key);
+    cache.delete(key);
   }
 
   /**
@@ -51,18 +54,17 @@ export default class MemoryCacheEngine {
    * @param {*} prefix
    */
   clearByPrefix(prefix: string) {
-    const keys = mcache.keys();
-    keys.forEach(key => {
+    for (const key of cache.keys()) {
       if (key.startsWith(prefix)) {
-        mcache.del(key);
+        cache.delete(key);
       }
-    });
+    }
   }
 
   /**
    * Used to get all keys in the cache
    */
   getKeys(): string[] {
-    return mcache.keys();
+    return [...cache.keys()];
   }
 }

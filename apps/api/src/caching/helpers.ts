@@ -1,5 +1,6 @@
 import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { differenceInSeconds } from "date-fns";
+import { LRUCache } from "lru-cache";
 
 import MemoryCacheEngine from "./memoryCacheEngine";
 
@@ -111,7 +112,7 @@ export async function cacheResponse<T>(seconds: number, key: string, refreshRequ
 }
 
 export function memoizeAsync<T extends (...args: unknown[]) => Promise<unknown>>(fn: T): T {
-  const cache = new Map<string, ReturnType<T>>();
+  const cache = new LRUCache<string, ReturnType<T>>({ max: 100 });
 
   return ((...args: Parameters<T>) => {
     const key = JSON.stringify(args);
