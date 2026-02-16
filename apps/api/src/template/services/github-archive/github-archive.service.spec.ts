@@ -141,7 +141,6 @@ describe(GitHubArchiveService.name, () => {
       addEntry(filePath, "File", content);
     }
 
-    // End-of-archive marker: two 512-byte zero blocks
     blocks.push(Buffer.alloc(1024));
 
     return gzipSync(Buffer.concat(blocks));
