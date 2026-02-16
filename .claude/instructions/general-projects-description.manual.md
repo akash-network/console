@@ -87,7 +87,7 @@ npm run build
 
 ## Running Tests
 
-All applications and packages use **vitest** for unit testing or are moving from jest.
+All applications and packages use **Vitest** for unit testing or are migrating from **Jest**.
 
 ### Unit Tests
 
