@@ -1,5 +1,14 @@
 
 
+## [3.28.2](https://github.com/akash-network/console/compare/console-web/v3.28.1...console-web/v3.28.2) (2026-02-16)
+
+
+### Bug Fixes
+
+* add custom Monaco language support for deployment logs ([#2724](https://github.com/akash-network/console/issues/2724)) ([fd94df9](https://github.com/akash-network/console/commit/fd94df945de8b2e5be894e0ab328536983f83765))
+* replace Snackbar with Notificator for error handling ([#2703](https://github.com/akash-network/console/issues/2703)) ([136e520](https://github.com/akash-network/console/commit/136e5205126e5021ee622543775f1279c106c93f))
+* validates SDL in SDLEditor immediately if there is a value ([#2727](https://github.com/akash-network/console/issues/2727)) ([554b399](https://github.com/akash-network/console/commit/554b3997941db92bf47f14382a0ee5ddb5a978a5))
+
 ## [3.28.1](https://github.com/akash-network/console/compare/console-web/v3.28.0...console-web/v3.28.1) (2026-02-12)
 
 

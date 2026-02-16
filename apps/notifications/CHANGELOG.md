@@ -1,5 +1,12 @@
 
 
+## [2.15.0](https://github.com/akash-network/console/compare/notifications/v2.14.1...notifications/v2.15.0) (2026-02-16)
+
+
+### Features
+
+* **notifications:** uses connection pool and logs db errors ([a53c594](https://github.com/akash-network/console/commit/a53c5942654cec3bcae35e771ac059db4716a7e4))
+
 ## [2.14.1](https://github.com/akash-network/console/compare/notifications/v2.14.0...notifications/v2.14.1) (2026-02-12)
 
 
