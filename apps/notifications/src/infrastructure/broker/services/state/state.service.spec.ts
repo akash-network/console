@@ -1,7 +1,7 @@
 import { Test, type TestingModule } from "@nestjs/testing";
 import type { MockProxy } from "jest-mock-extended";
 import { Pool } from "pg";
-import PgBoss from "pg-boss";
+import { PgBoss } from "pg-boss";
 
 import { PgBossHandlerService } from "@src/infrastructure/broker/services/pg-boss-handler/pg-boss-handler.service";
 import { StateService } from "./state.service";
@@ -41,7 +41,7 @@ describe(StateService.name, () => {
   it("should update state to 'stopped' when PgBoss emits 'stopped'", async () => {
     const { service, boss } = await setup();
 
-    const stoppedListener = boss.on.mock.calls.find(([event]) => event === "stopped")?.[1];
+    const stoppedListener = (boss.on as jest.Mock).mock.calls.find(([event]: [string]) => event === "stopped")?.[1] as (() => void) | undefined;
     expect(stoppedListener).toBeDefined();
 
     stoppedListener?.();

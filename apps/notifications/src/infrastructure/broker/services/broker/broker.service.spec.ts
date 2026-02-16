@@ -6,7 +6,7 @@ import type { MockProxy } from "jest-mock-extended";
 import { mock } from "jest-mock-extended";
 import type { PoolClient } from "pg";
 import { Pool } from "pg";
-import PgBoss from "pg-boss";
+import { PgBoss } from "pg-boss";
 
 import { eventKeyRegistry } from "@src/common/config/event-key-registry.config";
 import { LoggerService } from "@src/common/services/logger/logger.service";

@@ -1,7 +1,7 @@
 import { ConfigService } from "@nestjs/config";
 import { mock } from "jest-mock-extended";
 import type { Pool, QueryResult } from "pg";
-import type PgBoss from "pg-boss";
+import type { PgBoss } from "pg-boss";
 
 import { createPgBossFactory } from "./pg-boss.provider";
 
@@ -26,7 +26,6 @@ describe("createPgBoss", () => {
     expect(MockPgBoss).toHaveBeenCalledTimes(2);
     expect(MockPgBoss.mock.calls[0][0]).toEqual(config["broker.EVENT_BROKER_POSTGRES_URI"]);
     expect(MockPgBoss.mock.calls[1][0]).toEqual({
-      archiveCompletedAfterSeconds: config["broker.EVENT_BROKER_ARCHIVE_COMPLETED_AFTER_SECONDS"],
       db: {
         executeSql: expect.any(Function)
       }
