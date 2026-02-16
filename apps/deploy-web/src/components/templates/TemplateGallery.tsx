@@ -145,11 +145,11 @@ export const TemplateGallery: React.FunctionComponent = () => {
         </Title>
       </div>
 
-      <div className="mb-4">
+      <div className="mb-8">
         <div className="hidden md:block">{searchBar}</div>
       </div>
 
-      <div className="mb-4 block md:hidden">
+      <div className="mb-8 block md:hidden">
         {searchBar}
 
         <Button onClick={() => setIsMobileSearchOpen(true)} className="mt-2 flex w-full items-center" variant="outline">
