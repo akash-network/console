@@ -3,7 +3,6 @@ import { container } from "tsyringe";
 
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
-import { AuthTokenService } from "@src/auth/services/auth-token/auth-token.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import type { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 import { app } from "@src/rest-app";
@@ -21,7 +20,6 @@ describe("API Keys", () => {
   const walletService = new WalletTestingService(app);
   const apiKeyRepository = container.resolve(ApiKeyRepository);
   const userRepository = container.resolve(UserRepository);
-  const authTokenService = container.resolve(AuthTokenService);
   const userAuthTokenService = container.resolve(UserAuthTokenService);
   let config: jest.Mocked<CoreConfigService>;
   let apiKeyGenerator: ApiKeyGeneratorService;
@@ -45,11 +43,6 @@ describe("API Keys", () => {
     });
 
     jest.spyOn(userAuthTokenService, "getValidUserId").mockImplementation(async () => userWithId.userId);
-
-    if (!trial) {
-      // Mock AuthTokenService to return undefined for anonymous tokens
-      jest.spyOn(authTokenService, "getValidUserId").mockResolvedValue(undefined);
-    }
 
     return { user: userWithId, token };
   }

@@ -5,7 +5,6 @@ import { mock } from "vitest-mock-extended";
 
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyAuthService } from "@src/auth/services/api-key/api-key-auth.service";
-import { AuthTokenService } from "@src/auth/services/auth-token/auth-token.service";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { UserOutput } from "@src/user/repositories/user/user.repository";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
@@ -128,14 +127,6 @@ describe(AuthInterceptor.name, () => {
       })
     );
     di.registerInstance(AuthService, mock());
-    di.registerInstance(
-      AuthTokenService,
-      mock<AuthTokenService>({
-        getValidUserId: jest.fn().mockImplementation(async () => {
-          return input?.apiKey && input?.user?.userId ? undefined : input?.user?.id;
-        })
-      })
-    );
     di.registerInstance(
       UserAuthTokenService,
       mock<UserAuthTokenService>({

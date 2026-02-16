@@ -103,14 +103,14 @@ export class JobQueueService implements Disposable {
       await this.pgBoss.cancel(name, id);
       this.logger.info({
         event: "JOB_CANCELLED",
-        id,
+        jobId: id,
         name
       });
     } catch (error) {
       if (this.isTerminalStateError(error)) {
         this.logger.warn({
           event: "JOB_CANCEL_FAILED",
-          id,
+          jobId: id,
           name,
           error
         });
@@ -150,14 +150,14 @@ export class JobQueueService implements Disposable {
       await this.pgBoss.complete(name, id);
       this.logger.info({
         event: "JOB_COMPLETED",
-        id,
+        jobId: id,
         name
       });
     } catch (error) {
       if (this.isTerminalStateError(error)) {
         this.logger.warn({
           event: "JOB_COMPLETE_FAILED",
-          id,
+          jobId: id,
           name,
           error
         });
