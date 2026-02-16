@@ -3,6 +3,7 @@ import type { SupportedChainNetworks } from "@akashnetwork/net";
 import { Secp256k1HdWallet } from "@cosmjs/amino";
 import { setTimeout as wait } from "timers/promises";
 import type { TLSSocket } from "tls";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createX509CertPair } from "../seeders/createX509CertPair";
 import { generateBech32, startChainApiServer, stopChainAPIServer } from "../setup/chainApiServer";
@@ -529,7 +530,7 @@ describe("Provider HTTP proxy", () => {
     const chainServer = await startChainApiServer([validCertPair.cert]);
 
     const providerStreamingBegun = Promise.withResolvers<void>();
-    const providerResponseEnded = jest.fn();
+    const providerResponseEnded = vi.fn();
     const { providerUrl } = await startProviderServer({
       certPair: validCertPair,
       handlers: {

@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from "vitest";
+
 import type { CertificateOptions } from "../../../test/seeders/createX509CertPair";
 import { createX509CertPair } from "../../../test/seeders/createX509CertPair";
 import { ProviderService } from "./ProviderService";
@@ -5,7 +7,7 @@ import { ProviderService } from "./ProviderService";
 describe(ProviderService.name, () => {
   describe("getCertificate", () => {
     it("returns cert if there is exactly 1 certificate for provided certificate", async () => {
-      const httpFetch = jest.fn();
+      const httpFetch = vi.fn();
       const service = setup({ httpFetch });
 
       httpFetch.mockReturnValueOnce(new Response(JSON.stringify({ certificates: [] }), { status: 200 }));
@@ -26,7 +28,7 @@ describe(ProviderService.name, () => {
     });
 
     it("retries certificates request if it fails with response.status > 500", async () => {
-      const httpFetch = jest.fn();
+      const httpFetch = vi.fn();
       const service = setup({ httpFetch });
 
       httpFetch.mockReturnValueOnce(new Response(JSON.stringify("Server error"), { status: 502 }));
@@ -44,7 +46,7 @@ describe(ProviderService.name, () => {
     });
 
     it("retries certificate request 3 times and then fails in case of response.status > 500", async () => {
-      const httpFetch = jest.fn();
+      const httpFetch = vi.fn();
       const service = setup({ httpFetch });
 
       httpFetch.mockReturnValue(new Response(JSON.stringify("Server error"), { status: 502 }));
@@ -53,7 +55,7 @@ describe(ProviderService.name, () => {
     }, 7_000);
 
     it("returns null if certificates request fails with 500", async () => {
-      const httpFetch = jest.fn();
+      const httpFetch = vi.fn();
       const service = setup({ httpFetch });
 
       httpFetch.mockReturnValue(new Response(JSON.stringify("Server error"), { status: 500 }));
@@ -104,9 +106,9 @@ describe(ProviderService.name, () => {
 
   function setup(input?: { httpFetch?: typeof global.fetch }) {
     return new ProviderService(
-      '/',
+      "/",
       input?.httpFetch ||
-        jest.fn().mockResolvedValue(
+        vi.fn().mockResolvedValue(
           new Response("", {
             status: 400
           })
