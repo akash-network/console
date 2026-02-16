@@ -1,5 +1,13 @@
 
 
+## [2.16.0](https://github.com/akash-network/console/compare/notifications/v2.15.0...notifications/v2.16.0) (2026-02-16)
+
+
+### Features
+
+* **notifications:** upgrades nestjs to the latest version ([85c77fa](https://github.com/akash-network/console/commit/85c77faafae521eec504b727a017cd8ee5ba5c5c))
+* **notifications:** upgrades pg boss to the latest version ([ca124f1](https://github.com/akash-network/console/commit/ca124f1e4c3734d1a7e653ad65d308d868ab151d))
+
 ## [2.15.0](https://github.com/akash-network/console/compare/notifications/v2.14.1...notifications/v2.15.0) (2026-02-16)
 
 
