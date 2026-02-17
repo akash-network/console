@@ -15,3 +15,8 @@ See detailed guidelines:
 
 See detailed guidelines:
 @./.claude/instructions/use-logger-service-instead-of-console.md
+
+## Commit and PR Conventions
+
+See detailed guidelines:
+@./.claude/instructions/commit-and-pr-conventions.md
