@@ -48,7 +48,14 @@ export async function startServer(
 
     logger.info({ event: "SERVER_STARTING", url: `http://localhost:${options.port}`, NODE_OPTIONS: process.env.NODE_OPTIONS });
     server = serve({
-      fetch: app.fetch,
+      fetch: async (request, env) => {
+        try {
+          return await app.fetch(request, env);
+        } catch (error) {
+          logger.error({ event: "OUTSIDE_OF_APP_ERROR", error });
+          throw error;
+        }
+      },
       port: options.port
     });
 
