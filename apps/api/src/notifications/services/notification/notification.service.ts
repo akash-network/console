@@ -103,7 +103,7 @@ export class NotificationService {
       return;
     }
 
-    const escrowBalance = deployment.escrow_account.state.funds.reduce((sum, { amount }) => sum + parseFloat(amount), 0);
+    const escrowBalance = parseFloat(deployment.escrow_account.state.funds.reduce((sum, { amount }) => sum + parseFloat(amount), 0).toFixed(18));
     const threshold = Math.ceil(DEPLOYMENT_BALANCE_ALERT_THRESHOLD_RATIO * escrowBalance);
     if (threshold === 0) return;
 
