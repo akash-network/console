@@ -7,6 +7,8 @@ import { UserRepository } from "@src/user/repositories";
 import type { NotificationsApiClient, operations } from "../../providers/notifications-api.provider";
 import { NOTIFICATIONS_API_CLIENT } from "../../providers/notifications-api.provider";
 
+const DEPLOYMENT_BALANCE_ALERT_THRESHOLD_RATIO = 0.3;
+
 const DEFAULT_BACKOFF_OPTIONS: BackoffOptions = {
   maxDelay: 5_000,
   startingDelay: 500,
@@ -102,7 +104,7 @@ export class NotificationService {
     }
 
     const escrowBalance = deployment.escrow_account.state.funds.reduce((sum, { amount }) => sum + parseFloat(amount), 0);
-    const threshold = Math.ceil(0.3 * escrowBalance);
+    const threshold = Math.ceil(DEPLOYMENT_BALANCE_ALERT_THRESHOLD_RATIO * escrowBalance);
     if (threshold === 0) return;
 
     await this.notificationsApi.v1.upsertDeploymentAlert({
