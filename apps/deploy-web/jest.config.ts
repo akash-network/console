@@ -40,7 +40,7 @@ const getConfig = createJestConfig({
 export default async (): Promise<Config.InitialOptions> => {
   return {
     rootDir: ".",
-    collectCoverageFrom: ["<rootDir>/src/**/*.{js,ts,tsx}"],
+    collectCoverageFrom: ["<rootDir>/src/**/*.{js,ts,tsx}", "!<rootDir>/src/**/Editor/monaco-*.ts", "!<rootDir>/src/**/Editor/*.worker.ts"],
     projects: [
       {
         coveragePathIgnorePatterns: ["/lib/nextjs/", "/tests/", "/lib/auth0/"],
