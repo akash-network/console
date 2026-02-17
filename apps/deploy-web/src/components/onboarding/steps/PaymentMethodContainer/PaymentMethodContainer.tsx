@@ -61,7 +61,7 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
   const { removePaymentMethod } = d.usePaymentMutations();
   const { isWalletLoading, hasManagedWallet, managedWalletError } = d.useWallet();
   const { user } = d.useUser();
-  const { stripe, errorHandler } = useServices();
+  const { stripe, errorHandler, analyticsService } = useServices();
   const { enqueueSnackbar } = useSnackbar();
 
   const [showAddForm, setShowAddForm] = useState(false);
@@ -74,6 +74,7 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
 
   const threeDSecure = d.use3DSecure({
     onSuccess: async () => {
+      analyticsService.track("three_d_secure_completed", { category: "onboarding" });
       setIsConnectingWallet(true);
       await refetchPaymentMethods();
 
@@ -106,8 +107,8 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
       }
     },
     onError: (error: string) => {
+      analyticsService.track("three_d_secure_failed", { category: "onboarding", error });
       setIsConnectingWallet(false);
-      console.error("3D Secure authentication failed:", error);
     },
     showSuccessMessage: false
   });
@@ -129,6 +130,7 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
         return false;
       }
 
+      analyticsService.track("three_d_secure_triggered", { category: "onboarding" });
       threeDSecure.start3DSecure({
         clientSecret: clientSecret.trim(),
         paymentIntentId: paymentIntentId?.trim() || "",
@@ -136,7 +138,7 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
       });
       return true;
     },
-    [threeDSecure, enqueueSnackbar]
+    [threeDSecure, enqueueSnackbar, analyticsService]
   );
 
   useEffect(() => {
@@ -207,6 +209,7 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
       return;
     }
 
+    analyticsService.track("trial_start_clicked", { category: "onboarding" });
     setIsConnectingWallet(true);
 
     if (!user?.id) {

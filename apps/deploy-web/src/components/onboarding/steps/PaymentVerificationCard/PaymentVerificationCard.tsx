@@ -2,7 +2,7 @@
 import React from "react";
 import type { SetupIntentResponse } from "@akashnetwork/http-sdk";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@akashnetwork/ui/components";
-import { CreditCard } from "iconoir-react";
+import { CreditCard, Shield } from "iconoir-react";
 
 import { PaymentMethodForm } from "@src/components/shared";
 import { Title } from "@src/components/shared/Title";
@@ -48,11 +48,14 @@ export const PaymentVerificationCard: React.FunctionComponent<PaymentVerificatio
             <div className="rounded-full bg-primary/10 p-3">
               <CreditCard className="h-8 w-8 text-primary" />
             </div>
-            <CardTitle>Add Payment Method</CardTitle>
+            <CardTitle>Verify to Unlock $100 in Free Credits</CardTitle>
           </div>
           <CardDescription className="space-y-2">
-            <div>We need to verify your identity to provide you with the best service.</div>
-            <div className="text-sm text-muted-foreground">Your payment method will be used for identity verification during the trial start process.</div>
+            <div>Add a payment method to verify your identity and start deploying. You won&apos;t be charged during your free trial.</div>
+            <div className="flex items-center gap-2 rounded-md bg-green-500/10 px-3 py-2 text-sm text-green-700 dark:text-green-400">
+              <Shield className="h-4 w-4 shrink-0" />
+              <span>Secured by Stripe. Your card details are encrypted and never stored on our servers.</span>
+            </div>
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

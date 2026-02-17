@@ -26,10 +26,10 @@ export const ThreeDSecurePopup: React.FC<ThreeDSecurePopupProps> = ({
   clientSecret,
   paymentIntentId,
   paymentMethodId,
-  title = "Card Authentication",
-  description = "Your bank requires additional verification for this transaction.",
-  successMessage = "Your card has been verified successfully.",
-  errorMessage = "Please try again or use a different payment method."
+  title = "Quick Verification",
+  description = "Your bank needs a quick confirmation — this usually takes less than 30 seconds.",
+  successMessage = "Verified! Setting up your free trial...",
+  errorMessage = "Verification didn't go through. Please try again or use a different card."
 }) => {
   return (
     <Popup variant="custom" title={title} open={isOpen} enableCloseOnBackdropClick={false} hideCloseButton maxWidth="sm" actions={[]}>

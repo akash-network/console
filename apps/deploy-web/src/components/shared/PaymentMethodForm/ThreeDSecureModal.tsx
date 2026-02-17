@@ -182,16 +182,16 @@ const ThreeDSecureForm: React.FC<Omit<ThreeDSecureModalProps, "isOpen" | "onClos
               <Shield className="h-8 w-8 text-primary" />
             </div>
           </div>
-          <h3 className="mb-2 text-lg font-semibold">Secure Authentication</h3>
+          <h3 className="mb-2 text-lg font-semibold">Secure Verification</h3>
           <p className="text-muted-foreground">{description}</p>
-          <p className="text-sm text-muted-foreground">Please complete the authentication process to continue.</p>
+          <p className="text-sm text-muted-foreground">This is a standard security step required by your bank.</p>
         </div>
       )}
       <div className="mb-4 flex justify-center">
         <Spinner className="h-16 w-16 text-primary" />
       </div>
-      <h3 className="mb-2 text-lg font-semibold">Processing Authentication</h3>
-      <p className="text-muted-foreground">Please wait while we verify your card with your bank...</p>
+      <h3 className="mb-2 text-lg font-semibold">Verifying with Your Bank</h3>
+      <p className="text-muted-foreground">This only takes a moment...</p>
     </div>
   );
 };
