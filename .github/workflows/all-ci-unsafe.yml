@@ -193,7 +193,7 @@ jobs:
       - name: Check snyk status
         uses: ./.github/actions/poll-check-status
         with:
-          name: security/snyk
+          name: "security/snyk (corysturtevant)"
           sha: ${{ github.event.workflow_run.head_sha }}
           check_type: status
 

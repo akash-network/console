@@ -41,11 +41,35 @@ runs:
 
           console.log(`Checking ${checkName} for SHA=${sha} (type: ${checkType})`);
 
+          const getCheckStatus = checkType === 'status' ? getStatus : getCheckRun;
           const checksParams = {
             owner: context.repo.owner,
             repo: context.repo.repo,
             ref: sha,
           };
+
+          for (let attempt = 0; attempt < maxRetries; attempt++) {
+            const check = await getCheckStatus();
+
+            if (check?.status !== 'completed') {
+              if (attempt < maxRetries - 1) {
+                const logPrefix = check ? `Check ${checkName} status: ${check.status}` : `Check ${checkName} not found yet`;
+                console.log(`${logPrefix}. Retry ${attempt + 1}/${maxRetries} in ${sleepMs / 1000}s...`);
+                await new Promise(resolve => setTimeout(resolve, sleepMs));
+                continue;
+              }
+              const statusMsg = check ? `status: ${check.status}` : 'not found';
+              throw new Error(`${checkName} check did not complete after ${maxRetries} attempts (${statusMsg})`);
+            }
+
+            if (check.conclusion !== 'success') {
+              throw new Error(`${checkName} conclusion=${check.conclusion}`);
+            }
+
+            console.log(`${checkName} is success ✅`);
+            break;
+          }
+
           async function getCheckRun() {
             const { data } = await github.rest.checks.listForRef({
               ...checksParams,
@@ -72,28 +96,4 @@ runs:
               status: isCompleted ? 'completed' : 'in_progress',
               conclusion: status.state === 'success' ? 'success' : (isCompleted ? 'failure' : null)
             };
-          }
-
-          const getCheckStatus = checkType === 'status' ? getStatus : getCheckRun;
-
-          for (let attempt = 0; attempt < maxRetries; attempt++) {
-            const check = await getCheckStatus();
-
-            if (check?.status !== 'completed') {
-              if (attempt < maxRetries - 1) {
-                const logPrefix = check ? `Check ${checkName} status: ${check.status}` : `Check ${checkName} not found yet`;
-                console.log(`${logPrefix}. Retry ${attempt + 1}/${maxRetries} in ${sleepMs / 1000}s...`);
-                await new Promise(resolve => setTimeout(resolve, sleepMs));
-                continue;
-              }
-              const statusMsg = check ? `status: ${check.status}` : 'not found';
-              throw new Error(`${checkName} check did not complete after ${maxRetries} attempts (${statusMsg})`);
-            }
-
-            if (check.conclusion !== 'success') {
-              throw new Error(`${checkName} conclusion=${check.conclusion}`);
-            }
-
-            console.log(`${checkName} is success ✅`);
-            break;
           }
