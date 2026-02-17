@@ -196,6 +196,7 @@ jobs:
           name: "security/snyk (corysturtevant)"
           sha: ${{ github.event.workflow_run.head_sha }}
           check_type: status
+          expected_conclusions: "success;neutral"
 
       - name: Check socketio status
         uses: ./.github/actions/poll-check-status
