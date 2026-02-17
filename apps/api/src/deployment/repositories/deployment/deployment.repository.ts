@@ -56,6 +56,16 @@ export class DeploymentRepository {
     });
   }
 
+  async countByOwner(owner: string, status?: "active" | "closed"): Promise<number> {
+    const whereClause: WhereOptions = { owner };
+    if (status === "active") {
+      whereClause.closedHeight = null;
+    } else if (status === "closed") {
+      whereClause.closedHeight = { [Op.ne]: null };
+    }
+    return await Deployment.count({ where: whereClause });
+  }
+
   async findStaleDeployments(options: StaleDeploymentsOptions): Promise<StaleDeploymentsOutput[]> {
     const deployments = await Deployment.findAll({
       attributes: ["dseq"],

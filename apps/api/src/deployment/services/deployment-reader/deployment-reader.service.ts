@@ -20,6 +20,7 @@ import { WalletInitialized, WalletReaderService } from "@src/billing/services/wa
 import { Memoize } from "@src/caching/helpers";
 import { LoggerService } from "@src/core";
 import { GetDeploymentResponse, ListDeploymentsItem } from "@src/deployment/http-schemas/deployment.schema";
+import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import { FallbackLeaseReaderService } from "@src/deployment/services/fallback-lease-reader/fallback-lease-reader.service";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { ProviderList } from "@src/types/provider";
@@ -38,6 +39,7 @@ export class DeploymentReaderService {
     private readonly fallbackLeaseReaderService: FallbackLeaseReaderService,
     private readonly messageService: MessageService,
     private readonly walletReaderService: WalletReaderService,
+    private readonly deploymentRepository: DeploymentRepository,
     private readonly logger: LoggerService
   ) {}
 
@@ -156,15 +158,18 @@ export class DeploymentReaderService {
         offset: skip,
         limit: limit,
         reverse: reverseSorting,
-        countTotal: true
+        countTotal: false
       }
     });
-    const leaseResponse = await this.leaseHttpService.list({ owner: address, state: "active" });
-    const providers = response.deployments.length ? await this.providerService.getProviderList() : ([] as ProviderList[]);
+    const [leaseResponse, providers, count] = await Promise.all([
+      this.leaseHttpService.list({ owner: address, state: "active" }),
+      response.deployments.length ? this.providerService.getProviderList() : Promise.resolve([] as ProviderList[]),
+      this.deploymentRepository.countByOwner(address, status)
+    ]);
     const providerMap = new Map(providers.map(p => [p.owner, p]));
 
     return {
-      count: parseInt(response.pagination.total),
+      count,
       results: response.deployments.map(x => ({
         owner: x.deployment.id.owner,
         dseq: x.deployment.id.dseq,
