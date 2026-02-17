@@ -202,6 +202,7 @@ jobs:
         with:
           name: "Socket Security: Pull Request Alerts"
           sha: ${{ github.event.workflow_run.head_sha }}
+          expected_conclusions: "success;neutral"
 
   finalize:
     runs-on: ubuntu-latest

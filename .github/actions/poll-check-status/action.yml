@@ -8,6 +8,10 @@ inputs:
   sha:
     description: 'SHA to check the status on (defaults to the workflow run head SHA)'
     required: false
+  expected_conclusions:
+    description: 'Expected conclusions of the check (e.g., success, failure or "success;neutral"). If not provided, any completed status is accepted.'
+    required: false
+    default: "success"
   check_type:
     description: 'Type of check: "check_run" (Checks API) or "status" (Status API)'
     required: false
@@ -31,6 +35,7 @@ runs:
         CHECK_TYPE: ${{ inputs.check_type }}
         SLEEP_TIMEOUT: ${{ inputs.retry_delay }}
         MAX_RETRIES: ${{ inputs.max_retries }}
+        EXPECTED_CONCLUSIONS: ${{ inputs.expected_conclusions }}
       with:
         script: |
           const checkName = process.env.CHECK_NAME;
@@ -38,6 +43,7 @@ runs:
           const checkType = process.env.CHECK_TYPE;
           const maxRetries = Number(process.env.MAX_RETRIES);
           const sleepMs = Number(process.env.SLEEP_TIMEOUT);
+          const expectedConclusions = process.env.EXPECTED_CONCLUSIONS.split(";").map(s => s.trim());
 
           console.log(`Checking ${checkName} for SHA=${sha} (type: ${checkType})`);
 
@@ -62,7 +68,7 @@ runs:
               throw new Error(`${checkName} check did not complete after ${maxRetries} attempts (${statusMsg})`);
             }
 
-            if (check.conclusion !== 'success') {
+            if (!expectedConclusions.includes(check.conclusion)) {
               throw new Error(`${checkName} conclusion=${check.conclusion}`);
             }
 
