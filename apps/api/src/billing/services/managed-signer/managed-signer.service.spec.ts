@@ -456,6 +456,58 @@ describe(ManagedSignerService.name, () => {
     });
   });
 
+  describe("executeFundingTx", () => {
+    it("signs and broadcasts with funding wallet", async () => {
+      const messages: EncodeObject[] = [{ typeUrl: MsgCreateDeployment.$type, value: MsgCreateDeployment.fromPartial({}) }];
+      const txResult = { code: 0, hash: "tx-hash", rawLog: "success" };
+
+      const { service, txManagerService } = setup({
+        signAndBroadcastWithFundingWallet: jest.fn().mockResolvedValue(txResult)
+      });
+
+      const result = await service.executeFundingTx(messages);
+
+      expect(txManagerService.signAndBroadcastWithFundingWallet).toHaveBeenCalledWith(messages);
+      expect(result).toEqual(txResult);
+    });
+
+    it("throws app error when chain call fails", async () => {
+      const messages: EncodeObject[] = [{ typeUrl: MsgCreateDeployment.$type, value: MsgCreateDeployment.fromPartial({}) }];
+      const chainError = new Error("Chain funding error");
+
+      const { service, chainErrorService } = setup({
+        signAndBroadcastWithFundingWallet: jest.fn().mockRejectedValue(chainError),
+        transformChainError: jest.fn().mockResolvedValue(new Error("Funding app error"))
+      });
+
+      await expect(service.executeFundingTx(messages)).rejects.toThrow("Funding app error");
+      expect(chainErrorService.toAppError).toHaveBeenCalledWith(chainError, messages);
+    });
+  });
+
+  describe("executeDerivedDecodedTxByUserId - result without hash", () => {
+    it("returns result as-is when hash is empty", async () => {
+      const wallet = UserWalletSeeder.create({ userId: "user-123", feeAllowance: 100, deploymentAllowance: 100 });
+      const user = UserSeeder.create({ userId: "user-123" });
+      const messages: EncodeObject[] = [{ typeUrl: MsgCreateLease.$type, value: MsgCreateLease.fromPartial({ bidId: { dseq: 123 } }) }];
+
+      const { service } = setup({
+        findOneByUserId: jest.fn().mockResolvedValue(wallet),
+        findById: jest.fn().mockResolvedValue(user),
+        signAndBroadcastWithDerivedWallet: jest.fn().mockResolvedValue({
+          code: 0,
+          hash: "",
+          rawLog: "empty hash"
+        }),
+        refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined)
+      });
+
+      const result = await service.executeDerivedDecodedTxByUserId("user-123", messages);
+
+      expect(result).toEqual({ code: 0, hash: "", rawLog: "empty hash" });
+    });
+  });
+
   function setup(input?: {
     findOneByUserId?: UserWalletRepository["findOneByUserId"];
     findById?: UserRepository["findById"];
@@ -465,6 +517,7 @@ describe(ManagedSignerService.name, () => {
     validateTrialLimit?: TrialValidationService["validateTrialLimit"];
     validateLeaseProvidersAuditors?: TrialValidationService["validateLeaseProvidersAuditors"];
     signAndBroadcastWithDerivedWallet?: TxManagerService["signAndBroadcastWithDerivedWallet"];
+    signAndBroadcastWithFundingWallet?: TxManagerService["signAndBroadcastWithFundingWallet"];
     refreshUserWalletLimits?: BalancesService["refreshUserWalletLimits"];
     retrieveAndCalcFeeLimit?: BalancesService["retrieveAndCalcFeeLimit"];
     retrieveDeploymentLimit?: BalancesService["retrieveDeploymentLimit"];
@@ -498,6 +551,7 @@ describe(ManagedSignerService.name, () => {
       }),
       txManagerService: mock<TxManagerService>({
         signAndBroadcastWithDerivedWallet: input?.signAndBroadcastWithDerivedWallet ?? jest.fn(),
+        signAndBroadcastWithFundingWallet: input?.signAndBroadcastWithFundingWallet ?? jest.fn(),
         getFundingWalletAddress: jest.fn().mockResolvedValue(createAkashAddress())
       }),
       domainEvents: mock<DomainEventsService>({

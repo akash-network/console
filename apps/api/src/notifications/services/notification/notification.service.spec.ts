@@ -1,8 +1,8 @@
-import type { DeploymentHttpService } from "@akashnetwork/http-sdk";
-import { mock, mockDeep } from "vitest-mock-extended";
+import type { DeploymentHttpService, DeploymentInfo, RestAkashDeploymentInfoResponse } from "@akashnetwork/http-sdk";
+import { type DeepMockProxy, mock, mockDeep, type MockProxy } from "vitest-mock-extended";
 
 import type { LoggerService } from "@src/core/providers/logging.provider";
-import type { UserRepository } from "@src/user/repositories";
+import type { UserOutput, UserRepository } from "@src/user/repositories";
 import type { NotificationsApiClient } from "../../providers/notifications-api.provider";
 import { type CreateNotificationInput, NotificationService } from "./notification.service";
 
@@ -174,7 +174,7 @@ describe(NotificationService.name, () => {
     it("creates default channel, fetches channels, fetches deployment, and upserts alert", async () => {
       const { service, api, userRepository, deploymentHttpService } = setup();
 
-      userRepository.findById.mockResolvedValue({ id: "user-1", email: "user@example.com" } as any);
+      userRepository.findById.mockResolvedValue({ id: "user-1", email: "user@example.com" } as UserOutput);
       api.v1.createDefaultChannel.mockResolvedValue({} as never);
       api.v1.getNotificationChannels.mockResolvedValue({ data: { data: [{ id: "channel-1" }] } } as never);
       deploymentHttpService.findByOwnerAndDseq.mockResolvedValue({
@@ -183,7 +183,7 @@ describe(NotificationService.name, () => {
             funds: [{ denom: "uakt", amount: "1000000" }]
           }
         }
-      } as any);
+      } as DeploymentInfo);
       api.v1.upsertDeploymentAlert.mockResolvedValue({} as never);
 
       await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123" });
@@ -209,7 +209,7 @@ describe(NotificationService.name, () => {
     it("skips when user has no email", async () => {
       const { service, api, userRepository } = setup();
 
-      userRepository.findById.mockResolvedValue({ id: "user-1", email: null } as any);
+      userRepository.findById.mockResolvedValue({ id: "user-1", email: null } as UserOutput);
 
       await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123" });
 
@@ -231,7 +231,7 @@ describe(NotificationService.name, () => {
     it("skips when no channel found after creation", async () => {
       const { service, api, userRepository } = setup();
 
-      userRepository.findById.mockResolvedValue({ id: "user-1", email: "user@example.com" } as any);
+      userRepository.findById.mockResolvedValue({ id: "user-1", email: "user@example.com" } as UserOutput);
       api.v1.createDefaultChannel.mockResolvedValue({} as never);
       api.v1.getNotificationChannels.mockResolvedValue({ data: { data: [] } } as never);
 
@@ -243,10 +243,10 @@ describe(NotificationService.name, () => {
     it("skips when deployment not found", async () => {
       const { service, api, userRepository, deploymentHttpService } = setup();
 
-      userRepository.findById.mockResolvedValue({ id: "user-1", email: "user@example.com" } as any);
+      userRepository.findById.mockResolvedValue({ id: "user-1", email: "user@example.com" } as UserOutput);
       api.v1.createDefaultChannel.mockResolvedValue({} as never);
       api.v1.getNotificationChannels.mockResolvedValue({ data: { data: [{ id: "channel-1" }] } } as never);
-      deploymentHttpService.findByOwnerAndDseq.mockResolvedValue({ code: 5, message: "not found", details: [] });
+      deploymentHttpService.findByOwnerAndDseq.mockResolvedValue({ code: 5, message: "not found", details: [] } satisfies RestAkashDeploymentInfoResponse);
 
       await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123" });
 
@@ -256,7 +256,7 @@ describe(NotificationService.name, () => {
     it("skips when threshold would be 0", async () => {
       const { service, api, userRepository, deploymentHttpService } = setup();
 
-      userRepository.findById.mockResolvedValue({ id: "user-1", email: "user@example.com" } as any);
+      userRepository.findById.mockResolvedValue({ id: "user-1", email: "user@example.com" } as UserOutput);
       api.v1.createDefaultChannel.mockResolvedValue({} as never);
       api.v1.getNotificationChannels.mockResolvedValue({ data: { data: [{ id: "channel-1" }] } } as never);
       deploymentHttpService.findByOwnerAndDseq.mockResolvedValue({
@@ -265,7 +265,7 @@ describe(NotificationService.name, () => {
             funds: [{ denom: "uakt", amount: "0" }]
           }
         }
-      } as any);
+      } as DeploymentInfo);
 
       await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123" });
 
@@ -273,11 +273,16 @@ describe(NotificationService.name, () => {
     });
   });
 
-  function setup() {
-    const api = mockDeep<NotificationsApiClient>();
-    const userRepository = mock<UserRepository>();
-    const deploymentHttpService = mock<DeploymentHttpService>();
-    const logger = mock<LoggerService>();
+  function setup(overrides?: {
+    api?: DeepMockProxy<NotificationsApiClient>;
+    userRepository?: MockProxy<UserRepository>;
+    deploymentHttpService?: MockProxy<DeploymentHttpService>;
+    logger?: MockProxy<LoggerService>;
+  }) {
+    const api = overrides?.api ?? mockDeep<NotificationsApiClient>();
+    const userRepository = overrides?.userRepository ?? mock<UserRepository>();
+    const deploymentHttpService = overrides?.deploymentHttpService ?? mock<DeploymentHttpService>();
+    const logger = overrides?.logger ?? mock<LoggerService>();
     const service = new NotificationService(api, userRepository, deploymentHttpService, logger);
 
     return { service, api, userRepository, deploymentHttpService, logger };

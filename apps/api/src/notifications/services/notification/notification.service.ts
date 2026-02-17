@@ -84,7 +84,10 @@ export class NotificationService {
     await this.createDefaultChannel({ id: input.userId, email: user.email });
 
     const channelsResult = await this.notificationsApi.v1.getNotificationChannels({
-      parameters: { header: { "x-user-id": input.userId }, query: { page: 1, limit: 1 } } as any
+      parameters: {
+        header: { "x-user-id": input.userId },
+        query: { page: 1, limit: 1 }
+      } as operations["getNotificationChannels"]["parameters"] & { header: { "x-user-id": string } }
     });
     const channelId = channelsResult?.data?.data?.[0]?.id;
     if (!channelId) {
@@ -105,7 +108,9 @@ export class NotificationService {
     await this.notificationsApi.v1.upsertDeploymentAlert({
       parameters: {
         path: { dseq: input.dseq },
-        header: { "x-owner-address": input.walletAddress, "x-user-id": input.userId } as any
+        header: { "x-owner-address": input.walletAddress, "x-user-id": input.userId } as operations["upsertDeploymentAlert"]["parameters"]["header"] & {
+          "x-user-id": string;
+        }
       },
       body: {
         data: {

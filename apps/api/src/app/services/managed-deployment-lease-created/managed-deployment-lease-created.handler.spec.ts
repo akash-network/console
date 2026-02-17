@@ -26,16 +26,17 @@ describe(ManagedDeploymentLeaseCreatedHandler.name, () => {
     });
   });
 
-  function setup() {
-    const mocks = {
-      notificationService: mock<NotificationService>({
-        autoEnableDeploymentAlert: jest.fn().mockResolvedValue(undefined)
-      }),
-      logger: mock<LoggerService>()
-    };
+  function setup(params?: { notificationService?: Partial<NotificationService>; logger?: Partial<LoggerService> }) {
+    const notificationService = mock<NotificationService>({
+      autoEnableDeploymentAlert: jest.fn().mockResolvedValue(undefined),
+      ...params?.notificationService
+    });
+    const logger = mock<LoggerService>({
+      ...params?.logger
+    });
 
-    const handler = new ManagedDeploymentLeaseCreatedHandler(mocks.notificationService, mocks.logger);
+    const handler = new ManagedDeploymentLeaseCreatedHandler(notificationService, logger);
 
-    return { handler, ...mocks };
+    return { handler, notificationService, logger };
   }
 });
