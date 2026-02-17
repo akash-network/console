@@ -42,27 +42,36 @@ jobs:
       pull-requests: read
     needs: deploy-beta-sandbox
     name: Test beta sandbox
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: ./.github/actions/setup-app-deps
-        with:
-          app: provider-proxy
-      - name: Run e2e tests
-        id: e2e-tests
-        working-directory: apps/provider-proxy
-        env:
-          DEPLOYMENT_ENV: staging
-          NETWORK: sandbox
-          TEST_PROVIDER_PROXY_BASE_URL: ${{ vars.CONSOLE_WEB_BETA_URL }}/provider-proxy-sandbox
-        run: npm run test:e2e
-      - uses: ./.github/actions/slack-tests-failed-notification
-        if: ${{ !cancelled() && steps.e2e-tests.outcome == 'failure' }}
-        with:
-          url: ${{ vars.CONSOLE_WEB_BETA_URL }}/provider-proxy-sandbox
-          slack-webhook-url: ${{ secrets.FAILED_E2E_TESTS_SLACK_WEBHOOK_URL }}
-          gh-user-to-slack-user: ${{ vars.GH_USER_TO_SLACK_USER }}
-          message-title: "Console provider proxy E2E tests failed on beta"
+    uses: ./.github/workflows/reusable-test-e2e.yml
+    secrets: inherit
+    with:
+      app: provider-proxy
+      app-url: ${{ vars.CONSOLE_WEB_BETA_URL }}/provider-proxy-sandbox
+      environment: staging
+      chain: sandbox
+      env: >-
+        {
+          "PROVIDER_PROXY_BASE_URL": "${{ vars.CONSOLE_WEB_BETA_URL }}/provider-proxy-sandbox",
+          "CONSOLE_API_BASE_URL": "${{ vars.CONSOLE_WEB_BETA_URL }}/api-sandbox"
+        }
+
+  test-beta-mainnet:
+    permissions:
+      contents: read
+      pull-requests: read
+    needs: deploy-beta-mainnet
+    name: Test beta mainnet
+    uses: ./.github/workflows/reusable-test-e2e.yml
+    secrets: inherit
+    with:
+      app: provider-proxy
+      app-url: ${{ vars.CONSOLE_WEB_BETA_URL }}/provider-proxy-mainnet
+      environment: staging
+      chain: mainnet
+      env: >-
+        {
+          "CONSOLE_API_BASE_URL": "${{ vars.CONSOLE_WEB_BETA_URL }}/api-mainnet"
+        }
 
   deploy-prod-mainnet:
     permissions:
@@ -70,8 +79,7 @@ jobs:
       pull-requests: read
     needs:
       - setup
-      - deploy-beta-mainnet
-      - test-beta-sandbox
+      - test-beta-mainnet
     name: Deploy to prod mainnet
     uses: ./.github/workflows/reusable-deploy-k8s.yml
     secrets: inherit
@@ -96,3 +104,39 @@ jobs:
       appVersion: ${{ needs.setup.outputs.image_tag }}
       environment: prod
       chain: sandbox
+
+  test-prod-sandbox:
+    permissions:
+      contents: read
+      pull-requests: read
+    needs: deploy-prod-sandbox
+    name: Test prod sandbox
+    uses: ./.github/workflows/reusable-test-e2e.yml
+    secrets: inherit
+    with:
+      app: provider-proxy
+      app-url: ${{ vars.CONSOLE_WEB_URL }}/provider-proxy-sandbox
+      environment: production
+      chain: sandbox
+      env: >-
+        {
+          "CONSOLE_API_BASE_URL": "${{ vars.CONSOLE_WEB_URL }}/api-sandbox"
+        }
+
+  test-prod-mainnet:
+    permissions:
+      contents: read
+      pull-requests: read
+    needs: deploy-prod-mainnet
+    name: Test prod mainnet
+    uses: ./.github/workflows/reusable-test-e2e.yml
+    secrets: inherit
+    with:
+      app: provider-proxy
+      app-url: ${{ vars.CONSOLE_WEB_URL }}/provider-proxy-mainnet
+      environment: production
+      chain: mainnet
+      env: >-
+        {
+          "CONSOLE_API_BASE_URL": "${{ vars.CONSOLE_WEB_URL }}/api-mainnet"
+        }
