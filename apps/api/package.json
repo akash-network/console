@@ -25,7 +25,7 @@
     "start": "tsup --watch",
     "start:dev": "tsup src/server.ts --watch",
     "test": "vitest run --project=unit --project=functional --project=integration",
-    "test:ci-setup": "dc up -d db mock-oauth2-server provider-proxy",
+    "test:ci-setup": "dc up -d --wait --wait-timeout 60 db mock-oauth2-server provider-proxy",
     "test:ci-teardown": "dc down",
     "test:component": "vitest run --project=unit --project=integration",
     "test:cov": "vitest run --project=unit --project=functional --project=integration --coverage",
