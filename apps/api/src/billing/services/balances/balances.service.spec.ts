@@ -1,5 +1,6 @@
 import type { AuthzHttpService, DeploymentHttpService } from "@akashnetwork/http-sdk";
-import { mock } from "jest-mock-extended";
+import { vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { BillingConfig } from "@src/billing/providers";
 import type { UserWalletInput, UserWalletRepository } from "@src/billing/repositories";
@@ -66,20 +67,20 @@ describe(BalancesService.name, () => {
 
       expect(userWalletRepository.updateById).not.toHaveBeenCalled();
     });
-
-    function setup(input?: { limitsUpdate?: Partial<UserWalletInput> }) {
-      const billingConfig = mock<BillingConfig>();
-      const userWalletRepository = mock<UserWalletRepository>();
-      const txManagerService = mock<TxManagerService>();
-      const authzHttpService = mock<AuthzHttpService>();
-      const deploymentHttpService = mock<DeploymentHttpService>();
-      const statsService = mock<StatsService>();
-
-      const service = new BalancesService(billingConfig, userWalletRepository, txManagerService, authzHttpService, deploymentHttpService, statsService);
-
-      jest.spyOn(service, "getFreshLimitsUpdate").mockResolvedValue(input?.limitsUpdate ?? {});
-
-      return { service, userWalletRepository };
-    }
   });
+
+  function setup(input?: { limitsUpdate?: Partial<UserWalletInput> }) {
+    const billingConfig = mock<BillingConfig>();
+    const userWalletRepository = mock<UserWalletRepository>();
+    const txManagerService = mock<TxManagerService>();
+    const authzHttpService = mock<AuthzHttpService>();
+    const deploymentHttpService = mock<DeploymentHttpService>();
+    const statsService = mock<StatsService>();
+
+    const service = new BalancesService(billingConfig, userWalletRepository, txManagerService, authzHttpService, deploymentHttpService, statsService);
+
+    vi.spyOn(service, "getFreshLimitsUpdate").mockResolvedValue(input?.limitsUpdate ?? {});
+
+    return { service, userWalletRepository };
+  }
 });
