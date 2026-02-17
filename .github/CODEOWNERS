@@ -1,1 +1,14 @@
-* @akash-network/console
+/.github/ @akash-network/console
+/.helm/ @akash-network/console
+.codecov.yml @akash-network/console
+/script/ @akash-network/console
+/apps/*/src/ @akash-network/console
+/packages/*/src/ @akash-network/console
+/config @akash-network/console
+
+# Exclude test files from code ownership
+*.spec.ts
+*.spec.tsx
+*.integration.ts
+**/test/
+**/tests/
