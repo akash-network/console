@@ -98,8 +98,13 @@ runs:
             if (!status) return null;
 
             const isCompleted = ['success', 'failure', 'error'].includes(status.state);
+            let conclusion = status.state === 'success' ? 'success' : (isCompleted ? 'failure' : null);
+            if (status.state === 'error' && status.description.includes('have used your limit')) {
+              conclusion = 'neutral'; // treat Snyk errors due to free tier limits as neutral
+            }
+
             return {
               status: isCompleted ? 'completed' : 'in_progress',
-              conclusion: status.state === 'success' ? 'success' : (isCompleted ? 'failure' : null)
+              conclusion,
             };
           }
