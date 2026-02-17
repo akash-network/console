@@ -1,5 +1,17 @@
 
 
+## [3.31.0](https://github.com/akash-network/console/compare/console-api/v3.30.3...console-api/v3.31.0) (2026-02-17)
+
+
+### Features
+
+* add akash console memo ([#2738](https://github.com/akash-network/console/issues/2738)) ([c1ade4a](https://github.com/akash-network/console/commit/c1ade4a795226cf0ca235ef95738e8298093db84))
+
+
+### Bug Fixes
+
+* **deployment:** only warns on negative top up amount ([95a4b9b](https://github.com/akash-network/console/commit/95a4b9b38dea42c81c1e12ca863c0917c153626e))
+
 ## [3.30.3](https://github.com/akash-network/console/compare/console-api/v3.30.2...console-api/v3.30.3) (2026-02-13)
 
 

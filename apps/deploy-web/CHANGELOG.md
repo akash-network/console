@@ -1,5 +1,12 @@
 
 
+## [3.29.0](https://github.com/akash-network/console/compare/console-web/v3.28.3...console-web/v3.29.0) (2026-02-17)
+
+
+### Features
+
+* add akash console memo ([#2738](https://github.com/akash-network/console/issues/2738)) ([c1ade4a](https://github.com/akash-network/console/commit/c1ade4a795226cf0ca235ef95738e8298093db84))
+
 ## [3.28.3](https://github.com/akash-network/console/compare/console-web/v3.28.2...console-web/v3.28.3) (2026-02-16)
 
 

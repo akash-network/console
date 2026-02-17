@@ -1,5 +1,12 @@
 
 
+## [2.12.7](https://github.com/akash-network/console/compare/log-collector/v2.12.6...log-collector/v2.12.7) (2026-02-17)
+
+
+### Bug Fixes
+
+* **log-collector:** allow HTTP k8s API connections by setting skipTLSVerify ([#2753](https://github.com/akash-network/console/issues/2753)) ([a7bd790](https://github.com/akash-network/console/commit/a7bd79041564e833b5d872932c3bb6f45c1b86da))
+
 ## [2.12.6](https://github.com/akash-network/console/compare/log-collector/v2.12.5...log-collector/v2.12.6) (2026-02-12)
 
 
