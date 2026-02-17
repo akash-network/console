@@ -1,0 +1,99 @@
+name: 'Poll check status'
+description: 'Polls the status of a check run with the given name and waits until it completes'
+
+inputs:
+  name:
+    description: 'Check name to check status for'
+    required: true
+  sha:
+    description: 'SHA to check the status on (defaults to the workflow run head SHA)'
+    required: false
+  check_type:
+    description: 'Type of check: "check_run" (Checks API) or "status" (Status API)'
+    required: false
+    default: "check_run"
+  retry_delay:
+    description: 'Delay between retries in milliseconds'
+    required: false
+    default: "30000"
+  max_retries:
+    description: 'Maximum number of retries before giving up'
+    required: false
+    default: "5"
+runs:
+  using: "composite"
+  steps:
+    - name: 'Poll check status'
+      uses: actions/github-script@v7
+      env:
+        CHECK_NAME: ${{ inputs.name }}
+        CHECK_SHA: ${{ inputs.sha || github.sha }}
+        CHECK_TYPE: ${{ inputs.check_type }}
+        SLEEP_TIMEOUT: ${{ inputs.retry_delay }}
+        MAX_RETRIES: ${{ inputs.max_retries }}
+      with:
+        script: |
+          const checkName = process.env.CHECK_NAME;
+          const sha = process.env.CHECK_SHA;
+          const checkType = process.env.CHECK_TYPE;
+          const maxRetries = Number(process.env.MAX_RETRIES);
+          const sleepMs = Number(process.env.SLEEP_TIMEOUT);
+
+          console.log(`Checking ${checkName} for SHA=${sha} (type: ${checkType})`);
+
+          const getCheckStatus = checkType === 'status' ? getStatus : getCheckRun;
+          const checksParams = {
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            ref: sha,
+          };
+
+          for (let attempt = 0; attempt < maxRetries; attempt++) {
+            const check = await getCheckStatus();
+
+            if (check?.status !== 'completed') {
+              if (attempt < maxRetries - 1) {
+                const logPrefix = check ? `Check ${checkName} status: ${check.status}` : `Check ${checkName} not found yet`;
+                console.log(`${logPrefix}. Retry ${attempt + 1}/${maxRetries} in ${sleepMs / 1000}s...`);
+                await new Promise(resolve => setTimeout(resolve, sleepMs));
+                continue;
+              }
+              const statusMsg = check ? `status: ${check.status}` : 'not found';
+              throw new Error(`${checkName} check did not complete after ${maxRetries} attempts (${statusMsg})`);
+            }
+
+            if (check.conclusion !== 'success') {
+              throw new Error(`${checkName} conclusion=${check.conclusion}`);
+            }
+
+            console.log(`${checkName} is success ✅`);
+            break;
+          }
+
+          async function getCheckRun() {
+            const { data } = await github.rest.checks.listForRef({
+              ...checksParams,
+              check_name: checkName
+            });
+
+            const check = data.check_runs[0];
+            if (!check) return null;
+
+            return {
+              status: check.status,
+              conclusion: check.conclusion
+            };
+          }
+
+          async function getStatus() {
+            const { data } = await github.rest.repos.getCombinedStatusForRef(checksParams);
+
+            const status = data.statuses.find(s => s.context === checkName);
+            if (!status) return null;
+
+            const isCompleted = ['success', 'failure', 'error'].includes(status.state);
+            return {
+              status: isCompleted ? 'completed' : 'in_progress',
+              conclusion: status.state === 'success' ? 'success' : (isCompleted ? 'failure' : null)
+            };
+          }

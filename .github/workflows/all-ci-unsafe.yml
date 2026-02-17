@@ -179,9 +179,33 @@ jobs:
       pr_head_repo: ${{ needs.setup.outputs.pr_head_repo }}
       skip_change_detection: true
 
+  apps-deps-scan:
+    needs: [setup]
+    if: ${{ needs.setup.outputs.should_run == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          sparse-checkout: |
+            .github
+
+      - name: Check snyk status
+        uses: ./.github/actions/poll-check-status
+        with:
+          name: "security/snyk (corysturtevant)"
+          sha: ${{ github.event.workflow_run.head_sha }}
+          check_type: status
+
+      - name: Check socketio status
+        uses: ./.github/actions/poll-check-status
+        with:
+          name: "Socket Security: Pull Request Alerts"
+          sha: ${{ github.event.workflow_run.head_sha }}
+
   finalize:
     runs-on: ubuntu-latest
-    needs: [create-check-run, setup, security-scan]
+    needs: [create-check-run, setup, security-scan, apps-deps-scan]
     if: ${{ always() && needs.create-check-run.outputs.run_scan == 'true' }}
     steps:
       - name: Decide final conclusion and summary
@@ -191,6 +215,7 @@ jobs:
           SETUP_SKIP_REASON: ${{ needs.setup.outputs.skip_reason }}
           MATRIX: ${{ needs.setup.outputs.matrix }}
           SCAN_RESULT: ${{ needs.security-scan.result }}
+          APPS_DEPS_SCAN_RESULT: ${{ needs.apps-deps-scan.result }}
         run: |
           conclusion="success"
           summary="Security scan passed."
@@ -204,6 +229,9 @@ jobs:
           elif [[ "$SCAN_RESULT" != "success" ]]; then
             conclusion="failure"
             summary="Security scan failed (result=$SCAN_RESULT)"
+          elif [[ "$APPS_DEPS_SCAN_RESULT" != "success" ]]; then
+            conclusion="failure"
+            summary="Apps dependencies scan failed (result=$APPS_DEPS_SCAN_RESULT)"
           fi
 
           echo "conclusion=$conclusion" >> "$GITHUB_OUTPUT"
