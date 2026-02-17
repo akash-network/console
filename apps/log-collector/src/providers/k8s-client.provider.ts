@@ -13,6 +13,13 @@ container.register(KubeConfig, {
   useFactory: () => {
     const kc = new KubeConfig();
     kc.loadFromDefault();
+
+    const cluster = kc.getCurrentCluster();
+    if (cluster?.server?.startsWith("http:")) {
+      const idx = kc.clusters.indexOf(cluster);
+      kc.clusters[idx] = { ...cluster, skipTLSVerify: true };
+    }
+
     return kc;
   }
 });
