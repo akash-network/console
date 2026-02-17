@@ -1,8 +1,8 @@
 "use client";
 import React from "react";
 import type { SetupIntentResponse } from "@akashnetwork/http-sdk";
-import { Card, CardContent, CardHeader, CardTitle } from "@akashnetwork/ui/components";
-import { CreditCard, InfoCircle } from "iconoir-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@akashnetwork/ui/components";
+import { CreditCard, Shield, InfoCircle } from "iconoir-react";
 
 import { PaymentMethodForm } from "@src/components/shared";
 import { Title } from "@src/components/shared/Title";
@@ -48,8 +48,15 @@ export const PaymentVerificationCard: React.FunctionComponent<PaymentVerificatio
             <div className="rounded-full bg-primary/10 p-3">
               <CreditCard className="h-8 w-8 text-primary" />
             </div>
-            <CardTitle>Add Payment Method</CardTitle>
+            <CardTitle>Verify to Unlock $100 in Free Credits</CardTitle>
           </div>
+          <CardDescription className="space-y-2">
+            <div>Add a payment method to verify your identity and start deploying. You won&apos;t be charged during your free trial.</div>
+            <div className="flex items-center gap-2 rounded-md bg-green-500/10 px-3 py-2 text-sm text-green-700 dark:text-green-400">
+              <Shield className="h-4 w-4 shrink-0" />
+              <span>Secured by Stripe. Your card details are encrypted and never stored on our servers.</span>
+            </div>
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="mb-8 rounded-md border border-blue-500/40 bg-blue-500/10 p-4">

@@ -70,10 +70,10 @@ export const PaymentMethodStep: React.FunctionComponent<PaymentMethodStepProps> 
         clientSecret={threeDSecure.threeDSData.clientSecret}
         paymentIntentId={threeDSecure.threeDSData.paymentIntentId}
         paymentMethodId={threeDSecure.threeDSData.paymentMethodId}
-        title="Card Authentication"
-        description="Your bank requires additional verification for this transaction."
-        successMessage="Your card has been verified. Proceeding to start your trial..."
-        errorMessage="Please try again or use a different payment method."
+        title="Quick Verification"
+        description="Your bank needs a quick confirmation — this usually takes less than 30 seconds."
+        successMessage="Verified! Setting up your free trial..."
+        errorMessage="Verification didn't go through. Please try again or use a different card."
       />
     );
   }

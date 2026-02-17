@@ -1,8 +1,9 @@
 "use client";
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import { Alert, Button } from "@akashnetwork/ui/components";
 import { AddressElement, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 
+import { useServices } from "@src/context/ServicesProvider/ServicesProvider";
 import { StripeInput } from "../StripeInput";
 
 interface PaymentMethodFormProps {
@@ -22,9 +23,18 @@ export const PaymentMethodForm: React.FC<PaymentMethodFormProps> = ({
 }) => {
   const stripe = useStripe();
   const elements = useElements();
+  const { analyticsService } = useServices();
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [organization, setOrganization] = useState<string>("");
+
+  const handleFormReady = useCallback(
+    (element: unknown) => {
+      analyticsService.track("payment_form_viewed", { category: "onboarding" });
+      onReady?.(element as Parameters<NonNullable<typeof onReady>>[0]);
+    },
+    [analyticsService, onReady]
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,6 +44,7 @@ export const PaymentMethodForm: React.FC<PaymentMethodFormProps> = ({
 
     setError(null);
     setIsProcessing(true);
+    analyticsService.track("payment_form_submitted", { category: "onboarding" });
 
     try {
       const result = await stripe.confirmSetup({
@@ -42,15 +53,26 @@ export const PaymentMethodForm: React.FC<PaymentMethodFormProps> = ({
       });
 
       if (result.error) {
-        setError(result.error.message || "An error occurred while processing your payment method.");
+        const errorMessage = result.error.message || "An error occurred while processing your payment method.";
+        setError(errorMessage);
+        analyticsService.track("payment_form_error", {
+          category: "onboarding",
+          error_type: result.error.type,
+          error_code: result.error.code
+        });
         return;
       }
 
       if (result.setupIntent?.status === "succeeded") {
+        analyticsService.track("payment_form_success", { category: "onboarding" });
         onSuccess(organization.trim() || undefined);
       }
     } catch (err) {
       setError("An unexpected error occurred.");
+      analyticsService.track("payment_form_error", {
+        category: "onboarding",
+        error_type: "unexpected_error"
+      });
     } finally {
       setIsProcessing(false);
     }
@@ -85,7 +107,7 @@ export const PaymentMethodForm: React.FC<PaymentMethodFormProps> = ({
           options={{
             layout: "tabs"
           }}
-          onReady={onReady}
+          onReady={handleFormReady}
         />
       </div>
 

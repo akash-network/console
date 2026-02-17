@@ -103,7 +103,15 @@ export type AnalyticsEvent =
   | "onboarding_email_verified"
   | "onboarding_payment_method_added"
   | "onboarding_completed"
-  | "onboarding_logout";
+  | "onboarding_logout"
+  | "payment_form_viewed"
+  | "payment_form_submitted"
+  | "payment_form_error"
+  | "payment_form_success"
+  | "three_d_secure_triggered"
+  | "three_d_secure_completed"
+  | "three_d_secure_failed"
+  | "trial_start_clicked";
 
 export type AnalyticsCategory =
   | "user"
