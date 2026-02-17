@@ -1,0 +1,111 @@
+name: Auto Approval
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-whether-to-approve:
+    permissions:
+      contents: read
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Evaluate auto-approval criteria
+        id: evaluate
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            if (!pr) {
+              core.info("No pull request found in context");
+              return;
+            }
+
+            if (pr.head?.repo?.fork) {
+              core.info("Skipping: PR is from a fork");
+              return;
+            }
+
+            const login = pr.user?.login ?? "";
+            if (/bot/i.test(login)) {
+              core.info(`Skipping: author "${login}" appears to be a bot`);
+              return;
+            }
+
+            const labels = (pr.labels ?? []).map(l => l.name);
+            core.info(`PR labels: ${labels.join(", ")}`);
+
+            if (!labels.includes("experienced-contributor")) {
+              core.info("Skipping: missing experienced-contributor label");
+              return;
+            }
+
+            const allowedSizes = ["size: XS", "size: S", "size: M"];
+            if (!allowedSizes.some(size => labels.includes(size))) {
+              core.info("Skipping: missing required size label (XS, S, or M)");
+              return;
+            }
+
+            const title = pr.title ?? "";
+            const isChore = title.startsWith("chore:") || title.startsWith("chore(");
+            const isTest = title.startsWith("test:") || title.startsWith("test(");
+            const isDocs = title.startsWith("docs:") || title.startsWith("docs(");
+
+            if (!isChore && !isTest && !isDocs) {
+              core.info(`Skipping: commit is not one of these types: chore, test, or docs`);
+              return;
+            }
+
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              per_page: 100,
+            });
+            const filenames = files.map(f => f.filename);
+
+            if (isTest) {
+              const testFilePattern = /(\.(spec|integration)\.(ts|tsx)$|\/tests?\/)|(jest|vitest)\.config\.[tj]s$/;
+              const onlyTestFiles = filenames.every(f => testFilePattern.test(f));
+              if (!onlyTestFiles) {
+                core.info("Skipping test: PR changes non-test files");
+                return;
+              }
+            }
+
+            if (isDocs) {
+              const imagePattern = /\.(png|jpg|jpeg|gif|svg|webp|ico|bmp)$/i;
+              const docsFilePattern = f => f.endsWith(".md") || imagePattern.test(f);
+              const onlyDocFiles = filenames.every(docsFilePattern);
+              if (!onlyDocFiles) {
+                core.info("Skipping docs: PR changes non-documentation files");
+                return;
+              }
+            }
+
+            if (isChore) {
+              const sourceCodeFile = /\.(ts|tsx|js|jsx)$/;
+              const touchesCode = filenames.some(f => {
+                return sourceCodeFile.test(f) && (f.includes("/packages/") || f.includes("/apps/"));
+              });
+              if (touchesCode) {
+                core.info("Skipping chore: PR touches code files in packages/ or apps/");
+                return;
+              }
+            }
+
+            core.setOutput("can-approve", "true");
+            core.info(`PR #${pr.number} meets auto-approval criteria`);
+      - name: Approve PR
+        if: steps.evaluate.outputs.can-approve == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh pr review "$PR_NUMBER" -R "$REPO" --approve --body "Auto-approved: meets auto-approval criteria."
