@@ -93,9 +93,9 @@ export class DeploymentSettingService {
     }
 
     const estimatedTopUpAmount = await this.drainingDeploymentService.calculateTopUpAmountForDseqAndUserId(params.dseq, params.userId);
-    if (estimatedTopUpAmount <= 0) {
+    if (estimatedTopUpAmount < 0) {
       this.logger.warn({
-        event: "ESTIMATED_TOP_UP_AMOUNT_NON_POSITIVE",
+        event: "ESTIMATED_TOP_UP_AMOUNT_NEGATIVE",
         estimatedTopUpAmount,
         dseq: params.dseq,
         userId: params.userId
