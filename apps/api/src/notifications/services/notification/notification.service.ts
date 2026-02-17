@@ -83,45 +83,68 @@ export class NotificationService {
       return;
     }
 
-    await this.createDefaultChannel({ id: input.userId, email: user.email });
+    let channelsResult = await backOff(
+      () =>
+        this.notificationsApi.v1.getNotificationChannels({
+          parameters: {
+            header: { "x-user-id": input.userId },
+            query: { page: 1, limit: 1 }
+          } as operations["getNotificationChannels"]["parameters"] & { header: { "x-user-id": string } }
+        }),
+      DEFAULT_BACKOFF_OPTIONS
+    );
 
-    const channelsResult = await this.notificationsApi.v1.getNotificationChannels({
-      parameters: {
-        header: { "x-user-id": input.userId },
-        query: { page: 1, limit: 1 }
-      } as operations["getNotificationChannels"]["parameters"] & { header: { "x-user-id": string } }
-    });
+    if (!channelsResult?.data?.data?.length) {
+      await this.createDefaultChannel({ id: input.userId, email: user.email });
+
+      channelsResult = await backOff(
+        () =>
+          this.notificationsApi.v1.getNotificationChannels({
+            parameters: {
+              header: { "x-user-id": input.userId },
+              query: { page: 1, limit: 1 }
+            } as operations["getNotificationChannels"]["parameters"] & { header: { "x-user-id": string } }
+          }),
+        DEFAULT_BACKOFF_OPTIONS
+      );
+    }
+
     const channelId = channelsResult?.data?.data?.[0]?.id;
     if (!channelId) {
       this.logger.warn({ event: "SKIP_AUTO_ENABLE_ALERT", reason: "No channel found after creation", userId: input.userId });
       return;
     }
 
-    const deployment = await this.deploymentHttpService.findByOwnerAndDseq(input.walletAddress, input.dseq);
+    const deployment = await backOff(() => this.deploymentHttpService.findByOwnerAndDseq(input.walletAddress, input.dseq), DEFAULT_BACKOFF_OPTIONS);
     if ("code" in deployment) {
       this.logger.warn({ event: "SKIP_AUTO_ENABLE_ALERT", reason: "Deployment not found", dseq: input.dseq });
       return;
     }
 
     const escrowBalance = parseFloat(deployment.escrow_account.state.funds.reduce((sum, { amount }) => sum + parseFloat(amount), 0).toFixed(18));
+    if (!Number.isFinite(escrowBalance) || escrowBalance <= 0) return;
     const threshold = Math.ceil(DEPLOYMENT_BALANCE_ALERT_THRESHOLD_RATIO * escrowBalance);
-    if (threshold === 0) return;
+    if (!Number.isFinite(threshold) || threshold <= 0) return;
 
-    await this.notificationsApi.v1.upsertDeploymentAlert({
-      parameters: {
-        path: { dseq: input.dseq },
-        header: { "x-owner-address": input.walletAddress, "x-user-id": input.userId } as operations["upsertDeploymentAlert"]["parameters"]["header"] & {
-          "x-user-id": string;
-        }
-      },
-      body: {
-        data: {
-          alerts: {
-            deploymentBalance: { notificationChannelId: channelId, enabled: true, threshold }
+    await backOff(
+      () =>
+        this.notificationsApi.v1.upsertDeploymentAlert({
+          parameters: {
+            path: { dseq: input.dseq },
+            header: { "x-owner-address": input.walletAddress, "x-user-id": input.userId } as operations["upsertDeploymentAlert"]["parameters"]["header"] & {
+              "x-user-id": string;
+            }
+          },
+          body: {
+            data: {
+              alerts: {
+                deploymentBalance: { notificationChannelId: channelId, enabled: true, threshold }
+              }
+            }
           }
-        }
-      }
-    });
+        }),
+      DEFAULT_BACKOFF_OPTIONS
+    );
   }
 }
 
