@@ -27,7 +27,7 @@
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main",
     "test": "vitest run --project=unit --project=functional",
-    "test:ci-setup": "dc up -d db",
+    "test:ci-setup": "dc up -d --wait --wait-timeout 60 db",
     "test:ci-teardown": "dc down",
     "test:cov": "vitest run --project=unit --project=functional --coverage",
     "test:functional": "vitest run --project=functional",

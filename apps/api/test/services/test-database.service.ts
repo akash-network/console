@@ -51,7 +51,7 @@ export class TestDatabaseService {
 
   async teardown(): Promise<void> {
     console.log(`Dropping test databases: ${this.dbName}, ${this.indexerDbName}`);
-    const sql = postgres(this.postgresUri);
+    const sql = postgres(this.postgresUri, { max: 1 });
 
     try {
       await Promise.all(
@@ -72,7 +72,7 @@ export class TestDatabaseService {
   }
 
   private async createDatabase(dbName: string): Promise<void> {
-    const sql = postgres(this.postgresUri);
+    const sql = postgres(this.postgresUri, { max: 1 });
 
     try {
       const [exists] = await sql`

@@ -17,7 +17,12 @@ export class TestWalletService {
 
   private restoreCache() {
     if (fs.existsSync(".cache/test-wallets.json")) {
-      this.mnemonics = JSON.parse(fs.readFileSync(".cache/test-wallets.json", "utf8"));
+      try {
+        this.mnemonics = JSON.parse(fs.readFileSync(".cache/test-wallets.json", "utf8"));
+      } catch (error) {
+        console.warn("Error restoring test wallet cache:", error);
+        this.mnemonics = {};
+      }
     }
   }
 
