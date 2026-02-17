@@ -78,7 +78,7 @@ describe(LogCollectorControl.name, () => {
     await waitFor(
       async () => {
         const selector = form.getValues("services.1.env")?.find(env => env.key === "POD_LABEL_SELECTOR");
-        expect(selector?.value).toBe('"akash.network/manifest-service=new-title"');
+        expect(selector?.value).toBe("akash.network/manifest-service=new-title");
       },
       { timeout: 1000 }
     );

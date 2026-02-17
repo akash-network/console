@@ -84,7 +84,7 @@ export const LogCollectorControl: FC<Props> = ({ serviceIndex, dependencies: d =
   );
 
   useThrottledEffect(() => {
-    const nextTitle = `"akash.network/manifest-service=${targetService.title}"`;
+    const nextTitle = `akash.network/manifest-service=${targetService.title}`;
     if (env.values.POD_LABEL_SELECTOR !== nextTitle) {
       env.setValue("POD_LABEL_SELECTOR", nextTitle);
     }
@@ -197,7 +197,7 @@ function generateLogCollectorService<T extends ServiceType>(targetService: T): P
     placement: targetService.placement,
     env: [
       { key: "PROVIDER", value: "DATADOG" },
-      { key: "POD_LABEL_SELECTOR", value: `"akash.network/manifest-service=${targetService.title}"` },
+      { key: "POD_LABEL_SELECTOR", value: `akash.network/manifest-service=${targetService.title}` },
       { key: "DD_API_KEY", value: "" },
       { key: "DD_SITE", value: "" }
     ],
