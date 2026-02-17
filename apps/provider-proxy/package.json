@@ -6,7 +6,7 @@
   "author": "Akash Network",
   "main": "main.js",
   "scripts": {
-    "build": "NODE_ENV=production tsup && tsc -p tsconfig.build.json ",
+    "build": "NODE_ENV=production tsup && tsc -p tsconfig.build.json",
     "build:container": "dc build provider-proxy",
     "dev": "tsup src/server.ts --watch",
     "dev:inspect": "NODE_OPTIONS=\"--inspect\" npm run dev",
