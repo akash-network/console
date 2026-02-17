@@ -124,6 +124,25 @@ describe("startServer", () => {
     expect(container.dispose).toHaveBeenCalledTimes(1);
   });
 
+  it("logs error when app.fetch throws an error", async () => {
+    const error = new Error("Unexpected error");
+    const { start, app, logger } = setup();
+    app.fetch.mockRejectedValue(error);
+
+    const server = await start();
+    const { port } = server!.address() as { port: number };
+
+    await fetch(`http://localhost:${port}`).catch(() => {});
+    await delay(10);
+
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "OUTSIDE_OF_APP_ERROR",
+        error
+      })
+    );
+  });
+
   it("disposes container when `beforeStart` throws an error", async () => {
     const { start, container } = setup({ beforeStart: jest.fn().mockRejectedValue(new Error("Failed to start server")) });
 
