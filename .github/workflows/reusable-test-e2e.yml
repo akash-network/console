@@ -1,0 +1,59 @@
+name: "Run e2e tests"
+
+on:
+  workflow_call:
+    inputs:
+      app:
+        description: "The app to release" # dir name in ./apps/*
+        required: true
+        type: string
+      app-url:
+        description: "The URL of the deployed app, used for test failure notifications"
+        required: true
+        type: string
+      environment:
+        description: "The environment to run the tests in (e.g., staging, production)"
+        required: true
+        type: string
+      chain:
+        description: "The network to run the tests against (e.g., mainnet, sandbox)"
+        required: false
+        type: string
+        default: ""
+      env:
+        description: "JSON-encoded environment variables to pass to the test step"
+        required: false
+        type: string
+        default: "{}"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.app }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  test-e2e:
+    name: Run e2e tests for ${{ inputs.app }} on ${{ inputs.environment }} ${{ inputs.chain }}
+    runs-on: ubuntu-latest
+    env: ${{ fromJson(inputs.env) }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-app-deps
+        with:
+          app: ${{ inputs.app }}
+      - name: Run e2e tests
+        id: e2e-tests
+        working-directory: apps/${{ inputs.app }}
+        env:
+          SERVICE_BASE_URL: ${{ inputs.app-url }}
+        run: npm run test:e2e
+      - uses: ./.github/actions/slack-tests-failed-notification
+        if: ${{ !cancelled() && steps.e2e-tests.outcome == 'failure' }}
+        with:
+          url: ${{ inputs.app-url }}
+          slack-webhook-url: ${{ secrets.FAILED_E2E_TESTS_SLACK_WEBHOOK_URL }}
+          gh-user-to-slack-user: ${{ vars.GH_USER_TO_SLACK_USER }}
+          message-title: "Console ${{ inputs.app }} E2E tests failed on ${{ inputs.environment }} ${{ inputs.chain }}"
