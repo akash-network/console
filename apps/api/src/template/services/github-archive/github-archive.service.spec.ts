@@ -1,5 +1,6 @@
+import { gzipSync } from "node:zlib";
+import tar from "tar";
 import { mock } from "vitest-mock-extended";
-import yazl from "yazl";
 
 import type { LoggerService } from "@src/core";
 import { GitHubArchiveService } from "./github-archive.service";
@@ -85,12 +86,12 @@ describe(GitHubArchiveService.name, () => {
     const service = new GitHubArchiveService(logger);
 
     async function installArchive(files: Record<string, string>) {
-      const zipBuffer = await createZipBuffer(files);
+      const tarGzBuffer = createTarGzBuffer(files);
 
       jest.spyOn(globalThis, "fetch").mockResolvedValue(
-        new Response(new Uint8Array(zipBuffer), {
+        new Response(new Uint8Array(tarGzBuffer), {
           status: 200,
-          headers: { "Content-Type": "application/zip" }
+          headers: { "Content-Type": "application/gzip" }
         })
       );
     }
@@ -98,32 +99,50 @@ describe(GitHubArchiveService.name, () => {
     return { service, logger, installArchive };
   }
 
-  function createZipBuffer(files: Record<string, string>): Promise<Buffer> {
-    return new Promise((resolve, reject) => {
-      const zipfile = new yazl.ZipFile();
+  function createTarGzBuffer(files: Record<string, string>): Buffer {
+    const blocks: Buffer[] = [];
 
-      const dirs = new Set<string>();
-      for (const filePath of Object.keys(files)) {
-        const parts = filePath.split("/");
-        for (let i = 1; i < parts.length; i++) {
-          const dirPath = parts.slice(0, i).join("/") + "/";
-          if (!dirs.has(dirPath)) {
-            dirs.add(dirPath);
-            zipfile.addEmptyDirectory(dirPath);
-          }
+    function addEntry(path: string, type: "Directory" | "File", content?: string) {
+      const buf = content ? Buffer.from(content) : Buffer.alloc(0);
+      const header = new tar.Header({
+        path,
+        type,
+        mode: type === "Directory" ? 0o755 : 0o644,
+        size: buf.length,
+        mtime: new Date(0),
+        uid: 0,
+        gid: 0,
+        uname: "",
+        gname: ""
+      });
+      header.encode();
+      blocks.push(header.block);
+
+      if (buf.length > 0) {
+        const padded = Buffer.alloc(Math.ceil(buf.length / 512) * 512);
+        buf.copy(padded);
+        blocks.push(padded);
+      }
+    }
+
+    const dirs = new Set<string>();
+    for (const filePath of Object.keys(files)) {
+      const parts = filePath.split("/");
+      for (let i = 1; i < parts.length; i++) {
+        const dirPath = parts.slice(0, i).join("/") + "/";
+        if (!dirs.has(dirPath)) {
+          dirs.add(dirPath);
+          addEntry(dirPath, "Directory");
         }
       }
+    }
 
-      for (const [filePath, content] of Object.entries(files)) {
-        zipfile.addBuffer(Buffer.from(content), filePath);
-      }
+    for (const [filePath, content] of Object.entries(files)) {
+      addEntry(filePath, "File", content);
+    }
 
-      zipfile.end();
+    blocks.push(Buffer.alloc(1024));
 
-      const chunks: Buffer[] = [];
-      zipfile.outputStream.on("data", (chunk: Buffer) => chunks.push(chunk));
-      zipfile.outputStream.on("end", () => resolve(Buffer.concat(chunks)));
-      zipfile.outputStream.on("error", reject);
-    });
+    return gzipSync(Buffer.concat(blocks));
   }
 });

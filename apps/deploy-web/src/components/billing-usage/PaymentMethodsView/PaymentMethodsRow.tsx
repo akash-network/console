@@ -44,18 +44,24 @@ export const PaymentMethodsRow: React.FC<PaymentMethodsRowProps> = ({
   };
 
   const card = useCallback((paymentMethod: PaymentMethod) => {
+    if (!paymentMethod.card) {
+      return <>{paymentMethod.type ? capitalizeFirstLetter(paymentMethod.type) : "Payment Method"}</>;
+    }
     return (
       <>
-        {capitalizeFirstLetter(paymentMethod.card?.brand || "")} {paymentMethod.card?.funding} **** {paymentMethod.card?.last4}
+        {capitalizeFirstLetter(paymentMethod.card.brand || "")} {paymentMethod.card.funding} **** {paymentMethod.card.last4}
       </>
     );
   }, []);
 
   const validUntil = useCallback((paymentMethod: PaymentMethod) => {
-    const month = paymentMethod.card?.exp_month?.toString().padStart(2, "0");
+    if (!paymentMethod.card) {
+      return <>N/A</>;
+    }
+    const month = paymentMethod.card.exp_month?.toString().padStart(2, "0");
     return (
       <>
-        {month}/{paymentMethod.card?.exp_year}
+        {month}/{paymentMethod.card.exp_year}
       </>
     );
   }, []);

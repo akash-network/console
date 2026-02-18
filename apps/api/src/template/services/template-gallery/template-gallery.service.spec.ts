@@ -5,7 +5,7 @@ import { cacheEngine } from "@src/caching/helpers";
 import type { LoggerService } from "@src/core";
 import type { Category, Template } from "../../types/template";
 import type { TemplateFetcherService } from "../template-fetcher/template-fetcher.service";
-import type { FileSystemApi } from "./template-gallery.service";
+import type { FileSystemApi, TemplateTagsConfig } from "./template-gallery.service";
 import { TemplateGalleryService } from "./template-gallery.service";
 
 describe(TemplateGalleryService.name, () => {
@@ -182,6 +182,40 @@ describe(TemplateGalleryService.name, () => {
       expect(fsMock.writeFile).toHaveBeenCalledWith("/data/templates/v1/templates-list.json", expect.stringContaining('"data"'));
     });
 
+    it("uses custom tags config when provided", async () => {
+      const { service, templateFetcher, fsMock } = setup({
+        getTagsConfig: () => ({
+          recommendedIds: new Set(["t1"]),
+          popularIds: new Set(["t2"]),
+          categoryPriority: { AI: 0 }
+        })
+      });
+      const template1 = { id: "t1", name: "Template 1" } as Template;
+      const template2 = { id: "t2", name: "Template 2" } as Template;
+      const template3 = { id: "t3", name: "Template 3" } as Template;
+      const templates = [createCategory({ title: "AI", templates: [template1, template2, template3] })];
+      const categoriesSchema = z.array(
+        z.object({
+          title: z.string(),
+          templates: z.array(z.object({ id: z.string(), name: z.string(), tags: z.array(z.string()).optional() }))
+        })
+      );
+
+      templateFetcher.fetchAwesomeAkashTemplates.mockResolvedValue(templates);
+      fsMock.mkdir.mockResolvedValue(undefined);
+      fsMock.writeFile.mockResolvedValue(undefined);
+
+      await service.buildTemplateGalleryCache(categoriesSchema);
+
+      const summaryCall = fsMock.writeFile.mock.calls.find(call => String(call[0]).includes("templates-list.json"));
+      const summaryData = JSON.parse(String(summaryCall![1]));
+      const resultTemplates = summaryData.data[0].templates;
+
+      expect(resultTemplates.find((t: Template) => t.id === "t1").tags).toEqual(["recommended"]);
+      expect(resultTemplates.find((t: Template) => t.id === "t2").tags).toEqual(["popular"]);
+      expect(resultTemplates.find((t: Template) => t.id === "t3").tags).toBeUndefined();
+    });
+
     it("writes individual template files", async () => {
       const { service, templateFetcher, fsMock } = setup();
       const template1 = { id: "t1", name: "Template 1" } as Template;
@@ -259,7 +293,7 @@ describe(TemplateGalleryService.name, () => {
     });
   });
 
-  function setup() {
+  function setup(input?: { getTagsConfig?: () => TemplateTagsConfig }) {
     const logger = mock<LoggerService>();
     const fsMock = mock<FileSystemApi>({
       access: jest.fn(() => Promise.reject(new Error("File not found")))
@@ -268,7 +302,8 @@ describe(TemplateGalleryService.name, () => {
 
     const service = new TemplateGalleryService(logger, fsMock, {
       githubPAT: "test-pat",
-      dataFolderPath
+      dataFolderPath,
+      getTagsConfig: input?.getTagsConfig
     });
 
     const templateFetcher = mock<TemplateFetcherService>({
