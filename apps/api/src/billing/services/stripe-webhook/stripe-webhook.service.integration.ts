@@ -22,6 +22,7 @@ describe(StripeWebhookService.name, () => {
 
       userRepository.findOneBy.mockResolvedValue(mockUser);
       stripeTransactionRepository.findById.mockResolvedValue(internalTransaction);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(internalTransaction);
       stripeTransactionRepository.updateById.mockResolvedValue(undefined);
       refillService.topUpWallet.mockResolvedValue();
       (stripeService.charges.retrieve as jest.Mock).mockResolvedValue({
@@ -59,7 +60,10 @@ describe(StripeWebhookService.name, () => {
     });
 
     it("returns early when customer ID is missing", async () => {
-      const { service, userRepository, refillService } = setup();
+      const { service, userRepository, stripeTransactionRepository, refillService } = setup();
+      const internalTransaction = createMockTransaction({ status: "created" });
+
+      stripeTransactionRepository.findByPaymentIntentId.mockResolvedValue(internalTransaction);
 
       const event = createPaymentIntentSucceededEvent({
         id: "pi_123",
@@ -75,8 +79,10 @@ describe(StripeWebhookService.name, () => {
     });
 
     it("returns early when user is not found", async () => {
-      const { service, userRepository, refillService } = setup();
+      const { service, userRepository, stripeTransactionRepository, refillService } = setup();
+      const internalTransaction = createMockTransaction({ status: "created" });
 
+      stripeTransactionRepository.findByPaymentIntentId.mockResolvedValue(internalTransaction);
       userRepository.findOneBy.mockResolvedValue(undefined);
 
       const event = createPaymentIntentSucceededEvent({
@@ -100,6 +106,7 @@ describe(StripeWebhookService.name, () => {
 
       userRepository.findOneBy.mockResolvedValue(mockUser);
       stripeTransactionRepository.findById.mockResolvedValue(internalTransaction);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(internalTransaction);
 
       const event = createPaymentIntentSucceededEvent({
         id: paymentIntentId,
@@ -126,6 +133,7 @@ describe(StripeWebhookService.name, () => {
 
       userRepository.findOneBy.mockResolvedValue(mockUser);
       stripeTransactionRepository.findById.mockResolvedValue(internalTransaction);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(internalTransaction);
 
       const event = createPaymentIntentSucceededEvent({
         id: paymentIntentId,
@@ -147,6 +155,179 @@ describe(StripeWebhookService.name, () => {
           stripePaymentIntentId: "pi_123"
         })
       );
+    });
+  });
+
+  describe("tryToTopUpWalletFromInvoice", () => {
+    it("tops up wallet using transaction amount (not invoice amount_paid which may be 0 for discounted invoices)", async () => {
+      const { service, userRepository, stripeTransactionRepository, refillService, stripeService } = setup();
+      const mockUser = createTestUser();
+      const invoiceId = "in_123";
+      const chargeId = "ch_456";
+      const paymentIntentId = "pi_789";
+      const transactionAmount = 5000;
+      const internalTransaction = createMockTransaction({
+        id: "tx-inv-1",
+        status: "pending",
+        type: "coupon_claim",
+        amount: transactionAmount,
+        stripeInvoiceId: invoiceId
+      });
+
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findByInvoiceId.mockResolvedValue(internalTransaction);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(internalTransaction);
+      stripeTransactionRepository.updateById.mockResolvedValue(undefined);
+      refillService.topUpWallet.mockResolvedValue();
+      (stripeService.charges.retrieve as jest.Mock).mockResolvedValue({
+        id: chargeId,
+        payment_method_details: { card: { brand: "mastercard", last4: "5555" } },
+        receipt_url: "https://receipt.stripe.com/inv"
+      });
+
+      const event = createInvoicePaymentSucceededEvent({
+        id: invoiceId,
+        customer: mockUser.stripeCustomerId,
+        amount_paid: 0,
+        payments: {
+          object: "list",
+          data: [
+            {
+              payment: {
+                charge: chargeId,
+                payment_intent: paymentIntentId,
+                type: "payment_intent"
+              }
+            } as Stripe.InvoicePayment
+          ],
+          has_more: false,
+          url: ""
+        }
+      });
+
+      await service.tryToTopUpWalletFromInvoice(event);
+
+      expect(userRepository.findOneBy).toHaveBeenCalledWith({ stripeCustomerId: mockUser.stripeCustomerId });
+      expect(stripeTransactionRepository.findByInvoiceId).toHaveBeenCalledWith(invoiceId);
+      expect(stripeService.charges.retrieve).toHaveBeenCalledWith(chargeId);
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(internalTransaction.id, {
+        status: "succeeded",
+        stripeChargeId: chargeId,
+        paymentMethodType: undefined,
+        cardBrand: "mastercard",
+        cardLast4: "5555",
+        receiptUrl: "https://receipt.stripe.com/inv",
+        stripePaymentIntentId: paymentIntentId
+      });
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(transactionAmount, mockUser.id);
+    });
+
+    it("returns early when customer ID is missing", async () => {
+      const { service, userRepository, stripeTransactionRepository, refillService } = setup();
+      const internalTransaction = createMockTransaction({ status: "pending", type: "coupon_claim" });
+
+      stripeTransactionRepository.findByInvoiceId.mockResolvedValue(internalTransaction);
+
+      const event = createInvoicePaymentSucceededEvent({
+        id: "in_123",
+        customer: null,
+        amount_paid: 0
+      });
+
+      await service.tryToTopUpWalletFromInvoice(event);
+
+      expect(userRepository.findOneBy).not.toHaveBeenCalled();
+      expect(refillService.topUpWallet).not.toHaveBeenCalled();
+    });
+
+    it("returns early when user is not found", async () => {
+      const { service, userRepository, stripeTransactionRepository, refillService } = setup();
+      const internalTransaction = createMockTransaction({ status: "pending", type: "coupon_claim" });
+
+      stripeTransactionRepository.findByInvoiceId.mockResolvedValue(internalTransaction);
+      userRepository.findOneBy.mockResolvedValue(undefined);
+
+      const event = createInvoicePaymentSucceededEvent({
+        id: "in_123",
+        customer: "cus_unknown",
+        amount_paid: 0
+      });
+
+      await service.tryToTopUpWalletFromInvoice(event);
+
+      expect(userRepository.findOneBy).toHaveBeenCalledWith({ stripeCustomerId: "cus_unknown" });
+      expect(refillService.topUpWallet).not.toHaveBeenCalled();
+    });
+
+    it("returns early when transaction is not found", async () => {
+      const { service, stripeTransactionRepository, refillService } = setup();
+
+      stripeTransactionRepository.findByInvoiceId.mockResolvedValue(undefined);
+
+      const event = createInvoicePaymentSucceededEvent({
+        id: "in_no_match",
+        customer: "cus_123",
+        amount_paid: 0
+      });
+
+      await service.tryToTopUpWalletFromInvoice(event);
+
+      expect(stripeTransactionRepository.findByInvoiceId).toHaveBeenCalledWith("in_no_match");
+      expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+      expect(refillService.topUpWallet).not.toHaveBeenCalled();
+    });
+
+    it("returns early when already processed (idempotency)", async () => {
+      const { service, userRepository, stripeTransactionRepository, refillService } = setup();
+      const mockUser = createTestUser();
+      const internalTransaction = createMockTransaction({ id: "tx-inv-2", status: "succeeded", type: "coupon_claim" });
+
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findByInvoiceId.mockResolvedValue(internalTransaction);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(internalTransaction);
+
+      const event = createInvoicePaymentSucceededEvent({
+        id: "in_123",
+        customer: mockUser.stripeCustomerId,
+        amount_paid: 0
+      });
+
+      await service.tryToTopUpWalletFromInvoice(event);
+
+      expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+      expect(refillService.topUpWallet).not.toHaveBeenCalled();
+    });
+
+    it("handles invoice without payments array gracefully", async () => {
+      const { service, userRepository, stripeTransactionRepository, refillService } = setup();
+      const mockUser = createTestUser();
+      const transactionAmount = 3000;
+      const internalTransaction = createMockTransaction({ id: "tx-inv-3", status: "pending", type: "coupon_claim", amount: transactionAmount });
+
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findByInvoiceId.mockResolvedValue(internalTransaction);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(internalTransaction);
+      stripeTransactionRepository.updateById.mockResolvedValue(undefined);
+      refillService.topUpWallet.mockResolvedValue();
+
+      const event = createInvoicePaymentSucceededEvent({
+        id: "in_123",
+        customer: mockUser.stripeCustomerId,
+        amount_paid: 0
+      });
+
+      await service.tryToTopUpWalletFromInvoice(event);
+
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(internalTransaction.id, {
+        status: "succeeded",
+        stripeChargeId: undefined,
+        paymentMethodType: undefined,
+        cardBrand: undefined,
+        cardLast4: undefined,
+        receiptUrl: undefined,
+        stripePaymentIntentId: undefined
+      });
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(transactionAmount, mockUser.id);
     });
   });
 
@@ -644,6 +825,16 @@ describe(StripeWebhookService.name, () => {
         } as Stripe.Charge
       }
     } as Stripe.ChargeRefundedEvent;
+  }
+
+  function createInvoicePaymentSucceededEvent(invoice: Partial<Stripe.Invoice>): Stripe.InvoicePaymentSucceededEvent {
+    return {
+      id: "evt_123",
+      type: "invoice.payment_succeeded",
+      data: {
+        object: invoice as Stripe.Invoice
+      }
+    } as Stripe.InvoicePaymentSucceededEvent;
   }
 
   function createPaymentMethodAttachedEvent(params: { id: string; customer: string | null; fingerprint: string | null }): Stripe.PaymentMethodAttachedEvent {

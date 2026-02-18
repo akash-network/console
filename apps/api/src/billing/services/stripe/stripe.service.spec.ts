@@ -499,7 +499,7 @@ describe(StripeService.name, () => {
   });
 
   describe("applyCoupon", () => {
-    it("applies promotion code successfully and tops up wallet", async () => {
+    it("applies promotion code successfully, creates invoice with item, and leaves transaction pending for webhook", async () => {
       const { service, refillService, stripeTransactionRepository } = setup();
       const mockUser = createTestUser();
       const mockCoupon = createTestCoupon({
@@ -522,8 +522,8 @@ describe(StripeService.name, () => {
 
       jest.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(mockPromotionCode);
       jest.spyOn(service.invoices, "create").mockResolvedValue(mockInvoice);
+      jest.spyOn(service.invoiceItems, "create").mockResolvedValue(mock<Stripe.Response<Stripe.InvoiceItem>>());
       jest.spyOn(service.invoices, "finalizeInvoice").mockResolvedValue(mockFinalizedInvoice);
-      refillService.topUpWallet.mockResolvedValue();
 
       const result = await service.applyCoupon(mockUser, mockPromotionCode.code);
 
@@ -532,9 +532,15 @@ describe(StripeService.name, () => {
         auto_advance: false,
         discounts: [{ promotion_code: mockPromotionCode.id }]
       });
+      expect(service.invoiceItems.create).toHaveBeenCalledWith({
+        amount: 1000,
+        customer: mockUser.stripeCustomerId,
+        invoice: mockInvoice.id,
+        currency: "usd",
+        description: "Akash Network Console"
+      });
       expect(service.invoices.finalizeInvoice).toHaveBeenCalledWith(mockInvoice.id);
 
-      // Verify transaction is created with pending status first
       expect(stripeTransactionRepository.create).toHaveBeenCalledWith({
         userId: mockUser.id,
         type: "coupon_claim",
@@ -547,11 +553,8 @@ describe(StripeService.name, () => {
         description: `Coupon: ${mockCoupon.name}`
       });
 
-      // Verify wallet top-up happens after transaction creation
-      expect(refillService.topUpWallet).toHaveBeenCalledWith(1000, mockUser.id);
-
-      // Verify transaction is updated to succeeded after wallet top-up
-      expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith("test-transaction-id", { status: "succeeded" });
+      expect(refillService.topUpWallet).not.toHaveBeenCalled();
+      expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
 
       expect(result).toEqual({
         coupon: mockPromotionCode,
@@ -576,8 +579,8 @@ describe(StripeService.name, () => {
       jest.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(undefined);
       jest.spyOn(service, "listCoupons").mockResolvedValue({ coupons: [mockCoupon] });
       jest.spyOn(service.invoices, "create").mockResolvedValue(mockInvoice);
+      jest.spyOn(service.invoiceItems, "create").mockResolvedValue(mock<Stripe.Response<Stripe.InvoiceItem>>());
       jest.spyOn(service.invoices, "finalizeInvoice").mockResolvedValue(mockFinalizedInvoice);
-      refillService.topUpWallet.mockResolvedValue();
 
       const result = await service.applyCoupon(mockUser, mockCoupon.id);
 
@@ -586,9 +589,15 @@ describe(StripeService.name, () => {
         auto_advance: false,
         discounts: [{ coupon: mockCoupon.id }]
       });
+      expect(service.invoiceItems.create).toHaveBeenCalledWith({
+        amount: 500,
+        customer: mockUser.stripeCustomerId,
+        invoice: mockInvoice.id,
+        currency: "usd",
+        description: "Akash Network Console"
+      });
       expect(service.invoices.finalizeInvoice).toHaveBeenCalledWith(mockInvoice.id);
 
-      // Verify transaction is created with pending status (no promotion code ID for direct coupon)
       expect(stripeTransactionRepository.create).toHaveBeenCalledWith({
         userId: mockUser.id,
         type: "coupon_claim",
@@ -601,8 +610,8 @@ describe(StripeService.name, () => {
         description: `Coupon: ${mockCoupon.name}`
       });
 
-      expect(refillService.topUpWallet).toHaveBeenCalledWith(500, mockUser.id);
-      expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith("test-transaction-id", { status: "succeeded" });
+      expect(refillService.topUpWallet).not.toHaveBeenCalled();
+      expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
 
       expect(result).toEqual({
         coupon: mockCoupon,
@@ -689,8 +698,8 @@ describe(StripeService.name, () => {
       await expect(service.applyCoupon(mockUser, "INVALID_CODE")).rejects.toThrow("No valid promotion code or coupon found with the provided code");
     });
 
-    it("throws error when topUpWallet fails after invoice is finalized and leaves transaction in pending", async () => {
-      const { service, refillService, stripeTransactionRepository } = setup();
+    it("voids invoice on error after invoice is created", async () => {
+      const { service, stripeTransactionRepository } = setup();
       const mockUser = createTestUser();
       const mockCoupon = createTestCoupon({
         id: "coupon_123",
@@ -708,34 +717,16 @@ describe(StripeService.name, () => {
         }
       });
       const mockInvoice = createTestInvoice({ id: "in_123", status: "draft" });
-      const mockFinalizedInvoice = createTestInvoice({ id: "in_123", status: "paid" });
 
       jest.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(mockPromotionCode);
       jest.spyOn(service.invoices, "create").mockResolvedValue(mockInvoice);
-      jest.spyOn(service.invoices, "finalizeInvoice").mockResolvedValue(mockFinalizedInvoice);
-      refillService.topUpWallet.mockRejectedValue(new Error("Wallet top-up failed"));
+      jest.spyOn(service.invoiceItems, "create").mockRejectedValue(new Error("Invoice item creation failed"));
+      jest.spyOn(service.invoices, "voidInvoice").mockResolvedValue(mock<Stripe.Response<Stripe.Invoice>>());
 
-      await expect(service.applyCoupon(mockUser, mockPromotionCode.code)).rejects.toThrow("Wallet top-up failed");
+      await expect(service.applyCoupon(mockUser, mockPromotionCode.code)).rejects.toThrow("Invoice item creation failed");
 
-      // Verify transaction was created with pending status
-      expect(stripeTransactionRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          status: "pending",
-          type: "coupon_claim"
-        })
-      );
-
-      // Verify transaction was NOT updated to succeeded (since topUpWallet failed)
-      expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
-
-      // Verify that the invoice was created and finalized before the wallet top-up failed
-      expect(service.invoices.create).toHaveBeenCalledWith({
-        customer: mockUser.stripeCustomerId,
-        auto_advance: false,
-        discounts: [{ promotion_code: mockPromotionCode.id }]
-      });
-      expect(service.invoices.finalizeInvoice).toHaveBeenCalledWith(mockInvoice.id);
-      expect(refillService.topUpWallet).toHaveBeenCalledWith(1000, mockUser.id);
+      expect(service.invoices.voidInvoice).toHaveBeenCalledWith(mockInvoice.id);
+      expect(stripeTransactionRepository.create).not.toHaveBeenCalled();
     });
   });
 
@@ -1521,6 +1512,8 @@ function setup(
   jest.spyOn(service.paymentMethods, "list").mockResolvedValue({ data: [] } as unknown as Stripe.Response<Stripe.ApiList<Stripe.PaymentMethod>>);
   jest.spyOn(service.invoices, "create").mockResolvedValue(createTestInvoice());
   jest.spyOn(service.invoices, "finalizeInvoice").mockResolvedValue(createTestInvoice({ status: "paid" }));
+  jest.spyOn(service.invoices, "voidInvoice").mockResolvedValue({} as unknown as Stripe.Response<Stripe.Invoice>);
+  jest.spyOn(service.invoiceItems, "create").mockResolvedValue({} as unknown as Stripe.Response<Stripe.InvoiceItem>);
 
   return {
     service,

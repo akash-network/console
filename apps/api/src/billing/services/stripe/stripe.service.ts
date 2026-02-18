@@ -384,9 +384,10 @@ export class StripeService extends Stripe {
 
     const amountToAdd = coupon.amount_off; // amount_off is already in cents
 
+    let invoice: Stripe.Invoice | undefined;
+
     try {
-      // Create a $0 invoice with the promo code discount - this consumes/redeems the code
-      const invoice = await this.invoices.create({
+      invoice = await this.invoices.create({
         customer: currentUser.stripeCustomerId,
         auto_advance: false,
         ...(updateField === "promotion_code" ? { discounts: [{ promotion_code: updateId }] } : { discounts: [{ coupon: updateId }] })
@@ -399,21 +400,26 @@ export class StripeService extends Stripe {
         discountType: updateField
       });
 
-      // Finalize the invoice - this officially redeems the code and increments times_redeemed
-      // A $0 invoice is automatically paid after finalization
-      const finalizedInvoice = await this.invoices.finalizeInvoice(invoice.id);
+      await this.invoiceItems.create({
+        amount: amountToAdd,
+        customer: currentUser.stripeCustomerId,
+        invoice: invoice.id,
+        currency: "usd",
+        description: "Akash Network Console"
+      });
+
+      invoice = await this.invoices.finalizeInvoice(invoice.id);
 
       this.loggerService.info({
         event: "INVOICE_FINALIZED_AND_PAID",
         userId: currentUser.id,
-        invoiceId: finalizedInvoice.id,
-        status: finalizedInvoice.status,
-        amountDue: finalizedInvoice.amount_due,
-        amountPaid: finalizedInvoice.amount_paid
+        invoiceId: invoice.id,
+        status: invoice.status,
+        amountDue: invoice.amount_due,
+        amountPaid: invoice.amount_paid
       });
 
-      // Create transaction record before crediting wallet (ensures audit trail)
-      const transaction = await this.stripeTransactionRepository.create({
+      await this.stripeTransactionRepository.create({
         userId: currentUser.id,
         type: "coupon_claim",
         status: "pending",
@@ -425,29 +431,23 @@ export class StripeService extends Stripe {
         description: `Coupon: ${coupon.name || coupon.id}`
       });
 
-      // Add credit to wallet
-      if (amountToAdd > 0) {
-        await this.refillService.topUpWallet(amountToAdd, currentUser.id);
-      }
-
-      // Update transaction status to succeeded
-      await this.stripeTransactionRepository.updateById(transaction.id, { status: "succeeded" });
-
-      this.loggerService.info({
-        event: "COUPON_APPLICATION_SUCCESS",
-        userId: currentUser.id,
-        couponId: updateId,
-        invoiceId: invoice.id,
-        amountAdded: amountToAdd / 100
-      });
-
       return { coupon: couponOrPromotion, amountAdded: amountToAdd / 100 };
     } catch (error) {
+      let isInvoiceRolledBack: boolean | undefined;
+
+      if (invoice?.id) {
+        isInvoiceRolledBack = await this.invoices
+          .voidInvoice(invoice.id)
+          .then(() => true)
+          .catch(() => false);
+      }
+
       this.loggerService.error({
         event: "COUPON_APPLICATION_FAILED",
         userId: currentUser.id,
         couponId: updateId,
-        error
+        error,
+        isInvoiceRolledBack
       });
 
       throw error;
