@@ -1,43 +1,54 @@
 name: Auto Approval
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, labeled]
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
 
 jobs:
   check-whether-to-approve:
+    if: github.event.workflow_run.conclusion == 'success'
     permissions:
       contents: read
       pull-requests: write
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: |
+            ./.github/actions
+      - name: Get associated PR
+        id: associated-pr
+        uses: ./.github/actions/associated-pr
+        with:
+          sha: ${{ github.event.workflow_run.head_sha }}
       - name: Evaluate auto-approval criteria
         id: evaluate
+        if: steps.associated-pr.outputs.number != ''
         uses: actions/github-script@v7
+        env:
+          PR_NUMBER: ${{ steps.associated-pr.outputs.number }}
+          PR_TITLE: ${{ steps.associated-pr.outputs.title }}
+          PR_LABELS: ${{ steps.associated-pr.outputs.labels }}
+          PR_AUTHOR: ${{ steps.associated-pr.outputs.author }}
+          PR_HEAD_REPO: ${{ steps.associated-pr.outputs.head_repo }}
         with:
           script: |
-            const pr = context.payload.pull_request;
-            if (!pr) {
-              core.info("No pull request found in context");
-              return;
-            }
-
-            if (pr.head?.repo?.fork) {
+            const prNumber = parseInt(process.env.PR_NUMBER || "");
+            const baseRepo = `${context.repo.owner}/${context.repo.repo}`;
+            const headRepo = process.env.PR_HEAD_REPO ?? "";
+            if (headRepo && headRepo !== baseRepo) {
               core.info("Skipping: PR is from a fork");
               return;
             }
 
-            const login = pr.user?.login ?? "";
+            const login = process.env.PR_AUTHOR ?? "";
             if (/bot/i.test(login)) {
               core.info(`Skipping: author "${login}" appears to be a bot`);
               return;
             }
 
-            const labels = (pr.labels ?? []).map(l => l.name);
+            const labels = (process.env.PR_LABELS ?? "").split(",").filter(Boolean);
             core.info(`PR labels: ${labels.join(", ")}`);
 
             if (!labels.includes("experienced-contributor")) {
@@ -51,7 +62,7 @@ jobs:
               return;
             }
 
-            const title = pr.title ?? "";
+            const title = process.env.PR_TITLE ?? "";
             const isChore = title.startsWith("chore:") || title.startsWith("chore(");
             const isTest = title.startsWith("test:") || title.startsWith("test(");
             const isDocs = title.startsWith("docs:") || title.startsWith("docs(");
@@ -64,7 +75,7 @@ jobs:
             const files = await github.paginate(github.rest.pulls.listFiles, {
               owner: context.repo.owner,
               repo: context.repo.repo,
-              pull_number: pr.number,
+              pull_number: prNumber,
               per_page: 100,
             });
             const filenames = files.map(f => f.filename);
@@ -100,12 +111,12 @@ jobs:
             }
 
             core.setOutput("can-approve", "true");
-            core.info(`PR #${pr.number} meets auto-approval criteria`);
+            core.info(`PR #${prNumber} meets auto-approval criteria`);
       - name: Approve PR
         if: steps.evaluate.outputs.can-approve == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_NUMBER: ${{ steps.associated-pr.outputs.number }}
           REPO: ${{ github.repository }}
         run: |
           gh pr review "$PR_NUMBER" -R "$REPO" --approve --body "Auto-approved: meets auto-approval criteria."
