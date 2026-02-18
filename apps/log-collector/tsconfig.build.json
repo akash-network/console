@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "noImplicitAny": true,
+    "paths": {
+      "@src/*": ["./src/*"],
+      "@test/*": ["./test/*"]
+    },
+    "strict": true,
+    "noEmit": true,
+    "target": "es2022",
+    "useDefineForClassFields": false,
+    "module": "NodeNext",
+    "lib": ["esnext"],
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true
+  },
+  "extends": "@akashnetwork/dev-config/tsconfig.base-node.json",
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.spec.ts"]
+}
