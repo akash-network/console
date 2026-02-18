@@ -8,6 +8,9 @@ on:
         required: false
         type: string
 
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.image_tag || github.ref_name }}
+
 jobs:
   setup:
     uses: ./.github/workflows/reusable-deploy-setup.yml

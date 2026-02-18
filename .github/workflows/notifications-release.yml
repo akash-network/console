@@ -7,6 +7,10 @@ on:
         description: "Image tag to deploy (e.g., latest, 1.0.0, v1.0.0)"
         required: false
         type: string
+
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.image_tag || github.ref_name }}
+
 jobs:
   setup:
     uses: ./.github/workflows/reusable-deploy-setup.yml
