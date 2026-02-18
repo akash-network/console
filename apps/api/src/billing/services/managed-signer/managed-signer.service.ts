@@ -10,6 +10,7 @@ import pick from "lodash/pick";
 import { singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
+import { EnableDeploymentAlertCommand } from "@src/billing/commands/enable-deployment-alert.command";
 import { TrialDeploymentLeaseCreated } from "@src/billing/events/trial-deployment-lease-created";
 import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provider";
 import { type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
@@ -124,6 +125,16 @@ export class ManagedSignerService {
           dseq: createLeaseMessage.value.bidId!.dseq.toString(),
           createdAt: new Date().toISOString(),
           isFirstLease: !hasLeases
+        })
+      );
+    }
+
+    if (createLeaseMessage) {
+      await this.domainEvents.publish(
+        new EnableDeploymentAlertCommand({
+          userId: userWallet.userId!,
+          walletAddress: userWallet.address!,
+          dseq: createLeaseMessage.value.bidId!.dseq.toString()
         })
       );
     }
