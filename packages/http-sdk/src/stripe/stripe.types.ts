@@ -41,8 +41,8 @@ export interface PaymentMethod {
     exp_year: number;
   };
   link?: {
-    email?: string;
-  };
+    email?: string | null;
+  } | null;
 }
 
 export interface Charge {
