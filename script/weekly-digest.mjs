@@ -294,9 +294,20 @@ Rules:
   }
 
   const data = await res.json();
-  const text = data.choices[0].message.content;
+  const text = data.choices?.[0]?.message?.content;
+  if (!text) {
+    throw new Error(
+      `AkashML returned unexpected response structure: ${JSON.stringify(data).slice(0, 200)}`
+    );
+  }
   const cleaned = text.replace(/```json\s*|```\s*/g, "").trim();
-  return JSON.parse(cleaned);
+  try {
+    return JSON.parse(cleaned);
+  } catch (parseErr) {
+    throw new Error(
+      `Failed to parse AkashML response as JSON: ${parseErr.message}\nRaw: ${cleaned.slice(0, 500)}`
+    );
+  }
 }
 
 // ─── Slack Posting ───────────────────────────────────────────────────────────
