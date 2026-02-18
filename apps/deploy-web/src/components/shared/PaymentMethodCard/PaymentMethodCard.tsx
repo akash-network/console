@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useMemo } from "react";
 import type { PaymentMethod } from "@akashnetwork/http-sdk";
 import { Badge, Button, Card, CardDescription, CardHeader, CardTitle, RadioGroupItem } from "@akashnetwork/ui/components";
 import { CheckCircle, CreditCard } from "iconoir-react";
@@ -62,7 +62,7 @@ export const PaymentMethodCard: React.FC<PaymentMethodCardProps> = ({
     onRemove(method.id);
   };
 
-  const display = getPaymentMethodDisplay(method);
+  const display = useMemo(() => getPaymentMethodDisplay(method), [method]);
 
   if (isSelectable) {
     // Selection mode - used in payment page

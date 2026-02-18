@@ -43,7 +43,7 @@ export const PaymentMethodsRow: React.FC<PaymentMethodsRowProps> = ({
     setOpen(false);
   };
 
-  const card = useCallback((paymentMethod: PaymentMethod) => {
+  const paymentMethodLabel = useMemo(() => {
     if (paymentMethod.card) {
       return (
         <>
@@ -58,9 +58,9 @@ export const PaymentMethodsRow: React.FC<PaymentMethodsRowProps> = ({
     }
 
     return <>{capitalizeFirstLetter(paymentMethod.type)}</>;
-  }, []);
+  }, [paymentMethod]);
 
-  const validUntil = useCallback((paymentMethod: PaymentMethod) => {
+  const validUntilContent = useMemo(() => {
     if (!paymentMethod.card) {
       return null;
     }
@@ -71,9 +71,7 @@ export const PaymentMethodsRow: React.FC<PaymentMethodsRowProps> = ({
         {month}/{paymentMethod.card.exp_year}
       </>
     );
-  }, []);
-
-  const validUntilContent = validUntil(paymentMethod);
+  }, [paymentMethod]);
 
   const defaultBadge = useMemo(() => {
     if (!paymentMethod.isDefault) {
@@ -101,7 +99,7 @@ export const PaymentMethodsRow: React.FC<PaymentMethodsRowProps> = ({
   return (
     <d.TableRow className="flex border-0 py-2 hover:bg-transparent">
       <d.TableCell className="flex items-center">
-        {card(paymentMethod)} {defaultBadge}
+        {paymentMethodLabel} {defaultBadge}
       </d.TableCell>
       {validUntilContent && <d.TableCell className="flex flex-grow items-center justify-end">Valid until {validUntilContent}</d.TableCell>}
       {hasOtherPaymentMethods && (
