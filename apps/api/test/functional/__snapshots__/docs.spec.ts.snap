@@ -12872,6 +12872,16 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "isDefault": {
                             "type": "boolean",
                           },
+                          "link": {
+                            "nullable": true,
+                            "properties": {
+                              "email": {
+                                "nullable": true,
+                                "type": "string",
+                              },
+                            },
+                            "type": "object",
+                          },
                           "type": {
                             "type": "string",
                           },
@@ -13027,6 +13037,16 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         },
                         "isDefault": {
                           "type": "boolean",
+                        },
+                        "link": {
+                          "nullable": true,
+                          "properties": {
+                            "email": {
+                              "nullable": true,
+                              "type": "string",
+                            },
+                          },
+                          "type": "object",
                         },
                         "type": {
                           "type": "string",
@@ -13522,6 +13542,16 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                   },
                                   "isDefault": {
                                     "type": "boolean",
+                                  },
+                                  "link": {
+                                    "nullable": true,
+                                    "properties": {
+                                      "email": {
+                                        "nullable": true,
+                                        "type": "string",
+                                      },
+                                    },
+                                    "type": "object",
                                   },
                                   "type": {
                                     "type": "string",
