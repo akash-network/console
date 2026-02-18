@@ -10,7 +10,7 @@ import pick from "lodash/pick";
 import { singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
-import { ManagedDeploymentLeaseCreated } from "@src/billing/events/managed-deployment-lease-created";
+import { EnableDeploymentAlertCommand } from "@src/billing/commands/enable-deployment-alert.command";
 import { TrialDeploymentLeaseCreated } from "@src/billing/events/trial-deployment-lease-created";
 import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provider";
 import { type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
@@ -131,7 +131,7 @@ export class ManagedSignerService {
 
     if (createLeaseMessage) {
       await this.domainEvents.publish(
-        new ManagedDeploymentLeaseCreated({
+        new EnableDeploymentAlertCommand({
           userId: userWallet.userId!,
           walletAddress: userWallet.address!,
           dseq: createLeaseMessage.value.bidId!.dseq.toString()

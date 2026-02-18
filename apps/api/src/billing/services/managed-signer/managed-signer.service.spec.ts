@@ -8,7 +8,7 @@ import type { EncodeObject, Registry } from "@cosmjs/proto-signing";
 import { mock } from "vitest-mock-extended";
 
 import type { AuthService } from "@src/auth/services/auth.service";
-import { ManagedDeploymentLeaseCreated } from "@src/billing/events/managed-deployment-lease-created";
+import { EnableDeploymentAlertCommand } from "@src/billing/commands/enable-deployment-alert.command";
 import { TrialDeploymentLeaseCreated } from "@src/billing/events/trial-deployment-lease-created";
 import type { UserWalletRepository } from "@src/billing/repositories";
 import type { BalancesService } from "@src/billing/services/balances/balances.service";
@@ -206,7 +206,7 @@ describe(ManagedSignerService.name, () => {
       await service.executeDerivedDecodedTxByUserId("user-123", [deploymentMessage]);
 
       expect(domainEvents.publish).toHaveBeenCalledWith(expect.any(TrialDeploymentLeaseCreated));
-      expect(domainEvents.publish).toHaveBeenCalledWith(expect.any(ManagedDeploymentLeaseCreated));
+      expect(domainEvents.publish).toHaveBeenCalledWith(expect.any(EnableDeploymentAlertCommand));
       const publishCalls = (domainEvents.publish as jest.Mock).mock.calls;
       const trialEvent = publishCalls.find(([e]: [unknown]) => e instanceof TrialDeploymentLeaseCreated)?.[0] as TrialDeploymentLeaseCreated;
       expect(trialEvent.data).toEqual({

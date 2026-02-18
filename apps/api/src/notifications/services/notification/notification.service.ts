@@ -1,4 +1,3 @@
-import { DeploymentHttpService } from "@akashnetwork/http-sdk";
 import { backOff, type BackoffOptions } from "exponential-backoff";
 import { inject, singleton } from "tsyringe";
 
@@ -21,7 +20,6 @@ export class NotificationService {
   constructor(
     @inject(NOTIFICATIONS_API_CLIENT) private readonly notificationsApi: NotificationsApiClient,
     private readonly userRepository: UserRepository,
-    private readonly deploymentHttpService: DeploymentHttpService,
     private readonly logger: LoggerService
   ) {}
 
@@ -76,56 +74,63 @@ export class NotificationService {
     }, DEFAULT_BACKOFF_OPTIONS);
   }
 
-  async autoEnableDeploymentAlert(input: { userId: string; walletAddress: string; dseq: string }): Promise<void> {
+  async autoEnableDeploymentAlert(input: AutoEnableDeploymentAlertInput): Promise<void> {
     const user = await this.userRepository.findById(input.userId);
     if (!user?.email) {
       this.logger.debug({ event: "SKIP_AUTO_ENABLE_ALERT", reason: "No user email", userId: input.userId });
       return;
     }
 
-    let channelsResult = await backOff(
-      () =>
-        this.notificationsApi.v1.getNotificationChannels({
-          parameters: {
-            header: { "x-user-id": input.userId },
-            query: { page: 1, limit: 1 }
-          } as operations["getNotificationChannels"]["parameters"] & { header: { "x-user-id": string } }
-        }),
-      DEFAULT_BACKOFF_OPTIONS
-    );
-
-    if (!channelsResult?.data?.data?.length) {
-      await this.createDefaultChannel({ id: input.userId, email: user.email });
-
-      channelsResult = await backOff(
-        () =>
-          this.notificationsApi.v1.getNotificationChannels({
-            parameters: {
-              header: { "x-user-id": input.userId },
-              query: { page: 1, limit: 1 }
-            } as operations["getNotificationChannels"]["parameters"] & { header: { "x-user-id": string } }
-          }),
-        DEFAULT_BACKOFF_OPTIONS
-      );
-    }
-
-    const channelId = channelsResult?.data?.data?.[0]?.id;
+    const channelId = await this.getOrCreateNotificationChannelId(input.userId, user.email);
     if (!channelId) {
       this.logger.warn({ event: "SKIP_AUTO_ENABLE_ALERT", reason: "No channel found after creation", userId: input.userId });
       return;
     }
 
-    const deployment = await backOff(() => this.deploymentHttpService.findByOwnerAndDseq(input.walletAddress, input.dseq), DEFAULT_BACKOFF_OPTIONS);
-    if ("code" in deployment) {
-      this.logger.warn({ event: "SKIP_AUTO_ENABLE_ALERT", reason: "Deployment not found", dseq: input.dseq });
-      return;
+    const threshold = this.calculateAlertThreshold(input.escrowBalance);
+    if (!threshold) return;
+
+    await this.upsertDeploymentBalanceAlert({
+      userId: input.userId,
+      walletAddress: input.walletAddress,
+      dseq: input.dseq,
+      channelId,
+      threshold
+    });
+  }
+
+  private async getOrCreateNotificationChannelId(userId: string, email: string): Promise<string | undefined> {
+    let channelsResult = await this.getNotificationChannels(userId);
+
+    if (!channelsResult?.data?.data?.length) {
+      await this.createDefaultChannel({ id: userId, email });
+      channelsResult = await this.getNotificationChannels(userId);
     }
 
-    const escrowBalance = parseFloat(deployment.escrow_account.state.funds.reduce((sum, { amount }) => sum + parseFloat(amount), 0).toFixed(18));
-    if (!Number.isFinite(escrowBalance) || escrowBalance <= 0) return;
-    const threshold = Math.ceil(DEPLOYMENT_BALANCE_ALERT_THRESHOLD_RATIO * escrowBalance);
-    if (!Number.isFinite(threshold) || threshold <= 0) return;
+    return channelsResult?.data?.data?.[0]?.id;
+  }
 
+  private async getNotificationChannels(userId: string) {
+    return backOff(
+      () =>
+        this.notificationsApi.v1.getNotificationChannels({
+          parameters: {
+            header: { "x-user-id": userId },
+            query: { page: 1, limit: 1 }
+          } as operations["getNotificationChannels"]["parameters"] & { header: { "x-user-id": string } }
+        }),
+      DEFAULT_BACKOFF_OPTIONS
+    );
+  }
+
+  private calculateAlertThreshold(escrowBalance: number): number | undefined {
+    if (!Number.isFinite(escrowBalance) || escrowBalance <= 0) return undefined;
+    const threshold = Math.ceil(DEPLOYMENT_BALANCE_ALERT_THRESHOLD_RATIO * escrowBalance);
+    if (!Number.isFinite(threshold) || threshold <= 0) return undefined;
+    return threshold;
+  }
+
+  private async upsertDeploymentBalanceAlert(input: { userId: string; walletAddress: string; dseq: string; channelId: string; threshold: number }) {
     await backOff(
       () =>
         this.notificationsApi.v1.upsertDeploymentAlert({
@@ -138,7 +143,7 @@ export class NotificationService {
           body: {
             data: {
               alerts: {
-                deploymentBalance: { notificationChannelId: channelId, enabled: true, threshold }
+                deploymentBalance: { notificationChannelId: input.channelId, enabled: true, threshold: input.threshold }
               }
             }
           }
@@ -151,6 +156,13 @@ export class NotificationService {
 interface UserInput {
   id: string;
   email?: string | null;
+}
+
+export interface AutoEnableDeploymentAlertInput {
+  userId: string;
+  walletAddress: string;
+  dseq: string;
+  escrowBalance: number;
 }
 
 export type CreateNotificationInput = operations["createNotification"]["requestBody"]["content"]["application/json"] & {
