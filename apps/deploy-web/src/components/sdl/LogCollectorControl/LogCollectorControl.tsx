@@ -21,6 +21,7 @@ import { CpuFormControl } from "@src/components/sdl/CpuFormControl";
 import { DatadogEnvConfig } from "@src/components/sdl/DatadogEnvConfig/DatadogEnvConfig";
 import { EphemeralStorageFormControl } from "@src/components/sdl/EphemeralStorageFormControl";
 import { MemoryFormControl } from "@src/components/sdl/MemoryFormControl";
+import { LOG_COLLECTOR_IMAGE } from "@src/config/log-collector.config";
 import { useSdlEnv } from "@src/hooks/useSdlEnv/useSdlEnv";
 import { useThrottledEffect } from "@src/hooks/useThrottledEffect/useThrottledEffect";
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
@@ -179,10 +180,8 @@ export const LogCollectorControl: FC<Props> = ({ serviceIndex, dependencies: d =
   );
 };
 
-const IMAGE = "ghcr.io/akash-network/log-collector:1.7.0";
-
 export function isLogCollectorService(service: ServiceType): boolean {
-  return service.title.endsWith("-log-collector") && service.image === IMAGE;
+  return service.title.endsWith("-log-collector") && service.image === LOG_COLLECTOR_IMAGE;
 }
 
 export function findOwnLogCollectorServiceIndex(service: ServiceType, services: ServiceType[]): number {
@@ -193,7 +192,7 @@ function generateLogCollectorService<T extends ServiceType>(targetService: T): P
   return {
     id: toLogCollectorId(targetService),
     title: toLogCollectorTitle(targetService),
-    image: IMAGE,
+    image: LOG_COLLECTOR_IMAGE,
     placement: targetService.placement,
     env: [
       { key: "PROVIDER", value: "DATADOG" },
