@@ -1,5 +1,12 @@
 
 
+## [2.10.2](https://github.com/akash-network/console/compare/provider-proxy/v2.10.1...provider-proxy/v2.10.2) (2026-02-18)
+
+
+### Code Refactoring
+
+* migrates provider-proxy build to tsup ([#2735](https://github.com/akash-network/console/issues/2735)) ([ffaac51](https://github.com/akash-network/console/commit/ffaac516d5c8a5185388eb33a404412ef67cf358))
+
 ## [2.10.1](https://github.com/akash-network/console/compare/provider-proxy/v2.10.0...provider-proxy/v2.10.1) (2026-02-12)
 
 
