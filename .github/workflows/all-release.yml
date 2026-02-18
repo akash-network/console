@@ -39,8 +39,8 @@ jobs:
             const workflowFile = (app) => (APP_ALIASES[app] || app) + "-release.yml";
             const apps = Array.from(new Set(
               changedFiles
-                .filter(f => f.match(/^apps\/[^/]+\/package\.json$/))
-                .map(f => f.split("/")[1])
+                .filter(f => f.match(/^apps\/[^/]+\//))
+                .map(f => f.split("/", 2)[1])
             ));
 
             const nextjs = apps
