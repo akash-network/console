@@ -19,7 +19,7 @@ import { singleton } from "tsyringe";
 import { WalletInitialized, WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import { Memoize } from "@src/caching/helpers";
 import { LoggerService } from "@src/core";
-import { GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
+import { GetDeploymentResponse, ListDeploymentsItem } from "@src/deployment/http-schemas/deployment.schema";
 import { FallbackLeaseReaderService } from "@src/deployment/services/fallback-lease-reader/fallback-lease-reader.service";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { ProviderList } from "@src/types/provider";
@@ -112,7 +112,7 @@ export class DeploymentReaderService {
     query: { userId: string };
     skip?: number;
     limit?: number;
-  }): Promise<{ deployments: GetDeploymentResponse["data"][]; total: number; hasMore: boolean }> {
+  }): Promise<{ deployments: ListDeploymentsItem[]; total: number; hasMore: boolean }> {
     const wallet = await this.walletReaderService.getWalletByUserId(query.userId);
     const { address: owner } = wallet;
     const pagination = skip !== undefined || limit !== undefined ? { offset: skip, limit } : undefined;
@@ -124,15 +124,9 @@ export class DeploymentReaderService {
       .for(deployments)
       .process(async deployment => this.leaseHttpService.list({ owner, dseq: deployment.deployment.id.dseq }));
 
-    const statusByLeaseKey = await this.fetchLeaseStatuses(leaseResults, wallet);
-
     const deploymentsWithLeases = deployments.map((deployment, index) => ({
       deployment: deployment.deployment,
-      leases:
-        leaseResults[index]?.leases?.map(({ lease }) => ({
-          ...lease,
-          status: statusByLeaseKey.get(`${lease.id.dseq}-${lease.id.gseq}-${lease.id.oseq}`) ?? null
-        })) ?? [],
+      leases: leaseResults[index]?.leases?.map(({ lease }) => lease) ?? [],
       escrow_account: deployment.escrow_account
     }));
     return {
@@ -140,43 +134,6 @@ export class DeploymentReaderService {
       total,
       hasMore: skip !== undefined && limit !== undefined ? total > skip + limit : false
     };
-  }
-
-  private async fetchLeaseStatuses(leaseResults: (RestAkashLeaseListResponse | undefined)[], wallet: WalletInitialized) {
-    const activeLeases = leaseResults.flatMap(result => (result?.leases ?? []).filter(({ lease }) => lease.state === "active").map(({ lease }) => lease));
-
-    const uniqueProviders = [...new Set(activeLeases.map(lease => lease.id.provider))];
-    const providerAuthMap = new Map<string, Awaited<ReturnType<ProviderService["toProviderAuth"]>>>();
-    await PromisePool.withConcurrency(10)
-      .for(uniqueProviders)
-      .process(async provider => {
-        const auth = await this.providerService.toProviderAuth({ walletId: wallet.id, provider }, ["status"]);
-        providerAuthMap.set(provider, auth);
-      });
-
-    const statusMap = new Map<string, Awaited<ReturnType<ProviderService["getLeaseStatus"]>> | null>();
-    await PromisePool.withConcurrency(100)
-      .for(activeLeases)
-      .process(async lease => {
-        const key = `${lease.id.dseq}-${lease.id.gseq}-${lease.id.oseq}`;
-        try {
-          const auth = providerAuthMap.get(lease.id.provider);
-          const status = await this.providerService.getLeaseStatus(lease.id.provider, lease.id.dseq, lease.id.gseq, lease.id.oseq, auth!);
-          statusMap.set(key, status);
-        } catch (error) {
-          this.logger.warn({
-            event: "LEASE_STATUS_FETCH_FAILED",
-            provider: lease.id.provider,
-            dseq: lease.id.dseq,
-            gseq: lease.id.gseq,
-            oseq: lease.id.oseq,
-            error
-          });
-          statusMap.set(key, null);
-        }
-      });
-
-    return statusMap;
   }
 
   public async listWithResources({

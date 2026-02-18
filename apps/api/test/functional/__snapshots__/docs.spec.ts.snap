@@ -5764,122 +5764,6 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                     "state": {
                                       "type": "string",
                                     },
-                                    "status": {
-                                      "nullable": true,
-                                      "properties": {
-                                        "forwarded_ports": {
-                                          "additionalProperties": {
-                                            "items": {
-                                              "properties": {
-                                                "available": {
-                                                  "type": "number",
-                                                },
-                                                "externalPort": {
-                                                  "type": "number",
-                                                },
-                                                "host": {
-                                                  "type": "string",
-                                                },
-                                                "port": {
-                                                  "type": "number",
-                                                },
-                                              },
-                                              "required": [
-                                                "port",
-                                                "externalPort",
-                                              ],
-                                              "type": "object",
-                                            },
-                                            "type": "array",
-                                          },
-                                          "type": "object",
-                                        },
-                                        "ips": {
-                                          "additionalProperties": {
-                                            "items": {
-                                              "properties": {
-                                                "ExternalPort": {
-                                                  "type": "number",
-                                                },
-                                                "IP": {
-                                                  "type": "string",
-                                                },
-                                                "Port": {
-                                                  "type": "number",
-                                                },
-                                                "Protocol": {
-                                                  "type": "string",
-                                                },
-                                              },
-                                              "required": [
-                                                "IP",
-                                                "Port",
-                                                "ExternalPort",
-                                                "Protocol",
-                                              ],
-                                              "type": "object",
-                                            },
-                                            "type": "array",
-                                          },
-                                          "type": "object",
-                                        },
-                                        "services": {
-                                          "additionalProperties": {
-                                            "properties": {
-                                              "available": {
-                                                "type": "number",
-                                              },
-                                              "available_replicas": {
-                                                "type": "number",
-                                              },
-                                              "name": {
-                                                "type": "string",
-                                              },
-                                              "observed_generation": {
-                                                "type": "number",
-                                              },
-                                              "ready_replicas": {
-                                                "type": "number",
-                                              },
-                                              "replicas": {
-                                                "type": "number",
-                                              },
-                                              "total": {
-                                                "type": "number",
-                                              },
-                                              "updated_replicas": {
-                                                "type": "number",
-                                              },
-                                              "uris": {
-                                                "items": {
-                                                  "type": "string",
-                                                },
-                                                "type": "array",
-                                              },
-                                            },
-                                            "required": [
-                                              "name",
-                                              "available",
-                                              "total",
-                                              "uris",
-                                              "observed_generation",
-                                              "replicas",
-                                              "updated_replicas",
-                                              "ready_replicas",
-                                              "available_replicas",
-                                            ],
-                                            "type": "object",
-                                          },
-                                          "type": "object",
-                                        },
-                                      },
-                                      "required": [
-                                        "forwarded_ports",
-                                        "ips",
-                                        "services",
-                                      ],
-                                      "type": "object",
-                                    },
                                   },
                                   "required": [
                                     "id",
@@ -5887,7 +5771,6 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                     "price",
                                     "created_at",
                                     "closed_on",
-                                    "status",
                                   ],
                                   "type": "object",
                                 },
