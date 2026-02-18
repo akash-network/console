@@ -73,7 +73,7 @@ export const DeploymentResponseSchema = z.object({
   })
 });
 
-const DeploymentListItemSchema = DeploymentResponseSchema.extend({
+const DeploymentLeaseListItemSchema = DeploymentResponseSchema.extend({
   leases: z.array(DeploymentLeaseSchema.omit({ status: true }))
 });
 
@@ -144,7 +144,7 @@ export const ListDeploymentsQuerySchema = z.object({
 
 export const ListDeploymentsResponseSchema = z.object({
   data: z.object({
-    deployments: z.array(DeploymentListItemSchema),
+    deployments: z.array(DeploymentLeaseListItemSchema),
     pagination: z.object({
       total: z.number(),
       skip: z.number(),
@@ -286,6 +286,6 @@ export type UpdateDeploymentResponse = z.infer<typeof UpdateDeploymentResponseSc
 export type ListWithResourcesParams = z.infer<typeof ListWithResourcesParamsSchema>;
 export type ListWithResourcesQuery = z.infer<typeof ListWithResourcesQuerySchema>;
 export type ListWithResourcesResponse = z.infer<typeof ListWithResourcesResponseSchema>;
-export type ListDeploymentsItem = z.infer<typeof DeploymentListItemSchema>;
+export type ListDeploymentsItem = z.infer<typeof DeploymentLeaseListItemSchema>;
 export type GetDeploymentByOwnerDseqResponse = z.infer<typeof GetDeploymentByOwnerDseqResponseSchema>;
 export type GetWeeklyDeploymentCostResponse = z.infer<typeof GetWeeklyDeploymentCostResponseSchema>;
