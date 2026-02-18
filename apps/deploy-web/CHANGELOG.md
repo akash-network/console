@@ -1,5 +1,17 @@
 
 
+## [3.30.0](https://github.com/akash-network/console/compare/console-web/v3.29.0...console-web/v3.30.0) (2026-02-18)
+
+
+### Features
+
+* **log-collector:** uses the latest log-collector image ([#2766](https://github.com/akash-network/console/issues/2766)) ([0839b85](https://github.com/akash-network/console/commit/0839b8550444040c8231a8ec0eb83bcfce6c81b7))
+
+
+### Bug Fixes
+
+* **deployment:** remove extra quotes from log collector label selector ([#2761](https://github.com/akash-network/console/issues/2761)) ([292820f](https://github.com/akash-network/console/commit/292820f8409bb936e46a143fe1b5cc7312fd6faf))
+
 ## [3.29.0](https://github.com/akash-network/console/compare/console-web/v3.28.3...console-web/v3.29.0) (2026-02-17)
 
 

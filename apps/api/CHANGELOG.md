@@ -1,5 +1,12 @@
 
 
+## [3.31.1](https://github.com/akash-network/console/compare/console-api/v3.31.0...console-api/v3.31.1) (2026-02-18)
+
+
+### Code Refactoring
+
+* adds observability to api serving requests ([#2758](https://github.com/akash-network/console/issues/2758)) ([ab274b3](https://github.com/akash-network/console/commit/ab274b3cb21dd4985bab3f9b5db8cb5b9af24e0f))
+
 ## [3.31.0](https://github.com/akash-network/console/compare/console-api/v3.30.3...console-api/v3.31.0) (2026-02-17)
 
 
