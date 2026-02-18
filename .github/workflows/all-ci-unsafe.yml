@@ -237,7 +237,7 @@ jobs:
           fi
 
           echo "conclusion=$conclusion" >> "$GITHUB_OUTPUT"
-          echo "summary=$summary" >> "$GITHUB_OUTPUT"
+          echo "summary=$summary. Managed in [this workflow run](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})" >> "$GITHUB_OUTPUT"
 
       - name: Complete check run
         uses: actions/github-script@v7
