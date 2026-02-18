@@ -1,5 +1,6 @@
 import yaml from "js-yaml";
 
+import { LOG_COLLECTOR_IMAGE } from "@src/config/log-collector.config";
 import type { ServiceType } from "@src/types";
 import { buildCommand, generateSdl } from "./sdlGenerator";
 
@@ -27,7 +28,7 @@ describe("sdlGenerator", () => {
       return {
         id: "web-log-collector",
         title: "web-log-collector",
-        image: "ghcr.io/akash-network/log-collector:1.7.0",
+        image: LOG_COLLECTOR_IMAGE,
         profile: {
           cpu: 0.1,
           ram: 256,

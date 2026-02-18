@@ -1,6 +1,7 @@
 import type { UseFormReturn } from "react-hook-form";
 import { FormProvider, useForm } from "react-hook-form";
 
+import { LOG_COLLECTOR_IMAGE } from "@src/config/log-collector.config";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { useSdlServiceManager } from "./useSdlServiceManager";
 
@@ -77,7 +78,7 @@ describe(useSdlServiceManager.name, () => {
         buildSDLService({ title: "service-1" }),
         buildSDLService({
           title: "service-1-log-collector",
-          image: "ghcr.io/akash-network/log-collector:1.7.0"
+          image: LOG_COLLECTOR_IMAGE
         }),
         buildSDLService({ title: "service-2" })
       ]
@@ -112,7 +113,7 @@ describe(useSdlServiceManager.name, () => {
         buildSDLService({ title: "service-1" }),
         buildSDLService({
           title: "service-1-log-collector",
-          image: "ghcr.io/akash-network/log-collector:1.7.0"
+          image: LOG_COLLECTOR_IMAGE
         }),
         buildSDLService({ title: "service-3" })
       ]
