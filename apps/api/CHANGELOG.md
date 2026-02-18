@@ -1,5 +1,12 @@
 
 
+## [3.32.0](https://github.com/akash-network/console/compare/console-api/v3.31.2...console-api/v3.32.0) (2026-02-18)
+
+
+### Features
+
+* add ManagedDeploymentLeaseCreated event and handler ([#2728](https://github.com/akash-network/console/issues/2728)) ([9f4ae3d](https://github.com/akash-network/console/commit/9f4ae3d87ef6341fabd0ec7b142b03773da5fa80))
+
 ## [3.31.2](https://github.com/akash-network/console/compare/console-api/v3.31.1...console-api/v3.31.2) (2026-02-18)
 
 
