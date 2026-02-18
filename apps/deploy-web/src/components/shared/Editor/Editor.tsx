@@ -94,12 +94,13 @@ export type Props = {
   theme?: string;
   value: string;
   height?: string | number;
-  language?: "yaml" | "plaintext" | "log";
+  language?: "yaml" | "plaintext" | "log" | "k8s-events";
   onChange?: OnChange;
   onMount?: OnMount;
   onValidate?: OnValidate;
   options?: monaco.editor.IStandaloneEditorConstructionOptions;
   path?: string;
+  dependencies?: typeof DEPENDENCIES;
 };
 
 const SKELETON_LINE_WIDTHS = [75, 60, 85, 45, 70, 55, 80, 40, 65, 50, 90, 35, 70, 60, 75];
@@ -122,6 +123,11 @@ export function EditorSkeleton() {
 }
 
 const LazyMonacoEditor = dynamic(loadMonacoEditor, { ssr: false, loading: () => <EditorSkeleton /> });
+export const DEPENDENCIES = {
+  LazyMonacoEditor,
+  useTheme
+};
+
 const DynamicMonacoEditor: React.FunctionComponent<Props> = ({
   path,
   theme,
@@ -131,12 +137,13 @@ const DynamicMonacoEditor: React.FunctionComponent<Props> = ({
   onMount,
   onValidate,
   language = "plaintext",
-  options = {}
+  options = {},
+  dependencies: d = DEPENDENCIES
 }) => {
-  const { resolvedTheme } = useTheme();
+  const { resolvedTheme } = d.useTheme();
 
   return (
-    <LazyMonacoEditor
+    <d.LazyMonacoEditor
       height={height}
       language={language}
       defaultLanguage={language}

@@ -136,7 +136,12 @@ import "monaco-editor/esm/vs/editor/standalone/browser/iPadShowKeyboard/iPadShow
 // Instead, we copied the YAML language definition here:
 import "./monaco-yaml-definitions";
 import "./monaco-log-definitions";
+import "./monaco-k8s-events-definitions";
+import "./monaco-theme";
 
+// ============================================================================
+// 17) Monaco editor API re-exports (for convenience)
+// ============================================================================
 import { editor, MarkerSeverity } from "monaco-editor/esm/vs/editor/editor.api.js";
 
 // Workaround https://github.com/remcohaszing/monaco-yaml/issues/272.
