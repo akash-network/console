@@ -192,7 +192,8 @@ describe(NotificationService.name, () => {
         body: {
           data: {
             alerts: {
-              deploymentBalance: { notificationChannelId: "channel-1", enabled: true, threshold: 300000 }
+              deploymentBalance: { notificationChannelId: "channel-1", enabled: true, threshold: 300000 },
+              deploymentClosed: { notificationChannelId: "channel-1", enabled: true }
             }
           }
         }

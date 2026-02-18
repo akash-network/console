@@ -143,7 +143,8 @@ export class NotificationService {
           body: {
             data: {
               alerts: {
-                deploymentBalance: { notificationChannelId: input.channelId, enabled: true, threshold: input.threshold }
+                deploymentBalance: { notificationChannelId: input.channelId, enabled: true, threshold: input.threshold },
+                deploymentClosed: { notificationChannelId: input.channelId, enabled: true }
               }
             }
           }
