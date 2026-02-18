@@ -1,5 +1,12 @@
 
 
+## [3.31.2](https://github.com/akash-network/console/compare/console-api/v3.31.1...console-api/v3.31.2) (2026-02-18)
+
+
+### Bug Fixes
+
+* **billing:** delegate coupon wallet top-up to Stripe webhook for reliable payment processing ([#2730](https://github.com/akash-network/console/issues/2730)) ([ade3ade](https://github.com/akash-network/console/commit/ade3ade37ce39705063a2b8f49c89a9c79075ac1))
+
 ## [3.31.1](https://github.com/akash-network/console/compare/console-api/v3.31.0...console-api/v3.31.1) (2026-02-18)
 
 
