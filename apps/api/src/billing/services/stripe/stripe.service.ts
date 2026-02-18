@@ -157,7 +157,7 @@ export class StripeService extends Stripe {
       return { ...remote, validated: local.isValidated, isDefault: local.isDefault };
     }
 
-    const fingerprint = StripeService.extractFingerprint(remote);
+    const fingerprint = this.extractFingerprint(remote);
 
     assert(fingerprint, 403, "Payment method cannot be set as default. No identifiable fingerprint found.");
 
@@ -754,7 +754,7 @@ export class StripeService extends Stripe {
       currentUserId
     });
 
-    const fingerprints = paymentMethods.map(paymentMethod => StripeService.extractFingerprint(paymentMethod)).filter(Boolean) as string[];
+    const fingerprints = paymentMethods.map(paymentMethod => this.extractFingerprint(paymentMethod)).filter(Boolean) as string[];
 
     if (!fingerprints.length) {
       return false;
@@ -993,7 +993,7 @@ export class StripeService extends Stripe {
     }
   }
 
-  private static extractFingerprint(paymentMethod: Stripe.PaymentMethod): string | undefined {
+  private extractFingerprint(paymentMethod: Stripe.PaymentMethod): string | undefined {
     if (paymentMethod.card?.fingerprint) {
       return paymentMethod.card.fingerprint;
     }
