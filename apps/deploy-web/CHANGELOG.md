@@ -1,5 +1,12 @@
 
 
+## [3.31.0](https://github.com/akash-network/console/compare/console-web/v3.30.0...console-web/v3.31.0) (2026-02-18)
+
+
+### Features
+
+* separates logs and k8s events syntax highlighting ([#2733](https://github.com/akash-network/console/issues/2733)) ([b328545](https://github.com/akash-network/console/commit/b328545c26fa582366e7e75ad40edb8c0f856622))
+
 ## [3.30.0](https://github.com/akash-network/console/compare/console-web/v3.29.0...console-web/v3.30.0) (2026-02-18)
 
 
