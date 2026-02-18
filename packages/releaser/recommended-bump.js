@@ -127,7 +127,8 @@ const lastTag = await bumper.getLastSemverTag();
 const result = await bumper.bump(whatBump);
 
 if (!result.releaseType) {
-  process.exit(1);
+  console.error(JSON.stringify({ error: "No releasable commits found" }));
+  process.exit(0);
 }
 
 const prefix = values["tag-prefix"] || "";
@@ -142,7 +143,7 @@ switch (result.releaseType) {
   case "minor":
     nextVersion = `${major}.${minor + 1}.0`;
     break;
-  case "patch":
+  default:
     nextVersion = `${major}.${minor}.${patch + 1}`;
     break;
 }

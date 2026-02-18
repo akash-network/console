@@ -32,8 +32,6 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
-          sparse-checkout: |
-            .github
       - name: Setup Nodejs
         uses: actions/setup-node@v6
         with:
@@ -82,8 +80,10 @@ jobs:
         if: ${{ steps.bumps.outputs.git_tag != '' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_CHANGELOG: ${{ steps.bumps.outputs.changelog }}
+          RELEASE_VERSION: ${{ steps.bumps.outputs.git_tag }}
         run: |
-          gh release create "${{ steps.bumps.outputs.git_tag }}" \
-            --repo "${{ github.repository }}" \
-            --title "${{ steps.bumps.outputs.git_tag }}" \
-            --notes "${{ steps.bumps.outputs.changelog }}"
+          gh release create "$RELEASE_VERSION" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$RELEASE_VERSION" \
+            --notes "$RELEASE_CHANGELOG"

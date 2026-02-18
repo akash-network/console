@@ -7,9 +7,15 @@ on:
         description: "Image tag to deploy (e.g., latest, 1.0.0, v1.0.0)"
         required: false
         type: string
+      cancel-if-stale:
+        description: "Cancel this deployment if a newer version is already queued, running, or recently deployed"
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
-  group: ${{ github.workflow }}-${{ inputs.image_tag || github.ref_name }}
+  group: ${{ github.workflow }}
+  cancel-in-progress: false # don't cancel deployments!
 
 jobs:
   setup:
@@ -17,6 +23,7 @@ jobs:
     with:
       app: stats-web
       image_tag: ${{ inputs.image_tag || github.ref_name }}
+      cancel-if-stale: ${{ inputs.cancel-if-stale == 'true' }}
 
   deploy-beta:
     needs: setup
