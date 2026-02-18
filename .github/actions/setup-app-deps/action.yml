@@ -28,7 +28,7 @@ runs:
           node_modules
           apps/${{ inputs.app }}/node_modules
           packages/*/node_modules
-        key: ${{ inputs.app }}-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+        key: ${{ inputs.app }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}
 
     - name: Install dependencies
       if: inputs.setup-only-nodejs == 'false' && steps.cache.outputs.cache-hit != 'true'
