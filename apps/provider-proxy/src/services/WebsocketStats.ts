@@ -1,10 +1,10 @@
-import { v4 as uuidv4 } from "uuid";
+import { randomUUID } from "node:crypto";
 
 export class WebsocketStats {
   private items: ClientWebSocketStats[] = [];
 
   create(): ClientWebSocketStats {
-    const item = new ClientWebSocketStats(uuidv4());
+    const item = new ClientWebSocketStats(randomUUID());
     this.items.push(item);
 
     if (this.items.length > 100_000) {
