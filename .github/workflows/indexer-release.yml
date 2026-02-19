@@ -30,6 +30,7 @@ jobs:
       contents: read
       pull-requests: read
     needs: setup
+    if: ${{ !needs.setup.outputs.skip }}
     name: Deploy to prod mainnet
     uses: ./.github/workflows/reusable-deploy-k8s.yml
     secrets: inherit
@@ -44,6 +45,7 @@ jobs:
       contents: read
       pull-requests: read
     needs: setup
+    if: ${{ !needs.setup.outputs.skip }}
     name: Deploy to prod sandbox
     uses: ./.github/workflows/reusable-deploy-k8s.yml
     secrets: inherit

@@ -20,6 +20,9 @@ on:
       image_tag:
         description: "Resolved image tag to deploy"
         value: ${{ jobs.setup.outputs.image_tag }}
+      skip:
+        description: "Set to 'true' if deployment should be skipped (a newer version is already in flight)"
+        value: ${{ jobs.setup.outputs.skip }}
 
 permissions:
   contents: read
@@ -30,6 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       image_tag: ${{ steps.extract.outputs.image_tag }}
+      skip: ${{ steps.stale-guard.outputs.skip }}
     steps:
       - name: Extract and Validate Image Tag
         id: extract
@@ -62,6 +66,7 @@ jobs:
           echo "image_tag=$version" >> "$GITHUB_OUTPUT"
 
       - name: Concurrency guard against old versions
+        id: stale-guard
         if: ${{ steps.extract.outputs.image_tag != '' && inputs.cancel-if-stale }}
         uses: actions/github-script@v7
         with:
@@ -107,10 +112,11 @@ jobs:
                 if (otherApp !== app || !otherRawVersion) continue;
 
                 const otherVersion = otherRawVersion?.replace(/^v/, '').replace(/-beta$/, '');
-                if (otherVersion && otherVersion === version) continue;
 
                 if (isNewer(otherVersion, version)) {
-                  throw new Error(`Skipping ${app}@${version}: found newer ${otherVersion} (status: ${status})`);
+                  core.warning(`Skipping ${app}@${version}: found newer ${otherVersion} (status: ${status})`);
+                  core.setOutput('skip', 'true');
+                  return;
                 }
               }
             }

@@ -27,6 +27,7 @@ jobs:
 
   deploy-beta-mainnet:
     needs: setup
+    if: ${{ !needs.setup.outputs.skip }}
     name: Deploy to beta mainnet
     uses: ./.github/workflows/reusable-deploy-k8s.yml
     secrets: inherit
@@ -38,6 +39,7 @@ jobs:
 
   deploy-beta-sandbox:
     needs: setup
+    if: ${{ !needs.setup.outputs.skip }}
     name: Deploy to beta sandbox
     uses: ./.github/workflows/reusable-deploy-k8s.yml
     secrets: inherit

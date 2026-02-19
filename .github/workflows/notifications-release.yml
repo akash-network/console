@@ -27,6 +27,7 @@ jobs:
 
   deploy-beta:
     needs: setup
+    if: ${{ !needs.setup.outputs.skip }}
     name: Deploy to beta
     uses: ./.github/workflows/reusable-deploy-k8s.yml
     secrets: inherit

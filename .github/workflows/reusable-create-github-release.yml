@@ -42,6 +42,7 @@ jobs:
         id: deps-cache
         with:
           path: |
+            node_modules
             packages/releaser/node_modules
           key: deps-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
