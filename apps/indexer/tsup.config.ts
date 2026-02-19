@@ -9,8 +9,6 @@ const isProduction = process.env.NODE_ENV === "production";
 export default defineConfig(async overrideOptions =>
   applyDefaults({
     packageJson,
-    // this is to ensure that this modules are loaded before the entry point,
-    // even if tsup messes up imports tree
     prependEffectsToEntries: ["reflect-metadata", "@akashnetwork/env-loader"],
     entry: ["./src/index.ts"],
     target: tsconfig.compilerOptions.target,
