@@ -1,7 +1,6 @@
-import "@testing-library/jest-dom";
-
 import React from "react";
 import type { PaymentMethod } from "@akashnetwork/http-sdk";
+import { describe, expect, it, type Mock, vi } from "vitest";
 
 import { DEPENDENCIES, PaymentMethodCard } from "./PaymentMethodCard";
 
@@ -52,15 +51,15 @@ describe(PaymentMethodCard.name, () => {
     });
 
     it("passes onRemove handler to Button with correct method id", () => {
-      const onRemove = jest.fn();
+      const onRemove = vi.fn();
       const { dependencies } = setup({
         method: createMockPaymentMethod({ id: "pm_abc" }),
         onRemove
       });
 
-      const buttonProps = (dependencies.Button as jest.Mock).mock.calls[0][0];
+      const buttonProps = (dependencies.Button as Mock).mock.calls[0][0];
       act(() => {
-        buttonProps.onClick({ stopPropagation: jest.fn() });
+        buttonProps.onClick({ stopPropagation: vi.fn() });
       });
 
       expect(onRemove).toHaveBeenCalledWith("pm_abc");
@@ -69,7 +68,7 @@ describe(PaymentMethodCard.name, () => {
     it("passes disabled state to Button when isRemoving is true", () => {
       const { dependencies } = setup({ isRemoving: true });
 
-      const buttonProps = (dependencies.Button as jest.Mock).mock.calls[0][0];
+      const buttonProps = (dependencies.Button as Mock).mock.calls[0][0];
       expect(buttonProps.disabled).toBe(true);
     });
   });
@@ -81,13 +80,13 @@ describe(PaymentMethodCard.name, () => {
         method: createMockPaymentMethod({ id: "pm_sel" })
       });
 
-      const radioProps = (dependencies.RadioGroupItem as jest.Mock).mock.calls[0][0];
+      const radioProps = (dependencies.RadioGroupItem as Mock).mock.calls[0][0];
       expect(radioProps.value).toBe("pm_sel");
       expect(radioProps.id).toBe("pm_sel");
     });
 
     it("calls onSelect with method id when clicked", () => {
-      const onSelect = jest.fn();
+      const onSelect = vi.fn();
       setup({
         isSelectable: true,
         onSelect,
@@ -102,13 +101,13 @@ describe(PaymentMethodCard.name, () => {
     it("renders Remove button when not trialing", () => {
       const { dependencies } = setup({ isSelectable: true, isTrialing: false });
 
-      expect((dependencies.Button as jest.Mock).mock.calls.length).toBeGreaterThan(0);
+      expect((dependencies.Button as Mock).mock.calls.length).toBeGreaterThan(0);
     });
 
     it("does not render Remove button when trialing", () => {
       const { dependencies } = setup({ isSelectable: true, isTrialing: true });
 
-      expect((dependencies.Button as jest.Mock).mock.calls.length).toBe(0);
+      expect((dependencies.Button as Mock).mock.calls.length).toBe(0);
     });
 
     it("does not show expiry for link methods", () => {
@@ -136,10 +135,10 @@ describe(PaymentMethodCard.name, () => {
     input: {
       method?: PaymentMethod;
       isRemoving?: boolean;
-      onRemove?: jest.Mock;
+      onRemove?: Mock;
       isSelectable?: boolean;
       isSelected?: boolean;
-      onSelect?: jest.Mock;
+      onSelect?: Mock;
       showValidationBadge?: boolean;
       isTrialing?: boolean;
     } = {}
@@ -148,7 +147,7 @@ describe(PaymentMethodCard.name, () => {
     const props = {
       method: createMockPaymentMethod(),
       isRemoving: false,
-      onRemove: jest.fn(),
+      onRemove: vi.fn(),
       dependencies,
       ...input
     };
