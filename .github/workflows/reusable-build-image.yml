@@ -63,7 +63,7 @@ jobs:
       base_image_tag: ${{ steps.determine.outputs.base_tag }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
@@ -129,6 +129,12 @@ jobs:
           elif ${{ inputs.force-build }}; then
             force_build="-f"
           fi
+
+          npm version \
+            --no-git-tag-version \
+            --allow-same-version \
+            --workspace="apps/${{ env.app }}" \
+            "${{ steps.determine.outputs.base_tag }}"
 
           # shellcheck disable=SC2086
           ./packages/docker/script/build.sh -r ${{ env.registry }} -t ${{ env.tag }} -a ${{ env.app }} -l "${{ inputs.tag-latest }}" $force_build

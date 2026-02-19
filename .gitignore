@@ -98,3 +98,4 @@ apps/deploy-web/tests/ui/fixture/leapExtensionLocalStorage.*.json
 profile-results.json
 
 .claude/settings.local.json
+.github/workflows/test*.yml
