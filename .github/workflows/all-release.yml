@@ -48,7 +48,7 @@ jobs:
             const appsToRelease = fs.readdirSync("./apps").filter(app => {
               const appPath = "apps/" + app;
               const localDependencies = findLocalPackageDependencies(appPath);
-              return changedFiles.some(f => f.startsWith(appPath + "/")) || localDependencies.some(dep => f.startsWith(dep + "/"));
+              return changedFiles.some(f => f.startsWith(appPath + "/") || localDependencies.some(dep => f.startsWith(dep + "/")));
             });
 
             const nextjs = appsToRelease
