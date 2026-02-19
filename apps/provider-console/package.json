@@ -9,7 +9,6 @@
     "dev": "next -p 3000",
     "format": "prettier --write ./*.{ts,js,json} **/*.{ts,tsx,js,json}",
     "lint": "eslint .",
-    "release": "release-it",
     "start": "next start",
     "test:cov": "NODE_ENV=test jest --coverage --reporters=default --reporters=jest-junit",
     "test:unit": "NODE_ENV=test jest",

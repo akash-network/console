@@ -18,7 +18,6 @@
     "dev-nodc": "next",
     "format": "prettier --write ./*.{ts,js,json} **/*.{ts,tsx,js,json}",
     "lint": "eslint .",
-    "release": "release-it",
     "start": "next start",
     "test": "npm run test:unit",
     "test:cov": "NODE_ENV=test DEPLOYMENT_ENV=staging jest --coverage --reporters=default --reporters=jest-junit",

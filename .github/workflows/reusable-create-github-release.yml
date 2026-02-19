@@ -12,10 +12,6 @@ on:
         description: "The git tag released"
         value: ${{ jobs.release.outputs.git_tag }}
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.app }}
-  cancel-in-progress: true
-
 permissions:
   contents: write
 
@@ -28,21 +24,32 @@ jobs:
       git_tag: ${{ steps.bumps.outputs.git_tag }}
 
     steps:
-      - name: Checkout repository
+      - name: Full history checkout
         uses: actions/checkout@v6
-
-      - uses: ./.github/actions/associated-pr
-        id: associated-pr
         with:
-          gh-user-to-slack-user: ${{ vars.GH_USER_TO_SLACK_USER }}
+          fetch-depth: 0
+      - name: Setup Nodejs
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: "package.json"
+
+      - name: Restore Dependencies Cache
+        uses: actions/cache@v4
+        id: deps-cache
+        with:
+          path: |
+            node_modules
+            packages/releaser/node_modules
+          key: deps-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Dependencies
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        run: |
+          npm run safe-install -- -w packages/releaser
 
       - name: Get Version and Changelog Updates
-        if: ${{ steps.associated-pr.outputs.number != '' }}
         id: bumps
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ steps.associated-pr.outputs.number }}
-          PR_TITLE: ${{ steps.associated-pr.outputs.title }}
           APP_NAME: ${{ inputs.app }}
           APP_ALIASES: >-
             {
@@ -50,59 +57,31 @@ jobs:
               "api": "console-api"
             }
         run: |
-          if [ -z "$PR_NUMBER" ]; then
-            echo "Error: PR number is not set."
-            exit 0
-          fi
-
-          if [[ "$PR_TITLE" != "chore(release): update versions and changelogs"* ]]; then
-            echo "Error: Not a release PR"
-            exit 0
-          fi
-
-          pr_details="$(gh pr view "$PR_NUMBER" --json files)"
-          changelog_file="apps/$APP_NAME/CHANGELOG.md"
-          is_app_released=$(echo "$pr_details" | jq -e --arg file "$changelog_file" 'any(.files[]; .path == $file)')
-
-          if [ "$is_app_released" = "false" ]; then
-            echo "Error: App $APP_NAME has not been released in this PR."
-            exit 0
-          fi
-
-          package_file="apps/$APP_NAME/package.json"
-
-          if [ ! -f "$package_file" ]; then
-            echo "Error: Package file $package_file does not exist."
-            exit 1
-          fi
-
           app_alias=$(echo "$APP_ALIASES" | jq -r --arg app "$APP_NAME" '.[$app] // $app')
-          current_version=$(jq -r '.version' "$package_file")
+          commits_analysis=$(node ./packages/releaser/recommended-bump.js \
+            --tag-prefix="$app_alias/v" \
+            --path "apps/$APP_NAME" \
+            --repo-url "https://github.com/$GITHUB_REPOSITORY" \
+            --target-sha "$GITHUB_SHA")
+          echo "$commits_analysis" | jq
 
-          git_tag="$app_alias/v$current_version"
-          tag_exists=$(git rev-parse "$git_tag" >/dev/null 2>&1 && echo "true" || echo "false")
-
-          if [ "$tag_exists" = "false" ]; then
-            echo "git_tag=$git_tag" >> "$GITHUB_OUTPUT"
-            echo "git_tag=$git_tag"
-
-            changelog=$(script/extract-changelog.sh "$current_version" "$changelog_file")
-
-            if [ -n "$changelog" ]; then
-              echo "changelog=$changelog"
-              echo "changelog<<EOF" >> "$GITHUB_OUTPUT"
-              echo "$changelog" >> "$GITHUB_OUTPUT"
-              echo "EOF" >> "$GITHUB_OUTPUT"
-            fi
-          fi
+          next_tag=$(echo "$commits_analysis" | jq -r '.nextTag // empty')
+          changelog=$(echo "$commits_analysis" | jq -r '.changelog // empty')
+          echo "git_tag=$next_tag" >> "$GITHUB_OUTPUT"
+          {
+            echo "changelog<<CHANGELOG_EOF"
+            echo "$changelog"
+            echo "CHANGELOG_EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Create Release
         if: ${{ steps.bumps.outputs.git_tag != '' }}
-        id: create_release
-        uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ steps.bumps.outputs.git_tag }}
-          release_name: ${{ steps.bumps.outputs.git_tag }}
-          body: ${{ steps.bumps.outputs.changelog }}
+          RELEASE_CHANGELOG: ${{ steps.bumps.outputs.changelog }}
+          RELEASE_VERSION: ${{ steps.bumps.outputs.git_tag }}
+        run: |
+          gh release create "$RELEASE_VERSION" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$RELEASE_VERSION" \
+            --notes "$RELEASE_CHANGELOG"

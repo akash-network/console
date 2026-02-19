@@ -23,7 +23,6 @@
     "migration:exec": "drizzle-kit migrate",
     "migration:pull": "drizzle-kit pull",
     "prod": "node --max-old-space-size=8192 dist/server.js",
-    "release": "release-it",
     "start": "webpack --mode development --config webpack.dev.js --watch",
     "validate:types": "tsc -p tsconfig.strict.json --noEmit && echo"
   },

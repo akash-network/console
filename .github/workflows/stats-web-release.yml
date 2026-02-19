@@ -7,15 +7,27 @@ on:
         description: "Image tag to deploy (e.g., latest, 1.0.0, v1.0.0)"
         required: false
         type: string
+      cancel-if-stale:
+        description: "Cancel this deployment if a newer version is already queued, running, or recently deployed"
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false # don't cancel deployments!
+
 jobs:
   setup:
     uses: ./.github/workflows/reusable-deploy-setup.yml
     with:
       app: stats-web
       image_tag: ${{ inputs.image_tag || github.ref_name }}
+      cancel-if-stale: ${{ inputs.cancel-if-stale == 'true' }}
 
   deploy-beta:
     needs: setup
+    if: ${{ !needs.setup.outputs.skip }}
     name: Deploy to beta
     uses: ./.github/workflows/reusable-deploy-k8s.yml
     secrets: inherit

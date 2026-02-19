@@ -10,7 +10,6 @@
     "dev:inspect": "cross-env NODE_OPTIONS=\"--inspect\" ../../node_modules/.bin/next start -p 3001",
     "format": "prettier --write ./*.{ts,js,json} **/*.{ts,tsx,js,json}",
     "lint": "eslint .",
-    "release": "release-it",
     "start": "next start"
   },
   "dependencies": {

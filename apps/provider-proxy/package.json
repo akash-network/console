@@ -13,7 +13,6 @@
     "format": "prettier --write ./*.{ts,js,json} **/*.{ts,js,json}",
     "lint": "eslint .",
     "prod": "node ./dist/server.js",
-    "release": "release-it",
     "start": "tsup --watch",
     "test": "vitest run --project unit --project functional",
     "test:cov": "vitest run --project unit --project functional --coverage",

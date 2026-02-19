@@ -38,9 +38,10 @@ module.exports = {
   },
   overrides: [
     {
-      files: ["**/sentry.*.config.js"],
+      files: ["**/sentry.*.config.js", "**/packages/releaser/**/*.js"],
       parserOptions: {
-        sourceType: "module"
+        sourceType: "module",
+        ecmaVersion: 2022
       }
     }
   ]
