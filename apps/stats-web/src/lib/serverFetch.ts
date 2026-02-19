@@ -63,9 +63,17 @@ export async function serverFetch(url: string, init?: RequestInit): Promise<Resp
     mergedHeaders.set(key, value);
   });
 
-  return fetch(url, {
-    ...init,
-    cache: "no-store",
-    headers: mergedHeaders
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10_000);
+
+  try {
+    return await fetch(url, {
+      ...init,
+      cache: "no-store",
+      headers: mergedHeaders,
+      signal: init?.signal ?? controller.signal
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 }

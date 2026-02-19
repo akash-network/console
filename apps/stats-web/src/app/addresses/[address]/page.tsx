@@ -49,6 +49,7 @@ async function fetchAddressData(address: string, network: Network["id"]): Promis
   logger.debug({ event: "FETCHING_ADDRESS_DATA", address, network, status: response.status });
 
   if (!response.ok && response.status !== 404) {
+    logger.error({ event: "ADDRESS_FETCH_ERROR", address, network, status: response.status });
     throw new Error(`Error fetching address data: ${address}`);
   } else if (response.status === 404) {
     return null;
