@@ -1,4 +1,5 @@
 import type { ComponentProps } from "react";
+import { describe, expect, it } from "vitest";
 
 import { ImageRegistryLogo } from "./ImageRegistryLogo";
 

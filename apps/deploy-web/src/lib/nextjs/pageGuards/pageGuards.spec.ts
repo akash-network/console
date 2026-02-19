@@ -1,6 +1,7 @@
 import type { LoggerService } from "@akashnetwork/logging";
 import { faker } from "@faker-js/faker";
-import { mock } from "jest-mock-extended";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { Session } from "@src/lib/auth0";
 import type { FeatureFlagService } from "@src/services/feature-flag/feature-flag.service";
@@ -97,7 +98,7 @@ describe("pageGuards", () => {
 
 function setup(input?: { enabledFeatures?: string[]; session?: Partial<Session> }) {
   return mock<AppTypedContext>({
-    getCurrentSession: jest.fn().mockImplementation(async () => {
+    getCurrentSession: vi.fn().mockImplementation(async () => {
       if (!input?.session) return null;
       return {
         ...input.session,
@@ -106,7 +107,7 @@ function setup(input?: { enabledFeatures?: string[]; session?: Partial<Session> 
     }),
     services: {
       featureFlagService: mock<FeatureFlagService>({
-        isEnabledForCtx: jest.fn(async featureName => !!input?.enabledFeatures?.includes(featureName))
+        isEnabledForCtx: vi.fn(async featureName => !!input?.enabledFeatures?.includes(featureName))
       }),
       logger: mock<LoggerService>(),
       urlService: UrlService

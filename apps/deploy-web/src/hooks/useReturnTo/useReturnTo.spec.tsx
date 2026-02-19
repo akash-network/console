@@ -1,5 +1,6 @@
-import { mock } from "jest-mock-extended";
 import type { ReadonlyURLSearchParams } from "next/navigation";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { UrlReturnToStack } from "./UrlReturnToStack";
 import { DEPENDENCIES, useReturnTo } from "./useReturnTo";
@@ -80,7 +81,7 @@ describe(useReturnTo.name, () => {
   });
 
   function setup(input?: { pathname?: string; search?: string; stackReturnTo?: string; defaultReturnTo?: string; windowAvailable?: boolean }) {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     const pathname = input?.pathname ?? "/";
     const search = input?.search ?? "";
@@ -88,21 +89,21 @@ describe(useReturnTo.name, () => {
     const windowAvailable = input?.windowAvailable ?? true;
 
     type Router = ReturnType<typeof DEPENDENCIES.useRouter>;
-    const routerPush = jest.fn<ReturnType<Router["push"]>, Parameters<Router["push"]>>();
+    const routerPush = vi.fn<ReturnType<Router["push"]>, Parameters<Router["push"]>>();
     const router = mock<Router>({ push: routerPush });
     const useRouter = () => router;
 
     const params = new URLSearchParams(search);
     const useSearchParams = () => params as unknown as ReadonlyURLSearchParams;
 
-    const getReturnTo = jest.fn(() => stackReturnTo);
-    const createReturnable = jest.fn(() => "/target");
+    const getReturnTo = vi.fn(() => stackReturnTo);
+    const createReturnable = vi.fn(() => "/target");
     const urlReturnToStack = mock<UrlReturnToStack>({
       getReturnTo,
       createReturnable
     });
 
-    const useServices = jest.fn(() => ({ urlReturnToStack })) as unknown as typeof DEPENDENCIES.useServices;
+    const useServices = vi.fn(() => ({ urlReturnToStack })) as unknown as typeof DEPENDENCIES.useServices;
 
     const mockWindow = windowAvailable
       ? ({

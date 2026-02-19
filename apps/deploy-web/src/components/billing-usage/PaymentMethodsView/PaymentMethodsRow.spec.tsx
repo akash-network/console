@@ -1,11 +1,10 @@
-import "@testing-library/jest-dom";
-
 import React from "react";
 import type { PaymentMethod } from "@akashnetwork/http-sdk";
+import { describe, expect, it, type Mock, vi } from "vitest";
 
 import { PaymentMethodsRow } from "./PaymentMethodsRow";
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMockPaymentMethod } from "@tests/seeders/payment";
 
@@ -185,7 +184,7 @@ describe(PaymentMethodsRow.name, () => {
       const button = screen.getByRole("button");
       await user.click(button);
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(screen.getByText("Set as default")).toBeInTheDocument();
         expect(screen.getByText("Remove")).toBeInTheDocument();
       });
@@ -202,7 +201,7 @@ describe(PaymentMethodsRow.name, () => {
       const button = screen.getByRole("button");
       await user.click(button);
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(screen.getByText("Set as default")).toBeInTheDocument();
         expect(screen.getByText("Remove")).toBeInTheDocument();
       });
@@ -222,7 +221,7 @@ describe(PaymentMethodsRow.name, () => {
       const button = screen.getByRole("button");
       await user.click(button);
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(screen.getByText("Set as default")).toBeInTheDocument();
       });
 
@@ -245,7 +244,7 @@ describe(PaymentMethodsRow.name, () => {
       const button = screen.getByRole("button");
       await user.click(button);
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(screen.getByText("Remove")).toBeInTheDocument();
       });
 
@@ -267,7 +266,7 @@ describe(PaymentMethodsRow.name, () => {
       const button = screen.getByRole("button");
       await user.click(button);
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(screen.getByText("Set as default")).toBeInTheDocument();
       });
 
@@ -288,7 +287,7 @@ describe(PaymentMethodsRow.name, () => {
       const button = screen.getByRole("button");
       await user.click(button);
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(screen.getByText("Remove")).toBeInTheDocument();
       });
 
@@ -371,8 +370,8 @@ describe(PaymentMethodsRow.name, () => {
                 paymentMethod={createMockPaymentMethod({
                   isDefault: false
                 })}
-                onSetPaymentMethodAsDefault={jest.fn()}
-                onRemovePaymentMethod={jest.fn()}
+                onSetPaymentMethodAsDefault={vi.fn()}
+                onRemovePaymentMethod={vi.fn()}
                 hasOtherPaymentMethods={true}
                 dependencies={mockDependencies}
               />
@@ -385,14 +384,14 @@ describe(PaymentMethodsRow.name, () => {
       const button = screen.getByRole("button");
       await user.click(button);
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(screen.getByText("Set as default")).toBeInTheDocument();
       });
 
       const outsideElement = screen.getByTestId("outside");
       fireEvent.click(outsideElement);
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(screen.queryByText("Set as default")).not.toBeInTheDocument();
       });
     });
@@ -402,22 +401,22 @@ describe(PaymentMethodsRow.name, () => {
 function setup(
   input: {
     paymentMethod?: PaymentMethod;
-    onSetPaymentMethodAsDefault?: jest.Mock;
-    onRemovePaymentMethod?: jest.Mock;
+    onSetPaymentMethodAsDefault?: Mock;
+    onRemovePaymentMethod?: Mock;
     hasOtherPaymentMethods?: boolean;
     dependencies?: typeof mockDependencies;
   } = {}
 ) {
   const defaultProps = {
     paymentMethod: createMockPaymentMethod(),
-    onSetPaymentMethodAsDefault: jest.fn(),
-    onRemovePaymentMethod: jest.fn(),
+    onSetPaymentMethodAsDefault: vi.fn(),
+    onRemovePaymentMethod: vi.fn(),
     hasOtherPaymentMethods: true,
     dependencies: mockDependencies
   };
 
-  const mockOnSetPaymentMethodAsDefault = input.onSetPaymentMethodAsDefault || jest.fn();
-  const mockOnRemovePaymentMethod = input.onRemovePaymentMethod || jest.fn();
+  const mockOnSetPaymentMethodAsDefault = input.onSetPaymentMethodAsDefault || vi.fn();
+  const mockOnRemovePaymentMethod = input.onRemovePaymentMethod || vi.fn();
 
   const props = {
     ...defaultProps,

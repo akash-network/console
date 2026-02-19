@@ -1,5 +1,6 @@
 import type { NetworkStore } from "@akashnetwork/network-store";
-import { mock } from "jest-mock-extended";
+import { describe, expect, it } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { toBase64 } from "@src/utils/encoding";
 import type { LocalDeploymentData } from "./deployment-storage.service";

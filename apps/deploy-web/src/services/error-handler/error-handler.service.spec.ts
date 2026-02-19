@@ -1,13 +1,14 @@
 import type { LoggerService } from "@akashnetwork/logging";
 import type { InternalAxiosRequestConfig } from "axios";
 import { AxiosError } from "axios";
-import { mock } from "jest-mock-extended";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { ErrorHandlerService, sentryTraceToW3C } from "./error-handler.service";
 
 describe(ErrorHandlerService.name, () => {
   it("handles generic error without extra metadata", () => {
-    const captureException = jest.fn().mockReturnValue("event-id-1");
+    const captureException = vi.fn().mockReturnValue("event-id-1");
     const logger = mock<LoggerService>();
     const errorHandler = setup({ captureException, logger });
     const error = new Error("Generic error");
@@ -23,7 +24,7 @@ describe(ErrorHandlerService.name, () => {
   });
 
   it("handles HTTP error with response metadata", () => {
-    const captureException = jest.fn().mockReturnValue("event-id-2");
+    const captureException = vi.fn().mockReturnValue("event-id-2");
     const errorHandler = setup({ captureException });
 
     const config = {
@@ -67,7 +68,7 @@ describe(ErrorHandlerService.name, () => {
 
   describe("wrapCallback", () => {
     it("wraps synchronous function and reports error", () => {
-      const captureException = jest.fn();
+      const captureException = vi.fn();
       const errorHandler = setup({ captureException });
       const error = new Error("test error");
       const fn = () => {
@@ -90,7 +91,7 @@ describe(ErrorHandlerService.name, () => {
     });
 
     it("wraps async function and reports error", async () => {
-      const captureException = jest.fn();
+      const captureException = vi.fn();
       const errorHandler = setup({ captureException });
       const error = new Error("test error");
       const fn = async () => {
@@ -112,7 +113,7 @@ describe(ErrorHandlerService.name, () => {
     });
 
     it("returns fallback value when provided", () => {
-      const captureException = jest.fn();
+      const captureException = vi.fn();
       const errorHandler = setup({ captureException });
       const error = new Error("test error");
       const fn = (): string => {
@@ -136,7 +137,7 @@ describe(ErrorHandlerService.name, () => {
     });
 
     it("returns fallback value for async function when provided", async () => {
-      const captureException = jest.fn();
+      const captureException = vi.fn();
       const errorHandler = setup({ captureException });
       const error = new Error("test error");
       const fn = async (): Promise<string> => {
@@ -160,7 +161,7 @@ describe(ErrorHandlerService.name, () => {
     });
 
     it("passes through return value when no error occurs", () => {
-      const captureException = jest.fn();
+      const captureException = vi.fn();
       const errorHandler = setup({ captureException });
       const fn = () => "success";
 
@@ -173,7 +174,7 @@ describe(ErrorHandlerService.name, () => {
     });
 
     it("passes through return value when no error occurs in async function", async () => {
-      const captureException = jest.fn();
+      const captureException = vi.fn();
       const errorHandler = setup({ captureException });
       const fn = async () => "success";
 
@@ -211,7 +212,7 @@ describe(ErrorHandlerService.name, () => {
   });
 
   function setup(input?: { captureException?: (error: unknown, context?: any) => string; logger?: LoggerService }) {
-    const captureException = input?.captureException || jest.fn().mockReturnValue("mock-event-id");
+    const captureException = input?.captureException || vi.fn().mockReturnValue("mock-event-id");
     return new ErrorHandlerService(input?.logger || mock<LoggerService>(), captureException);
   }
 });

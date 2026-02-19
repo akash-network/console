@@ -1,5 +1,6 @@
 import { useFormContext } from "react-hook-form";
 import { faker } from "@faker-js/faker";
+import { describe, expect, it, vi } from "vitest";
 
 import type { ChildrenProps } from "@src/components/alerts/DeploymentAlertsContainer/DeploymentAlertsContainer";
 import type { Props as DeploymentAlertsViewProps } from "@src/components/deployments/DeploymentAlerts/DeploymentAlerts";
@@ -81,9 +82,9 @@ describe("DeploymentAlerts", () => {
 
     const componentProps: Omit<ChildrenProps & DeploymentAlertsViewProps, "deployment"> = {
       maxBalanceThreshold: 1000,
-      onStateChange: jest.fn(),
+      onStateChange: vi.fn(),
       notificationChannels: [buildNotificationChannel({ id: channel1Id }), buildNotificationChannel({ id: channel2Id })],
-      upsert: jest.fn(),
+      upsert: vi.fn(),
       data: buildDeploymentAlert({
         alerts: {
           deploymentBalance: {

@@ -1,5 +1,6 @@
 import type { RadioGroupItem } from "@akashnetwork/ui/components";
-import { mock } from "jest-mock-extended";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { LocalNoteProvider } from "@src/context/LocalNoteProvider/LocalNoteContext";
 import { queryClient } from "@src/queries/queryClient";
@@ -30,10 +31,10 @@ describe(BidRow.name, () => {
       provider: provider.owner
     });
     const components = {
-      PricePerTimeUnit: jest.fn(),
-      ProviderName: jest.fn(),
-      Uptime: jest.fn(),
-      RadioGroupItem: jest.fn() as unknown as typeof RadioGroupItem
+      PricePerTimeUnit: vi.fn(),
+      ProviderName: vi.fn(),
+      Uptime: vi.fn(),
+      RadioGroupItem: vi.fn() as unknown as typeof RadioGroupItem
     };
     const { getByText } = setup({
       bid,
@@ -74,7 +75,7 @@ describe(BidRow.name, () => {
     });
     let bid = buildDeploymentBid({ provider: provider.owner });
     const components = {
-      RadioGroupItem: jest.fn() as unknown as typeof RadioGroupItem
+      RadioGroupItem: vi.fn() as unknown as typeof RadioGroupItem
     };
     setup({
       bid,
@@ -106,7 +107,7 @@ describe(BidRow.name, () => {
   ) {
     const providerProxy = () =>
       ({
-        request: jest.fn(() => {
+        request: vi.fn(() => {
           return new Promise(() => {});
         })
       }) as unknown as ProviderProxyService;

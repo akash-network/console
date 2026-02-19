@@ -1,4 +1,4 @@
-import "@testing-library/jest-dom";
+import { describe, expect, it } from "vitest";
 
 import type { DailyUsageBarChartProps } from "@src/components/billing-usage/DailyUsageBarChart/DailyUsageBarChart";
 import { DailyUsageBarChart, DEPENDENCIES } from "@src/components/billing-usage/DailyUsageBarChart/DailyUsageBarChart";

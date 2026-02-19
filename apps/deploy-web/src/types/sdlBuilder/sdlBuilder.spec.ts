@@ -1,3 +1,5 @@
+import { describe, expect, it } from "vitest";
+
 import { ServiceSchema } from "./sdlBuilder";
 
 describe("ServiceSchema", () => {

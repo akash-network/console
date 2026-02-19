@@ -1,10 +1,11 @@
 import React from "react";
+import { describe, expect, it, vi } from "vitest";
 
 import { protectedEnvironmentVariables } from "@src/config/remote-deploy.config";
 import type { ServiceType } from "@src/types";
 import { DEPENDENCIES, ShareDeployButton } from "./ShareDeployButton";
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 describe(ShareDeployButton.name, () => {
@@ -59,7 +60,7 @@ describe(ShareDeployButton.name, () => {
     const button = screen.queryByRole("button", { name: "Share deploy button" });
     await user.click(button!);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mockCreateCustom).toHaveBeenCalledWith(
         expect.objectContaining({
           title: "Share Deploy Button",
@@ -78,7 +79,7 @@ describe(ShareDeployButton.name, () => {
     const button = screen.queryByRole("button", { name: "Share deploy button" });
     await user.click(button!);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mockCreateCustom).toHaveBeenCalled();
     });
 
@@ -109,14 +110,14 @@ describe(ShareDeployButton.name, () => {
   });
 
   function setup(input?: { services?: ServiceType[]; dependencies?: Partial<typeof DEPENDENCIES> }) {
-    const mockCreateCustom = jest.fn();
-    const mockConfirm = jest.fn();
-    const mockSelect = jest.fn();
-    const mockRequireAction = jest.fn();
-    const mockEnqueueSnackbar = jest.fn();
-    const mockCloseSnackbar = jest.fn();
-    const mockCopyTextToClipboard = jest.fn();
-    const mockGetBaseUrl = jest.fn(() => "https://console.akash.network");
+    const mockCreateCustom = vi.fn();
+    const mockConfirm = vi.fn();
+    const mockSelect = vi.fn();
+    const mockRequireAction = vi.fn();
+    const mockEnqueueSnackbar = vi.fn();
+    const mockCloseSnackbar = vi.fn();
+    const mockCopyTextToClipboard = vi.fn();
+    const mockGetBaseUrl = vi.fn(() => "https://console.akash.network");
 
     const services: ServiceType[] | undefined =
       input && "services" in input

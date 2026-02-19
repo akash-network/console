@@ -1,10 +1,11 @@
 import { FormProvider, useForm } from "react-hook-form";
+import { describe, expect, it, vi } from "vitest";
 
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { CUSTOM_HOST_ID } from "@src/types";
 import { ImageCredentialsHost } from "./ImageCredentialsHost";
 
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildSDLService } from "@tests/seeders/sdlService";
 
@@ -15,7 +16,7 @@ describe(ImageCredentialsHost.name, () => {
     const selectTrigger = screen.getByLabelText("Host");
     await user.click(selectTrigger);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(screen.getByRole("option", { name: "Docker Hub - docker.io" })).toBeInTheDocument();
       expect(screen.getByRole("option", { name: "GitHub Container Registry - ghcr.io" })).toBeInTheDocument();
       expect(screen.getByRole("option", { name: "Google Artifact Registry - pkg.dev" })).toBeInTheDocument();
@@ -32,13 +33,13 @@ describe(ImageCredentialsHost.name, () => {
     const selectTrigger = screen.getByLabelText("Host");
     await user.click(selectTrigger);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(screen.getByRole("option", { name: /AWS Elastic/ })).toBeInTheDocument();
     });
 
     await user.click(screen.getByRole("option", { name: /AWS Elastic/ }));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(form.getValues("services.0.credentials.host")).toBe("amazonaws.com");
     });
   });
@@ -49,13 +50,13 @@ describe(ImageCredentialsHost.name, () => {
     const selectTrigger = screen.getByLabelText("Host");
     await user.click(selectTrigger);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(screen.queryByText("Custom Registry")).toBeInTheDocument();
     });
 
     await user.click(screen.getByText("Custom Registry"));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(screen.queryByText("Custom Registry URL")).toBeInTheDocument();
       expect(screen.queryByPlaceholderText("e.g., myregistry.example.com")).toBeInTheDocument();
     });
@@ -71,13 +72,13 @@ describe(ImageCredentialsHost.name, () => {
     const selectTrigger = screen.getByLabelText("Host");
     await user.click(selectTrigger);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(screen.queryByText("Docker Hub - docker.io")).toBeInTheDocument();
     });
 
     await user.click(screen.getByText("Docker Hub - docker.io"));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(screen.queryByText("Custom Registry URL")).not.toBeInTheDocument();
       expect(form.getValues("services.0.credentials.host")).toBe("docker.io");
     });
@@ -91,7 +92,7 @@ describe(ImageCredentialsHost.name, () => {
     const customInput = screen.getByPlaceholderText("e.g., myregistry.example.com");
     await user.type(customInput, "myregistry.example.com");
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(form.getValues("services.0.credentials.host")).toBe("myregistry.example.com");
     });
   });
@@ -117,13 +118,13 @@ describe(ImageCredentialsHost.name, () => {
     const selectTrigger = screen.getByLabelText("Host");
     await user.click(selectTrigger);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(screen.queryByText("Docker Hub - docker.io")).toBeInTheDocument();
     });
 
     await user.click(screen.getByText("Docker Hub - docker.io"));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(form.getValues("services.0.credentials.host")).toBe("docker.io");
       expect(screen.queryByText("Custom Registry URL")).not.toBeInTheDocument();
     });
@@ -158,7 +159,7 @@ describe(ImageCredentialsHost.name, () => {
     };
 
     const { rerender } = render(<TestWrapper />);
-    const form = await waitFor(() => maybeForm);
+    const form = await vi.waitFor(() => maybeForm);
 
     await act(async () => {
       form.setError("services.0.credentials.host", {
@@ -173,7 +174,7 @@ describe(ImageCredentialsHost.name, () => {
       </FormProvider>
     );
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(screen.queryByText("Host is required.")).toBeInTheDocument();
     });
   });
@@ -195,7 +196,7 @@ describe(ImageCredentialsHost.name, () => {
     await user.clear(customInput);
     await user.type(customInput, "registry.example.com");
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(form.getValues("services.0.credentials.host")).toBe("registry.example.com");
     });
   });
@@ -236,7 +237,7 @@ describe(ImageCredentialsHost.name, () => {
     return {
       ...result,
       user,
-      form: await waitFor(() => maybeForm)
+      form: await vi.waitFor(() => maybeForm)
     };
   }
 });

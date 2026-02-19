@@ -1,5 +1,6 @@
 import React from "react";
 import type { PaymentMethod, SetupIntentResponse } from "@akashnetwork/http-sdk";
+import { describe, expect, it, type Mock, vi } from "vitest";
 
 import type { DEPENDENCIES } from "./PaymentMethodsView";
 import { PaymentMethodsView } from "./PaymentMethodsView";
@@ -8,10 +9,10 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { createMockPaymentMethod } from "@tests/seeders/payment";
 
 // Mock implementations for dependencies
-const mockUseTheme = jest.fn(() => ({
+const mockUseTheme = vi.fn(() => ({
   resolvedTheme: "light" as "light" | "dark" | undefined,
   theme: "light",
-  setTheme: jest.fn(),
+  setTheme: vi.fn(),
   themes: ["light", "dark", "system"],
   systemTheme: "light" as "light" | "dark" | undefined
 }));
@@ -231,10 +232,10 @@ describe(PaymentMethodsView.name, () => {
     it("passes isDarkMode as false when theme is light", () => {
       const lightThemeDeps: any = {
         ...mockDependencies,
-        useTheme: jest.fn(() => ({
+        useTheme: vi.fn(() => ({
           resolvedTheme: "light" as "light" | "dark" | undefined,
           theme: "light",
-          setTheme: jest.fn(),
+          setTheme: vi.fn(),
           themes: ["light", "dark", "system"],
           systemTheme: "light" as "light" | "dark" | undefined
         }))
@@ -248,10 +249,10 @@ describe(PaymentMethodsView.name, () => {
     it("passes isDarkMode as true when theme is dark", () => {
       const darkThemeDeps: any = {
         ...mockDependencies,
-        useTheme: jest.fn(() => ({
+        useTheme: vi.fn(() => ({
           resolvedTheme: "dark" as "light" | "dark" | undefined,
           theme: "dark",
-          setTheme: jest.fn(),
+          setTheme: vi.fn(),
           themes: ["light", "dark", "system"],
           systemTheme: "dark" as "light" | "dark" | undefined
         }))
@@ -330,10 +331,10 @@ describe(PaymentMethodsView.name, () => {
     it("handles mixed theme values", () => {
       const undefinedThemeDeps: any = {
         ...mockDependencies,
-        useTheme: jest.fn(() => ({
+        useTheme: vi.fn(() => ({
           resolvedTheme: undefined,
           theme: undefined,
-          setTheme: jest.fn(),
+          setTheme: vi.fn(),
           themes: ["light", "dark", "system"],
           systemTheme: undefined
         }))
@@ -395,37 +396,37 @@ function createMockPaymentMethods(): PaymentMethod[] {
 function setup(
   input: {
     data?: PaymentMethod[];
-    onSetPaymentMethodAsDefault?: jest.Mock;
-    onRemovePaymentMethod?: jest.Mock;
-    onAddPaymentMethod?: jest.Mock;
+    onSetPaymentMethodAsDefault?: Mock;
+    onRemovePaymentMethod?: Mock;
+    onAddPaymentMethod?: Mock;
     isLoadingPaymentMethods?: boolean;
     showAddPaymentMethod?: boolean;
-    setShowAddPaymentMethod?: jest.Mock;
+    setShowAddPaymentMethod?: Mock;
     setupIntent?: SetupIntentResponse;
-    onAddCardSuccess?: jest.Mock;
+    onAddCardSuccess?: Mock;
     isInProgress?: boolean;
     dependencies?: typeof DEPENDENCIES;
   } = {}
 ) {
   const defaultProps = {
     data: createMockPaymentMethods(),
-    onSetPaymentMethodAsDefault: jest.fn(),
-    onRemovePaymentMethod: jest.fn(),
-    onAddPaymentMethod: jest.fn(),
+    onSetPaymentMethodAsDefault: vi.fn(),
+    onRemovePaymentMethod: vi.fn(),
+    onAddPaymentMethod: vi.fn(),
     isLoadingPaymentMethods: false,
     showAddPaymentMethod: false,
-    setShowAddPaymentMethod: jest.fn(),
+    setShowAddPaymentMethod: vi.fn(),
     setupIntent: undefined,
-    onAddCardSuccess: jest.fn(),
+    onAddCardSuccess: vi.fn(),
     isInProgress: false,
     dependencies: mockDependencies
   };
 
-  const mockOnSetPaymentMethodAsDefault = input.onSetPaymentMethodAsDefault || jest.fn();
-  const mockOnRemovePaymentMethod = input.onRemovePaymentMethod || jest.fn();
-  const mockOnAddPaymentMethod = input.onAddPaymentMethod || jest.fn();
-  const mockSetShowAddPaymentMethod = input.setShowAddPaymentMethod || jest.fn();
-  const mockOnAddCardSuccess = input.onAddCardSuccess || jest.fn();
+  const mockOnSetPaymentMethodAsDefault = input.onSetPaymentMethodAsDefault || vi.fn();
+  const mockOnRemovePaymentMethod = input.onRemovePaymentMethod || vi.fn();
+  const mockOnAddPaymentMethod = input.onAddPaymentMethod || vi.fn();
+  const mockSetShowAddPaymentMethod = input.setShowAddPaymentMethod || vi.fn();
+  const mockOnAddCardSuccess = input.onAddCardSuccess || vi.fn();
 
   const props = {
     ...defaultProps,

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { cn } from "@akashnetwork/ui/utils";
 
 import useCookieTheme from "@src/hooks/useTheme";
 
@@ -13,9 +14,12 @@ export function AuthLayout({ sidebar, children }: Props) {
   return (
     <div className="relative flex h-screen">
       <div
-        className={`absolute flex h-full w-full items-center justify-center overflow-y-auto lg:static lg:w-1/2 ${sidebarClass}`}
+        className={cn(
+          "absolute flex h-full w-full items-center justify-center overflow-y-auto lg:static lg:w-1/2",
+          sidebarClass,
+          "bg-[radial-gradient(circle,rgba(255,255,255,0.07)_2px,transparent_2px)]"
+        )}
         style={{
-          backgroundImage: "radial-gradient(circle, rgba(255, 255, 255, 0.07) 2px, transparent 2px)",
           backgroundSize: "24px 24px",
           color: "hsl(var(--foreground))"
         }}

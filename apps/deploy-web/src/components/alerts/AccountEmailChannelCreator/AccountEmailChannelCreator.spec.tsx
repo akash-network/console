@@ -1,4 +1,5 @@
 import { faker } from "@faker-js/faker";
+import { describe, expect, it, vi } from "vitest";
 
 import { AccountEmailChannelCreateTrigger } from "@src/components/alerts/AccountEmailChannelCreator/AccountEmailChannelCreator";
 
@@ -54,7 +55,7 @@ describe("AccountEmailChannelCreateTrigger", () => {
   function setup(props = {}) {
     const defaultProps = {
       isLoading: false,
-      create: jest.fn(),
+      create: vi.fn(),
       email: faker.internet.email(),
       ...props
     };

@@ -1,9 +1,10 @@
 import { faker } from "@faker-js/faker";
+import { describe, expect, it, vi } from "vitest";
 
 import type { Props } from "./NotificationChannelsGuard";
 import { NotificationChannelsGuardView } from "./NotificationChannelsGuard";
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { buildNotificationChannel } from "@tests/seeders/notificationChannel";
 
 describe("NotificationChannelsGuardView", () => {
@@ -20,7 +21,7 @@ describe("NotificationChannelsGuardView", () => {
 
   it("renders children when notification channels exist", async () => {
     const { childTestId } = setup({ data: [buildNotificationChannel()], isFetched: true });
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(screen.getByTestId(childTestId)).toBeInTheDocument();
     });
   });

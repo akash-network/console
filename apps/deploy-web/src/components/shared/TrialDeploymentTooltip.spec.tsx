@@ -1,4 +1,5 @@
 import React from "react";
+import { describe, expect, it } from "vitest";
 
 import { DEPENDENCIES as TRIAL_TOOLTIP_DEPENDENCIES, TrialDeploymentTooltip } from "./TrialDeploymentTooltip";
 

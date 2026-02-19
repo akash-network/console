@@ -1,5 +1,6 @@
 import type { Stripe } from "@stripe/stripe-js";
-import { mock } from "jest-mock-extended";
+import { describe, expect, it, type MockedFunction, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { StripeServiceDependencies } from "./stripe.service";
 import { StripeService } from "./stripe.service";
@@ -40,7 +41,7 @@ describe("StripeService", () => {
         publishableKey: "pk_test_mock_key"
       });
 
-      const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation();
+      const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation();
       mockLoadStripe.mockRejectedValue(new Error("Stripe load failed"));
 
       const result = await stripeService.getStripe();
@@ -73,7 +74,7 @@ describe("StripeService", () => {
   });
 
   function setup(input: { publishableKey: string }) {
-    const mockLoadStripe = jest.fn() as jest.MockedFunction<Required<StripeServiceDependencies>["loadStripe"]>;
+    const mockLoadStripe = vi.fn() as MockedFunction<Required<StripeServiceDependencies>["loadStripe"]>;
     const mockStripeInstance = mock<Stripe>();
 
     const stripeService = new StripeService({

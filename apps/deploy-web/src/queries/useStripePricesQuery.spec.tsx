@@ -1,9 +1,9 @@
 import type { StripeService } from "@akashnetwork/http-sdk";
-import { mock } from "jest-mock-extended";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { useStripePricesQuery } from "./useStripePricesQuery";
 
-import { waitFor } from "@testing-library/react";
 import { setupQuery } from "@tests/unit/query-client";
 
 describe("useStripePricesQuery", () => {
@@ -19,7 +19,7 @@ describe("useStripePricesQuery", () => {
       services: { stripe: () => stripeService }
     });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(stripeService.findPrices).toHaveBeenCalled();
       expect(result.current.isSuccess).toBe(true);
       expect(result.current.data).toEqual(mockPrices);
@@ -33,7 +33,7 @@ describe("useStripePricesQuery", () => {
       services: { stripe: () => stripeService }
     });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(result.current.isSuccess).toBe(true);
       expect(result.current.data).toEqual([]);
     });
@@ -48,7 +48,7 @@ describe("useStripePricesQuery", () => {
       services: { stripe: () => stripeService }
     });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(result.current.isSuccess).toBe(true);
       expect(result.current.data).toEqual([]);
     });

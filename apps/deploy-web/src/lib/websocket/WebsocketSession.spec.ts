@@ -1,10 +1,12 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+
 import { WebsocketSession } from "./WebsocketSession";
 
 import { createWebsocketMock, dispatchWsEvent } from "@tests/unit/websocketMock";
 
 describe(WebsocketSession.name, () => {
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   describe("send", () => {
@@ -57,7 +59,7 @@ describe(WebsocketSession.name, () => {
 
     it("uses custom `transformSentMessage` option", async () => {
       const { websocket, websocketFactory } = setup();
-      const transformSentMessage = jest.fn(msg => `custom:${JSON.stringify(msg)}`);
+      const transformSentMessage = vi.fn(msg => `custom:${JSON.stringify(msg)}`);
       const session = new WebsocketSession({ websocketFactory, transformSentMessage });
 
       session.send({ type: "test" });
@@ -119,7 +121,7 @@ describe(WebsocketSession.name, () => {
 
     it("uses custom transformReceivedMessage", async () => {
       const { websocket, websocketFactory } = setup();
-      const transformReceivedMessage = jest.fn(msg => ({ transformed: msg }));
+      const transformReceivedMessage = vi.fn(msg => ({ transformed: msg }));
       const session = new WebsocketSession({ websocketFactory, transformReceivedMessage });
       const generator = session.receive();
 
@@ -158,7 +160,7 @@ describe(WebsocketSession.name, () => {
 
     it("uses custom ignoreMessage function", async () => {
       const { websocket, websocketFactory } = setup();
-      const ignoreMessage = jest.fn((msg: unknown) => {
+      const ignoreMessage = vi.fn((msg: unknown) => {
         if (msg && typeof msg === "object" && "type" in msg) {
           return msg.type === "ignore";
         }
@@ -326,7 +328,7 @@ describe(WebsocketSession.name, () => {
 
     it("reconnects after disconnect", async () => {
       let ws: WebSocket;
-      const websocketFactory = jest.fn(() => (ws = createWebsocketMock()));
+      const websocketFactory = vi.fn(() => (ws = createWebsocketMock()));
       const session = new WebsocketSession({ websocketFactory });
 
       session.send({ type: "first" });
@@ -353,7 +355,7 @@ describe(WebsocketSession.name, () => {
       });
     }
 
-    const websocketFactory = jest.fn(() => websocket);
+    const websocketFactory = vi.fn(() => websocket);
 
     return { websocket, websocketFactory };
   }

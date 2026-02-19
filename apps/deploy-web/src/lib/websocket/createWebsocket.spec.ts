@@ -1,3 +1,5 @@
+import { afterEach, describe, expect, it, type Mock, vi } from "vitest";
+
 import { wait } from "@src/utils/timer";
 import { createWebsocket, waitForEvent } from "./createWebsocket";
 
@@ -5,7 +7,7 @@ import { createWebsocketMock, dispatchWsEvent } from "@tests/unit/websocketMock"
 
 describe(createWebsocket.name, () => {
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   describe("createWebsocket", () => {
@@ -45,55 +47,55 @@ describe(createWebsocket.name, () => {
     });
 
     it("sends ping messages every 30 seconds", async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       const { websocket, websocketFactory } = setup();
       createWebsocket({ websocketFactory });
 
-      await Promise.all([dispatchWsEvent(websocket, new Event("open")), jest.runOnlyPendingTimersAsync()]);
+      await Promise.all([dispatchWsEvent(websocket, new Event("open")), vi.runOnlyPendingTimersAsync()]);
 
       expect(websocket.send).not.toHaveBeenCalled();
 
-      await jest.advanceTimersByTimeAsync(30_000);
+      await vi.advanceTimersByTimeAsync(30_000);
       expect(websocket.send).toHaveBeenCalledTimes(1);
 
-      await jest.advanceTimersByTimeAsync(30_000);
+      await vi.advanceTimersByTimeAsync(30_000);
       expect(websocket.send).toHaveBeenCalledTimes(2);
 
-      await jest.advanceTimersByTimeAsync(30_000);
+      await vi.advanceTimersByTimeAsync(30_000);
       expect(websocket.send).toHaveBeenCalledTimes(3);
 
-      expect((websocket.send as jest.Mock).mock.calls).toEqual(Array.from({ length: 3 }, () => [JSON.stringify({ type: "ping" })]));
+      expect((websocket.send as Mock).mock.calls).toEqual(Array.from({ length: 3 }, () => [JSON.stringify({ type: "ping" })]));
     });
 
     it("stops sending pings after close", async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       const { websocket, websocketFactory } = setup();
       createWebsocket({ websocketFactory });
 
-      await Promise.all([dispatchWsEvent(websocket, new Event("open")), jest.runOnlyPendingTimersAsync()]);
+      await Promise.all([dispatchWsEvent(websocket, new Event("open")), vi.runOnlyPendingTimersAsync()]);
 
-      await jest.advanceTimersByTimeAsync(30_000);
+      await vi.advanceTimersByTimeAsync(30_000);
       expect(websocket.send).toHaveBeenCalledTimes(1);
 
-      await Promise.all([dispatchWsEvent(websocket, new CloseEvent("close")), jest.runOnlyPendingTimersAsync()]);
+      await Promise.all([dispatchWsEvent(websocket, new CloseEvent("close")), vi.runOnlyPendingTimersAsync()]);
 
-      await jest.advanceTimersByTimeAsync(60_000);
+      await vi.advanceTimersByTimeAsync(60_000);
       expect(websocket.send).toHaveBeenCalledTimes(1);
     });
 
     it("stops sending pings after error", async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       const { websocket, websocketFactory } = setup();
       createWebsocket({ websocketFactory });
 
-      await Promise.all([dispatchWsEvent(websocket, new Event("open")), jest.runOnlyPendingTimersAsync()]);
+      await Promise.all([dispatchWsEvent(websocket, new Event("open")), vi.runOnlyPendingTimersAsync()]);
 
-      await jest.advanceTimersByTimeAsync(30_000);
+      await vi.advanceTimersByTimeAsync(30_000);
       expect(websocket.send).toHaveBeenCalledTimes(1);
 
-      await Promise.all([dispatchWsEvent(websocket, new Event("error")), jest.runOnlyPendingTimersAsync()]);
+      await Promise.all([dispatchWsEvent(websocket, new Event("error")), vi.runOnlyPendingTimersAsync()]);
 
-      await jest.advanceTimersByTimeAsync(60_000);
+      await vi.advanceTimersByTimeAsync(60_000);
       expect(websocket.send).toHaveBeenCalledTimes(1);
     });
 
@@ -148,7 +150,7 @@ describe(createWebsocket.name, () => {
       const { websocket, websocketFactory } = setup();
       const wsEvents = createWebsocket({ websocketFactory });
 
-      const listener = jest.fn();
+      const listener = vi.fn();
       wsEvents.addEventListener("message", listener);
 
       await dispatchWsEvent(websocket, new Event("open"));
@@ -167,8 +169,8 @@ describe(createWebsocket.name, () => {
       const { websocket, websocketFactory } = setup();
       const wsEvents = createWebsocket({ websocketFactory });
 
-      const openListener = jest.fn();
-      const messageListener = jest.fn();
+      const openListener = vi.fn();
+      const messageListener = vi.fn();
 
       wsEvents.addEventListener("open", openListener);
       wsEvents.addEventListener("message", messageListener);
@@ -186,28 +188,28 @@ describe(createWebsocket.name, () => {
     });
 
     it("removes all listeners on final `error` event", async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       let ws: WebSocket;
-      const websocketFactory = jest.fn(() => (ws = createWebsocketMock()));
+      const websocketFactory = vi.fn(() => (ws = createWebsocketMock()));
       const wsEvents = createWebsocket({ websocketFactory });
 
-      const openListener = jest.fn();
-      const messageListener = jest.fn();
+      const openListener = vi.fn();
+      const messageListener = vi.fn();
 
       wsEvents.addEventListener("open", openListener);
       wsEvents.addEventListener("message", messageListener);
 
-      await Promise.all([dispatchWsEvent(ws!, new Event("open")), jest.runOnlyPendingTimersAsync()]);
+      await Promise.all([dispatchWsEvent(ws!, new Event("open")), vi.runOnlyPendingTimersAsync()]);
       expect(openListener).toHaveBeenCalledTimes(1);
 
       for (let i = 0; i < 6; i++) {
-        await Promise.all([dispatchWsEvent(ws!, new Event("error")), jest.runOnlyPendingTimersAsync()]);
-        await jest.runOnlyPendingTimersAsync(); // flush auto close timer
-        await jest.runOnlyPendingTimersAsync(); // flush retry timers
+        await Promise.all([dispatchWsEvent(ws!, new Event("error")), vi.runOnlyPendingTimersAsync()]);
+        await vi.runOnlyPendingTimersAsync(); // flush auto close timer
+        await vi.runOnlyPendingTimersAsync(); // flush retry timers
       }
 
-      await Promise.all([dispatchWsEvent(ws!, new Event("open")), jest.runOnlyPendingTimersAsync()]);
-      await Promise.all([dispatchWsEvent(ws!, new MessageEvent("message", { data: "test" })), jest.runOnlyPendingTimersAsync()]);
+      await Promise.all([dispatchWsEvent(ws!, new Event("open")), vi.runOnlyPendingTimersAsync()]);
+      await Promise.all([dispatchWsEvent(ws!, new MessageEvent("message", { data: "test" })), vi.runOnlyPendingTimersAsync()]);
 
       expect(openListener).toHaveBeenCalledTimes(1);
       expect(messageListener).not.toHaveBeenCalled();
@@ -217,7 +219,7 @@ describe(createWebsocket.name, () => {
       const { websocket, websocketFactory } = setup();
       const wsEvents = createWebsocket({ websocketFactory });
 
-      const listener = jest.fn();
+      const listener = vi.fn();
       wsEvents.addEventListener("message", listener, { once: true });
 
       await dispatchWsEvent(websocket, new Event("open"));
@@ -258,19 +260,19 @@ describe(createWebsocket.name, () => {
 
     describe("retry behavior", () => {
       it("retries on error up to 5 times", async () => {
-        jest.useFakeTimers();
-        const websocketFactory = jest.fn(() => createWebsocketMock());
+        vi.useFakeTimers();
+        const websocketFactory = vi.fn(() => createWebsocketMock());
         const wsEvents = createWebsocket({ websocketFactory });
-        const onError = jest.fn();
+        const onError = vi.fn();
         wsEvents.addEventListener("error", onError);
 
         for (let i = 0; i < 7; i++) {
           const ws = websocketFactory.mock.results.at(-1)!.value;
           const errorPromise = new Promise(resolve => wsEvents.addEventListener("attempt-error", resolve));
-          await Promise.all([dispatchWsEvent(ws, new Event("error")), jest.runOnlyPendingTimersAsync()]);
-          await jest.runOnlyPendingTimersAsync();
+          await Promise.all([dispatchWsEvent(ws, new Event("error")), vi.runOnlyPendingTimersAsync()]);
+          await vi.runOnlyPendingTimersAsync();
           await errorPromise;
-          await jest.runOnlyPendingTimersAsync();
+          await vi.runOnlyPendingTimersAsync();
         }
 
         expect(websocketFactory).toHaveBeenCalledTimes(6);
@@ -279,7 +281,7 @@ describe(createWebsocket.name, () => {
       });
 
       it("do not retrying after successful connection", async () => {
-        const websocketFactory = jest.fn(() => createWebsocketMock());
+        const websocketFactory = vi.fn(() => createWebsocketMock());
 
         createWebsocket({ websocketFactory });
         const ws = websocketFactory.mock.results.at(-1)!.value;
@@ -291,20 +293,20 @@ describe(createWebsocket.name, () => {
       });
 
       it("uses `shouldRetry` option to determine if should retry", async () => {
-        jest.useFakeTimers();
-        const websocketFactory = jest.fn(() => createWebsocketMock());
-        const shouldRetry = jest.fn((error: Error) => {
+        vi.useFakeTimers();
+        const websocketFactory = vi.fn(() => createWebsocketMock());
+        const shouldRetry = vi.fn((error: Error) => {
           const event = error.cause as CloseEvent;
           return !error.cause || !event.reason?.includes("fatal");
         });
 
         createWebsocket({ websocketFactory, shouldRetry });
 
-        await Promise.all([dispatchWsEvent(websocketFactory.mock.results.at(-1)!.value, new Event("error")), jest.runOnlyPendingTimersAsync()]);
+        await Promise.all([dispatchWsEvent(websocketFactory.mock.results.at(-1)!.value, new Event("error")), vi.runOnlyPendingTimersAsync()]);
         const closeEvent = new CloseEvent("close", { reason: "fatal", code: 22 });
-        await Promise.all([dispatchWsEvent(websocketFactory.mock.results.at(-1)!.value, closeEvent), jest.runOnlyPendingTimersAsync()]);
+        await Promise.all([dispatchWsEvent(websocketFactory.mock.results.at(-1)!.value, closeEvent), vi.runOnlyPendingTimersAsync()]);
 
-        await jest.runOnlyPendingTimersAsync();
+        await vi.runOnlyPendingTimersAsync();
 
         expect(websocketFactory).toHaveBeenCalledTimes(1);
         expect(shouldRetry).toHaveBeenCalledWith(
@@ -320,18 +322,18 @@ describe(createWebsocket.name, () => {
       });
 
       it("does not retry after abort signal", async () => {
-        jest.useFakeTimers();
+        vi.useFakeTimers();
         const abortController = new AbortController();
-        const websocketFactory = jest.fn(() => createWebsocketMock());
+        const websocketFactory = vi.fn(() => createWebsocketMock());
 
         createWebsocket({ websocketFactory, signal: abortController.signal });
 
-        await Promise.all([dispatchWsEvent(websocketFactory.mock.results.at(-1)!.value, new Event("error")), jest.runOnlyPendingTimersAsync()]);
+        await Promise.all([dispatchWsEvent(websocketFactory.mock.results.at(-1)!.value, new Event("error")), vi.runOnlyPendingTimersAsync()]);
         expect(websocketFactory).toHaveBeenCalledTimes(1);
 
         abortController.abort();
 
-        await jest.advanceTimersByTimeAsync(10_000);
+        await vi.advanceTimersByTimeAsync(10_000);
 
         expect(websocketFactory).toHaveBeenCalledTimes(1);
       });
@@ -373,7 +375,7 @@ describe(createWebsocket.name, () => {
       const events = new EventTarget();
       const promise = waitForEvent<string>(events, "message");
 
-      jest.spyOn(events, "removeEventListener");
+      vi.spyOn(events, "removeEventListener");
       events.dispatchEvent(new CustomEvent("message", { detail: "test" }));
 
       await promise;
@@ -393,7 +395,7 @@ describe(createWebsocket.name, () => {
       });
     }
 
-    const websocketFactory = jest.fn(() => websocket);
+    const websocketFactory = vi.fn(() => websocket);
 
     return { websocket, websocketFactory };
   }

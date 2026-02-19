@@ -1,8 +1,9 @@
 import type { ComponentProps } from "react";
+import { describe, expect, it, vi } from "vitest";
 
 import { ForgotPasswordForm, type ForgotPasswordFormValues } from "./ForgotPasswordForm";
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 describe(ForgotPasswordForm.name, () => {
@@ -12,7 +13,7 @@ describe(ForgotPasswordForm.name, () => {
     await userEvent.type(screen.getByLabelText("Email"), "alice@example.com");
     await userEvent.click(screen.getByRole("button", { name: "Send reset email" }));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(onSubmit).toHaveBeenCalledTimes(1);
       expect(onSubmit).toHaveBeenCalledWith({ email: "alice@example.com" });
     });
@@ -80,8 +81,8 @@ describe(ForgotPasswordForm.name, () => {
   });
 
   function setup(input: Partial<ComponentProps<typeof ForgotPasswordForm>> = {}) {
-    const onSubmit = input.onSubmit ?? jest.fn<void, [ForgotPasswordFormValues]>();
-    const onGoBack = input.onGoBack ?? jest.fn<void, []>();
+    const onSubmit = input.onSubmit ?? vi.fn<void, [ForgotPasswordFormValues]>();
+    const onGoBack = input.onGoBack ?? vi.fn<void, []>();
     const props: ComponentProps<typeof ForgotPasswordForm> = {
       status: "idle",
       ...input,

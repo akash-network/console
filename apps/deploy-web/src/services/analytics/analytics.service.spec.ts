@@ -1,10 +1,11 @@
 import { faker } from "@faker-js/faker";
+import { describe, expect, it, type Mock, vi } from "vitest";
 
 import type { Amplitude, AnalyticsOptions, GoogleAnalytics } from "./analytics.service";
 import { AnalyticsService } from "./analytics.service";
 
 type Mocked<T> = {
-  [K in keyof T]?: jest.Mock;
+  [K in keyof T]?: Mock;
 };
 
 describe(AnalyticsService.name, () => {
@@ -13,7 +14,7 @@ describe(AnalyticsService.name, () => {
 
   describe("initialization", () => {
     it("does not initialize Amplitude when disabled", () => {
-      const init = jest.fn();
+      const init = vi.fn();
       const service = setup({
         amplitude: { init },
         options: {
@@ -27,7 +28,7 @@ describe(AnalyticsService.name, () => {
     });
 
     it("initializes Amplitude when enabled", () => {
-      const init = jest.fn();
+      const init = vi.fn();
       const service = setup({
         amplitude: { init },
         options: {
@@ -43,18 +44,18 @@ describe(AnalyticsService.name, () => {
 
   describe("switch value caching", () => {
     it("should only track when switch value changes", () => {
-      const track = jest.fn();
+      const track = vi.fn();
       const service = setup({
         amplitude: {
           track
         },
         storage: {
-          getItem: jest.fn().mockReturnValue(
+          getItem: vi.fn().mockReturnValue(
             JSON.stringify({
               connect_wallet: "custodial"
             })
           ),
-          setItem: jest.fn()
+          setItem: vi.fn()
         },
         options: {
           amplitude: { enabled: true, apiKey: mockAmplitudeApiKey },
@@ -74,11 +75,11 @@ describe(AnalyticsService.name, () => {
 
   describe("identify", () => {
     it("should identify user in both GA and Amplitude", () => {
-      const identify = jest.fn();
-      const setUserId = jest.fn();
+      const identify = vi.fn();
+      const setUserId = vi.fn();
       const service = setup({
         amplitude: { identify, setUserId },
-        ga: { event: jest.fn() },
+        ga: { event: vi.fn() },
         options: {
           amplitude: { enabled: true, apiKey: mockAmplitudeApiKey },
           ga: { enabled: true, measurementId: mockGaMeasurementId }
@@ -91,9 +92,9 @@ describe(AnalyticsService.name, () => {
     });
 
     it("should only identify in enabled services", () => {
-      const identify = jest.fn();
-      const setUserId = jest.fn();
-      const gtag = jest.fn();
+      const identify = vi.fn();
+      const setUserId = vi.fn();
+      const gtag = vi.fn();
       const service = setup({
         amplitude: { identify, setUserId },
         gtag,
@@ -114,8 +115,8 @@ describe(AnalyticsService.name, () => {
 
   describe("track", () => {
     it("should track events in both GA and Amplitude when no target specified", () => {
-      const track = jest.fn();
-      const event = jest.fn();
+      const track = vi.fn();
+      const event = vi.fn();
       const service = setup({
         amplitude: { track },
         ga: { event },
@@ -138,8 +139,8 @@ describe(AnalyticsService.name, () => {
     });
 
     it("should track events only in specified target", () => {
-      const track = jest.fn();
-      const event = jest.fn();
+      const track = vi.fn();
+      const event = vi.fn();
       const service = setup({
         amplitude: { track },
         ga: { event },
@@ -159,7 +160,7 @@ describe(AnalyticsService.name, () => {
     });
 
     it("should transform GA event names correctly", () => {
-      const event = jest.fn();
+      const event = vi.fn();
       const service = setup({
         ga: { event },
         options: {
@@ -175,7 +176,7 @@ describe(AnalyticsService.name, () => {
     });
 
     it("should handle navigate_tab events specially for GA", () => {
-      const event = jest.fn();
+      const event = vi.fn();
       const service = setup({
         ga: { event },
         options: {
@@ -194,8 +195,8 @@ describe(AnalyticsService.name, () => {
     });
 
     it("should only track in enabled services", () => {
-      const track = jest.fn();
-      const event = jest.fn();
+      const track = vi.fn();
+      const event = vi.fn();
       const service = setup({
         amplitude: { track },
         ga: { event },
@@ -221,22 +222,22 @@ describe(AnalyticsService.name, () => {
     storage?: Pick<Storage, "getItem" | "setItem">;
   }) {
     const amplitude = {
-      init: jest.fn(),
-      Identify: jest.fn().mockImplementation(() => ({
-        set: jest.fn()
-      })),
-      identify: jest.fn(),
-      track: jest.fn(),
-      setUserId: jest.fn(),
+      init: vi.fn(),
+      Identify: class {
+        set = vi.fn();
+      } as unknown as Amplitude["Identify"],
+      identify: vi.fn(),
+      track: vi.fn(),
+      setUserId: vi.fn(),
       ...(params.amplitude ?? {})
     };
     const ga = {
-      event: jest.fn(),
+      event: vi.fn(),
       ...(params.ga ?? {})
     };
     const storage = params.storage ?? {
-      getItem: jest.fn(),
-      setItem: jest.fn()
+      getItem: vi.fn(),
+      setItem: vi.fn()
     };
 
     return new AnalyticsService(
@@ -246,7 +247,7 @@ describe(AnalyticsService.name, () => {
       },
       amplitude,
       ga,
-      () => params.gtag ?? jest.fn(),
+      () => params.gtag ?? vi.fn(),
       storage
     );
   }

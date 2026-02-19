@@ -1,5 +1,6 @@
 import type { AxiosHeaders, InternalAxiosRequestConfig } from "axios";
-import { mock } from "jest-mock-extended";
+import { describe, expect, it } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { withUserToken } from "./interceptors";
 

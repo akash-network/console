@@ -1,4 +1,5 @@
-import { mock } from "jest-mock-extended";
+import { describe, expect, it, type Mock, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { addScriptToHead, downloadCsv } from "@src/utils/domUtils";
 
@@ -30,30 +31,30 @@ describe("domUtils", () => {
 
   describe("downloadCsv", () => {
     function setup() {
-      const createObjectURLMock = jest.fn();
-      const revokeObjectURLMock = jest.fn();
-      const setAttributeMock = jest.fn();
-      const appendChildMock = jest.fn();
-      const removeChildMock = jest.fn();
+      const createObjectURLMock = vi.fn();
+      const revokeObjectURLMock = vi.fn();
+      const setAttributeMock = vi.fn();
+      const appendChildMock = vi.fn();
+      const removeChildMock = vi.fn();
 
-      (global.URL.createObjectURL as jest.Mock) = createObjectURLMock;
-      (global.URL.revokeObjectURL as jest.Mock) = revokeObjectURLMock;
+      (global.URL.createObjectURL as Mock) = createObjectURLMock;
+      (global.URL.revokeObjectURL as Mock) = revokeObjectURLMock;
 
       const originalCreateElement = document.createElement.bind(document);
       const linkMock = mock<HTMLLinkElement>({
         setAttribute: setAttributeMock,
         style: {},
-        click: jest.fn()
+        click: vi.fn()
       });
-      const createElementMock = jest.spyOn(document, "createElement").mockImplementation((tagName: string) => {
+      const createElementMock = vi.spyOn(document, "createElement").mockImplementation((tagName: string) => {
         if (tagName === "a") {
           return linkMock;
         }
         return originalCreateElement(tagName);
       });
 
-      jest.spyOn(document.body, "appendChild").mockImplementation(appendChildMock);
-      jest.spyOn(document.body, "removeChild").mockImplementation(removeChildMock);
+      vi.spyOn(document.body, "appendChild").mockImplementation(appendChildMock);
+      vi.spyOn(document.body, "removeChild").mockImplementation(removeChildMock);
 
       return {
         createObjectURLMock,

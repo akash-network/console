@@ -1,10 +1,8 @@
-import "@testing-library/jest-dom";
-
 import React, { useState } from "react";
-import { act } from "react-dom/test-utils";
-import { mock } from "jest-mock-extended";
 import type { ReadonlyURLSearchParams } from "next/navigation";
 import type { Router } from "next/router";
+import { describe, expect, it, type Mock, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { AuthService } from "@src/services/auth/auth/auth.service";
@@ -13,7 +11,7 @@ import type { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { UrlService } from "@src/utils/urlUtils";
 import { OnboardingContainer, OnboardingStepIndex } from "./OnboardingContainer";
 
-import { render } from "@testing-library/react";
+import { act, render } from "@testing-library/react";
 
 describe("OnboardingContainer", () => {
   it("should initialize with default state", () => {
@@ -68,7 +66,7 @@ describe("OnboardingContainer", () => {
 
   it("should track analytics and redirect when starting trial", async () => {
     const { child, mockAnalyticsService, mockRouter, mockUrlService } = setup();
-    (mockUrlService.newSignup as jest.Mock).mockReturnValue("/login?tab=signup");
+    (mockUrlService.newSignup as Mock).mockReturnValue("/login?tab=signup");
 
     const { onStartTrial } = child.mock.calls[0][0];
     await act(async () => {
@@ -147,7 +145,7 @@ describe("OnboardingContainer", () => {
         origin: "http://localhost"
       },
       windowHistory: {
-        replaceState: jest.fn()
+        replaceState: vi.fn()
       }
     });
 
@@ -219,11 +217,11 @@ describe("OnboardingContainer", () => {
       savedStep?: string;
     } = {}
   ) {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Mock localStorage using jest-mock-extended
     const mockLocalStorage = mock<Storage>({
-      getItem: jest.fn().mockReturnValue(input.savedStep || null)
+      getItem: vi.fn().mockReturnValue(input.savedStep || null)
     });
 
     // Store original window objects
@@ -250,41 +248,41 @@ describe("OnboardingContainer", () => {
     const mockAnalyticsService = mock<AnalyticsService>();
     const mockRouter = mock<Router>();
     const authService = mock<AuthService>();
-    const mockConnectManagedWallet = jest.fn();
-    const mockSignAndBroadcastTx = jest.fn().mockResolvedValue({ transactionHash: "mock-hash" });
-    const mockGenNewCertificateIfLocalIsInvalid = jest.fn().mockResolvedValue(null);
-    const mockUpdateSelectedCertificate = jest.fn().mockResolvedValue(undefined);
+    const mockConnectManagedWallet = vi.fn();
+    const mockSignAndBroadcastTx = vi.fn().mockResolvedValue({ transactionHash: "mock-hash" });
+    const mockGenNewCertificateIfLocalIsInvalid = vi.fn().mockResolvedValue(null);
+    const mockUpdateSelectedCertificate = vi.fn().mockResolvedValue(undefined);
 
     const mockUrlService = {
       ...UrlService,
-      onboarding: jest.fn(() => "/onboarding"),
-      signup: jest.fn(() => "/signup"),
-      newSignup: jest.fn(() => "/login?tab=signup"),
-      newDeployment: jest.fn(() => "/deployments/new")
+      onboarding: vi.fn(() => "/onboarding"),
+      signup: vi.fn(() => "/signup"),
+      newSignup: vi.fn(() => "/login?tab=signup"),
+      newDeployment: vi.fn(() => "/deployments/new")
     };
 
     const mockChainApiHttpClient = {
-      get: jest.fn()
+      get: vi.fn()
     };
 
     const mockDeploymentLocalStorage = {
-      update: jest.fn()
+      update: vi.fn()
     };
 
     const mockAppConfig = {
       NEXT_PUBLIC_DEFAULT_INITIAL_DEPOSIT: "5000000"
     };
 
-    const mockUseUser = jest.fn().mockReturnValue(input.user || { emailVerified: false });
-    const mockUsePaymentMethodsQuery = jest.fn().mockReturnValue({ data: input.paymentMethods || [] });
-    const mockUseChainParam = jest.fn().mockReturnValue({ minDeposit: { akt: 0.5, usdc: 5 } });
-    const mockDenomToUdenom = jest.fn().mockImplementation((amount: number) => amount * 1_000_000);
+    const mockUseUser = vi.fn().mockReturnValue(input.user || { emailVerified: false });
+    const mockUsePaymentMethodsQuery = vi.fn().mockReturnValue({ data: input.paymentMethods || [] });
+    const mockUseChainParam = vi.fn().mockReturnValue({ minDeposit: { akt: 0.5, usdc: 5 } });
+    const mockDenomToUdenom = vi.fn().mockImplementation((amount: number) => amount * 1_000_000);
     const mockErrorHandler = mock<ErrorHandlerService>();
     const mockTemplateService = {
-      findById: jest.fn().mockResolvedValue({ deploy: "mock-template-sdl" })
+      findById: vi.fn().mockResolvedValue({ deploy: "mock-template-sdl" })
     };
 
-    const mockUseServices = jest.fn().mockReturnValue({
+    const mockUseServices = vi.fn().mockReturnValue({
       analyticsService: mockAnalyticsService,
       urlService: mockUrlService,
       authService,
@@ -296,28 +294,28 @@ describe("OnboardingContainer", () => {
       windowHistory,
       template: mockTemplateService
     });
-    const mockUseRouter = jest.fn().mockReturnValue(mockRouter);
-    const mockUseWallet = jest.fn().mockReturnValue({
+    const mockUseRouter = vi.fn().mockReturnValue(mockRouter);
+    const mockUseWallet = vi.fn().mockReturnValue({
       hasManagedWallet: input.wallet?.hasManagedWallet || false,
       isWalletLoading: input.wallet?.isWalletLoading || false,
       connectManagedWallet: mockConnectManagedWallet,
       address: "akash1test",
       signAndBroadcastTx: mockSignAndBroadcastTx
     });
-    const mockUseCertificate = jest.fn().mockReturnValue({
+    const mockUseCertificate = vi.fn().mockReturnValue({
       genNewCertificateIfLocalIsInvalid: mockGenNewCertificateIfLocalIsInvalid,
       updateSelectedCertificate: mockUpdateSelectedCertificate
     });
-    const mockUseSnackbar = jest.fn().mockReturnValue({
-      enqueueSnackbar: jest.fn()
+    const mockUseSnackbar = vi.fn().mockReturnValue({
+      enqueueSnackbar: vi.fn()
     });
-    const mockNotificator = { success: jest.fn(), error: jest.fn() };
-    const mockUseNotificator = jest.fn().mockReturnValue(mockNotificator);
-    const mockUseManagedWalletDenom = jest.fn().mockReturnValue("uakt");
+    const mockNotificator = { success: vi.fn(), error: vi.fn() };
+    const mockUseNotificator = vi.fn().mockReturnValue(mockNotificator);
+    const mockUseManagedWalletDenom = vi.fn().mockReturnValue("uakt");
 
-    const mockNavigateBack = jest.fn();
-    const mockNavigateWithReturnTo = jest.fn();
-    const mockUseReturnTo = jest.fn().mockReturnValue({
+    const mockNavigateBack = vi.fn();
+    const mockNavigateWithReturnTo = vi.fn();
+    const mockUseReturnTo = vi.fn().mockReturnValue({
       returnTo: "/",
       navigateWithReturnTo: mockNavigateWithReturnTo,
       navigateBack: mockNavigateBack,
@@ -337,17 +335,17 @@ describe("OnboardingContainer", () => {
       return pageParams as ReadonlyURLSearchParams;
     };
 
-    const mockNewDeploymentData = jest.fn().mockResolvedValue({
+    const mockNewDeploymentData = vi.fn().mockResolvedValue({
       deploymentId: { dseq: "123" },
       hash: "mock-hash"
     });
 
     const mockDeploymentData = {
       NewDeploymentData: mockNewDeploymentData,
-      getManifest: jest.fn(),
-      getManifestVersion: jest.fn(),
-      appendTrialAttribute: jest.fn(),
-      appendAuditorRequirement: jest.fn(sdl => sdl),
+      getManifest: vi.fn(),
+      getManifestVersion: vi.fn(),
+      appendTrialAttribute: vi.fn(),
+      appendAuditorRequirement: vi.fn(sdl => sdl),
       ENDPOINT_NAME_VALIDATION_REGEX: /^[a-z]+[-_\da-z]+$/,
       TRIAL_ATTRIBUTE: "console/trials" as const,
       TRIAL_REGISTERED_ATTRIBUTE: "console/trials-registered" as const,
@@ -355,8 +353,8 @@ describe("OnboardingContainer", () => {
       MANAGED_WALLET_ALLOWED_AUDITORS: ["akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63" as const]
     };
 
-    const mockValidateDeploymentData = jest.fn();
-    const mockAppendAuditorRequirement = jest.fn(sdl => sdl);
+    const mockValidateDeploymentData = vi.fn();
+    const mockAppendAuditorRequirement = vi.fn(sdl => sdl);
     const mockHelloWorldTemplate = {
       title: "Hello World",
       name: "Hello World",
@@ -369,19 +367,19 @@ describe("OnboardingContainer", () => {
     };
     const mockTransactionMessageData = {
       prototype: {},
-      getRevokeCertificateMsg: jest.fn(),
-      getCreateCertificateMsg: jest.fn(),
-      getCreateLeaseMsg: jest.fn(),
-      getCreateDeploymentMsg: jest.fn(),
-      getUpdateDeploymentMsg: jest.fn(),
-      getDepositDeploymentMsg: jest.fn(),
-      getCloseDeploymentMsg: jest.fn(),
-      getSendTokensMsg: jest.fn(),
-      getGrantMsg: jest.fn(),
-      getRevokeDepositMsg: jest.fn(),
-      getGrantBasicAllowanceMsg: jest.fn(),
-      getRevokeAllowanceMsg: jest.fn(),
-      getUpdateProviderMsg: jest.fn()
+      getRevokeCertificateMsg: vi.fn(),
+      getCreateCertificateMsg: vi.fn(),
+      getCreateLeaseMsg: vi.fn(),
+      getCreateDeploymentMsg: vi.fn(),
+      getUpdateDeploymentMsg: vi.fn(),
+      getDepositDeploymentMsg: vi.fn(),
+      getCloseDeploymentMsg: vi.fn(),
+      getSendTokensMsg: vi.fn(),
+      getGrantMsg: vi.fn(),
+      getRevokeDepositMsg: vi.fn(),
+      getGrantBasicAllowanceMsg: vi.fn(),
+      getRevokeAllowanceMsg: vi.fn(),
+      getUpdateProviderMsg: vi.fn()
     };
 
     // Create dependencies object
@@ -407,7 +405,7 @@ describe("OnboardingContainer", () => {
       denomToUdenom: mockDenomToUdenom
     };
 
-    const mockChildren = jest.fn().mockReturnValue(<div>Test</div>);
+    const mockChildren = vi.fn().mockReturnValue(<div>Test</div>);
 
     render(<OnboardingContainer dependencies={dependencies}>{mockChildren}</OnboardingContainer>);
 

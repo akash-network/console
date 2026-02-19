@@ -1,19 +1,15 @@
 import { FormProvider, useForm } from "react-hook-form";
 import { TooltipProvider } from "@akashnetwork/ui/components";
-import { mock } from "jest-mock-extended";
+import { describe, expect, it, vi } from "vitest";
 
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { LogCollectorControl } from "./LogCollectorControl";
 
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildSDLService } from "@tests/seeders/sdlService";
 
 describe(LogCollectorControl.name, () => {
-  beforeAll(() => {
-    global.ResizeObserver = jest.fn().mockImplementation(() => mock<ResizeObserver>());
-  });
-
   it("adds log-collector service when checkbox is checked", async () => {
     const { user, form, targetService } = await setup();
     const checkbox = screen.getByRole("checkbox");
@@ -61,7 +57,7 @@ describe(LogCollectorControl.name, () => {
       form.setValue("services.0.title", "new-title");
     });
 
-    await waitFor(async () => {
+    await vi.waitFor(async () => {
       expect(form.getValues("services.1.title")).toBe(`new-title-log-collector`);
     });
   });
@@ -75,7 +71,7 @@ describe(LogCollectorControl.name, () => {
       form.setValue("services.0.title", "new-title");
     });
 
-    await waitFor(
+    await vi.waitFor(
       async () => {
         const selector = form.getValues("services.1.env")?.find(env => env.key === "POD_LABEL_SELECTOR");
         expect(selector?.value).toBe("akash.network/manifest-service=new-title");
@@ -94,7 +90,7 @@ describe(LogCollectorControl.name, () => {
       form.setValue("services.0.placement", newPlacement);
     });
 
-    await waitFor(
+    await vi.waitFor(
       () => {
         expect(form.getValues("services.1.placement.name")).toBe(newPlacement.name);
       },
@@ -130,7 +126,7 @@ describe(LogCollectorControl.name, () => {
     return {
       ...result,
       user,
-      form: await waitFor(() => maybeForm),
+      form: await vi.waitFor(() => maybeForm),
       targetService
     };
   }

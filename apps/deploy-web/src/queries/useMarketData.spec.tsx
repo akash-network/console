@@ -1,11 +1,11 @@
 import type { AxiosInstance } from "axios";
-import { mock } from "jest-mock-extended";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { Props as ServicesProviderProps } from "@src/context/ServicesProvider";
 import { ApiUrlService } from "@src/utils/apiUtils";
 import { useMarketData } from "./useMarketData";
 
-import { waitFor } from "@testing-library/react";
 import { setupQuery } from "@tests/unit/query-client";
 
 describe("useMarketData", () => {
@@ -27,7 +27,7 @@ describe("useMarketData", () => {
       }
     });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(consoleApiHttpClient.get).toHaveBeenCalledWith(ApiUrlService.marketData());
       expect(result.current.isSuccess).toBe(true);
       expect(result.current.data).toEqual(mockData);

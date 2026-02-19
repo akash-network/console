@@ -1,7 +1,6 @@
-import "@testing-library/jest-dom";
-
 import React from "react";
 import type { LinearProgressProps } from "@mui/material";
+import { describe, expect, it, vi } from "vitest";
 
 import type { CumulativeSpendingLineChartProps } from "@src/components/billing-usage/CumulativeSpendingLineChart/CumulativeSpendingLineChart";
 import type { DailyUsageBarChartProps } from "@src/components/billing-usage/DailyUsageBarChart/DailyUsageBarChart";
@@ -70,7 +69,7 @@ describe(UsageView.name, () => {
   });
 
   it("calls onDateRangeChange when date range start changes", () => {
-    const onDateRangeChange = jest.fn();
+    const onDateRangeChange = vi.fn();
     setup({
       onDateRangeChange,
       dateRange: {
@@ -88,7 +87,7 @@ describe(UsageView.name, () => {
   });
 
   it("calls onDateRangeChange when date range end changes", () => {
-    const onDateRangeChange = jest.fn();
+    const onDateRangeChange = vi.fn();
     setup({
       onDateRangeChange,
       dateRange: {
@@ -150,7 +149,7 @@ describe(UsageView.name, () => {
       isFetchingUsageHistoryStats: false,
       isUsageHistoryStatsError: false,
       dateRange: { from: new Date(), to: new Date() },
-      onDateRangeChange: props.onDateRangeChange ?? jest.fn(),
+      onDateRangeChange: props.onDateRangeChange ?? vi.fn(),
       components: MockComponents(COMPONENTS, { ...defaultComponents, ...props.components }),
       ...props
     };

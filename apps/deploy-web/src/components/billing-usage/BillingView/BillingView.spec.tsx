@@ -1,9 +1,8 @@
-import "@testing-library/jest-dom";
-
 import React from "react";
 import type { Charge } from "@akashnetwork/http-sdk";
 import { TooltipProvider } from "@akashnetwork/ui/components";
-import { mock } from "jest-mock-extended";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { BillingViewProps } from "./BillingView";
 import { BillingView } from "./BillingView";
@@ -44,14 +43,14 @@ describe(BillingView.name, () => {
   });
 
   it("calls onPaginationChange when changing page size", () => {
-    const onPaginationChange = jest.fn();
+    const onPaginationChange = vi.fn();
     setup({ onPaginationChange });
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "20" } });
     expect(onPaginationChange).toHaveBeenCalledWith({ pageIndex: 0, pageSize: 20 });
   });
 
   it("calls onPaginationChange when clicking next/prev", () => {
-    const onPaginationChange = jest.fn();
+    const onPaginationChange = vi.fn();
     setup({ onPaginationChange, hasMore: true, hasPrevious: true, pagination: { pageIndex: 1, pageSize: 10 } });
     fireEvent.click(screen.getByText("Previous"));
     expect(onPaginationChange).toHaveBeenCalledWith({ pageIndex: 0, pageSize: 10 });
@@ -70,7 +69,7 @@ describe(BillingView.name, () => {
   });
 
   it("calls onDateRangeChange when date range start changes", () => {
-    const onDateRangeChange = jest.fn();
+    const onDateRangeChange = vi.fn();
     setup({
       onDateRangeChange,
       dateRange: {
@@ -88,7 +87,7 @@ describe(BillingView.name, () => {
   });
 
   it("calls onDateRangeChange when date range end changes", () => {
-    const onDateRangeChange = jest.fn();
+    const onDateRangeChange = vi.fn();
     setup({
       onDateRangeChange,
       dateRange: {
@@ -106,7 +105,7 @@ describe(BillingView.name, () => {
   });
 
   it("calls onExport when export button clicked", () => {
-    const onExport = jest.fn();
+    const onExport = vi.fn();
     setup({ onExport });
     fireEvent.click(screen.getByText(/Export as CSV/i));
     expect(onExport).toHaveBeenCalled();
@@ -161,12 +160,12 @@ describe(BillingView.name, () => {
       isFetching: false,
       isError: false,
       errorMessage: "",
-      onExport: props.onExport ?? jest.fn(),
-      onPaginationChange: props.onPaginationChange ?? jest.fn(),
+      onExport: props.onExport ?? vi.fn(),
+      onPaginationChange: props.onPaginationChange ?? vi.fn(),
       pagination: props.pagination ?? { pageIndex: 0, pageSize: 10 },
       totalCount: 1,
       dateRange: { from: new Date(), to: new Date() },
-      onDateRangeChange: props.onDateRangeChange ?? jest.fn(),
+      onDateRangeChange: props.onDateRangeChange ?? vi.fn(),
       components: props.components ?? defaultComponents,
       ...props
     };

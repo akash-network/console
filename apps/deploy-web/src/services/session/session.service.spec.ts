@@ -1,6 +1,7 @@
 import type { HttpClient } from "@akashnetwork/http-sdk";
-import { mock, type MockProxy } from "jest-mock-extended";
 import type { Result } from "ts-results";
+import { describe, expect, it, vi } from "vitest";
+import { mock, type MockProxy } from "vitest-mock-extended";
 
 import { Session } from "@src/lib/auth0";
 import type { UserSettings } from "@src/types/user";
@@ -407,8 +408,8 @@ describe(SessionService.name, () => {
 
 function createHttpClientMock(): MockProxy<HttpClient> {
   return mock<HttpClient>({
-    post: jest.fn(),
-    get: jest.fn()
+    post: vi.fn(),
+    get: vi.fn()
   } as unknown as HttpClient);
 }
 

@@ -1,8 +1,9 @@
 import React from "react";
 import type { TemplateOutput } from "@akashnetwork/http-sdk";
-import { mock } from "jest-mock-extended";
 import { createStore, Provider as JotaiStoreProvider } from "jotai";
 import type { ReadonlyURLSearchParams } from "next/navigation";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { CI_CD_TEMPLATE_ID } from "@src/config/remote-deploy.config";
 import type { ContextType as LocalNotesContext } from "@src/context/LocalNoteProvider/LocalNoteContext";
@@ -15,7 +16,7 @@ import { hardcodedTemplates } from "@src/utils/templates";
 import { UrlService } from "@src/utils/urlUtils";
 import { DEPENDENCIES, NewDeploymentContainer } from "./NewDeploymentContainer";
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { ComponentMock } from "@tests/unit/mocks";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
@@ -23,7 +24,7 @@ describe(NewDeploymentContainer.name, () => {
   it("renders TemplateList when step is choose-template", async () => {
     setup({ step: RouteStep.chooseTemplate });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(screen.getByTestId("template-list")).toBeInTheDocument();
     });
     expect(screen.queryByTestId("manifest-edit")).not.toBeInTheDocument();
@@ -34,7 +35,7 @@ describe(NewDeploymentContainer.name, () => {
   it("renders ManifestEdit and Stepper when step is edit-deployment", async () => {
     const { ManifestEdit } = setup({ step: RouteStep.editDeployment });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(screen.getByTestId("manifest-edit")).toBeInTheDocument();
     });
     expect(screen.getByTestId("stepper")).toBeInTheDocument();
@@ -53,7 +54,7 @@ describe(NewDeploymentContainer.name, () => {
   it("renders CreateLease and Stepper when step is create-leases", async () => {
     const { CreateLease } = setup({ step: RouteStep.createLeases, dseq: "12345" });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(screen.getByTestId("create-lease")).toBeInTheDocument();
     });
     expect(screen.getByTestId("stepper")).toBeInTheDocument();
@@ -73,7 +74,7 @@ describe(NewDeploymentContainer.name, () => {
       gitProvider: "github"
     });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(ManifestEdit).toHaveBeenCalledWith(
         expect.objectContaining({
           isGitProviderTemplate: true
@@ -89,7 +90,7 @@ describe(NewDeploymentContainer.name, () => {
       code: "auth-code-123"
     });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(ManifestEdit).toHaveBeenCalledWith(
         expect.objectContaining({
           isGitProviderTemplate: true
@@ -105,7 +106,7 @@ describe(NewDeploymentContainer.name, () => {
       templateId: CI_CD_TEMPLATE_ID
     });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(ManifestEdit).toHaveBeenCalledWith(
         expect.objectContaining({
           isGitProviderTemplate: true
@@ -121,7 +122,7 @@ describe(NewDeploymentContainer.name, () => {
       code: "gitlab-auth-code"
     });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mockRouter.replace).toHaveBeenCalledWith(
         UrlService.newDeployment({
           step: RouteStep.editDeployment,
@@ -140,7 +141,7 @@ describe(NewDeploymentContainer.name, () => {
       redeploy: "123"
     });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mockRouter.replace).not.toHaveBeenCalled();
     });
   });
@@ -152,7 +153,7 @@ describe(NewDeploymentContainer.name, () => {
       templateId: hardcodedTemplate?.code
     });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mockRouter.replace).toHaveBeenCalledWith(expect.stringContaining(`step=${RouteStep.editDeployment}`));
     });
   });
@@ -177,7 +178,7 @@ describe(NewDeploymentContainer.name, () => {
       requestedTemplate
     });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mockRouter.replace).toHaveBeenCalledWith(expect.stringContaining(`step=${RouteStep.editDeployment}`));
     });
   });
@@ -197,7 +198,7 @@ describe(NewDeploymentContainer.name, () => {
       deploySdl
     });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mockRouter.replace).toHaveBeenCalledWith(expect.stringContaining(`step=${RouteStep.editDeployment}`));
     });
   });
@@ -214,7 +215,7 @@ describe(NewDeploymentContainer.name, () => {
       redeployData
     });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mockRouter.replace).toHaveBeenCalledWith(expect.stringContaining(`step=${RouteStep.editDeployment}`));
     });
   });
@@ -237,7 +238,7 @@ describe(NewDeploymentContainer.name, () => {
       }
     });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(sdlBuilder.toggleCmp).toHaveBeenCalledWith("ssh");
     });
   });
@@ -258,7 +259,7 @@ describe(NewDeploymentContainer.name, () => {
       hasCiCdImageInSDL: true
     });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mockRouter.replace).toHaveBeenCalledWith(expect.stringContaining("gitProvider"));
     });
   });
@@ -280,7 +281,7 @@ describe(NewDeploymentContainer.name, () => {
   it("renders with default step 0 when no step param is provided", async () => {
     setup({});
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(screen.getByTestId("template-list")).toBeInTheDocument();
     });
     expect(screen.queryByTestId("stepper")).not.toBeInTheDocument();
@@ -317,20 +318,20 @@ describe(NewDeploymentContainer.name, () => {
     } as unknown as ReadonlyURLSearchParams;
 
     const mockRouter = {
-      replace: jest.fn(),
-      push: jest.fn()
+      replace: vi.fn(),
+      push: vi.fn()
     };
 
-    const Layout = jest.fn(({ children }: { children: React.ReactNode }) => <div data-testid="layout">{children}</div>);
-    const TemplateList = jest.fn(() => <div data-testid="template-list">TemplateList</div>);
-    const ManifestEdit = jest.fn(() => <div data-testid="manifest-edit">ManifestEdit</div>);
-    const CreateLease = jest.fn(() => <div data-testid="create-lease">CreateLease</div>);
-    const CustomizedSteppers = jest.fn(() => <div data-testid="stepper">Stepper</div>);
+    const Layout = vi.fn(({ children }: { children: React.ReactNode }) => <div data-testid="layout">{children}</div>);
+    const TemplateList = vi.fn(() => <div data-testid="template-list">TemplateList</div>);
+    const ManifestEdit = vi.fn(() => <div data-testid="manifest-edit">ManifestEdit</div>);
+    const CreateLease = vi.fn(() => <div data-testid="create-lease">CreateLease</div>);
+    const CustomizedSteppers = vi.fn(() => <div data-testid="stepper">Stepper</div>);
 
     // Create stable references for hook return values to prevent infinite re-renders
     const sdlBuilder = mock<SdlContextProps>();
     const localNotes = mock<LocalNotesContext>({
-      getDeploymentData: jest.fn().mockReturnValue(input.redeployData ?? null)
+      getDeploymentData: vi.fn().mockReturnValue(input.redeployData ?? null)
     });
     const templatesValue = {
       isLoading: input.isLoadingTemplates ?? false,
@@ -339,12 +340,12 @@ describe(NewDeploymentContainer.name, () => {
     };
 
     const sdlAnalyzer = mock<AppDIContainer["sdlAnalyzer"]>({
-      hasCiCdImage: jest.fn(() => input.hasCiCdImageInSDL ?? false)
+      hasCiCdImage: vi.fn(() => input.hasCiCdImageInSDL ?? false)
     });
 
     const dependencies = {
       ...DEPENDENCIES,
-      Editor: Object.assign(jest.fn(ComponentMock), { preload: jest.fn() }),
+      Editor: Object.assign(vi.fn(ComponentMock), { preload: vi.fn() }),
       Layout,
       TemplateList,
       ManifestEdit,

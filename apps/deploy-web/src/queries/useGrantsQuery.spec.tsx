@@ -1,13 +1,14 @@
 import type { AuthzHttpService } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
-import { mock } from "jest-mock-extended";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { SettingsContextType } from "@src/context/SettingsProvider/SettingsProviderContext";
 import { SettingsProviderContext } from "@src/context/SettingsProvider/SettingsProviderContext";
 import type { FallbackableHttpClient } from "@src/services/createFallbackableHttpClient/createFallbackableHttpClient";
 import { useAllowancesGranted, useAllowancesIssued, useGranteeGrants, useGranterGrants } from "./useGrantsQuery";
 
-import { waitFor } from "@testing-library/react";
+import {} from "@testing-library/react";
 import { setupQuery } from "@tests/unit/query-client";
 
 const createMockSettingsContext = (): SettingsContextType =>
@@ -21,10 +22,10 @@ const createMockSettingsContext = (): SettingsContextType =>
       customNode: null,
       isBlockchainDown: false
     },
-    setSettings: jest.fn(),
+    setSettings: vi.fn(),
     isLoadingSettings: false,
     isSettingsInit: true,
-    refreshNodeStatuses: jest.fn(),
+    refreshNodeStatuses: vi.fn(),
     isRefreshingNodeStatus: false
   });
 
@@ -50,7 +51,7 @@ describe("useGrantsQuery", () => {
 
       const authzHttpService = mock<AuthzHttpService>({
         isReady: true,
-        getPaginatedDepositDeploymentGrants: jest.fn().mockResolvedValue(mockData)
+        getPaginatedDepositDeploymentGrants: vi.fn().mockResolvedValue(mockData)
       });
       const { result } = setupQuery(() => useGranterGrants("test-address", 0, 1000), {
         services: {
@@ -59,7 +60,7 @@ describe("useGrantsQuery", () => {
         wrapper: ({ children }) => <MockSettingsProvider>{children}</MockSettingsProvider>
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(authzHttpService.getPaginatedDepositDeploymentGrants).toHaveBeenCalledWith({ granter: "test-address", limit: 1000, offset: 0 });
         expect(result.current.isSuccess).toBe(true);
         expect(result.current.data).toEqual(mockData);
@@ -69,7 +70,7 @@ describe("useGrantsQuery", () => {
     it("does not fetch when address is not provided", () => {
       const authzHttpService = mock<AuthzHttpService>({
         isReady: true,
-        getPaginatedDepositDeploymentGrants: jest.fn().mockResolvedValue([])
+        getPaginatedDepositDeploymentGrants: vi.fn().mockResolvedValue([])
       });
       setupQuery(() => useGranterGrants("", 0, 1000), {
         services: {
@@ -93,7 +94,7 @@ describe("useGrantsQuery", () => {
       ];
       const authzHttpService = mock<AuthzHttpService>({
         isReady: true,
-        getAllDepositDeploymentGrants: jest.fn().mockResolvedValue(mockData)
+        getAllDepositDeploymentGrants: vi.fn().mockResolvedValue(mockData)
       });
 
       const { result } = setupQuery(() => useGranteeGrants("test-address"), {
@@ -103,7 +104,7 @@ describe("useGrantsQuery", () => {
         wrapper: ({ children }) => <MockSettingsProvider>{children}</MockSettingsProvider>
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(authzHttpService.getAllDepositDeploymentGrants).toHaveBeenCalledWith({ grantee: "test-address", limit: 1000 });
         expect(result.current.isSuccess).toBe(true);
         expect(result.current.data).toEqual(mockData);
@@ -113,7 +114,7 @@ describe("useGrantsQuery", () => {
     it("does not fetch when address is not provided", () => {
       const authzHttpService = mock<AuthzHttpService>({
         isReady: true,
-        getAllDepositDeploymentGrants: jest.fn().mockResolvedValue([])
+        getAllDepositDeploymentGrants: vi.fn().mockResolvedValue([])
       });
       setupQuery(() => useGranteeGrants(""), {
         services: {
@@ -134,7 +135,7 @@ describe("useGrantsQuery", () => {
       };
       const authzHttpService = mock<AuthzHttpService>({
         isReady: true,
-        getPaginatedFeeAllowancesForGranter: jest.fn().mockResolvedValue(mockData)
+        getPaginatedFeeAllowancesForGranter: vi.fn().mockResolvedValue(mockData)
       });
 
       const { result } = setupQuery(() => useAllowancesIssued("test-address", 0, 1000), {
@@ -144,7 +145,7 @@ describe("useGrantsQuery", () => {
         wrapper: ({ children }) => <MockSettingsProvider>{children}</MockSettingsProvider>
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(authzHttpService.getPaginatedFeeAllowancesForGranter).toHaveBeenCalledWith("test-address", 1000, 0);
         expect(result.current.isSuccess).toBe(true);
         expect(result.current.data).toEqual(mockData);
@@ -154,7 +155,7 @@ describe("useGrantsQuery", () => {
     it("does not fetch when address is not provided", () => {
       const authzHttpService = mock<AuthzHttpService>({
         isReady: true,
-        getPaginatedFeeAllowancesForGranter: jest.fn().mockResolvedValue([])
+        getPaginatedFeeAllowancesForGranter: vi.fn().mockResolvedValue([])
       });
       setupQuery(() => useAllowancesIssued("", 0, 1000), {
         services: {
@@ -172,7 +173,7 @@ describe("useGrantsQuery", () => {
       const mockData = [{ id: faker.string.uuid() }];
       const chainApiHttpClient = mock<FallbackableHttpClient>({
         isFallbackEnabled: false,
-        get: jest.fn().mockResolvedValue({
+        get: vi.fn().mockResolvedValue({
           data: {
             allowances: mockData,
             pagination: { next_key: null, total: mockData.length }
@@ -187,7 +188,7 @@ describe("useGrantsQuery", () => {
         wrapper: ({ children }) => <MockSettingsProvider>{children}</MockSettingsProvider>
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(chainApiHttpClient.get).toHaveBeenCalledWith(
           expect.stringContaining("/cosmos/feegrant/v1beta1/allowances/test-address?pagination.limit=1000&pagination.count_total=true")
         );
@@ -199,7 +200,7 @@ describe("useGrantsQuery", () => {
     it("does not fetch when address is not provided", () => {
       const chainApiHttpClient = mock<FallbackableHttpClient>({
         isFallbackEnabled: false,
-        get: jest.fn().mockResolvedValue({
+        get: vi.fn().mockResolvedValue({
           data: {
             allowances: [],
             pagination: { next_key: null, total: 0 }

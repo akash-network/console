@@ -1,7 +1,8 @@
 import { MsgCreateCertificate } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { MsgCreateLease } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 import type { CertificatePem } from "@akashnetwork/chain-sdk/web";
-import { mock } from "jest-mock-extended";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { ContextType as CertificateContextType, LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
 import type { AppDIContainer } from "@src/context/ServicesProvider";
@@ -12,7 +13,7 @@ import type { ApiProviderDetail } from "@src/types/provider";
 import { updateStorageWallets } from "@src/utils/walletUtils";
 import { CreateLease, DEPENDENCIES as CREATE_LEASE_DEPENDENCIES } from "./CreateLease";
 
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildRpcBid } from "@tests/seeders/bid";
 import type { BlockDetail } from "@tests/seeders/block";
@@ -24,7 +25,7 @@ import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe(CreateLease.name, () => {
   it("displays bids and a button to create a lease", async () => {
-    const BidGroup = jest.fn(ComponentMock);
+    const BidGroup = vi.fn(ComponentMock);
     const bids = [
       buildRpcBid({
         bid: {
@@ -47,7 +48,7 @@ describe(CreateLease.name, () => {
       BidGroup,
       bids
     });
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(getByRole("button", { name: /Accept Bid/i })).toBeInTheDocument();
       expect(BidGroup).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -61,7 +62,7 @@ describe(CreateLease.name, () => {
   });
 
   it("groups bids by gseq", async () => {
-    const BidGroup = jest.fn(ComponentMock);
+    const BidGroup = vi.fn(ComponentMock);
     const bids = [
       buildRpcBid({
         bid: {
@@ -84,7 +85,7 @@ describe(CreateLease.name, () => {
       BidGroup,
       bids
     });
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(getByRole("button", { name: /Accept Bid/i })).toBeInTheDocument();
       expect(BidGroup).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -126,30 +127,30 @@ describe(CreateLease.name, () => {
     const { getByRole, queryByRole } = setup({
       bids
     });
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(getByRole("button", { name: /Close Deployment/i })).toBeInTheDocument();
       expect(queryByRole("button", { name: /Accept Bid/i })).not.toBeInTheDocument();
     });
   });
 
   it("doesn't throw error if block is null-ish", async () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     const { getByText } = setup({
       bids: [],
       isTrialWallet: true,
       getBlock: async () => null as any
     });
-    await act(() => jest.runOnlyPendingTimersAsync());
+    await act(() => vi.runOnlyPendingTimersAsync());
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(getByText(/Waiting for bids/i)).toBeInTheDocument();
     });
 
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   it("disables Accept Bid button when blockchain is unavailable", async () => {
-    const BidGroup = jest.fn(ComponentMock);
+    const BidGroup = vi.fn(ComponentMock);
     const bids = [
       buildRpcBid({
         bid: {
@@ -174,15 +175,15 @@ describe(CreateLease.name, () => {
       isBlockchainDown: true
     });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(screen.getByText(/Blockchain is unavailable/i)).toBeInTheDocument();
     });
   });
 
   describe("lease creation", () => {
     it("creates lease on chain and submits manifest to provider", async () => {
-      const signAndBroadcastTx = jest.fn().mockResolvedValue({ code: 0 });
-      const sendManifest = jest.fn();
+      const signAndBroadcastTx = vi.fn().mockResolvedValue({ code: 0 });
+      const sendManifest = vi.fn();
       const localCert: CertificateContextType["localCert"] = {
         certPem: "certPem",
         keyPem: "keyPem",
@@ -192,12 +193,12 @@ describe(CreateLease.name, () => {
       const selectedProvider = buildProvider();
       await setupLeaseCreation({ signAndBroadcastTx, sendManifest, localCert, dseq, selectedProvider });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(screen.getByRole<HTMLButtonElement>("button", { name: /Accept Bid/i })).not.toBeDisabled();
       });
 
       await userEvent.click(screen.getByRole<HTMLButtonElement>("button", { name: /Accept Bid/i }));
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(signAndBroadcastTx).toHaveBeenCalledWith([
           expect.objectContaining({
             typeUrl: `/${MsgCreateLease.$type}`
@@ -217,8 +218,8 @@ describe(CreateLease.name, () => {
     });
 
     it("creates new certificate on lease creation if there is no local certificate or it is expired", async () => {
-      const signAndBroadcastTx = jest.fn().mockResolvedValue({ code: 0 });
-      const sendManifest = jest.fn();
+      const signAndBroadcastTx = vi.fn().mockResolvedValue({ code: 0 });
+      const sendManifest = vi.fn();
       const dseq = "123";
       const selectedProvider = buildProvider();
       const newPemCert: CertificatePem = {
@@ -226,13 +227,13 @@ describe(CreateLease.name, () => {
         publicKey: "publicKey",
         privateKey: "privateKey"
       };
-      const genNewCertificateIfLocalIsInvalid = jest.fn().mockResolvedValue(newPemCert);
+      const genNewCertificateIfLocalIsInvalid = vi.fn().mockResolvedValue(newPemCert);
       const localCert = {
         certPem: newPemCert.cert,
         keyPem: newPemCert.privateKey,
         address: "akash123"
       };
-      const updateSelectedCertificate = jest.fn().mockResolvedValue(localCert);
+      const updateSelectedCertificate = vi.fn().mockResolvedValue(localCert);
       await setupLeaseCreation({
         genNewCertificateIfLocalIsInvalid,
         updateSelectedCertificate,
@@ -243,12 +244,12 @@ describe(CreateLease.name, () => {
         selectedProvider
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(screen.getByRole<HTMLButtonElement>("button", { name: /Accept Bid/i })).not.toBeDisabled();
       });
 
       await userEvent.click(screen.getByRole<HTMLButtonElement>("button", { name: /Accept Bid/i }));
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(signAndBroadcastTx).toHaveBeenCalledWith(
           expect.arrayContaining([
             expect.objectContaining({
@@ -273,8 +274,8 @@ describe(CreateLease.name, () => {
     });
 
     it("creates certificate when 'Re-send Manifest' is clicked and certificate is expired", async () => {
-      const signAndBroadcastTx = jest.fn().mockResolvedValue({ code: 0 });
-      const sendManifest = jest.fn();
+      const signAndBroadcastTx = vi.fn().mockResolvedValue({ code: 0 });
+      const sendManifest = vi.fn();
       const dseq = "123";
       const selectedProvider = buildProvider();
       const newPemCert: CertificatePem = {
@@ -282,13 +283,13 @@ describe(CreateLease.name, () => {
         publicKey: "publicKey",
         privateKey: "privateKey"
       };
-      const genNewCertificateIfLocalIsInvalid = jest.fn().mockResolvedValue(newPemCert);
+      const genNewCertificateIfLocalIsInvalid = vi.fn().mockResolvedValue(newPemCert);
       const localCert = {
         certPem: newPemCert.cert,
         keyPem: newPemCert.privateKey,
         address: "akash123"
       };
-      const updateSelectedCertificate = jest.fn().mockResolvedValue(localCert);
+      const updateSelectedCertificate = vi.fn().mockResolvedValue(localCert);
       const bids = [
         buildRpcBid({
           bid: {
@@ -310,12 +311,12 @@ describe(CreateLease.name, () => {
         selectedProvider
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(screen.getByRole<HTMLButtonElement>("button", { name: /Re-send Manifest/i })).not.toBeDisabled();
       });
 
       await userEvent.click(screen.getByRole<HTMLButtonElement>("button", { name: /Re-send Manifest/i }));
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(signAndBroadcastTx).toHaveBeenCalledWith([
           expect.objectContaining({
             typeUrl: `/${MsgCreateCertificate.$type}`
@@ -365,7 +366,7 @@ describe(CreateLease.name, () => {
           }
         })
       ];
-      const BidGroup = jest.fn(ComponentMock);
+      const BidGroup = vi.fn(ComponentMock);
       const walletAddress = input?.localCert?.address ?? "akash123";
 
       setup({
@@ -383,7 +384,7 @@ describe(CreateLease.name, () => {
         }
       });
 
-      await waitFor(() => expect(BidGroup).toHaveBeenCalled());
+      await vi.waitFor(() => expect(BidGroup).toHaveBeenCalled());
       act(() => {
         updateStorageWallets([
           {
@@ -528,10 +529,10 @@ describe(CreateLease.name, () => {
                 customNode: null,
                 isBlockchainDown: input?.isBlockchainDown ?? false
               },
-              setSettings: jest.fn(),
+              setSettings: vi.fn(),
               isLoadingSettings: false,
               isSettingsInit: true,
-              refreshNodeStatuses: jest.fn(),
+              refreshNodeStatuses: vi.fn(),
               isRefreshingNodeStatus: false
             })
           }}

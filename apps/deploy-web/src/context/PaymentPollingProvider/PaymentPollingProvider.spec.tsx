@@ -1,10 +1,11 @@
 import React from "react";
-import { mock } from "jest-mock-extended";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import { DEPENDENCIES, PaymentPollingProvider, usePaymentPolling } from "./PaymentPollingProvider";
 
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { buildManagedWallet, buildWallet, buildWalletBalance } from "@tests/seeders";
 
 describe(PaymentPollingProvider.name, () => {
@@ -72,7 +73,7 @@ describe(PaymentPollingProvider.name, () => {
       screen.getByTestId("start-polling").click();
     });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(screen.queryByTestId("is-polling")).toHaveTextContent("true");
     });
 
@@ -94,12 +95,12 @@ describe(PaymentPollingProvider.name, () => {
       screen.getByTestId("start-polling").click();
     });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(screen.queryByTestId("is-polling")).toHaveTextContent("true");
     });
 
     await act(async () => {
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
     });
 
     expect(refetchBalance).toHaveBeenCalled();
@@ -118,12 +119,12 @@ describe(PaymentPollingProvider.name, () => {
       screen.getByTestId("start-polling").click();
     });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(screen.queryByTestId("is-polling")).toHaveTextContent("true");
     });
 
     await act(async () => {
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
     });
 
     expect(refetchBalance).toHaveBeenCalled();
@@ -158,7 +159,7 @@ describe(PaymentPollingProvider.name, () => {
       screen.getByTestId("start-polling").click();
     });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(screen.queryByTestId("is-polling")).toHaveTextContent("true");
     });
 
@@ -178,7 +179,7 @@ describe(PaymentPollingProvider.name, () => {
       screen.getByTestId("start-polling").click();
     });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(screen.queryByTestId("is-polling")).toHaveTextContent("true");
     });
 
@@ -196,7 +197,7 @@ describe(PaymentPollingProvider.name, () => {
     };
 
     // Suppress console.error for this test
-    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     expect(() => {
       render(<TestComponent />);
@@ -206,13 +207,13 @@ describe(PaymentPollingProvider.name, () => {
   });
 
   function setup(input: { isTrialing: boolean; balance: { totalUsd: number } | null; isWalletBalanceLoading: boolean }) {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
 
-    const refetchBalance = jest.fn();
-    const refetchManagedWallet = jest.fn();
+    const refetchBalance = vi.fn();
+    const refetchManagedWallet = vi.fn();
     const analyticsService = mock<AnalyticsService>();
-    const mockEnqueueSnackbar = jest.fn();
-    const mockCloseSnackbar = jest.fn();
+    const mockEnqueueSnackbar = vi.fn();
+    const mockCloseSnackbar = vi.fn();
     const wallet = buildWallet({ isTrialing: input.isTrialing });
     const managedWallet = buildManagedWallet({ isTrialing: input.isTrialing });
     const walletBalance = input.balance ? buildWalletBalance(input.balance) : null;
@@ -232,24 +233,24 @@ describe(PaymentPollingProvider.name, () => {
 
     const dependencies = {
       ...DEPENDENCIES,
-      useWallet: jest.fn(() => wallet),
-      useWalletBalance: jest.fn(() => ({
+      useWallet: vi.fn(() => wallet),
+      useWalletBalance: vi.fn(() => ({
         balance: walletBalance,
         refetch: refetchBalance,
         isLoading: input.isWalletBalanceLoading
       })),
-      useManagedWallet: jest.fn(() => ({
+      useManagedWallet: vi.fn(() => ({
         wallet: mockManagedWallet,
         isLoading: false,
         isFetching: false,
         createError: null,
         refetch: refetchManagedWallet,
-        create: jest.fn()
+        create: vi.fn()
       })),
-      useServices: jest.fn(() => ({
+      useServices: vi.fn(() => ({
         analyticsService
       })),
-      useSnackbar: jest.fn(() => ({
+      useSnackbar: vi.fn(() => ({
         enqueueSnackbar: mockEnqueueSnackbar,
         closeSnackbar: mockCloseSnackbar
       })),
@@ -286,7 +287,7 @@ describe(PaymentPollingProvider.name, () => {
       rerender,
       unmount,
       cleanup: () => {
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     };
   }
