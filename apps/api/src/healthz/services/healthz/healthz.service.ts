@@ -61,6 +61,7 @@ export interface HealthzResult {
 
 class Healthcheck {
   private checkedAt: Date | null = null;
+  private hasSucceeded = false;
   private isFailed = false;
   private inflightPing?: Promise<void>;
 
@@ -79,6 +80,7 @@ class Healthcheck {
     try {
       if (options?.ignoreCache || !this.checkedAt || now - this.checkedAt.getTime() > this.options.cacheTTL) {
         await this.check();
+        this.hasSucceeded = true;
         this.isFailed = false;
       }
 
@@ -90,7 +92,7 @@ class Healthcheck {
       });
 
       const prevIsFailed = this.isFailed;
-      if (prevIsFailed || options?.ignoreCache) return false;
+      if (prevIsFailed || !this.hasSucceeded || options?.ignoreCache) return false;
 
       this.isFailed = true;
       // tolerate failure for the 1st time and wait for the cache to expire until the next check
