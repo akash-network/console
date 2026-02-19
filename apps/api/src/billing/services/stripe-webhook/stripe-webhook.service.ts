@@ -88,6 +88,7 @@ export class StripeWebhookService {
         ? payment.payment_intent
         : payment.payment_intent.id
       : undefined;
+    const endTrial = transaction.type !== "coupon_claim";
 
     await this.topUpWalletFromTransaction({
       customerId,
@@ -96,7 +97,8 @@ export class StripeWebhookService {
       paymentMethodType: undefined,
       paymentAmount: transaction.amount,
       stripePaymentIntentId,
-      eventDescription: `invoice ${invoice.id}`
+      eventDescription: `invoice ${invoice.id}`,
+      endTrial
     });
   }
 
@@ -148,6 +150,7 @@ export class StripeWebhookService {
     paymentAmount: number;
     stripePaymentIntentId: string | undefined;
     eventDescription: string;
+    endTrial?: boolean;
   }): Promise<void> {
     if (!params.customerId) {
       this.logger.error({
@@ -196,7 +199,8 @@ export class StripeWebhookService {
       stripePaymentIntentId: params.stripePaymentIntentId,
       paymentAmount: params.paymentAmount,
       userId: user.id,
-      eventDescription: params.eventDescription
+      eventDescription: params.eventDescription,
+      endTrial: params.endTrial
     });
   }
 
@@ -212,6 +216,7 @@ export class StripeWebhookService {
     paymentAmount: number;
     userId: string;
     eventDescription: string;
+    endTrial?: boolean;
   }): Promise<void> {
     const transaction = await this.stripeTransactionRepository.findOneByAndLock({ id: params.transactionId });
 
@@ -243,7 +248,7 @@ export class StripeWebhookService {
       stripePaymentIntentId: params.stripePaymentIntentId
     });
 
-    await this.refillService.topUpWallet(params.paymentAmount, params.userId);
+    await this.refillService.topUpWallet(params.paymentAmount, params.userId, { endTrial: params.endTrial });
   }
 
   @WithTransaction()

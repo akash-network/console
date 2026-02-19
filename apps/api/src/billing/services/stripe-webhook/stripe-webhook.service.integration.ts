@@ -56,7 +56,7 @@ describe(StripeWebhookService.name, () => {
         receiptUrl: "https://receipt.url",
         stripePaymentIntentId: paymentIntentId
       });
-      expect(refillService.topUpWallet).toHaveBeenCalledWith(amount, mockUser.id);
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(amount, mockUser.id, { endTrial: undefined });
     });
 
     it("returns early when customer ID is missing", async () => {
@@ -147,7 +147,7 @@ describe(StripeWebhookService.name, () => {
       await service.tryToTopUpWalletFromPaymentIntent(event);
 
       expect(stripeTransactionRepository.findById).toHaveBeenCalledWith(internalTransaction.id);
-      expect(refillService.topUpWallet).toHaveBeenCalledWith(amount, mockUser.id);
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(amount, mockUser.id, { endTrial: undefined });
       expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(
         "tx-123",
         expect.objectContaining({
@@ -219,7 +219,7 @@ describe(StripeWebhookService.name, () => {
         receiptUrl: "https://receipt.stripe.com/inv",
         stripePaymentIntentId: paymentIntentId
       });
-      expect(refillService.topUpWallet).toHaveBeenCalledWith(transactionAmount, mockUser.id);
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(transactionAmount, mockUser.id, { endTrial: false });
     });
 
     it("returns early when customer ID is missing", async () => {
@@ -327,7 +327,7 @@ describe(StripeWebhookService.name, () => {
         receiptUrl: undefined,
         stripePaymentIntentId: undefined
       });
-      expect(refillService.topUpWallet).toHaveBeenCalledWith(transactionAmount, mockUser.id);
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(transactionAmount, mockUser.id, { endTrial: false });
     });
   });
 

@@ -37,6 +37,19 @@ describe(RefillService.name, () => {
       expect(analyticsService.track).toHaveBeenCalledWith(userId, "balance_top_up");
     });
 
+    it("does not end trial when endTrial option is false", async () => {
+      const { service, userWalletRepository, managedUserWalletService, balancesService } = setup();
+      const existingWallet = UserWalletSeeder.create({ userId });
+      userWalletRepository.findOneBy.mockResolvedValue(existingWallet);
+      managedUserWalletService.authorizeSpending.mockResolvedValue();
+      balancesService.retrieveDeploymentLimit.mockResolvedValue(5000);
+      balancesService.refreshUserWalletLimits.mockResolvedValue();
+
+      await service.topUpWallet(amountUsd, userId, { endTrial: false });
+
+      expect(balancesService.refreshUserWalletLimits).toHaveBeenCalledWith(existingWallet, { endTrial: false });
+    });
+
     it("should create new wallet when none exists", async () => {
       const { service, userWalletRepository, walletInitializerService, balancesService, managedUserWalletService, managedSignerService, analyticsService } =
         setup();
