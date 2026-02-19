@@ -49,7 +49,7 @@ RUN addgroup --system --gid $APP_GROUP_ID $APP_GROUP \
     && adduser --system --uid $APP_GROUP_ID --ingroup $APP_GROUP $APP_USER
 
 COPY --from=prepare /app .
-# webpack built apps are not fully bundled, so we need to install dependencies separately
+# tsup bundled apps still need runtime dependencies (external modules)
 RUN --mount=type=cache,id=npm-cache,target=/root/.npm npm run safe-install -- --workspace $WORKSPACE --omit=dev
 
 COPY --from=builder /app/package*.json /app/
