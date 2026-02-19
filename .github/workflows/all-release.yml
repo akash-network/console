@@ -27,7 +27,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         # shellcheck disable=SC2016
         run: |
-          gh api repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA --jq '[.files[].filename]' > changed_files.json
+          gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA" --jq '[.files[].filename]' > changed_files.json
           node --input-type=module -e '
             import fs from "fs";
             import { findLocalPackageDependencies } from "./packages/releaser/find-local-package-dependencies.js";
@@ -41,9 +41,9 @@ jobs:
             };
             const workflowFile = (app) => (APP_ALIASES[app] || app) + "-release.yml";
             const appsToRelease = fs.readdirSync("./apps").filter(app => {
-              const appPath = `apps/${app}`;
+              const appPath = "apps/" + app;
               const localDependencies = findLocalPackageDependencies(appPath);
-              return changedFiles.some(f => f.startsWith(`${appPath}/`) || localDependencies.some(dep => f.startsWith(`${dep}/`)));
+              return changedFiles.some(f => f.startsWith(appPath + "/")) || localDependencies.some(dep => f.startsWith(dep + "/"));
             });
 
             const nextjs = appsToRelease
