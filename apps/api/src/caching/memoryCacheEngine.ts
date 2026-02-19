@@ -1,29 +1,15 @@
 import { LRUCache } from "lru-cache";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const cache = new LRUCache<string, any>({ max: 500 });
+export type CacheValue = NonNullable<unknown>;
+const cache = new LRUCache<string, CacheValue>({ max: 500 });
 
 export default class MemoryCacheEngine {
-  /**
-   * Used to retrieve data from memcache
-   * @param {*} key
-   */
-  getFromCache<T>(key: string): T | false {
-    const cachedBody = cache.get(key);
-    if (cachedBody !== undefined) {
-      return cachedBody as T;
-    }
-    return false;
+  getFromCache<T extends CacheValue>(key: string): T | undefined {
+    return cache.get(key) as T | undefined;
   }
 
-  /**
-   * Used to store data in a memcache
-   * @param {*} key
-   * @param {*} data
-   * @param {*} duration
-   */
-  storeInCache<T>(key: string, data: T, duration?: number) {
-    cache.set(key, data, duration ? { ttl: duration } : undefined);
+  storeInCache<T extends CacheValue>(key: string, data: T, durationInSeconds?: number) {
+    cache.set(key, data, durationInSeconds ? { ttl: durationInSeconds * 1000 } : undefined);
   }
 
   /**

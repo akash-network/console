@@ -41,7 +41,7 @@ export async function cacheResponse<T>(seconds: number, key: string, refreshRequ
   const cachedObject = cacheEngine.getFromCache<CachedObject<T>>(key);
   logger.debug(`Request for key: ${key}`);
 
-  const hasCachedData = cachedObject !== false;
+  const hasCachedData = cachedObject !== undefined;
 
   // Check if cached data is still valid (only if we have cached data)
   let isExpired = true;

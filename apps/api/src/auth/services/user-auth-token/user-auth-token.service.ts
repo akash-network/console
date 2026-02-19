@@ -1,6 +1,7 @@
 import { singleton } from "tsyringe";
 
 import { cacheEngine } from "@src/caching/helpers";
+import type { CacheValue } from "@src/caching/memoryCacheEngine";
 import { Trace } from "@src/core/services/tracing/tracing.service";
 import { getJwks, useKVStore, verify, type VerifyRsaJwtEnv } from "@src/verify-rsa-jwt-cloudflare-worker-main";
 import { AuthConfigService } from "../auth-config/auth-config.service";
@@ -44,7 +45,7 @@ const kvStore = {
       return cacheEngine.getFromCache(key);
     }
   },
-  async put(key: string, value: unknown) {
+  async put(key: string, value: CacheValue) {
     cacheEngine.storeInCache(key, value);
   }
 };
