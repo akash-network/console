@@ -12,10 +12,6 @@ on:
         description: "The git tag released"
         value: ${{ jobs.release.outputs.git_tag }}
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.sha }}-${{ inputs.app }}
-  cancel-in-progress: true
-
 permissions:
   contents: write
 
@@ -65,7 +61,8 @@ jobs:
           commits_analysis=$(node ./packages/releaser/recommended-bump.js \
             --tag-prefix="$app_alias/v" \
             --path "apps/$APP_NAME" \
-            --repo-url "https://github.com/$GITHUB_REPOSITORY")
+            --repo-url "https://github.com/$GITHUB_REPOSITORY" \
+            --target-sha "$GITHUB_SHA")
           echo "$commits_analysis" | jq
 
           next_tag=$(echo "$commits_analysis" | jq -r '.nextTag // empty')

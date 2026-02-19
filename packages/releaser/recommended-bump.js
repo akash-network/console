@@ -1,7 +1,17 @@
+import conventionalChangelogConventionalCommits from "conventional-changelog-conventionalcommits";
 import { Bumper } from "conventional-recommended-bump";
 import { parseArgs } from "node:util";
 
 import { findLocalPackageDependencies } from "./find-local-package-dependencies.js";
+
+const { values: cliOptions } = parseArgs({
+  options: {
+    "tag-prefix": { type: "string" },
+    "repo-url": { type: "string" },
+    path: { type: "string" },
+    "target-sha": { type: "string" }
+  }
+});
 
 const COMMIT_TYPES = [
   { type: "feat", section: "Features" },
@@ -14,14 +24,102 @@ const COMMIT_TYPES = [
   { type: "style", hidden: true }
 ];
 
-const breakingHeaderPattern = /^(\w*)(?:\((.*)\))?!: (.*)$/;
+const bumper = new Bumper(process.cwd());
 
-function addBangNotes(commit) {
-  const match = commit.header.match(breakingHeaderPattern);
-  if (match && commit.notes.length === 0) {
-    commit.notes.push({ text: match[3] });
+bumper.loadPreset("conventionalcommits");
+
+if (cliOptions["tag-prefix"]) {
+  bumper.tag({ prefix: cliOptions["tag-prefix"] });
+}
+
+if (cliOptions.path?.length) {
+  const additionalPaths = findLocalPackageDependencies(cliOptions.path);
+  bumper.commits({ path: [cliOptions.path, ...additionalPaths] });
+}
+
+const lastTag = await bumper.getLastSemverTag();
+const { commits: analyzedCommits } = await bumper.bump();
+
+// Process commits oldest-first so each commit's version is derived from those before it.
+// This makes version computation deterministic regardless of parallel runs:
+// every run for a given commit SHA will always produce the same version.
+const commits = [...analyzedCommits].reverse();
+
+const prefix = cliOptions["tag-prefix"] || "";
+const initialVersion = lastTag ? lastTag.replace(prefix, "") : "0.0.0";
+let [major, minor, patch] = initialVersion.split(".").map(Number);
+
+let targetCommit = null;
+let targetCommitReleaseLevel;
+
+// if we have more than 1 commit,
+// we need to emulate version bumping for each commit to find the correct version for the target SHA
+// because our release workflows are executed in parallel and out of order.
+// Eventually every workflow run will determine correct and unqiue release version
+for (const commit of commits) {
+  const { level } = whatBump([commit]);
+
+  if (level === 0) {
+    major++;
+    minor = 0;
+    patch = 0;
+  } else if (level === 1) {
+    minor++;
+    patch = 0;
+  } else if (level === 2) {
+    patch++;
+  }
+
+  if (!cliOptions["target-sha"] || commit.hash === cliOptions["target-sha"]) {
+    targetCommit = commit;
+    targetCommitReleaseLevel = level;
+    break;
   }
 }
+
+// if targetCommitReleaseLevel is undefined it means that target SHA is not releaable
+if (!targetCommit || targetCommitReleaseLevel === undefined) {
+  console.error(JSON.stringify({ error: "No releasable commit found for this SHA" }));
+  process.exit(0);
+}
+
+const nextVersion = `${major}.${minor}.${patch}`;
+const nextTag = `${prefix}${nextVersion}`;
+const repoUrl = cliOptions["repo-url"] || "";
+const { writer: changelogWriter } = await conventionalChangelogConventionalCommits({ types: COMMIT_TYPES });
+
+console.log(
+  JSON.stringify({
+    analyzedCommitsCount: analyzedCommits.length,
+    currentVersion: initialVersion,
+    nextVersion,
+    nextTag,
+    changelog: (() => {
+      const [, owner, repository] = repoUrl.match(/github\.com\/([^/]+)\/(.+)$/) ?? [];
+
+      const transformed = changelogWriter.transform(targetCommit, {
+        host: "https://github.com",
+        owner: owner || "",
+        repository: repository || "",
+        repoUrl,
+        linkReferences: !!repoUrl
+      });
+      const date = new Date().toISOString().split("T")[0];
+      const compareUrl = lastTag ? `${repoUrl}/compare/${lastTag}...${nextTag}` : `${repoUrl}/commits/${nextTag}`;
+      const scope = transformed.scope ? `**${transformed.scope}:** ` : "";
+      const hash = transformed.shortHash ? ` ([${transformed.shortHash}](${repoUrl}/commit/${targetCommit.hash}))` : "";
+
+      const changelogLines = [`## [${nextVersion}](${compareUrl}) (${date})`, "", `### ${transformed.type}`, "", `* ${scope}${transformed.subject}${hash}`];
+
+      if (transformed.notes?.length) {
+        changelogLines.push("", "### ⚠ BREAKING CHANGES", "");
+        changelogLines.push(...transformed.notes.map(note => `* ${note.text}`));
+      }
+
+      return changelogLines.join("\n");
+    })()
+  })
+);
 
 function whatBump(commits) {
   let level;
@@ -53,111 +151,10 @@ function whatBump(commits) {
   };
 }
 
-function generateChangelog(commits, { repoUrl, lastTag, nextTag, nextVersion }) {
-  const date = new Date().toISOString().split("T")[0];
-  const compareUrl = lastTag ? `${repoUrl}/compare/${lastTag}...${nextTag}` : `${repoUrl}/commits/${nextTag}`;
-
-  const lines = [`## [${nextVersion}](${compareUrl}) (${date})`];
-
-  const sections = new Map();
-
-  for (const commit of commits) {
-    const typeConfig = COMMIT_TYPES.find(t => t.type === commit.type);
-    if (!typeConfig || typeConfig.hidden) continue;
-
-    if (!sections.has(typeConfig.section)) {
-      sections.set(typeConfig.section, []);
-    }
-
-    const scope = commit.scope ? `**${commit.scope}:** ` : "";
-    const hash = commit.hash ? commit.hash.substring(0, 7) : "";
-    const hashLink = hash ? ` ([${hash}](${repoUrl}/commit/${commit.hash}))` : "";
-
-    let subject = commit.subject || "";
-    let prLink = "";
-    const prMatch = subject.match(/\(#(\d+)\)$/);
-    if (prMatch) {
-      subject = subject.replace(/\s*\(#\d+\)$/, "");
-      prLink = ` ([#${prMatch[1]}](${repoUrl}/issues/${prMatch[1]}))`;
-    }
-
-    sections.get(typeConfig.section).push(`* ${scope}${subject}${prLink}${hashLink}`);
+function addBangNotes(commit) {
+  const match = commit.header.match(/^(\w*)(?:\((.*)\))?!: (.*)$/);
+  if (match && commit.notes.length === 0) {
+    const noteText = match[3];
+    commit.notes.push({ text: noteText });
   }
-
-  for (const commit of commits) {
-    if (commit.notes.length === 0) continue;
-    if (!sections.has("BREAKING CHANGES")) {
-      sections.set("BREAKING CHANGES", []);
-    }
-    for (const note of commit.notes) {
-      sections.get("BREAKING CHANGES").push(`* ${note.text}`);
-    }
-  }
-
-  for (const [section, entries] of sections) {
-    lines.push("", "", `### ${section}`, "");
-    lines.push(...entries);
-  }
-
-  return lines.join("\n");
 }
-
-const { values } = parseArgs({
-  options: {
-    "tag-prefix": { type: "string" },
-    "repo-url": { type: "string" },
-    path: { type: "string" }
-  }
-});
-
-const bumper = new Bumper(process.cwd());
-
-bumper.loadPreset("conventionalcommits");
-
-if (values["tag-prefix"]) {
-  bumper.tag({ prefix: values["tag-prefix"] });
-}
-
-if (values.path?.length) {
-  const additionalPaths = findLocalPackageDependencies(values.path);
-  bumper.commits({ path: [values.path, ...additionalPaths] });
-}
-
-const lastTag = await bumper.getLastSemverTag();
-const result = await bumper.bump(whatBump);
-
-if (!result.releaseType) {
-  console.error(JSON.stringify({ error: "No releasable commits found" }));
-  process.exit(0);
-}
-
-const prefix = values["tag-prefix"] || "";
-const currentVersion = lastTag ? lastTag.replace(prefix, "") : "0.0.0";
-const [major, minor, patch] = currentVersion.split(".").map(Number);
-
-let nextVersion;
-switch (result.releaseType) {
-  case "major":
-    nextVersion = `${major + 1}.0.0`;
-    break;
-  case "minor":
-    nextVersion = `${major}.${minor + 1}.0`;
-    break;
-  default:
-    nextVersion = `${major}.${minor}.${patch + 1}`;
-    break;
-}
-
-const nextTag = `${prefix}${nextVersion}`;
-const repoUrl = values["repo-url"] || "";
-const changelog = generateChangelog([result.commits[0]], { repoUrl, lastTag, nextTag, nextVersion });
-
-console.log(
-  JSON.stringify({
-    releaseType: result.releaseType,
-    currentVersion,
-    nextVersion,
-    nextTag,
-    changelog
-  })
-);
