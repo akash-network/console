@@ -43,7 +43,12 @@ jobs:
           APP: ${{ inputs.app }}
         run: |
           if [[ "$TAG_NAME" == "latest" ]]; then
-            TAG_NAME=$(gh api "repos/${{ github.repository }}/releases/latest" --jq '.tag_name')
+            TAG_NAME=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+              --jq "[.[] | select(.tag_name | startswith(\"$APP/\"))] | first | .tag_name")
+            if [[ -z "$TAG_NAME" || "$TAG_NAME" == "null" ]]; then
+              echo "❌ No release found for app=$APP in the last 100 releases."
+              exit 1
+            fi
           fi
 
           package_name="${TAG_NAME%%/*}"
