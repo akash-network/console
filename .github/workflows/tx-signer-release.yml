@@ -26,6 +26,10 @@ jobs:
       cancel-if-stale: ${{ inputs.cancel-if-stale == 'true' }}
 
   deploy-beta-mainnet:
+    permissions:
+      contents: read
+      pull-requests: read
+      deployments: write
     needs: setup
     if: ${{ !needs.setup.outputs.skip }}
     name: Deploy to beta mainnet
@@ -38,6 +42,10 @@ jobs:
       chain: mainnet
 
   deploy-beta-sandbox:
+    permissions:
+      contents: read
+      pull-requests: read
+      deployments: write
     needs: setup
     if: ${{ !needs.setup.outputs.skip }}
     name: Deploy to beta sandbox
@@ -53,6 +61,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
+      deployments: write
     needs:
       - setup
       - deploy-beta-mainnet
@@ -70,6 +79,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
+      deployments: write
     needs:
       - setup
       - deploy-beta-sandbox
