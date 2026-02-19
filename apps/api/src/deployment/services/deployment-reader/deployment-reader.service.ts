@@ -19,7 +19,7 @@ import { singleton } from "tsyringe";
 import { WalletInitialized, WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import { Memoize } from "@src/caching/helpers";
 import { LoggerService } from "@src/core";
-import { GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
+import { GetDeploymentResponse, ListDeploymentsItem } from "@src/deployment/http-schemas/deployment.schema";
 import { FallbackLeaseReaderService } from "@src/deployment/services/fallback-lease-reader/fallback-lease-reader.service";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { ProviderList } from "@src/types/provider";
@@ -112,8 +112,9 @@ export class DeploymentReaderService {
     query: { userId: string };
     skip?: number;
     limit?: number;
-  }): Promise<{ deployments: GetDeploymentResponse["data"][]; total: number; hasMore: boolean }> {
-    const { address: owner } = await this.walletReaderService.getWalletByUserId(query.userId);
+  }): Promise<{ deployments: ListDeploymentsItem[]; total: number; hasMore: boolean }> {
+    const wallet = await this.walletReaderService.getWalletByUserId(query.userId);
+    const { address: owner } = wallet;
     const pagination = skip !== undefined || limit !== undefined ? { offset: skip, limit } : undefined;
     const deploymentReponse = await this.getDeploymentsList({ owner, state: "active", pagination });
     const deployments = deploymentReponse.deployments;
@@ -125,11 +126,7 @@ export class DeploymentReaderService {
 
     const deploymentsWithLeases = deployments.map((deployment, index) => ({
       deployment: deployment.deployment,
-      leases:
-        leaseResults[index]?.leases?.map(({ lease }) => ({
-          ...lease,
-          status: null as null
-        })) ?? [],
+      leases: leaseResults[index]?.leases?.map(({ lease }) => lease) ?? [],
       escrow_account: deployment.escrow_account
     }));
     return {
