@@ -2,6 +2,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "noImplicitAny": false,
+    "target": "ES6",
     "paths": {
       "@src/*": ["./src/*"]
     }
