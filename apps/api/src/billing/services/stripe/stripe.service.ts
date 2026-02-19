@@ -993,7 +993,7 @@ export class StripeService extends Stripe {
     }
   }
 
-  private extractFingerprint(paymentMethod: Stripe.PaymentMethod): string | undefined {
+  extractFingerprint(paymentMethod: Stripe.PaymentMethod): string | undefined {
     if (paymentMethod.card?.fingerprint) {
       return paymentMethod.card.fingerprint;
     }
