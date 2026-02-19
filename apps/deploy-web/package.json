@@ -20,7 +20,7 @@
     "lint": "eslint .",
     "start": "next start",
     "test": "npm run test:unit",
-    "test:cov": "NODE_ENV=test DEPLOYMENT_ENV=staging vitest run --coverage",
+    "test:cov": "NODE_ENV=test DEPLOYMENT_ENV=staging vitest run --coverage --reporter=default --reporter=junit",
     "test:e2e": "playwright test",
     "test:unit": "NODE_ENV=test DEPLOYMENT_ENV=staging vitest run",
     "type-check": "tsc"

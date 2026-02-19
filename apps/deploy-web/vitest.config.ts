@@ -14,6 +14,9 @@ const commonAlias: Record<string, string> = {
 
 export default defineConfig({
   test: {
+    outputFile: {
+      junit: "junit.xml"
+    },
     coverage: {
       include: ["src/**/*.{js,ts,tsx}"],
       exclude: ["src/**/Editor/monaco-*.ts", "src/**/Editor/*.worker.ts"]
