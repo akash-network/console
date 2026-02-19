@@ -29,6 +29,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
+      deployments: write
     needs: setup
     if: ${{ !needs.setup.outputs.skip }}
     name: Deploy to prod mainnet
@@ -44,6 +45,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
+      deployments: write
     needs: setup
     if: ${{ !needs.setup.outputs.skip }}
     name: Deploy to prod sandbox

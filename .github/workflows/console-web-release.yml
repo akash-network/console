@@ -26,6 +26,10 @@ jobs:
       cancel-if-stale: ${{ inputs.cancel-if-stale == 'true' }}
 
   deploy-beta:
+    permissions:
+      contents: read
+      pull-requests: read
+      deployments: write
     needs: setup
     if: ${{ !needs.setup.outputs.skip }}
     name: Deploy to beta
@@ -53,6 +57,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
+      deployments: write
     needs: [setup, test-beta]
     name: Deploy to prod
     uses: ./.github/workflows/reusable-deploy-k8s.yml
