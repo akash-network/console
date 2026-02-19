@@ -6,6 +6,11 @@ on:
       - "apps/**/*"
       - "packages/**/*"
   workflow_dispatch:
+    inputs:
+      sha:
+        description: "The commit SHA to release (defaults to GITHUB_SHA)"
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -76,6 +81,7 @@ jobs:
     with:
       app: ${{ matrix.app }}
       deploy_workflow: ${{ matrix.deploy_workflow }}
+      sha: ${{ inputs.sha }}
 
   release-nextjs:
     needs: setup
@@ -91,3 +97,4 @@ jobs:
     with:
       app: ${{ matrix.app }}
       deploy_workflow: ${{ matrix.deploy_workflow }}
+      sha: ${{ inputs.sha }}

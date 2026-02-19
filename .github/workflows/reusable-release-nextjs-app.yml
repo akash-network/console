@@ -11,6 +11,10 @@ on:
         description: "Deployment workflow filename (e.g., console-web-release.yml)"
         required: false
         type: string
+      sha:
+        description: "The commit SHA to release (defaults to GITHUB_SHA)"
+        required: false
+        type: string
     outputs:
       git_tag:
         description: "The git tag released"
@@ -31,6 +35,7 @@ jobs:
       contents: write
     with:
       app: ${{ inputs.app }}
+      sha: ${{ inputs.sha }}
 
   build-beta:
     needs: release

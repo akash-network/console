@@ -7,6 +7,10 @@ on:
         description: "The app to release" # dir name in ./apps/*
         required: true
         type: string
+      sha:
+        description: "The commit SHA to release (defaults to GITHUB_SHA)"
+        required: false
+        type: string
     outputs:
       git_tag:
         description: "The git tag released"
@@ -56,13 +60,14 @@ jobs:
               "deploy-web": "console-web",
               "api": "console-api"
             }
+          RELEASE_FROM_SHA: ${{ inputs.sha || github.sha }}
         run: |
           app_alias=$(echo "$APP_ALIASES" | jq -r --arg app "$APP_NAME" '.[$app] // $app')
           commits_analysis=$(node ./packages/releaser/recommended-bump.js \
             --tag-prefix="$app_alias/v" \
             --path "apps/$APP_NAME" \
             --repo-url "https://github.com/$GITHUB_REPOSITORY" \
-            --target-sha "$GITHUB_SHA")
+            --target-sha "$RELEASE_FROM_SHA")
           echo "$commits_analysis" | jq
 
           next_tag=$(echo "$commits_analysis" | jq -r '.nextTag // empty')
