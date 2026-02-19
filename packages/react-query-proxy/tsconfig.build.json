@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "noImplicitAny": true,
+    "strict": true,
+    "module": "esnext",
+    "moduleResolution": "bundler"
+  },
+  "extends": "@akashnetwork/dev-config/tsconfig.base-node.json"
+}
