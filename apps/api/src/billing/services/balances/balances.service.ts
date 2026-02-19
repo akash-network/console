@@ -31,12 +31,12 @@ export class BalancesService {
   async refreshUserWalletLimits(userWallet: UserWalletOutput, options?: { endTrial: boolean }): Promise<void> {
     const update = await this.getFreshLimitsUpdate(userWallet);
 
-    if (!Object.keys(update).length) {
-      return;
-    }
-
     if (options?.endTrial && userWallet.isTrialing) {
       update.isTrialing = false;
+    }
+
+    if (!Object.keys(update).length) {
+      return;
     }
 
     await this.userWalletRepository.updateById(userWallet.id, update);
