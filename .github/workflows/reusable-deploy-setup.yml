@@ -96,7 +96,7 @@ jobs:
                 repo: context.repo.repo,
                 workflow_id: currentRun.workflow_id,
                 status,
-                per_page: 10
+                per_page: 20
               });
 
               for (const run of data.workflow_runs) {

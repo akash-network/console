@@ -68,8 +68,8 @@ jobs:
             --repo-url "https://github.com/$GITHUB_REPOSITORY")
           echo "$commits_analysis" | jq
 
-          next_tag=$(echo "$commits_analysis" | jq -r '.nextTag')
-          changelog=$(echo "$commits_analysis" | jq -r '.changelog')
+          next_tag=$(echo "$commits_analysis" | jq -r '.nextTag // empty')
+          changelog=$(echo "$commits_analysis" | jq -r '.changelog // empty')
           echo "git_tag=$next_tag" >> "$GITHUB_OUTPUT"
           {
             echo "changelog<<CHANGELOG_EOF"
