@@ -21,6 +21,22 @@ export const createMockPaymentMethod = (overrides = {}) => ({
   ...overrides
 });
 
+export const createMockLinkPaymentMethod = (overrides = {}) => ({
+  id: `pm_${faker.string.alphanumeric(24)}`,
+  type: "link",
+  link: {
+    email: faker.internet.email()
+  },
+  billing_details: {
+    name: faker.person.fullName(),
+    email: faker.internet.email()
+  },
+  created: new Date().getTime(),
+  validated: true,
+  isDefault: false,
+  ...overrides
+});
+
 export const createMockDiscount = (overrides = {}) => ({
   id: `di_${faker.string.alphanumeric(24)}`,
   coupon: {

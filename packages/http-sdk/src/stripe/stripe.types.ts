@@ -40,6 +40,9 @@ export interface PaymentMethod {
     exp_month: number;
     exp_year: number;
   };
+  link?: {
+    email?: string | null;
+  } | null;
 }
 
 export interface Charge {

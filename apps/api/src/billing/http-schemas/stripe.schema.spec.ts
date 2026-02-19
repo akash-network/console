@@ -1,8 +1,32 @@
 import { secondsInDay } from "date-fns/constants";
 
-import { CustomerTransactionsCsvExportQuerySchema, CustomerTransactionsQuerySchema } from "./stripe.schema";
+import { CustomerTransactionsCsvExportQuerySchema, CustomerTransactionsQuerySchema, PaymentMethodSchema } from "./stripe.schema";
 
 describe("Stripe Schema", () => {
+  describe("PaymentMethodSchema", () => {
+    it("accepts payment method with card", () => {
+      const result = PaymentMethodSchema.parse({
+        type: "card",
+        card: { brand: "visa", last4: "4242", exp_month: 12, exp_year: 2025 }
+      });
+      expect(result.type).toBe("card");
+      expect(result.card?.brand).toBe("visa");
+    });
+
+    it("accepts payment method with link", () => {
+      const result = PaymentMethodSchema.parse({
+        type: "link",
+        link: { email: "user@test.com" }
+      });
+      expect(result.type).toBe("link");
+      expect(result.link?.email).toBe("user@test.com");
+    });
+
+    it("rejects payment method without card or link", () => {
+      expect(() => PaymentMethodSchema.parse({ type: "unknown" })).toThrow("At least one of card or link must be provided");
+    });
+  });
+
   describe("CustomerTransactionsQuerySchema", () => {
     it("accepts no dates", () => {
       const out = CustomerTransactionsQuerySchema.parse({});

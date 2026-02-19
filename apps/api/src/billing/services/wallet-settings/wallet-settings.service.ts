@@ -113,7 +113,7 @@ export class WalletSettingService {
 
   async #arrangeSchedule(prev?: WalletSettingOutput, next?: WalletSettingOutput) {
     if (!prev?.autoReloadEnabled && next?.autoReloadEnabled) {
-      await this.walletReloadJobService.scheduleForWalletSetting(next);
+      await this.walletReloadJobService.scheduleForWalletSetting(next, { withCleanup: true });
     }
   }
 
