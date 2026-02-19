@@ -10,7 +10,7 @@ import { createMockLinkPaymentMethod, createMockPaymentMethod } from "@tests/see
 import { MockComponents } from "@tests/unit/mocks";
 
 describe(PaymentMethodCard.name, () => {
-  describe("display mode (default)", () => {
+  describe("when in display mode (default)", () => {
     it("renders card payment method with brand and last4", () => {
       setup({
         method: createMockPaymentMethod({
@@ -74,7 +74,7 @@ describe(PaymentMethodCard.name, () => {
     });
   });
 
-  describe("selection mode", () => {
+  describe("when in selection mode", () => {
     it("renders RadioGroupItem with method id", () => {
       const { dependencies } = setup({
         isSelectable: true,
