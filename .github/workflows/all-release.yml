@@ -21,14 +21,17 @@ jobs:
       nextjs: ${{ steps.matrix.outputs.nextjs }}
     steps:
       - uses: actions/checkout@v6
-      - id: matrix
+      - name: Detect changed apps
+        id: matrix
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         # shellcheck disable=SC2016
         run: |
-          gh api repos/${{ github.repository }}/commits/${{ github.sha }} --jq '[.files[].filename]' > changed_files.json
-          node -e '
-            const fs = require("fs");
+          gh api repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA --jq '[.files[].filename]' > changed_files.json
+          node --input-type=module -e '
+            import fs from "fs";
+            import { findLocalPackageDependencies } from "./packages/releaser/find-local-package-dependencies.js";
+
             const changedFiles = JSON.parse(fs.readFileSync("./changed_files.json", "utf-8"));
 
             // App to deploy workflow mapping
@@ -37,16 +40,16 @@ jobs:
               "deploy-web": "console-web",
             };
             const workflowFile = (app) => (APP_ALIASES[app] || app) + "-release.yml";
-            const apps = Array.from(new Set(
-              changedFiles
-                .filter(f => f.match(/^apps\/[^/]+\//))
-                .map(f => f.split("/", 2)[1])
-            ));
+            const appsToRelease = fs.readdirSync("./apps").filter(app => {
+              const appPath = `apps/${app}`;
+              const localDependencies = findLocalPackageDependencies(appPath);
+              return changedFiles.some(f => f.startsWith(`${appPath}/`) || localDependencies.some(dep => f.startsWith(`${dep}/`)));
+            });
 
-            const nextjs = apps
+            const nextjs = appsToRelease
               .filter(a => fs.readdirSync("apps/" + a).some(f => f.startsWith("next.config")))
               .map(a => ({ app: a, deploy_workflow: workflowFile(a) }));
-            const backends = apps
+            const backends = appsToRelease
               .filter(a => !nextjs.some(n => n.app === a) && a !== "log-collector")
               .map(a => ({ app: a, deploy_workflow: workflowFile(a) }));
 
