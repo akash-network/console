@@ -5,7 +5,7 @@ on:
     paths:
       - "apps/**/*"
       - "packages/**/*"
-      - package-lock.json
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -27,12 +27,17 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         # shellcheck disable=SC2016
         run: |
-          gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA" --jq '[.files[].filename]' > changed_files.json
+          if [[ "${GITHUB_EVENT_NAME}" != "workflow_dispatch" ]]; then
+            gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA" --jq '[.files[].filename]' > changed_files.json
+          fi
           node --input-type=module -e '
             import fs from "fs";
             import { findLocalPackageDependencies } from "./packages/releaser/find-local-package-dependencies.js";
 
-            const changedFiles = JSON.parse(fs.readFileSync("./changed_files.json", "utf-8"));
+            // trigger release for all in case of workflow_dispatch, otherwise only for changed apps
+            const changedFiles = process.env.GITHUB_EVENT_NAME === "workflow_dispatch"
+              ? fs.readdirSync("./apps").map(app => "apps/" + app + "/")
+              : JSON.parse(fs.readFileSync("./changed_files.json", "utf-8"));
 
             // App to deploy workflow mapping
             const APP_ALIASES = {
