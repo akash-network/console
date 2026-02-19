@@ -63,7 +63,7 @@ jobs:
       base_image_tag: ${{ steps.determine.outputs.base_tag }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
@@ -123,6 +123,8 @@ jobs:
         env:
           DEPLOYMENT_ENV: ${{ inputs.deployment-env }}
           GIT_COMMIT_HASH: ${{ github.sha }}
+          APP_PATH: "apps/${{ env.app }}"
+          APP_VERSION: ${{ steps.determine.outputs.base_tag }}
         run: |
           if [[ -n "${{ env.force_build }}" ]]; then
             force_build="${{ env.force_build }}"
@@ -130,5 +132,16 @@ jobs:
             force_build="-f"
           fi
 
+          # shellcheck disable=SC2016
+          node -e '
+            const fs = require("fs");
+            const lockfile = JSON.parse(fs.readFileSync("./package-lock.json", "utf-8"));
+            const pkgfile = JSON.parse(fs.readFileSync(`./${process.env.APP_PATH}/package.json`, "utf-8"));
+            lockfile.packages[process.env.APP_PATH].version=process.env.APP_VERSION;
+            pkgfile.version=process.env.APP_VERSION;
+            fs.writeFileSync(`./${process.env.APP_PATH}/package.json`, JSON.stringify(pkgfile, null, 2));
+            fs.writeFileSync("./package-lock.json", JSON.stringify(lockfile, null, 2));
+          ';
+
           # shellcheck disable=SC2086
-          ./packages/docker/script/build.sh -r ${{ env.registry }} -t ${{ env.tag }} -a ${{ env.app }} -l "${{ inputs.tag-latest }}" $force_build
+          ./packages/docker/script/build.sh -r "${{ env.registry }}" -t "${{ env.tag }}" -a "${{ env.app }}" -l "${{ inputs.tag-latest }}" $force_build
