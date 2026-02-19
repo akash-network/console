@@ -12722,6 +12722,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 "properties": {
                   "data": {
                     "properties": {
+                      "awaitResolved": {
+                        "type": "boolean",
+                      },
                       "couponId": {
                         "type": "string",
                       },
@@ -12803,6 +12806,21 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                             "message",
                           ],
                           "type": "object",
+                        },
+                        "transactionId": {
+                          "type": "string",
+                        },
+                        "transactionStatus": {
+                          "enum": [
+                            "created",
+                            "pending",
+                            "requires_action",
+                            "succeeded",
+                            "failed",
+                            "refunded",
+                            "canceled",
+                          ],
+                          "type": "string",
                         },
                       },
                       "type": "object",
@@ -13718,6 +13736,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "minimum": 20,
                         "type": "number",
                       },
+                      "awaitResolved": {
+                        "type": "boolean",
+                      },
                       "currency": {
                         "type": "string",
                       },
@@ -13765,9 +13786,25 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "success": {
                           "type": "boolean",
                         },
+                        "transactionId": {
+                          "type": "string",
+                        },
+                        "transactionStatus": {
+                          "enum": [
+                            "created",
+                            "pending",
+                            "requires_action",
+                            "succeeded",
+                            "failed",
+                            "refunded",
+                            "canceled",
+                          ],
+                          "type": "string",
+                        },
                       },
                       "required": [
                         "success",
+                        "transactionId",
                       ],
                       "type": "object",
                     },
@@ -13800,9 +13837,25 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "success": {
                           "type": "boolean",
                         },
+                        "transactionId": {
+                          "type": "string",
+                        },
+                        "transactionStatus": {
+                          "enum": [
+                            "created",
+                            "pending",
+                            "requires_action",
+                            "succeeded",
+                            "failed",
+                            "refunded",
+                            "canceled",
+                          ],
+                          "type": "string",
+                        },
                       },
                       "required": [
                         "success",
+                        "transactionId",
                       ],
                       "type": "object",
                     },

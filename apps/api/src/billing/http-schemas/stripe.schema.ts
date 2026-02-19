@@ -68,15 +68,20 @@ export const ConfirmPaymentRequestSchema = z.object({
     userId: z.string(),
     paymentMethodId: z.string(),
     amount: z.number().gte(20, "Amount must be greater or equal to $20"),
-    currency: z.string()
+    currency: z.string(),
+    awaitResolved: z.boolean().optional()
   })
 });
+
+export const TransactionStatusSchema = z.enum(["created", "pending", "requires_action", "succeeded", "failed", "refunded", "canceled"]);
 
 export const PaymentIntentResultSchema = z.object({
   success: z.boolean(),
   requiresAction: z.boolean().optional(),
   clientSecret: z.string().optional(),
-  paymentIntentId: z.string().optional()
+  paymentIntentId: z.string().optional(),
+  transactionId: z.string(),
+  transactionStatus: TransactionStatusSchema.optional()
 });
 
 export const PaymentMethodValidationResultSchema = z.object({
@@ -94,7 +99,8 @@ export const ConfirmPaymentResponseSchema = z.object({
 export const ApplyCouponRequestSchema = z.object({
   data: z.object({
     couponId: z.string(),
-    userId: z.string()
+    userId: z.string(),
+    awaitResolved: z.boolean().optional()
   })
 });
 
@@ -111,6 +117,8 @@ export const ApplyCouponResponseSchema = z.object({
   data: z.object({
     coupon: CouponSchema.nullable().optional(),
     amountAdded: z.number().optional(),
+    transactionId: z.string().optional(),
+    transactionStatus: TransactionStatusSchema.optional(),
     error: z
       .object({
         message: z.string(),
