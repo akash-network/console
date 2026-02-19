@@ -1,7 +1,8 @@
 import type { LoggerService } from "@akashnetwork/logging";
 import { AxiosError } from "axios";
-import { mock } from "jest-mock-extended";
 import type { GetServerSidePropsContext, GetServerSidePropsResult } from "next";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 import type { z } from "zod";
 import { z as zod, ZodError } from "zod";
 
@@ -18,10 +19,10 @@ describe(defineServerSideProps, () => {
   });
 
   it("executes handler and returns its result", async () => {
-    const mockHandler = jest.fn().mockResolvedValue({ props: { data: "test" } });
+    const mockHandler = vi.fn().mockResolvedValue({ props: { data: "test" } });
     const customServices = {
       userTracker: mock<typeof services.userTracker>(),
-      getSession: jest.fn(async () => null)
+      getSession: vi.fn(async () => null)
     };
 
     const result = await setup({
@@ -50,7 +51,7 @@ describe(defineServerSideProps, () => {
       })
     });
 
-    const mockHandler = jest.fn().mockResolvedValue({ props: { validated: true } });
+    const mockHandler = vi.fn().mockResolvedValue({ props: { validated: true } });
 
     const result = await setup({
       route: "/test",
@@ -120,7 +121,7 @@ describe(defineServerSideProps, () => {
         permanent: false
       }
     };
-    const mockIf = jest.fn().mockReturnValue(redirectResult);
+    const mockIf = vi.fn().mockReturnValue(redirectResult);
 
     const result = await setup({
       route: "/test",
@@ -131,8 +132,8 @@ describe(defineServerSideProps, () => {
   });
 
   it("calls handler when if condition returns true", async () => {
-    const mockIf = jest.fn().mockReturnValue(true);
-    const mockHandler = jest.fn().mockResolvedValue({ props: { data: "test" } });
+    const mockIf = vi.fn().mockReturnValue(true);
+    const mockHandler = vi.fn().mockResolvedValue({ props: { data: "test" } });
 
     const result = await setup({
       route: "/test",
@@ -145,8 +146,8 @@ describe(defineServerSideProps, () => {
   });
 
   it("executes handler when if condition returns Promise<true>", async () => {
-    const mockIf = jest.fn().mockResolvedValue(true);
-    const mockHandler = jest.fn().mockResolvedValue({ props: { data: "test" } });
+    const mockIf = vi.fn().mockResolvedValue(true);
+    const mockHandler = vi.fn().mockResolvedValue({ props: { data: "test" } });
 
     const result = await setup({
       route: "/test",
@@ -165,7 +166,7 @@ describe(defineServerSideProps, () => {
         permanent: true
       }
     };
-    const mockIf = jest.fn().mockResolvedValue(asyncIfResult);
+    const mockIf = vi.fn().mockResolvedValue(asyncIfResult);
 
     const result = await setup({
       route: "/test",
@@ -206,11 +207,11 @@ describe(defineServerSideProps, () => {
   });
 
   it("handles if condition that returns undefined and null", async () => {
-    const mockHandler = jest.fn().mockResolvedValue({ props: { handled: true } });
+    const mockHandler = vi.fn().mockResolvedValue({ props: { handled: true } });
 
     let result = await setup({
       route: "/test",
-      if: jest.fn().mockReturnValue(undefined),
+      if: vi.fn().mockReturnValue(undefined),
       handler: mockHandler
     });
 
@@ -219,7 +220,7 @@ describe(defineServerSideProps, () => {
 
     result = await setup({
       route: "/test",
-      if: jest.fn().mockReturnValue(null),
+      if: vi.fn().mockReturnValue(null),
       handler: mockHandler
     });
 
@@ -289,7 +290,7 @@ describe(defineServerSideProps, () => {
       config: {} as any
     });
 
-    const mockHandler = jest.fn().mockRejectedValue(axiosError);
+    const mockHandler = vi.fn().mockRejectedValue(axiosError);
 
     await expect(
       setup({
@@ -301,7 +302,7 @@ describe(defineServerSideProps, () => {
 
   it("throws non-AxiosError exceptions", async () => {
     const error = new Error("Custom error");
-    const mockHandler = jest.fn().mockRejectedValue(error);
+    const mockHandler = vi.fn().mockRejectedValue(error);
 
     await expect(
       setup({
@@ -332,7 +333,7 @@ describe(defineServerSideProps, () => {
       services: {
         ...services,
         userTracker: mock<typeof services.userTracker>(),
-        getSession: jest.fn(async () => null),
+        getSession: vi.fn(async () => null),
         ...input.context?.services
       }
     };

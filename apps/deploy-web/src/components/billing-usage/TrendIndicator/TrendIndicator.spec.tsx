@@ -1,7 +1,6 @@
-import "@testing-library/jest-dom";
-
 import React from "react";
 import { subDays } from "date-fns";
+import { describe, expect, it } from "vitest";
 
 import type { TrendIndicatorProps } from "@src/components/billing-usage/TrendIndicator/TrendIndicator";
 import { TrendIndicator } from "@src/components/billing-usage/TrendIndicator/TrendIndicator";

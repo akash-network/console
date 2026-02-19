@@ -1,4 +1,5 @@
 import yaml from "js-yaml";
+import { describe, expect, it } from "vitest";
 
 import { LOG_COLLECTOR_IMAGE } from "@src/config/log-collector.config";
 import type { ServiceType } from "@src/types";

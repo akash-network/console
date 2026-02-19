@@ -1,4 +1,5 @@
-import { mock } from "jest-mock-extended";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import networkStore from "@src/store/networkStore";
@@ -1103,17 +1104,17 @@ describe("walletUtils", () => {
     const storage = new Map<string, string>();
 
     const mockLocalStorage = mock<Storage>({
-      getItem: jest.fn((key: string) => storage.get(key) ?? null),
-      setItem: jest.fn((key: string, value: string) => {
+      getItem: vi.fn((key: string) => storage.get(key) ?? null),
+      setItem: vi.fn((key: string, value: string) => {
         storage.set(key, value);
       }),
-      removeItem: jest.fn((key: string) => {
+      removeItem: vi.fn((key: string) => {
         storage.delete(key);
       }),
-      clear: jest.fn(() => {
+      clear: vi.fn(() => {
         storage.clear();
       }),
-      key: jest.fn((index: number) => {
+      key: vi.fn((index: number) => {
         const keys = Array.from(storage.keys());
         return keys[index] ?? null;
       }),

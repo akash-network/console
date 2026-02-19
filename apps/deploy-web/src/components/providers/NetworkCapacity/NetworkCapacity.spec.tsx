@@ -1,5 +1,6 @@
 import { IntlProvider } from "react-intl";
 import { ThemeProvider } from "next-themes";
+import { describe, expect, it, vi } from "vitest";
 
 import type { NetworkCapacityStats } from "@src/queries/useProvidersQuery";
 import type { DEPENDENCIES, Props } from "./NetworkCapacity";
@@ -227,9 +228,9 @@ describe(NetworkCapacity.name, () => {
       arcLabelsSkipAngle: number;
     };
     const mockPieProps: PieProps[] = [];
-    const mockTooltipLabel = jest.fn();
+    const mockTooltipLabel = vi.fn();
 
-    const MockResponsivePie = jest.fn((props: PieProps) => {
+    const MockResponsivePie = vi.fn((props: PieProps) => {
       mockPieProps.push(props);
       return null;
     });

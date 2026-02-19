@@ -1,5 +1,6 @@
 import type { HttpClient } from "@akashnetwork/http-sdk";
-import { mock } from "jest-mock-extended";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { ONBOARDING_STEP_KEY } from "@src/services/storage/keys";
 import type { AuthUrlService } from "./auth.service";
@@ -44,11 +45,11 @@ describe(AuthService.name, () => {
 
   function setup() {
     const httpClient = mock<HttpClient>({
-      get: jest.fn().mockResolvedValue({ data: {} })
+      get: vi.fn().mockResolvedValue({ data: {} })
     } as unknown as HttpClient);
     const urlService = mock<AuthUrlService>({
-      signup: jest.fn().mockReturnValue(mockSignupUrl),
-      logout: jest.fn().mockReturnValue(mockLogoutUrl)
+      signup: vi.fn().mockReturnValue(mockSignupUrl),
+      logout: vi.fn().mockReturnValue(mockLogoutUrl)
     });
     const location = mock<Location>();
 

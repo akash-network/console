@@ -1,6 +1,5 @@
-import "@testing-library/jest-dom";
-
 import type { ComponentProps } from "react";
+import { describe, expect, it, vi } from "vitest";
 
 import { SocialAuth } from "./SocialAuth";
 
@@ -42,7 +41,7 @@ describe(SocialAuth.name, () => {
   type SocialAuthProps = ComponentProps<typeof SocialAuth>;
 
   function setup(props: Partial<SocialAuthProps> = {}) {
-    const onSocialLogin = props.onSocialLogin ?? jest.fn<void, ["github" | "google-oauth2"]>();
+    const onSocialLogin = props.onSocialLogin ?? vi.fn<void, ["github" | "google-oauth2"]>();
     const renderResult = render(<SocialAuth {...props} onSocialLogin={onSocialLogin} />);
 
     return {

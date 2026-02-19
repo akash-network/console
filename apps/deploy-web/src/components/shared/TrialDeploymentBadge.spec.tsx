@@ -1,5 +1,6 @@
 import React from "react";
-import { mockFn } from "jest-mock-extended";
+import { describe, expect, it } from "vitest";
+import { mockFn } from "vitest-mock-extended";
 
 import { DEPENDENCIES as TRIAL_BADGE_DEPENDENCIES, TrialDeploymentBadge } from "./TrialDeploymentBadge";
 

@@ -1,9 +1,10 @@
 import { range } from "lodash";
+import { describe, expect, it, vi } from "vitest";
 
 import type { UseListSelectionProps } from "./useListSelection";
 import { useListSelection } from "./useListSelection";
 
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 
 const expectSelectedItems = (actualIds: number[], expectedIds: number[]) => {
   expect(actualIds.length).toBe(expectedIds.length);
@@ -29,7 +30,7 @@ const testSelection = async (config: TestConfig) => {
     });
   });
 
-  await waitFor(() => {
+  await vi.waitFor(() => {
     expectSelectedItems(result.current.selectedItemIds, config.expectedItems);
   });
 };

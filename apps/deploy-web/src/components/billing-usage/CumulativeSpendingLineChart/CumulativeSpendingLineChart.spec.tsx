@@ -1,6 +1,5 @@
-import "@testing-library/jest-dom";
-
 import React from "react";
+import { describe, expect, it, vi } from "vitest";
 
 import { DEPENDENCIES } from "@src/components/billing-usage/CumulativeSpendingLineChart/CumulativeSpendingLineChart";
 import { CumulativeSpendingLineChart } from "@src/components/billing-usage/CumulativeSpendingLineChart/CumulativeSpendingLineChart";
@@ -32,7 +31,7 @@ describe(CumulativeSpendingLineChart.name, () => {
 
   function setup(props: { isFetching: boolean; data: Array<{ date: string; totalUsdSpent: number }> }) {
     const deps = MockComponents(DEPENDENCIES, {
-      LineChart: jest.fn(ComponentMock) as unknown as typeof DEPENDENCIES.LineChart,
+      LineChart: vi.fn(ComponentMock) as unknown as typeof DEPENDENCIES.LineChart,
       Spinner: () => <div role="status" />
     });
 

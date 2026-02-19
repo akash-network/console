@@ -1,10 +1,9 @@
-import "@testing-library/jest-dom";
-
 import React from "react";
 import type { Charge } from "@akashnetwork/http-sdk";
 import type { PaginationState } from "@tanstack/react-table";
 import type { AxiosError } from "axios";
-import { mock } from "jest-mock-extended";
+import { describe, expect, it, type MockedFunction, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { usePaymentTransactionsQuery } from "@src/queries";
 import type { ChildrenProps } from "./BillingContainer";
@@ -87,16 +86,16 @@ describe(BillingContainer.name, () => {
     const isError = overrides.isError ?? false;
     const queryError = overrides.queryError ?? null;
 
-    const onPaginationChange = jest.fn();
-    const onDateRangeChange = jest.fn();
-    const onExport = jest.fn();
+    const onPaginationChange = vi.fn();
+    const onDateRangeChange = vi.fn();
+    const onExport = vi.fn();
 
-    const mockedUsePaymentTransactionsQuery = jest.fn(() => ({
+    const mockedUsePaymentTransactionsQuery = vi.fn(() => ({
       data,
       isFetching,
       isError,
       error: queryError
-    })) as unknown as jest.MockedFunction<typeof usePaymentTransactionsQuery>;
+    })) as unknown as MockedFunction<typeof usePaymentTransactionsQuery>;
 
     const dependencies = {
       usePaymentTransactionsQuery: mockedUsePaymentTransactionsQuery

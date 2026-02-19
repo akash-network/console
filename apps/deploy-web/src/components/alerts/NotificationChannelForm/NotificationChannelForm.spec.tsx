@@ -1,12 +1,11 @@
-import "@testing-library/jest-dom";
-
 import React from "react";
 import { PopupProvider } from "@akashnetwork/ui/context";
+import { describe, expect, it, vi } from "vitest";
 
 import type { NotificationChannelFormProps } from "./NotificationChannelForm";
 import { NotificationChannelForm } from "./NotificationChannelForm";
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 
 describe("NotificationChannelForm", () => {
   it("renders form fields", () => {
@@ -22,13 +21,13 @@ describe("NotificationChannelForm", () => {
     fireEvent.change(screen.getByTestId("notification-channel-form-name"), { target: { value: "Test" } });
     fireEvent.click(screen.getByTestId("notification-channel-form-submit"));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(screen.getByTestId("notification-channel-form-emails-error")).toBeInTheDocument();
     });
   });
 
   it("calls onSubmit with valid values", async () => {
-    const onSubmit = jest.fn();
+    const onSubmit = vi.fn();
     setup({ onSubmit });
 
     fireEvent.change(screen.getByTestId("notification-channel-form-name"), { target: { value: "Test Contact" } });
@@ -36,7 +35,7 @@ describe("NotificationChannelForm", () => {
 
     fireEvent.click(screen.getByTestId("notification-channel-form-submit"));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(onSubmit).toHaveBeenCalledWith({ name: "Test Contact", emails: ["test@example.com"] });
     });
   });
@@ -52,7 +51,7 @@ describe("NotificationChannelForm", () => {
   function setup(props: Partial<NotificationChannelFormProps> = {}) {
     const defaultProps: NotificationChannelFormProps = {
       initialValues: { name: "", emails: [] },
-      onSubmit: jest.fn(),
+      onSubmit: vi.fn(),
       isLoading: false,
       ...props
     };

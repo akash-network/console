@@ -1,13 +1,12 @@
-import "@testing-library/jest-dom";
-
 import React from "react";
 import { TooltipProvider } from "@akashnetwork/ui/components";
 import { PopupProvider } from "@akashnetwork/ui/context";
+import { describe, expect, it, vi } from "vitest";
 
 import type { NotificationChannelsListViewProps } from "./NotificationChannelsListView";
 import { NotificationChannelsListView } from "./NotificationChannelsListView";
 
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { buildNotificationChannel } from "@tests/seeders/notificationChannel";
 
 describe("NotificationChannelsListView", () => {
@@ -46,7 +45,7 @@ describe("NotificationChannelsListView", () => {
 
     fireEvent.click(screen.getByTestId("remove-notification-channel-button"));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(screen.getByTestId("remove-notification-channel-confirmation-popup")).toBeInTheDocument();
     });
 
@@ -57,14 +56,14 @@ describe("NotificationChannelsListView", () => {
   });
 
   it("calls onRemove when confirmed", async () => {
-    const onRemove = jest.fn();
+    const onRemove = vi.fn();
     const mockNotificationChannel = buildNotificationChannel();
 
     setup({ data: [mockNotificationChannel], onRemove });
 
     fireEvent.click(screen.getByTestId("remove-notification-channel-button"));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(screen.getByTestId("remove-notification-channel-confirmation-popup")).toBeInTheDocument();
     });
 
@@ -72,7 +71,7 @@ describe("NotificationChannelsListView", () => {
       fireEvent.click(screen.getByTestId("remove-notification-channel-confirmation-popup-confirm-button"));
     });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(onRemove).toHaveBeenCalledWith(mockNotificationChannel.id);
     });
   });
@@ -107,9 +106,9 @@ describe("NotificationChannelsListView", () => {
       },
       data: Array.from({ length: 10 }, buildNotificationChannel),
       isLoading: false,
-      onRemove: jest.fn(),
+      onRemove: vi.fn(),
       removingIds: new Set(),
-      onPaginationChange: jest.fn(),
+      onPaginationChange: vi.fn(),
       isError: false,
       ...props
     };

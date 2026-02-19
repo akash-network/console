@@ -1,4 +1,5 @@
-import { mock } from "jest-mock-extended";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { useFlag } from "@src/hooks/useFlag";
 import { ConnectManagedWalletButton } from "./ConnectManagedWalletButton";
@@ -19,7 +20,7 @@ describe(ConnectManagedWalletButton.name, () => {
   });
 
   function setup(input?: { isRegistered?: boolean; isBlockchainDown?: boolean }) {
-    const mockUseFlag = jest.fn((flag: string) => {
+    const mockUseFlag = vi.fn((flag: string) => {
       if (flag === "notifications_general_alerts_update") {
         return true;
       }
@@ -41,10 +42,10 @@ describe(ConnectManagedWalletButton.name, () => {
               customNode: null,
               isBlockchainDown: input?.isBlockchainDown ?? false
             },
-            setSettings: jest.fn(),
+            setSettings: vi.fn(),
             isLoadingSettings: false,
             isSettingsInit: true,
-            refreshNodeStatuses: jest.fn(),
+            refreshNodeStatuses: vi.fn(),
             isRefreshingNodeStatus: false
           })
         }}

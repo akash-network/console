@@ -12,7 +12,7 @@ import { Editor } from "@src/components/shared/Editor/Editor";
 import { useServices } from "@src/context/ServicesProvider";
 import { getMonacoErrorMarkers } from "./getMonacoErrorMarkers";
 
-export type Props = Omit<ComponentProps<typeof Editor>, "language" | "onValidate"> & {
+export type Props = Omit<ComponentProps<typeof Editor>, "language" | "onValidate" | "dependencies"> & {
   readonly?: boolean;
   onValidate?: (event: { isValid: boolean }) => void;
   dependencies?: typeof DEPENDENCIES;

@@ -1,14 +1,15 @@
 import { useUser } from "@auth0/nextjs-auth0/client";
 import type { AxiosResponse } from "axios";
 import { type AxiosInstance } from "axios";
-import { mock } from "jest-mock-extended";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { UserTracker } from "@src/services/user-tracker/user-tracker.service";
 import type { CustomUserProfile } from "@src/types/user";
 import { UserProviders } from "./UserProviders";
 
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { buildUser } from "@tests/seeders/user";
 import { ComponentMock } from "@tests/unit/mocks";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
@@ -28,7 +29,7 @@ describe(UserProviders.name, () => {
     const analyticsService = mock<AnalyticsService>();
 
     const { rerender } = await setup({
-      getProfile: jest
+      getProfile: vi
         .fn()
         .mockImplementationOnce(async () => ({ status: 200, data: user }))
         .mockImplementationOnce(async () => ({ status: 401, data: undefined })),
@@ -36,7 +37,7 @@ describe(UserProviders.name, () => {
       analyticsService
     });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(screen.queryByRole("status")).not.toBeInTheDocument();
     });
 
@@ -48,7 +49,7 @@ describe(UserProviders.name, () => {
     });
 
     act(() => rerender());
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(screen.queryByRole("status")).not.toBeInTheDocument();
     });
 
@@ -58,7 +59,7 @@ describe(UserProviders.name, () => {
 
   it("does not error if user is not logged in", async () => {
     await setup({
-      getProfile: jest.fn(() =>
+      getProfile: vi.fn(() =>
         Promise.resolve({
           status: 401,
           data: undefined
@@ -74,7 +75,7 @@ describe(UserProviders.name, () => {
       }
     });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(screen.getByText(/User: not logged/i)).toBeInTheDocument();
       expect(screen.getByText(/Error: no error/i)).toBeInTheDocument();
     });

@@ -1,15 +1,18 @@
+import type { HttpClient } from "@akashnetwork/http-sdk";
 import type { UserProviderProps } from "@auth0/nextjs-auth0/client";
 import { UserProvider } from "@auth0/nextjs-auth0/client";
 import type { AxiosInstance } from "axios";
-import { mock } from "jest-mock-extended";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { Props as ServicesProviderProps } from "@src/context/ServicesProvider";
 import type { FallbackableHttpClient } from "@src/services/createFallbackableHttpClient/createFallbackableHttpClient";
+import type { ErrorHandlerService } from "@src/services/error-handler/error-handler.service";
 import { CustomSnackbarProvider } from "../../../../packages/ui/context/CustomSnackbarProvider";
 import { setupQuery } from "../../tests/unit/query-client";
 import { useDepositParams, useSaveSettings } from "./useSaveSettings";
 
-import { act, screen, waitFor } from "@testing-library/react";
+import { act, screen } from "@testing-library/react";
 
 describe("Settings management", () => {
   describe(useSaveSettings.name, () => {
@@ -18,8 +21,10 @@ describe("Settings management", () => {
         username: "testuser",
         subscribedToNewsletter: true
       };
-      const consoleApiHttpClient = mock<AxiosInstance>();
-      const fetchUser = jest.fn(async () => ({ email: "test@akash.network" }));
+      const consoleApiHttpClient = mock<HttpClient>({
+        put: vi.fn().mockResolvedValue({ status: 200 })
+      } as unknown as HttpClient);
+      const fetchUser = vi.fn(async () => ({ email: "test@akash.network" }));
       const { result } = setup({
         services: {
           consoleApiHttpClient: () => consoleApiHttpClient
@@ -28,7 +33,7 @@ describe("Settings management", () => {
       });
 
       act(() => result.current.mutate(newSettings));
-      await waitFor(async () => !result.current.isPending);
+      await vi.waitFor(() => expect(result.current.isSuccess).toBe(true));
 
       expect(consoleApiHttpClient.put).toHaveBeenCalledWith(expect.stringContaining("/v1/user/updateSettings"), newSettings);
       expect(fetchUser).toHaveBeenCalledTimes(2);
@@ -44,16 +49,17 @@ describe("Settings management", () => {
 
       const consoleApiHttpClient = mock<AxiosInstance>();
       consoleApiHttpClient.put.mockRejectedValue(new Error("Network error"));
-      const fetchUser = jest.fn(async () => ({ email: "test@akash.network" }));
+      const fetchUser = vi.fn(async () => ({ email: "test@akash.network" }));
       const { result } = setup({
         services: {
-          consoleApiHttpClient: () => consoleApiHttpClient
+          consoleApiHttpClient: () => consoleApiHttpClient,
+          errorHandler: () => mock<ErrorHandlerService>()
         },
         fetchUser
       });
 
       act(() => result.current.mutate(newSettings));
-      await waitFor(async () => !result.current.isPending);
+      await vi.waitFor(async () => !result.current.isPending);
 
       expect(fetchUser).toHaveBeenCalledTimes(1);
       expect(await screen.findByText(/Error saving settings/i)).toBeInTheDocument();
@@ -95,7 +101,7 @@ describe("Settings management", () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(chainApiHttpClient.get).toHaveBeenCalledWith(expect.stringContaining("cosmos/params/v1beta1/params"));
         expect(result.current.isSuccess).toBe(true);
         expect(result.current.data).toEqual(depositParams);
@@ -114,7 +120,7 @@ describe("Settings management", () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(chainApiHttpClient.get).toHaveBeenCalledWith(expect.stringContaining("cosmos/params/v1beta1/params"));
         expect(result.current.isError).toBe(true);
       });

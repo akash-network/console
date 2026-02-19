@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { UseFormReturn } from "react-hook-form";
 import { useForm } from "react-hook-form";
+import { describe, expect, it, vi } from "vitest";
 
 import { protectedEnvironmentVariables } from "@src/config/remote-deploy.config";
 import type { SdlBuilderFormValuesType } from "@src/types";
@@ -78,7 +79,7 @@ describe(EnvFormModal.name, () => {
   });
 
   it("calls onClose when clicking Close button", () => {
-    const onClose = jest.fn();
+    const onClose = vi.fn();
     setup({
       onClose,
       envs: [{ key: "TEST_KEY", value: "test_value", isSecret: false }]

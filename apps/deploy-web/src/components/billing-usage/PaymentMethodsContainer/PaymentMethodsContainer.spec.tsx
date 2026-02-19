@@ -1,7 +1,6 @@
-import "@testing-library/jest-dom";
-
 import React from "react";
 import type { PaymentMethod, SetupIntentResponse } from "@akashnetwork/http-sdk";
+import { describe, expect, it, type MockedFunction, vi } from "vitest";
 
 import type { usePaymentMethodsQuery, usePaymentMutations, useSetupIntentMutation } from "@src/queries";
 import type { PaymentMethodsViewProps } from "../PaymentMethodsView/PaymentMethodsView";
@@ -170,35 +169,35 @@ describe(PaymentMethodsContainer.name, () => {
     const isRemovePaymentMethodPending = overrides.isRemovePaymentMethodPending ?? false;
     const setupIntent = overrides.setupIntent;
 
-    const mockRefetchPaymentMethods = jest.fn();
+    const mockRefetchPaymentMethods = vi.fn();
     const mockSetPaymentMethodAsDefault = {
-      mutate: jest.fn(),
+      mutate: vi.fn(),
       isPending: isSetPaymentMethodAsDefaultPending
     };
     const mockRemovePaymentMethod = {
-      mutate: jest.fn(),
+      mutate: vi.fn(),
       isPending: isRemovePaymentMethodPending
     };
-    const mockCreateSetupIntent = jest.fn();
-    const mockResetSetupIntent = jest.fn();
+    const mockCreateSetupIntent = vi.fn();
+    const mockResetSetupIntent = vi.fn();
 
-    const mockedUsePaymentMethodsQuery = jest.fn(() => ({
+    const mockedUsePaymentMethodsQuery = vi.fn(() => ({
       data: paymentMethods,
       isLoading: isLoadingPaymentMethods,
       isRefetching: isRefetchingPaymentMethods,
       refetch: mockRefetchPaymentMethods
-    })) as unknown as jest.MockedFunction<typeof usePaymentMethodsQuery>;
+    })) as unknown as MockedFunction<typeof usePaymentMethodsQuery>;
 
-    const mockedUsePaymentMutations = jest.fn(() => ({
+    const mockedUsePaymentMutations = vi.fn(() => ({
       setPaymentMethodAsDefault: mockSetPaymentMethodAsDefault,
       removePaymentMethod: mockRemovePaymentMethod
-    })) as unknown as jest.MockedFunction<typeof usePaymentMutations>;
+    })) as unknown as MockedFunction<typeof usePaymentMutations>;
 
-    const mockedUseSetupIntentMutation = jest.fn(() => ({
+    const mockedUseSetupIntentMutation = vi.fn(() => ({
       data: setupIntent,
       mutate: mockCreateSetupIntent,
       reset: mockResetSetupIntent
-    })) as unknown as jest.MockedFunction<typeof useSetupIntentMutation>;
+    })) as unknown as MockedFunction<typeof useSetupIntentMutation>;
 
     const dependencies = {
       usePaymentMethodsQuery: mockedUsePaymentMethodsQuery,

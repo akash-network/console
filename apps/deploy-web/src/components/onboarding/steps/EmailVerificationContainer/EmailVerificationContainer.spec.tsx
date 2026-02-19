@@ -1,11 +1,9 @@
-import "@testing-library/jest-dom";
-
 import React from "react";
-import { act } from "react-dom/test-utils";
+import { describe, expect, it, type Mock, vi } from "vitest";
 
 import { EmailVerificationContainer } from "./EmailVerificationContainer";
 
-import { render } from "@testing-library/react";
+import { act, render } from "@testing-library/react";
 
 describe("EmailVerificationContainer", () => {
   it("should render children with initial state", () => {
@@ -94,7 +92,7 @@ describe("EmailVerificationContainer", () => {
   });
 
   it("should call onComplete when email is verified", () => {
-    const mockOnComplete = jest.fn();
+    const mockOnComplete = vi.fn();
     const { child } = setup({
       user: { id: "test-user", emailVerified: true },
       onComplete: mockOnComplete
@@ -107,7 +105,7 @@ describe("EmailVerificationContainer", () => {
   });
 
   it("should not call onComplete when email is not verified", () => {
-    const mockOnComplete = jest.fn();
+    const mockOnComplete = vi.fn();
     const { child } = setup({
       user: { id: "test-user", emailVerified: false },
       onComplete: mockOnComplete
@@ -119,26 +117,24 @@ describe("EmailVerificationContainer", () => {
     expect(mockOnComplete).not.toHaveBeenCalled();
   });
 
-  function setup(input: { user?: any; onComplete?: jest.Mock } = {}) {
-    jest.clearAllMocks();
-
-    const mockSendVerificationEmail = jest.fn();
-    const mockCheckSession = jest.fn();
-    const mockEnqueueSnackbar = jest.fn();
+  function setup(input: { user?: any; onComplete?: Mock } = {}) {
+    const mockSendVerificationEmail = vi.fn();
+    const mockCheckSession = vi.fn();
+    const mockEnqueueSnackbar = vi.fn();
     const mockAnalyticsService = {
-      track: jest.fn()
+      track: vi.fn()
     };
 
-    const mockUseCustomUser = jest.fn().mockReturnValue({
+    const mockUseCustomUser = vi.fn().mockReturnValue({
       user: input.user || { id: "test-user", emailVerified: false },
       checkSession: mockCheckSession
     });
 
-    const mockUseSnackbar = jest.fn().mockReturnValue({
+    const mockUseSnackbar = vi.fn().mockReturnValue({
       enqueueSnackbar: mockEnqueueSnackbar
     });
 
-    const mockUseServices = jest.fn().mockReturnValue({
+    const mockUseServices = vi.fn().mockReturnValue({
       analyticsService: mockAnalyticsService,
       auth: {
         sendVerificationEmail: mockSendVerificationEmail
@@ -149,8 +145,8 @@ describe("EmailVerificationContainer", () => {
       <div data-testid="snackbar" data-title={title} data-subtitle={subTitle} data-icon-variant={iconVariant} />
     );
 
-    const mockNotificator = { success: jest.fn(), error: jest.fn() };
-    const mockUseNotificator = jest.fn().mockReturnValue(mockNotificator);
+    const mockNotificator = { success: vi.fn(), error: vi.fn() };
+    const mockUseNotificator = vi.fn().mockReturnValue(mockNotificator);
 
     const dependencies = {
       useCustomUser: mockUseCustomUser,
@@ -160,8 +156,8 @@ describe("EmailVerificationContainer", () => {
       useNotificator: mockUseNotificator
     };
 
-    const mockChildren = jest.fn().mockReturnValue(<div>Test</div>);
-    const mockOnComplete = input.onComplete || jest.fn();
+    const mockChildren = vi.fn().mockReturnValue(<div>Test</div>);
+    const mockOnComplete = input.onComplete || vi.fn();
 
     render(
       <EmailVerificationContainer onComplete={mockOnComplete} dependencies={dependencies}>

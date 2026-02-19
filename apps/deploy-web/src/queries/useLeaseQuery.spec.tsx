@@ -1,7 +1,8 @@
 import type { CertificatesService } from "@akashnetwork/http-sdk";
 import { useQueryClient } from "@tanstack/react-query";
 import { AxiosError } from "axios";
-import { mock } from "jest-mock-extended";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { Props as ServicesProviderProps } from "@src/context/ServicesProvider";
 import type { UseProviderCredentialsResult } from "@src/hooks/useProviderCredentials/useProviderCredentials";
@@ -14,7 +15,7 @@ import { setupQuery } from "../../tests/unit/query-client";
 import { QueryKeys } from "./queryKeys";
 import { USE_LEASE_STATUS_DEPENDENCIES, useAllLeases, useDeploymentLeaseList, useLeaseStatus } from "./useLeaseQuery";
 
-import { act, waitFor } from "@testing-library/react";
+import { act } from "@testing-library/react";
 import { buildProvider } from "@tests/seeders/provider";
 
 const mockDeployment = {
@@ -128,14 +129,14 @@ describe("useLeaseQuery", () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(result.current.data).toBeNull();
       });
     });
 
     it("should fetch leases when deployment is provided", async () => {
       const chainApiHttpClient = mock<FallbackableHttpClient>({
-        get: jest.fn().mockResolvedValue({
+        get: vi.fn().mockResolvedValue({
           data: {
             leases: mockLeases,
             pagination: { next_key: null, total: mockLeases.length }
@@ -148,7 +149,7 @@ describe("useLeaseQuery", () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
       });
 
@@ -158,7 +159,7 @@ describe("useLeaseQuery", () => {
 
     it("should provide a remove function that clears the query", async () => {
       const chainApiHttpClient = mock<FallbackableHttpClient>({
-        get: jest.fn().mockResolvedValue({
+        get: vi.fn().mockResolvedValue({
           data: {
             leases: mockLeases,
             pagination: { next_key: null, total: mockLeases.length }
@@ -178,7 +179,7 @@ describe("useLeaseQuery", () => {
         }
       );
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(result.current.deploymentList.isSuccess).toBe(true);
       });
 
@@ -204,14 +205,14 @@ describe("useLeaseQuery", () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(result.current.data).toBeNull();
       });
     });
 
     it("should fetch all leases when address is provided", async () => {
       const chainApiHttpClient = mock<FallbackableHttpClient>({
-        get: jest.fn().mockResolvedValue({
+        get: vi.fn().mockResolvedValue({
           data: {
             leases: mockLeases,
             pagination: { next_key: null, total: mockLeases.length }
@@ -224,7 +225,7 @@ describe("useLeaseQuery", () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
       });
       expect(chainApiHttpClient.get).toHaveBeenCalledWith(expect.stringContaining("filters.owner=test-address"));
@@ -233,7 +234,7 @@ describe("useLeaseQuery", () => {
 
     it("should use the correct query key", async () => {
       const chainApiHttpClient = mock<FallbackableHttpClient>({
-        get: jest.fn().mockResolvedValue({
+        get: vi.fn().mockResolvedValue({
           data: {
             leases: mockLeases,
             pagination: { next_key: null, total: mockLeases.length }
@@ -253,7 +254,7 @@ describe("useLeaseQuery", () => {
         }
       );
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(result.current.leases.isSuccess).toBe(true);
       });
       const queryCache = result.current.queryClient.getQueryCache();
@@ -267,7 +268,7 @@ describe("useLeaseQuery", () => {
     it("returns null when lease is not provided", async () => {
       const { result } = setupLeaseStatus();
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(result.current.data).toBeNull();
       });
     });
@@ -286,7 +287,7 @@ describe("useLeaseQuery", () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(result.current.data).toBeNull();
       });
     });
@@ -298,14 +299,14 @@ describe("useLeaseQuery", () => {
           providerProxy: () => mock<ProviderProxyService>()
         }
       });
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(result.current.data).toBeNull();
       });
     });
 
     it("returns null when fetching lease status fails with 404", async () => {
       const providerProxy = mock<ProviderProxyService>({
-        request: jest.fn().mockRejectedValue(new AxiosError("Not Found", "404", undefined, undefined, { status: 404 } as any))
+        request: vi.fn().mockRejectedValue(new AxiosError("Not Found", "404", undefined, undefined, { status: 404 } as any))
       });
       const { result } = setupLeaseStatus({
         lease: mockLease,
@@ -313,7 +314,7 @@ describe("useLeaseQuery", () => {
           providerProxy: () => providerProxy
         }
       });
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(result.current.data).toBeNull();
       });
     });
@@ -321,7 +322,7 @@ describe("useLeaseQuery", () => {
     it("fetches lease status when certificate is provided", async () => {
       const provider = buildProvider();
       const providerProxy = mock<ProviderProxyService>({
-        request: jest.fn().mockResolvedValue({ data: mockLeaseStatus })
+        request: vi.fn().mockResolvedValue({ data: mockLeaseStatus })
       });
       const { result } = setupLeaseStatus({
         provider,
@@ -340,7 +341,7 @@ describe("useLeaseQuery", () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
       });
 
@@ -372,7 +373,7 @@ describe("useLeaseQuery", () => {
             isExpired: false,
             usable: true
           },
-          generate: jest.fn(async () => {})
+          generate: vi.fn(async () => {})
         })
       };
       return setupQuery(() => useLeaseStatus({ provider: input?.provider || buildProvider(), lease: input?.lease, dependencies }), {

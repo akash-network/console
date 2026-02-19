@@ -1,6 +1,7 @@
 import type { AuthzHttpService } from "@akashnetwork/http-sdk";
 import type { AxiosInstance, AxiosResponse } from "axios";
-import { mock } from "jest-mock-extended";
+import { describe, expect, it } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { UAKT_DENOM, USDC_IBC_DENOMS } from "@src/config/denom.config";
 import type { RestApiBalancesResponseType } from "@src/types";

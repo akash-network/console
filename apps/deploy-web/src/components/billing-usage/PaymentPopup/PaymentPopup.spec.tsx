@@ -1,10 +1,9 @@
-import "@testing-library/jest-dom";
-
 import React from "react";
+import { describe, expect, it, type Mock, vi } from "vitest";
 
 import { PaymentPopup } from "./PaymentPopup";
 
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 
 // Mock UI Components
 const MockPopup = ({ children, open, title, actions }: any) => {
@@ -257,9 +256,9 @@ describe(PaymentPopup.name, () => {
     });
 
     it("shows success and closes popup on successful payment", async () => {
-      const mockOnClose = jest.fn();
-      const mockSetShowPaymentSuccess = jest.fn();
-      const mockPollForPayment = jest.fn();
+      const mockOnClose = vi.fn();
+      const mockSetShowPaymentSuccess = vi.fn();
+      const mockPollForPayment = vi.fn();
 
       const { mockUseForm, paymentSubmitHandler } = setup({
         open: true,
@@ -287,7 +286,7 @@ describe(PaymentPopup.name, () => {
     });
 
     it("initiates 3D Secure when payment requires action", async () => {
-      const mockStart3DSecure = jest.fn();
+      const mockStart3DSecure = vi.fn();
 
       const { mockUseForm, paymentSubmitHandler } = setup({
         open: true,
@@ -410,9 +409,9 @@ describe(PaymentPopup.name, () => {
     });
 
     it("handles successful coupon application", async () => {
-      const mockOnClose = jest.fn();
-      const mockSetShowPaymentSuccess = jest.fn();
-      const mockPollForPayment = jest.fn();
+      const mockOnClose = vi.fn();
+      const mockSetShowPaymentSuccess = vi.fn();
+      const mockPollForPayment = vi.fn();
 
       const { mockUseForm, mockEnqueueSnackbar, couponSubmitHandler } = setup({
         open: true,
@@ -489,9 +488,9 @@ describe(PaymentPopup.name, () => {
 
   describe("3D Secure Flow", () => {
     it("configures 3D Secure with success callback", () => {
-      const mockOnClose = jest.fn();
-      const mockSetShowPaymentSuccess = jest.fn();
-      const mockPollForPayment = jest.fn();
+      const mockOnClose = vi.fn();
+      const mockSetShowPaymentSuccess = vi.fn();
+      const mockPollForPayment = vi.fn();
 
       const { mockUse3DSecure } = setup({
         open: true,
@@ -507,14 +506,14 @@ describe(PaymentPopup.name, () => {
     });
 
     it("handles 3D Secure success callback correctly", async () => {
-      const mockOnClose = jest.fn();
-      const mockSetShowPaymentSuccess = jest.fn();
-      const mockPollForPayment = jest.fn();
+      const mockOnClose = vi.fn();
+      const mockSetShowPaymentSuccess = vi.fn();
+      const mockPollForPayment = vi.fn();
       let threeDSecureSuccessCallback: (() => void) | undefined;
 
-      const mockUse3DSecure = jest.fn((config: any) => {
+      const mockUse3DSecure = vi.fn((config: any) => {
         threeDSecureSuccessCallback = config.onSuccess;
-        return { start3DSecure: jest.fn() };
+        return { start3DSecure: vi.fn() };
       });
 
       const { mockUseForm, paymentSubmitHandler } = setup({
@@ -580,7 +579,7 @@ describe(PaymentPopup.name, () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(screen.getByTestId("alert")).toBeInTheDocument();
         expect(screen.getByText("Payment Error")).toBeInTheDocument();
         expect(screen.getByText("Your card was declined.")).toBeInTheDocument();
@@ -612,7 +611,7 @@ describe(PaymentPopup.name, () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(screen.getByTestId("alert")).toBeInTheDocument();
       });
 
@@ -622,7 +621,7 @@ describe(PaymentPopup.name, () => {
         fireEvent.click(clearButton);
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(screen.queryByTestId("alert")).not.toBeInTheDocument();
       });
     });
@@ -650,7 +649,7 @@ describe(PaymentPopup.name, () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(screen.getByTestId("alert")).toBeInTheDocument();
       });
 
@@ -660,7 +659,7 @@ describe(PaymentPopup.name, () => {
         fireEvent.change(amountInput, { target: { value: "75" } });
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(screen.queryByTestId("alert")).not.toBeInTheDocument();
       });
     });
@@ -688,7 +687,7 @@ describe(PaymentPopup.name, () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(screen.getByTestId("alert")).toBeInTheDocument();
       });
 
@@ -698,7 +697,7 @@ describe(PaymentPopup.name, () => {
         fireEvent.change(couponInput, { target: { value: "NEWCODE" } });
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(screen.queryByTestId("alert")).not.toBeInTheDocument();
       });
     });
@@ -706,7 +705,7 @@ describe(PaymentPopup.name, () => {
 
   describe("Cancel Functionality", () => {
     it("calls onClose when cancel button is clicked", async () => {
-      const mockOnClose = jest.fn();
+      const mockOnClose = vi.fn();
       setup({
         open: true,
         onClose: mockOnClose
@@ -771,9 +770,9 @@ describe(PaymentPopup.name, () => {
 function setup(
   input: {
     open?: boolean;
-    onClose?: jest.Mock;
+    onClose?: Mock;
     selectedPaymentMethodId?: string;
-    setShowPaymentSuccess?: jest.Mock;
+    setShowPaymentSuccess?: Mock;
     userId?: string;
     confirmPaymentResponse?: any;
     confirmPaymentError?: Error;
@@ -782,31 +781,31 @@ function setup(
     isConfirmingPayment?: boolean;
     isApplyingCoupon?: boolean;
     isPolling?: boolean;
-    pollForPayment?: jest.Mock;
-    start3DSecure?: jest.Mock;
+    pollForPayment?: Mock;
+    start3DSecure?: Mock;
     stripeErrorResponse?: any;
-    mockUse3DSecure?: jest.Mock;
+    mockUse3DSecure?: Mock;
   } = {}
 ) {
-  const mockOnClose = input.onClose || jest.fn();
-  const mockSetShowPaymentSuccess = input.setShowPaymentSuccess || jest.fn();
-  const mockConfirmPayment = jest.fn().mockImplementation(async () => {
+  const mockOnClose = input.onClose || vi.fn();
+  const mockSetShowPaymentSuccess = input.setShowPaymentSuccess || vi.fn();
+  const mockConfirmPayment = vi.fn().mockImplementation(async () => {
     if (input.confirmPaymentError) {
       throw input.confirmPaymentError;
     }
     return input.confirmPaymentResponse || { success: true };
   });
-  const mockApplyCoupon = jest.fn().mockImplementation(async () => {
+  const mockApplyCoupon = vi.fn().mockImplementation(async () => {
     if (input.applyCouponError) {
       throw input.applyCouponError;
     }
     return input.applyCouponResponse || { amountAdded: 0 };
   });
-  const mockEnqueueSnackbar = jest.fn();
-  const mockPollForPayment = input.pollForPayment || jest.fn();
-  const mockStart3DSecure = input.start3DSecure || jest.fn();
-  const mockHandleStripeError = jest.fn().mockReturnValue(input.stripeErrorResponse || { message: "An error occurred", userAction: "" });
-  const mockHandleCouponError = jest.fn().mockReturnValue({ message: "Invalid coupon" });
+  const mockEnqueueSnackbar = vi.fn();
+  const mockPollForPayment = input.pollForPayment || vi.fn();
+  const mockStart3DSecure = input.start3DSecure || vi.fn();
+  const mockHandleStripeError = vi.fn().mockReturnValue(input.stripeErrorResponse || { message: "An error occurred", userAction: "" });
+  const mockHandleCouponError = vi.fn().mockReturnValue({ message: "Invalid coupon" });
 
   // Store submit handlers for testing
   let paymentSubmitHandler: any = null;
@@ -837,13 +836,13 @@ function setup(
           }
         };
       },
-      reset: jest.fn(() => {
+      reset: vi.fn(() => {
         Object.keys(values).forEach(key => {
           values[key] = defaultValues[key];
         });
       }),
       watch: (fieldName: string) => values[fieldName],
-      trigger: jest.fn().mockResolvedValue(true),
+      trigger: vi.fn().mockResolvedValue(true),
       setValue: (fieldName: string, value: any) => {
         values[fieldName] = value;
       },
@@ -864,22 +863,22 @@ function setup(
   });
 
   let callCount = 0;
-  const mockUseForm = jest.fn(() => {
+  const mockUseForm = vi.fn(() => {
     callCount++;
     // Return payment form for odd calls (1, 3, 5...), coupon form for even calls (2, 4, 6...)
     return callCount % 2 === 1 ? paymentFormInstance : couponFormInstance;
   });
 
-  const mockZodResolver = jest.fn((schema: any) => schema);
+  const mockZodResolver = vi.fn((schema: any) => schema);
 
   const mockUse3DSecure =
     input.mockUse3DSecure ||
-    jest.fn().mockReturnValue({
+    vi.fn().mockReturnValue({
       start3DSecure: mockStart3DSecure
     });
 
   const mockErrorHandler = {
-    reportError: jest.fn()
+    reportError: vi.fn()
   };
 
   const dependencies = {
@@ -900,16 +899,16 @@ function setup(
     Snackbar: MockSnackbar,
     useForm: mockUseForm,
     zodResolver: mockZodResolver,
-    useSnackbar: jest.fn(() => ({ enqueueSnackbar: mockEnqueueSnackbar })),
-    usePaymentPolling: jest.fn(() => ({
+    useSnackbar: vi.fn(() => ({ enqueueSnackbar: mockEnqueueSnackbar })),
+    usePaymentPolling: vi.fn(() => ({
       pollForPayment: mockPollForPayment,
       isPolling: input.isPolling || false
     })),
     use3DSecure: mockUse3DSecure,
-    useUser: jest.fn(() => ({
+    useUser: vi.fn(() => ({
       user: input.userId ? { id: input.userId } : null
     })),
-    usePaymentMutations: jest.fn(() => ({
+    usePaymentMutations: vi.fn(() => ({
       confirmPayment: {
         isPending: input.isConfirmingPayment || false,
         mutateAsync: mockConfirmPayment
@@ -921,7 +920,7 @@ function setup(
     })),
     handleCouponError: mockHandleCouponError,
     handleStripeError: mockHandleStripeError,
-    useServices: jest.fn(() => ({ errorHandler: mockErrorHandler }))
+    useServices: vi.fn(() => ({ errorHandler: mockErrorHandler }))
   };
 
   const props: React.ComponentProps<typeof PaymentPopup> = {
@@ -950,6 +949,6 @@ function setup(
     mockUse3DSecure,
     paymentSubmitHandler: () => paymentSubmitHandler,
     couponSubmitHandler: () => couponSubmitHandler,
-    mockErrorHandler,
+    mockErrorHandler
   };
 }

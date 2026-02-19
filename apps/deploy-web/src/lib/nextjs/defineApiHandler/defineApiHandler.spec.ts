@@ -1,6 +1,7 @@
 import type { LoggerService } from "@akashnetwork/logging";
-import { mock } from "jest-mock-extended";
 import type { NextApiRequest, NextApiResponse } from "next";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 import { z } from "zod";
 
 import type { Session } from "@src/lib/auth0";
@@ -10,7 +11,7 @@ import { defineApiHandler, REQ_SERVICES_KEY } from "./defineApiHandler";
 
 describe("defineApiHandler", () => {
   it("creates a handler that calls the provided handler function", async () => {
-    const handler = jest.fn().mockResolvedValue(undefined);
+    const handler = vi.fn().mockResolvedValue(undefined);
     const req = createRequest({
       query: { a: "1" },
       body: { b: "2" }
@@ -18,7 +19,7 @@ describe("defineApiHandler", () => {
     const res = mock<NextApiResponse>();
     const customServices = {
       userTracker: mock<typeof services.userTracker>(),
-      getSession: jest.fn(async () => null)
+      getSession: vi.fn(async () => null)
     };
     await setup({
       context: {
@@ -40,7 +41,7 @@ describe("defineApiHandler", () => {
   });
 
   it("tracks current user", async () => {
-    const handler = jest.fn().mockResolvedValue(undefined);
+    const handler = vi.fn().mockResolvedValue(undefined);
     const req = createRequest({
       query: { a: "1" },
       body: { b: "2" }
@@ -54,7 +55,7 @@ describe("defineApiHandler", () => {
     };
     const customServices = {
       userTracker: mock<typeof services.userTracker>(),
-      getSession: jest.fn(async () => session)
+      getSession: vi.fn(async () => session)
     };
     await setup({
       context: {
@@ -85,7 +86,7 @@ describe("defineApiHandler", () => {
       })
     });
 
-    const handler = jest.fn().mockResolvedValue(undefined);
+    const handler = vi.fn().mockResolvedValue(undefined);
     const req = createRequest({
       query: { id: "123" },
       body: { name: "test", age: "10" }
@@ -118,7 +119,7 @@ describe("defineApiHandler", () => {
       })
     });
 
-    const handler = jest.fn();
+    const handler = vi.fn();
     const logger = mock<LoggerService>();
     const req = createRequest({
       query: { id: "123" },
@@ -169,7 +170,7 @@ describe("defineApiHandler", () => {
 
     (req as NextApiRequestWithServices)[REQ_SERVICES_KEY] = {
       ...services,
-      getSession: jest.fn(async () => null),
+      getSession: vi.fn(async () => null),
       userTracker: mock<typeof services.userTracker>(),
       ...input.context?.services
     };

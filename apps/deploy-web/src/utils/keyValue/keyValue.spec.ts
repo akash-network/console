@@ -1,3 +1,5 @@
+import { describe, expect, it } from "vitest";
+
 import { kvArrayToObject } from "./keyValue";
 
 describe("kvArrayToObject", () => {

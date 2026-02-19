@@ -1,11 +1,9 @@
-import "@testing-library/jest-dom";
-
 import React from "react";
-import { act } from "react-dom/test-utils";
+import { describe, expect, it, type Mock, vi } from "vitest";
 
 import { PaymentMethodContainer } from "./PaymentMethodContainer";
 
-import { render } from "@testing-library/react";
+import { act, render } from "@testing-library/react";
 
 describe("PaymentMethodContainer", () => {
   it("should render children with initial state", () => {
@@ -78,7 +76,7 @@ describe("PaymentMethodContainer", () => {
   });
 
   it("should handle success callback", async () => {
-    const mockOnComplete = jest.fn();
+    const mockOnComplete = vi.fn();
     const { child, mockRefetchPaymentMethods } = setup({ onComplete: mockOnComplete });
 
     const { onSuccess } = child.mock.calls[0][0];
@@ -92,7 +90,7 @@ describe("PaymentMethodContainer", () => {
   });
 
   it("should handle next step with payment methods", async () => {
-    const mockOnComplete = jest.fn();
+    const mockOnComplete = vi.fn();
     const { child, mockCreateWallet } = setup({
       paymentMethods: [{ id: "pm_123", type: "card" }],
       onComplete: mockOnComplete
@@ -224,7 +222,7 @@ describe("PaymentMethodContainer", () => {
   });
 
   it("should handle wallet creation error", async () => {
-    const mockOnComplete = jest.fn();
+    const mockOnComplete = vi.fn();
     const { child, mockCreateWallet } = setup({
       paymentMethods: [{ id: "pm_123", type: "card" }],
       onComplete: mockOnComplete
@@ -242,7 +240,7 @@ describe("PaymentMethodContainer", () => {
   });
 
   it("should handle wallet creation when user ID is not available", async () => {
-    const mockOnComplete = jest.fn();
+    const mockOnComplete = vi.fn();
     const { child, mockCreateWallet } = setup({
       paymentMethods: [{ id: "pm_123", type: "card" }],
       onComplete: mockOnComplete,
@@ -260,7 +258,7 @@ describe("PaymentMethodContainer", () => {
   });
 
   it("should handle 3D Secure required scenario", async () => {
-    const mockOnComplete = jest.fn();
+    const mockOnComplete = vi.fn();
     const { child, mockCreateWallet, mockStart3DSecure } = setup({
       paymentMethods: [{ id: "pm_123", type: "card" }],
       onComplete: mockOnComplete
@@ -288,7 +286,7 @@ describe("PaymentMethodContainer", () => {
   });
 
   it("should handle 3D Secure validation failure - missing clientSecret", async () => {
-    const mockOnComplete = jest.fn();
+    const mockOnComplete = vi.fn();
     const { child, mockCreateWallet, mockStart3DSecure } = setup({
       paymentMethods: [{ id: "pm_123", type: "card" }],
       onComplete: mockOnComplete
@@ -312,7 +310,7 @@ describe("PaymentMethodContainer", () => {
   });
 
   it("should handle 3D Secure validation failure - missing payment IDs", async () => {
-    const mockOnComplete = jest.fn();
+    const mockOnComplete = vi.fn();
     const { child, mockCreateWallet, mockStart3DSecure } = setup({
       paymentMethods: [{ id: "pm_123", type: "card" }],
       onComplete: mockOnComplete
@@ -357,60 +355,61 @@ describe("PaymentMethodContainer", () => {
       isWalletLoading?: boolean;
       isConnectingWallet?: boolean;
       isRemoving?: boolean;
-      onComplete?: jest.Mock;
+      onComplete?: Mock;
       user?: { id: string } | null;
       managedWalletError?: Error;
     } = {}
   ) {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
-    const mockCreateSetupIntent = jest.fn();
-    const mockRefetchPaymentMethods = jest.fn();
-    const mockRemovePaymentMethod = jest.fn();
-    const mockConnectManagedWallet = jest.fn();
+    const mockCreateSetupIntent = vi.fn();
+    const mockRefetchPaymentMethods = vi.fn();
+    const mockRemovePaymentMethod = vi.fn();
+    const mockConnectManagedWallet = vi.fn();
 
-    const mockUseSetupIntentMutation = jest.fn().mockReturnValue({
+    const mockUseSetupIntentMutation = vi.fn().mockReturnValue({
       data: input.setupIntent,
-      mutate: mockCreateSetupIntent
+      mutate: mockCreateSetupIntent,
+      reset: vi.fn()
     });
 
-    const mockUsePaymentMethodsQuery = jest.fn().mockReturnValue({
+    const mockUsePaymentMethodsQuery = vi.fn().mockReturnValue({
       data: input.paymentMethods || [],
       refetch: mockRefetchPaymentMethods
     });
 
-    const mockUsePaymentMutations = jest.fn().mockReturnValue({
+    const mockUsePaymentMutations = vi.fn().mockReturnValue({
       removePaymentMethod: {
         mutateAsync: mockRemovePaymentMethod,
         isPending: input.isRemoving || false
       }
     });
 
-    const mockUseWallet = jest.fn().mockReturnValue({
+    const mockUseWallet = vi.fn().mockReturnValue({
       connectManagedWallet: mockConnectManagedWallet,
       isWalletLoading: input.isWalletLoading || false,
       hasManagedWallet: input.hasManagedWallet || false,
       managedWalletError: input.managedWalletError
     });
 
-    const mockCreateWallet = jest.fn().mockResolvedValue({});
-    const mockUseCreateManagedWalletMutation = jest.fn().mockReturnValue({
+    const mockCreateWallet = vi.fn().mockResolvedValue({});
+    const mockUseCreateManagedWalletMutation = vi.fn().mockReturnValue({
       mutateAsync: mockCreateWallet
     });
 
-    const mockStart3DSecure = jest.fn();
-    const mockHandle3DSSuccess = jest.fn();
-    const mockHandle3DSError = jest.fn();
-    const mockUse3DSecure = jest.fn().mockReturnValue({
+    const mockStart3DSecure = vi.fn();
+    const mockHandle3DSSuccess = vi.fn();
+    const mockHandle3DSError = vi.fn();
+    const mockUse3DSecure = vi.fn().mockReturnValue({
       isOpen: false,
       threeDSData: null,
       start3DSecure: mockStart3DSecure,
-      close3DSecure: jest.fn(),
+      close3DSecure: vi.fn(),
       handle3DSSuccess: mockHandle3DSSuccess,
       handle3DSError: mockHandle3DSError
     });
 
-    const mockUseUser = jest.fn().mockReturnValue({
+    const mockUseUser = vi.fn().mockReturnValue({
       user: input.user !== undefined ? input.user : { id: "user_123" }
     });
 
@@ -424,8 +423,8 @@ describe("PaymentMethodContainer", () => {
       use3DSecure: mockUse3DSecure
     };
 
-    const mockChildren = jest.fn().mockReturnValue(<div>Test</div>);
-    const mockOnComplete = input.onComplete || jest.fn();
+    const mockChildren = vi.fn().mockReturnValue(<div>Test</div>);
+    const mockOnComplete = input.onComplete || vi.fn();
 
     render(
       <PaymentMethodContainer onComplete={mockOnComplete} dependencies={dependencies}>

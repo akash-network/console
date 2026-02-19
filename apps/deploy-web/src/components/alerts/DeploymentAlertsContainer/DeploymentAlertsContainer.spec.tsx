@@ -1,11 +1,10 @@
-import "@testing-library/jest-dom";
-
 import React from "react";
 import type { components } from "@akashnetwork/react-query-sdk/notifications";
 import { createAPIClient } from "@akashnetwork/react-query-sdk/notifications";
 import { CustomSnackbarProvider } from "@akashnetwork/ui/context";
 import type { RequestFn, RequestFnResponse } from "@openapi-qraft/tanstack-query-react-types";
 import merge from "lodash/merge";
+import { describe, expect, it, vi } from "vitest";
 
 import type { ChildrenProps, ContainerInput, Props } from "@src/components/alerts/DeploymentAlertsContainer/DeploymentAlertsContainer";
 import { DeploymentAlertsContainer } from "@src/components/alerts/DeploymentAlertsContainer/DeploymentAlertsContainer";
@@ -14,7 +13,7 @@ import type { usePricing } from "@src/hooks/usePricing/usePricing";
 import { queryClient } from "@src/queries";
 import { deploymentToDto } from "@src/utils/deploymentDetailUtils";
 
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { buildRpcDeployment } from "@tests/seeders/deployment";
 import { buildNotificationChannel } from "@tests/seeders/notificationChannel";
 import { createContainerTestingChildCapturer } from "@tests/unit/container-testing-child-capturer";
@@ -50,7 +49,7 @@ describe(DeploymentAlertsContainer.name, () => {
           }
         })
       );
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(screen.getByTestId("alert-config-success-notification")).toBeInTheDocument();
       });
     });
@@ -183,7 +182,7 @@ describe(DeploymentAlertsContainer.name, () => {
 
   it("invalidates queries on successful mutation", async () => {
     const { requestFn, input, child } = await setup();
-    const invalidateQueriesSpy = jest.spyOn(queryClient, "invalidateQueries");
+    const invalidateQueriesSpy = vi.spyOn(queryClient, "invalidateQueries");
 
     await act(() => child.upsert(input));
 
@@ -209,7 +208,7 @@ describe(DeploymentAlertsContainer.name, () => {
       }
     };
 
-    const requestFn = jest.fn(
+    const requestFn = vi.fn(
       () =>
         Promise.resolve({
           data: {
@@ -231,8 +230,8 @@ describe(DeploymentAlertsContainer.name, () => {
 
     const AKT_PRICE = 2;
     const mockPricing = {
-      usdToAkt: jest.fn((amount: number) => amount / AKT_PRICE),
-      getPriceForDenom: jest.fn((denom: string) => {
+      usdToAkt: vi.fn((amount: number) => amount / AKT_PRICE),
+      getPriceForDenom: vi.fn((denom: string) => {
         if (denom === "uakt") {
           return AKT_PRICE;
         } else {

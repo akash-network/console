@@ -1,8 +1,9 @@
 import type { TemplateHttpService } from "@akashnetwork/http-sdk";
 import type { UserProfile } from "@auth0/nextjs-auth0/client";
 import { UserProvider } from "@auth0/nextjs-auth0/client";
-import type { AxiosInstance } from "consoleApiHttpClient";
-import { mock } from "jest-mock-extended";
+import type { AxiosInstance } from "axios";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { Props as ServicesProviderProps } from "@src/context/ServicesProvider";
 import type { ITemplate } from "@src/types";
@@ -19,7 +20,7 @@ import {
   useUserTemplates
 } from "./useTemplateQuery";
 
-import { act, screen, waitFor } from "@testing-library/react";
+import { act, screen } from "@testing-library/react";
 
 const mockTemplate: ITemplate = {
   id: "template-1",
@@ -66,7 +67,7 @@ describe("useTemplateQuery", () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(consoleApiHttpClient.get).toHaveBeenCalledWith("/v1/user/templates/test-user");
         expect(result.current.isSuccess).toBe(true);
         expect(result.current.data).toEqual([mockTemplate]);
@@ -83,7 +84,7 @@ describe("useTemplateQuery", () => {
         }
       });
 
-      await waitFor(() => expect(result.current.isError).toBe(true));
+      await vi.waitFor(() => expect(result.current.isError).toBe(true));
     });
   });
 
@@ -99,7 +100,7 @@ describe("useTemplateQuery", () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(consoleApiHttpClient.get).toHaveBeenCalledWith("/v1/user/favoriteTemplates");
         expect(result.current.isSuccess).toBe(true);
         expect(result.current.data).toEqual(favoriteTemplates);
@@ -116,7 +117,7 @@ describe("useTemplateQuery", () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(result.current.isError).toBe(true);
       });
     });
@@ -140,7 +141,7 @@ describe("useTemplateQuery", () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(consoleApiHttpClient.get).toHaveBeenCalledWith("/v1/user/template/template-1");
         expect(result.current.isSuccess).toBe(true);
         expect(result.current.data).toEqual(mockTemplate);
@@ -157,7 +158,7 @@ describe("useTemplateQuery", () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(result.current.isError).toBe(true);
       });
     });
@@ -187,7 +188,7 @@ describe("useTemplateQuery", () => {
       };
 
       act(() => result.current.mutate(templateData));
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(consoleApiHttpClient.post).toHaveBeenCalledWith("/v1/user/saveTemplate", {
           id: undefined,
           sdl: "version: '2.0'",
@@ -215,7 +216,7 @@ describe("useTemplateQuery", () => {
       const templateData = { title: "New Template", sdl: "version: '2.0'" };
 
       act(() => result.current.mutate(templateData));
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(result.current.isError).toBe(true);
       });
     });
@@ -239,7 +240,7 @@ describe("useTemplateQuery", () => {
       });
 
       act(() => result.current.mutate());
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(consoleApiHttpClient.delete).toHaveBeenCalledWith("/v1/user/deleteTemplate/template-1");
         expect(result.current.isSuccess).toBe(true);
       });
@@ -256,7 +257,7 @@ describe("useTemplateQuery", () => {
       });
 
       act(() => result.current.mutate());
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(result.current.isError).toBe(true);
       });
     });
@@ -281,7 +282,7 @@ describe("useTemplateQuery", () => {
       });
 
       act(() => result.current.mutate());
-      await waitFor(async () => {
+      await vi.waitFor(async () => {
         expect(consoleApiHttpClient.post).toHaveBeenCalledWith("/v1/user/addFavoriteTemplate/template-1");
         expect(result.current.isSuccess).toBe(true);
         expect(await screen.findByText(/Favorite added!/i)).toBeInTheDocument();
@@ -299,7 +300,7 @@ describe("useTemplateQuery", () => {
       });
 
       act(() => result.current.mutate());
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(result.current.isError).toBe(true);
       });
     });
@@ -324,7 +325,7 @@ describe("useTemplateQuery", () => {
       });
 
       act(() => result.current.mutate());
-      await waitFor(async () => {
+      await vi.waitFor(async () => {
         expect(consoleApiHttpClient.delete).toHaveBeenCalledWith("/v1/user/removeFavoriteTemplate/template-1");
         expect(result.current.isSuccess).toBe(true);
         expect(await screen.findByText(/Favorite removed/i)).toBeInTheDocument();
@@ -342,7 +343,7 @@ describe("useTemplateQuery", () => {
       });
 
       act(() => result.current.mutate());
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(result.current.isError).toBe(true);
       });
     });
@@ -358,7 +359,7 @@ describe("useTemplateQuery", () => {
   describe("useTemplates", () => {
     it("fetches templates grouped by category successfully", async () => {
       const templateService = mock<TemplateHttpService>({
-        findGroupedByCategory: jest.fn().mockResolvedValue({
+        findGroupedByCategory: vi.fn().mockResolvedValue({
           data: [mockTemplateCategory]
         })
       });
@@ -369,7 +370,7 @@ describe("useTemplateQuery", () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(templateService.findGroupedByCategory).toHaveBeenCalled();
         expect(result.current.categories).toHaveLength(1);
         expect(result.current.templates).toHaveLength(1);
@@ -379,7 +380,7 @@ describe("useTemplateQuery", () => {
 
     it("handles empty response when fetching templates", async () => {
       const templateService = mock<TemplateHttpService>({
-        findGroupedByCategory: jest.fn().mockResolvedValue({
+        findGroupedByCategory: vi.fn().mockResolvedValue({
           data: null
         })
       });
@@ -390,7 +391,7 @@ describe("useTemplateQuery", () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(templateService.findGroupedByCategory).toHaveBeenCalled();
         expect(result.current.categories).toEqual([]);
         expect(result.current.templates).toEqual([]);
@@ -399,7 +400,7 @@ describe("useTemplateQuery", () => {
 
     it("handles error when fetching templates", async () => {
       const templateService = mock<TemplateHttpService>({
-        findGroupedByCategory: jest.fn().mockRejectedValue(new Error("Failed to fetch templates"))
+        findGroupedByCategory: vi.fn().mockRejectedValue(new Error("Failed to fetch templates"))
       });
 
       const { result } = setup({
@@ -410,7 +411,7 @@ describe("useTemplateQuery", () => {
 
       expect(result.current.isLoading).toBe(true);
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(result.current.categories).toEqual([]);
         expect(result.current.templates).toEqual([]);
         expect(result.current.isLoading).toBe(false);

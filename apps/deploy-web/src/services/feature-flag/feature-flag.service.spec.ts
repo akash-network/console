@@ -1,8 +1,9 @@
 import type * as unleashModule from "@unleash/nextjs";
-import type { MockProxy } from "jest-mock-extended";
-import { mock } from "jest-mock-extended";
 import type { GetServerSidePropsContext } from "next";
 import type { UnleashClient } from "unleash-proxy-client";
+import { describe, expect, it, type Mock, vi } from "vitest";
+import type { MockProxy } from "vitest-mock-extended";
+import { mock } from "vitest-mock-extended";
 
 import type { ServerEnvConfig } from "@src/config/env-config.schema";
 import { FeatureFlagService } from "./feature-flag.service";
@@ -54,7 +55,7 @@ describe(FeatureFlagService.name, () => {
 
     it("evaluates flag and returns result", async () => {
       const { service } = setup();
-      const getFlagSpy = jest.spyOn(service, "getFlag").mockResolvedValue(true);
+      const getFlagSpy = vi.spyOn(service, "getFlag").mockResolvedValue(true);
       const ctx = createCtx("unleash-session-id=abc123");
 
       const result = await service.isEnabledForCtx("my-flag", ctx);
@@ -65,7 +66,7 @@ describe(FeatureFlagService.name, () => {
     });
   });
 
-  function setup(options?: { enableAll?: boolean; isEnabled?: jest.Mock }): {
+  function setup(options?: { enableAll?: boolean; isEnabled?: Mock }): {
     service: FeatureFlagService;
     unleash: typeof unleashModule;
     flagsClient: MockProxy<UnleashClient>;
@@ -83,7 +84,7 @@ describe(FeatureFlagService.name, () => {
     } as ServerEnvConfig;
 
     const service = new FeatureFlagService(unleash, config);
-    jest.spyOn(service, "extractSessionId");
+    vi.spyOn(service, "extractSessionId");
 
     return { service, unleash, flagsClient };
   }

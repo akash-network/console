@@ -1,10 +1,11 @@
 import { faker } from "@faker-js/faker";
-import { mock } from "jest-mock-extended";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { GitHubService } from "@src/services/remote-deploy/github-http.service";
 import { useBranches, useCommits, useFetchAccessToken, useInstallations, usePackageJson, useRepos, useSrcFolders, useUserProfile } from "./useGithubQuery";
 
-import { act, waitFor } from "@testing-library/react";
+import { act } from "@testing-library/react";
 import { setupQuery } from "@tests/unit/query-client";
 import { readToken, writeToken } from "@tests/unit/token";
 
@@ -13,9 +14,9 @@ describe("useGithubQuery", () => {
     it("fetches access token and update token state", async () => {
       const mockData = { accessToken: "test-access-token", refreshToken: "test-refresh-token" };
       const mockGithubService = mock<GitHubService>({
-        fetchAccessToken: jest.fn().mockResolvedValue(mockData)
+        fetchAccessToken: vi.fn().mockResolvedValue(mockData)
       });
-      const onSuccess = jest.fn();
+      const onSuccess = vi.fn();
 
       const { result } = setupQuery(() => useFetchAccessToken(onSuccess), {
         services: {
@@ -27,7 +28,7 @@ describe("useGithubQuery", () => {
         await result.current.mutateAsync("test-code");
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(mockGithubService.fetchAccessToken).toHaveBeenCalledWith("test-code");
         expect(onSuccess).toHaveBeenCalled();
         expect(readToken()).toBe(mockData.accessToken);
@@ -40,7 +41,7 @@ describe("useGithubQuery", () => {
       writeToken({ accessToken: "test-token", refreshToken: "test-refresh-token", type: "github" });
       const mockData = { username: "test-username" };
       const mockGithubService = mock<GitHubService>({
-        fetchUserProfile: jest.fn().mockResolvedValue(mockData)
+        fetchUserProfile: vi.fn().mockResolvedValue(mockData)
       });
 
       const { result } = setupQuery(() => useUserProfile(), {
@@ -49,7 +50,7 @@ describe("useGithubQuery", () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
         expect(result.current.data).toEqual(mockData);
       });
@@ -62,7 +63,7 @@ describe("useGithubQuery", () => {
       const mockData = [{ name: faker.lorem.word() }];
       const installationsIds = [faker.number.int()];
       const mockGithubService = mock<GitHubService>({
-        fetchRepos: jest.fn().mockResolvedValue(mockData)
+        fetchRepos: vi.fn().mockResolvedValue(mockData)
       });
 
       const { result } = setupQuery(() => useRepos(installationsIds), {
@@ -71,7 +72,7 @@ describe("useGithubQuery", () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(mockGithubService.fetchRepos).toHaveBeenCalledWith(installationsIds, "test-token");
         expect(result.current.isSuccess).toBe(true);
         expect(result.current.data).toEqual(mockData);
@@ -84,7 +85,7 @@ describe("useGithubQuery", () => {
       writeToken({ accessToken: "test-token", refreshToken: "test-refresh-token", type: "github" });
       const mockData = [faker.number.int()];
       const mockGithubService = mock<GitHubService>({
-        fetchInstallationIds: jest.fn().mockResolvedValue(mockData)
+        fetchInstallationIds: vi.fn().mockResolvedValue(mockData)
       });
 
       const { result } = setupQuery(() => useInstallations(), {
@@ -93,7 +94,7 @@ describe("useGithubQuery", () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(mockGithubService.fetchInstallationIds).toHaveBeenCalledWith("test-token");
         expect(result.current.isSuccess).toBe(true);
         expect(result.current.data).toEqual(mockData);
@@ -106,7 +107,7 @@ describe("useGithubQuery", () => {
       writeToken({ accessToken: "test-token", refreshToken: "test-refresh-token", type: "github" });
       const mockData = [{ name: faker.lorem.word() }];
       const mockGithubService = mock<GitHubService>({
-        fetchBranches: jest.fn().mockResolvedValue(mockData)
+        fetchBranches: vi.fn().mockResolvedValue(mockData)
       });
 
       const { result } = setupQuery(() => useBranches("test-repo"), {
@@ -115,7 +116,7 @@ describe("useGithubQuery", () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(mockGithubService.fetchBranches).toHaveBeenCalledWith("test-repo", "test-token");
         expect(result.current.isSuccess).toBe(true);
         expect(result.current.data).toEqual(mockData);
@@ -133,7 +134,7 @@ describe("useGithubQuery", () => {
       writeToken({ accessToken: "test-token", refreshToken: "test-refresh-token", type: "github" });
       const mockData = [{ sha: faker.git.commitSha() }];
       const mockGithubService = mock<GitHubService>({
-        fetchCommits: jest.fn().mockResolvedValue(mockData)
+        fetchCommits: vi.fn().mockResolvedValue(mockData)
       });
 
       const { result } = setupQuery(() => useCommits("test-repo", "main"), {
@@ -142,7 +143,7 @@ describe("useGithubQuery", () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(mockGithubService.fetchCommits).toHaveBeenCalledWith("test-repo", "main", "test-token");
         expect(result.current.isSuccess).toBe(true);
         expect(result.current.data).toEqual(mockData);
@@ -159,9 +160,9 @@ describe("useGithubQuery", () => {
     it("fetches package.json and call onSuccess callback", async () => {
       writeToken({ accessToken: "test-token", refreshToken: "test-refresh-token", type: "github" });
       const mockPackageJson = { content: btoa(JSON.stringify({ dependencies: ["foo", "bar"] })) };
-      const onSuccess = jest.fn();
+      const onSuccess = vi.fn();
       const mockGithubService = mock<GitHubService>({
-        fetchPackageJson: jest.fn().mockResolvedValue(mockPackageJson)
+        fetchPackageJson: vi.fn().mockResolvedValue(mockPackageJson)
       });
 
       const { result } = setupQuery(() => usePackageJson(onSuccess, "test-repo", "src"), {
@@ -170,7 +171,7 @@ describe("useGithubQuery", () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(mockGithubService.fetchPackageJson).toHaveBeenCalledWith("test-repo", "src", "test-token");
         expect(result.current.isSuccess).toBe(true);
         expect(onSuccess).toHaveBeenCalledWith({ dependencies: ["foo", "bar"] });
@@ -182,9 +183,9 @@ describe("useGithubQuery", () => {
     it("fetches source folders and call onSettled callback", async () => {
       writeToken({ accessToken: "test-token", refreshToken: "test-refresh-token", type: "github" });
       const mockFolders = [{ name: faker.lorem.word() }];
-      const onSettled = jest.fn();
+      const onSettled = vi.fn();
       const mockGithubService = mock<GitHubService>({
-        fetchSrcFolders: jest.fn().mockResolvedValue(mockFolders)
+        fetchSrcFolders: vi.fn().mockResolvedValue(mockFolders)
       });
 
       const { result } = setupQuery(() => useSrcFolders(onSettled, "test-repo"), {
@@ -193,7 +194,7 @@ describe("useGithubQuery", () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(mockGithubService.fetchSrcFolders).toHaveBeenCalledWith("test-repo", "test-token");
         expect(result.current.isSuccess).toBe(true);
         expect(onSettled).toHaveBeenCalledWith(mockFolders);

@@ -1,13 +1,14 @@
 import type { ApiKeyHttpService } from "@akashnetwork/http-sdk";
 import type { ApiKeyResponse } from "@akashnetwork/http-sdk";
 import { QueryClient } from "@tanstack/react-query";
-import { mock } from "jest-mock-extended";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { ContextType as WalletProviderContextType } from "@src/context/WalletProvider/WalletProvider";
 import type { CustomUserProfile } from "@src/types/user";
 import { USE_API_KEYS_DEPENDENCIES, useCreateApiKey, useDeleteApiKey, useUserApiKeys } from "./useApiKeysQuery";
 
-import { act, waitFor } from "@testing-library/react";
+import { act } from "@testing-library/react";
 import { buildApiKey, buildUser, buildWallet } from "@tests/seeders";
 import { setupQuery } from "@tests/unit/query-client";
 
@@ -20,7 +21,7 @@ describe("useApiKeysQuery", () => {
   describe("useUserApiKeys", () => {
     it("should be disabled when user is not provided", async () => {
       const apiKeyService = mock<ApiKeyHttpService>({
-        getApiKeys: jest.fn().mockResolvedValue(mockApiKeys)
+        getApiKeys: vi.fn().mockResolvedValue(mockApiKeys)
       });
 
       const { result } = setupApiKeysQuery({
@@ -44,7 +45,7 @@ describe("useApiKeysQuery", () => {
 
     it("should return undefined and not fetch when wallet is not managed", async () => {
       const apiKeyService = mock<ApiKeyHttpService>({
-        getApiKeys: jest.fn()
+        getApiKeys: vi.fn()
       });
       const { result } = setupApiKeysQuery({
         user: mockUser,
@@ -61,7 +62,7 @@ describe("useApiKeysQuery", () => {
 
     it("should fetch API keys when user is valid and wallet is managed", async () => {
       const apiKeyService = mock<ApiKeyHttpService>({
-        getApiKeys: jest.fn().mockResolvedValue(mockApiKeys)
+        getApiKeys: vi.fn().mockResolvedValue(mockApiKeys)
       });
 
       const { result } = setupApiKeysQuery({
@@ -72,7 +73,7 @@ describe("useApiKeysQuery", () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(result.current.query.isSuccess).toBe(true);
       });
 
@@ -82,7 +83,7 @@ describe("useApiKeysQuery", () => {
 
     it("should use the correct query key", async () => {
       const apiKeyService = mock<ApiKeyHttpService>({
-        getApiKeys: jest.fn().mockResolvedValue(mockApiKeys)
+        getApiKeys: vi.fn().mockResolvedValue(mockApiKeys)
       });
 
       const queryClient = new QueryClient();
@@ -95,7 +96,7 @@ describe("useApiKeysQuery", () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(result.current.query.isSuccess).toBe(true);
       });
 
@@ -115,7 +116,7 @@ describe("useApiKeysQuery", () => {
     it("should create API key successfully", async () => {
       const newApiKey = buildApiKey({ id: "new-key", name: "New Key" });
       const apiKeyService = mock<ApiKeyHttpService>({
-        createApiKey: jest.fn().mockResolvedValue(newApiKey)
+        createApiKey: vi.fn().mockResolvedValue(newApiKey)
       });
 
       const queryClient = new QueryClient();
@@ -143,7 +144,7 @@ describe("useApiKeysQuery", () => {
         result.current.mutate("New Key");
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
       });
 
@@ -163,7 +164,7 @@ describe("useApiKeysQuery", () => {
       const keyToDelete = buildApiKey({ id: "key-1", name: "Key to Delete" });
       const remainingKeys = [buildApiKey({ id: "key-2", name: "Remaining Key" })];
       const apiKeyService = mock<ApiKeyHttpService>({
-        deleteApiKey: jest.fn().mockResolvedValue(undefined)
+        deleteApiKey: vi.fn().mockResolvedValue(undefined)
       });
 
       const queryClient = new QueryClient();
@@ -196,7 +197,7 @@ describe("useApiKeysQuery", () => {
         result.current.mutate();
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
       });
 
@@ -210,9 +211,9 @@ describe("useApiKeysQuery", () => {
     });
 
     it("should call onSuccess callback when deletion succeeds", async () => {
-      const onSuccess = jest.fn();
+      const onSuccess = vi.fn();
       const apiKeyService = mock<ApiKeyHttpService>({
-        deleteApiKey: jest.fn().mockResolvedValue(undefined)
+        deleteApiKey: vi.fn().mockResolvedValue(undefined)
       });
 
       const { result } = setupQuery(
@@ -238,7 +239,7 @@ describe("useApiKeysQuery", () => {
         result.current.mutate();
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
       });
 

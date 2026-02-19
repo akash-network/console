@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from "vitest";
+
 import type { Props } from "./DeploymentName";
 import { COMPONENTS, DeploymentName } from "./DeploymentName";
 
@@ -83,7 +85,7 @@ describe(DeploymentName.name, () => {
       test: { uris: ["test.com", "adasdq3dfslkm1o232.provider.test.com"] },
       api: { uris: ["api.akash.network"] }
     };
-    const CustomTooltip: (typeof COMPONENTS)["CustomTooltip"] = jest.fn(props => <div>{props.title}</div>);
+    const CustomTooltip: (typeof COMPONENTS)["CustomTooltip"] = vi.fn(props => <div>{props.title}</div>);
     setup({
       deployment,
       deploymentServices,
@@ -105,7 +107,7 @@ describe(DeploymentName.name, () => {
       test: { uris: ["test.com", "adasdq3dfslkm1o232.provider.test.com"] },
       api: { uris: ["api.akash.network"] }
     };
-    const CustomTooltip: (typeof COMPONENTS)["CustomTooltip"] = jest.fn(props => <div>{props.title}</div>);
+    const CustomTooltip: (typeof COMPONENTS)["CustomTooltip"] = vi.fn(props => <div>{props.title}</div>);
     setup({
       deployment,
       deploymentServices,

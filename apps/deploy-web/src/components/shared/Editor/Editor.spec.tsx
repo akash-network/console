@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from "vitest";
+
 import type { Props } from "./Editor";
 import { DEPENDENCIES, Editor, EditorSkeleton } from "./Editor";
 
@@ -5,7 +7,7 @@ import { render } from "@testing-library/react";
 
 describe(Editor.name || "Editor", () => {
   it("renders monaco editor with default props", async () => {
-    const LazyMonacoEditor = jest.fn(() => <div data-testid="lazy-monaco-editor" />);
+    const LazyMonacoEditor = vi.fn(() => <div data-testid="lazy-monaco-editor" />);
     const props = {
       height: "50%",
       value: "test monaco editor",

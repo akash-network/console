@@ -1,9 +1,10 @@
 import type { UpdateWalletSettingsParams, WalletSettings, WalletSettingsHttpService } from "@akashnetwork/http-sdk";
-import { mock } from "jest-mock-extended";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { useWalletSettingsMutations, useWalletSettingsQuery } from "./useWalletSettingsQueries";
 
-import { act, waitFor } from "@testing-library/react";
+import { act } from "@testing-library/react";
 import { setupQuery } from "@tests/unit/query-client";
 
 describe("useWalletSettingsQueries", () => {
@@ -13,14 +14,14 @@ describe("useWalletSettingsQueries", () => {
         autoReloadEnabled: true
       };
       const walletSettingsService = mock<WalletSettingsHttpService>({
-        getWalletSettings: jest.fn().mockResolvedValue(mockSettings)
+        getWalletSettings: vi.fn().mockResolvedValue(mockSettings)
       });
 
       const { result } = setupQuery(() => useWalletSettingsQuery(), {
         services: { walletSettings: () => walletSettingsService }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(walletSettingsService.getWalletSettings).toHaveBeenCalled();
         expect(result.current.isSuccess).toBe(true);
         expect(result.current.data).toEqual(mockSettings);
@@ -29,14 +30,14 @@ describe("useWalletSettingsQueries", () => {
 
     it("handles error when fetching wallet settings", async () => {
       const walletSettingsService = mock<WalletSettingsHttpService>({
-        getWalletSettings: jest.fn().mockRejectedValue(new Error("Failed to fetch settings"))
+        getWalletSettings: vi.fn().mockRejectedValue(new Error("Failed to fetch settings"))
       });
 
       const { result } = setupQuery(() => useWalletSettingsQuery(), {
         services: { walletSettings: () => walletSettingsService }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(walletSettingsService.getWalletSettings).toHaveBeenCalled();
         expect(result.current.isError).toBe(true);
       });
@@ -53,7 +54,7 @@ describe("useWalletSettingsQueries", () => {
           autoReloadEnabled: true
         };
         const walletSettingsService = mock<WalletSettingsHttpService>({
-          updateWalletSettings: jest.fn().mockResolvedValue(mockUpdatedSettings)
+          updateWalletSettings: vi.fn().mockResolvedValue(mockUpdatedSettings)
         });
 
         const { result } = setupQuery(() => useWalletSettingsMutations(), {
@@ -64,7 +65,7 @@ describe("useWalletSettingsQueries", () => {
           await result.current.updateWalletSettings.mutateAsync(updateParams);
         });
 
-        await waitFor(() => {
+        await vi.waitFor(() => {
           expect(walletSettingsService.updateWalletSettings).toHaveBeenCalledWith(updateParams);
           expect(result.current.updateWalletSettings.isSuccess).toBe(true);
         });
@@ -75,7 +76,7 @@ describe("useWalletSettingsQueries", () => {
           autoReloadEnabled: false
         };
         const walletSettingsService = mock<WalletSettingsHttpService>({
-          updateWalletSettings: jest.fn().mockRejectedValue(new Error("Update failed"))
+          updateWalletSettings: vi.fn().mockRejectedValue(new Error("Update failed"))
         });
 
         const { result } = setupQuery(() => useWalletSettingsMutations(), {
@@ -90,7 +91,7 @@ describe("useWalletSettingsQueries", () => {
           }
         });
 
-        await waitFor(() => {
+        await vi.waitFor(() => {
           expect(walletSettingsService.updateWalletSettings).toHaveBeenCalledWith(updateParams);
           expect(result.current.updateWalletSettings.isError).toBe(true);
         });
@@ -103,7 +104,7 @@ describe("useWalletSettingsQueries", () => {
           autoReloadEnabled: true
         };
         const walletSettingsService = mock<WalletSettingsHttpService>({
-          createWalletSettings: jest.fn().mockResolvedValue(newSettings)
+          createWalletSettings: vi.fn().mockResolvedValue(newSettings)
         });
 
         const { result } = setupQuery(() => useWalletSettingsMutations(), {
@@ -114,7 +115,7 @@ describe("useWalletSettingsQueries", () => {
           await result.current.createWalletSettings.mutateAsync(newSettings);
         });
 
-        await waitFor(() => {
+        await vi.waitFor(() => {
           expect(walletSettingsService.createWalletSettings).toHaveBeenCalledWith(newSettings);
           expect(result.current.createWalletSettings.isSuccess).toBe(true);
         });
@@ -125,7 +126,7 @@ describe("useWalletSettingsQueries", () => {
           autoReloadEnabled: true
         };
         const walletSettingsService = mock<WalletSettingsHttpService>({
-          createWalletSettings: jest.fn().mockRejectedValue(new Error("Creation failed"))
+          createWalletSettings: vi.fn().mockRejectedValue(new Error("Creation failed"))
         });
 
         const { result } = setupQuery(() => useWalletSettingsMutations(), {
@@ -140,7 +141,7 @@ describe("useWalletSettingsQueries", () => {
           }
         });
 
-        await waitFor(() => {
+        await vi.waitFor(() => {
           expect(walletSettingsService.createWalletSettings).toHaveBeenCalledWith(newSettings);
           expect(result.current.createWalletSettings.isError).toBe(true);
         });
@@ -150,7 +151,7 @@ describe("useWalletSettingsQueries", () => {
     describe("deleteWalletSettings", () => {
       it("deletes wallet settings and invalidates queries", async () => {
         const walletSettingsService = mock<WalletSettingsHttpService>({
-          deleteWalletSettings: jest.fn().mockResolvedValue(undefined)
+          deleteWalletSettings: vi.fn().mockResolvedValue(undefined)
         });
 
         const { result } = setupQuery(() => useWalletSettingsMutations(), {
@@ -161,7 +162,7 @@ describe("useWalletSettingsQueries", () => {
           await result.current.deleteWalletSettings.mutateAsync();
         });
 
-        await waitFor(() => {
+        await vi.waitFor(() => {
           expect(walletSettingsService.deleteWalletSettings).toHaveBeenCalled();
           expect(result.current.deleteWalletSettings.isSuccess).toBe(true);
         });
@@ -169,7 +170,7 @@ describe("useWalletSettingsQueries", () => {
 
       it("handles error when deleting wallet settings", async () => {
         const walletSettingsService = mock<WalletSettingsHttpService>({
-          deleteWalletSettings: jest.fn().mockRejectedValue(new Error("Deletion failed"))
+          deleteWalletSettings: vi.fn().mockRejectedValue(new Error("Deletion failed"))
         });
 
         const { result } = setupQuery(() => useWalletSettingsMutations(), {
@@ -184,7 +185,7 @@ describe("useWalletSettingsQueries", () => {
           }
         });
 
-        await waitFor(() => {
+        await vi.waitFor(() => {
           expect(walletSettingsService.deleteWalletSettings).toHaveBeenCalled();
           expect(result.current.deleteWalletSettings.isError).toBe(true);
         });

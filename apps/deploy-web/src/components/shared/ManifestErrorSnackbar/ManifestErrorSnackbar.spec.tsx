@@ -1,4 +1,5 @@
 import { AxiosError, AxiosHeaders } from "axios";
+import { describe, expect, it } from "vitest";
 
 import { ManifestErrorSnackbar } from "./ManifestErrorSnackbar";
 

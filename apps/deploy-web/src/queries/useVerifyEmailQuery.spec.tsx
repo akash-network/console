@@ -1,11 +1,12 @@
 import type { AuthHttpService } from "@akashnetwork/http-sdk";
-import { mock } from "jest-mock-extended";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { Props as ServicesProviderProps } from "@src/context/ServicesProvider";
 import { setupQuery } from "../../tests/unit/query-client";
 import { useVerifyEmail } from "./useVerifyEmailQuery";
 
-import { act, waitFor } from "@testing-library/react";
+import { act } from "@testing-library/react";
 
 describe(useVerifyEmail.name, () => {
   const mockAuthService = mock<AuthHttpService>();
@@ -15,7 +16,7 @@ describe(useVerifyEmail.name, () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it("calls auth.verifyEmail with the provided email", async () => {
@@ -35,7 +36,7 @@ describe(useVerifyEmail.name, () => {
       result.current.mutate("test@example.com");
     });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(mockAuthService.verifyEmail).toHaveBeenCalledWith("test@example.com");
     });
   });
@@ -48,7 +49,7 @@ describe(useVerifyEmail.name, () => {
     };
 
     mockAuthService.verifyEmail.mockResolvedValue(mockResponse);
-    const onSuccessCallback = jest.fn();
+    const onSuccessCallback = vi.fn();
 
     const { result } = setupQuery(() => useVerifyEmail({ onSuccess: onSuccessCallback }), {
       services: defaultServices
@@ -58,7 +59,7 @@ describe(useVerifyEmail.name, () => {
       result.current.mutate("test@example.com");
     });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(onSuccessCallback).toHaveBeenCalledWith(true);
     });
   });
@@ -71,7 +72,7 @@ describe(useVerifyEmail.name, () => {
     };
 
     mockAuthService.verifyEmail.mockResolvedValue(mockResponse);
-    const onSuccessCallback = jest.fn();
+    const onSuccessCallback = vi.fn();
 
     const { result } = setupQuery(() => useVerifyEmail({ onSuccess: onSuccessCallback }), {
       services: defaultServices
@@ -81,7 +82,7 @@ describe(useVerifyEmail.name, () => {
       result.current.mutate("test@example.com");
     });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(onSuccessCallback).toHaveBeenCalledWith(false);
     });
   });
@@ -89,7 +90,7 @@ describe(useVerifyEmail.name, () => {
   it("calls onError callback when verification fails", async () => {
     const error = new Error("Verification failed");
     mockAuthService.verifyEmail.mockRejectedValue(error);
-    const onErrorCallback = jest.fn();
+    const onErrorCallback = vi.fn();
 
     const { result } = setupQuery(() => useVerifyEmail({ onError: onErrorCallback }), {
       services: defaultServices
@@ -99,7 +100,7 @@ describe(useVerifyEmail.name, () => {
       result.current.mutate("test@example.com");
     });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(onErrorCallback).toHaveBeenCalled();
     });
   });

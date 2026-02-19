@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { EventEmitter, Readable, Writable } from "node:stream";
+import { describe, expect, it, vi } from "vitest";
 
 import { proxyRequest } from "./proxyRequest";
 
@@ -419,7 +420,7 @@ describe(proxyRequest.name, () => {
     const req = Object.assign(reqEmitter, {
       method: input.method ?? "GET",
       headers: input.reqHeaders ?? {},
-      pipe: jest.fn()
+      pipe: vi.fn()
     }) as unknown as NextApiRequest;
 
     if (input.requestBody) {
@@ -441,13 +442,13 @@ describe(proxyRequest.name, () => {
     const res = Object.assign(resEmitter, writableStream, {
       statusCode: 200,
       headersSent: false,
-      writeHead: jest.fn(function (this: { headersSent: boolean }) {
+      writeHead: vi.fn(function (this: { headersSent: boolean }) {
         this.headersSent = true;
       }),
-      end: jest.fn((data?: string) => {
+      end: vi.fn((data?: string) => {
         endData = data;
       }),
-      destroy: jest.fn(),
+      destroy: vi.fn(),
       writtenData: "",
       endData: undefined as string | undefined
     }) as unknown as NextApiResponse & {
@@ -462,7 +463,7 @@ describe(proxyRequest.name, () => {
       get: () => endData
     });
 
-    const mockFetch = jest.fn(async (_url: string, options?: MockFetchOptions) => {
+    const mockFetch = vi.fn(async (_url: string, options?: MockFetchOptions) => {
       if (input.fetchDelay) {
         await new Promise<void>((resolve, reject) => {
           const timeoutId = setTimeout(resolve, input.fetchDelay);

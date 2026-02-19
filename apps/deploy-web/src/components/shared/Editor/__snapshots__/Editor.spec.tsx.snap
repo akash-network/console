@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`EditorSkeleton renders skeleton lines with varying widths 1`] = `
+exports[`EditorSkeleton > renders skeleton lines with varying widths 1`] = `
 <div>
   <div
     class="flex h-full w-full bg-white dark:bg-[#1e1e1e]"

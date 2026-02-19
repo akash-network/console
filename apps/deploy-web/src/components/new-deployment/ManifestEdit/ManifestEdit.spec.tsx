@@ -1,12 +1,13 @@
 import type { ForwardRefExoticComponent } from "react";
-import { mock } from "jest-mock-extended";
 import { createStore, Provider as JotaiStoreProvider } from "jotai";
+import { describe, expect, it, type Mock, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { AppDIContainer } from "@src/context/ServicesProvider";
 import sdlStore from "@src/store/sdlStore";
 import { DEPENDENCIES, ManifestEdit } from "./ManifestEdit";
 
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ComponentMock, createRefComponentMock } from "@tests/unit/mocks";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
@@ -36,7 +37,7 @@ describe(ManifestEdit.name, () => {
   it("sets deployment name from selected template", async () => {
     setup({ selectedTemplate: { title: "My Template", code: "my-template", category: "General", description: "A template", name: "Template Name" } });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(screen.getByLabelText(/Name your deployment/i)).toHaveValue("Template Name");
     });
   });
@@ -46,7 +47,7 @@ describe(ManifestEdit.name, () => {
 
     await userEvent.click(screen.getByRole("button", { name: /Create Deployment/i }));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(screen.getByText(/Error while parsing SDL/i)).toBeInTheDocument();
     });
   });
@@ -85,7 +86,7 @@ describe(ManifestEdit.name, () => {
   });
 
   it("renders SDLEditor when in yaml mode and yml-editor is available", () => {
-    const SDLEditor = jest.fn(ComponentMock);
+    const SDLEditor = vi.fn(ComponentMock);
     const SdlBuilder = createRefComponentMock();
     setup({ hasComponents: ["yml-editor"], editedManifest: "some-yaml", SDLEditor, SdlBuilder, selectedSdlEditMode: "yaml" });
 
@@ -100,7 +101,7 @@ describe(ManifestEdit.name, () => {
 
   it("renders SdlBuilder when in builder mode", () => {
     const SdlBuilder = createRefComponentMock();
-    const SDLEditor = jest.fn(ComponentMock);
+    const SDLEditor = vi.fn(ComponentMock);
     setup({ SdlBuilder, SDLEditor, selectedSdlEditMode: "builder" });
 
     expect(SdlBuilder.renderFn).toHaveBeenCalled();
@@ -108,8 +109,8 @@ describe(ManifestEdit.name, () => {
   });
 
   it("shows PrerequisiteList when create deployment is clicked for non-managed wallet", async () => {
-    const PrerequisiteList = jest.fn(ComponentMock);
-    const SDLEditor = jest.fn(ComponentMock);
+    const PrerequisiteList = vi.fn(ComponentMock);
+    const SDLEditor = vi.fn(ComponentMock);
 
     setup({
       editedManifest: "some-manifest",
@@ -124,13 +125,13 @@ describe(ManifestEdit.name, () => {
       triggerSdlValidation(SDLEditor, true);
     });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(screen.getByRole("button", { name: /Create Deployment/i })).not.toBeDisabled();
     });
 
     await userEvent.click(screen.getByRole("button", { name: /Create Deployment/i }));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(PrerequisiteList).toHaveBeenCalledWith(
         expect.objectContaining({
           onClose: expect.any(Function),
@@ -142,8 +143,8 @@ describe(ManifestEdit.name, () => {
   });
 
   it("shows DeploymentDepositModal when create deployment is clicked for managed wallet", async () => {
-    const DeploymentDepositModal = jest.fn(ComponentMock);
-    const SDLEditor = jest.fn(ComponentMock);
+    const DeploymentDepositModal = vi.fn(ComponentMock);
+    const SDLEditor = vi.fn(ComponentMock);
 
     setup({
       editedManifest: "some-manifest",
@@ -158,13 +159,13 @@ describe(ManifestEdit.name, () => {
       triggerSdlValidation(SDLEditor, true);
     });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(screen.getByRole("button", { name: /Create Deployment/i })).not.toBeDisabled();
     });
 
     await userEvent.click(screen.getByRole("button", { name: /Create Deployment/i }));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(DeploymentDepositModal).toHaveBeenCalledWith(
         expect.objectContaining({
           handleCancel: expect.any(Function),
@@ -196,7 +197,7 @@ describe(ManifestEdit.name, () => {
     expect(input).toHaveValue("My Deployment");
   });
 
-  function triggerSdlValidation(SDLEditor: jest.Mock, isValid: boolean) {
+  function triggerSdlValidation(SDLEditor: Mock, isValid: boolean) {
     const lastCall = SDLEditor.mock.calls[SDLEditor.mock.calls.length - 1];
     if (lastCall) {
       const props = lastCall[0];
@@ -212,10 +213,10 @@ describe(ManifestEdit.name, () => {
     isManaged?: boolean;
     hasComponents?: string[];
     templateId?: string | null;
-    SDLEditor?: jest.Mock;
-    SdlBuilder?: jest.Mock | ForwardRefExoticComponent<any>;
-    PrerequisiteList?: jest.Mock;
-    DeploymentDepositModal?: jest.Mock;
+    SDLEditor?: Mock;
+    SdlBuilder?: Mock | ForwardRefExoticComponent<any>;
+    PrerequisiteList?: Mock;
+    DeploymentDepositModal?: Mock;
     analyticsService?: AppDIContainer["analyticsService"];
     selectedSdlEditMode?: "yaml" | "builder";
   }) {
@@ -252,10 +253,10 @@ describe(ManifestEdit.name, () => {
           customNode: null,
           isBlockchainDown: input?.isBlockchainDown ?? false
         },
-        setSettings: jest.fn(),
+        setSettings: vi.fn(),
         isLoadingSettings: false,
         isSettingsInit: true,
-        refreshNodeStatuses: jest.fn(),
+        refreshNodeStatuses: vi.fn(),
         isRefreshingNodeStatus: false
       }),
       useWallet: (() => ({
@@ -265,16 +266,16 @@ describe(ManifestEdit.name, () => {
         isWalletLoaded: true,
         isManaged: input?.isManaged ?? false,
         isTrialing: false,
-        signAndBroadcastTx: jest.fn().mockResolvedValue({})
+        signAndBroadcastTx: vi.fn().mockResolvedValue({})
       })) as unknown as Dependencies["useWallet"],
       useCertificate: () =>
         mock({
-          updateSelectedCertificate: jest.fn(),
-          genNewCertificateIfLocalIsInvalid: jest.fn().mockResolvedValue(null)
+          updateSelectedCertificate: vi.fn(),
+          genNewCertificateIfLocalIsInvalid: vi.fn().mockResolvedValue(null)
         }),
       useSdlBuilder: (() => ({
         hasComponent: (name: string) => hasComponents.has(name),
-        toggleCmp: jest.fn()
+        toggleCmp: vi.fn()
       })) as unknown as Dependencies["useSdlBuilder"],
       useImportSimpleSdl: () => [],
       useManagedWalletDenom: () => "uakt",
@@ -286,8 +287,8 @@ describe(ManifestEdit.name, () => {
       }),
       useMediaQuery: () => false,
       useSnackbar: () => ({
-        enqueueSnackbar: jest.fn(),
-        closeSnackbar: jest.fn()
+        enqueueSnackbar: vi.fn(),
+        closeSnackbar: vi.fn()
       }),
       useRouter: () => mock(),
       useSearchParams: (() => ({
@@ -306,8 +307,8 @@ describe(ManifestEdit.name, () => {
         <JotaiStoreProvider store={store}>
           <ManifestEdit
             editedManifest={input?.editedManifest !== undefined ? input.editedManifest : "some-manifest"}
-            setEditedManifest={jest.fn()}
-            onTemplateSelected={jest.fn()}
+            setEditedManifest={vi.fn()}
+            onTemplateSelected={vi.fn()}
             selectedTemplate={(input?.selectedTemplate as any) ?? null}
             isGitProviderTemplate={input?.isGitProviderTemplate}
             dependencies={dependencies}

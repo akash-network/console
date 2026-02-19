@@ -1,4 +1,5 @@
-import { mock } from "jest-mock-extended";
+import { describe, expect, it, type Mock, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { ContextType as CertificateContextType } from "@src/context/CertificateProvider/CertificateProviderContext";
 import type { SettingsContextType } from "@src/context/SettingsProvider";
@@ -144,7 +145,7 @@ describe(useProviderCredentials.name, () => {
   });
 
   it("calls generateToken when blockchain is unavailable", async () => {
-    const generateToken = jest.fn().mockResolvedValue(undefined);
+    const generateToken = vi.fn().mockResolvedValue(undefined);
 
     const { result } = setup({
       settings: { isBlockchainDown: true },
@@ -157,7 +158,7 @@ describe(useProviderCredentials.name, () => {
   });
 
   it("calls createCertificate when blockchain is up", async () => {
-    const createCertificate = jest.fn().mockResolvedValue(undefined);
+    const createCertificate = vi.fn().mockResolvedValue(undefined);
 
     const { result } = setup({
       settings: { isBlockchainDown: false },
@@ -172,7 +173,7 @@ describe(useProviderCredentials.name, () => {
   function setup(input?: {
     settings?: Partial<SettingsContextType["settings"]>;
     certificate?: Partial<CertificateContextType>;
-    providerJwt?: { accessToken?: string | null; isTokenExpired?: boolean; generateToken?: jest.Mock };
+    providerJwt?: { accessToken?: string | null; isTokenExpired?: boolean; generateToken?: Mock };
   }) {
     return setupQuery(() =>
       useProviderCredentials({
