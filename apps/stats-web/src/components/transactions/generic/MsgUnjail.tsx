@@ -1,4 +1,3 @@
-"use client";
 import { AddressLink } from "../../AddressLink";
 import { LabelValue } from "../../LabelValue";
 

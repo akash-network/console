@@ -1,4 +1,3 @@
-"use client";
 import { Copyright } from "iconoir-react";
 
 export function Footer({ version }: { version: string }) {

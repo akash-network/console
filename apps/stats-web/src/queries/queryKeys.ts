@@ -41,6 +41,10 @@ export class QueryKeys {
   static getProviderActiveLeasesGraph = (providerAddress: string) => ["PROVIDER_ACTIVE_LEASES_GRAPH", providerAddress];
   static getAuditorsKey = () => ["AUDITORS"];
   static getBlockKey = (id: string) => ["BLOCK", id];
+  static getTransactionKey = (hash: string) => ["TRANSACTION", hash];
+  static getValidatorKey = (address: string) => ["VALIDATOR", address];
+  static getAddressKey = (address: string) => ["ADDRESS", address];
+  static getDeploymentKey = (address: string, dseq: string) => ["DEPLOYMENT", address, dseq];
   static getBalancesKey = (address: string) => ["BALANCES", address];
   static getTemplatesKey = () => ["TEMPLATES"];
   static getProviderAttributesSchema = () => ["PROVIDER_ATTRIBUTES_SCHEMA"];

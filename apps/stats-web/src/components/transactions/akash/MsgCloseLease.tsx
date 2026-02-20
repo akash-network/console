@@ -1,5 +1,4 @@
-"use client";
-import Link from "next/link";
+import { Link } from "react-router-dom";
 
 import { LabelValue } from "../../LabelValue";
 import { createMsgView } from "../createMsgView";
@@ -13,11 +12,11 @@ export const MsgCloseLease = createMsgView(["v1beta1", "v1beta2", "v1beta3", "v1
       <LabelValue label="Owner" value={<AddressLink address={message?.data?.leaseId?.owner} />} />
       <LabelValue
         label="dseq"
-        value={<Link href={UrlService.deployment(message?.data?.leaseId?.owner, message?.data?.leaseId?.dseq)}>{message?.data?.leaseId?.dseq}</Link>}
+        value={<Link to={UrlService.deployment(message?.data?.leaseId?.owner, message?.data?.leaseId?.dseq)}>{message?.data?.leaseId?.dseq}</Link>}
       />
       <LabelValue label="gseq" value={message?.data?.leaseId?.gseq} />
       <LabelValue label="oseq" value={message?.data?.leaseId?.oseq} />
-      <LabelValue label="Provider" value={<Link href={UrlService.address(message?.data?.leaseId?.provider)}>{message?.data?.leaseId?.provider}</Link>} />
+      <LabelValue label="Provider" value={<Link to={UrlService.address(message?.data?.leaseId?.provider)}>{message?.data?.leaseId?.provider}</Link>} />
       {/* TODO: Add link to provider page */}
     </>
   );

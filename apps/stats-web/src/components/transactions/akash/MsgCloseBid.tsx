@@ -1,5 +1,4 @@
-"use client";
-import Link from "next/link";
+import { Link } from "react-router-dom";
 
 import { LabelValue } from "../../LabelValue";
 import { createMsgView } from "../createMsgView";
@@ -11,10 +10,10 @@ export const MsgCloseBid = createMsgView(["v1beta1", "v1beta2", "v1beta3", "v1be
   const bidId = message?.data?.id || message?.data?.bidId;
   return (
     <>
-      <LabelValue label="Provider" value={<Link href={UrlService.address(bidId?.provider)}>{bidId?.provider}</Link>} />
+      <LabelValue label="Provider" value={<Link to={UrlService.address(bidId?.provider)}>{bidId?.provider}</Link>} />
       {/* TODO: Add link to provider page */}
       <LabelValue label="Owner" value={<AddressLink address={bidId?.owner} />} />
-      <LabelValue label="dseq" value={<Link href={UrlService.deployment(bidId?.owner, bidId?.dseq)}>{bidId?.dseq}</Link>} />
+      <LabelValue label="dseq" value={<Link to={UrlService.deployment(bidId?.owner, bidId?.dseq)}>{bidId?.dseq}</Link>} />
       <LabelValue label="gseq" value={bidId?.gseq} />
       <LabelValue label="oseq" value={bidId?.oseq} />
     </>

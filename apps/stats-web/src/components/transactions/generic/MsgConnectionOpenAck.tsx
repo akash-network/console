@@ -1,4 +1,3 @@
-"use client";
 import { AddressLink } from "../../AddressLink";
 import { DynamicReactJson } from "../../DynamicJsonView";
 import { LabelValue } from "../../LabelValue";

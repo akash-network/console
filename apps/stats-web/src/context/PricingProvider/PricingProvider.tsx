@@ -1,5 +1,3 @@
-"use client";
-
 import React from "react";
 
 import { UAKT_DENOM } from "@/config/denom.config";

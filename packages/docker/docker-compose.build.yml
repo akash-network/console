@@ -61,7 +61,7 @@ services:
     image: ${STATS_WEB_REPO:-console-stats-web}:${STATS_WEB_TAG:-latest}
     build:
       context: ../..
-      dockerfile: packages/docker/Dockerfile.nextjs
+      dockerfile: packages/docker/Dockerfile.vite
       target: production
       args:
         WORKSPACE: apps/stats-web

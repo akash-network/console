@@ -1,5 +1,4 @@
-"use client";
-import Link from "next/link";
+import { Link } from "react-router-dom";
 
 import { LabelValue } from "../../LabelValue";
 import { createMsgView } from "../createMsgView";
@@ -12,7 +11,7 @@ export const MsgUpdateDeployment = createMsgView(["v1beta1", "v1beta2", "v1beta3
   return (
     <>
       <LabelValue label="Owner" value={<AddressLink address={message?.data?.id?.owner} />} />
-      <LabelValue label="dseq" value={<Link href={UrlService.deployment(message?.data?.id?.owner, message?.data?.id?.dseq)}>{message?.data?.id?.dseq}</Link>} />
+      <LabelValue label="dseq" value={<Link to={UrlService.deployment(message?.data?.id?.owner, message?.data?.id?.dseq)}>{message?.data?.id?.dseq}</Link>} />
       <LabelValue label="Version" value={message?.data?.version || message?.data?.hash} />
       {message?.data?.groups && <LabelValue label="Groups" value={<DynamicReactJson src={JSON.parse(JSON.stringify(message?.data?.groups))} />} />}
     </>

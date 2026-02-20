@@ -6,9 +6,8 @@ services:
     image: ghcr.io/akash-network/stats-web:<version>
 #    env:
 #      - API_BASE_URL=<API_URL_OVERRIDE>
-#      - NEXT_PUBLIC_GA_MEASUREMENT_ID=<GA_MEASUREMENT_ID>
-#      - NEXT_PUBLIC_SENTRY_DSN=<SENTRY_DSN>
-#      - NEXT_PUBLIC_SENTRY_SERVER_NAME=<SERVER_NAME>
+#      - VITE_GA_MEASUREMENT_ID=<GA_MEASUREMENT_ID>
+#      - VITE_SENTRY_DSN=<SENTRY_DSN>
     expose:
       - port: 3000
         as: 80

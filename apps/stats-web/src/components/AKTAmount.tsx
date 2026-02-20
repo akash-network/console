@@ -1,4 +1,3 @@
-"use client";
 import React from "react";
 import { FormattedNumber, FormattedNumberParts } from "react-intl";
 

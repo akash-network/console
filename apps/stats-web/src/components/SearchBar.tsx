@@ -1,9 +1,8 @@
-"use client";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button, Card, CardContent, Input } from "@akashnetwork/ui/components";
 import { fromBech32, normalizeBech32 } from "@cosmjs/encoding";
 import { Search, Xmark } from "iconoir-react";
-import { useRouter } from "next/navigation";
 import { useMediaQuery } from "usehooks-ts";
 
 import { breakpoints } from "@/lib/responsiveUtils";
@@ -20,7 +19,7 @@ const SearchBar: React.FunctionComponent = () => {
   const [searchTerms, setSearchTerms] = useState("");
   const [searchType, setSearchType] = useState<SearchType | null>(null);
   const [isFocused, setIsFocused] = useState(false);
-  const router = useRouter();
+  const navigate = useNavigate();
   const hasSearchTerms = !!searchTerms.trim();
   const smallScreen = useMediaQuery(breakpoints.xs.mediaQuery);
 
@@ -44,16 +43,16 @@ const SearchBar: React.FunctionComponent = () => {
 
     switch (searchType) {
       case SearchType.AccountAddress:
-        router.push(UrlService.address(normalizeBech32(trimmedSearch)));
+        navigate(UrlService.address(normalizeBech32(trimmedSearch)));
         break;
       case SearchType.ValidatorAddress:
-        router.push(UrlService.validator(normalizeBech32(trimmedSearch)));
+        navigate(UrlService.validator(normalizeBech32(trimmedSearch)));
         break;
       case SearchType.TxHash:
-        router.push(UrlService.transaction(trimmedSearch.toUpperCase()));
+        navigate(UrlService.transaction(trimmedSearch.toUpperCase()));
         break;
       case SearchType.BlockHeight:
-        router.push(UrlService.block(parseInt(trimmedSearch)));
+        navigate(UrlService.block(parseInt(trimmedSearch)));
         break;
     }
   }

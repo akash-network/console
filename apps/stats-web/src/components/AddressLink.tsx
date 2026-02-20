@@ -1,8 +1,7 @@
-"use client";
 import type { ReactNode } from "react";
 import React from "react";
+import { Link } from "react-router-dom";
 import { Address } from "@akashnetwork/ui/components";
-import Link from "next/link";
 
 import { UrlService } from "@/lib/urlUtils";
 
@@ -23,7 +22,7 @@ export const AddressLink: React.FunctionComponent<Props> = ({ address }) => {
 
   if (href) {
     return (
-      <Link href={href}>
+      <Link to={href}>
         <Address address={address} disableTruncate />
       </Link>
     );

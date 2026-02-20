@@ -1,4 +1,3 @@
-"use client";
 import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
@@ -11,5 +10,3 @@ type Props = {
 export const PageContainer: React.FunctionComponent<Props> = ({ children, className = "" }) => {
   return <div className={cn("container pb-8", className)}>{children}</div>;
 };
-
-export default PageContainer;

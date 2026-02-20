@@ -1,5 +1,4 @@
-"use client";
-import Link from "next/link";
+import { Link } from "react-router-dom";
 
 import { AddressLink } from "../../AddressLink";
 import { LabelValue } from "../../LabelValue";
@@ -14,7 +13,7 @@ type TxMessageProps = {
 export const MsgVote: React.FunctionComponent<TxMessageProps> = ({ message }) => {
   return (
     <>
-      <LabelValue label="Proposal Id" value={<Link href={UrlService.proposal(message?.data?.proposalId)}>#{message?.data?.proposalId}</Link>} />
+      <LabelValue label="Proposal Id" value={<Link to={UrlService.proposal(message?.data?.proposalId)}>#{message?.data?.proposalId}</Link>} />
       <LabelValue label="Voter" value={<AddressLink address={message?.data?.voter} />} />
       <LabelValue label="Option" value={getVoteDescription(message?.data?.option)} />
     </>

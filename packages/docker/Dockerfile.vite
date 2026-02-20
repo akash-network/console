@@ -1,0 +1,65 @@
+# syntax=docker/dockerfile:1.20
+
+FROM node:24.13.0-alpine AS base
+
+ARG CI
+ENV CI $CI
+
+ARG WORKSPACE
+ENV WORKSPACE $WORKSPACE
+
+# see https://r1ch.net/blog/node-v20-aggregateeerror-etimedout-happy-eyeballs and https://github.com/nodejs/node/issues/54359
+ARG NODE_OPTIONS="--no-network-family-autoselection --enable-source-maps"
+
+ARG DEPLOYMENT_ENV
+ENV DEPLOYMENT_ENV $DEPLOYMENT_ENV
+
+ARG SENTRY_AUTH_TOKEN
+ARG GIT_COMMIT_HASH
+
+WORKDIR /app
+
+FROM base as prepare
+
+COPY package*.json /app
+COPY /$WORKSPACE/package.json /app/$WORKSPACE/package.json
+COPY --parents /packages/*/package.json /app
+# reset app version to 1.0.0 to avoid cache busting after every release
+RUN npm version --allow-same-version 1.0.0 -w $WORKSPACE --no-workspaces-update && \
+    node -e "const fs=require('fs'); const lockfile=require('./package-lock.json'); lockfile.packages['$WORKSPACE'].version='1.0.0';fs.writeFileSync('./package-lock.json', JSON.stringify(lockfile, null, 2));"
+
+COPY script/safe-deps-install.sh /app/script/safe-deps-install.sh
+
+FROM base AS development
+
+ENV NODE_ENV development
+
+RUN apk add --no-cache libc6-compat
+
+COPY --from=prepare /app .
+
+RUN --mount=type=cache,id=npm-cache,target=/root/.npm npm run safe-install
+
+COPY $WORKSPACE ./$WORKSPACE
+COPY /packages /app/packages
+
+ENV NODE_OPTIONS=$NODE_OPTIONS
+
+CMD ["npm", "run", "dev", "--workspace", "${WORKSPACE}"]
+
+FROM development AS builder
+
+ENV NODE_ENV production
+
+ENV SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN
+ENV GIT_COMMIT_HASH=$GIT_COMMIT_HASH
+RUN npm run build -w $WORKSPACE
+
+FROM nginx:alpine AS production
+
+COPY --from=builder /app/$WORKSPACE/dist /usr/share/nginx/html
+COPY $WORKSPACE/nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 3000
+
+CMD ["nginx", "-g", "daemon off;"]

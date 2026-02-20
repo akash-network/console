@@ -1,25 +1,23 @@
 // This file configures the initialization of Sentry on the browser.
 // The config you add here will be used whenever a page is visited.
-// https://docs.sentry.io/platforms/javascript/guides/nextjs/
+// https://docs.sentry.io/platforms/javascript/guides/react/
 
-import { inboundFiltersIntegration, init as initSentry, thirdPartyErrorFilterIntegration } from "@sentry/nextjs";
+import { browserTracingIntegration, inboundFiltersIntegration, init as initSentry, thirdPartyErrorFilterIntegration } from "@sentry/react";
 
 initSentry({
-  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+  dsn: import.meta.env.VITE_SENTRY_DSN,
   // Adjust this value in production, or use tracesSampler for greater control
   tracesSampleRate: 0.1,
-  enabled: process.env.NEXT_PUBLIC_SENTRY_ENABLED === "true",
-  // propagate sentry-trace and baggage headers to internal API only
-  // everything else will be done with custom interceptor
-  tracePropagationTargets: [/^\/api\//, /^\/_next\//],
+  enabled: import.meta.env.VITE_SENTRY_ENABLED === "true",
   integrations: [
+    browserTracingIntegration(),
     // Filter out errors originating from browser extensions
     // Note: uses inboundFiltersIntegration (not eventFiltersIntegration) to override defaultIntegrations
     inboundFiltersIntegration({
       denyUrls: [/^chrome-extension:\/\//, /^moz-extension:\/\//]
     }),
     thirdPartyErrorFilterIntegration({
-      filterKeys: [process.env.NEXT_PUBLIC_SENTRY_APPLICATION_KEY!],
+      filterKeys: [import.meta.env.VITE_SENTRY_APPLICATION_KEY || ""],
       behaviour: "drop-error-if-exclusively-contains-third-party-frames"
     })
   ]

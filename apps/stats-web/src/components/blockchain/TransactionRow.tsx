@@ -1,7 +1,6 @@
-"use client";
 import { FormattedRelativeTime } from "react-intl";
+import { Link } from "react-router-dom";
 import { Badge, TableCell, TableRow } from "@akashnetwork/ui/components";
-import Link from "next/link";
 
 import { AKTAmount } from "@/components/AKTAmount";
 import { useFriendlyMessageType } from "@/hooks/useFriendlyMessageType";
@@ -24,9 +23,9 @@ export const TransactionRow: React.FunctionComponent<Props> = ({ transaction, bl
   return (
     <TableRow>
       <TableCell>
-        <Link href={UrlService.transaction(transaction.hash)} target="_blank">
+        <a href={UrlService.transaction(transaction.hash)} target="_blank" rel="noopener noreferrer">
           {txHash}
-        </Link>
+        </a>
       </TableCell>
       <TableCell align="center">
         <Badge className="h-4 max-w-[120px] bg-primary">
@@ -44,7 +43,7 @@ export const TransactionRow: React.FunctionComponent<Props> = ({ transaction, bl
         </>
       )}
       <TableCell align="center">
-        <Link href={UrlService.block(blockHeight)}>{blockHeight}</Link>
+        <Link to={UrlService.block(blockHeight)}>{blockHeight}</Link>
       </TableCell>
       <TableCell align="center">
         <span className="whitespace-nowrap text-sm">
