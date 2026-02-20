@@ -4,7 +4,7 @@ import { Alert, Card, CardContent, Spinner } from "@akashnetwork/ui/components";
 
 import { TransactionInfo } from "./TransactionInfo";
 
-import PageContainer from "@/components/PageContainer";
+import { PageContainer } from "@/components/PageContainer";
 import { Title } from "@/components/Title";
 import { TxMessageRow } from "@/components/transactions/TxMessageRow";
 import { getSplitText } from "@/hooks/useShortText";

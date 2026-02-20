@@ -2,7 +2,7 @@ import { Helmet } from "react-helmet-async";
 
 import { DashboardContainer } from "./DashboardContainer";
 
-import PageContainer from "@/components/PageContainer";
+import { PageContainer } from "@/components/PageContainer";
 
 export function HomePage() {
   return (

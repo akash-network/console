@@ -4,7 +4,7 @@ import { Alert, Spinner } from "@akashnetwork/ui/components";
 
 import { DeploymentInfo } from "./DeploymentInfo";
 
-import PageContainer from "@/components/PageContainer";
+import { PageContainer } from "@/components/PageContainer";
 import { Title } from "@/components/Title";
 import { useDeployment } from "@/queries";
 

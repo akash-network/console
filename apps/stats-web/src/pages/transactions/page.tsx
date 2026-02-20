@@ -2,7 +2,7 @@ import { Helmet } from "react-helmet-async";
 
 import { TransactionsTable } from "./TransactionsTable";
 
-import PageContainer from "@/components/PageContainer";
+import { PageContainer } from "@/components/PageContainer";
 import { Title } from "@/components/Title";
 
 export function TransactionsPage() {

@@ -6,7 +6,7 @@ import { SearchX } from "lucide-react";
 import { BlockInfo } from "./BlockInfo";
 
 import { TransactionRow } from "@/components/blockchain/TransactionRow";
-import PageContainer from "@/components/PageContainer";
+import { PageContainer } from "@/components/PageContainer";
 import { Title } from "@/components/Title";
 import { useBlock } from "@/queries";
 

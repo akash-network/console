@@ -2,7 +2,7 @@ import { Helmet } from "react-helmet-async";
 import { Alert, AlertDescription, AlertTitle } from "@akashnetwork/ui/components";
 import { AlertTriangle } from "lucide-react";
 
-import PageContainer from "@/components/PageContainer";
+import { PageContainer } from "@/components/PageContainer";
 
 export function MaintenancePage() {
   return (
