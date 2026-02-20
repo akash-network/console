@@ -64,6 +64,8 @@ export async function proxyProviderRequest(ctx: AppContext): Promise<Response | 
     authenticationType: auth?.type
   });
   const clientAbortSignal = ctx.req.raw.signal;
+  const maxRetries = 3;
+  const perAttemptTimeout = timeout !== undefined ? Math.floor(timeout / (maxRetries + 1)) : timeout;
   const proxyResult = await httpRetry(
     () =>
       ctx.get("container").providerProxy.connect(url, {
@@ -71,10 +73,11 @@ export async function proxyProviderRequest(ctx: AppContext): Promise<Response | 
         body,
         auth,
         providerAddress,
-        timeout,
+        timeout: perAttemptTimeout,
         signal: clientAbortSignal
       }),
     {
+      maxRetries,
       retryIf(result) {
         const isServerError = result.ok && (!result.response.statusCode || result.response.statusCode >= 500);
         const isConnectionError = result.ok === false && result.code === "connectionError" && canRetryOnError(result.error);
