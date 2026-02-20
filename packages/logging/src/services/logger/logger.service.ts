@@ -83,6 +83,32 @@ export class LoggerService implements Logger {
         msg: sanitizeString,
         message: sanitizeString
       },
+      redact: {
+        paths: [
+          "*.password",
+          "*.access_token",
+          "*.refresh_token",
+          "*.id_token",
+          "*.token",
+          "*.accessToken",
+          "*.refreshToken",
+          "*.idToken",
+          "*.client_secret",
+          "*.clientSecret",
+          "*.authorization",
+          "*.Authorization",
+          '*["set-cookie"]',
+          '*["Set-Cookie"]',
+          "*.cookie",
+          "*.Cookie",
+          "*.apiKey",
+          "*.api_key",
+          '*["x-api-key"]',
+          "cause.data",
+          "*.cause.data"
+        ],
+        censor: "[REDACTED]"
+      },
       ...additionalOptions,
       browser: {
         formatters,
@@ -182,7 +208,7 @@ function logError(error: Error | undefined | null) {
       status: error.status,
       message: sanitizeString(error.message),
       stack: collectFullErrorStack(error),
-      data: error.data,
+      data: error.data ? { errorCode: error.data.errorCode, errorType: error.data.errorType } : undefined,
       originalError: error.originalError ? collectFullErrorStack(error.originalError) : undefined
     };
   }
@@ -190,11 +216,15 @@ function logError(error: Error | undefined | null) {
   if (Object.hasOwn(error, "sql")) {
     return {
       stack: collectFullErrorStack(error),
-      sql: (error as Error & { sql: string }).sql
+      sql: redactSqlLiterals((error as Error & { sql: string }).sql)
     };
   }
 
   return collectFullErrorStack(error);
+}
+
+function redactSqlLiterals(sql: string): string {
+  return sql.replace(/'(?:[^'\\]|\\.)*'/g, "'[REDACTED]'").replace(/\b\d{6,}\b/g, "[REDACTED]");
 }
 
 declare let window: unknown;

@@ -18,6 +18,11 @@ type HttpRequestLog = {
   userId?: string;
 };
 
+function stripQueryParams(url: string): string {
+  const index = url.indexOf("?");
+  return index === -1 ? url : url.slice(0, index);
+}
+
 export class HttpLoggerInterceptor {
   constructor(private readonly logger?: LoggerService) {}
 
@@ -34,7 +39,7 @@ export class HttpLoggerInterceptor {
         const log: HttpRequestLog = {
           httpRequest: {
             requestMethod: c.req.method,
-            requestUrl: c.req.url,
+            requestUrl: stripQueryParams(c.req.url),
             status: c.res.status,
             referrer: c.req.raw.referrer,
             protocol: c.req.header("x-forwarded-proto"),

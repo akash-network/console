@@ -66,6 +66,51 @@ describe(ErrorHandlerService.name, () => {
     });
   });
 
+  it("filters out sensitive headers from HTTP error response", () => {
+    const captureException = vi.fn().mockReturnValue("event-id-3");
+    const errorHandler = setup({ captureException });
+
+    const config = {
+      method: "post",
+      url: "https://api.example.com/auth"
+    } as InternalAxiosRequestConfig;
+    const httpError = new AxiosError(
+      "Request failed",
+      "401",
+      config,
+      {},
+      {
+        status: 401,
+        statusText: "Unauthorized",
+        headers: {
+          "content-type": "application/json",
+          "set-cookie": "session=secret-token; HttpOnly",
+          authorization: "Bearer secret-jwt",
+          server: "nginx"
+        },
+        data: {},
+        config: config
+      }
+    );
+
+    errorHandler.reportError({ error: httpError });
+
+    expect(captureException).toHaveBeenCalledWith(httpError, {
+      level: "error",
+      extra: {
+        headers: {
+          "content-type": "application/json",
+          server: "nginx"
+        }
+      },
+      tags: {
+        status: "401",
+        method: "POST",
+        url: "https://api.example.com/auth"
+      }
+    });
+  });
+
   describe("wrapCallback", () => {
     it("wraps synchronous function and reports error", () => {
       const captureException = vi.fn();

@@ -31,7 +31,7 @@ export class ErrorHandlerService {
       finalTags.status = error.response.status.toString();
       finalTags.method = error.response.config.method?.toUpperCase() || "UNKNOWN";
       finalTags.url = error.response.config.url || "UNKNOWN";
-      extra.headers = error.response.headers;
+      extra.headers = pickSafeHeaders(error.response.headers);
     }
 
     this.logger.error({ ...extra, ...finalTags, error });
@@ -79,6 +79,18 @@ export interface TraceData {
   traceId?: string;
   traceIdW3C?: string;
   baggage?: string;
+}
+
+const SAFE_HEADERS = new Set(["content-type", "content-length", "x-request-id", "x-correlation-id", "retry-after", "server"]);
+
+function pickSafeHeaders(headers: Record<string, unknown>): Record<string, unknown> {
+  const safe: Record<string, unknown> = {};
+  for (const key of Object.keys(headers)) {
+    if (SAFE_HEADERS.has(key.toLowerCase())) {
+      safe[key] = headers[key];
+    }
+  }
+  return safe;
 }
 
 /**

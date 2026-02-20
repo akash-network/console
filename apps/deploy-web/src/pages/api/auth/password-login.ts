@@ -34,7 +34,8 @@ export default defineApiHandler({
     const { cause, ...errorDetails } = result.val;
     services.logger.warn({
       event: "PASSWORD_LOGIN_ERROR",
-      cause: result.val
+      code: errorDetails.code,
+      message: errorDetails.message
     });
     return res.status(400).json(errorDetails);
   }
