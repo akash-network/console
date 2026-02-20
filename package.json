@@ -1,5 +1,6 @@
 {
   "name": "@akashnetwork/console",
+  "private": true,
   "workspaces": [
     "./packages/*",
     "./apps/*"
