@@ -28,6 +28,7 @@ pg.defaults.parseInt8 = true;
 container.register(CHAIN_DB, {
   useFactory: instancePerContainerCachingFactory(c => {
     const logger = c.resolve(SEQUELIZE_LOGGER);
+    const config = c.resolve(CoreConfigService);
     const dbUri = c.resolve(ChainConfigService).get("CHAIN_INDEXER_POSTGRES_DB_URI");
     return new Sequelize(dbUri, {
       dialectModule: pg,
@@ -35,7 +36,14 @@ container.register(CHAIN_DB, {
       logQueryParameters: true,
       transactionType: DbTransaction.TYPES.IMMEDIATE,
       define: { timestamps: false, freezeTableName: true },
-      models: chainModels
+      models: chainModels,
+      pool: {
+        min: config.get("SEQUELIZE_POOL_MIN"),
+        max: config.get("SEQUELIZE_POOL_MAX"),
+        idle: config.get("SEQUELIZE_POOL_IDLE"),
+        acquire: config.get("SEQUELIZE_POOL_ACQUIRE"),
+        evict: config.get("SEQUELIZE_POOL_EVICT")
+      }
     });
   })
 });
@@ -45,14 +53,22 @@ export const USER_DB = Symbol("USER_DB") as InjectionToken<Sequelize>;
 container.register(USER_DB, {
   useFactory: instancePerContainerCachingFactory(c => {
     const logger = c.resolve(SEQUELIZE_LOGGER);
-    const dbUri = c.resolve(CoreConfigService).get("POSTGRES_DB_URI");
+    const config = c.resolve(CoreConfigService);
+    const dbUri = config.get("POSTGRES_DB_URI");
     return new Sequelize(dbUri, {
       dialectModule: pg,
       logging: msg => logger.write(msg),
       logQueryParameters: true,
       transactionType: DbTransaction.TYPES.IMMEDIATE,
       define: { timestamps: false, freezeTableName: true },
-      models: userModels
+      models: userModels,
+      pool: {
+        min: config.get("SEQUELIZE_POOL_MIN"),
+        max: config.get("SEQUELIZE_POOL_MAX"),
+        idle: config.get("SEQUELIZE_POOL_IDLE"),
+        acquire: config.get("SEQUELIZE_POOL_ACQUIRE"),
+        evict: config.get("SEQUELIZE_POOL_EVICT")
+      }
     });
   })
 });
