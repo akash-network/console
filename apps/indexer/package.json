@@ -65,6 +65,7 @@
     "@akashnetwork/dev-config": "*",
     "@akashnetwork/docker": "*",
     "@akashnetwork/releaser": "*",
+    "@swc/core": "^1.15.10",
     "@types/async": "^3.2.15",
     "@types/express": "^4.17.13",
     "@types/jest": "^29.0.0",

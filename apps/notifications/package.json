@@ -93,7 +93,7 @@
     "@nestjs/testing": "^11.1.13",
     "@openapi-qraft/cli": "^2.5.0",
     "@swc/cli": "^0.6.0",
-    "@swc/core": "^1.10.7",
+    "@swc/core": "^1.15.10",
     "@types/express": "^5.0.0",
     "@types/node": "^22.13.11",
     "@types/pg": "^8.11.11",
