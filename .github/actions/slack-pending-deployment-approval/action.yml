@@ -68,8 +68,7 @@ runs:
                   -f app=${{ inputs.app }} \
                   -f appVersion=${{ inputs.new-version }} \
                   -f approve=true ${{ inputs.linked-workflow-run-id && format('-f linked-workflow-run-id={0}', inputs.linked-workflow-run-id) || '' }} \
-                  -f environment=${{ inputs.environment }} ${{ inputs.chain && format('-f chain={0}', inputs.chain) || '' }}
-                  && \
+                  -f environment=${{ inputs.environment }} ${{ inputs.chain && format('-f chain={0}', inputs.chain) || '' }} && \
                   gh run list -R akash-network/console -w reusable-deploy-k8s.yml -L 1 \
                   --json status,displayTitle,headBranch,url \
                   --template '{{tablerow "STATUS" "TITLE" "BRANCH" "URL"}}{{range .}}{{tablerow .status .displayTitle .headBranch .url}}{{end}}'
