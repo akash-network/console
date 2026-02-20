@@ -36,7 +36,7 @@ export class UserTemplatesService {
   }
 
   async update(id: string, userId: string, data: Partial<TemplateInput>): Promise<void> {
-    await this.#userTemplateRepository.updateById(id, userId, data);
+    await this.#userTemplateRepository.updateTemplate(id, userId, data);
   }
 
   async deleteTemplate(userId: string, id: string): Promise<void> {

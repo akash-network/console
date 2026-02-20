@@ -1,5 +1,4 @@
-import { chainModels, userModels } from "@akashnetwork/database/dbSchemas";
-import { Template, TemplateFavorite, UserSetting } from "@akashnetwork/database/dbSchemas/user";
+import { chainModels } from "@akashnetwork/database/dbSchemas";
 import { createOtelLogger } from "@akashnetwork/logging/otel";
 import pg from "pg";
 import { Transaction as DbTransaction } from "sequelize";
@@ -48,48 +47,16 @@ container.register(CHAIN_DB, {
   })
 });
 
-export const USER_DB = Symbol("USER_DB") as InjectionToken<Sequelize>;
-
-container.register(USER_DB, {
-  useFactory: instancePerContainerCachingFactory(c => {
-    const logger = c.resolve(SEQUELIZE_LOGGER);
-    const config = c.resolve(CoreConfigService);
-    const dbUri = config.get("POSTGRES_DB_URI");
-    return new Sequelize(dbUri, {
-      dialectModule: pg,
-      logging: msg => logger.write(msg),
-      logQueryParameters: true,
-      transactionType: DbTransaction.TYPES.IMMEDIATE,
-      define: { timestamps: false, freezeTableName: true },
-      models: userModels,
-      pool: {
-        min: config.get("SEQUELIZE_POOL_MIN"),
-        max: config.get("SEQUELIZE_POOL_MAX"),
-        idle: config.get("SEQUELIZE_POOL_IDLE"),
-        acquire: config.get("SEQUELIZE_POOL_ACQUIRE"),
-        evict: config.get("SEQUELIZE_POOL_EVICT")
-      }
-    });
-  })
-});
-
-async function syncUserSchema() {
-  await UserSetting.sync();
-  await Template.sync();
-  await TemplateFavorite.sync();
-}
-
 container.register(APP_INITIALIZER, {
   useFactory: instancePerContainerCachingFactory(
     DisposableRegistry.registerFromFactory(c => {
       const chainDb = c.resolve(CHAIN_DB);
-      const userDb = c.resolve(USER_DB);
       return {
         async [ON_APP_START]() {
           await connectUsingSequelize(c.resolve(LoggerService));
         },
         async dispose() {
-          await Promise.all([chainDb.close(), userDb.close()]);
+          await chainDb.close();
         }
       } satisfies AppInitializer & Disposable;
     })
@@ -104,11 +71,7 @@ container.register(APP_INITIALIZER, {
  * @deprecated use `container.resolveAll(APP_INITIALIZER)` instead
  */
 export async function connectUsingSequelize(logger = createOtelLogger({ context: "DB" })): Promise<void> {
-  await Promise.all([authenticateDatabase(container.resolve(CHAIN_DB), logger), authenticateDatabase(container.resolve(USER_DB), logger)]);
-
-  logger.debug("Sync user schema...");
-  await syncUserSchema();
-  logger.debug("User schema synced.");
+  await authenticateDatabase(container.resolve(CHAIN_DB), logger);
 }
 
 async function authenticateDatabase(database: Sequelize, logger: LoggerService) {
