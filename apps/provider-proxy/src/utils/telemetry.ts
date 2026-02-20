@@ -1,6 +1,5 @@
-import type { Span } from "@opentelemetry/api";
-import { context } from "@opentelemetry/api";
-import { trace } from "@opentelemetry/api";
+import type { Span } from "@akashnetwork/instrumentation";
+import { context, trace } from "@akashnetwork/instrumentation";
 
 export function traceActiveSpan<T extends (span: Span) => any>(name: string, callback: T): ReturnType<T> {
   return trace.getTracer("default").startActiveSpan(name, callback);

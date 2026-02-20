@@ -1,6 +1,6 @@
+import type { Attributes } from "@akashnetwork/instrumentation";
+import { trace } from "@akashnetwork/instrumentation";
 import type { LoggerService } from "@akashnetwork/logging";
-import type { Attributes } from "@opentelemetry/api";
-import { trace } from "@opentelemetry/api";
 import type http from "http";
 import https from "https";
 import { TLSSocket } from "tls";
