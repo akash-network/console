@@ -1,7 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import type { TypedResponse } from "hono";
 
-import packageJson from "../../package.json";
 import type { AppContext } from "../types/AppContext";
 import { humanFileSize } from "../utils/sizeUtils";
 
@@ -68,6 +67,6 @@ export async function getAppStatus(ctx: AppContext): Promise<TypedResponse<z.inf
     logDownload: `${logDownload.count} (${humanFileSize(logDownload.data)})`,
     eventStreaming: `${eventStreaming.count} (${humanFileSize(eventStreaming.data)})`,
     shell: `${shell.count} (${humanFileSize(shell.data)})`,
-    version: packageJson.version
+    version: process.env.APP_VERSION || "0.0.0-local"
   });
 }

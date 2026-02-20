@@ -19,15 +19,16 @@ export const copyDrizzlePlugin: Plugin = {
   }
 };
 
-const prependEntrySideEffectsEsBuildPlugin = (options: { cwd: string; require: string[] }): EsBuildPlugin => ({
+const prependEntrySideEffectsEsBuildPlugin = (options: { cwd: string; require: string[]; moduleType: "esm" | "cjs" }): EsBuildPlugin => ({
   name: "prepend-entry-side-effects",
   setup(build) {
+    const importDep = options.moduleType === "esm" ? (moduleName: string) => `import "${moduleName}";` : (moduleName: string) => `require("${moduleName}");`;
     build.onEnd(async result => {
       const meta = result?.metafile;
       if (!meta) return;
 
       const SENTINEL = "// __PREPEND_ENTRY_SIDE_EFFECTS__\n";
-      const prefix = SENTINEL + options.require.map(moduleName => `require("${moduleName}");`).join("\n") + "\n";
+      const prefix = SENTINEL + options.require.map(importDep).join("\n") + "\n";
 
       const outputFiles = (result.outputFiles || []).reduce(
         (acc, file) => acc.set(file.path, file),
@@ -53,6 +54,7 @@ const prependEntrySideEffectsEsBuildPlugin = (options: { cwd: string; require: s
 
 export const applyDefaults = async ({ packageJson, prependEffectsToEntries, ...options }: ApplyDefaultsOptions): Promise<Options> => {
   const { noExternal, external } = await getExternalConfig(packageJson);
+  const moduleType = packageJson.type === "module" ? "esm" : "cjs";
 
   return {
     sourcemap: true,
@@ -61,7 +63,7 @@ export const applyDefaults = async ({ packageJson, prependEffectsToEntries, ...o
     splitting: true,
     bundle: true,
     platform: "node",
-    format: ["cjs"],
+    format: [moduleType],
     ...options,
     noExternal: [...noExternal, ...(options.noExternal ?? [])],
     external: [...external, ...(options.external ?? [])],
@@ -76,7 +78,8 @@ export const applyDefaults = async ({ packageJson, prependEffectsToEntries, ...o
       prependEffectsToEntries &&
         prependEntrySideEffectsEsBuildPlugin({
           require: prependEffectsToEntries,
-          cwd: process.cwd()
+          cwd: process.cwd(),
+          moduleType
         }),
       ...(options.esbuildPlugins ?? [])
     ].filter(Boolean) as EsBuildPlugin[],

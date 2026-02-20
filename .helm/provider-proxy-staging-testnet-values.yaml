@@ -1,5 +1,5 @@
 deploymentEnv: staging
 nodeOptions:
-  enabledOTEL: true
+  enabledOTEL: false
 
 chain: testnet
