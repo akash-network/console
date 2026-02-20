@@ -201,9 +201,9 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
                     target: "_blank"
                   },
                   {
-                    title: "Akash Console API",
+                    title: "Akash API Docs",
                     icon: props => <EvPlug {...props} />,
-                    url: "https://console-api.akash.network/v1/swagger",
+                    url: "https://akash.network/docs/api-documentation/getting-started/",
                     activeRoutes: [],
                     target: "_blank"
                   },
