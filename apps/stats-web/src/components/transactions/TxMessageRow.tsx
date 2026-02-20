@@ -1,4 +1,3 @@
-"use client";
 import { useMemo } from "react";
 
 import { DynamicReactJson } from "../DynamicJsonView";
@@ -7,6 +6,11 @@ import * as cosmosMessages from "./generic";
 
 import { useFriendlyMessageType } from "@/hooks/useFriendlyMessageType";
 import type { TransactionMessage } from "@/types";
+
+type MessageComponent = React.FunctionComponent<TxMessageProps & { version: string }>;
+
+const cosmosMessagesMap = cosmosMessages as Record<string, MessageComponent>;
+const akashMessagesMap = akashMessages as Record<string, MessageComponent>;
 
 function snakeToCamelCase(str: string): string {
   return str.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase());
@@ -56,12 +60,12 @@ const TxMessage: React.FunctionComponent<TxMessageProps> = ({ message }) => {
   const [namespace, ...typeDetails] = message.type.split(".");
   const version = typeDetails[typeDetails.length - 2];
   const name = typeDetails[typeDetails.length - 1];
-  let MsgComponent: React.FunctionComponent<TxMessageProps & { version: string }>;
+  let MsgComponent: MessageComponent | undefined;
 
-  if (namespace === "/cosmos" && cosmosMessages[name]) {
-    MsgComponent = cosmosMessages[name];
-  } else if (namespace === "/akash" && akashMessages[name]) {
-    MsgComponent = akashMessages[name];
+  if (namespace === "/cosmos" && cosmosMessagesMap[name]) {
+    MsgComponent = cosmosMessagesMap[name];
+  } else if (namespace === "/akash" && akashMessagesMap[name]) {
+    MsgComponent = akashMessagesMap[name];
   }
 
   if (!MsgComponent) {

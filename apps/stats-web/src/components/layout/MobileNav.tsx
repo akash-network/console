@@ -1,25 +1,21 @@
-"use client";
 import "react-modern-drawer/dist/index.css";
 
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import Drawer from "react-modern-drawer";
 import { Button } from "@akashnetwork/ui/components";
 import { ArrowUpRightSquare, Discord, Github, Menu, Rocket, StatsUpSquare, X as TwitterX } from "iconoir-react";
-import dynamic from "next/dynamic";
-import Link from "next/link";
+import { Link } from "react-router-dom";
 
 import { AkashConsoleDarkLogo, AkashConsoleLightLogo } from "../icons/AkashConsoleLogo";
 import { ModeToggle } from "../ModeToggle";
 import { NavLinks } from "../NavLinks";
 
-import useCookieTheme from "@/hooks/useTheme";
+import { useTheme } from "@/hooks/useTheme";
 
-const NetworkSelect = dynamic(() => import("./NetworkSelect"), {
-  ssr: false
-});
+const NetworkSelect = lazy(() => import("./NetworkSelect"));
 
 export function MobileNav() {
-  const theme = useCookieTheme();
+  const { theme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const toggleDrawer = () => {
     setIsOpen(prevState => !prevState);
@@ -66,30 +62,32 @@ export function MobileNav() {
           </div>
           <div>
             <div>
-              <NetworkSelect />
+              <Suspense fallback={null}>
+                <NetworkSelect />
+              </Suspense>
             </div>
 
             <div className="flex items-center justify-center pt-4">
-              <Link target="_blank" rel="noreferrer" href="https://twitter.com/akashnet" className="text-foreground">
+              <a target="_blank" rel="noreferrer" href="https://twitter.com/akashnet" className="text-foreground">
                 <Button variant="ghost" size="icon">
                   <TwitterX width="1.2rem" height="1.2rem" />
                   <span className="sr-only">Twitter</span>
                 </Button>
-              </Link>
+              </a>
 
-              <Link target="_blank" rel="noreferrer" href="https://github.com/akash-network/console" className="text-foreground">
+              <a target="_blank" rel="noreferrer" href="https://github.com/akash-network/console" className="text-foreground">
                 <Button variant="ghost" size="icon">
                   <Github width="1.2rem" height="1.2rem" />
                   <span className="sr-only">GitHub</span>
                 </Button>
-              </Link>
+              </a>
 
-              <Link target="_blank" rel="noreferrer" href="https://discord.akash.network" className="text-foreground">
+              <a target="_blank" rel="noreferrer" href="https://discord.akash.network" className="text-foreground">
                 <Button variant="ghost" size="icon">
                   <Discord width="1.2rem" height="1.2rem" />
-                  <span className="sr-only">Twitter</span>
+                  <span className="sr-only">Discord</span>
                 </Button>
-              </Link>
+              </a>
 
               <ModeToggle />
             </div>

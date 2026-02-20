@@ -1,4 +1,3 @@
-"use client";
 import React, { useEffect, useMemo, useRef } from "react";
 import { useIntl } from "react-intl";
 import { UTCDateMini } from "@date-fns/utc";
@@ -13,7 +12,7 @@ import type { GraphResponse, ISnapshotMetadata, SnapshotValue } from "@/types";
 interface IGraphProps {
   rangedData: SnapshotValue[];
   snapshotMetadata: {
-    unitFn: (number: any) => ISnapshotMetadata;
+    unitFn: (number: number) => ISnapshotMetadata;
     legend?: string;
   };
   snapshotData: GraphResponse;
@@ -26,16 +25,21 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
   const initialData = useMemo(() => mapSnapshotsToLineSeriesData(rangedData, snapshotMetadata), [rangedData]);
   const totalGraphData = useMemo(() => mapSnapshotsToLineSeriesData(snapshotData?.snapshots, snapshotMetadata), [rangedData]);
 
-  const chartContainerRef = useRef(null);
-  const tooltipRef = useRef(null);
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
   const timer = useRef<number | null>(null);
 
   useEffect(() => {
+    if (!chartContainerRef.current || !tooltipRef.current) return;
+
+    const containerEl = chartContainerRef.current;
+    const toolTip = tooltipRef.current;
+
     let graphData = [...initialData];
     let isDisposed = false;
 
-    const chart = createChart(chartContainerRef.current, {
-      width: chartContainerRef.current.clientWidth,
+    const chart = createChart(containerEl, {
+      width: containerEl.clientWidth,
       layout: {
         textColor: graphTheme.textColor,
         background: { color: "transparent" },
@@ -49,8 +53,8 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
     const lineSeries = chart.addLineSeries({ color: customColors.akashRed, lineWidth: 2 });
     lineSeries.setData(graphData);
 
-    const axisRightFormatter = val => nFormatter(val, 2);
-    const axisBottomFormatter = dateStr => intl.formatDate(dateStr, { day: "numeric", month: "short", timeZone: "utc" });
+    const axisRightFormatter = (val: number) => nFormatter(val, 2);
+    const axisBottomFormatter = (dateStr: string) => intl.formatDate(dateStr, { day: "numeric", month: "short", timeZone: "utc" });
 
     chart.applyOptions({
       localization: {
@@ -93,7 +97,6 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
     const toolTipHeight = 80;
     const toolTipMargin = 15;
 
-    const toolTip = tooltipRef.current;
     toolTip.style.display = "none";
 
     chart.subscribeCrosshairMove(param => {
@@ -101,27 +104,27 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
         param.point === undefined ||
         !param.time ||
         param.point.x < 0 ||
-        param.point.x > chartContainerRef.current.clientWidth ||
+        param.point.x > containerEl.clientWidth ||
         param.point.y < 0 ||
-        param.point.y > chartContainerRef.current.clientHeight
+        param.point.y > containerEl.clientHeight
       ) {
         toolTip.style.display = "none";
       } else {
-        const data: any = param.seriesData.get(lineSeries);
+        const data: { value?: number } = param.seriesData.get(lineSeries) as { value?: number } || {};
         toolTip.innerHTML = `<div style='margin-bottom: 0.25rem; font-size: 0.75rem; line-height: 1rem'>
             ${format(new Date(param.time.toString()), "MMMM d, yy")}
             </div>
-            <div style="font-weight: 700">${nFormatter(data?.value, 2)}</div>
+            <div style="font-weight: 700">${nFormatter(data?.value ?? 0, 2)}</div>
         `;
 
         const y = param.point.y;
         let left = param.point.x + toolTipMargin;
-        if (left > chartContainerRef.current.clientWidth - toolTipWidth) {
+        if (left > containerEl.clientWidth - toolTipWidth) {
           left = param.point.x - toolTipMargin - toolTipWidth;
         }
 
         let top = y + toolTipMargin;
-        if (top > chartContainerRef.current.clientHeight - toolTipHeight) {
+        if (top > containerEl.clientHeight - toolTipHeight) {
           top = y - toolTipHeight - toolTipMargin;
         }
 
@@ -153,8 +156,8 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
 
     // Handle resize
     const handleResize = () => {
-      chart.applyOptions({ width: chartContainerRef.current.clientWidth });
-      chart.resize(chartContainerRef.current.clientWidth, 400);
+      chart.applyOptions({ width: containerEl.clientWidth });
+      chart.resize(containerEl.clientWidth, 400);
     };
 
     window.addEventListener("resize", handleResize);

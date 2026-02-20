@@ -1,19 +1,26 @@
-"use client";
-
-import { useReportWebVitals } from "next/web-vitals";
-import { event, GoogleAnalytics as GAnalytics } from "nextjs-google-analytics";
+import { useEffect } from "react";
+import { useLocation } from "react-router-dom";
+import ReactGA from "react-ga4";
 
 import { browserEnvConfig } from "@/config/browser-env.config";
 
-export default function GoogleAnalytics() {
-  useReportWebVitals(({ id, name, label, value }) => {
-    event(name, {
-      category: label === "web-vital" ? "Web Vitals" : "Next.js custom metric",
-      value: Math.round(name === "CLS" ? value * 1000 : value), // values must be integers
-      label: id, // id unique to current page load
-      nonInteraction: true // avoids affecting bounce rate.
-    });
-  });
+let initialized = false;
 
-  return <>{browserEnvConfig.NEXT_PUBLIC_NODE_ENV === "production" && <GAnalytics trackPageViews />}</>;
+export default function GoogleAnalytics() {
+  const location = useLocation();
+
+  useEffect(() => {
+    if (browserEnvConfig.VITE_NODE_ENV === "production" && browserEnvConfig.VITE_GA_MEASUREMENT_ID && !initialized) {
+      ReactGA.initialize(browserEnvConfig.VITE_GA_MEASUREMENT_ID);
+      initialized = true;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (initialized) {
+      ReactGA.send({ hitType: "pageview", page: location.pathname + location.search });
+    }
+  }, [location]);
+
+  return null;
 }

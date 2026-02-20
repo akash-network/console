@@ -1,7 +1,6 @@
-"use client";
 import { FormattedRelativeTime } from "react-intl";
 import { TableCell, TableRow } from "@akashnetwork/ui/components";
-import Link from "next/link";
+import { Link } from "react-router-dom";
 
 import { getShortText } from "@/hooks/useShortText";
 import { UrlService } from "@/lib/urlUtils";
@@ -17,10 +16,10 @@ export const BlockRow: React.FunctionComponent<Props> = ({ block }) => {
   return (
     <TableRow>
       <TableCell align="center">
-        <Link href={UrlService.block(block.height)}>{block.height}</Link>
+        <Link to={UrlService.block(block.height)}>{block.height}</Link>
       </TableCell>
       <TableCell align="center">
-        <Link href={UrlService.validator(block.proposer.operatorAddress)}>
+        <Link to={UrlService.validator(block.proposer.operatorAddress)}>
           <span className="max-[150px] line-clamp-1">{getShortText(block.proposer.moniker, 20)}</span>
         </Link>
       </TableCell>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { netConfig } from "@akashnetwork/net";
-import { useVariant } from "@unleash/nextjs/client";
+import { useVariant } from "@unleash/proxy-client-react";
 import axios from "axios";
 import { atom, useAtom } from "jotai";
 

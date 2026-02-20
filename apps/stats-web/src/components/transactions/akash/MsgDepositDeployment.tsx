@@ -1,5 +1,4 @@
-"use client";
-import Link from "next/link";
+import { Link } from "react-router-dom";
 
 import { LabelValue } from "../../LabelValue";
 import { createMsgView } from "../createMsgView";
@@ -13,7 +12,7 @@ export const MsgDepositDeployment = createMsgView(["v1beta1", "v1beta2", "v1beta
   return (
     <>
       <LabelValue label="Owner" value={<AddressLink address={message?.data?.id?.owner} />} />
-      <LabelValue label="DSEQ" value={<Link href={UrlService.deployment(message?.data?.id?.owner, message?.data?.id?.dseq)}>{message?.data?.id?.dseq}</Link>} />
+      <LabelValue label="DSEQ" value={<Link to={UrlService.deployment(message?.data?.id?.owner, message?.data?.id?.dseq)}>{message?.data?.id?.dseq}</Link>} />
       {message?.data?.depositor && <LabelValue label="Depositor" value={<AddressLink address={message?.data?.depositor} />} />}
       <LabelValue label="Deposit" value={<AKTAmount uakt={coinsToAmount(message?.data?.amount, "uakt")} showAKTLabel showUSD />} />
     </>

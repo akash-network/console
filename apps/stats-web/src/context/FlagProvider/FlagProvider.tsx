@@ -1,71 +1,22 @@
 import type { FC, ReactNode } from "react";
-import { useEffect, useState } from "react";
-import { Spinner } from "@akashnetwork/ui/components";
-import { FlagProvider as FlagProviderOriginal, useUnleashClient } from "@unleash/nextjs";
 
 import { browserEnvConfig } from "../../config/browser-env.config";
 
-const COMPONENTS = {
-  FlagProvider: FlagProviderOriginal,
-  WaitForFeatureFlags
-};
+export type Props = { children: ReactNode };
 
-export type Props = { components?: typeof COMPONENTS };
-
-const UnleashFlagProvider: FC<Props & { children: React.ReactNode }> = ({ children, components: c = COMPONENTS }) => {
-  return (
-    <c.FlagProvider
-      config={{
-        fetch: browserEnvConfig.NEXT_PUBLIC_UNLEASH_ENABLE_ALL ? () => new Response(JSON.stringify({ toggles: [] })) : undefined
-      }}
-    >
-      <c.WaitForFeatureFlags>{children}</c.WaitForFeatureFlags>
-    </c.FlagProvider>
-  );
-};
-
-export const FlagProvider = UnleashFlagProvider;
-
-function WaitForFeatureFlags({ children }: { children: ReactNode }) {
-  const client = useUnleashClient();
-  const [isReady, setIsReady] = useState(false);
-
-  useEffect(() => {
-    if (client.isReady()) {
-      setIsReady(true);
-      return;
-    }
-
-    let callback: (() => void) | undefined;
-    let timerId: ReturnType<typeof setTimeout> | undefined;
-
-    if (!client.isReady()) {
-      callback = () => {
-        if (timerId) clearTimeout(timerId);
-        setIsReady(true);
-      };
-      timerId = setTimeout(callback, 10_000);
-      client.once("ready", callback);
-      client.once("error", callback);
-    }
-
-    return () => {
-      if (callback) {
-        client.off("ready", callback);
-        client.off("error", callback);
-      }
-      if (timerId) {
-        clearTimeout(timerId);
-      }
-    };
-  }, [client]);
-
-  if (!isReady) {
-    return (
-      <div className="flex items-center justify-center p-4">
-        <Spinner size="large" />
-      </div>
-    );
+/**
+ * Simplified FlagProvider for Vite SPA.
+ * Feature flags can be added back using @unleash/proxy-client-react if needed.
+ * For now, we just render children since VITE_UNLEASH_ENABLE_ALL controls this.
+ */
+export const FlagProvider: FC<Props> = ({ children }) => {
+  // In the Vite SPA, we simplify feature flag handling.
+  // If you need full Unleash integration, configure the proxy client here.
+  if (browserEnvConfig.VITE_UNLEASH_ENABLE_ALL) {
+    return <>{children}</>;
   }
+
+  // For now, just render children without feature flag gating
+  // This can be expanded with @unleash/proxy-client-react if needed
   return <>{children}</>;
-}
+};

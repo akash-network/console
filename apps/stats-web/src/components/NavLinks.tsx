@@ -1,8 +1,6 @@
-"use client";
-
 import React from "react";
 import { buttonVariants } from "@akashnetwork/ui/components";
-import Link from "next/link";
+import { Link } from "react-router-dom";
 
 import { cn } from "@/lib/utils";
 
@@ -22,22 +20,37 @@ export function NavLinks({ links }: NavLinksProps) {
   return (
     <div className="group flex flex-col gap-4 py-2">
       <nav className="grid gap-1 px-2">
-        {links.map((link, index) => (
-          <Link
-            key={index}
-            target={link.isExternal ? "_blank" : "_self"}
-            rel={link.rel ? link.rel : ""}
-            href={link.href}
-            className={cn(buttonVariants({ variant: link.variant, size: "sm" }), "text-md flex w-full items-center justify-start", {
-              ["mt-2"]: index > 0,
-              ["text-foreground"]: link.variant === "ghost"
-            })}
-          >
-            {!!link.icon && <span className="mr-2">{link.icon}</span>}
-            {link.title}
-            {link.label && <span className={cn("ml-auto", link.variant === "default" && "text-background dark:text-white")}>{link.label}</span>}
-          </Link>
-        ))}
+        {links.map((link, index) =>
+          link.isExternal ? (
+            <a
+              key={index}
+              target="_blank"
+              rel={link.rel || "noreferrer"}
+              href={link.href}
+              className={cn(buttonVariants({ variant: link.variant, size: "sm" }), "text-md flex w-full items-center justify-start", {
+                ["mt-2"]: index > 0,
+                ["text-foreground"]: link.variant === "ghost"
+              })}
+            >
+              {!!link.icon && <span className="mr-2">{link.icon}</span>}
+              {link.title}
+              {link.label && <span className={cn("ml-auto", link.variant === "default" && "text-background dark:text-white")}>{link.label}</span>}
+            </a>
+          ) : (
+            <Link
+              key={index}
+              to={link.href}
+              className={cn(buttonVariants({ variant: link.variant, size: "sm" }), "text-md flex w-full items-center justify-start", {
+                ["mt-2"]: index > 0,
+                ["text-foreground"]: link.variant === "ghost"
+              })}
+            >
+              {!!link.icon && <span className="mr-2">{link.icon}</span>}
+              {link.title}
+              {link.label && <span className={cn("ml-auto", link.variant === "default" && "text-background dark:text-white")}>{link.label}</span>}
+            </Link>
+          )
+        )}
       </nav>
     </div>
   );

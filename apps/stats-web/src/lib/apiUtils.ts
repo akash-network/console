@@ -34,6 +34,21 @@ export class ApiUrlService {
   static blocks(limit: number) {
     return `${this.baseApiUrl}/v1/blocks${appendSearchParams({ limit })}`;
   }
+  static block(height: string) {
+    return `${this.baseApiUrl}/v1/blocks/${height}`;
+  }
+  static transaction(hash: string) {
+    return `${this.baseApiUrl}/v1/transactions/${hash}`;
+  }
+  static validator(address: string) {
+    return `${this.baseApiUrl}/v1/validators/${address}`;
+  }
+  static address(address: string) {
+    return `${this.baseApiUrl}/v1/addresses/${address}`;
+  }
+  static deployment(address: string, dseq: string) {
+    return `${this.baseApiUrl}/v1/deployment/${address}/${dseq}`;
+  }
   static providerAttributesSchema() {
     return `${this.baseApiUrl}/v1/provider-attributes-schema`;
   }

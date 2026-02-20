@@ -1,6 +1,6 @@
 import type { LoggerService } from "@akashnetwork/logging";
-import type { SeverityLevel as SentrySeverityLevel } from "@sentry/nextjs";
-import { captureException as captureExceptionInSentry, getTraceData } from "@sentry/nextjs";
+import type { SeverityLevel as SentrySeverityLevel } from "@sentry/react";
+import { captureException as captureExceptionInSentry } from "@sentry/react";
 
 export class ErrorHandlerService {
   constructor(
@@ -9,13 +9,11 @@ export class ErrorHandlerService {
   ) {}
 
   getTraceData(): TraceData {
-    const data = getTraceData();
-    const traceId = data["sentry-trace"];
-
+    // In the browser SPA, we don't have server-side trace data
     return {
-      traceId,
-      traceIdW3C: sentryTraceToW3C(traceId),
-      baggage: data.baggage
+      traceId: undefined,
+      traceIdW3C: undefined,
+      baggage: undefined
     };
   }
 
