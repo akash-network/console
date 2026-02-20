@@ -33,6 +33,9 @@ outputs:
   labels:
     description: Comma-separated list of PR labels
     value: ${{ steps.associated-pr.outputs.labels }}
+  closed:
+    description: Whether the PR is closed
+    value: ${{ steps.associated-pr.outputs.closed }}
 
 runs:
   using: "composite"
@@ -95,6 +98,7 @@ runs:
             core.setOutput('head_ref', '');
             core.setOutput('head_repo', '');
             core.setOutput('labels', '');
+            core.setOutput('closed', '');
             return;
           }
 
@@ -103,6 +107,7 @@ runs:
           core.setOutput('head_ref', pr.head.ref);
           core.setOutput('head_repo', pr.head.repo?.full_name || '');
           core.setOutput('labels', (pr.labels || []).map(l => l.name).join(','));
+          core.setOutput('closed', pr.closed);
 
           const author = pr.merged_by?.login || pr.user.login;
           core.setOutput('author', author);
