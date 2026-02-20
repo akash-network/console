@@ -15,7 +15,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
+          script: | # js
             const pullRequest = context.payload.pull_request;
             if (!pullRequest) {
               return;
@@ -51,10 +51,15 @@ jobs:
               per_page: 100,
             });
 
-            const excludedLockfiles = new Set(["pnpm-lock.yaml", "package-lock.json", "yarn.lock", "bun.lockb"]);
+            const excludedLockfiles = new Set([
+              "pnpm-lock.yaml",
+              "package-lock.json",
+              "yarn.lock",
+              "bun.lockb",
+            ]);
             const totalChangedLines = files.reduce((total, file) => {
               const path = file.filename ?? "";
-              if (excludedLockfiles.has(path)) {
+              if (excludedLockfiles.has(path) || (path.includes("/drizzle/meta/") && path.endsWith('.json'))) {
                 return total;
               }
               return total + (file.additions ?? 0) + (file.deletions ?? 0);
@@ -101,7 +106,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
+          script: | # js
             const login = context.payload.pull_request?.user?.login;
             if (!login) {
               return;
