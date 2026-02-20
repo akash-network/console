@@ -12,7 +12,6 @@ import {
   TransactionEventAttribute,
   Validator
 } from "./base";
-import { Template, TemplateFavorite, UserSetting } from "./user";
 
 function getFilteredBaseModel(): ModelCtor<Model<any, any>>[] {
   let models: ModelCtor<Model<any, any>>[] = baseModels;
@@ -51,6 +50,5 @@ export function getChainModels(chainName: string) {
 }
 
 export const chainModels = [...getFilteredBaseModel(), ...(activeChain.customModels ?? [])];
-export const userModels: ModelCtor<Model<any, any>>[] = [UserSetting, Template, TemplateFavorite];
 export const Block = activeChain.customBlockModel || BaseBlock;
 export const Message = activeChain.customMessageModel || BaseMessage;
