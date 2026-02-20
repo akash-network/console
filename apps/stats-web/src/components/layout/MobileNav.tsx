@@ -4,7 +4,6 @@ import { lazy, Suspense, useState } from "react";
 import Drawer from "react-modern-drawer";
 import { Button } from "@akashnetwork/ui/components";
 import { ArrowUpRightSquare, Discord, Github, Menu, Rocket, StatsUpSquare, X as TwitterX } from "iconoir-react";
-import { Link } from "react-router-dom";
 
 import { AkashConsoleDarkLogo, AkashConsoleLightLogo } from "../icons/AkashConsoleLogo";
 import { ModeToggle } from "../ModeToggle";

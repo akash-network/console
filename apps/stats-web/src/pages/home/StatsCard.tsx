@@ -1,7 +1,7 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import { Button, Card, CardContent, CardFooter, CardHeader, CardTitle, CustomTooltip } from "@akashnetwork/ui/components";
 import { GraphUp, HelpCircle } from "iconoir-react";
-import { Link } from "react-router-dom";
 
 import { DiffPercentageChip } from "@/components/DiffPercentageChip";
 

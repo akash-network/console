@@ -1,28 +1,28 @@
 import "@akashnetwork/ui/styles";
 import "./styles/index.css";
 
-import * as Sentry from "@sentry/react";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import * as Sentry from "@sentry/react";
 
-import { App } from "./App";
 import { browserEnvConfig } from "./config/browser-env.config";
-import { AddressDeploymentsPage } from "./pages/addresses/[address]/deployments/page";
 import { DeploymentDetailPage } from "./pages/addresses/[address]/deployments/[dseq]/page";
+import { AddressDeploymentsPage } from "./pages/addresses/[address]/deployments/page";
 import { AddressDetailPage } from "./pages/addresses/[address]/page";
 import { AddressTransactionsPage } from "./pages/addresses/[address]/transactions/page";
-import { BlocksPage } from "./pages/blocks/page";
 import { BlockDetailPage } from "./pages/blocks/[height]/page";
+import { BlocksPage } from "./pages/blocks/page";
 import { GraphPage } from "./pages/graph/[snapshot]/page";
 import { HomePage } from "./pages/home/page";
 import { MaintenancePage } from "./pages/maintenance/page";
 import { NotFoundPage } from "./pages/not-found";
 import { ProviderGraphPage } from "./pages/provider-graph/[snapshot]/page";
-import { TransactionsPage } from "./pages/transactions/page";
 import { TransactionDetailPage } from "./pages/transactions/[hash]/page";
-import { ValidatorsPage } from "./pages/validators/page";
+import { TransactionsPage } from "./pages/transactions/page";
 import { ValidatorDetailPage } from "./pages/validators/[address]/page";
+import { ValidatorsPage } from "./pages/validators/page";
+import { App } from "./App";
 
 // Initialize Sentry
 if (browserEnvConfig.VITE_SENTRY_DSN && browserEnvConfig.VITE_SENTRY_ENABLED) {

@@ -1,15 +1,16 @@
-import { cn } from "@akashnetwork/ui/utils";
-import NProgress from "nprogress";
+import "nprogress/nprogress.css";
+
 import { useEffect } from "react";
 import { HelmetProvider } from "react-helmet-async";
 import { Outlet, useNavigation } from "react-router-dom";
+import { cn } from "@akashnetwork/ui/utils";
+import NProgress from "nprogress";
 
+import GoogleAnalytics from "./components/layout/CustomGoogleAnalytics";
+import Providers from "./components/layout/CustomProviders";
 import { Footer } from "./components/layout/Footer";
 import { Nav } from "./components/layout/Nav";
-import Providers from "./components/layout/CustomProviders";
 import { useTheme } from "./hooks/useTheme";
-
-import "nprogress/nprogress.css";
 
 // Configure NProgress
 NProgress.configure({ showSpinner: false });
@@ -31,6 +32,7 @@ export function App() {
     <HelmetProvider>
       <div className={cn(theme, "min-h-screen bg-background font-sans tracking-wide antialiased")}>
         <Providers>
+          <GoogleAnalytics />
           <Nav />
           <div className="flex min-h-[calc(100vh-60px)] flex-col justify-between">
             <Outlet />

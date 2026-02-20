@@ -1,7 +1,7 @@
-import { Alert, Card, CardContent, Spinner, Table, TableBody, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
-import { SearchX } from "lucide-react";
 import { Helmet } from "react-helmet-async";
 import { useParams } from "react-router-dom";
+import { Alert, Card, CardContent, Spinner, Table, TableBody, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
+import { SearchX } from "lucide-react";
 
 import { BlockInfo } from "./BlockInfo";
 

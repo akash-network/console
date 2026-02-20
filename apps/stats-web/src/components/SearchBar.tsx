@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button, Card, CardContent, Input } from "@akashnetwork/ui/components";
 import { fromBech32, normalizeBech32 } from "@cosmjs/encoding";
 import { Search, Xmark } from "iconoir-react";
-import { useNavigate } from "react-router-dom";
 import { useMediaQuery } from "usehooks-ts";
 
 import { breakpoints } from "@/lib/responsiveUtils";

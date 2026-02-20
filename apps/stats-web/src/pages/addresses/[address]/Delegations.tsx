@@ -1,6 +1,6 @@
+import { Link } from "react-router-dom";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import { SearchX } from "lucide-react";
-import { Link } from "react-router-dom";
 
 import { AKTAmount } from "@/components/AKTAmount";
 import { getShortText } from "@/hooks/useShortText";

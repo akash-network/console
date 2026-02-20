@@ -1,6 +1,6 @@
+import { Link } from "react-router-dom";
 import { Badge, DataTableColumnHeader } from "@akashnetwork/ui/components";
 import type { AccessorColumnDef } from "@tanstack/react-table";
-import { Link } from "react-router-dom";
 
 import { statuses } from "./data";
 

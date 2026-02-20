@@ -1,6 +1,6 @@
 import { FormattedRelativeTime } from "react-intl";
-import { Badge, TableCell, TableRow } from "@akashnetwork/ui/components";
 import { Link } from "react-router-dom";
+import { Badge, TableCell, TableRow } from "@akashnetwork/ui/components";
 
 import { AKTAmount } from "@/components/AKTAmount";
 import { useFriendlyMessageType } from "@/hooks/useFriendlyMessageType";

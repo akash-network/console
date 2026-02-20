@@ -1,4 +1,3 @@
-"use client";
 import { AddressLink } from "../../AddressLink";
 import { AKTAmount } from "../../AKTAmount";
 import { LabelValue } from "../../LabelValue";

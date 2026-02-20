@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import React from "react";
-import { Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { useNavigate } from "react-router-dom";
+import { Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 
 import PageContainer from "@/components/PageContainer";
 import { Title } from "@/components/Title";

@@ -1,5 +1,3 @@
-"use client";
-
 import { LabelValue } from "../../LabelValue";
 import { createMsgView } from "../createMsgView";
 import { DepositDetail } from "./helpers/DepositDetail";

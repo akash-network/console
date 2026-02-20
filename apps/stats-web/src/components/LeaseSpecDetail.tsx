@@ -1,4 +1,3 @@
-"use client";
 import React from "react";
 import { MdDeveloperBoard, MdMemory, MdSpeed, MdStorage } from "react-icons/md";
 import { FormattedNumber } from "react-intl";

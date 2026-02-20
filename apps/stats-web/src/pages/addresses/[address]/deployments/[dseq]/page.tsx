@@ -1,13 +1,12 @@
-import { Alert, Spinner } from "@akashnetwork/ui/components";
 import { Helmet } from "react-helmet-async";
 import { useParams } from "react-router-dom";
+import { Alert, Spinner } from "@akashnetwork/ui/components";
 
 import { DeploymentInfo } from "./DeploymentInfo";
 
 import PageContainer from "@/components/PageContainer";
 import { Title } from "@/components/Title";
 import { useDeployment } from "@/queries";
-import type { DeploymentDetail } from "@/types";
 
 export function DeploymentDetailPage() {
   const { address, dseq } = useParams<{ address: string; dseq: string }>();

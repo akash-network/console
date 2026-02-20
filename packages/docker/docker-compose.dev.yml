@@ -60,7 +60,7 @@ services:
       - ../../apps/stats-web:/app/apps/stats-web
       - /app/node_modules
       - /app/apps/stats-web/node_modules
-      - /app/apps/stats-web/.next
+      - ../../packages:/app/packages
 
   provider-console:
     build:

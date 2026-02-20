@@ -1,6 +1,6 @@
 import { FormattedNumber } from "react-intl";
-import { Address, Badge, Card, CardContent, Table, TableBody, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import { Link } from "react-router-dom";
+import { Address, Badge, Card, CardContent, Table, TableBody, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 
 import { EventRow } from "./EventRow";
 

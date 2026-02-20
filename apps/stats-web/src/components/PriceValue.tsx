@@ -1,5 +1,3 @@
-"use client";
-
 import type { ReactNode } from "react";
 import { FormattedNumber } from "react-intl";
 import { Spinner } from "@akashnetwork/ui/components";

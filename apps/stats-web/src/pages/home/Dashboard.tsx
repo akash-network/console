@@ -1,5 +1,6 @@
 import React from "react";
 import { FormattedNumber } from "react-intl";
+import { Link } from "react-router-dom";
 import {
   Button,
   Card,
@@ -14,7 +15,6 @@ import {
   TableHeader,
   TableRow
 } from "@akashnetwork/ui/components";
-import { Link } from "react-router-dom";
 
 import { BlockRow } from "../../components/blockchain/BlockRow";
 import { TransactionRow } from "../../components/blockchain/TransactionRow";

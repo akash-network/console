@@ -1,6 +1,6 @@
 import React from "react";
-import { buttonVariants } from "@akashnetwork/ui/components";
 import { Link } from "react-router-dom";
+import { buttonVariants } from "@akashnetwork/ui/components";
 
 import { cn } from "@/lib/utils";
 

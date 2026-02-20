@@ -1,4 +1,3 @@
-"use client";
 import React from "react";
 
 export const AKTLabel: React.FunctionComponent = () => {

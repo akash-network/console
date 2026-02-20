@@ -1,7 +1,7 @@
-import React, { Suspense, lazy } from "react";
+import React, { lazy,Suspense } from "react";
+import { Link } from "react-router-dom";
 import { Alert, AlertDescription, AlertTitle, Card, CardContent } from "@akashnetwork/ui/components";
 import { WarningCircle } from "iconoir-react";
-import { Link } from "react-router-dom";
 
 import { AddressLink } from "@/components/AddressLink";
 import { AKTAmount } from "@/components/AKTAmount";

@@ -1,6 +1,6 @@
 import { FormattedDate, FormattedRelativeTime } from "react-intl";
-import { Card, CardContent } from "@akashnetwork/ui/components";
 import { Link } from "react-router-dom";
+import { Card, CardContent } from "@akashnetwork/ui/components";
 
 import { LabelValue } from "@/components/LabelValue";
 import { UrlService } from "@/lib/urlUtils";

@@ -1,7 +1,7 @@
 import React from "react";
+import { QRCode } from "react-qrcode-logo";
 import { Address, Card, CardContent, CustomTooltip, Separator } from "@akashnetwork/ui/components";
 import { QrCode } from "iconoir-react";
-import { QRCode } from "react-qrcode-logo";
 
 import { AKTAmount } from "@/components/AKTAmount";
 import { LabelValue } from "@/components/LabelValue";

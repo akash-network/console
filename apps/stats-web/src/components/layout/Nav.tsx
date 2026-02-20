@@ -1,7 +1,7 @@
 import { lazy, Suspense } from "react";
+import { Link } from "react-router-dom";
 import { Button } from "@akashnetwork/ui/components";
 import { Discord, Github, Rocket, X as TwitterX } from "iconoir-react";
-import { Link } from "react-router-dom";
 
 import { AkashConsoleDarkLogo, AkashConsoleLightLogo } from "../icons/AkashConsoleLogo";
 import { ModeToggle } from "../ModeToggle";

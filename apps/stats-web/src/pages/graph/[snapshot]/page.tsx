@@ -1,8 +1,8 @@
 import React from "react";
-import { Button } from "@akashnetwork/ui/components";
-import { ArrowLeft } from "iconoir-react";
 import { Helmet } from "react-helmet-async";
 import { Link, useParams } from "react-router-dom";
+import { Button } from "@akashnetwork/ui/components";
+import { ArrowLeft } from "iconoir-react";
 
 import GraphContainer from "./GraphContainer";
 

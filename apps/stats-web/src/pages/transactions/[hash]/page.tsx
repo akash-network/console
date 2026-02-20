@@ -1,6 +1,6 @@
-import { Alert, Card, CardContent, Spinner } from "@akashnetwork/ui/components";
 import { Helmet } from "react-helmet-async";
 import { useParams } from "react-router-dom";
+import { Alert, Card, CardContent, Spinner } from "@akashnetwork/ui/components";
 
 import { TransactionInfo } from "./TransactionInfo";
 

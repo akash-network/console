@@ -1,8 +1,8 @@
 import { FormattedNumber } from "react-intl";
+import { Link } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage, Badge, DataTableColumnHeader } from "@akashnetwork/ui/components";
 import type { AccessorColumnDef } from "@tanstack/react-table";
 import { User } from "iconoir-react";
-import { Link } from "react-router-dom";
 import { z } from "zod";
 
 import { AKTLabel } from "@/components/AKTLabel";

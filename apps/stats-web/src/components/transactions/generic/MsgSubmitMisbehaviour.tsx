@@ -1,4 +1,3 @@
-"use client";
 import { DynamicReactJson } from "../../DynamicJsonView";
 
 import type { TransactionMessage } from "@/types";

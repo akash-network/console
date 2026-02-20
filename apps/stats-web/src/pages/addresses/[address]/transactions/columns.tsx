@@ -1,7 +1,7 @@
 import { FormattedRelativeTime } from "react-intl";
+import { Link } from "react-router-dom";
 import { DataTableColumnHeader } from "@akashnetwork/ui/components";
 import type { AccessorColumnDef } from "@tanstack/react-table";
-import { Link } from "react-router-dom";
 
 import { TransactionTypeCell } from "./TransactionTypeCell";
 
