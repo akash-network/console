@@ -1,4 +1,3 @@
-import { PrometheusExporter } from "@opentelemetry/exporter-prometheus";
 import { HttpInstrumentation } from "@opentelemetry/instrumentation-http";
 import { NetInstrumentation } from "@opentelemetry/instrumentation-net";
 import { PgInstrumentation } from "@opentelemetry/instrumentation-pg";
@@ -9,10 +8,7 @@ import { containerDetector } from "@opentelemetry/resource-detector-container";
 import { envDetector, hostDetector, processDetector } from "@opentelemetry/resources";
 import { NodeSDK } from "@opentelemetry/sdk-node";
 
-export const prometheusExporter = new PrometheusExporter();
-
 export const sdk = new NodeSDK({
-  metricReaders: [prometheusExporter],
   instrumentations: [
     new RuntimeNodeInstrumentation({
       monitoringPrecision: 5000
