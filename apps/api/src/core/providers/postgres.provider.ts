@@ -9,6 +9,8 @@ import { container, inject, instancePerContainerCachingFactory } from "tsyringe"
 import * as authSchemas from "@src/auth/model-schemas";
 import * as billingSchemas from "@src/billing/model-schemas";
 import { DisposableRegistry } from "@src/core/lib/disposable-registry/disposable-registry";
+import type { AppInitializer } from "@src/core/providers/app-initializer";
+import { APP_INITIALIZER, ON_APP_START } from "@src/core/providers/app-initializer";
 import { PostgresLoggerService } from "@src/core/services/postgres-logger/postgres-logger.service";
 import * as deploymentSchemas from "@src/deployment/model-schemas";
 import * as userSchemas from "@src/user/model-schemas";
@@ -21,9 +23,29 @@ const APP_PG_CLIENT = Symbol("appPgClient") as InjectionToken<postgres.Sql>;
 container.register(APP_PG_CLIENT, {
   useFactory: instancePerContainerCachingFactory(c => {
     const config = c.resolve(CORE_CONFIG);
-    const client = postgres(config.POSTGRES_DB_URI, { max: config.POSTGRES_MAX_CONNECTIONS, onnotice: logger.info.bind(logger) });
+    const client = postgres(config.POSTGRES_DB_URI, {
+      max: config.POSTGRES_MAX_CONNECTIONS,
+      connect_timeout: config.POSTGRES_CONNECT_TIMEOUT,
+      idle_timeout: config.POSTGRES_IDLE_TIMEOUT,
+      max_lifetime: config.POSTGRES_MAX_LIFETIME,
+      onnotice: logger.info.bind(logger)
+    });
     c.resolve(DisposableRegistry).register({ dispose: () => client.end() });
     return client;
+  })
+});
+
+container.register(APP_INITIALIZER, {
+  useFactory: instancePerContainerCachingFactory(c => {
+    const client = c.resolve(APP_PG_CLIENT);
+    const config = c.resolve(CORE_CONFIG);
+    return {
+      async [ON_APP_START]() {
+        const warmCount = Math.min(config.POSTGRES_MAX_CONNECTIONS, 10);
+        await Promise.all(Array.from({ length: warmCount }, () => client.unsafe("SELECT 1")));
+        logger.info({ event: "PG_POOL_WARMED", connections: warmCount });
+      }
+    } satisfies AppInitializer;
   })
 });
 
