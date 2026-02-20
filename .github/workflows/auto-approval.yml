@@ -24,7 +24,7 @@ jobs:
           sha: ${{ github.event.workflow_run.head_sha }}
       - name: Evaluate auto-approval criteria
         id: evaluate
-        if: steps.associated-pr.outputs.number != ''
+        if: steps.associated-pr.outputs.number != '' && steps.associated-pr.outputs.closed != 'true'
         uses: actions/github-script@v7
         env:
           PR_NUMBER: ${{ steps.associated-pr.outputs.number }}
@@ -33,7 +33,7 @@ jobs:
           PR_AUTHOR: ${{ steps.associated-pr.outputs.author }}
           PR_HEAD_REPO: ${{ steps.associated-pr.outputs.head_repo }}
         with:
-          script: |
+          script: | # js
             const prNumber = parseInt(process.env.PR_NUMBER || "");
             const baseRepo = `${context.repo.owner}/${context.repo.repo}`;
             const headRepo = process.env.PR_HEAD_REPO ?? "";
@@ -87,9 +87,9 @@ jobs:
                 core.info("Skipping test: PR changes non-test files");
                 return;
               }
-            }
 
-            if (isDocs) {
+              core.setOutput("approval-reason", "all changes are related to tests");
+            } else if (isDocs) {
               const imagePattern = /\.(png|jpg|jpeg|gif|svg|webp|ico|bmp)$/i;
               const docsFilePattern = f => f.endsWith(".md") || imagePattern.test(f);
               const onlyDocFiles = filenames.every(docsFilePattern);
@@ -97,9 +97,9 @@ jobs:
                 core.info("Skipping docs: PR changes non-documentation files");
                 return;
               }
-            }
 
-            if (isChore) {
+              core.setOutput("approval-reason", "all changes are related to documentation");
+            } else if (isChore) {
               const sourceCodeFile = /\.(ts|tsx|js|jsx)$/;
               const touchesCode = filenames.some(f => {
                 return sourceCodeFile.test(f) && (f.includes("/packages/") || f.includes("/apps/"));
@@ -108,15 +108,29 @@ jobs:
                 core.info("Skipping chore: PR touches code files in packages/ or apps/");
                 return;
               }
+
+              core.setOutput("approval-reason", "chore that does not touch source code files");
             }
 
-            core.setOutput("can-approve", "true");
-            core.info(`PR #${prNumber} meets auto-approval criteria`);
       - name: Approve PR
-        if: steps.evaluate.outputs.can-approve == 'true'
+        if: steps.evaluate.outputs.approval-reason != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ steps.associated-pr.outputs.number }}
-          REPO: ${{ github.repository }}
-        run: |
-          gh pr review "$PR_NUMBER" -R "$REPO" --approve --body "Auto-approved: meets auto-approval criteria."
+          APPROVAL_REASON: ${{ steps.evaluate.outputs.approval-reason }}
+        run: | # shell
+          should_skip=$(gh pr view "$PR_NUMBER" \
+            -R "$GITHUB_REPOSITORY" \
+            --json closed,reviews \
+            --jq '.closed or any(
+              .reviews[];
+              .state == "APPROVED"
+              and .author.login == "github-actions[bot]"
+            )'
+          );
+
+          if [ "$should_skip" = "true" ]; then
+            echo "PR #$PR_NUMBER is already closed or approved, skipping approval";
+          else
+            gh pr review "$PR_NUMBER" -R "$GITHUB_REPOSITORY" --approve --body "Auto-approved: $APPROVAL_REASON."
+          fi
