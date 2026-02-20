@@ -10,6 +10,7 @@ import type { UserRepository } from "@src/user/repositories";
 import { StripeService } from "./stripe.service";
 
 import { generateDatabasePaymentMethod } from "@test/seeders/database-payment-method.seeder";
+import { generateDatabaseStripeTransaction } from "@test/seeders/database-stripe-transaction.seeder";
 import { generatePaymentMethod } from "@test/seeders/payment-method.seeder";
 import { create as StripeSeederCreate } from "@test/seeders/stripe.seeder";
 import {
@@ -88,7 +89,9 @@ describe(StripeService.name, () => {
       });
       expect(result).toEqual({
         success: true,
-        paymentIntentId: StripeSeederCreate().paymentIntent.id
+        paymentIntentId: StripeSeederCreate().paymentIntent.id,
+        transactionId: "test-transaction-id",
+        transactionStatus: "created"
       });
     });
   });
@@ -558,7 +561,9 @@ describe(StripeService.name, () => {
 
       expect(result).toEqual({
         coupon: mockPromotionCode,
-        amountAdded: 10 // 1000 cents = $10
+        amountAdded: 10, // 1000 cents = $10
+        transactionId: "test-transaction-id",
+        transactionStatus: "pending"
       });
     });
 
@@ -615,7 +620,9 @@ describe(StripeService.name, () => {
 
       expect(result).toEqual({
         coupon: mockCoupon,
-        amountAdded: 5 // 500 cents = $5
+        amountAdded: 5, // 500 cents = $5
+        transactionId: "test-transaction-id",
+        transactionStatus: "pending"
       });
     });
 
@@ -1405,6 +1412,55 @@ describe(StripeService.name, () => {
         "Payment intent does not reference the provided payment method"
       );
     });
+  });
+
+  describe("resolveTransaction", () => {
+    it("returns transaction once it reaches terminal status", async () => {
+      const { service, stripeTransactionRepository } = setup();
+      const terminalTransaction = generateDatabaseStripeTransaction({ id: "tx_1", status: "succeeded" });
+
+      stripeTransactionRepository.findById.mockResolvedValue(terminalTransaction);
+
+      const result = await service.resolveTransaction("tx_1");
+
+      expect(result).toEqual(terminalTransaction);
+      expect(stripeTransactionRepository.findById).toHaveBeenCalledWith("tx_1");
+    }, 10_000);
+
+    it("keeps polling until transaction reaches terminal status", async () => {
+      const { service, stripeTransactionRepository } = setup();
+      const pendingTransaction = generateDatabaseStripeTransaction({ id: "tx_1", status: "pending" });
+      const succeededTransaction = generateDatabaseStripeTransaction({ id: "tx_1", status: "succeeded" });
+
+      stripeTransactionRepository.findById
+        .mockResolvedValueOnce(pendingTransaction)
+        .mockResolvedValueOnce(pendingTransaction)
+        .mockResolvedValueOnce(succeededTransaction);
+
+      const result = await service.resolveTransaction("tx_1");
+
+      expect(result).toEqual(succeededTransaction);
+      expect(stripeTransactionRepository.findById).toHaveBeenCalledTimes(3);
+    }, 10_000);
+
+    it("throws 404 when transaction is not found", async () => {
+      const { service, stripeTransactionRepository } = setup();
+
+      stripeTransactionRepository.findById.mockResolvedValue(undefined);
+
+      await expect(service.resolveTransaction("tx_nonexistent")).rejects.toMatchObject({ status: 404 });
+    }, 10_000);
+
+    it("resolves with failed status as terminal", async () => {
+      const { service, stripeTransactionRepository } = setup();
+      const failedTransaction = generateDatabaseStripeTransaction({ id: "tx_1", status: "failed" });
+
+      stripeTransactionRepository.findById.mockResolvedValue(failedTransaction);
+
+      const result = await service.resolveTransaction("tx_1");
+
+      expect(result).toEqual(failedTransaction);
+    }, 10_000);
   });
 });
 
