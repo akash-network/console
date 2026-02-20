@@ -1,4 +1,5 @@
-import React, { lazy,Suspense } from "react";
+import React from "react";
+import { FormattedDate, FormattedRelativeTime } from "react-intl";
 import { Link } from "react-router-dom";
 import { Alert, AlertDescription, AlertTitle, Card, CardContent } from "@akashnetwork/ui/components";
 import { WarningCircle } from "iconoir-react";
@@ -13,9 +14,6 @@ interface IProps {
   transaction: TransactionDetail;
 }
 
-const FormattedRelativeTime = lazy(() => import("react-intl").then(mod => ({ default: mod.FormattedRelativeTime })));
-const FormattedDate = lazy(() => import("react-intl").then(mod => ({ default: mod.FormattedDate })));
-
 export function TransactionInfo({ transaction }: IProps) {
   return (
     <Card>
@@ -26,7 +24,7 @@ export function TransactionInfo({ transaction }: IProps) {
         <LabelValue
           label="Time"
           value={
-            <Suspense fallback={<span>Loading...</span>}>
+            <>
               <FormattedRelativeTime
                 value={(new Date(transaction.datetime).getTime() - new Date().getTime()) / 1000}
                 numeric="auto"
@@ -35,7 +33,7 @@ export function TransactionInfo({ transaction }: IProps) {
               />
               &nbsp;(
               <FormattedDate value={transaction.datetime} year="numeric" month="2-digit" day="2-digit" hour="2-digit" minute="2-digit" second="2-digit" />)
-            </Suspense>
+            </>
           }
         />
         <LabelValue label="Fee" value={<AKTAmount uakt={transaction.fee} showAKTLabel />} />

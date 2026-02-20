@@ -63,7 +63,7 @@ export const Nav = () => {
             <a target="_blank" rel="noreferrer" href="https://discord.akash.network" className="text-foreground">
               <Button variant="ghost" size="icon">
                 <Discord width="1.2rem" height="1.2rem" />
-                <span className="sr-only">Twitter</span>
+                <span className="sr-only">Discord</span>
               </Button>
             </a>
 

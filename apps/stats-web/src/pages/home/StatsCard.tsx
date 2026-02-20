@@ -16,7 +16,7 @@ interface IStatsCardProps {
   actionButton?: string | React.ReactNode;
 }
 
-export const StatsCard: React.FunctionComponent<IStatsCardProps> = ({ number, text, tooltip, actionButton, graphPath, diffNumber, diffPercent }) => {
+export const StatsCard: React.FunctionComponent<IStatsCardProps> = ({ number, text, tooltip, actionButton, graphPath, diffPercent }) => {
   return (
     <Card className="flex flex-col justify-between">
       <CardHeader className="flex flex-row items-center space-y-0 pb-4">
@@ -31,8 +31,10 @@ export const StatsCard: React.FunctionComponent<IStatsCardProps> = ({ number, te
         <div className="flex items-end">
           <div className="text-2xl font-bold leading-none">{number}</div>
 
-          {(!!diffNumber || !!diffPercent) && (
-            <div className="inline-flex items-end">{!!diffPercent && <DiffPercentageChip value={diffPercent} className="pl-2" />}</div>
+          {!!diffPercent && (
+            <div className="inline-flex items-end">
+              <DiffPercentageChip value={diffPercent} className="pl-2" />
+            </div>
           )}
         </div>
       </CardContent>

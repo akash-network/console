@@ -1,5 +1,4 @@
 import { FormattedTime } from "react-intl";
-import { Link } from "react-router-dom";
 import { TableCell, TableRow } from "@akashnetwork/ui/components";
 
 import { useFriendlyMessageType } from "@/hooks/useFriendlyMessageType";
@@ -18,9 +17,9 @@ export const EventRow = ({
   return (
     <TableRow>
       <TableCell>
-        <Link to={UrlService.transaction(event.txHash)} target="_blank">
+        <a href={UrlService.transaction(event.txHash)} target="_blank" rel="noopener noreferrer">
           {getSplitText(event.txHash, 6, 6)}
-        </Link>
+        </a>
       </TableCell>
       <TableCell align="center">{useFriendlyMessageType(event.type)}</TableCell>
       <TableCell align="center">

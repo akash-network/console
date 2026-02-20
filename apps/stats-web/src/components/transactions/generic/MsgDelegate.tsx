@@ -25,16 +25,6 @@ export const MsgDelegate: React.FunctionComponent<TxMessageProps> = ({ message }
         value={<Link to={UrlService.validator(message?.data?.validatorAddress)}>{message?.data?.validatorAddress}</Link>}
       />
       <LabelValue label="Amount" value={<AKTAmount uakt={coinsToAmount(message?.data?.amount, "uakt")} showAKTLabel showUSD />} />
-      {/* TODO: Add auto claim reward */}
-      {/* <MessageLabelValue
-      label="Auto Claim Reward"
-      value={
-        <>
-          {coinsToAmount(message?.data?.amount, "uakt", 6)}&nbsp;
-          <AKTLabel />
-        </>
-      }
-    /> */}
     </>
   );
 };

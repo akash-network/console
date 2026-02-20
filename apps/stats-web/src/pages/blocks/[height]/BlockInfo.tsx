@@ -15,7 +15,7 @@ export function BlockInfo({ block }: IProps) {
     <Card>
       <CardContent className="pt-6">
         <LabelValue label="Height" value={block.height} />
-        <LabelValue label="Poposer" value={<Link to={UrlService.validator(block.proposer.operatorAddress)}>{block.proposer.moniker}</Link>} />
+        <LabelValue label="Proposer" value={<Link to={UrlService.validator(block.proposer.operatorAddress)}>{block.proposer.moniker}</Link>} />
         <LabelValue
           label="Block Time"
           value={

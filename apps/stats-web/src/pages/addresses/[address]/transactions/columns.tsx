@@ -17,9 +17,9 @@ export const columns: AccessorColumnDef<TransactionRowType>[] = [
     enableHiding: false,
     header: ({ column }) => <DataTableColumnHeader column={column} title="Tx Hash" />,
     cell: ({ row }) => (
-      <Link to={UrlService.transaction(row.getValue("hash"))} target="_blank">
+      <a href={UrlService.transaction(row.getValue("hash"))} target="_blank" rel="noopener noreferrer">
         {getSplitText(row.getValue("hash"), 6, 6)}
-      </Link>
+      </a>
     )
   },
   {

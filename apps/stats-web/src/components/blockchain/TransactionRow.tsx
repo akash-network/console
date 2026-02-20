@@ -23,9 +23,9 @@ export const TransactionRow: React.FunctionComponent<Props> = ({ transaction, bl
   return (
     <TableRow>
       <TableCell>
-        <Link to={UrlService.transaction(transaction.hash)} target="_blank">
+        <a href={UrlService.transaction(transaction.hash)} target="_blank" rel="noopener noreferrer">
           {txHash}
-        </Link>
+        </a>
       </TableCell>
       <TableCell align="center">
         <Badge className="h-4 max-w-[120px] bg-primary">

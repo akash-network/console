@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => {
       }
     },
     define: {
-      "process.env.VITE_APP_VERSION": JSON.stringify(env.npm_package_version || "0.0.0")
+      "import.meta.env.VITE_APP_VERSION": JSON.stringify(env.npm_package_version || "0.0.0")
     },
     server: {
       port: 3001,
