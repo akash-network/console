@@ -52,8 +52,8 @@ jobs:
         run: |
           npm run lint -w apps/${{ inputs.app }} -- --quiet
 
-      # - uses: docker/setup-buildx-action@v3
-      #   if: ${{ steps.tests_details.outputs.requires_env_setup == 'true' }}
+      - uses: docker/setup-buildx-action@v3
+        if: ${{ steps.tests_details.outputs.requires_env_setup == 'true' }}
 
       - name: Normalize branch name
         if: ${{ steps.tests_details.outputs.requires_env_setup == 'true' }}
@@ -63,11 +63,11 @@ jobs:
 
       - name: Prepare tests environment
         if: ${{ steps.tests_details.outputs.requires_env_setup == 'true' }}
-        # env:
-        #   USE_DOCKER_BUILDKIT: 1
-        #   DOCKER_BUILDKIT_CACHE_SCOPE: ${{ github.workflow }}-${{ inputs.app }}
-        #   DOCKER_BUILDKIT_CACHE_FALLBACK_SCOPE: ${{ github.workflow }}-${{ inputs.app }}-${{ env.BRANCH_NAME_SAFE }}
-        #   BUILDX_BAKE_ENTITLEMENTS_FS: 0
+        env:
+          USE_DOCKER_BUILDKIT: 1
+          DOCKER_BUILDKIT_CACHE_SCOPE: ${{ github.workflow }}-${{ inputs.app }}
+          DOCKER_BUILDKIT_CACHE_FALLBACK_SCOPE: ${{ github.workflow }}-${{ inputs.app }}-${{ env.BRANCH_NAME_SAFE }}
+          BUILDX_BAKE_ENTITLEMENTS_FS: 0
         run: |
           npm run --if-present --workspace=apps/${{ inputs.app }} test:ci-setup
 
