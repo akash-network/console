@@ -97,13 +97,7 @@ export class ProviderService {
           continue;
         }
 
-        if (err instanceof AxiosError) {
-          if (!err.response) {
-            throw createError(503, "Provider proxy service is temporarily unavailable", {
-              originalError: err
-            });
-          }
-
+        if (err instanceof AxiosError && err.response) {
           const message = err.response.data?.message || err.response.data;
           let errorMessage = typeof message === "string" ? message : "Provider request failed";
           let status = err.response.status;
