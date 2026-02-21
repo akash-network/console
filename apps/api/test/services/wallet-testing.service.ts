@@ -67,7 +67,7 @@ export class WalletTestingService<T extends Hono<any>> {
       redirect_uri: redirectUri,
       audience: "my-audience",
       action: "signup",
-      nonce: "9iicXKCPLq68WIm8DPexHa4j7-qLqRpWXkxbOBjgrQI"
+      nonce: faker.string.alphanumeric(43)
     });
     const tokenResponse = await fetch(`${oauth2ServerUrl}/default/authorize?${requestParams}`, {
       method: "POST",
@@ -130,6 +130,10 @@ export class WalletTestingService<T extends Hono<any>> {
       })
     });
     const body = (await userResponse.json()) as { data: any };
+
+    if (!body.data.id) {
+      throw new Error("User registration failed");
+    }
 
     return { user: body.data, token: access_token };
   }
