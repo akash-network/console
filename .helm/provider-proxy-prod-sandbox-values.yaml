@@ -1,5 +1,5 @@
 deploymentEnv: production
 nodeOptions:
-  enabledOTEL: true
+  enabledOTEL: false
 
 chain: sandbox

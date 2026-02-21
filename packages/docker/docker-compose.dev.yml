@@ -7,6 +7,19 @@ services:
       - ../../packages:/app/packages
       - /app/node_modules
       - /app/apps/api/node_modules
+      - /app/packages/database/node_modules
+      - /app/packages/dev-config/node_modules
+      - /app/packages/docker/node_modules
+      - /app/packages/env-loader/node_modules
+      - /app/packages/http-sdk/node_modules
+      - /app/packages/instrumentation/node_modules
+      - /app/packages/logging/node_modules
+      - /app/packages/net/node_modules
+      - /app/packages/network-store/node_modules
+      - /app/packages/react-query-proxy/node_modules
+      - /app/packages/react-query-sdk/node_modules
+      - /app/packages/releaser/node_modules
+      - /app/packages/ui/node_modules
 
   tx-signer:
     build:
@@ -16,6 +29,19 @@ services:
       - ../../packages:/app/packages
       - /app/node_modules
       - /app/apps/tx-signer/node_modules
+      - /app/packages/database/node_modules
+      - /app/packages/dev-config/node_modules
+      - /app/packages/docker/node_modules
+      - /app/packages/env-loader/node_modules
+      - /app/packages/http-sdk/node_modules
+      - /app/packages/instrumentation/node_modules
+      - /app/packages/logging/node_modules
+      - /app/packages/net/node_modules
+      - /app/packages/network-store/node_modules
+      - /app/packages/react-query-proxy/node_modules
+      - /app/packages/react-query-sdk/node_modules
+      - /app/packages/releaser/node_modules
+      - /app/packages/ui/node_modules
 
   notifications:
     build:
@@ -25,6 +51,19 @@ services:
       - ../../packages:/app/packages
       - /app/node_modules
       - /app/apps/notifications/node_modules
+      - /app/packages/database/node_modules
+      - /app/packages/dev-config/node_modules
+      - /app/packages/docker/node_modules
+      - /app/packages/env-loader/node_modules
+      - /app/packages/http-sdk/node_modules
+      - /app/packages/instrumentation/node_modules
+      - /app/packages/logging/node_modules
+      - /app/packages/net/node_modules
+      - /app/packages/network-store/node_modules
+      - /app/packages/react-query-proxy/node_modules
+      - /app/packages/react-query-sdk/node_modules
+      - /app/packages/releaser/node_modules
+      - /app/packages/ui/node_modules
 
   indexer:
     build:
@@ -33,6 +72,19 @@ services:
       - ../../apps/indexer:/app/apps/indexer
       - /app/node_modules
       - /app/apps/indexer/node_modules
+      - /app/packages/database/node_modules
+      - /app/packages/dev-config/node_modules
+      - /app/packages/docker/node_modules
+      - /app/packages/env-loader/node_modules
+      - /app/packages/http-sdk/node_modules
+      - /app/packages/instrumentation/node_modules
+      - /app/packages/logging/node_modules
+      - /app/packages/net/node_modules
+      - /app/packages/network-store/node_modules
+      - /app/packages/react-query-proxy/node_modules
+      - /app/packages/react-query-sdk/node_modules
+      - /app/packages/releaser/node_modules
+      - /app/packages/ui/node_modules
 
   deploy-web:
     build:
@@ -43,6 +95,19 @@ services:
       - /app/apps/deploy-web/node_modules
       - /app/apps/deploy-web/.next
       - ../../packages:/app/packages
+      - /app/packages/database/node_modules
+      - /app/packages/dev-config/node_modules
+      - /app/packages/docker/node_modules
+      - /app/packages/env-loader/node_modules
+      - /app/packages/http-sdk/node_modules
+      - /app/packages/instrumentation/node_modules
+      - /app/packages/logging/node_modules
+      - /app/packages/net/node_modules
+      - /app/packages/network-store/node_modules
+      - /app/packages/react-query-proxy/node_modules
+      - /app/packages/react-query-sdk/node_modules
+      - /app/packages/releaser/node_modules
+      - /app/packages/ui/node_modules
 
   provider-proxy:
     build:
@@ -52,6 +117,19 @@ services:
       - /app/node_modules
       - /app/apps/provider-proxy/node_modules
       - ../../packages:/app/packages
+      - /app/packages/database/node_modules
+      - /app/packages/dev-config/node_modules
+      - /app/packages/docker/node_modules
+      - /app/packages/env-loader/node_modules
+      - /app/packages/http-sdk/node_modules
+      - /app/packages/instrumentation/node_modules
+      - /app/packages/logging/node_modules
+      - /app/packages/net/node_modules
+      - /app/packages/network-store/node_modules
+      - /app/packages/react-query-proxy/node_modules
+      - /app/packages/react-query-sdk/node_modules
+      - /app/packages/releaser/node_modules
+      - /app/packages/ui/node_modules
 
   stats-web:
     build:
@@ -61,6 +139,19 @@ services:
       - /app/node_modules
       - /app/apps/stats-web/node_modules
       - /app/apps/stats-web/.next
+      - /app/packages/database/node_modules
+      - /app/packages/dev-config/node_modules
+      - /app/packages/docker/node_modules
+      - /app/packages/env-loader/node_modules
+      - /app/packages/http-sdk/node_modules
+      - /app/packages/instrumentation/node_modules
+      - /app/packages/logging/node_modules
+      - /app/packages/net/node_modules
+      - /app/packages/network-store/node_modules
+      - /app/packages/react-query-proxy/node_modules
+      - /app/packages/react-query-sdk/node_modules
+      - /app/packages/releaser/node_modules
+      - /app/packages/ui/node_modules
 
   provider-console:
     build:
@@ -70,6 +161,19 @@ services:
       - /app/node_modules
       - /app/apps/provider-console/node_modules
       - /app/apps/provider-console/.next
+      - /app/packages/database/node_modules
+      - /app/packages/dev-config/node_modules
+      - /app/packages/docker/node_modules
+      - /app/packages/env-loader/node_modules
+      - /app/packages/http-sdk/node_modules
+      - /app/packages/instrumentation/node_modules
+      - /app/packages/logging/node_modules
+      - /app/packages/net/node_modules
+      - /app/packages/network-store/node_modules
+      - /app/packages/react-query-proxy/node_modules
+      - /app/packages/react-query-sdk/node_modules
+      - /app/packages/releaser/node_modules
+      - /app/packages/ui/node_modules
 
   mock-oauth2-server:
     image: ghcr.io/navikt/mock-oauth2-server:2.1.10
