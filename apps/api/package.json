@@ -27,7 +27,7 @@
     "test:ci-setup": "dc up -d --wait --wait-timeout 60 db mock-oauth2-server provider-proxy",
     "test:ci-teardown": "dc down",
     "test:component": "vitest run --project=unit --project=integration",
-    "test:cov": "vitest run --project=unit --project=functional --project=integration --coverage",
+    "test:cov": "vitest run --project=unit --project=functional --project=integration --coverage --reporter=default --reporter=junit",
     "test:e2e": "vitest run --project=e2e",
     "test:functional": "vitest run --project=functional",
     "test:functional:cov": "vitest run --project=functional --coverage",

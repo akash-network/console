@@ -32,6 +32,9 @@ export default defineConfig({
   test: {
     environment: "node",
     globals: true,
+    outputFile: {
+      junit: "junit.xml"
+    },
     coverage: {
       provider: "v8",
       include: ["src/**/*.ts"],
