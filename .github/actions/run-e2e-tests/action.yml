@@ -1,0 +1,40 @@
+name: "Run e2e tests"
+description: "Runs e2e tests for an app and sends a Slack notification on failure"
+
+inputs:
+  app:
+    description: "App name (dir in ./apps/*)"
+    required: true
+  app-url:
+    description: "URL of the deployed app, used for test failure notifications"
+    required: true
+  environment:
+    description: "Environment name (e.g., staging, prod)"
+    required: true
+  chain:
+    description: "Network chain (e.g., mainnet, sandbox)"
+    required: false
+    default: ""
+  slack-webhook-url:
+    description: "Slack webhook URL for failure notifications"
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - uses: ./.github/actions/setup-app-deps
+      with:
+        app: ${{ inputs.app }}
+    - name: Run e2e tests
+      id: e2e-tests
+      shell: bash
+      working-directory: apps/${{ inputs.app }}
+      run: npm run test:e2e
+    - uses: ./.github/actions/slack-tests-failed-notification
+      if: ${{ !cancelled() && steps.e2e-tests.outcome == 'failure' }}
+      with:
+        url: ${{ inputs.app-url }}
+        slack-webhook-url: ${{ inputs.slack-webhook-url }}
+        gh-user-to-slack-user: ${{ vars.GH_USER_TO_SLACK_USER }}
+        message-title: "Console ${{ inputs.app }} E2E tests failed on ${{ inputs.environment == 'prod' && 'production' || inputs.environment }} ${{ inputs.chain }}"

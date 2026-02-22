@@ -1,11 +1,9 @@
-import { faker } from "@faker-js/faker";
 import { ConstantBackoff, handleWhenResult, retry } from "cockatiel";
-import * as assert from "node:assert";
 import fs from "node:fs";
 import path from "node:path";
-import { beforeAll, describe, it } from "vitest";
+import { describe, expect, it } from "vitest";
+import { z } from "zod";
 
-import type { ApiKeyVisibleResponse } from "@src/auth/http-schemas/api-key.schema";
 import type { ListBidsResponse } from "@src/bid/http-schemas/bid.schema";
 import type { CreateCertificateResponse } from "@src/certificate/http-schemas/create-certificate.schema";
 import type {
@@ -14,36 +12,23 @@ import type {
   GetDeploymentResponse,
   UpdateDeploymentResponse
 } from "@src/deployment/http-schemas/deployment.schema";
-import { app, initDb } from "@src/rest-app";
 
-import { createDeployment as createDeploymentSeed, createDeploymentGroup, createLease as createLeaseSeed, createProvider } from "@test/seeders";
-import { AppHttpService } from "@test/services/app-http.service";
-import { topUpWallet } from "@test/services/topUpWallet";
-import { WalletTestingService } from "@test/services/wallet-testing.service";
-
-type ApiKey = NonNullable<ApiKeyVisibleResponse["data"]["apiKey"]>;
-type AuthType = "mTLS" | "JWT";
+import { requestApi } from "@test/services/api-client";
 
 describe("Managed Wallet API Deployment Flow", () => {
-  const http = new AppHttpService(app);
-
-  beforeAll(async () => {
-    await topUpWallet({ minAmount: 6_100_000 });
-  });
-
   /**
    * Authentication types supported by the test.
    * - mTLS: Mutual TLS authentication (deprecated, supported by all providers)
    * - JWT: JSON Web Token authentication (preferred, supported by providers with version >= 0.8.3-rc0)
    */
-  const authTypes: AuthType[] = ["mTLS", "JWT"];
+  const authTypes = ["mTLS", "JWT"] as const;
 
-  it.each(authTypes)("should execute a full deployment cycle with provider %s auth", { timeout: 180000 }, async auth => {
+  it.each(authTypes)("executes a full deployment cycle with provider %s auth", { timeout: 3 * 60 * 1000 }, async auth => {
     // Setup: Prepare test environment with providers, user, and API key
-    const { apiKey, walletAddress } = await setup();
+    const { apiKey } = await setup();
 
     // Step 1: Create deployment with SDL configuration
-    const deployment = await createDeployment(apiKey, walletAddress);
+    const deployment = await createDeployment(apiKey);
     expect(deployment).toMatchObject({
       dseq: expect.any(String),
       manifest: expect.any(String)
@@ -51,13 +36,12 @@ describe("Managed Wallet API Deployment Flow", () => {
 
     try {
       // Step 2: Wait for provider bids and select one supporting the target authentication type
-      const bid = await waitForBids(apiKey, deployment.dseq, auth);
+      const bid = (await waitForBids(apiKey, deployment.dseq, auth))!;
 
       expect(bid).toMatchObject({
         bid: expect.any(Object),
         isCertificateRequired: expect.any(Boolean)
       });
-      assert.ok(bid, "Bid not found");
 
       let certificate;
 
@@ -74,7 +58,7 @@ describe("Managed Wallet API Deployment Flow", () => {
       }
 
       // Step 4: Create lease and send manifest to provider using appropriate authentication
-      const lease = await createLease(apiKey, deployment, bid, walletAddress, certificate);
+      const lease = await createLease(apiKey, deployment, bid, certificate);
       expect(lease).toMatchObject({
         deployment: expect.objectContaining({
           id: expect.objectContaining({
@@ -174,90 +158,21 @@ describe("Managed Wallet API Deployment Flow", () => {
    *   - walletAddress: Wallet address from the created user
    */
   async function setup() {
-    await initDb();
-    await prepareIndexedProviders();
-    const { token, wallet } = await prepareUser();
-    const apiKey = await createApiKey(token);
+    const apiKey = z.string().parse(process.env.CONSOLE_API_E2E_API_KEY);
 
     return {
-      apiKey,
-      walletAddress: wallet.address
+      apiKey
     };
-  }
-
-  /**
-   * Prepares indexed providers for testing by creating provider records in the indexer database.
-   * Sets up both Europlots and Sandbox providers with their respective Akash versions.
-   * Handles duplicate provider creation gracefully by catching unique constraint errors.
-   */
-  async function prepareIndexedProviders(): Promise<void> {
-    try {
-      /**
-       * Real Akash sandbox providers used for testing.
-       * These are actual providers running on the Akash sandbox with their current versions
-       * as of the time this test was implemented.
-       */
-      const AKASH_SANDBOX_PROVIDER = {
-        owner: "akash1rk090a6mq9gvm0h6ljf8kz8mrxglwwxsk4srxh",
-        akashVersion: "0.8.3-rc10",
-        hostUri: "https://provider.provider-02.sandbox-01.aksh.pw:8443"
-      };
-      const AKASH_EUROPLOTS_PROVIDER = {
-        owner: "akash1d4fletej4cwn9x8jzpzmnk6zkqeh90ejjskpmu",
-        akashVersion: "0.6.11-rc1",
-        hostUri: "https://provider.europlots-sandbox.com:8443"
-      };
-      await Promise.all([AKASH_SANDBOX_PROVIDER, AKASH_EUROPLOTS_PROVIDER].map(async provider => createProvider(provider)));
-    } catch (e) {
-      if (!(e instanceof Error && e.name === "SequelizeUniqueConstraintError")) {
-        throw e;
-      }
-    }
-  }
-
-  /**
-   * Prepares a test user and wallet for testing purposes.
-   * Creates a user, wallet, and finishes the trial period.
-   * @returns Promise containing user, wallet, and authentication token
-   */
-  async function prepareUser() {
-    const walletService = new WalletTestingService(app);
-    const res = await walletService.createUserAndWallet();
-    await walletService.finishTrial(res.wallet);
-
-    return res;
-  }
-
-  /**
-   * Creates an API key for the authenticated user.
-   * @param token - Authentication token for the user
-   * @returns Promise resolving to the created API key
-   */
-  async function createApiKey(token: string): Promise<ApiKey> {
-    const { data } = await http.request<ApiKeyVisibleResponse>("/v1/api-keys", {
-      method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-      body: JSON.stringify({
-        data: {
-          name: "Test key"
-        }
-      })
-    });
-
-    return data.data.apiKey;
   }
 
   /**
    * Creates a new deployment using the provided API key.
    * Reads the SDL file and creates a deployment with a 5 AKT deposit.
    * Seeds the database with deployment and deployment group data, ensuring proper foreign key relationships.
-   * @param apiKey - API key for authentication
-   * @param walletAddress - Wallet address from setup
-   * @returns Promise resolving to the deployment data including dseq and manifest
    */
-  async function createDeployment(apiKey: string, walletAddress: string): Promise<CreateDeploymentResponse["data"]> {
+  async function createDeployment(apiKey: string): Promise<CreateDeploymentResponse["data"]> {
     const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
-    const { data } = await http.request<CreateDeploymentResponse>("/v1/deployments", {
+    const { data } = await requestApi<CreateDeploymentResponse>("/v1/deployments", {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -270,27 +185,6 @@ describe("Managed Wallet API Deployment Flow", () => {
         }
       })
     });
-
-    const deploymentDbId = faker.string.uuid();
-    await createDeploymentSeed({
-      id: deploymentDbId,
-      dseq: data.data.dseq,
-      deposit: 5,
-      balance: 5,
-      denom: "uakt",
-      owner: walletAddress
-    });
-
-    const deploymentGroup = await createDeploymentGroup({
-      id: faker.string.uuid(),
-      deploymentId: deploymentDbId,
-      dseq: data.data.dseq,
-      gseq: 1,
-      owner: walletAddress
-    });
-
-    (data.data as unknown as { _dbId: string; _deploymentGroupId: string })._dbId = deploymentDbId;
-    (data.data as unknown as { _dbId: string; _deploymentGroupId: string })._deploymentGroupId = deploymentGroup.id;
 
     return data.data;
   }
@@ -305,12 +199,12 @@ describe("Managed Wallet API Deployment Flow", () => {
    * @param targetAuthType - Target authentication type ("mTLS" or "JWT")
    * @returns Promise resolving to the first bid matching the auth type or undefined if none found
    */
-  async function waitForBids(apiKey: string, dseq: string, targetAuthType: AuthType): Promise<ListBidsResponse["data"][number] | undefined> {
+  async function waitForBids(apiKey: string, dseq: string, targetAuthType: (typeof authTypes)[number]): Promise<ListBidsResponse["data"][number] | undefined> {
     return retry(
       handleWhenResult(res => !res),
       { maxAttempts: 10, backoff: new ConstantBackoff(6_000) }
     ).execute(async () => {
-      const { data } = await http.request<ListBidsResponse>(`/v1/bids?dseq=${dseq}`, {
+      const { data } = await requestApi<ListBidsResponse>(`/v1/bids?dseq=${dseq}`, {
         headers: {
           "x-api-key": apiKey
         }
@@ -326,7 +220,7 @@ describe("Managed Wallet API Deployment Flow", () => {
    * @returns Promise resolving to the certificate data including certPem and encryptedKey
    */
   async function createCertificate(apiKey: string): Promise<CreateCertificateResponse["data"]> {
-    const { data } = await http.request<CreateCertificateResponse>("/v1/certificates", {
+    const { data } = await requestApi<CreateCertificateResponse>("/v1/certificates", {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -344,7 +238,6 @@ describe("Managed Wallet API Deployment Flow", () => {
    * @param apiKey - API key for authentication
    * @param deployment - Deployment data containing manifest, dseq, and database IDs
    * @param bid - Selected bid from a provider
-   * @param walletAddress - Wallet address from setup
    * @param certificate - Optional certificate data for mTLS authentication (required for providers with akash versions < 0.8.3-rc0)
    * @returns Promise resolving to the deployment data with lease information
    */
@@ -352,7 +245,6 @@ describe("Managed Wallet API Deployment Flow", () => {
     apiKey: string,
     deployment: CreateDeploymentResponse["data"],
     bid: ListBidsResponse["data"][number],
-    walletAddress: string,
     certificate?: CreateCertificateResponse["data"]
   ): Promise<GetDeploymentResponse["data"] | undefined> {
     const body = {
@@ -373,7 +265,7 @@ describe("Managed Wallet API Deployment Flow", () => {
         : undefined
     };
 
-    const { data } = await http.request<GetDeploymentResponse>("/v1/leases", {
+    const { data } = await requestApi<GetDeploymentResponse>("/v1/leases", {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -381,27 +273,6 @@ describe("Managed Wallet API Deployment Flow", () => {
       },
       body: JSON.stringify(body)
     });
-
-    if (!data?.data?.leases) {
-      console.error("Cannot create lease", data);
-      return undefined;
-    }
-
-    for (const lease of data.data.leases) {
-      await createLeaseSeed({
-        id: faker.string.uuid(),
-        dseq: lease.id.dseq,
-        gseq: lease.id.gseq,
-        oseq: lease.id.oseq,
-        providerAddress: lease.id.provider,
-        owner: walletAddress,
-        price: parseFloat(lease.price.amount),
-        denom: lease.price.denom,
-        deploymentId: (deployment as unknown as { _dbId: string })._dbId,
-        deploymentGroupId: (deployment as unknown as { _deploymentGroupId: string })._deploymentGroupId,
-        createdHeight: faker.number.int({ min: 1, max: 10000000 })
-      });
-    }
 
     return data.data;
   }
@@ -413,7 +284,7 @@ describe("Managed Wallet API Deployment Flow", () => {
    * @returns Promise resolving to the escrow account data after deposit
    */
   async function depositIntoDeployment(apiKey: string, dseq: string): Promise<DepositDeploymentResponse["data"]> {
-    const { data } = await http.request<DepositDeploymentResponse>("/v1/deposit-deployment", {
+    const { data } = await requestApi<DepositDeploymentResponse>("/v1/deposit-deployment", {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -441,7 +312,7 @@ describe("Managed Wallet API Deployment Flow", () => {
   async function updateDeployment(apiKey: string, dseq: string, certificate?: CreateCertificateResponse["data"]): Promise<UpdateDeploymentResponse["data"]> {
     const updatedYml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl-update.yml"), "utf8");
 
-    const { data } = await http.request<UpdateDeploymentResponse>(`/v1/deployments/${dseq}`, {
+    const { data } = await requestApi<UpdateDeploymentResponse>(`/v1/deployments/${dseq}`, {
       method: "PUT",
       headers: {
         "content-type": "application/json",
@@ -470,7 +341,7 @@ describe("Managed Wallet API Deployment Flow", () => {
    * @returns Promise resolving to the complete deployment details
    */
   async function getDeploymentDetails(apiKey: string, dseq: string): Promise<GetDeploymentResponse["data"]> {
-    const { data } = await http.request<GetDeploymentResponse>(`/v1/deployments/${dseq}`, {
+    const { data } = await requestApi<GetDeploymentResponse>(`/v1/deployments/${dseq}`, {
       method: "GET",
       headers: {
         "x-api-key": apiKey
@@ -487,7 +358,7 @@ describe("Managed Wallet API Deployment Flow", () => {
    * @returns Promise resolving to the response status
    */
   async function closeDeployment(apiKey: string, dseq: string): Promise<{ status: number }> {
-    const { response } = await http.request<void>(`/v1/deployments/${dseq}`, {
+    const { response } = await requestApi<void>(`/v1/deployments/${dseq}`, {
       method: "DELETE",
       headers: {
         "x-api-key": apiKey
