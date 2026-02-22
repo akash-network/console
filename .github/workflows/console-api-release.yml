@@ -66,25 +66,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: ./.github/actions/setup-app-deps
+      - uses: ./.github/actions/run-e2e-tests
+        env:
+          TEST_API_BASE_URL: ${{ vars.CONSOLE_WEB_BETA_URL }}/api-sandbox
+          CONSOLE_API_E2E_API_KEY: ${{ secrets.CONSOLE_API_E2E_BETA_SANDBOX_API_KEY }}
         with:
           app: api
-      - name: Run e2e tests
-        working-directory: apps/api
-        id: e2e-tests
-        env:
-          DEPLOYMENT_ENV: staging
-          NETWORK: sandbox
-          TEST_API_BASE_URL: ${{ vars.CONSOLE_WEB_BETA_URL }}/api-sandbox
-        run: npm run test:e2e
-
-      - uses: ./.github/actions/slack-tests-failed-notification
-        if: ${{ !cancelled() && steps.e2e-tests.outcome == 'failure' }}
-        with:
-          url: ${{ vars.CONSOLE_WEB_BETA_URL }}/api-sandbox
+          app-url: ${{ vars.CONSOLE_WEB_BETA_URL }}/api-sandbox
+          environment: staging
+          chain: sandbox
           slack-webhook-url: ${{ secrets.FAILED_E2E_TESTS_SLACK_WEBHOOK_URL }}
-          gh-user-to-slack-user: ${{ vars.GH_USER_TO_SLACK_USER }}
-          message-title: "Console API E2E tests failed on beta"
 
   deploy-prod-mainnet:
     permissions:

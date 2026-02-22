@@ -63,18 +63,19 @@ jobs:
       pull-requests: read
     needs: deploy-beta-sandbox
     name: Test beta sandbox
-    uses: ./.github/workflows/reusable-test-e2e.yml
-    secrets: inherit
-    with:
-      app: provider-proxy
-      app-url: ${{ vars.CONSOLE_WEB_BETA_URL }}/provider-proxy-sandbox
-      environment: staging
-      chain: sandbox
-      env: >-
-        {
-          "PROVIDER_PROXY_BASE_URL": "${{ vars.CONSOLE_WEB_BETA_URL }}/provider-proxy-sandbox",
-          "CONSOLE_API_BASE_URL": "${{ vars.CONSOLE_WEB_BETA_URL }}/api-sandbox"
-        }
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/run-e2e-tests
+        env:
+          SERVICE_BASE_URL: ${{ vars.CONSOLE_WEB_BETA_URL }}/provider-proxy-sandbox
+          CONSOLE_API_BASE_URL: ${{ vars.CONSOLE_WEB_BETA_URL }}/api-sandbox
+        with:
+          app: provider-proxy
+          app-url: ${{ vars.CONSOLE_WEB_BETA_URL }}/provider-proxy-sandbox
+          environment: staging
+          chain: sandbox
+          slack-webhook-url: ${{ secrets.FAILED_E2E_TESTS_SLACK_WEBHOOK_URL }}
 
   test-beta-mainnet:
     permissions:
@@ -82,17 +83,19 @@ jobs:
       pull-requests: read
     needs: deploy-beta-mainnet
     name: Test beta mainnet
-    uses: ./.github/workflows/reusable-test-e2e.yml
-    secrets: inherit
-    with:
-      app: provider-proxy
-      app-url: ${{ vars.CONSOLE_WEB_BETA_URL }}/provider-proxy-mainnet
-      environment: staging
-      chain: mainnet
-      env: >-
-        {
-          "CONSOLE_API_BASE_URL": "${{ vars.CONSOLE_WEB_BETA_URL }}/api-mainnet"
-        }
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/run-e2e-tests
+        env:
+          SERVICE_BASE_URL: ${{ vars.CONSOLE_WEB_BETA_URL }}/provider-proxy-mainnet
+          CONSOLE_API_BASE_URL: ${{ vars.CONSOLE_WEB_BETA_URL }}/api-mainnet
+        with:
+          app: provider-proxy
+          app-url: ${{ vars.CONSOLE_WEB_BETA_URL }}/provider-proxy-mainnet
+          environment: staging
+          chain: mainnet
+          slack-webhook-url: ${{ secrets.FAILED_E2E_TESTS_SLACK_WEBHOOK_URL }}
 
   deploy-prod-mainnet:
     permissions:
@@ -134,32 +137,16 @@ jobs:
       pull-requests: read
     needs: deploy-prod-sandbox
     name: Test prod sandbox
-    uses: ./.github/workflows/reusable-test-e2e.yml
-    secrets: inherit
-    with:
-      app: provider-proxy
-      app-url: ${{ vars.CONSOLE_WEB_URL }}/provider-proxy-sandbox
-      environment: production
-      chain: sandbox
-      env: >-
-        {
-          "CONSOLE_API_BASE_URL": "${{ vars.CONSOLE_WEB_URL }}/api-sandbox"
-        }
-
-  test-prod-mainnet:
-    permissions:
-      contents: read
-      pull-requests: read
-    needs: deploy-prod-mainnet
-    name: Test prod mainnet
-    uses: ./.github/workflows/reusable-test-e2e.yml
-    secrets: inherit
-    with:
-      app: provider-proxy
-      app-url: ${{ vars.CONSOLE_WEB_URL }}/provider-proxy-mainnet
-      environment: production
-      chain: mainnet
-      env: >-
-        {
-          "CONSOLE_API_BASE_URL": "${{ vars.CONSOLE_WEB_URL }}/api-mainnet"
-        }
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/run-e2e-tests
+        env:
+          SERVICE_BASE_URL: ${{ vars.CONSOLE_WEB_URL }}/provider-proxy-sandbox
+          CONSOLE_API_BASE_URL: ${{ vars.CONSOLE_WEB_URL }}/api-sandbox
+        with:
+          app: provider-proxy
+          app-url: ${{ vars.CONSOLE_WEB_URL }}/provider-proxy-sandbox
+          environment: prod
+          chain: sandbox
+          slack-webhook-url: ${{ secrets.FAILED_E2E_TESTS_SLACK_WEBHOOK_URL }}

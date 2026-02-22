@@ -1,11 +1,13 @@
-import { apiClient } from "@test/services/api-client";
+import { describe, expect, it } from "vitest";
 
-describe("app", () => {
+import { requestApi } from "@test/services/api-client";
+
+describe.concurrent("app", () => {
   describe("GET /status", () => {
     it("returns app stats and meta", async () => {
-      const res = await apiClient.get("/status");
+      const { response: res, data } = await requestApi("/status");
       expect(res.status).toBe(200);
-      expect(res.data).toMatchObject({
+      expect(data).toMatchObject({
         memory: {
           external: expect.stringMatching(/^[0-9.]+ (M|G)B$/),
           heapTotal: expect.stringMatching(/^[0-9.]+ (M|G)B$/),
