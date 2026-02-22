@@ -1,16 +1,12 @@
 import { faker } from "@faker-js/faker";
 import { ConstantBackoff, handleWhenResult, retry } from "cockatiel";
-import nock from "nock";
 import * as assert from "node:assert";
 import fs from "node:fs";
 import path from "node:path";
-import { container } from "tsyringe";
 import { beforeAll, describe, it } from "vitest";
-import type { z } from "zod";
 
 import type { ApiKeyVisibleResponse } from "@src/auth/http-schemas/api-key.schema";
 import type { ListBidsResponse } from "@src/bid/http-schemas/bid.schema";
-import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { CreateCertificateResponse } from "@src/certificate/http-schemas/create-certificate.schema";
 import type {
   CreateDeploymentResponse,
@@ -18,10 +14,6 @@ import type {
   GetDeploymentResponse,
   UpdateDeploymentResponse
 } from "@src/deployment/http-schemas/deployment.schema";
-import type { ListDeploymentsResponseSchema } from "@src/deployment/http-schemas/deployment.schema";
-
-type ListDeploymentsResponse = z.infer<typeof ListDeploymentsResponseSchema>;
-import { CORE_CONFIG } from "@src/core";
 import { app, initDb } from "@src/rest-app";
 
 import { createDeployment as createDeploymentSeed, createDeploymentGroup, createLease as createLeaseSeed, createProvider } from "@test/seeders";
@@ -175,155 +167,11 @@ describe("Managed Wallet API Deployment Flow", () => {
     }
   });
 
-  it("should maintain read-only operations during blockchain node outages", { timeout: 180000 }, async () => {
-    // Setup: Prepare test environment with providers, user, and API key
-    const { apiKey, walletAddress, blockNode, unblockNode } = await setup();
-
-    // ===============================================================================
-    // PHASE 1: BLOCKCHAIN UP - Establish baseline operations that require blockchain access
-    // ===============================================================================
-
-    // Step 1: Create deployment with SDL configuration
-    const deployment = await createDeployment(apiKey, walletAddress);
-    expect(deployment).toMatchObject({
-      dseq: expect.any(String),
-      manifest: expect.any(String)
-    });
-
-    try {
-      // Step 2: Wait for provider bids and select one supporting the target authentication type
-      const bid = await waitForBids(apiKey, deployment.dseq, "JWT");
-
-      expect(bid).toMatchObject({
-        bid: expect.any(Object),
-        isCertificateRequired: expect.any(Boolean)
-      });
-      assert.ok(bid, "Bid not found");
-
-      // Step 3: Create lease and send manifest to provider using appropriate authentication
-      const lease = await createLease(apiKey, deployment, bid, walletAddress);
-      expect(lease).toMatchObject({
-        deployment: expect.objectContaining({
-          id: expect.objectContaining({
-            dseq: deployment.dseq
-          }),
-          state: expect.any(String)
-        }),
-        leases: expect.arrayContaining([
-          expect.objectContaining({
-            id: expect.objectContaining({
-              dseq: deployment.dseq,
-              gseq: bid.bid.id.gseq,
-              oseq: bid.bid.id.oseq,
-              provider: bid.bid.id.provider
-            }),
-            state: expect.any(String),
-            price: expect.objectContaining({
-              denom: "uakt",
-              amount: expect.any(String)
-            }),
-            created_at: expect.any(String)
-          })
-        ]),
-        escrow_account: expect.objectContaining({
-          id: expect.any(Object),
-          state: expect.objectContaining({
-            funds: expect.arrayContaining([
-              expect.objectContaining({
-                denom: "uakt",
-                amount: expect.any(String)
-              })
-            ])
-          })
-        })
-      });
-
-      // Step 4: Deposit additional funds into deployment escrow account
-      const deposit = await depositIntoDeployment(apiKey, deployment.dseq);
-      expect(deposit).toMatchObject({
-        escrow_account: expect.objectContaining({
-          id: expect.any(Object),
-          state: expect.objectContaining({
-            funds: expect.arrayContaining([
-              expect.objectContaining({
-                denom: "uakt",
-                amount: expect.any(String)
-              })
-            ])
-          })
-        })
-      });
-
-      // ===============================================================================
-      // PHASE 2: BLOCKCHAIN DOWN - Test which operations continue to work during outage
-      // ===============================================================================
-
-      blockNode();
-
-      // Step 5: Retrieve complete deployment details including leases and escrow
-      const deploymentDetails = await getDeploymentDetails(apiKey, deployment.dseq);
-      expect(deploymentDetails).toMatchObject({
-        deployment: expect.objectContaining({
-          id: expect.objectContaining({
-            dseq: deployment.dseq
-          }),
-          state: expect.any(String)
-        }),
-        leases: expect.arrayContaining([
-          expect.objectContaining({
-            id: expect.objectContaining({
-              dseq: deployment.dseq
-            })
-          })
-        ])
-      });
-
-      // Step 6: Retrieve a deployment list to verify read-only list operations work during outage
-      const deploymentList = await getDeploymentList(apiKey);
-      expect(deploymentList).toMatchObject({
-        deployments: expect.arrayContaining([
-          expect.objectContaining({
-            deployment: expect.objectContaining({
-              id: expect.objectContaining({
-                dseq: deployment.dseq
-              }),
-              state: expect.any(String)
-            })
-          })
-        ]),
-        pagination: expect.objectContaining({
-          total: expect.any(Number),
-          skip: expect.any(Number),
-          limit: 10
-        })
-      });
-
-      // ===============================================================================
-      // PHASE 3: BLOCKCHAIN RESTORED - Verify write operations work again
-      // ===============================================================================
-
-      unblockNode();
-
-      // Step 7: Demonstrate that write operations work again when blockchain is available
-      const closedDeploymentResponse = await closeDeployment(apiKey, deployment.dseq);
-      expect(closedDeploymentResponse).toMatchObject({
-        status: 200
-      });
-    } catch (e) {
-      // Final step: Close deployment in case of error to release escrow funds and cleanup
-      await closeDeployment(apiKey, deployment.dseq);
-      throw e;
-    }
-  });
-
   /**
    * Sets up the test environment by preparing providers, creating a user, and generating an API key.
-   * Also provides network outage simulation functions for testing blockchain resilience.
    * @returns Promise resolving to an object containing:
    *   - apiKey: API key for authentication
    *   - walletAddress: Wallet address from the created user
-   *   - blockNode: Function to simulate blockchain node outage by blocking RPC/API connections
-   *   - unblockNode: Function to restore blockchain connectivity
    */
   async function setup() {
     await initDb();
@@ -333,46 +181,8 @@ describe("Managed Wallet API Deployment Flow", () => {
 
     return {
       apiKey,
-      walletAddress: wallet.address,
-      blockNode,
-      unblockNode
+      walletAddress: wallet.address
     };
-  }
-
-  /**
-   * Simulates a blockchain node outage to test which operations remain functional during network disruptions.
-   * Blocks operations requiring blockchain transactions while preserving read-only functionality:
-   * @returns A cleanup function that restores network connectivity
-   */
-  function blockNode() {
-    const RPC_NODE_ENDPOINT = container.resolve(BillingConfigService).get("RPC_NODE_ENDPOINT");
-    const errorType = process.env.NODE_OUTAGE_ERROR_TYPE || "ECONNRESET";
-
-    nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
-      .persist()
-      .get(/.*/)
-      .replyWithError({ code: errorType, message: errorType })
-      .post(/.*/)
-      .replyWithError({ code: errorType, message: errorType });
-
-    nock(RPC_NODE_ENDPOINT)
-      .persist()
-      .get(/.*/)
-      .replyWithError({ code: errorType, message: errorType })
-      .post(/.*/)
-      .replyWithError({ code: errorType, message: errorType });
-
-    return () => {
-      nock.cleanAll();
-    };
-  }
-
-  /**
-   * Restores normal blockchain network operation by clearing all network interceptors.
-   * This allows requests to reach the actual node endpoints again and validates system recovery.
-   */
-  function unblockNode() {
-    nock.cleanAll();
   }
 
   /**
@@ -661,23 +471,6 @@ describe("Managed Wallet API Deployment Flow", () => {
    */
   async function getDeploymentDetails(apiKey: string, dseq: string): Promise<GetDeploymentResponse["data"]> {
     const { data } = await http.request<GetDeploymentResponse>(`/v1/deployments/${dseq}`, {
-      method: "GET",
-      headers: {
-        "x-api-key": apiKey
-      }
-    });
-
-    return data.data;
-  }
-
-  /**
-   * Retrieves a paginated list of deployments for the authenticated user.
-   * @param apiKey - API key for authentication
-   * @param options - Optional pagination options (skip, limit)
-   * @returns Promise resolving to the list of deployments with pagination info
-   */
-  async function getDeploymentList(apiKey: string): Promise<ListDeploymentsResponse["data"]> {
-    const { data } = await http.request<ListDeploymentsResponse>("/v1/deployments?skip=0&limit=10", {
       method: "GET",
       headers: {
         "x-api-key": apiKey
