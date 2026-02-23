@@ -1,20 +1,55 @@
 "use client";
-import React from "react";
+import React, { useMemo } from "react";
 import type { PaymentMethod } from "@akashnetwork/http-sdk";
 import { Badge, Button, Card, CardDescription, CardHeader, CardTitle, RadioGroupItem } from "@akashnetwork/ui/components";
 import { CheckCircle, CreditCard } from "iconoir-react";
+
+import { capitalizeFirstLetter } from "@src/utils/stringUtils";
+
+export const DEPENDENCIES = {
+  Badge,
+  Button,
+  Card,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  RadioGroupItem,
+  CheckCircle,
+  CreditCard
+};
+
+function getPaymentMethodDisplay(method: PaymentMethod): { label: string; expiry: string | null } {
+  if (method.card) {
+    return {
+      label: `${method.card.brand?.toUpperCase() || ""} •••• ${method.card.last4 || ""}`,
+      expiry: `Expires ${method.card.exp_month}/${method.card.exp_year}`
+    };
+  }
+
+  if (method.type === "link") {
+    const email = method.link?.email;
+    return {
+      label: email ? `Link (${email})` : "Link",
+      expiry: null
+    };
+  }
+
+  return {
+    label: capitalizeFirstLetter(method.type),
+    expiry: null
+  };
+}
 
 interface PaymentMethodCardProps {
   method: PaymentMethod;
   isRemoving: boolean;
   onRemove: (paymentMethodId: string) => void;
-  // Selection mode props
   isSelectable?: boolean;
   isSelected?: boolean;
   onSelect?: (paymentMethodId: string) => void;
-  // Display mode props
   showValidationBadge?: boolean;
   isTrialing?: boolean;
+  dependencies?: typeof DEPENDENCIES;
 }
 
 export const PaymentMethodCard: React.FC<PaymentMethodCardProps> = ({
@@ -25,7 +60,8 @@ export const PaymentMethodCard: React.FC<PaymentMethodCardProps> = ({
   isSelected = false,
   onSelect,
   showValidationBadge = true,
-  isTrialing = false
+  isTrialing = false,
+  dependencies: d = DEPENDENCIES
 }) => {
   const handleCardClick = () => {
     if (isSelectable && onSelect) {
@@ -38,6 +74,8 @@ export const PaymentMethodCard: React.FC<PaymentMethodCardProps> = ({
     onRemove(method.id);
   };
 
+  const display = useMemo(() => getPaymentMethodDisplay(method), [method]);
+
   if (isSelectable) {
     // Selection mode - used in payment page
     return (
@@ -48,22 +86,18 @@ export const PaymentMethodCard: React.FC<PaymentMethodCardProps> = ({
         onClick={handleCardClick}
       >
         <div className="flex items-center gap-4">
-          <RadioGroupItem value={method.id} id={method.id} />
+          <d.RadioGroupItem value={method.id} id={method.id} />
           <div className="flex items-center gap-4">
             <div>
-              <div className="text-base font-medium">
-                {method.card?.brand?.toUpperCase()} •••• {method.card?.last4}
-              </div>
-              <div className="text-sm text-muted-foreground">
-                Expires {method.card?.exp_month}/{method.card?.exp_year}
-              </div>
+              <div className="text-base font-medium">{display.label}</div>
+              {display.expiry && <div className="text-sm text-muted-foreground">{display.expiry}</div>}
             </div>
           </div>
         </div>
         {!isTrialing && (
-          <Button variant="ghost" size="sm" onClick={handleRemoveClick} disabled={isRemoving}>
+          <d.Button variant="ghost" size="sm" onClick={handleRemoveClick} disabled={isRemoving}>
             Remove
-          </Button>
+          </d.Button>
         )}
       </div>
     );
@@ -71,34 +105,30 @@ export const PaymentMethodCard: React.FC<PaymentMethodCardProps> = ({
 
   // Display mode - used in onboarding
   return (
-    <Card className="relative">
-      <CardHeader>
+    <d.Card className="relative">
+      <d.CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="rounded-full bg-primary/10 p-2">
-              <CreditCard className="h-5 w-5 text-primary" />
+              <d.CreditCard className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <CardTitle className="text-left text-base">
-                {method.card?.brand?.toUpperCase()} •••• {method.card?.last4}
-              </CardTitle>
-              <CardDescription>
-                Expires {method.card?.exp_month}/{method.card?.exp_year}
-              </CardDescription>
+              <d.CardTitle className="text-left text-base">{display.label}</d.CardTitle>
+              {display.expiry && <d.CardDescription>{display.expiry}</d.CardDescription>}
             </div>
           </div>
           <div className="flex items-center gap-2">
             {showValidationBadge && method.validated && (
-              <Badge variant="success" className="flex items-center p-1">
-                <CheckCircle className="h-4 w-4" />
-              </Badge>
+              <d.Badge variant="success" className="flex items-center p-1">
+                <d.CheckCircle className="h-4 w-4" />
+              </d.Badge>
             )}
-            <Button onClick={handleRemoveClick} variant="ghost" size="sm" disabled={isRemoving} className="text-muted-foreground">
+            <d.Button onClick={handleRemoveClick} variant="ghost" size="sm" disabled={isRemoving} className="text-muted-foreground">
               Remove
-            </Button>
+            </d.Button>
           </div>
         </div>
-      </CardHeader>
-    </Card>
+      </d.CardHeader>
+    </d.Card>
   );
 };

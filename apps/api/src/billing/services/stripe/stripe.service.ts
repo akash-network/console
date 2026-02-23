@@ -1,5 +1,6 @@
 import type { AnyAbility } from "@casl/ability";
 import { ConstantBackoff, handleWhenResult, retry, TaskCancelledError, timeout, TimeoutStrategy, wrap } from "cockatiel";
+import crypto from "crypto";
 import { stringify } from "csv-stringify";
 import assert from "http-assert";
 import difference from "lodash/difference";
@@ -156,9 +157,9 @@ export class StripeService extends Stripe {
       return { ...remote, validated: local.isValidated, isDefault: local.isDefault };
     }
 
-    const fingerprint = remote.card?.fingerprint;
+    const fingerprint = this.extractFingerprint(remote);
 
-    assert(fingerprint, 403, "Payment method fingerprint is missing");
+    assert(fingerprint, 403, "Payment method cannot be set as default. No identifiable fingerprint found.");
 
     const newLocal = await this.paymentMethodRepository.accessibleBy(ability, "create").createAsDefault({
       userId: user.id,
@@ -555,7 +556,12 @@ export class StripeService extends Stripe {
       currency: charge.currency,
       status: charge.status,
       created: charge.created,
-      paymentMethod: charge.payment_method_details,
+      paymentMethod: charge.payment_method_details
+        ? {
+            ...charge.payment_method_details,
+            link: charge.payment_method_details.link ? { email: undefined } : undefined
+          }
+        : null,
       receiptUrl: charge.receipt_url,
       description: charge.description,
       metadata: charge.metadata
@@ -748,7 +754,7 @@ export class StripeService extends Stripe {
       currentUserId
     });
 
-    const fingerprints = paymentMethods.map(paymentMethod => paymentMethod.card?.fingerprint).filter(Boolean) as string[];
+    const fingerprints = paymentMethods.map(paymentMethod => this.extractFingerprint(paymentMethod)).filter(Boolean) as string[];
 
     if (!fingerprints.length) {
       return false;
@@ -984,6 +990,16 @@ export class StripeService extends Stripe {
         error: validationError
       });
       // Don't fail the test charge if validation update fails - the card is still valid
+    }
+  }
+
+  extractFingerprint(paymentMethod: Stripe.PaymentMethod): string | undefined {
+    if (paymentMethod.card?.fingerprint) {
+      return paymentMethod.card.fingerprint;
+    }
+
+    if (paymentMethod.type === "link" && paymentMethod.link?.email) {
+      return `link_${crypto.createHash("sha256").update(paymentMethod.link.email.toLowerCase()).digest("hex")}`;
     }
   }
 }

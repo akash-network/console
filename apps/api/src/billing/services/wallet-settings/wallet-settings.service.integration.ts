@@ -83,7 +83,8 @@ describe(WalletSettingService.name, () => {
         expect.objectContaining({
           id: newSetting.id,
           userId: user.id
-        })
+        }),
+        { withCleanup: true }
       );
     });
 
@@ -139,7 +140,8 @@ describe(WalletSettingService.name, () => {
         expect.objectContaining({
           id: updatedSetting.id,
           userId: user.id
-        })
+        }),
+        { withCleanup: true }
       );
     });
 

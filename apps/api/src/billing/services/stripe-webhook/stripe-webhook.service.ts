@@ -382,16 +382,17 @@ export class StripeWebhookService {
       return;
     }
 
-    const fingerprint = paymentMethod.card?.fingerprint;
+    assertIsPayingUser(user);
+
+    const fingerprint = this.stripe.extractFingerprint(paymentMethod);
     if (!fingerprint) {
       this.logger.error({
         event: "PAYMENT_METHOD_MISSING_FINGERPRINT",
-        paymentMethodId: paymentMethod.id
+        paymentMethodId: paymentMethod.id,
+        type: paymentMethod.type
       });
       return;
     }
-
-    assertIsPayingUser(user);
 
     // Use upsert for idempotency - handles Stripe webhook retries gracefully
     const { paymentMethod: localPaymentMethod, isNew } = await this.paymentMethodRepository.upsert({
@@ -428,7 +429,7 @@ export class StripeWebhookService {
   async handlePaymentMethodDetached(event: Stripe.PaymentMethodDetachedEvent) {
     const paymentMethod = event.data.object;
     const customerId = paymentMethod.customer || event.data.previous_attributes?.customer;
-    const fingerprint = paymentMethod.card?.fingerprint;
+    const fingerprint = this.stripe.extractFingerprint(paymentMethod);
 
     this.logger.info({
       event: "PAYMENT_METHOD_DETACHED",
@@ -440,7 +441,8 @@ export class StripeWebhookService {
     if (!fingerprint) {
       this.logger.warn({
         event: "PAYMENT_METHOD_DETACHED_NO_FINGERPRINT",
-        paymentMethodId: paymentMethod.id
+        paymentMethodId: paymentMethod.id,
+        type: paymentMethod.type
       });
       return;
     }

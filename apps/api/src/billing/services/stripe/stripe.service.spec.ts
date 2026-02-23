@@ -1,4 +1,5 @@
 import { createMongoAbility } from "@casl/ability";
+import crypto from "crypto";
 import type Stripe from "stripe";
 import { mock } from "vitest-mock-extended";
 
@@ -126,6 +127,43 @@ describe(StripeService.name, () => {
         nextPage: mockCharge.id,
         prevPage: null
       });
+    });
+
+    it("sanitizes link email from payment method details", async () => {
+      const { service } = setup();
+      const mockCharge = createTestCharge({
+        id: "ch_link",
+        payment_method_details: { type: "link", link: { email: "user@test.com" } } as unknown as Stripe.Charge.PaymentMethodDetails
+      });
+      const mockCharges = {
+        data: [mockCharge],
+        has_more: false
+      } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Charge>>;
+
+      jest.spyOn(service.charges, "list").mockResolvedValue(mockCharges);
+
+      const result = await service.getCustomerTransactions(TEST_CONSTANTS.CUSTOMER_ID);
+      expect(result.transactions[0].paymentMethod).toEqual({
+        type: "link",
+        link: { email: undefined }
+      });
+    });
+
+    it("returns null paymentMethod when payment_method_details is null", async () => {
+      const { service } = setup();
+      const mockCharge = createTestCharge({
+        id: "ch_null_pm",
+        payment_method_details: null as unknown as Stripe.Charge.PaymentMethodDetails
+      });
+      const mockCharges = {
+        data: [mockCharge],
+        has_more: false
+      } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Charge>>;
+
+      jest.spyOn(service.charges, "list").mockResolvedValue(mockCharges);
+
+      const result = await service.getCustomerTransactions(TEST_CONSTANTS.CUSTOMER_ID);
+      expect(result.transactions[0].paymentMethod).toBeNull();
     });
 
     it("calls charges.list with endingBefore parameter", async () => {
@@ -979,6 +1017,52 @@ describe(StripeService.name, () => {
       // Extract only the fingerprints that are not null/undefined from the actual payment methods
       const expectedFingerprints = paymentMethods.map(pm => pm.card?.fingerprint).filter(Boolean) as string[];
       expect(paymentMethodRepository.findOthersTrialingByFingerprint).toHaveBeenCalledWith(expectedFingerprints, currentUserId);
+    });
+
+    it("should extract fingerprint from link payment method email", async () => {
+      const { service, paymentMethodRepository } = setup();
+      const currentUserId = TEST_CONSTANTS.USER_ID;
+      const expectedFingerprint = `link_${crypto.createHash("sha256").update("user@test.com").digest("hex")}`;
+      const paymentMethods = [
+        generatePaymentMethod({
+          id: "pm_link",
+          type: "link",
+          card: null,
+          link: { email: "User@Test.com" }
+        } as unknown as Parameters<typeof generatePaymentMethod>[0])
+      ];
+
+      paymentMethodRepository.findOthersTrialingByFingerprint.mockResolvedValue(undefined);
+
+      const result = await service.hasDuplicateTrialAccount(paymentMethods, currentUserId);
+
+      expect(result).toBe(false);
+      expect(paymentMethodRepository.findOthersTrialingByFingerprint).toHaveBeenCalledWith([expectedFingerprint], currentUserId);
+    });
+
+    it("should handle mixed card and link payment methods", async () => {
+      const { service, paymentMethodRepository } = setup();
+      const currentUserId = TEST_CONSTANTS.USER_ID;
+      const expectedLinkFingerprint = `link_${crypto.createHash("sha256").update("user@test.com").digest("hex")}`;
+      const paymentMethods = [
+        generatePaymentMethod({
+          id: "pm_card",
+          card: { fingerprint: "fp_card_123" }
+        }),
+        generatePaymentMethod({
+          id: "pm_link",
+          type: "link",
+          card: null,
+          link: { email: "user@test.com" }
+        } as unknown as Parameters<typeof generatePaymentMethod>[0])
+      ];
+
+      paymentMethodRepository.findOthersTrialingByFingerprint.mockResolvedValue(undefined);
+
+      const result = await service.hasDuplicateTrialAccount(paymentMethods, currentUserId);
+
+      expect(result).toBe(false);
+      expect(paymentMethodRepository.findOthersTrialingByFingerprint).toHaveBeenCalledWith(["fp_card_123", expectedLinkFingerprint], currentUserId);
     });
 
     it("should resolve with false provided empty payment methods array", async () => {
