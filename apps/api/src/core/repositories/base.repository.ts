@@ -184,6 +184,14 @@ export abstract class BaseRepository<
     await this.cursor.delete(this.table).where(this.whereAccessibleBy(where));
   }
 
+  async count(query?: Partial<Output>): Promise<number> {
+    const [result] = await this.cursor
+      .select({ count: sql<number>`count(*)::int` })
+      .from(this.table)
+      .where(this.queryToWhere(query));
+    return result?.count ?? 0;
+  }
+
   async deleteBy(query: Partial<Output>, options?: MutationOptions): Promise<Output>;
   async deleteBy(query: Partial<Output>): Promise<void>;
   async deleteBy(query: Partial<Output>, options?: MutationOptions): Promise<void | Output> {

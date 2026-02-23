@@ -141,11 +141,11 @@ describe(UserTemplatesService.name, () => {
         description: faker.lorem.sentence()
       };
 
-      userTemplateRepository.updateById.mockResolvedValue();
+      userTemplateRepository.updateTemplate.mockResolvedValue();
 
       await service.update(id, userId, data);
 
-      expect(userTemplateRepository.updateById).toHaveBeenCalledWith(id, userId, data);
+      expect(userTemplateRepository.updateTemplate).toHaveBeenCalledWith(id, userId, data);
     });
   });
 
