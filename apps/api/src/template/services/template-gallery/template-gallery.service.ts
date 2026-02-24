@@ -13,21 +13,21 @@ import { GitHubArchiveService } from "../github-archive/github-archive.service.t
 import { REPOSITORIES, TemplateFetcherService } from "../template-fetcher/template-fetcher.service.ts";
 import { TemplateProcessorService } from "../template-processor/template-processor.service.ts";
 
-export const DEFAULT_RECOMMENDED_TEMPLATE_IDS = new Set([
+const DEFAULT_RECOMMENDED_TEMPLATE_IDS = new Set([
   "akash-network-awesome-akash-openclaw",
   "akash-network-awesome-akash-comfyui",
   "akash-network-awesome-akash-DeepSeek-V3.1",
   "akash-network-awesome-akash-DeepSeek-R1"
 ]);
 
-export const DEFAULT_MOST_POPULAR_TEMPLATE_IDS = new Set([
+const DEFAULT_MOST_POPULAR_TEMPLATE_IDS = new Set([
   "akash-network-awesome-akash-openclaw",
   "akash-network-awesome-akash-ssh-ubuntu",
   "akash-network-awesome-akash-comfyui",
   "akash-network-awesome-akash-DeepSeek-V3.1"
 ]);
 
-export const DEFAULT_CATEGORY_PRIORITY: Record<string, number> = {
+const DEFAULT_CATEGORY_PRIORITY: Record<string, number> = {
   "AI - GPU": 0,
   "AI - CPU": 1,
   "Machine Learning": 2,
