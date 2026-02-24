@@ -12,7 +12,9 @@ const RequestPayload = addProviderAuthValidation(
   providerRequestSchema.extend({
     method: z.enum(["GET", "POST", "PUT", "DELETE"]),
     body: z.string().optional(),
-    timeout: z.number().max(30_000).min(0).default(9_000).optional()
+    timeout: z.number().min(0).default(9_000).optional().openapi({
+      description: "Per attempt timeout for the proxied request in milliseconds. Default value is 9000 (9 seconds)"
+    })
   })
 );
 
@@ -52,8 +54,10 @@ export const proxyRoute = createRoute({
   }
 });
 
+const MAX_PER_ATTEMPT_TIMEOUT_MS = 30 * 1000;
 export async function proxyProviderRequest(ctx: AppContext): Promise<Response | TypedResponse<string>> {
-  const { method, body, url, providerAddress, timeout, auth } = ctx.req.valid("json" as never) as z.infer<typeof RequestPayload>;
+  const { method, body, url, providerAddress, timeout: rawTimeout, auth } = ctx.req.valid("json" as never) as z.infer<typeof RequestPayload>;
+  const timeout = rawTimeout === undefined ? undefined : Math.min(rawTimeout, MAX_PER_ATTEMPT_TIMEOUT_MS);
 
   ctx.get("container").appLogger?.info({
     event: "PROXY_REQUEST",

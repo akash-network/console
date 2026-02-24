@@ -19,6 +19,29 @@ describe("Provider HTTP proxy", () => {
     await Promise.all([stopServer(), stopProviderServer(), stopChainAPIServer()]);
   });
 
+  it("exposes /status endpoint", async () => {
+    const providerAddress = generateBech32();
+    const validCertPair = createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
+    const chainServer = await startChainApiServer([validCertPair.cert]);
+
+    await startServer({ REST_API_NODE_URL: chainServer.url });
+
+    const response = await request("/status");
+    expect(response.status).toBe(200);
+
+    const body = await response.json();
+    expect(body).toEqual({
+      eventStreaming: expect.any(String),
+      logDownload: expect.any(String),
+      logStreaming: expect.any(String),
+      openClientWebSocketCount: expect.any(Number),
+      shell: expect.any(String),
+      totalRequestCount: expect.any(Number),
+      totalTransferred: expect.any(String),
+      version: "0.0.0-local"
+    });
+  });
+
   it("proxies request if provider uses self-signed certificate which is available on chain", async () => {
     const providerAddress = generateBech32();
     const validCertPair = createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
