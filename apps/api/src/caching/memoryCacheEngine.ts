@@ -1,33 +1,22 @@
-import mcache from "memory-cache";
+import { LRUCache } from "lru-cache";
+
+export type CacheValue = NonNullable<unknown>;
+const cache = new LRUCache<string, CacheValue>({ max: 500 });
 
 export default class MemoryCacheEngine {
-  /**
-   * Used to retrieve data from memcache
-   * @param {*} key
-   */
-  getFromCache<T>(key: string): T | false {
-    const cachedBody = mcache.get(key);
-    if (cachedBody) {
-      return cachedBody as T;
-    }
-    return false;
+  getFromCache<T extends CacheValue>(key: string): T | undefined {
+    return cache.get(key) as T | undefined;
   }
 
-  /**
-   * Used to store data in a memcache
-   * @param {*} key
-   * @param {*} data
-   * @param {*} duration
-   */
-  storeInCache<T>(key: string, data: T, duration?: number) {
-    mcache.put(key, data, duration);
+  storeInCache<T extends CacheValue>(key: string, data: T, durationInSeconds?: number) {
+    cache.set(key, data, durationInSeconds ? { ttl: durationInSeconds * 1000 } : undefined);
   }
 
   /**
    * Used to delete all keys in a memcache
    */
   clearAllKeyInCache() {
-    mcache.clear();
+    cache.clear();
   }
 
   /**
@@ -35,7 +24,7 @@ export default class MemoryCacheEngine {
    * @param {*} key
    */
   clearKeyInCache(key: string) {
-    mcache.del(key);
+    cache.delete(key);
   }
 
   /**
@@ -51,18 +40,17 @@ export default class MemoryCacheEngine {
    * @param {*} prefix
    */
   clearByPrefix(prefix: string) {
-    const keys = mcache.keys();
-    keys.forEach(key => {
+    for (const key of cache.keys()) {
       if (key.startsWith(prefix)) {
-        mcache.del(key);
+        cache.delete(key);
       }
-    });
+    }
   }
 
   /**
    * Used to get all keys in the cache
    */
   getKeys(): string[] {
-    return mcache.keys();
+    return [...cache.keys()];
   }
 }

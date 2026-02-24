@@ -2,10 +2,10 @@ import type { Provider, ProviderSnapshot } from "@akashnetwork/database/dbSchema
 import { ProviderAttributeSignature } from "@akashnetwork/database/dbSchemas/akash";
 import subDays from "date-fns/subDays";
 import map from "lodash/map";
-import mcache from "memory-cache";
 import nock from "nock";
 import { container } from "tsyringe";
 
+import { cacheEngine } from "@src/caching/helpers";
 import { AUDITOR, TRIAL_ATTRIBUTE } from "@src/deployment/config/provider.config";
 import { app, initDb } from "@src/rest-app";
 
@@ -78,7 +78,7 @@ describe("Providers", () => {
 
   afterAll(async () => {
     await container.dispose();
-    mcache.clear();
+    cacheEngine.clearAllKeyInCache();
   });
 
   afterEach(() => {

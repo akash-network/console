@@ -2,15 +2,10 @@ import type { LoggerService } from "@akashnetwork/logging";
 import { millisecondsInMinute } from "date-fns";
 import { mock } from "vitest-mock-extended";
 
-import { cacheEngine } from "@src/caching/helpers";
 import type { DbHealthcheck, JobQueueHealthcheck } from "@src/core";
 import { HealthzService } from "./healthz.service";
 
 describe(HealthzService.name, () => {
-  afterEach(() => {
-    cacheEngine.clearAllKeyInCache();
-  });
-
   describe("getReadinessStatus", () => {
     it("returns ok if db and jobsQueue are ready", async () => {
       const { service, dbHealthcheck, jobQueueHealthcheck } = setup();
@@ -135,7 +130,7 @@ describe(HealthzService.name, () => {
       jest.useRealTimers();
     });
 
-    it("does not tolerate failure if has not been succeeded at least once", async () => {
+    it("does not tolerate failure if has not succeeded at least once", async () => {
       const { service, dbHealthcheck, jobQueueHealthcheck } = setup();
 
       dbHealthcheck.ping.mockRejectedValue(new Error("Postgres is not ready"));

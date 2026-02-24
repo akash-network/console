@@ -1,9 +1,9 @@
 import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
 import { subDays } from "date-fns";
-import mcache from "memory-cache";
 import nock from "nock";
 import { container } from "tsyringe";
 
+import { cacheEngine } from "@src/caching/helpers";
 import type { ProviderEarningsResponse } from "@src/provider/http-schemas/provider-earnings.schema";
 import { app, initDb } from "@src/rest-app";
 
@@ -37,7 +37,7 @@ describe("Provider Earnings API", () => {
 
   afterAll(async () => {
     await container.dispose();
-    mcache.clear();
+    cacheEngine.clearAllKeyInCache();
   });
 
   afterEach(() => {
