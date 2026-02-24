@@ -43,7 +43,7 @@ export class GpuRepository {
       interface: string;
       memorySize: string;
     }>(
-      `
+      `/* gpu:list */
       WITH snapshots AS (
         SELECT DISTINCT ON("hostUri")
         ps.id AS id,
@@ -89,7 +89,7 @@ export class GpuRepository {
       leased_gpus: number;
       gpuUtilization: number;
     }>(
-      `
+      `/* gpu:breakdown */
         WITH UTILIZATION AS (
           SELECT
               d."date",
@@ -167,7 +167,7 @@ export class GpuRepository {
       interface: string;
       memorySize: string;
     }>(
-      `
+      `/* gpu:pricing */
       WITH snapshots AS (
         SELECT DISTINCT ON("hostUri")
         ps.id AS id,

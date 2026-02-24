@@ -117,7 +117,7 @@ export class TransactionRepository {
     });
 
     const txIdsQuery = this.#chainDb.query<{ id: string }>(
-      `
+      `/* transactions:by-address-paginated-ids */
       SELECT t.id
       FROM "addressReference" af
       INNER JOIN "transaction" t ON t.id = af."transactionId"
