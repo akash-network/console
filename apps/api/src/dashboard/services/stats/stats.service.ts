@@ -229,7 +229,7 @@ export class StatsService {
   @Memoize({ ttlInSeconds: minutesToSeconds(5) })
   private async getGpuUtilization() {
     const result = await this.#chainDb.query<GpuUtilizationData>(
-      `SELECT
+      `/* dashboard-stats:gpu-utilization */ SELECT
           d."date",
           ROUND(
             COALESCE((SUM("activeCPU") + SUM("pendingCPU")) * 100.0 /

@@ -34,7 +34,7 @@ export class UsageRepository {
 
   async getHistory(address: string, startDate: string, endDate: string) {
     const addresses = await this.resolveAddresses(address);
-    const query = `
+    const query = `/* billing-usage:history */
       WITH date_range AS (
         SELECT generate_series(
           :startDate::date,

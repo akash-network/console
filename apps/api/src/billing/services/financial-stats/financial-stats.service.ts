@@ -58,7 +58,7 @@ export class FinancialStatsService {
 
   async getProviderRevenues() {
     const results = await this.#chainDb.query<{ hostUri: string; usdEarned: string }>(
-      `
+      `/* financial-stats:provider-revenues */
   WITH trial_deployments_ids AS (
       SELECT DISTINCT m."relatedDeploymentId" AS "deployment_id"
       FROM "transaction" t
