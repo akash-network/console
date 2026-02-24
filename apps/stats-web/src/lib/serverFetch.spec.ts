@@ -93,10 +93,11 @@ describe(serverFetch.name, () => {
     const mockFetch = vi.fn().mockResolvedValue(new Response("ok", { status: 200 }));
     globalThis.fetch = mockFetch;
 
-    return serverFetch(input.url, input.signal ? { signal: input.signal } : undefined).then(response => {
-      globalThis.fetch = originalFetch;
-      currentHeaders.ref = {};
-      return { response, mockFetch };
-    });
+    return serverFetch(input.url, input.signal ? { signal: input.signal } : undefined)
+      .then(response => ({ response, mockFetch }))
+      .finally(() => {
+        globalThis.fetch = originalFetch;
+        currentHeaders.ref = {};
+      });
   }
 });
