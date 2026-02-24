@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 
-const headerValues = vi.hoisted(() => {
-  return { values: {} as Record<string, string | null> };
+const currentHeaders = vi.hoisted(() => {
+  return { ref: {} as Record<string, string | null> };
 });
 
 vi.mock("next/headers", () => ({
   headers: () => ({
-    get: (name: string) => headerValues.values[name] ?? null
+    get: (name: string) => currentHeaders.ref[name] ?? null
   })
 }));
 
@@ -18,7 +18,7 @@ vi.mock("@/services/di", () => ({
 
 import { serverFetch } from "./serverFetch";
 
-describe("serverFetch", () => {
+describe(serverFetch.name, () => {
   it("forwards request to fetch with no-store cache", async () => {
     const { response, mockFetch } = await setup({ url: "https://api.example.com/v1/test" });
 
@@ -27,7 +27,7 @@ describe("serverFetch", () => {
   });
 
   it("aborts after 10 seconds when API does not respond", async () => {
-    const { fetchPromise, advanceTimers } = setup({ url: "https://api.example.com/v1/slow", hangForever: true });
+    const { fetchPromise, advanceTimers } = setupHanging({ url: "https://api.example.com/v1/slow" });
 
     advanceTimers(10_000);
 
@@ -35,12 +35,16 @@ describe("serverFetch", () => {
   });
 
   it("clears timeout after successful fetch", async () => {
-    const clearTimeoutSpy = vi.fn(clearTimeout);
+    const originalClearTimeout = globalThis.clearTimeout;
+    const clearTimeoutSpy = vi.fn(originalClearTimeout);
     globalThis.clearTimeout = clearTimeoutSpy;
 
-    await setup({ url: "https://api.example.com/v1/test" });
-
-    expect(clearTimeoutSpy).toHaveBeenCalled();
+    try {
+      await setup({ url: "https://api.example.com/v1/test" });
+      expect(clearTimeoutSpy).toHaveBeenCalled();
+    } finally {
+      globalThis.clearTimeout = originalClearTimeout;
+    }
   });
 
   it("uses caller-provided signal instead of internal timeout", async () => {
@@ -61,37 +65,37 @@ describe("serverFetch", () => {
     expect(passedHeaders.get("x-forwarded-for")).toBe("5.6.7.8");
   });
 
-  function setup(input: { url: string; signal?: AbortSignal; headers?: Record<string, string>; hangForever?: true }) {
+  function setupHanging(input: { url: string }) {
     const originalFetch = globalThis.fetch;
-    headerValues.values = input.headers ?? {};
+    vi.useFakeTimers();
 
-    if (input.hangForever) {
-      vi.useFakeTimers();
-
-      const mockFetch = vi.fn().mockImplementation((_url: string, init: RequestInit) => {
-        return new Promise((_resolve, reject) => {
-          init.signal?.addEventListener("abort", () => {
-            reject(new DOMException("The operation was aborted.", "AbortError"));
-          });
+    const mockFetch = vi.fn().mockImplementation((_url: string, init: RequestInit) => {
+      return new Promise((_resolve, reject) => {
+        init.signal?.addEventListener("abort", () => {
+          reject(new DOMException("The operation was aborted.", "AbortError"));
         });
       });
-      globalThis.fetch = mockFetch;
+    });
+    globalThis.fetch = mockFetch;
 
-      const fetchPromise = serverFetch(input.url).finally(() => {
-        globalThis.fetch = originalFetch;
-        headerValues.values = {};
-        vi.useRealTimers();
-      });
+    const fetchPromise = serverFetch(input.url).finally(() => {
+      globalThis.fetch = originalFetch;
+      vi.useRealTimers();
+    });
 
-      return { fetchPromise, mockFetch, advanceTimers: (ms: number) => vi.advanceTimersByTime(ms) };
-    }
+    return { fetchPromise, mockFetch, advanceTimers: (ms: number) => vi.advanceTimersByTime(ms) };
+  }
+
+  function setup(input: { url: string; signal?: AbortSignal; headers?: Record<string, string> }) {
+    const originalFetch = globalThis.fetch;
+    currentHeaders.ref = input.headers ?? {};
 
     const mockFetch = vi.fn().mockResolvedValue(new Response("ok", { status: 200 }));
     globalThis.fetch = mockFetch;
 
     return serverFetch(input.url, input.signal ? { signal: input.signal } : undefined).then(response => {
       globalThis.fetch = originalFetch;
-      headerValues.values = {};
+      currentHeaders.ref = {};
       return { response, mockFetch };
     });
   }
