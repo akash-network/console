@@ -7,10 +7,13 @@ import { DeploymentInfo } from "./DeploymentInfo";
 import PageContainer from "@/components/PageContainer";
 import { Title } from "@/components/Title";
 import { networkId } from "@/config/env-config.schema";
+import { createLogger } from "@/lib/createLogger/createLogger";
 import { serverFetch } from "@/lib/serverFetch";
 import { UrlService } from "@/lib/urlUtils";
 import { serverApiUrlService } from "@/services/api-url/server-api-url.service";
 import type { DeploymentDetail } from "@/types";
+
+const logger = createLogger({ context: "DeploymentDetailPage" });
 
 const DeploymentDetailPageSchema = z.object({
   params: z.object({
@@ -37,13 +40,15 @@ export async function generateMetadata({ params: { address, dseq } }: Deployment
   };
 }
 
-async function fetchDeploymentData(address: string, dseq: string, network: Network["id"]): Promise<DeploymentDetail> {
+async function fetchDeploymentData(address: string, dseq: string, network: Network["id"]): Promise<DeploymentDetail | null> {
   const apiUrl = serverApiUrlService.getBaseApiUrlFor(network);
   const response = await serverFetch(`${apiUrl}/v1/deployment/${address}/${dseq}`);
 
-  if (!response.ok) {
-    // This will activate the closest `error.js` Error Boundary
-    throw new Error("Error fetching address data");
+  if (!response.ok && response.status !== 404) {
+    logger.error({ event: "DEPLOYMENT_FETCH_ERROR", address, dseq, network, status: response.status });
+    throw new Error(`Error fetching deployment data: ${address}/${dseq}`);
+  } else if (response.status === 404) {
+    return null;
   }
 
   return response.json();
@@ -55,6 +60,15 @@ export default async function DeploymentDetailPage(props: DeploymentDetailPagePr
     searchParams: { network }
   } = DeploymentDetailPageSchema.parse(props);
   const deployment = await fetchDeploymentData(address, dseq, network);
+
+  if (!deployment) {
+    return (
+      <PageContainer>
+        <Title className="mb-8">Deployment Details</Title>
+        <div className="py-8 text-center text-muted-foreground">Deployment not found or not indexed yet. Please check the address and dseq and try again.</div>
+      </PageContainer>
+    );
+  }
 
   return (
     <PageContainer>

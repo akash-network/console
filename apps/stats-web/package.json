@@ -10,7 +10,8 @@
     "dev:inspect": "cross-env NODE_OPTIONS=\"--inspect\" ../../node_modules/.bin/next start -p 3001",
     "format": "prettier --write ./*.{ts,js,json} **/*.{ts,tsx,js,json}",
     "lint": "eslint .",
-    "start": "next start"
+    "start": "next start",
+    "test:unit": "NODE_ENV=test vitest run"
   },
   "dependencies": {
     "@akashnetwork/chain-sdk": "1.0.0-alpha.24",
@@ -72,6 +73,7 @@
     "prettier": "^3.3.0",
     "prettier-plugin-tailwindcss": "^0.6.1",
     "tailwindcss": "^3.3.5",
-    "typescript": "~5.8.2"
+    "typescript": "~5.8.2",
+    "vitest": "^4.0.0"
   }
 }

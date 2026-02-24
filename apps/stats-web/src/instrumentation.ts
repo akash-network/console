@@ -12,7 +12,10 @@ export async function register() {
     dsn: process.env.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN,
     // Adjust this value in production, or use tracesSampler for greater control
     tracesSampleRate: 0.1,
-    enabled: process.env.NEXT_PUBLIC_SENTRY_ENABLED === "true"
+    enabled: process.env.NEXT_PUBLIC_SENTRY_ENABLED === "true",
+    // Disable consoleIntegration on the server to prevent Sentry's console.error patch
+    // from crashing the process when Node's util.inspect fails on Next.js internal error objects
+    integrations: defaults => defaults.filter(i => i.name !== "Console")
   });
 
   if (process.env.NEXT_RUNTIME === "nodejs") {
