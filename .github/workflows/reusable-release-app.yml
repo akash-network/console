@@ -53,10 +53,17 @@ jobs:
     permissions:
       actions: write
     steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: .github
       - name: Trigger deployment
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          if [ ! -f ".github/workflows/${{ inputs.deploy_workflow }}" ]; then
+            echo "Deployment workflow .github/workflows/${{ inputs.deploy_workflow }} not found! Deployment trigger skipped."
+            exit 0
+          fi
           gh workflow run ${{ inputs.deploy_workflow }} \
             --repo ${{ github.repository }} \
             -f image_tag=${{ needs.release.outputs.git_tag }} \
