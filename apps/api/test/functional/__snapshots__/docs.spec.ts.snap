@@ -13887,6 +13887,12 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                 "summary": {
                                   "type": "string",
                                 },
+                                "tags": {
+                                  "items": {
+                                    "type": "string",
+                                  },
+                                  "type": "array",
+                                },
                               },
                               "required": [
                                 "id",
