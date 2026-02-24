@@ -72,6 +72,7 @@ jobs:
     if: fromJson(needs.setup.outputs.backends).include[0]
     strategy:
       matrix: ${{ fromJson(needs.setup.outputs.backends) }}
+      fail-fast: false
     uses: ./.github/workflows/reusable-release-app.yml
     secrets: inherit
     permissions:
@@ -88,6 +89,7 @@ jobs:
     if: fromJson(needs.setup.outputs.nextjs).include[0]
     strategy:
       matrix: ${{ fromJson(needs.setup.outputs.nextjs) }}
+      fail-fast: false
     uses: ./.github/workflows/reusable-release-nextjs-app.yml
     secrets: inherit
     permissions:
