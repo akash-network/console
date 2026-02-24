@@ -25,14 +25,24 @@ const isPopular = (t: TemplateOutputSummaryWithCategory) => t.tags?.includes("po
 
 const FEATURED_TEMPLATE_IDS = ["akash-network-awesome-akash-openclaw"];
 
-export const TemplateGallery: React.FunctionComponent = () => {
+export const DEPENDENCIES = {
+  useRouter,
+  useSearchParams,
+  useTemplates,
+  Layout,
+  CustomNextSeo,
+  MobileTemplatesFilter,
+  TemplateBox
+};
+
+export const TemplateGallery: React.FunctionComponent<{ dependencies?: typeof DEPENDENCIES }> = ({ dependencies: d = DEPENDENCIES }) => {
   const [selectedCategoryTitle, setSelectedCategoryTitle] = useState<string | null>(null);
   const [searchTerms, setSearchTerms] = useState("");
   const [shownTemplates, setShownTemplates] = useState<TemplateOutputSummaryWithCategory[]>([]);
-  const { isLoading: isLoadingTemplates, categories, templates } = useTemplates();
-  const router = useRouter();
+  const { isLoading: isLoadingTemplates, categories, templates } = d.useTemplates();
+  const router = d.useRouter();
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
-  const searchParams = useSearchParams();
+  const searchParams = d.useSearchParams();
 
   useEffect(() => {
     const queryCategory = searchParams?.get("category") as string;
@@ -130,8 +140,8 @@ export const TemplateGallery: React.FunctionComponent = () => {
   );
 
   return (
-    <Layout isLoading={isLoadingTemplates}>
-      <CustomNextSeo
+    <d.Layout isLoading={isLoadingTemplates}>
+      <d.CustomNextSeo
         title="Template Gallery"
         url={`${domainName}${UrlService.templates()}`}
         description="Explore all the templates made by the community to easily deploy any docker container on the Akash Network."
@@ -156,7 +166,7 @@ export const TemplateGallery: React.FunctionComponent = () => {
           Filter by category
           <FilterList className="ml-2 text-xs" />
         </Button>
-        <MobileTemplatesFilter
+        <d.MobileTemplatesFilter
           handleDrawerToggle={() => setIsMobileSearchOpen(prev => !prev)}
           isOpen={isMobileSearchOpen}
           templates={templates}
@@ -225,7 +235,7 @@ export const TemplateGallery: React.FunctionComponent = () => {
 
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3">
             {shownTemplates.map((template, id) => (
-              <TemplateBox key={`${template.id}_${id}`} template={template} isRecommended={isRecommended(template)} isPopular={isPopular(template)} />
+              <d.TemplateBox key={`${template.id}_${id}`} template={template} isRecommended={isRecommended(template)} isPopular={isPopular(template)} />
             ))}
           </div>
 
@@ -243,6 +253,6 @@ export const TemplateGallery: React.FunctionComponent = () => {
           )}
         </div>
       </div>
-    </Layout>
+    </d.Layout>
   );
 };
