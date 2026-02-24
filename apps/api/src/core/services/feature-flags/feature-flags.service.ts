@@ -1,6 +1,6 @@
 import assert from "assert";
 import { Disposable, inject, registry, singleton } from "tsyringe";
-import { Unleash, UnleashConfig, Variant } from "unleash-client";
+import { Unleash, UnleashConfig } from "unleash-client";
 
 import { APP_INITIALIZER, AppInitializer, ON_APP_START } from "@src/core/providers/app-initializer";
 import type { AppContext } from "@src/core/types/app-context";
@@ -57,17 +57,6 @@ export class FeatureFlagsService implements Disposable, AppInitializer {
     const cookies = cookieHeader.split(";").map(c => c.trim());
     const unleashCookie = cookies.find(c => c.startsWith(this.UNLEASH_COOKIE_KEY));
     return unleashCookie?.replace(this.UNLEASH_COOKIE_KEY, "");
-  }
-
-  getVariant(featureFlag: FeatureFlagValue): Variant | undefined {
-    if (!this.client) return undefined;
-
-    const variant = this.client.getVariant(featureFlag, {
-      environment: this.configService.get("DEPLOYMENT_ENV"),
-      properties: { chainNetwork: this.configService.get("NETWORK") }
-    });
-
-    return variant?.enabled ? variant : undefined;
   }
 
   onChanged(callback: () => void) {
