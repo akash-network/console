@@ -22,6 +22,7 @@ import { TemplateBox } from "../templates/TemplateBox";
 import { DeployOptionBox } from "./DeployOptionBox";
 
 const previewTemplateIds = [
+  "akash-network-awesome-akash-openclaw",
   "akash-network-awesome-akash-DeepSeek-R1-Distill-Llama-70B",
   "akash-network-awesome-akash-Llama-3.1-8B",
   "akash-network-awesome-akash-Llama-3.1-405B-FP8",
