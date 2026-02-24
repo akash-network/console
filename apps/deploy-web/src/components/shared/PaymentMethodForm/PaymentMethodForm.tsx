@@ -25,7 +25,6 @@ export const PaymentMethodForm: React.FC<PaymentMethodFormProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [organization, setOrganization] = useState<string>("");
-  const [selectedType, setSelectedType] = useState<string>("card");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,11 +42,7 @@ export const PaymentMethodForm: React.FC<PaymentMethodFormProps> = ({
       });
 
       if (result.error) {
-        if (selectedType === "link") {
-          setError("Unable to set up Link as a payment method. Please try using a debit or credit card instead.");
-        } else {
-          setError(result.error.message || "An error occurred while processing your payment method.");
-        }
+        setError(result.error.message || "An error occurred while processing your payment method.");
         return;
       }
 
@@ -91,7 +86,6 @@ export const PaymentMethodForm: React.FC<PaymentMethodFormProps> = ({
             layout: "tabs"
           }}
           onReady={onReady}
-          onChange={e => setSelectedType(e.value.type)}
         />
       </div>
 
