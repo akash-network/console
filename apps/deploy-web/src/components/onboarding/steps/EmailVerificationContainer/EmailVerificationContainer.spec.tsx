@@ -35,12 +35,21 @@ describe(EmailVerificationContainer.name, () => {
     expect(mockSendVerificationCode).not.toHaveBeenCalled();
   });
 
-  it("shows snackbar on user-initiated resend", async () => {
-    const { child, mockSendVerificationCode, mockEnqueueSnackbar } = setup();
+  it("sets cooldown after auto-send on mount", async () => {
+    const { child } = setup();
 
     await act(async () => {});
 
-    mockSendVerificationCode.mockResolvedValue({ data: { codeSentAt: new Date().toISOString() } });
+    const lastCall = child.mock.calls[child.mock.calls.length - 1][0];
+    expect(lastCall.cooldownSeconds).toBe(60);
+  });
+
+  it("shows snackbar on user-initiated resend", async () => {
+    const { child, mockSendVerificationCode, mockEnqueueSnackbar } = setup({
+      user: { id: "test-user", emailVerified: true }
+    });
+
+    mockSendVerificationCode.mockResolvedValue({});
 
     const { onResendCode } = child.mock.calls[child.mock.calls.length - 1][0];
     await act(async () => {
@@ -60,12 +69,11 @@ describe(EmailVerificationContainer.name, () => {
   });
 
   it("does not resend code while cooldown is active", async () => {
-    const { child, mockSendVerificationCode } = setup();
+    const { child, mockSendVerificationCode } = setup({
+      user: { id: "test-user", emailVerified: true }
+    });
 
-    await act(async () => {});
-
-    mockSendVerificationCode.mockClear();
-    mockSendVerificationCode.mockResolvedValue({ data: { codeSentAt: new Date().toISOString() } });
+    mockSendVerificationCode.mockResolvedValue({});
 
     const { onResendCode: firstResend } = child.mock.calls[child.mock.calls.length - 1][0];
     await act(async () => {
@@ -84,11 +92,11 @@ describe(EmailVerificationContainer.name, () => {
   });
 
   it("sets cooldownSeconds after sending code", async () => {
-    const { child, mockSendVerificationCode } = setup();
+    const { child, mockSendVerificationCode } = setup({
+      user: { id: "test-user", emailVerified: true }
+    });
 
-    await act(async () => {});
-
-    mockSendVerificationCode.mockResolvedValue({ data: { codeSentAt: new Date().toISOString() } });
+    mockSendVerificationCode.mockResolvedValue({});
 
     const { onResendCode } = child.mock.calls[child.mock.calls.length - 1][0];
     await act(async () => {
@@ -100,9 +108,9 @@ describe(EmailVerificationContainer.name, () => {
   });
 
   it("notifies error when resend code fails", async () => {
-    const { child, mockSendVerificationCode, mockNotificator } = setup();
-
-    await act(async () => {});
+    const { child, mockSendVerificationCode, mockNotificator } = setup({
+      user: { id: "test-user", emailVerified: true }
+    });
 
     mockSendVerificationCode.mockRejectedValue(new Error("Failed"));
 
@@ -155,7 +163,7 @@ describe(EmailVerificationContainer.name, () => {
   });
 
   function setup(input: { user?: { id: string; emailVerified: boolean }; onComplete?: Mock } = {}) {
-    const mockSendVerificationCode = vi.fn().mockResolvedValue({ data: { codeSentAt: new Date(Date.now() - 61_000).toISOString() } });
+    const mockSendVerificationCode = vi.fn().mockResolvedValue({});
     const mockVerifyEmailCode = vi.fn();
     const mockCheckSession = vi.fn();
     const mockEnqueueSnackbar = vi.fn();
