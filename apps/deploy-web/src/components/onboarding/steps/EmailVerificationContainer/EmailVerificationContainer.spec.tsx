@@ -26,7 +26,7 @@ describe("EmailVerificationContainer", () => {
   it("should auto-send code on mount when email is not verified", () => {
     const { mockSendVerificationCode } = setup();
 
-    expect(mockSendVerificationCode).toHaveBeenCalledWith("test-user");
+    expect(mockSendVerificationCode).toHaveBeenCalled();
   });
 
   it("should not auto-send code when email is already verified", () => {
@@ -125,7 +125,7 @@ describe("EmailVerificationContainer", () => {
       await onVerifyCode("123456");
     });
 
-    expect(mockVerifyEmailCode).toHaveBeenCalledWith("test-user", "123456");
+    expect(mockVerifyEmailCode).toHaveBeenCalledWith("123456");
     expect(mockCheckSession).toHaveBeenCalled();
     expect(mockEnqueueSnackbar).toHaveBeenCalledWith(
       expect.objectContaining({

@@ -1,5 +1,5 @@
 "use client";
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input } from "@akashnetwork/ui/components";
 import { Check, Mail, Refresh } from "iconoir-react";
 
@@ -48,6 +48,13 @@ export const EmailVerificationStep: React.FunctionComponent<EmailVerificationSte
     },
     [digits, isVerifying, onVerifyCode]
   );
+
+  useEffect(() => {
+    if (verifyError) {
+      setDigits(["", "", "", "", "", ""]);
+      inputRefs.current[0]?.focus();
+    }
+  }, [verifyError]);
 
   const handleKeyDown = useCallback(
     (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {

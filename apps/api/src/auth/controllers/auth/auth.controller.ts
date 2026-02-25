@@ -1,6 +1,6 @@
 import { singleton } from "tsyringe";
 
-import type { SendVerificationCodeRequest, SendVerificationEmailRequestInput } from "@src/auth";
+import type { SendVerificationEmailRequestInput } from "@src/auth";
 import { VerifyEmailRequest } from "@src/auth/http-schemas/verify-email.schema";
 import type { VerifyEmailCodeRequest } from "@src/auth/routes/verify-email-code/verify-email-code.router";
 import { AuthService, Protected } from "@src/auth/services/auth.service";
@@ -28,9 +28,8 @@ export class AuthController {
   }
 
   @Protected()
-  async sendVerificationCode({ data: { userId } }: SendVerificationCodeRequest) {
+  async sendVerificationCode() {
     const { currentUser } = this.authService;
-    this.authService.throwUnlessCan("create", "VerificationEmail", { id: userId });
 
     const result = await this.emailVerificationCodeService.sendCode(currentUser!.id);
 
@@ -38,9 +37,8 @@ export class AuthController {
   }
 
   @Protected()
-  async verifyEmailCode({ data: { userId, code } }: VerifyEmailCodeRequest) {
+  async verifyEmailCode({ data: { code } }: VerifyEmailCodeRequest) {
     const { currentUser } = this.authService;
-    this.authService.throwUnlessCan("create", "VerificationEmail", { id: userId });
 
     const result = await this.emailVerificationCodeService.verifyCode(currentUser!.id, code);
 

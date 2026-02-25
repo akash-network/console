@@ -76,7 +76,7 @@ export const EmailVerificationContainer: FC<EmailVerificationContainerProps> = (
       try {
         const {
           data: { codeSentAt }
-        } = await auth.sendVerificationCode(user.id);
+        } = await auth.sendVerificationCode();
         const elapsed = Math.floor((Date.now() - new Date(codeSentAt).getTime()) / 1000);
         const remaining = Math.max(0, COOLDOWN_DURATION - elapsed);
         cooldownRef.current = remaining;
@@ -113,7 +113,7 @@ export const EmailVerificationContainer: FC<EmailVerificationContainerProps> = (
       setIsVerifying(true);
       setVerifyError(null);
       try {
-        await auth.verifyEmailCode(user.id, code);
+        await auth.verifyEmailCode(code);
         await checkSession();
         enqueueSnackbar(<d.Snackbar title="Email verified" subTitle="Your email has been successfully verified" iconVariant="success" />, {
           variant: "success"

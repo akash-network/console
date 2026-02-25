@@ -31,7 +31,7 @@ export const useEmailVerificationRequiredEventHandler = (): ((messageOtherwise: 
                 }
 
                 auth
-                  .sendVerificationCode(user.id)
+                  .sendVerificationCode()
                   .then(() => {
                     enqueueSnackbar(
                       <Snackbar
