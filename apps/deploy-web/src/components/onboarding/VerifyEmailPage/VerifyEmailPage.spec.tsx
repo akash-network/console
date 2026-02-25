@@ -4,79 +4,58 @@ import { describe, expect, it, vi } from "vitest";
 
 import { VerifyEmailPage } from "./VerifyEmailPage";
 
-import { act, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 
 describe(VerifyEmailPage.name, () => {
-  it("calls verifyEmail with the email from search params", () => {
-    const { mockVerifyEmail } = setup({ email: "test@example.com" });
+  it("shows redirect loading text", () => {
+    setup();
 
-    expect(mockVerifyEmail).toHaveBeenCalledWith("test@example.com");
+    expect(screen.queryByText("Redirecting to email verification...")).toBeInTheDocument();
   });
 
-  it("does not call verifyEmail when email param is missing", () => {
-    const { mockVerifyEmail } = setup({ email: null });
+  it("sets onboarding step to EMAIL_VERIFICATION in localStorage", () => {
+    const { mockLocalStorage } = setup();
 
-    expect(mockVerifyEmail).not.toHaveBeenCalled();
+    expect(mockLocalStorage.setItem).toHaveBeenCalledWith("onboardingStep", "2");
   });
 
-  it("shows loading text when verification is pending", () => {
-    setup({ email: "test@example.com", isPending: true });
+  it("redirects to onboarding page", () => {
+    const { mockLocationAssign } = setup();
 
-    expect(screen.queryByText("Just a moment while we finish verifying your email.")).toBeInTheDocument();
+    expect(mockLocationAssign).toBe("/signup?return-to=%2F");
   });
 
-  it("shows success message when email is verified", () => {
-    const { capturedOnSuccess } = setup({ email: "test@example.com" });
+  function setup() {
+    const mockLocalStorage = {
+      setItem: vi.fn(),
+      getItem: vi.fn(),
+      removeItem: vi.fn()
+    };
+    Object.defineProperty(window, "localStorage", { value: mockLocalStorage, writable: true });
 
-    act(() => capturedOnSuccess?.(true));
-
-    expect(screen.queryByTestId("CheckCircleIcon")).toBeInTheDocument();
-  });
-
-  it("shows error message when email verification fails", () => {
-    const { capturedOnError } = setup({ email: "test@example.com" });
-
-    act(() => capturedOnError?.());
-
-    expect(screen.queryByText("Your email was not verified. Please try again.")).toBeInTheDocument();
-  });
-
-  it("shows error message when isVerified is null", () => {
-    setup({ email: "test@example.com" });
-
-    expect(screen.queryByText("Your email was not verified. Please try again.")).toBeInTheDocument();
-  });
-
-  function setup(input: { email?: string | null; isPending?: boolean }) {
-    const mockVerifyEmail = vi.fn();
-    let capturedOnSuccess: ((isVerified: boolean) => void) | undefined;
-    let capturedOnError: (() => void) | undefined;
-
-    const mockUseVerifyEmail = vi.fn().mockImplementation((options: { onSuccess?: (v: boolean) => void; onError?: () => void }) => {
-      capturedOnSuccess = options.onSuccess;
-      capturedOnError = options.onError;
-      return { mutate: mockVerifyEmail, isPending: input.isPending || false };
-    });
-
-    const mockUseWhen = vi.fn().mockImplementation((condition: unknown, run: () => void) => {
-      if (condition) {
-        run();
-      }
+    let capturedHref = "";
+    Object.defineProperty(window, "location", {
+      value: {
+        get href() {
+          return capturedHref;
+        },
+        set href(val: string) {
+          capturedHref = val;
+        }
+      },
+      writable: true
     });
 
     const dependencies = {
-      useSearchParams: vi.fn().mockReturnValue(new URLSearchParams(input.email ? `email=${input.email}` : "")),
-      useVerifyEmail: mockUseVerifyEmail,
-      useWhen: mockUseWhen,
       Layout: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
       Loading: ({ text }: { text: string }) => <div>{text}</div>,
       UrlService: {
-        onboarding: vi.fn(() => "/signup")
+        onboarding: vi.fn(() => "/signup?return-to=%2F")
       }
     } as unknown as ComponentProps<typeof VerifyEmailPage>["dependencies"];
 
     render(<VerifyEmailPage dependencies={dependencies} />);
 
-    return { mockVerifyEmail, capturedOnSuccess, capturedOnError };
+    return { mockLocalStorage, mockLocationAssign: capturedHref };
   }
 });

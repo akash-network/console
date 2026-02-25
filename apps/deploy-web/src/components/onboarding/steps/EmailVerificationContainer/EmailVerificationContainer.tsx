@@ -1,28 +1,35 @@
 "use client";
 import type { FC, ReactNode } from "react";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Snackbar } from "@akashnetwork/ui/components";
 import { useSnackbar } from "notistack";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useNotificator } from "@src/hooks/useNotificator";
+import type { AppError } from "@src/types";
+import { extractErrorMessage } from "@src/utils/errorUtils";
+
+const COOLDOWN_DURATION = 60;
 
 const DEPENDENCIES = {
   useCustomUser,
   useSnackbar,
   useServices,
   Snackbar,
-  useNotificator
+  useNotificator,
+  extractErrorMessage
 };
 
 export type EmailVerificationContainerProps = {
   children: (props: {
     isEmailVerified: boolean;
     isResending: boolean;
-    isChecking: boolean;
-    onResendEmail: () => void;
-    onCheckVerification: () => void;
+    isVerifying: boolean;
+    cooldownSeconds: number;
+    verifyError: string | null;
+    onResendCode: () => void;
+    onVerifyCode: (code: string) => void;
     onContinue: () => void;
   }) => ReactNode;
   onComplete: () => void;
@@ -34,40 +41,91 @@ export const EmailVerificationContainer: FC<EmailVerificationContainerProps> = (
   const { enqueueSnackbar } = d.useSnackbar();
   const notificator = d.useNotificator();
   const [isResending, setIsResending] = useState(false);
-  const [isChecking, setIsChecking] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const { analyticsService, auth } = d.useServices();
+  const hasSentInitialCode = useRef(false);
+  const isSendingRef = useRef(false);
+  const cooldownRef = useRef(0);
 
   const isEmailVerified = !!user?.emailVerified;
 
-  const handleResendEmail = useCallback(async () => {
-    if (!user?.id) return;
+  useEffect(() => {
+    if (cooldownSeconds <= 0) return;
 
-    setIsResending(true);
-    try {
-      await auth.sendVerificationEmail(user.id);
-      enqueueSnackbar(<d.Snackbar title="Verification email sent" subTitle="Please check your email and click the verification link" iconVariant="success" />, {
-        variant: "success"
+    cooldownRef.current = cooldownSeconds;
+    const timer = setInterval(() => {
+      setCooldownSeconds(prev => {
+        const next = prev <= 1 ? 0 : prev - 1;
+        cooldownRef.current = next;
+        return next;
       });
-    } catch (error) {
-      notificator.error("Failed to send verification email. Please try again later");
-    } finally {
-      setIsResending(false);
-    }
-  }, [user?.id, auth, enqueueSnackbar, d.Snackbar, notificator]);
+    }, 1000);
 
-  const handleCheckVerification = useCallback(async () => {
-    setIsChecking(true);
-    try {
-      await checkSession();
-      enqueueSnackbar(<d.Snackbar title="Verification status updated" subTitle="Your email verification status has been refreshed" iconVariant="success" />, {
-        variant: "success"
-      });
-    } catch (error) {
-      notificator.error("Failed to check verification. Please try again or refresh the page");
-    } finally {
-      setIsChecking(false);
+    return () => clearInterval(timer);
+  }, [cooldownSeconds]);
+
+  const sendCode = useCallback(
+    async ({ silent }: { silent?: boolean } = {}) => {
+      if (!user?.id || isSendingRef.current || cooldownRef.current > 0) return;
+
+      isSendingRef.current = true;
+      setIsResending(true);
+      setVerifyError(null);
+      try {
+        const {
+          data: { codeSentAt }
+        } = await auth.sendVerificationCode(user.id);
+        const elapsed = Math.floor((Date.now() - new Date(codeSentAt).getTime()) / 1000);
+        const remaining = Math.max(0, COOLDOWN_DURATION - elapsed);
+        cooldownRef.current = remaining;
+        setCooldownSeconds(remaining);
+
+        if (!silent && elapsed <= 1) {
+          enqueueSnackbar(<d.Snackbar title="Verification code sent" subTitle="Please check your email for the 6-digit code" iconVariant="success" />, {
+            variant: "success"
+          });
+        }
+      } catch (error) {
+        if (!silent) {
+          notificator.error("Failed to send verification code. Please try again later");
+        }
+      } finally {
+        isSendingRef.current = false;
+        setIsResending(false);
+      }
+    },
+    [user?.id, auth, enqueueSnackbar, d.Snackbar, notificator]
+  );
+
+  useEffect(() => {
+    if (!isEmailVerified && user?.id && !hasSentInitialCode.current) {
+      hasSentInitialCode.current = true;
+      sendCode({ silent: true });
     }
-  }, [checkSession, enqueueSnackbar, d.Snackbar, notificator]);
+  }, [isEmailVerified, user?.id, sendCode]);
+
+  const handleVerifyCode = useCallback(
+    async (code: string) => {
+      if (!user?.id) return;
+
+      setIsVerifying(true);
+      setVerifyError(null);
+      try {
+        await auth.verifyEmailCode(user.id, code);
+        await checkSession();
+        enqueueSnackbar(<d.Snackbar title="Email verified" subTitle="Your email has been successfully verified" iconVariant="success" />, {
+          variant: "success"
+        });
+      } catch (error) {
+        setVerifyError(d.extractErrorMessage(error as AppError));
+      } finally {
+        setIsVerifying(false);
+      }
+    },
+    [user?.id, auth, checkSession, enqueueSnackbar, d.Snackbar, d.extractErrorMessage]
+  );
 
   const handleContinue = useCallback(() => {
     if (isEmailVerified) {
@@ -83,9 +141,11 @@ export const EmailVerificationContainer: FC<EmailVerificationContainerProps> = (
       {children({
         isEmailVerified,
         isResending,
-        isChecking,
-        onResendEmail: handleResendEmail,
-        onCheckVerification: handleCheckVerification,
+        isVerifying,
+        cooldownSeconds,
+        verifyError,
+        onResendCode: sendCode,
+        onVerifyCode: handleVerifyCode,
         onContinue: handleContinue
       })}
     </>

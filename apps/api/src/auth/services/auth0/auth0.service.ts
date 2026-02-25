@@ -9,6 +9,10 @@ export class Auth0Service {
     await this.managementClient.jobs.verifyEmail({ user_id: userId });
   }
 
+  async markEmailVerified(userId: string) {
+    await this.managementClient.users.update({ id: userId }, { email_verified: true });
+  }
+
   async getUserByEmail(email: string): Promise<GetUsers200ResponseOneOfInner | null> {
     const { data: users } = await this.managementClient.usersByEmail.getByEmail({ email });
     if (users.length === 0) {
