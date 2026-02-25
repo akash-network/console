@@ -58,6 +58,6 @@ export const useEmailVerificationRequiredEventHandler = (): ((messageOtherwise: 
 
       return user?.emailVerified ? handler : preventer;
     },
-    [user?.emailVerified, user?.id, requireAction, enqueueSnackbar]
+    [user?.emailVerified, user?.id, requireAction, enqueueSnackbar, auth, analyticsService]
   );
 };

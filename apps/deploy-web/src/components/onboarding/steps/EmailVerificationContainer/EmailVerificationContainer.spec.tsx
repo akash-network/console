@@ -5,8 +5,8 @@ import { EmailVerificationContainer } from "./EmailVerificationContainer";
 
 import { act, render } from "@testing-library/react";
 
-describe("EmailVerificationContainer", () => {
-  it("should render children with initial state", () => {
+describe(EmailVerificationContainer.name, () => {
+  it("renders children with initial state", () => {
     const { child } = setup();
 
     expect(child).toHaveBeenCalledWith(
@@ -23,13 +23,13 @@ describe("EmailVerificationContainer", () => {
     );
   });
 
-  it("should auto-send code on mount when email is not verified", () => {
+  it("auto-sends code on mount when email is not verified", () => {
     const { mockSendVerificationCode } = setup();
 
     expect(mockSendVerificationCode).toHaveBeenCalled();
   });
 
-  it("should not auto-send code when email is already verified", () => {
+  it("does not auto-send code when email is already verified", () => {
     const { mockSendVerificationCode } = setup({
       user: { id: "test-user", emailVerified: true }
     });
@@ -37,7 +37,7 @@ describe("EmailVerificationContainer", () => {
     expect(mockSendVerificationCode).not.toHaveBeenCalled();
   });
 
-  it("should handle resend code success and show snackbar for freshly sent code", async () => {
+  it("shows snackbar when resend code returns a freshly sent code", async () => {
     const { child, mockSendVerificationCode, mockEnqueueSnackbar } = setup();
 
     await act(async () => {});
@@ -61,7 +61,7 @@ describe("EmailVerificationContainer", () => {
     );
   });
 
-  it("should not show snackbar when code was already sent recently (cooldown return)", async () => {
+  it("does not show snackbar when code was already sent recently", async () => {
     const { child, mockSendVerificationCode, mockEnqueueSnackbar } = setup();
 
     await act(async () => {});
@@ -76,7 +76,7 @@ describe("EmailVerificationContainer", () => {
     expect(mockEnqueueSnackbar).not.toHaveBeenCalled();
   });
 
-  it("should not resend code while cooldown is active", async () => {
+  it("does not resend code while cooldown is active", async () => {
     const { child, mockSendVerificationCode } = setup();
 
     await act(async () => {});
@@ -100,7 +100,7 @@ describe("EmailVerificationContainer", () => {
     expect(mockSendVerificationCode).not.toHaveBeenCalled();
   });
 
-  it("should handle resend code error", async () => {
+  it("notifies error when resend code fails", async () => {
     const { child, mockSendVerificationCode, mockNotificator } = setup();
 
     await act(async () => {});
@@ -115,7 +115,7 @@ describe("EmailVerificationContainer", () => {
     expect(mockNotificator.error).toHaveBeenCalledWith("Failed to send verification code. Please try again later");
   });
 
-  it("should handle verify code success", async () => {
+  it("verifies code and shows success snackbar", async () => {
     const { child, mockVerifyEmailCode, mockCheckSession, mockEnqueueSnackbar } = setup();
     mockVerifyEmailCode.mockResolvedValue({ emailVerified: true });
     mockCheckSession.mockResolvedValue(undefined);
@@ -139,7 +139,7 @@ describe("EmailVerificationContainer", () => {
     );
   });
 
-  it("should handle verify code error", async () => {
+  it("exposes verifyError on verify code failure", async () => {
     const { child, mockVerifyEmailCode } = setup();
     mockVerifyEmailCode.mockRejectedValue(new Error("Invalid verification code"));
 
@@ -152,7 +152,7 @@ describe("EmailVerificationContainer", () => {
     expect(lastCall.verifyError).toBe("Invalid verification code");
   });
 
-  it("should call onComplete when email is verified", () => {
+  it("calls onComplete when email is verified", () => {
     const mockOnComplete = vi.fn();
     const { child } = setup({
       user: { id: "test-user", emailVerified: true },
@@ -165,7 +165,7 @@ describe("EmailVerificationContainer", () => {
     expect(mockOnComplete).toHaveBeenCalled();
   });
 
-  it("should not call onComplete when email is not verified", () => {
+  it("does not call onComplete when email is not verified", () => {
     const mockOnComplete = vi.fn();
     const { child } = setup({
       user: { id: "test-user", emailVerified: false },
@@ -178,7 +178,7 @@ describe("EmailVerificationContainer", () => {
     expect(mockOnComplete).not.toHaveBeenCalled();
   });
 
-  function setup(input: { user?: any; onComplete?: Mock } = {}) {
+  function setup(input: { user?: { id: string; emailVerified: boolean }; onComplete?: Mock } = {}) {
     const mockSendVerificationCode = vi.fn().mockResolvedValue({ data: { codeSentAt: new Date(Date.now() - 61_000).toISOString() } });
     const mockVerifyEmailCode = vi.fn();
     const mockCheckSession = vi.fn();
@@ -204,7 +204,7 @@ describe("EmailVerificationContainer", () => {
       }
     });
 
-    const mockSnackbar = ({ title, subTitle, iconVariant }: any) => (
+    const mockSnackbar = ({ title, subTitle, iconVariant }: { title: string; subTitle: string; iconVariant: string }) => (
       <div data-testid="snackbar" data-title={title} data-subtitle={subTitle} data-icon-variant={iconVariant} />
     );
 

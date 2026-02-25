@@ -28,25 +28,30 @@ export const EmailVerificationStep: React.FunctionComponent<EmailVerificationSte
 }) => {
   const [digits, setDigits] = useState<string[]>(["", "", "", "", "", ""]);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const digitsRef = useRef(digits);
+  digitsRef.current = digits;
 
   const handleDigitChange = useCallback(
     (index: number, value: string) => {
       if (!/^\d*$/.test(value) || isVerifying) return;
 
-      const newDigits = [...digits];
-      newDigits[index] = value.slice(-1);
-      setDigits(newDigits);
+      setDigits(prev => {
+        const newDigits = [...prev];
+        newDigits[index] = value.slice(-1);
 
-      if (value && index < 5) {
-        inputRefs.current[index + 1]?.focus();
-      }
+        if (value && index < 5) {
+          inputRefs.current[index + 1]?.focus();
+        }
 
-      const code = newDigits.join("");
-      if (code.length === 6) {
-        onVerifyCode(code);
-      }
+        const code = newDigits.join("");
+        if (code.length === 6) {
+          onVerifyCode(code);
+        }
+
+        return newDigits;
+      });
     },
-    [digits, isVerifying, onVerifyCode]
+    [isVerifying, onVerifyCode]
   );
 
   useEffect(() => {
@@ -56,14 +61,11 @@ export const EmailVerificationStep: React.FunctionComponent<EmailVerificationSte
     }
   }, [verifyError]);
 
-  const handleKeyDown = useCallback(
-    (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === "Backspace" && !digits[index] && index > 0) {
-        inputRefs.current[index - 1]?.focus();
-      }
-    },
-    [digits]
-  );
+  const handleKeyDown = useCallback((index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace" && !digitsRef.current[index] && index > 0) {
+      inputRefs.current[index - 1]?.focus();
+    }
+  }, []);
 
   const handlePaste = useCallback(
     (e: React.ClipboardEvent) => {
@@ -73,7 +75,7 @@ export const EmailVerificationStep: React.FunctionComponent<EmailVerificationSte
       const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
       if (!pasted) return;
 
-      const newDigits = [...digits];
+      const newDigits = Array(6).fill("");
       for (let i = 0; i < 6; i++) {
         newDigits[i] = pasted[i] || "";
       }
@@ -85,7 +87,7 @@ export const EmailVerificationStep: React.FunctionComponent<EmailVerificationSte
         inputRefs.current[pasted.length]?.focus();
       }
     },
-    [digits, isVerifying, onVerifyCode]
+    [isVerifying, onVerifyCode]
   );
 
   return (

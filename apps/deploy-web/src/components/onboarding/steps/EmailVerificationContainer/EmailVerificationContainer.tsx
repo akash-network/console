@@ -51,20 +51,21 @@ export const EmailVerificationContainer: FC<EmailVerificationContainerProps> = (
 
   const isEmailVerified = !!user?.emailVerified;
 
+  const isCountingDown = cooldownSeconds > 0;
   useEffect(() => {
-    if (cooldownSeconds <= 0) return;
+    if (!isCountingDown) return;
 
-    cooldownRef.current = cooldownSeconds;
     const timer = setInterval(() => {
       setCooldownSeconds(prev => {
         const next = prev <= 1 ? 0 : prev - 1;
         cooldownRef.current = next;
+        if (next === 0) clearInterval(timer);
         return next;
       });
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [cooldownSeconds]);
+  }, [isCountingDown]);
 
   const sendCode = useCallback(
     async ({ silent }: { silent?: boolean } = {}) => {

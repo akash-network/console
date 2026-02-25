@@ -8,24 +8,30 @@ import { render, screen } from "@testing-library/react";
 
 describe(VerifyEmailPage.name, () => {
   it("shows redirect loading text", () => {
-    setup();
+    const { restore } = setup();
 
     expect(screen.queryByText("Redirecting to email verification...")).toBeInTheDocument();
+    restore();
   });
 
   it("sets onboarding step to EMAIL_VERIFICATION in localStorage", () => {
-    const { mockLocalStorage } = setup();
+    const { mockLocalStorage, restore } = setup();
 
     expect(mockLocalStorage.setItem).toHaveBeenCalledWith("onboardingStep", "2");
+    restore();
   });
 
   it("redirects to onboarding page", () => {
-    const { mockLocationAssign } = setup();
+    const { getLocationHref, restore } = setup();
 
-    expect(mockLocationAssign).toBe("/signup?return-to=%2F");
+    expect(getLocationHref()).toBe("/signup?return-to=%2F");
+    restore();
   });
 
-  function setup() {
+  function setup(input: { onboardingUrl?: string } = {}) {
+    const originalLocalStorage = window.localStorage;
+    const originalLocation = window.location;
+
     const mockLocalStorage = {
       setItem: vi.fn(),
       getItem: vi.fn(),
@@ -51,12 +57,19 @@ describe(VerifyEmailPage.name, () => {
       Layout: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
       Loading: ({ text }: { text: string }) => <div>{text}</div>,
       UrlService: {
-        onboarding: vi.fn(() => "/signup?return-to=%2F")
+        onboarding: vi.fn(() => input.onboardingUrl ?? "/signup?return-to=%2F")
       }
     } as unknown as ComponentProps<typeof VerifyEmailPage>["dependencies"];
 
     render(<VerifyEmailPage dependencies={dependencies} />);
 
-    return { mockLocalStorage, mockLocationAssign: capturedHref };
+    return {
+      mockLocalStorage,
+      getLocationHref: () => capturedHref,
+      restore: () => {
+        Object.defineProperty(window, "localStorage", { value: originalLocalStorage, writable: true, configurable: true });
+        Object.defineProperty(window, "location", { value: originalLocation, writable: true, configurable: true });
+      }
+    };
   }
 });
