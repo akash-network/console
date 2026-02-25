@@ -4,6 +4,7 @@ import { netConfig } from "@akashnetwork/net";
 import { faker } from "@faker-js/faker";
 import { AxiosError } from "axios";
 import { Ok } from "ts-results";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { mockConfigService } from "../../../../test/mocks/config-service.mock";
@@ -20,6 +21,10 @@ import type { ProviderProxyService } from "./provider-proxy.service";
 
 describe(ProviderService.name, () => {
   describe("sendManifest", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
     it("should send manifest successfully on first attempt", async () => {
       const { service, jwtTokenService, providerRepository, providerProxyService } = setup();
 
@@ -60,13 +65,15 @@ describe(ProviderService.name, () => {
           owner: provider.owner,
           hostUri: provider.hostUri
         },
-        timeout: 30_000
+        timeout: 15_000
       });
       expect(result).toEqual({ success: true });
     });
 
     it("should retry on lease not found error and succeed", async () => {
       const { service, jwtTokenService, providerRepository, providerProxyService } = setup();
+
+      vi.useFakeTimers();
 
       const provider = createProviderSeed() as unknown as Provider;
       const wallet = UserWalletSeeder.create();
@@ -82,16 +89,17 @@ describe(ProviderService.name, () => {
 
       providerProxyService.request.mockRejectedValueOnce(axiosError).mockResolvedValueOnce({ success: true });
 
-      const result = await service.sendManifest({
+      const result = service.sendManifest({
         provider: provider.owner,
         dseq,
         manifest,
         auth: await service.toProviderAuth({ walletId: wallet.id, provider: provider.owner })
       });
+      await vi.runAllTimersAsync();
 
+      await expect(result).resolves.toEqual({ success: true });
       expect(providerProxyService.request).toHaveBeenCalledTimes(2);
-      expect(result).toEqual({ success: true });
-    }, 10000);
+    });
 
     it("should throw error when provider not found", async () => {
       const { service, providerRepository } = setup();
@@ -116,6 +124,8 @@ describe(ProviderService.name, () => {
     it("should throw error after max retries", async () => {
       const { service, jwtTokenService, providerRepository, providerProxyService } = setup();
 
+      vi.useFakeTimers();
+
       const provider = createProviderSeed() as unknown as Provider;
       const wallet = UserWalletSeeder.create();
       const dseq = faker.number.int({ min: 1, max: 1000 }).toString();
@@ -139,15 +149,18 @@ describe(ProviderService.name, () => {
         }
       );
       providerProxyService.request.mockRejectedValue(axiosError);
-
-      await expect(
-        service.sendManifest({
+      const result = service
+        .sendManifest({
           provider: provider.owner,
           dseq,
           manifest,
           auth: await service.toProviderAuth({ walletId: wallet.id, provider: provider.owner })
         })
-      ).rejects.toThrow("no lease for deployment");
+        .catch(error => ({ error }));
+
+      await vi.runAllTimersAsync();
+      const { error } = (await result) as { error: Error };
+      expect(error.message).toContain("no lease for deployment");
 
       expect(providerProxyService.request).toHaveBeenCalledTimes(3);
     }, 15000);
@@ -310,7 +323,7 @@ describe(ProviderService.name, () => {
           owner: provider.owner,
           hostUri: provider.hostUri
         },
-        timeout: 30000
+        timeout: 15000
       });
       expect(result).toEqual(leaseStatus);
     });
