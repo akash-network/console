@@ -31,6 +31,10 @@ container.register(CHAIN_DB, {
     const dbUri = c.resolve(ChainConfigService).get("CHAIN_INDEXER_POSTGRES_DB_URI");
     return new Sequelize(dbUri, {
       dialectModule: pg,
+      dialectOptions: {
+        connectionTimeoutMillis: config.get("SEQUELIZE_CONNECTION_TIMEOUT"),
+        keepAlive: config.get("SEQUELIZE_KEEP_ALIVE")
+      },
       logging: msg => logger.write(msg),
       logQueryParameters: true,
       transactionType: DbTransaction.TYPES.IMMEDIATE,

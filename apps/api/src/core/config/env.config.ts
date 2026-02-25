@@ -21,6 +21,11 @@ export const envSchema = z
     SEQUELIZE_POOL_IDLE: z.number({ coerce: true }).optional().default(30000),
     SEQUELIZE_POOL_ACQUIRE: z.number({ coerce: true }).optional().default(10000),
     SEQUELIZE_POOL_EVICT: z.number({ coerce: true }).optional().default(60000),
+    SEQUELIZE_CONNECTION_TIMEOUT: z.number({ coerce: true }).optional().default(3000),
+    SEQUELIZE_KEEP_ALIVE: z
+      .enum(["true", "false"])
+      .default("true")
+      .transform(value => value === "true"),
     DRIZZLE_MIGRATIONS_FOLDER: z.string().optional().default("./drizzle"),
     DEPLOYMENT_ENV: z.string().optional().default("production"),
     NETWORK: z.enum(["mainnet", "testnet", "sandbox"]).default("mainnet"),
