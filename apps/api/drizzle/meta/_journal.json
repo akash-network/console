@@ -204,6 +204,13 @@
       "when": 1771591487804,
       "tag": "0028_right_red_ghost",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1771979737373,
+      "tag": "0029_fluffy_drax",
+      "breakpoints": true
     }
   ]
 }
