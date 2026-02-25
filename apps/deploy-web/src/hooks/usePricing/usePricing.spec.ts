@@ -4,7 +4,7 @@ import type { NetworkStore } from "@akashnetwork/network-store";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import { UAKT_DENOM } from "@src/config/denom.config";
+import { UACT_DENOM, UAKT_DENOM } from "@src/config/denom.config";
 import type { MarketData } from "@src/types/dashboard";
 import { getUsdcDenom } from "@src/utils/priceUtils";
 import { usePricing } from "./usePricing";
@@ -29,8 +29,10 @@ describe(usePricing.name, () => {
     expect(result.current.aktToUSD(2)).toBe(3.04);
     expect(result.current.usdToAkt(3.04)).toBe(2);
     expect(result.current.getPriceForDenom(UAKT_DENOM)).toBe(price);
+    expect(result.current.getPriceForDenom(UACT_DENOM)).toBe(1);
     expect(result.current.getPriceForDenom("other-denom")).toBe(0);
     expect(result.current.udenomToUsd(1_000_000, UAKT_DENOM)).toBe(price);
+    expect(result.current.udenomToUsd(500_000, UACT_DENOM)).toBe(0.5);
     expect(result.current.udenomToUsd(500_000, "usdc")).toBe(0.5);
     expect(result.current.udenomToUsd(500_000, getUsdcDenom(SANDBOX_ID))).toBe(0.5);
     expect(result.current.udenomToUsd(500_000, "unknown")).toBe(0);
@@ -49,7 +51,9 @@ describe(usePricing.name, () => {
     expect(result.current.aktToUSD(1)).toBeNull();
     expect(result.current.usdToAkt(1)).toBeNull();
     expect(result.current.getPriceForDenom(UAKT_DENOM)).toBe(0);
+    expect(result.current.getPriceForDenom(UACT_DENOM)).toBe(1);
     expect(result.current.udenomToUsd(1_000_000, UAKT_DENOM)).toBe(0);
+    expect(result.current.udenomToUsd(1_000_000, UACT_DENOM)).toBe(1);
     expect(result.current.udenomToUsd(1_000_000, "usdc")).toBe(1);
     expect(result.current.udenomToUsd(1_000_000, getUsdcDenom(SANDBOX_ID))).toBe(1);
   });

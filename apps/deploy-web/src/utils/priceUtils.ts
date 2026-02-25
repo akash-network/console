@@ -2,7 +2,7 @@ import type { Coin } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1"
 import type { NetworkId } from "@akashnetwork/chain-sdk/web";
 import add from "date-fns/add";
 
-import { READABLE_DENOMS, UAKT_DENOM, USDC_IBC_DENOMS } from "@src/config/denom.config";
+import { READABLE_DENOMS, UACT_DENOM, UAKT_DENOM, USDC_IBC_DENOMS } from "@src/config/denom.config";
 import networkStore from "@src/store/networkStore";
 import { averageDaysInMonth } from "./dateUtils";
 import { denomToUdenom } from "./mathHelpers";
@@ -27,7 +27,7 @@ export function coinToUDenom(coin: Coin) {
 
   if (coin.denom === "akt") {
     value = denomToUdenom(coin.amount);
-  } else if (coin.denom === UAKT_DENOM || coin.denom === usdcDenom) {
+  } else if (coin.denom === UAKT_DENOM || coin.denom === usdcDenom || coin.denom === UACT_DENOM || coin.denom === "act") {
     value = parseFloat(coin.amount);
   } else {
     throw Error("Unrecognized denom: " + coin.denom);
@@ -40,7 +40,7 @@ export function coinToDenom(coin: Coin) {
   let value: number | null = null;
   const usdcDenom = getUsdcDenom();
 
-  if (coin.denom === "akt") {
+  if (coin.denom === "akt" || coin.denom === "act") {
     value = parseFloat(coin.amount);
   } else if (coin.denom === UAKT_DENOM || coin.denom === usdcDenom) {
     value = uaktToAKT(parseFloat(coin.amount), 6);
