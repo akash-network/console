@@ -26,7 +26,8 @@ export class JobQueueService implements Disposable {
       new PgBoss({
         connectionString: this.coreConfig.get("POSTGRES_DB_URI"),
         schema: this.coreConfig.get("POSTGRES_BACKGROUND_JOBS_SCHEMA"),
-        schedule: false
+        schedule: false,
+        max: this.coreConfig.get("POSTGRES_BACKGROUND_JOBS_POOL_SIZE")
       });
   }
 

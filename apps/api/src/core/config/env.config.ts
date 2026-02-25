@@ -12,6 +12,7 @@ export const envSchema = z
     NODE_ENV: z.enum(["development", "production", "test"]).optional().default("development"),
     POSTGRES_DB_URI: z.string(),
     POSTGRES_BACKGROUND_JOBS_SCHEMA: z.string().optional().default("pgboss"),
+    POSTGRES_BACKGROUND_JOBS_POOL_SIZE: z.number({ coerce: true }).optional().default(20),
     POSTGRES_MAX_CONNECTIONS: z.number({ coerce: true }).optional().default(20),
     POSTGRES_CONNECT_TIMEOUT: z.number({ coerce: true }).optional().default(5),
     POSTGRES_IDLE_TIMEOUT: z.number({ coerce: true }).optional().default(120),
