@@ -62,14 +62,14 @@ export const EmailVerificationContainer: FC<EmailVerificationContainerProps> = (
   }, [cooldownSeconds]);
 
   const sendCode = useCallback(
-    async ({ silent }: { silent?: boolean } = {}) => {
+    async ({ silent, resend }: { silent?: boolean; resend?: boolean } = {}) => {
       if (!user?.id || isSendingRef.current || cooldownRef.current > 0) return;
 
       isSendingRef.current = true;
       setIsResending(true);
       setVerifyError(null);
       try {
-        await auth.sendVerificationCode();
+        await auth.sendVerificationCode({ resend });
         cooldownRef.current = COOLDOWN_DURATION;
         setCooldownSeconds(COOLDOWN_DURATION);
 
@@ -136,7 +136,7 @@ export const EmailVerificationContainer: FC<EmailVerificationContainerProps> = (
         isVerifying,
         cooldownSeconds,
         verifyError,
-        onResendCode: sendCode,
+        onResendCode: () => sendCode({ resend: true }),
         onVerifyCode: handleVerifyCode
       })}
     </>

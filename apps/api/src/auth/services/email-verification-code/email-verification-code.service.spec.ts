@@ -37,7 +37,7 @@ describe(EmailVerificationCodeService.name, () => {
       expect(callOrder).toEqual(["acquireUserLock", "findActiveByUserId"]);
     });
 
-    it("returns existing codeSentAt when cooldown is active", async () => {
+    it("returns existing codeSentAt without resend when active code exists", async () => {
       const user = UserSeeder.create({ email: "test@example.com" });
       const existingCode = createVerificationCodeOutput({
         userId: user.id,
@@ -56,7 +56,26 @@ describe(EmailVerificationCodeService.name, () => {
       expect(notificationService.createNotification).not.toHaveBeenCalled();
     });
 
-    it("sends new code when cooldown has expired", async () => {
+    it("returns existing codeSentAt on resend when cooldown is active", async () => {
+      const user = UserSeeder.create({ email: "test@example.com" });
+      const existingCode = createVerificationCodeOutput({
+        userId: user.id,
+        createdAt: new Date(Date.now() - 10_000).toISOString()
+      });
+      const { service, emailVerificationCodeRepository, userRepository, notificationService } = setup();
+
+      userRepository.findById.mockResolvedValue(user);
+      emailVerificationCodeRepository.findActiveByUserId.mockResolvedValue(existingCode);
+
+      const result = await service.sendCode(user.id, { resend: true });
+
+      expect(result).toEqual({ codeSentAt: existingCode.createdAt });
+      expect(emailVerificationCodeRepository.deleteByUserId).not.toHaveBeenCalled();
+      expect(emailVerificationCodeRepository.create).not.toHaveBeenCalled();
+      expect(notificationService.createNotification).not.toHaveBeenCalled();
+    });
+
+    it("sends new code on resend when cooldown has expired", async () => {
       const user = UserSeeder.create({ email: "test@example.com" });
       const expiredCode = createVerificationCodeOutput({
         userId: user.id,
@@ -69,7 +88,7 @@ describe(EmailVerificationCodeService.name, () => {
       emailVerificationCodeRepository.findActiveByUserId.mockResolvedValue(expiredCode);
       emailVerificationCodeRepository.create.mockResolvedValue(createdRecord);
 
-      const result = await service.sendCode(user.id);
+      const result = await service.sendCode(user.id, { resend: true });
 
       expect(emailVerificationCodeRepository.deleteByUserId).toHaveBeenCalledWith(user.id);
       expect(emailVerificationCodeRepository.create).toHaveBeenCalledWith(

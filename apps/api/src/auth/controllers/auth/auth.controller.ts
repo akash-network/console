@@ -28,10 +28,10 @@ export class AuthController {
   }
 
   @Protected()
-  async sendVerificationCode() {
+  async sendVerificationCode({ resend }: { resend?: boolean } = {}) {
     const { currentUser } = this.authService;
 
-    const result = await this.emailVerificationCodeService.sendCode(currentUser!.id);
+    const result = await this.emailVerificationCodeService.sendCode(currentUser!.id, { resend });
 
     return { data: result };
   }
