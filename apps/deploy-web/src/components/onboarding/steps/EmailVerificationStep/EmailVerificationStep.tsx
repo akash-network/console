@@ -1,6 +1,6 @@
 "use client";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input } from "@akashnetwork/ui/components";
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Spinner } from "@akashnetwork/ui/components";
 import { Mail, Refresh } from "iconoir-react";
 
 import { Title } from "@src/components/shared/Title";
@@ -119,19 +119,32 @@ export const EmailVerificationStep: React.FunctionComponent<EmailVerificationSte
                 value={digit}
                 onChange={e => handleDigitChange(index, e.target.value)}
                 onKeyDown={e => handleKeyDown(index, e)}
-                className="h-12 w-12 text-center text-lg font-semibold"
+                className="h-12 w-12"
+                inputClassName="text-center text-lg font-semibold"
                 disabled={isVerifying}
               />
             ))}
           </div>
 
-          {isVerifying && <p className="text-sm text-muted-foreground">Verifying...</p>}
-
           <p className="text-sm text-muted-foreground">Didn't receive the code? Check your spam folder or request a new one.</p>
 
-          <Button onClick={onResendCode} variant="outline" disabled={isResending || cooldownSeconds > 0} className="w-full">
-            <Refresh className="mr-2 h-4 w-4" />
-            {isResending ? "Sending..." : cooldownSeconds > 0 ? `Resend Code (${cooldownSeconds}s)` : "Resend Code"}
+          <Button onClick={onResendCode} variant="outline" disabled={isResending || isVerifying || cooldownSeconds > 0} className="w-full">
+            {isVerifying ? (
+              <>
+                <Spinner size="small" className="mr-2" />
+                Verifying...
+              </>
+            ) : isResending ? (
+              <>
+                <Spinner size="small" className="mr-2" />
+                Sending...
+              </>
+            ) : (
+              <>
+                <Refresh className="mr-2 h-4 w-4" />
+                {cooldownSeconds > 0 ? `Resend Code (${cooldownSeconds}s)` : "Resend Code"}
+              </>
+            )}
           </Button>
         </CardContent>
       </Card>

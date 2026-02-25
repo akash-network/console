@@ -73,7 +73,9 @@ describe(EmailVerificationStep.name, () => {
   it("displays verifying state", () => {
     setup({ isVerifying: true });
 
-    expect(screen.queryByText("Verifying...")).toBeInTheDocument();
+    const buttons = screen.queryAllByRole("button");
+    const resendButton = buttons.find(b => b.textContent?.includes("Verifying"));
+    expect(resendButton).toBeDisabled();
     const inputs = screen.queryAllByRole("textbox");
     for (const input of inputs) {
       expect(input).toBeDisabled();
