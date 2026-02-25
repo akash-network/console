@@ -11,14 +11,12 @@ describe(EmailVerificationContainer.name, () => {
 
     expect(child).toHaveBeenCalledWith(
       expect.objectContaining({
-        isEmailVerified: false,
         isResending: false,
         isVerifying: false,
         cooldownSeconds: expect.any(Number),
         verifyError: null,
         onResendCode: expect.any(Function),
-        onVerifyCode: expect.any(Function),
-        onContinue: expect.any(Function)
+        onVerifyCode: expect.any(Function)
       })
     );
   });
@@ -115,8 +113,9 @@ describe(EmailVerificationContainer.name, () => {
     expect(mockNotificator.error).toHaveBeenCalledWith("Failed to send verification code. Please try again later");
   });
 
-  it("verifies code and shows success snackbar", async () => {
-    const { child, mockVerifyEmailCode, mockCheckSession, mockEnqueueSnackbar } = setup();
+  it("verifies code, shows success snackbar, and auto-advances", async () => {
+    const mockOnComplete = vi.fn();
+    const { child, mockVerifyEmailCode, mockCheckSession, mockEnqueueSnackbar, mockAnalyticsService } = setup({ onComplete: mockOnComplete });
     mockVerifyEmailCode.mockResolvedValue({ emailVerified: true });
     mockCheckSession.mockResolvedValue(undefined);
 
@@ -137,6 +136,8 @@ describe(EmailVerificationContainer.name, () => {
       }),
       { variant: "success" }
     );
+    expect(mockAnalyticsService.track).toHaveBeenCalledWith("onboarding_email_verified", { category: "onboarding" });
+    expect(mockOnComplete).toHaveBeenCalled();
   });
 
   it("exposes verifyError on verify code failure", async () => {
@@ -150,32 +151,6 @@ describe(EmailVerificationContainer.name, () => {
 
     const lastCall = child.mock.calls[child.mock.calls.length - 1][0];
     expect(lastCall.verifyError).toBe("Invalid verification code");
-  });
-
-  it("calls onComplete when email is verified", () => {
-    const mockOnComplete = vi.fn();
-    const { child } = setup({
-      user: { id: "test-user", emailVerified: true },
-      onComplete: mockOnComplete
-    });
-
-    const { onContinue } = child.mock.calls[0][0];
-    onContinue();
-
-    expect(mockOnComplete).toHaveBeenCalled();
-  });
-
-  it("does not call onComplete when email is not verified", () => {
-    const mockOnComplete = vi.fn();
-    const { child } = setup({
-      user: { id: "test-user", emailVerified: false },
-      onComplete: mockOnComplete
-    });
-
-    const { onContinue } = child.mock.calls[0][0];
-    onContinue();
-
-    expect(mockOnComplete).not.toHaveBeenCalled();
   });
 
   function setup(input: { user?: { id: string; emailVerified: boolean }; onComplete?: Mock } = {}) {

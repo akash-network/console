@@ -23,14 +23,12 @@ const DEPENDENCIES = {
 
 export type EmailVerificationContainerProps = {
   children: (props: {
-    isEmailVerified: boolean;
     isResending: boolean;
     isVerifying: boolean;
     cooldownSeconds: number;
     verifyError: string | null;
     onResendCode: () => void;
     onVerifyCode: (code: string) => void;
-    onContinue: () => void;
   }) => ReactNode;
   onComplete: () => void;
   dependencies?: typeof DEPENDENCIES;
@@ -51,21 +49,17 @@ export const EmailVerificationContainer: FC<EmailVerificationContainerProps> = (
 
   const isEmailVerified = !!user?.emailVerified;
 
-  const isCountingDown = cooldownSeconds > 0;
   useEffect(() => {
-    if (!isCountingDown) return;
+    if (cooldownSeconds <= 0) return;
 
-    const timer = setInterval(() => {
-      setCooldownSeconds(prev => {
-        const next = prev <= 1 ? 0 : prev - 1;
-        cooldownRef.current = next;
-        if (next === 0) clearInterval(timer);
-        return next;
-      });
+    const timer = setTimeout(() => {
+      const next = cooldownSeconds - 1;
+      cooldownRef.current = next;
+      setCooldownSeconds(next);
     }, 1000);
 
-    return () => clearInterval(timer);
-  }, [isCountingDown]);
+    return () => clearTimeout(timer);
+  }, [cooldownSeconds]);
 
   const sendCode = useCallback(
     async ({ silent }: { silent?: boolean } = {}) => {
@@ -111,6 +105,13 @@ export const EmailVerificationContainer: FC<EmailVerificationContainerProps> = (
     }
   }, [isEmailVerified, user?.id, sendCode]);
 
+  const advance = useCallback(() => {
+    analyticsService.track("onboarding_email_verified", {
+      category: "onboarding"
+    });
+    onComplete();
+  }, [analyticsService, onComplete]);
+
   const handleVerifyCode = useCallback(
     async (code: string) => {
       if (!user?.id) return;
@@ -123,35 +124,25 @@ export const EmailVerificationContainer: FC<EmailVerificationContainerProps> = (
         enqueueSnackbar(<d.Snackbar title="Email verified" subTitle="Your email has been successfully verified" iconVariant="success" />, {
           variant: "success"
         });
+        advance();
       } catch (error) {
         setVerifyError(d.extractErrorMessage(error as AppError));
       } finally {
         setIsVerifying(false);
       }
     },
-    [user?.id, auth, checkSession, enqueueSnackbar, d.Snackbar, d.extractErrorMessage]
+    [user?.id, auth, checkSession, enqueueSnackbar, d.Snackbar, d.extractErrorMessage, advance]
   );
-
-  const handleContinue = useCallback(() => {
-    if (isEmailVerified) {
-      analyticsService.track("onboarding_email_verified", {
-        category: "onboarding"
-      });
-      onComplete();
-    }
-  }, [isEmailVerified, analyticsService, onComplete]);
 
   return (
     <>
       {children({
-        isEmailVerified,
         isResending,
         isVerifying,
         cooldownSeconds,
         verifyError,
         onResendCode: sendCode,
-        onVerifyCode: handleVerifyCode,
-        onContinue: handleContinue
+        onVerifyCode: handleVerifyCode
       })}
     </>
   );
