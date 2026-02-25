@@ -129,6 +129,8 @@ export const EmailVerificationStep: React.FunctionComponent<EmailVerificationSte
                       inputRefs.current[index] = el;
                     }}
                     type="text"
+                    aria-label={`Verification code digit ${index + 1}`}
+                    autoComplete={index === 0 ? "one-time-code" : "off"}
                     inputMode="numeric"
                     maxLength={1}
                     value={digit}

@@ -10,7 +10,7 @@ describe(EmailVerificationStep.name, () => {
   it("renders 6 digit inputs when not verified", () => {
     setup();
 
-    const inputs = screen.getAllByRole("textbox");
+    const inputs = screen.queryAllByRole("textbox");
     expect(inputs).toHaveLength(6);
   });
 
@@ -34,13 +34,12 @@ describe(EmailVerificationStep.name, () => {
   });
 
   it("renders continue button when verified", () => {
-    const mockOnContinue = vi.fn();
-    setup({ isEmailVerified: true, onContinue: mockOnContinue });
+    const { onContinue } = setup({ isEmailVerified: true });
 
-    const continueButton = screen.getByRole("button", { name: "Continue" });
-    fireEvent.click(continueButton);
+    const continueButton = screen.queryByRole("button", { name: "Continue" });
+    fireEvent.click(continueButton!);
 
-    expect(mockOnContinue).toHaveBeenCalled();
+    expect(onContinue).toHaveBeenCalled();
   });
 
   it("renders resend button with cooldown text", () => {
@@ -64,7 +63,7 @@ describe(EmailVerificationStep.name, () => {
   it("disables resend button during cooldown", () => {
     setup({ cooldownSeconds: 10 });
 
-    const buttons = screen.getAllByRole("button");
+    const buttons = screen.queryAllByRole("button");
     const resendButton = buttons.find(b => b.textContent?.includes("Resend Code"));
     expect(resendButton).toBeDisabled();
   });
@@ -72,20 +71,19 @@ describe(EmailVerificationStep.name, () => {
   it("disables resend button while resending", () => {
     setup({ isResending: true });
 
-    const buttons = screen.getAllByRole("button");
+    const buttons = screen.queryAllByRole("button");
     const resendButton = buttons.find(b => b.textContent?.includes("Sending"));
     expect(resendButton).toBeDisabled();
   });
 
   it("calls onResendCode when resend button is clicked", () => {
-    const mockOnResendCode = vi.fn();
-    setup({ onResendCode: mockOnResendCode });
+    const { onResendCode } = setup();
 
-    const buttons = screen.getAllByRole("button");
+    const buttons = screen.queryAllByRole("button");
     const resendButton = buttons.find(b => b.textContent?.includes("Resend Code"))!;
     fireEvent.click(resendButton);
 
-    expect(mockOnResendCode).toHaveBeenCalled();
+    expect(onResendCode).toHaveBeenCalled();
   });
 
   it("displays verify error alert", () => {
@@ -98,15 +96,16 @@ describe(EmailVerificationStep.name, () => {
     setup({ isVerifying: true });
 
     expect(screen.queryByText("Verifying...")).toBeInTheDocument();
-    const inputs = screen.getAllByRole("textbox");
-    inputs.forEach(input => expect(input).toBeDisabled());
+    const inputs = screen.queryAllByRole("textbox");
+    for (const input of inputs) {
+      expect(input).toBeDisabled();
+    }
   });
 
   it("calls onVerifyCode when all 6 digits are entered", async () => {
-    const mockOnVerifyCode = vi.fn();
-    setup({ onVerifyCode: mockOnVerifyCode });
+    const { onVerifyCode } = setup();
 
-    const inputs = screen.getAllByRole("textbox");
+    const inputs = screen.queryAllByRole("textbox");
     const user = userEvent.setup();
 
     for (let i = 0; i < 6; i++) {
@@ -114,7 +113,7 @@ describe(EmailVerificationStep.name, () => {
       await user.keyboard((i + 1).toString());
     }
 
-    expect(mockOnVerifyCode).toHaveBeenCalledWith("123456");
+    expect(onVerifyCode).toHaveBeenCalledWith("123456");
   });
 
   it("does not render digit inputs when verified", () => {
@@ -135,6 +134,10 @@ describe(EmailVerificationStep.name, () => {
       onContinue?: () => void;
     } = {}
   ) {
+    const onResendCode = input.onResendCode ?? vi.fn();
+    const onVerifyCode = input.onVerifyCode ?? vi.fn();
+    const onContinue = input.onContinue ?? vi.fn();
+
     render(
       <EmailVerificationStep
         isEmailVerified={input.isEmailVerified ?? false}
@@ -142,10 +145,12 @@ describe(EmailVerificationStep.name, () => {
         isVerifying={input.isVerifying ?? false}
         cooldownSeconds={input.cooldownSeconds ?? 0}
         verifyError={input.verifyError ?? null}
-        onResendCode={input.onResendCode ?? vi.fn()}
-        onVerifyCode={input.onVerifyCode ?? vi.fn()}
-        onContinue={input.onContinue ?? vi.fn()}
+        onResendCode={onResendCode}
+        onVerifyCode={onVerifyCode}
+        onContinue={onContinue}
       />
     );
+
+    return { onResendCode, onVerifyCode, onContinue };
   }
 });
