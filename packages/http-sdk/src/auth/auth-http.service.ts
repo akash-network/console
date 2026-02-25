@@ -12,12 +12,12 @@ export class AuthHttpService extends HttpService {
     return this.post("/v1/send-verification-email", { data: { userId } });
   }
 
-  async sendVerificationCode(userId: string) {
-    return this.extractData(await this.post<SendVerificationCodeResponse>("/v1/send-verification-code", { data: { userId } }));
+  async sendVerificationCode() {
+    return this.extractData(await this.post<SendVerificationCodeResponse>("/v1/send-verification-code"));
   }
 
-  async verifyEmailCode(userId: string, code: string) {
-    return this.extractData(await this.post<VerifyEmailCodeResponse>("/v1/verify-email-code", { data: { userId, code } }));
+  async verifyEmailCode(code: string) {
+    return this.extractData(await this.post<VerifyEmailCodeResponse>("/v1/verify-email-code", { data: { code } }));
   }
 
   async verifyEmail(email: string) {

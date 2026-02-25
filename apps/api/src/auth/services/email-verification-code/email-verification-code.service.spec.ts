@@ -30,7 +30,7 @@ describe(EmailVerificationCodeService.name, () => {
         callOrder.push("findActiveByUserId");
         return undefined;
       });
-      emailVerificationCodeRepository.create.mockResolvedValue({} as any);
+      emailVerificationCodeRepository.create.mockResolvedValue(createVerificationCodeOutput({ userId: user.id }));
 
       await service.sendCode(user.id);
 
@@ -62,11 +62,12 @@ describe(EmailVerificationCodeService.name, () => {
         userId: user.id,
         createdAt: new Date(Date.now() - 61_000).toISOString()
       });
+      const createdRecord = createVerificationCodeOutput({ userId: user.id });
       const { service, emailVerificationCodeRepository, userRepository, notificationService } = setup();
 
       userRepository.findById.mockResolvedValue(user);
       emailVerificationCodeRepository.findActiveByUserId.mockResolvedValue(expiredCode);
-      emailVerificationCodeRepository.create.mockResolvedValue({} as any);
+      emailVerificationCodeRepository.create.mockResolvedValue(createdRecord);
 
       const result = await service.sendCode(user.id);
 
@@ -79,18 +80,19 @@ describe(EmailVerificationCodeService.name, () => {
         })
       );
       expect(notificationService.createNotification).toHaveBeenCalled();
-      expect(result.codeSentAt).toBeDefined();
+      expect(result.codeSentAt).toBe(createdRecord.createdAt);
     });
 
     it("sends new code when no existing code found", async () => {
       const user = UserSeeder.create({ email: "test@example.com" });
+      const createdRecord = createVerificationCodeOutput({ userId: user.id });
       const { service, emailVerificationCodeRepository, userRepository, notificationService } = setup();
 
       userRepository.findById.mockResolvedValue(user);
       emailVerificationCodeRepository.findActiveByUserId.mockResolvedValue(undefined);
-      emailVerificationCodeRepository.create.mockResolvedValue({} as any);
+      emailVerificationCodeRepository.create.mockResolvedValue(createdRecord);
 
-      await service.sendCode(user.id);
+      const result = await service.sendCode(user.id);
 
       expect(emailVerificationCodeRepository.deleteByUserId).toHaveBeenCalledWith(user.id);
       expect(emailVerificationCodeRepository.create).toHaveBeenCalledWith(
@@ -101,6 +103,7 @@ describe(EmailVerificationCodeService.name, () => {
         })
       );
       expect(notificationService.createNotification).toHaveBeenCalled();
+      expect(result.codeSentAt).toBe(createdRecord.createdAt);
     });
 
     it("throws 404 when user not found", async () => {
@@ -161,6 +164,18 @@ describe(EmailVerificationCodeService.name, () => {
 
       await expect(service.verifyCode(user.id, "123456")).rejects.toThrow();
       expect(emailVerificationCodeRepository.incrementAttempts).not.toHaveBeenCalled();
+    });
+
+    it("rejects code with mismatched length without crashing", async () => {
+      const user = UserSeeder.create({ userId: "auth0|123" });
+      const record = createVerificationCodeOutput({ userId: user.id, code: "123456", attempts: 0 });
+      const { service, emailVerificationCodeRepository, userRepository } = setup();
+
+      userRepository.findById.mockResolvedValue(user);
+      emailVerificationCodeRepository.findActiveByUserId.mockResolvedValue(record);
+
+      await expect(service.verifyCode(user.id, "12345")).rejects.toThrow();
+      expect(emailVerificationCodeRepository.incrementAttempts).toHaveBeenCalledWith(record.id);
     });
 
     it("rejects when no active code exists", async () => {

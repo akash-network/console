@@ -8,14 +8,6 @@ import { SECURITY_BEARER } from "@src/core/services/openapi-docs/openapi-securit
 
 export const sendVerificationCodeRouter = new OpenApiHonoHandler();
 
-const SendVerificationCodeRequestSchema = z.object({
-  data: z.object({
-    userId: z.string()
-  })
-});
-
-export type SendVerificationCodeRequest = z.infer<typeof SendVerificationCodeRequestSchema>;
-
 const SendVerificationCodeResponseSchema = z.object({
   data: z.object({
     codeSentAt: z.string()
@@ -25,19 +17,9 @@ const SendVerificationCodeResponseSchema = z.object({
 const route = createRoute({
   method: "post",
   path: "/v1/send-verification-code",
-  summary: "Sends a verification code to the user's email",
+  summary: "Sends a verification code to the authenticated user's email",
   tags: ["Users"],
   security: SECURITY_BEARER,
-  request: {
-    body: {
-      required: true,
-      content: {
-        "application/json": {
-          schema: SendVerificationCodeRequestSchema
-        }
-      }
-    }
-  },
   responses: {
     200: {
       description: "Returns the timestamp when the code was sent",
@@ -52,6 +34,6 @@ const route = createRoute({
 });
 
 sendVerificationCodeRouter.openapi(route, async function sendVerificationCode(c) {
-  const result = await container.resolve(AuthController).sendVerificationCode(c.req.valid("json"));
+  const result = await container.resolve(AuthController).sendVerificationCode();
   return c.json(result, 200);
 });

@@ -31,7 +31,7 @@ describe(VerifyEmailPage.name, () => {
       getItem: vi.fn(),
       removeItem: vi.fn()
     };
-    Object.defineProperty(window, "localStorage", { value: mockLocalStorage, writable: true });
+    Object.defineProperty(window, "localStorage", { value: mockLocalStorage, writable: true, configurable: true });
 
     let capturedHref = "";
     Object.defineProperty(window, "location", {
@@ -43,7 +43,8 @@ describe(VerifyEmailPage.name, () => {
           capturedHref = val;
         }
       },
-      writable: true
+      writable: true,
+      configurable: true
     });
 
     const dependencies = {

@@ -10,8 +10,10 @@ export const verifyEmailCodeRouter = new OpenApiHonoHandler();
 
 const VerifyEmailCodeRequestSchema = z.object({
   data: z.object({
-    userId: z.string(),
-    code: z.string().length(6)
+    code: z
+      .string()
+      .length(6)
+      .regex(/^\d{6}$/, "Code must be exactly 6 digits")
   })
 });
 
