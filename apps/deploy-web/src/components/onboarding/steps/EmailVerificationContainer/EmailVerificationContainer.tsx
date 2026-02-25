@@ -26,7 +26,6 @@ export type EmailVerificationContainerProps = {
     isResending: boolean;
     isVerifying: boolean;
     cooldownSeconds: number;
-    verifyError: string | null;
     onResendCode: () => void;
     onVerifyCode: (code: string) => void;
   }) => ReactNode;
@@ -40,7 +39,6 @@ export const EmailVerificationContainer: FC<EmailVerificationContainerProps> = (
   const notificator = d.useNotificator();
   const [isResending, setIsResending] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
-  const [verifyError, setVerifyError] = useState<string | null>(null);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const { analyticsService, auth } = d.useServices();
   const initialCodeSentForUserRef = useRef<string | null>(null);
@@ -67,7 +65,7 @@ export const EmailVerificationContainer: FC<EmailVerificationContainerProps> = (
 
       isSendingRef.current = true;
       setIsResending(true);
-      setVerifyError(null);
+
       try {
         await auth.sendVerificationCode({ resend });
         cooldownRef.current = COOLDOWN_DURATION;
@@ -112,7 +110,7 @@ export const EmailVerificationContainer: FC<EmailVerificationContainerProps> = (
       if (!user?.id) return;
 
       setIsVerifying(true);
-      setVerifyError(null);
+
       try {
         await auth.verifyEmailCode(code);
         await checkSession();
@@ -121,7 +119,7 @@ export const EmailVerificationContainer: FC<EmailVerificationContainerProps> = (
         });
         advance();
       } catch (error) {
-        setVerifyError(d.extractErrorMessage(error as AppError));
+        notificator.error(d.extractErrorMessage(error as AppError));
       } finally {
         setIsVerifying(false);
       }
@@ -135,7 +133,6 @@ export const EmailVerificationContainer: FC<EmailVerificationContainerProps> = (
         isResending,
         isVerifying,
         cooldownSeconds,
-        verifyError,
         onResendCode: () => sendCode({ resend: true }),
         onVerifyCode: handleVerifyCode
       })}

@@ -1,6 +1,6 @@
 "use client";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input } from "@akashnetwork/ui/components";
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input } from "@akashnetwork/ui/components";
 import { Mail, Refresh } from "iconoir-react";
 
 import { Title } from "@src/components/shared/Title";
@@ -9,7 +9,6 @@ interface EmailVerificationStepProps {
   isResending: boolean;
   isVerifying: boolean;
   cooldownSeconds: number;
-  verifyError: string | null;
   onResendCode: () => void;
   onVerifyCode: (code: string) => void;
 }
@@ -18,7 +17,6 @@ export const EmailVerificationStep: React.FunctionComponent<EmailVerificationSte
   isResending,
   isVerifying,
   cooldownSeconds,
-  verifyError,
   onResendCode,
   onVerifyCode
 }) => {
@@ -63,13 +61,6 @@ export const EmailVerificationStep: React.FunctionComponent<EmailVerificationSte
       onVerifyCode(code);
     }
   }, [digits, onVerifyCode]);
-
-  useEffect(() => {
-    if (verifyError) {
-      setDigits(["", "", "", "", "", ""]);
-      inputRefs.current[0]?.focus();
-    }
-  }, [verifyError]);
 
   const handleKeyDown = useCallback((index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
     const currentDigits = inputRefs.current[index]?.value ?? "";
@@ -133,12 +124,6 @@ export const EmailVerificationStep: React.FunctionComponent<EmailVerificationSte
               />
             ))}
           </div>
-
-          {verifyError && (
-            <Alert className="text-left" variant="destructive">
-              <p className="text-sm">{verifyError}</p>
-            </Alert>
-          )}
 
           {isVerifying && <p className="text-sm text-muted-foreground">Verifying...</p>}
 
