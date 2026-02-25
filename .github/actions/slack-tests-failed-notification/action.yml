@@ -5,6 +5,9 @@ inputs:
   url:
     description: Base URL to Console API or UI
     required: true
+  ref:
+    description: Git ref related to the tests (e.g., console-web/v1.2.3)
+    required: true
   slack-webhook-url:
     description: Slack webhook URL
     required: false
@@ -24,6 +27,7 @@ runs:
       id: associated-pr
       with:
         gh-user-to-slack-user: ${{ inputs.gh-user-to-slack-user }}
+        ref: ${{ inputs.ref }}
     - name: Notify in Slack
       uses: slackapi/slack-github-action@v2.0.0
       with:
