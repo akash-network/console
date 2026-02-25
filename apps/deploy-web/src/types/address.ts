@@ -41,10 +41,13 @@ export interface AssetDetail {
 export interface Balances {
   balanceUAKT: number;
   balanceUUSDC: number;
+  balanceUACT: number;
   deploymentEscrowUAKT: number;
   deploymentEscrowUUSDC: number;
+  deploymentEscrowUACT: number;
   deploymentGrantsUAKT: number;
   deploymentGrantsUUSDC: number;
+  deploymentGrantsUACT: number;
   activeDeployments: DeploymentDto[];
   deploymentGrants: ExactDepositDeploymentGrant[];
 }

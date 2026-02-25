@@ -11,19 +11,23 @@ import { uaktToAKT } from "@src/utils/priceUtils";
 import { usePricing } from "./usePricing/usePricing";
 import { useUsdcDenom } from "./useDenom";
 
-export const TX_FEE_BUFFER = 10000;
+export const TX_FEE_BUFFER = 10_000;
 
 export type WalletBalance = {
   totalUsd: number;
   balanceUAKT: number;
   balanceUUSDC: number;
+  balanceUACT: number;
   totalUAKT: number;
   totalUUSDC: number;
+  totalUACT: number;
   totalDeploymentEscrowUAKT: number;
   totalDeploymentEscrowUUSDC: number;
+  totalDeploymentEscrowUACT: number;
   totalDeploymentEscrowUSD: number;
   totalDeploymentGrantsUAKT: number;
   totalDeploymentGrantsUUSDC: number;
+  totalDeploymentGrantsUACT: number;
   totalDeploymentGrantsUSD: number;
 };
 
@@ -57,13 +61,17 @@ export const useWalletBalance = (): WalletBalanceReturnType => {
         totalUsd: aktUsdValue + totalUsdcValue + totalDeploymentEscrowUSD + totalDeploymentGrantsUSD,
         balanceUAKT: balances.balanceUAKT + balances.deploymentGrantsUAKT,
         balanceUUSDC: balances.balanceUUSDC + balances.deploymentGrantsUUSDC,
+        balanceUACT: balances.balanceUACT,
         totalUAKT: balances.balanceUAKT + balances.deploymentEscrowUAKT + balances.deploymentGrantsUAKT,
         totalUUSDC: balances.balanceUUSDC + balances.deploymentEscrowUUSDC + balances.deploymentGrantsUUSDC,
+        totalUACT: balances.balanceUACT + balances.deploymentEscrowUACT + balances.deploymentGrantsUACT,
         totalDeploymentEscrowUAKT: balances.deploymentEscrowUAKT,
         totalDeploymentEscrowUUSDC: balances.deploymentEscrowUUSDC,
+        totalDeploymentEscrowUACT: balances.deploymentEscrowUACT,
         totalDeploymentEscrowUSD: totalDeploymentEscrowUSD,
         totalDeploymentGrantsUAKT: balances.deploymentGrantsUAKT,
         totalDeploymentGrantsUUSDC: balances.deploymentGrantsUUSDC,
+        totalDeploymentGrantsUACT: balances.deploymentGrantsUACT,
         totalDeploymentGrantsUSD: totalDeploymentGrantsUSD
       });
     }
@@ -93,7 +101,7 @@ export const useDenomData = (denom?: string) => {
   const txFeeBuffer = isManaged ? 0 : TX_FEE_BUFFER;
 
   useEffect(() => {
-    if (isLoaded && walletBalance && (minDeposit?.akt || minDeposit?.usdc) && price) {
+    if (isLoaded && walletBalance && (minDeposit?.akt || minDeposit?.usdc || minDeposit?.act) && price) {
       let depositData: DenomData | null = null;
       switch (denom) {
         case UAKT_DENOM:
@@ -110,6 +118,14 @@ export const useDenomData = (denom?: string) => {
             label: "USDC",
             balance: udenomToDenom(walletBalance.balanceUUSDC, 6),
             max: udenomToDenom(Math.max(walletBalance.balanceUUSDC - txFeeBuffer, 0), 6)
+          };
+          break;
+        case "uact":
+          depositData = {
+            min: minDeposit.act,
+            label: "ACT",
+            balance: udenomToDenom(walletBalance.balanceUACT, 6) || 0,
+            max: udenomToDenom(Math.max(walletBalance.balanceUACT - txFeeBuffer, 0), 6) || 0
           };
           break;
         default:
