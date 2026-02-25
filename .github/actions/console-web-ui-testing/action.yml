@@ -2,6 +2,9 @@ name: Console Web UI testing
 description: Runs UI tests for Console Web
 
 inputs:
+  ref:
+    description: Git ref related to the tests (e.g., console-web/v1.2.3)
+    required: true
   url:
     description: Base URL to Console Web
     required: true
@@ -61,6 +64,7 @@ runs:
     - uses: ./.github/actions/slack-tests-failed-notification
       if: ${{ !cancelled() && steps.e2e-tests.outcome == 'failure' }}
       with:
+        ref: ${{ inputs.ref }}
         url: ${{ inputs.url }}
         gh-user-to-slack-user: ${{ inputs.gh-user-to-slack-user }}
         slack-webhook-url: ${{ inputs.slack-webhook-url }}

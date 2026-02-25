@@ -61,7 +61,9 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
-    needs: deploy-beta-sandbox
+    needs:
+      - setup
+      - deploy-beta-sandbox
     name: Test beta sandbox
     runs-on: ubuntu-latest
     steps:
@@ -72,6 +74,7 @@ jobs:
           CONSOLE_API_E2E_API_KEY: ${{ secrets.CONSOLE_API_E2E_BETA_SANDBOX_API_KEY }}
         with:
           app: api
+          app-version: ${{ needs.setup.outputs.image_tag }}
           app-url: ${{ vars.CONSOLE_WEB_BETA_URL }}/api-sandbox
           environment: staging
           chain: sandbox

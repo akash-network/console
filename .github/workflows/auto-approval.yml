@@ -21,7 +21,7 @@ jobs:
         id: associated-pr
         uses: ./.github/actions/associated-pr
         with:
-          sha: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.event.workflow_run.head_sha }}
       - name: Evaluate auto-approval criteria
         id: evaluate
         if: steps.associated-pr.outputs.number != '' && steps.associated-pr.outputs.closed != 'true'

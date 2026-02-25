@@ -33,7 +33,6 @@ inputs:
   linked-workflow-run-id:
     description: The ID of the workflow run that called this action
     required: false
-    default: ""
 
 runs:
   using: "composite"
@@ -42,6 +41,7 @@ runs:
       id: associated-pr
       with:
         gh-user-to-slack-user: ${{ inputs.gh-user-to-slack-user }}
+        ref: ${{ inputs.app }}/v${{ inputs.new-version }}
     - name: Notify in Slack
       uses: slackapi/slack-github-action@v2.0.0
       with:
@@ -58,7 +58,7 @@ runs:
                   Hey ${{ steps.associated-pr.outputs.slack-user != '' && format('<@{0}>', steps.associated-pr.outputs.slack-user) || steps.associated-pr.outputs.author }},
 
                   A new version of *${{inputs.app}}* `${{ inputs.new-version }}` is ready to be deployed to *${{ inputs.environment }}${{ inputs.chain != '' && format('-{0}', inputs.chain) || '' }}*. Please test your changes on <${{ inputs.url }}|beta> and <${{ github.server_url }}/${{ github.repository }}/actions/workflows/reusable-deploy-k8s.yml|Confirm> the deployment.
-                  This was triggered by the following PR:
+                  Triggered by the following PR in run <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ inputs.linked-workflow-run-id }}|#${{ inputs.linked-workflow-run-id }}>:
                   <${{ github.server_url }}/${{ github.repository }}/pull/${{ steps.associated-pr.outputs.number }}|${{ steps.associated-pr.outputs.title }}>
 
                   Alternatively, use gh cli to run workflow:

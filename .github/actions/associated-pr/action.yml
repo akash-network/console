@@ -2,8 +2,8 @@ name: Get Associated PR
 description: Gets the associated PR for a commit (takes commit from github context or sha input)
 
 inputs:
-  sha:
-    description: Commit SHA to look up (defaults to github.sha)
+  ref:
+    description: Git ref or commit SHA to look up (defaults to github.sha)
     required: false
     default: ""
   gh-user-to-slack-user:
@@ -40,22 +40,50 @@ outputs:
 runs:
   using: "composite"
   steps:
+    - name: Get commit SHA
+      id: get-sha
+      env:
+        INPUT_REF: ${{ inputs.ref }}
+      uses: actions/github-script@v7
+      with:
+        script: | # js
+          if (!process.env.INPUT_REF) {
+            core.info(`No ref input provided, using context.sha: ${context.sha}`);
+            core.setOutput('sha', context.sha);
+            return;
+          }
+
+          // handles console-web/v1.2.3 tags and inputs with typos console-web/vv1.2.3
+          if (/^[\w-]+\/v{1,2}[\d.]+(-\w+\.\d+)?$/.test(process.env.INPUT_REF)) {
+            core.info(`Ref input looks like app version tag, trying to resolve its sha: ${process.env.INPUT_REF}`);
+            const { data } = await github.rest.git.getRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: `tags/${process.env.INPUT_REF.replace(/\/v{2,}/, '/v')}`,
+            });
+            core.setOutput('sha', data.object.sha);
+            return;
+          }
+
+          core.info(`Using provided ref as sha: ${process.env.INPUT_REF}`);
+          core.setOutput('sha', process.env.INPUT_REF);
+
     - uses: actions/github-script@v7
       id: associated-pr
       env:
         GH_USER_TO_SLACK_USER: ${{ inputs.gh-user-to-slack-user }}
-        INPUT_SHA: ${{ inputs.sha }}
+        INPUT_SHA: ${{ steps.get-sha.outputs.sha }}
       with:
-        script: |
+        script: | # js
           const commitSha = process.env.INPUT_SHA || context.sha;
           let pr = context.payload.pull_request;
 
-          // Retry logic to handle timing issues with GitHub API
-          // Sometimes the commit-PR association isn't immediately available after merge
-          if (!pr) {
+          if (!pr || pr.head?.sha !== commitSha) {
             const maxRetries = 5;
-            const baseDelay = 2000; // 2 seconds
+            const baseDelay = 2000;
 
+            // Retry logic to handle timing issues with GitHub API
+            // Sometimes the commit-PR association isn't immediately available after merge
             for (let attempt = 0; attempt < maxRetries; attempt++) {
               if (attempt > 0) {
                 // Exponential backoff: 2s, 4s, 8s, 16s, 32s
@@ -64,13 +92,11 @@ runs:
                 await new Promise(resolve => setTimeout(resolve, delay));
               }
 
-              const response = (
-                await github.rest.repos.listPullRequestsAssociatedWithCommit({
-                  commit_sha: commitSha,
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                })
-              );
+              const response = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                commit_sha: commitSha,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+              });
 
               if (response.data && response.data.length > 0) {
                 pr = response.data[0];
@@ -80,7 +106,12 @@ runs:
             }
           }
 
-          if (pr && !pr.merged_by) {
+          if (!pr) {
+            core.warning(`No PR found for commit ${commitSha} after retries`);
+            return;
+          }
+
+          if (pr.merged && !pr.merged_by) {
             const { data } = await github.rest.pulls.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -89,25 +120,12 @@ runs:
             pr = data;
           }
 
-          if (!pr) {
-            core.warning(`No PR found for commit ${commitSha} after retries`);
-            core.setOutput('number', '');
-            core.setOutput('title', '');
-            core.setOutput('author', '');
-            core.setOutput('slack-user', '');
-            core.setOutput('head_ref', '');
-            core.setOutput('head_repo', '');
-            core.setOutput('labels', '');
-            core.setOutput('closed', '');
-            return;
-          }
-
           core.setOutput('number', pr.number);
           core.setOutput('title', pr.title);
           core.setOutput('head_ref', pr.head.ref);
           core.setOutput('head_repo', pr.head.repo?.full_name || '');
           core.setOutput('labels', (pr.labels || []).map(l => l.name).join(','));
-          core.setOutput('closed', pr.closed);
+          core.setOutput('closed', pr.closed_at ? 'true' : 'false');
 
           const author = pr.merged_by?.login || pr.user.login;
           core.setOutput('author', author);
