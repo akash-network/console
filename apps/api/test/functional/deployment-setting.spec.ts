@@ -1,39 +1,37 @@
 import { faker } from "@faker-js/faker";
 import { container } from "tsyringe";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
+import { UserWalletRepository } from "@src/billing/repositories";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
 import { app } from "@src/rest-app";
+import { UserRepository } from "@src/user/repositories/user/user.repository";
 
+import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { DrainingDeploymentSeeder } from "@test/seeders/draining-deployment.seeder";
-import { topUpWallet } from "@test/services/topUpWallet";
-import { WalletTestingService } from "@test/services/wallet-testing.service";
+import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
 
 describe("Deployment Settings", () => {
-  const walletService = new WalletTestingService(app);
   const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
   const leaseRepository = container.resolve(LeaseRepository);
+  const userRepository = container.resolve(UserRepository);
+  const userAuthTokenService = container.resolve(UserAuthTokenService);
+  const userWalletRepository = container.resolve(UserWalletRepository);
 
-  beforeAll(async () => {
-    await topUpWallet();
-  });
-
-  beforeEach(() => {
-    jest.spyOn(leaseRepository, "findOneByDseqAndOwner").mockResolvedValue(DrainingDeploymentSeeder.create());
-  });
-
-  afterEach(async () => {
-    jest.restoreAllMocks();
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   describe("GET /v1/deployment-settings/{userId}/{dseq}", () => {
-    it("should return 401 if user is not authenticated", async () => {
+    it("returns 401 if user is not authenticated", async () => {
       const response = await app.request("/v1/deployment-settings/123/456");
       expect(response.status).toBe(401);
     });
 
-    it("should return a new deployment setting if not found", async () => {
-      const { token, user } = await walletService.createUserAndWallet();
+    it("returns a new deployment setting if not found", async () => {
+      const { token, user } = await setup();
       const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
 
       const response = await app.request(`/v1/deployment-settings/${user.id}/${dseq}`, {
@@ -58,8 +56,9 @@ describe("Deployment Settings", () => {
       });
     });
 
-    it("should return 404 when accessing other user's deployment settings", async () => {
-      const [{ user: user1 }, { token: token2 }] = await Promise.all([walletService.createUserAndWallet(), walletService.createUserAndWallet()]);
+    it("returns 404 when accessing other user's deployment settings", async () => {
+      const { user: user1 } = await setup();
+      const { token: token2 } = await setup();
 
       const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
       await deploymentSettingRepository.create({
@@ -83,8 +82,8 @@ describe("Deployment Settings", () => {
       });
     });
 
-    it("should return deployment settings if found", async () => {
-      const { token, user, wallet } = await walletService.createUserAndWallet();
+    it("returns deployment settings if found", async () => {
+      const { token, user, wallet } = await setup();
       const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
 
       const settings = await deploymentSettingRepository.create({
@@ -118,7 +117,7 @@ describe("Deployment Settings", () => {
   });
 
   describe("POST /v1/deployment-settings", () => {
-    it("should return 401 if user is not authenticated", async () => {
+    it("returns 401 if user is not authenticated", async () => {
       const response = await app.request("/v1/deployment-settings", {
         method: "POST",
         headers: {
@@ -136,8 +135,9 @@ describe("Deployment Settings", () => {
       expect(response.status).toBe(401);
     });
 
-    it("should return 403 when creating deployment settings for another user", async () => {
-      const [{ user: user1 }, { token: token2 }] = await Promise.all([walletService.createUserAndWallet(), walletService.createUserAndWallet()]);
+    it("returns 403 when creating deployment settings for another user", async () => {
+      const { user: user1 } = await setup();
+      const { token: token2 } = await setup();
 
       const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
 
@@ -165,8 +165,8 @@ describe("Deployment Settings", () => {
       });
     });
 
-    it("should create deployment settings", async () => {
-      const { token, user, wallet } = await walletService.createUserAndWallet();
+    it("creates deployment settings", async () => {
+      const { token, user, wallet } = await setup();
       const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
 
       const response = await app.request("/v1/deployment-settings", {
@@ -204,7 +204,7 @@ describe("Deployment Settings", () => {
   });
 
   describe("PATCH /v1/deployment-settings/{userId}/{dseq}", () => {
-    it("should return 401 if user is not authenticated", async () => {
+    it("returns 401 if user is not authenticated", async () => {
       const response = await app.request("/v1/deployment-settings/123/456", {
         method: "PATCH",
         headers: {
@@ -220,8 +220,8 @@ describe("Deployment Settings", () => {
       expect(response.status).toBe(401);
     });
 
-    it("should create and return new setting if not found", async () => {
-      const { token, user, wallet } = await walletService.createUserAndWallet();
+    it("creates and returns new setting if not found", async () => {
+      const { token, user, wallet } = await setup();
       const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
 
       const response = await app.request(`/v1/deployment-settings/${user.id}/${dseq}`, {
@@ -255,8 +255,9 @@ describe("Deployment Settings", () => {
       expect(leaseRepository.findOneByDseqAndOwner).toHaveBeenCalledWith(dseq, wallet.address);
     });
 
-    it("should return 404 when updating other user's deployment settings", async () => {
-      const [{ user: user1 }, { token: token2 }] = await Promise.all([walletService.createUserAndWallet(), walletService.createUserAndWallet()]);
+    it("returns 404 when updating other user's deployment settings", async () => {
+      const { user: user1 } = await setup();
+      const { token: token2 } = await setup();
 
       const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
       await deploymentSettingRepository.create({
@@ -287,8 +288,8 @@ describe("Deployment Settings", () => {
       });
     });
 
-    it("should update deployment settings", async () => {
-      const { token, user, wallet } = await walletService.createUserAndWallet();
+    it("updates deployment settings", async () => {
+      const { token, user, wallet } = await setup();
       const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
 
       const settings = await deploymentSettingRepository.create({
@@ -330,4 +331,20 @@ describe("Deployment Settings", () => {
       expect(leaseRepository.findOneByDseqAndOwner).toHaveBeenCalledWith(dseq, wallet.address);
     });
   });
+
+  async function setup() {
+    const user = await userRepository.create({ userId: faker.string.uuid() });
+    const walletAddress = createAkashAddress();
+    const token = faker.string.alphanumeric(40);
+
+    const wallet = UserWalletSeeder.create({ userId: user.id, address: walletAddress });
+
+    vi.spyOn(userAuthTokenService, "getValidUserId").mockResolvedValue(user.userId);
+    vi.spyOn(userWalletRepository, "accessibleBy").mockReturnValue(userWalletRepository);
+    vi.spyOn(userWalletRepository, "findFirst").mockResolvedValue(wallet);
+    vi.spyOn(userWalletRepository, "findOneByUserId").mockResolvedValue(wallet);
+    vi.spyOn(leaseRepository, "findOneByDseqAndOwner").mockResolvedValue(DrainingDeploymentSeeder.create());
+
+    return { user, token, wallet };
+  }
 });
