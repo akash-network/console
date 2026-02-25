@@ -35,9 +35,27 @@ export const EmailVerificationStep: React.FunctionComponent<EmailVerificationSte
     (index: number, value: string) => {
       if (!/^\d*$/.test(value) || isVerifying) return;
 
+      if (value.length > 1) {
+        const filled = value.slice(0, 6 - index);
+        setDigits(prev => {
+          const newDigits = [...prev];
+          for (let i = 0; i < filled.length; i++) {
+            newDigits[index + i] = filled[i];
+          }
+          const code = newDigits.join("");
+          if (code.length === 6) {
+            onVerifyCode(code);
+          } else {
+            inputRefs.current[index + filled.length]?.focus();
+          }
+          return newDigits;
+        });
+        return;
+      }
+
       setDigits(prev => {
         const newDigits = [...prev];
-        newDigits[index] = value.slice(-1);
+        newDigits[index] = value;
 
         if (value && index < 5) {
           inputRefs.current[index + 1]?.focus();
@@ -132,7 +150,6 @@ export const EmailVerificationStep: React.FunctionComponent<EmailVerificationSte
                     aria-label={`Verification code digit ${index + 1}`}
                     autoComplete={index === 0 ? "one-time-code" : "off"}
                     inputMode="numeric"
-                    maxLength={1}
                     value={digit}
                     onChange={e => handleDigitChange(index, e.target.value)}
                     onKeyDown={e => handleKeyDown(index, e)}

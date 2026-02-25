@@ -1,24 +1,43 @@
 import { faker } from "@faker-js/faker";
 import type { GetUsers200ResponseOneOfInner, ManagementClient } from "auth0";
-import { mock } from "vitest-mock-extended";
 
-import type { AuthConfigService } from "@src/auth/services/auth-config/auth-config.service";
 import { Auth0Service } from "./auth0.service";
 
 import { Auth0UserSeeder } from "@test/seeders";
 
 describe(Auth0Service.name, () => {
+  describe("sendVerificationEmail", () => {
+    it("calls managementClient.jobs.verifyEmail with user ID", async () => {
+      const verifyEmail = jest.fn().mockResolvedValue(undefined);
+      const { auth0Service } = setup({ jobs: { verifyEmail } });
+
+      await auth0Service.sendVerificationEmail("auth0|abc123");
+
+      expect(verifyEmail).toHaveBeenCalledWith({ user_id: "auth0|abc123" });
+    });
+  });
+
+  describe("markEmailVerified", () => {
+    it("calls managementClient.users.update with email_verified true", async () => {
+      const update = jest.fn().mockResolvedValue(undefined);
+      const { auth0Service } = setup({ users: { update } });
+
+      await auth0Service.markEmailVerified("auth0|xyz789");
+
+      expect(update).toHaveBeenCalledWith({ id: "auth0|xyz789" }, { email_verified: true });
+    });
+  });
+
   describe("getUserByEmail", () => {
-    it("should return user when user is found", async () => {
+    it("returns user when user is found", async () => {
       const email = faker.internet.email();
       const mockUser: Partial<GetUsers200ResponseOneOfInner> = Auth0UserSeeder.create({
         email: email,
         email_verified: true
       });
 
-      const { auth0Service, mockGetByEmail } = setup({
-        mockUsers: [mockUser as GetUsers200ResponseOneOfInner]
-      });
+      const mockGetByEmail = jest.fn().mockResolvedValue({ data: [mockUser] });
+      const { auth0Service } = setup({ usersByEmail: { getByEmail: mockGetByEmail } });
 
       const result = await auth0Service.getUserByEmail(email);
 
@@ -26,12 +45,11 @@ describe(Auth0Service.name, () => {
       expect(mockGetByEmail).toHaveBeenCalledWith({ email });
     });
 
-    it("should return null when no user is found", async () => {
+    it("returns null when no user is found", async () => {
       const email = faker.internet.email();
 
-      const { auth0Service, mockGetByEmail } = setup({
-        mockUsers: []
-      });
+      const mockGetByEmail = jest.fn().mockResolvedValue({ data: [] });
+      const { auth0Service } = setup({ usersByEmail: { getByEmail: mockGetByEmail } });
 
       const result = await auth0Service.getUserByEmail(email);
 
@@ -39,7 +57,7 @@ describe(Auth0Service.name, () => {
       expect(mockGetByEmail).toHaveBeenCalledWith({ email });
     });
 
-    it("should return first user when multiple users are found", async () => {
+    it("returns first user when multiple users are found", async () => {
       const email = faker.internet.email();
       const mockUsers: Partial<GetUsers200ResponseOneOfInner>[] = [
         Auth0UserSeeder.create({
@@ -52,9 +70,8 @@ describe(Auth0Service.name, () => {
         })
       ];
 
-      const { auth0Service, mockGetByEmail } = setup({
-        mockUsers: mockUsers as GetUsers200ResponseOneOfInner[]
-      });
+      const mockGetByEmail = jest.fn().mockResolvedValue({ data: mockUsers });
+      const { auth0Service } = setup({ usersByEmail: { getByEmail: mockGetByEmail } });
 
       const result = await auth0Service.getUserByEmail(email);
 
@@ -62,52 +79,30 @@ describe(Auth0Service.name, () => {
       expect(mockGetByEmail).toHaveBeenCalledWith({ email });
     });
 
-    it("should handle empty email string", async () => {
-      const email = "";
+    it("returns null for empty email string", async () => {
+      const mockGetByEmail = jest.fn().mockResolvedValue({ data: [] });
+      const { auth0Service } = setup({ usersByEmail: { getByEmail: mockGetByEmail } });
 
-      const { auth0Service, mockGetByEmail } = setup({
-        mockUsers: []
-      });
-
-      const result = await auth0Service.getUserByEmail(email);
+      const result = await auth0Service.getUserByEmail("");
 
       expect(result).toBeNull();
       expect(mockGetByEmail).toHaveBeenCalledWith({ email: "" });
     });
-
-    function setup(input: { mockUsers?: GetUsers200ResponseOneOfInner[]; mockError?: Error }) {
-      const mockAuthConfig = mock<AuthConfigService>();
-      mockAuthConfig.get.mockImplementation((key: string) => {
-        const config = {
-          AUTH0_M2M_DOMAIN: "test-domain.auth0.com",
-          AUTH0_M2M_CLIENT_ID: "test-client-id",
-          AUTH0_M2M_SECRET: "test-client-secret"
-        };
-        return config[key as keyof typeof config];
-      });
-
-      const mockGetByEmail = jest.fn();
-      const mockManagementClient = {
-        usersByEmail: {
-          getByEmail: mockGetByEmail
-        }
-      } as unknown as ManagementClient;
-
-      if (input.mockError) {
-        mockGetByEmail.mockRejectedValue(input.mockError);
-      } else {
-        mockGetByEmail.mockResolvedValue({
-          data: input.mockUsers || []
-        });
-      }
-
-      const auth0Service = new Auth0Service(mockManagementClient);
-
-      return {
-        auth0Service,
-        mockGetByEmail,
-        mockManagementClient
-      };
-    }
   });
+
+  function setup(
+    input: {
+      jobs?: { verifyEmail: jest.Mock };
+      users?: { update: jest.Mock };
+      usersByEmail?: { getByEmail: jest.Mock };
+    } = {}
+  ) {
+    const mockManagementClient = {
+      ...input
+    } as unknown as ManagementClient;
+
+    const auth0Service = new Auth0Service(mockManagementClient);
+
+    return { auth0Service, mockManagementClient };
+  }
 });
