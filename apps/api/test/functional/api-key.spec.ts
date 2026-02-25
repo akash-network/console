@@ -1,5 +1,7 @@
 import { faker } from "@faker-js/faker";
 import { container } from "tsyringe";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
@@ -9,62 +11,27 @@ import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 
 import { ApiKeySeeder } from "@test/seeders/api-key.seeder";
-import { stub } from "@test/services/stub";
-import { topUpWallet } from "@test/services/topUpWallet";
-import { WalletTestingService } from "@test/services/wallet-testing.service";
 
 const OBFUSCATED_API_KEY_PATTERN = /^ac\.sk\.test\.[A-Za-z0-9]{6}\*{3}[A-Za-z0-9]{6}$/;
 const FULL_API_KEY_PATTERN = /^ac\.sk\.test\.[A-Za-z0-9]{64}$/;
 
 describe("API Keys", () => {
-  const walletService = new WalletTestingService(app);
   const apiKeyRepository = container.resolve(ApiKeyRepository);
   const userRepository = container.resolve(UserRepository);
   const userAuthTokenService = container.resolve(UserAuthTokenService);
-  let config: jest.Mocked<CoreConfigService>;
-  let apiKeyGenerator: ApiKeyGeneratorService;
 
-  // TODO: This is a hack to avoid implementing proper auth0 mocking
-  // Refactor once the proper auth0 mocking is implemented
-  // https://github.com/akash-network/console/issues/552
-  async function createTestUser(trial = false) {
-    const { user, token } = await walletService.createUserAndWallet();
-    const userWithId = { ...user, userId: faker.string.uuid() };
-
-    jest.spyOn(userRepository, "findByUserId").mockImplementation(async id => {
-      if (id === userWithId.userId) {
-        return {
-          ...userWithId,
-          trial,
-          userWallets: { isTrialing: trial }
-        };
-      }
-      return undefined;
-    });
-
-    jest.spyOn(userAuthTokenService, "getValidUserId").mockImplementation(async () => userWithId.userId);
-
-    return { user: userWithId, token };
-  }
-
-  beforeAll(async () => {
-    await topUpWallet();
-  });
-
-  beforeEach(async () => {
-    config = stub<CoreConfigService>({ get: jest.fn() });
-    config.get.mockReturnValue("test");
-    apiKeyGenerator = new ApiKeyGeneratorService(config);
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   describe("GET /v1/api-keys", () => {
-    it("should return 401 if user is not authenticated", async () => {
+    it("returns 401 if user is not authenticated", async () => {
       const response = await app.request("/v1/api-keys");
       expect(response.status).toBe(401);
     });
 
-    it("should return empty array if no API keys found", async () => {
-      const { token } = await createTestUser();
+    it("returns empty array if no API keys found", async () => {
+      const { token } = await setup();
 
       const response = await app.request("/v1/api-keys", {
         headers: { authorization: `Bearer ${token}` }
@@ -74,9 +41,9 @@ describe("API Keys", () => {
       expect(await response.json()).toEqual({ data: [] });
     });
 
-    it("should not return other user's API keys", async () => {
-      const { user: user1 } = await createTestUser();
-      const { token: token2 } = await createTestUser();
+    it("does not return other user's API keys", async () => {
+      const { user: user1, token, createUser } = await setup();
+      const { token: token2 } = await createUser();
 
       const key1 = ApiKeySeeder.create({
         userId: user1.id,
@@ -90,16 +57,23 @@ describe("API Keys", () => {
         lastUsedAt: key1.lastUsedAt ? new Date(key1.lastUsedAt) : null
       });
 
-      const response = await app.request("/v1/api-keys", {
-        headers: { authorization: `Bearer ${token2}` }
-      });
+      const [response, nonOwnerResponse] = await Promise.all([
+        app.request("/v1/api-keys", {
+          headers: { authorization: `Bearer ${token}` }
+        }),
+        app.request("/v1/api-keys", {
+          headers: { authorization: `Bearer ${token2}` }
+        })
+      ]);
 
       expect(response.status).toBe(200);
-      expect(await response.json()).toEqual({ data: [] });
+      expect(await response.json()).toEqual({ data: expect.arrayContaining([expect.objectContaining({ id: key1.id })]) });
+      expect(nonOwnerResponse.status).toBe(200);
+      expect(await nonOwnerResponse.json()).toEqual({ data: [] });
     });
 
-    it("should return list of API keys with obfuscated keys", async () => {
-      const { token, user } = await createTestUser();
+    it("returns list of API keys with obfuscated keys", async () => {
+      const { token, user, apiKeyGenerator } = await setup();
       const apiKey = apiKeyGenerator.generateApiKey();
       const hashedKey = await apiKeyGenerator.hashApiKey(apiKey);
       const obfuscatedKey = apiKeyGenerator.obfuscateApiKey(apiKey);
@@ -150,14 +124,14 @@ describe("API Keys", () => {
   });
 
   describe("GET /v1/api-keys/{id}", () => {
-    it("should return 401 if user is not authenticated", async () => {
+    it("returns 401 if user is not authenticated", async () => {
       const keyId = faker.string.uuid();
       const response = await app.request(`/v1/api-keys/${keyId}`);
       expect(response.status).toBe(401);
     });
 
-    it("should return 404 if API key not found", async () => {
-      const { token } = await createTestUser();
+    it("returns 404 if API key not found", async () => {
+      const { token } = await setup();
       const keyId = faker.string.uuid();
 
       const response = await app.request(`/v1/api-keys/${keyId}`, {
@@ -173,8 +147,8 @@ describe("API Keys", () => {
       });
     });
 
-    it("should return API key details with obfuscated key", async () => {
-      const { token, user } = await createTestUser();
+    it("returns API key details with obfuscated key", async () => {
+      const { token, user, apiKeyGenerator } = await setup();
       const apiKey = apiKeyGenerator.generateApiKey();
       const hashedKey = await apiKeyGenerator.hashApiKey(apiKey);
       const obfuscatedKey = apiKeyGenerator.obfuscateApiKey(apiKey);
@@ -204,7 +178,7 @@ describe("API Keys", () => {
   });
 
   describe("POST /v1/api-keys", () => {
-    it("should return 401 if user is not authenticated", async () => {
+    it("returns 401 if user is not authenticated", async () => {
       const response = await app.request("/v1/api-keys", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -218,8 +192,8 @@ describe("API Keys", () => {
       expect(response.status).toBe(401);
     });
 
-    it("should create API key and return full key once", async () => {
-      const { token } = await createTestUser();
+    it("creates API key and returns full key once", async () => {
+      const { token } = await setup();
       const futureDate = new Date();
       futureDate.setFullYear(futureDate.getFullYear() + 1);
 
@@ -251,10 +225,10 @@ describe("API Keys", () => {
       expect(storedKey?.hashedKey).not.toMatch(FULL_API_KEY_PATTERN);
     });
 
-    it("should reject API key creation with past expiration date", async () => {
-      const { token } = await createTestUser();
+    it("rejects API key creation with past expiration date", async () => {
+      const { token } = await setup();
       const pastDate = new Date();
-      pastDate.setFullYear(pastDate.getFullYear() - 1); // 1 year ago
+      pastDate.setFullYear(pastDate.getFullYear() - 1);
 
       const response = await app.request("/v1/api-keys", {
         method: "POST",
@@ -287,8 +261,8 @@ describe("API Keys", () => {
       });
     });
 
-    it("should allow API key creation for trial users", async () => {
-      const { token } = await createTestUser(true);
+    it("allows API key creation for trial users", async () => {
+      const { token } = await setup({ trial: true });
 
       const response = await app.request("/v1/api-keys", {
         method: "POST",
@@ -313,7 +287,7 @@ describe("API Keys", () => {
   });
 
   describe("PATCH /v1/api-keys/{id}", () => {
-    it("should return 401 if user is not authenticated", async () => {
+    it("returns 401 if user is not authenticated", async () => {
       const keyId = faker.string.uuid();
       const response = await app.request(`/v1/api-keys/${keyId}`, {
         method: "PATCH",
@@ -328,8 +302,8 @@ describe("API Keys", () => {
       expect(response.status).toBe(401);
     });
 
-    it("should update API key", async () => {
-      const { token, user } = await createTestUser();
+    it("updates API key", async () => {
+      const { token, user, apiKeyGenerator } = await setup();
       const apiKey = apiKeyGenerator.generateApiKey();
       const hashedKey = await apiKeyGenerator.hashApiKey(apiKey);
       const obfuscatedKey = apiKeyGenerator.obfuscateApiKey(apiKey);
@@ -370,7 +344,7 @@ describe("API Keys", () => {
   });
 
   describe("DELETE /v1/api-keys/{id}", () => {
-    it("should return 401 if user is not authenticated", async () => {
+    it("returns 401 if user is not authenticated", async () => {
       const keyId = faker.string.uuid();
       const response = await app.request(`/v1/api-keys/${keyId}`, {
         method: "DELETE"
@@ -378,8 +352,8 @@ describe("API Keys", () => {
       expect(response.status).toBe(401);
     });
 
-    it("should delete API key", async () => {
-      const { token, user } = await createTestUser();
+    it("deletes API key", async () => {
+      const { token, user, apiKeyGenerator } = await setup();
       const apiKey = apiKeyGenerator.generateApiKey();
       const hashedKey = await apiKeyGenerator.hashApiKey(apiKey);
       const obfuscatedKey = apiKeyGenerator.obfuscateApiKey(apiKey);
@@ -403,4 +377,38 @@ describe("API Keys", () => {
       expect(deletedApiKey).toBeUndefined();
     });
   });
+
+  async function setup(input: { trial?: boolean } = {}) {
+    const userToToken: Record<string, string> = {};
+    const createUser = async () => {
+      const user = await userRepository.create({ userId: faker.string.uuid() });
+      const token = faker.string.alphanumeric(40);
+      userToToken[token] = user.userId!;
+      return { user, token };
+    };
+
+    const originalFindById = userRepository.findByUserId;
+    vi.spyOn(userRepository, "findByUserId").mockImplementation(async id => {
+      const user = await originalFindById.call(userRepository, id);
+      if (!user) return;
+
+      return {
+        ...user,
+        trial: input.trial ?? false,
+        userWallets: { isTrialing: input.trial ?? false }
+      };
+    });
+
+    vi.spyOn(userAuthTokenService, "getValidUserId").mockImplementation(async token => {
+      return userToToken[token.replace(/^Bearer +/i, "")];
+    });
+
+    const config = mock<CoreConfigService>({
+      get: vi.fn().mockReturnValue("test")
+    });
+    const apiKeyGenerator = new ApiKeyGeneratorService(config);
+    const { user, token } = await createUser();
+
+    return { user, token, createUser, apiKeyGenerator };
+  }
 });
