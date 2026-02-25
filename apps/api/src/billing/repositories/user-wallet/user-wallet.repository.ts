@@ -5,6 +5,7 @@ import { singleton } from "tsyringe";
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
 import { TxService } from "@src/core/services";
+import { Trace } from "@src/core/services/tracing/tracing.service";
 
 export type DbCreateUserWalletInput = ApiPgTables["UserWallets"]["$inferInsert"];
 export type DbUserWalletInput = Partial<DbCreateUserWalletInput>;
@@ -96,6 +97,7 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
     );
   }
 
+  @Trace()
   async findOneByUserId(userId: UserWalletOutput["userId"]) {
     if (!userId) return undefined;
 

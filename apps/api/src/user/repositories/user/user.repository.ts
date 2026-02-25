@@ -6,6 +6,7 @@ import { UserWallets } from "@src/billing/model-schemas";
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
 import { TxService } from "@src/core/services";
+import { Trace } from "@src/core/services/tracing/tracing.service";
 import { userAgentMaxLength } from "@src/user/model-schemas/user/user.schema";
 
 export type UserOutput = ApiPgTables["Users"]["$inferSelect"] & {
@@ -32,14 +33,17 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
     return this.toOutput(item);
   }
 
+  @Trace()
   async findById(id: UserOutput["id"]): Promise<UserOutput | undefined> {
     return this.findUserWithWallet(eq(this.table.id, id));
   }
 
+  @Trace()
   async findByUserId(userId: UserOutput["userId"]): Promise<UserOutput | undefined> {
     return this.findUserWithWallet(eq(this.table.userId, userId!));
   }
 
+  @Trace()
   async markAsActive(
     id: UserOutput["id"],
     options: {
