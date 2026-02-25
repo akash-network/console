@@ -20,7 +20,7 @@ describe(AuthController.name, () => {
 
       const result = await controller.sendVerificationCode();
 
-      expect(emailVerificationCodeService.sendCode).toHaveBeenCalledWith(user.id);
+      expect(emailVerificationCodeService.sendCode).toHaveBeenCalledWith(user.id, { resend: undefined });
       expect(result).toEqual({ data: { codeSentAt } });
     });
   });

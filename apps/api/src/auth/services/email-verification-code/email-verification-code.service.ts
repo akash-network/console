@@ -25,7 +25,7 @@ export class EmailVerificationCodeService {
   ) {}
 
   @WithTransaction()
-  async sendCode(userInternalId: string): Promise<{ codeSentAt: string }> {
+  async sendCode(userInternalId: string, { resend }: { resend?: boolean } = {}): Promise<{ codeSentAt: string }> {
     const user = await this.userRepository.findById(userInternalId);
     assert(user, 404, "User not found");
     assert(user.email, 400, "User has no email address");
@@ -35,6 +35,10 @@ export class EmailVerificationCodeService {
     const existing = await this.emailVerificationCodeRepository.findActiveByUserId(userInternalId);
 
     if (existing) {
+      if (!resend) {
+        return { codeSentAt: existing.createdAt };
+      }
+
       const createdAt = new Date(existing.createdAt).getTime();
       const cooldownEnd = createdAt + RESEND_COOLDOWN_MS;
 
