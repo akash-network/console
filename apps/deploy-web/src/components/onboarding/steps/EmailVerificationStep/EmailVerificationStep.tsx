@@ -24,8 +24,6 @@ export const EmailVerificationStep: React.FunctionComponent<EmailVerificationSte
 }) => {
   const [digits, setDigits] = useState<string[]>(["", "", "", "", "", ""]);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
-  const digitsRef = useRef(digits);
-  digitsRef.current = digits;
 
   const handleDigitChange = useCallback(
     (index: number, value: string) => {
@@ -38,35 +36,33 @@ export const EmailVerificationStep: React.FunctionComponent<EmailVerificationSte
           for (let i = 0; i < filled.length; i++) {
             newDigits[index + i] = filled[i];
           }
-          const code = newDigits.join("");
-          if (code.length === 6) {
-            onVerifyCode(code);
-          } else {
-            inputRefs.current[index + filled.length]?.focus();
-          }
           return newDigits;
         });
+        const nextIndex = index + filled.length;
+        if (nextIndex < 6) {
+          inputRefs.current[nextIndex]?.focus();
+        }
         return;
       }
 
       setDigits(prev => {
         const newDigits = [...prev];
         newDigits[index] = value;
-
-        if (value && index < 5) {
-          inputRefs.current[index + 1]?.focus();
-        }
-
-        const code = newDigits.join("");
-        if (code.length === 6) {
-          onVerifyCode(code);
-        }
-
         return newDigits;
       });
+      if (value && index < 5) {
+        inputRefs.current[index + 1]?.focus();
+      }
     },
-    [isVerifying, onVerifyCode]
+    [isVerifying]
   );
+
+  useEffect(() => {
+    const code = digits.join("");
+    if (code.length === 6) {
+      onVerifyCode(code);
+    }
+  }, [digits, onVerifyCode]);
 
   useEffect(() => {
     if (verifyError) {
@@ -76,7 +72,8 @@ export const EmailVerificationStep: React.FunctionComponent<EmailVerificationSte
   }, [verifyError]);
 
   const handleKeyDown = useCallback((index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Backspace" && !digitsRef.current[index] && index > 0) {
+    const currentDigits = inputRefs.current[index]?.value ?? "";
+    if (e.key === "Backspace" && !currentDigits && index > 0) {
       inputRefs.current[index - 1]?.focus();
     }
   }, []);
@@ -95,13 +92,11 @@ export const EmailVerificationStep: React.FunctionComponent<EmailVerificationSte
       }
       setDigits(newDigits);
 
-      if (pasted.length === 6) {
-        onVerifyCode(pasted);
-      } else {
+      if (pasted.length < 6) {
         inputRefs.current[pasted.length]?.focus();
       }
     },
-    [isVerifying, onVerifyCode]
+    [isVerifying]
   );
 
   return (
