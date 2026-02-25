@@ -72,13 +72,16 @@ export const EmailVerificationContainer: FC<EmailVerificationContainerProps> = (
         const {
           data: { codeSentAt }
         } = await auth.sendVerificationCode();
-        const sentAtMs = new Date(codeSentAt).getTime();
-        const elapsed = Number.isFinite(sentAtMs) ? Math.max(0, Math.floor((Date.now() - sentAtMs) / 1000)) : COOLDOWN_DURATION;
-        const remaining = Math.max(0, Math.min(COOLDOWN_DURATION, COOLDOWN_DURATION - elapsed));
-        cooldownRef.current = remaining;
-        setCooldownSeconds(remaining);
 
-        if (!silent && elapsed <= 1) {
+        if (silent) {
+          const sentAtMs = new Date(codeSentAt).getTime();
+          const elapsed = Number.isFinite(sentAtMs) ? Math.max(0, Math.floor((Date.now() - sentAtMs) / 1000)) : COOLDOWN_DURATION;
+          const remaining = Math.max(0, Math.min(COOLDOWN_DURATION, COOLDOWN_DURATION - elapsed));
+          cooldownRef.current = remaining;
+          setCooldownSeconds(remaining);
+        } else {
+          cooldownRef.current = COOLDOWN_DURATION;
+          setCooldownSeconds(COOLDOWN_DURATION);
           enqueueSnackbar(<d.Snackbar title="Verification code sent" subTitle="Please check your email for the 6-digit code" iconVariant="success" />, {
             variant: "success"
           });
