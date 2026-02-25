@@ -8,6 +8,7 @@ export class AuthHttpService extends HttpService {
     super(config);
   }
 
+  /** @deprecated Use {@link sendVerificationCode} instead. This targets the legacy link-based verification endpoint. */
   async sendVerificationEmail(userId: string) {
     return this.post("/v1/send-verification-email", { data: { userId } });
   }

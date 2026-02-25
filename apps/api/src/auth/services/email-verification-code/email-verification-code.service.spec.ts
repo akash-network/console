@@ -202,12 +202,20 @@ describe(EmailVerificationCodeService.name, () => {
     };
   }
 
-  function setup() {
-    const emailVerificationCodeRepository = mock<EmailVerificationCodeRepository>();
-    const auth0Service = mock<Auth0Service>();
-    const notificationService = mock<NotificationService>();
-    const userRepository = mock<UserRepository>();
-    const logger = mock<LoggerService>();
+  function setup(
+    input: {
+      emailVerificationCodeRepository?: EmailVerificationCodeRepository;
+      auth0Service?: Auth0Service;
+      notificationService?: NotificationService;
+      userRepository?: UserRepository;
+      logger?: LoggerService;
+    } = {}
+  ) {
+    const emailVerificationCodeRepository = input.emailVerificationCodeRepository ?? mock<EmailVerificationCodeRepository>();
+    const auth0Service = input.auth0Service ?? mock<Auth0Service>();
+    const notificationService = input.notificationService ?? mock<NotificationService>();
+    const userRepository = input.userRepository ?? mock<UserRepository>();
+    const logger = input.logger ?? mock<LoggerService>();
 
     emailVerificationCodeRepository.acquireUserLock.mockResolvedValue(undefined);
 
