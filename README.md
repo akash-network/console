@@ -38,7 +38,7 @@ To get started with Akash Console, follow these steps:
 
 ```bash
 git clone git@github.com:akash-network/console.git ./akash-console
-cd akash-console
+cd akash-console && npm install
 npm run dc:up:dev -- deploy-web
 ```
 
