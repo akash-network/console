@@ -116,6 +116,15 @@ describe(EmailVerificationStep.name, () => {
     expect(onVerifyCode).toHaveBeenCalledWith("123456");
   });
 
+  it("calls onVerifyCode when OTP autofill injects all 6 digits into first input", () => {
+    const { onVerifyCode } = setup();
+
+    const inputs = screen.queryAllByRole("textbox");
+    fireEvent.change(inputs[0], { target: { value: "654321" } });
+
+    expect(onVerifyCode).toHaveBeenCalledWith("654321");
+  });
+
   it("does not render digit inputs when verified", () => {
     setup({ isEmailVerified: true });
 
