@@ -45,7 +45,7 @@ export const EmailVerificationContainer: FC<EmailVerificationContainerProps> = (
   const [verifyError, setVerifyError] = useState<string | null>(null);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const { analyticsService, auth } = d.useServices();
-  const hasSentInitialCode = useRef(false);
+  const initialCodeSentForUserRef = useRef<string | null>(null);
   const isSendingRef = useRef(false);
   const cooldownRef = useRef(0);
 
@@ -78,8 +78,9 @@ export const EmailVerificationContainer: FC<EmailVerificationContainerProps> = (
         const {
           data: { codeSentAt }
         } = await auth.sendVerificationCode();
-        const elapsed = Math.floor((Date.now() - new Date(codeSentAt).getTime()) / 1000);
-        const remaining = Math.max(0, COOLDOWN_DURATION - elapsed);
+        const sentAtMs = new Date(codeSentAt).getTime();
+        const elapsed = Number.isFinite(sentAtMs) ? Math.max(0, Math.floor((Date.now() - sentAtMs) / 1000)) : COOLDOWN_DURATION;
+        const remaining = Math.max(0, Math.min(COOLDOWN_DURATION, COOLDOWN_DURATION - elapsed));
         cooldownRef.current = remaining;
         setCooldownSeconds(remaining);
 
@@ -101,9 +102,12 @@ export const EmailVerificationContainer: FC<EmailVerificationContainerProps> = (
   );
 
   useEffect(() => {
-    if (!isEmailVerified && user?.id && !hasSentInitialCode.current) {
-      hasSentInitialCode.current = true;
+    if (!isEmailVerified && user?.id && initialCodeSentForUserRef.current !== user.id) {
+      initialCodeSentForUserRef.current = user.id;
       sendCode({ silent: true });
+    }
+    if (!user?.id) {
+      initialCodeSentForUserRef.current = null;
     }
   }, [isEmailVerified, user?.id, sendCode]);
 
