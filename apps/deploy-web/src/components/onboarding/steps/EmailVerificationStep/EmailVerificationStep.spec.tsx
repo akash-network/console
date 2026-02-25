@@ -70,12 +70,6 @@ describe(EmailVerificationStep.name, () => {
     expect(onResendCode).toHaveBeenCalled();
   });
 
-  it("displays verify error alert", () => {
-    setup({ verifyError: "Invalid verification code" });
-
-    expect(screen.queryByText("Invalid verification code")).toBeInTheDocument();
-  });
-
   it("displays verifying state", () => {
     setup({ isVerifying: true });
 
@@ -114,7 +108,6 @@ describe(EmailVerificationStep.name, () => {
       isResending?: boolean;
       isVerifying?: boolean;
       cooldownSeconds?: number;
-      verifyError?: string | null;
       onResendCode?: () => void;
       onVerifyCode?: (code: string) => void;
     } = {}
@@ -127,7 +120,6 @@ describe(EmailVerificationStep.name, () => {
         isResending={input.isResending ?? false}
         isVerifying={input.isVerifying ?? false}
         cooldownSeconds={input.cooldownSeconds ?? 0}
-        verifyError={input.verifyError ?? null}
         onResendCode={onResendCode}
         onVerifyCode={onVerifyCode}
       />

@@ -14,7 +14,6 @@ describe(EmailVerificationContainer.name, () => {
         isResending: false,
         isVerifying: false,
         cooldownSeconds: expect.any(Number),
-        verifyError: null,
         onResendCode: expect.any(Function),
         onVerifyCode: expect.any(Function)
       })
@@ -149,8 +148,8 @@ describe(EmailVerificationContainer.name, () => {
     expect(mockOnComplete).toHaveBeenCalled();
   });
 
-  it("exposes verifyError on verify code failure", async () => {
-    const { child, mockVerifyEmailCode } = setup();
+  it("shows error toast on verify code failure", async () => {
+    const { child, mockVerifyEmailCode, mockNotificator } = setup();
     mockVerifyEmailCode.mockRejectedValue(new Error("Invalid verification code"));
 
     const { onVerifyCode } = child.mock.calls[0][0];
@@ -158,8 +157,7 @@ describe(EmailVerificationContainer.name, () => {
       await onVerifyCode("000000");
     });
 
-    const lastCall = child.mock.calls[child.mock.calls.length - 1][0];
-    expect(lastCall.verifyError).toBe("Invalid verification code");
+    expect(mockNotificator.error).toHaveBeenCalledWith("Invalid verification code");
   });
 
   function setup(input: { user?: { id: string; emailVerified: boolean }; onComplete?: Mock } = {}) {
