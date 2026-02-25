@@ -11,8 +11,11 @@ jobs:
     permissions:
       contents: write
       issues: write
+    outputs:
+      branch_name: ${{ steps.create.outputs.branch_name }}
     steps:
       - name: Create linked branch
+        id: create
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -23,7 +26,7 @@ jobs:
               core.info("Skipping: event is for a pull request, not an issue");
               return;
             }
-            
+
             if (issue.state !== "open") {
               core.info(`Skipping: issue #${issue.number} is ${issue.state}`);
               return;
@@ -61,6 +64,7 @@ jobs:
                 oid: ref.object.sha,
               });
 
+              core.setOutput("branch_name", branchName);
               core.info(`Created and linked branch ${branchName}`);
             } catch (error) {
               if (error.message?.includes("already exists")) {
@@ -69,3 +73,83 @@ jobs:
               }
               throw error;
             }
+
+  create-plan:
+    needs: create-branch
+    if: needs.create-branch.outputs.branch_name != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.create-branch.outputs.branch_name }}
+
+      - name: Write issue context
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          mkdir -p ".pm/${ISSUE_NUMBER}"
+          {
+            printf '# Issue #%s: %s\n\n' "$ISSUE_NUMBER" "$ISSUE_TITLE"
+            printf '%s\n' "$ISSUE_BODY"
+          } > ".pm/${ISSUE_NUMBER}/context.md"
+
+      - name: Generate implementation plan
+        uses: anthropics/claude-code-base-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            Read the issue context from .pm/${{ github.event.issue.number }}/context.md.
+            Explore the codebase to understand the relevant architecture, patterns, and conventions.
+            Create a design proposal and write it to .pm/${{ github.event.issue.number }}/plan.md.
+
+            This document will be used by the team to discuss and agree on the approach
+            before implementation begins. Focus on design, not code-level details.
+
+            The document should include:
+            - Problem statement: what needs to change and why
+            - Proposed approach: high-level design and architecture decisions
+            - Alternatives considered: other approaches and why they were rejected
+            - Affected areas: which parts of the system are impacted (apps, packages, APIs, DB, etc.)
+            - Open questions: decisions that need team input
+            - Suggested task breakdown: how this work could be split into smaller deliverables
+          claude_args: "--max-turns 25"
+
+      - name: Commit and push
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ".pm/${ISSUE_NUMBER}/context.md" ".pm/${ISSUE_NUMBER}/plan.md"
+          if ! git diff --staged --quiet; then
+            git commit -m "docs(repo): add implementation plan for #${ISSUE_NUMBER}"
+            git push
+          fi
+
+      - name: Comment plan on issue
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: | # js
+            const fs = require("fs");
+            const issueNumber = context.payload.issue.number;
+            const planPath = `.pm/${issueNumber}/plan.md`;
+            let planContent = "";
+
+            try {
+              planContent = fs.readFileSync(planPath, "utf8");
+            } catch {
+              core.warning(`Plan file not found at ${planPath}`);
+              return;
+            }
+
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: issueNumber,
+              body: planContent,
+            });
