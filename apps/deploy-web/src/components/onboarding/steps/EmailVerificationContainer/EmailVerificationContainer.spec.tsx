@@ -35,7 +35,7 @@ describe(EmailVerificationContainer.name, () => {
     expect(mockSendVerificationCode).not.toHaveBeenCalled();
   });
 
-  it("shows snackbar when resend code returns a freshly sent code", async () => {
+  it("shows snackbar on user-initiated resend", async () => {
     const { child, mockSendVerificationCode, mockEnqueueSnackbar } = setup();
 
     await act(async () => {});
@@ -57,21 +57,6 @@ describe(EmailVerificationContainer.name, () => {
       }),
       { variant: "success" }
     );
-  });
-
-  it("does not show snackbar when code was already sent recently", async () => {
-    const { child, mockSendVerificationCode, mockEnqueueSnackbar } = setup();
-
-    await act(async () => {});
-
-    mockSendVerificationCode.mockResolvedValue({ data: { codeSentAt: new Date(Date.now() - 30_000).toISOString() } });
-
-    const { onResendCode } = child.mock.calls[child.mock.calls.length - 1][0];
-    await act(async () => {
-      await onResendCode();
-    });
-
-    expect(mockEnqueueSnackbar).not.toHaveBeenCalled();
   });
 
   it("does not resend code while cooldown is active", async () => {
@@ -96,6 +81,22 @@ describe(EmailVerificationContainer.name, () => {
     });
 
     expect(mockSendVerificationCode).not.toHaveBeenCalled();
+  });
+
+  it("sets cooldownSeconds after sending code", async () => {
+    const { child, mockSendVerificationCode } = setup();
+
+    await act(async () => {});
+
+    mockSendVerificationCode.mockResolvedValue({ data: { codeSentAt: new Date().toISOString() } });
+
+    const { onResendCode } = child.mock.calls[child.mock.calls.length - 1][0];
+    await act(async () => {
+      await onResendCode();
+    });
+
+    const lastCall = child.mock.calls[child.mock.calls.length - 1][0];
+    expect(lastCall.cooldownSeconds).toBe(60);
   });
 
   it("notifies error when resend code fails", async () => {
