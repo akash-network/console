@@ -21,7 +21,7 @@ export type VerifyEmailCodeRequest = z.infer<typeof VerifyEmailCodeRequestSchema
 
 const VerifyEmailCodeResponseSchema = z.object({
   data: z.object({
-    emailVerified: z.boolean()
+    emailVerified: z.literal(true)
   })
 });
 

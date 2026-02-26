@@ -1,6 +1,7 @@
 import "@test/mocks/logger-service.mock";
 
 import { faker } from "@faker-js/faker";
+import { createHash } from "crypto";
 import { mock } from "vitest-mock-extended";
 
 import type {
@@ -95,7 +96,7 @@ describe(EmailVerificationCodeService.name, () => {
         expect.objectContaining({
           userId: user.id,
           email: user.email,
-          code: expect.stringMatching(/^\d{6}$/)
+          code: expect.stringMatching(/^[a-f0-9]{64}$/)
         })
       );
       expect(notificationService.createNotification).toHaveBeenCalled();
@@ -118,7 +119,7 @@ describe(EmailVerificationCodeService.name, () => {
         expect.objectContaining({
           userId: user.id,
           email: user.email,
-          code: expect.stringMatching(/^\d{6}$/)
+          code: expect.stringMatching(/^[a-f0-9]{64}$/)
         })
       );
       expect(notificationService.createNotification).toHaveBeenCalled();
@@ -147,7 +148,7 @@ describe(EmailVerificationCodeService.name, () => {
     it("verifies valid code and marks email as verified", async () => {
       const code = "123456";
       const user = UserSeeder.create({ userId: "auth0|123" });
-      const record = createVerificationCodeOutput({ userId: user.id, code, attempts: 0 });
+      const record = createVerificationCodeOutput({ userId: user.id, code: hashCode(code), attempts: 0 });
       const { service, emailVerificationCodeRepository, userRepository, auth0Service } = setup();
 
       userRepository.findById.mockResolvedValue(user);
@@ -163,7 +164,7 @@ describe(EmailVerificationCodeService.name, () => {
 
     it("returns emailVerified false and increments attempts for invalid code", async () => {
       const user = UserSeeder.create({ userId: "auth0|123" });
-      const record = createVerificationCodeOutput({ userId: user.id, code: "123456", attempts: 0 });
+      const record = createVerificationCodeOutput({ userId: user.id, code: hashCode("123456"), attempts: 0 });
       const { service, emailVerificationCodeRepository, userRepository } = setup();
 
       userRepository.findById.mockResolvedValue(user);
@@ -177,7 +178,7 @@ describe(EmailVerificationCodeService.name, () => {
 
     it("rejects when max attempts exceeded", async () => {
       const user = UserSeeder.create({ userId: "auth0|123" });
-      const record = createVerificationCodeOutput({ userId: user.id, code: "123456", attempts: 5 });
+      const record = createVerificationCodeOutput({ userId: user.id, code: hashCode("123456"), attempts: 5 });
       const { service, emailVerificationCodeRepository, userRepository } = setup();
 
       userRepository.findById.mockResolvedValue(user);
@@ -189,7 +190,7 @@ describe(EmailVerificationCodeService.name, () => {
 
     it("returns emailVerified false for mismatched length code", async () => {
       const user = UserSeeder.create({ userId: "auth0|123" });
-      const record = createVerificationCodeOutput({ userId: user.id, code: "123456", attempts: 0 });
+      const record = createVerificationCodeOutput({ userId: user.id, code: hashCode("123456"), attempts: 0 });
       const { service, emailVerificationCodeRepository, userRepository } = setup();
 
       userRepository.findById.mockResolvedValue(user);
@@ -212,12 +213,16 @@ describe(EmailVerificationCodeService.name, () => {
     });
   });
 
+  function hashCode(code) {
+    return createHash("sha256").update(code).digest("hex");
+  }
+
   function createVerificationCodeOutput(overrides: Partial<EmailVerificationCodeOutput> = {}): EmailVerificationCodeOutput {
     return {
       id: faker.string.uuid(),
       userId: faker.string.uuid(),
       email: faker.internet.email(),
-      code: faker.string.numeric(6),
+      code: hashCode(faker.string.numeric(6)),
       expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
       attempts: 0,
       createdAt: new Date().toISOString(),

@@ -1182,7 +1182,7 @@
         },
         "code": {
           "name": "code",
-          "type": "varchar(6)",
+          "type": "varchar(64)",
           "primaryKey": false,
           "notNull": true
         },
@@ -1255,7 +1255,15 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {
+        "email_verification_codes_user_id_unique": {
+          "name": "email_verification_codes_user_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "user_id"
+          ]
+        }
+      }
     }
   },
   "enums": {
