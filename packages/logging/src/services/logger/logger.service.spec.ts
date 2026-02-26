@@ -18,6 +18,10 @@ describe("LoggerService", () => {
       level: expect.any(Function)
     },
     serializers: expect.any(Object),
+    redact: {
+      paths: expect.arrayContaining(["*.password", "*.access_token", "*.refresh_token"]),
+      censor: "[REDACTED]"
+    },
     browser: {
       formatters: {
         level: expect.any(Function)
@@ -119,7 +123,7 @@ describe("LoggerService", () => {
         status: 404,
         message: "Not found",
         stack: "stack trace",
-        data: { key: "value" }
+        data: { errorCode: "not_found", errorType: "client_error", secret: "should-be-filtered" }
       });
 
       logger.info(httpError);
@@ -129,7 +133,7 @@ describe("LoggerService", () => {
             status: 404,
             message: "Not found",
             stack: "stack trace",
-            data: { key: "value" }
+            data: { errorCode: "not_found", errorType: "client_error" }
           })
         })
       );
@@ -141,7 +145,7 @@ describe("LoggerService", () => {
         status: 404,
         message: "Not found",
         stack: "stack trace",
-        data: { key: "value" },
+        data: { errorCode: "not_found", errorType: "client_error" },
         originalError: new Error("Original error"),
         cause: new Error("Cause error")
       });
@@ -153,7 +157,7 @@ describe("LoggerService", () => {
             status: 404,
             message: "Not found",
             stack: expect.stringContaining("stack trace\n\nCaused by:\n  Error: Cause error"),
-            data: { key: "value" },
+            data: { errorCode: "not_found", errorType: "client_error" },
             originalError: expect.stringContaining("Error: Original error")
           })
         })
@@ -166,7 +170,7 @@ describe("LoggerService", () => {
         status: 404,
         message: "Not found",
         stack: "stack trace",
-        data: { key: "value" },
+        data: { errorCode: "not_found" },
         originalError: new Error("Original error")
       });
 
@@ -177,7 +181,7 @@ describe("LoggerService", () => {
             status: 404,
             message: "Not found",
             stack: "stack trace",
-            data: { key: "value" },
+            data: { errorCode: "not_found", errorType: undefined },
             originalError: expect.stringContaining("Error: Original error")
           })
         })
@@ -294,19 +298,59 @@ describe("LoggerService", () => {
       );
     });
 
-    it("should collect sql from error", () => {
+    it("should collect sql from error with redacted literals", () => {
       const { logger, logs } = setup();
       const error = new Error("Test error");
-      Object.assign(error, { sql: "SELECT * FROM users" });
+      Object.assign(error, { sql: "SELECT * FROM users WHERE name = 'John' AND id = 1234567" });
       logger.info(error);
       expect(logs[0]).toEqual(
         expect.objectContaining({
           err: expect.objectContaining({
-            sql: "SELECT * FROM users",
+            sql: "SELECT * FROM users WHERE name = '[REDACTED]' AND id = [REDACTED]",
             stack: expect.stringContaining("Test error")
           })
         })
       );
+    });
+
+    describe("redaction", () => {
+      it("should redact sensitive fields like password and tokens", () => {
+        const { logger, logs } = setup();
+        logger.info({ event: "TEST", credentials: { password: "s3cret", access_token: "tok_123", name: "safe" } });
+        expect(logs[0]).toEqual(
+          expect.objectContaining({
+            credentials: expect.objectContaining({
+              password: "[REDACTED]",
+              access_token: "[REDACTED]",
+              name: "safe"
+            })
+          })
+        );
+      });
+
+      it("should redact authorization and cookie headers", () => {
+        const { logger, logs } = setup();
+        logger.info({ event: "TEST", headers: { authorization: "Bearer secret", "set-cookie": "sid=abc", "content-type": "application/json" } });
+        expect(logs[0]).toEqual(
+          expect.objectContaining({
+            headers: expect.objectContaining({
+              authorization: "[REDACTED]",
+              "set-cookie": "[REDACTED]",
+              "content-type": "application/json"
+            })
+          })
+        );
+      });
+
+      it("should not redact non-sensitive fields", () => {
+        const { logger, logs } = setup();
+        logger.info({ event: "TEST", data: { status: 200, url: "/api/test" } });
+        expect(logs[0]).toEqual(
+          expect.objectContaining({
+            data: { status: 200, url: "/api/test" }
+          })
+        );
+      });
     });
 
     function setup() {

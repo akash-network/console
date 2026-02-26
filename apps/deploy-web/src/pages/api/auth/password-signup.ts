@@ -56,7 +56,8 @@ export default defineApiHandler({
     const { cause, ...errorDetails } = result.val;
     services.logger.warn({
       event: "PASSWORD_SIGNUP_ERROR",
-      cause: result.val
+      code: errorDetails.code,
+      message: errorDetails.message
     });
 
     if (result.val.code === "user_exists") {

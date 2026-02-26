@@ -41,7 +41,7 @@ export const TrendIndicator = <Field extends string & Keys<Data>, Data extends H
     if (firstValue === 0) return null;
 
     const percentageChange = ((lastValue - firstValue) / firstValue) * 100;
-    const isCurrentDay = isToday(new Date(lastItem.date));
+    const isCurrentDay = isToday(new Date(`${lastItem.date}T00:00:00`));
 
     return {
       change: Math.round(percentageChange * 100) / 100,
