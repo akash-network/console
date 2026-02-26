@@ -161,7 +161,7 @@ describe(EmailVerificationCodeService.name, () => {
       expect(emailVerificationCodeRepository.deleteByUserId).toHaveBeenCalledWith(user.id);
     });
 
-    it("rejects invalid code and increments attempts", async () => {
+    it("returns emailVerified false and increments attempts for invalid code", async () => {
       const user = UserSeeder.create({ userId: "auth0|123" });
       const record = createVerificationCodeOutput({ userId: user.id, code: "123456", attempts: 0 });
       const { service, emailVerificationCodeRepository, userRepository } = setup();
@@ -169,7 +169,9 @@ describe(EmailVerificationCodeService.name, () => {
       userRepository.findById.mockResolvedValue(user);
       emailVerificationCodeRepository.findActiveByUserId.mockResolvedValue(record);
 
-      await expect(service.verifyCode(user.id, "999999")).rejects.toThrow();
+      const result = await service.verifyCode(user.id, "999999");
+
+      expect(result).toEqual({ emailVerified: false });
       expect(emailVerificationCodeRepository.incrementAttempts).toHaveBeenCalledWith(record.id);
     });
 
@@ -185,7 +187,7 @@ describe(EmailVerificationCodeService.name, () => {
       expect(emailVerificationCodeRepository.incrementAttempts).not.toHaveBeenCalled();
     });
 
-    it("rejects code with mismatched length without crashing", async () => {
+    it("returns emailVerified false for mismatched length code", async () => {
       const user = UserSeeder.create({ userId: "auth0|123" });
       const record = createVerificationCodeOutput({ userId: user.id, code: "123456", attempts: 0 });
       const { service, emailVerificationCodeRepository, userRepository } = setup();
@@ -193,7 +195,9 @@ describe(EmailVerificationCodeService.name, () => {
       userRepository.findById.mockResolvedValue(user);
       emailVerificationCodeRepository.findActiveByUserId.mockResolvedValue(record);
 
-      await expect(service.verifyCode(user.id, "12345")).rejects.toThrow();
+      const result = await service.verifyCode(user.id, "12345");
+
+      expect(result).toEqual({ emailVerified: false });
       expect(emailVerificationCodeRepository.incrementAttempts).toHaveBeenCalledWith(record.id);
     });
 
