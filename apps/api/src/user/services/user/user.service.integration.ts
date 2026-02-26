@@ -345,7 +345,9 @@ describe(UserService.name, () => {
         createDefaultChannel: input?.createDefaultNotificationChannel ?? (() => Promise.resolve())
       }),
       auth0Service,
-      mock<EmailVerificationCodeService>()
+      mock<EmailVerificationCodeService>({
+        sendCode: jest.fn().mockResolvedValue({ codeSentAt: new Date().toISOString() })
+      })
     );
 
     return { service, analyticsService, logger, auth0Service, userRepository };
