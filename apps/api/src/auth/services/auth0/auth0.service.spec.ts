@@ -6,6 +6,26 @@ import { Auth0Service } from "./auth0.service";
 import { Auth0UserSeeder } from "@test/seeders";
 
 describe(Auth0Service.name, () => {
+  describe("createUser", () => {
+    it("calls managementClient.users.create with verify_email false", async () => {
+      const create = jest.fn().mockResolvedValue({ data: {} });
+      const { auth0Service } = setup({ users: { create } });
+
+      await auth0Service.createUser({
+        email: "user@example.com",
+        password: "StrongPassword123!",
+        connection: "Username-Password-Authentication"
+      });
+
+      expect(create).toHaveBeenCalledWith({
+        email: "user@example.com",
+        password: "StrongPassword123!",
+        connection: "Username-Password-Authentication",
+        verify_email: false
+      });
+    });
+  });
+
   describe("sendVerificationEmail", () => {
     it("calls managementClient.jobs.verifyEmail with user ID", async () => {
       const verifyEmail = jest.fn().mockResolvedValue(undefined);
@@ -93,7 +113,7 @@ describe(Auth0Service.name, () => {
   function setup(
     input: {
       jobs?: { verifyEmail: jest.Mock };
-      users?: { update: jest.Mock };
+      users?: { update?: jest.Mock; create?: jest.Mock };
       usersByEmail?: { getByEmail: jest.Mock };
     } = {}
   ) {

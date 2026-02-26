@@ -2641,6 +2641,45 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/auth/signup": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "email": {
+                    "format": "email",
+                    "type": "string",
+                  },
+                  "password": {
+                    "minLength": 8,
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "email",
+                  "password",
+                ],
+                "type": "object",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "200": {
+            "content": {},
+            "description": "User created successfully",
+          },
+        },
+        "security": [],
+        "summary": "Creates a new user without sending a verification email",
+        "tags": [
+          "Auth",
+        ],
+      },
+    },
     "/v1/balances": {
       "get": {
         "parameters": [

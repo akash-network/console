@@ -81,43 +81,22 @@ export class SessionService {
   async signUp(input: {
     email: string;
     password: string;
-  }): Promise<
-    Result<
-      Session,
-      | { code: "invalid_password"; message: string; policy: string; cause: unknown }
-      | { code: "user_exists"; message: string; cause: unknown }
-      | { code: "signup_failed"; message: string; cause: unknown }
-    >
-  > {
-    const oauthIssuerUrl = new URL(this.#config.ISSUER_BASE_URL);
-
-    // https://auth0.com/docs/api/authentication/signup/create-a-new-user
-    const signupResponse = await this.#externalHttpClient.post(
-      `${oauthIssuerUrl.origin}/dbconnections/signup`,
+  }): Promise<Result<Session, { code: "user_exists"; message: string; cause: unknown } | { code: "signup_failed"; message: string; cause: unknown }>> {
+    const signupResponse = await this.#consoleApiHttpClient.post(
+      "/v1/auth/signup",
       {
-        client_id: this.#config.CLIENT_ID,
         email: input.email,
-        password: input.password,
-        connection: "Username-Password-Authentication"
+        password: input.password
       },
       {
         validateStatus: notServerError
       }
     );
 
-    if (signupResponse.status === 400 && signupResponse.data.code === "invalid_password" && signupResponse.data.policy) {
-      return Err({
-        message: signupResponse.data.message || signupResponse.data.description || "Password violates policy",
-        code: "invalid_password",
-        policy: signupResponse.data.policy,
-        cause: extractResponseDetails(signupResponse)
-      });
-    }
-
-    const isUserExists = signupResponse.status === 409 || (signupResponse.status === 400 && signupResponse.data.code === "invalid_signup");
+    const isUserExists = signupResponse.status === 409;
     if (signupResponse.status >= 400 && !isUserExists) {
       return Err({
-        message: signupResponse.data.friendly_message || signupResponse.data.message || signupResponse.data.description || "Signup failed",
+        message: signupResponse.data?.message || "Signup failed",
         code: "signup_failed",
         cause: extractResponseDetails(signupResponse)
       });
