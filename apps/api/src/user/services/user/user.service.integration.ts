@@ -4,6 +4,7 @@ import { container } from "tsyringe";
 import { mock } from "vitest-mock-extended";
 
 import type { Auth0Service } from "@src/auth/services/auth0/auth0.service";
+import type { EmailVerificationCodeService } from "@src/auth/services/email-verification-code/email-verification-code.service";
 import type { LoggerService } from "@src/core/providers/logging.provider";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import type { NotificationService } from "@src/notifications/services/notification/notification.service";
@@ -343,7 +344,8 @@ describe(UserService.name, () => {
       mock<NotificationService>({
         createDefaultChannel: input?.createDefaultNotificationChannel ?? (() => Promise.resolve())
       }),
-      auth0Service
+      auth0Service,
+      mock<EmailVerificationCodeService>()
     );
 
     return { service, analyticsService, logger, auth0Service, userRepository };
