@@ -1,9 +1,11 @@
 import { millisecondsInMinute } from "date-fns";
+import { clearTimeout } from "timers";
 import { inject, singleton } from "tsyringe";
 
 import type { DbHealthcheck, JobQueueHealthcheck } from "@src/core";
 import { DB_HEALTHCHECK, JOB_QUEUE_HEALTHCHECK } from "@src/core";
 import { LoggerService } from "@src/core/providers/logging.provider";
+import { HealthzConfigService } from "@src/healthz/services/healthz-config/healthz-config.service";
 
 @singleton()
 export class HealthzService {
@@ -12,17 +14,20 @@ export class HealthzService {
   constructor(
     @inject(DB_HEALTHCHECK) dbHealthcheck: DbHealthcheck,
     @inject(JOB_QUEUE_HEALTHCHECK) jobQueueHealthcheck: JobQueueHealthcheck,
+    private readonly healthzConfigService: HealthzConfigService,
     logger: LoggerService
   ) {
     logger.setContext(HealthzService.name);
     this.healthchecks.push(
       new Healthcheck("postgres", dbHealthcheck, logger, {
-        cacheTTL: millisecondsInMinute
+        cacheTTL: millisecondsInMinute,
+        healthzTimeoutSeconds: healthzConfigService.get("HEALTHZ_TIMEOUT_SECONDS")
       })
     );
     this.healthchecks.push(
       new Healthcheck("jobQueue", jobQueueHealthcheck, logger, {
-        cacheTTL: millisecondsInMinute
+        cacheTTL: millisecondsInMinute,
+        healthzTimeoutSeconds: healthzConfigService.get("HEALTHZ_TIMEOUT_SECONDS")
       })
     );
   }
@@ -59,6 +64,8 @@ export interface HealthzResult {
   };
 }
 
+type LogStartAndTimeoutResult = { done: () => void };
+
 class Healthcheck {
   private checkedAt: Date | null = null;
   private hasSucceeded = false;
@@ -71,14 +78,17 @@ class Healthcheck {
     private readonly logger: LoggerService,
     private readonly options: {
       cacheTTL: number;
+      healthzTimeoutSeconds: number;
     }
   ) {}
 
   async isHealthy(options?: { ignoreCache?: boolean }): Promise<boolean> {
+    let logStartAndTimeoutResult: LogStartAndTimeoutResult | undefined;
     const now = Date.now();
 
     try {
       if (options?.ignoreCache || !this.checkedAt || now - this.checkedAt.getTime() > this.options.cacheTTL) {
+        logStartAndTimeoutResult = this.logStartAndTimeout();
         await this.check();
         this.hasSucceeded = true;
         this.isFailed = false;
@@ -97,7 +107,18 @@ class Healthcheck {
       this.isFailed = true;
       // tolerate failure for the 1st time and wait for the cache to expire until the next check
       return true;
+    } finally {
+      logStartAndTimeoutResult?.done();
     }
+  }
+
+  private logStartAndTimeout() {
+    this.logger.info({ event: "HEALTHCHECK_STARTED", name: this.name, status: this.isFailed });
+    const timeout = setTimeout(() => {
+      this.logger.error({ event: "HEALTHCHECK_TIMEOUT", name: this.name });
+    }, this.options.healthzTimeoutSeconds * 1000);
+
+    return { done: () => clearTimeout(timeout) };
   }
 
   private check() {

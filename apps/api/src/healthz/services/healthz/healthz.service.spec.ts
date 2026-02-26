@@ -3,6 +3,7 @@ import { millisecondsInMinute } from "date-fns";
 import { mock } from "vitest-mock-extended";
 
 import type { DbHealthcheck, JobQueueHealthcheck } from "@src/core";
+import type { HealthzConfigService } from "@src/healthz/services/healthz-config/healthz-config.service";
 import { HealthzService } from "./healthz.service";
 
 describe(HealthzService.name, () => {
@@ -197,7 +198,9 @@ describe(HealthzService.name, () => {
     const logger = mock<LoggerService>();
     const dbHealthcheck = mock<DbHealthcheck>({ ping: jest.fn().mockResolvedValue(undefined) });
     const jobQueueHealthcheck = mock<JobQueueHealthcheck>({ ping: jest.fn().mockResolvedValue(undefined) });
-    const healthzService = new HealthzService(dbHealthcheck, jobQueueHealthcheck, logger);
+    const healthzConfigService = mock<HealthzConfigService>();
+    healthzConfigService.get.calledWith("HEALTHZ_TIMEOUT_SECONDS").mockReturnValue(10);
+    const healthzService = new HealthzService(dbHealthcheck, jobQueueHealthcheck, healthzConfigService, logger);
 
     return {
       logger,
