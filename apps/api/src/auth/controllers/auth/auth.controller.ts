@@ -1,3 +1,4 @@
+import assert from "http-assert";
 import { singleton } from "tsyringe";
 
 import type { SendVerificationEmailRequestInput } from "@src/auth";
@@ -41,6 +42,8 @@ export class AuthController {
     const { currentUser } = this.authService;
 
     const result = await this.emailVerificationCodeService.verifyCode(currentUser!.id, code);
+
+    assert(result.emailVerified, 400, "Invalid verification code");
 
     return { data: result };
   }

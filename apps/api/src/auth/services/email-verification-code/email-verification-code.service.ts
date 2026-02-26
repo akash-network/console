@@ -35,14 +35,9 @@ export class EmailVerificationCodeService {
     const existing = await this.emailVerificationCodeRepository.findActiveByUserId(userInternalId);
 
     if (existing) {
-      if (!resend) {
-        return { codeSentAt: existing.createdAt };
-      }
+      const cooldownEnd = new Date(existing.createdAt).getTime() + RESEND_COOLDOWN_MS;
 
-      const createdAt = new Date(existing.createdAt).getTime();
-      const cooldownEnd = createdAt + RESEND_COOLDOWN_MS;
-
-      if (Date.now() < cooldownEnd) {
+      if (!resend || Date.now() < cooldownEnd) {
         return { codeSentAt: existing.createdAt };
       }
     }
@@ -84,7 +79,7 @@ export class EmailVerificationCodeService {
 
     if (!isCodeValid) {
       await this.emailVerificationCodeRepository.incrementAttempts(record.id);
-      assert(false, 400, "Invalid verification code");
+      return { emailVerified: false };
     }
 
     await this.auth0Service.markEmailVerified(user.userId);
