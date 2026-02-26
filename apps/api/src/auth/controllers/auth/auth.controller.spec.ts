@@ -1,3 +1,4 @@
+import { ResponseError } from "auth0";
 import { container as rootContainer } from "tsyringe";
 import { mock } from "vitest-mock-extended";
 
@@ -10,6 +11,48 @@ import { AuthController } from "./auth.controller";
 import { UserSeeder } from "@test/seeders/user.seeder";
 
 describe(AuthController.name, () => {
+  describe("signup", () => {
+    it("creates user via auth0 service", async () => {
+      const { controller, auth0Service } = setup();
+
+      auth0Service.createUser.mockResolvedValue(undefined);
+
+      await controller.signup({ email: "user@example.com", password: "StrongPassword123!" });
+
+      expect(auth0Service.createUser).toHaveBeenCalledWith({
+        email: "user@example.com",
+        password: "StrongPassword123!",
+        connection: "Username-Password-Authentication"
+      });
+    });
+
+    it("throws http error when auth0 returns a non-409 error", async () => {
+      const { controller, auth0Service } = setup();
+
+      auth0Service.createUser.mockRejectedValue(
+        new ResponseError(400, JSON.stringify({ message: "PasswordStrengthError: Password is too weak" }), new Headers())
+      );
+
+      await expect(controller.signup({ email: "user@example.com", password: "weak" })).rejects.toThrow("PasswordStrengthError: Password is too weak");
+    });
+
+    it("converts 409 (user exists) to http error", async () => {
+      const { controller, auth0Service } = setup();
+
+      auth0Service.createUser.mockRejectedValue(new ResponseError(409, JSON.stringify({ message: "The user already exists." }), new Headers()));
+
+      await expect(controller.signup({ email: "user@example.com", password: "StrongPassword123!" })).rejects.toThrow("The user already exists.");
+    });
+
+    it("re-throws non-ResponseError errors", async () => {
+      const { controller, auth0Service } = setup();
+
+      auth0Service.createUser.mockRejectedValue(new Error("Network failure"));
+
+      await expect(controller.signup({ email: "user@example.com", password: "StrongPassword123!" })).rejects.toThrow("Network failure");
+    });
+  });
+
   describe("sendVerificationCode", () => {
     it("delegates to emailVerificationCodeService and wraps result in data", async () => {
       const user = UserSeeder.create();
