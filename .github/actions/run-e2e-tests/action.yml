@@ -5,6 +5,9 @@ inputs:
   app:
     description: "App name (dir in ./apps/*)"
     required: true
+  app-version:
+    description: "App version to test (e.g., 1.2.3)"
+    required: true
   app-url:
     description: "URL of the deployed app, used for test failure notifications"
     required: true
@@ -34,6 +37,7 @@ runs:
     - uses: ./.github/actions/slack-tests-failed-notification
       if: ${{ !cancelled() && steps.e2e-tests.outcome == 'failure' }}
       with:
+        ref: ${{ inputs.app }}/v${{ inputs.app-version }}
         url: ${{ inputs.app-url }}
         slack-webhook-url: ${{ inputs.slack-webhook-url }}
         gh-user-to-slack-user: ${{ vars.GH_USER_TO_SLACK_USER }}

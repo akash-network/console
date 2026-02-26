@@ -42,11 +42,14 @@ jobs:
 
   test-beta:
     runs-on: ubuntu-latest
-    needs: deploy-beta
+    needs:
+      - setup
+      - deploy-beta
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/console-web-ui-testing
         with:
+          ref: console-web/v${{ needs.setup.outputs.image_tag }}
           url: ${{ vars.CONSOLE_WEB_BETA_URL }}
           slack-webhook-url: ${{ secrets.FAILED_E2E_TESTS_SLACK_WEBHOOK_URL }}
           test-wallet-mnemonic: ${{ secrets.CONSOLE_WEB_E2E_TEST_WALLET_MNEMONIC }}
