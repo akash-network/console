@@ -2,8 +2,6 @@ import React, { useEffect } from "react";
 import { NextSeo } from "next-seo";
 
 import Layout, { Loading } from "@src/components/layout/Layout";
-import { OnboardingStepIndex } from "@src/components/onboarding/OnboardingContainer/OnboardingContainer";
-import { ONBOARDING_STEP_KEY } from "@src/services/storage/keys";
 import { UrlService } from "@src/utils/urlUtils";
 
 const DEPENDENCIES = {
@@ -18,7 +16,6 @@ type VerifyEmailPageProps = {
 
 export function VerifyEmailPage({ dependencies: d = DEPENDENCIES }: VerifyEmailPageProps) {
   useEffect(() => {
-    window.localStorage?.setItem(ONBOARDING_STEP_KEY, OnboardingStepIndex.EMAIL_VERIFICATION.toString());
     window.location.href = d.UrlService.onboarding({ returnTo: "/" });
   }, [d.UrlService]);
 

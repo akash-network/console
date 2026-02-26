@@ -1,13 +1,10 @@
 import type { HttpClient } from "@akashnetwork/http-sdk";
 
-import { ONBOARDING_STEP_KEY } from "../../storage/keys";
-
 export class AuthService {
   constructor(
     private readonly urlService: AuthUrlService,
     private readonly internalApiHttpClient: HttpClient,
-    private readonly location = window.location,
-    private readonly localStorage = window.localStorage
+    private readonly location = window.location
   ) {}
 
   async loginViaOauth(options?: { returnTo?: string; connection?: string }): Promise<void> {
@@ -45,7 +42,6 @@ export class AuthService {
   }
 
   logout() {
-    this.localStorage.removeItem(ONBOARDING_STEP_KEY);
     this.location.assign(this.urlService.logout());
   }
 }

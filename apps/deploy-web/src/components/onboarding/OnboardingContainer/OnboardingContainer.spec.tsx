@@ -14,24 +14,81 @@ import { OnboardingContainer, OnboardingStepIndex } from "./OnboardingContainer"
 import { act, render } from "@testing-library/react";
 
 describe("OnboardingContainer", () => {
-  it("should initialize with default state", () => {
+  it("should show loading state when user data is loading", () => {
+    const { child } = setup({ isUserLoading: true });
+
+    expect(child.mock.calls[0][0].isLoading).toBe(true);
+  });
+
+  it("should show loading state when wallet is loading", () => {
+    const { child } = setup({ wallet: { isWalletLoading: true } });
+
+    expect(child.mock.calls[0][0].isLoading).toBe(true);
+  });
+
+  it("should not be loading when all data is resolved", () => {
     const { child } = setup();
 
-    expect(child.mock.calls[0][0]).toEqual({
-      currentStep: OnboardingStepIndex.FREE_TRIAL,
-      steps: expect.arrayContaining([
+    expect(child.mock.calls[0][0].isLoading).toBe(false);
+  });
+
+  it("should infer FREE_TRIAL step when no user", () => {
+    const { child } = setup();
+
+    expect(child.mock.calls[0][0].currentStep).toBe(OnboardingStepIndex.FREE_TRIAL);
+  });
+
+  it("should infer EMAIL_VERIFICATION step when user exists but email not verified", () => {
+    const { child } = setup({
+      user: { userId: "user-1", emailVerified: false }
+    });
+
+    expect(child.mock.calls[0][0].currentStep).toBe(OnboardingStepIndex.EMAIL_VERIFICATION);
+  });
+
+  it("should infer PAYMENT_METHOD step when user has verified email but no managed wallet", () => {
+    const { child } = setup({
+      user: { userId: "user-1", emailVerified: true }
+    });
+
+    expect(child.mock.calls[0][0].currentStep).toBe(OnboardingStepIndex.PAYMENT_METHOD);
+  });
+
+  it("should infer WELCOME step when user has managed wallet", () => {
+    const { child } = setup({
+      user: { userId: "user-1", emailVerified: true },
+      wallet: { hasManagedWallet: true }
+    });
+
+    expect(child.mock.calls[0][0].currentStep).toBe(OnboardingStepIndex.WELCOME);
+  });
+
+  it("should derive completed steps from current step", () => {
+    const { child } = setup({
+      user: { userId: "user-1", emailVerified: true },
+      wallet: { hasManagedWallet: true }
+    });
+
+    const steps = child.mock.calls[0][0].steps;
+    expect(steps[OnboardingStepIndex.FREE_TRIAL].isCompleted).toBe(true);
+    expect(steps[OnboardingStepIndex.SIGNUP].isCompleted).toBe(true);
+    expect(steps[OnboardingStepIndex.EMAIL_VERIFICATION].isCompleted).toBe(true);
+    expect(steps[OnboardingStepIndex.PAYMENT_METHOD].isCompleted).toBe(true);
+    expect(steps[OnboardingStepIndex.WELCOME].isCompleted).toBe(false);
+  });
+
+  it("should have all step definitions", () => {
+    const { child } = setup();
+
+    expect(child.mock.calls[0][0].steps).toEqual(
+      expect.arrayContaining([
         expect.objectContaining({ id: "free-trial", title: "Free Trial" }),
         expect.objectContaining({ id: "signup", title: "Create Account" }),
         expect.objectContaining({ id: "email-verification", title: "Verify Email" }),
         expect.objectContaining({ id: "payment-method", title: "Payment Method" }),
         expect.objectContaining({ id: "welcome", title: "Welcome" })
-      ]),
-      onStepChange: expect.any(Function),
-      onStepComplete: expect.any(Function),
-      onStartTrial: expect.any(Function),
-      onPaymentMethodComplete: expect.any(Function),
-      onComplete: expect.any(Function)
-    });
+      ])
+    );
   });
 
   it("should track analytics when step changes", async () => {
@@ -80,24 +137,14 @@ describe("OnboardingContainer", () => {
     expect(mockRouter.push).toHaveBeenCalledWith("/login?tab=signup");
   });
 
-  it("should track analytics when payment method is completed", async () => {
-    const { child, mockAnalyticsService } = setup({
+  it("should stay on PAYMENT_METHOD until managed wallet is created", () => {
+    const { child } = setup({
+      user: { userId: "user-1", emailVerified: true },
       paymentMethods: [{ id: "1", type: "card" }]
     });
 
-    const { onPaymentMethodComplete } = child.mock.calls[0][0];
-    const initialStep = child.mock.calls[0][0].currentStep;
-
-    await act(async () => {
-      onPaymentMethodComplete();
-    });
-
-    expect(mockAnalyticsService.track).toHaveBeenCalledWith("onboarding_payment_method_added", {
-      category: "onboarding"
-    });
-
-    const currentStep = child.mock.calls[child.mock.calls.length - 1][0].currentStep;
-    expect(currentStep).toBe(initialStep);
+    // Even with payment methods, should stay on PAYMENT_METHOD without managed wallet
+    expect(child.mock.calls[0][0].currentStep).toBe(OnboardingStepIndex.PAYMENT_METHOD);
   });
 
   it("should redirect to deployment and connect managed wallet when onboarding is completed", async () => {
@@ -112,33 +159,18 @@ describe("OnboardingContainer", () => {
     expect(mockConnectManagedWallet).toHaveBeenCalled();
   });
 
-  it("should redirect to home when user has managed wallet and no saved step", async () => {
-    const { mockNavigateBack } = setup({
+  it("should show WELCOME step when user has managed wallet", () => {
+    const { child } = setup({
+      user: { userId: "user-1", emailVerified: true },
       wallet: { hasManagedWallet: true, isWalletLoading: false }
     });
 
-    await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 10));
-    });
-
-    expect(mockNavigateBack).toHaveBeenCalled();
-  });
-
-  it("should not redirect when user has managed wallet but has saved step", async () => {
-    const { mockRouter } = setup({
-      wallet: { hasManagedWallet: true, isWalletLoading: false },
-      savedStep: "2"
-    });
-
-    await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 0));
-    });
-
-    expect(mockRouter.replace).not.toHaveBeenCalled();
+    expect(child.mock.calls[0][0].currentStep).toBe(OnboardingStepIndex.WELCOME);
   });
 
   it("should handle fromSignup URL parameter", async () => {
-    const { child, mockAnalyticsService } = setup({
+    const { mockAnalyticsService } = setup({
+      user: { userId: "user-1", emailVerified: false },
       windowLocation: {
         search: "?fromSignup=true",
         href: "http://localhost/onboarding?fromSignup=true",
@@ -156,9 +188,6 @@ describe("OnboardingContainer", () => {
     expect(mockAnalyticsService.track).toHaveBeenCalledWith("onboarding_account_created", {
       category: "onboarding"
     });
-
-    // The component should be on the EMAIL_VERIFICATION step after handling fromSignup
-    expect(child.mock.calls[child.mock.calls.length - 1][0].currentStep).toBe(OnboardingStepIndex.EMAIL_VERIFICATION);
   });
 
   it("replaces uakt with managed denom when completing onboarding", async () => {
@@ -210,19 +239,15 @@ describe("OnboardingContainer", () => {
   function setup(
     input: {
       paymentMethods?: Array<{ id: string; type: string }>;
-      user?: { emailVerified?: boolean; userId?: string };
+      user?: { emailVerified?: boolean; userId?: string; stripeCustomerId?: string };
       wallet?: { hasManagedWallet?: boolean; isWalletLoading?: boolean };
+      isUserLoading?: boolean;
+      isPaymentMethodsLoading?: boolean;
       windowLocation?: Partial<Location>;
       windowHistory?: Partial<History>;
-      savedStep?: string;
     } = {}
   ) {
     vi.clearAllMocks();
-
-    // Mock localStorage using jest-mock-extended
-    const mockLocalStorage = mock<Storage>({
-      getItem: vi.fn().mockReturnValue(input.savedStep || null)
-    });
 
     // Store original window objects
     let windowLocation = window.location;
@@ -273,8 +298,14 @@ describe("OnboardingContainer", () => {
       NEXT_PUBLIC_DEFAULT_INITIAL_DEPOSIT: "5000000"
     };
 
-    const mockUseUser = vi.fn().mockReturnValue(input.user || { emailVerified: false });
-    const mockUsePaymentMethodsQuery = vi.fn().mockReturnValue({ data: input.paymentMethods || [] });
+    const mockUseUser = vi.fn().mockReturnValue({
+      user: input.user,
+      isLoading: input.isUserLoading || false
+    });
+    const mockUsePaymentMethodsQuery = vi.fn().mockReturnValue({
+      data: input.paymentMethods || [],
+      isLoading: input.isPaymentMethodsLoading || false
+    });
     const mockUseChainParam = vi.fn().mockReturnValue({ minDeposit: { akt: 0.5, usdc: 5 } });
     const mockDenomToUdenom = vi.fn().mockImplementation((amount: number) => amount * 1_000_000);
     const mockErrorHandler = mock<ErrorHandlerService>();
@@ -395,7 +426,6 @@ describe("OnboardingContainer", () => {
       useNotificator: mockUseNotificator,
       useManagedWalletDenom: mockUseManagedWalletDenom,
       useReturnTo: mockUseReturnTo,
-      localStorage: mockLocalStorage,
       deploymentData: mockDeploymentData,
       validateDeploymentData: mockValidateDeploymentData,
       appendAuditorRequirement: mockAppendAuditorRequirement,
@@ -421,10 +451,10 @@ describe("OnboardingContainer", () => {
       mockDenomToUdenom,
       mockUseServices,
       mockUseRouter,
+      mockUseWallet,
       mockConnectManagedWallet,
       mockNavigateBack,
       mockNavigateWithReturnTo,
-      mockLocalStorage,
       mockSignAndBroadcastTx,
       mockGenNewCertificateIfLocalIsInvalid,
       mockUpdateSelectedCertificate,

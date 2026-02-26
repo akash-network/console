@@ -14,13 +14,6 @@ describe(VerifyEmailPage.name, () => {
     restore();
   });
 
-  it("sets onboarding step to EMAIL_VERIFICATION in localStorage", () => {
-    const { mockLocalStorage, restore } = setup();
-
-    expect(mockLocalStorage.setItem).toHaveBeenCalledWith("onboardingStep", "2");
-    restore();
-  });
-
   it("redirects to onboarding page", () => {
     const { getLocationHref, restore } = setup();
 
@@ -29,15 +22,7 @@ describe(VerifyEmailPage.name, () => {
   });
 
   function setup(input: { onboardingUrl?: string } = {}) {
-    const originalLocalStorage = window.localStorage;
     const originalLocation = window.location;
-
-    const mockLocalStorage = {
-      setItem: vi.fn(),
-      getItem: vi.fn(),
-      removeItem: vi.fn()
-    };
-    Object.defineProperty(window, "localStorage", { value: mockLocalStorage, writable: true, configurable: true });
 
     let capturedHref = "";
     Object.defineProperty(window, "location", {
@@ -64,10 +49,8 @@ describe(VerifyEmailPage.name, () => {
     render(<VerifyEmailPage dependencies={dependencies} />);
 
     return {
-      mockLocalStorage,
       getLocationHref: () => capturedHref,
       restore: () => {
-        Object.defineProperty(window, "localStorage", { value: originalLocalStorage, writable: true, configurable: true });
         Object.defineProperty(window, "location", { value: originalLocation, writable: true, configurable: true });
       }
     };

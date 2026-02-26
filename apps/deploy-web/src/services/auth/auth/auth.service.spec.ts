@@ -2,7 +2,6 @@ import type { HttpClient } from "@akashnetwork/http-sdk";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import { ONBOARDING_STEP_KEY } from "@src/services/storage/keys";
 import type { AuthUrlService } from "./auth.service";
 import { AuthService } from "./auth.service";
 
@@ -30,15 +29,11 @@ describe(AuthService.name, () => {
   });
 
   describe("logout", () => {
-    it("clears localStorage items and redirects to logout URL", () => {
-      const { service, location, localStorage } = setup();
-
-      // Set up localStorage items
-      localStorage.setItem(ONBOARDING_STEP_KEY, "2");
+    it("redirects to logout URL", () => {
+      const { service, location } = setup();
 
       service.logout();
 
-      expect(localStorage.getItem(ONBOARDING_STEP_KEY)).toBeNull();
       expect(location.assign).toHaveBeenCalledWith(mockLogoutUrl);
     });
   });
@@ -59,8 +54,7 @@ describe(AuthService.name, () => {
       service,
       httpClient,
       urlService,
-      location,
-      localStorage
+      location
     };
   }
 });

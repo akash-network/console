@@ -1,6 +1,6 @@
 import type { FC } from "react";
 import React from "react";
-import { buttonVariants } from "@akashnetwork/ui/components";
+import { buttonVariants, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { LogOut } from "iconoir-react";
 
@@ -26,6 +26,7 @@ const DEPENDENCIES = {
 };
 
 export interface OnboardingViewProps {
+  isLoading: boolean;
   currentStep: number;
   steps: OnboardingStep[];
   onStepChange: (step: number) => void;
@@ -36,6 +37,7 @@ export interface OnboardingViewProps {
 }
 
 export const OnboardingView: FC<OnboardingViewProps> = ({
+  isLoading,
   currentStep,
   steps,
   onStepChange,
@@ -80,6 +82,15 @@ export const OnboardingView: FC<OnboardingViewProps> = ({
     });
     authService.logout();
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[400px] flex-col items-center justify-center gap-4">
+        <Spinner size="large" />
+        <p className="text-sm text-muted-foreground">Preparing your onboarding...</p>
+      </div>
+    );
+  }
 
   return (
     <>
