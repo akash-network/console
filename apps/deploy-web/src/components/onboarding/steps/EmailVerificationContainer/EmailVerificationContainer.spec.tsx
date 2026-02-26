@@ -14,39 +14,22 @@ describe(EmailVerificationContainer.name, () => {
         isResending: false,
         isVerifying: false,
         cooldownSeconds: expect.any(Number),
+        resetKey: 0,
         onResendCode: expect.any(Function),
         onVerifyCode: expect.any(Function)
       })
     );
   });
 
-  it("auto-sends code on mount when email is not verified", () => {
-    const { mockSendVerificationCode } = setup();
+  it("auto-advances when email is already verified", () => {
+    const mockOnComplete = vi.fn();
+    setup({ user: { id: "test-user", emailVerified: true }, onComplete: mockOnComplete });
 
-    expect(mockSendVerificationCode).toHaveBeenCalled();
-  });
-
-  it("does not auto-send code when email is already verified", () => {
-    const { mockSendVerificationCode } = setup({
-      user: { id: "test-user", emailVerified: true }
-    });
-
-    expect(mockSendVerificationCode).not.toHaveBeenCalled();
-  });
-
-  it("sets cooldown after auto-send on mount", async () => {
-    const { child } = setup();
-
-    await act(async () => {});
-
-    const lastCall = child.mock.calls[child.mock.calls.length - 1][0];
-    expect(lastCall.cooldownSeconds).toBe(60);
+    expect(mockOnComplete).toHaveBeenCalled();
   });
 
   it("shows snackbar on user-initiated resend", async () => {
-    const { child, mockSendVerificationCode, mockEnqueueSnackbar } = setup({
-      user: { id: "test-user", emailVerified: true }
-    });
+    const { child, mockSendVerificationCode, mockEnqueueSnackbar } = setup();
 
     mockSendVerificationCode.mockResolvedValue({});
 
@@ -68,9 +51,7 @@ describe(EmailVerificationContainer.name, () => {
   });
 
   it("does not resend code while cooldown is active", async () => {
-    const { child, mockSendVerificationCode } = setup({
-      user: { id: "test-user", emailVerified: true }
-    });
+    const { child, mockSendVerificationCode } = setup();
 
     mockSendVerificationCode.mockResolvedValue({});
 
@@ -91,9 +72,7 @@ describe(EmailVerificationContainer.name, () => {
   });
 
   it("sets cooldownSeconds after sending code", async () => {
-    const { child, mockSendVerificationCode } = setup({
-      user: { id: "test-user", emailVerified: true }
-    });
+    const { child, mockSendVerificationCode } = setup();
 
     mockSendVerificationCode.mockResolvedValue({});
 
@@ -107,9 +86,7 @@ describe(EmailVerificationContainer.name, () => {
   });
 
   it("notifies error when resend code fails", async () => {
-    const { child, mockSendVerificationCode, mockNotificator } = setup({
-      user: { id: "test-user", emailVerified: true }
-    });
+    const { child, mockSendVerificationCode, mockNotificator } = setup();
 
     mockSendVerificationCode.mockRejectedValue(new Error("Failed"));
 
