@@ -110,6 +110,7 @@ describe(EmailVerificationStep.name, () => {
       isResending?: boolean;
       isVerifying?: boolean;
       cooldownSeconds?: number;
+      resetKey?: number;
       onResendCode?: () => void;
       onVerifyCode?: (code: string) => void;
     } = {}
@@ -122,6 +123,7 @@ describe(EmailVerificationStep.name, () => {
         isResending={input.isResending ?? false}
         isVerifying={input.isVerifying ?? false}
         cooldownSeconds={input.cooldownSeconds ?? 0}
+        resetKey={input.resetKey ?? 0}
         onResendCode={onResendCode}
         onVerifyCode={onVerifyCode}
       />

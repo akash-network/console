@@ -26,6 +26,7 @@ export type EmailVerificationContainerProps = {
     isResending: boolean;
     isVerifying: boolean;
     cooldownSeconds: number;
+    resetKey: number;
     onResendCode: () => void;
     onVerifyCode: (code: string) => void;
   }) => ReactNode;
@@ -40,12 +41,10 @@ export const EmailVerificationContainer: FC<EmailVerificationContainerProps> = (
   const [isResending, setIsResending] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
+  const [resetKey, setResetKey] = useState(0);
   const { analyticsService, auth } = d.useServices();
-  const initialCodeSentForUserRef = useRef<string | null>(null);
   const isSendingRef = useRef(false);
   const cooldownRef = useRef(0);
-
-  const isEmailVerified = !!user?.emailVerified;
 
   useEffect(() => {
     if (cooldownSeconds <= 0) return;
@@ -59,44 +58,28 @@ export const EmailVerificationContainer: FC<EmailVerificationContainerProps> = (
     return () => clearTimeout(timer);
   }, [cooldownSeconds]);
 
-  const sendCode = useCallback(
-    async ({ silent, resend }: { silent?: boolean; resend?: boolean } = {}) => {
-      if (!user?.id || isSendingRef.current || cooldownRef.current > 0) return;
+  const sendCode = useCallback(async () => {
+    if (!user?.id || isSendingRef.current || cooldownRef.current > 0) return;
 
-      isSendingRef.current = true;
-      setIsResending(true);
+    isSendingRef.current = true;
+    setIsResending(true);
+    setResetKey(prev => prev + 1);
 
-      try {
-        await auth.sendVerificationCode({ resend });
-        cooldownRef.current = COOLDOWN_DURATION;
-        setCooldownSeconds(COOLDOWN_DURATION);
+    try {
+      await auth.sendVerificationCode({ resend: true });
+      cooldownRef.current = COOLDOWN_DURATION;
+      setCooldownSeconds(COOLDOWN_DURATION);
 
-        if (!silent) {
-          enqueueSnackbar(<d.Snackbar title="Verification code sent" subTitle="Please check your email for the 6-digit code" iconVariant="success" />, {
-            variant: "success"
-          });
-        }
-      } catch (error) {
-        if (!silent) {
-          notificator.error("Failed to send verification code. Please try again later");
-        }
-      } finally {
-        isSendingRef.current = false;
-        setIsResending(false);
-      }
-    },
-    [user?.id, auth, enqueueSnackbar, d.Snackbar, notificator]
-  );
-
-  useEffect(() => {
-    if (!isEmailVerified && user?.id && initialCodeSentForUserRef.current !== user.id) {
-      initialCodeSentForUserRef.current = user.id;
-      sendCode({ silent: true });
+      enqueueSnackbar(<d.Snackbar title="Verification code sent" subTitle="Please check your email for the 6-digit code" iconVariant="success" />, {
+        variant: "success"
+      });
+    } catch (error) {
+      notificator.error("Failed to send verification code. Please try again later");
+    } finally {
+      isSendingRef.current = false;
+      setIsResending(false);
     }
-    if (!user?.id) {
-      initialCodeSentForUserRef.current = null;
-    }
-  }, [isEmailVerified, user?.id, sendCode]);
+  }, [user?.id, auth, enqueueSnackbar, d.Snackbar, notificator]);
 
   const advance = useCallback(() => {
     analyticsService.track("onboarding_email_verified", {
@@ -104,6 +87,12 @@ export const EmailVerificationContainer: FC<EmailVerificationContainerProps> = (
     });
     onComplete();
   }, [analyticsService, onComplete]);
+
+  useEffect(() => {
+    if (user?.emailVerified) {
+      advance();
+    }
+  }, [user?.emailVerified, advance]);
 
   const handleVerifyCode = useCallback(
     async (code: string) => {
@@ -133,7 +122,8 @@ export const EmailVerificationContainer: FC<EmailVerificationContainerProps> = (
         isResending,
         isVerifying,
         cooldownSeconds,
-        onResendCode: () => sendCode({ resend: true }),
+        resetKey,
+        onResendCode: sendCode,
         onVerifyCode: handleVerifyCode
       })}
     </>

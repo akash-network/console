@@ -9,6 +9,7 @@ interface EmailVerificationStepProps {
   isResending: boolean;
   isVerifying: boolean;
   cooldownSeconds: number;
+  resetKey: number;
   onResendCode: () => void;
   onVerifyCode: (code: string) => void;
 }
@@ -17,11 +18,13 @@ export const EmailVerificationStep: React.FunctionComponent<EmailVerificationSte
   isResending,
   isVerifying,
   cooldownSeconds,
+  resetKey,
   onResendCode,
   onVerifyCode
 }) => {
   const [digits, setDigits] = useState<string[]>(["", "", "", "", "", ""]);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const submittedCodeRef = useRef<string | null>(null);
 
   const handleDigitChange = useCallback(
     (index: number, value: string) => {
@@ -58,7 +61,12 @@ export const EmailVerificationStep: React.FunctionComponent<EmailVerificationSte
   useEffect(() => {
     const code = digits.join("");
     if (code.length === 6) {
-      onVerifyCode(code);
+      if (submittedCodeRef.current !== code) {
+        submittedCodeRef.current = code;
+        onVerifyCode(code);
+      }
+    } else {
+      submittedCodeRef.current = null;
     }
   }, [digits, onVerifyCode]);
 
@@ -89,6 +97,14 @@ export const EmailVerificationStep: React.FunctionComponent<EmailVerificationSte
     },
     [isVerifying]
   );
+
+  useEffect(() => {
+    if (resetKey > 0) {
+      setDigits(["", "", "", "", "", ""]);
+      submittedCodeRef.current = null;
+      inputRefs.current[0]?.focus();
+    }
+  }, [resetKey]);
 
   return (
     <div className="mx-auto max-w-md space-y-6 text-center">
