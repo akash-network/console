@@ -80,6 +80,15 @@ describe(AuthController.name, () => {
       expect(emailVerificationCodeService.verifyCode).toHaveBeenCalledWith(user.id, "123456");
       expect(result).toEqual({ data: { emailVerified: true } });
     });
+
+    it("throws 400 when emailVerified is false", async () => {
+      const user = UserSeeder.create();
+      const { controller, emailVerificationCodeService } = setup({ user });
+
+      emailVerificationCodeService.verifyCode.mockResolvedValue({ emailVerified: false });
+
+      await expect(controller.verifyEmailCode({ data: { code: "000000" } })).rejects.toThrow("Invalid verification code");
+    });
   });
 
   function setup(

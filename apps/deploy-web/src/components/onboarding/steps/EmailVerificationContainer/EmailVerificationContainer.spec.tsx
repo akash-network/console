@@ -98,9 +98,8 @@ describe(EmailVerificationContainer.name, () => {
     expect(mockNotificator.error).toHaveBeenCalledWith("Failed to send verification code. Please try again later");
   });
 
-  it("verifies code, shows success snackbar, and auto-advances", async () => {
-    const mockOnComplete = vi.fn();
-    const { child, mockVerifyEmailCode, mockCheckSession, mockEnqueueSnackbar, mockAnalyticsService } = setup({ onComplete: mockOnComplete });
+  it("verifies code, refreshes session, and shows success snackbar", async () => {
+    const { child, mockVerifyEmailCode, mockCheckSession, mockEnqueueSnackbar } = setup();
     mockVerifyEmailCode.mockResolvedValue({ emailVerified: true });
     mockCheckSession.mockResolvedValue(undefined);
 
@@ -121,8 +120,6 @@ describe(EmailVerificationContainer.name, () => {
       }),
       { variant: "success" }
     );
-    expect(mockAnalyticsService.track).toHaveBeenCalledWith("onboarding_email_verified", { category: "onboarding" });
-    expect(mockOnComplete).toHaveBeenCalled();
   });
 
   it("shows error toast on verify code failure", async () => {

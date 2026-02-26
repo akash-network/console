@@ -1,4 +1,4 @@
-import { randomInt, timingSafeEqual } from "crypto";
+import { createHash, randomInt, timingSafeEqual } from "crypto";
 import assert from "http-assert";
 import { singleton } from "tsyringe";
 
@@ -13,6 +13,10 @@ import { UserRepository } from "@src/user/repositories/user/user.repository";
 const CODE_EXPIRY_MS = 10 * 60 * 1000;
 const MAX_ATTEMPTS = 5;
 const RESEND_COOLDOWN_MS = 60 * 1000;
+
+function hashCode(code: string): string {
+  return createHash("sha256").update(code).digest("hex");
+}
 
 @singleton()
 export class EmailVerificationCodeService {
@@ -50,7 +54,7 @@ export class EmailVerificationCodeService {
     const record = await this.emailVerificationCodeRepository.create({
       userId: userInternalId,
       email: user.email,
-      code,
+      code: hashCode(code),
       expiresAt
     });
 
@@ -73,7 +77,7 @@ export class EmailVerificationCodeService {
     assert(record, 400, "No active verification code. Please request a new one.");
     assert(record.attempts < MAX_ATTEMPTS, 429, "Too many attempts. Please request a new code.");
 
-    const codeBuffer = Buffer.from(code);
+    const codeBuffer = Buffer.from(hashCode(code));
     const recordBuffer = Buffer.from(record.code);
     const isCodeValid = codeBuffer.length === recordBuffer.length && timingSafeEqual(recordBuffer, codeBuffer);
 

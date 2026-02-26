@@ -18,7 +18,7 @@ type VerifyEmailPageProps = {
 
 export function VerifyEmailPage({ dependencies: d = DEPENDENCIES }: VerifyEmailPageProps) {
   useEffect(() => {
-    window.localStorage?.setItem(ONBOARDING_STEP_KEY, OnboardingStepIndex.EMAIL_VERIFICATION.toString());
+    window.localStorage.setItem(ONBOARDING_STEP_KEY, OnboardingStepIndex.EMAIL_VERIFICATION.toString());
     window.location.href = d.UrlService.onboarding({ returnTo: "/" });
   }, [d.UrlService]);
 

@@ -12,7 +12,7 @@ import { extractErrorMessage } from "@src/utils/errorUtils";
 
 const COOLDOWN_DURATION = 60;
 
-const DEPENDENCIES = {
+export const DEPENDENCIES = {
   useCustomUser,
   useSnackbar,
   useServices,
@@ -106,14 +106,13 @@ export const EmailVerificationContainer: FC<EmailVerificationContainerProps> = (
         enqueueSnackbar(<d.Snackbar title="Email verified" subTitle="Your email has been successfully verified" iconVariant="success" />, {
           variant: "success"
         });
-        advance();
       } catch (error) {
         notificator.error(d.extractErrorMessage(error as AppError));
       } finally {
         setIsVerifying(false);
       }
     },
-    [user?.id, auth, checkSession, enqueueSnackbar, d.Snackbar, d.extractErrorMessage, advance]
+    [user?.id, auth, checkSession, enqueueSnackbar, d.Snackbar, d.extractErrorMessage, notificator]
   );
 
   return (

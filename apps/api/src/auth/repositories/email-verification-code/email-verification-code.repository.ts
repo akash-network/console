@@ -39,7 +39,7 @@ export class EmailVerificationCodeRepository extends BaseRepository<Table, Email
   }
 
   async acquireUserLock(userId: string): Promise<void> {
-    await this.cursor.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${userId}))`);
+    await this.cursor.execute(sql`SELECT pg_advisory_xact_lock(hashtext('email_verification_code'), hashtext(${userId}))`);
   }
 
   async incrementAttempts(id: string): Promise<void> {

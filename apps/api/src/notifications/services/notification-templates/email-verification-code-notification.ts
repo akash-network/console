@@ -1,3 +1,5 @@
+import { randomUUID } from "crypto";
+
 import type { CreateNotificationInput } from "../notification/notification.service";
 
 function escapeHtml(str: string): string {
@@ -6,7 +8,7 @@ function escapeHtml(str: string): string {
 
 export function emailVerificationCodeNotification(user: { id: string; email: string }, vars: { code: string }): CreateNotificationInput {
   return {
-    notificationId: `emailVerificationCode.${user.id}.${Date.now()}`,
+    notificationId: `emailVerificationCode.${user.id}.${randomUUID()}`,
     payload: {
       summary: "Your verification code",
       description:
