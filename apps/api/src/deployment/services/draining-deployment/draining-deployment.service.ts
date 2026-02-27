@@ -12,6 +12,7 @@ import { DrainingDeployment } from "@src/deployment/types/draining-deployment";
 import { averageBlockCountInAnHour } from "@src/utils/constants";
 import { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 import { DrainingDeploymentRpcService } from "../draining-deployment-rpc/draining-deployment-rpc.service";
+import { TopUpManagedDeploymentsInstrumentationService } from "../top-up-managed-deployments/top-up-managed-deployments-instrumentation.service";
 
 export type { DrainingDeployment } from "@src/deployment/types/draining-deployment";
 
@@ -25,7 +26,8 @@ export class DrainingDeploymentService {
     private readonly config: DeploymentConfigService,
     private readonly loggerService: LoggerService,
     private readonly rpcService: DrainingDeploymentRpcService,
-    private readonly balancesService: BalancesService
+    private readonly balancesService: BalancesService,
+    private readonly instrumentation: TopUpManagedDeploymentsInstrumentationService
   ) {
     loggerService.setContext(DrainingDeploymentService.name);
   }
@@ -76,6 +78,7 @@ export class DrainingDeploymentService {
 
         if (missingIds.length) {
           await this.deploymentSettingRepository.updateManyById(missingIds, { closed: true });
+          this.instrumentation.recordDeploymentsMarkedClosed(missingIds.length);
         }
 
         if (active.length) {

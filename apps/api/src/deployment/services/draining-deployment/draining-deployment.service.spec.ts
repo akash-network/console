@@ -15,6 +15,7 @@ import type { DrainingDeploymentOutput, LeaseRepository } from "@src/deployment/
 import { averageBlockCountInAnHour } from "@src/utils/constants";
 import type { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 import type { DrainingDeploymentRpcService } from "../draining-deployment-rpc/draining-deployment-rpc.service";
+import type { TopUpManagedDeploymentsInstrumentationService } from "../top-up-managed-deployments/top-up-managed-deployments-instrumentation.service";
 import { DrainingDeploymentService } from "./draining-deployment.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
@@ -539,6 +540,8 @@ describe(DrainingDeploymentService.name, () => {
       AUTO_TOP_UP_AMOUNT_IN_H: 48
     });
 
+    const instrumentation = mock<TopUpManagedDeploymentsInstrumentationService>();
+
     const service = new DrainingDeploymentService(
       blockHttpService,
       leaseRepository,
@@ -547,7 +550,8 @@ describe(DrainingDeploymentService.name, () => {
       config,
       loggerService,
       rpcService,
-      balancesService
+      balancesService,
+      instrumentation
     );
 
     return {
