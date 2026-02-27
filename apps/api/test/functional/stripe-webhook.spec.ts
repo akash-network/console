@@ -3,16 +3,17 @@ import { eq } from "drizzle-orm";
 import nock from "nock";
 import stripe from "stripe";
 import { container } from "tsyringe";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { BILLING_CONFIG, type BillingConfig } from "@src/billing/providers";
-import { StripeTransactionRepository } from "@src/billing/repositories";
+import { StripeTransactionRepository, UserWalletRepository } from "@src/billing/repositories";
+import { RefillService } from "@src/billing/services/refill/refill.service";
 import type { ApiPgDatabase } from "@src/core";
 import { POSTGRES_DB, resolveTable } from "@src/core";
 import { app } from "@src/rest-app";
-import { Users } from "@src/user/model-schemas/user/user.schema";
+import { UserRepository } from "@src/user/repositories";
 
-import { topUpWallet } from "@test/services/topUpWallet";
-import { WalletTestingService } from "@test/services/wallet-testing.service";
+import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 
 describe("Stripe webhook", () => {
   const userWalletsTable = resolveTable("UserWallets");
@@ -20,7 +21,7 @@ describe("Stripe webhook", () => {
   const userWalletsQuery = db.query.UserWallets;
   const stripeTransactionRepository = container.resolve(StripeTransactionRepository);
   const billingConfig = container.resolve<BillingConfig>(BILLING_CONFIG);
-  const walletService = new WalletTestingService(app);
+  const userRepository = container.resolve(UserRepository);
 
   const generateChargeRefundedPayload = (chargeId: string, customerId: string, amountRefunded: number, previousAmountRefunded = 0) =>
     JSON.stringify({
@@ -55,8 +56,9 @@ describe("Stripe webhook", () => {
     });
   };
 
-  beforeAll(async () => {
-    await topUpWallet();
+  afterEach(() => {
+    vi.restoreAllMocks();
+    nock.cleanAll();
   });
 
   describe("POST /v1/stripe-webhook", () => {
@@ -66,9 +68,7 @@ describe("Stripe webhook", () => {
         const chargeId = `ch_${faker.string.alphanumeric(24)}`;
         const amount = 10000;
 
-        const { user } = await walletService.createUserAndWallet();
-        const stripeCustomerId = `cus_${faker.string.alphanumeric(14)}`;
-        await db.update(Users).set({ stripeCustomerId }).where(eq(Users.id, user.id));
+        const { user, stripeCustomerId } = await setup();
 
         await stripeTransactionRepository.create({
           userId: user.id,
@@ -125,9 +125,7 @@ describe("Stripe webhook", () => {
         const amount = 10000; // $100 in cents
 
         // Create user with wallet and Stripe customer ID
-        const { user } = await walletService.createUserAndWallet();
-        const stripeCustomerId = `cus_${faker.string.alphanumeric(14)}`;
-        await db.update(Users).set({ stripeCustomerId }).where(eq(Users.id, user.id));
+        const { user, stripeCustomerId } = await setup();
 
         // Create a transaction record first (simulating what createPaymentIntent does)
         await stripeTransactionRepository.create({
@@ -195,9 +193,7 @@ describe("Stripe webhook", () => {
         const paymentIntentId = `pi_${faker.string.alphanumeric(24)}`;
         const amount = 5000;
 
-        const { user } = await walletService.createUserAndWallet();
-        const stripeCustomerId = `cus_${faker.string.alphanumeric(14)}`;
-        await db.update(Users).set({ stripeCustomerId }).where(eq(Users.id, user.id));
+        const { user, stripeCustomerId } = await setup();
 
         await stripeTransactionRepository.create({
           userId: user.id,
@@ -239,9 +235,7 @@ describe("Stripe webhook", () => {
         const chargeId = `ch_${faker.string.alphanumeric(24)}`;
         const amount = 50;
 
-        const { user } = await walletService.createUserAndWallet();
-        const stripeCustomerId = `cus_${faker.string.alphanumeric(14)}`;
-        await db.update(Users).set({ stripeCustomerId }).where(eq(Users.id, user.id));
+        const { user, stripeCustomerId } = await setup();
 
         await stripeTransactionRepository.create({
           userId: user.id,
@@ -277,9 +271,7 @@ describe("Stripe webhook", () => {
         // Use small amount that fits within trial allowance (trial allowance is ~$2)
         const amount = 50; // 50 cents = $0.50
 
-        const { user } = await walletService.createUserAndWallet();
-        const stripeCustomerId = `cus_${faker.string.alphanumeric(14)}`;
-        await db.update(Users).set({ stripeCustomerId }).where(eq(Users.id, user.id));
+        const { user, stripeCustomerId } = await setup();
 
         // Create a succeeded transaction
         await stripeTransactionRepository.create({
@@ -310,9 +302,7 @@ describe("Stripe webhook", () => {
         const firstRefund = 30; // $0.30
         const secondRefund = 20; // $0.20
 
-        const { user } = await walletService.createUserAndWallet();
-        const stripeCustomerId = `cus_${faker.string.alphanumeric(14)}`;
-        await db.update(Users).set({ stripeCustomerId }).where(eq(Users.id, user.id));
+        const { user, stripeCustomerId } = await setup();
 
         await stripeTransactionRepository.create({
           userId: user.id,
@@ -371,4 +361,40 @@ describe("Stripe webhook", () => {
       });
     });
   });
+
+  async function setup() {
+    const refillService = container.resolve(RefillService);
+    const userWalletRepository = container.resolve(UserWalletRepository);
+
+    vi.spyOn(refillService, "topUpWallet").mockImplementation(async (amountUsd, userId) => {
+      const wallet = await userWalletRepository.findOneBy({ userId });
+      if (!wallet) return;
+      await userWalletRepository.updateById(wallet.id, {
+        deploymentAllowance: wallet.deploymentAllowance + amountUsd * 10000,
+        isTrialing: false
+      });
+    });
+
+    vi.spyOn(refillService, "reduceWalletBalance").mockImplementation(async (amountUsd, userId) => {
+      const wallet = await userWalletRepository.findOneBy({ userId });
+      if (!wallet) return;
+      await userWalletRepository.updateById(wallet.id, {
+        deploymentAllowance: Math.max(0, wallet.deploymentAllowance - amountUsd * 10000)
+      });
+    });
+
+    const user = await userRepository.create({});
+    const stripeCustomerId = `cus_${faker.string.alphanumeric(14)}`;
+    await userRepository.updateById(user.id, { stripeCustomerId });
+    const wallet = await userWalletRepository.create({
+      userId: user.id,
+      address: createAkashAddress()
+    });
+    await userWalletRepository.updateById(wallet.id, {
+      isTrialing: true,
+      deploymentAllowance: billingConfig.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT,
+      feeAllowance: billingConfig.TRIAL_FEES_ALLOWANCE_AMOUNT
+    });
+    return { user, wallet, stripeCustomerId };
+  }
 });

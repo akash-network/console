@@ -33,7 +33,6 @@ export interface ProviderProxyPayload {
 
 @singleton()
 export class ProviderProxyService {
-  readonly #PROVIDER_PROXY_MAX_TIMEOUT = 30_000;
   readonly #httpClient: HttpClient;
 
   constructor(@inject(PROVIDER_PROXY_HTTP_CLIENT) httpClient: HttpClient) {
@@ -42,7 +41,6 @@ export class ProviderProxyService {
 
   async request<T>(url: string, options: ProviderProxyPayload): Promise<T> {
     const { chainNetwork, providerIdentity, timeout, ...params } = options;
-    const proxyTimeout = timeout ? Math.min(timeout, this.#PROVIDER_PROXY_MAX_TIMEOUT) : undefined;
     const response = await this.#httpClient.post(
       "/",
       {
@@ -51,9 +49,14 @@ export class ProviderProxyService {
         url: providerIdentity.hostUri + url,
         providerAddress: providerIdentity.owner,
         network: chainNetwork,
-        ...(proxyTimeout && { timeout: proxyTimeout })
+        timeout // this is per attempt timeout on provider-proxy side
       },
-      { ...(proxyTimeout && { timeout: proxyTimeout }) }
+      {
+        ...(timeout && {
+          // this is total timeout for all attempts to communicate with the provider API, and it should be much higher than per attempt timeout
+          timeout: timeout * 5
+        })
+      }
     );
     return response.data;
   }

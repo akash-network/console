@@ -7,8 +7,6 @@ import type { ProviderProxyPayload } from "./provider-proxy.service";
 import { ProviderProxyService } from "./provider-proxy.service";
 
 describe(ProviderProxyService.name, () => {
-  const MAX_TIMEOUT = 30_000;
-
   describe("request", () => {
     it("sends POST request to / with mapped payload and returns response data", async () => {
       const { httpClient, service, url, options } = setup();
@@ -58,17 +56,7 @@ describe(ProviderProxyService.name, () => {
 
       await service.request(url, options);
 
-      expect(httpClient.post).toHaveBeenCalledWith("/", expect.objectContaining({ timeout }), { timeout });
-    });
-
-    it("caps timeout to max when it exceeds the limit", async () => {
-      const timeout = MAX_TIMEOUT + 10_000;
-      const { httpClient, service, url, options } = setup({ timeout });
-      httpClient.post.mockResolvedValue({ data: {} });
-
-      await service.request(url, options);
-
-      expect(httpClient.post).toHaveBeenCalledWith("/", expect.objectContaining({ timeout: MAX_TIMEOUT }), { timeout: MAX_TIMEOUT });
+      expect(httpClient.post).toHaveBeenCalledWith("/", expect.objectContaining({ timeout }), { timeout: 5 * timeout });
     });
 
     it("does not include timeout when not provided", async () => {
@@ -78,7 +66,7 @@ describe(ProviderProxyService.name, () => {
       await service.request(url, options);
 
       const [, payload, config] = httpClient.post.mock.calls[0];
-      expect(payload).not.toHaveProperty("timeout");
+      expect(payload).toHaveProperty("timeout", undefined);
       expect(config).toEqual({});
     });
   });

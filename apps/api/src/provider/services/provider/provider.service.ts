@@ -6,7 +6,6 @@ import { add } from "date-fns";
 import assert from "http-assert";
 import createError from "http-errors";
 import { Op } from "sequelize";
-import { setTimeout as delay } from "timers/promises";
 import { singleton } from "tsyringe";
 
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
@@ -21,6 +20,8 @@ import { forEachInChunks } from "@src/utils/array/array";
 import { mapProviderToList } from "@src/utils/map/provider";
 import { AuditorService } from "../auditors/auditors.service";
 import { ProviderAttributesSchemaService } from "../provider-attributes-schema/provider-attributes-schema.service";
+
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 @singleton()
 export class ProviderService {
@@ -87,7 +88,7 @@ export class ProviderService {
           auth: options.auth,
           chainNetwork: this.chainNetwork,
           providerIdentity: options.providerIdentity,
-          timeout: 30_000
+          timeout: 15_000
         });
 
         if (result) return result;
@@ -136,7 +137,7 @@ export class ProviderService {
       auth,
       chainNetwork: this.chainNetwork,
       providerIdentity,
-      timeout: 30000
+      timeout: 15000
     });
   }
 

@@ -57,18 +57,15 @@ export class DrainingDeploymentService {
             const deployment = byDseqOwner[Number(deploymentSetting.dseq)];
 
             if (!deployment) {
+              acc[1].push(deploymentSetting.id);
               return acc;
             }
 
-            if (deployment.closedHeight) {
-              acc[1].push(deploymentSetting.id);
-            } else {
-              acc[0].push({
-                ...deploymentSetting,
-                predictedClosedHeight: deployment.predictedClosedHeight,
-                blockRate: deployment.blockRate
-              });
-            }
+            acc[0].push({
+              ...deploymentSetting,
+              predictedClosedHeight: deployment.predictedClosedHeight,
+              blockRate: deployment.blockRate
+            });
             return acc;
           },
           [[], []]
