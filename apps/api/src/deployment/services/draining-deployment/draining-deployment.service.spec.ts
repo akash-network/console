@@ -3,6 +3,7 @@ import "@test/mocks/logger-service.mock";
 import type { AnyAbility } from "@casl/ability";
 import { faker } from "@faker-js/faker";
 import { addWeeks } from "date-fns";
+import { groupBy } from "lodash";
 import { mock } from "vitest-mock-extended";
 
 import type { UserWalletRepository } from "@src/billing/repositories";
@@ -14,6 +15,7 @@ import type { DrainingDeploymentOutput, LeaseRepository } from "@src/deployment/
 import { averageBlockCountInAnHour } from "@src/utils/constants";
 import type { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 import type { DrainingDeploymentRpcService } from "../draining-deployment-rpc/draining-deployment-rpc.service";
+import type { TopUpManagedDeploymentsInstrumentationService } from "../top-up-managed-deployments/top-up-managed-deployments-instrumentation.service";
 import { DrainingDeploymentService } from "./draining-deployment.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
@@ -24,44 +26,57 @@ import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
 
 describe(DrainingDeploymentService.name, () => {
   describe("findDrainingDeploymentsByOwner", () => {
-    it("paginates draining deployments by owner and marks missing ones as closed", async () => {
-      const { service, deploymentSettingRepository, leaseRepository, loggerService } = setup();
+    it("paginates draining deployments by owner and marks closed ones as such", async () => {
+      const { service, deploymentSettingRepository, leaseRepository, loggerService, currentHeight } = setup();
+      const deploymentSettings = AutoTopUpDeploymentSeeder.createMany(4);
+      const addresses = deploymentSettings.map(s => s.address);
+      const dseqs = deploymentSettings.map(s => Number(s.dseq));
 
-      const address1 = createAkashAddress();
-      const address2 = createAkashAddress();
-      const address3 = createAkashAddress();
+      const activeBatches: DrainingDeploymentOutput[][] = [
+        [
+          {
+            dseq: dseqs[0],
+            owner: addresses[0],
+            denom: "uakt",
+            blockRate: faker.number.int({ min: 50, max: 100 }),
+            predictedClosedHeight: faker.number.int({ min: 900000, max: 1000000 })
+          }
+        ],
+        [
+          {
+            dseq: dseqs[3],
+            owner: addresses[3],
+            denom: "uakt",
+            blockRate: faker.number.int({ min: 50, max: 100 }),
+            predictedClosedHeight: faker.number.int({ min: 900000, max: 1000000 })
+          }
+        ]
+      ];
 
-      const settings1 = AutoTopUpDeploymentSeeder.createMany(2, { address: address1 });
-      const settings2 = AutoTopUpDeploymentSeeder.createMany(1, { address: address2 });
-      const settings3 = AutoTopUpDeploymentSeeder.createMany(1, { address: address3 });
-
-      const activeLeases1: DrainingDeploymentOutput[] = [
+      const closedBatch: DrainingDeploymentOutput[] = [
         {
-          dseq: Number(settings1[0].dseq),
-          owner: address1,
+          dseq: dseqs[1],
+          owner: addresses[1],
           denom: "uakt",
           blockRate: faker.number.int({ min: 50, max: 100 }),
-          predictedClosedHeight: faker.number.int({ min: 900000, max: 1000000 })
+          predictedClosedHeight: currentHeight + 1000,
+          closedHeight: currentHeight - 100
         }
       ];
 
-      const activeLeases2: DrainingDeploymentOutput[] = [
-        {
-          dseq: Number(settings2[0].dseq),
-          owner: address2,
-          denom: "uakt",
-          blockRate: faker.number.int({ min: 50, max: 100 }),
-          predictedClosedHeight: faker.number.int({ min: 900000, max: 1000000 })
-        }
-      ];
+      jest
+        .spyOn(service, "findLeases")
+        .mockResolvedValueOnce(activeBatches[0])
+        .mockResolvedValueOnce(closedBatch)
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce(activeBatches[1]);
 
-      jest.spyOn(service, "findLeases").mockResolvedValueOnce(activeLeases1).mockResolvedValueOnce(activeLeases2).mockResolvedValueOnce([]);
-
+      const deploymentSettingsByAddress = groupBy(deploymentSettings, "address");
       deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively.mockImplementation(() =>
         (async function* () {
-          yield { address: address1, deploymentSettings: settings1 };
-          yield { address: address2, deploymentSettings: settings2 };
-          yield { address: address3, deploymentSettings: settings3 };
+          for (const [address, settings] of Object.entries(deploymentSettingsByAddress)) {
+            yield { address, deploymentSettings: settings };
+          }
         })()
       );
 
@@ -72,33 +87,24 @@ describe(DrainingDeploymentService.name, () => {
 
       expect(leaseRepository.findManyByDseqAndOwner).not.toHaveBeenCalled();
       expect(loggerService.error).not.toHaveBeenCalled();
-      expect(deploymentSettingRepository.updateManyById).toHaveBeenCalledWith([settings1[1].id], { closed: true });
+      expect(deploymentSettingRepository.updateManyById).toHaveBeenCalledWith(expect.arrayContaining([expect.any(String)]), { closed: true });
 
-      expect(callback).toHaveBeenCalledTimes(2);
-      expect(callback).toHaveBeenNthCalledWith(
-        1,
-        expect.objectContaining({
-          address: address1,
-          deployments: expect.arrayContaining([
-            expect.objectContaining({
-              dseq: settings1[0].dseq,
-              address: address1
-            })
-          ])
-        })
-      );
-      expect(callback).toHaveBeenNthCalledWith(
-        2,
-        expect.objectContaining({
-          address: address2,
-          deployments: expect.arrayContaining([
-            expect.objectContaining({
-              dseq: settings2[0].dseq,
-              address: address2
-            })
-          ])
-        })
-      );
+      expect(callback).toHaveBeenCalledTimes(activeBatches.length);
+      activeBatches.forEach((batch, index) => {
+        const deployment = batch[0];
+        expect(callback).toHaveBeenNthCalledWith(
+          index + 1,
+          expect.objectContaining({
+            address: deployment.owner,
+            deployments: expect.arrayContaining([
+              expect.objectContaining({
+                dseq: deployment.dseq.toString(),
+                address: deployment.owner
+              })
+            ])
+          })
+        );
+      });
     });
   });
 
@@ -166,13 +172,13 @@ describe(DrainingDeploymentService.name, () => {
     it("calculates amount for integer block rate", async () => {
       const { service } = setup();
       const result = await service.calculateTopUpAmount({ blockRate: 50 });
-      expect(result).toBe(90000);
+      expect(result).toBe(1440000);
     });
 
     it("floors decimal block rate", async () => {
       const { service } = setup();
       const result = await service.calculateTopUpAmount({ blockRate: 10.7 });
-      expect(result).toBe(19260);
+      expect(result).toBe(308160);
     });
   });
 
@@ -530,9 +536,11 @@ describe(DrainingDeploymentService.name, () => {
     rpcService.findManyByDseqAndOwner.mockResolvedValue([]);
 
     const config = mockConfigService<DeploymentConfigService>({
-      AUTO_TOP_UP_JOB_INTERVAL_IN_H: 1,
-      AUTO_TOP_UP_DEPLOYMENT_INTERVAL_IN_H: 3
+      AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H: 24,
+      AUTO_TOP_UP_AMOUNT_IN_H: 48
     });
+
+    const instrumentation = mock<TopUpManagedDeploymentsInstrumentationService>();
 
     const service = new DrainingDeploymentService(
       blockHttpService,
@@ -542,7 +550,8 @@ describe(DrainingDeploymentService.name, () => {
       config,
       loggerService,
       rpcService,
-      balancesService
+      balancesService,
+      instrumentation
     );
 
     return {

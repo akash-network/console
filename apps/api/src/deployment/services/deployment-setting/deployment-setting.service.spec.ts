@@ -10,6 +10,7 @@ import type { WalletReloadJobService } from "@src/billing/services/wallet-reload
 import type { DeploymentSettingRepository, DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 import type { DrainingDeploymentService } from "../draining-deployment/draining-deployment.service";
+import type { TopUpManagedDeploymentsInstrumentationService } from "../top-up-managed-deployments/top-up-managed-deployments-instrumentation.service";
 import { DeploymentSettingService } from "./deployment-setting.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
@@ -102,9 +103,10 @@ describe(DeploymentSettingService.name, () => {
     const drainingDeploymentService = mock<DrainingDeploymentService>();
     const walletReloadJobService = mock<WalletReloadJobService>();
     const userWalletRepository = mock<UserWalletRepository>();
+    const instrumentation = mock<TopUpManagedDeploymentsInstrumentationService>();
 
     const config = mockConfigService<DeploymentConfigService>({
-      AUTO_TOP_UP_JOB_INTERVAL_IN_H: 1
+      AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H: 24
     });
 
     const service = new DeploymentSettingService(
@@ -113,7 +115,8 @@ describe(DeploymentSettingService.name, () => {
       drainingDeploymentService,
       walletReloadJobService,
       config,
-      userWalletRepository
+      userWalletRepository,
+      instrumentation
     );
 
     return {
@@ -123,7 +126,8 @@ describe(DeploymentSettingService.name, () => {
       drainingDeploymentService,
       walletReloadJobService,
       config,
-      userWalletRepository
+      userWalletRepository,
+      instrumentation
     };
   }
 });

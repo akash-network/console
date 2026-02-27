@@ -15,6 +15,7 @@ import { mockConfigService } from "../../../../test/mocks/config-service.mock";
 import type { LoggerService } from "../../../core";
 import type { CachedBalance, CachedBalanceService } from "../cached-balance/cached-balance.service";
 import { TopUpManagedDeploymentsService } from "./top-up-managed-deployments.service";
+import type { TopUpManagedDeploymentsInstrumentationService } from "./top-up-managed-deployments-instrumentation.service";
 
 import { createAkashAddress } from "@test/seeders";
 import { AutoTopUpDeploymentSeeder } from "@test/seeders/auto-top-up-deployment.seeder";
@@ -545,6 +546,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
     const chainErrorService = mock<ChainErrorService>();
     chainErrorService.isMasterWalletInsufficientFundsError.mockResolvedValue(false);
     const logger = mock<LoggerService>();
+    const instrumentation = mock<TopUpManagedDeploymentsInstrumentationService>();
 
     const service = new TopUpManagedDeploymentsService(
       managedSignerService,
@@ -554,7 +556,8 @@ describe(TopUpManagedDeploymentsService.name, () => {
       cachedBalanceService,
       blockHttpService,
       chainErrorService,
-      logger
+      logger,
+      instrumentation
     );
 
     return {
@@ -566,7 +569,8 @@ describe(TopUpManagedDeploymentsService.name, () => {
       cachedBalanceService,
       blockHttpService,
       chainErrorService,
-      logger
+      logger,
+      instrumentation
     };
   }
 });
