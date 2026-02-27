@@ -40,6 +40,7 @@
     "@akashnetwork/dev-config": "*",
     "@akashnetwork/releaser": "*",
     "@faker-js/faker": "^8.4.1",
+    "@swc/core": "^1.11.10",
     "@types/jest": "^29.5.12",
     "@types/node": "^22.13.11",
     "jest": "^29.7.0",
