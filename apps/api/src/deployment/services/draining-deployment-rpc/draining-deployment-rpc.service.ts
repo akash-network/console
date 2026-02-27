@@ -3,7 +3,7 @@ import { singleton } from "tsyringe";
 
 import { LoggerService } from "@src/core";
 import { DrainingDeploymentOutput } from "@src/deployment/repositories/lease/lease.repository";
-import { DrainingDeploymentLeaseSource, RpcDeploymentInfo } from "@src/deployment/types/draining-deployment";
+import { DrainingDeploymentLeaseSource, LeaseQueryResult, RpcDeploymentInfo } from "@src/deployment/types/draining-deployment";
 
 @singleton()
 export class DrainingDeploymentRpcService implements DrainingDeploymentLeaseSource {
@@ -25,9 +25,9 @@ export class DrainingDeploymentRpcService implements DrainingDeploymentLeaseSour
    * @param dseqs - Array of deployment sequence numbers to filter by
    * @returns Array of draining deployment outputs with predicted closure heights
    */
-  async findManyByDseqAndOwner(closureHeight: number, owner: string, dseqs: string[]): Promise<DrainingDeploymentOutput[]> {
+  async findManyByDseqAndOwner(closureHeight: number, owner: string, dseqs: string[]): Promise<LeaseQueryResult> {
     if (!dseqs.length) {
-      return [];
+      return { drainingDeployments: [], activeDseqs: new Set() };
     }
 
     const dseqSet = new Set(dseqs);
@@ -36,9 +36,14 @@ export class DrainingDeploymentRpcService implements DrainingDeploymentLeaseSour
     const deploymentMap = this.#createDeploymentMap(deployments);
     const outputs = this.#addPredictedClosedHeight(leaseMap, deploymentMap);
 
+    const activeDseqs = new Set(Array.from(leaseMap.keys()).map(k => String(Number(k))));
+
     this.loggerService.debug({ event: "RPC_RESOURCES_FETCHED", dseqSet, leases, deployments, result: outputs });
 
-    return outputs.filter(output => output.predictedClosedHeight <= closureHeight);
+    return {
+      drainingDeployments: outputs.filter(output => output.predictedClosedHeight <= closureHeight),
+      activeDseqs
+    };
   }
 
   /**

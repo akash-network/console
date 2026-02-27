@@ -12,6 +12,11 @@ export type RpcDeploymentInfo = {
   createdHeight: number;
 };
 
+export interface LeaseQueryResult {
+  drainingDeployments: DrainingDeploymentOutput[];
+  activeDseqs: Set<string>;
+}
+
 export interface DrainingDeploymentLeaseSource {
-  findManyByDseqAndOwner(closureHeight: number, owner: string, dseqs: string[]): Promise<DrainingDeploymentOutput[]>;
+  findManyByDseqAndOwner(closureHeight: number, owner: string, dseqs: string[]): Promise<LeaseQueryResult>;
 }

@@ -10,7 +10,8 @@ import type { BalancesService } from "@src/billing/services/balances/balances.se
 import type { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import type { LoggerService } from "@src/core";
 import type { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
-import type { DrainingDeploymentOutput, LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
+import type { LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
+import type { LeaseQueryResult } from "@src/deployment/types/draining-deployment";
 import { averageBlockCountInAnHour } from "@src/utils/constants";
 import type { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 import type { DrainingDeploymentRpcService } from "../draining-deployment-rpc/draining-deployment-rpc.service";
@@ -35,27 +36,38 @@ describe(DrainingDeploymentService.name, () => {
       const settings2 = AutoTopUpDeploymentSeeder.createMany(1, { address: address2 });
       const settings3 = AutoTopUpDeploymentSeeder.createMany(1, { address: address3 });
 
-      const activeLeases1: DrainingDeploymentOutput[] = [
-        {
-          dseq: Number(settings1[0].dseq),
-          owner: address1,
-          denom: "uakt",
-          blockRate: faker.number.int({ min: 50, max: 100 }),
-          predictedClosedHeight: faker.number.int({ min: 900000, max: 1000000 })
-        }
-      ];
+      const result1: LeaseQueryResult = {
+        drainingDeployments: [
+          {
+            dseq: Number(settings1[0].dseq),
+            owner: address1,
+            denom: "uakt",
+            blockRate: faker.number.int({ min: 50, max: 100 }),
+            predictedClosedHeight: faker.number.int({ min: 900000, max: 1000000 })
+          }
+        ],
+        activeDseqs: new Set([settings1[0].dseq])
+      };
 
-      const activeLeases2: DrainingDeploymentOutput[] = [
-        {
-          dseq: Number(settings2[0].dseq),
-          owner: address2,
-          denom: "uakt",
-          blockRate: faker.number.int({ min: 50, max: 100 }),
-          predictedClosedHeight: faker.number.int({ min: 900000, max: 1000000 })
-        }
-      ];
+      const result2: LeaseQueryResult = {
+        drainingDeployments: [
+          {
+            dseq: Number(settings2[0].dseq),
+            owner: address2,
+            denom: "uakt",
+            blockRate: faker.number.int({ min: 50, max: 100 }),
+            predictedClosedHeight: faker.number.int({ min: 900000, max: 1000000 })
+          }
+        ],
+        activeDseqs: new Set([settings2[0].dseq])
+      };
 
-      jest.spyOn(service, "findLeases").mockResolvedValueOnce(activeLeases1).mockResolvedValueOnce(activeLeases2).mockResolvedValueOnce([]);
+      const result3: LeaseQueryResult = {
+        drainingDeployments: [],
+        activeDseqs: new Set()
+      };
+
+      jest.spyOn(service, "findLeases").mockResolvedValueOnce(result1).mockResolvedValueOnce(result2).mockResolvedValueOnce(result3);
 
       deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively.mockImplementation(() =>
         (async function* () {
@@ -100,6 +112,112 @@ describe(DrainingDeploymentService.name, () => {
         })
       );
     });
+
+    it("does not mark active but non-draining deployments as closed", async () => {
+      const { service, deploymentSettingRepository } = setup();
+
+      const address = createAkashAddress();
+      const settings = AutoTopUpDeploymentSeeder.createMany(2, { address });
+
+      const result: LeaseQueryResult = {
+        drainingDeployments: [
+          {
+            dseq: Number(settings[0].dseq),
+            owner: address,
+            denom: "uakt",
+            blockRate: 50,
+            predictedClosedHeight: 999000
+          }
+        ],
+        activeDseqs: new Set([settings[0].dseq, settings[1].dseq])
+      };
+
+      jest.spyOn(service, "findLeases").mockResolvedValueOnce(result);
+
+      deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively.mockImplementation(() =>
+        (async function* () {
+          yield { address, deploymentSettings: settings };
+        })()
+      );
+
+      const callback = jest.fn();
+      for await (const r of service.findDrainingDeploymentsByOwner()) {
+        callback(r);
+      }
+
+      expect(deploymentSettingRepository.updateManyById).not.toHaveBeenCalled();
+      expect(callback).toHaveBeenCalledTimes(1);
+    });
+
+    it("marks all deployments as closed when none are active on-chain", async () => {
+      const { service, deploymentSettingRepository } = setup();
+
+      const address = createAkashAddress();
+      const settings = AutoTopUpDeploymentSeeder.createMany(2, { address });
+
+      const result: LeaseQueryResult = {
+        drainingDeployments: [],
+        activeDseqs: new Set()
+      };
+
+      jest.spyOn(service, "findLeases").mockResolvedValueOnce(result);
+
+      deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively.mockImplementation(() =>
+        (async function* () {
+          yield { address, deploymentSettings: settings };
+        })()
+      );
+
+      const callback = jest.fn();
+      for await (const r of service.findDrainingDeploymentsByOwner()) {
+        callback(r);
+      }
+
+      expect(deploymentSettingRepository.updateManyById).toHaveBeenCalledWith([settings[0].id, settings[1].id], { closed: true });
+      expect(callback).not.toHaveBeenCalled();
+    });
+
+    it("handles mix of draining, healthy, and closed deployments correctly", async () => {
+      const { service, deploymentSettingRepository } = setup();
+
+      const address = createAkashAddress();
+      const settings = AutoTopUpDeploymentSeeder.createMany(3, { address });
+
+      const result: LeaseQueryResult = {
+        drainingDeployments: [
+          {
+            dseq: Number(settings[0].dseq),
+            owner: address,
+            denom: "uakt",
+            blockRate: 50,
+            predictedClosedHeight: 999000
+          }
+        ],
+        activeDseqs: new Set([settings[0].dseq, settings[1].dseq])
+      };
+
+      jest.spyOn(service, "findLeases").mockResolvedValueOnce(result);
+
+      deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively.mockImplementation(() =>
+        (async function* () {
+          yield { address, deploymentSettings: settings };
+        })()
+      );
+
+      const callback = jest.fn();
+      for await (const r of service.findDrainingDeploymentsByOwner()) {
+        callback(r);
+      }
+
+      expect(deploymentSettingRepository.updateManyById).toHaveBeenCalledWith([settings[2].id], { closed: true });
+      expect(callback).toHaveBeenCalledTimes(1);
+      expect(callback).toHaveBeenCalledWith(
+        expect.objectContaining({
+          address,
+          deployments: expect.arrayContaining([expect.objectContaining({ dseq: settings[0].dseq })])
+        })
+      );
+    });
   });
 
   describe("findLeases", () => {
@@ -108,17 +226,20 @@ describe(DrainingDeploymentService.name, () => {
       const closureHeight = 1007200;
       const owner = createAkashAddress();
       const dseqs = [faker.string.numeric(6), faker.string.numeric(6)];
-      const expectedLeases: DrainingDeploymentOutput[] = [
-        DrainingDeploymentSeeder.create({ owner, dseq: Number(dseqs[0]) }),
-        DrainingDeploymentSeeder.create({ owner, dseq: Number(dseqs[1]) })
-      ];
+      const expectedResult: LeaseQueryResult = {
+        drainingDeployments: [
+          DrainingDeploymentSeeder.create({ owner, dseq: Number(dseqs[0]) }),
+          DrainingDeploymentSeeder.create({ owner, dseq: Number(dseqs[1]) })
+        ],
+        activeDseqs: new Set(dseqs)
+      };
 
-      rpcService.findManyByDseqAndOwner.mockResolvedValue(expectedLeases);
+      rpcService.findManyByDseqAndOwner.mockResolvedValue(expectedResult);
 
       const result = await service.findLeases(closureHeight, owner, dseqs);
 
       expect(rpcService.findManyByDseqAndOwner).toHaveBeenCalledWith(closureHeight, owner, dseqs);
-      expect(result).toEqual(expectedLeases);
+      expect(result).toEqual(expectedResult);
     });
 
     it("falls back to database when RPC fails", async () => {
@@ -127,13 +248,16 @@ describe(DrainingDeploymentService.name, () => {
       const owner = createAkashAddress();
       const dseqs = [faker.string.numeric(6), faker.string.numeric(6)];
       const rpcError = new Error("RPC error");
-      const expectedLeases: DrainingDeploymentOutput[] = [
-        DrainingDeploymentSeeder.create({ owner, dseq: Number(dseqs[0]) }),
-        DrainingDeploymentSeeder.create({ owner, dseq: Number(dseqs[1]) })
-      ];
+      const expectedResult: LeaseQueryResult = {
+        drainingDeployments: [
+          DrainingDeploymentSeeder.create({ owner, dseq: Number(dseqs[0]) }),
+          DrainingDeploymentSeeder.create({ owner, dseq: Number(dseqs[1]) })
+        ],
+        activeDseqs: new Set(dseqs)
+      };
 
       rpcService.findManyByDseqAndOwner.mockRejectedValue(rpcError);
-      leaseRepository.findManyByDseqAndOwner.mockResolvedValue(expectedLeases);
+      leaseRepository.findManyByDseqAndOwner.mockResolvedValue(expectedResult);
 
       const result = await service.findLeases(closureHeight, owner, dseqs);
 
@@ -147,10 +271,10 @@ describe(DrainingDeploymentService.name, () => {
         })
       );
       expect(leaseRepository.findManyByDseqAndOwner).toHaveBeenCalledWith(closureHeight, owner, dseqs);
-      expect(result).toEqual(expectedLeases);
+      expect(result).toEqual(expectedResult);
     });
 
-    it("returns empty array when dseqs is empty", async () => {
+    it("returns empty result when dseqs is empty", async () => {
       const { service, rpcService } = setup();
       const closureHeight = 1007200;
       const owner = createAkashAddress();
@@ -158,7 +282,7 @@ describe(DrainingDeploymentService.name, () => {
       const result = await service.findLeases(closureHeight, owner, []);
 
       expect(rpcService.findManyByDseqAndOwner).not.toHaveBeenCalled();
-      expect(result).toEqual([]);
+      expect(result).toEqual({ drainingDeployments: [], activeDseqs: new Set() });
     });
   });
 
@@ -367,8 +491,13 @@ describe(DrainingDeploymentService.name, () => {
 
       baseSetup.deploymentSettingRepository.findAutoTopUpDeploymentsByOwner.mockResolvedValue(deploymentSettings);
 
+      const leaseQueryResult: LeaseQueryResult = {
+        drainingDeployments,
+        activeDseqs: new Set(deploymentSettings.map(s => s.dseq))
+      };
+
       baseSetup.rpcService.findManyByDseqAndOwner.mockRejectedValue(new Error("RPC error"));
-      baseSetup.leaseRepository.findManyByDseqAndOwner.mockImplementation((_closureHeight, _owner, _dseqs) => Promise.resolve(drainingDeployments));
+      baseSetup.leaseRepository.findManyByDseqAndOwner.mockImplementation(() => Promise.resolve(leaseQueryResult));
 
       baseSetup.balancesService.toFiatAmount.mockImplementation(async (uaktAmount: number) => {
         if (uaktAmount === 0) {
@@ -503,8 +632,13 @@ describe(DrainingDeploymentService.name, () => {
 
       baseSetup.deploymentSettingRepository.findAutoTopUpDeploymentsByOwner.mockResolvedValue(deploymentSettings);
 
+      const leaseQueryResult: LeaseQueryResult = {
+        drainingDeployments,
+        activeDseqs: new Set(deploymentSettings.map(s => s.dseq))
+      };
+
       baseSetup.rpcService.findManyByDseqAndOwner.mockRejectedValue(new Error("RPC error"));
-      baseSetup.leaseRepository.findManyByDseqAndOwner.mockImplementation((_closureHeight, _owner, _dseqs) => Promise.resolve(drainingDeployments));
+      baseSetup.leaseRepository.findManyByDseqAndOwner.mockImplementation(() => Promise.resolve(leaseQueryResult));
 
       return {
         ...baseSetup,
@@ -527,7 +661,7 @@ describe(DrainingDeploymentService.name, () => {
     const loggerService = mock<LoggerService>();
     const balancesService = mock<BalancesService>();
 
-    rpcService.findManyByDseqAndOwner.mockResolvedValue([]);
+    rpcService.findManyByDseqAndOwner.mockResolvedValue({ drainingDeployments: [], activeDseqs: new Set() });
 
     const config = mockConfigService<DeploymentConfigService>({
       AUTO_TOP_UP_JOB_INTERVAL_IN_H: 1,

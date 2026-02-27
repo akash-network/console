@@ -8,7 +8,7 @@ import { BlockHttpService } from "@src/chain/services/block-http/block-http.serv
 import { LoggerService } from "@src/core";
 import { AutoTopUpDeployment, DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { DrainingDeploymentOutput, LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
-import { DrainingDeployment } from "@src/deployment/types/draining-deployment";
+import { DrainingDeployment, LeaseQueryResult } from "@src/deployment/types/draining-deployment";
 import { averageBlockCountInAnHour } from "@src/utils/constants";
 import { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 import { DrainingDeploymentRpcService } from "../draining-deployment-rpc/draining-deployment-rpc.service";
@@ -48,36 +48,34 @@ export class DrainingDeploymentService {
       }
 
       const dseqs = deploymentSettings.map(deployment => deployment.dseq);
-      const drainingDeployments = await this.findLeases(expectedClosureHeight, address, dseqs);
+      const { drainingDeployments, activeDseqs } = await this.findLeases(expectedClosureHeight, address, dseqs);
 
-      if (drainingDeployments.length) {
-        const byDseqOwner = keyBy(drainingDeployments, "dseq");
-        const [active, missingIds] = deploymentSettings.reduce<[DrainingDeployment[], string[]]>(
-          (acc, deploymentSetting) => {
-            const deployment = byDseqOwner[Number(deploymentSetting.dseq)];
+      const byDseq = keyBy(drainingDeployments, "dseq");
+      const [active, closedIds] = deploymentSettings.reduce<[DrainingDeployment[], string[]]>(
+        (acc, deploymentSetting) => {
+          const deployment = byDseq[Number(deploymentSetting.dseq)];
 
-            if (!deployment) {
-              acc[1].push(deploymentSetting.id);
-              return acc;
-            }
-
+          if (deployment) {
             acc[0].push({
               ...deploymentSetting,
               predictedClosedHeight: deployment.predictedClosedHeight,
               blockRate: deployment.blockRate
             });
-            return acc;
-          },
-          [[], []]
-        );
+          } else if (!activeDseqs.has(deploymentSetting.dseq)) {
+            acc[1].push(deploymentSetting.id);
+          }
 
-        if (missingIds.length) {
-          await this.deploymentSettingRepository.updateManyById(missingIds, { closed: true });
-        }
+          return acc;
+        },
+        [[], []]
+      );
 
-        if (active.length) {
-          yield { address, deployments: active };
-        }
+      if (closedIds.length) {
+        await this.deploymentSettingRepository.updateManyById(closedIds, { closed: true });
+      }
+
+      if (active.length) {
+        yield { address, deployments: active };
       }
     }
   }
@@ -217,7 +215,8 @@ export class DrainingDeploymentService {
    */
   async #findDrainingDeployments(deploymentSettings: AutoTopUpDeployment[], address: string, closureHeight: number): Promise<DrainingDeploymentOutput[]> {
     const dseqs = deploymentSettings.map(deployment => deployment.dseq);
-    return await this.findLeases(closureHeight, address, dseqs);
+    const { drainingDeployments } = await this.findLeases(closureHeight, address, dseqs);
+    return drainingDeployments;
   }
 
   /**
@@ -249,9 +248,9 @@ export class DrainingDeploymentService {
    * @param dseqs - Array of deployment sequence numbers to filter by
    * @returns Array of draining deployment outputs
    */
-  async findLeases(closureHeight: number, owner: string, dseqs: string[]): Promise<DrainingDeploymentOutput[]> {
+  async findLeases(closureHeight: number, owner: string, dseqs: string[]): Promise<LeaseQueryResult> {
     if (!dseqs.length) {
-      return [];
+      return { drainingDeployments: [], activeDseqs: new Set() };
     }
 
     try {

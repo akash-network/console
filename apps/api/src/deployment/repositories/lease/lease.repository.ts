@@ -2,7 +2,7 @@ import { Lease } from "@akashnetwork/database/dbSchemas/akash";
 import { col, fn, Op, WhereOptions } from "sequelize";
 import { singleton } from "tsyringe";
 
-import { DrainingDeploymentLeaseSource } from "@src/deployment/types/draining-deployment";
+import { DrainingDeploymentLeaseSource, LeaseQueryResult } from "@src/deployment/types/draining-deployment";
 
 export interface DrainingDeploymentOutput {
   dseq: number;
@@ -56,37 +56,58 @@ export class LeaseRepository implements DrainingDeploymentLeaseSource {
    * @param dseqs - Array of deployment sequence numbers to filter by
    * @returns Array of draining deployment outputs
    */
-  async findManyByDseqAndOwner(closureHeight: number, owner: string, dseqs: string[]): Promise<DrainingDeploymentOutput[]> {
-    if (!dseqs.length) return [];
+  async findActiveDseqsByOwner(owner: string, dseqs: string[]): Promise<Set<string>> {
+    if (!dseqs.length) return new Set();
 
-    const leaseOrLeases = await Lease.findAll({
+    const results = await Lease.findAll({
       where: {
-        predictedClosedHeight: { [Op.lte]: closureHeight },
         owner,
         dseq: { [Op.in]: dseqs },
         closedHeight: null
       },
-      attributes: [
-        "dseq",
-        "owner",
-        "denom",
-        [fn("min", col("predictedClosedHeight")), "predictedClosedHeight"],
-        [fn("min", col("closedHeight")), "closedHeight"],
-        [fn("sum", col("price")), "blockRate"]
-      ],
-      group: ["dseq", "owner", "denom"],
+      attributes: [[fn("DISTINCT", col("dseq")), "dseq"]],
       raw: true
     });
 
+    return new Set((results as unknown as Array<{ dseq: string }>).map(r => String(r.dseq)));
+  }
+
+  async findManyByDseqAndOwner(closureHeight: number, owner: string, dseqs: string[]): Promise<LeaseQueryResult> {
+    if (!dseqs.length) return { drainingDeployments: [], activeDseqs: new Set() };
+
+    const [leaseOrLeases, activeDseqs] = await Promise.all([
+      Lease.findAll({
+        where: {
+          predictedClosedHeight: { [Op.lte]: closureHeight },
+          owner,
+          dseq: { [Op.in]: dseqs },
+          closedHeight: null
+        },
+        attributes: [
+          "dseq",
+          "owner",
+          "denom",
+          [fn("min", col("predictedClosedHeight")), "predictedClosedHeight"],
+          [fn("min", col("closedHeight")), "closedHeight"],
+          [fn("sum", col("price")), "blockRate"]
+        ],
+        group: ["dseq", "owner", "denom"],
+        raw: true
+      }),
+      this.findActiveDseqsByOwner(owner, dseqs)
+    ]);
+
+    let drainingDeployments: DrainingDeploymentOutput[];
+
     if (Array.isArray(leaseOrLeases)) {
-      return leaseOrLeases as unknown as DrainingDeploymentOutput[];
+      drainingDeployments = leaseOrLeases as unknown as DrainingDeploymentOutput[];
+    } else if (leaseOrLeases && typeof leaseOrLeases === "object") {
+      drainingDeployments = [leaseOrLeases as unknown as DrainingDeploymentOutput];
+    } else {
+      drainingDeployments = [];
     }
 
-    if (leaseOrLeases && typeof leaseOrLeases === "object") {
-      return [leaseOrLeases as unknown as DrainingDeploymentOutput];
-    }
-
-    return [];
+    return { drainingDeployments, activeDseqs };
   }
 
   /**

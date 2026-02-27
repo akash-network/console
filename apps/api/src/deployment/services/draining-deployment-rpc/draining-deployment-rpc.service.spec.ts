@@ -29,14 +29,15 @@ describe(DrainingDeploymentRpcService.name, () => {
 
       const result = await service.findManyByDseqAndOwner(closureHeight, owner, dseqs);
 
-      expect(result).toHaveLength(1);
-      expect(result[0]).toMatchObject({
+      expect(result.drainingDeployments).toHaveLength(1);
+      expect(result.drainingDeployments[0]).toMatchObject({
         dseq: Number(dseqs[0]),
         owner,
         denom: "uakt",
         blockRate: input.leases[0].blockRate,
         predictedClosedHeight: Math.ceil(input.deployment.createdHeight + (input.deployment.funds + input.deployment.transferred) / input.leases[0].blockRate)
       });
+      expect(result.activeDseqs).toEqual(new Set([dseqs[0]]));
     });
 
     it("filters deployments by closureHeight", async () => {
@@ -64,8 +65,9 @@ describe(DrainingDeploymentRpcService.name, () => {
 
       const result = await service.findManyByDseqAndOwner(closureHeight, owner, dseqs);
 
-      expect(result).toHaveLength(1);
-      expect(result[0].dseq).toBe(Number(activeInput.deployment.dseq));
+      expect(result.drainingDeployments).toHaveLength(1);
+      expect(result.drainingDeployments[0].dseq).toBe(Number(activeInput.deployment.dseq));
+      expect(result.activeDseqs).toEqual(new Set([dseqs[0], dseqs[1]]));
     });
 
     it("sums block rates for multiple leases with same dseq", async () => {
@@ -88,8 +90,8 @@ describe(DrainingDeploymentRpcService.name, () => {
 
       const result = await service.findManyByDseqAndOwner(closureHeight, owner, dseqs);
 
-      expect(result).toHaveLength(1);
-      expect(result[0].blockRate).toBe(totalBlockRate);
+      expect(result.drainingDeployments).toHaveLength(1);
+      expect(result.drainingDeployments[0].blockRate).toBe(totalBlockRate);
     });
 
     it("excludes deployments when deployment is missing (DEPLOYMENT_NOT_FOUND)", async () => {
@@ -104,7 +106,8 @@ describe(DrainingDeploymentRpcService.name, () => {
 
       const result = await service.findManyByDseqAndOwner(closureHeight, owner, dseqs);
 
-      expect(result).toHaveLength(0);
+      expect(result.drainingDeployments).toHaveLength(0);
+      expect(result.activeDseqs).toEqual(new Set([dseqs[0]]));
       expect(loggerService.warn).toHaveBeenCalledWith(
         expect.objectContaining({
           event: "DEPLOYMENT_NOT_FOUND",
@@ -130,7 +133,8 @@ describe(DrainingDeploymentRpcService.name, () => {
 
       const result = await service.findManyByDseqAndOwner(closureHeight, owner, dseqs);
 
-      expect(result).toHaveLength(0);
+      expect(result.drainingDeployments).toHaveLength(0);
+      expect(result.activeDseqs).toEqual(new Set([dseqs[0]]));
       expect(loggerService.warn).toHaveBeenCalledWith(
         expect.objectContaining({
           event: "DEPLOYMENT_HAS_NO_BALANCE",
@@ -156,7 +160,8 @@ describe(DrainingDeploymentRpcService.name, () => {
 
       const result = await service.findManyByDseqAndOwner(closureHeight, owner, dseqs);
 
-      expect(result).toHaveLength(0);
+      expect(result.drainingDeployments).toHaveLength(0);
+      expect(result.activeDseqs).toEqual(new Set([dseqs[0]]));
       expect(loggerService.warn).toHaveBeenCalledWith(
         expect.objectContaining({
           event: "DEPLOYMENT_BLOCK_RATE_INVALID",
@@ -188,8 +193,39 @@ describe(DrainingDeploymentRpcService.name, () => {
 
       const result = await service.findManyByDseqAndOwner(closureHeight, owner, dseqs);
 
-      expect(result).toHaveLength(1);
-      expect(result[0].closedHeight).toBe(input.leases[0].closedHeight);
+      expect(result.drainingDeployments).toHaveLength(1);
+      expect(result.drainingDeployments[0].closedHeight).toBe(input.leases[0].closedHeight);
+    });
+
+    it("returns active dseqs for deployments not in draining window", async () => {
+      const drainingInput = {
+        leases: [{ blockRate: 50 }],
+        deployment: {
+          dseq: faker.string.numeric({ length: 6, allowLeadingZeros: false }),
+          createdHeight: 995000,
+          funds: 40000,
+          transferred: 20000
+        }
+      };
+      const healthyInput = {
+        leases: [{ blockRate: 50 }],
+        deployment: {
+          dseq: faker.string.numeric({ length: 6, allowLeadingZeros: false }),
+          createdHeight: 995000,
+          funds: 500000,
+          transferred: 20000
+        }
+      };
+
+      const { service, owner, dseqs, closureHeight } = setup({
+        inputs: [drainingInput, healthyInput]
+      });
+
+      const result = await service.findManyByDseqAndOwner(closureHeight, owner, dseqs);
+
+      expect(result.drainingDeployments).toHaveLength(1);
+      expect(result.drainingDeployments[0].dseq).toBe(Number(drainingInput.deployment.dseq));
+      expect(result.activeDseqs).toEqual(new Set(dseqs.map(d => String(Number(d)))));
     });
   });
 
