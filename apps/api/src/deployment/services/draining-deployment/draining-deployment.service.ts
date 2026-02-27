@@ -40,7 +40,7 @@ export class DrainingDeploymentService {
    */
   async *findDrainingDeploymentsByOwner(): AsyncGenerator<{ address: string; deployments: DrainingDeployment[] }> {
     const currentHeight = await this.blockHttpService.getCurrentHeight();
-    const expectedClosureHeight = Math.floor(currentHeight + averageBlockCountInAnHour * 2 * this.config.get("AUTO_TOP_UP_JOB_INTERVAL_IN_H"));
+    const expectedClosureHeight = Math.floor(currentHeight + averageBlockCountInAnHour * this.config.get("AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H"));
 
     for await (const { address, deploymentSettings } of this.deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively()) {
       if (deploymentSettings.length === 0) {
@@ -119,7 +119,7 @@ export class DrainingDeploymentService {
    * @returns Top-up amount in credits
    */
   async calculateTopUpAmount(deployment: Pick<DrainingDeploymentOutput, "blockRate">): Promise<number> {
-    return Math.floor(deployment.blockRate * (averageBlockCountInAnHour * this.config.get("AUTO_TOP_UP_DEPLOYMENT_INTERVAL_IN_H")));
+    return Math.floor(deployment.blockRate * (averageBlockCountInAnHour * this.config.get("AUTO_TOP_UP_AMOUNT_IN_H")));
   }
 
   /**

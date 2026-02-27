@@ -171,13 +171,13 @@ describe(DrainingDeploymentService.name, () => {
     it("calculates amount for integer block rate", async () => {
       const { service } = setup();
       const result = await service.calculateTopUpAmount({ blockRate: 50 });
-      expect(result).toBe(90000);
+      expect(result).toBe(1440000);
     });
 
     it("floors decimal block rate", async () => {
       const { service } = setup();
       const result = await service.calculateTopUpAmount({ blockRate: 10.7 });
-      expect(result).toBe(19260);
+      expect(result).toBe(308160);
     });
   });
 
@@ -535,8 +535,8 @@ describe(DrainingDeploymentService.name, () => {
     rpcService.findManyByDseqAndOwner.mockResolvedValue([]);
 
     const config = mockConfigService<DeploymentConfigService>({
-      AUTO_TOP_UP_JOB_INTERVAL_IN_H: 1,
-      AUTO_TOP_UP_DEPLOYMENT_INTERVAL_IN_H: 3
+      AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H: 24,
+      AUTO_TOP_UP_AMOUNT_IN_H: 48
     });
 
     const service = new DrainingDeploymentService(

@@ -22,7 +22,8 @@ type DeploymentSettingWithEstimatedTopUpAmount = DeploymentSettingsOutput & { es
 export class DeploymentSettingService {
   private readonly logger = createOtelLogger({ context: DeploymentSettingService.name });
 
-  private readonly topUpFrequencyMs = this.config.get("AUTO_TOP_UP_JOB_INTERVAL_IN_H") * millisecondsInHour;
+  private readonly topUpFrequencyMs = this.config.get("AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H") * millisecondsInHour;
+
   constructor(
     private readonly deploymentSettingRepository: DeploymentSettingRepository,
     private readonly authService: AuthService,

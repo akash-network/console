@@ -104,7 +104,7 @@ describe(DeploymentSettingService.name, () => {
     const userWalletRepository = mock<UserWalletRepository>();
 
     const config = mockConfigService<DeploymentConfigService>({
-      AUTO_TOP_UP_JOB_INTERVAL_IN_H: 1
+      AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H: 24
     });
 
     const service = new DeploymentSettingService(
