@@ -90,7 +90,9 @@ describe(DrainingDeploymentService.name, () => {
 
       expect(leaseRepository.findManyByDseqAndOwner).not.toHaveBeenCalled();
       expect(loggerService.error).not.toHaveBeenCalled();
-      expect(deploymentSettingRepository.updateManyById).toHaveBeenCalledWith([settings1[1].id], { closed: true });
+      expect(deploymentSettingRepository.updateManyById).toHaveBeenCalledTimes(2);
+      expect(deploymentSettingRepository.updateManyById).toHaveBeenNthCalledWith(1, [settings1[1].id], { closed: true });
+      expect(deploymentSettingRepository.updateManyById).toHaveBeenNthCalledWith(2, [settings3[0].id], { closed: true });
 
       expect(callback).toHaveBeenCalledTimes(2);
       expect(callback).toHaveBeenNthCalledWith(
