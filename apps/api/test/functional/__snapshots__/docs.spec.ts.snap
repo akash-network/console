@@ -15502,6 +15502,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                     "data": {
                       "properties": {
                         "emailVerified": {
+                          "enum": [
+                            true,
+                          ],
                           "type": "boolean",
                         },
                       },
