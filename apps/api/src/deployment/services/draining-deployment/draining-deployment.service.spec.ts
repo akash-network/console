@@ -33,8 +33,14 @@ describe(DrainingDeploymentService.name, () => {
       const address3 = createAkashAddress();
 
       const settings1 = AutoTopUpDeploymentSeeder.createMany(2, { address: address1 });
+      settings1[0].dseq = "200001";
+      settings1[1].dseq = "200002";
       const settings2 = AutoTopUpDeploymentSeeder.createMany(1, { address: address2 });
+      settings2[0].dseq = "200003";
       const settings3 = AutoTopUpDeploymentSeeder.createMany(1, { address: address3 });
+      settings3[0].dseq = "200004";
+
+      const normalizeDseq = (dseq: string) => String(Number(dseq));
 
       const result1: LeaseQueryResult = {
         drainingDeployments: [
@@ -46,7 +52,7 @@ describe(DrainingDeploymentService.name, () => {
             predictedClosedHeight: faker.number.int({ min: 900000, max: 1000000 })
           }
         ],
-        activeDseqs: new Set([settings1[0].dseq])
+        activeDseqs: new Set([normalizeDseq(settings1[0].dseq)])
       };
 
       const result2: LeaseQueryResult = {
@@ -59,7 +65,7 @@ describe(DrainingDeploymentService.name, () => {
             predictedClosedHeight: faker.number.int({ min: 900000, max: 1000000 })
           }
         ],
-        activeDseqs: new Set([settings2[0].dseq])
+        activeDseqs: new Set([normalizeDseq(settings2[0].dseq)])
       };
 
       const result3: LeaseQueryResult = {
@@ -118,6 +124,8 @@ describe(DrainingDeploymentService.name, () => {
 
       const address = createAkashAddress();
       const settings = AutoTopUpDeploymentSeeder.createMany(2, { address });
+      settings[0].dseq = "300001";
+      settings[1].dseq = "300002";
 
       const normalizeDseq = (dseq: string) => String(Number(dseq));
 
@@ -156,6 +164,8 @@ describe(DrainingDeploymentService.name, () => {
 
       const address = createAkashAddress();
       const settings = AutoTopUpDeploymentSeeder.createMany(2, { address });
+      settings[0].dseq = "400001";
+      settings[1].dseq = "400002";
 
       const result: LeaseQueryResult = {
         drainingDeployments: [],
@@ -184,6 +194,9 @@ describe(DrainingDeploymentService.name, () => {
 
       const address = createAkashAddress();
       const settings = AutoTopUpDeploymentSeeder.createMany(3, { address });
+      settings[0].dseq = "100001";
+      settings[1].dseq = "100002";
+      settings[2].dseq = "100003";
 
       const normalizeDseq = (dseq: string) => String(Number(dseq));
 
