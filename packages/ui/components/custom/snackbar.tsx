@@ -31,7 +31,7 @@ export const Snackbar: React.FunctionComponent<Props> = ({ title, subTitle, icon
         <h5 className="flex-grow text-lg font-semibold leading-4 tracking-tight">{title}</h5>
       </div>
 
-      {subTitle && <p className="break-words text-xs">{subTitle}</p>}
+      {subTitle && <div className="break-words text-xs">{subTitle}</div>}
     </div>
   );
 };

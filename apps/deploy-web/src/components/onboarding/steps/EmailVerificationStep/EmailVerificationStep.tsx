@@ -1,52 +1,114 @@
 "use client";
-import React from "react";
-import { Alert, Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@akashnetwork/ui/components";
-import { Check, Mail, Refresh } from "iconoir-react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Spinner } from "@akashnetwork/ui/components";
+import { Mail, Refresh } from "iconoir-react";
 
 import { Title } from "@src/components/shared/Title";
 
 interface EmailVerificationStepProps {
-  isEmailVerified: boolean;
   isResending: boolean;
-  isChecking: boolean;
-  onResendEmail: () => void;
-  onCheckVerification: () => void;
-  onContinue: () => void;
+  isVerifying: boolean;
+  cooldownSeconds: number;
+  resetKey: number;
+  onResendCode: () => void;
+  onVerifyCode: (code: string) => void;
 }
 
 export const EmailVerificationStep: React.FunctionComponent<EmailVerificationStepProps> = ({
-  isEmailVerified,
   isResending,
-  isChecking,
-  onResendEmail,
-  onCheckVerification,
-  onContinue
+  isVerifying,
+  cooldownSeconds,
+  resetKey,
+  onResendCode,
+  onVerifyCode
 }) => {
+  const [digits, setDigits] = useState<string[]>(["", "", "", "", "", ""]);
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const submittedCodeRef = useRef<string | null>(null);
+
+  const handleDigitChange = useCallback(
+    (index: number, value: string) => {
+      if (!/^\d*$/.test(value) || isVerifying) return;
+
+      if (value.length > 1) {
+        const filled = value.slice(0, 6 - index);
+        setDigits(prev => {
+          const newDigits = [...prev];
+          for (let i = 0; i < filled.length; i++) {
+            newDigits[index + i] = filled[i];
+          }
+          return newDigits;
+        });
+        const nextIndex = index + filled.length;
+        if (nextIndex < 6) {
+          inputRefs.current[nextIndex]?.focus();
+        }
+        return;
+      }
+
+      setDigits(prev => {
+        const newDigits = [...prev];
+        newDigits[index] = value;
+        return newDigits;
+      });
+      if (value && index < 5) {
+        inputRefs.current[index + 1]?.focus();
+      }
+    },
+    [isVerifying]
+  );
+
+  useEffect(() => {
+    const code = digits.join("");
+    if (code.length === 6) {
+      if (submittedCodeRef.current !== code) {
+        submittedCodeRef.current = code;
+        onVerifyCode(code);
+      }
+    } else {
+      submittedCodeRef.current = null;
+    }
+  }, [digits, onVerifyCode]);
+
+  const handleKeyDown = useCallback((index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    const currentDigits = inputRefs.current[index]?.value ?? "";
+    if (e.key === "Backspace" && !currentDigits && index > 0) {
+      inputRefs.current[index - 1]?.focus();
+    }
+  }, []);
+
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent) => {
+      e.preventDefault();
+      if (isVerifying) return;
+
+      const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+      if (!pasted) return;
+
+      const newDigits = Array(6).fill("");
+      for (let i = 0; i < 6; i++) {
+        newDigits[i] = pasted[i] || "";
+      }
+      setDigits(newDigits);
+
+      if (pasted.length < 6) {
+        inputRefs.current[pasted.length]?.focus();
+      }
+    },
+    [isVerifying]
+  );
+
+  useEffect(() => {
+    if (resetKey > 0) {
+      setDigits(["", "", "", "", "", ""]);
+      submittedCodeRef.current = null;
+      inputRefs.current[0]?.focus();
+    }
+  }, [resetKey]);
+
   return (
     <div className="mx-auto max-w-md space-y-6 text-center">
       <Title>Verify Your Email</Title>
-
-      {isEmailVerified ? (
-        <Alert className="mx-auto flex max-w-md flex-row items-center gap-2 text-left" variant="success">
-          <div className="rounded-full bg-card p-3">
-            <Check className="h-6 w-6" />
-          </div>
-          <div>
-            <h4 className="font-medium">Email Verified</h4>
-            <p className="text-sm">Your email has been successfully verified.</p>
-          </div>
-        </Alert>
-      ) : (
-        <Alert className="mx-auto flex max-w-md flex-row items-center gap-2 text-left" variant="warning">
-          <div className="rounded-full bg-card p-3">
-            <Mail className="h-4 w-4" />
-          </div>
-          <div>
-            <h4 className="font-medium">Email Verification Required</h4>
-            <p className="text-sm">Please verify your email address to continue.</p>
-          </div>
-        </Alert>
-      )}
 
       <Card className="mx-auto max-w-md">
         <CardHeader>
@@ -56,29 +118,50 @@ export const EmailVerificationStep: React.FunctionComponent<EmailVerificationSte
             </div>
           </div>
           <CardTitle>Email Verification</CardTitle>
-          <CardDescription>
-            {isEmailVerified ? "Your email has been verified successfully." : "We've sent a verification link to your email address."}
-          </CardDescription>
+          <CardDescription>We've sent a 6-digit verification code to your email address.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {!isEmailVerified ? (
-            <>
-              <p className="text-sm text-muted-foreground">Didn't receive the email? Check your spam folder or request a new verification email.</p>
-              <div className="flex gap-2">
-                <Button onClick={onResendEmail} variant="outline" disabled={isResending} className="flex-1">
-                  <Refresh className="mr-2 h-4 w-4" />
-                  {isResending ? "Sending..." : "Resend Email"}
-                </Button>
-                <Button onClick={onCheckVerification} disabled={isChecking} className="flex-1">
-                  {isChecking ? "Checking..." : "Check Verification"}
-                </Button>
-              </div>
-            </>
-          ) : (
-            <Button onClick={onContinue} className="w-full">
-              Continue
-            </Button>
-          )}
+          <div className="flex justify-center gap-2" onPaste={handlePaste}>
+            {digits.map((digit, index) => (
+              <Input
+                key={index}
+                ref={el => {
+                  inputRefs.current[index] = el;
+                }}
+                type="text"
+                aria-label={`Verification code digit ${index + 1}`}
+                autoComplete={index === 0 ? "one-time-code" : "off"}
+                inputMode="numeric"
+                value={digit}
+                onChange={e => handleDigitChange(index, e.target.value)}
+                onKeyDown={e => handleKeyDown(index, e)}
+                className="h-12 w-12"
+                inputClassName="text-center text-lg font-semibold"
+                disabled={isVerifying}
+              />
+            ))}
+          </div>
+
+          <p className="text-sm text-muted-foreground">Didn't receive the code? Check your spam folder or request a new one.</p>
+
+          <Button onClick={onResendCode} variant="outline" disabled={isResending || isVerifying || cooldownSeconds > 0} className="w-full">
+            {isVerifying ? (
+              <>
+                <Spinner size="small" className="mr-2" />
+                Verifying...
+              </>
+            ) : isResending ? (
+              <>
+                <Spinner size="small" className="mr-2" />
+                Sending...
+              </>
+            ) : (
+              <>
+                <Refresh className="mr-2 h-4 w-4" />
+                {cooldownSeconds > 0 ? `Resend Code (${cooldownSeconds}s)` : "Resend Code"}
+              </>
+            )}
+          </Button>
         </CardContent>
       </Card>
     </div>

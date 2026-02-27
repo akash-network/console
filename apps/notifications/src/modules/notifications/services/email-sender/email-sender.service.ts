@@ -36,7 +36,7 @@ export class EmailSenderService {
       payload: {
         subject,
         content: sanitizeHtml(content, {
-          allowedTags: ["a"],
+          allowedTags: ["a", "strong"],
           allowedAttributes: {
             a: ["href"]
           }

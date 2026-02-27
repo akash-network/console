@@ -3,6 +3,7 @@ import randomInt from "lodash/random";
 import { singleton } from "tsyringe";
 
 import { Auth0Service } from "@src/auth/services/auth0/auth0.service";
+import { EmailVerificationCodeService } from "@src/auth/services/email-verification-code/email-verification-code.service";
 import { LoggerService } from "@src/core/providers/logging.provider";
 import { isUniqueViolation } from "@src/core/repositories/base.repository";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
@@ -16,7 +17,8 @@ export class UserService {
     private readonly analyticsService: AnalyticsService,
     private readonly logger: LoggerService,
     private readonly notificationService: NotificationService,
-    private readonly auth0: Auth0Service
+    private readonly auth0: Auth0Service,
+    private readonly emailVerificationCodeService: EmailVerificationCodeService
   ) {}
 
   async registerUser(data: RegisterUserInput): Promise<{
@@ -57,6 +59,12 @@ export class UserService {
 
     if (result?.error) {
       this.logger.error({ event: "FAILED_TO_CREATE_DEFAULT_NOTIFICATION_CHANNEL", id: user.id, error: result.error });
+    }
+
+    if (!data.emailVerified && user.email) {
+      await this.emailVerificationCodeService.sendCode(user.id).catch(error => {
+        this.logger.error({ event: "FAILED_TO_SEND_INITIAL_VERIFICATION_CODE", id: user.id, error });
+      });
     }
 
     const { id, userId, username, email, emailVerified, stripeCustomerId, bio, subscribedToNewsletter, youtubeUsername, twitterUsername, githubUsername } =

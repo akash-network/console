@@ -5,8 +5,21 @@ import { singleton } from "tsyringe";
 export class Auth0Service {
   constructor(private readonly managementClient: ManagementClient) {}
 
+  async createUser(input: { email: string; password: string; connection: string }): Promise<void> {
+    await this.managementClient.users.create({
+      email: input.email,
+      password: input.password,
+      connection: input.connection,
+      verify_email: false
+    });
+  }
+
   async sendVerificationEmail(userId: string) {
     await this.managementClient.jobs.verifyEmail({ user_id: userId });
+  }
+
+  async markEmailVerified(userId: string) {
+    await this.managementClient.users.update({ id: userId }, { email_verified: true });
   }
 
   async getUserByEmail(email: string): Promise<GetUsers200ResponseOneOfInner | null> {

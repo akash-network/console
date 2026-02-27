@@ -5,120 +5,138 @@ import { EmailVerificationContainer } from "./EmailVerificationContainer";
 
 import { act, render } from "@testing-library/react";
 
-describe("EmailVerificationContainer", () => {
-  it("should render children with initial state", () => {
+describe(EmailVerificationContainer.name, () => {
+  it("renders children with initial state", () => {
     const { child } = setup();
 
     expect(child).toHaveBeenCalledWith(
       expect.objectContaining({
-        isEmailVerified: false,
         isResending: false,
-        isChecking: false,
-        onResendEmail: expect.any(Function),
-        onCheckVerification: expect.any(Function),
-        onContinue: expect.any(Function)
+        isVerifying: false,
+        cooldownSeconds: expect.any(Number),
+        resetKey: 0,
+        onResendCode: expect.any(Function),
+        onVerifyCode: expect.any(Function)
       })
     );
   });
 
-  it("should handle resend email success", async () => {
-    const { child, mockSendVerificationEmail, mockEnqueueSnackbar } = setup();
-    mockSendVerificationEmail.mockResolvedValue(undefined);
-
-    const { onResendEmail } = child.mock.calls[0][0];
-    await act(async () => {
-      await onResendEmail();
-    });
-
-    expect(mockSendVerificationEmail).toHaveBeenCalledWith("test-user");
-    expect(mockEnqueueSnackbar).toHaveBeenCalledWith(
-      expect.objectContaining({
-        props: expect.objectContaining({
-          title: "Verification email sent",
-          subTitle: "Please check your email and click the verification link",
-          iconVariant: "success"
-        })
-      }),
-      { variant: "success" }
-    );
-  });
-
-  it("should handle resend email error", async () => {
-    const { child, mockSendVerificationEmail, mockNotificator } = setup();
-    mockSendVerificationEmail.mockRejectedValue(new Error("Failed"));
-
-    const { onResendEmail } = child.mock.calls[0][0];
-    await act(async () => {
-      await onResendEmail();
-    });
-
-    expect(mockSendVerificationEmail).toHaveBeenCalledWith("test-user");
-    expect(mockNotificator.error).toHaveBeenCalledWith("Failed to send verification email. Please try again later");
-  });
-
-  it("should handle check verification success", async () => {
-    const { child, mockCheckSession, mockEnqueueSnackbar } = setup();
-    mockCheckSession.mockResolvedValue(undefined);
-
-    const { onCheckVerification } = child.mock.calls[0][0];
-    await act(async () => {
-      await onCheckVerification();
-    });
-
-    expect(mockCheckSession).toHaveBeenCalled();
-    expect(mockEnqueueSnackbar).toHaveBeenCalledWith(
-      expect.objectContaining({
-        props: expect.objectContaining({
-          title: "Verification status updated",
-          subTitle: "Your email verification status has been refreshed",
-          iconVariant: "success"
-        })
-      }),
-      { variant: "success" }
-    );
-  });
-
-  it("should handle check verification error", async () => {
-    const { child, mockCheckSession, mockNotificator } = setup();
-    mockCheckSession.mockRejectedValue(new Error("Failed"));
-
-    const { onCheckVerification } = child.mock.calls[0][0];
-    await act(async () => {
-      await onCheckVerification();
-    });
-
-    expect(mockCheckSession).toHaveBeenCalled();
-    expect(mockNotificator.error).toHaveBeenCalledWith("Failed to check verification. Please try again or refresh the page");
-  });
-
-  it("should call onComplete when email is verified", () => {
+  it("auto-advances when email is already verified", () => {
     const mockOnComplete = vi.fn();
-    const { child } = setup({
-      user: { id: "test-user", emailVerified: true },
-      onComplete: mockOnComplete
-    });
-
-    const { onContinue } = child.mock.calls[0][0];
-    onContinue();
+    setup({ user: { id: "test-user", emailVerified: true }, onComplete: mockOnComplete });
 
     expect(mockOnComplete).toHaveBeenCalled();
   });
 
-  it("should not call onComplete when email is not verified", () => {
-    const mockOnComplete = vi.fn();
-    const { child } = setup({
-      user: { id: "test-user", emailVerified: false },
-      onComplete: mockOnComplete
+  it("shows snackbar on user-initiated resend", async () => {
+    const { child, mockSendVerificationCode, mockEnqueueSnackbar } = setup();
+
+    mockSendVerificationCode.mockResolvedValue({});
+
+    const { onResendCode } = child.mock.calls[child.mock.calls.length - 1][0];
+    await act(async () => {
+      await onResendCode();
     });
 
-    const { onContinue } = child.mock.calls[0][0];
-    onContinue();
-
-    expect(mockOnComplete).not.toHaveBeenCalled();
+    expect(mockEnqueueSnackbar).toHaveBeenCalledWith(
+      expect.objectContaining({
+        props: expect.objectContaining({
+          title: "Verification code sent",
+          subTitle: "Please check your email for the 6-digit code",
+          iconVariant: "success"
+        })
+      }),
+      { variant: "success" }
+    );
   });
 
-  function setup(input: { user?: any; onComplete?: Mock } = {}) {
-    const mockSendVerificationEmail = vi.fn();
+  it("does not resend code while cooldown is active", async () => {
+    const { child, mockSendVerificationCode } = setup();
+
+    mockSendVerificationCode.mockResolvedValue({});
+
+    const { onResendCode: firstResend } = child.mock.calls[child.mock.calls.length - 1][0];
+    await act(async () => {
+      await firstResend();
+    });
+
+    expect(mockSendVerificationCode).toHaveBeenCalledTimes(1);
+    mockSendVerificationCode.mockClear();
+
+    const { onResendCode: secondResend } = child.mock.calls[child.mock.calls.length - 1][0];
+    await act(async () => {
+      await secondResend();
+    });
+
+    expect(mockSendVerificationCode).not.toHaveBeenCalled();
+  });
+
+  it("sets cooldownSeconds after sending code", async () => {
+    const { child, mockSendVerificationCode } = setup();
+
+    mockSendVerificationCode.mockResolvedValue({});
+
+    const { onResendCode } = child.mock.calls[child.mock.calls.length - 1][0];
+    await act(async () => {
+      await onResendCode();
+    });
+
+    const lastCall = child.mock.calls[child.mock.calls.length - 1][0];
+    expect(lastCall.cooldownSeconds).toBe(60);
+  });
+
+  it("notifies error when resend code fails", async () => {
+    const { child, mockSendVerificationCode, mockNotificator } = setup();
+
+    mockSendVerificationCode.mockRejectedValue(new Error("Failed"));
+
+    const { onResendCode } = child.mock.calls[child.mock.calls.length - 1][0];
+    await act(async () => {
+      await onResendCode();
+    });
+
+    expect(mockNotificator.error).toHaveBeenCalledWith("Failed to send verification code. Please try again later");
+  });
+
+  it("verifies code, refreshes session, and shows success snackbar", async () => {
+    const { child, mockVerifyEmailCode, mockCheckSession, mockEnqueueSnackbar } = setup();
+    mockVerifyEmailCode.mockResolvedValue({ emailVerified: true });
+    mockCheckSession.mockResolvedValue(undefined);
+
+    const { onVerifyCode } = child.mock.calls[0][0];
+    await act(async () => {
+      await onVerifyCode("123456");
+    });
+
+    expect(mockVerifyEmailCode).toHaveBeenCalledWith("123456");
+    expect(mockCheckSession).toHaveBeenCalled();
+    expect(mockEnqueueSnackbar).toHaveBeenCalledWith(
+      expect.objectContaining({
+        props: expect.objectContaining({
+          title: "Email verified",
+          subTitle: "Your email has been successfully verified",
+          iconVariant: "success"
+        })
+      }),
+      { variant: "success" }
+    );
+  });
+
+  it("shows error toast on verify code failure", async () => {
+    const { child, mockVerifyEmailCode, mockNotificator } = setup();
+    mockVerifyEmailCode.mockRejectedValue(new Error("Invalid verification code"));
+
+    const { onVerifyCode } = child.mock.calls[0][0];
+    await act(async () => {
+      await onVerifyCode("000000");
+    });
+
+    expect(mockNotificator.error).toHaveBeenCalledWith("Invalid verification code");
+  });
+
+  function setup(input: { user?: { id: string; emailVerified: boolean }; onComplete?: Mock } = {}) {
+    const mockSendVerificationCode = vi.fn().mockResolvedValue({});
+    const mockVerifyEmailCode = vi.fn();
     const mockCheckSession = vi.fn();
     const mockEnqueueSnackbar = vi.fn();
     const mockAnalyticsService = {
@@ -137,23 +155,27 @@ describe("EmailVerificationContainer", () => {
     const mockUseServices = vi.fn().mockReturnValue({
       analyticsService: mockAnalyticsService,
       auth: {
-        sendVerificationEmail: mockSendVerificationEmail
+        sendVerificationCode: mockSendVerificationCode,
+        verifyEmailCode: mockVerifyEmailCode
       }
     });
 
-    const mockSnackbar = ({ title, subTitle, iconVariant }: any) => (
+    const mockSnackbar = ({ title, subTitle, iconVariant }: { title: string; subTitle: string; iconVariant: string }) => (
       <div data-testid="snackbar" data-title={title} data-subtitle={subTitle} data-icon-variant={iconVariant} />
     );
 
     const mockNotificator = { success: vi.fn(), error: vi.fn() };
     const mockUseNotificator = vi.fn().mockReturnValue(mockNotificator);
 
+    const mockExtractErrorMessage = vi.fn((error: unknown) => (error instanceof Error ? error.message : "An error occurred. Please try again."));
+
     const dependencies = {
       useCustomUser: mockUseCustomUser,
       useSnackbar: mockUseSnackbar,
       useServices: mockUseServices,
       Snackbar: mockSnackbar,
-      useNotificator: mockUseNotificator
+      useNotificator: mockUseNotificator,
+      extractErrorMessage: mockExtractErrorMessage
     };
 
     const mockChildren = vi.fn().mockReturnValue(<div>Test</div>);
@@ -167,7 +189,8 @@ describe("EmailVerificationContainer", () => {
 
     return {
       child: mockChildren,
-      mockSendVerificationEmail,
+      mockSendVerificationCode,
+      mockVerifyEmailCode,
       mockCheckSession,
       mockEnqueueSnackbar,
       mockNotificator,
