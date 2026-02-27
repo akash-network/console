@@ -119,6 +119,8 @@ describe(DrainingDeploymentService.name, () => {
       const address = createAkashAddress();
       const settings = AutoTopUpDeploymentSeeder.createMany(2, { address });
 
+      const normalizeDseq = (dseq: string) => String(Number(dseq));
+
       const result: LeaseQueryResult = {
         drainingDeployments: [
           {
@@ -129,7 +131,7 @@ describe(DrainingDeploymentService.name, () => {
             predictedClosedHeight: 999000
           }
         ],
-        activeDseqs: new Set([settings[0].dseq, settings[1].dseq])
+        activeDseqs: new Set([normalizeDseq(settings[0].dseq), normalizeDseq(settings[1].dseq)])
       };
 
       jest.spyOn(service, "findLeases").mockResolvedValueOnce(result);
@@ -183,6 +185,8 @@ describe(DrainingDeploymentService.name, () => {
       const address = createAkashAddress();
       const settings = AutoTopUpDeploymentSeeder.createMany(3, { address });
 
+      const normalizeDseq = (dseq: string) => String(Number(dseq));
+
       const result: LeaseQueryResult = {
         drainingDeployments: [
           {
@@ -193,7 +197,7 @@ describe(DrainingDeploymentService.name, () => {
             predictedClosedHeight: 999000
           }
         ],
-        activeDseqs: new Set([settings[0].dseq, settings[1].dseq])
+        activeDseqs: new Set([normalizeDseq(settings[0].dseq), normalizeDseq(settings[1].dseq)])
       };
 
       jest.spyOn(service, "findLeases").mockResolvedValueOnce(result);
@@ -217,6 +221,36 @@ describe(DrainingDeploymentService.name, () => {
           deployments: expect.arrayContaining([expect.objectContaining({ dseq: settings[0].dseq })])
         })
       );
+    });
+
+    it("handles zero-padded dseqs correctly via normalization", async () => {
+      const { service, deploymentSettingRepository } = setup();
+
+      const address = createAkashAddress();
+      const settings = AutoTopUpDeploymentSeeder.createMany(2, { address });
+      settings[0].dseq = "001234";
+      settings[1].dseq = "005678";
+
+      const result: LeaseQueryResult = {
+        drainingDeployments: [],
+        activeDseqs: new Set(["1234"])
+      };
+
+      jest.spyOn(service, "findLeases").mockResolvedValueOnce(result);
+
+      deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively.mockImplementation(() =>
+        (async function* () {
+          yield { address, deploymentSettings: settings };
+        })()
+      );
+
+      const callback = jest.fn();
+      for await (const r of service.findDrainingDeploymentsByOwner()) {
+        callback(r);
+      }
+
+      expect(deploymentSettingRepository.updateManyById).toHaveBeenCalledWith([settings[1].id], { closed: true });
+      expect(callback).not.toHaveBeenCalled();
     });
   });
 

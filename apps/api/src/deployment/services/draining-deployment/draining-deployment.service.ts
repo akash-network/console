@@ -53,7 +53,8 @@ export class DrainingDeploymentService {
       const byDseq = keyBy(drainingDeployments, "dseq");
       const [active, closedIds] = deploymentSettings.reduce<[DrainingDeployment[], string[]]>(
         (acc, deploymentSetting) => {
-          const deployment = byDseq[Number(deploymentSetting.dseq)];
+          const normalizedDseq = String(Number(deploymentSetting.dseq));
+          const deployment = byDseq[normalizedDseq];
 
           if (deployment) {
             acc[0].push({
@@ -61,7 +62,7 @@ export class DrainingDeploymentService {
               predictedClosedHeight: deployment.predictedClosedHeight,
               blockRate: deployment.blockRate
             });
-          } else if (!activeDseqs.has(deploymentSetting.dseq)) {
+          } else if (!activeDseqs.has(normalizedDseq)) {
             acc[1].push(deploymentSetting.id);
           }
 
