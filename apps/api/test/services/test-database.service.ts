@@ -15,7 +15,7 @@ export class TestDatabaseService {
 
   constructor(testPath: string) {
     this.testFileName = path.basename(testPath, ".spec.ts");
-    const dbPrefix = randomUUID();
+    const dbPrefix = randomUUID().replace("-", "");
     this.dbName = `${dbPrefix}_test_user_${this.testFileName}`.replace(/\W+/g, "_");
     this.indexerDbName = `${dbPrefix}_test_indexer_${this.testFileName}`.replace(/\W+/g, "_");
     this.postgresUri = process.env.POSTGRES_URI || "postgres://postgres:password@localhost:5432";
