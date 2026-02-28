@@ -64,11 +64,17 @@ describe(CachedBalanceService.name, () => {
       expect(amount).toBe(1000);
     });
 
-    it("should throw error when trying to reserve zero or negative amount", async () => {
+    it("should not throw error when reserving zero", async () => {
       const balance = await service.get(address);
 
-      expect(() => balance.reserveSufficientAmount(0)).toThrow("Insufficient balance");
-      expect(() => balance.reserveSufficientAmount(-100)).toThrow("Insufficient balance");
+      const amount = balance.reserveSufficientAmount(0);
+      expect(amount).toBe(0);
+    });
+
+    it("should throw error when trying to reserve negative amount", async () => {
+      const balance = await service.get(address);
+
+      expect(() => balance.reserveSufficientAmount(-100)).toThrow("Invalid amount");
     });
   });
 });
