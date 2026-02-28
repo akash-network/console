@@ -1,0 +1,44 @@
+name: Weekly Console Digest
+
+on:
+  schedule:
+    # Every Monday at 9:00 AM UTC
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
+    inputs:
+      days_back:
+        description: "Number of days to look back for releases"
+        required: false
+        default: "7"
+      dry_run:
+        description: "If true, prints to stdout instead of posting to Slack"
+        required: false
+        default: "false"
+
+permissions:
+  contents: read
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Generate and post digest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AKASHML_API_KEY: ${{ secrets.AKASHML_API_KEY }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_DIGEST_WEBHOOK_URL }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+          DAYS_BACK: ${{ github.event.inputs.days_back || '7' }}
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
+        run: node script/weekly-digest.mjs
