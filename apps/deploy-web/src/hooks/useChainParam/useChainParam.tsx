@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 
-import { UAKT_DENOM } from "@src/config/denom.config";
 import { useUsdcDenom } from "@src/hooks/useDenom";
 import { useDepositParams } from "@src/queries/useSaveSettings";
 import { udenomToDenom } from "@src/utils/mathHelpers";
@@ -10,6 +9,7 @@ import { useSettings } from "../../context/SettingsProvider";
 type MinDeposit = {
   akt: number;
   usdc: number;
+  act: number;
 };
 
 type ContextType = {
@@ -29,13 +29,21 @@ export function useChainParam({ dependencies: d = DEPENDENCIES }: { dependencies
   });
   const usdcDenom = d.useUsdcDenom();
 
-  return useMemo(
-    () => ({
+  return useMemo(() => {
+    const minDeposit = (depositParams || []).reduce(
+      (acc, param) => {
+        acc[param.denom as keyof MinDeposit] = parseFloat(param.amount) || 0;
+        return acc;
+      },
+      { akt: 0, usdc: 0, act: 0 }
+    );
+
+    return {
       minDeposit: {
-        akt: depositParams ? uaktToAKT(parseFloat(depositParams.find(x => x.denom === UAKT_DENOM)?.amount || "") || 0) : 0,
-        usdc: depositParams ? udenomToDenom(parseFloat(depositParams.find(x => x.denom === usdcDenom)?.amount || "") || 0) : 0
+        akt: uaktToAKT(minDeposit.akt),
+        usdc: udenomToDenom(minDeposit.usdc),
+        act: udenomToDenom(minDeposit.act)
       }
-    }),
-    [depositParams, usdcDenom]
-  );
+    };
+  }, [depositParams, usdcDenom]);
 }

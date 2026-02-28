@@ -25,36 +25,36 @@ export class WalletBalancesService {
       loadWithPagination<RpcDeployment[]>(ApiUrlService.deploymentList("", address, true), "deployments", 1000, this.chainApiHttpClient)
     ]);
 
-    const deploymentGrantsUAKT = deploymentGrants
-      .filter(grant => grant.authorization?.spend_limit?.denom === this.#denoms.uakt)
-      .reduce((sum, grant) => sum + parseFloat(grant.authorization?.spend_limit?.amount || "0"), 0);
-    const deploymentGrantsUUSDC = deploymentGrants
-      .filter(grant => grant.authorization?.spend_limit?.denom === this.#denoms.usdc)
-      .reduce((sum, grant) => sum + parseFloat(grant.authorization?.spend_limit?.amount || "0"), 0);
-
-    const balanceData = balanceResponse.data;
-    const balanceUAKT =
-      balanceData.balances.some(b => b.denom === this.#denoms.uakt) || deploymentGrantsUAKT > 0
-        ? parseFloat(balanceData.balances.find(b => b.denom === this.#denoms.uakt)?.amount || "0")
-        : 0;
-    const balanceUUSDC =
-      balanceData.balances.some(b => b.denom === this.#denoms.usdc) || deploymentGrantsUUSDC > 0
-        ? parseFloat(balanceData.balances.find(b => b.denom === this.#denoms.usdc)?.amount || "0")
-        : 0;
+    const deploymentGrantsPerDenom = deploymentGrants.reduce<Record<string, number>>((acc, grant) => {
+      const spendLimit = grant.authorization?.spend_limit;
+      if (spendLimit) {
+        acc[spendLimit.denom] ??= 0;
+        acc[spendLimit.denom] += parseFloat(spendLimit.amount || "0") || 0;
+      }
+      return acc;
+    }, {});
+    const balancesPerDenom = balanceResponse.data.balances.reduce<Record<string, number>>((acc, balance) => {
+      acc[balance.denom] = parseFloat(balance.amount || "0") || 0;
+      return acc;
+    }, {});
 
     const activeDeployments = activeDeploymentsResponse.map(d => deploymentToDto(d));
-    const aktActiveDeployments = activeDeployments.filter(d => d.denom === this.#denoms.uakt);
-    const usdcActiveDeployments = activeDeployments.filter(d => d.denom === this.#denoms.usdc);
-    const deploymentEscrowUAKT = aktActiveDeployments.reduce((acc, d) => acc + d.escrowBalance, 0);
-    const deploymentEscrowUUSDC = usdcActiveDeployments.reduce((acc, d) => acc + d.escrowBalance, 0);
+    const deploymentEscrowPerDenom = activeDeployments.reduce<Record<string, number>>((acc, d) => {
+      acc[d.denom] ??= 0;
+      acc[d.denom] += d.escrowBalance;
+      return acc;
+    }, {});
 
     return {
-      balanceUAKT,
-      balanceUUSDC,
-      deploymentEscrowUAKT,
-      deploymentEscrowUUSDC,
-      deploymentGrantsUAKT,
-      deploymentGrantsUUSDC,
+      balanceUAKT: balancesPerDenom[this.#denoms.uakt] || 0,
+      balanceUUSDC: balancesPerDenom[this.#denoms.usdc] || 0,
+      balanceUACT: balancesPerDenom[this.#denoms.uact] || 0,
+      deploymentEscrowUAKT: deploymentEscrowPerDenom[this.#denoms.uakt] || 0,
+      deploymentEscrowUUSDC: deploymentEscrowPerDenom[this.#denoms.usdc] || 0,
+      deploymentEscrowUACT: deploymentEscrowPerDenom[this.#denoms.uact] || 0,
+      deploymentGrantsUAKT: deploymentGrantsPerDenom[this.#denoms.uakt] || 0,
+      deploymentGrantsUUSDC: deploymentGrantsPerDenom[this.#denoms.usdc] || 0,
+      deploymentGrantsUACT: deploymentGrantsPerDenom[this.#denoms.uact] || 0,
       activeDeployments,
       deploymentGrants
     };
@@ -64,4 +64,5 @@ export class WalletBalancesService {
 interface Denoms {
   uakt: string;
   usdc: string;
+  uact: string;
 }
