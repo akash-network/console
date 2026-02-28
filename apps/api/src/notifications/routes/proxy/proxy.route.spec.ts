@@ -1,4 +1,5 @@
 import { faker } from "@faker-js/faker";
+import { mock } from "vitest-mock-extended";
 
 import type { AuthService } from "@src/auth/services/auth.service";
 import type { UserWalletRepository } from "@src/billing/repositories";
@@ -7,7 +8,6 @@ import type { NotificationsConfig } from "@src/notifications/config/env.config";
 import { createProxy } from "@src/notifications/routes/proxy/proxy.route";
 
 import { createAkashAddress } from "@test/seeders";
-import { stub } from "@test/services/stub";
 
 describe("createProxy", () => {
   it("builds correct proxy handler for POST request", async () => {
@@ -69,17 +69,17 @@ describe("createProxy", () => {
     const body = { data: faker.lorem.word() };
     const userId = faker.string.uuid();
 
-    const authService = stub<AuthService>({
+    const authService = mock<AuthService>({
       currentUser: { id: userId },
       throwUnlessCan: jest.fn().mockReturnValue(undefined)
     });
     const owner = createAkashAddress();
 
-    const userWalletRepository = stub<UserWalletRepository>({
-      findOneByUserId() {
+    const userWalletRepository = mock<UserWalletRepository>({
+      async findOneByUserId() {
         return {
           address: owner
-        };
+        } as any;
       }
     });
 

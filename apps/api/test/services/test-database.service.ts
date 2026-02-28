@@ -1,6 +1,7 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
-import path from "path";
+import { randomUUID } from "node:crypto";
+import path from "node:path";
 import postgres from "postgres";
 
 export class TestDatabaseService {
@@ -14,9 +15,9 @@ export class TestDatabaseService {
 
   constructor(testPath: string) {
     this.testFileName = path.basename(testPath, ".spec.ts");
-    const timestamp = Date.now();
-    this.dbName = `${timestamp}_test_user_${this.testFileName}`.replace(/\W+/g, "_");
-    this.indexerDbName = `${timestamp}_test_indexer_${this.testFileName}`.replace(/\W+/g, "_");
+    const dbPrefix = randomUUID();
+    this.dbName = `${dbPrefix}_test_user_${this.testFileName}`.replace(/\W+/g, "_");
+    this.indexerDbName = `${dbPrefix}_test_indexer_${this.testFileName}`.replace(/\W+/g, "_");
     this.postgresUri = process.env.POSTGRES_URI || "postgres://postgres:password@localhost:5432";
 
     process.env.POSTGRES_DB_URI = `${this.postgresUri}/${this.dbName}`;

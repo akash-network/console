@@ -80,7 +80,6 @@ export default defineConfig({
           name: "functional",
           include: ["test/functional/**/*.spec.ts"],
           setupFiles: ["./test/vitest-jest-compat.ts", "./test/setup-functional-env.ts", "./test/setup-functional-tests.ts"],
-          globalSetup: ["./test/setup-global-functional.ts"],
           testTimeout: 60_000,
           hookTimeout: 30_000,
           pool: "threads",
