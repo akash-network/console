@@ -80,9 +80,8 @@ export default defineConfig({
           name: "functional",
           include: ["test/functional/**/*.spec.ts"],
           setupFiles: ["./test/vitest-jest-compat.ts", "./test/setup-functional-env.ts", "./test/setup-functional-tests.ts"],
-          globalSetup: ["./test/setup-global-functional.ts"],
-          testTimeout: 60_000,
-          hookTimeout: 30_000,
+          testTimeout: 30_000,
+          hookTimeout: 15_000,
           pool: "threads",
           maxWorkers: localConfig.FUNDING_WALLET_MNEMONIC ? 1 : undefined
         }

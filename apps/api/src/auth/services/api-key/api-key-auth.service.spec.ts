@@ -1,4 +1,5 @@
 import { container } from "tsyringe";
+import { mock, type MockProxy } from "vitest-mock-extended";
 
 import type { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import type { CoreConfigService } from "@src/core/services/core-config/core-config.service";
@@ -6,19 +7,18 @@ import { ApiKeyAuthService } from "./api-key-auth.service";
 import { ApiKeyGeneratorService } from "./api-key-generator.service";
 
 import { ApiKeySeeder } from "@test/seeders/api-key.seeder";
-import { stub } from "@test/services/stub";
 
 describe("ApiKeyAuthService", () => {
   let service: ApiKeyAuthService;
   let apiKeyGenerator: ApiKeyGeneratorService;
-  let apiKeyRepository: jest.Mocked<ApiKeyRepository>;
-  let config: jest.Mocked<CoreConfigService>;
+  let apiKeyRepository: MockProxy<ApiKeyRepository>;
+  let config: MockProxy<CoreConfigService>;
 
   beforeEach(() => {
-    config = stub<CoreConfigService>({ get: jest.fn() });
+    config = mock<CoreConfigService>({ get: jest.fn() });
     config.get.mockReturnValue("test");
     apiKeyGenerator = new ApiKeyGeneratorService(config);
-    apiKeyRepository = stub<ApiKeyRepository>({ findOneBy: jest.fn(), find: jest.fn() });
+    apiKeyRepository = mock<ApiKeyRepository>({ findOneBy: jest.fn(), find: jest.fn() });
 
     service = new ApiKeyAuthService(apiKeyGenerator, apiKeyRepository, config);
   });
