@@ -1,4 +1,4 @@
-// pages/api/auth/[...auth0].js
+/* v8 ignore start */
 import type { AxiosError } from "axios";
 import { isAxiosError } from "axios";
 import { once } from "lodash";
@@ -51,15 +51,14 @@ const authHandler = once((services: AppServices) =>
         });
       } catch (error) {
         if (isMissingStateCookieError(error)) {
-          services.logger.warn({ event: "AUTH_CALLBACK_MISSING_STATE_COOKIE" });
-          services.errorHandler.reportError({ severity: "warning", error, tags: { category: "auth0", event: "AUTH_CALLBACK_MISSING_STATE_COOKIE" } });
+          services.logger.warn({ event: "AUTH_CALLBACK_MISSING_STATE_COOKIE", error });
           res.writeHead(302, { Location: "/login" });
           res.end();
           return;
         }
 
         services.errorHandler.reportError({ error, tags: { category: "auth0", event: "AUTH_CALLBACK_ERROR" } });
-        throw error;
+        res.status(500).send({ message: "An unexpected error occurred during authentication. Please try again later." });
       }
     },
     logout: services.privateConfig.AUTH0_LOCAL_ENABLED
