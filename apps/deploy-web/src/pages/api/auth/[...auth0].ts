@@ -5,7 +5,7 @@ import { once } from "lodash";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 import type { Session } from "@src/lib/auth0";
-import { AccessTokenError, AccessTokenErrorCode } from "@src/lib/auth0";
+import { AccessTokenError, AccessTokenErrorCode, CallbackHandlerError, MissingStateCookieError } from "@src/lib/auth0";
 import { handleAuth, handleCallback, handleLogin, handleLogout } from "@src/lib/auth0";
 import { defineApiHandler } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
 import type { AppServices } from "@src/services/app-di-container/server-di-container.service";
@@ -50,6 +50,13 @@ const authHandler = once((services: AppServices) =>
           }
         });
       } catch (error) {
+        if (isMissingStateCookieError(error)) {
+          services.logger.warn({ event: "AUTH_CALLBACK_MISSING_STATE_COOKIE" });
+          res.writeHead(302, { Location: "/login" });
+          res.end();
+          return;
+        }
+
         services.errorHandler.reportError({ error, tags: { category: "auth0", event: "AUTH_CALLBACK_ERROR" } });
         throw error;
       }
@@ -121,6 +128,10 @@ function isInvalidSessionError(error: unknown): boolean {
 
 function isGeneralAxiosError(error: unknown): error is AxiosError {
   return isAxiosError(error) && !!error?.status && error.status >= 400 && error.status < 500;
+}
+
+function isMissingStateCookieError(error: unknown): boolean {
+  return error instanceof CallbackHandlerError && error.cause instanceof MissingStateCookieError;
 }
 
 function clearSessionAndRedirectToLogin(req: NextApiRequest, res: NextApiResponse): void {
