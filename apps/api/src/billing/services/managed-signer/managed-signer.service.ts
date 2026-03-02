@@ -1,5 +1,5 @@
 import { MsgAccountDeposit } from "@akashnetwork/chain-sdk/private-types/akash.v1";
-import { MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
+import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { MsgCreateLease } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 import { LeaseHttpService } from "@akashnetwork/http-sdk";
 import { EncodeObject, Registry } from "@cosmjs/proto-signing";
@@ -19,6 +19,7 @@ import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.se
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { Trace, withSpan } from "@src/core/services/tracing/tracing.service";
+import { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { UserRepository } from "@src/user/repositories";
 import { BalancesService } from "../balances/balances.service";
 import { BillingConfigService } from "../billing-config/billing-config.service";
@@ -44,7 +45,8 @@ export class ManagedSignerService {
     private readonly domainEvents: DomainEventsService,
     private readonly leaseHttpService: LeaseHttpService,
     private readonly walletReloadJobService: WalletReloadJobService,
-    private readonly managedUserWalletService: ManagedUserWalletService
+    private readonly managedUserWalletService: ManagedUserWalletService,
+    private readonly notificationService: NotificationService
   ) {}
 
   @Trace()
@@ -111,6 +113,18 @@ export class ManagedSignerService {
   }> {
     await this.#validateBalances(userWallet, messages);
     await this.anonymousValidateService.validateLeaseProvidersAuditors(messages, userWallet);
+
+    const closeDeploymentMessage: { typeUrl: string; value: MsgCloseDeployment } | undefined = messages.find(message =>
+      message.typeUrl.endsWith(".MsgCloseDeployment")
+    );
+
+    if (closeDeploymentMessage && userWallet.userId) {
+      await this.notificationService.disableDeploymentAlerts({
+        userId: userWallet.userId,
+        walletAddress: userWallet.address!,
+        dseq: closeDeploymentMessage.value.id!.dseq.toString()
+      });
+    }
 
     const createLeaseMessage: { typeUrl: string; value: MsgCreateLease } | undefined = messages.find(message => message.typeUrl.endsWith(".MsgCreateLease"));
     const hasCreateTrialLeaseMessage = userWallet.isTrialing && !!createLeaseMessage;
