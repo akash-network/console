@@ -63,8 +63,7 @@ export class LeaseRepository implements DrainingDeploymentLeaseSource {
       where: {
         predictedClosedHeight: { [Op.lte]: closureHeight },
         owner,
-        dseq: { [Op.in]: dseqs },
-        closedHeight: null
+        dseq: { [Op.in]: dseqs }
       },
       attributes: [
         "dseq",

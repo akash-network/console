@@ -15,6 +15,7 @@ import {
 } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 import { DrainingDeploymentService } from "../draining-deployment/draining-deployment.service";
+import { TopUpManagedDeploymentsInstrumentationService } from "../top-up-managed-deployments/top-up-managed-deployments-instrumentation.service";
 
 type DeploymentSettingWithEstimatedTopUpAmount = DeploymentSettingsOutput & { estimatedTopUpAmount: number; topUpFrequencyMs: number };
 
@@ -22,14 +23,16 @@ type DeploymentSettingWithEstimatedTopUpAmount = DeploymentSettingsOutput & { es
 export class DeploymentSettingService {
   private readonly logger = createOtelLogger({ context: DeploymentSettingService.name });
 
-  private readonly topUpFrequencyMs = this.config.get("AUTO_TOP_UP_JOB_INTERVAL_IN_H") * millisecondsInHour;
+  private readonly topUpFrequencyMs = this.config.get("AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H") * millisecondsInHour;
+
   constructor(
     private readonly deploymentSettingRepository: DeploymentSettingRepository,
     private readonly authService: AuthService,
     private readonly drainingDeploymentService: DrainingDeploymentService,
     private readonly walletReloadJobService: WalletReloadJobService,
     private readonly config: DeploymentConfigService,
-    private readonly userWalletRepository: UserWalletRepository
+    private readonly userWalletRepository: UserWalletRepository,
+    private readonly instrumentation: TopUpManagedDeploymentsInstrumentationService
   ) {}
 
   async findOrCreateByUserIdAndDseq(params: FindDeploymentSettingParams): Promise<DeploymentSettingWithEstimatedTopUpAmount | undefined> {
@@ -73,6 +76,10 @@ export class DeploymentSettingService {
           ...input,
           ...params
         }));
+
+      if (input.autoTopUpEnabled !== undefined) {
+        this.instrumentation.recordSettingToggle(input.autoTopUpEnabled);
+      }
 
       return this.withEstimatedTopUpAmount(setting);
     } catch (error) {

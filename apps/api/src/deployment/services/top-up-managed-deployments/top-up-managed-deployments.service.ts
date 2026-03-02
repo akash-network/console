@@ -13,6 +13,7 @@ import { TopUpSummarizer } from "@src/deployment/lib/top-up-summarizer/top-up-su
 import { DrainingDeployment } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { CachedBalanceService } from "../cached-balance/cached-balance.service";
+import { TopUpManagedDeploymentsInstrumentationService } from "./top-up-managed-deployments-instrumentation.service";
 
 type CollectedMessage = {
   message: { typeUrl: string; value: MsgAccountDeposit };
@@ -32,19 +33,21 @@ export class TopUpManagedDeploymentsService {
     private readonly cachedBalanceService: CachedBalanceService,
     private readonly blockHttpService: BlockHttpService,
     private readonly chainErrorService: ChainErrorService,
-    private readonly logger: LoggerService
+    private readonly logger: LoggerService,
+    private readonly instrumentation: TopUpManagedDeploymentsInstrumentationService
   ) {
     this.logger.setContext(TopUpManagedDeploymentsService.name);
   }
 
   async topUpDeployments(options: DryRunOptions): Promise<Result<void, unknown[]>> {
+    const startTime = Date.now();
     const startBlockHeight = await this.blockHttpService.getCurrentHeight();
     this.summarizer.set("startBlockHeight", startBlockHeight);
     const errors: unknown[] = [];
 
     for await (const { address, deployments } of this.drainingDeploymentService.findDrainingDeploymentsByOwner()) {
       try {
-        const messageInputs = await this.collectMessages(deployments, options);
+        const messageInputs = await this.collectMessages(deployments, startBlockHeight, options);
         if (!messageInputs.length) {
           this.logger.info({
             event: "TOP_UP_SKIPPED_NOTHING_TO_TOP_UP",
@@ -62,6 +65,9 @@ export class TopUpManagedDeploymentsService {
 
     await this.finalizeSummary(options);
 
+    const status = errors.length > 0 ? "failure" : "success";
+    this.instrumentation.recordJobExecution(Date.now() - startTime, status);
+
     return errors.length > 0 ? Err(errors) : Ok(undefined);
   }
 
@@ -72,13 +78,14 @@ export class TopUpManagedDeploymentsService {
     this.logSummary(options);
   }
 
-  private async collectMessages(deployments: DrainingDeployment[], options: DryRunOptions): Promise<CollectedMessage[]> {
+  private async collectMessages(deployments: DrainingDeployment[], startBlockHeight: number, options: DryRunOptions): Promise<CollectedMessage[]> {
     const denom = this.billingConfig.get("DEPLOYMENT_GRANT_DENOM");
 
     const messageInputs = await Promise.all(
       deployments.map(async deployment => {
         this.summarizer.inc("deploymentCount");
         this.summarizer.trackWallet(deployment.address);
+        this.instrumentation.recordPredictedCloseBlocks(startBlockHeight, deployment.predictedClosedHeight);
 
         try {
           const { address, predictedClosedHeight } = deployment;
@@ -128,6 +135,9 @@ export class TopUpManagedDeploymentsService {
 
           if (error.message.startsWith("Insufficient balance")) {
             this.summarizer.inc("insufficientBalanceCount");
+            this.instrumentation.recordDepositError("insufficient_balance");
+          } else {
+            this.instrumentation.recordDepositError("message_preparation");
           }
 
           return;
@@ -154,7 +164,12 @@ export class TopUpManagedDeploymentsService {
       }
 
       this.summarizer.inc("deploymentTopUpCount", ownerInputs.length);
-      ownerInputs.forEach(i => this.summarizer.addTopUpAmount(i.input.amount));
+      ownerInputs.forEach(i => {
+        this.summarizer.addTopUpAmount(i.input.amount);
+        if (!options.dryRun) {
+          this.instrumentation.recordDeposit(i.input.amount);
+        }
+      });
       this.summarizer.trackSuccessfulWallet(owner);
 
       this.logger.info({
@@ -176,6 +191,7 @@ export class TopUpManagedDeploymentsService {
 
       this.summarizer.inc("deploymentTopUpErrorCount", ownerInputs.length);
       this.summarizer.trackFailedWallet(owner);
+      ownerInputs.forEach(() => this.instrumentation.recordDepositError("tx_error"));
 
       if (await this.chainErrorService.isMasterWalletInsufficientFundsError(error)) {
         this.logger.error({
