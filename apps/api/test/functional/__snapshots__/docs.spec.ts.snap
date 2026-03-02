@@ -2668,8 +2668,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
           "required": true,
         },
         "responses": {
-          "200": {
-            "content": {},
+          "204": {
             "description": "User created successfully",
           },
         },
@@ -12545,26 +12544,6 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v1/send-verification-code": {
       "post": {
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "properties": {
-                  "data": {
-                    "properties": {
-                      "resend": {
-                        "type": "boolean",
-                      },
-                    },
-                    "type": "object",
-                  },
-                },
-                "type": "object",
-              },
-            },
-          },
-          "required": false,
-        },
         "responses": {
           "200": {
             "content": {
@@ -15662,34 +15641,8 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
           "required": true,
         },
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "data": {
-                      "properties": {
-                        "emailVerified": {
-                          "enum": [
-                            true,
-                          ],
-                          "type": "boolean",
-                        },
-                      },
-                      "required": [
-                        "emailVerified",
-                      ],
-                      "type": "object",
-                    },
-                  },
-                  "required": [
-                    "data",
-                  ],
-                  "type": "object",
-                },
-              },
-            },
-            "description": "Returns the email verification status",
+          "204": {
+            "description": "Email verified successfully",
           },
           "400": {
             "description": "Invalid or expired code",
