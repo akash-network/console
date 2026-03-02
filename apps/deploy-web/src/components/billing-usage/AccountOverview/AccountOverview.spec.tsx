@@ -17,7 +17,7 @@ describe(AccountOverview.name, () => {
     });
 
     expect(mockReplace).toHaveBeenCalledWith("/billing", { scroll: false });
-    expect(screen.getByTestId("payment-popup")).toBeInTheDocument();
+    expect(screen.queryByTestId("payment-popup")).toBeInTheDocument();
     expect(dependencies.PaymentPopup).toHaveBeenCalledWith(expect.objectContaining({ open: true, selectedPaymentMethodId: "pm_123" }), expect.anything());
   });
 
@@ -74,43 +74,43 @@ describe(AccountOverview.name, () => {
     const Stub = ({ children }: { children?: React.ReactNode }) => <div>{children}</div>;
     const MockFormattedNumber = ({ value }: { value: number }) => <span>{value}</span>;
 
-    const dependencies: typeof DEPENDENCIES = {
-      useSnackbar: vi.fn(() => ({ enqueueSnackbar: vi.fn() })) as any,
+    const dependencies = {
+      useSnackbar: vi.fn(() => ({ enqueueSnackbar: vi.fn() })),
       useDefaultPaymentMethodQuery: vi.fn(() => ({
         data: input.defaultPaymentMethod,
         isLoading: input.isLoading ?? false
-      })) as any,
+      })),
       useWalletBalance: vi.fn(() => ({
         balance: { totalDeploymentGrantsUSD: 100, totalDeploymentEscrowUSD: 10 },
         isLoading: false
-      })) as any,
-      useWalletSettingsQuery: vi.fn(() => ({ data: { autoReloadEnabled: false } })) as any,
-      useWeeklyDeploymentCostQuery: vi.fn(() => ({ data: 5 })) as any,
+      })),
+      useWalletSettingsQuery: vi.fn(() => ({ data: { autoReloadEnabled: false } })),
+      useWeeklyDeploymentCostQuery: vi.fn(() => ({ data: 5 })),
       useWalletSettingsMutations: vi.fn(() => ({
         upsertWalletSettings: { mutate: vi.fn(), isPending: false }
-      })) as any,
-      usePopup: vi.fn(() => ({ confirm: vi.fn() })) as any,
-      useSearchParams: vi.fn(() => mockSearchParams) as any,
-      useRouter: vi.fn(() => mockRouter) as any,
-      PaymentPopup: MockPaymentPopup as any,
-      PaymentSuccessAnimation: MockPaymentSuccessAnimation as any,
-      Title: Stub as any,
-      FormattedNumber: MockFormattedNumber as any,
-      Link: Stub as any,
-      Button: Stub as any,
-      Card: Stub as any,
-      CardContent: Stub as any,
-      CardHeader: Stub as any,
-      CustomTooltip: Stub as any,
-      Skeleton: Stub as any,
-      Snackbar: Stub as any,
-      Switch: Stub as any,
-      LinearProgress: Stub as any,
+      })),
+      usePopup: vi.fn(() => ({ confirm: vi.fn() })),
+      useSearchParams: vi.fn(() => mockSearchParams),
+      useRouter: vi.fn(() => mockRouter),
+      PaymentPopup: MockPaymentPopup,
+      PaymentSuccessAnimation: MockPaymentSuccessAnimation,
+      Title: Stub,
+      FormattedNumber: MockFormattedNumber,
+      Link: Stub,
+      Button: Stub,
+      Card: Stub,
+      CardContent: Stub,
+      CardHeader: Stub,
+      CustomTooltip: Stub,
+      Skeleton: Stub,
+      Snackbar: Stub,
+      Switch: Stub,
+      LinearProgress: Stub,
       UrlService: {
         billing: () => "/billing",
         paymentMethods: () => "/payment-methods"
-      } as any
-    };
+      }
+    } as unknown as typeof DEPENDENCIES;
 
     render(<AccountOverview dependencies={dependencies} />);
 
