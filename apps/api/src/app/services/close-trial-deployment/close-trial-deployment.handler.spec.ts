@@ -210,7 +210,7 @@ describe(CloseTrialDeploymentHandler.name, () => {
     expect(deploymentWriterService.close).not.toHaveBeenCalled();
     expect(jobQueueService.enqueue).not.toHaveBeenCalled();
     expect(logger.error).toHaveBeenCalledWith({
-      event: "CLOSE_TRIAL_DEPLOYMENT_FAILED",
+      event: "FETCH_TRIAL_DEPLOYMENT_FAILED",
       job: CloseTrialDeployment[JOB_NAME],
       walletId: payload.walletId,
       dseq: payload.dseq,

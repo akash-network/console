@@ -76,21 +76,34 @@ export class CloseTrialDeploymentHandler implements JobHandler<CloseTrialDeploym
 
     const walletWithAddress = { ...wallet, address };
 
+    let deployment;
     try {
-      const deployment = await this.deploymentReaderService.findByWalletAndDseq(walletWithAddress, payload.dseq);
+      deployment = await this.deploymentReaderService.findByWalletAndDseq(walletWithAddress, payload.dseq);
+    } catch (error) {
+      this.logger.error({
+        event: "FETCH_TRIAL_DEPLOYMENT_FAILED",
+        job: CloseTrialDeployment[JOB_NAME],
+        walletId: payload.walletId,
+        dseq: payload.dseq,
+        userId: wallet.userId,
+        error
+      });
+      return;
+    }
 
-      if (deployment.deployment.state === "closed") {
-        this.logger.debug({
-          event: "SKIP_CLOSE_TRIAL_DEPLOYMENT_JOB",
-          reason: "Deployment is already closed",
-          job: CloseTrialDeployment[JOB_NAME],
-          walletId: payload.walletId,
-          dseq: payload.dseq,
-          userId: wallet.userId
-        });
-        return;
-      }
+    if (deployment.deployment.state === "closed") {
+      this.logger.debug({
+        event: "SKIP_CLOSE_TRIAL_DEPLOYMENT_JOB",
+        reason: "Deployment is already closed",
+        job: CloseTrialDeployment[JOB_NAME],
+        walletId: payload.walletId,
+        dseq: payload.dseq,
+        userId: wallet.userId
+      });
+      return;
+    }
 
+    try {
       await this.deploymentWriterService.close(walletWithAddress, payload.dseq);
     } catch (error) {
       this.logger.error({
