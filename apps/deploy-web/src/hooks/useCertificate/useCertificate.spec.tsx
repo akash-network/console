@@ -43,7 +43,7 @@ describe(useCertificate.name, () => {
     expect(typeof result.current.setLocalCerts).toBe("function");
   });
 
-  it("loads valid certificates when address changes", async () => {
+  it("fetches valid certificates via useQuery when enabled", async () => {
     const mockCerts = [buildRawCertificate()];
     const certificatesService = {
       getAllCertificates: vi.fn().mockResolvedValue(mockCerts)
@@ -61,15 +61,13 @@ describe(useCertificate.name, () => {
     });
 
     await vi.waitFor(() => {
-      expect(certificatesService.getAllCertificates).toHaveBeenCalledWith({ address: "akash1abc", state: "valid" });
-    });
-
-    await vi.waitFor(() => {
       expect(result.current.validCertificates.length).toBe(1);
     });
+
+    expect(certificatesService.getAllCertificates).toHaveBeenCalledWith({ address: "akash1abc", state: "valid" });
   });
 
-  it("does not load certificates when settings not initialized", () => {
+  it("does not fetch certificates when query is disabled (settings not init)", () => {
     const certificatesService = {
       getAllCertificates: vi.fn().mockResolvedValue([])
     };
@@ -83,7 +81,7 @@ describe(useCertificate.name, () => {
     expect(certificatesService.getAllCertificates).not.toHaveBeenCalled();
   });
 
-  it("does not load certificates when fallback is enabled", () => {
+  it("does not fetch certificates when query is disabled (fallback enabled)", () => {
     const certificatesService = {
       getAllCertificates: vi.fn().mockResolvedValue([])
     };
@@ -98,7 +96,21 @@ describe(useCertificate.name, () => {
     expect(certificatesService.getAllCertificates).not.toHaveBeenCalled();
   });
 
-  it("shows snackbar on loadValidCertificates with showSnackbar=true", async () => {
+  it("does not fetch certificates when query is disabled (no address)", () => {
+    const certificatesService = {
+      getAllCertificates: vi.fn().mockResolvedValue([])
+    };
+
+    setup({
+      address: "",
+      isSettingsInit: true,
+      certificatesService
+    });
+
+    expect(certificatesService.getAllCertificates).not.toHaveBeenCalled();
+  });
+
+  it("loadValidCertificates invalidates cache, refetches, and shows success snackbar", async () => {
     const enqueueSnackbar = vi.fn();
     const certificatesService = {
       getAllCertificates: vi.fn().mockResolvedValue([])
@@ -111,6 +123,10 @@ describe(useCertificate.name, () => {
       enqueueSnackbar
     });
 
+    await vi.waitFor(() => {
+      expect(result.current.isLoadingCertificates).toBe(false);
+    });
+
     await act(async () => {
       await result.current.loadValidCertificates(true);
     });
@@ -118,7 +134,7 @@ describe(useCertificate.name, () => {
     expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ variant: "success" }));
   });
 
-  it("reports error and shows snackbar on loadValidCertificates failure", async () => {
+  it("loadValidCertificates reports error and shows error snackbar on failure", async () => {
     const enqueueSnackbar = vi.fn();
     const errorHandler = { reportError: vi.fn() };
     const certificatesService = {
@@ -143,6 +159,33 @@ describe(useCertificate.name, () => {
       })
     );
     expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ variant: "error" }));
+  });
+
+  it("uses cached data and does not refetch on subsequent renders", async () => {
+    const certificatesService = {
+      getAllCertificates: vi.fn().mockResolvedValue([buildRawCertificate()])
+    };
+    const certificateManager = {
+      parsePem: vi.fn().mockResolvedValue(buildParsedPem()),
+      generatePEM: vi.fn()
+    };
+
+    const { result, rerender } = setup({
+      address: "akash1abc",
+      isSettingsInit: true,
+      certificatesService,
+      certificateManager
+    });
+
+    await vi.waitFor(() => {
+      expect(result.current.validCertificates.length).toBe(1);
+    });
+
+    const callCountAfterInit = certificatesService.getAllCertificates.mock.calls.length;
+
+    rerender();
+
+    expect(certificatesService.getAllCertificates.mock.calls.length).toBe(callCountAfterInit);
   });
 
   it("genNewCertificateIfLocalIsInvalid generates PEM when no parsed cert", async () => {

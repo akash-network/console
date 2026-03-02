@@ -2,9 +2,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CertificateInfo, CertificatePem } from "@akashnetwork/chain-sdk/web";
 import { Snackbar } from "@akashnetwork/ui/components";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtom, useAtomValue } from "jotai";
 import { useSnackbar } from "notistack";
 
+import { QueryKeys } from "@src/queries/queryKeys";
 import certificateStore from "@src/store/certificateStore";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { getStorageWallets, updateWallet } from "@src/utils/walletUtils";
@@ -77,6 +79,8 @@ export function useCertificate(input?: { dependencies?: typeof DEPENDENCIES }): 
   const { enqueueSnackbar } = d.useSnackbar();
   const { address, signAndBroadcastTx } = d.useWallet();
   const { isSettingsInit } = d.useSettings();
+  const queryClient = useQueryClient();
+
   const [selectedCertificate, setSelectedCertificate] = useAtom(certificateStore.selectedCertificate);
   const [localCert, setLocalCert] = useAtom(certificateStore.localCert);
   const [localCerts, setLocalCerts] = useAtom(certificateStore.localCerts);
@@ -84,21 +88,48 @@ export function useCertificate(input?: { dependencies?: typeof DEPENDENCIES }): 
   const effectiveLocalCert = useAtomValue(certificateStore.effectiveLocalCert);
   const isLocalCertExpired = useAtomValue(certificateStore.isLocalCertExpired);
 
-  const [isLoadingCertificates, setIsLoadingCertificates] = useState(false);
-  const [validCertificates, setValidCertificates] = useState<ChainCertificate[]>([]);
   const [isCreatingCert, setIsCreatingCert] = useState(false);
   const [isLocalCertMatching, setIsLocalCertMatching] = useState(false);
 
-  const loadValidCertificates = useCallback(
-    async (showSnackbar?: boolean): Promise<ChainCertificate[]> => {
-      setIsLoadingCertificates(true);
+  const queryKey = QueryKeys.getValidCertificatesKey(address);
+  const queryEnabled = !!address && isSettingsInit && !chainApiHttpClient.isFallbackEnabled;
 
-      try {
+  const {
+    data: validCertificates = [],
+    isLoading: isLoadingCertificates
+  } = useQuery({
+    queryKey,
+    queryFn: async () => {
+      const certificates = await certificatesService
+        .getAllCertificates({ address, state: "valid" })
+        .catch(error => (chainApiHttpClient.isFallbackEnabled ? [] : Promise.reject(error)));
+
+      return Promise.all(
+        (certificates || []).map(async cert => {
+          const parsed = atob(cert.certificate.cert);
+          const pem = await certificateManager.parsePem(parsed);
+          return {
+            ...cert,
+            parsed,
+            pem
+          } as ChainCertificate;
+        })
+      );
+    },
+    enabled: queryEnabled,
+    staleTime: Infinity
+  });
+
+  const invalidateAndRefetch = useCallback(async (): Promise<ChainCertificate[]> => {
+    await queryClient.invalidateQueries({ queryKey });
+    const result = await queryClient.fetchQuery<ChainCertificate[]>({
+      queryKey,
+      queryFn: async () => {
         const certificates = await certificatesService
           .getAllCertificates({ address, state: "valid" })
           .catch(error => (chainApiHttpClient.isFallbackEnabled ? [] : Promise.reject(error)));
 
-        const certs = await Promise.all(
+        return Promise.all(
           (certificates || []).map(async cert => {
             const parsed = atob(cert.certificate.cert);
             const pem = await certificateManager.parsePem(parsed);
@@ -106,12 +137,18 @@ export function useCertificate(input?: { dependencies?: typeof DEPENDENCIES }): 
               ...cert,
               parsed,
               pem
-            };
+            } as ChainCertificate;
           })
         );
+      }
+    });
+    return result;
+  }, [queryClient, queryKey, certificatesService, address, chainApiHttpClient, certificateManager]);
 
-        setValidCertificates(certs);
-        setIsLoadingCertificates(false);
+  const loadValidCertificates = useCallback(
+    async (showSnackbar?: boolean): Promise<ChainCertificate[]> => {
+      try {
+        const certs = await invalidateAndRefetch();
 
         if (showSnackbar) {
           enqueueSnackbar(<Snackbar title="Certificate refreshed!" iconVariant="success" />, { variant: "success" });
@@ -127,7 +164,6 @@ export function useCertificate(input?: { dependencies?: typeof DEPENDENCIES }): 
           }
         });
 
-        setIsLoadingCertificates(false);
         if (showSnackbar) {
           enqueueSnackbar(<Snackbar title="Error fetching certificate." iconVariant="error" />, { variant: "error" });
         }
@@ -135,22 +171,17 @@ export function useCertificate(input?: { dependencies?: typeof DEPENDENCIES }): 
         return [];
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [address, certificatesService, localCert, selectedCertificate]
+    [invalidateAndRefetch, enqueueSnackbar, errorHandler]
   );
 
   /**
-   * When changing wallet, reset certs and load for new wallet
+   * When changing wallet, reset atoms and load local cert
    */
   useEffect(() => {
-    if (!isSettingsInit || chainApiHttpClient.isFallbackEnabled) return;
-
-    setValidCertificates([]);
     setSelectedCertificate(null);
     setLocalCert(null);
 
-    if (address) {
-      loadValidCertificates();
+    if (address && isSettingsInit && !chainApiHttpClient.isFallbackEnabled) {
       loadLocalCert();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -217,7 +248,7 @@ export function useCertificate(input?: { dependencies?: typeof DEPENDENCIES }): 
             certKey: encryptedKey
           };
         });
-        const validCerts = await loadValidCertificates();
+        const validCerts = await invalidateAndRefetch();
         loadLocalCert();
         const currentCert = validCerts.find(({ parsed }) => parsed === crtpem) || null;
         setSelectedCertificate(currentCert);
@@ -252,7 +283,7 @@ export function useCertificate(input?: { dependencies?: typeof DEPENDENCIES }): 
             certKey: encryptedKey
           };
         });
-        const validCerts = await loadValidCertificates();
+        const validCerts = await invalidateAndRefetch();
         loadLocalCert();
         const currentCert = validCerts.find(x => x.parsed === crtpem);
         setSelectedCertificate(currentCert as ChainCertificate);
@@ -274,7 +305,7 @@ export function useCertificate(input?: { dependencies?: typeof DEPENDENCIES }): 
     const message = TransactionMessageData.getRevokeCertificateMsg(address, certificate.serial);
     const response = await signAndBroadcastTx([message]);
     if (response) {
-      const validCerts = await loadValidCertificates();
+      const validCerts = await invalidateAndRefetch();
       const isRevokingOtherCert = validCerts.some(c => c.parsed === localCert?.certPem);
       updateWallet(address, wallet => {
         return {
@@ -300,7 +331,7 @@ export function useCertificate(input?: { dependencies?: typeof DEPENDENCIES }): 
     const messages = validCertificates.map(cert => TransactionMessageData.getRevokeCertificateMsg(address, cert.serial));
     const response = await signAndBroadcastTx(messages);
     if (response) {
-      await loadValidCertificates();
+      await invalidateAndRefetch();
 
       updateWallet(address, wallet => {
         return {
@@ -322,12 +353,12 @@ export function useCertificate(input?: { dependencies?: typeof DEPENDENCIES }): 
   const genNewCertificateIfLocalIsInvalid = useCallback(async () => {
     if (!parsedLocalCert || isExpired(parsedLocalCert)) return await certificateManager.generatePEM(address);
 
-    const validCerts = await loadValidCertificates();
+    const validCerts = await invalidateAndRefetch();
     const currentCert = localCert ? validCerts.find(({ parsed }) => parsed === localCert.certPem) : null;
     const isLocalCertValid = currentCert?.certificate?.state === "valid" && isLocalCertMatching;
 
     return isLocalCertValid ? null : await certificateManager.generatePEM(address);
-  }, [localCert, loadValidCertificates, isLocalCertMatching, address, parsedLocalCert, certificateManager]);
+  }, [localCert, invalidateAndRefetch, isLocalCertMatching, address, parsedLocalCert, certificateManager]);
 
   const updateSelectedCertificate = useCallback(
     async (cert: CertificatePem) => {
@@ -338,7 +369,7 @@ export function useCertificate(input?: { dependencies?: typeof DEPENDENCIES }): 
           certKey: cert.privateKey
         };
       });
-      const validCerts = await loadValidCertificates();
+      const validCerts = await invalidateAndRefetch();
       loadLocalCert();
       const currentCert = validCerts.find(x => x.parsed === cert.cert);
       setSelectedCertificate(currentCert || null);
@@ -348,7 +379,14 @@ export function useCertificate(input?: { dependencies?: typeof DEPENDENCIES }): 
         address
       };
     },
-    [address, loadValidCertificates, loadLocalCert, setSelectedCertificate]
+    [address, invalidateAndRefetch, loadLocalCert, setSelectedCertificate]
+  );
+
+  const setValidCertificates = useCallback(
+    (certs: ChainCertificate[] | ((prev: ChainCertificate[]) => ChainCertificate[])) => {
+      queryClient.setQueryData(queryKey, typeof certs === "function" ? certs(validCertificates) : certs);
+    },
+    [queryClient, queryKey, validCertificates]
   );
 
   return useMemo(
@@ -388,6 +426,7 @@ export function useCertificate(input?: { dependencies?: typeof DEPENDENCIES }): 
       updateSelectedCertificate,
       isLocalCertMatching,
       validCertificates,
+      setValidCertificates,
       localCerts,
       isCreatingCert
     ]
