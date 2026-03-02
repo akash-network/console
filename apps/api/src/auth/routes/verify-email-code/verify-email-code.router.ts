@@ -19,12 +19,6 @@ const VerifyEmailCodeRequestSchema = z.object({
 
 export type VerifyEmailCodeRequest = z.infer<typeof VerifyEmailCodeRequestSchema>;
 
-const VerifyEmailCodeResponseSchema = z.object({
-  data: z.object({
-    emailVerified: z.literal(true)
-  })
-});
-
 const route = createRoute({
   method: "post",
   path: "/v1/verify-email-code",
@@ -42,13 +36,8 @@ const route = createRoute({
     }
   },
   responses: {
-    200: {
-      description: "Returns the email verification status",
-      content: {
-        "application/json": {
-          schema: VerifyEmailCodeResponseSchema
-        }
-      }
+    204: {
+      description: "Email verified successfully"
     },
     400: { description: "Invalid or expired code" },
     429: { description: "Too many attempts" }
@@ -56,6 +45,6 @@ const route = createRoute({
 });
 
 verifyEmailCodeRouter.openapi(route, async function verifyEmailCode(c) {
-  const result = await container.resolve(AuthController).verifyEmailCode(c.req.valid("json"));
-  return c.json(result, 200);
+  await container.resolve(AuthController).verifyEmailCode(c.req.valid("json"));
+  return c.body(null, 204);
 });

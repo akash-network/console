@@ -12,7 +12,8 @@ import { UserRepository } from "@src/user/repositories/user/user.repository";
 
 const CODE_EXPIRY_MS = 10 * 60 * 1000;
 const MAX_ATTEMPTS = 5;
-const RESEND_COOLDOWN_MS = 60 * 1000;
+const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
+const MAX_CODES_PER_WINDOW = 5;
 
 function hashCode(code: string): string {
   return createHash("sha256").update(code).digest("hex");
@@ -28,25 +29,14 @@ export class EmailVerificationCodeService {
     private readonly logger: LoggerService
   ) {}
 
-  @WithTransaction()
-  async sendCode(userInternalId: string, { resend }: { resend?: boolean } = {}): Promise<{ codeSentAt: string }> {
+  async sendCode(userInternalId: string): Promise<{ codeSentAt: string }> {
     const user = await this.userRepository.findById(userInternalId);
     assert(user, 404, "User not found");
     assert(user.email, 400, "User has no email address");
 
-    await this.emailVerificationCodeRepository.acquireUserLock(userInternalId);
-
-    const existing = await this.emailVerificationCodeRepository.findActiveByUserId(userInternalId);
-
-    if (existing) {
-      const cooldownEnd = new Date(existing.createdAt).getTime() + RESEND_COOLDOWN_MS;
-
-      if (!resend || Date.now() < cooldownEnd) {
-        return { codeSentAt: existing.createdAt };
-      }
-    }
-
-    await this.emailVerificationCodeRepository.deleteByUserId(userInternalId);
+    const since = new Date(Date.now() - RATE_LIMIT_WINDOW_MS);
+    const recentCount = await this.emailVerificationCodeRepository.countRecentByUserId(userInternalId, since);
+    assert(recentCount < MAX_CODES_PER_WINDOW, 429, "Too many verification code requests. Please try again later.");
 
     const code = randomInt(100000, 1000000).toString();
     const expiresAt = new Date(Date.now() + CODE_EXPIRY_MS);
@@ -66,14 +56,12 @@ export class EmailVerificationCodeService {
   }
 
   @WithTransaction()
-  async verifyCode(userInternalId: string, code: string): Promise<{ emailVerified: boolean }> {
+  async verifyCode(userInternalId: string, code: string): Promise<void> {
     const user = await this.userRepository.findById(userInternalId);
     assert(user, 404, "User not found");
     assert(user.userId, 400, "User has no Auth0 ID");
 
-    await this.emailVerificationCodeRepository.acquireUserLock(userInternalId);
-
-    const record = await this.emailVerificationCodeRepository.findActiveByUserId(userInternalId);
+    const record = await this.emailVerificationCodeRepository.findActiveByUserIdForUpdate(userInternalId);
     assert(record, 400, "No active verification code. Please request a new one.");
     assert(record.attempts < MAX_ATTEMPTS, 429, "Too many attempts. Please request a new code.");
 
@@ -83,15 +71,12 @@ export class EmailVerificationCodeService {
 
     if (!isCodeValid) {
       await this.emailVerificationCodeRepository.incrementAttempts(record.id);
-      return { emailVerified: false };
+      assert(false, 400, "Invalid verification code");
     }
 
     await this.auth0Service.markEmailVerified(user.userId);
     await this.userRepository.updateById(userInternalId, { emailVerified: true });
-    await this.emailVerificationCodeRepository.deleteByUserId(userInternalId);
 
     this.logger.info({ event: "EMAIL_VERIFIED_VIA_CODE", userId: userInternalId });
-
-    return { emailVerified: true };
   }
 }

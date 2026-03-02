@@ -48,10 +48,10 @@ export class AuthController {
   }
 
   @Protected()
-  async sendVerificationCode({ resend }: { resend?: boolean } = {}) {
+  async sendVerificationCode() {
     const { currentUser } = this.authService;
 
-    const result = await this.emailVerificationCodeService.sendCode(currentUser!.id, { resend });
+    const result = await this.emailVerificationCodeService.sendCode(currentUser!.id);
 
     return { data: result };
   }
@@ -60,11 +60,7 @@ export class AuthController {
   async verifyEmailCode({ data: { code } }: VerifyEmailCodeRequest) {
     const { currentUser } = this.authService;
 
-    const result = await this.emailVerificationCodeService.verifyCode(currentUser!.id, code);
-
-    assert(result.emailVerified, 400, "Invalid verification code");
-
-    return { data: result };
+    await this.emailVerificationCodeService.verifyCode(currentUser!.id, code);
   }
 
   async syncEmailVerified({ data: { email } }: VerifyEmailRequest) {

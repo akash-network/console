@@ -4,27 +4,90 @@ import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Inpu
 import { Mail, Refresh } from "iconoir-react";
 
 import { Title } from "@src/components/shared/Title";
+import { useNotificator } from "@src/hooks/useNotificator";
+import type { AppError } from "@src/types";
+import { extractErrorMessage } from "@src/utils/errorUtils";
+
+const COOLDOWN_DURATION = 60;
+
+export const DEPENDENCIES = {
+  useNotificator,
+  extractErrorMessage
+};
 
 interface EmailVerificationStepProps {
-  isResending: boolean;
-  isVerifying: boolean;
-  cooldownSeconds: number;
-  resetKey: number;
-  onResendCode: () => void;
-  onVerifyCode: (code: string) => void;
+  sendCode: () => Promise<void>;
+  verifyCode: (code: string) => Promise<void>;
+  dependencies?: typeof DEPENDENCIES;
 }
 
-export const EmailVerificationStep: React.FunctionComponent<EmailVerificationStepProps> = ({
-  isResending,
-  isVerifying,
-  cooldownSeconds,
-  resetKey,
-  onResendCode,
-  onVerifyCode
-}) => {
+export const EmailVerificationStep: React.FunctionComponent<EmailVerificationStepProps> = ({ sendCode, verifyCode, dependencies: d = DEPENDENCIES }) => {
+  const notificator = d.useNotificator();
+
+  const [isResending, setIsResending] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
+  const cooldownRef = useRef(0);
+  const isSendingRef = useRef(false);
+
   const [digits, setDigits] = useState<string[]>(["", "", "", "", "", ""]);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const submittedCodeRef = useRef<string | null>(null);
+
+  const resetDigits = useCallback(() => {
+    setDigits(["", "", "", "", "", ""]);
+    submittedCodeRef.current = null;
+    inputRefs.current[0]?.focus();
+  }, []);
+
+  useEffect(() => {
+    if (cooldownSeconds <= 0) return;
+
+    const timer = setTimeout(() => {
+      const next = cooldownSeconds - 1;
+      cooldownRef.current = next;
+      setCooldownSeconds(next);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [cooldownSeconds]);
+
+  const handleResendCode = useCallback(async () => {
+    if (isSendingRef.current || cooldownRef.current > 0) return;
+
+    isSendingRef.current = true;
+    setIsResending(true);
+    resetDigits();
+
+    try {
+      await sendCode();
+      cooldownRef.current = COOLDOWN_DURATION;
+      setCooldownSeconds(COOLDOWN_DURATION);
+      notificator.success("Verification code sent. Please check your email for the 6-digit code.");
+    } catch {
+      notificator.error("Failed to send verification code. Please try again later");
+    } finally {
+      isSendingRef.current = false;
+      setIsResending(false);
+    }
+  }, [sendCode, notificator, resetDigits]);
+
+  const handleVerifyCode = useCallback(
+    async (code: string) => {
+      setIsVerifying(true);
+
+      try {
+        await verifyCode(code);
+        notificator.success("Your email has been successfully verified");
+      } catch (error) {
+        notificator.error(d.extractErrorMessage(error as AppError));
+        resetDigits();
+      } finally {
+        setIsVerifying(false);
+      }
+    },
+    [verifyCode, notificator, d, resetDigits]
+  );
 
   const handleDigitChange = useCallback(
     (index: number, value: string) => {
@@ -63,12 +126,12 @@ export const EmailVerificationStep: React.FunctionComponent<EmailVerificationSte
     if (code.length === 6) {
       if (submittedCodeRef.current !== code) {
         submittedCodeRef.current = code;
-        onVerifyCode(code);
+        handleVerifyCode(code);
       }
     } else {
       submittedCodeRef.current = null;
     }
-  }, [digits, onVerifyCode]);
+  }, [digits, handleVerifyCode]);
 
   const handleKeyDown = useCallback((index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
     const currentDigits = inputRefs.current[index]?.value ?? "";
@@ -97,14 +160,6 @@ export const EmailVerificationStep: React.FunctionComponent<EmailVerificationSte
     },
     [isVerifying]
   );
-
-  useEffect(() => {
-    if (resetKey > 0) {
-      setDigits(["", "", "", "", "", ""]);
-      submittedCodeRef.current = null;
-      inputRefs.current[0]?.focus();
-    }
-  }, [resetKey]);
 
   return (
     <div className="mx-auto max-w-md space-y-6 text-center">
@@ -144,7 +199,7 @@ export const EmailVerificationStep: React.FunctionComponent<EmailVerificationSte
 
           <p className="text-sm text-muted-foreground">Didn't receive the code? Check your spam folder or request a new one.</p>
 
-          <Button onClick={onResendCode} variant="outline" disabled={isResending || isVerifying || cooldownSeconds > 0} className="w-full">
+          <Button onClick={handleResendCode} variant="outline" disabled={isResending || isVerifying || cooldownSeconds > 0} className="w-full">
             {isVerifying ? (
               <>
                 <Spinner size="small" className="mr-2" />

@@ -1,4 +1,4 @@
-import { and, eq, gt, sql } from "drizzle-orm";
+import { and, count, desc, eq, gt, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -33,13 +33,31 @@ export class EmailVerificationCodeRepository extends BaseRepository<Table, Email
       .select()
       .from(this.table)
       .where(and(eq(this.table.userId, userId), gt(this.table.expiresAt, sql`now()`)))
+      .orderBy(desc(this.table.createdAt))
       .limit(1);
 
     return result ? this.toOutput(result) : undefined;
   }
 
-  async acquireUserLock(userId: string): Promise<void> {
-    await this.cursor.execute(sql`SELECT pg_advisory_xact_lock(hashtext('email_verification_code'), hashtext(${userId}))`);
+  async findActiveByUserIdForUpdate(userId: string): Promise<EmailVerificationCodeOutput | undefined> {
+    const items = await this.cursor
+      .select()
+      .from(this.table)
+      .where(and(eq(this.table.userId, userId), gt(this.table.expiresAt, sql`now()`)))
+      .orderBy(desc(this.table.createdAt))
+      .limit(1)
+      .for("update");
+
+    return items.length > 0 ? this.toOutput(items[0]) : undefined;
+  }
+
+  async countRecentByUserId(userId: string, since: Date): Promise<number> {
+    const [result] = await this.cursor
+      .select({ count: count() })
+      .from(this.table)
+      .where(and(eq(this.table.userId, userId), gt(this.table.createdAt, since)));
+
+    return result?.count ?? 0;
   }
 
   async incrementAttempts(id: string): Promise<void> {
@@ -47,10 +65,6 @@ export class EmailVerificationCodeRepository extends BaseRepository<Table, Email
       .update(this.table)
       .set({ attempts: sql`${this.table.attempts} + 1` })
       .where(eq(this.table.id, id));
-  }
-
-  async deleteByUserId(userId: string): Promise<void> {
-    await this.cursor.delete(this.table).where(eq(this.table.userId, userId));
   }
 
   protected toOutput(payload: EmailVerificationCodeDbOutput): EmailVerificationCodeOutput {
