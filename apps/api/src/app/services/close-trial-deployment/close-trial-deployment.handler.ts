@@ -3,6 +3,7 @@ import { singleton } from "tsyringe";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { Job, JOB_NAME, JobHandler, JobPayload, JobQueueService, LoggerService } from "@src/core";
+import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
 import { NotificationJob } from "@src/notifications/services/notification-handler/notification.handler";
 
@@ -30,6 +31,7 @@ export class CloseTrialDeploymentHandler implements JobHandler<CloseTrialDeploym
     private readonly logger: LoggerService,
     private readonly jobQueueService: JobQueueService,
     private readonly deploymentWriterService: DeploymentWriterService,
+    private readonly deploymentReaderService: DeploymentReaderService,
     private readonly billingConfig: BillingConfigService
   ) {}
 
@@ -72,7 +74,35 @@ export class CloseTrialDeploymentHandler implements JobHandler<CloseTrialDeploym
       return;
     }
 
-    await this.deploymentWriterService.close({ ...wallet, address }, payload.dseq);
+    const walletWithAddress = { ...wallet, address };
+
+    try {
+      const deployment = await this.deploymentReaderService.findByWalletAndDseq(walletWithAddress, payload.dseq);
+
+      if (deployment.deployment.state === "closed") {
+        this.logger.debug({
+          event: "SKIP_CLOSE_TRIAL_DEPLOYMENT_JOB",
+          reason: "Deployment is already closed",
+          job: CloseTrialDeployment[JOB_NAME],
+          walletId: payload.walletId,
+          dseq: payload.dseq,
+          userId: wallet.userId
+        });
+        return;
+      }
+
+      await this.deploymentWriterService.close(walletWithAddress, payload.dseq);
+    } catch (error) {
+      this.logger.error({
+        event: "CLOSE_TRIAL_DEPLOYMENT_FAILED",
+        job: CloseTrialDeployment[JOB_NAME],
+        walletId: payload.walletId,
+        dseq: payload.dseq,
+        userId: wallet.userId,
+        error
+      });
+      return;
+    }
 
     await this.jobQueueService.enqueue(
       new NotificationJob({
