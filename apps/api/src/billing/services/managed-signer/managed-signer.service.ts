@@ -70,15 +70,7 @@ export class ManagedSignerService {
 
   async executeDerivedEncodedTxByUserId(userId: UserWalletOutput["userId"], messages: StringifiedEncodeObject[]) {
     const decoded = this.decodeMessages(messages);
-    const result = await this.executeDerivedDecodedTxByUserId(userId, decoded);
-
-    const hasSpendingTx = decoded.some(message => SPENDING_TXS.some(msg => message.typeUrl.endsWith(msg.$type)));
-
-    if (hasSpendingTx) {
-      await this.walletReloadJobService.scheduleImmediate(userId);
-    }
-
-    return result;
+    return await this.executeDerivedDecodedTxByUserId(userId, decoded);
   }
 
   @Trace()
@@ -132,7 +124,7 @@ export class ManagedSignerService {
     if (createLeaseMessage) {
       await this.domainEvents.publish(
         new EnableDeploymentAlertCommand({
-          userId: userWallet.userId!,
+          userId: userWallet.userId,
           walletAddress: userWallet.address!,
           dseq: createLeaseMessage.value.bidId!.dseq.toString()
         })
@@ -140,6 +132,7 @@ export class ManagedSignerService {
     }
 
     await this.balancesService.refreshUserWalletLimits(userWallet);
+    await this.#ensureAutoReloadSchedule(userWallet.userId, messages);
 
     const result = pick(tx, ["code", "hash", "transactionHash", "rawLog"]) as Pick<IndexedTx, "code" | "hash" | "rawLog">;
 
@@ -151,6 +144,14 @@ export class ManagedSignerService {
     }
 
     return result as Pick<IndexedTx, "code" | "hash" | "rawLog"> & { transactionHash: string };
+  }
+
+  async #ensureAutoReloadSchedule(userId: UserWalletOutput["userId"], messages: EncodeObject[]) {
+    const hasSpendingTx = messages.some(message => SPENDING_TXS.some(msg => message.typeUrl.endsWith(msg.$type)));
+
+    if (hasSpendingTx) {
+      await this.walletReloadJobService.scheduleImmediate(userId);
+    }
   }
 
   /**
