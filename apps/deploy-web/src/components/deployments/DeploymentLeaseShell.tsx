@@ -48,8 +48,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
     isFetching: isLoadingStatus
   } = useLeaseStatus({
     provider: providerInfo,
-    lease: selectedLease,
-    enabled: false
+    lease: selectedLease
   });
   const terminalRef = useRef<XTermRefType>(null);
   const isConnectionEstablishedRef = useRef(false);

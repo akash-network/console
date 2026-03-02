@@ -1,12 +1,13 @@
 import type { CertificateInfo } from "@akashnetwork/chain-sdk/web";
 import { atom } from "jotai";
 
-import type { ChainCertificate, LocalCert } from "@src/hooks/useCertificate/useCertificate/useCertificate";
+import type { ChainCertificate, LocalCert } from "@src/hooks/useCertificate/useCertificate";
 
 const selectedCertificate = atom<ChainCertificate | null>(null);
 const localCert = atom<LocalCert | null>(null);
 const localCerts = atom<LocalCert[] | null>(null);
 const parsedLocalCert = atom<CertificateInfo | null>(null);
+const isLocalCertMatching = atom(false);
 
 const effectiveLocalCert = atom<LocalCert | null>(get => {
   const parsed = get(parsedLocalCert);
@@ -19,7 +20,8 @@ const isLocalCertExpired = atom<boolean>(get => {
   return !!parsed && parsed.expiresOn.getTime() <= Date.now();
 });
 
-const certificateStore = {
+export const certificateStore = {
+  isLocalCertMatching,
   selectedCertificate,
   localCert,
   localCerts,
@@ -27,5 +29,3 @@ const certificateStore = {
   effectiveLocalCert,
   isLocalCertExpired
 };
-
-export default certificateStore;

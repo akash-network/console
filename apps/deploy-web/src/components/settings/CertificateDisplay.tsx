@@ -1,22 +1,23 @@
 "use client";
 import { useState } from "react";
 import { MdAutorenew, MdGetApp } from "react-icons/md";
-import { Button, CustomTooltip, DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, Spinner } from "@akashnetwork/ui/components";
+import { Button, CustomTooltip, DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, Snackbar, Spinner } from "@akashnetwork/ui/components";
 import { BinMinusIn, Check, MoreHoriz, PlusCircle, Refresh, WarningTriangle } from "iconoir-react";
+import { enqueueSnackbar } from "notistack";
 
 import { FormPaper } from "@src/components/sdl/FormPaper";
 import { CustomDropdownLinkItem } from "@src/components/shared/CustomDropdownLinkItem";
 import { useWallet } from "@src/context/WalletProvider";
-import { useCertificate } from "../../context/useCertificate";
+import { useCertificate } from "@src/hooks/useCertificate/useCertificate";
 import { ExportCertificate } from "./ExportCertificate";
 
 export function CertificateDisplay() {
   const [isExportingCert, setIsExportingCert] = useState(false);
   const {
+    refetchCertificates,
     selectedCertificate,
     isLocalCertMatching,
     isLoadingCertificates,
-    loadValidCertificates,
     localCert,
     createCertificate,
     isCreatingCert,
@@ -67,7 +68,11 @@ export function CertificateDisplay() {
           )}
 
           <Button
-            onClick={() => loadValidCertificates(true)}
+            onClick={() => {
+              refetchCertificates().then(() => {
+                enqueueSnackbar(<Snackbar title="Certificate refreshed!" iconVariant="success" />, { variant: "success" });
+              });
+            }}
             aria-label="refresh"
             disabled={isLoadingCertificates}
             size="icon"

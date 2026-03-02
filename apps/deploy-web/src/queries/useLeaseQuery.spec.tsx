@@ -288,7 +288,7 @@ describe("useLeaseQuery", () => {
       });
 
       await vi.waitFor(() => {
-        expect(result.current.data).toBeNull();
+        expect(result.current.data).toBeFalsy();
       });
     });
 

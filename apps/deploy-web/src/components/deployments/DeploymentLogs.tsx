@@ -56,8 +56,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
     isFetching: isLoadingStatus
   } = useLeaseStatus({
     provider: providerInfo,
-    lease: selectedLease,
-    enabled: false
+    lease: selectedLease
   });
   const services = useMemo(() => (leaseStatus ? Object.keys(leaseStatus.services) : []), [leaseStatus]);
   const muiTheme = useMuiTheme();
@@ -144,6 +143,8 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
 
     return () => {
       abortController.abort();
+      setIsLoadingLogs(false);
+      setIsConnectionEstablished(false);
     };
   }, [providerCredentials.details, selectedLogsMode, selectedLease, selectedServices, services?.length, providerInfo?.owner, providerInfo?.hostUri]);
 

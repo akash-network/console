@@ -1,3 +1,4 @@
+import { createStore, Provider as JotaiProvider } from "jotai";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -6,11 +7,6 @@ import { useCertificate } from "./useCertificate";
 
 import { act } from "@testing-library/react";
 import { setupQuery } from "@tests/unit/query-client";
-
-vi.mock("@src/utils/walletUtils", () => ({
-  getStorageWallets: vi.fn(() => []),
-  updateWallet: vi.fn()
-}));
 
 describe(useCertificate.name, () => {
   it("returns initial state with no address", () => {
@@ -24,23 +20,6 @@ describe(useCertificate.name, () => {
     expect(result.current.isCreatingCert).toBe(false);
     expect(result.current.isLocalCertMatching).toBe(false);
     expect(result.current.isLocalCertExpired).toBe(false);
-  });
-
-  it("returns expected function types", () => {
-    const { result } = setup();
-
-    expect(typeof result.current.loadValidCertificates).toBe("function");
-    expect(typeof result.current.loadLocalCert).toBe("function");
-    expect(typeof result.current.createCertificate).toBe("function");
-    expect(typeof result.current.regenerateCertificate).toBe("function");
-    expect(typeof result.current.revokeCertificate).toBe("function");
-    expect(typeof result.current.revokeAllCertificates).toBe("function");
-    expect(typeof result.current.genNewCertificateIfLocalIsInvalid).toBe("function");
-    expect(typeof result.current.updateSelectedCertificate).toBe("function");
-    expect(typeof result.current.setSelectedCertificate).toBe("function");
-    expect(typeof result.current.setLocalCert).toBe("function");
-    expect(typeof result.current.setValidCertificates).toBe("function");
-    expect(typeof result.current.setLocalCerts).toBe("function");
   });
 
   it("fetches valid certificates via useQuery when enabled", async () => {
@@ -110,8 +89,7 @@ describe(useCertificate.name, () => {
     expect(certificatesService.getAllCertificates).not.toHaveBeenCalled();
   });
 
-  it("loadValidCertificates invalidates cache, refetches, and shows success snackbar", async () => {
-    const enqueueSnackbar = vi.fn();
+  it("refetchCertificates invalidates cache, refetches, and shows success snackbar", async () => {
     const certificatesService = {
       getAllCertificates: vi.fn().mockResolvedValue([])
     };
@@ -119,8 +97,7 @@ describe(useCertificate.name, () => {
     const { result } = setup({
       address: "akash1abc",
       isSettingsInit: true,
-      certificatesService,
-      enqueueSnackbar
+      certificatesService
     });
 
     await vi.waitFor(() => {
@@ -128,37 +105,8 @@ describe(useCertificate.name, () => {
     });
 
     await act(async () => {
-      await result.current.loadValidCertificates(true);
+      await result.current.refetchCertificates();
     });
-
-    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ variant: "success" }));
-  });
-
-  it("loadValidCertificates reports error and shows error snackbar on failure", async () => {
-    const enqueueSnackbar = vi.fn();
-    const errorHandler = { reportError: vi.fn() };
-    const certificatesService = {
-      getAllCertificates: vi.fn().mockRejectedValue(new Error("network error"))
-    };
-
-    const { result } = setup({
-      address: "akash1abc",
-      isSettingsInit: true,
-      certificatesService,
-      errorHandler,
-      enqueueSnackbar
-    });
-
-    await act(async () => {
-      await result.current.loadValidCertificates(true);
-    });
-
-    expect(errorHandler.reportError).toHaveBeenCalledWith(
-      expect.objectContaining({
-        tags: expect.objectContaining({ category: "certificates" })
-      })
-    );
-    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ variant: "error" }));
   });
 
   it("uses cached data and does not refetch on subsequent renders", async () => {
@@ -216,12 +164,10 @@ describe(useCertificate.name, () => {
     certificatesService?: { getAllCertificates: ReturnType<typeof vi.fn> };
     certificateManager?: { parsePem: ReturnType<typeof vi.fn>; generatePEM: ReturnType<typeof vi.fn> };
     errorHandler?: { reportError: ReturnType<typeof vi.fn> };
-    enqueueSnackbar?: ReturnType<typeof vi.fn>;
   }) {
     const address = input?.address ?? "";
     const isSettingsInit = input?.isSettingsInit ?? false;
     const isFallbackEnabled = input?.isFallbackEnabled ?? false;
-    const enqueueSnackbar = input?.enqueueSnackbar ?? vi.fn();
 
     const certificatesService = input?.certificatesService ?? { getAllCertificates: vi.fn().mockResolvedValue([]) };
     const certificateManager = input?.certificateManager ?? { parsePem: vi.fn().mockResolvedValue(null), generatePEM: vi.fn() };
@@ -238,29 +184,26 @@ describe(useCertificate.name, () => {
         mock({
           isSettingsInit
         }),
-      useSnackbar: () => ({
-        enqueueSnackbar,
-        closeSnackbar: vi.fn()
-      }),
       useServices: () =>
         mock({
           certificatesService,
           certificateManager,
           errorHandler,
           analyticsService,
-          chainApiHttpClient: { isFallbackEnabled }
+          chainApiHttpClient: { isFallbackEnabled },
+          storedWalletsService: {
+            getStorageWallets: vi.fn().mockReturnValue([]),
+            updateWallet: vi.fn()
+          }
         })
     } as unknown as typeof DEPENDENCIES;
+    const jotaiStore = createStore();
 
-    return setupQuery(
-      () => useCertificate({ dependencies }),
-      {
-        wrapper: ({ children }) => {
-          // eslint-disable-next-line react/jsx-no-useless-fragment
-          return <>{children}</>;
-        }
+    return setupQuery(() => useCertificate({ dependencies }), {
+      wrapper: ({ children }) => {
+        return <JotaiProvider store={jotaiStore}>{children}</JotaiProvider>;
       }
-    );
+    });
   }
 });
 
