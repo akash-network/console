@@ -581,7 +581,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
                 <div className="pt-2">
                   <d.AddFundsLink
                     className={cn("space-x-2 hover:no-underline", buttonVariants({ variant: "default", size: "sm" }))}
-                    href={urlService.payment()}
+                    href={urlService.billing({ openPayment: true })}
                   >
                     <HandCard className="text-xs" />
                     <span className="whitespace-nowrap">Add Funds</span>

@@ -97,7 +97,7 @@ export const GetStartedStepper: React.FunctionComponent = () => {
           <div className="flex items-center space-x-4">
             {isManagedWallet && (
               <div className="flex items-start gap-2">
-                <AddFundsLink className={cn("hover:no-underline", buttonVariants({ variant: "default" }))} href={UrlService.payment()}>
+                <AddFundsLink className={cn("hover:no-underline", buttonVariants({ variant: "default" }))} href={UrlService.billing({ openPayment: true })}>
                   <HandCard className="text-xs" />
                   <span className="m-2 whitespace-nowrap">Add Funds</span>
                 </AddFundsLink>

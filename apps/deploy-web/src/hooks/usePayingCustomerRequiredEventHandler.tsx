@@ -30,7 +30,7 @@ export const usePayingCustomerRequiredEventHandler = (): ((messageOtherwise: str
               side: "right",
               size: "lg",
               onClick: () => {
-                router.push(UrlService.payment());
+                router.push(UrlService.billing({ openPayment: true }));
                 close();
               }
             }

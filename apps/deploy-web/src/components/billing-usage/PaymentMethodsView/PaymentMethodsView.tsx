@@ -5,7 +5,7 @@ import { CircularProgress } from "@mui/material";
 import { Plus } from "lucide-react";
 import { useTheme } from "next-themes";
 
-import { AddPaymentMethodPopup } from "@src/components/user/payment";
+import { AddPaymentMethodPopup } from "@src/components/billing-usage/AddPaymentMethodPopup/AddPaymentMethodPopup";
 import { PaymentMethodsRow } from "./PaymentMethodsRow";
 
 export const DEPENDENCIES = {
