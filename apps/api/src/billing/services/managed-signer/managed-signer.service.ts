@@ -114,16 +114,18 @@ export class ManagedSignerService {
     await this.#validateBalances(userWallet, messages);
     await this.anonymousValidateService.validateLeaseProvidersAuditors(messages, userWallet);
 
-    const closeDeploymentMessage: { typeUrl: string; value: MsgCloseDeployment } | undefined = messages.find(message =>
-      message.typeUrl.endsWith(".MsgCloseDeployment")
-    );
+    if (userWallet.userId) {
+      const closeDeploymentMessages: { typeUrl: string; value: MsgCloseDeployment }[] = messages.filter(message =>
+        message.typeUrl.endsWith(".MsgCloseDeployment")
+      );
 
-    if (closeDeploymentMessage && userWallet.userId) {
-      await this.notificationService.disableDeploymentAlerts({
-        userId: userWallet.userId,
-        walletAddress: userWallet.address!,
-        dseq: closeDeploymentMessage.value.id!.dseq.toString()
-      });
+      for (const message of closeDeploymentMessages) {
+        await this.notificationService.disableDeploymentAlerts({
+          userId: userWallet.userId,
+          walletAddress: userWallet.address!,
+          dseq: message.value.id!.dseq.toString()
+        });
+      }
     }
 
     const createLeaseMessage: { typeUrl: string; value: MsgCreateLease } | undefined = messages.find(message => message.typeUrl.endsWith(".MsgCreateLease"));
