@@ -1,9 +1,9 @@
+import { DeploymentHttpService } from "@akashnetwork/http-sdk";
 import { singleton } from "tsyringe";
 
 import { UserWalletRepository } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { Job, JOB_NAME, JobHandler, JobPayload, JobQueueService, LoggerService } from "@src/core";
-import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
 import { NotificationJob } from "@src/notifications/services/notification-handler/notification.handler";
 
@@ -31,7 +31,7 @@ export class CloseTrialDeploymentHandler implements JobHandler<CloseTrialDeploym
     private readonly logger: LoggerService,
     private readonly jobQueueService: JobQueueService,
     private readonly deploymentWriterService: DeploymentWriterService,
-    private readonly deploymentReaderService: DeploymentReaderService,
+    private readonly deploymentService: DeploymentHttpService,
     private readonly billingConfig: BillingConfigService
   ) {}
 
@@ -74,48 +74,47 @@ export class CloseTrialDeploymentHandler implements JobHandler<CloseTrialDeploym
       return;
     }
 
-    const walletWithAddress = { ...wallet, address };
+    const deployment = await this.deploymentService.findByOwnerAndDseq(address, payload.dseq);
 
-    let deployment;
-    try {
-      deployment = await this.deploymentReaderService.findByWalletAndDseq(walletWithAddress, payload.dseq);
-    } catch (error) {
+    if (!deployment) {
       this.logger.error({
-        event: "FETCH_TRIAL_DEPLOYMENT_FAILED",
-        job: CloseTrialDeployment[JOB_NAME],
-        walletId: payload.walletId,
-        dseq: payload.dseq,
-        userId: wallet.userId,
-        error
-      });
-      return;
-    }
-
-    if (deployment.deployment.state === "closed") {
-      this.logger.debug({
-        event: "SKIP_CLOSE_TRIAL_DEPLOYMENT_JOB",
-        reason: "Deployment is already closed",
+        event: "CLOSE_TRIAL_DEPLOYMENT_ERROR",
+        reason: "Deployment not found",
         job: CloseTrialDeployment[JOB_NAME],
         walletId: payload.walletId,
         dseq: payload.dseq,
         userId: wallet.userId
       });
-      return;
+      throw new Error("Failed to fetch deployment details: deployment not found");
     }
 
-    try {
-      await this.deploymentWriterService.close(walletWithAddress, payload.dseq);
-    } catch (error) {
+    if ("code" in deployment) {
       this.logger.error({
-        event: "CLOSE_TRIAL_DEPLOYMENT_FAILED",
+        event: "CLOSE_TRIAL_DEPLOYMENT_ERROR",
+        reason: deployment.message,
+        details: deployment.details,
+        job: CloseTrialDeployment[JOB_NAME],
+        walletId: payload.walletId,
+        dseq: payload.dseq,
+        userId: wallet.userId
+      });
+      throw new Error(`Failed to fetch deployment details: ${deployment.message}`);
+    }
+
+    if (deployment.deployment.state !== "active") {
+      this.logger.debug({
+        event: "SKIP_CLOSE_TRIAL_DEPLOYMENT_JOB",
+        reason: "Deployment is not active",
         job: CloseTrialDeployment[JOB_NAME],
         walletId: payload.walletId,
         dseq: payload.dseq,
         userId: wallet.userId,
-        error
+        deploymentState: deployment.deployment.state
       });
       return;
     }
+
+    await this.deploymentWriterService.close({ ...wallet, address }, payload.dseq);
 
     await this.jobQueueService.enqueue(
       new NotificationJob({
