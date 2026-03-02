@@ -1,15 +1,16 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FormattedNumber } from "react-intl";
 import { Button, Card, CardContent, CardHeader, CustomTooltip, Skeleton, Snackbar, Switch } from "@akashnetwork/ui/components";
 import { usePopup } from "@akashnetwork/ui/context";
 import { LinearProgress } from "@mui/material";
 import { InfoCircle, Plus, Wallet } from "iconoir-react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useSnackbar } from "notistack";
 
 import { PaymentPopup } from "@src/components/billing-usage/PaymentPopup/PaymentPopup";
+import { PaymentSuccessAnimation } from "@src/components/billing-usage/PaymentSuccessAnimation/PaymentSuccessAnimation";
 import { Title } from "@src/components/shared/Title";
-import { PaymentSuccessAnimation } from "@src/components/user/payment/PaymentSuccessAnimation";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
 import { useDefaultPaymentMethodQuery, useWalletSettingsMutations, useWalletSettingsQuery, useWeeklyDeploymentCostQuery } from "@src/queries";
 import { UrlService } from "@src/utils/urlUtils";
@@ -25,7 +26,16 @@ export const AccountOverview: React.FunctionComponent = () => {
   const { upsertWalletSettings } = useWalletSettingsMutations();
   const { confirm } = usePopup();
 
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const isLoading = isLoadingDefaultPaymentMethod;
+
+  useEffect(() => {
+    if (!isLoading && searchParams.get("openPayment") === "true" && defaultPaymentMethod) {
+      setShowPaymentPopup(true);
+      router.replace(UrlService.billing(), { scroll: false });
+    }
+  }, [isLoading, searchParams, defaultPaymentMethod, router]);
 
   const defaultPaymentMethodId = useMemo(() => {
     return defaultPaymentMethod?.id;

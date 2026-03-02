@@ -91,8 +91,11 @@ export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBa
       )}
 
       <div className="flex flex-col items-center justify-end space-y-2 pt-2">
-        <d.AddFundsLink className={cn("w-full space-x-2 hover:no-underline", buttonVariants({ variant: "default" }))} href={UrlService.payment()}>
-          <d.HandCard className="text-xs" />
+        <d.AddFundsLink
+          className={cn("w-full space-x-2 hover:no-underline", buttonVariants({ variant: "default" }))}
+          href={UrlService.billing({ openPayment: true })}
+        >
+          <HandCard className="text-xs" />
           <span className="whitespace-nowrap">Add Funds</span>
         </d.AddFundsLink>
         <d.Separator className="my-2 bg-secondary/90 dark:bg-white/10" />
