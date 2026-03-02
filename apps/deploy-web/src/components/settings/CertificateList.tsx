@@ -5,8 +5,8 @@ import { Button, CustomPagination, Table, TableBody, TableCell, TableHead, Table
 import { Check } from "iconoir-react";
 
 import { ConnectWallet } from "@src/components/shared/ConnectWallet";
-import { useCertificate } from "@src/context/CertificateProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useCertificate } from "@src/hooks/useCertificate/useCertificate";
 import { CertificateDisplay } from "./CertificateDisplay";
 
 export const CertificateList: React.FunctionComponent = () => {

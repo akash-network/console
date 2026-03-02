@@ -4,8 +4,8 @@ import type { CertificatePem } from "@akashnetwork/chain-sdk/web";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { ContextType as CertificateContextType, LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
 import type { AppDIContainer } from "@src/context/ServicesProvider";
+import type { ContextType as CertificateContextType, LocalCert } from "@src/hooks/useCertificate/useCertificate";
 import { mapToBidDto } from "@src/queries/useBidQuery";
 import type { LocalDeploymentData } from "@src/services/deployment-storage/deployment-storage.service";
 import type { RpcBid } from "@src/types/deployment";

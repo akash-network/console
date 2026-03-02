@@ -44,8 +44,7 @@ export const CreateCredentialsButton: FC<Props> = ({ afterCreate, containerClass
   }, [credentials.generate, afterCreate]);
   const warningText = useMemo(() => {
     if (credentials.details.isExpired) return MESSAGES[credentials.details.type].expired;
-    if (!credentials.details.value) return MESSAGES[credentials.details.type].missing;
-    return undefined;
+    return MESSAGES[credentials.details.type].missing;
   }, [credentials]);
   const buttonText = useMemo(() => MESSAGES[credentials.details.type][credentials.details.isExpired ? "regenerateButton" : "createButton"], [credentials]);
 

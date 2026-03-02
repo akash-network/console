@@ -1,14 +1,15 @@
 "use client";
-import React, { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CertificateInfo, CertificatePem } from "@akashnetwork/chain-sdk/web";
-import { Snackbar } from "@akashnetwork/ui/components";
-import { useSnackbar } from "notistack";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAtom, useAtomValue } from "jotai";
 
+import { QueryKeys } from "@src/queries/queryKeys";
+import { certificateStore } from "@src/store/certificateStore";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
-import { getStorageWallets, updateWallet } from "@src/utils/walletUtils";
-import { useServices } from "../ServicesProvider";
-import { useSettings } from "../SettingsProvider";
-import { useWallet } from "../WalletProvider";
+import { useServices } from "../../context/ServicesProvider";
+import { useSettings } from "../../context/SettingsProvider";
+import { useWallet } from "../../context/WalletProvider";
 
 export type LocalCert = {
   certPem: string;
@@ -36,7 +37,7 @@ export type ChainCertificate = {
 };
 
 export type ContextType = {
-  loadValidCertificates: (showSnackbar?: boolean) => Promise<ChainCertificate[]>;
+  refetchCertificates: () => Promise<ChainCertificate[]>;
   selectedCertificate: ChainCertificate | null;
   setSelectedCertificate: React.Dispatch<ChainCertificate | null>;
   isLoadingCertificates: boolean;
@@ -46,7 +47,6 @@ export type ContextType = {
   setLocalCert: React.Dispatch<LocalCert | null>;
   isLocalCertMatching: boolean;
   validCertificates: Array<ChainCertificate>;
-  setValidCertificates: React.Dispatch<React.SetStateAction<ChainCertificate[]>>;
   localCerts: Array<LocalCert> | null;
   setLocalCerts: React.Dispatch<React.SetStateAction<LocalCert[] | null>>;
   createCertificate: () => Promise<void>;
@@ -58,97 +58,73 @@ export type ContextType = {
   revokeAllCertificates: () => Promise<void>;
 };
 
-const CertificateProviderContext = React.createContext<ContextType>({} as ContextType);
-
 export const DEPENDENCIES = {
   useSettings,
   useWallet,
-  useSnackbar,
   useServices
 };
 
-type Props = {
-  children: React.ReactNode;
-  dependencies?: typeof DEPENDENCIES;
-};
+function isExpired(parsedLocalCert: CertificateInfo) {
+  return parsedLocalCert.expiresOn.getTime() <= Date.now();
+}
 
-export const CertificateProvider: React.FC<Props> = ({ children, dependencies: d = DEPENDENCIES }) => {
-  const { certificateManager, analyticsService, certificatesService, errorHandler, chainApiHttpClient } = d.useServices();
-
-  const [isCreatingCert, setIsCreatingCert] = useState(false);
-  const [validCertificates, setValidCertificates] = useState<Array<ChainCertificate>>([]);
-  const [selectedCertificate, setSelectedCertificate] = useState<ChainCertificate | null>(null);
-  const [isLoadingCertificates, setIsLoadingCertificates] = useState(false);
-  const [localCerts, setLocalCerts] = useState<Array<LocalCert> | null>(null);
-  const [localCert, setLocalCert] = useState<LocalCert | null>(null);
-  const [isLocalCertMatching, setIsLocalCertMatching] = useState(false);
-  const [parsedLocalCert, setParsedLocalCert] = useState<CertificateInfo | null>(null);
-  const { enqueueSnackbar } = d.useSnackbar();
+export function useCertificate(input?: { dependencies?: typeof DEPENDENCIES }): ContextType {
+  const d = input?.dependencies ?? DEPENDENCIES;
+  const { certificateManager, analyticsService, certificatesService, chainApiHttpClient, storedWalletsService } = d.useServices();
   const { address, signAndBroadcastTx } = d.useWallet();
   const { isSettingsInit } = d.useSettings();
+  const queryClient = useQueryClient();
 
-  const loadValidCertificates = useCallback(
-    async (showSnackbar?: boolean): Promise<ChainCertificate[]> => {
-      setIsLoadingCertificates(true);
+  const [selectedCertificate, setSelectedCertificate] = useAtom(certificateStore.selectedCertificate);
+  const [localCert, setLocalCert] = useAtom(certificateStore.localCert);
+  const [localCerts, setLocalCerts] = useAtom(certificateStore.localCerts);
+  const [parsedLocalCert, setParsedLocalCert] = useAtom(certificateStore.parsedLocalCert);
+  const effectiveLocalCert = useAtomValue(certificateStore.effectiveLocalCert);
+  const isLocalCertExpired = useAtomValue(certificateStore.isLocalCertExpired);
 
-      try {
-        const certificates = await certificatesService
-          .getAllCertificates({ address, state: "valid" })
-          .catch(error => (chainApiHttpClient.isFallbackEnabled ? [] : Promise.reject(error)));
+  const [isCreatingCert, setIsCreatingCert] = useState(false);
+  const [isLocalCertMatching, setIsLocalCertMatching] = useAtom(certificateStore.isLocalCertMatching);
 
-        const certs = await Promise.all(
-          (certificates || []).map(async cert => {
-            const parsed = atob(cert.certificate.cert);
-            const pem = await certificateManager.parsePem(parsed);
-            return {
-              ...cert,
-              parsed,
-              pem
-            };
-          })
-        );
+  const queryKey = QueryKeys.getValidCertificatesKey(address);
+  const queryEnabled = !!address && isSettingsInit && !chainApiHttpClient.isFallbackEnabled;
 
-        setValidCertificates(certs);
-        setIsLoadingCertificates(false);
+  const { data: validCertificates = [], isLoading: isLoadingCertificates } = useQuery({
+    queryKey,
+    queryFn: async () => {
+      const certificates = await certificatesService
+        .getAllCertificates({ address, state: "valid" })
+        .catch(error => (chainApiHttpClient.isFallbackEnabled ? [] : Promise.reject(error)));
 
-        if (showSnackbar) {
-          enqueueSnackbar(<Snackbar title="Certificate refreshed!" iconVariant="success" />, { variant: "success" });
-        }
-
-        return certs;
-      } catch (error) {
-        errorHandler.reportError({
-          error,
-          tags: {
-            category: "certificates",
-            action: "loadValidCertificates"
-          }
-        });
-
-        setIsLoadingCertificates(false);
-        if (showSnackbar) {
-          enqueueSnackbar(<Snackbar title="Error fetching certificate." iconVariant="error" />, { variant: "error" });
-        }
-
-        return [];
-      }
+      return Promise.all(
+        (certificates || []).map(async cert => {
+          const parsed = atob(cert.certificate.cert);
+          const pem = await certificateManager.parsePem(parsed);
+          return {
+            ...cert,
+            parsed,
+            pem
+          } as ChainCertificate;
+        })
+      );
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [address, certificatesService, localCert, selectedCertificate]
-  );
+    enabled: queryEnabled,
+    staleTime: Infinity
+  });
+
+  const invalidateAndRefetch = useCallback(async (): Promise<ChainCertificate[]> => {
+    await queryClient.invalidateQueries({ queryKey });
+    const certs = queryClient.getQueryCache().find<ChainCertificate[]>({ queryKey, exact: true })?.state.data;
+    return certs || [];
+  }, [queryClient, queryKey]);
 
   /**
-   * When changing wallet, reset certs and load for new wallet
+   * When changing wallet, reset atoms and load local cert
    */
   useEffect(() => {
-    if (!isSettingsInit || chainApiHttpClient.isFallbackEnabled) return;
-
-    setValidCertificates([]);
     setSelectedCertificate(null);
     setLocalCert(null);
 
-    if (address) {
-      loadValidCertificates();
+    if (address && isSettingsInit && !chainApiHttpClient.isFallbackEnabled) {
       loadLocalCert();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -169,7 +145,7 @@ export const CertificateProvider: React.FC<Props> = ({ children, dependencies: d
     }
 
     setIsLocalCertMatching(isMatching);
-  }, [selectedCertificate, localCert, validCertificates]);
+  }, [selectedCertificate, localCert, validCertificates, setSelectedCertificate]);
 
   useEffect(() => {
     if (!localCert) {
@@ -177,10 +153,11 @@ export const CertificateProvider: React.FC<Props> = ({ children, dependencies: d
       return;
     }
     certificateManager.parsePem(localCert.certPem).then(setParsedLocalCert);
-  }, [localCert, certificateManager]);
+  }, [localCert, certificateManager, setParsedLocalCert]);
 
-  const loadLocalCert = async () => {
-    const wallets = getStorageWallets();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const loadLocalCert = useCallback(async () => {
+    const wallets = storedWalletsService.getStorageWallets();
     const certs = wallets.reduce((acc, wallet) => {
       const cert: LocalCert | null = wallet.cert && wallet.certKey ? { certPem: wallet.cert, keyPem: wallet.certKey, address: wallet.address } : null;
 
@@ -196,11 +173,8 @@ export const CertificateProvider: React.FC<Props> = ({ children, dependencies: d
     }, [] as LocalCert[]);
 
     setLocalCerts(certs);
-  };
+  }, [address, setLocalCert, setLocalCerts]);
 
-  /**
-   * Create certificate
-   */
   async function createCertificate() {
     setIsCreatingCert(true);
 
@@ -210,14 +184,14 @@ export const CertificateProvider: React.FC<Props> = ({ children, dependencies: d
       const message = TransactionMessageData.getCreateCertificateMsg(address, crtpem, pubpem);
       const response = await signAndBroadcastTx([message]);
       if (response) {
-        updateWallet(address, wallet => {
+        storedWalletsService.updateWallet(address, wallet => {
           return {
             ...wallet,
             cert: crtpem,
             certKey: encryptedKey
           };
         });
-        const validCerts = await loadValidCertificates();
+        const validCerts = await invalidateAndRefetch();
         loadLocalCert();
         const currentCert = validCerts.find(({ parsed }) => parsed === crtpem) || null;
         setSelectedCertificate(currentCert);
@@ -236,9 +210,6 @@ export const CertificateProvider: React.FC<Props> = ({ children, dependencies: d
     }
   }
 
-  /**
-   * Regenerate certificate
-   */
   async function regenerateCertificate() {
     setIsCreatingCert(true);
     const { cert: crtpem, publicKey: pubpem, privateKey: encryptedKey } = await certificateManager.generatePEM(address);
@@ -248,14 +219,14 @@ export const CertificateProvider: React.FC<Props> = ({ children, dependencies: d
       const createCertMsg = TransactionMessageData.getCreateCertificateMsg(address, crtpem, pubpem);
       const response = await signAndBroadcastTx([revokeCertMsg, createCertMsg]);
       if (response) {
-        updateWallet(address, wallet => {
+        storedWalletsService.updateWallet(address, wallet => {
           return {
             ...wallet,
             cert: crtpem,
             certKey: encryptedKey
           };
         });
-        const validCerts = await loadValidCertificates();
+        const validCerts = await invalidateAndRefetch();
         loadLocalCert();
         const currentCert = validCerts.find(x => x.parsed === crtpem);
         setSelectedCertificate(currentCert as ChainCertificate);
@@ -273,16 +244,13 @@ export const CertificateProvider: React.FC<Props> = ({ children, dependencies: d
     }
   }
 
-  /**
-   * Revoke certificate
-   */
   const revokeCertificate = async (certificate: ChainCertificate) => {
     const message = TransactionMessageData.getRevokeCertificateMsg(address, certificate.serial);
     const response = await signAndBroadcastTx([message]);
     if (response) {
-      const validCerts = await loadValidCertificates();
+      const validCerts = await invalidateAndRefetch();
       const isRevokingOtherCert = validCerts.some(c => c.parsed === localCert?.certPem);
-      updateWallet(address, wallet => {
+      storedWalletsService.updateWallet(address, wallet => {
         return {
           ...wallet,
           cert: isRevokingOtherCert ? wallet.cert : undefined,
@@ -302,16 +270,13 @@ export const CertificateProvider: React.FC<Props> = ({ children, dependencies: d
     }
   };
 
-  /**
-   * Revoke all certificates
-   */
   const revokeAllCertificates = async () => {
     const messages = validCertificates.map(cert => TransactionMessageData.getRevokeCertificateMsg(address, cert.serial));
     const response = await signAndBroadcastTx(messages);
     if (response) {
-      await loadValidCertificates();
+      await invalidateAndRefetch();
 
-      updateWallet(address, wallet => {
+      storedWalletsService.updateWallet(address, wallet => {
         return {
           ...wallet,
           cert: undefined,
@@ -331,23 +296,23 @@ export const CertificateProvider: React.FC<Props> = ({ children, dependencies: d
   const genNewCertificateIfLocalIsInvalid = useCallback(async () => {
     if (!parsedLocalCert || isExpired(parsedLocalCert)) return await certificateManager.generatePEM(address);
 
-    const validCerts = await loadValidCertificates();
+    const validCerts = await invalidateAndRefetch();
     const currentCert = localCert ? validCerts.find(({ parsed }) => parsed === localCert.certPem) : null;
     const isLocalCertValid = currentCert?.certificate?.state === "valid" && isLocalCertMatching;
 
     return isLocalCertValid ? null : await certificateManager.generatePEM(address);
-  }, [localCert, loadValidCertificates, isLocalCertMatching, address, parsedLocalCert, certificateManager]);
+  }, [localCert, invalidateAndRefetch, isLocalCertMatching, address, parsedLocalCert, certificateManager]);
 
   const updateSelectedCertificate = useCallback(
     async (cert: CertificatePem) => {
-      updateWallet(address, wallet => {
+      storedWalletsService.updateWallet(address, wallet => {
         return {
           ...wallet,
           cert: cert.cert,
           certKey: cert.privateKey
         };
       });
-      const validCerts = await loadValidCertificates();
+      const validCerts = await invalidateAndRefetch();
       loadLocalCert();
       const currentCert = validCerts.find(x => x.parsed === cert.cert);
       setSelectedCertificate(currentCert || null);
@@ -357,47 +322,47 @@ export const CertificateProvider: React.FC<Props> = ({ children, dependencies: d
         address
       };
     },
-    [address, loadValidCertificates, loadLocalCert, setSelectedCertificate]
+    [address, invalidateAndRefetch, loadLocalCert, setSelectedCertificate]
   );
 
-  return (
-    <CertificateProviderContext.Provider
-      value={{
-        loadValidCertificates,
-        selectedCertificate,
-        setSelectedCertificate,
-        isLoadingCertificates,
-        loadLocalCert,
-        get localCert() {
-          return !parsedLocalCert || isExpired(parsedLocalCert) ? null : localCert;
-        },
-        setLocalCert,
-        get isLocalCertExpired() {
-          return !!parsedLocalCert && isExpired(parsedLocalCert);
-        },
-        genNewCertificateIfLocalIsInvalid,
-        updateSelectedCertificate,
-        isLocalCertMatching,
-        validCertificates,
-        setValidCertificates,
-        localCerts,
-        setLocalCerts,
-        createCertificate,
-        isCreatingCert,
-        regenerateCertificate,
-        revokeCertificate,
-        revokeAllCertificates
-      }}
-    >
-      {children}
-    </CertificateProviderContext.Provider>
+  return useMemo(
+    () => ({
+      refetchCertificates: invalidateAndRefetch,
+      selectedCertificate,
+      setSelectedCertificate,
+      isLoadingCertificates,
+      loadLocalCert,
+      localCert: effectiveLocalCert,
+      setLocalCert,
+      isLocalCertExpired,
+      genNewCertificateIfLocalIsInvalid,
+      updateSelectedCertificate,
+      isLocalCertMatching,
+      validCertificates,
+      localCerts,
+      setLocalCerts,
+      createCertificate,
+      isCreatingCert,
+      regenerateCertificate,
+      revokeCertificate,
+      revokeAllCertificates
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      selectedCertificate,
+      setSelectedCertificate,
+      isLoadingCertificates,
+      loadLocalCert,
+      effectiveLocalCert,
+      setLocalCert,
+      isLocalCertExpired,
+      genNewCertificateIfLocalIsInvalid,
+      updateSelectedCertificate,
+      isLocalCertMatching,
+      validCertificates,
+      localCerts,
+      isCreatingCert,
+      invalidateAndRefetch
+    ]
   );
-};
-
-export const useCertificate = (): ContextType => {
-  return { ...React.useContext(CertificateProviderContext) };
-};
-
-function isExpired(parsedLocalCert: CertificateInfo) {
-  return parsedLocalCert.expiresOn.getTime() <= Date.now();
 }

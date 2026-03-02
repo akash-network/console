@@ -5,9 +5,9 @@ import type { EncodeObject } from "@cosmjs/proto-signing";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { SuccessAnimation } from "@src/components/shared";
-import { useCertificate } from "@src/context/CertificateProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useCertificate } from "@src/hooks/useCertificate/useCertificate";
 import { useChainParam } from "@src/hooks/useChainParam/useChainParam";
 import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom";
 import { useNotificator } from "@src/hooks/useNotificator";
