@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from "react";
 
-import { useCertificate } from "@src/context/CertificateProvider";
+import { useCertificate } from "@src/hooks/useCertificate/useCertificate";
 import { useSettings } from "@src/context/SettingsProvider";
 import type { ProviderCredentials } from "@src/services/provider-proxy/provider-proxy.service";
 import { useProviderJwt } from "../useProviderJwt/useProviderJwt";

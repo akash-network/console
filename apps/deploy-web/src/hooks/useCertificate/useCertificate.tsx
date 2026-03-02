@@ -1,14 +1,16 @@
 "use client";
-import React, { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CertificateInfo, CertificatePem } from "@akashnetwork/chain-sdk/web";
 import { Snackbar } from "@akashnetwork/ui/components";
+import { useAtom, useAtomValue } from "jotai";
 import { useSnackbar } from "notistack";
 
+import certificateStore from "@src/store/certificateStore";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { getStorageWallets, updateWallet } from "@src/utils/walletUtils";
-import { useServices } from "../ServicesProvider";
-import { useSettings } from "../SettingsProvider";
-import { useWallet } from "../WalletProvider";
+import { useServices } from "../../context/ServicesProvider";
+import { useSettings } from "../../context/SettingsProvider";
+import { useWallet } from "../../context/WalletProvider";
 
 export type LocalCert = {
   certPem: string;
@@ -58,8 +60,6 @@ export type ContextType = {
   revokeAllCertificates: () => Promise<void>;
 };
 
-const CertificateProviderContext = React.createContext<ContextType>({} as ContextType);
-
 export const DEPENDENCIES = {
   useSettings,
   useWallet,
@@ -67,25 +67,27 @@ export const DEPENDENCIES = {
   useServices
 };
 
-type Props = {
-  children: React.ReactNode;
-  dependencies?: typeof DEPENDENCIES;
-};
+function isExpired(parsedLocalCert: CertificateInfo) {
+  return parsedLocalCert.expiresOn.getTime() <= Date.now();
+}
 
-export const CertificateProvider: React.FC<Props> = ({ children, dependencies: d = DEPENDENCIES }) => {
+export function useCertificate(input?: { dependencies?: typeof DEPENDENCIES }): ContextType {
+  const d = input?.dependencies ?? DEPENDENCIES;
   const { certificateManager, analyticsService, certificatesService, errorHandler, chainApiHttpClient } = d.useServices();
-
-  const [isCreatingCert, setIsCreatingCert] = useState(false);
-  const [validCertificates, setValidCertificates] = useState<Array<ChainCertificate>>([]);
-  const [selectedCertificate, setSelectedCertificate] = useState<ChainCertificate | null>(null);
-  const [isLoadingCertificates, setIsLoadingCertificates] = useState(false);
-  const [localCerts, setLocalCerts] = useState<Array<LocalCert> | null>(null);
-  const [localCert, setLocalCert] = useState<LocalCert | null>(null);
-  const [isLocalCertMatching, setIsLocalCertMatching] = useState(false);
-  const [parsedLocalCert, setParsedLocalCert] = useState<CertificateInfo | null>(null);
   const { enqueueSnackbar } = d.useSnackbar();
   const { address, signAndBroadcastTx } = d.useWallet();
   const { isSettingsInit } = d.useSettings();
+  const [selectedCertificate, setSelectedCertificate] = useAtom(certificateStore.selectedCertificate);
+  const [localCert, setLocalCert] = useAtom(certificateStore.localCert);
+  const [localCerts, setLocalCerts] = useAtom(certificateStore.localCerts);
+  const [parsedLocalCert, setParsedLocalCert] = useAtom(certificateStore.parsedLocalCert);
+  const effectiveLocalCert = useAtomValue(certificateStore.effectiveLocalCert);
+  const isLocalCertExpired = useAtomValue(certificateStore.isLocalCertExpired);
+
+  const [isLoadingCertificates, setIsLoadingCertificates] = useState(false);
+  const [validCertificates, setValidCertificates] = useState<ChainCertificate[]>([]);
+  const [isCreatingCert, setIsCreatingCert] = useState(false);
+  const [isLocalCertMatching, setIsLocalCertMatching] = useState(false);
 
   const loadValidCertificates = useCallback(
     async (showSnackbar?: boolean): Promise<ChainCertificate[]> => {
@@ -169,7 +171,7 @@ export const CertificateProvider: React.FC<Props> = ({ children, dependencies: d
     }
 
     setIsLocalCertMatching(isMatching);
-  }, [selectedCertificate, localCert, validCertificates]);
+  }, [selectedCertificate, localCert, validCertificates, setSelectedCertificate]);
 
   useEffect(() => {
     if (!localCert) {
@@ -177,9 +179,10 @@ export const CertificateProvider: React.FC<Props> = ({ children, dependencies: d
       return;
     }
     certificateManager.parsePem(localCert.certPem).then(setParsedLocalCert);
-  }, [localCert, certificateManager]);
+  }, [localCert, certificateManager, setParsedLocalCert]);
 
-  const loadLocalCert = async () => {
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const loadLocalCert = useCallback(async () => {
     const wallets = getStorageWallets();
     const certs = wallets.reduce((acc, wallet) => {
       const cert: LocalCert | null = wallet.cert && wallet.certKey ? { certPem: wallet.cert, keyPem: wallet.certKey, address: wallet.address } : null;
@@ -196,11 +199,8 @@ export const CertificateProvider: React.FC<Props> = ({ children, dependencies: d
     }, [] as LocalCert[]);
 
     setLocalCerts(certs);
-  };
+  }, [address, setLocalCert, setLocalCerts]);
 
-  /**
-   * Create certificate
-   */
   async function createCertificate() {
     setIsCreatingCert(true);
 
@@ -236,9 +236,6 @@ export const CertificateProvider: React.FC<Props> = ({ children, dependencies: d
     }
   }
 
-  /**
-   * Regenerate certificate
-   */
   async function regenerateCertificate() {
     setIsCreatingCert(true);
     const { cert: crtpem, publicKey: pubpem, privateKey: encryptedKey } = await certificateManager.generatePEM(address);
@@ -273,9 +270,6 @@ export const CertificateProvider: React.FC<Props> = ({ children, dependencies: d
     }
   }
 
-  /**
-   * Revoke certificate
-   */
   const revokeCertificate = async (certificate: ChainCertificate) => {
     const message = TransactionMessageData.getRevokeCertificateMsg(address, certificate.serial);
     const response = await signAndBroadcastTx([message]);
@@ -302,9 +296,6 @@ export const CertificateProvider: React.FC<Props> = ({ children, dependencies: d
     }
   };
 
-  /**
-   * Revoke all certificates
-   */
   const revokeAllCertificates = async () => {
     const messages = validCertificates.map(cert => TransactionMessageData.getRevokeCertificateMsg(address, cert.serial));
     const response = await signAndBroadcastTx(messages);
@@ -360,44 +351,45 @@ export const CertificateProvider: React.FC<Props> = ({ children, dependencies: d
     [address, loadValidCertificates, loadLocalCert, setSelectedCertificate]
   );
 
-  return (
-    <CertificateProviderContext.Provider
-      value={{
-        loadValidCertificates,
-        selectedCertificate,
-        setSelectedCertificate,
-        isLoadingCertificates,
-        loadLocalCert,
-        get localCert() {
-          return !parsedLocalCert || isExpired(parsedLocalCert) ? null : localCert;
-        },
-        setLocalCert,
-        get isLocalCertExpired() {
-          return !!parsedLocalCert && isExpired(parsedLocalCert);
-        },
-        genNewCertificateIfLocalIsInvalid,
-        updateSelectedCertificate,
-        isLocalCertMatching,
-        validCertificates,
-        setValidCertificates,
-        localCerts,
-        setLocalCerts,
-        createCertificate,
-        isCreatingCert,
-        regenerateCertificate,
-        revokeCertificate,
-        revokeAllCertificates
-      }}
-    >
-      {children}
-    </CertificateProviderContext.Provider>
+  return useMemo(
+    () => ({
+      loadValidCertificates,
+      selectedCertificate,
+      setSelectedCertificate,
+      isLoadingCertificates,
+      loadLocalCert,
+      localCert: effectiveLocalCert,
+      setLocalCert,
+      isLocalCertExpired,
+      genNewCertificateIfLocalIsInvalid,
+      updateSelectedCertificate,
+      isLocalCertMatching,
+      validCertificates,
+      setValidCertificates,
+      localCerts,
+      setLocalCerts,
+      createCertificate,
+      isCreatingCert,
+      regenerateCertificate,
+      revokeCertificate,
+      revokeAllCertificates
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      loadValidCertificates,
+      selectedCertificate,
+      setSelectedCertificate,
+      isLoadingCertificates,
+      loadLocalCert,
+      effectiveLocalCert,
+      setLocalCert,
+      isLocalCertExpired,
+      genNewCertificateIfLocalIsInvalid,
+      updateSelectedCertificate,
+      isLocalCertMatching,
+      validCertificates,
+      localCerts,
+      isCreatingCert
+    ]
   );
-};
-
-export const useCertificate = (): ContextType => {
-  return { ...React.useContext(CertificateProviderContext) };
-};
-
-function isExpired(parsedLocalCert: CertificateInfo) {
-  return parsedLocalCert.expiresOn.getTime() <= Date.now();
 }

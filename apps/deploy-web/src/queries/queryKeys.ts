@@ -1,4 +1,5 @@
 export class QueryKeys {
+  static getValidCertificatesKey = (address: string) => ["VALID_CERTIFICATES", address];
   static getFinancialDataKey = () => ["MARKET_DATA"];
   static getUsageDataKey = (address: string, startDate?: string, endDate?: string) => ["USAGE_DATA", address, startDate, endDate];
   static getUsageStatsDataKey = (address: string, startDate?: string, endDate?: string) => ["USAGE_STATS_DATA", address, startDate, endDate];

@@ -1,7 +1,7 @@
 import { describe, expect, it, type Mock, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { ContextType as CertificateContextType } from "@src/context/CertificateProvider/CertificateProviderContext";
+import type { ContextType as CertificateContextType } from "@src/hooks/useCertificate/useCertificate/useCertificate";
 import type { SettingsContextType } from "@src/context/SettingsProvider";
 import type { UseProviderJwtResult } from "../useProviderJwt/useProviderJwt";
 import { DEPENDENCIES, useProviderCredentials } from "./useProviderCredentials";

@@ -7,7 +7,7 @@ import { BinMinusIn, Check, MoreHoriz, PlusCircle, Refresh, WarningTriangle } fr
 import { FormPaper } from "@src/components/sdl/FormPaper";
 import { CustomDropdownLinkItem } from "@src/components/shared/CustomDropdownLinkItem";
 import { useWallet } from "@src/context/WalletProvider";
-import { useCertificate } from "../../context/CertificateProvider";
+import { useCertificate } from "../../context/useCertificate";
 import { ExportCertificate } from "./ExportCertificate";
 
 export function CertificateDisplay() {
