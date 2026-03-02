@@ -119,11 +119,15 @@ export class ManagedSignerService {
         message.typeUrl.endsWith(".MsgCloseDeployment")
       );
 
-      for (const message of closeDeploymentMessages) {
+      const uniqueDseqs = [
+        ...new Set(closeDeploymentMessages.filter(message => message.value?.id?.dseq != null).map(message => message.value.id!.dseq.toString()))
+      ];
+
+      for (const dseq of uniqueDseqs) {
         await this.notificationService.disableDeploymentAlerts({
           userId: userWallet.userId,
           walletAddress: userWallet.address!,
-          dseq: message.value.id!.dseq.toString()
+          dseq
         });
       }
     }
