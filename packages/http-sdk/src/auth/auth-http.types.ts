@@ -15,11 +15,3 @@ export const SendVerificationCodeResponseSchema = z.object({
 });
 
 export type SendVerificationCodeResponse = z.infer<typeof SendVerificationCodeResponseSchema>;
-
-export const VerifyEmailCodeResponseSchema = z.object({
-  data: z.object({
-    emailVerified: z.boolean()
-  })
-});
-
-export type VerifyEmailCodeResponse = z.infer<typeof VerifyEmailCodeResponseSchema>;

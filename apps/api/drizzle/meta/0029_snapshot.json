@@ -1,6 +1,6 @@
 {
-  "id": "84347453-dc3f-4b93-bc6b-b1b3ff4fc21b",
-  "prevId": "54b9ce43-1f54-40bf-81e5-1eabf3e71a66",
+  "id": "23f3ad91-3b5d-4930-9a49-628ecd8f138a",
+  "prevId": "84347453-dc3f-4b93-bc6b-b1b3ff4fc21b",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1255,15 +1255,7 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "email_verification_codes_user_id_unique": {
-          "name": "email_verification_codes_user_id_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "user_id"
-          ]
-        }
-      }
+      "uniqueConstraints": {}
     }
   },
   "enums": {

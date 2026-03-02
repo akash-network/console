@@ -30,9 +30,8 @@ const route = createRoute({
     }
   },
   responses: {
-    200: {
-      description: "User created successfully",
-      content: {}
+    204: {
+      description: "User created successfully"
     }
   }
 });
@@ -41,5 +40,5 @@ export const signupRouter = new OpenApiHonoHandler();
 
 signupRouter.openapi(route, async function signup(c) {
   await container.resolve(AuthController).signup(c.req.valid("json"));
-  return c.text("", 200) as never;
+  return c.body(null, 204);
 });

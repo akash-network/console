@@ -18,112 +18,36 @@ import { UserSeeder } from "@test/seeders/user.seeder";
 
 describe(EmailVerificationCodeService.name, () => {
   describe("sendCode", () => {
-    it("acquires advisory lock before checking for existing code", async () => {
+    it("creates a new code and sends notification", async () => {
+      const user = UserSeeder.create({ email: "test@example.com" });
+      const createdRecord = createVerificationCodeOutput({ userId: user.id });
+      const { service, emailVerificationCodeRepository, userRepository, notificationService } = setup();
+
+      userRepository.findById.mockResolvedValue(user);
+      emailVerificationCodeRepository.countRecentByUserId.mockResolvedValue(0);
+      emailVerificationCodeRepository.create.mockResolvedValue(createdRecord);
+
+      const result = await service.sendCode(user.id);
+
+      expect(emailVerificationCodeRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: user.id,
+          email: user.email,
+          code: expect.stringMatching(/^[a-f0-9]{64}$/)
+        })
+      );
+      expect(notificationService.createNotification).toHaveBeenCalled();
+      expect(result.codeSentAt).toBe(createdRecord.createdAt);
+    });
+
+    it("throws 429 when rate limit exceeded", async () => {
       const user = UserSeeder.create({ email: "test@example.com" });
       const { service, emailVerificationCodeRepository, userRepository } = setup();
-      const callOrder: string[] = [];
 
       userRepository.findById.mockResolvedValue(user);
-      emailVerificationCodeRepository.acquireUserLock.mockImplementation(async () => {
-        callOrder.push("acquireUserLock");
-      });
-      emailVerificationCodeRepository.findActiveByUserId.mockImplementation(async () => {
-        callOrder.push("findActiveByUserId");
-        return undefined;
-      });
-      emailVerificationCodeRepository.create.mockResolvedValue(createVerificationCodeOutput({ userId: user.id }));
+      emailVerificationCodeRepository.countRecentByUserId.mockResolvedValue(5);
 
-      await service.sendCode(user.id);
-
-      expect(callOrder).toEqual(["acquireUserLock", "findActiveByUserId"]);
-    });
-
-    it("returns existing codeSentAt without resend when active code exists", async () => {
-      const user = UserSeeder.create({ email: "test@example.com" });
-      const existingCode = createVerificationCodeOutput({
-        userId: user.id,
-        createdAt: new Date(Date.now() - 10_000).toISOString()
-      });
-      const { service, emailVerificationCodeRepository, userRepository, notificationService } = setup();
-
-      userRepository.findById.mockResolvedValue(user);
-      emailVerificationCodeRepository.findActiveByUserId.mockResolvedValue(existingCode);
-
-      const result = await service.sendCode(user.id);
-
-      expect(result).toEqual({ codeSentAt: existingCode.createdAt });
-      expect(emailVerificationCodeRepository.deleteByUserId).not.toHaveBeenCalled();
-      expect(emailVerificationCodeRepository.create).not.toHaveBeenCalled();
-      expect(notificationService.createNotification).not.toHaveBeenCalled();
-    });
-
-    it("returns existing codeSentAt on resend when cooldown is active", async () => {
-      const user = UserSeeder.create({ email: "test@example.com" });
-      const existingCode = createVerificationCodeOutput({
-        userId: user.id,
-        createdAt: new Date(Date.now() - 10_000).toISOString()
-      });
-      const { service, emailVerificationCodeRepository, userRepository, notificationService } = setup();
-
-      userRepository.findById.mockResolvedValue(user);
-      emailVerificationCodeRepository.findActiveByUserId.mockResolvedValue(existingCode);
-
-      const result = await service.sendCode(user.id, { resend: true });
-
-      expect(result).toEqual({ codeSentAt: existingCode.createdAt });
-      expect(emailVerificationCodeRepository.deleteByUserId).not.toHaveBeenCalled();
-      expect(emailVerificationCodeRepository.create).not.toHaveBeenCalled();
-      expect(notificationService.createNotification).not.toHaveBeenCalled();
-    });
-
-    it("sends new code on resend when cooldown has expired", async () => {
-      const user = UserSeeder.create({ email: "test@example.com" });
-      const expiredCode = createVerificationCodeOutput({
-        userId: user.id,
-        createdAt: new Date(Date.now() - 61_000).toISOString()
-      });
-      const createdRecord = createVerificationCodeOutput({ userId: user.id });
-      const { service, emailVerificationCodeRepository, userRepository, notificationService } = setup();
-
-      userRepository.findById.mockResolvedValue(user);
-      emailVerificationCodeRepository.findActiveByUserId.mockResolvedValue(expiredCode);
-      emailVerificationCodeRepository.create.mockResolvedValue(createdRecord);
-
-      const result = await service.sendCode(user.id, { resend: true });
-
-      expect(emailVerificationCodeRepository.deleteByUserId).toHaveBeenCalledWith(user.id);
-      expect(emailVerificationCodeRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          userId: user.id,
-          email: user.email,
-          code: expect.stringMatching(/^[a-f0-9]{64}$/)
-        })
-      );
-      expect(notificationService.createNotification).toHaveBeenCalled();
-      expect(result.codeSentAt).toBe(createdRecord.createdAt);
-    });
-
-    it("sends new code when no existing code found", async () => {
-      const user = UserSeeder.create({ email: "test@example.com" });
-      const createdRecord = createVerificationCodeOutput({ userId: user.id });
-      const { service, emailVerificationCodeRepository, userRepository, notificationService } = setup();
-
-      userRepository.findById.mockResolvedValue(user);
-      emailVerificationCodeRepository.findActiveByUserId.mockResolvedValue(undefined);
-      emailVerificationCodeRepository.create.mockResolvedValue(createdRecord);
-
-      const result = await service.sendCode(user.id);
-
-      expect(emailVerificationCodeRepository.deleteByUserId).toHaveBeenCalledWith(user.id);
-      expect(emailVerificationCodeRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          userId: user.id,
-          email: user.email,
-          code: expect.stringMatching(/^[a-f0-9]{64}$/)
-        })
-      );
-      expect(notificationService.createNotification).toHaveBeenCalled();
-      expect(result.codeSentAt).toBe(createdRecord.createdAt);
+      await expect(service.sendCode(user.id)).rejects.toThrow();
     });
 
     it("throws 404 when user not found", async () => {
@@ -152,27 +76,23 @@ describe(EmailVerificationCodeService.name, () => {
       const { service, emailVerificationCodeRepository, userRepository, auth0Service } = setup();
 
       userRepository.findById.mockResolvedValue(user);
-      emailVerificationCodeRepository.findActiveByUserId.mockResolvedValue(record);
+      emailVerificationCodeRepository.findActiveByUserIdForUpdate.mockResolvedValue(record);
 
-      const result = await service.verifyCode(user.id, code);
+      await service.verifyCode(user.id, code);
 
-      expect(result).toEqual({ emailVerified: true });
       expect(auth0Service.markEmailVerified).toHaveBeenCalledWith(user.userId);
       expect(userRepository.updateById).toHaveBeenCalledWith(user.id, { emailVerified: true });
-      expect(emailVerificationCodeRepository.deleteByUserId).toHaveBeenCalledWith(user.id);
     });
 
-    it("returns emailVerified false and increments attempts for invalid code", async () => {
+    it("throws and increments attempts for invalid code", async () => {
       const user = UserSeeder.create({ userId: "auth0|123" });
       const record = createVerificationCodeOutput({ userId: user.id, code: hashCode("123456"), attempts: 0 });
       const { service, emailVerificationCodeRepository, userRepository } = setup();
 
       userRepository.findById.mockResolvedValue(user);
-      emailVerificationCodeRepository.findActiveByUserId.mockResolvedValue(record);
+      emailVerificationCodeRepository.findActiveByUserIdForUpdate.mockResolvedValue(record);
 
-      const result = await service.verifyCode(user.id, "999999");
-
-      expect(result).toEqual({ emailVerified: false });
+      await expect(service.verifyCode(user.id, "999999")).rejects.toThrow("Invalid verification code");
       expect(emailVerificationCodeRepository.incrementAttempts).toHaveBeenCalledWith(record.id);
     });
 
@@ -182,23 +102,21 @@ describe(EmailVerificationCodeService.name, () => {
       const { service, emailVerificationCodeRepository, userRepository } = setup();
 
       userRepository.findById.mockResolvedValue(user);
-      emailVerificationCodeRepository.findActiveByUserId.mockResolvedValue(record);
+      emailVerificationCodeRepository.findActiveByUserIdForUpdate.mockResolvedValue(record);
 
       await expect(service.verifyCode(user.id, "123456")).rejects.toThrow();
       expect(emailVerificationCodeRepository.incrementAttempts).not.toHaveBeenCalled();
     });
 
-    it("returns emailVerified false for mismatched length code", async () => {
+    it("throws and increments attempts for mismatched length code", async () => {
       const user = UserSeeder.create({ userId: "auth0|123" });
       const record = createVerificationCodeOutput({ userId: user.id, code: hashCode("123456"), attempts: 0 });
       const { service, emailVerificationCodeRepository, userRepository } = setup();
 
       userRepository.findById.mockResolvedValue(user);
-      emailVerificationCodeRepository.findActiveByUserId.mockResolvedValue(record);
+      emailVerificationCodeRepository.findActiveByUserIdForUpdate.mockResolvedValue(record);
 
-      const result = await service.verifyCode(user.id, "12345");
-
-      expect(result).toEqual({ emailVerified: false });
+      await expect(service.verifyCode(user.id, "12345")).rejects.toThrow("Invalid verification code");
       expect(emailVerificationCodeRepository.incrementAttempts).toHaveBeenCalledWith(record.id);
     });
 
@@ -207,13 +125,13 @@ describe(EmailVerificationCodeService.name, () => {
       const { service, emailVerificationCodeRepository, userRepository } = setup();
 
       userRepository.findById.mockResolvedValue(user);
-      emailVerificationCodeRepository.findActiveByUserId.mockResolvedValue(undefined);
+      emailVerificationCodeRepository.findActiveByUserIdForUpdate.mockResolvedValue(undefined);
 
       await expect(service.verifyCode(user.id, "123456")).rejects.toThrow();
     });
   });
 
-  function hashCode(code) {
+  function hashCode(code: string) {
     return createHash("sha256").update(code).digest("hex");
   }
 
@@ -244,8 +162,6 @@ describe(EmailVerificationCodeService.name, () => {
     const notificationService = input.notificationService ?? mock<NotificationService>();
     const userRepository = input.userRepository ?? mock<UserRepository>();
     const logger = input.logger ?? mock<LoggerService>();
-
-    emailVerificationCodeRepository.acquireUserLock.mockResolvedValue(undefined);
 
     const service = new EmailVerificationCodeService(emailVerificationCodeRepository, auth0Service, notificationService, userRepository, logger);
 
