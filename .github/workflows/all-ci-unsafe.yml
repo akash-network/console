@@ -114,7 +114,7 @@ jobs:
         id: associated_pr
         uses: ./.github/actions/associated-pr
         with:
-          sha: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Check for skip label
         id: check_label
