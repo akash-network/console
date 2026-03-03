@@ -14,7 +14,6 @@ import { singleton } from "tsyringe";
 import { PaymentIntentResult, PaymentMethodValidationResult, Transaction } from "@src/billing/http-schemas/stripe.schema";
 import { PaymentMethodRepository, StripeTransactionInput, StripeTransactionOutput, StripeTransactionRepository } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
-import { RefillService } from "@src/billing/services/refill/refill.service";
 import { LoggerService, WithTransaction } from "@src/core";
 import { TransactionCsvRow } from "@src/types/transactions";
 import { UserOutput, UserRepository } from "@src/user/repositories/user/user.repository";
@@ -40,7 +39,6 @@ export class StripeService extends Stripe {
   constructor(
     private readonly billingConfig: BillingConfigService,
     private readonly userRepository: UserRepository,
-    private readonly refillService: RefillService,
     private readonly paymentMethodRepository: PaymentMethodRepository,
     private readonly stripeTransactionRepository: StripeTransactionRepository,
     private readonly loggerService: LoggerService
@@ -48,7 +46,8 @@ export class StripeService extends Stripe {
     loggerService.setContext(StripeService.name);
     const secretKey = billingConfig.get("STRIPE_SECRET_KEY");
     super(secretKey, {
-      apiVersion: "2025-10-29.clover"
+      apiVersion: "2025-10-29.clover",
+      httpClient: Stripe.createFetchHttpClient() // need to use fetch API, so we can intercept it in tests with nock
     });
   }
 

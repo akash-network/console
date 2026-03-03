@@ -5,7 +5,6 @@ import { mock } from "vitest-mock-extended";
 
 import type { PaymentMethodRepository, StripeTransactionRepository } from "@src/billing/repositories";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
-import type { RefillService } from "@src/billing/services/refill/refill.service";
 import type { LoggerService } from "@src/core/providers/logging.provider";
 import type { UserRepository } from "@src/user/repositories";
 import { StripeService } from "./stripe.service";
@@ -541,7 +540,7 @@ describe(StripeService.name, () => {
 
   describe("applyCoupon", () => {
     it("applies promotion code successfully, creates invoice with item, and leaves transaction pending for webhook", async () => {
-      const { service, refillService, stripeTransactionRepository } = setup();
+      const { service, stripeTransactionRepository } = setup();
       const mockUser = createTestUser();
       const mockCoupon = createTestCoupon({
         id: "coupon_123",
@@ -594,7 +593,6 @@ describe(StripeService.name, () => {
         description: `Coupon: ${mockCoupon.name}`
       });
 
-      expect(refillService.topUpWallet).not.toHaveBeenCalled();
       expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
 
       expect(result).toEqual({
@@ -606,7 +604,7 @@ describe(StripeService.name, () => {
     });
 
     it("applies coupon successfully when no promotion code found", async () => {
-      const { service, refillService, stripeTransactionRepository } = setup();
+      const { service, stripeTransactionRepository } = setup();
       const mockUser = createTestUser();
       const mockCoupon = createTestCoupon({
         id: "coupon_direct",
@@ -653,7 +651,6 @@ describe(StripeService.name, () => {
         description: `Coupon: ${mockCoupon.name}`
       });
 
-      expect(refillService.topUpWallet).not.toHaveBeenCalled();
       expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
 
       expect(result).toEqual({
@@ -1557,11 +1554,10 @@ function setup(
 ) {
   const billingConfig = mock<BillingConfigService>({ get: jest.fn().mockReturnValue("sk_live_key") });
   const userRepository = mock<UserRepository>();
-  const refillService = mock<RefillService>();
   const paymentMethodRepository = mock<PaymentMethodRepository>();
   const stripeTransactionRepository = mock<StripeTransactionRepository>();
 
-  const service = new StripeService(billingConfig, userRepository, refillService, paymentMethodRepository, stripeTransactionRepository, mock<LoggerService>());
+  const service = new StripeService(billingConfig, userRepository, paymentMethodRepository, stripeTransactionRepository, mock<LoggerService>());
 
   // Setup stripe transaction repository mocks
   stripeTransactionRepository.create.mockImplementation(async input => ({
@@ -1658,7 +1654,6 @@ function setup(
   return {
     service,
     userRepository,
-    refillService,
     billingConfig,
     paymentMethodRepository,
     stripeTransactionRepository
