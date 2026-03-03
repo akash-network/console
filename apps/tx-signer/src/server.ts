@@ -9,6 +9,7 @@ import { container } from "tsyringe";
 
 import { healthzRouter, txRouter } from "@src/routes";
 import { AppConfigService } from "@src/services/app-config/app-config.service";
+import { ChainErrorMiddleware } from "@src/services/chain-error/chain-error.middleware";
 import { HonoErrorHandlerService } from "@src/services/hono-error-handler/hono-error-handler.service";
 import { startServer } from "@src/services/start-server/start-server";
 import type { AppEnv } from "@src/types/app-context";
@@ -16,6 +17,7 @@ import type { AppEnv } from "@src/types/app-context";
 export const app = new Hono<AppEnv>();
 app.use("*", otel());
 app.use(container.resolve(HttpLoggerInterceptor).intercept());
+app.use("/v1/tx/*", container.resolve(ChainErrorMiddleware).intercept());
 app.route("/", healthzRouter);
 app.route("/", txRouter);
 app.onError(container.resolve(HonoErrorHandlerService).handle);
