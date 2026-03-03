@@ -1,16 +1,17 @@
 import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { HTTPException } from "hono/http-exception";
 import { isHttpError } from "http-errors";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 import { ZodError } from "zod";
 
+import { ChainErrorService } from "@src/services/chain-error/chain-error.service";
 import type { AppContext } from "@src/types/app-context";
 
 @singleton()
 export class HonoErrorHandlerService {
   private readonly logger = createOtelLogger({ context: "ErrorHandler" });
 
-  constructor() {
+  constructor(@inject(ChainErrorService) private readonly chainErrorService: ChainErrorService) {
     this.handle = this.handle.bind(this);
   }
 
@@ -56,6 +57,21 @@ export class HonoErrorHandlerService {
       );
     }
 
+    if (error instanceof Error) {
+      const chainErrorStatus = this.chainErrorService.getChainErrorStatus(error.message);
+      if (chainErrorStatus) {
+        return c.json(
+          {
+            error: error.name,
+            message: error.message,
+            code: this.getErrorCode({ status: chainErrorStatus }),
+            type: this.getErrorType({ status: chainErrorStatus })
+          },
+          { status: chainErrorStatus }
+        );
+      }
+    }
+
     const message = error instanceof Error ? error.message : "Internal server error";
     return c.json(
       {
@@ -74,6 +90,8 @@ export class HonoErrorHandlerService {
         return "bad_request";
       case 401:
         return "unauthorized";
+      case 402:
+        return "payment_required";
       case 403:
         return "forbidden";
       case 404:

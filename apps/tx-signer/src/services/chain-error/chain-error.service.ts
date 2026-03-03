@@ -1,9 +1,7 @@
-import type { MiddlewareHandler } from "hono";
-import createError from "http-errors";
 import { singleton } from "tsyringe";
 
 @singleton()
-export class ChainErrorMiddleware {
+export class ChainErrorService {
   private readonly CHAIN_ERROR_STATUS_CODES: Record<string, number> = {
     "insufficient funds": 400,
     "deposit too low": 400,
@@ -20,23 +18,7 @@ export class ChainErrorMiddleware {
     "insufficient balance": 402
   };
 
-  intercept(): MiddlewareHandler {
-    return async (_c, next) => {
-      try {
-        await next();
-      } catch (error) {
-        if (error instanceof Error) {
-          const status = this.getChainErrorStatus(error.message);
-          if (status) {
-            throw createError(status, error.message);
-          }
-        }
-        throw error;
-      }
-    };
-  }
-
-  private getChainErrorStatus(message: string): number | undefined {
+  getChainErrorStatus(message: string): number | undefined {
     const lowerMessage = message.toLowerCase();
 
     for (const [pattern, status] of Object.entries(this.CHAIN_ERROR_STATUS_CODES)) {
