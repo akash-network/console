@@ -53,7 +53,15 @@ export class HttpLoggerInterceptor {
           log.userId = currentUser.id;
         }
 
-        this.logger?.info(log);
+        const status = c.res.status;
+
+        if (status >= 500) {
+          this.logger?.error(log);
+        } else if (status >= 400) {
+          this.logger?.warn(log);
+        } else {
+          this.logger?.info(log);
+        }
       }
     };
   }
