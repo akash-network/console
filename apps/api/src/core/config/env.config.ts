@@ -38,10 +38,6 @@ export const envSchema = z
       .string()
       .default("false")
       .transform(value => value === "true"),
-    FEATURE_FLAGS_EXTERNAL_TX_SIGNER_DISABLED: z
-      .string()
-      .default("false")
-      .transform(value => value === "true"),
     REST_API_NODE_URL: z
       .string()
       .url()
