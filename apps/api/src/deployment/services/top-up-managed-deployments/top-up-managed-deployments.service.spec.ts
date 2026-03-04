@@ -12,7 +12,6 @@ import type { ManagedSignerService } from "@src/billing/services/managed-signer/
 import type { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import type { DrainingDeployment, DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { mockConfigService } from "../../../../test/mocks/config-service.mock";
-import type { LoggerService } from "../../../core";
 import type { CachedBalance, CachedBalanceService } from "../cached-balance/cached-balance.service";
 import { TopUpManagedDeploymentsService } from "./top-up-managed-deployments.service";
 import type { TopUpManagedDeploymentsInstrumentationService } from "./top-up-managed-deployments-instrumentation.service";
@@ -33,7 +32,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
   describe("topUpDeployments", () => {
     it("should top up draining deployments", async () => {
-      const { service, drainingDeploymentService, cachedBalanceService, managedSignerService, logger } = setup();
+      const { service, drainingDeploymentService, cachedBalanceService, managedSignerService, instrumentation } = setup();
       const deployments = AutoTopUpDeploymentSeeder.createMany(2);
       const desiredAmount = faker.number.int({ min: 3500000, max: 4000000 });
       const sufficientAmount = faker.number.int({ min: 1000000, max: 2000000 });
@@ -94,9 +93,8 @@ describe(TopUpManagedDeploymentsService.name, () => {
             }
           }
         ]);
-        expect(logger.info).toHaveBeenCalledWith(
+        expect(instrumentation.recordDeposit).toHaveBeenCalledWith(
           expect.objectContaining({
-            event: "TOP_UP_DEPLOYMENTS_SUCCESS",
             owner: deployment.address,
             items: [
               expect.objectContaining({
@@ -119,32 +117,12 @@ describe(TopUpManagedDeploymentsService.name, () => {
                   owner: deployment.address
                 })
               })
-            ],
-            dryRun: false
+            ]
           })
         );
       });
 
-      expect(logger.info).toHaveBeenCalledWith(
-        expect.objectContaining({
-          event: "TOP_UP_DEPLOYMENTS_SUMMARY",
-          summary: expect.objectContaining({
-            startBlockHeight: CURRENT_BLOCK_HEIGHT,
-            endBlockHeight: CURRENT_BLOCK_HEIGHT,
-            deploymentCount: 2,
-            deploymentTopUpCount: 2,
-            deploymentTopUpErrorCount: 0,
-            insufficientBalanceCount: 0,
-            walletsCount: 2,
-            walletsTopUpCount: 2,
-            walletsTopUpErrorCount: 0,
-            minPredictedClosedHeight: predictedClosedHeight1,
-            maxPredictedClosedHeight: predictedClosedHeight2,
-            totalTopUpAmount: expect.any(Number)
-          }),
-          dryRun: false
-        })
-      );
+      expect(instrumentation.finish).toHaveBeenCalledWith("success", CURRENT_BLOCK_HEIGHT);
     });
 
     it("should handle errors and continue processing", async () => {
@@ -317,7 +295,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
     });
 
     it("should log errors when message preparation fails", async () => {
-      const { service, drainingDeploymentService, logger } = setup();
+      const { service, drainingDeploymentService, instrumentation } = setup();
       const deployment = AutoTopUpDeploymentSeeder.create();
       const error = new Error("Failed to calculate amount");
 
@@ -342,42 +320,21 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
       await service.topUpDeployments({ dryRun: false });
 
-      expect(logger.error).toHaveBeenCalledWith(
+      expect(instrumentation.recordMessagePreparationError).toHaveBeenCalledWith(
         expect.objectContaining({
-          event: "MESSAGE_PREPARATION_ERROR",
           deployment: expect.objectContaining({
             address: deployment.address,
             walletId: deployment.walletId
           }),
-          message: error.message,
-          dryRun: false,
-          stack: expect.any(String)
+          error
         })
       );
-      expect(logger.error).toHaveBeenCalledWith(
-        expect.objectContaining({
-          event: "TOP_UP_DEPLOYMENTS_SUMMARY",
-          summary: expect.objectContaining({
-            deploymentCount: 1,
-            deploymentTopUpCount: 0,
-            deploymentTopUpErrorCount: 1,
-            insufficientBalanceCount: 0,
-            walletsCount: 1,
-            walletsTopUpCount: 0,
-            walletsTopUpErrorCount: 1,
-            minPredictedClosedHeight: CURRENT_BLOCK_HEIGHT + 1500,
-            maxPredictedClosedHeight: CURRENT_BLOCK_HEIGHT + 1500,
-            totalTopUpAmount: 0,
-            startBlockHeight: CURRENT_BLOCK_HEIGHT,
-            endBlockHeight: CURRENT_BLOCK_HEIGHT
-          }),
-          dryRun: false
-        })
-      );
+
+      expect(instrumentation.finish).toHaveBeenCalledWith("success", CURRENT_BLOCK_HEIGHT);
     });
 
     it("should handle master wallet insufficient funds error and stop processing", async () => {
-      const { service, chainErrorService, managedSignerService, drainingDeploymentService, cachedBalanceService, logger } = setup();
+      const { service, chainErrorService, managedSignerService, drainingDeploymentService, cachedBalanceService, instrumentation } = setup();
       const deployments = AutoTopUpDeploymentSeeder.createMany(3);
       const error = new Error(`insufficient funds: 10uakt is smaller than 20uakt`);
       const mockTx = mock<IndexedTx>({ code: 0, hash: "tx-hash", rawLog: "success" });
@@ -423,37 +380,13 @@ describe(TopUpManagedDeploymentsService.name, () => {
       );
 
       expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(3);
-      expect(logger.error).toHaveBeenCalledWith(
-        expect.objectContaining({
-          event: "MASTER_WALLET_INSUFFICIENT_FUNDS",
-          message: error.message,
-          dryRun: false
-        })
-      );
-      expect(logger.error).toHaveBeenCalledWith(
-        expect.objectContaining({
-          event: "TOP_UP_DEPLOYMENTS_SUMMARY",
-          summary: expect.objectContaining({
-            startBlockHeight: CURRENT_BLOCK_HEIGHT,
-            endBlockHeight: CURRENT_BLOCK_HEIGHT,
-            deploymentCount: 3,
-            deploymentTopUpCount: 2,
-            deploymentTopUpErrorCount: 1,
-            insufficientBalanceCount: 0,
-            walletsCount: 3,
-            walletsTopUpCount: 2,
-            walletsTopUpErrorCount: 1,
-            minPredictedClosedHeight: CURRENT_BLOCK_HEIGHT + 1500,
-            maxPredictedClosedHeight: CURRENT_BLOCK_HEIGHT + 1500,
-            totalTopUpAmount: expect.any(Number)
-          }),
-          dryRun: false
-        })
-      );
+      expect(instrumentation.recordChainTxError).toHaveBeenCalledWith(expect.objectContaining({ error }));
+      expect(instrumentation.recordMasterWalletInsufficientFundsError).toHaveBeenCalledWith(expect.objectContaining({ error }));
+      expect(instrumentation.finish).toHaveBeenCalledWith("failure", CURRENT_BLOCK_HEIGHT);
     });
 
     it("should handle user wallet insufficient funds error and continue processing", async () => {
-      const { service, chainErrorService, managedSignerService, drainingDeploymentService, cachedBalanceService, logger } = setup();
+      const { service, chainErrorService, managedSignerService, drainingDeploymentService, cachedBalanceService, instrumentation } = setup();
       const deployments = AutoTopUpDeploymentSeeder.createMany(3);
       const error = new Error(`insufficient funds: 10uakt is smaller than 20uakt`);
 
@@ -497,33 +430,8 @@ describe(TopUpManagedDeploymentsService.name, () => {
       await service.topUpDeployments({ dryRun: false });
 
       expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(3);
-      expect(logger.error).toHaveBeenCalledWith(
-        expect.objectContaining({
-          event: "TOP_UP_DEPLOYMENTS_ERROR",
-          message: error.message,
-          dryRun: false
-        })
-      );
-      expect(logger.info).toHaveBeenCalledWith(
-        expect.objectContaining({
-          event: "TOP_UP_DEPLOYMENTS_SUMMARY",
-          summary: expect.objectContaining({
-            startBlockHeight: CURRENT_BLOCK_HEIGHT,
-            endBlockHeight: CURRENT_BLOCK_HEIGHT,
-            deploymentCount: 3,
-            deploymentTopUpCount: 2,
-            deploymentTopUpErrorCount: 1,
-            insufficientBalanceCount: 1,
-            walletsCount: 3,
-            walletsTopUpCount: 2,
-            walletsTopUpErrorCount: 1,
-            minPredictedClosedHeight: CURRENT_BLOCK_HEIGHT + 1500,
-            maxPredictedClosedHeight: CURRENT_BLOCK_HEIGHT + 1500,
-            totalTopUpAmount: expect.any(Number)
-          }),
-          dryRun: false
-        })
-      );
+      expect(instrumentation.recordChainTxError).toHaveBeenCalledWith(expect.objectContaining({ error }));
+      expect(instrumentation.finish).toHaveBeenCalledWith("success", CURRENT_BLOCK_HEIGHT);
     });
   });
 
@@ -545,7 +453,6 @@ describe(TopUpManagedDeploymentsService.name, () => {
     blockHttpService.getCurrentHeight.mockResolvedValue(currentBlockHeight);
     const chainErrorService = mock<ChainErrorService>();
     chainErrorService.isMasterWalletInsufficientFundsError.mockResolvedValue(false);
-    const logger = mock<LoggerService>();
     const instrumentation = mock<TopUpManagedDeploymentsInstrumentationService>();
 
     const service = new TopUpManagedDeploymentsService(
@@ -556,7 +463,6 @@ describe(TopUpManagedDeploymentsService.name, () => {
       cachedBalanceService,
       blockHttpService,
       chainErrorService,
-      logger,
       instrumentation
     );
 
@@ -569,7 +475,6 @@ describe(TopUpManagedDeploymentsService.name, () => {
       cachedBalanceService,
       blockHttpService,
       chainErrorService,
-      logger,
       instrumentation
     };
   }

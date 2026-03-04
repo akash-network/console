@@ -84,6 +84,53 @@ describe(DeploymentSettingService.name, () => {
     });
   });
 
+  describe("upsert", () => {
+    it("records setting toggle when autoTopUpEnabled changes", async () => {
+      const { service, deploymentSettingRepository, instrumentation } = setup();
+      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+      const existing = createDeploymentSettingsOutput({ ...params, autoTopUpEnabled: false });
+      const updated = createDeploymentSettingsOutput({ ...params, autoTopUpEnabled: true });
+
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(existing);
+      deploymentSettingRepository.updateBy.mockResolvedValue(updated as never);
+
+      await service.upsert(params, { autoTopUpEnabled: true });
+
+      expect(instrumentation.recordSettingToggle).toHaveBeenCalledWith(true);
+    });
+
+    it("does not record setting toggle when autoTopUpEnabled stays the same", async () => {
+      const { service, deploymentSettingRepository, instrumentation } = setup();
+      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+      const existing = createDeploymentSettingsOutput({ ...params, autoTopUpEnabled: true });
+      const updated = createDeploymentSettingsOutput({ ...params, autoTopUpEnabled: true });
+
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(existing);
+      deploymentSettingRepository.updateBy.mockResolvedValue(updated as never);
+
+      await service.upsert(params, { autoTopUpEnabled: true });
+
+      expect(instrumentation.recordSettingToggle).not.toHaveBeenCalled();
+    });
+
+    it("records setting toggle when creating new setting", async () => {
+      const { service, deploymentSettingRepository, instrumentation } = setup();
+      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+      const created = createDeploymentSettingsOutput({ ...params, autoTopUpEnabled: true });
+
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(undefined);
+      deploymentSettingRepository.updateBy.mockResolvedValue(undefined);
+      deploymentSettingRepository.create.mockResolvedValue(created);
+
+      await service.upsert(params, { autoTopUpEnabled: true });
+
+      expect(instrumentation.recordSettingToggle).toHaveBeenCalledWith(true);
+    });
+  });
+
   function createDeploymentSettingsOutput(overrides: Partial<DeploymentSettingsOutput> = {}): DeploymentSettingsOutput {
     return {
       id: faker.string.uuid(),
