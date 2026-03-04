@@ -9,6 +9,7 @@ import { UrlService } from "@src/utils/urlUtils";
 const DEPENDENCIES = {
   Layout,
   Loading,
+  NextSeo,
   UrlService
 };
 
@@ -24,7 +25,7 @@ export function VerifyEmailPage({ dependencies: d = DEPENDENCIES }: VerifyEmailP
 
   return (
     <d.Layout>
-      <NextSeo title="Email Verification" />
+      <d.NextSeo title="Email Verification" />
       <d.Loading text="Redirecting to email verification..." />
     </d.Layout>
   );
