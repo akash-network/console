@@ -1,5 +1,5 @@
+import { SendVerificationCodeResponseSchema } from "@akashnetwork/http-sdk";
 import { container } from "tsyringe";
-import { z } from "zod";
 
 import { AuthController } from "@src/auth/controllers/auth/auth.controller";
 import { createRoute } from "@src/core/lib/create-route/create-route";
@@ -7,12 +7,6 @@ import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/ope
 import { SECURITY_BEARER } from "@src/core/services/openapi-docs/openapi-security";
 
 export const sendVerificationCodeRouter = new OpenApiHonoHandler();
-
-const SendVerificationCodeResponseSchema = z.object({
-  data: z.object({
-    codeSentAt: z.string()
-  })
-});
 
 const route = createRoute({
   method: "post",

@@ -120,6 +120,21 @@ describe(EmailVerificationCodeService.name, () => {
       expect(emailVerificationCodeRepository.incrementAttempts).toHaveBeenCalledWith(record.id);
     });
 
+    it("updates local DB even if Auth0 call fails", async () => {
+      const code = "123456";
+      const user = UserSeeder.create({ userId: "auth0|123" });
+      const record = createVerificationCodeOutput({ userId: user.id, code: hashCode(code), attempts: 0 });
+      const { service, emailVerificationCodeRepository, userRepository, auth0Service } = setup();
+
+      userRepository.findById.mockResolvedValue(user);
+      emailVerificationCodeRepository.findActiveByUserIdForUpdate.mockResolvedValue(record);
+      auth0Service.markEmailVerified.mockRejectedValue(new Error("Auth0 unavailable"));
+
+      await expect(service.verifyCode(user.id, code)).rejects.toThrow("Auth0 unavailable");
+
+      expect(userRepository.updateById).toHaveBeenCalledWith(user.id, { emailVerified: true });
+    });
+
     it("rejects when no active code exists", async () => {
       const user = UserSeeder.create({ userId: "auth0|123" });
       const { service, emailVerificationCodeRepository, userRepository } = setup();

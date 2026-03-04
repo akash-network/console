@@ -28,19 +28,8 @@ export class EmailVerificationCodeRepository extends BaseRepository<Table, Email
     return new EmailVerificationCodeRepository(this.pg, this.table, this.txManager).withAbility(...abilityParams) as this;
   }
 
-  async findActiveByUserId(userId: string): Promise<EmailVerificationCodeOutput | undefined> {
-    const [result] = await this.cursor
-      .select()
-      .from(this.table)
-      .where(and(eq(this.table.userId, userId), gt(this.table.expiresAt, sql`now()`)))
-      .orderBy(desc(this.table.createdAt))
-      .limit(1);
-
-    return result ? this.toOutput(result) : undefined;
-  }
-
   async findActiveByUserIdForUpdate(userId: string): Promise<EmailVerificationCodeOutput | undefined> {
-    const items = await this.cursor
+    const [result] = await this.cursor
       .select()
       .from(this.table)
       .where(and(eq(this.table.userId, userId), gt(this.table.expiresAt, sql`now()`)))
@@ -48,7 +37,7 @@ export class EmailVerificationCodeRepository extends BaseRepository<Table, Email
       .limit(1)
       .for("update");
 
-    return items.length > 0 ? this.toOutput(items[0]) : undefined;
+    return result ? this.toOutput(result) : undefined;
   }
 
   async countRecentByUserId(userId: string, since: Date): Promise<number> {

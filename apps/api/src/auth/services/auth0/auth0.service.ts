@@ -1,6 +1,8 @@
 import { GetUsers200ResponseOneOfInner, ManagementClient } from "auth0";
 import { singleton } from "tsyringe";
 
+export const AUTH0_DB_CONNECTION = "Username-Password-Authentication";
+
 @singleton()
 export class Auth0Service {
   constructor(private readonly managementClient: ManagementClient) {}
