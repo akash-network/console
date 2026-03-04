@@ -7,7 +7,7 @@ import { VerifyEmailRequest } from "@src/auth/http-schemas/verify-email.schema";
 import type { SignupInput } from "@src/auth/routes/signup/signup.router";
 import type { VerifyEmailCodeRequest } from "@src/auth/routes/verify-email-code/verify-email-code.router";
 import { AuthService, Protected } from "@src/auth/services/auth.service";
-import { Auth0Service } from "@src/auth/services/auth0/auth0.service";
+import { AUTH0_DB_CONNECTION, Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import { EmailVerificationCodeService } from "@src/auth/services/email-verification-code/email-verification-code.service";
 import { UserService } from "@src/user/services/user/user.service";
 
@@ -25,10 +25,13 @@ export class AuthController {
       await this.auth0.createUser({
         email: input.email,
         password: input.password,
-        connection: "Username-Password-Authentication"
+        connection: AUTH0_DB_CONNECTION
       });
     } catch (error) {
       if (error instanceof ResponseError) {
+        if (error.statusCode === 409) {
+          assert(false, 422, "Unable to create account. Please try again or use a different email.");
+        }
         const body = JSON.parse(error.body);
         assert(false, error.statusCode, body.message);
       }

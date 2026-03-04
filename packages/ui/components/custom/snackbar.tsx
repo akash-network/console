@@ -11,7 +11,6 @@ type Props = {
   subTitle?: string | ReactNode;
   iconVariant?: IconVariant;
   showLoading?: boolean;
-  children?: ReactNode;
   ["data-testid"]?: string;
 };
 

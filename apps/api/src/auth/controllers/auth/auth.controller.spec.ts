@@ -4,6 +4,7 @@ import { mock } from "vitest-mock-extended";
 
 import { AuthService } from "@src/auth/services/auth.service";
 import type { Auth0Service } from "@src/auth/services/auth0/auth0.service";
+import { AUTH0_DB_CONNECTION } from "@src/auth/services/auth0/auth0.service";
 import type { EmailVerificationCodeService } from "@src/auth/services/email-verification-code/email-verification-code.service";
 import type { UserService } from "@src/user/services/user/user.service";
 import { AuthController } from "./auth.controller";
@@ -22,7 +23,7 @@ describe(AuthController.name, () => {
       expect(auth0Service.createUser).toHaveBeenCalledWith({
         email: "user@example.com",
         password: "StrongPassword123!",
-        connection: "Username-Password-Authentication"
+        connection: AUTH0_DB_CONNECTION
       });
     });
 
@@ -36,12 +37,14 @@ describe(AuthController.name, () => {
       await expect(controller.signup({ email: "user@example.com", password: "weak" })).rejects.toThrow("PasswordStrengthError: Password is too weak");
     });
 
-    it("converts 409 (user exists) to http error", async () => {
+    it("converts 409 (user exists) to generic 422 error", async () => {
       const { controller, auth0Service } = setup();
 
       auth0Service.createUser.mockRejectedValue(new ResponseError(409, JSON.stringify({ message: "The user already exists." }), new Headers()));
 
-      await expect(controller.signup({ email: "user@example.com", password: "StrongPassword123!" })).rejects.toThrow("The user already exists.");
+      await expect(controller.signup({ email: "user@example.com", password: "StrongPassword123!" })).rejects.toThrow(
+        "Unable to create account. Please try again or use a different email."
+      );
     });
 
     it("re-throws non-ResponseError errors", async () => {
