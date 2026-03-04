@@ -1,3 +1,4 @@
+import { DeploymentHttpService } from "@akashnetwork/http-sdk";
 import { singleton } from "tsyringe";
 
 import { UserWalletRepository } from "@src/billing/repositories";
@@ -30,6 +31,7 @@ export class CloseTrialDeploymentHandler implements JobHandler<CloseTrialDeploym
     private readonly logger: LoggerService,
     private readonly jobQueueService: JobQueueService,
     private readonly deploymentWriterService: DeploymentWriterService,
+    private readonly deploymentService: DeploymentHttpService,
     private readonly billingConfig: BillingConfigService
   ) {}
 
@@ -68,6 +70,46 @@ export class CloseTrialDeploymentHandler implements JobHandler<CloseTrialDeploym
         walletId: payload.walletId,
         dseq: payload.dseq,
         userId: wallet.userId
+      });
+      return;
+    }
+
+    const deployment = await this.deploymentService.findByOwnerAndDseq(address, payload.dseq);
+
+    if (!deployment) {
+      this.logger.error({
+        event: "CLOSE_TRIAL_DEPLOYMENT_ERROR",
+        reason: "Deployment not found",
+        job: CloseTrialDeployment[JOB_NAME],
+        walletId: payload.walletId,
+        dseq: payload.dseq,
+        userId: wallet.userId
+      });
+      throw new Error("Failed to fetch deployment details: deployment not found");
+    }
+
+    if ("code" in deployment) {
+      this.logger.error({
+        event: "CLOSE_TRIAL_DEPLOYMENT_ERROR",
+        reason: deployment.message,
+        details: deployment.details,
+        job: CloseTrialDeployment[JOB_NAME],
+        walletId: payload.walletId,
+        dseq: payload.dseq,
+        userId: wallet.userId
+      });
+      throw new Error(`Failed to fetch deployment details: ${deployment.message}`);
+    }
+
+    if (deployment.deployment.state !== "active") {
+      this.logger.debug({
+        event: "SKIP_CLOSE_TRIAL_DEPLOYMENT_JOB",
+        reason: "Deployment is not active",
+        job: CloseTrialDeployment[JOB_NAME],
+        walletId: payload.walletId,
+        dseq: payload.dseq,
+        userId: wallet.userId,
+        deploymentState: deployment.deployment.state
       });
       return;
     }
