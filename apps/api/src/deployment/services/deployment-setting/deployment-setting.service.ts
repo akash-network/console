@@ -67,9 +67,10 @@ export class DeploymentSettingService {
     params: FindDeploymentSettingParams,
     input: Pick<DeploymentSettingsInput, "autoTopUpEnabled">
   ): Promise<DeploymentSettingWithEstimatedTopUpAmount> {
-    let setting = await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "update").updateBy(params, input, { returning: true });
-
     try {
+      const existing = await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "read").findOneBy(params);
+      let setting = await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "update").updateBy(params, input, { returning: true });
+
       setting =
         setting ||
         (await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "create").create({
@@ -77,7 +78,7 @@ export class DeploymentSettingService {
           ...params
         }));
 
-      if (input.autoTopUpEnabled !== undefined) {
+      if (input.autoTopUpEnabled !== undefined && existing?.autoTopUpEnabled !== input.autoTopUpEnabled) {
         this.instrumentation.recordSettingToggle(input.autoTopUpEnabled);
       }
 

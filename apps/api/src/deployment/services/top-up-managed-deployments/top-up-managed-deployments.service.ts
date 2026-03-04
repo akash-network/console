@@ -7,9 +7,7 @@ import { BillingConfigService } from "@src/billing/services/billing-config/billi
 import { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
-import { LoggerService } from "@src/core";
 import type { DryRunOptions } from "@src/core/types/console";
-import { TopUpSummarizer } from "@src/deployment/lib/top-up-summarizer/top-up-summarizer";
 import { DrainingDeployment } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
 import { CachedBalanceService } from "../cached-balance/cached-balance.service";
@@ -23,8 +21,6 @@ type CollectedMessage = {
 
 @singleton()
 export class TopUpManagedDeploymentsService {
-  private readonly summarizer = new TopUpSummarizer();
-
   constructor(
     private readonly managedSignerService: ManagedSignerService,
     private readonly billingConfig: BillingConfigService,
@@ -33,71 +29,55 @@ export class TopUpManagedDeploymentsService {
     private readonly cachedBalanceService: CachedBalanceService,
     private readonly blockHttpService: BlockHttpService,
     private readonly chainErrorService: ChainErrorService,
-    private readonly logger: LoggerService,
     private readonly instrumentation: TopUpManagedDeploymentsInstrumentationService
-  ) {
-    this.logger.setContext(TopUpManagedDeploymentsService.name);
-  }
+  ) {}
 
   async topUpDeployments(options: DryRunOptions): Promise<Result<void, unknown[]>> {
-    const startTime = Date.now();
-    const startBlockHeight = await this.blockHttpService.getCurrentHeight();
-    this.summarizer.set("startBlockHeight", startBlockHeight);
+    this.instrumentation.start(await this.blockHttpService.getCurrentHeight(), options);
     const errors: unknown[] = [];
 
-    for await (const { address, deployments } of this.drainingDeploymentService.findDrainingDeploymentsByOwner()) {
-      try {
-        const messageInputs = await this.collectMessages(deployments, startBlockHeight, options);
-        if (!messageInputs.length) {
-          this.logger.info({
-            event: "TOP_UP_SKIPPED_NOTHING_TO_TOP_UP",
-            owner: address,
-            deploymentCount: deployments.length,
-            dryRun: options.dryRun
-          });
-          continue;
+    try {
+      for await (const { address, deployments } of this.drainingDeploymentService.findDrainingDeploymentsByOwner()) {
+        try {
+          const messageInputs = await this.collectMessages(deployments);
+          if (messageInputs.length) {
+            await this.topUpForOwner(address, messageInputs, options);
+          } else {
+            this.instrumentation.recordSkipped({
+              owner: address,
+              deploymentCount: deployments.length
+            });
+          }
+        } catch (error: unknown) {
+          errors.push(error);
         }
-        await this.topUpForOwner(address, messageInputs, options);
-      } catch (error: unknown) {
-        errors.push(error);
       }
+    } catch (error: unknown) {
+      errors.push(error);
+    } finally {
+      const endHeight = await this.blockHttpService.getCurrentHeight().catch(() => undefined);
+      this.instrumentation.finish(errors.length ? "failure" : "success", endHeight);
     }
-
-    await this.finalizeSummary(options);
-
-    const status = errors.length > 0 ? "failure" : "success";
-    this.instrumentation.recordJobExecution(Date.now() - startTime, status);
 
     return errors.length > 0 ? Err(errors) : Ok(undefined);
   }
 
-  private async finalizeSummary(options: DryRunOptions) {
-    const endBlockHeight = await this.blockHttpService.getCurrentHeight();
-    this.summarizer.set("endBlockHeight", endBlockHeight);
-
-    this.logSummary(options);
-  }
-
-  private async collectMessages(deployments: DrainingDeployment[], startBlockHeight: number, options: DryRunOptions): Promise<CollectedMessage[]> {
+  private async collectMessages(deployments: DrainingDeployment[]): Promise<CollectedMessage[]> {
     const denom = this.billingConfig.get("DEPLOYMENT_GRANT_DENOM");
 
     const messageInputs = await Promise.all(
       deployments.map(async deployment => {
-        this.summarizer.inc("deploymentCount");
-        this.summarizer.trackWallet(deployment.address);
-        this.instrumentation.recordPredictedCloseBlocks(startBlockHeight, deployment.predictedClosedHeight);
+        this.instrumentation.recordDeploymentPreparation(deployment.address, deployment.predictedClosedHeight);
 
         try {
-          const { address, predictedClosedHeight } = deployment;
-          this.summarizer.ensurePredictedClosedHeight(predictedClosedHeight);
+          const { address } = deployment;
 
           const [balance, desiredAmount] = await Promise.all([
             this.cachedBalanceService.get(address),
             this.drainingDeploymentService.calculateTopUpAmount(deployment)
           ]);
           if (desiredAmount <= 0) {
-            this.logger.warn({
-              event: "TOP_UP_AMOUNT_NON_POSITIVE",
+            this.instrumentation.recordInvalidDepositAmount({
               desiredAmount,
               dseq: deployment.dseq,
               address: deployment.address,
@@ -121,26 +101,11 @@ export class TopUpManagedDeploymentsService {
             input: messageInput,
             deployment
           };
-        } catch (error: any) {
-          this.logger.error({
-            event: "MESSAGE_PREPARATION_ERROR",
+        } catch (error: unknown) {
+          this.instrumentation.recordMessagePreparationError({
             deployment,
-            message: error.message,
-            stack: error.stack,
-            dryRun: options.dryRun
+            error
           });
-
-          this.summarizer.inc("deploymentTopUpErrorCount");
-          this.summarizer.trackFailedWallet(deployment.address);
-
-          if (error.message.startsWith("Insufficient balance")) {
-            this.summarizer.inc("insufficientBalanceCount");
-            this.instrumentation.recordDepositError("insufficient_balance");
-          } else {
-            this.instrumentation.recordDepositError("message_preparation");
-          }
-
-          return;
         }
       })
     );
@@ -149,10 +114,6 @@ export class TopUpManagedDeploymentsService {
   }
 
   private async topUpForOwner(owner: string, ownerInputs: CollectedMessage[], options: DryRunOptions) {
-    const logItems = ownerInputs.map(({ deployment, input }) => ({
-      deployment,
-      input
-    }));
     const walletId = ownerInputs[0].deployment.walletId;
 
     try {
@@ -163,63 +124,14 @@ export class TopUpManagedDeploymentsService {
         );
       }
 
-      this.summarizer.inc("deploymentTopUpCount", ownerInputs.length);
-      ownerInputs.forEach(i => {
-        this.summarizer.addTopUpAmount(i.input.amount);
-        if (!options.dryRun) {
-          this.instrumentation.recordDeposit(i.input.amount);
-        }
-      });
-      this.summarizer.trackSuccessfulWallet(owner);
+      this.instrumentation.recordDeposit({ owner, items: ownerInputs });
+    } catch (error: unknown) {
+      this.instrumentation.recordChainTxError({ owner, items: ownerInputs, error });
 
-      this.logger.info({
-        event: "TOP_UP_DEPLOYMENTS_SUCCESS",
-        owner,
-        items: logItems,
-        dryRun: options.dryRun
-      });
-    } catch (error: any) {
-      this.logger.error({
-        event: "TOP_UP_DEPLOYMENTS_ERROR",
-        owner,
-        items: logItems,
-        message: error.message,
-        stack: error.stack,
-        dryRun: options.dryRun,
-        data: error.data
-      });
-
-      this.summarizer.inc("deploymentTopUpErrorCount", ownerInputs.length);
-      this.summarizer.trackFailedWallet(owner);
-      ownerInputs.forEach(() => this.instrumentation.recordDepositError("tx_error"));
-
-      if (await this.chainErrorService.isMasterWalletInsufficientFundsError(error)) {
-        this.logger.error({
-          event: "MASTER_WALLET_INSUFFICIENT_FUNDS",
-          owner,
-          items: logItems,
-          message: error.message,
-          stack: error.stack,
-          dryRun: options.dryRun,
-          data: error.data
-        });
-
+      if (error instanceof Error && (await this.chainErrorService.isMasterWalletInsufficientFundsError(error))) {
+        this.instrumentation.recordMasterWalletInsufficientFundsError({ owner, items: ownerInputs, error });
         throw error;
-      } else if (error.message?.startsWith("insufficient funds")) {
-        this.summarizer.inc("insufficientBalanceCount");
       }
-    }
-  }
-
-  private logSummary(options: DryRunOptions) {
-    const summary = this.summarizer.summarize();
-    const log = { event: "TOP_UP_DEPLOYMENTS_SUMMARY", summary, dryRun: options.dryRun };
-    const hasErrors = summary.deploymentTopUpErrorCount - summary.insufficientBalanceCount > 0;
-
-    if (hasErrors) {
-      this.logger.error(log);
-    } else {
-      this.logger.info(log);
     }
   }
 }
