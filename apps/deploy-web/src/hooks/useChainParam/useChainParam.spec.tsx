@@ -20,13 +20,13 @@ describe(useChainParam.name, () => {
     const { result } = setup({
       usdcDenom,
       depositParams: [
-        { denom: "uakt", amount: "1234567" },
+        { denom: "uakt", amount: "1234000" },
         { denom: usdcDenom, amount: "2500000" },
         { denom: "uact", amount: "5000000" }
       ]
     });
 
-    expect(result.current.minDeposit).toEqual({ akt: 1.235, usdc: 2.5, act: 5 });
+    expect(result.current.minDeposit).toEqual({ akt: 1.234, usdc: 2.5, act: 5 });
   });
 
   it("returns 0 for missing denom", () => {

@@ -8,7 +8,6 @@ import { useChainParam } from "@src/hooks/useChainParam/useChainParam";
 import { useSupportsACT } from "@src/hooks/useSupportsACT/useSupportsACT";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
 import { denomToUdenom } from "@src/utils/mathHelpers";
-import { aktToUakt } from "@src/utils/priceUtils";
 import { ConnectWallet } from "./ConnectWallet";
 import { Title } from "./Title";
 
@@ -34,8 +33,8 @@ export const PrerequisiteList: React.FunctionComponent<Props> = ({ onClose, onCo
       setIsLoadingPrerequisites(true);
 
       const isBalanceValidated =
-        walletBalance.balanceUAKT >= aktToUakt(minDeposit.akt) ||
-        walletBalance.balanceUUSDC >= denomToUdenom(minDeposit.usdc) ||
+        walletBalance.balanceUAKT >= denomToUdenom(minDeposit.akt) ||
+        (!isACTSupported && walletBalance.balanceUUSDC >= denomToUdenom(minDeposit.usdc)) ||
         walletBalance.balanceUACT >= denomToUdenom(minDeposit.act);
 
       setIsBalanceValidated(isBalanceValidated);

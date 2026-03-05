@@ -11,13 +11,6 @@ export const akashTestnet: Chain = {
   apis: {
     rpc: [{ address: "https://testnetrpc.akashnet.net", provider: "ovrclk" }],
     rest: [{ address: "https://testnetapi.akashnet.net", provider: "ovrclk" }]
-  },
-  staking: {
-    staking_tokens: [
-      {
-        denom: "uact"
-      }
-    ]
   }
 };
 

@@ -3,7 +3,6 @@ import { useMemo } from "react";
 import { useUsdcDenom } from "@src/hooks/useDenom";
 import { useDepositParams } from "@src/queries/useSaveSettings";
 import { udenomToDenom } from "@src/utils/mathHelpers";
-import { uaktToAKT } from "@src/utils/priceUtils";
 import { useSettings } from "../../context/SettingsProvider";
 
 type MinDeposit = {
@@ -40,7 +39,7 @@ export function useChainParam({ dependencies: d = DEPENDENCIES }: { dependencies
 
     return {
       minDeposit: {
-        akt: uaktToAKT(minDeposit.uakt),
+        akt: udenomToDenom(minDeposit.uakt),
         usdc: udenomToDenom(minDeposit[usdcDenom]),
         act: udenomToDenom(minDeposit.uact)
       }

@@ -61,7 +61,7 @@ export const useWalletBalance = (): WalletBalanceReturnType => {
         totalUsd: aktUsdValue + totalUsdcValue + udenomToUsd(balances.balanceUACT, UACT_DENOM) + totalDeploymentEscrowUSD + totalDeploymentGrantsUSD,
         balanceUAKT: balances.balanceUAKT + balances.deploymentGrantsUAKT,
         balanceUUSDC: balances.balanceUUSDC + balances.deploymentGrantsUUSDC,
-        balanceUACT: balances.balanceUACT,
+        balanceUACT: balances.balanceUACT + balances.deploymentGrantsUACT,
         totalUAKT: balances.balanceUAKT + balances.deploymentEscrowUAKT + balances.deploymentGrantsUAKT,
         totalUUSDC: balances.balanceUUSDC + balances.deploymentEscrowUUSDC + balances.deploymentGrantsUUSDC,
         totalUACT: balances.balanceUACT + balances.deploymentEscrowUACT + balances.deploymentGrantsUACT,
@@ -101,7 +101,7 @@ export const useDenomData = (denom?: string) => {
   const txFeeBuffer = isManaged ? 0 : TX_FEE_BUFFER;
 
   useEffect(() => {
-    if (isLoaded && walletBalance && (minDeposit?.akt || minDeposit?.usdc || minDeposit?.act) && price) {
+    if (isLoaded && walletBalance && minDeposit && (minDeposit.akt !== undefined || minDeposit.usdc !== undefined || minDeposit.act !== undefined) && price) {
       let depositData: DenomData | null = null;
       switch (denom) {
         case UAKT_DENOM:
