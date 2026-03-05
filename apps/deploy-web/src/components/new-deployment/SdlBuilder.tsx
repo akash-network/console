@@ -28,6 +28,7 @@ interface Props {
   setDeploymentName: Dispatch<string>;
   deploymentName: string;
   setIsRepoInputValid?: Dispatch<boolean>;
+  onValidate?: (event: { isValid: boolean }) => void;
 }
 
 export type SdlBuilderRefType = {
@@ -36,7 +37,7 @@ export type SdlBuilderRefType = {
 };
 
 export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(
-  ({ sdlString, setEditedManifest, isGitProviderTemplate, setDeploymentName, deploymentName, setIsRepoInputValid }, ref) => {
+  ({ sdlString, setEditedManifest, isGitProviderTemplate, setDeploymentName, deploymentName, setIsRepoInputValid, onValidate }, ref) => {
     const [error, setError] = useState<string | null>(null);
     const formRef = useRef<HTMLFormElement>(null);
     const [isInit, setIsInit] = useState(false);
@@ -49,7 +50,7 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(
       },
       resolver: zodResolver(SdlBuilderFormValuesSchema)
     });
-    const { control, trigger, watch, setValue } = form;
+    const { control, trigger, watch, setValue, formState } = form;
     const serviceManager = useSdlServiceManager({ control });
 
     const { services: formServices = [] } = watch();
@@ -101,6 +102,10 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(
         unsubscribe();
       };
     }, [watch]);
+
+    useEffect(() => {
+      onValidate?.({ isValid: formState.isValid });
+    }, [formState.isValid]);
 
     const getSdl = () => {
       try {

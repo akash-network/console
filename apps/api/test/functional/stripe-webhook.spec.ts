@@ -3,38 +3,43 @@ import { eq } from "drizzle-orm";
 import nock from "nock";
 import stripe from "stripe";
 import { container } from "tsyringe";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { BILLING_CONFIG, type BillingConfig } from "@src/billing/providers";
-import { CheckoutSessionRepository } from "@src/billing/repositories";
+import { StripeTransactionRepository, UserWalletRepository } from "@src/billing/repositories";
+import { RefillService } from "@src/billing/services/refill/refill.service";
 import type { ApiPgDatabase } from "@src/core";
 import { POSTGRES_DB, resolveTable } from "@src/core";
 import { app } from "@src/rest-app";
-import { Users } from "@src/user/model-schemas/user/user.schema";
+import { UserRepository } from "@src/user/repositories";
 
-import { WalletTestingService } from "@test/services/wallet-testing.service";
-
-jest.setTimeout(30000);
+import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 
 describe("Stripe webhook", () => {
   const userWalletsTable = resolveTable("UserWallets");
   const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
   const userWalletsQuery = db.query.UserWallets;
-  const checkoutSessionRepository = container.resolve(CheckoutSessionRepository);
+  const stripeTransactionRepository = container.resolve(StripeTransactionRepository);
   const billingConfig = container.resolve<BillingConfig>(BILLING_CONFIG);
-  const walletService = new WalletTestingService(app);
+  const userRepository = container.resolve(UserRepository);
 
-  const generatePayload = (sessionId: string, eventType: string) =>
+  const generateChargeRefundedPayload = (chargeId: string, customerId: string, amountRefunded: number, previousAmountRefunded = 0) =>
     JSON.stringify({
       data: {
         object: {
-          id: sessionId
+          id: chargeId,
+          customer: customerId,
+          amount_refunded: amountRefunded,
+          refunded: amountRefunded > 0
+        },
+        previous_attributes: {
+          amount_refunded: previousAmountRefunded
         }
       },
-      type: eventType
+      type: "charge.refunded"
     });
 
-  const getWebhookResponse = async (sessionId: string, eventType: string) => {
-    const payload = generatePayload(sessionId, eventType);
+  const getWebhookResponse = async (payload: string) => {
     const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
     if (!stripeWebhookSecret) throw new Error("STRIPE_WEBHOOK_SECRET env variable is not set");
 
@@ -51,47 +56,123 @@ describe("Stripe webhook", () => {
     });
   };
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+    nock.cleanAll();
+  });
+
   describe("POST /v1/stripe-webhook", () => {
-    ["checkout.session.completed", "checkout.session.async_payment_succeeded"].forEach(eventType => {
-      it(`tops up wallet and drops session from cache for event ${eventType}`, async () => {
-        const sessionId = faker.string.uuid();
+    describe("payment_intent.succeeded", () => {
+      it("handles duplicate webhook deliveries idempotently", async () => {
+        const paymentIntentId = `pi_${faker.string.alphanumeric(24)}`;
+        const chargeId = `ch_${faker.string.alphanumeric(24)}`;
+        const amount = 10000;
 
-        // Create user with wallet and Stripe customer ID
-        const { user } = await walletService.createUserAndWallet();
-        const stripeCustomerId = faker.string.uuid();
-        await db.update(Users).set({ stripeCustomerId }).where(eq(Users.id, user.id));
+        const { user, stripeCustomerId } = await setup();
 
-        await checkoutSessionRepository.create({
-          sessionId,
-          userId: user.id
+        await stripeTransactionRepository.create({
+          userId: user.id,
+          type: "payment_intent",
+          status: "created",
+          amount,
+          currency: "usd",
+          stripePaymentIntentId: paymentIntentId
         });
 
         nock("https://api.stripe.com")
-          .get(`/v1/checkout/sessions/${sessionId}?expand[0]=line_items`)
+          .get(`/v1/charges/${chargeId}`)
           .reply(200, {
-            payment_status: "paid",
-            amount_subtotal: 100,
-            customer: stripeCustomerId,
-            line_items: {
-              data: [
-                {
-                  price: {
-                    unit_amount: 10000
-                  }
-                }
-              ]
-            }
+            id: chargeId,
+            payment_method_details: { card: { brand: "visa", last4: "4242" } },
+            receipt_url: "https://pay.stripe.com/receipts/test"
           });
 
-        const webhookResponse = await getWebhookResponse(sessionId, eventType);
-
-        const userWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, user.id) });
-        const checkoutSession = await checkoutSessionRepository.findOneBy({
-          sessionId
+        const payload = JSON.stringify({
+          data: {
+            object: {
+              id: paymentIntentId,
+              customer: stripeCustomerId,
+              amount,
+              amount_received: amount,
+              latest_charge: chargeId,
+              payment_method_types: ["card"],
+              metadata: {}
+            }
+          },
+          type: "payment_intent.succeeded"
         });
 
-        // Calculate expected balance: trial allowance + payment amount (100 cents * 10000 multiplier)
-        const expectedBalance = billingConfig.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT + 100 * 10000;
+        // First webhook delivery
+        const response1 = await getWebhookResponse(payload);
+        expect(response1.status).toBe(200);
+
+        const walletAfterFirst = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, user.id) });
+        const expectedBalance = billingConfig.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT + amount * 10000;
+        expect(walletAfterFirst?.deploymentAllowance).toBe(`${expectedBalance}.00`);
+
+        // Second webhook delivery (retry) - should not double-credit
+        const response2 = await getWebhookResponse(payload);
+        expect(response2.status).toBe(200);
+
+        const walletAfterSecond = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, user.id) });
+        // Balance should be unchanged - no double credit
+        expect(walletAfterSecond?.deploymentAllowance).toBe(`${expectedBalance}.00`);
+      });
+
+      it("tops up wallet when payment intent succeeds", async () => {
+        const paymentIntentId = `pi_${faker.string.alphanumeric(24)}`;
+        const chargeId = `ch_${faker.string.alphanumeric(24)}`;
+        const amount = 10000; // $100 in cents
+
+        // Create user with wallet and Stripe customer ID
+        const { user, stripeCustomerId } = await setup();
+
+        // Create a transaction record first (simulating what createPaymentIntent does)
+        await stripeTransactionRepository.create({
+          userId: user.id,
+          type: "payment_intent",
+          status: "created",
+          amount,
+          currency: "usd",
+          stripePaymentIntentId: paymentIntentId
+        });
+
+        // Mock the charge retrieval for card details
+        nock("https://api.stripe.com")
+          .get(`/v1/charges/${chargeId}`)
+          .reply(200, {
+            id: chargeId,
+            payment_method_details: {
+              card: {
+                brand: "visa",
+                last4: "4242"
+              }
+            },
+            receipt_url: "https://pay.stripe.com/receipts/test"
+          });
+
+        const payload = JSON.stringify({
+          data: {
+            object: {
+              id: paymentIntentId,
+              customer: stripeCustomerId,
+              amount,
+              amount_received: amount,
+              latest_charge: chargeId,
+              payment_method_types: ["card"],
+              metadata: {}
+            }
+          },
+          type: "payment_intent.succeeded"
+        });
+
+        const webhookResponse = await getWebhookResponse(payload);
+
+        const userWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, user.id) });
+        const transaction = await stripeTransactionRepository.findByPaymentIntentId(paymentIntentId);
+
+        // Calculate expected balance: trial allowance + payment amount (cents * 10000 multiplier for uakt)
+        const expectedBalance = billingConfig.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT + amount * 10000;
 
         expect(webhookResponse.status).toBe(200);
         expect(userWallet).toMatchObject({
@@ -99,87 +180,221 @@ describe("Stripe webhook", () => {
           deploymentAllowance: `${expectedBalance}.00`,
           isTrialing: false
         });
-        expect(checkoutSession).toBeUndefined();
+        expect(transaction).toMatchObject({
+          status: "succeeded",
+          stripeChargeId: chargeId,
+          paymentMethodType: "card"
+        });
       });
     });
 
-    it("does not top up wallet and keeps cache if the payment is not done", async () => {
-      const sessionId = faker.string.uuid();
+    describe("payment_intent.payment_failed", () => {
+      it("updates transaction status to failed", async () => {
+        const paymentIntentId = `pi_${faker.string.alphanumeric(24)}`;
+        const amount = 5000;
 
-      // Create user with wallet and Stripe customer ID
-      const { user } = await walletService.createUserAndWallet();
-      const stripeCustomerId = faker.string.uuid();
-      await db.update(Users).set({ stripeCustomerId }).where(eq(Users.id, user.id));
+        const { user, stripeCustomerId } = await setup();
 
-      await checkoutSessionRepository.create({
-        sessionId,
-        userId: user.id
-      });
-
-      nock("https://api.stripe.com")
-        .get(`/v1/checkout/sessions/${sessionId}?expand[0]=line_items`)
-        .reply(200, {
-          payment_status: "unpaid",
-          amount_subtotal: 100,
-          customer: stripeCustomerId,
-          line_items: {
-            data: [
-              {
-                price: {
-                  unit_amount: 10000
-                }
-              }
-            ]
-          }
+        await stripeTransactionRepository.create({
+          userId: user.id,
+          type: "payment_intent",
+          status: "created",
+          amount,
+          currency: "usd",
+          stripePaymentIntentId: paymentIntentId
         });
 
-      const webhookResponse = await getWebhookResponse(sessionId, "checkout.session.completed");
+        const payload = JSON.stringify({
+          data: {
+            object: {
+              id: paymentIntentId,
+              customer: stripeCustomerId,
+              amount,
+              last_payment_error: {
+                message: "Your card was declined."
+              }
+            }
+          },
+          type: "payment_intent.payment_failed"
+        });
 
-      const userWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, user.id) });
-      const checkoutSession = await checkoutSessionRepository.findOneBy({
-        sessionId
-      });
-      expect(webhookResponse.status).toBe(200);
-      // Wallet should exist but balance should not have changed (no payment processed)
-      expect(userWallet).toMatchObject({
-        userId: user.id,
-        deploymentAllowance: "20000000.00", // Original trial balance
-        isTrialing: true
-      });
-      expect(checkoutSession).toMatchObject({
-        sessionId
+        const webhookResponse = await getWebhookResponse(payload);
+        const transaction = await stripeTransactionRepository.findByPaymentIntentId(paymentIntentId);
+
+        expect(webhookResponse.status).toBe(200);
+        expect(transaction).toMatchObject({
+          status: "failed",
+          errorMessage: "Your card was declined."
+        });
       });
     });
 
-    it("does not top up wallet and keeps cache if the event is different", async () => {
-      const sessionId = faker.string.uuid();
+    describe("charge.refunded", () => {
+      it("handles duplicate refund webhook deliveries idempotently", async () => {
+        const paymentIntentId = `pi_${faker.string.alphanumeric(24)}`;
+        const chargeId = `ch_${faker.string.alphanumeric(24)}`;
+        const amount = 50;
 
-      // Create user with wallet and Stripe customer ID
-      const { user } = await walletService.createUserAndWallet();
-      const stripeCustomerId = faker.string.uuid();
-      await db.update(Users).set({ stripeCustomerId }).where(eq(Users.id, user.id));
+        const { user, stripeCustomerId } = await setup();
 
-      await checkoutSessionRepository.create({
-        sessionId,
-        userId: user.id
+        await stripeTransactionRepository.create({
+          userId: user.id,
+          type: "payment_intent",
+          status: "succeeded",
+          amount,
+          currency: "usd",
+          stripePaymentIntentId: paymentIntentId,
+          stripeChargeId: chargeId
+        });
+
+        const payload = generateChargeRefundedPayload(chargeId, stripeCustomerId, amount, 0);
+
+        // First webhook delivery
+        const response1 = await getWebhookResponse(payload);
+        expect(response1.status).toBe(200);
+
+        const walletAfterFirst = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, user.id) });
+        const balanceAfterFirstRefund = walletAfterFirst?.deploymentAllowance;
+
+        // Second webhook delivery (retry) - should not double-deduct
+        const response2 = await getWebhookResponse(payload);
+        expect(response2.status).toBe(200);
+
+        const walletAfterSecond = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, user.id) });
+        // Balance should be unchanged - no double deduction
+        expect(walletAfterSecond?.deploymentAllowance).toBe(balanceAfterFirstRefund);
       });
 
-      const webhookResponse = await getWebhookResponse(sessionId, "checkout.session.not-found");
+      it("reduces wallet balance and updates transaction status on full refund", async () => {
+        const paymentIntentId = `pi_${faker.string.alphanumeric(24)}`;
+        const chargeId = `ch_${faker.string.alphanumeric(24)}`;
+        // Use small amount that fits within trial allowance (trial allowance is ~$2)
+        const amount = 50; // 50 cents = $0.50
 
-      const userWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, user.id) });
-      const checkoutSession = await checkoutSessionRepository.findOneBy({
-        sessionId
+        const { user, stripeCustomerId } = await setup();
+
+        // Create a succeeded transaction
+        await stripeTransactionRepository.create({
+          userId: user.id,
+          type: "payment_intent",
+          status: "succeeded",
+          amount,
+          currency: "usd",
+          stripePaymentIntentId: paymentIntentId,
+          stripeChargeId: chargeId
+        });
+
+        const payload = generateChargeRefundedPayload(chargeId, stripeCustomerId, amount, 0);
+        const webhookResponse = await getWebhookResponse(payload);
+        const transaction = await stripeTransactionRepository.findByChargeId(chargeId);
+
+        expect(webhookResponse.status).toBe(200);
+        expect(transaction).toMatchObject({
+          status: "refunded"
+        });
       });
-      expect(webhookResponse.status).toBe(200);
-      // Wallet should exist but balance should not have changed (no payment processed)
-      expect(userWallet).toMatchObject({
-        userId: user.id,
-        deploymentAllowance: "20000000.00", // Original trial balance
-        isTrialing: true
-      });
-      expect(checkoutSession).toMatchObject({
-        sessionId
+
+      it("handles partial refunds correctly using delta calculation", async () => {
+        const chargeId = `ch_${faker.string.alphanumeric(24)}`;
+        const paymentIntentId = `pi_${faker.string.alphanumeric(24)}`;
+        // Use small amounts that fit within trial allowance
+        const totalAmount = 100; // $1.00
+        const firstRefund = 30; // $0.30
+        const secondRefund = 20; // $0.20
+
+        const { user, stripeCustomerId } = await setup();
+
+        await stripeTransactionRepository.create({
+          userId: user.id,
+          type: "payment_intent",
+          status: "succeeded",
+          amount: totalAmount,
+          currency: "usd",
+          stripePaymentIntentId: paymentIntentId,
+          stripeChargeId: chargeId
+        });
+
+        // First partial refund: $0.30
+        const payload1 = JSON.stringify({
+          data: {
+            object: {
+              id: chargeId,
+              customer: stripeCustomerId,
+              amount_refunded: firstRefund,
+              refunded: false // Not fully refunded
+            },
+            previous_attributes: {
+              amount_refunded: 0
+            }
+          },
+          type: "charge.refunded"
+        });
+
+        const response1 = await getWebhookResponse(payload1);
+        expect(response1.status).toBe(200);
+
+        // Transaction should still be "succeeded" (not fully refunded)
+        let transaction = await stripeTransactionRepository.findByChargeId(chargeId);
+        expect(transaction?.status).toBe("succeeded");
+
+        // Second partial refund: $0.20 more (total now $0.50)
+        const payload2 = JSON.stringify({
+          data: {
+            object: {
+              id: chargeId,
+              customer: stripeCustomerId,
+              amount_refunded: firstRefund + secondRefund,
+              refunded: false
+            },
+            previous_attributes: {
+              amount_refunded: firstRefund
+            }
+          },
+          type: "charge.refunded"
+        });
+
+        const response2 = await getWebhookResponse(payload2);
+        expect(response2.status).toBe(200);
+
+        transaction = await stripeTransactionRepository.findByChargeId(chargeId);
+        expect(transaction?.status).toBe("succeeded"); // Still not fully refunded
       });
     });
   });
+
+  async function setup() {
+    const refillService = container.resolve(RefillService);
+    const userWalletRepository = container.resolve(UserWalletRepository);
+
+    vi.spyOn(refillService, "topUpWallet").mockImplementation(async (amountUsd, userId) => {
+      const wallet = await userWalletRepository.findOneBy({ userId });
+      if (!wallet) return;
+      await userWalletRepository.updateById(wallet.id, {
+        deploymentAllowance: wallet.deploymentAllowance + amountUsd * 10000,
+        isTrialing: false
+      });
+    });
+
+    vi.spyOn(refillService, "reduceWalletBalance").mockImplementation(async (amountUsd, userId) => {
+      const wallet = await userWalletRepository.findOneBy({ userId });
+      if (!wallet) return;
+      await userWalletRepository.updateById(wallet.id, {
+        deploymentAllowance: Math.max(0, wallet.deploymentAllowance - amountUsd * 10000)
+      });
+    });
+
+    const user = await userRepository.create({});
+    const stripeCustomerId = `cus_${faker.string.alphanumeric(14)}`;
+    await userRepository.updateById(user.id, { stripeCustomerId });
+    const wallet = await userWalletRepository.create({
+      userId: user.id,
+      address: createAkashAddress()
+    });
+    await userWalletRepository.updateById(wallet.id, {
+      isTrialing: true,
+      deploymentAllowance: billingConfig.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT,
+      feeAllowance: billingConfig.TRIAL_FEES_ALLOWANCE_AMOUNT
+    });
+    return { user, wallet, stripeCustomerId };
+  }
 });

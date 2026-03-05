@@ -3,8 +3,9 @@ import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
 import { netConfig } from "@akashnetwork/net";
 import { faker } from "@faker-js/faker";
 import { AxiosError } from "axios";
-import { mock } from "jest-mock-extended";
 import { Ok } from "ts-results";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { mockConfigService } from "../../../../test/mocks/config-service.mock";
 import { LeaseStatusSeeder } from "../../../../test/seeders/lease-status.seeder";
@@ -20,6 +21,10 @@ import type { ProviderProxyService } from "./provider-proxy.service";
 
 describe(ProviderService.name, () => {
   describe("sendManifest", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
     it("should send manifest successfully on first attempt", async () => {
       const { service, jwtTokenService, providerRepository, providerProxyService } = setup();
 
@@ -60,13 +65,15 @@ describe(ProviderService.name, () => {
           owner: provider.owner,
           hostUri: provider.hostUri
         },
-        timeout: 60000
+        timeout: 15_000
       });
       expect(result).toEqual({ success: true });
     });
 
     it("should retry on lease not found error and succeed", async () => {
       const { service, jwtTokenService, providerRepository, providerProxyService } = setup();
+
+      vi.useFakeTimers();
 
       const provider = createProviderSeed() as unknown as Provider;
       const wallet = UserWalletSeeder.create();
@@ -82,16 +89,17 @@ describe(ProviderService.name, () => {
 
       providerProxyService.request.mockRejectedValueOnce(axiosError).mockResolvedValueOnce({ success: true });
 
-      const result = await service.sendManifest({
+      const result = service.sendManifest({
         provider: provider.owner,
         dseq,
         manifest,
         auth: await service.toProviderAuth({ walletId: wallet.id, provider: provider.owner })
       });
+      await vi.runAllTimersAsync();
 
+      await expect(result).resolves.toEqual({ success: true });
       expect(providerProxyService.request).toHaveBeenCalledTimes(2);
-      expect(result).toEqual({ success: true });
-    }, 10000);
+    });
 
     it("should throw error when provider not found", async () => {
       const { service, providerRepository } = setup();
@@ -116,17 +124,72 @@ describe(ProviderService.name, () => {
     it("should throw error after max retries", async () => {
       const { service, jwtTokenService, providerRepository, providerProxyService } = setup();
 
+      vi.useFakeTimers();
+
       const provider = createProviderSeed() as unknown as Provider;
       const wallet = UserWalletSeeder.create();
-      const dseq = faker.string.numeric(6);
+      const dseq = faker.number.int({ min: 1, max: 1000 }).toString();
       const manifest = '{"quantity":{"val":"1"}}';
       const jwtToken = faker.string.alphanumeric(32);
 
       providerRepository.findActiveByAddress.mockResolvedValue(provider);
       jwtTokenService.generateJwtToken.mockResolvedValue(Ok(jwtToken));
 
-      const axiosError = new AxiosError("no lease for deployment");
-      axiosError.response = { data: "no lease for deployment" } as any;
+      const axiosError = new AxiosError(
+        "no lease for deployment",
+        "404",
+        undefined,
+        {},
+        {
+          status: 400,
+          statusText: "Bad Request",
+          data: "no lease for deployment",
+          headers: {},
+          config: {} as any
+        }
+      );
+      providerProxyService.request.mockRejectedValue(axiosError);
+      const result = service
+        .sendManifest({
+          provider: provider.owner,
+          dseq,
+          manifest,
+          auth: await service.toProviderAuth({ walletId: wallet.id, provider: provider.owner })
+        })
+        .catch(error => ({ error }));
+
+      await vi.runAllTimersAsync();
+      const { error } = (await result) as { error: Error };
+      expect(error.message).toContain("no lease for deployment");
+
+      expect(providerProxyService.request).toHaveBeenCalledTimes(3);
+    }, 15000);
+
+    it("should throw error immediately for non-lease errors", async () => {
+      const { service, jwtTokenService, providerRepository, providerProxyService } = setup();
+
+      const provider = createProviderSeed() as unknown as Provider;
+      const wallet = UserWalletSeeder.create();
+      const dseq = faker.number.int({ min: 1, max: 1000 }).toString();
+      const manifest = '{"quantity":{"val":"1"}}';
+      const jwtToken = faker.string.alphanumeric(32);
+
+      providerRepository.findActiveByAddress.mockResolvedValue(provider);
+      jwtTokenService.generateJwtToken.mockResolvedValue(Ok(jwtToken));
+
+      const axiosError = new AxiosError(
+        "network error",
+        "500",
+        undefined,
+        {},
+        {
+          status: 500,
+          statusText: "Internal Server Error",
+          data: "network error",
+          headers: {},
+          config: {} as any
+        }
+      );
       providerProxyService.request.mockRejectedValue(axiosError);
 
       await expect(
@@ -136,12 +199,12 @@ describe(ProviderService.name, () => {
           manifest,
           auth: await service.toProviderAuth({ walletId: wallet.id, provider: provider.owner })
         })
-      ).rejects.toThrow("no lease for deployment");
+      ).rejects.toThrow("Provider service is temporarily unavailable");
 
-      expect(providerProxyService.request).toHaveBeenCalledTimes(3);
-    }, 15000);
+      expect(providerProxyService.request).toHaveBeenCalledTimes(1);
+    });
 
-    it("should throw error immediately for non-lease errors", async () => {
+    it("should convert AxiosError with 422 status to HTTP error", async () => {
       const { service, jwtTokenService, providerRepository, providerProxyService } = setup();
 
       const provider = createProviderSeed() as unknown as Provider;
@@ -153,8 +216,14 @@ describe(ProviderService.name, () => {
       providerRepository.findActiveByAddress.mockResolvedValue(provider);
       jwtTokenService.generateJwtToken.mockResolvedValue(Ok(jwtToken));
 
-      const axiosError = new AxiosError("network error");
-      axiosError.response = { data: "network error" } as any;
+      const axiosError = new AxiosError("Request failed with status code 422");
+      axiosError.response = {
+        status: 422,
+        statusText: "Unprocessable Entity",
+        data: { message: "Manifest validation failed" },
+        headers: {},
+        config: {} as any
+      };
       providerProxyService.request.mockRejectedValue(axiosError);
 
       await expect(
@@ -164,7 +233,47 @@ describe(ProviderService.name, () => {
           manifest,
           auth: await service.toProviderAuth({ walletId: wallet.id, provider: provider.owner })
         })
-      ).rejects.toThrow("network error");
+      ).rejects.toMatchObject({
+        status: 422,
+        message: "Manifest validation failed"
+      });
+
+      expect(providerProxyService.request).toHaveBeenCalledTimes(1);
+    });
+
+    it("should convert AxiosError with 400 status to HTTP error", async () => {
+      const { service, jwtTokenService, providerRepository, providerProxyService } = setup();
+
+      const provider = createProviderSeed() as unknown as Provider;
+      const wallet = UserWalletSeeder.create();
+      const dseq = faker.string.numeric(6);
+      const manifest = '{"quantity":{"val":"1"}}';
+      const jwtToken = faker.string.alphanumeric(32);
+
+      providerRepository.findActiveByAddress.mockResolvedValue(provider);
+      jwtTokenService.generateJwtToken.mockResolvedValue(Ok(jwtToken));
+
+      const axiosError = new AxiosError("Request failed with status code 400");
+      axiosError.response = {
+        status: 400,
+        statusText: "Bad Request",
+        data: "Invalid manifest format",
+        headers: {},
+        config: {} as any
+      };
+      providerProxyService.request.mockRejectedValue(axiosError);
+
+      await expect(
+        service.sendManifest({
+          provider: provider.owner,
+          dseq,
+          manifest,
+          auth: await service.toProviderAuth({ walletId: wallet.id, provider: provider.owner })
+        })
+      ).rejects.toMatchObject({
+        status: 400,
+        message: "Invalid manifest format"
+      });
 
       expect(providerProxyService.request).toHaveBeenCalledTimes(1);
     });
@@ -214,7 +323,7 @@ describe(ProviderService.name, () => {
           owner: provider.owner,
           hostUri: provider.hostUri
         },
-        timeout: 30000
+        timeout: 15000
       });
       expect(result).toEqual(leaseStatus);
     });

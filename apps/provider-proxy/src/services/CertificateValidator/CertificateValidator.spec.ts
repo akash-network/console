@@ -1,5 +1,6 @@
 import type { X509Certificate } from "crypto";
 import { setTimeout } from "timers/promises";
+import { describe, expect, it, vi } from "vitest";
 
 import { createX509CertPair } from "../../../test/seeders/createX509CertPair";
 import type { ProviderService } from "../ProviderService/ProviderService";
@@ -16,14 +17,14 @@ describe(CertificateValidator.name, () => {
       commonName: "akash1rk090a6mq9gvm0h6ljf8kz8mrxglwwxsk4srxh",
       serialNumber: "177831BE7F249E66"
     });
-    const getCertificate = jest.fn(() => Promise.resolve(null));
+    const getCertificate = vi.fn(() => Promise.resolve(null));
     const validator = setup({ getCertificate });
 
-    const result = (await validator.validate(cert, "mainnet", "provider")) as CertValidationResultError;
+    const result = (await validator.validate(cert, "provider")) as CertValidationResultError;
 
     expect(result.ok).toBe(false);
     expect(result.code).toBe("unknownCertificate");
-    expect(getCertificate).toHaveBeenCalledWith("mainnet", "provider", cert.serialNumber);
+    expect(getCertificate).toHaveBeenCalledWith("provider", cert.serialNumber);
   });
 
   it('returns "fingerprintMismatch" error result if certificate fingerprint does not match', async () => {
@@ -33,7 +34,7 @@ describe(CertificateValidator.name, () => {
       commonName: "akash1rk090a6mq9gvm0h6ljf8kz8mrxglwwxsk4srxh",
       serialNumber: "177831BE7F249E66"
     });
-    const getCertificate = jest.fn(() =>
+    const getCertificate = vi.fn(() =>
       Promise.resolve(
         createX509CertPair({
           validFrom: new Date(),
@@ -45,14 +46,14 @@ describe(CertificateValidator.name, () => {
     );
     const validator = setup({ getCertificate });
 
-    const result = (await validator.validate(cert, "mainnet", "provider")) as CertValidationResultError;
+    const result = (await validator.validate(cert, "provider")) as CertValidationResultError;
 
     expect(result.ok).toBe(false);
     expect(result.code).toBe("fingerprintMismatch");
-    expect(getCertificate).toHaveBeenCalledWith("mainnet", "provider", cert.serialNumber);
+    expect(getCertificate).toHaveBeenCalledWith("provider", cert.serialNumber);
   });
 
-  it("caches provider certificate per network, provider and serial number", async () => {
+  it("caches provider certificate per provider and serial number", async () => {
     const { cert } = createX509CertPair({
       validFrom: new Date(),
       validTo: new Date(Date.now() + ONE_MINUTE),
@@ -65,22 +66,22 @@ describe(CertificateValidator.name, () => {
       commonName: "akash1rk090a6mq9gvm0h6ljf8kz8mrxglwwxsk4srxh",
       serialNumber: "177831BE7F249E11"
     });
-    const getCertificate = jest.fn().mockReturnValueOnce(Promise.resolve(cert)).mockReturnValueOnce(Promise.resolve(anotherCert)).mockReturnValue(null);
+    const getCertificate = vi.fn().mockReturnValueOnce(Promise.resolve(cert)).mockReturnValueOnce(Promise.resolve(anotherCert)).mockReturnValue(null);
     const validator = setup({ getCertificate });
 
-    let result = await validator.validate(cert, "mainnet", "provider");
-    expect(getCertificate).toHaveBeenCalledWith("mainnet", "provider", cert.serialNumber);
+    let result = await validator.validate(cert, "provider");
+    expect(getCertificate).toHaveBeenCalledWith("provider", cert.serialNumber);
     expect(result.ok).toBe(true);
 
-    result = await validator.validate(cert, "mainnet", "provider");
+    result = await validator.validate(cert, "provider");
     expect(getCertificate).toHaveBeenCalledTimes(1);
     expect(result.ok).toBe(true);
 
-    result = await validator.validate(anotherCert, "sandbox-2", "provider");
-    expect(getCertificate).toHaveBeenCalledWith("sandbox-2", "provider", anotherCert.serialNumber);
+    result = await validator.validate(anotherCert, "provider");
+    expect(getCertificate).toHaveBeenCalledWith("provider", anotherCert.serialNumber);
     expect(result.ok).toBe(true);
 
-    result = await validator.validate(anotherCert, "sandbox-2", "provider");
+    result = await validator.validate(anotherCert, "provider");
     expect(getCertificate).toHaveBeenCalledTimes(2);
     expect(result.ok).toBe(true);
   });
@@ -90,7 +91,7 @@ describe(CertificateValidator.name, () => {
     const { cert } = createX509CertPair({ validFrom });
     const validator = setup({ now: validFrom.getTime() - ONE_MINUTE });
 
-    const result = (await validator.validate(cert, "mainnet", "provider")) as CertValidationResultError;
+    const result = (await validator.validate(cert, "provider")) as CertValidationResultError;
 
     expect(result.ok).toBe(false);
     expect(result.code).toBe("validInFuture");
@@ -102,7 +103,7 @@ describe(CertificateValidator.name, () => {
     const { cert } = createX509CertPair({ validFrom, validTo });
     const validator = setup({ now: validTo.getTime() + ONE_MINUTE });
 
-    const result = (await validator.validate(cert, "mainnet", "provider")) as CertValidationResultError;
+    const result = (await validator.validate(cert, "provider")) as CertValidationResultError;
 
     expect(result.ok).toBe(false);
     expect(result.code).toBe("expired");
@@ -113,7 +114,7 @@ describe(CertificateValidator.name, () => {
     Object.defineProperty(cert, "serialNumber", { get: () => "" });
     const validator = setup();
 
-    const result = (await validator.validate(cert, "mainnet", "provider")) as CertValidationResultError;
+    const result = (await validator.validate(cert, "provider")) as CertValidationResultError;
 
     expect(result.ok).toBe(false);
     expect(result.code).toBe("invalidSerialNumber");
@@ -123,7 +124,7 @@ describe(CertificateValidator.name, () => {
     const { cert } = createX509CertPair({ commonName: "test.com" });
     const validator = setup();
 
-    const result = (await validator.validate(cert, "mainnet", "provider")) as CertValidationResultError;
+    const result = (await validator.validate(cert, "provider")) as CertValidationResultError;
 
     expect(result.ok).toBe(false);
     expect(result.code).toBe("CommonNameIsNotBech32");
@@ -133,7 +134,7 @@ describe(CertificateValidator.name, () => {
     const { cert } = createX509CertPair();
     const validator = setup();
 
-    const result = (await validator.validate(cert, "mainnet", "provider")) as CertValidationResultError;
+    const result = (await validator.validate(cert, "provider")) as CertValidationResultError;
 
     expect(result.ok).toBe(false);
     expect(result.code).toBe("CommonNameIsNotBech32");
@@ -149,7 +150,7 @@ describe(CertificateValidator.name, () => {
     const getCertificate = () => Promise.resolve(cert);
     const validator = setup({ getCertificate });
 
-    const result = await validator.validate(cert, "mainnet", "provider");
+    const result = await validator.validate(cert, "provider");
 
     expect(result.ok).toBe(true);
   });
@@ -161,15 +162,15 @@ describe(CertificateValidator.name, () => {
       commonName: "akash1rk090a6mq9gvm0h6ljf8kz8mrxglwwxsk4srxh",
       serialNumber: "177831BE7F249E66"
     });
-    const getCertificate = jest.fn(() => setTimeout(20, cert));
+    const getCertificate = vi.fn(() => setTimeout(20, cert));
     const validator = setup({ getCertificate });
 
     const results = await Promise.all([
       // keep-newline
-      validator.validate(cert, "mainnet", "provider"),
-      validator.validate(cert, "mainnet", "provider"),
-      validator.validate(cert, "mainnet", "provider"),
-      validator.validate(cert, "mainnet", "provider")
+      validator.validate(cert, "provider"),
+      validator.validate(cert, "provider"),
+      validator.validate(cert, "provider"),
+      validator.validate(cert, "provider")
     ]);
 
     expect(getCertificate).toHaveBeenCalledTimes(1);
@@ -181,7 +182,7 @@ describe(CertificateValidator.name, () => {
     return new CertificateValidator(
       () => params?.now ?? Date.now(),
       {
-        getCertificate: params?.getCertificate || jest.fn()
+        getCertificate: params?.getCertificate || vi.fn()
       } as ProviderService,
       params?.instrumentation
     );

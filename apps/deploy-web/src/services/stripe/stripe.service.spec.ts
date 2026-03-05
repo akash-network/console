@@ -1,7 +1,7 @@
 import type { Stripe } from "@stripe/stripe-js";
-import { mock } from "jest-mock-extended";
+import { describe, expect, it, type MockedFunction, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
-import type { BrowserEnvConfig } from "@src/config/browser-env.config";
 import type { StripeServiceDependencies } from "./stripe.service";
 import { StripeService } from "./stripe.service";
 
@@ -41,7 +41,7 @@ describe("StripeService", () => {
         publishableKey: "pk_test_mock_key"
       });
 
-      const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation();
+      const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation();
       mockLoadStripe.mockRejectedValue(new Error("Stripe load failed"));
 
       const result = await stripeService.getStripe();
@@ -74,22 +74,20 @@ describe("StripeService", () => {
   });
 
   function setup(input: { publishableKey: string }) {
-    const mockLoadStripe = jest.fn() as jest.MockedFunction<StripeServiceDependencies["loadStripe"]>;
+    const mockLoadStripe = vi.fn() as MockedFunction<Required<StripeServiceDependencies>["loadStripe"]>;
     const mockStripeInstance = mock<Stripe>();
-    const mockBrowserEnvConfig = mock<BrowserEnvConfig>();
-
-    mockBrowserEnvConfig.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY = input.publishableKey;
 
     const stripeService = new StripeService({
       loadStripe: mockLoadStripe,
-      browserEnvConfig: mockBrowserEnvConfig
+      config: {
+        publishableKey: input.publishableKey
+      }
     });
 
     return {
       stripeService,
       mockLoadStripe,
-      mockStripeInstance,
-      mockBrowserEnvConfig
+      mockStripeInstance
     };
   }
 });

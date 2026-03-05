@@ -6,12 +6,13 @@ import { useWallet as useConnectedWallet, useWalletClient } from "@cosmos-kit/re
 // import * as Elements from "@leapwallet/elements-umd-types";
 import { Modal } from "@mui/material";
 
+import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { analyticsService } from "@src/services/analytics/analytics.service";
 
 export type NonUndefined<T> = T extends undefined ? never : T;
 
 const ToggleLiquidityModalButton: React.FC<{ onClick: () => void }> = ({ onClick }) => {
+  const { analyticsService } = useServices();
   const _onClick = () => {
     analyticsService.track("leap_get_more_tokens", {
       category: "wallet",
@@ -106,6 +107,7 @@ const getTabsConfig = (txnLifecycleHooks: any) => {
 type Props = { address: string; aktBalance: number; refreshBalances: () => void };
 
 const LiquidityModal: React.FC<Props> = ({ refreshBalances }) => {
+  const { analyticsService } = useServices();
   const [isOpen, setIsOpen] = useState(false);
   const [isElementsReady, setIsElementsReady] = useState(false);
   const isElementsMounted = useRef(false);

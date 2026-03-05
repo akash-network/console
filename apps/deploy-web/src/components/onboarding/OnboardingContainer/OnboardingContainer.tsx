@@ -2,23 +2,26 @@
 import type { ReactNode } from "react";
 import React, { useCallback, useEffect, useState } from "react";
 import type { EncodeObject } from "@cosmjs/proto-signing";
-import { useRouter } from "next/navigation";
-import { useSnackbar } from "notistack";
+import { useRouter, useSearchParams } from "next/navigation";
 
-import { useCertificate } from "@src/context/CertificateProvider";
+import { SuccessAnimation } from "@src/components/shared";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useCertificate } from "@src/hooks/useCertificate/useCertificate";
+import { useChainParam } from "@src/hooks/useChainParam/useChainParam";
+import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom";
+import { useNotificator } from "@src/hooks/useNotificator";
+import { useReturnTo } from "@src/hooks/useReturnTo";
 import { useUser } from "@src/hooks/useUser";
 import { usePaymentMethodsQuery } from "@src/queries/usePaymentQueries";
-import { useTemplates } from "@src/queries/useTemplateQuery";
 import { ONBOARDING_STEP_KEY } from "@src/services/storage/keys";
 import { RouteStep } from "@src/types/route-steps.type";
 import { deploymentData } from "@src/utils/deploymentData";
 import { appendAuditorRequirement } from "@src/utils/deploymentData/v1beta3";
 import { validateDeploymentData } from "@src/utils/deploymentUtils";
+import { denomToUdenom } from "@src/utils/mathHelpers";
 import { helloWorldTemplate } from "@src/utils/templates";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
-import { UrlService } from "@src/utils/urlUtils";
 import { type OnboardingStep } from "../OnboardingStepper/OnboardingStepper";
 
 export enum OnboardingStepIndex {
@@ -37,7 +40,7 @@ export type OnboardingContainerProps = {
     onStepComplete: (step: OnboardingStepIndex) => void;
     onStartTrial: () => void;
     onPaymentMethodComplete: () => void;
-    onComplete: (templateName: string) => Promise<void>;
+    onComplete: (templateName?: string) => Promise<void>;
   }) => ReactNode;
   dependencies?: typeof DEPENDENCIES;
 };
@@ -45,41 +48,56 @@ export type OnboardingContainerProps = {
 const DEPENDENCIES = {
   useUser,
   usePaymentMethodsQuery,
+  useChainParam,
   useServices,
   useRouter,
   useWallet,
-  useTemplates,
   useCertificate,
-  useSnackbar,
+  useNotificator,
+  useManagedWalletDenom,
+  useReturnTo,
   localStorage: typeof window !== "undefined" ? window.localStorage : null,
   deploymentData,
   validateDeploymentData,
   appendAuditorRequirement,
   helloWorldTemplate,
   TransactionMessageData,
-  UrlService
+  useSearchParams,
+  denomToUdenom
 };
 
 export const OnboardingContainer: React.FunctionComponent<OnboardingContainerProps> = ({ children, dependencies: d = DEPENDENCIES }) => {
   const [currentStep, setCurrentStep] = useState(OnboardingStepIndex.FREE_TRIAL);
   const [completedSteps, setCompletedSteps] = useState<Set<OnboardingStepIndex>>(new Set());
+  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
 
   const router = d.useRouter();
+  const searchParams = d.useSearchParams();
   const { user } = d.useUser();
   const { data: paymentMethods = [] } = d.usePaymentMethodsQuery({ enabled: !!user?.stripeCustomerId });
-  const { analyticsService, urlService, authService, chainApiHttpClient, deploymentLocalStorage, appConfig, errorHandler, windowLocation, windowHistory } =
-    d.useServices();
+  const { minDeposit } = d.useChainParam();
+  const {
+    analyticsService,
+    urlService,
+    chainApiHttpClient,
+    deploymentLocalStorage,
+    errorHandler,
+    windowLocation,
+    windowHistory,
+    template: templateService
+  } = d.useServices();
   const { hasManagedWallet, isWalletLoading, connectManagedWallet, address, signAndBroadcastTx } = d.useWallet();
-  const { templates } = d.useTemplates();
   const { genNewCertificateIfLocalIsInvalid, updateSelectedCertificate } = d.useCertificate();
-  const { enqueueSnackbar } = d.useSnackbar();
+  const notificator = d.useNotificator();
+  const managedDenom = d.useManagedWalletDenom();
+  const { navigateBack } = d.useReturnTo({ defaultReturnTo: "/" });
 
   useEffect(() => {
     const savedStep = d.localStorage?.getItem(ONBOARDING_STEP_KEY);
     if (!isWalletLoading && hasManagedWallet && !savedStep) {
-      router.replace("/");
+      navigateBack();
     }
-  }, [isWalletLoading, hasManagedWallet, router, d.localStorage]);
+  }, [isWalletLoading, hasManagedWallet, d.localStorage, navigateBack]);
 
   useEffect(() => {
     const savedStep = d.localStorage?.getItem(ONBOARDING_STEP_KEY);
@@ -90,8 +108,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
       }
     }
 
-    const urlParams = new URLSearchParams(windowLocation.search);
-    const fromSignup = urlParams.get("fromSignup");
+    const fromSignup = searchParams.get("fromSignup");
     if (fromSignup === "true") {
       analyticsService.track("onboarding_account_created", {
         category: "onboarding"
@@ -105,7 +122,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
       newUrl.searchParams.delete("fromSignup");
       windowHistory.replaceState({}, "", newUrl.toString());
     }
-  }, [analyticsService, d.localStorage]);
+  }, [analyticsService, d.localStorage, searchParams, windowLocation, windowHistory]);
 
   const handleStepChange = useCallback(
     (step: number) => {
@@ -164,9 +181,9 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
         handleStepChange(OnboardingStepIndex.EMAIL_VERIFICATION);
       }
     } else {
-      authService.signup({ returnTo: `${windowLocation.origin}${urlService.onboarding(true)}` });
+      router.push(urlService.newSignup({ fromSignup: "true" }));
     }
-  }, [analyticsService, handleStepComplete, urlService, user, handleStepChange, authService]);
+  }, [analyticsService, handleStepComplete, user?.userId, user?.emailVerified, handleStepChange, router, urlService]);
 
   const handlePaymentMethodComplete = useCallback(() => {
     if (paymentMethods.length > 0) {
@@ -175,12 +192,23 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
       });
 
       handleStepComplete(OnboardingStepIndex.PAYMENT_METHOD);
-      handleStepChange(OnboardingStepIndex.WELCOME);
+      setShowSuccessAnimation(true);
     }
-  }, [paymentMethods.length, analyticsService, handleStepComplete, handleStepChange]);
+  }, [paymentMethods.length, analyticsService, handleStepComplete]);
 
-  const handleComplete = useCallback(
-    async (templateName: string) => {
+  const handleSuccessAnimationComplete = useCallback(() => {
+    setShowSuccessAnimation(false);
+    handleStepChange(OnboardingStepIndex.WELCOME);
+  }, [handleStepChange]);
+
+  const complete = useCallback(
+    async (templateName?: string) => {
+      if (!templateName) {
+        d.localStorage?.removeItem(ONBOARDING_STEP_KEY);
+        navigateBack();
+        return;
+      }
+
       try {
         const templateMap: Record<string, { id?: string; sdl: string; name: string }> = {
           "hello-akash": {
@@ -207,14 +235,14 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
             severity: "warning",
             tags: { component: "onboarding", template: templateName }
           });
-          enqueueSnackbar(`Template "${templateName}" is no longer supported, please choose another one`, { variant: "error" });
+          notificator.error(`Template "${templateName}" is no longer supported, please choose another one`);
           return;
         }
 
         let sdl = templateConfig.sdl;
 
         if (templateConfig.id) {
-          const template = templates.find(t => t.id === templateConfig.id);
+          const template = await templateService.findById(templateConfig.id);
           if (!template || !template.deploy) {
             const error = new Error(`Template ${templateName} SDL not found`);
             errorHandler.reportError({
@@ -222,15 +250,20 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
               severity: "warning",
               tags: { component: "onboarding", template: templateName, templateId: templateConfig.id }
             });
-            enqueueSnackbar(`Template "${templateConfig.name}" is no longer supported, please choose another one`, { variant: "error" });
+            notificator.error(`Template "${templateConfig.name}" is no longer supported, please choose another one`);
             return;
           }
           sdl = template.deploy;
         }
 
         sdl = d.appendAuditorRequirement(sdl);
+        const isUsdc = managedDenom && managedDenom !== "uakt";
+        if (isUsdc) {
+          sdl = sdl.replace(/uakt/g, managedDenom);
+        }
 
-        const deposit = appConfig.NEXT_PUBLIC_DEFAULT_INITIAL_DEPOSIT;
+        const minDepositAmount = isUsdc ? minDeposit.usdc : minDeposit.akt;
+        const deposit = d.denomToUdenom(minDepositAmount);
         const dd = await d.deploymentData.NewDeploymentData(chainApiHttpClient, sdl, null, address, deposit);
         d.validateDeploymentData(dd, null);
 
@@ -267,27 +300,30 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
 
           d.localStorage?.removeItem(ONBOARDING_STEP_KEY);
           connectManagedWallet();
-          router.push(d.UrlService.newDeployment({ step: RouteStep.createLeases, dseq: dd.deploymentId.dseq }));
+          router.push(urlService.newDeployment({ step: RouteStep.createLeases, dseq: dd.deploymentId.dseq }));
         }
       } catch (error) {
-        enqueueSnackbar("Failed to deploy template. Please try again.", { variant: "error" });
+        notificator.error("Failed to deploy template. Please try again.");
       }
     },
     [
       d,
       router,
+      urlService,
       connectManagedWallet,
-      templates,
+      templateService,
       chainApiHttpClient,
       address,
-      appConfig,
+      minDeposit,
       genNewCertificateIfLocalIsInvalid,
       signAndBroadcastTx,
       updateSelectedCertificate,
       deploymentLocalStorage,
       analyticsService,
-      enqueueSnackbar,
-      errorHandler
+      notificator,
+      errorHandler,
+      managedDenom,
+      navigateBack
     ]
   );
 
@@ -341,8 +377,9 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
         onStepComplete: handleStepComplete,
         onStartTrial: handleStartTrial,
         onPaymentMethodComplete: handlePaymentMethodComplete,
-        onComplete: handleComplete
+        onComplete: complete
       })}
+      <SuccessAnimation show={showSuccessAnimation} onComplete={handleSuccessAnimationComplete} />
     </>
   );
 };

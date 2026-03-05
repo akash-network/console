@@ -1,0 +1,368 @@
+"use client";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { CertificateInfo, CertificatePem } from "@akashnetwork/chain-sdk/web";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAtom, useAtomValue } from "jotai";
+
+import { QueryKeys } from "@src/queries/queryKeys";
+import { certificateStore } from "@src/store/certificateStore";
+import { TransactionMessageData } from "@src/utils/TransactionMessageData";
+import { useServices } from "../../context/ServicesProvider";
+import { useSettings } from "../../context/SettingsProvider";
+import { useWallet } from "../../context/WalletProvider";
+
+export type LocalCert = {
+  certPem: string;
+  keyPem: string;
+  address: string;
+};
+
+export type ChainCertificate = {
+  serial: string;
+  parsed: string;
+  pem: {
+    hSerial: string;
+    sIssuer: string;
+    sSubject: string;
+    sNotBefore: string;
+    sNotAfter: string;
+    issuedOn: Date;
+    expiresOn: Date;
+  };
+  certificate: {
+    cert: string;
+    pubkey: string;
+    state: string;
+  };
+};
+
+export type ContextType = {
+  refetchCertificates: () => Promise<ChainCertificate[]>;
+  selectedCertificate: ChainCertificate | null;
+  setSelectedCertificate: React.Dispatch<ChainCertificate | null>;
+  isLoadingCertificates: boolean;
+  loadLocalCert: () => Promise<void>;
+  localCert: LocalCert | null;
+  isLocalCertExpired: boolean;
+  setLocalCert: React.Dispatch<LocalCert | null>;
+  isLocalCertMatching: boolean;
+  validCertificates: Array<ChainCertificate>;
+  localCerts: Array<LocalCert> | null;
+  setLocalCerts: React.Dispatch<React.SetStateAction<LocalCert[] | null>>;
+  createCertificate: () => Promise<void>;
+  genNewCertificateIfLocalIsInvalid: () => Promise<CertificatePem | null>;
+  updateSelectedCertificate: (cert: CertificatePem) => Promise<LocalCert>;
+  isCreatingCert: boolean;
+  regenerateCertificate: () => Promise<void>;
+  revokeCertificate: (certificate: ChainCertificate) => Promise<void>;
+  revokeAllCertificates: () => Promise<void>;
+};
+
+export const DEPENDENCIES = {
+  useSettings,
+  useWallet,
+  useServices
+};
+
+function isExpired(parsedLocalCert: CertificateInfo) {
+  return parsedLocalCert.expiresOn.getTime() <= Date.now();
+}
+
+export function useCertificate(input?: { dependencies?: typeof DEPENDENCIES }): ContextType {
+  const d = input?.dependencies ?? DEPENDENCIES;
+  const { certificateManager, analyticsService, certificatesService, chainApiHttpClient, storedWalletsService } = d.useServices();
+  const { address, signAndBroadcastTx } = d.useWallet();
+  const { isSettingsInit } = d.useSettings();
+  const queryClient = useQueryClient();
+
+  const [selectedCertificate, setSelectedCertificate] = useAtom(certificateStore.selectedCertificate);
+  const [localCert, setLocalCert] = useAtom(certificateStore.localCert);
+  const [localCerts, setLocalCerts] = useAtom(certificateStore.localCerts);
+  const [parsedLocalCert, setParsedLocalCert] = useAtom(certificateStore.parsedLocalCert);
+  const effectiveLocalCert = useAtomValue(certificateStore.effectiveLocalCert);
+  const isLocalCertExpired = useAtomValue(certificateStore.isLocalCertExpired);
+
+  const [isCreatingCert, setIsCreatingCert] = useState(false);
+  const [isLocalCertMatching, setIsLocalCertMatching] = useAtom(certificateStore.isLocalCertMatching);
+
+  const queryKey = QueryKeys.getValidCertificatesKey(address);
+  const queryEnabled = !!address && isSettingsInit && !chainApiHttpClient.isFallbackEnabled;
+
+  const { data: validCertificates = [], isLoading: isLoadingCertificates } = useQuery({
+    queryKey,
+    queryFn: async () => {
+      const certificates = await certificatesService
+        .getAllCertificates({ address, state: "valid" })
+        .catch(error => (chainApiHttpClient.isFallbackEnabled ? [] : Promise.reject(error)));
+
+      return Promise.all(
+        (certificates || []).map(async cert => {
+          const parsed = atob(cert.certificate.cert);
+          const pem = await certificateManager.parsePem(parsed);
+          return {
+            ...cert,
+            parsed,
+            pem
+          } as ChainCertificate;
+        })
+      );
+    },
+    enabled: queryEnabled,
+    staleTime: Infinity
+  });
+
+  const invalidateAndRefetch = useCallback(async (): Promise<ChainCertificate[]> => {
+    await queryClient.invalidateQueries({ queryKey });
+    const certs = queryClient.getQueryCache().find<ChainCertificate[]>({ queryKey, exact: true })?.state.data;
+    return certs || [];
+  }, [queryClient, queryKey]);
+
+  /**
+   * When changing wallet, reset atoms and load local cert
+   */
+  useEffect(() => {
+    setSelectedCertificate(null);
+    setLocalCert(null);
+
+    if (address && isSettingsInit && !chainApiHttpClient.isFallbackEnabled) {
+      loadLocalCert();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [address, isSettingsInit, chainApiHttpClient.isFallbackEnabled]);
+
+  useEffect(() => {
+    let isMatching = false;
+    if (validCertificates?.length > 0 && localCert) {
+      let currentCert = validCertificates.find(x => x.parsed === localCert.certPem);
+
+      if (!selectedCertificate && currentCert) {
+        setSelectedCertificate(currentCert);
+      } else {
+        currentCert = validCertificates.find(x => x.parsed === localCert?.certPem && selectedCertificate?.serial === x.serial);
+      }
+
+      isMatching = !!currentCert;
+    }
+
+    setIsLocalCertMatching(isMatching);
+  }, [selectedCertificate, localCert, validCertificates, setSelectedCertificate]);
+
+  useEffect(() => {
+    if (!localCert) {
+      setParsedLocalCert(null);
+      return;
+    }
+    certificateManager.parsePem(localCert.certPem).then(setParsedLocalCert);
+  }, [localCert, certificateManager, setParsedLocalCert]);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const loadLocalCert = useCallback(async () => {
+    const wallets = storedWalletsService.getStorageWallets();
+    const certs = wallets.reduce((acc, wallet) => {
+      const cert: LocalCert | null = wallet.cert && wallet.certKey ? { certPem: wallet.cert, keyPem: wallet.certKey, address: wallet.address } : null;
+
+      if (cert) {
+        acc.push(cert);
+      }
+
+      if (wallet.address === address) {
+        setLocalCert(cert);
+      }
+
+      return acc;
+    }, [] as LocalCert[]);
+
+    setLocalCerts(certs);
+  }, [address, setLocalCert, setLocalCerts]);
+
+  async function createCertificate() {
+    setIsCreatingCert(true);
+
+    const { cert: crtpem, publicKey: pubpem, privateKey: encryptedKey } = await certificateManager.generatePEM(address);
+
+    try {
+      const message = TransactionMessageData.getCreateCertificateMsg(address, crtpem, pubpem);
+      const response = await signAndBroadcastTx([message]);
+      if (response) {
+        storedWalletsService.updateWallet(address, wallet => {
+          return {
+            ...wallet,
+            cert: crtpem,
+            certKey: encryptedKey
+          };
+        });
+        const validCerts = await invalidateAndRefetch();
+        loadLocalCert();
+        const currentCert = validCerts.find(({ parsed }) => parsed === crtpem) || null;
+        setSelectedCertificate(currentCert);
+
+        analyticsService.track("create_certificate", {
+          category: "certificates",
+          label: "Created certificate"
+        });
+      }
+
+      setIsCreatingCert(false);
+    } catch (error) {
+      setIsCreatingCert(false);
+
+      throw error;
+    }
+  }
+
+  async function regenerateCertificate() {
+    setIsCreatingCert(true);
+    const { cert: crtpem, publicKey: pubpem, privateKey: encryptedKey } = await certificateManager.generatePEM(address);
+
+    try {
+      const revokeCertMsg = TransactionMessageData.getRevokeCertificateMsg(address, selectedCertificate?.serial as string);
+      const createCertMsg = TransactionMessageData.getCreateCertificateMsg(address, crtpem, pubpem);
+      const response = await signAndBroadcastTx([revokeCertMsg, createCertMsg]);
+      if (response) {
+        storedWalletsService.updateWallet(address, wallet => {
+          return {
+            ...wallet,
+            cert: crtpem,
+            certKey: encryptedKey
+          };
+        });
+        const validCerts = await invalidateAndRefetch();
+        loadLocalCert();
+        const currentCert = validCerts.find(x => x.parsed === crtpem);
+        setSelectedCertificate(currentCert as ChainCertificate);
+
+        analyticsService.track("regenerate_certificate", {
+          category: "certificates",
+          label: "Regenerated certificate"
+        });
+      }
+
+      setIsCreatingCert(false);
+    } catch (error) {
+      setIsCreatingCert(false);
+      throw error;
+    }
+  }
+
+  const revokeCertificate = async (certificate: ChainCertificate) => {
+    const message = TransactionMessageData.getRevokeCertificateMsg(address, certificate.serial);
+    const response = await signAndBroadcastTx([message]);
+    if (response) {
+      const validCerts = await invalidateAndRefetch();
+      const isRevokingOtherCert = validCerts.some(c => c.parsed === localCert?.certPem);
+      storedWalletsService.updateWallet(address, wallet => {
+        return {
+          ...wallet,
+          cert: isRevokingOtherCert ? wallet.cert : undefined,
+          certKey: isRevokingOtherCert ? wallet.certKey : undefined
+        };
+      });
+      if (validCerts?.length > 0 && certificate.serial === selectedCertificate?.serial) {
+        setSelectedCertificate(validCerts[0]);
+      } else if (validCerts?.length === 0) {
+        setSelectedCertificate(null);
+      }
+
+      analyticsService.track("revoke_certificate", {
+        category: "certificates",
+        label: "Revoked certificate"
+      });
+    }
+  };
+
+  const revokeAllCertificates = async () => {
+    const messages = validCertificates.map(cert => TransactionMessageData.getRevokeCertificateMsg(address, cert.serial));
+    const response = await signAndBroadcastTx(messages);
+    if (response) {
+      await invalidateAndRefetch();
+
+      storedWalletsService.updateWallet(address, wallet => {
+        return {
+          ...wallet,
+          cert: undefined,
+          certKey: undefined
+        };
+      });
+
+      setSelectedCertificate(null);
+
+      analyticsService.track("revoke_all_certificates", {
+        category: "certificates",
+        label: "Revoked all certificates"
+      });
+    }
+  };
+
+  const genNewCertificateIfLocalIsInvalid = useCallback(async () => {
+    if (!parsedLocalCert || isExpired(parsedLocalCert)) return await certificateManager.generatePEM(address);
+
+    const validCerts = await invalidateAndRefetch();
+    const currentCert = localCert ? validCerts.find(({ parsed }) => parsed === localCert.certPem) : null;
+    const isLocalCertValid = currentCert?.certificate?.state === "valid" && isLocalCertMatching;
+
+    return isLocalCertValid ? null : await certificateManager.generatePEM(address);
+  }, [localCert, invalidateAndRefetch, isLocalCertMatching, address, parsedLocalCert, certificateManager]);
+
+  const updateSelectedCertificate = useCallback(
+    async (cert: CertificatePem) => {
+      storedWalletsService.updateWallet(address, wallet => {
+        return {
+          ...wallet,
+          cert: cert.cert,
+          certKey: cert.privateKey
+        };
+      });
+      const validCerts = await invalidateAndRefetch();
+      loadLocalCert();
+      const currentCert = validCerts.find(x => x.parsed === cert.cert);
+      setSelectedCertificate(currentCert || null);
+      return {
+        certPem: cert.cert,
+        keyPem: cert.privateKey,
+        address
+      };
+    },
+    [address, invalidateAndRefetch, loadLocalCert, setSelectedCertificate]
+  );
+
+  return useMemo(
+    () => ({
+      refetchCertificates: invalidateAndRefetch,
+      selectedCertificate,
+      setSelectedCertificate,
+      isLoadingCertificates,
+      loadLocalCert,
+      localCert: effectiveLocalCert,
+      setLocalCert,
+      isLocalCertExpired,
+      genNewCertificateIfLocalIsInvalid,
+      updateSelectedCertificate,
+      isLocalCertMatching,
+      validCertificates,
+      localCerts,
+      setLocalCerts,
+      createCertificate,
+      isCreatingCert,
+      regenerateCertificate,
+      revokeCertificate,
+      revokeAllCertificates
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      selectedCertificate,
+      setSelectedCertificate,
+      isLoadingCertificates,
+      loadLocalCert,
+      effectiveLocalCert,
+      setLocalCert,
+      isLocalCertExpired,
+      genNewCertificateIfLocalIsInvalid,
+      updateSelectedCertificate,
+      isLocalCertMatching,
+      validCertificates,
+      localCerts,
+      isCreatingCert,
+      invalidateAndRefetch
+    ]
+  );
+}

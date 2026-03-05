@@ -1,8 +1,7 @@
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { UserProvider } from "@auth0/nextjs-auth0/client";
 
 import { UserInitLoader } from "@src/components/user/UserInitLoader";
-import { AnonymousUserProvider } from "@src/context/AnonymousUserProvider/AnonymousUserProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { useUser } from "@src/hooks/useUser";
 import type { FCWithChildren } from "@src/types/component";
@@ -12,18 +11,20 @@ import type { FCWithChildren } from "@src/types/component";
  * which is a client only component.
  */
 export const UserProviders: FCWithChildren = ({ children }) => {
-  const { internalApiHttpClient, appConfig } = useServices();
-  return appConfig.NEXT_PUBLIC_BILLING_ENABLED ? (
-    <UserProvider fetcher={url => internalApiHttpClient.get(url).then(response => response.data)}>
+  const { internalApiHttpClient } = useServices();
+  const getProfile = useCallback(
+    async (url: string) => {
+      const response = await internalApiHttpClient.get(url, { validateStatus: status => status < 500 });
+      if (response.status === 401) return;
+      return response.data;
+    },
+    [internalApiHttpClient]
+  );
+  return (
+    <UserProvider fetcher={getProfile}>
       <UserInitLoader>
-        <AnonymousUserProvider>
-          <UserTracker>{children}</UserTracker>
-        </AnonymousUserProvider>
+        <UserTracker>{children}</UserTracker>
       </UserInitLoader>
-    </UserProvider>
-  ) : (
-    <UserProvider>
-      <UserTracker>{children}</UserTracker>
     </UserProvider>
   );
 };

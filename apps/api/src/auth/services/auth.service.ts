@@ -2,6 +2,7 @@ import { Ability, subject } from "@casl/ability";
 import assert from "http-assert";
 import { container, Lifecycle, scoped } from "tsyringe";
 
+import { assertIsPayingUser, isPayingUser, PayingUser } from "@src/billing/services/paying-user/paying-user";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { UserOutput } from "@src/user/repositories";
 
@@ -13,6 +14,10 @@ export class AuthService {
     this.executionContextService.set("CURRENT_USER", user);
   }
 
+  get safeCurrentUser(): UserOutput | undefined {
+    return this.executionContextService.get("CURRENT_USER");
+  }
+
   get currentUser(): UserOutput {
     // BUGALERT: https://github.com/akash-network/console/issues/1447
     const user = this.executionContextService.get("CURRENT_USER")!;
@@ -20,6 +25,24 @@ export class AuthService {
     assert(user, 401);
 
     return user;
+  }
+
+  getCurrentPayingUser(): PayingUser;
+  getCurrentPayingUser(options: { strict: false }): PayingUser | undefined;
+  getCurrentPayingUser(options: { strict: true }): PayingUser;
+  getCurrentPayingUser(options = { strict: true }): PayingUser | undefined {
+    const user = this.executionContextService.get("CURRENT_USER");
+
+    assert(user, 401, "User not found");
+
+    if (options.strict) {
+      assertIsPayingUser(user);
+      return user;
+    } else if (isPayingUser(user)) {
+      return user;
+    }
+
+    return undefined;
   }
 
   set ability(ability: Ability) {

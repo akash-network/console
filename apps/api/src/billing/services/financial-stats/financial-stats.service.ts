@@ -1,33 +1,32 @@
 import { Provider } from "@akashnetwork/database/dbSchemas/akash";
-import { CosmosDistributionCommunityPoolResponse, CosmosHttpService } from "@akashnetwork/http-sdk";
-import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
-import axios from "axios";
-import { Op, QueryTypes } from "sequelize";
-import { singleton } from "tsyringe";
+import { CosmosHttpService } from "@akashnetwork/http-sdk";
+import { Op, QueryTypes, Sequelize } from "sequelize";
+import { inject, singleton } from "tsyringe";
 
 import { USDC_IBC_DENOMS } from "@src/billing/config/network.config";
-import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { UserWalletRepository } from "@src/billing/repositories";
-import { chainDb } from "@src/db/dbConnection";
-import { apiNodeUrl } from "@src/utils/constants";
+import { CHAIN_DB } from "@src/chain";
+import { TxManagerService } from "../tx-manager/tx-manager.service";
 
 @singleton()
 export class FinancialStatsService {
+  readonly #chainDb: Sequelize;
+
   constructor(
-    @InjectBillingConfig() private readonly config: BillingConfig,
+    @inject(CHAIN_DB) chainDb: Sequelize,
     private readonly userWalletRepository: UserWalletRepository,
-    private readonly cosmosHttpService: CosmosHttpService
-  ) {}
+    private readonly cosmosHttpService: CosmosHttpService,
+    private readonly txManagerService: TxManagerService
+  ) {
+    this.#chainDb = chainDb;
+  }
 
   async getPayingUserCount() {
     return this.userWalletRepository.payingUserCount();
   }
 
   async getMasterWalletBalanceUsdc() {
-    const wallet = await DirectSecp256k1HdWallet.fromMnemonic(this.config.MASTER_WALLET_MNEMONIC, { prefix: "akash" });
-    const [account] = await wallet.getAccounts();
-
-    return this.getWalletBalances(account.address, USDC_IBC_DENOMS.mainnetId);
+    return this.getWalletBalances(await this.txManagerService.getFundingWalletAddress(), USDC_IBC_DENOMS.mainnetId);
   }
 
   private async getWalletBalances(address: string, denom: string) {
@@ -52,14 +51,14 @@ export class FinancialStatsService {
     return balances;
   }
 
-  async getCommunityPoolUsdc() {
-    const communityPoolData = await axios.get<CosmosDistributionCommunityPoolResponse>(`${apiNodeUrl}/cosmos/distribution/v1beta1/community_pool`);
-    return parseFloat(communityPoolData.data.pool.find(x => x.denom === USDC_IBC_DENOMS.mainnetId)?.amount || "0");
+  async getCommunityPoolUsdc(): Promise<number> {
+    const pool = await this.cosmosHttpService.getCommunityPool();
+    return parseFloat(pool.find(x => x.denom === USDC_IBC_DENOMS.mainnetId)?.amount || "0");
   }
 
   async getProviderRevenues() {
-    const results = await chainDb.query<{ hostUri: string; usdEarned: string }>(
-      `
+    const results = await this.#chainDb.query<{ hostUri: string; usdEarned: string }>(
+      `/* financial-stats:provider-revenues */
   WITH trial_deployments_ids AS (
       SELECT DISTINCT m."relatedDeploymentId" AS "deployment_id"
       FROM "transaction" t

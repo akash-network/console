@@ -7,7 +7,6 @@ export const browserEnvSchema = z.object({
   NEXT_PUBLIC_MASTER_WALLET_ADDRESS: z.string(),
   NEXT_PUBLIC_UAKT_TOP_UP_MASTER_WALLET_ADDRESS: z.string(),
   NEXT_PUBLIC_USDC_TOP_UP_MASTER_WALLET_ADDRESS: z.string(),
-  NEXT_PUBLIC_BILLING_ENABLED: coercedBoolean().optional().default("false"),
   NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID: networkId.optional().default("mainnet"),
   NEXT_PUBLIC_DEFAULT_NETWORK_ID: networkId.optional().default("mainnet"),
   NEXT_PUBLIC_MANAGED_WALLET_DENOM: z.enum(["uakt", "usdc"]).optional().default("usdc"),
@@ -26,7 +25,7 @@ export const browserEnvSchema = z.object({
   NEXT_PUBLIC_GA_ENABLED: coercedBoolean(),
   NEXT_PUBLIC_AMPLITUDE_ENABLED: coercedBoolean(),
   NEXT_PUBLIC_AMPLITUDE_API_KEY: z.string(),
-  NEXT_PUBLIC_AMPLITUDE_SAMPLING: z.number({ coerce: true }).optional().default(1),
+  NEXT_PUBLIC_AMPLITUDE_PROXY_URL: z.string().optional().describe("A url to proxy Amplitude events to via nextjs rewrite config to avoid blockers"),
   NEXT_PUBLIC_REDIRECT_URI: z.string().url(),
   NEXT_PUBLIC_GITHUB_APP_INSTALLATION_URL: z.string().url(),
   NEXT_PUBLIC_BITBUCKET_CLIENT_ID: z.string().optional(),
@@ -39,7 +38,8 @@ export const browserEnvSchema = z.object({
   NEXT_PUBLIC_GROWTH_CHANNEL_TRACKING_ENABLED: coercedBoolean().optional().default("false"),
   NEXT_PUBLIC_UNLEASH_ENABLE_ALL: coercedBoolean().optional().default("false"),
   NEXT_PUBLIC_GTM_ID: z.string().optional(),
-  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional()
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional(),
+  NEXT_PUBLIC_BASE_TEMPLATES_URL: z.string().url()
 });
 
 export const serverEnvSchema = browserEnvSchema.extend({
@@ -64,7 +64,15 @@ export const serverEnvSchema = browserEnvSchema.extend({
   NEXT_PUBLIC_UNLEASH_ENABLE_ALL: coercedBoolean().optional().default("false"),
   NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID: networkId.optional().default("mainnet"),
   NEXT_PUBLIC_DEFAULT_NETWORK_ID: networkId.optional().default("mainnet"),
-  NODE_ENV: z.enum(["development", "production", "test"]).optional().default("development")
+  NODE_ENV: z.enum(["development", "production", "test"]).optional().default("development"),
+  TURNSTILE_SECRET_KEY: z.string(),
+  /**
+   * @see https://developers.cloudflare.com/turnstile/troubleshooting/testing/#test-secret-keys
+   */
+  TURNSTILE_BYPASS_SECRET_KEY: z.string().default("1x0000000000000000000000000000000AA"),
+  E2E_TESTING_CLIENT_TOKEN: z.string({
+    required_error: "This token is used to adjust configuration of the app for e2e testing. Can be any random string."
+  })
 });
 
 export type BrowserEnvConfig = z.infer<typeof browserEnvSchema>;

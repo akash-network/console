@@ -11,22 +11,22 @@ import { ApiKeyAuthService } from "@src/auth/services/api-key/api-key-auth.servi
 import type { UserWalletOutput } from "@src/billing/repositories";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { ManagedSignerService } from "@src/billing/services";
+import { CORE_CONFIG } from "@src/core";
 import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { app } from "@src/rest-app";
 import type { RestAkashDeploymentInfoResponse } from "@src/types/rest";
 import type { UserOutput } from "@src/user/repositories";
 import { UserRepository } from "@src/user/repositories";
-import { apiNodeUrl, deploymentVersion, marketVersion } from "@src/utils/constants";
+import { deploymentVersion, marketVersion } from "@src/utils/constants";
 
 import { ApiKeySeeder } from "@test/seeders/api-key.seeder";
+import { createDeployment } from "@test/seeders/deployment.seeder";
 import { DeploymentInfoSeeder } from "@test/seeders/deployment-info.seeder";
 import { LeaseApiResponseSeeder } from "@test/seeders/lease-api-response.seeder";
 import { LeaseStatusSeeder } from "@test/seeders/lease-status.seeder";
 import { UserSeeder } from "@test/seeders/user.seeder";
 import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
-
-jest.setTimeout(20000);
 
 describe("Deployments API", () => {
   const userRepository = container.resolve(UserRepository);
@@ -87,7 +87,7 @@ describe("Deployments API", () => {
 
     jest.spyOn(userWalletRepository, "accessibleBy").mockReturnValue(fakeWalletRepository);
 
-    jest.spyOn(signerService, "executeDecodedTxByUserId").mockResolvedValue({
+    jest.spyOn(signerService, "executeDerivedDecodedTxByUserId").mockResolvedValue({
       code: 200,
       transactionHash: "fake-transaction-hash",
       hash: "fake-transaction-hash",
@@ -104,6 +104,7 @@ describe("Deployments API", () => {
   });
 
   afterAll(async () => {
+    await container.dispose();
     jest.restoreAllMocks();
     nock.cleanAll();
   });
@@ -124,7 +125,7 @@ describe("Deployments API", () => {
     return { user, userApiKeySecret, wallets };
   }
 
-  function setupDeploymentInfoMock(wallets: UserWalletOutput[], dseq: string, deploymentInfo?: RestAkashDeploymentInfoResponse) {
+  async function setupDeploymentInfoMock(wallets: UserWalletOutput[], dseq: string, deploymentInfo?: RestAkashDeploymentInfoResponse) {
     const address = wallets[0].address;
     const defaultDeploymentInfo =
       deploymentInfo ||
@@ -133,24 +134,27 @@ describe("Deployments API", () => {
         dseq
       });
 
-    nock(apiNodeUrl)
+    nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
       .persist()
       .get(`/akash/deployment/${deploymentVersion}/deployments/list?filters.owner=${address}`)
       .reply(200, {
         deployments: [defaultDeploymentInfo]
       });
 
-    nock(apiNodeUrl)
+    nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
       .persist()
       .get(`/akash/deployment/${deploymentVersion}/deployments/info?id.owner=${address}&id.dseq=${dseq}`)
       .reply(200, defaultDeploymentInfo);
 
-    nock(apiNodeUrl).persist().get(`/akash/deployment/${deploymentVersion}/deployments/info?id.owner=${address}&id.dseq=9876`).reply(404, {
-      code: 404,
-      message: "Deployment not found"
-    });
+    nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
+      .persist()
+      .get(`/akash/deployment/${deploymentVersion}/deployments/info?id.owner=${address}&id.dseq=9876`)
+      .reply(404, {
+        code: 404,
+        message: "Deployment not found"
+      });
 
-    nock(apiNodeUrl)
+    nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
       .persist()
       .get(
         `/akash/deployment/${deploymentVersion}/deployments/list?filters.owner=${address}&pagination.offset=0&pagination.limit=1&pagination.count_total=true&pagination.reverse=false`
@@ -162,6 +166,7 @@ describe("Deployments API", () => {
           next_key: null
         }
       });
+    await createDeployment({ owner: wallets[0].address!, dseq });
 
     const leases = LeaseApiResponseSeeder.createMany(2, {
       owner: address!,
@@ -169,17 +174,29 @@ describe("Deployments API", () => {
       state: "active"
     });
 
-    nock(apiNodeUrl).persist().get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.dseq=${dseq}`).reply(200, { leases });
-    nock(apiNodeUrl)
+    nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
+      .persist()
+      .get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.dseq=${dseq}`)
+      .reply(200, { leases });
+    nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
       .persist()
       .get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.dseq=${dseq}&pagination.limit=1000`)
       .reply(200, { leases });
-    nock(apiNodeUrl).persist().get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.dseq=9876&pagination.limit=1000`).reply(404, {
-      code: 404,
-      message: "Leases not found"
-    });
-    nock(apiNodeUrl).persist().get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.state=active`).reply(200, { leases });
-    nock(apiNodeUrl).persist().get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.state=active`).reply(200, { leases });
+    nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
+      .persist()
+      .get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.dseq=9876&pagination.limit=1000`)
+      .reply(404, {
+        code: 404,
+        message: "Leases not found"
+      });
+    nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
+      .persist()
+      .get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.state=active`)
+      .reply(200, { leases });
+    nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
+      .persist()
+      .get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.state=active`)
+      .reply(200, { leases });
 
     return defaultDeploymentInfo;
   }
@@ -198,7 +215,9 @@ describe("Deployments API", () => {
 
       deployments.push(deploymentInfo);
 
-      nock(apiNodeUrl).get(`/akash/deployment/${deploymentVersion}/deployments/info?id.owner=${address}&id.dseq=${dseq}`).reply(200, deploymentInfo);
+      nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
+        .get(`/akash/deployment/${deploymentVersion}/deployments/info?id.owner=${address}&id.dseq=${dseq}`)
+        .reply(200, deploymentInfo);
 
       const leases = LeaseApiResponseSeeder.createMany(2, {
         owner: address!,
@@ -206,7 +225,9 @@ describe("Deployments API", () => {
         state: "active"
       });
 
-      nock(apiNodeUrl).get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.dseq=${dseq}`).reply(200, { leases });
+      nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
+        .get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.dseq=${dseq}`)
+        .reply(200, { leases });
     }
 
     return deployments;
@@ -216,7 +237,7 @@ describe("Deployments API", () => {
     it("returns deployment by dseq", async () => {
       const dseq = "1234";
       const { userApiKeySecret, wallets } = await mockUser();
-      setupDeploymentInfoMock(wallets, dseq);
+      await setupDeploymentInfoMock(wallets, dseq);
 
       const response = await app.request(`/v1/deployments/${dseq}`, {
         method: "GET",
@@ -235,7 +256,7 @@ describe("Deployments API", () => {
     it("returns 404 for an error in deployment info", async () => {
       const dseq = "1234";
       const { userApiKeySecret, wallets } = await mockUser();
-      setupDeploymentInfoMock(wallets, dseq, DeploymentInfoSeeder.createError());
+      await setupDeploymentInfoMock(wallets, dseq, DeploymentInfoSeeder.createError());
 
       const response = await app.request(`/v1/deployments/${dseq}`, {
         method: "GET",
@@ -268,11 +289,37 @@ describe("Deployments API", () => {
       });
     });
 
+    it("returns 400 for invalid dseq 'undefined'", async () => {
+      const { userApiKeySecret } = await mockUser();
+
+      const response = await app.request("/v1/deployments/undefined", {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(400);
+      const result = (await response.json()) as { data: { path: string[]; message: string }[] };
+      expect(result.data.find(error => error.path.join(".") === "dseq")?.message).toContain("Expected bigint, received string");
+    });
+
+    it("returns 400 for invalid dseq with non-numeric characters", async () => {
+      const { userApiKeySecret } = await mockUser();
+
+      const response = await app.request("/v1/deployments/abc123", {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(400);
+      const result = (await response.json()) as { data: { path: string[]; message: string }[] };
+      expect(result.data.find(error => error.path.join(".") === "dseq")?.message).toContain("Expected bigint, received string");
+    });
+
     it("returns all deployments when skip and limit are not provided", async () => {
       const { userApiKeySecret, wallets } = await mockUser();
       const deployments = setupDeploymentListMock(wallets, 2);
 
-      nock(apiNodeUrl)
+      nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
         .persist()
         .get(/\/akash\/deployment\/v1beta4\/deployments\/list\?.*/)
         .reply(200, {
@@ -311,7 +358,7 @@ describe("Deployments API", () => {
       const { userApiKeySecret, wallets } = await mockUser();
       const deployments = setupDeploymentListMock(wallets, 2, "active");
 
-      nock(apiNodeUrl)
+      nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
         .persist()
         .get(/\/akash\/deployment\/v1beta4\/deployments\/list\?.*/)
         .reply(200, {
@@ -372,7 +419,7 @@ describe("Deployments API", () => {
       const { userApiKeySecret, wallets } = await mockUser();
       const deployments = setupDeploymentListMock(wallets, 1, "active");
 
-      nock(apiNodeUrl)
+      nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
         .persist()
         .get(/\/akash\/deployment\/v1beta4\/deployments\/list\?.*/)
         .reply(200, {
@@ -517,7 +564,7 @@ describe("Deployments API", () => {
     it("should close a deployment successfully", async () => {
       const { userApiKeySecret, wallets } = await mockUser();
       const dseq = "1234";
-      setupDeploymentInfoMock(wallets, dseq);
+      await setupDeploymentInfoMock(wallets, dseq);
 
       const mockTxResult = {
         code: 0,
@@ -578,13 +625,53 @@ describe("Deployments API", () => {
         type: "client_error"
       });
     });
+
+    it("should return 400 for invalid dseq 'undefined'", async () => {
+      const { userApiKeySecret } = await mockUser();
+
+      const response = await app.request("/v1/deployments/undefined", {
+        method: "DELETE",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(400);
+      const result = (await response.json()) as { data: { path: string[]; message: string }[] };
+      expect(result.data.find(error => error.path.join(".") === "dseq")?.message).toContain("Expected bigint, received string");
+    });
+
+    it("should return 400 for invalid dseq with non-numeric characters", async () => {
+      const { userApiKeySecret } = await mockUser();
+
+      const response = await app.request("/v1/deployments/abc123", {
+        method: "DELETE",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(400);
+      const result = (await response.json()) as { data: { path: string[]; message: string }[] };
+      expect(result.data.find(error => error.path.join(".") === "dseq")?.message).toContain("Expected bigint, received string");
+    });
+
+    it("should return 400 for negative dseq", async () => {
+      const { userApiKeySecret } = await mockUser();
+
+      const response = await app.request("/v1/deployments/-123", {
+        method: "DELETE",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(400);
+      const result = (await response.json()) as { data: { path: string[]; code: string }[] };
+      console.dir(result, { depth: null });
+      expect(result.data.find(error => error.path.join(".") === "dseq")?.code).toBe("too_small");
+    });
   });
 
   describe("POST /v1/deployments/{dseq}/deposit", () => {
     it("should deposit into a deployment successfully", async () => {
       const { userApiKeySecret, wallets } = await mockUser();
       const dseq = "1234";
-      setupDeploymentInfoMock(wallets, dseq);
+      await setupDeploymentInfoMock(wallets, dseq);
 
       const mockTxResult = {
         code: 0,
@@ -593,7 +680,7 @@ describe("Deployments API", () => {
         rawLog: "success"
       };
 
-      jest.spyOn(signerService, "executeDecodedTxByUserId").mockResolvedValueOnce(mockTxResult);
+      jest.spyOn(signerService, "executeDerivedDecodedTxByUserId").mockResolvedValueOnce(mockTxResult);
 
       const response = await app.request(`/v1/deposit-deployment`, {
         method: "POST",
@@ -680,7 +767,7 @@ describe("Deployments API", () => {
     it("should update a deployment successfully", async () => {
       const { userApiKeySecret, wallets } = await mockUser();
       const dseq = "1234";
-      setupDeploymentInfoMock(wallets, dseq);
+      await setupDeploymentInfoMock(wallets, dseq);
 
       const mockTxResult = {
         code: 0,
@@ -689,7 +776,7 @@ describe("Deployments API", () => {
         rawLog: "success"
       };
 
-      jest.spyOn(signerService, "executeDecodedTxByUserId").mockResolvedValueOnce(mockTxResult);
+      jest.spyOn(signerService, "executeDerivedDecodedTxByUserId").mockResolvedValueOnce(mockTxResult);
 
       const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
 
@@ -715,7 +802,7 @@ describe("Deployments API", () => {
     it("should update a deployment successfully with a certificate provided", async () => {
       const { userApiKeySecret, wallets } = await mockUser();
       const dseq = "1234";
-      setupDeploymentInfoMock(wallets, dseq);
+      await setupDeploymentInfoMock(wallets, dseq);
 
       const mockTxResult = {
         code: 0,
@@ -724,7 +811,7 @@ describe("Deployments API", () => {
         rawLog: "success"
       };
 
-      jest.spyOn(signerService, "executeDecodedTxByUserId").mockResolvedValueOnce(mockTxResult);
+      jest.spyOn(signerService, "executeDerivedDecodedTxByUserId").mockResolvedValueOnce(mockTxResult);
 
       const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
 
@@ -824,7 +911,7 @@ describe("Deployments API", () => {
     it("returns deployment by dseq", async () => {
       const dseq = "1234";
       const { userApiKeySecret, wallets } = await mockUser();
-      setupDeploymentInfoMock(wallets, dseq);
+      await setupDeploymentInfoMock(wallets, dseq);
 
       const response = await app.request(`/v1/addresses/${wallets[0].address}/deployments/0/1`, {
         method: "GET",
@@ -856,7 +943,7 @@ describe("Deployments API", () => {
     it("returns deployment by owner and dseq", async () => {
       const dseq = "1234";
       const { userApiKeySecret, wallets } = await mockUser();
-      setupDeploymentInfoMock(wallets, dseq);
+      await setupDeploymentInfoMock(wallets, dseq);
 
       const response = await app.request(`/v1/deployment/${wallets[0].address}/${dseq}`, {
         method: "GET",
@@ -872,7 +959,7 @@ describe("Deployments API", () => {
     it("returns 404 when deployment is not found", async () => {
       const dseq = "1234";
       const { userApiKeySecret, wallets } = await mockUser();
-      setupDeploymentInfoMock(wallets, dseq);
+      await setupDeploymentInfoMock(wallets, dseq);
 
       const response = await app.request(`/v1/deployment/${wallets[0].address}/9876`, {
         method: "GET",

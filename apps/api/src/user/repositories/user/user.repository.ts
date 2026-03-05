@@ -1,11 +1,12 @@
-import subDays from "date-fns/subDays";
-import { and, desc, eq, isNull, lt, lte, SQL, sql } from "drizzle-orm";
+import { and, eq, lt, ne, SQL, sql } from "drizzle-orm";
 import { PgUpdateSetSource } from "drizzle-orm/pg-core";
 import { singleton } from "tsyringe";
 
+import { UserWallets } from "@src/billing/model-schemas";
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
 import { TxService } from "@src/core/services";
+import { Trace } from "@src/core/services/tracing/tracing.service";
 import { userAgentMaxLength } from "@src/user/model-schemas/user/user.schema";
 
 export type UserOutput = ApiPgTables["Users"]["$inferSelect"] & {
@@ -32,18 +33,17 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
     return this.toOutput(item);
   }
 
+  @Trace()
   async findById(id: UserOutput["id"]): Promise<UserOutput | undefined> {
     return this.findUserWithWallet(eq(this.table.id, id));
   }
 
+  @Trace()
   async findByUserId(userId: UserOutput["userId"]): Promise<UserOutput | undefined> {
     return this.findUserWithWallet(eq(this.table.userId, userId!));
   }
 
-  async findAnonymousById(id: UserOutput["id"]) {
-    return await this.cursor.query.Users.findFirst({ where: this.whereAccessibleBy(and(eq(this.table.id, id), isNull(this.table.userId))) });
-  }
-
+  @Trace()
   async markAsActive(
     id: UserOutput["id"],
     options: {
@@ -71,38 +71,25 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
       );
   }
 
-  async paginateStaleAnonymousUsers(
-    { inactivityInDays, limit = 100 }: { inactivityInDays: number; limit?: number },
-    cb: (page: UserOutput[]) => Promise<void>
-  ) {
-    let lastId: string | undefined;
-
-    do {
-      const clauses = [isNull(this.table.userId), lte(this.table.lastActiveAt, subDays(new Date(), inactivityInDays))];
-
-      if (lastId) {
-        clauses.push(lt(this.table.id, lastId));
-      }
-
-      const items = this.toOutputList(await this.cursor.query.Users.findMany({ where: and(...clauses), limit, orderBy: [desc(this.table.id)] }));
-      lastId = items.at(-1)?.id;
-
-      if (items.length) {
-        await cb(items);
-      }
-    } while (lastId);
-  }
-
-  async upsertByUserId(data: UserInput): Promise<UserOutput> {
+  async upsertOnExternalIdConflict(data: UserInput): Promise<UserOutput> {
+    const { username, ...withoutUsername } = data;
     const [item] = await this.cursor
       .insert(this.table)
       .values(this.toInput(data))
       .onConflictDoUpdate({
         target: [this.table.userId],
-        set: data
+        set: withoutUsername
       })
       .returning();
     return this.toOutput(item);
+  }
+
+  async findTrialUsersByFingerprint(fingerprint: string, excludeUserId: string): Promise<{ id: string }[]> {
+    return this.pg
+      .select({ id: this.table.id })
+      .from(this.table)
+      .innerJoin(UserWallets, and(eq(UserWallets.userId, this.table.id), eq(UserWallets.isTrialing, true)))
+      .where(and(eq(this.table.lastFingerprint, fingerprint), ne(this.table.id, excludeUserId)));
   }
 
   private async findUserWithWallet(whereClause: SQL<unknown>) {

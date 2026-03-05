@@ -1,4 +1,5 @@
 import { faker } from "@faker-js/faker";
+import { vi } from "vitest";
 
 import type { ContextType as WalletProviderContextType } from "@src/context/WalletProvider/WalletProvider";
 
@@ -9,16 +10,16 @@ export const buildWallet = (overrides: Partial<WalletProviderContextType> = {}):
   walletName: faker.internet.username(),
   isWalletConnected: true,
   isWalletLoaded: true,
-  connectManagedWallet: jest.fn(),
-  logout: jest.fn(),
-  signAndBroadcastTx: jest.fn(),
+  connectManagedWallet: vi.fn(),
+  logout: vi.fn(),
+  signAndBroadcastTx: vi.fn(),
   isManaged: true,
   isCustodial: false,
   isWalletLoading: false,
   isTrialing: false,
   isOnboarding: false,
   creditAmount: faker.number.float({ min: 0, max: 1000 }),
-  switchWalletType: jest.fn(),
+  switchWalletType: vi.fn(),
   hasManagedWallet: true,
   managedWalletError: undefined,
   ...overrides

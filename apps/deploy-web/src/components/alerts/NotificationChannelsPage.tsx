@@ -18,10 +18,15 @@ export const NotificationChannelsPage: React.FunctionComponent = () => {
         page={AlertTabs.NOTIFICATION_CHANNELS}
         title="Notification Channels"
         headerActions={
-          <div className="md:ml-4">
-            <Link href="notification-channels/new" color="secondary" type="button" className={cn(buttonVariants({ variant: "default" }))}>
+          <div className="md:ml-6">
+            <Link
+              href="notification-channels/new"
+              color="secondary"
+              type="button"
+              className={cn(buttonVariants({ variant: "default", size: "sm" }), "space-x-2")}
+            >
               <Plus />
-              &nbsp;Create
+              <span>Create</span>
             </Link>
           </div>
         }

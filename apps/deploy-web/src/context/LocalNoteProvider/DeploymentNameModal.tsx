@@ -3,11 +3,12 @@ import { useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { Form, FormField, FormInput, Popup, Snackbar } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useAtom } from "jotai";
 import { useSnackbar } from "notistack";
 import { z } from "zod";
 
 import { useServices } from "../ServicesProvider";
-import { useWallet } from "../WalletProvider";
+import { settingsIdAtom } from "../SettingsProvider/settingsStore";
 
 const formSchema = z.object({
   name: z.string()
@@ -22,7 +23,7 @@ type Props = {
 
 export const DeploymentNameModal: React.FC<Props> = ({ dseq, onClose, onSaved, getDeploymentName }) => {
   const { deploymentLocalStorage } = useServices();
-  const { address } = useWallet();
+  const [address] = useAtom(settingsIdAtom);
   const formRef = useRef<HTMLFormElement | null>(null);
   const { enqueueSnackbar } = useSnackbar();
   const form = useForm<z.infer<typeof formSchema>>({

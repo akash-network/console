@@ -10,13 +10,19 @@ let chainServer: http.Server | undefined;
  * Cannot mock blockchain API using nock and msw that's why have a separate server
  * @see https://github.com/mswjs/msw/discussions/2416
  */
-export function startChainApiServer(certificates: X509Certificate[], options?: ChainApiOptions) {
-  return new Promise<http.Server>(resolve => {
+export function startChainApiServer(
+  certificates: X509Certificate[],
+  options?: ChainApiOptions
+): Promise<{
+  close: () => Promise<void>;
+  url: string;
+}> {
+  return new Promise(resolve => {
     const server = http.createServer((req, res) => {
       if (options?.interceptRequest?.(req, res)) return;
 
       if (!/\/akash\/cert\/(v1|v1beta3)\/certificates\/list/.test(req.url || "")) {
-        res.writeHead(404, "Not Found");
+        res.writeHead(404, { Connection: "close" });
         res.end("");
         return;
       }
@@ -25,7 +31,7 @@ export function startChainApiServer(certificates: X509Certificate[], options?: C
       const serialNumber = BigInt(url.searchParams.get("filter.serial")!).toString(16).toUpperCase();
       const providerAddress = url.searchParams.get("filter.owner")!;
 
-      res.writeHead(200, "OK");
+      res.writeHead(200, { "Content-Type": "application/json", Connection: "close" });
       res.end(
         JSON.stringify({
           certificates: certificates
@@ -41,10 +47,12 @@ export function startChainApiServer(certificates: X509Certificate[], options?: C
       );
     });
 
-    server.listen(0, () => {
+    server.listen(options?.port ?? 0, () => {
       chainServer = server;
-      process.env.TEST_CHAIN_NETWORK_URL = `http://localhost:${(server.address() as AddressInfo).port}`;
-      resolve(server);
+      resolve({
+        url: `http://localhost:${(server.address() as AddressInfo).port}`,
+        close: () => new Promise<void>((resolve, reject) => server.close(err => (err ? reject(err) : resolve())))
+      });
     });
   });
 }
@@ -54,6 +62,7 @@ export function stopChainAPIServer(): Promise<void> {
 }
 
 export interface ChainApiOptions {
+  port?: number;
   interceptRequest?(req: http.IncomingMessage, res: http.ServerResponse): boolean;
 }
 

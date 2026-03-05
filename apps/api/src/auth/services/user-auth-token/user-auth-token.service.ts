@@ -1,22 +1,51 @@
 import { singleton } from "tsyringe";
 
-import { kvStore } from "@src/middlewares/userMiddleware";
-import { env } from "@src/utils/env";
-import { getJwks, useKVStore, verify, VerifyRsaJwtEnv } from "@src/verify-rsa-jwt-cloudflare-worker-main";
+import { cacheEngine } from "@src/caching/helpers";
+import type { CacheValue } from "@src/caching/memoryCacheEngine";
+import { Trace } from "@src/core/services/tracing/tracing.service";
+import { getJwks, useKVStore, verify, type VerifyRsaJwtEnv } from "@src/verify-rsa-jwt-cloudflare-worker-main";
+import { AuthConfigService } from "../auth-config/auth-config.service";
 
 @singleton()
 export class UserAuthTokenService {
-  async getValidUserId(bearer: string, options?: VerifyRsaJwtEnv) {
+  readonly #authConfigService: AuthConfigService;
+
+  constructor(authConfigService: AuthConfigService) {
+    this.#authConfigService = authConfigService;
+  }
+
+  @Trace()
+  async getValidUserId(bearer: string, options?: VerifyRsaJwtEnv): Promise<string | null> {
     const token = bearer.replace(/^Bearer\s+/i, "");
-    const jwksUri = env.AUTH0_JWKS_URI || options?.JWKS_URI;
+    const jwksUri = this.#authConfigService.get("AUTH0_JWKS_URI") || options?.JWKS_URI;
 
     if (!jwksUri) {
       throw new Error("Environment variable AUTH0_JWKS_URI is not set and options.JWKS_URI is not provided");
     }
 
-    const jwks = await getJwks(jwksUri, useKVStore(kvStore || options?.VERIFY_RSA_JWT), options?.VERIFY_RSA_JWT_JWKS_CACHE_KEY);
+    const jwks = await getJwks(jwksUri, useKVStore(kvStore), options?.VERIFY_RSA_JWT_JWKS_CACHE_KEY);
     const result = await verify(token, jwks);
+
+    if (!result.payload) {
+      return null;
+    }
 
     return (result.payload as { sub: string }).sub;
   }
 }
+
+const kvStore = {
+  async get(key: string, format: string) {
+    const result = cacheEngine.getFromCache(key);
+    if (!result) {
+      return null;
+    } else if (format === "json" && typeof result === "string") {
+      return JSON.parse(result);
+    } else {
+      return cacheEngine.getFromCache(key);
+    }
+  },
+  async put(key: string, value: CacheValue) {
+    cacheEngine.storeInCache(key, value);
+  }
+};

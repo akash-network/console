@@ -1,14 +1,13 @@
 "use client";
 import React, { useMemo } from "react";
 import { ErrorBoundary } from "react-error-boundary";
-import type { PaymentMethod, SetupIntentResponse } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
+import type { PaymentMethod, SetupIntentResponse } from "@akashnetwork/http-sdk";
 import { Alert, AlertDescription, AlertTitle, Popup } from "@akashnetwork/ui/components";
 import { Elements } from "@stripe/react-stripe-js";
 import { CreditCard } from "iconoir-react";
 import { useTheme } from "next-themes";
 
 import { ThreeDSecurePopup } from "@src/components/shared/PaymentMethodForm/ThreeDSecurePopup";
-import { Title } from "@src/components/shared/Title";
 import { useServices } from "@src/context/ServicesProvider/ServicesProvider";
 import type { ThreeDSecureData } from "@src/hooks/use3DSecure";
 import type { AppError } from "@src/types";
@@ -24,7 +23,7 @@ interface PaymentMethodStepProps {
   isLoading: boolean;
   isRemoving: boolean;
   managedWalletError?: AppError;
-  onSuccess: () => void;
+  onSuccess: (organization?: string) => void;
   onRemovePaymentMethod: (paymentMethodId: string) => void;
   onConfirmRemovePaymentMethod: () => Promise<void>;
   onNext: () => void;
@@ -93,8 +92,8 @@ export const PaymentMethodStep: React.FunctionComponent<PaymentMethodStepProps> 
                   appearance: {
                     theme: isDarkMode ? "night" : "stripe",
                     variables: {
-                      colorPrimary: "#ff424c",
-                      colorSuccess: "#ff424c"
+                      colorPrimary: isDarkMode ? "#e3e3e3" : "#171717",
+                      colorSuccess: "#16a34a"
                     }
                   }
                 }}
@@ -115,8 +114,6 @@ export const PaymentMethodStep: React.FunctionComponent<PaymentMethodStepProps> 
   // Render existing payment methods
   return (
     <div className="space-y-6 text-center">
-      <Title>Add Payment Method</Title>
-
       <PaymentMethodsDisplay
         paymentMethods={paymentMethods}
         onRemovePaymentMethod={onRemovePaymentMethod}

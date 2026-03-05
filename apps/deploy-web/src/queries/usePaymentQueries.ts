@@ -5,7 +5,7 @@ import type {
   PaymentMethod,
   SetupIntentResponse,
   ThreeDSecureAuthParams
-} from "@akashnetwork/http-sdk/src/stripe/stripe.types";
+} from "@akashnetwork/http-sdk";
 import type { UseQueryOptions } from "@tanstack/react-query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -19,6 +19,18 @@ export const usePaymentMethodsQuery = (options?: Omit<UseQueryOptions<PaymentMet
     queryKey: QueryKeys.getPaymentMethodsKey(),
     queryFn: async () => {
       const response = await stripe.getPaymentMethods();
+      return response;
+    }
+  });
+};
+
+export const useDefaultPaymentMethodQuery = (options?: Omit<UseQueryOptions<PaymentMethod>, "queryKey" | "queryFn">) => {
+  const { stripe } = useServices();
+  return useQuery<PaymentMethod>({
+    ...options,
+    queryKey: QueryKeys.getDefaultPaymentMethodKey(),
+    queryFn: async () => {
+      const response = await stripe.getDefaultPaymentMethod();
       return response;
     }
   });
@@ -103,10 +115,22 @@ export const usePaymentMutations = () => {
     }
   });
 
+  const setPaymentMethodAsDefault = useMutation({
+    mutationFn: async (paymentMethodId: string) => {
+      const response = await stripe.setPaymentMethodAsDefault({ id: paymentMethodId });
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QueryKeys.getPaymentMethodsKey() });
+      queryClient.invalidateQueries({ queryKey: QueryKeys.getDefaultPaymentMethodKey() });
+    }
+  });
+
   return {
     confirmPayment,
     validatePaymentMethodAfter3DS,
     applyCoupon,
-    removePaymentMethod
+    removePaymentMethod,
+    setPaymentMethodAsDefault
   };
 };

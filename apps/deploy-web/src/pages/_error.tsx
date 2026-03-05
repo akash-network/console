@@ -22,7 +22,7 @@ const Error: NextPage<Props> = ({ statusCode }) => {
       <div className="text-center">
         <h1>{statusCode}</h1>
 
-        <Title>Error occured.</Title>
+        <Title>Error occurred.</Title>
 
         <p>{statusCode ? `An error ${statusCode} occurred on server` : "An error occurred on client"}</p>
 

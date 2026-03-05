@@ -1,3 +1,5 @@
+import { Decimal } from "@cosmjs/math";
+
 export function nFormatter(num: number, digits: number) {
   const lookup = [
     { value: 1, symbol: "" },
@@ -23,8 +25,14 @@ export function udenomToDenom(_amount: string | number, precision = 6, decimals:
   return roundDecimal(amount / decimals, precision);
 }
 
-export function denomToUdenom(amount: number, decimals: number = 1_000_000) {
-  return amount * decimals;
+/**
+ * @deprecated don't use JS floating point number to represent a denom amount.
+ * use the string representation instead and use `Decimal` from `@cosmjs/math` to do manipulation on amounts.
+ */
+export function denomToUdenom(amount: number): number;
+export function denomToUdenom(amount: string): number;
+export function denomToUdenom(amount: string | number) {
+  return Number(Decimal.fromUserInput(amount.toString(), 6).atomics);
 }
 
 export function roundDecimal(value: number, precision = 2) {

@@ -1,8 +1,8 @@
-import { LoggerService } from "@akashnetwork/logging";
+import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { secondsInMinute } from "date-fns/constants";
 import { singleton } from "tsyringe";
 
-import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
+import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { ManagedUserWalletService, RpcMessageService } from "@src/billing/services";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
@@ -14,7 +14,7 @@ import { averageBlockTime } from "@src/utils/constants";
 
 @singleton()
 export class StaleManagedDeploymentsCleanerService {
-  private readonly logger = LoggerService.forContext(StaleManagedDeploymentsCleanerService.name);
+  private readonly logger = createOtelLogger({ context: StaleManagedDeploymentsCleanerService.name });
 
   private readonly MAX_LIVE_BLOCKS = Math.floor((10 * secondsInMinute) / averageBlockTime);
 
@@ -62,18 +62,18 @@ export class StaleManagedDeploymentsCleanerService {
     this.logger.info({ event: "DEPLOYMENT_CLEAN_UP", owner: wallet.address });
 
     try {
-      await this.managedSignerService.executeManagedTx(wallet.id, messages);
+      await this.managedSignerService.executeDerivedTx(wallet.id, messages);
       this.logger.info({ event: "DEPLOYMENT_CLEAN_UP_SUCCESS", owner: wallet.address });
     } catch (error: any) {
       if (error.message.includes("not allowed to pay fees")) {
-        await this.managedUserWalletService.authorizeSpending({
+        await this.managedUserWalletService.authorizeSpending(this.managedSignerService, {
           address: wallet.address!,
           limits: {
             fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT
           }
         });
 
-        await this.managedSignerService.executeManagedTx(wallet.id, messages);
+        await this.managedSignerService.executeDerivedTx(wallet.id, messages);
         this.logger.info({ event: "DEPLOYMENT_CLEAN_UP_SUCCESS", owner: wallet.address });
       } else {
         throw error;

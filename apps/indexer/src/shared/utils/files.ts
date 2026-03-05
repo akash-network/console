@@ -35,7 +35,8 @@ const specSuffixes = {
   Eb: 1000 * 1000 * 1000 * 1000 * 1000 * 1000
 };
 
-export function parseSizeStr(str: string) {
+export function parseSizeStr(str: string | undefined): number {
+  if (!str) return 0;
   try {
     const suffix = Object.keys(specSuffixes).find(s => str.toLowerCase().endsWith(s.toLowerCase()));
 
@@ -62,7 +63,8 @@ const kubernetesDecimalSuffixes = {
   E: 1000 * 1000 * 1000 * 1000 * 1000 * 1000
 };
 
-export function parseDecimalKubernetesString(str: string) {
+export function parseDecimalKubernetesString(str: string | undefined): number {
+  if (!str) return 0;
   try {
     const suffix = Object.keys(kubernetesDecimalSuffixes).find(s => str.endsWith(s));
 

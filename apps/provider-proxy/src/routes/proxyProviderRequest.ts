@@ -2,6 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import type { TypedResponse } from "hono";
 import type { ClientErrorStatusCode } from "hono/utils/http-status";
 import { Readable } from "stream";
+import type { ReadableStreamDefaultReader } from "stream/web";
 
 import type { AppContext } from "../types/AppContext";
 import { canRetryOnError, httpRetry } from "../utils/retry";
@@ -11,7 +12,9 @@ const RequestPayload = addProviderAuthValidation(
   providerRequestSchema.extend({
     method: z.enum(["GET", "POST", "PUT", "DELETE"]),
     body: z.string().optional(),
-    timeout: z.number().optional()
+    timeout: z.number().min(0).default(9_000).optional().openapi({
+      description: "Per attempt timeout for the proxied request in milliseconds. Default value is 9000 (9 seconds)"
+    })
   })
 );
 
@@ -51,17 +54,18 @@ export const proxyRoute = createRoute({
   }
 });
 
-const DEFAULT_TIMEOUT = 10_000;
+const MAX_PER_ATTEMPT_TIMEOUT_MS = 30 * 1000;
 export async function proxyProviderRequest(ctx: AppContext): Promise<Response | TypedResponse<string>> {
-  const { method, body, url, network, providerAddress, timeout, auth } = ctx.req.valid("json" as never) as z.infer<typeof RequestPayload>;
+  const { method, body, url, providerAddress, timeout: rawTimeout, auth } = ctx.req.valid("json" as never) as z.infer<typeof RequestPayload>;
+  const timeout = rawTimeout === undefined ? undefined : Math.min(rawTimeout, MAX_PER_ATTEMPT_TIMEOUT_MS);
 
   ctx.get("container").appLogger?.info({
     event: "PROXY_REQUEST",
     url,
     method,
-    network,
     providerAddress,
-    timeout
+    timeout,
+    authenticationType: auth?.type
   });
   const clientAbortSignal = ctx.req.raw.signal;
   const proxyResult = await httpRetry(
@@ -70,9 +74,8 @@ export async function proxyProviderRequest(ctx: AppContext): Promise<Response | 
         method,
         body,
         auth,
-        network,
         providerAddress,
-        timeout: Number(timeout || DEFAULT_TIMEOUT) || DEFAULT_TIMEOUT,
+        timeout,
         signal: clientAbortSignal
       }),
     {
@@ -102,7 +105,6 @@ export async function proxyProviderRequest(ctx: AppContext): Promise<Response | 
       event: "PROXY_REQUEST_ERROR",
       url,
       method,
-      network,
       providerAddress,
       error: proxyResult.error
     });
@@ -155,7 +157,6 @@ export async function proxyProviderRequest(ctx: AppContext): Promise<Response | 
       event: "PROXY_REQUEST_ERROR",
       url,
       method,
-      network,
       providerAddress,
       httpResponse: {
         status: proxyResult.response.statusCode,
@@ -166,9 +167,40 @@ export async function proxyProviderRequest(ctx: AppContext): Promise<Response | 
     return ctx.text(`Provider ${new URL(url).origin} is temporarily unavailable`, 503);
   }
 
-  return new Response(Readable.toWeb(proxyResult.response) as RequestInit["body"], {
+  const proxyStream = streamIgnoreAbortError(Readable.toWeb(proxyResult.response) as ReadableStream<any>, clientAbortSignal);
+
+  return new Response(proxyStream, {
     status: proxyResult.response.statusCode ?? 502,
     statusText: proxyResult.response.statusMessage,
     headers
+  });
+}
+
+function streamIgnoreAbortError(stream: ReadableStream<any>, clientAbortSignal: AbortSignal) {
+  const ignoreAbortError = (error: Error) => {
+    if (error && "code" in error && error.code === "ECONNRESET" && clientAbortSignal.aborted) {
+      return { done: true, value: null };
+    }
+    throw error;
+  };
+
+  let streamReader: ReadableStreamDefaultReader<any> | undefined;
+  return new ReadableStream({
+    async start(controller) {
+      streamReader = stream.getReader();
+      while (streamReader) {
+        const { done, value } = await streamReader.read().catch(ignoreAbortError);
+        if (done) break;
+        controller.enqueue(value);
+      }
+      streamReader?.releaseLock();
+      streamReader = undefined;
+      controller.close();
+    },
+    cancel() {
+      streamReader?.releaseLock();
+      streamReader = undefined;
+      stream.cancel();
+    }
   });
 }

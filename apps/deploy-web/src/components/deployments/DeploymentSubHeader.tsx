@@ -7,14 +7,13 @@ import { InfoCircle, WarningCircle } from "iconoir-react";
 
 import { CopyTextToClipboardButton } from "@src/components/shared/CopyTextToClipboardButton";
 import { LabelValue } from "@src/components/shared/LabelValue";
-import { PricePerMonth } from "@src/components/shared/PricePerMonth";
+import { PricePerTimeUnit } from "@src/components/shared/PricePerTimeUnit";
 import { PriceValue } from "@src/components/shared/PriceValue";
 import { StatusPill } from "@src/components/shared/StatusPill";
 import { TrialDeploymentBadge } from "@src/components/shared/TrialDeploymentBadge";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useDeploymentMetrics } from "@src/hooks/useDeploymentMetrics";
-import { useFlag } from "@src/hooks/useFlag";
 import { useTrialDeploymentTimeRemaining } from "@src/hooks/useTrialDeploymentTimeRemaining";
 import { useDenomData } from "@src/hooks/useWalletBalance";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
@@ -33,10 +32,10 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
   const isActive = deployment.state === "active";
   const hasLeases = !!leases && leases.length > 0;
   const hasActiveLeases = hasLeases && leases.some(l => l.state === "active");
+  const hasGpu = leases?.some(l => l.state === "active" && l.gpuAmount && l.gpuAmount > 0);
   const denomData = useDenomData(deployment.escrowAccount.state.funds[0]?.denom || "");
   const { isCustodial, isTrialing } = useWallet();
-  const isAnonymousFreeTrialEnabled = useFlag("anonymous_free_trial");
-  const { appConfig } = useServices();
+  const { publicConfig: appConfig } = useServices();
 
   const trialDuration = appConfig.NEXT_PUBLIC_TRIAL_DEPLOYMENTS_DURATION_HOURS;
   const { timeRemainingText: trialTimeRemaining } = useTrialDeploymentTimeRemaining({
@@ -46,7 +45,7 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
   });
 
   return (
-    <div className="grid grid-cols-2 gap-4 p-4">
+    <div className="grid grid-cols-2 gap-6 p-6">
       <div>
         <LabelValue
           label="Balance"
@@ -88,7 +87,11 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
           value={
             !!deploymentCost && (
               <div className="flex items-center space-x-2">
-                <PricePerMonth denom={deployment.escrowAccount.state.funds[0]?.denom || ""} perBlockValue={udenomToDenom(deploymentCost, 10)} />
+                <PricePerTimeUnit
+                  denom={deployment.escrowAccount.state.funds[0]?.denom || ""}
+                  perBlockValue={udenomToDenom(deploymentCost, 10)}
+                  showAsHourly={hasGpu}
+                />
 
                 {isCustodial && (
                   <CustomTooltip
@@ -141,7 +144,7 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
               <div>{deployment.state}</div>
               <StatusPill state={deployment.state} size="small" />
 
-              {!isAnonymousFreeTrialEnabled && isTrialing && <TrialDeploymentBadge createdHeight={deployment.createdAt} />}
+              {isTrialing && <TrialDeploymentBadge createdHeight={deployment.createdAt} />}
             </div>
           }
         />
@@ -151,7 +154,7 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
           value={
             <div className="flex items-center space-x-2">
               {realTimeLeft && isValid(realTimeLeft?.timeLeft) && <span>~{formatDistanceToNow(realTimeLeft?.timeLeft)}</span>}
-              {!isAnonymousFreeTrialEnabled && isTrialing && trialTimeRemaining && <span className="text-xs text-primary">(Trial: {trialTimeRemaining})</span>}
+              {isTrialing && trialTimeRemaining && <span className="text-xs text-primary">(Trial: {trialTimeRemaining})</span>}
             </div>
           }
         />

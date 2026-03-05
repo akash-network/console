@@ -1,7 +1,7 @@
 import type { Control } from "react-hook-form";
 
 import { protectedEnvironmentVariables } from "@src/config/remote-deploy.config";
-import { formatUrlWithoutInitialPath } from "@src/services/remote-deploy/remote-deployment-controller.service";
+import { formatUrlWithoutInitialPath } from "@src/services/remote-deploy/env-var-manager.service";
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { useBitBranches } from "../../../queries/useBitBucketQuery";
 import SelectBranches from "../SelectBranches";

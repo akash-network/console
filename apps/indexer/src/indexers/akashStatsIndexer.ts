@@ -6,6 +6,7 @@ import type * as v1 from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { Scope } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import type * as v1beta4 from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import type * as v1beta5 from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
+import type * as cosmosAuthz from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 import type { AkashBlock as Block, AkashMessage as Message } from "@akashnetwork/database/dbSchemas/akash";
 import {
   Bid,
@@ -30,7 +31,7 @@ import * as uuid from "uuid";
 
 import { accountSettle } from "@src/shared/utils/akashPaymentSettle";
 import { getAmountFromCoin } from "@src/shared/utils/coin";
-import { uint8arrayToString } from "@src/shared/utils/protobuf";
+import { decodeMsg, uint8arrayToString } from "@src/shared/utils/protobuf";
 import * as benchmark from "../shared/utils/benchmark";
 import { Indexer } from "./indexer";
 
@@ -62,6 +63,8 @@ export class AkashStatsIndexer extends Indexer {
     this.name = "AkashStatsIndexer";
     this.runForEveryBlocks = true;
     this.msgHandlers = {
+      // Cosmos authz
+      "/cosmos.authz.v1beta1.MsgExec": this.handleAuthzMsgExec,
       // Akash v1beta1 types
       "/akash.deployment.v1beta1.MsgCreateDeployment": this.handleCreateDeployment,
       "/akash.deployment.v1beta1.MsgCloseDeployment": this.handleCloseDeployment,
@@ -168,9 +171,20 @@ export class AkashStatsIndexer extends Indexer {
     this.activeProviderCount = await Provider.count();
   }
 
+  private async handleAuthzMsgExec(decodedMessage: cosmosAuthz.MsgExec, height: number, blockGroupTransaction: DbTransaction, msg: Message) {
+    for (const innerMsg of decodedMessage.msgs) {
+      const innerMsgType = innerMsg.typeUrl;
+
+      if (innerMsgType in this.msgHandlers) {
+        const decodedInnerMessage = decodeMsg(innerMsgType, innerMsg.value);
+        await this.msgHandlers[innerMsgType].bind(this)(decodedInnerMessage, height, blockGroupTransaction, msg);
+      }
+    }
+  }
+
   @benchmark.measureMethodAsync
   async afterEveryBlock(currentBlock: Block, previousBlock: Block, dbTransaction: DbTransaction) {
-    const shouldRefreshPredictedHeights = currentBlock.transactions.some(tx => tx.messages.some(msg => this.checkShouldRefreshPredictedCloseHeight(msg)));
+    const shouldRefreshPredictedHeights = currentBlock.transactions.some(tx => tx.messages.some(msg => this.shouldRefreshForMessage(msg)));
 
     if (shouldRefreshPredictedHeights || this.activeLeases.predictedClosedHeights.includes(currentBlock.height)) {
       this.activeLeases = await this.getActiveLeases(dbTransaction, currentBlock.height);
@@ -226,6 +240,14 @@ export class AkashStatsIndexer extends Indexer {
         .map(x => x.price)
         .reduce((a, b) => a + b, 0)
     };
+  }
+
+  private shouldRefreshForMessage(msg: Message): boolean {
+    if (msg.type === "/cosmos.authz.v1beta1.MsgExec") {
+      const decodedAuthzMsg = decodeMsg(msg.type, msg.data) as cosmosAuthz.MsgExec;
+      return decodedAuthzMsg.msgs.some(innerMsg => this.checkShouldRefreshPredictedCloseHeight({ type: innerMsg.typeUrl } as Message));
+    }
+    return this.checkShouldRefreshPredictedCloseHeight(msg);
   }
 
   private checkShouldRefreshPredictedCloseHeight(msg: Message): boolean {
@@ -829,6 +851,10 @@ export class AkashStatsIndexer extends Indexer {
       transaction: blockGroupTransaction
     });
 
+    if (!deployment) {
+      throw new Error(`Deployment for ${decodedMessage.order.owner}/${decodedMessage.order.dseq.toString()} not found.`);
+    }
+
     msg.relatedDeploymentId = deployment.id;
   }
 
@@ -855,6 +881,10 @@ export class AkashStatsIndexer extends Indexer {
       },
       transaction: blockGroupTransaction
     });
+
+    if (!deployment) {
+      throw new Error(`Deployment for ${decodedMessage.id.owner}/${decodedMessage.id.dseq.toString()} not found.`);
+    }
 
     msg.relatedDeploymentId = deployment.id;
   }

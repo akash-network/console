@@ -4,8 +4,9 @@ import { EncodeObject } from "@cosmjs/proto-signing";
 import assert from "http-assert";
 import { singleton } from "tsyringe";
 
-import { UserWalletOutput } from "@src/billing/repositories";
+import type { UserWalletOutput } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { Trace } from "@src/core/services/tracing/tracing.service";
 import { AUDITOR, TRIAL_ATTRIBUTE, TRIAL_REGISTERED_ATTRIBUTE } from "@src/deployment/config/provider.config";
 import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import { ProviderRepository } from "@src/provider/repositories/provider/provider.repository";
@@ -51,6 +52,7 @@ export class TrialValidationService {
     return true;
   }
 
+  @Trace()
   async validateLeaseProvidersAuditors(messages: EncodeObject[], _userWallet: UserWalletOutput) {
     const allowedAuditors = this.config.get("MANAGED_WALLET_LEASE_ALLOWED_AUDITORS");
 

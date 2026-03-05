@@ -1,7 +1,8 @@
 import { generateMock } from "@anatine/zod-mock";
 import type { TestingModule } from "@nestjs/testing";
 import { Test } from "@nestjs/testing";
-import type { MockProxy } from "jest-mock-extended";
+import { describe, expect, it } from "vitest";
+import type { MockProxy } from "vitest-mock-extended";
 
 import { eventKeyRegistry } from "@src/common/config/event-key-registry.config";
 import { BrokerService } from "@src/infrastructure/broker";

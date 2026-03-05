@@ -1,5 +1,6 @@
 "use client";
 import type { ReactNode } from "react";
+import React from "react";
 import { useCallback, useState } from "react";
 import { Button, CustomTooltip, DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, Spinner, Switch } from "@akashnetwork/ui/components";
 import { usePopup } from "@akashnetwork/ui/context";
@@ -12,16 +13,16 @@ import { Edit, MoreHoriz, NavArrowLeft, Refresh, Upload, XmarkSquare } from "ico
 import { useRouter } from "next/navigation";
 
 import { CustomDropdownLinkItem } from "@src/components/shared/CustomDropdownLinkItem";
-import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
-import { usePricing } from "@src/context/PricingProvider/PricingProvider";
+import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useCurrencyFormatter } from "@src/hooks/useCurrencyFormatter/useCurrencyFormatter";
 import { useDeploymentMetrics } from "@src/hooks/useDeploymentMetrics";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
+import { usePricing } from "@src/hooks/usePricing/usePricing";
 import { useUser } from "@src/hooks/useUser";
 import { useDeploymentSettingQuery } from "@src/queries/deploymentSettingsQuery";
-import { analyticsService } from "@src/services/analytics/analytics.service";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import { averageBlockTime } from "@src/utils/priceUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
@@ -46,6 +47,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
   deployment,
   leases
 }) => {
+  const { analyticsService, publicConfig } = useServices();
   const { changeDeploymentName, getDeploymentData, getDeploymentName } = useLocalNotes();
   const { udenomToUsd } = usePricing();
   const router = useRouter();
@@ -120,6 +122,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
     return response;
   };
 
+  const formatCurrency = useCurrencyFormatter();
   const setAutoTopUpEnabled = useCallback(
     async (autoTopUpEnabled: boolean) => {
       if (autoTopUpEnabled && realTimeLeft?.timeLeft) {
@@ -130,9 +133,10 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
           const secToDepositFor = secTillNextTopUp - secTillClosed;
           const deposit = Math.ceil((deploymentCost * secToDepositFor) / averageBlockTime);
 
+          const convertedDeposit = formatCurrency(udenomToUsd(deposit, deployment.escrowAccount.state.funds[0]?.denom || ""));
           const isConfirmed = await confirm({
             title: "Deposit required",
-            message: `To enable auto top-up, please deposit $${udenomToUsd(deposit, deployment.escrowAccount.state.funds[0]?.denom || "")}. This ensures your deployment remains active until the next scheduled check.`
+            message: `To enable auto top-up, please deposit ${convertedDeposit}. This ensures your deployment remains active until the next scheduled check.`
           });
 
           if (!isConfirmed) {
@@ -149,7 +153,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
 
       deploymentSetting.setAutoTopUpEnabled(autoTopUpEnabled);
     },
-    [confirm, deployment.escrowAccount.state.funds[0]?.denom, deploymentCost, deploymentSetting, onDeploymentDeposit, realTimeLeft?.timeLeft, udenomToUsd]
+    [confirm, deployment.escrowAccount.state.funds, deploymentCost, deploymentSetting, formatCurrency, onDeploymentDeposit, realTimeLeft?.timeLeft, udenomToUsd]
   );
 
   return (
@@ -227,7 +231,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
                     <div className="space-y-2">
                       <div>
                         <div>
-                          Estimated amount: ${udenomToUsd(deploymentSetting.data?.estimatedTopUpAmount || 0, browserEnvConfig.NEXT_PUBLIC_MANAGED_WALLET_DENOM)}
+                          Estimated amount: ${udenomToUsd(deploymentSetting.data?.estimatedTopUpAmount || 0, publicConfig.NEXT_PUBLIC_MANAGED_WALLET_DENOM)}
                         </div>
                         <div>Check period: {formatDuration(intervalToDuration({ start: 0, end: deploymentSetting.data?.topUpFrequencyMs || 0 }))}</div>
                       </div>
@@ -239,7 +243,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
                 >
                   <span className="cursor-help text-muted-foreground">ⓘ</span>
                 </CustomTooltip>
-                {deploymentSetting.isLoading && <Spinner />}
+                {deploymentSetting.isLoading && <Spinner size="small" />}
               </div>
             )}
           </div>

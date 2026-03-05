@@ -2,6 +2,7 @@ import createHttpError from "http-errors";
 import { Transform, Writable } from "node:stream";
 import type { LoggerOptions } from "pino";
 import pino from "pino";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { config } from "../../config";
 import type { Logger } from "./logger.service";
@@ -16,7 +17,12 @@ describe("LoggerService", () => {
     formatters: {
       level: expect.any(Function)
     },
-    serializers: expect.any(Object)
+    serializers: expect.any(Object),
+    browser: {
+      formatters: {
+        level: expect.any(Function)
+      }
+    }
   };
 
   afterEach(() => {
@@ -26,7 +32,7 @@ describe("LoggerService", () => {
   describe("prototype.initPino", () => {
     it("should initialize pino with pretty formatting when STD_OUT_LOG_FORMAT is 'pretty'", () => {
       config.STD_OUT_LOG_FORMAT = "pretty";
-      const pinoMock = jest.fn();
+      const pinoMock = vi.fn();
       new LoggerService({ createPino: pinoMock });
 
       expect(pinoMock).toHaveBeenCalledWith(COMMON_EXPECTED_OPTIONS, expect.any(Transform));
@@ -34,7 +40,7 @@ describe("LoggerService", () => {
 
     it("should initialize pino without pretty formatting for other formats", () => {
       config.STD_OUT_LOG_FORMAT = "json";
-      const pinoMock = jest.fn();
+      const pinoMock = vi.fn();
       new LoggerService({ createPino: pinoMock });
 
       expect(pinoMock).toHaveBeenCalledWith(COMMON_EXPECTED_OPTIONS);
@@ -45,7 +51,7 @@ describe("LoggerService", () => {
         return {};
       }
       LoggerService.mixin = globalMixin;
-      const pinoMock = jest.fn();
+      const pinoMock = vi.fn();
       new LoggerService({ createPino: pinoMock });
 
       expect(pinoMock).toHaveBeenCalledWith({ ...COMMON_EXPECTED_OPTIONS, mixin: globalMixin });
@@ -60,7 +66,7 @@ describe("LoggerService", () => {
         return {};
       }
       LoggerService.mixin = globalMixin;
-      const pinoMock = jest.fn();
+      const pinoMock = vi.fn();
       new LoggerService({ mixin: localMixin, createPino: pinoMock });
 
       expect(pinoMock).toHaveBeenCalledWith({ ...COMMON_EXPECTED_OPTIONS, mixin: localMixin });
@@ -69,12 +75,19 @@ describe("LoggerService", () => {
     });
 
     it("should initialize pino with provided log level overriding global log level", () => {
-      const pinoMock = jest.fn();
+      const pinoMock = vi.fn();
       new LoggerService({ level: "debug", createPino: pinoMock });
 
       expect(pinoMock).toHaveBeenCalledWith({ ...COMMON_EXPECTED_OPTIONS, level: "debug" });
 
       LoggerService.mixin = undefined;
+    });
+
+    it("should initialize pino with provided browser options", () => {
+      const pinoMock = vi.fn();
+      new LoggerService({ createPino: pinoMock, browser: { disabled: false } });
+
+      expect(pinoMock).toHaveBeenCalledWith({ ...COMMON_EXPECTED_OPTIONS, browser: { ...COMMON_EXPECTED_OPTIONS.browser, disabled: false } });
     });
   });
 
@@ -82,13 +95,13 @@ describe("LoggerService", () => {
     (["info", "error", "warn", "debug", "fatal"] satisfies Array<keyof Logger>).forEach(method => {
       it(`should call pino.${method} when calling ${method} method`, () => {
         const pinoLogger = {
-          info: jest.fn(),
-          error: jest.fn(),
-          warn: jest.fn(),
-          debug: jest.fn(),
-          log: jest.fn(),
-          fatal: jest.fn(),
-          child: jest.fn().mockReturnThis()
+          info: vi.fn(),
+          error: vi.fn(),
+          warn: vi.fn(),
+          debug: vi.fn(),
+          log: vi.fn(),
+          fatal: vi.fn(),
+          child: vi.fn().mockReturnThis()
         } as unknown as pino.Logger;
         const logger = new LoggerService({
           createPino: () => pinoLogger
@@ -112,10 +125,12 @@ describe("LoggerService", () => {
       logger.info(httpError);
       expect(logs[0]).toEqual(
         expect.objectContaining({
-          status: 404,
-          message: "Not found",
-          stack: "stack trace",
-          data: { key: "value" }
+          err: expect.objectContaining({
+            status: 404,
+            message: "Not found",
+            stack: "stack trace",
+            data: { key: "value" }
+          })
         })
       );
     });
@@ -134,11 +149,13 @@ describe("LoggerService", () => {
       logger.info(httpError);
       expect(logs[0]).toEqual(
         expect.objectContaining({
-          status: 404,
-          message: "Not found",
-          stack: expect.stringContaining("stack trace\n\nCaused by:\n  Error: Cause error"),
-          data: { key: "value" },
-          originalError: expect.stringContaining("Error: Original error")
+          err: expect.objectContaining({
+            status: 404,
+            message: "Not found",
+            stack: expect.stringContaining("stack trace\n\nCaused by:\n  Error: Cause error"),
+            data: { key: "value" },
+            originalError: expect.stringContaining("Error: Original error")
+          })
         })
       );
     });
@@ -156,11 +173,13 @@ describe("LoggerService", () => {
       logger.info(httpError);
       expect(logs[0]).toEqual(
         expect.objectContaining({
-          status: 404,
-          message: "Not found",
-          stack: "stack trace",
-          data: { key: "value" },
-          originalError: expect.stringContaining("Error: Original error")
+          err: expect.objectContaining({
+            status: 404,
+            message: "Not found",
+            stack: "stack trace",
+            data: { key: "value" },
+            originalError: expect.stringContaining("Error: Original error")
+          })
         })
       );
     });
@@ -271,6 +290,21 @@ describe("LoggerService", () => {
           err: expect.stringContaining(
             "Error: Broadcasting transaction failed with code 2 (codespace: feegrant). Log: \\rl\\uFFFD+dqz\\u0015M\\uFFFD+J\\uFFFD+\\t\\uFFFD+\\\\uFFFD+ͺ\\uFFFD+ does not allow to pay fees for \\uFFFD+|\\uFFFD+z6\\uFFFD+\\u0010\\uFFFD+M\\uFFFD+ӧ\\uFFFD+: basic allowance: fee limit exceeded (code: 2)"
           )
+        })
+      );
+    });
+
+    it("should collect sql from error", () => {
+      const { logger, logs } = setup();
+      const error = new Error("Test error");
+      Object.assign(error, { sql: "SELECT * FROM users" });
+      logger.info(error);
+      expect(logs[0]).toEqual(
+        expect.objectContaining({
+          err: expect.objectContaining({
+            sql: "SELECT * FROM users",
+            stack: expect.stringContaining("Test error")
+          })
         })
       );
     });

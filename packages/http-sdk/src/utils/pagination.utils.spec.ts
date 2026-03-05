@@ -1,10 +1,12 @@
+import { describe, expect, it, vi } from "vitest";
+
 import { getAllItems } from "./pagination.utils";
 
 describe("Pagination utils", () => {
   describe(getAllItems.name, () => {
     it("returns all items", async () => {
       const items = Array.from({ length: 100 }, (_, i) => i);
-      const getItems = jest.fn(async (params: Record<string, string | number>) => {
+      const getItems = vi.fn(async (params: Record<string, string | number>) => {
         const startIndex = params["pagination.key"] ? Number(params["pagination.key"]) : 0;
         const endIndex = startIndex + 20;
         return {
@@ -19,10 +21,10 @@ describe("Pagination utils", () => {
 
     it("detects cyclic loop and logs an error", async () => {
       const items = Array.from({ length: 100 }, (_, i) => i);
-      const getItems = jest.fn(async () => {
+      const getItems = vi.fn(async () => {
         return { items: items.slice(0, 20), pagination: { next_key: "0" } };
       });
-      const logger = { error: jest.fn() };
+      const logger = { error: vi.fn() };
       const allItems = await getAllItems(getItems, logger);
 
       expect(allItems).toEqual(items.slice(0, 20));
@@ -32,10 +34,10 @@ describe("Pagination utils", () => {
 
     it("does not report cyclic loop if the next key is null", async () => {
       const items = Array.from({ length: 100 }, (_, i) => i);
-      const getItems = jest.fn(async () => {
+      const getItems = vi.fn(async () => {
         return { items, pagination: { next_key: null } };
       });
-      const logger = { error: jest.fn() };
+      const logger = { error: vi.fn() };
       const allItems = await getAllItems(getItems, logger);
 
       expect(allItems).toEqual(items);

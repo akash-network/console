@@ -1,6 +1,6 @@
 import React from "react";
 import { FormattedNumber } from "react-intl";
-import type { Charge } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
+import type { Charge } from "@akashnetwork/http-sdk";
 import {
   Alert,
   AlertDescription,
@@ -171,14 +171,14 @@ export const BillingView: React.FC<BillingViewProps> = ({
           <DateRangePicker date={dateRange} onChange={onDateRangeChange} className="w-full" minDate={oneYearAgo} maxDate={endOfToday()} maxRangeInDays={366} />
         </div>
 
-        <Button variant="secondary" onClick={onExport} className="h-12 gap-4" disabled={!data.length || !dateRange.from || !dateRange.to}>
+        <Button variant="outline" onClick={onExport} size="sm" className="gap-2" disabled={!data.length || !dateRange.from || !dateRange.to}>
           <Download width={16} />
           Export as CSV
         </Button>
       </div>
 
       {!data.length && (
-        <div className="text-center text-muted-foreground">
+        <div className="py-8 text-center text-muted-foreground">
           <p>No billing history found for the selected date range.</p>
         </div>
       )}

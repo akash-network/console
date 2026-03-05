@@ -1,66 +1,80 @@
+import { MsgAccountDeposit } from "@akashnetwork/chain-sdk/private-types/akash.v1";
+import { MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { MsgCreateLease } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 import { LeaseHttpService } from "@akashnetwork/http-sdk";
 import { EncodeObject, Registry } from "@cosmjs/proto-signing";
 import { IndexedTx } from "@cosmjs/stargate";
+import { context, trace } from "@opentelemetry/api";
 import assert from "http-assert";
 import pick from "lodash/pick";
 import { singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
+import { EnableDeploymentAlertCommand } from "@src/billing/commands/enable-deployment-alert.command";
 import { TrialDeploymentLeaseCreated } from "@src/billing/events/trial-deployment-lease-created";
-import { BatchSigningClientService } from "@src/billing/lib/batch-signing-client/batch-signing-client.service";
-import { Wallet } from "@src/billing/lib/wallet/wallet";
-import { InjectSigningClient } from "@src/billing/providers/signing-client.provider";
 import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provider";
-import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
+import { type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
+import { ManagedUserWalletService } from "@src/billing/services/managed-user-wallet/managed-user-wallet.service";
+import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
+import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
-import { UserOutput, UserRepository } from "@src/user/repositories";
+import { Trace, withSpan } from "@src/core/services/tracing/tracing.service";
+import { UserRepository } from "@src/user/repositories";
 import { BalancesService } from "../balances/balances.service";
 import { BillingConfigService } from "../billing-config/billing-config.service";
 import { ChainErrorService } from "../chain-error/chain-error.service";
-import { DedupeSigningClientService } from "../dedupe-signing-client/dedupe-signing-client.service";
 import { TrialValidationService } from "../trial-validation/trial-validation.service";
 
 type StringifiedEncodeObject = Omit<EncodeObject, "value"> & { value: string };
 
+const SPENDING_TXS = [MsgCreateDeployment, MsgAccountDeposit];
+
 @singleton()
 export class ManagedSignerService {
-  private readonly wallet = new Wallet(this.config.get("MASTER_WALLET_MNEMONIC"));
-
   constructor(
-    private readonly config: BillingConfigService,
     @InjectTypeRegistry() private readonly registry: Registry,
+    private readonly billingConfigService: BillingConfigService,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly userRepository: UserRepository,
     private readonly balancesService: BalancesService,
     private readonly authService: AuthService,
     private readonly chainErrorService: ChainErrorService,
     private readonly anonymousValidateService: TrialValidationService,
-    private readonly featureFlagsService: FeatureFlagsService,
-    @InjectSigningClient("MANAGED") private readonly masterSigningClientService: BatchSigningClientService,
-    private readonly dedupeSigningClientService: DedupeSigningClientService,
+    private readonly txManagerService: TxManagerService,
     private readonly domainEvents: DomainEventsService,
-    private readonly leaseHttpService: LeaseHttpService
+    private readonly leaseHttpService: LeaseHttpService,
+    private readonly walletReloadJobService: WalletReloadJobService,
+    private readonly managedUserWalletService: ManagedUserWalletService
   ) {}
 
-  async executeManagedTx(walletIndex: number, messages: readonly EncodeObject[]) {
-    const granter = await this.wallet.getFirstAddress();
-    return await this.dedupeSigningClientService.executeManagedTx(this.config.get("MASTER_WALLET_MNEMONIC"), walletIndex, messages, {
-      fee: { granter }
-    });
+  @Trace()
+  async executeDerivedTx(walletIndex: number, messages: readonly EncodeObject[]) {
+    try {
+      const granter = await this.txManagerService.getFundingWalletAddress();
+      return await this.txManagerService.signAndBroadcastWithDerivedWallet(walletIndex, messages, {
+        fee: { granter }
+      });
+    } catch (error: any) {
+      throw await this.chainErrorService.toAppError(error, messages);
+    }
   }
 
-  async executeRootTx(messages: readonly EncodeObject[]) {
-    return await this.masterSigningClientService.signAndBroadcast(messages);
+  @Trace()
+  async executeFundingTx(messages: readonly EncodeObject[]) {
+    try {
+      return await this.txManagerService.signAndBroadcastWithFundingWallet(messages);
+    } catch (error: any) {
+      throw await this.chainErrorService.toAppError(error, messages);
+    }
   }
 
-  async executeEncodedTxByUserId(userId: UserWalletOutput["userId"], messages: StringifiedEncodeObject[]) {
-    return this.executeDecodedTxByUserId(userId, this.decodeMessages(messages));
+  async executeDerivedEncodedTxByUserId(userId: UserWalletOutput["userId"], messages: StringifiedEncodeObject[]) {
+    const decoded = this.decodeMessages(messages);
+    return await this.executeDerivedDecodedTxByUserId(userId, decoded);
   }
 
-  async executeDecodedTxByUserId(
+  @Trace()
+  async executeDerivedDecodedTxByUserId(
     userId: UserWalletOutput["userId"],
     messages: EncodeObject[]
   ): Promise<{
@@ -73,78 +87,108 @@ export class ManagedSignerService {
 
     const userWallet = await this.userWalletRepository.accessibleBy(this.authService.ability, "sign").findOneByUserId(userId);
     assert(userWallet, 404, "UserWallet Not Found");
-    const user = this.authService.currentUser.userId === userId ? this.authService.currentUser : await this.userRepository.findById(userId);
-    assert(user, 404, "User Not Found");
 
-    return this.executeDecodedTxByUserWallet(userWallet, messages, user);
+    return this.executeDecodedTxByUserWallet(userWallet, messages);
   }
 
+  @Trace()
   async executeDecodedTxByUserWallet(
     userWallet: UserWalletOutput,
-    messages: EncodeObject[],
-    walletOwner?: UserOutput
+    messages: EncodeObject[]
   ): Promise<{
     code: number;
     hash: string;
     transactionHash: string;
     rawLog: string;
   }> {
-    assert(userWallet.feeAllowance > 0, 403, "Not enough funds to cover the transaction fee");
-
-    const hasDeploymentMessage = messages.some(message => message.typeUrl.endsWith(".MsgCreateDeployment"));
-
-    if (hasDeploymentMessage) {
-      assert(userWallet.deploymentAllowance > 0, 403, "Not enough funds to cover the deployment costs");
-    }
-
+    await this.#validateBalances(userWallet, messages);
     await this.anonymousValidateService.validateLeaseProvidersAuditors(messages, userWallet);
 
-    if (this.featureFlagsService.isEnabled(FeatureFlags.ANONYMOUS_FREE_TRIAL)) {
-      const user = walletOwner?.id === userWallet.userId ? walletOwner : await this.userRepository.findById(userWallet.userId!);
-      assert(user, 500, "User for wallet not found");
-      await Promise.all(
-        messages.map(message =>
-          Promise.all([
-            this.anonymousValidateService.validateLeaseProviders(message, userWallet, user),
-            this.anonymousValidateService.validateTrialLimit(message, userWallet)
-          ])
-        )
+    const createLeaseMessage: { typeUrl: string; value: MsgCreateLease } | undefined = messages.find(message => message.typeUrl.endsWith(".MsgCreateLease"));
+    const hasCreateTrialLeaseMessage = userWallet.isTrialing && !!createLeaseMessage;
+    const hasLeases = hasCreateTrialLeaseMessage ? await this.leaseHttpService.hasLeases(userWallet.address!) : null;
+
+    const tx = await this.executeDerivedTx(userWallet.id, messages);
+
+    if (hasCreateTrialLeaseMessage) {
+      await this.domainEvents.publish(
+        new TrialDeploymentLeaseCreated({
+          walletId: userWallet.id,
+          dseq: createLeaseMessage.value.bidId!.dseq.toString(),
+          createdAt: new Date().toISOString(),
+          isFirstLease: !hasLeases
+        })
       );
     }
 
-    const createLeaseMessage: { typeUrl: string; value: MsgCreateLease } | undefined = messages.find(message => message.typeUrl.endsWith(".MsgCreateLease"));
-    const hasCreateTrialLeaseMessage = userWallet.isTrialing && !!createLeaseMessage && !this.featureFlagsService.isEnabled(FeatureFlags.ANONYMOUS_FREE_TRIAL);
-    const hasLeases = hasCreateTrialLeaseMessage ? await this.leaseHttpService.hasLeases(userWallet.address!) : null;
-
-    try {
-      const tx = await this.executeManagedTx(userWallet.id, messages);
-
-      if (hasCreateTrialLeaseMessage) {
-        await this.domainEvents.publish(
-          new TrialDeploymentLeaseCreated({
-            walletId: userWallet.id,
-            dseq: createLeaseMessage.value.bidId!.dseq.toString(),
-            createdAt: new Date().toISOString(),
-            isFirstLease: !hasLeases
-          })
-        );
-      }
-
-      await this.balancesService.refreshUserWalletLimits(userWallet);
-
-      const result = pick(tx, ["code", "hash", "transactionHash", "rawLog"]) as Pick<IndexedTx, "code" | "hash" | "rawLog">;
-
-      if (result.hash) {
-        return {
-          ...result,
-          transactionHash: result.hash
-        };
-      }
-
-      return result as Pick<IndexedTx, "code" | "hash" | "rawLog"> & { transactionHash: string };
-    } catch (error: any) {
-      throw await this.chainErrorService.toAppError(error, messages);
+    if (createLeaseMessage) {
+      await this.domainEvents.publish(
+        new EnableDeploymentAlertCommand({
+          userId: userWallet.userId,
+          walletAddress: userWallet.address!,
+          dseq: createLeaseMessage.value.bidId!.dseq.toString()
+        })
+      );
     }
+
+    await this.balancesService.refreshUserWalletLimits(userWallet);
+    await this.#ensureAutoReloadSchedule(userWallet.userId, messages);
+
+    const result = pick(tx, ["code", "hash", "transactionHash", "rawLog"]) as Pick<IndexedTx, "code" | "hash" | "rawLog">;
+
+    if (result.hash) {
+      return {
+        ...result,
+        transactionHash: result.hash
+      };
+    }
+
+    return result as Pick<IndexedTx, "code" | "hash" | "rawLog"> & { transactionHash: string };
+  }
+
+  async #ensureAutoReloadSchedule(userId: UserWalletOutput["userId"], messages: EncodeObject[]) {
+    const hasSpendingTx = messages.some(message => SPENDING_TXS.some(msg => message.typeUrl.endsWith(msg.$type)));
+
+    if (hasSpendingTx) {
+      await this.walletReloadJobService.scheduleImmediate(userId);
+    }
+  }
+
+  /**
+   * Validates that the user wallet has sufficient balances to cover transaction fees and deployment costs.
+   * Always fetches fee allowance from the chain to ensure accuracy, as database values may be out of sync.
+   * Fetches deployment allowance from the chain only when a deployment message is present, otherwise uses cached value.
+   * Automatically refills fee authorization for eligible trial wallets if fee allowance is below FEE_ALLOWANCE_REFILL_THRESHOLD.
+   * Throws an assertion error if insufficient funds are available.
+   *
+   * @param userWallet - The user wallet to validate balances for
+   * @param messages - Array of transaction messages to check for deployment messages
+   * @throws {HttpError} 402 if there are not enough funds to cover the transaction fee
+   * @throws {HttpError} 402 if there are not enough funds to cover deployment costs (when deployment message is present)
+   */
+  async #validateBalances(userWallet: UserWalletOutput, messages: EncodeObject[]) {
+    return withSpan("ManagedSignerService.validateBalances", async () => {
+      const hasDeploymentMessage = messages.some(message => message.typeUrl.endsWith(".MsgCreateDeployment"));
+      const [existingFeeAllowance, deploymentAllowance] = await Promise.all([
+        this.balancesService.retrieveAndCalcFeeLimit(userWallet),
+        !hasDeploymentMessage ? Promise.resolve(userWallet.deploymentAllowance) : this.balancesService.retrieveDeploymentLimit(userWallet)
+      ]);
+
+      let feeAllowance = existingFeeAllowance;
+      const needsRefill = feeAllowance < this.billingConfigService.get("FEE_ALLOWANCE_REFILL_THRESHOLD");
+
+      const span = trace.getSpan(context.active());
+      span?.setAttribute("balance.feeAllowance", feeAllowance);
+      span?.setAttribute("balance.needsRefill", needsRefill);
+
+      if (needsRefill) {
+        await this.managedUserWalletService.refillWalletFees(this, userWallet);
+        feeAllowance = await this.balancesService.retrieveAndCalcFeeLimit(userWallet);
+      }
+
+      assert(feeAllowance > 0, 402, "Not enough funds to cover the transaction fee");
+      assert(!hasDeploymentMessage || deploymentAllowance > 0, 402, "Not enough funds to cover the deployment costs");
+    });
   }
 
   private decodeMessages(messages: StringifiedEncodeObject[]): EncodeObject[] {

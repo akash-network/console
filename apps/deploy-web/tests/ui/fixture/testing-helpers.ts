@@ -1,31 +1,11 @@
-import type { Locator, Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
 
 export const clickWalletSelectorDropdown = async (page: Page) => {
-  return await page.getByLabel("wallet dropdown")?.click();
-};
-
-export const clickCreateNewWalletButton = async (page: Page) => {
-  const createOrImportButton = page.getByText(/create \/ import wallet/i);
-  await createOrImportButton.waitFor({ state: "visible", timeout: 10_000 });
-  await createOrImportButton.click();
-
-  const createNewWalletButton = page.getByText(/create new wallet/i);
-  await createNewWalletButton.waitFor({ state: "visible", timeout: 10_000 });
-  await createNewWalletButton.click();
-};
-
-export const fillWalletName = async (page: Page, name: string) => {
-  return await page.getByPlaceholder("Enter wallet Name").fill(name);
-};
-
-export const clickCreateWalletButton = async (page: Page) => {
-  const button = await waitForLocator(page.getByRole("button", { name: /Create Wallet/i }));
-  return await button.click();
+  return await page.getByLabel("wallet dropdown").click();
 };
 
 export const clickConnectWalletButton = async (page: Page) => {
-  const button = await waitForLocator(page.getByRole("button", { name: /connect button/i }));
-  return await button.click();
+  await page.getByRole("button", { name: /connect button/i }).click({ timeout: 20_000 });
 };
 
 export const clickCopyAddressButton = async (page: Page) => {
@@ -36,9 +16,4 @@ export const clickCopyAddressButton = async (page: Page) => {
   });
 
   return clipboardContents;
-};
-
-export const waitForLocator = async (locator: Locator) => {
-  await locator.waitFor({ state: "visible", timeout: 20_000 });
-  return locator;
 };

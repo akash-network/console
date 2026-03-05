@@ -12,8 +12,8 @@ type Props = {
 
 export const Title: React.FunctionComponent<Props> = ({ children, subTitle, className = "" }) => {
   return subTitle ? (
-    <h3 className={cn(className, "text-xl font-semibold tracking-tight sm:text-2xl")}>{children}</h3>
+    <h3 className={cn("text-xl font-semibold tracking-tight sm:text-2xl", className)}>{children}</h3>
   ) : (
-    <h1 className={cn(className, "text-2xl font-bold tracking-tight sm:text-4xl")}>{children}</h1>
+    <h1 className={cn("text-2xl font-bold tracking-tight sm:text-4xl", className)}>{children}</h1>
   );
 };

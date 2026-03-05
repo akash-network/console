@@ -3,8 +3,9 @@ import { StargateClient } from "@cosmjs/stargate";
 import { ConfigModule, registerAs } from "@nestjs/config";
 import type { TestingModule } from "@nestjs/testing";
 import { Test } from "@nestjs/testing";
-import type { MockProxy } from "jest-mock-extended";
 import { setTimeout as delay } from "timers/promises";
+import { describe, expect, it, vi } from "vitest";
+import type { MockProxy } from "vitest-mock-extended";
 
 import { eventKeyRegistry } from "@src/common/config/event-key-registry.config";
 import { LoggerService } from "@src/common/services/logger/logger.service";
@@ -96,7 +97,7 @@ describe(ChainEventsPollerService.name, () => {
 
     await service.onModuleInit();
     await delay(10);
-    const finalizeDestroy = jest.fn();
+    const finalizeDestroy = vi.fn();
     service.onModuleDestroy().finally(finalizeDestroy);
     await delay(100);
 

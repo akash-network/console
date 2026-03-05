@@ -1,14 +1,12 @@
-import "./app";
-
-import { LoggerService } from "@akashnetwork/logging";
-import { HttpLoggerIntercepter } from "@akashnetwork/logging/hono";
+import { HttpLoggerInterceptor } from "@akashnetwork/logging/hono";
+import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { otel } from "@hono/otel";
 import { swaggerUI } from "@hono/swagger-ui";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import assert from "http-assert";
 import { container } from "tsyringe";
 
-import packageJson from "../package.json";
 import { verifyEmailRouter } from "./auth/routes/verify-email/verify-email.router";
 import { AuthInterceptor } from "./auth/services/auth.interceptor";
 import { bidsRouter } from "./bid/routes/bids/bids.router";
@@ -19,7 +17,6 @@ import { OpenApiDocsService } from "./core/services/openapi-docs/openapi-docs.se
 import { RequestContextInterceptor } from "./core/services/request-context-interceptor/request-context.interceptor";
 import { startServer } from "./core/services/start-server/start-server";
 import type { AppEnv } from "./core/types/app-context";
-import { connectUsingSequelize } from "./db/dbConnection";
 import { deploymentSettingRouter } from "./deployment/routes/deployment-setting/deployment-setting.router";
 import { deploymentsRouter } from "./deployment/routes/deployments/deployments.router";
 import { leasesRouter } from "./deployment/routes/leases/leases.router";
@@ -31,28 +28,27 @@ import { dashboardRouter } from "./routers/dashboardRouter";
 import { deploymentRouter } from "./routers/deploymentApiRouter";
 import { internalRouter } from "./routers/internalRouter";
 import { legacyRouter } from "./routers/legacyRouter";
-import { userRouter } from "./routers/userRouter";
 import { web3IndexRouter } from "./routers/web3indexRouter";
-import { env } from "./utils/env";
 import { bytesToHumanReadableSize } from "./utils/files";
 import { addressRouter } from "./address";
 import { apiKeysRouter, sendVerificationEmailRouter } from "./auth";
 import {
-  checkoutRouter,
   getBalancesRouter,
   getWalletListRouter,
   signAndBroadcastTxRouter,
   startTrialRouter,
   stripeCouponsRouter,
+  stripeCustomersRouter,
   stripePaymentMethodsRouter,
   stripePricesRouter,
   stripeTransactionsRouter,
   stripeWebhook,
-  usageRouter
+  usageRouter,
+  walletSettingRouter
 } from "./billing";
 import { blockPredictionRouter, blocksRouter } from "./block";
-import type { AppInitializer } from "./core";
-import { APP_INITIALIZER, migratePG, ON_APP_START } from "./core";
+import { connectUsingSequelize } from "./chain";
+import { CORE_CONFIG, migratePG } from "./core";
 import { dashboardDataRouter, graphDataRouter, leasesDurationRouter, marketDataRouter, networkCapacityRouter } from "./dashboard";
 import { gpuRouter } from "./gpu";
 import { networkRouter } from "./network";
@@ -70,10 +66,9 @@ import {
   providersRouter,
   providerVersionsRouter
 } from "./provider";
-import { Scheduler } from "./scheduler";
 import { templatesRouter } from "./template";
 import { transactionsRouter } from "./transaction";
-import { createAnonymousUserRouter, getAnonymousUserRouter, getCurrentUserRouter, registerUserRouter } from "./user";
+import { getCurrentUserRouter, registerUserRouter, userSettingsRouter, userTemplatesRouter } from "./user";
 import { validatorsRouter } from "./validator";
 
 const appHono = new Hono<AppEnv>();
@@ -82,27 +77,22 @@ appHono.use(
   "/*",
   cors({
     allowMethods: ["GET", "HEAD", "PUT", "POST", "DELETE", "PATCH", "OPTIONS"],
-    origin: env.CORS_WEBSITE_URLS?.split(",") || ["http://localhost:3000", "http://localhost:3001"],
+    origin: origin => {
+      const origins = container.resolve(CORE_CONFIG).CORS_WEBSITE_URLS?.split(",") || [];
+      return origins.includes(origin) ? origin : null;
+    },
     credentials: true,
     exposeHeaders: ["cf-mitigated"]
   })
 );
 
-const scheduler = new Scheduler({
-  healthchecksEnabled: env.HEALTHCHECKS_ENABLED === "true",
-  errorHandler: (task, error) => {
-    console.error(`Task "${task.name}" failed: ${error}`);
-  }
-});
-
-appHono.use(container.resolve(HttpLoggerIntercepter).intercept());
+appHono.use(container.resolve(HttpLoggerInterceptor).intercept());
 appHono.use(container.resolve(RequestContextInterceptor).intercept());
 appHono.use(container.resolve(AuthInterceptor).intercept());
 appHono.use(clientInfoMiddleware);
 
 appHono.route("/", legacyRouter);
 appHono.route("/", apiRouter);
-appHono.route("/user", userRouter);
 appHono.route("/web3-index", web3IndexRouter);
 appHono.route("/dashboard", dashboardRouter);
 appHono.route("/internal", internalRouter);
@@ -111,18 +101,19 @@ appHono.route("/deployments", deploymentRouter);
 const openApiHonoHandlers: OpenApiHonoHandler[] = [
   startTrialRouter,
   getWalletListRouter,
+  walletSettingRouter,
   signAndBroadcastTxRouter,
-  checkoutRouter,
   stripeWebhook,
   stripePricesRouter,
   stripeCouponsRouter,
+  stripeCustomersRouter,
   stripePaymentMethodsRouter,
   stripeTransactionsRouter,
   usageRouter,
-  createAnonymousUserRouter,
-  getAnonymousUserRouter,
   registerUserRouter,
   getCurrentUserRouter,
+  userSettingsRouter,
+  userTemplatesRouter,
   sendVerificationEmailRouter,
   verifyEmailRouter,
   deploymentSettingRouter,
@@ -167,8 +158,7 @@ appHono.route("/", notificationsApiProxy);
 appHono.route("/", healthzRouter);
 
 appHono.get("/status", c => {
-  const version = packageJson.version;
-  const tasksStatus = scheduler.getTasksStatus();
+  const version = process.env.APP_VERSION || "unknown";
   const memoryInBytes = process.memoryUsage();
   const memory = {
     rss: bytesToHumanReadableSize(memoryInBytes.rss),
@@ -177,29 +167,23 @@ appHono.get("/status", c => {
     external: bytesToHumanReadableSize(memoryInBytes.external)
   };
 
-  return c.json({ version, memory, tasks: tasksStatus });
+  return c.json({ version, memory });
 });
 
-appHono.get("/v1/doc", c => {
-  return c.json(container.resolve(OpenApiDocsService).generateDocs(openApiHonoHandlers));
+appHono.get("/v1/doc", async c => {
+  const scope = c.req.query("scope") || "full";
+  assert(["full", "console"].includes(scope), 403, '"scope" query is invalid. Valid options: "full", "console"');
+  return c.json(await container.resolve(OpenApiDocsService).generateDocs(openApiHonoHandlers, { scope }));
 });
 appHono.get("/v1/swagger", swaggerUI({ url: "/v1/doc" }));
 
 appHono.onError(container.resolve(HonoErrorHandlerService).handle);
 
-container.register(APP_INITIALIZER, {
-  useValue: {
-    async [ON_APP_START]() {
-      scheduler.start();
-    }
-  } satisfies AppInitializer
-});
-
 export { appHono as app, connectUsingSequelize as initDb };
 
-export async function bootstrap(port: number) {
-  await startServer(appHono, LoggerService.forContext("APP"), process, {
-    port,
+export async function bootstrap(): Promise<void> {
+  await startServer(appHono, createOtelLogger({ context: "APP" }), process, {
+    port: container.resolve(CORE_CONFIG).PORT,
     beforeStart: migratePG
   });
 }

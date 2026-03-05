@@ -1,44 +1,53 @@
+import type { AnyAbility } from "@casl/ability";
+import { ConstantBackoff, handleWhenResult, retry, TaskCancelledError, timeout, TimeoutStrategy, wrap } from "cockatiel";
+import crypto from "crypto";
 import { stringify } from "csv-stringify";
 import assert from "http-assert";
+import difference from "lodash/difference";
+import keyBy from "lodash/keyBy";
 import orderBy from "lodash/orderBy";
 import { Readable } from "stream";
 import Stripe from "stripe";
+import { setTimeout as wait } from "timers/promises";
 import { singleton } from "tsyringe";
 
 import { PaymentIntentResult, PaymentMethodValidationResult, Transaction } from "@src/billing/http-schemas/stripe.schema";
-import { PaymentMethodRepository } from "@src/billing/repositories";
+import { PaymentMethodRepository, StripeTransactionInput, StripeTransactionOutput, StripeTransactionRepository } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
-import { RefillService } from "@src/billing/services/refill/refill.service";
-import { LoggerService } from "@src/core/providers/logging.provider";
+import { LoggerService, WithTransaction } from "@src/core";
 import { TransactionCsvRow } from "@src/types/transactions";
 import { UserOutput, UserRepository } from "@src/user/repositories/user/user.repository";
-
-const logger = LoggerService.forContext("StripeService");
-
-interface CheckoutOptions {
-  customerId: string;
-  redirectUrl: string;
-  amount?: string;
-}
+import type { PayingUser } from "../paying-user/paying-user";
 
 interface StripePrices {
   unitAmount: number;
   isCustom: boolean;
   currency: string;
 }
+
+export type PaymentMethod = Stripe.PaymentMethod & { validated: boolean; isDefault: boolean };
+
 @singleton()
 export class StripeService extends Stripe {
   readonly isProduction = this.billingConfig.get("STRIPE_SECRET_KEY").startsWith("sk_live");
 
+  /**
+   * Statuses that should be applied later via Stripe webhooks.
+   */
+  readonly #DEFERRED_STATUSES = new Set<Stripe.PaymentIntent.Status>(["succeeded"]);
+
   constructor(
     private readonly billingConfig: BillingConfigService,
     private readonly userRepository: UserRepository,
-    private readonly refillService: RefillService,
-    private readonly paymentMethodRepository: PaymentMethodRepository
+    private readonly paymentMethodRepository: PaymentMethodRepository,
+    private readonly stripeTransactionRepository: StripeTransactionRepository,
+    private readonly loggerService: LoggerService
   ) {
+    loggerService.setContext(StripeService.name);
     const secretKey = billingConfig.get("STRIPE_SECRET_KEY");
     super(secretKey, {
-      apiVersion: "2024-06-20"
+      apiVersion: "2025-10-29.clover",
+      httpClient: Stripe.createFetchHttpClient() // need to use fetch API, so we can intercept it in tests with nock
     });
   }
 
@@ -48,42 +57,6 @@ export class StripeService extends Stripe {
       usage: "off_session",
       payment_method_types: ["card", "link"]
     });
-  }
-
-  async startCheckoutSession(options: CheckoutOptions) {
-    const price = await this.getPrice(options.amount);
-
-    return await this.checkout.sessions.create({
-      line_items: [
-        {
-          price: price.id,
-          quantity: 1
-        }
-      ],
-      mode: "payment",
-      allow_promotion_codes: !!options.amount,
-      customer: options.customerId,
-      success_url: `${options.redirectUrl}?session_id={CHECKOUT_SESSION_ID}&payment-success=true`,
-      cancel_url: `${options.redirectUrl}?session_id={CHECKOUT_SESSION_ID}&payment-canceled=true`
-    });
-  }
-
-  private async getPrice(amount?: string) {
-    const { data: prices } = await this.prices.list({ active: true, product: this.billingConfig.get("STRIPE_PRODUCT_ID") });
-
-    const price = prices.find(price => {
-      const isCustom = !amount && !!price.custom_unit_amount;
-
-      if (isCustom) {
-        return true;
-      }
-
-      return price.unit_amount === Number(amount) * 100;
-    });
-
-    assert(price, 400, "Price invalid");
-
-    return price;
   }
 
   async findPrices(): Promise<StripePrices[]> {
@@ -97,92 +70,272 @@ export class StripeService extends Stripe {
     return orderBy(responsePrices, ["isCustom", "unitAmount"], ["asc", "asc"]) as StripePrices[];
   }
 
-  async getPaymentMethods(userId: string, customerId: string): Promise<(Stripe.PaymentMethod & { validated: boolean })[]> {
-    const [paymentMethods, dbPaymentMethods] = await Promise.all([
-      this.paymentMethods.list({
-        customer: customerId
-      }),
-      this.paymentMethodRepository.findByUserId(userId)
+  async getPaymentMethods(userId: string, customerId: string, ability: AnyAbility): Promise<PaymentMethod[]> {
+    const [remotes, locals] = await Promise.all([
+      this.paymentMethods.list({ customer: customerId }),
+      this.paymentMethodRepository.accessibleBy(ability, "read").findByUserId(userId)
     ]);
 
-    return paymentMethods.data
-      .map(paymentMethod => ({
-        ...paymentMethod,
-        validated: dbPaymentMethods?.some(pm => pm.paymentMethodId === paymentMethod.id && pm.isValidated)
-      }))
+    const localById = keyBy(locals, "paymentMethodId");
+    const remoteIds: string[] = [];
+
+    const merged = remotes.data
+      .map(remote => {
+        remoteIds.push(remote.id);
+        return {
+          ...remote,
+          validated: !!localById[remote.id]?.isValidated,
+          isDefault: !!localById[remote.id]?.isDefault
+        };
+      })
       .sort((a, b) => b.created - a.created);
+
+    const outOfSyncIds = difference(remoteIds, Object.keys(localById));
+
+    if (outOfSyncIds.length) {
+      this.loggerService.warn({
+        event: "STRIPE_PAYMENT_METHOD_OUT_OF_SYNC",
+        userId,
+        outOfSyncIds
+      });
+    }
+
+    return merged;
+  }
+
+  async getDefaultPaymentMethod(user: PayingUser, ability: AnyAbility): Promise<PaymentMethod | undefined> {
+    const [customer, local] = await Promise.all([
+      this.customers.retrieve(user.stripeCustomerId, {
+        expand: ["invoice_settings.default_payment_method"]
+      }),
+      this.paymentMethodRepository.accessibleBy(ability, "read").findDefaultByUserId(user.id)
+    ]);
+
+    assert(!customer.deleted, 402, "Payment account has been deleted");
+
+    const remote = customer.invoice_settings.default_payment_method;
+
+    if (typeof remote === "object" && remote && local) {
+      return { ...remote, validated: local.isValidated, isDefault: local.isDefault };
+    } else {
+      this.loggerService.warn({
+        event: "STRIPE_PAYMENT_METHOD_OUT_OF_SYNC",
+        userId: user.id,
+        remoteId: typeof remote === "string" ? remote : remote?.id,
+        localId: local?.paymentMethodId
+      });
+    }
+  }
+
+  async hasPaymentMethod(paymentMethodId: string, user: UserOutput): Promise<boolean> {
+    try {
+      const paymentMethod = await this.paymentMethods.retrieve(paymentMethodId);
+      const customerId = typeof paymentMethod.customer === "string" ? paymentMethod.customer : paymentMethod.customer?.id;
+
+      return customerId === user.stripeCustomerId;
+    } catch (error: unknown) {
+      if (error instanceof Stripe.errors.StripeInvalidRequestError && error.code === "resource_missing") {
+        return false;
+      }
+
+      throw error;
+    }
+  }
+
+  @WithTransaction()
+  async markPaymentMethodAsDefault(paymentMethodId: string, user: PayingUser, ability: AnyAbility): Promise<PaymentMethod> {
+    const [local, remote] = await Promise.all([
+      this.paymentMethodRepository.accessibleBy(ability, "update").markAsDefault(paymentMethodId),
+      this.paymentMethods.retrieve(paymentMethodId, undefined, { timeout: 3_000 })
+    ]);
+
+    assert(remote, 404, "Payment method not found", { source: "stripe" });
+
+    if (local) {
+      await this.markRemotePaymentMethodAsDefault(paymentMethodId, user);
+      return { ...remote, validated: local.isValidated, isDefault: local.isDefault };
+    }
+
+    const fingerprint = this.extractFingerprint(remote);
+
+    assert(fingerprint, 403, "Payment method cannot be set as default. No identifiable fingerprint found.");
+
+    const newLocal = await this.paymentMethodRepository.accessibleBy(ability, "create").createAsDefault({
+      userId: user.id,
+      fingerprint,
+      paymentMethodId
+    });
+
+    await this.markRemotePaymentMethodAsDefault(paymentMethodId, user);
+
+    return { ...remote, validated: newLocal.isValidated, isDefault: newLocal.isDefault };
+  }
+
+  async markRemotePaymentMethodAsDefault(paymentMethodId: string, user: PayingUser): Promise<void> {
+    await this.customers.update(
+      user.stripeCustomerId,
+      {
+        invoice_settings: { default_payment_method: paymentMethodId }
+      },
+      { timeout: 3_000 }
+    );
   }
 
   async createPaymentIntent(params: {
+    userId: string;
     customer: string;
     payment_method: string;
     amount: number;
     currency: string;
     confirm: boolean;
     metadata?: Record<string, string>;
+    idempotencyKey?: string;
   }): Promise<PaymentIntentResult> {
-    // Convert amount to cents for stripe
-    const amountCents = Math.round(params.amount * 100);
+    const amountInCents = Math.round(params.amount * 100);
 
-    const paymentIntent = await this.paymentIntents.create({
-      customer: params.customer,
-      payment_method: params.payment_method,
-      amount: amountCents,
-      currency: params.currency,
-      confirm: params.confirm,
-      metadata: params.metadata,
-      automatic_payment_methods: {
-        enabled: true,
-        allow_redirects: "never"
-      }
+    const transaction = await this.stripeTransactionRepository.create({
+      userId: params.userId,
+      type: "payment_intent",
+      status: "created",
+      amount: amountInCents,
+      currency: params.currency
     });
 
-    switch (paymentIntent.status) {
+    const createOptions: Parameters<Stripe["paymentIntents"]["create"]> = [
+      {
+        customer: params.customer,
+        payment_method: params.payment_method,
+        amount: amountInCents,
+        currency: params.currency,
+        confirm: params.confirm,
+        metadata: {
+          ...params.metadata,
+          internal_transaction_id: transaction.id
+        },
+        automatic_payment_methods: {
+          enabled: true,
+          allow_redirects: "never"
+        }
+      }
+    ];
+
+    if (params.idempotencyKey) {
+      createOptions.push({ idempotencyKey: params.idempotencyKey });
+    }
+
+    try {
+      const paymentIntent = await this.paymentIntents.create(...createOptions);
+      const update: Partial<Pick<StripeTransactionInput, "stripePaymentIntentId" | "status">> = { stripePaymentIntentId: paymentIntent.id };
+
+      if (!this.#DEFERRED_STATUSES.has(paymentIntent.status)) {
+        update.status = this.mapPaymentIntentStatusToTransactionStatus(paymentIntent.status);
+      }
+
+      await this.stripeTransactionRepository.updateById(transaction.id, update);
+
+      const transactionStatus = update.status ?? transaction.status;
+
+      switch (paymentIntent.status) {
+        case "succeeded":
+        case "requires_capture":
+          return { success: true, paymentIntentId: paymentIntent.id, transactionId: transaction.id, transactionStatus };
+
+        case "requires_action":
+          // Card requires 3D Secure authentication
+          return {
+            success: false,
+            paymentIntentId: paymentIntent.id,
+            requiresAction: true,
+            clientSecret: paymentIntent.client_secret || undefined,
+            transactionId: transaction.id,
+            transactionStatus
+          };
+
+        case "requires_payment_method":
+          // Card was declined
+          throw new Error("Payment method was declined. Please try a different card.");
+
+        default:
+          throw new Error(`Payment failed with status: ${paymentIntent.status}`);
+      }
+    } catch (error) {
+      // Extract payment intent ID from Stripe error if available (e.g., card declined still creates a payment intent)
+      let paymentIntentId: string | undefined;
+      if (error instanceof Stripe.errors.StripeError && error.raw) {
+        const rawError = error.raw as { payment_intent?: Stripe.PaymentIntent };
+        paymentIntentId = rawError.payment_intent?.id;
+      }
+
+      // Update transaction with error status and payment intent ID if available
+      await this.stripeTransactionRepository.updateById(transaction.id, {
+        status: "failed",
+        errorMessage: error instanceof Error ? error.message : "Unknown error",
+        stripePaymentIntentId: paymentIntentId
+      });
+      throw error;
+    }
+  }
+
+  private mapPaymentIntentStatusToTransactionStatus(
+    status: Stripe.PaymentIntent.Status
+  ): "created" | "pending" | "requires_action" | "succeeded" | "failed" | "refunded" | "canceled" {
+    switch (status) {
       case "succeeded":
+        return "succeeded";
       case "requires_capture":
-        return { success: true, paymentIntentId: paymentIntent.id };
-
+        return "succeeded";
       case "requires_action":
-        // Card requires 3D Secure authentication
-        return {
-          success: false,
-          paymentIntentId: paymentIntent.id,
-          requiresAction: true,
-          clientSecret: paymentIntent.client_secret || undefined
-        };
-
+      case "requires_confirmation":
+        return "requires_action";
       case "requires_payment_method":
-        // Card was declined
-        throw new Error("Payment method was declined. Please try a different card.");
-
+        return "failed";
+      case "canceled":
+        return "canceled";
+      case "processing":
+        return "pending";
       default:
-        throw new Error(`Payment failed with status: ${paymentIntent.status}`);
+        return "pending";
     }
   }
 
   async listPromotionCodes() {
     const promotionCodes = await this.promotionCodes.list({
-      expand: ["data.coupon"]
+      expand: ["data.promotion.coupon"]
     });
     return { promotionCodes: promotionCodes.data };
   }
 
-  async findPromotionCodeByCode(code: string) {
+  async findPromotionCodeByCode(code: string): Promise<Stripe.PromotionCode | undefined> {
     const { data: promotionCodes } = await this.promotionCodes.list({
       code,
-      expand: ["data.coupon"]
+      expand: ["data.promotion.coupon"]
     });
+
     return promotionCodes[0];
   }
 
-  async applyCoupon(currentUser: UserOutput, couponCode: string): Promise<{ coupon: Stripe.Coupon | Stripe.PromotionCode; amountAdded: number }> {
+  async applyCoupon(
+    currentUser: UserOutput,
+    couponCode: string
+  ): Promise<{
+    coupon: Stripe.Coupon | Stripe.PromotionCode;
+    amountAdded: number;
+    transactionId: string;
+    transactionStatus: StripeTransactionOutput["status"];
+  }> {
     const promotionCode = await this.findPromotionCodeByCode(couponCode);
 
     if (promotionCode) {
+      const coupon = promotionCode.promotion.coupon;
+
+      if (typeof coupon === "string" || !coupon) {
+        throw new Error("Promotion code coupon was not expanded");
+      }
+
       return this.applyCouponOrPromotionCode({
         currentUser,
         couponOrPromotion: promotionCode,
-        coupon: promotionCode.coupon,
+        coupon,
         updateField: "promotion_code",
         updateId: promotionCode.id
       });
@@ -217,7 +370,23 @@ export class StripeService extends Stripe {
     coupon: Stripe.Coupon;
     updateField: "promotion_code" | "coupon";
     updateId: string;
-  }): Promise<{ coupon: Stripe.Coupon | Stripe.PromotionCode; amountAdded: number }> {
+  }): Promise<{
+    coupon: Stripe.Coupon | Stripe.PromotionCode;
+    amountAdded: number;
+    transactionId: string;
+    transactionStatus: StripeTransactionOutput["status"];
+  }> {
+    this.loggerService.info({
+      event: "APPLYING_COUPON",
+      couponId: coupon.id,
+      valid: coupon.valid,
+      redeem_by: coupon.redeem_by,
+      max_redemptions: coupon.max_redemptions,
+      times_redeemed: coupon.times_redeemed,
+      updateField,
+      updateId
+    });
+
     if (!coupon.valid) {
       throw new Error(updateField === "promotion_code" ? "Promotion code is invalid or expired" : "Coupon is invalid or expired");
     }
@@ -233,47 +402,114 @@ export class StripeService extends Stripe {
     assert(currentUser.stripeCustomerId, 500, "Payment account not properly configured. Please contact support.");
 
     const amountToAdd = coupon.amount_off; // amount_off is already in cents
-    let couponApplied = false;
+
+    let invoice: Stripe.Invoice | undefined;
 
     try {
-      await this.customers.update(currentUser.stripeCustomerId, {
-        [updateField]: updateId
-      });
-      couponApplied = true;
-
-      if (amountToAdd > 0) {
-        await this.refillService.topUpWallet(amountToAdd, currentUser.id);
-      }
-
-      await this.customers.update(currentUser.stripeCustomerId, {
-        [updateField]: null
+      invoice = await this.invoices.create({
+        customer: currentUser.stripeCustomerId,
+        auto_advance: false,
+        ...(updateField === "promotion_code" ? { discounts: [{ promotion_code: updateId }] } : { discounts: [{ coupon: updateId }] })
       });
 
-      return { coupon: couponOrPromotion, amountAdded: amountToAdd / 100 };
+      this.loggerService.info({
+        event: "INVOICE_CREATED_WITH_DISCOUNT",
+        userId: currentUser.id,
+        invoiceId: invoice.id,
+        discountType: updateField
+      });
+
+      await this.invoiceItems.create({
+        amount: amountToAdd,
+        customer: currentUser.stripeCustomerId,
+        invoice: invoice.id,
+        currency: "usd",
+        description: "Akash Network Console"
+      });
+
+      invoice = await this.invoices.finalizeInvoice(invoice.id);
+
+      this.loggerService.info({
+        event: "INVOICE_FINALIZED_AND_PAID",
+        userId: currentUser.id,
+        invoiceId: invoice.id,
+        status: invoice.status,
+        amountDue: invoice.amount_due,
+        amountPaid: invoice.amount_paid
+      });
+
+      const transaction = await this.stripeTransactionRepository.create({
+        userId: currentUser.id,
+        type: "coupon_claim",
+        status: "pending",
+        amount: amountToAdd,
+        currency: coupon.currency ?? "usd",
+        stripeCouponId: coupon.id,
+        stripePromotionCodeId: updateField === "promotion_code" ? updateId : undefined,
+        stripeInvoiceId: invoice.id,
+        description: `Coupon: ${coupon.name || coupon.id}`
+      });
+
+      return { coupon: couponOrPromotion, amountAdded: amountToAdd / 100, transactionId: transaction.id, transactionStatus: transaction.status };
     } catch (error) {
-      if (couponApplied) {
-        try {
-          await this.customers.update(currentUser.stripeCustomerId, {
-            [updateField]: null
-          });
-          logger.info({
-            event: "COUPON_APPLICATION_ROLLBACK_SUCCESS",
-            userId: currentUser.id,
-            couponId: updateId,
-            error
-          });
-        } catch (rollbackError) {
-          logger.error({
-            event: "COUPON_APPLICATION_ROLLBACK_FAILED",
-            userId: currentUser.id,
-            couponId: updateId,
-            error: new AggregateError([error, rollbackError])
-          });
-        }
+      let isInvoiceRolledBack: boolean | undefined;
+
+      if (invoice?.id) {
+        isInvoiceRolledBack = await this.invoices
+          .voidInvoice(invoice.id)
+          .then(() => true)
+          .catch(() => false);
       }
+
+      this.loggerService.error({
+        event: "COUPON_APPLICATION_FAILED",
+        userId: currentUser.id,
+        couponId: updateId,
+        error,
+        isInvoiceRolledBack
+      });
 
       throw error;
     }
+  }
+
+  private static readonly TERMINAL_TRANSACTION_STATUSES: Set<StripeTransactionOutput["status"]> = new Set(["succeeded", "failed", "refunded", "canceled"]);
+
+  private readonly resolveTransactionExecutor = wrap(
+    timeout(60_000, TimeoutStrategy.Aggressive),
+    retry(
+      handleWhenResult(result => !StripeService.TERMINAL_TRANSACTION_STATUSES.has((result as StripeTransactionOutput).status)),
+      {
+        maxAttempts: Infinity,
+        backoff: new ConstantBackoff(500)
+      }
+    )
+  );
+
+  async resolveTransaction(transactionId: string): Promise<StripeTransactionOutput> {
+    await wait(4_000);
+
+    let lastTransaction: StripeTransactionOutput | undefined;
+
+    try {
+      lastTransaction = await this.resolveTransactionExecutor.execute(async () => {
+        const transaction = await this.stripeTransactionRepository.findById(transactionId);
+
+        assert(transaction, 404, "Transaction not found");
+
+        lastTransaction = transaction;
+
+        return transaction;
+      });
+    } catch (error) {
+      if (!(error instanceof TaskCancelledError)) {
+        throw error;
+      }
+    }
+
+    assert(lastTransaction, 404, "Transaction not found");
+
+    return lastTransaction;
   }
 
   async listCoupons() {
@@ -284,8 +520,7 @@ export class StripeService extends Stripe {
   }
 
   async getCoupon(couponId: string) {
-    const coupon = await this.coupons.retrieve(couponId);
-    return coupon;
+    return await this.coupons.retrieve(couponId);
   }
 
   async getCustomerTransactions(
@@ -320,7 +555,12 @@ export class StripeService extends Stripe {
       currency: charge.currency,
       status: charge.status,
       created: charge.created,
-      paymentMethod: charge.payment_method_details,
+      paymentMethod: charge.payment_method_details
+        ? {
+            ...charge.payment_method_details,
+            link: charge.payment_method_details.link ? { email: undefined } : undefined
+          }
+        : null,
       receiptUrl: charge.receipt_url,
       description: charge.description,
       metadata: charge.metadata
@@ -367,7 +607,7 @@ export class StripeService extends Stripe {
         yield typeof chunk === "string" ? chunk : (chunk as Buffer).toString("utf8");
       }
     } catch (error) {
-      logger.error({ event: "CSV_STREAM_ERROR", error });
+      this.loggerService.error({ event: "CSV_STREAM_ERROR", error });
       throw error;
     }
   }
@@ -399,7 +639,7 @@ export class StripeService extends Stripe {
         hasMore = batch.hasMore;
         startingAfter = batch.nextPage || undefined;
       } catch (error) {
-        logger.error({ event: "TRANSACTION_FETCH_ERROR", error, customerId, startingAfter });
+        this.loggerService.error({ event: "TRANSACTION_FETCH_ERROR", error, customerId, startingAfter });
         yield {
           id: `Error: ${(error as Error).message}`,
           date: "",
@@ -495,15 +735,25 @@ export class StripeService extends Stripe {
     return reloaded.stripeCustomerId;
   }
 
+  async updateCustomerOrganization(customerId: string, organization: string): Promise<void> {
+    const customer = await this.customers.retrieve(customerId);
+
+    assert(!("deleted" in customer), 404, "Customer is deleted");
+
+    await this.customers.update(customerId, {
+      business_name: organization
+    });
+  }
+
   async hasDuplicateTrialAccount(paymentMethods: Stripe.PaymentMethod[], currentUserId: string): Promise<boolean> {
-    logger.info({
+    this.loggerService.info({
       event: "VALIDATING_PAYMENT_METHODS_FOR_TRIAL",
       paymentMethodCount: paymentMethods.length,
       paymentMethodIds: paymentMethods.map(pm => pm.id),
       currentUserId
     });
 
-    const fingerprints = paymentMethods.map(paymentMethod => paymentMethod.card?.fingerprint).filter(Boolean) as string[];
+    const fingerprints = paymentMethods.map(paymentMethod => this.extractFingerprint(paymentMethod)).filter(Boolean) as string[];
 
     if (!fingerprints.length) {
       return false;
@@ -523,7 +773,7 @@ export class StripeService extends Stripe {
     if (user) {
       const validatedPaymentMethods = await this.paymentMethodRepository.findValidatedByUserId(user.id);
       if (validatedPaymentMethods.some(pm => pm.paymentMethodId === params.payment_method)) {
-        logger.info({
+        this.loggerService.info({
           event: "PAYMENT_METHOD_ALREADY_VALIDATED",
           customerId: params.customer,
           userId: user.id,
@@ -569,7 +819,7 @@ export class StripeService extends Stripe {
           // Check if payment method is already validated
           const existingValidation = await this.paymentMethodRepository.findValidatedByUserId(user.id);
           if (existingValidation.some(pm => pm.paymentMethodId === params.payment_method)) {
-            logger.info({
+            this.loggerService.info({
               event: "PAYMENT_METHOD_ALREADY_VALIDATED",
               customerId: params.customer,
               userId: user.id,
@@ -590,7 +840,7 @@ export class StripeService extends Stripe {
       case "requires_capture":
         // For manual capture, both succeeded and requires_capture mean the authorization was successful
         // We don't need to cancel it since it's not captured yet
-        logger.info({
+        this.loggerService.info({
           event: "CARD_VALIDATION_AUTHORIZATION_SUCCESSFUL",
           customerId: params.customer,
           paymentMethodId: params.payment_method,
@@ -602,7 +852,7 @@ export class StripeService extends Stripe {
 
       case "requires_action":
         // Card requires 3D Secure authentication
-        logger.info({
+        this.loggerService.info({
           event: "CARD_VALIDATION_REQUIRES_3DS",
           customerId: params.customer,
           paymentMethodId: params.payment_method,
@@ -617,7 +867,7 @@ export class StripeService extends Stripe {
 
       case "requires_payment_method":
         // Card was declined
-        logger.warn({
+        this.loggerService.warn({
           event: "CARD_VALIDATION_DECLINED",
           customerId: params.customer,
           paymentMethodId: params.payment_method,
@@ -628,7 +878,7 @@ export class StripeService extends Stripe {
 
       default:
         // Other statuses (processing, canceled, etc.)
-        logger.warn({
+        this.loggerService.warn({
           event: "CARD_VALIDATION_UNEXPECTED_STATUS",
           customerId: params.customer,
           paymentMethodId: params.payment_method,
@@ -654,7 +904,7 @@ export class StripeService extends Stripe {
         // Payment intent was successfully authenticated, mark payment method as validated
         await this.markPaymentMethodAsValidated(customerId, paymentMethodId, paymentIntentId);
 
-        logger.info({
+        this.loggerService.info({
           event: "PAYMENT_METHOD_VALIDATED_AFTER_3DS",
           customerId,
           paymentMethodId,
@@ -664,7 +914,7 @@ export class StripeService extends Stripe {
 
         return { success: true };
       } else {
-        logger.warn({
+        this.loggerService.warn({
           event: "PAYMENT_INTENT_NOT_SUCCESSFUL_AFTER_3DS",
           customerId,
           paymentMethodId,
@@ -675,7 +925,7 @@ export class StripeService extends Stripe {
         return { success: false };
       }
     } catch (error) {
-      logger.error({
+      this.loggerService.error({
         event: "FAILED_TO_CHECK_PAYMENT_INTENT_AFTER_3DS",
         customerId,
         paymentMethodId,
@@ -717,7 +967,7 @@ export class StripeService extends Stripe {
       const user = await this.userRepository.findOneBy({ stripeCustomerId: customerId });
       if (user) {
         await this.paymentMethodRepository.markAsValidated(paymentMethodId, user.id);
-        logger.info({
+        this.loggerService.info({
           event: "PAYMENT_METHOD_VALIDATED",
           customerId,
           userId: user.id,
@@ -725,20 +975,30 @@ export class StripeService extends Stripe {
           paymentIntentId
         });
       } else {
-        logger.error({
+        this.loggerService.error({
           event: "USER_NOT_FOUND_FOR_VALIDATION",
           customerId,
           paymentMethodId
         });
       }
     } catch (validationError) {
-      logger.error({
+      this.loggerService.error({
         event: "PAYMENT_METHOD_VALIDATION_UPDATE_FAILED",
         customerId,
         paymentMethodId,
         error: validationError
       });
       // Don't fail the test charge if validation update fails - the card is still valid
+    }
+  }
+
+  extractFingerprint(paymentMethod: Stripe.PaymentMethod): string | undefined {
+    if (paymentMethod.card?.fingerprint) {
+      return paymentMethod.card.fingerprint;
+    }
+
+    if (paymentMethod.type === "link" && paymentMethod.link?.email) {
+      return `link_${crypto.createHash("sha256").update(paymentMethod.link.email.toLowerCase()).digest("hex")}`;
     }
   }
 }

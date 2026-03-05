@@ -33,7 +33,7 @@ import { Title } from "../shared/Title";
 import { ProviderMap } from "./ProviderMap";
 import { ProviderTable } from "./ProviderTable";
 
-const NetworkCapacity = dynamic(() => import("./NetworkCapacity"), {
+const NetworkCapacity = dynamic(() => import("./NetworkCapacity/NetworkCapacity"), {
   ssr: false
 });
 
@@ -125,8 +125,8 @@ export const ProviderList: React.FunctionComponent = () => {
         } else if (sort === "my-active-leases-desc") {
           return b.userActiveLeases - a.userActiveLeases;
         } else if (sort === "gpu-available-desc") {
-          const totalGpuB = b.availableStats.gpu + b.pendingStats.gpu + b.activeStats.gpu;
-          const totalGpuA = a.availableStats.gpu + a.pendingStats.gpu + a.activeStats.gpu;
+          const totalGpuB = b.stats.gpu.available + b.stats.gpu.pending + b.stats.gpu.active;
+          const totalGpuA = a.stats.gpu.available + a.stats.gpu.pending + a.stats.gpu.active;
           return totalGpuB - totalGpuA;
         } else {
           return 1;
@@ -201,39 +201,39 @@ export const ProviderList: React.FunctionComponent = () => {
 
       {providers && networkCapacity && (
         <div className="mb-8">
-          <NetworkCapacity {...networkCapacity} />
+          <NetworkCapacity stats={networkCapacity.resources} />
         </div>
       )}
 
       {(providers?.length || 0) > 0 && (
         <>
           <div className="mr-4">
-            <Button onClick={() => window.open("https://akash.network/providers/", "_blank")} size="lg" color="secondary">
-              Become a provider
-              <OpenNewWindow className="ml-2 text-sm" />
+            <Button onClick={() => window.open("https://akash.network/providers/", "_blank")} size="sm" color="secondary" className="space-x-2">
+              <OpenNewWindow className="text-xs" />
+              <span className="whitespace-nowrap">Become a provider</span>
             </Button>
           </div>
 
           <div>
             <div className="flex flex-wrap items-center pt-4">
-              <div className="flex items-center">
+              <div className="flex items-center space-x-6">
                 <h3 className="text-2xl font-bold">Providers</h3>
 
-                <div className="ml-4">
+                <div>
                   <Button aria-label="back" onClick={() => refresh()} size="icon" variant="ghost" className="rounded-full">
                     <Refresh />
                   </Button>
                 </div>
               </div>
 
-              <div className="my-2 flex items-center md:my-0 md:ml-8">
+              <div className="my-2 flex items-center space-x-6 md:my-0 md:ml-8">
                 <div>
                   <CheckboxWithLabel checked={isFilteringActive} onCheckedChange={onIsFilteringActiveClick} label="Active" />
                 </div>
-                <div className="ml-4">
+                <div>
                   <CheckboxWithLabel checked={isFilteringAudited} onCheckedChange={onIsFilteringAuditedClick} label="Audited" />
                 </div>
-                <div className="ml-4">
+                <div>
                   <CheckboxWithLabel checked={isFilteringFavorites} onCheckedChange={onIsFilteringFavoritesClick} label="Favorites" />
                 </div>
               </div>
@@ -257,7 +257,7 @@ export const ProviderList: React.FunctionComponent = () => {
                 />
               </div>
 
-              <div className="w-full min-w-[200px] md:w-auto">
+              <div className="w-full min-w-[200px] space-y-1 md:w-auto">
                 <Label>Sort by</Label>
                 <Select value={sort} onValueChange={handleSortChange}>
                   <SelectTrigger>

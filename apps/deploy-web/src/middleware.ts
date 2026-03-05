@@ -20,7 +20,23 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL(returnPath, request.url), 307); // 307 - temporary redirect
   }
 
-  return NextResponse.next();
+  const res = NextResponse.next();
+
+  const cookieName = "unleash-session-id";
+  let sessionId = request.cookies.get(cookieName)?.value;
+
+  if (!sessionId) {
+    sessionId = crypto.randomUUID();
+    res.cookies.set(cookieName, sessionId, {
+      path: "/",
+      httpOnly: false, // MUST be readable on the client
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 60 * 60 * 24 * 365 // 1 year
+    });
+  }
+
+  return res;
 }
 
 function getReturnPath(request: NextRequest) {

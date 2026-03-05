@@ -1,8 +1,9 @@
-import { createRoute as createOpenApiRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 import { z } from "zod";
 
+import { createRoute } from "@src/core/lib/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
 import { DeploymentSettingController } from "@src/deployment/controllers/deployment-setting/deployment-setting.controller";
 import {
   CreateDeploymentSettingRequestSchema,
@@ -11,11 +12,14 @@ import {
   UpdateDeploymentSettingRequestSchema
 } from "@src/deployment/http-schemas/deployment-setting.schema";
 
-const getRoute = createOpenApiRoute({
+export const deploymentSettingRouter = new OpenApiHonoHandler();
+
+const getRoute = createRoute({
   method: "get",
   path: "/v1/deployment-settings/{userId}/{dseq}",
   summary: "Get deployment settings by user ID and dseq",
   tags: ["Deployment Settings"],
+  security: SECURITY_BEARER_OR_API_KEY,
   request: {
     params: FindDeploymentSettingParamsSchema
   },
@@ -40,12 +44,19 @@ const getRoute = createOpenApiRoute({
     }
   }
 });
+deploymentSettingRouter.openapi(getRoute, async function routeGetDeploymentSettings(c) {
+  const params = c.req.valid("param");
+  const result = await container.resolve(DeploymentSettingController).findOrCreateByUserIdAndDseq(params);
 
-const postRoute = createOpenApiRoute({
+  return c.json(result, 200);
+});
+
+const postRoute = createRoute({
   method: "post",
   path: "/v1/deployment-settings",
   summary: "Create deployment settings",
   tags: ["Deployment Settings"],
+  security: SECURITY_BEARER_OR_API_KEY,
   request: {
     body: {
       content: {
@@ -66,12 +77,18 @@ const postRoute = createOpenApiRoute({
     }
   }
 });
+deploymentSettingRouter.openapi(postRoute, async function routeCreateDeploymentSettings(c) {
+  const { data } = c.req.valid("json");
+  const result = await container.resolve(DeploymentSettingController).create(data);
+  return c.json(result, 201);
+});
 
-const patchRoute = createOpenApiRoute({
+const patchRoute = createRoute({
   method: "patch",
   path: "/v1/deployment-settings/{userId}/{dseq}",
   summary: "Update deployment settings",
   tags: ["Deployment Settings"],
+  security: SECURITY_BEARER_OR_API_KEY,
   request: {
     params: FindDeploymentSettingParamsSchema,
     body: {
@@ -103,22 +120,6 @@ const patchRoute = createOpenApiRoute({
     }
   }
 });
-
-export const deploymentSettingRouter = new OpenApiHonoHandler();
-
-deploymentSettingRouter.openapi(getRoute, async function routeGetDeploymentSettings(c) {
-  const params = c.req.valid("param");
-  const result = await container.resolve(DeploymentSettingController).findOrCreateByUserIdAndDseq(params);
-
-  return c.json(result, 200);
-});
-
-deploymentSettingRouter.openapi(postRoute, async function routeCreateDeploymentSettings(c) {
-  const { data } = c.req.valid("json");
-  const result = await container.resolve(DeploymentSettingController).create(data);
-  return c.json(result, 201);
-});
-
 deploymentSettingRouter.openapi(patchRoute, async function routeUpdateDeploymentSettings(c) {
   const params = c.req.valid("param");
   const { data } = c.req.valid("json");

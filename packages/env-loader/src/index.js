@@ -8,6 +8,7 @@ const CUSTOM_LEVELS = {
 
 const logger = pino(
   {
+    timestamp: () => `,"time":"${new Date().toISOString()}"`,
     formatters: {
       level(label) {
         return { level: CUSTOM_LEVELS[label] || label };
@@ -26,9 +27,14 @@ const config = path => {
   }
 };
 
+if (process.env.DEPLOYMENT_ENV === "") {
+  delete process.env.DEPLOYMENT_ENV;
+}
+
 if (!process.env.DEPLOYMENT_ENV) {
   config("../../.env.local");
 }
+
 config(`env/.env.${process.env.DEPLOYMENT_ENV || "local"}`);
 config(`env/.env.${process.env.NETWORK}`);
 config("env/.env");

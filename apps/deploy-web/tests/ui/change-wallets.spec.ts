@@ -3,14 +3,26 @@ import { expect } from "@playwright/test";
 import { test } from "./fixture/context-with-extension";
 import { LeapExt } from "./pages/LeapExt";
 
-test("switching to another wallet in the extension affects Console", async ({ page, context, extensionId }) => {
-  test.setTimeout(5 * 60 * 1000);
+test.describe("Custodial wallet", () => {
+  test("switching to another wallet in the extension switches the wallet in Console", async ({ page, context }) => {
+    const extension = new LeapExt(context, page);
+    await extension.goto();
+    const newWalletAddress = await extension.createAndUseWallet();
 
-  const extension = new LeapExt(context, page);
+    const container = page.getByLabel("Connected wallet name and balance");
+    await container.waitFor({ state: "visible", timeout: 20_000 });
+    await container.hover({ timeout: 20_000 });
+    await page.getByLabel("wallet address").click();
+    const clipboardContent = await page.evaluate(() => navigator.clipboard.readText());
 
-  const newWalletName = await extension.createWallet(extensionId);
+    expect(clipboardContent).toEqual(newWalletAddress);
+  });
 
-  const container = page.getByLabel("Connected wallet name and balance");
-  await container.waitFor({ state: "visible", timeout: 20_000 });
-  await expect(container).toHaveText(newWalletName);
+  test("wallet stays disconnected after disconnecting and reloading", async ({ page, context }) => {
+    const extension = new LeapExt(context, page);
+    await extension.goto();
+    await extension.disconnectWallet();
+
+    await expect(page.getByTestId("connect-wallet-btn")).toBeVisible({ timeout: 20_000 });
+  });
 });

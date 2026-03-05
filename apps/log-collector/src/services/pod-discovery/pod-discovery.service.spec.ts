@@ -58,16 +58,16 @@ describe(PodDiscoveryService.name, () => {
     });
 
     expect(loggerService.info).toHaveBeenCalledWith({
-      message: "Discovering pods in namespace",
+      event: "POD_DISCOVERY_STARTED",
       namespace
     });
 
     expect(loggerService.info).toHaveBeenCalledWith({
+      event: "POD_DISCOVERY_COMPLETED",
       namespace,
       totalPods: 5,
       targetPods: 2,
-      currentPodName,
-      message: "Pod discovery completed"
+      currentPodName
     });
   });
 
@@ -151,11 +151,11 @@ describe(PodDiscoveryService.name, () => {
 
     expect(result).toHaveLength(0);
     expect(loggerService.info).toHaveBeenCalledWith({
+      event: "POD_DISCOVERY_COMPLETED",
       namespace,
       totalPods: 0,
       targetPods: 0,
-      currentPodName,
-      message: "Pod discovery completed"
+      currentPodName
     });
   });
 
@@ -186,11 +186,11 @@ describe(PodDiscoveryService.name, () => {
     expect(result[1].podName).toBe("other-pod");
 
     expect(loggerService.info).toHaveBeenCalledWith({
+      event: "POD_DISCOVERY_COMPLETED",
       namespace,
       totalPods: 2,
       targetPods: 2,
-      currentPodName: "simple-pod",
-      message: "Pod discovery completed"
+      currentPodName: "simple-pod"
     });
   });
 
@@ -331,6 +331,7 @@ describe(PodDiscoveryService.name, () => {
     await podDiscoveryService.discoverPodsInNamespace();
 
     expect(loggerService.info).toHaveBeenCalledWith({
+      event: "NAMESPACE_RESOLVED",
       namespace: kubeconfigNamespace,
       source: "kubeconfig"
     });

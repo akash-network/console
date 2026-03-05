@@ -6,10 +6,10 @@ import { useSnackbar } from "notistack";
 
 import { EnvFormModal } from "@src/components/sdl/EnvFormModal/EnvFormModal";
 import { EnvVarList } from "@src/components/sdl/EnvVarList";
-import { browserEnvConfig } from "@src/config/browser-env.config";
 import { CURRENT_SERVICE, protectedEnvironmentVariables } from "@src/config/remote-deploy.config";
 import { SdlBuilderProvider } from "@src/context/SdlBuilderProvider";
-import { EnvVarUpdater } from "@src/services/remote-deploy/remote-deployment-controller.service";
+import { useServices } from "@src/context/ServicesProvider";
+import { EnvVarManagerService } from "@src/services/remote-deploy/env-var-manager.service";
 import { tokens } from "@src/store/remoteDeployStore";
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { defaultService } from "@src/utils/sdl/data";
@@ -26,7 +26,8 @@ const RemoteDeployUpdate = ({ sdlString, onManifestChange }: { sdlString: string
   const [isEditingEnv, setIsEditingEnv] = useState<number | boolean | null>(false);
   const { control, watch, setValue } = useForm<SdlBuilderFormValuesType>({ defaultValues: { services: [defaultService] } });
   const { fields: services } = useFieldArray({ control, name: "services", keyName: "id" });
-  const envVarUpdater = useMemo(() => new EnvVarUpdater(services), [services]);
+  const envVarManagerService = useMemo(() => new EnvVarManagerService(services), [services]);
+  const { publicConfig } = useServices();
 
   useEffect(() => {
     const { unsubscribe }: any = watch(data => {
@@ -60,7 +61,7 @@ const RemoteDeployUpdate = ({ sdlString, onManifestChange }: { sdlString: string
       }
     }
   };
-  return services?.[0]?.image.startsWith(browserEnvConfig.NEXT_PUBLIC_CI_CD_IMAGE_NAME) && services?.[0]?.env && services?.[0]?.env?.length > 0 ? (
+  return services?.[0]?.image.startsWith(publicConfig.NEXT_PUBLIC_CI_CD_IMAGE_NAME) && services?.[0]?.env && services?.[0]?.env?.length > 0 ? (
     <div className="flex flex-col gap-6 rounded border bg-card px-4 py-6 md:px-6">
       <div className="flex flex-col gap-3 rounded border bg-card px-6 py-6 text-card-foreground">
         <div className="flex items-center justify-between gap-5">
@@ -74,7 +75,7 @@ const RemoteDeployUpdate = ({ sdlString, onManifestChange }: { sdlString: string
             onCheckedChange={value => {
               const pull = !value ? "yes" : "no";
 
-              setValue(CURRENT_SERVICE, envVarUpdater.addOrUpdateEnvironmentVariable(protectedEnvironmentVariables.DISABLE_PULL, pull, false));
+              setValue(CURRENT_SERVICE, envVarManagerService.addOrUpdateEnvironmentVariable(protectedEnvironmentVariables.DISABLE_PULL, pull, false));
               enqueueSnackbar(<Snackbar title={"Info"} subTitle="You need to click update deployment button to apply changes" iconVariant="info" />, {
                 variant: "info"
               });

@@ -3,16 +3,16 @@ import { requestFn } from "@openapi-qraft/react";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { ApiUrlService } from "@src/services/api-url/api-url.service";
-import networkStore from "@src/store/networkStore";
 import * as walletUtils from "@src/utils/walletUtils";
 import { AuthService } from "../auth/auth/auth.service";
-import { withAnonymousUserToken, withUserToken } from "../auth/auth/interceptors";
+import { withUserToken } from "../auth/auth/interceptors";
 import { createChildContainer } from "../container/createContainer";
 import { DeploymentStorageService } from "../deployment-storage/deployment-storage.service";
 import { BitbucketService } from "../remote-deploy/bitbucket-http.service";
 import { GitHubService } from "../remote-deploy/github-http.service";
 import { GitLabService } from "../remote-deploy/gitlab-http.service";
-import { createAppRootContainer, withInterceptors } from "./app-di-container";
+import { SDLAnalyzer } from "../sdl-analyzer/sdl-analyzer";
+import { createAppRootContainer } from "./app-di-container";
 
 const rootContainer = createAppRootContainer({
   runtimeEnv: "browser",
@@ -29,15 +29,17 @@ export const services = createChildContainer(rootContainer, {
       baseUrl: "/api/proxy",
       queryClient: services.queryClient
     }),
-  githubService: () => new GitHubService(services.internalApiHttpClient, services.createAxios),
+  githubService: () =>
+    new GitHubService(services.internalApiHttpClient, services.createAxios, {
+      githubAppInstallationUrl: services.publicConfig.NEXT_PUBLIC_GITHUB_APP_INSTALLATION_URL,
+      githubClientId: services.publicConfig.NEXT_PUBLIC_GITHUB_CLIENT_ID,
+      redirectUrl: services.publicConfig.NEXT_PUBLIC_REDIRECT_URI
+    }),
   bitbucketService: () => new BitbucketService(services.internalApiHttpClient, services.createAxios),
   gitlabService: () => new GitLabService(services.internalApiHttpClient, services.createAxios),
-  internalApiHttpClient: () =>
-    withInterceptors(services.createAxios(), {
-      request: [withAnonymousUserToken]
-    }),
+  internalApiHttpClient: () => services.createAxios(),
   consoleApiHttpClient: () =>
-    services.applyAxiosInterceptors(services.createAxios({ baseURL: services.appConfig.NEXT_PUBLIC_BASE_API_MAINNET_URL }), {
+    services.applyAxiosInterceptors(services.createAxios({ baseURL: services.publicConfig.NEXT_PUBLIC_BASE_API_MAINNET_URL }), {
       request: [withUserToken]
     }),
   /** TODO: https://github.com/akash-network/console/issues/1720 */
@@ -51,11 +53,10 @@ export const services = createChildContainer(rootContainer, {
         }
       ]
     }),
-  networkStore: () => networkStore,
-  appConfig: () => browserEnvConfig,
   authService: () => new AuthService(services.urlService, services.internalApiHttpClient),
   storedWalletsService: () => walletUtils,
   deploymentLocalStorage: () => new DeploymentStorageService(localStorage, services.networkStore),
   windowLocation: () => window.location,
-  windowHistory: () => window.history
+  windowHistory: () => window.history,
+  sdlAnalyzer: () => new SDLAnalyzer({ ciCdImageName: services.publicConfig.NEXT_PUBLIC_CI_CD_IMAGE_NAME })
 });

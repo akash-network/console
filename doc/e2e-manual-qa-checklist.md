@@ -198,7 +198,7 @@ Most operations need to be tested for both wallet types:
   - [ ] Previous session data is cleared
 
 #### B2. **Payments**
- 
+
 - [ ] **Managed Wallet Top-Up Flow**
 
   - [ ] User is able to navigate to Payment page via
@@ -243,9 +243,189 @@ Most operations need to be tested for both wallet types:
   - [ ] Custodial wallet balance displays
   - [ ] User can proceed with deployments
 
-### C. **Deployment Management Flows**
+### C. **Deploy Button Flow** 🚀
 
-#### C1. **Deployment Creation Flow** (Test with both Custodial & Managed Wallets)
+#### C1. **Deploy Button - Basic Functionality**
+
+- [ ] **Minimal Deploy Button (repoUrl only)**
+
+  - [ ] Click deploy button with only `repoUrl` parameter
+  - [ ] Verify redirects to build & deploy view (`step=editDeployment`)
+  - [ ] Verify `templateId` defaults to CI_CD_TEMPLATE_ID automatically
+  - [ ] Verify Repository URL field is prefilled with `repoUrl` value
+  - [ ] Verify Branch Name field is empty (optional)
+  - [ ] Verify deployment name is auto-generated from repo name
+
+- [ ] **Deploy Button with All Parameters**
+
+  - [ ] Click deploy button with all parameters:
+    - [ ] `repoUrl` (required)
+    - [ ] `branch` (optional)
+    - [ ] `buildCommand` (optional)
+    - [ ] `startCommand` (optional)
+    - [ ] `installCommand` (optional)
+    - [ ] `buildDirectory` (optional)
+    - [ ] `nodeVersion` (optional)
+  - [ ] Verify all fields are prefilled correctly
+  - [ ] Verify "Build & Install Configurations" section shows correct values
+
+- [ ] **URL Parameter Encoding**
+  - [ ] Test deploy button with URL-encoded `repoUrl` (e.g., `https%3A%2F%2Fgithub.com%2Fowner%2Frepo`)
+  - [ ] Verify `repoUrl` is correctly decoded and displayed
+  - [ ] Test with special characters in commands (spaces, special chars)
+  - [ ] Verify all parameters are preserved through redirects
+
+#### C2. **Deploy Button - Authentication & Redirect Flows**
+
+- [ ] **Unauthenticated User Flow**
+
+  - [ ] Click deploy button while logged out
+  - [ ] Verify redirects to login page
+  - [ ] Verify `returnUrl` contains all deploy button parameters
+  - [ ] After login, verify redirects back to build & deploy view
+  - [ ] Verify all parameters are preserved and form is prefilled
+
+- [ ] **Authenticated User without Wallet (Managed Wallet Required)**
+
+  - [ ] Click deploy button while authenticated but no managed wallet
+  - [ ] Verify redirects to onboarding page
+  - [ ] Verify `returnUrl` contains all deploy button parameters
+  - [ ] After completing onboarding, verify redirects back to build & deploy view
+  - [ ] Verify all parameters are preserved and form is prefilled
+
+- [ ] **Authenticated User with Wallet Connected**
+  - [ ] Click deploy button while authenticated and wallet connected
+  - [ ] Verify directly lands on build & deploy view (no redirects)
+  - [ ] Verify form is prefilled with all parameters
+
+#### C3. **Deploy Button - Git Provider Support**
+
+- [ ] **GitHub Repository**
+
+  - [ ] Test with `repoUrl=https://github.com/owner/repo.git`
+  - [ ] Verify URL is correctly parsed and displayed
+  - [ ] Verify works with or without `.git` suffix
+
+- [ ] **GitLab Repository**
+
+  - [ ] Test with `repoUrl=https://gitlab.com/owner/repo.git`
+  - [ ] Verify URL is correctly parsed and displayed
+  - [ ] Verify works with nested groups: `https://gitlab.com/group/subgroup/repo.git`
+
+- [ ] **Bitbucket Repository**
+
+  - [ ] Test with `repoUrl=https://bitbucket.org/workspace/repo.git`
+  - [ ] Verify URL is correctly parsed and displayed
+
+- [ ] **Full URL vs Short Format**
+  - [ ] Test with full URL: `https://github.com/owner/repo.git`
+  - [ ] Verify accepts full URLs directly
+  - [ ] Test backward compatibility (if short format still supported)
+
+#### C4. **Deploy Button - Parameter Validation**
+
+- [ ] **Required Parameter (repoUrl)**
+
+  - [ ] Test deploy button without `repoUrl` parameter
+  - [ ] Verify appropriate error handling or fallback behavior
+
+- [ ] **Optional Parameters**
+
+  - [ ] Test with only `repoUrl` (all other params missing)
+  - [ ] Test with `repoUrl` + `branch` only
+  - [ ] Test with `repoUrl` + `buildCommand` only
+  - [ ] Test with various combinations of optional params
+  - [ ] Verify missing optional params don't break the flow
+
+- [ ] **Empty Optional Parameters**
+  - [ ] Test with empty `branch` parameter
+  - [ ] Test with empty `buildCommand` parameter
+  - [ ] Verify empty params don't cause errors
+  - [ ] Verify form fields remain empty when params are not provided
+
+#### C5. **Deploy Button - Form Prefilling**
+
+- [ ] **Repository URL Field**
+
+  - [ ] Verify `repoUrl` is prefilled in "Repository URL" field
+  - [ ] Verify field is editable after prefilling
+  - [ ] Verify prefilled value persists after page refresh
+
+- [ ] **Branch Name Field**
+
+  - [ ] Verify `branch` is prefilled when provided
+  - [ ] Verify field is empty when `branch` not provided
+  - [ ] Verify field is editable after prefilling
+
+- [ ] **Build & Install Configurations**
+
+  - [ ] Verify "Build Command" is prefilled from `buildCommand` param
+  - [ ] Verify "Start Command" is prefilled from `startCommand` param
+  - [ ] Verify "Install Command" is prefilled from `installCommand` param
+  - [ ] Verify "Build Directory" is prefilled from `buildDirectory` param
+  - [ ] Verify "Node Version" is prefilled from `nodeVersion` param
+  - [ ] Verify all fields are editable after prefilling
+
+- [ ] **Deployment Name**
+  - [ ] Verify deployment name is auto-generated from repo name
+  - [ ] Verify name extraction works for different URL formats
+  - [ ] Verify name is editable after generation
+
+#### C6. **Deploy Button - Edge Cases**
+
+- [ ] **URL Parameter Preservation**
+
+  - [ ] Test redirect flow: Deploy Button → Login → Onboarding → Build & Deploy
+  - [ ] Verify all parameters survive multiple redirects
+  - [ ] Verify parameters are correctly URL-encoded/decoded
+  - [ ] Test with very long parameter values
+
+- [ ] **Concurrent Deploy Button Clicks**
+
+  - [ ] Click deploy button multiple times rapidly
+  - [ ] Verify no duplicate form prefilling occurs
+  - [ ] Verify no race conditions in redirect logic
+
+- [ ] **Browser Back/Forward Navigation**
+
+  - [ ] Click deploy button and navigate through auth flow
+  - [ ] Use browser back button
+  - [ ] Use browser forward button
+  - [ ] Verify form state is preserved correctly
+
+- [ ] **Page Refresh**
+
+  - [ ] Click deploy button and complete auth flow
+  - [ ] Refresh page on build & deploy view
+  - [ ] Verify form fields remain prefilled
+  - [ ] Verify URL parameters are still present
+
+- [ ] **Invalid Parameters**
+  - [ ] Test with malformed `repoUrl` (not a valid URL)
+  - [ ] Test with invalid characters in parameters
+  - [ ] Verify appropriate error handling
+
+#### C7. **Deploy Button - Template ID Behavior**
+
+- [ ] **Template ID Defaulting**
+
+  - [ ] Test deploy button without `templateId` parameter
+  - [ ] Verify defaults to CI_CD_TEMPLATE_ID when `repoUrl` is present
+  - [ ] Verify correct template is loaded
+
+- [ ] **Explicit Template ID**
+
+  - [ ] Test deploy button with explicit `templateId` parameter
+  - [ ] Verify uses specified template ID
+  - [ ] Verify `repoUrl` still works with explicit template ID
+
+- [ ] **Template ID Override**
+  - [ ] Test with `repoUrl` + different `templateId` (not CI_CD_TEMPLATE_ID)
+  - [ ] Verify uses specified template ID, not default
+
+### D. **Deployment Management Flows**
+
+#### D1. **Deployment Creation Flow** (Test with both Custodial & Managed Wallets)
 
 - [ ] **Step 1: Template Selection**
 
@@ -285,7 +465,7 @@ Most operations need to be tested for both wallet types:
   - [ ] System creates lease with selected provider
   - [ ] User sees deployment status and can monitor progress
 
-#### C2. **Deployment Management Flow** (Test with both Custodial & Managed Wallets)
+#### D2. **Deployment Management Flow** (Test with both Custodial & Managed Wallets)
 
 - [ ] **Deployment Status Monitoring Flow**
 
@@ -322,9 +502,9 @@ Most operations need to be tested for both wallet types:
     - [ ] Explanation is shown
   - [ ] System automatically tops up deployment when funds are low
 
-### D. **Provider Management**
+### E. **Provider Management**
 
-#### D1. **Provider Discovery**
+#### E1. **Provider Discovery**
 
 - [ ] **Provider Discovery Flow**
 
@@ -342,16 +522,16 @@ Most operations need to be tested for both wallet types:
   - [ ] User checks pricing information
   - [ ] User reviews performance metrics
 
-#### D2. **Provider Operations**
+#### E2. **Provider Operations**
 
 - [ ] **Provider Information Flow**
   - [ ] User views provider details and specifications
   - [ ] User checks provider uptime and performance metrics
   - [ ] User reviews provider pricing and availability
 
-### E. **Billing & Payment**
+### F. **Billing & Payment**
 
-#### E1. **Payment Methods** (Managed Wallets Only)
+#### F1. **Payment Methods** (Managed Wallets Only)
 
 - [ ] **Payment Method Management Flow** (Managed Wallets Only)
   - [ ] User navigates to "Payment Methods" page via Add Funds button
@@ -362,7 +542,7 @@ Most operations need to be tested for both wallet types:
   - [ ] User sees "Payment Method Added" confirmation
   - [ ] System validates payment methods (duplicate cards not allowed in production)
 
-#### E2. **Billing & Usage Flow** (Managed Wallets Only)
+#### F2. **Billing & Usage Flow** (Managed Wallets Only)
 
 - [ ] **Billing & Usage Dashboard Flow** (Managed Wallets Only)
   - [ ] User navigates to "Billing & Usage" page
@@ -375,9 +555,9 @@ Most operations need to be tested for both wallet types:
   - [ ] **Usage Tab**: User sees cumulative spending chart
   - [ ] **Usage Tab**: User can export CSV of usage data
 
-### F. **Alerts & Notifications**
+### G. **Alerts & Notifications**
 
-#### F1. **Deployment Alerts**
+#### G1. **Deployment Alerts**
 
 - [ ] **Alert Management Flow**
   - [ ] User creates a deployment
@@ -401,7 +581,7 @@ Most operations need to be tested for both wallet types:
   - [ ] User verifies after a moment Escrow Threshold alert is not present anymore
   - [ ] User receives Escrow Threshold alert suspension notification email
 
-#### F2. **Notification Channels**
+#### G2. **Notification Channels**
 
 - [ ] **Initial Account Email Channel Setup**
 
@@ -446,9 +626,9 @@ Most operations need to be tested for both wallet types:
   - [ ] User can edit existing channels
   - [ ] User can delete channels
 
-### G. **Standalone SDL Builder** (Template Creation)
+### H. **Standalone SDL Builder** (Template Creation)
 
-#### G1. **Template Builder**
+#### H1. **Template Builder**
 
 - [ ] **Template Creation Flow**
 

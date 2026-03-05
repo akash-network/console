@@ -1,6 +1,7 @@
 import type { HttpClient } from "@akashnetwork/http-sdk";
 import type { LoggerService } from "@akashnetwork/logging";
-import { mock } from "jest-mock-extended";
+import { afterEach, describe, expect, it, type Mock, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { K8sEventMessage, LogEntryMessage, ProviderCredentials } from "./provider-proxy.service";
 import { ProviderProxyService, WS_ERRORS } from "./provider-proxy.service";
@@ -10,22 +11,22 @@ import { createWebsocketMock, dispatchWsEvent } from "@tests/unit/websocketMock"
 
 describe(ProviderProxyService.name, () => {
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   describe("sendManifest", () => {
     it("does nothing if provider is undefined", () => {
       const { service, httpClient } = setup();
-      service.sendManifest(undefined, {}, { dseq: "1", chainNetwork: "akash" });
+      service.sendManifest(undefined, {}, { dseq: "1" });
       expect(httpClient.post).not.toHaveBeenCalled();
     });
 
     it("sends manifest to provider", async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
 
       const response = {};
       const httpClient = mock<HttpClient>({
-        post: jest.fn().mockResolvedValue(response)
+        post: vi.fn().mockResolvedValue(response)
       } as unknown as HttpClient);
       const { service } = setup({ httpClient });
       const provider = buildProvider();
@@ -59,9 +60,9 @@ describe(ProviderProxyService.name, () => {
         }
       ];
       const credentials: ProviderCredentials = { type: "mtls", value: { cert: "certPem", key: "keyPem" } };
-      const promise = service.sendManifest(provider, manifest, { dseq, chainNetwork: "mainnet", credentials });
+      const promise = service.sendManifest(provider, manifest, { dseq, credentials });
 
-      const [result] = await Promise.all([promise, jest.runAllTimersAsync()]);
+      const [result] = await Promise.all([promise, vi.runAllTimersAsync()]);
 
       expect(httpClient.post).toHaveBeenCalledWith(
         "/",
@@ -69,7 +70,6 @@ describe(ProviderProxyService.name, () => {
           method: "PUT",
           url: `${provider.hostUri}/deployment/${dseq}/manifest`,
           providerAddress: provider.owner,
-          network: "mainnet",
           auth: {
             type: "mtls",
             certPem: credentials.value?.cert,
@@ -106,8 +106,6 @@ describe(ProviderProxyService.name, () => {
         { timeout: expect.any(Number) }
       );
       expect(result).toBe(response);
-
-      jest.useRealTimers();
     });
   });
 
@@ -119,7 +117,6 @@ describe(ProviderProxyService.name, () => {
         providerBaseUrl: "https://provider.akash.network",
         providerAddress: "akash1provider",
         providerCredentials: { type: "mtls" as const, value: { cert: "cert", key: "key" } },
-        chainNetwork: "mainnet",
         dseq: "123",
         gseq: 1,
         oseq: 1
@@ -159,7 +156,7 @@ describe(ProviderProxyService.name, () => {
       expect(result).toEqual({ ok: true });
       expect(saveFile).toHaveBeenCalledWith(expect.any(Blob), expect.stringMatching(/123-1-1-logs-\d{4}-\d{2}-\d{2}\.txt/));
 
-      const savedBlob = (saveFile as jest.Mock).mock.calls[0][0];
+      const savedBlob = (saveFile as Mock).mock.calls[0][0];
       const savedContent = await savedBlob.text();
 
       expect(savedContent).toContain("[web]: Server started on port 8080");
@@ -175,8 +172,7 @@ describe(ProviderProxyService.name, () => {
         dseq: "456",
         gseq: 2,
         oseq: 3,
-        type: "events" as const,
-        chainNetwork: "testnet"
+        type: "events" as const
       };
 
       const promise = service.downloadLogs(input);
@@ -203,7 +199,7 @@ describe(ProviderProxyService.name, () => {
       expect(result).toEqual({ ok: true });
       expect(saveFile).toHaveBeenCalledWith(expect.any(Blob), expect.stringMatching(/456-2-3-events-\d{4}-\d{2}-\d{2}\.txt/));
 
-      const savedBlob = (saveFile as jest.Mock).mock.calls[0][0];
+      const savedBlob = (saveFile as Mock).mock.calls[0][0];
       const savedContent = await savedBlob.text();
       expect(savedContent).toContain("[web]: [Normal] [Started] [Pod] Container started successfully");
     });
@@ -219,7 +215,6 @@ describe(ProviderProxyService.name, () => {
         gseq: 1,
         oseq: 1,
         type: "logs" as const,
-        chainNetwork: "mainnet",
         signal: abortController.signal
       };
 
@@ -244,8 +239,7 @@ describe(ProviderProxyService.name, () => {
         dseq: "111",
         gseq: 1,
         oseq: 1,
-        type: "logs" as const,
-        chainNetwork: "mainnet"
+        type: "logs" as const
       };
 
       const promise = service.downloadLogs(input);
@@ -273,7 +267,7 @@ describe(ProviderProxyService.name, () => {
       const result = await promise;
 
       expect(result).toEqual({ ok: true });
-      const savedBlob = (saveFile as jest.Mock).mock.calls[0][0];
+      const savedBlob = (saveFile as Mock).mock.calls[0][0];
       const savedContent = await savedBlob.text();
       expect(savedContent).toBe("[web]: Server started on port 8080\n");
     });
@@ -287,8 +281,7 @@ describe(ProviderProxyService.name, () => {
         dseq: "222",
         gseq: 1,
         oseq: 1,
-        type: "logs" as const,
-        chainNetwork: "mainnet"
+        type: "logs" as const
       };
 
       const promise = service.downloadLogs(input);
@@ -305,7 +298,7 @@ describe(ProviderProxyService.name, () => {
     });
 
     it("aborts download after 3 seconds if no messages are received", async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       const { service, websocket } = setup();
       const input = {
         providerBaseUrl: "https://provider.akash.network",
@@ -314,14 +307,13 @@ describe(ProviderProxyService.name, () => {
         dseq: "111",
         gseq: 1,
         oseq: 1,
-        type: "logs" as const,
-        chainNetwork: "mainnet"
+        type: "logs" as const
       };
 
       const promise = service.downloadLogs(input);
 
-      await Promise.all([dispatchWsEvent(websocket, new Event("open")), jest.runOnlyPendingTimersAsync()]);
-      await jest.advanceTimersByTimeAsync(3_001);
+      await Promise.all([dispatchWsEvent(websocket, new Event("open")), vi.runOnlyPendingTimersAsync()]);
+      await vi.advanceTimersByTimeAsync(3_001);
 
       const result = await promise;
 
@@ -343,7 +335,6 @@ describe(ProviderProxyService.name, () => {
         dseq: "123",
         gseq: 1,
         oseq: 1,
-        chainNetwork: "mainnet",
         service: "web",
         filePath: "/app/config.json"
       };
@@ -373,7 +364,7 @@ describe(ProviderProxyService.name, () => {
       expect(result).toEqual({ ok: true });
       expect(saveFile).toHaveBeenCalledWith(expect.any(Blob), "config.json");
 
-      const savedBlob = (saveFile as jest.Mock).mock.calls[0][0];
+      const savedBlob = (saveFile as Mock).mock.calls[0][0];
       const savedContent = await savedBlob.text();
       expect(savedContent).toBe(fileContent);
     });
@@ -387,7 +378,6 @@ describe(ProviderProxyService.name, () => {
         dseq: "456",
         gseq: 2,
         oseq: 3,
-        chainNetwork: "testnet",
         service: "api",
         filePath: "/data/largefile.txt"
       };
@@ -413,7 +403,7 @@ describe(ProviderProxyService.name, () => {
       const result = await promise;
 
       expect(result).toEqual({ ok: true });
-      const savedBlob = (saveFile as jest.Mock).mock.calls[0][0];
+      const savedBlob = (saveFile as Mock).mock.calls[0][0];
       const savedContent = await savedBlob.text();
       expect(savedContent).toBe("First chunk Second chunk Third chunk");
     });
@@ -427,7 +417,6 @@ describe(ProviderProxyService.name, () => {
         dseq: "789",
         gseq: 1,
         oseq: 1,
-        chainNetwork: "mainnet",
         service: "web",
         filePath: "/nonexistent/file.txt"
       };
@@ -461,7 +450,6 @@ describe(ProviderProxyService.name, () => {
         dseq: "999",
         gseq: 1,
         oseq: 1,
-        chainNetwork: "mainnet",
         service: "web",
         filePath: "/app/file.txt",
         signal: abortController.signal
@@ -488,7 +476,6 @@ describe(ProviderProxyService.name, () => {
         dseq: "111",
         gseq: 1,
         oseq: 1,
-        chainNetwork: "mainnet",
         service: "web",
         filePath: "/app/file.txt"
       };
@@ -522,7 +509,6 @@ describe(ProviderProxyService.name, () => {
         dseq: "222",
         gseq: 1,
         oseq: 1,
-        chainNetwork: "mainnet",
         service: "web",
         filePath: "/very/long/path/to/myfile.log"
       };
@@ -564,8 +550,7 @@ describe(ProviderProxyService.name, () => {
         dseq: "123",
         gseq: 1,
         oseq: 1,
-        type: "logs" as const,
-        chainNetwork: "mainnet"
+        type: "logs" as const
       };
 
       const stream = service.getLogsStream(input);
@@ -609,8 +594,7 @@ describe(ProviderProxyService.name, () => {
         dseq: "456",
         gseq: 2,
         oseq: 3,
-        type: "events" as const,
-        chainNetwork: "testnet"
+        type: "events" as const
       };
 
       const stream = service.getLogsStream(input);
@@ -656,8 +640,7 @@ describe(ProviderProxyService.name, () => {
         dseq: "789",
         gseq: 1,
         oseq: 1,
-        type: "logs" as const,
-        chainNetwork: "mainnet"
+        type: "logs" as const
       };
 
       const stream = service.getLogsStream(input);
@@ -712,7 +695,6 @@ describe(ProviderProxyService.name, () => {
         gseq: 1,
         oseq: 1,
         type: "logs" as const,
-        chainNetwork: "mainnet",
         signal: abortController.signal
       };
 
@@ -736,7 +718,6 @@ describe(ProviderProxyService.name, () => {
         gseq: 1,
         oseq: 1,
         type: "logs" as const,
-        chainNetwork: "mainnet",
         tail: 200,
         services: ["web", "api"],
         follow: true
@@ -753,7 +734,7 @@ describe(ProviderProxyService.name, () => {
     });
 
     it("does not retry on invalid provider certificate", async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
 
       const { service, websocket, createWebSocket } = setup();
       const input = {
@@ -763,19 +744,18 @@ describe(ProviderProxyService.name, () => {
         dseq: "111",
         gseq: 1,
         oseq: 1,
-        type: "logs" as const,
-        chainNetwork: "mainnet"
+        type: "logs" as const
       };
 
       const stream = service.getLogsStream(input);
       stream.next();
-      await Promise.all([dispatchWsEvent(websocket, new Event("open")), jest.runOnlyPendingTimersAsync()]);
+      await Promise.all([dispatchWsEvent(websocket, new Event("open")), vi.runOnlyPendingTimersAsync()]);
       await Promise.all([
         dispatchWsEvent(websocket, new CloseEvent("close", { code: WS_ERRORS.VIOLATED_POLICY, reason: "invalidCertificate.notSelfSigned" })),
-        jest.runOnlyPendingTimersAsync()
+        vi.runOnlyPendingTimersAsync()
       ]);
 
-      await jest.advanceTimersByTimeAsync(10_000);
+      await vi.advanceTimersByTimeAsync(10_000);
 
       expect(createWebSocket).toHaveBeenCalledTimes(1);
     });
@@ -791,7 +771,6 @@ describe(ProviderProxyService.name, () => {
         dseq: "100",
         gseq: 2,
         oseq: 3,
-        chainNetwork: "mainnet",
         service: "web-service"
       };
 
@@ -799,7 +778,7 @@ describe(ProviderProxyService.name, () => {
       session.send(new Uint8Array());
       await dispatchWsEvent(websocket, new Event("open"));
 
-      const sentMessage = JSON.parse((websocket.send as jest.Mock).mock.calls[0][0]);
+      const sentMessage = JSON.parse((websocket.send as Mock).mock.calls[0][0]);
       expect(sentMessage.url).toBe("https://provider.example.com/lease/100/2/3/shell?stdin=0&tty=0&podIndex=0&&cmd0=%2Fbin%2Fsh&service=web-service");
     });
 
@@ -812,7 +791,6 @@ describe(ProviderProxyService.name, () => {
         dseq: "456",
         gseq: 1,
         oseq: 1,
-        chainNetwork: "mainnet",
         service: "api",
         command: "cat /app/config.json"
       };
@@ -821,7 +799,7 @@ describe(ProviderProxyService.name, () => {
       session.send(new Uint8Array());
       await dispatchWsEvent(websocket, new Event("open"));
 
-      const sentMessage = JSON.parse((websocket.send as jest.Mock).mock.calls[0][0]);
+      const sentMessage = JSON.parse((websocket.send as Mock).mock.calls[0][0]);
       expect(sentMessage.url).toContain("cmd0=cat");
       expect(sentMessage.url).toContain("cmd1=%2Fapp%2Fconfig.json");
     });
@@ -835,7 +813,6 @@ describe(ProviderProxyService.name, () => {
         dseq: "789",
         gseq: 1,
         oseq: 1,
-        chainNetwork: "mainnet",
         service: "web",
         useStdIn: true,
         useTTY: true
@@ -845,7 +822,7 @@ describe(ProviderProxyService.name, () => {
       session.send(new Uint8Array());
       await dispatchWsEvent(websocket, new Event("open"));
 
-      const sentMessage = JSON.parse((websocket.send as jest.Mock).mock.calls[0][0]);
+      const sentMessage = JSON.parse((websocket.send as Mock).mock.calls[0][0]);
       expect(sentMessage.url).toContain("stdin=1");
       expect(sentMessage.url).toContain("tty=1");
     });
@@ -859,7 +836,6 @@ describe(ProviderProxyService.name, () => {
         dseq: "333",
         gseq: 1,
         oseq: 1,
-        chainNetwork: "mainnet",
         service: "web",
         command: "ls -la /app"
       };
@@ -868,7 +844,7 @@ describe(ProviderProxyService.name, () => {
       session.send(new Uint8Array());
       await dispatchWsEvent(websocket, new Event("open"));
 
-      const sentMessage = JSON.parse((websocket.send as jest.Mock).mock.calls[0][0]);
+      const sentMessage = JSON.parse((websocket.send as Mock).mock.calls[0][0]);
       expect(sentMessage.url).toContain("cmd0=ls");
       expect(sentMessage.url).toContain("cmd1=-la");
       expect(sentMessage.url).toContain("cmd2=%2Fapp");
@@ -883,7 +859,6 @@ describe(ProviderProxyService.name, () => {
         dseq: "444",
         gseq: 1,
         oseq: 1,
-        chainNetwork: "mainnet",
         service: "web"
       };
 
@@ -891,7 +866,7 @@ describe(ProviderProxyService.name, () => {
       session.send(new Uint8Array([1, 2, 3]));
       await dispatchWsEvent(websocket, new Event("open"));
 
-      const sentMessage = JSON.parse((websocket.send as jest.Mock).mock.calls[0][0]);
+      const sentMessage = JSON.parse((websocket.send as Mock).mock.calls[0][0]);
       expect(sentMessage.auth).toEqual({
         type: "mtls",
         certPem: "test-cert",
@@ -908,7 +883,6 @@ describe(ProviderProxyService.name, () => {
         dseq: "555",
         gseq: 1,
         oseq: 1,
-        chainNetwork: "mainnet",
         service: "web"
       };
 
@@ -916,7 +890,7 @@ describe(ProviderProxyService.name, () => {
       session.send(new Uint8Array([1, 2, 3]));
       await dispatchWsEvent(websocket, new Event("open"));
 
-      const sentMessage = JSON.parse((websocket.send as jest.Mock).mock.calls[0][0]);
+      const sentMessage = JSON.parse((websocket.send as Mock).mock.calls[0][0]);
       expect(sentMessage.auth).toEqual({
         type: "jwt",
         token: "token123"
@@ -932,7 +906,6 @@ describe(ProviderProxyService.name, () => {
         dseq: "666",
         gseq: 1,
         oseq: 1,
-        chainNetwork: "mainnet",
         service: "web"
       };
 
@@ -941,8 +914,8 @@ describe(ProviderProxyService.name, () => {
       session.send(encoder.encode("echo hello"));
       await dispatchWsEvent(websocket, new Event("open"));
 
-      const sentMessage = JSON.parse((websocket.send as jest.Mock).mock.calls[0][0]);
-      expect(sentMessage.data).toBe(encoder.encode("echo hello").toString());
+      const sentMessage = JSON.parse((websocket.send as Mock).mock.calls[0][0]);
+      expect(sentMessage.data).toBe("ZWNobyBoZWxsbw==");
     });
 
     it("does not include data field when message is empty", async () => {
@@ -954,7 +927,6 @@ describe(ProviderProxyService.name, () => {
         dseq: "777",
         gseq: 1,
         oseq: 1,
-        chainNetwork: "mainnet",
         service: "web"
       };
 
@@ -962,7 +934,7 @@ describe(ProviderProxyService.name, () => {
       session.send(new Uint8Array());
       await dispatchWsEvent(websocket, new Event("open"));
 
-      const sentMessage = JSON.parse((websocket.send as jest.Mock).mock.calls[0][0]);
+      const sentMessage = JSON.parse((websocket.send as Mock).mock.calls[0][0]);
       expect(sentMessage.data).toBeUndefined();
     });
 
@@ -976,7 +948,6 @@ describe(ProviderProxyService.name, () => {
         dseq: "888",
         gseq: 1,
         oseq: 1,
-        chainNetwork: "mainnet",
         service: "web",
         signal: abortController.signal
       };
@@ -999,7 +970,6 @@ describe(ProviderProxyService.name, () => {
         dseq: "1000",
         gseq: 1,
         oseq: 1,
-        chainNetwork: "mainnet",
         service: "web"
       };
 
@@ -1012,11 +982,11 @@ describe(ProviderProxyService.name, () => {
 
       expect(websocket.send).toHaveBeenCalledTimes(2);
 
-      const firstMessage = JSON.parse((websocket.send as jest.Mock).mock.calls[0][0]);
-      const secondMessage = JSON.parse((websocket.send as jest.Mock).mock.calls[1][0]);
+      const firstMessage = JSON.parse((websocket.send as Mock).mock.calls[0][0]);
+      const secondMessage = JSON.parse((websocket.send as Mock).mock.calls[1][0]);
 
-      expect(firstMessage.data).toBe(encoder.encode("first").toString());
-      expect(secondMessage.data).toBe(encoder.encode("second").toString());
+      expect(firstMessage.data).toBe("Zmlyc3Q=");
+      expect(secondMessage.data).toBe("c2Vjb25k");
     });
 
     it("receives shell messages through async iterator", async () => {
@@ -1028,7 +998,6 @@ describe(ProviderProxyService.name, () => {
         dseq: "1111",
         gseq: 1,
         oseq: 1,
-        chainNetwork: "mainnet",
         service: "web"
       };
 
@@ -1060,7 +1029,7 @@ describe(ProviderProxyService.name, () => {
     });
 
     it("does not retry on invalid provider certificate", async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
 
       const { service, websocket, createWebSocket } = setup();
       const input = {
@@ -1070,19 +1039,18 @@ describe(ProviderProxyService.name, () => {
         dseq: "1111",
         gseq: 1,
         oseq: 1,
-        chainNetwork: "mainnet",
         service: "web"
       };
 
       const session = service.connectToShell(input);
       session.receive().next();
-      await Promise.all([dispatchWsEvent(websocket, new Event("open")), jest.runOnlyPendingTimersAsync()]);
+      await Promise.all([dispatchWsEvent(websocket, new Event("open")), vi.runOnlyPendingTimersAsync()]);
       await Promise.all([
         dispatchWsEvent(websocket, new CloseEvent("close", { code: WS_ERRORS.VIOLATED_POLICY, reason: "invalidCertificate.notSelfSigned" })),
-        jest.runOnlyPendingTimersAsync()
+        vi.runOnlyPendingTimersAsync()
       ]);
 
-      await jest.advanceTimersByTimeAsync(10_000);
+      await vi.advanceTimersByTimeAsync(10_000);
 
       expect(createWebSocket).toHaveBeenCalledTimes(1);
     });
@@ -1096,9 +1064,9 @@ describe(ProviderProxyService.name, () => {
   }) {
     const httpClient = input?.httpClient || mock<HttpClient>();
     const logger = input?.logger || mock<LoggerService>();
-    const saveFile = input?.saveFile || jest.fn();
+    const saveFile = input?.saveFile || vi.fn();
     const websocket = createWebsocketMock();
-    const createWebSocket = jest.fn(() => websocket);
+    const createWebSocket = vi.fn(() => websocket);
     const service = new ProviderProxyService(httpClient, logger, createWebSocket, saveFile);
     return { service, httpClient, logger, saveFile, websocket, createWebSocket };
   }

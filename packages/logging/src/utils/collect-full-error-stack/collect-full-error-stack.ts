@@ -1,4 +1,4 @@
-export function collectFullErrorStack(error: string | Error | AggregateError | ErrorWithResponse | undefined | null, indent = 0): string {
+export function collectFullErrorStack(error: string | Error | AggregateError | ErrorWithResponse | ErrorWithData | undefined | null, indent = 0): string {
   if (!error) return "";
   if (typeof error === "string") return sanitizeString(error);
 
@@ -24,11 +24,13 @@ export function collectFullErrorStack(error: string | Error | AggregateError | E
     const requestedPath = currentError.response.config?.url
       ? `${currentError.response.config.method?.toUpperCase() || "(HTTP method not specified)"} ${currentError.response.config?.url}`
       : "Unknown request";
+    const body = currentError.response.data ? JSON.stringify(currentError.response.data) : "No body";
     stack.push(
       "\nResponse:",
-      `\n\nRequest: ${requestedPath}`,
-      `\n\nStatus: ${currentError.response.status}`,
-      `\n\nError: ${sanitizeString(currentError.response.data?.message) || "Not specified"} (code: ${currentError.response.data?.code || "Not specified"})`
+      `\nRequest: ${requestedPath}`,
+      `\nStatus: ${currentError.response.status}`,
+      `\nError: ${sanitizeString(currentError.response.data?.message) || "Not specified"} (code: ${currentError.response.data?.code || "Not specified"})`,
+      `\nBody: ${body.length > 200 ? `${body.slice(0, 200)}...` : body}`
     );
   }
 
@@ -50,6 +52,7 @@ type ErrorWithResponse = Error & {
   };
 };
 type AggregateError = Error & { errors?: Error[] };
+type ErrorWithData = Error & { data?: Record<string, unknown>; originalError?: Error };
 
 export function sanitizeString(str: string | undefined | null): string {
   if (!str) return "";

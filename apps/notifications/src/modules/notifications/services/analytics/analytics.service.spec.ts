@@ -1,5 +1,6 @@
 import type { ConfigService } from "@nestjs/config";
-import { mock } from "jest-mock-extended";
+import { describe, expect, it } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { LoggerService } from "@src/common/services/logger/logger.service";
 import type { Namespaced } from "@src/lib/types/namespaced-config.type";
@@ -28,7 +29,7 @@ describe("AnalyticsService", () => {
     const configService = mock<ConfigService<Namespaced<"notifications", NotificationEnvConfig>>>();
     const loggerService = mock<LoggerService>();
 
-    jest.spyOn(configService, "getOrThrow").mockReturnValue("0.0");
+    configService.getOrThrow.mockReturnValue("0.0");
     hasher.hash.mockReturnValue(50); // Hash value that would normally be sampled
 
     const service = new AnalyticsService(amplitude, hasher, configService, loggerService);
@@ -57,7 +58,7 @@ describe("AnalyticsService", () => {
     const configService = mock<ConfigService<Namespaced<"notifications", NotificationEnvConfig>>>();
     const loggerService = mock<LoggerService>();
 
-    jest.spyOn(configService, "getOrThrow").mockReturnValue("1.0");
+    configService.getOrThrow.mockReturnValue("1.0");
     hasher.hash.mockReturnValue(50); // Mock hash value that will be sampled
 
     const service = new AnalyticsService(amplitude, hasher, configService, loggerService);

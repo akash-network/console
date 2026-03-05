@@ -3,6 +3,7 @@ import type { TemplateCategory, TemplateHttpService, TemplateOutputSummary } fro
 import { Snackbar } from "@akashnetwork/ui/components";
 import type { QueryKey, UseQueryOptions } from "@tanstack/react-query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { secondsInDay } from "date-fns/constants";
 import { useSnackbar } from "notistack";
 
 import { useServices } from "@src/context/ServicesProvider/ServicesProvider";
@@ -14,7 +15,7 @@ export function useUserTemplates(username: string, options?: Omit<UseQueryOption
   const { consoleApiHttpClient } = useServices();
   return useQuery<ITemplate[], Error>({
     queryKey: QueryKeys.getUserTemplatesKey(username),
-    queryFn: () => consoleApiHttpClient.get<ITemplate[]>(`/user/templates/${username}`).then(response => response.data),
+    queryFn: () => consoleApiHttpClient.get<ITemplate[]>(`/v1/user/templates/${username}`).then(response => response.data),
     ...options
   });
 }
@@ -24,7 +25,7 @@ export function useUserFavoriteTemplates(options?: Omit<UseQueryOptions<Partial<
   const { consoleApiHttpClient } = useServices();
   return useQuery<Partial<ITemplate>[], Error>({
     queryKey: QueryKeys.getUserFavoriteTemplatesKey(user?.sub || ""),
-    queryFn: () => consoleApiHttpClient.get<Partial<ITemplate>[]>(`/user/favoriteTemplates`).then(response => response.data),
+    queryFn: () => consoleApiHttpClient.get<Partial<ITemplate>[]>(`/v1/user/favoriteTemplates`).then(response => response.data),
     ...options
   });
 }
@@ -34,7 +35,7 @@ export function useTemplate(id: string, options?: Omit<UseQueryOptions<ITemplate
 
   return useQuery<ITemplate, Error>({
     queryKey: QueryKeys.getTemplateKey(id),
-    queryFn: () => consoleApiHttpClient.get<ITemplate>(`/user/template/${id}`).then(response => response.data),
+    queryFn: () => consoleApiHttpClient.get<ITemplate>(`/v1/user/template/${id}`).then(response => response.data),
     ...options
   });
 }
@@ -49,7 +50,7 @@ export function useSaveUserTemplate(
 
   return useMutation({
     mutationFn: (template: Partial<ITemplate>) =>
-      consoleApiHttpClient.post("/user/saveTemplate", {
+      consoleApiHttpClient.post("/v1/user/saveTemplate", {
         id: template.id,
         sdl: template.sdl,
         isPublic: template.isPublic,
@@ -74,10 +75,10 @@ export function useDeleteTemplate(id: string) {
   const { consoleApiHttpClient } = useServices();
 
   return useMutation({
-    mutationFn: () => consoleApiHttpClient.delete(`/user/deleteTemplate/${id}`),
+    mutationFn: () => consoleApiHttpClient.delete(`/v1/user/deleteTemplate/${id}`),
     onSuccess: () => {
-      if (user.username) {
-        queryClient.setQueryData(QueryKeys.getUserTemplatesKey(user?.username), (oldData: ITemplate[] = []) => {
+      if (user?.username) {
+        queryClient.setQueryData(QueryKeys.getUserTemplatesKey(user.username), (oldData: ITemplate[] = []) => {
           return oldData.filter(t => t.id !== id);
         });
       }
@@ -90,7 +91,7 @@ export function useAddFavoriteTemplate(id: string) {
   const { consoleApiHttpClient } = useServices();
 
   return useMutation({
-    mutationFn: () => consoleApiHttpClient.post(`/user/addFavoriteTemplate/${id}`),
+    mutationFn: () => consoleApiHttpClient.post(`/v1/user/addFavoriteTemplate/${id}`),
     onSuccess: () => {
       enqueueSnackbar(<Snackbar title="Favorite added!" iconVariant="success" />, { variant: "success" });
     }
@@ -102,7 +103,7 @@ export function useRemoveFavoriteTemplate(id: string) {
   const { consoleApiHttpClient } = useServices();
 
   return useMutation({
-    mutationFn: () => consoleApiHttpClient.delete(`/user/removeFavoriteTemplate/${id}`),
+    mutationFn: () => consoleApiHttpClient.delete(`/v1/user/removeFavoriteTemplate/${id}`),
     onSuccess: () => {
       enqueueSnackbar(<Snackbar title="Favorite removed" iconVariant="success" />, { variant: "success" });
     }
@@ -152,11 +153,13 @@ export function useTemplates(options = {}): CategoriesAndTemplatesResult {
   const query = useQuery({
     queryKey: QueryKeys.getTemplatesKey(),
     queryFn: () => getTemplates(templateService),
-    ...options,
-    refetchInterval: 60000 * 2, // Refetch templates every 2 minutes
+    staleTime: secondsInDay * 1000,
+    gcTime: secondsInDay * 1000,
+    refetchInterval: false,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: false,
-    refetchOnReconnect: false
+    refetchOnReconnect: false,
+    ...options
   });
 
   return useMemo(

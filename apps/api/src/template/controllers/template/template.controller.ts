@@ -1,37 +1,19 @@
 import assert from "http-assert";
-import { injectable } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
-import { TemplateGalleryService } from "@src/services/external/templates/template-gallery.service";
-import { GetTemplatesListResponseSchema } from "@src/template/http-schemas/template.schema";
-import { dataFolderPath } from "@src/utils/constants";
-import { env } from "@src/utils/env";
+import { Template } from "@src/template/types/template";
+import { TEMPLATE_GALLERY_SERVICE } from "../../providers/template-gallery.provider";
+import { TemplateGalleryService } from "../../services/template-gallery/template-gallery.service";
 
-@injectable()
+@singleton()
 export class TemplateController {
-  private readonly templateGalleryService: TemplateGalleryService;
+  constructor(@inject(TEMPLATE_GALLERY_SERVICE) private readonly templateGalleryService: TemplateGalleryService) {}
 
-  constructor() {
-    this.templateGalleryService = new TemplateGalleryService({
-      githubPAT: env.GITHUB_PAT,
-      dataFolderPath
-    });
+  async getTemplatesListJson(): Promise<Buffer> {
+    return await this.templateGalleryService.getGallerySummaryBuffer();
   }
 
-  async getTemplatesFull() {
-    return await this.templateGalleryService.getTemplateGallery();
-  }
-
-  async getTemplatesList() {
-    const templatesPerCategory = await this.templateGalleryService.getTemplateGallery();
-    // TODO: remove manual response filtering when https://github.com/honojs/middleware/issues/181 is done
-    const arraySchema = GetTemplatesListResponseSchema.pick({ data: true }).shape.data;
-    const filteredTemplatesPerCategory = await arraySchema.safeParseAsync(templatesPerCategory);
-    const response = filteredTemplatesPerCategory.success ? filteredTemplatesPerCategory.data : templatesPerCategory;
-
-    return { data: response };
-  }
-
-  async getTemplateById(id: string) {
+  async getTemplateById(id: string): Promise<{ data: Template }> {
     const template = await this.templateGalleryService.getTemplateById(id);
     assert(template, 404, "Template not found");
 

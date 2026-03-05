@@ -1,14 +1,14 @@
 import { ManagementClient } from "auth0";
-import { container } from "tsyringe";
+import { container, instancePerContainerCachingFactory } from "tsyringe";
 
 import { AuthConfigService } from "@src/auth/services/auth-config/auth-config.service";
 
 let managementClientInstance: ManagementClient | null = null;
 
 container.register(ManagementClient, {
-  useFactory: () => {
+  useFactory: instancePerContainerCachingFactory(c => {
     if (!managementClientInstance) {
-      const authConfig = container.resolve(AuthConfigService);
+      const authConfig = c.resolve(AuthConfigService);
 
       managementClientInstance = new ManagementClient({
         domain: authConfig.get("AUTH0_M2M_DOMAIN"),
@@ -18,5 +18,5 @@ container.register(ManagementClient, {
     }
 
     return managementClientInstance;
-  }
+  })
 });

@@ -1,15 +1,22 @@
-import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 
+import { createRoute } from "@src/core/lib/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 import { PricingController } from "@src/pricing/controllers/pricing/pricing.controller";
 import { PricingBodySchema, PricingResponseSchema } from "@src/pricing/http-schemas/pricing.schema";
+
+export const pricingRouter = new OpenApiHonoHandler();
 
 const postPricingRoute = createRoute({
   method: "post",
   path: "/v1/pricing",
   tags: ["Other"],
+  security: SECURITY_NONE,
   summary: "Estimate the price of a deployment on akash and other cloud providers.",
+  bodyLimit: {
+    maxSize: 512 // 512 bytes
+  },
   request: {
     body: {
       description:
@@ -23,7 +30,7 @@ const postPricingRoute = createRoute({
   },
   responses: {
     200: {
-      description: "Returns a list of deployment templates grouped by cateogories",
+      description: "Returns a list of deployment templates grouped by categories",
       content: {
         "application/json": {
           schema: PricingResponseSchema
@@ -35,11 +42,9 @@ const postPricingRoute = createRoute({
     }
   }
 });
-export const pricingRouter = new OpenApiHonoHandler();
-
 pricingRouter.openapi(postPricingRoute, async function routePostPricing(c) {
-  const body = PricingBodySchema.parse(await c.req.json());
-  const pricing = container.resolve(PricingController).getPricing(body);
+  const body = c.req.valid("json");
+  const pricing = await container.resolve(PricingController).getPricing(body);
 
   return c.json(pricing);
 });

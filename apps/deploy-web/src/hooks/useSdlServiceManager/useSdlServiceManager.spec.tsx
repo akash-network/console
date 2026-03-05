@@ -1,10 +1,12 @@
 import type { UseFormReturn } from "react-hook-form";
 import { FormProvider, useForm } from "react-hook-form";
+import { describe, expect, it, vi } from "vitest";
 
+import { LOG_COLLECTOR_IMAGE } from "@src/config/log-collector.config";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { useSdlServiceManager } from "./useSdlServiceManager";
 
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { buildSDLService } from "@tests/seeders/sdlService";
 
 describe(useSdlServiceManager.name, () => {
@@ -77,7 +79,7 @@ describe(useSdlServiceManager.name, () => {
         buildSDLService({ title: "service-1" }),
         buildSDLService({
           title: "service-1-log-collector",
-          image: "ghcr.io/akash-network/log-collector:1.7.0"
+          image: LOG_COLLECTOR_IMAGE
         }),
         buildSDLService({ title: "service-2" })
       ]
@@ -112,7 +114,7 @@ describe(useSdlServiceManager.name, () => {
         buildSDLService({ title: "service-1" }),
         buildSDLService({
           title: "service-1-log-collector",
-          image: "ghcr.io/akash-network/log-collector:1.7.0"
+          image: LOG_COLLECTOR_IMAGE
         }),
         buildSDLService({ title: "service-3" })
       ]
@@ -184,7 +186,7 @@ describe(useSdlServiceManager.name, () => {
 
     return {
       result,
-      form: await waitFor(() => methods)
+      form: await vi.waitFor(() => methods)
     };
   }
 });

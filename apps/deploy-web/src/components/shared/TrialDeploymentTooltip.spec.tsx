@@ -1,10 +1,11 @@
 import React from "react";
+import { describe, expect, it } from "vitest";
 
-import { ServicesProvider } from "@src/context/ServicesProvider";
 import { DEPENDENCIES as TRIAL_TOOLTIP_DEPENDENCIES, TrialDeploymentTooltip } from "./TrialDeploymentTooltip";
 
 import { render, screen } from "@testing-library/react";
 import { ComponentMock } from "@tests/unit/mocks";
+import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe("TrialDeploymentTooltip", () => {
   it("renders trial deployment info when no created height", () => {
@@ -124,9 +125,9 @@ describe("TrialDeploymentTooltip", () => {
     };
 
     return render(
-      <ServicesProvider>
+      <TestContainerProvider>
         <TrialDeploymentTooltip {...props} />
-      </ServicesProvider>
+      </TestContainerProvider>
     );
   }
 });

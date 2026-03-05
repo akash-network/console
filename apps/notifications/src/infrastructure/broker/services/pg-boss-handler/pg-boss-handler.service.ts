@@ -1,7 +1,7 @@
 import { DiscoveryService } from "@golevelup/nestjs-discovery";
 import { Injectable } from "@nestjs/common";
 import { validate, ZodDto } from "nestjs-zod";
-import PgBoss from "pg-boss";
+import type { Job } from "pg-boss";
 import { Err, Result } from "ts-results";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
@@ -11,7 +11,7 @@ import { BrokerService } from "../broker/broker.service";
 export interface HandlerConfig<T> {
   key: string;
   dto: ZodDto<T>;
-  handler: (message: PgBoss.Job<T>["data"]) => Promise<void | Result<unknown, unknown>>;
+  handler: (message: Job<T>["data"]) => Promise<void | Result<unknown, unknown>>;
 }
 
 @Injectable()

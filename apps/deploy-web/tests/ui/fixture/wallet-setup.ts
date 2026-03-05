@@ -1,147 +1,184 @@
+import type { NetworkId } from "@akashnetwork/chain-sdk";
 import { netConfig } from "@akashnetwork/net";
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import type { BrowserContext, Page } from "@playwright/test";
-import { selectors } from "@playwright/test";
 import fs from "fs";
 import path from "path";
 import { setTimeout as wait } from "timers/promises";
 
 import { isWalletConnected } from "../uiState/isWalletConnected";
 import { testEnvConfig } from "./test-env.config";
-import { clickCreateNewWalletButton, clickCreateWalletButton, clickWalletSelectorDropdown, fillWalletName } from "./testing-helpers";
+import { clickWalletSelectorDropdown } from "./testing-helpers";
 
 const WALLET_PASSWORD = "12345678";
 
-export async function getExtensionPage(context: BrowserContext, extensionId: string) {
-  const extUrl = `chrome-extension://${extensionId}/index.html`;
-  let extPage = context.pages().find(page => page.url().startsWith(extUrl));
+export async function getExtensionPage(context: BrowserContext): Promise<Page> {
+  const extensionId = await getExtensionId(context);
+  const extUrl = `chrome-extension://${extensionId}`;
+  const extPage = context.pages().find(page => page.url().startsWith(extUrl));
 
   if (!extPage) {
-    extPage = await context.newPage();
-    await extPage.goto(extUrl);
-    await extPage.waitForLoadState("domcontentloaded");
-    await context.waitForEvent("page", { timeout: 5_000 }).catch(() => null);
+    const page = await context.newPage();
+    await page.goto(`${extUrl}/index.html`, { waitUntil: "domcontentloaded" });
+    return page;
   }
 
   return extPage;
 }
 
-export async function setupWallet(context: BrowserContext, page: Page) {
-  const wallet = await importWalletToLeap(context, page);
-  await restoreExtensionStorage(page);
-  await page.reload({ waitUntil: "domcontentloaded" });
-  await topUpWallet(wallet);
+let extensionId: string | undefined;
+export async function getExtensionId(context: BrowserContext): Promise<string> {
+  if (extensionId) return extensionId;
+
+  let [background] = context.serviceWorkers();
+  if (!background) {
+    background = await context.waitForEvent("serviceworker");
+  }
+
+  extensionId = background.url().split("/")[2];
+  return extensionId;
 }
 
-export async function createWallet(context: BrowserContext, extensionId: string, walletName: string) {
-  const extPage = await getExtensionPage(context, extensionId);
+export async function setupWallet(page: Page) {
+  const address = await restoreExtensionStorage(page, testEnvConfig.NETWORK_ID);
+  await topUpWallet(address);
+}
+
+export async function createWallet(context: BrowserContext): Promise<{
+  extPage: Page;
+  address: string;
+}> {
+  const extPage = await getExtensionPage(context);
+  await extPage.waitForLoadState("load");
 
   await clickWalletSelectorDropdown(extPage);
-  await clickCreateNewWalletButton(extPage);
-  await fillWalletName(extPage, walletName);
+  await extPage.getByRole("button", { name: /import wallet/i }).click();
+  await extPage.getByRole("button", { name: /recovery phrase/i }).click();
+  const tmpWallet = await DirectSecp256k1HdWallet.generate(12, { prefix: "akash" });
+  await fillInMnemonic(extPage, tmpWallet.mnemonic);
+  await extPage.getByRole("button", { name: /import wallet/i }).click();
 
-  return clickCreateWalletButton(extPage);
+  const accounts = await tmpWallet.getAccounts();
+
+  return {
+    extPage,
+    address: accounts[0].address
+  };
 }
 
 export async function connectWalletViaLeap(context: BrowserContext, page: Page) {
   if (!(await isWalletConnected(page))) {
     await page.getByTestId("connect-wallet-btn").click();
     const [popupPage] = await Promise.all([
-      context.waitForEvent("page", { timeout: 5_000 }).catch(() => null),
+      context.waitForEvent("page", { timeout: 15_000 }).catch(() => null),
       wait(100).then(() => page.getByRole("button", { name: "Leap Leap" }).click())
     ]);
 
-    await approveWalletOperation(popupPage);
+    if (popupPage) await connectOrUnlockWallet(popupPage);
     await isWalletConnected(page);
   }
 }
 
-export async function awaitWalletAndApprove(context: BrowserContext, page: Page, extensionId: string) {
-  const popupPage = await Promise.race([
-    context.waitForEvent("page", { timeout: 5_000 }),
-    getExtensionPage(context, extensionId),
-  ]);
+async function connectOrUnlockWallet(popupPage: Page) {
+  const buttonLocator = popupPage
+    .getByRole("button", { name: /Unlock wallet/i })
+    .or(popupPage.getByRole("button", { name: /connect button in approve connection flow/i }));
+  const buttonText = (await buttonLocator.textContent())?.trim();
+  if (buttonText === "Unlock wallet") {
+    await unlockWallet(popupPage);
+  } else if (buttonText === "Connect") {
+    await buttonLocator.click();
+  } else {
+    throw new Error(`Unexpected state in wallet popup: ${buttonText}`);
+  }
+}
+
+export async function awaitWalletAndApprove(context: BrowserContext, page: Page) {
+  const popupPage = await Promise.race([context.waitForEvent("page", { timeout: 5_000 }), getExtensionPage(context)]);
   await approveWalletOperation(popupPage);
   await isWalletConnected(page);
 }
 
 export async function approveWalletOperation(popupPage: Page | null) {
   if (!popupPage) return;
-  const buttonsSelector = ['button:has-text("Approve")', 'button:has-text("Unlock wallet")', 'button:has-text("Connect")'].join(",");
+  const buttonLocator = popupPage.locator("button", { hasText: /^\s*(Approve|Unlock wallet|Connect)\s*$/i });
+  await buttonLocator.waitFor({ state: "visible", timeout: 5_000 });
 
-  await popupPage.waitForSelector(buttonsSelector, { state: "visible" });
-  // sometimes wallet extension is flikering and "Unlock wallet" button is visible for a split second
-  // so we need to wait again after a bit
-  await popupPage.waitForTimeout(500);
-
-  const visibleButton = await popupPage.waitForSelector(buttonsSelector, { state: "visible" });
-  const buttonText = await visibleButton.textContent();
+  const buttonText = await buttonLocator.textContent();
 
   switch (buttonText?.trim()) {
-    case "Approve":
-      await visibleButton.click();
+    case "Approve": {
+      // increase gas limit
+      await popupPage.getByText(/show additional settings/i).click();
+      const gasInput = popupPage
+        .getByText("Enter gas limit manually")
+        .locator("xpath=..") // get parent
+        .locator("input");
+
+      const value = Number(await gasInput.inputValue());
+      await gasInput.fill(Math.ceil(1.5 * value).toString());
+      await buttonLocator.click();
       break;
+    }
     case "Unlock wallet":
-      await popupPage.locator("input").fill(WALLET_PASSWORD);
-      await visibleButton.click();
-      await popupPage.waitForSelector('button:has-text("Connect")', { state: "visible" }).then(button => button.click());
+      await unlockWallet(popupPage);
+      await popupPage
+        .getByRole("button", { name: /connect button in approve connection flow/i })
+        .or(popupPage.getByLabel("wallet dropdown"))
+        .click();
       break;
     case "Connect":
-      await visibleButton.click();
+      await buttonLocator.click();
       break;
     default:
       throw new Error("Unexpected state in wallet popup");
   }
 }
 
-async function importWalletToLeap(context: BrowserContext, page: Page) {
-  const mnemonic = testEnvConfig.TEST_WALLET_MNEMONIC;
-  if (!mnemonic) {
-    throw new Error("TEST_WALLET_MNEMONIC is not set");
-  }
-  const mnemonicArray = mnemonic.trim().split(" ");
+export async function unlockWallet(page: Page) {
+  await page.locator("input").fill(WALLET_PASSWORD);
+  await page.getByRole("button", { name: /unlock wallet/i }).click();
+}
 
-  if (mnemonicArray.length !== 12) {
-    throw new Error("TEST_WALLET_MNEMONIC should have 12 words");
-  }
-
+export async function importWalletToLeap(page: Page, mnemonic: string) {
   await page.getByText(/import an existing wallet/i).click();
   await page.getByText(/recovery phrase/i).click();
+  await fillInMnemonic(page, mnemonic);
 
-  try {
-    selectors.setTestIdAttribute("data-testing-id");
+  await page.getByRole("button", { name: /Continue/i }).click();
+  await page.waitForTimeout(2000);
+  await page.getByRole("checkbox", { name: "Wallet 1" }).setChecked(true);
+  await page.getByRole("button", { name: /Proceed/i }).click();
 
-    for (const word of mnemonicArray) {
-      await page.locator("input:focus").fill(word);
-      await page.keyboard.press("Tab");
-    }
+  // Set password
+  await page.getByPlaceholder("Enter password").fill(WALLET_PASSWORD);
+  await page.getByPlaceholder("Confirm password").fill(WALLET_PASSWORD);
+  await page.locator("button", { hasText: /Set Password/i }).click();
 
-    await page.getByRole("button", { name: /Continue/i }).click();
-    await page.getByTestId("btn-select-wallet-proceed").click();
+  await page.waitForLoadState("domcontentloaded");
 
-    // Set password
-    await page.getByTestId("input-password").fill(WALLET_PASSWORD);
-    await page.getByTestId("input-confirm-password").fill(WALLET_PASSWORD);
-    await page.getByTestId("btn-password-proceed").click();
+  return await DirectSecp256k1HdWallet.fromMnemonic(mnemonic, {
+    prefix: "akash"
+  });
+}
 
-    await page.waitForLoadState("domcontentloaded");
+async function fillInMnemonic(page: Page, mnemonic: string) {
+  const mnemonicArray = mnemonic.trim().split(" ");
 
-    return await DirectSecp256k1HdWallet.fromMnemonic(mnemonic, {
-      prefix: "akash"
-    });
-  } finally {
-    // Reset test id attribute for console
-    selectors.setTestIdAttribute("data-testid");
+  await page.locator('input[type="text"]:first-of-type').first().focus();
+
+  for (const word of mnemonicArray) {
+    await page.locator("input:focus").fill(word);
+    await page.keyboard.press("Tab");
   }
 }
 
-async function topUpWallet(wallet: DirectSecp256k1HdWallet) {
+export async function topUpWallet(address: string, attempt = 0) {
   try {
-    const accounts = await wallet.getAccounts();
-    const balance = await getBalance(accounts[0].address);
+    const balance = await getBalance(address);
 
-    if (balance > 100 * 1_000_000) {
-      // 100 AKT should be enough
+    if (balance > 50 * 1_000_000) {
+      // 50 AKT should be enough
       return;
     }
 
@@ -160,11 +197,19 @@ async function topUpWallet(wallet: DirectSecp256k1HdWallet) {
       headers: {
         "Content-Type": "application/x-www-form-urlencoded"
       },
-      body: `address=${encodeURIComponent(accounts[0].address)}`
+      body: `address=${encodeURIComponent(address)}`
     });
     if (response.status >= 300) {
+      const error = await response.text();
       console.error(`Unexpected faucet response status: ${response.status}`);
-      console.error("Faucet response:", await response.text());
+      console.error(error);
+
+      if (error.includes("account sequence mismatch") && attempt < 10) {
+        console.log("retrying top up attempt...", attempt + 1);
+        await wait(2000);
+        await topUpWallet(address, attempt + 1);
+        return;
+      }
     }
   } catch (error) {
     console.error("Unable to top up wallet");
@@ -175,11 +220,31 @@ async function topUpWallet(wallet: DirectSecp256k1HdWallet) {
 async function getBalance(address: string) {
   const response = await fetch(`${netConfig.getBaseAPIUrl(testEnvConfig.NETWORK_ID)}/cosmos/bank/v1beta1/balances/${address}`);
   const data = await response.json();
+  if (!response.ok) return 0;
   return data.balances.find((balance: Record<string, string>) => balance.denom === "uakt")?.amount || 0;
 }
 
-// @see https://github.com/microsoft/playwright/issues/14949
-export async function restoreExtensionStorage(page: Page): Promise<void> {
-  const extensionStorage = JSON.parse(fs.readFileSync(path.join(__dirname, "leapExtensionLocalStorage.json"), "utf8"));
+/**
+ * To get the extension storage, follow these steps:
+ * 1. Open Chrome with Leap extension installed
+ * 2. Open DevTools (F12) on Leap extension page
+ * 3. Run this in the script:
+ *    ```js
+ *    chrome.storage.local.get(null, (data) => {
+ *      const json = JSON.stringify(data, null, 2);
+ *      const blob = new Blob([json], {type: 'application/json'});
+ *      const url = URL.createObjectURL(blob);
+ *      const a = document.createElement('a');
+ *      a.href = url;
+ *      a.download = 'leapExtensionLocalStorage.json';
+ *      a.click();
+ *    });
+ *    ```
+ *
+ * @see https://github.com/microsoft/playwright/issues/14949
+ */
+export async function restoreExtensionStorage(page: Page, networkId: NetworkId): Promise<string> {
+  const extensionStorage = JSON.parse(fs.readFileSync(path.join(__dirname, `leapExtensionLocalStorage.${networkId}.json`), "utf8"));
   await page.evaluate(data => chrome.storage.local.set(data), extensionStorage);
+  return extensionStorage["active-wallet"].addresses.akash;
 }

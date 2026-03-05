@@ -6,6 +6,7 @@ import { singleton } from "tsyringe";
 
 import { ApiKeyOutput, ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
+import { Trace } from "@src/core/services/tracing/tracing.service";
 import { ApiKeyGeneratorService } from "./api-key-generator.service";
 
 @singleton()
@@ -25,6 +26,7 @@ export class ApiKeyAuthService {
     return apiKeys[comparisons.findIndex(result => result)];
   }
 
+  @Trace()
   async getAndValidateApiKeyFromHeader(apiKey: string | undefined): Promise<ApiKeyOutput> {
     assert(apiKey, 401, "Invalid API key");
 

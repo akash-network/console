@@ -1,4 +1,4 @@
-import { context, trace } from "@opentelemetry/api";
+import { context, propagation, trace } from "@opentelemetry/api";
 
 import type { LoggerOptions } from "../../services/logger/logger.service";
 import { LoggerService } from "../../services/logger/logger.service";
@@ -10,7 +10,14 @@ import { LoggerService } from "../../services/logger/logger.service";
  */
 export function collectOtel() {
   const currentSpan = trace.getSpan(context.active());
-  return { ...currentSpan?.spanContext() };
+  const spanContext = currentSpan?.spanContext();
+  const currentBaggage = propagation.getBaggage(context.active());
+  const jobId = currentBaggage?.getEntry("job.id")?.value;
+
+  return {
+    ...spanContext,
+    ...(jobId && { jobId })
+  };
 }
 
 /**

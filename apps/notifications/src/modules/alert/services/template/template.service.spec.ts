@@ -1,3 +1,5 @@
+import { describe, expect, it } from "vitest";
+
 import { TemplateService } from "./template.service";
 
 describe(TemplateService.name, () => {

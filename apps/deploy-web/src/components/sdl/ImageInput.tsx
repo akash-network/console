@@ -6,7 +6,7 @@ import { InfoCircle, OpenInWindow } from "iconoir-react";
 import Link from "next/link";
 
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
-import { ImageRegistryLogo } from "./ImageRegistryLogo";
+import { ImageRegistryLogo } from "./ImageRegistryLogo/ImageRegistryLogo";
 
 type Props = {
   serviceIndex: number;
@@ -15,8 +15,8 @@ type Props = {
   setValue: UseFormSetValue<SdlBuilderFormValuesType>;
 };
 
-const defaultCredentials = {
-  host: "docker.io" as "docker.io" | "ghcr.io",
+const defaultCredentials: NonNullable<ServiceType["credentials"]> = {
+  host: "docker.io",
   username: "",
   password: ""
 };

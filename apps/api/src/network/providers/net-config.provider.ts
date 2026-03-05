@@ -1,5 +1,4 @@
-import { netConfig } from "@akashnetwork/net";
-import { NetConfig } from "@akashnetwork/net/src/NetConfig/NetConfig";
+import { NetConfig, netConfig } from "@akashnetwork/net";
 import { container } from "tsyringe";
 
 container.register(NetConfig, {

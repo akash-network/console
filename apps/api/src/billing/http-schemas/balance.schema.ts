@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { AkashAddressSchema } from "@src/utils/schema";
+
 export const GetBalancesResponseOutputSchema = z.object({
   data: z.object({
     balance: z.number(),
@@ -9,7 +11,7 @@ export const GetBalancesResponseOutputSchema = z.object({
 });
 
 export const GetBalancesQuerySchema = z.object({
-  address: z.string().optional().describe("Optional wallet address to fetch balances for instead of the current user")
+  address: AkashAddressSchema.optional().describe("Optional wallet address to fetch balances for instead of the current user")
 });
 
 export type GetBalancesResponseOutput = z.infer<typeof GetBalancesResponseOutputSchema>;

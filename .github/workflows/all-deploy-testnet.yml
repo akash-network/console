@@ -91,7 +91,6 @@ jobs:
       appVersion: sdk53
       environment: staging
       chain: sandbox
-      skip_beta_deployment_check: true
       force-rollout: true
 
   deploy-notifications:
@@ -113,5 +112,4 @@ jobs:
       app: console-web
       appVersion: sdk53-sandbox
       environment: staging
-      skip_beta_deployment_check: true
       force-rollout: true

@@ -1,7 +1,6 @@
-import type { AxiosRequestConfig } from "axios";
-
 import type { ApiOutput } from "../api-http/api-http.service";
-import { ApiHttpService } from "../api-http/api-http.service";
+import { extractData } from "../http/http.service";
+import type { HttpClient } from "../utils/httpClient";
 
 export interface TemplateOutput {
   id: string;
@@ -25,6 +24,7 @@ export interface TemplateOutputSummary {
   logoUrl?: string | null;
   summary: string;
   deploy: string;
+  tags?: string[];
 }
 
 export interface TemplateCategory {
@@ -32,16 +32,19 @@ export interface TemplateCategory {
   templates: TemplateOutputSummary[];
 }
 
-export class TemplateHttpService extends ApiHttpService {
-  constructor(config?: Pick<AxiosRequestConfig, "baseURL">) {
-    super(config);
+export class TemplateHttpService {
+  readonly #httpClient: HttpClient;
+
+  constructor(httpClient: HttpClient) {
+    this.#httpClient = httpClient;
   }
 
   async findById(id: string): Promise<TemplateOutput> {
-    return this.extractApiData(await this.get<TemplateOutput>(`/v1/templates/${id}`));
+    const response = extractData(await this.#httpClient.get<{ data: TemplateOutput }>(`/v1/templates/${id}.json`));
+    return response.data;
   }
 
   async findGroupedByCategory(): Promise<ApiOutput<TemplateCategory[]>> {
-    return this.extractData(await this.get<TemplateCategory[]>("/v1/templates-list"));
+    return extractData(await this.#httpClient.get<{ data: TemplateCategory[] }>("/v1/templates-list.json"));
   }
 }

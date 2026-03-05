@@ -4,27 +4,27 @@ const withBundleAnalyzer = require("@next/bundle-analyzer")({
 });
 const { version, repository } = require("./package.json");
 const isDev = process.env.NODE_ENV === "development";
+const defaultCache = require("next-pwa/cache");
 const withPWA = require("next-pwa")({
   dest: "public",
-  disable: isDev
+  disable: isDev,
+  runtimeCaching: [
+    {
+      urlPattern: ({ url }) => {
+        const isSameOrigin = self.origin === url.origin; // eslint-disable-line no-undef
+        return !isSameOrigin;
+      },
+      handler: "NetworkOnly",
+      options: { cacheName: "third-party-network-only" }
+    },
+    ...defaultCache
+  ]
 });
 const { withSentryConfig } = require("@sentry/nextjs");
+const path = require("path");
+const CopyPlugin = require("copy-webpack-plugin");
 
-try {
-  const { browserEnvSchema } = require("./env-config.schema");
-
-  browserEnvSchema.parse(process.env);
-} catch (error) {
-  if (error.message.includes("Cannot find module")) {
-    console.warn("No env-config.schema.js found, skipping env validation");
-  }
-}
-
-const transpilePackages = ["geist", "@akashnetwork/ui"];
-
-if (process.env.NODE_ENV === "test") {
-  transpilePackages.push("nanoid", "uint8arrays", "multiformats", "@marsidev/react-turnstile", "@panva/hkdf", "jose");
-}
+const transpilePackages = ["geist", "@akashnetwork/ui", "@auth0/nextjs-auth0"];
 
 /**
  * @type {import('next').NextConfig}
@@ -57,12 +57,50 @@ const nextConfig = {
     locales: ["en-US"],
     defaultLocale: "en-US"
   },
-  webpack: config => {
+  /**
+   *
+   * @param {import('webpack').Configuration} config
+   * @param {import('next').NextConfig} nextConfig
+   * @returns
+   */
+  webpack: (config, options) => {
     // Fixes npm packages that depend on `node:crypto` module
     config.externals.push({
       "node:crypto": "crypto"
     });
     config.externals.push("pino-pretty");
+
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      // Stub prettier to reduce bundle size (used by monaco-yaml for formatting, which we disable)
+      "prettier/standalone": false,
+      "prettier/plugins/yaml": false,
+      prettier: false
+    };
+
+    if (options.isServer) {
+      // see ./src/lib/auth0/setSession/setSession.ts for more details
+      config.resolve.alias["@auth0/nextjs-auth0/session"] = path.join(require.resolve("@auth0/nextjs-auth0"), "..", "session", "index.js");
+      config.resolve.alias["@auth0/nextjs-auth0/update-session"] = path.join(require.resolve("@auth0/nextjs-auth0"), "..", "session", "update-session.js");
+    } else {
+      config.plugins.push(
+        new CopyPlugin({
+          patterns: [
+            {
+              from: path.join(require.resolve("@akashnetwork/chain-sdk"), "..", "..", "sdl-schema.yaml"),
+              to: "../public/sdl-schema.yaml"
+            }
+          ]
+        })
+      );
+    }
+
+    if (process.env.ANALYZE === "true") {
+      // More readable in bundle analyzer
+      config.optimization.moduleIds = "named";
+      config.optimization.chunkIds = "named";
+    }
+
     return config;
   },
   redirects: async () => {
@@ -146,6 +184,8 @@ const nextConfig = {
   }
 };
 
+const REPOSITORY_URL = new URL(repository.url);
+
 /**
  * For all available options, see:
  * https://github.com/getsentry/sentry-webpack-plugin#options.
@@ -166,7 +206,7 @@ const sentryWebpackPluginOptions = {
   release: {
     name: version,
     setCommits: {
-      repo: repository.url,
+      repo: REPOSITORY_URL.pathname.slice(1).replace(/\.git$/, ""),
       commit: process.env.GIT_COMMIT_HASH
     }
   },

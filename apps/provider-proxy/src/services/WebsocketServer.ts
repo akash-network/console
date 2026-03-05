@@ -1,7 +1,6 @@
+import type { Attributes } from "@akashnetwork/instrumentation";
+import { trace } from "@akashnetwork/instrumentation";
 import type { LoggerService } from "@akashnetwork/logging";
-import type { SupportedChainNetworks } from "@akashnetwork/net";
-import type { Attributes } from "@opentelemetry/api";
-import { trace } from "@opentelemetry/api";
 import type http from "http";
 import https from "https";
 import { TLSSocket } from "tls";
@@ -132,10 +131,8 @@ export class WebsocketServer {
             if (message.type === "websocket") {
               attributes.providerUrl = message.url;
               attributes.providerAddress = message.providerAddress;
-              attributes.chainNetwork = message.network;
               attributes.function = getWebSocketUsage(message);
-              attributes.authenticated =
-                (message.auth?.type === "mtls" && message.auth.certPem && message.auth.keyPem) || (message.auth?.type === "jwt" && message.auth.token);
+              attributes.authenticationType = message.auth?.type;
             }
 
             span.setAttributes(attributes);
@@ -223,7 +220,6 @@ export class WebsocketServer {
       socketDetails = this.createProviderSocket(url, {
         wsId: stats.id,
         auth: message.auth,
-        network: message.network,
         providerAddress: message.providerAddress
       });
       this.linkSockets(socketDetails, ws, stats);
@@ -234,7 +230,7 @@ export class WebsocketServer {
       return;
     }
 
-    const data = Buffer.from(message.data.split(",") as any);
+    const data = message.isBase64 ? Buffer.from(message.data, "base64") : Buffer.from(message.data.split(",") as any);
     const callback = propagateTracingContext((error?: Error) => {
       if (error) {
         this.logger?.error({
@@ -289,11 +285,10 @@ export class WebsocketServer {
         // stop reading data from socket until we validate certificate
         socket.pause();
         this.certificateValidator
-          .validate(certificate, options.network, options.providerAddress)
+          .validate(certificate, options.providerAddress)
           .catch(error => {
             this.logger?.error({
               message: "Could not validate SSL certificate",
-              chainNetwork: options.network,
               providerAddress: options.providerAddress,
               error
             });
@@ -314,7 +309,6 @@ export class WebsocketServer {
                 event: "PROVIDER_INVALID_CERTIFICATE",
                 connectionType: "websocket",
                 code: result.code,
-                chainNetwork: options.network,
                 providerAddress: options.providerAddress
               });
             } else {
@@ -324,14 +318,12 @@ export class WebsocketServer {
                 this.logger?.debug({
                   event: "PROVIDER_CERTIFICATE_VERIFIED",
                   connectionType: "websocket",
-                  chainNetwork: options.network,
                   providerAddress: options.providerAddress
                 });
               } else {
                 pws.terminate();
                 this.logger?.debug({
                   event: "PROVIDER_WEBSOCKET_CLOSED",
-                  chainNetwork: options.network,
                   providerAddress: options.providerAddress,
                   message: "Provider websocket was closed while its certificate was validating."
                 });
@@ -450,7 +442,6 @@ export class WebsocketServer {
 interface CreateProviderSocketOptions {
   wsId: string;
   auth?: z.infer<typeof providerRequestSchema>["auth"];
-  network: SupportedChainNetworks;
   providerAddress: string;
 }
 

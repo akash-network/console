@@ -2,6 +2,8 @@ import { faker } from "@faker-js/faker";
 import { merge } from "lodash";
 import type Stripe from "stripe";
 
+import type { PaymentMethod } from "@src/billing/services/stripe/stripe.service";
+
 type PaymentMethodOverrides = Omit<Partial<Stripe.PaymentMethod>, "card"> & {
   card?: Partial<Stripe.PaymentMethod.Card> | null;
 };
@@ -31,7 +33,8 @@ export function generatePaymentMethod(overrides: PaymentMethodOverrides = {}): S
       display_brand: null,
       generated_from: null,
       three_d_secure_usage: null,
-      wallet: null
+      wallet: null,
+      regulated_status: null
     },
     billing_details: {
       address: {
@@ -44,9 +47,15 @@ export function generatePaymentMethod(overrides: PaymentMethodOverrides = {}): S
       },
       email: faker.internet.email(),
       name: faker.person.fullName(),
-      phone: faker.phone.number()
+      phone: faker.phone.number(),
+      tax_id: null
     }
   };
 
   return merge({}, basePaymentMethod, overrides);
+}
+
+export function generateMergedPaymentMethod(overrides: PaymentMethodOverrides & { validated?: boolean; isDefault?: boolean } = {}): PaymentMethod {
+  const { validated, isDefault, ...stripeOverrides } = overrides;
+  return merge({ validated: !!validated, isDefault: !!isDefault }, generatePaymentMethod(stripeOverrides));
 }

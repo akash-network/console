@@ -1,11 +1,11 @@
 import type { BalanceHttpService } from "@akashnetwork/http-sdk";
 import type { EncodeObject } from "@cosmjs/proto-signing";
-import { BadRequest, ServiceUnavailable } from "http-errors";
-import type { MockProxy } from "jest-mock-extended";
-import { mock } from "jest-mock-extended";
+import { BadRequest, PaymentRequired, ServiceUnavailable } from "http-errors";
+import type { MockProxy } from "vitest-mock-extended";
+import { mock } from "vitest-mock-extended";
 
-import type { Wallet } from "@src/billing/lib/wallet/wallet";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import type { TxManagerService } from "../tx-manager/tx-manager.service";
 import { ChainErrorService } from "./chain-error.service";
 
 const USDC_IBC_DENOMS = {
@@ -138,17 +138,49 @@ describe(ChainErrorService.name, () => {
       expect(appErr).toBeInstanceOf(BadRequest);
       expect(appErr.message).toBe("Failed to create deployment: Invalid deployment hash");
     });
+
+    it("returns 402 for insufficient balance error", async () => {
+      const { service } = setup();
+      const err = new Error(
+        "Query failed with (6): rpc error: code = Unknown desc = failed to execute message; message index: 1: Deposit invalid: insufficient balance"
+      );
+
+      const appErr = await service.toAppError(err, encodeMessages);
+      expect(appErr).toBeInstanceOf(PaymentRequired);
+      expect(appErr.message).toBe("Insufficient balance");
+    });
+
+    it("returns 402 for insufficient balance error with message prefix", async () => {
+      const { service } = setup();
+      const err = new Error(
+        "Query failed with (6): rpc error: code = Unknown desc = failed to execute message; message index: 0: Deposit invalid: insufficient balance"
+      );
+      const messages: EncodeObject[] = [{ typeUrl: "/akash.deployment.v1beta4.MsgCreateDeployment", value: {} }];
+
+      const appErr = await service.toAppError(err, messages);
+      expect(appErr).toBeInstanceOf(PaymentRequired);
+      expect(appErr.message).toBe("Failed to create deployment: Insufficient balance");
+    });
+
+    it("returns 402 for simple insufficient balance message", async () => {
+      const { service } = setup();
+      const err = new Error("insufficient balance");
+
+      const appErr = await service.toAppError(err, encodeMessages);
+      expect(appErr).toBeInstanceOf(PaymentRequired);
+      expect(appErr.message).toBe("Insufficient balance");
+    });
   });
 
   function setup(): {
     balanceHttpService: MockProxy<BalanceHttpService>;
     billingConfigService: MockProxy<BillingConfigService>;
-    masterWallet: MockProxy<Wallet>;
+    txManagerService: MockProxy<TxManagerService>;
     service: ChainErrorService;
   } {
     const balanceHttpService = mock<BalanceHttpService>();
     const billingConfigService = mock<BillingConfigService>();
-    const masterWallet = mock<Wallet>();
+    const txManagerService = mock<TxManagerService>();
 
     (billingConfigService.get as jest.Mock).mockImplementation((key: string) => {
       if (key === "USDC_IBC_DENOMS") return USDC_IBC_DENOMS;
@@ -156,10 +188,10 @@ describe(ChainErrorService.name, () => {
       return undefined;
     });
 
-    masterWallet.getFirstAddress.mockResolvedValue("test-address");
+    txManagerService.getFundingWalletAddress.mockResolvedValue("test-address");
 
-    const service = new ChainErrorService(balanceHttpService, billingConfigService, masterWallet);
+    const service = new ChainErrorService(balanceHttpService, billingConfigService, txManagerService);
 
-    return { balanceHttpService, billingConfigService, masterWallet, service };
+    return { balanceHttpService, billingConfigService, txManagerService, service };
   }
 });

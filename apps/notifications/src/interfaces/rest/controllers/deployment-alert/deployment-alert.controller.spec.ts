@@ -1,8 +1,9 @@
 import { generateMock } from "@anatine/zod-mock";
 import { faker } from "@faker-js/faker";
 import { Test, type TestingModule } from "@nestjs/testing";
-import type { MockProxy } from "jest-mock-extended";
 import { Ok } from "ts-results";
+import { describe, expect, it } from "vitest";
+import type { MockProxy } from "vitest-mock-extended";
 
 import { AuthService } from "@src/interfaces/rest/services/auth/auth.service";
 import { DeploymentAlertService } from "@src/modules/alert/services/deployment-alert/deployment-alert.service";

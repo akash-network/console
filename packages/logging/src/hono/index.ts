@@ -1,1 +1,1 @@
-export { HttpLoggerIntercepter } from "./http-logger/http-logger.service";
+export { HttpLoggerInterceptor } from "./http-logger/http-logger.service";

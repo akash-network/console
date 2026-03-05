@@ -15,7 +15,7 @@ export async function download(url: string, path: string) {
 
   return new Promise<void>(function (resolve, reject) {
     http.get(uri.href).on("response", function (res) {
-      const len = parseInt(res.headers["content-length"], 10);
+      const len = parseInt(res.headers["content-length"] ?? "0", 10);
       let downloaded = 0;
       let lastProgressLog = Date.now();
       res

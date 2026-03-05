@@ -2,7 +2,7 @@ import type { CertificateManager, certificateManager } from "@akashnetwork/chain
 import type { MongoAbility } from "@casl/ability";
 import { createMongoAbility } from "@casl/ability";
 import { faker } from "@faker-js/faker";
-import { mock } from "jest-mock-extended";
+import { mock } from "vitest-mock-extended";
 
 import type { AuthService } from "@src/auth/services/auth.service";
 import type { UserWalletRepository } from "@src/billing/repositories";
@@ -30,7 +30,7 @@ describe(CertificateService.name, () => {
       const { service, userWalletRepository, authService, rpcMessageService, managedSignerService, certificateManager } = setup({
         findWallet: jest.fn().mockResolvedValue(userWallet),
         getCreateCertificateMsg: jest.fn().mockReturnValue(createCertificateMsg),
-        executeDecodedTxByUserId: jest.fn().mockResolvedValue({ code: 0, hash: "tx-hash", transactionHash: "tx-hash" })
+        executeDerivedDecodedTxByUserId: jest.fn().mockResolvedValue({ code: 0, hash: "tx-hash", transactionHash: "tx-hash" })
       });
 
       const result = await service.create({ userId: userWallet.userId });
@@ -39,7 +39,7 @@ describe(CertificateService.name, () => {
       expect(userWalletRepository.findOneByUserId).toHaveBeenCalledWith(userWallet.userId);
       expect(certificateManager.generatePEM).toHaveBeenCalledWith(userWallet.address);
       expect(rpcMessageService.getCreateCertificateMsg).toHaveBeenCalledWith(userWallet.address, certificateData.cert, certificateData.publicKey);
-      expect(managedSignerService.executeDecodedTxByUserId).toHaveBeenCalledWith(userWallet.userId, [createCertificateMsg]);
+      expect(managedSignerService.executeDerivedDecodedTxByUserId).toHaveBeenCalledWith(userWallet.userId, [createCertificateMsg]);
       expect(result).toEqual({
         certPem: certificateData.cert,
         pubkeyPem: certificateData.publicKey,
@@ -78,7 +78,7 @@ describe(CertificateService.name, () => {
     findWallet?: UserWalletRepository["findOneByUserId"];
     generateCert?: typeof certificateManager.generatePEM;
     getCreateCertificateMsg?: RpcMessageService["getCreateCertificateMsg"];
-    executeDecodedTxByUserId?: ManagedSignerService["executeDecodedTxByUserId"];
+    executeDerivedDecodedTxByUserId?: ManagedSignerService["executeDerivedDecodedTxByUserId"];
   }) {
     const mocks = {
       userWalletRepository: mock<UserWalletRepository>({
@@ -92,7 +92,7 @@ describe(CertificateService.name, () => {
         getCreateCertificateMsg: input?.getCreateCertificateMsg ?? jest.fn()
       }),
       managedSignerService: mock<ManagedSignerService>({
-        executeDecodedTxByUserId: input?.executeDecodedTxByUserId ?? jest.fn()
+        executeDerivedDecodedTxByUserId: input?.executeDerivedDecodedTxByUserId ?? jest.fn()
       }),
       certificateManager: mock<CertificateManager>({
         generatePEM:

@@ -1,21 +1,26 @@
 import { certificateManager, type NetworkId } from "@akashnetwork/chain-sdk/web";
+import type { HttpClientOptions } from "@akashnetwork/http-sdk";
 import {
   ApiKeyHttpService,
   AuthHttpService,
   createHttpClient,
   DeploymentSettingHttpService,
+  isHttpError,
+  ManagedDeploymentHttpService,
+  StripeService as HttpStripeService,
   TemplateHttpService,
   TxHttpService,
   UsageHttpService,
-  UserHttpService
+  WalletSettingsHttpService
 } from "@akashnetwork/http-sdk";
-import { StripeService as HttpStripeService } from "@akashnetwork/http-sdk/src/stripe/stripe.service";
 import { LoggerService } from "@akashnetwork/logging";
-import { getTraceData } from "@sentry/nextjs";
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
-import type { Axios, AxiosInstance, AxiosResponse, CreateAxiosDefaults, InternalAxiosRequestConfig } from "axios";
+import type { Axios, AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from "axios";
 
-import { analyticsService } from "@src/services/analytics/analytics.service";
+import { browserEnvConfig } from "@src/config/browser-env.config";
+import { UrlReturnToStack } from "@src/hooks/useReturnTo/UrlReturnToStack";
+import { AnalyticsService } from "@src/services/analytics/analytics.service";
+import networkStore from "@src/store/networkStore";
 import { registry } from "@src/utils/customRegistry";
 import { UrlService } from "@src/utils/urlUtils";
 import type { ApiUrlService } from "../api-url/api-url.service";
@@ -28,13 +33,18 @@ import { StripeService } from "../stripe/stripe.service";
 import { UserTracker } from "../user-tracker/user-tracker.service";
 
 export const createAppRootContainer = (config: ServicesConfig) => {
-  const apiConfig = { baseURL: config.BASE_API_MAINNET_URL, adapter: "fetch" };
+  const apiConfig = { baseURL: config.BASE_API_MAINNET_URL, adapter: "fetch" as const };
   const container = createContainer({
-    getTraceData: () => getTraceData,
+    publicConfig: () => browserEnvConfig,
+
     applyAxiosInterceptors: (): typeof withInterceptors => {
       const otelInterceptor = (config: InternalAxiosRequestConfig) => {
-        const traceData = container.getTraceData();
-        if (traceData?.["sentry-trace"]) config.headers.set("Traceparent", traceData["sentry-trace"]);
+        if (typeof window !== "undefined" && getRequestOrigin(config) !== window.location.origin) {
+          // skip OTEL headers for cross-origin requests in browser because it may fail due to CORS policy
+          return config;
+        }
+        const traceData = container.errorHandler.getTraceData();
+        if (traceData.traceIdW3C) config.headers.set("traceparent", traceData.traceIdW3C);
         if (traceData?.baggage) config.headers.set("Baggage", traceData.baggage);
         return config;
       };
@@ -44,28 +54,31 @@ export const createAppRootContainer = (config: ServicesConfig) => {
           response: [...(interceptors?.response || [])]
         });
     },
-    user: () =>
-      container.applyAxiosInterceptors(new UserHttpService(apiConfig), {
-        request: [withUserToken],
-        response: [
-          response => {
-            if (response.config.url?.startsWith("/v1/anonymous-users") && response.config.method === "post" && response.status === 200) {
-              container.analyticsService.track("anonymous_user_created", { category: "user", label: "Anonymous User Created" });
-            }
-            return response;
-          }
-        ]
-      }),
     stripe: () =>
       container.applyAxiosInterceptors(new HttpStripeService(apiConfig), {
         request: [withUserToken]
       }),
-    stripeService: () => new StripeService(),
+    stripeService: () =>
+      new StripeService({
+        config: {
+          publishableKey: container.publicConfig.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
+        }
+      }),
     tx: () =>
       container.applyAxiosInterceptors(new TxHttpService(registry, apiConfig), {
         request: [withUserToken]
       }),
-    template: () => container.applyAxiosInterceptors(new TemplateHttpService(apiConfig)),
+    template: () => {
+      const httpClient = container.createAxios({
+        baseURL: container.publicConfig.NEXT_PUBLIC_BASE_TEMPLATES_URL
+      });
+      if (config.runtimeEnv === "browser") {
+        // Need to remove these extra headers to avoid CORS preflight requests
+        delete httpClient.defaults.headers["Content-Type"];
+        delete httpClient.defaults.headers.common.Accept;
+      }
+      return new TemplateHttpService(httpClient);
+    },
     usage: () =>
       container.applyAxiosInterceptors(new UsageHttpService(apiConfig), {
         request: [withUserToken]
@@ -74,35 +87,65 @@ export const createAppRootContainer = (config: ServicesConfig) => {
       container.applyAxiosInterceptors(new AuthHttpService(apiConfig), {
         request: [withUserToken]
       }),
-    providerProxy: () =>
-      new ProviderProxyService(
-        container.applyAxiosInterceptors(container.createAxios({ baseURL: config.BASE_PROVIDER_PROXY_URL })),
+    networkStore: () => networkStore,
+    providerProxy: () => {
+      const getBaseUrl = () => config.BASE_PROVIDER_PROXY_URL.replace("%{NETWORK}", container.networkStore.selectedNetworkId);
+      return new ProviderProxyService(
+        container.applyAxiosInterceptors(container.createAxios({ baseURL: "/" }), {
+          request: [config => ({ ...config, baseURL: getBaseUrl() })]
+        }),
         container.logger,
-        () => new WebSocket(config.BASE_PROVIDER_PROXY_URL.replace(/^http/, "ws"))
-      ),
+        () => new WebSocket(getBaseUrl().replace(/^http/, "ws"))
+      );
+    },
     deploymentSetting: () =>
       container.applyAxiosInterceptors(new DeploymentSettingHttpService(apiConfig), {
+        request: [withUserToken]
+      }),
+    managedDeployment: () => {
+      const httpClient = container.applyAxiosInterceptors(createHttpClient(apiConfig), {
+        request: [withUserToken]
+      });
+      return new ManagedDeploymentHttpService(httpClient);
+    },
+    walletSettings: () =>
+      container.applyAxiosInterceptors(new WalletSettingsHttpService(apiConfig), {
         request: [withUserToken]
       }),
     apiKey: () =>
       container.applyAxiosInterceptors(new ApiKeyHttpService(apiConfig), {
         request: [withUserToken]
       }),
-    externalApiHttpClient: () =>
-      container.createAxios({
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json"
-        }
-      }),
+    externalApiHttpClient: () => {
+      const headers: Record<string, string> = {
+        Accept: "application/json",
+        "Content-Type": "application/json"
+      };
+      if (config.runtimeEnv === "nodejs") {
+        headers["User-Agent"] = "AkashConsole/1.0 (https://console.akash.network)";
+      }
+
+      return container.createAxios({
+        headers
+      });
+    },
     createAxios:
       () =>
-      (options?: CreateAxiosDefaults): AxiosInstance =>
-        withInterceptors(createHttpClient({ adapter: "fetch", ...options }), {
-          request: [config.globalRequestMiddleware]
-        }),
+      (options?: HttpClientOptions): AxiosInstance =>
+        createHttpClient(options),
     certificateManager: () => certificateManager,
-    analyticsService: () => analyticsService,
+    analyticsService: () =>
+      new AnalyticsService({
+        amplitude: {
+          enabled: container.publicConfig.NEXT_PUBLIC_AMPLITUDE_ENABLED,
+          apiKey: container.publicConfig.NEXT_PUBLIC_AMPLITUDE_API_KEY,
+          serverUrl: container.publicConfig.NEXT_PUBLIC_AMPLITUDE_PROXY_URL
+        },
+        ga: {
+          measurementId: container.publicConfig.NEXT_PUBLIC_GA_MEASUREMENT_ID,
+          enabled: container.publicConfig.NEXT_PUBLIC_GA_ENABLED
+        }
+      }),
     apiUrlService: config.apiUrlService,
     managedWalletService: () =>
       container.applyAxiosInterceptors(
@@ -127,6 +170,13 @@ export const createAppRootContainer = (config: ServicesConfig) => {
       ),
     queryClient: () =>
       new QueryClient({
+        defaultOptions: {
+          queries: {
+            retry(failureCount, error) {
+              return isHttpError(error) && !!error.response && error.response.status >= 500 && failureCount < 3;
+            }
+          }
+        },
         queryCache: new QueryCache({
           onError: error => container.errorHandler.reportError({ error })
         }),
@@ -135,8 +185,18 @@ export const createAppRootContainer = (config: ServicesConfig) => {
         })
       }),
     errorHandler: () => new ErrorHandlerService(container.logger),
-    logger: () => new LoggerService({ name: `app-${config.runtimeEnv}` }),
+    logger: () =>
+      new LoggerService({
+        name: `app-${config.runtimeEnv}`,
+        browser: {
+          disabled: config.runtimeEnv !== "browser",
+          // enable serialization of log events, so then we can see more details about errors in Sentry
+          serialize: true,
+          asObject: true
+        }
+      }),
     urlService: () => UrlService,
+    urlReturnToStack: () => UrlReturnToStack,
     userTracker: () => new UserTracker()
   });
 
@@ -162,4 +222,15 @@ type Interceptor<T> = (value: T) => T | Promise<T>;
 interface Interceptors {
   request?: Array<Interceptor<InternalAxiosRequestConfig> | undefined>;
   response?: Array<Interceptor<AxiosResponse> | undefined>;
+}
+
+function getRequestOrigin(config: InternalAxiosRequestConfig) {
+  if (config.url?.startsWith("http")) return new URL(config.url).origin;
+
+  let baseUrl = config.baseURL ?? "";
+  if (baseUrl.endsWith("/")) baseUrl = baseUrl.slice(0, -1);
+  let url = config.url ?? "";
+  if (!url.startsWith("/")) url = `/${url}`;
+  const fullUrl = baseUrl + url;
+  return fullUrl.startsWith("http") ? new URL(fullUrl).origin : window.location.origin;
 }

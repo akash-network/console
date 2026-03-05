@@ -56,7 +56,7 @@ function CustomTooltip({
   return (
     <Tooltip>
       <TooltipTrigger asChild>{children}</TooltipTrigger>
-      <TooltipContent className={cn(className, "z-[500] max-w-md")}>{title}</TooltipContent>
+      <TooltipContent className={cn(className, "z-[500] max-w-md p-6")}>{title}</TooltipContent>
     </Tooltip>
   );
 }
@@ -67,7 +67,7 @@ function CustomNoDivTooltip({ children, className = "", title }: React.PropsWith
       <TooltipTrigger asChild>{children}</TooltipTrigger>
 
       <TooltipPrimitive.Portal>
-        <TooltipContent className={cn(className, "z-[500] max-w-md")}>{title}</TooltipContent>
+        <TooltipContent className={cn(className, "z-[500] max-w-md p-6")}>{title}</TooltipContent>
       </TooltipPrimitive.Portal>
     </TooltipPrimitive.Tooltip>
   );

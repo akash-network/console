@@ -18,12 +18,14 @@ on:
           - console-web
           - console-web-testnet
           - console-api
+          - tx-signer
           - indexer
           - notifications
           - provider-proxy
           - provider-console
           - provider-console-api
           - provider-console-security
+          - stats-web
       appVersion:
         description: "The version of the app to deploy"
         required: true
@@ -32,25 +34,28 @@ on:
         description: "The chain to deploy to"
         required: false
         type: choice
+        default: NA
         options:
           - NA
           - mainnet
           - sandbox
           - testnet
-      skip_beta_deployment_check:
-        type: boolean
-        required: false
-        default: false
-        description: >-
-          Bypass beta deployment check.
-          Use with caution — this will deploy directly to production without verifying the beta environment.
-          Skipping this check may result in deploying an unstable version with potential bugs.
       force-rollout:
         type: boolean
         required: false
         default: false
         description: >-
           Force a Kubernetes rollout restart even if the Deployment spec is unchanged.
+      approve:
+        type: boolean
+        required: false
+        default: false
+        description: >-
+          Whether to require manual approval before proceeding with the deployment.
+      linked-workflow-run-id:
+        description: "The ID of the workflow run that triggered this deployment"
+        required: false
+        type: string
 
   workflow_call:
     inputs:
@@ -70,110 +75,86 @@ on:
         description: "The chain to deploy to"
         required: false
         type: string
-      skip_beta_deployment_check:
-        type: boolean
-        required: false
-        default: false
-        description: >-
-          Bypass beta deployment check.
-          Use with caution — this will deploy directly to production without verifying the beta environment.
-          Skipping this check may result in deploying an unstable version with potential bugs.
+        default: NA
       force-rollout:
         type: boolean
         required: false
         default: false
         description: >-
           Force a Kubernetes rollout restart even if the Deployment spec is unchanged.
+      approve:
+        type: boolean
+        required: false
+        default: false
+        description: >-
+          Whether to require manual approval before proceeding with the deployment.
+
+# 1 pending + 1 in-progress workflows
+concurrency:
+  group: deploy-${{ inputs.app }}-${{ inputs.environment }}-${{ inputs.chain || 'NA' }}
 
 jobs:
-  beta-deployment-status:
+  deployment-prerequisites:
     runs-on: ubuntu-latest
     outputs:
-      can_deploy: ${{ steps.beta-deployment-status.outputs.can_deploy }}
+      environment: ${{ steps.determine-environment.outputs.environment }}
+      require_approval: ${{ steps.approval-status.outputs.require_approval }}
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
-      - name: Notify in Slack if beta deployment check was skipped
-        if: github.event_name == 'workflow_dispatch' && inputs.skip_beta_deployment_check == 'true'
-        uses: slackapi/slack-github-action@v2.0.0
-        with:
-          webhook-type: incoming-webhook
-          webhook: ${{ secrets.FAILED_E2E_TESTS_SLACK_WEBHOOK_URL }}
-          payload: |
-            blocks:
-              - type: "header"
-                text:
-                  type: "plain_text"
-                  text: "Deployment to production without beta deployment check"
-              - type: "section"
-                text:
-                  type: "mrkdwn"
-                  text: |
-                    *App:* ${{ inputs.app }}@${{ inputs.appVersion }}
-                    *Workflow:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-                    *Author:* ${{ github.actor }}
-
-      - name: Check status of beta deployment
-        id: beta-deployment-status
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Display linked workflow run ID
+        if: ${{ inputs.linked-workflow-run-id }}
         run: |
-          app_name="${{ inputs.app }}"
-          environment="${{ inputs.environment }}"
-          app_version="${{ inputs.appVersion }}"
-          workflow_name="${app_name}-release.yml"
-          skip_beta_deployment_check="${{ inputs.skip_beta_deployment_check }}"
+          echo "Linked workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> "$GITHUB_STEP_SUMMARY"
 
-          echo "## Deployment status" >> "$GITHUB_STEP_SUMMARY"
-
-          if [[ "$environment" != "prod" || ! -f ".github/workflows/$workflow_name" || "$skip_beta_deployment_check" == "true" ]]; then
-            echo "Beta deployment check skipped because the environment is not production or the workflow file does not exist." >> "$GITHUB_STEP_SUMMARY"
-            echo "can_deploy=true" >> "$GITHUB_OUTPUT"
-            exit 0
+      - name: Determine environment
+        id: determine-environment
+        env:
+          BLOCKCHAIN_NAME: ${{ inputs.chain != 'NA' && inputs.chain || '' }}
+          DEPLOYMENT_ENVIRONMENT: ${{ inputs.environment == 'prod' && 'production' || 'beta' }}
+        run: |
+          environment_suffix=""
+          if [[ -n "$BLOCKCHAIN_NAME" ]]; then
+            environment_suffix="-$BLOCKCHAIN_NAME"
           fi
+          echo "environment=$DEPLOYMENT_ENVIRONMENT$environment_suffix" >> "$GITHUB_OUTPUT"
 
-          version_tag="${app_name}/v${app_version}"
-          commit_hash=$(gh -X GET api "repos/akash-network/console/commits/tags/$version_tag" --jq '.sha')
-          workflow_run_details=$(gh run list -w "$workflow_name" \
-            --limit 1 \
-            --commit "$commit_hash" \
-            --status "completed" \
-            --json conclusion,url \
-            --jq '.[0]')
-
-          if [ -z "$workflow_run_details" ]; then
-            echo "Beta deployment check skipped because beta workflow run details are empty." >> "$GITHUB_STEP_SUMMARY"
-            echo "can_deploy=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          can_deploy=$(echo "$workflow_run_details" | jq -r '.conclusion == "success"')
-
-          if [ "$can_deploy" == "false" ]; then
-            echo "## Deployment status" >> "$GITHUB_STEP_SUMMARY"
-            workflow_run_url=$(echo "$workflow_run_details" | jq -r '.url')
-
-            if [ "$skip_beta_deployment_check" == "true" ]; then
-              echo "Force deployed to production ignoring failed [deployment to staging]($workflow_run_url)" >> "$GITHUB_STEP_SUMMARY"
-            else
-              echo "The deployment aborted because [deployment to beta]($workflow_run_url) failed." >> "$GITHUB_STEP_SUMMARY"
-            fi
-          fi
-
-          if [ "$skip_beta_deployment_check" == "true" ]; then
-            echo "can_deploy=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "can_deploy=$can_deploy" >> "$GITHUB_OUTPUT"
-          fi
+      - name: Check if approval is required
+        id: approval-status
+        if: inputs.approve == 'false' || inputs.approve == false
+        env:
+          DEPLOYMENT_ENVIRONMENT: ${{ steps.determine-environment.outputs.environment }}
+        run: |
+          require_approval=$([[ "$DEPLOYMENT_ENVIRONMENT" == "production" || "$DEPLOYMENT_ENVIRONMENT" == "production-mainnet" ]] && echo "true" || echo "false")
+          echo "require_approval=$require_approval" >> "$GITHUB_OUTPUT"
+      - name: Notify in Slack about pending deployment
+        if: steps.approval-status.outputs.require_approval == 'true' && (inputs.approve == 'false' || inputs.approve == false)
+        uses: ./.github/actions/slack-pending-deployment-approval
+        with:
+          url: ${{ vars.CONSOLE_WEB_BETA_URL }}
+          slack-webhook-url: ${{ secrets.FAILED_E2E_TESTS_SLACK_WEBHOOK_URL }}
+          gh-user-to-slack-user: ${{ vars.GH_USER_TO_SLACK_USER }}
+          app: ${{ inputs.app }}
+          new-version: ${{ inputs.appVersion }}
+          environment: ${{ inputs.environment }}
+          chain: ${{ inputs.chain != 'NA' && inputs.chain || '' }}
+          linked-workflow-run-id: ${{ github.run_id }}
 
   deploy:
+    permissions:
+      contents: read
+      deployments: write
     runs-on: ubuntu-latest
-    needs: beta-deployment-status
-    if: needs.beta-deployment-status.outputs.can_deploy == 'true' || inputs.skip_beta_deployment_check == 'true'
+    needs: deployment-prerequisites
+    if: >-
+      needs.deployment-prerequisites.outputs.require_approval != 'true' || inputs.approve == 'true' || inputs.approve == true
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Load kubeconfig
         id: op-load-secret
@@ -263,3 +244,32 @@ jobs:
         if: success() && inputs.force-rollout
         run: |
           kubectl --kubeconfig kubeconfig -n "${{ inputs.environment }}" rollout restart deploy "${{ env.release_name }}"
+
+      - name: Create deployment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          APP_ENV: ${{ needs.deployment-prerequisites.outputs.environment }}
+          GH_REF: ${{ inputs.app }}/v${{ inputs.appVersion }}
+        run: |
+          DEPLOYMENT_ID=$(
+            gh api -X POST "repos/$REPOSITORY/deployments" \
+              --input - --jq '.id' <<EOF
+          {
+            "ref": "$GH_REF",
+            "environment": "$APP_ENV",
+            "auto_merge": false,
+            "required_contexts": []
+          }
+          EOF
+          )
+          echo "Deployment: $DEPLOYMENT_ID"
+
+          if [ -z "$DEPLOYMENT_ID" ]; then
+            echo "Failed to create deployment"
+            exit 1
+          fi
+
+          gh api -X POST "repos/$REPOSITORY/deployments/$DEPLOYMENT_ID/statuses" \
+            -f state="success" \
+            -f description="Deploy finished"

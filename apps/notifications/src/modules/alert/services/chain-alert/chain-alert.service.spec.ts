@@ -1,6 +1,7 @@
 import { generateMock } from "@anatine/zod-mock";
 import { Test, type TestingModule } from "@nestjs/testing";
-import type { MockProxy } from "jest-mock-extended";
+import { describe, expect, it, type Mock, vi } from "vitest";
+import type { MockProxy } from "vitest-mock-extended";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import { EventClosedDeploymentDto } from "@src/modules/alert/dto/event-closed-deployment.dto";
@@ -287,7 +288,7 @@ describe(ChainAlertService.name, () => {
     alertRepository: MockProxy<AlertRepository>;
     conditionsMatcher: MockProxy<ConditionsMatcherService>;
     alertMessageService: MockProxy<AlertMessageService>;
-    onMessage: jest.Mock;
+    onMessage: Mock;
   }> {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -299,7 +300,7 @@ describe(ChainAlertService.name, () => {
         MockProvider(AlertMessageService)
       ]
     }).compile();
-    const onMessage = jest.fn();
+    const onMessage = vi.fn();
 
     return {
       service: module.get<ChainAlertService>(ChainAlertService),

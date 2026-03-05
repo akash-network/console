@@ -52,7 +52,7 @@ export const NotificationChannelSelectView: FC<Props> = ({ name, isFetched, data
             </>
           )}
         />
-        <div className="ml-2">
+        <div className="ml-4">
           <Link
             href="/alerts/notification-channels/new"
             aria-label="Add notification channel"

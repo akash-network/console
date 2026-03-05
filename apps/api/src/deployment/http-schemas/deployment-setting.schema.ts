@@ -1,9 +1,11 @@
 import { z } from "zod";
 
+import { DseqSchema } from "@src/utils/schema";
+
 const DeploymentSettingSchema = z.object({
   id: z.string().uuid(),
   userId: z.string(),
-  dseq: z.string(),
+  dseq: DseqSchema,
   autoTopUpEnabled: z.boolean(),
   estimatedTopUpAmount: z.number(),
   topUpFrequencyMs: z.number(),
@@ -20,7 +22,7 @@ export const CreateDeploymentSettingRequestSchema = z.object({
     userId: z.string().openapi({
       description: "User ID"
     }),
-    dseq: z.string().openapi({
+    dseq: DseqSchema.openapi({
       description: "Deployment sequence number"
     }),
     autoTopUpEnabled: z.boolean().default(false).openapi({
@@ -41,7 +43,7 @@ export const FindDeploymentSettingParamsSchema = z.object({
   userId: z.string().openapi({
     description: "User ID"
   }),
-  dseq: z.string().openapi({
+  dseq: DseqSchema.openapi({
     description: "Deployment sequence number"
   })
 });

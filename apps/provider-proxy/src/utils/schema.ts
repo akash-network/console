@@ -1,6 +1,4 @@
 import { JwtTokenManager } from "@akashnetwork/chain-sdk";
-import type { SupportedChainNetworks } from "@akashnetwork/net";
-import { netConfig } from "@akashnetwork/net";
 import { z } from "@hono/zod-openapi";
 
 import { isValidBech32Address } from "./isValidBech32";
@@ -21,31 +19,20 @@ export const providerRequestSchema = z.object({
     ])
     .optional(),
   url: z.string().url(),
-  network: z.enum(netConfig.getSupportedNetworks() as [SupportedChainNetworks]).describe("Blockchain network"),
   providerAddress: z.string().refine(isValidBech32Address, "is not bech32 address").describe("Bech32 representation of provider wallet address"),
-  chainNetwork: z
-    .enum(netConfig.getSupportedNetworks() as [SupportedChainNetworks])
-    .describe('Deprecated blockchain network. Use "network" instead.')
-    .optional(),
-  certPem: z.string().describe('Deprecated certificate. Use mtls auth type  with "auth.certPem" instead.').optional(),
-  keyPem: z.string().describe('Deprecated key. Use mtls auth type  with "auth.keyPem" instead.').optional()
+  isBase64: z
+    .boolean()
+    .describe("Temporary field for the time when some clients are sending comma-separated data, while some are sending base64.")
+    .optional()
+    .default(false)
 });
 
-export type ProviderRequestSchema = Omit<z.infer<typeof providerRequestSchema>, "chainNetwork" | "certPem" | "keyPem">;
+export type ProviderRequestSchema = Omit<z.infer<typeof providerRequestSchema>, "certPem" | "keyPem">;
 
 /** this can be attached as .superRefine in zod v4 */
 export function addProviderAuthValidation<T extends z.ZodType<any>>(schema: T): z.ZodEffects<T> {
   return z
-    .preprocess(data => {
-      const { chainNetwork, certPem, keyPem, ...normalizedData } = data as z.infer<typeof providerRequestSchema>;
-      if (chainNetwork) {
-        normalizedData.network = chainNetwork;
-      }
-      if (!normalizedData.auth && (certPem || keyPem)) {
-        normalizedData.auth = { type: "mtls", certPem: certPem || "", keyPem: keyPem || "" };
-      }
-      return normalizedData;
-    }, schema)
+    .preprocess(data => data, schema)
     .superRefine((data, ctx) => {
       if (data.auth?.type === "mtls" && data.auth.certPem) {
         const validationResult = validateClientCertificateAttrs(data.auth.certPem);

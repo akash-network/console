@@ -5,7 +5,7 @@ import { Alert } from "@akashnetwork/ui/components";
 import { usePopup } from "@akashnetwork/ui/context";
 import { ArrowRight } from "iconoir-react";
 
-import { useChainParam } from "@src/context/ChainParamProvider";
+import { useChainParam } from "@src/hooks/useChainParam/useChainParam";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
 
 export const useManagedEscrowFaqModal = (): {
@@ -30,7 +30,7 @@ export const useManagedEscrowFaqModal = (): {
                 <span className="text-xs text-muted-foreground">Available:</span>
                 <span className="font-bold">
                   <FormattedNumber
-                    value={walletBalance.totalDeploymentGrantsUSD - walletBalance.totalDeploymentEscrowUSD}
+                    value={walletBalance.totalDeploymentGrantsUSD}
                     // eslint-disable-next-line react/style-prop-object
                     style="currency"
                     currency="USD"

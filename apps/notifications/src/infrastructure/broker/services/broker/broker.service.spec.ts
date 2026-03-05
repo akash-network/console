@@ -2,9 +2,12 @@ import { faker } from "@faker-js/faker";
 import { ConfigModule, ConfigService, registerAs } from "@nestjs/config";
 import type { TestingModule } from "@nestjs/testing";
 import { Test } from "@nestjs/testing";
-import type { MockProxy } from "jest-mock-extended";
-import { Client } from "pg";
-import PgBoss from "pg-boss";
+import type { PoolClient } from "pg";
+import { Pool } from "pg";
+import { describe, expect, it, vi } from "vitest";
+import type { MockProxy } from "vitest-mock-extended";
+import { mock } from "vitest-mock-extended";
+import { PgBoss } from "pg-boss";
 
 import { eventKeyRegistry } from "@src/common/config/event-key-registry.config";
 import { LoggerService } from "@src/common/services/logger/logger.service";
@@ -42,7 +45,7 @@ describe(BrokerService.name, () => {
       const eventName = faker.string.alphanumeric(10);
       const queueName = `${configService.getOrThrow("broker.APP_NAME")}.${eventName}`;
       const options = { prefetchCount: faker.number.int({ min: 1, max: 5 }) };
-      const handler = jest.fn();
+      const handler = vi.fn();
 
       await service.subscribe(eventName, options, handler);
 
@@ -55,7 +58,10 @@ describe(BrokerService.name, () => {
 
   describe("publishAll", () => {
     it("should publish multiple events in a transaction", async () => {
-      const { service, pgBoss, pgClient } = await setup();
+      const { service, pgBoss, pool } = await setup();
+      const poolClient = mock<PoolClient>();
+      // @ts-expect-error Pool.connect has overloaded signatures; TS resolves to the callback variant returning void
+      pool.connect.mockResolvedValue(poolClient);
 
       const events = [
         {
@@ -70,16 +76,20 @@ describe(BrokerService.name, () => {
 
       await service.publishAll(events);
 
-      expect(pgClient.query).toHaveBeenCalledWith("BEGIN");
+      expect(poolClient.query).toHaveBeenCalledWith("BEGIN");
       expect(pgBoss.publish).toHaveBeenCalledTimes(2);
       events.forEach(event => {
-        expect(pgBoss.publish).toHaveBeenCalledWith(event.eventName, event.event);
+        expect(pgBoss.publish).toHaveBeenCalledWith(event.eventName, event.event, expect.objectContaining({ db: expect.any(Object) }));
       });
-      expect(pgClient.query).toHaveBeenCalledWith("COMMIT");
+      expect(poolClient.query).toHaveBeenCalledWith("COMMIT");
+      expect(poolClient.release).toHaveBeenCalled();
     });
 
     it("should rollback the transaction if publishing fails", async () => {
-      const { service, pgBoss, pgClient } = await setup();
+      const { service, pgBoss, pool } = await setup();
+      const poolClient = mock<PoolClient>();
+      // @ts-expect-error Pool.connect has overloaded signatures; TS resolves to the callback variant returning void
+      pool.connect.mockResolvedValue(poolClient);
 
       const events = [
         {
@@ -92,8 +102,9 @@ describe(BrokerService.name, () => {
       pgBoss.publish.mockRejectedValue(error);
 
       await expect(service.publishAll(events)).rejects.toThrow(error.message);
-      expect(pgClient.query).toHaveBeenCalledWith("BEGIN");
-      expect(pgClient.query).toHaveBeenCalledWith("ROLLBACK");
+      expect(poolClient.query).toHaveBeenCalledWith("BEGIN");
+      expect(poolClient.query).toHaveBeenCalledWith("ROLLBACK");
+      expect(poolClient.release).toHaveBeenCalled();
     });
   });
 
@@ -101,19 +112,19 @@ describe(BrokerService.name, () => {
     module: TestingModule;
     service: BrokerService;
     pgBoss: MockProxy<PgBoss>;
-    pgClient: MockProxy<Client>;
+    pool: MockProxy<Pool>;
     configService: ConfigService<BrokerConfig>;
   }> {
     const module = await Test.createTestingModule({
       imports: [ConfigModule.forFeature(registerAs(NAMESPACE, () => generateEnvBrokerConfig()))],
-      providers: [BrokerService, MockProvider(PgBoss), MockProvider(Client), MockProvider(LoggerService)]
+      providers: [BrokerService, MockProvider(PgBoss), MockProvider(Pool), MockProvider(LoggerService)]
     }).compile();
 
     return {
       module,
       service: module.get<BrokerService>(BrokerService),
       pgBoss: module.get<MockProxy<PgBoss>>(PgBoss),
-      pgClient: module.get<MockProxy<Client>>(Client),
+      pool: module.get<MockProxy<Pool>>(Pool),
       configService: module.get(ConfigService)
     };
   }

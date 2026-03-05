@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { openApiExampleProviderAddress } from "@src/utils/constants";
+import { DseqSchema } from "@src/utils/schema";
 
 const maxLimit = 100;
 
@@ -36,7 +37,7 @@ export const ProviderDeploymentsResponseSchema = z.object({
   deployments: z.array(
     z.object({
       owner: z.string(),
-      dseq: z.string(),
+      dseq: DseqSchema,
       denom: z.string(),
       createdHeight: z.number(),
       createdDate: z.date().nullable(),

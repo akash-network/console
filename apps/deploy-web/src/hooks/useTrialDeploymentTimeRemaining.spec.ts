@@ -1,5 +1,6 @@
 import type { UseQueryResult } from "@tanstack/react-query";
-import { mockFn } from "jest-mock-extended";
+import { describe, expect, it, vi } from "vitest";
+import { mockFn } from "vitest-mock-extended";
 
 import { useTrialDeploymentTimeRemaining } from "./useTrialDeploymentTimeRemaining";
 
@@ -226,14 +227,14 @@ describe("useTrialTimeRemaining", () => {
   });
 
   function withTimers<T>(testFn: () => T): T {
-    jest.useFakeTimers();
-    jest.setSystemTime(mockDate);
+    vi.useFakeTimers();
+    vi.setSystemTime(mockDate);
 
     try {
       return testFn();
     } finally {
-      jest.useRealTimers();
-      jest.clearAllMocks();
+      vi.useRealTimers();
+      vi.clearAllMocks();
     }
   }
 

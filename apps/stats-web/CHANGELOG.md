@@ -1,5 +1,249 @@
 
 
+## [1.14.1](https://github.com/akash-network/console/compare/stats-web/v1.14.0...stats-web/v1.14.1) (2026-02-12)
+
+
+### Bug Fixes
+
+* **sdl:** ensures proper validation and upgrades chain sdk  ([3381424](https://github.com/akash-network/console/commit/3381424e554f76c09ad52850b650e18c21ea76fa))
+
+## [1.14.0](https://github.com/akash-network/console/compare/stats-web/v1.13.10...stats-web/v1.14.0) (2026-02-12)
+
+
+### Features
+
+* upgrades chain sdk to latest ([a5cbbf7](https://github.com/akash-network/console/commit/a5cbbf7c909329e122942ca1a965c4c7b8dfcd62))
+
+## [1.13.10](https://github.com/akash-network/console/compare/stats-web/v1.13.7...stats-web/v1.13.10) (2026-02-05)
+
+
+### Bug Fixes
+
+* ensure SDL is not reset on changes during redeploy ([#2674](https://github.com/akash-network/console/issues/2674)) ([ae0d6a9](https://github.com/akash-network/console/commit/ae0d6a9fbea8b1362aecc57faaca4da26bd44b00))
+* update chain-sdk to alpha.21 ([#2666](https://github.com/akash-network/console/issues/2666)) ([7db8f76](https://github.com/akash-network/console/commit/7db8f76e1ffe53bd800bb1c8ef67e17dbeb0d58e))
+
+## [1.13.9](https://github.com/akash-network/console/compare/stats-web/v1.13.7...stats-web/v1.13.9) (2026-02-05)
+
+
+### Bug Fixes
+
+* ensure SDL is not reset on changes during redeploy ([#2674](https://github.com/akash-network/console/issues/2674)) ([ae0d6a9](https://github.com/akash-network/console/commit/ae0d6a9fbea8b1362aecc57faaca4da26bd44b00))
+* update chain-sdk to alpha.21 ([#2666](https://github.com/akash-network/console/issues/2666)) ([7db8f76](https://github.com/akash-network/console/commit/7db8f76e1ffe53bd800bb1c8ef67e17dbeb0d58e))
+
+## [1.13.8](https://github.com/akash-network/console/compare/stats-web/v1.13.7...stats-web/v1.13.8) (2026-02-04)
+
+
+### Bug Fixes
+
+* update chain-sdk to alpha.21 ([#2666](https://github.com/akash-network/console/issues/2666)) ([7db8f76](https://github.com/akash-network/console/commit/7db8f76e1ffe53bd800bb1c8ef67e17dbeb0d58e))
+
+## [1.13.7](https://github.com/akash-network/console/compare/stats-web/v1.13.6...stats-web/v1.13.7) (2026-02-03)
+
+
+### Bug Fixes
+
+* stats-web transaction page crashes and SSR memory leak ([#2625](https://github.com/akash-network/console/issues/2625)) ([b6e038d](https://github.com/akash-network/console/commit/b6e038d6bee42b36181ab7ef7a26a9fe6adcf2a6))
+* switch container build target to production ([#2647](https://github.com/akash-network/console/issues/2647)) ([d583e61](https://github.com/akash-network/console/commit/d583e615431f543ba84c1302efec9b878645acd8))
+
+## [1.13.6](https://github.com/akash-network/console/compare/stats-web/v1.13.5...stats-web/v1.13.6) (2026-01-30)
+
+
+### Code Refactoring
+
+* extracts tx signer into a dedicated service ([8a74b7e](https://github.com/akash-network/console/commit/8a74b7e3346e5aee6249a6baeb3e91099db97677))
+
+## [1.13.5](https://github.com/akash-network/console/compare/stats-web/v1.13.4...stats-web/v1.13.5) (2026-01-30)
+
+
+### Bug Fixes
+
+* ensure that tsbuild picks proper dependencies for internal packages ([#2596](https://github.com/akash-network/console/issues/2596)) ([c869c78](https://github.com/akash-network/console/commit/c869c78a19e7a6569d62bf1cdd2ab5be0340cdd6))
+* set timestamp setting in env-loader ([#2594](https://github.com/akash-network/console/issues/2594)) ([ab74ab0](https://github.com/akash-network/console/commit/ab74ab03465148ce9761e2f21408f33c6ac1c2e0))
+
+## [1.13.4](https://github.com/akash-network/console/compare/stats-web/v1.13.3...stats-web/v1.13.4) (2026-01-28)
+
+
+### Bug Fixes
+
+* replaces fetch API with octokit.getContent ([#2570](https://github.com/akash-network/console/issues/2570)) ([079f0d4](https://github.com/akash-network/console/commit/079f0d4640aa3936d6ef337e46ae4bcb2a8104d4))
+
+
+### Code Refactoring
+
+* migrates from webpack to tsup in console-api ([#2547](https://github.com/akash-network/console/issues/2547)) ([43c75c0](https://github.com/akash-network/console/commit/43c75c07282b88c3776545a6134754ab97901734))
+
+## [1.13.3](https://github.com/akash-network/console/compare/stats-web/v1.13.2...stats-web/v1.13.3) (2026-01-26)
+
+
+### Bug Fixes
+
+* install sharp lib for image optimization ([#2546](https://github.com/akash-network/console/issues/2546)) ([4790cd6](https://github.com/akash-network/console/commit/4790cd6ff2053229ec6faaad26a7e18d67e60f74))
+
+## [1.13.2](https://github.com/akash-network/console/compare/stats-web/v1.13.0...stats-web/v1.13.2) (2026-01-22)
+
+
+### Bug Fixes
+
+* passes required vars for stats-web sentry to work ([#2554](https://github.com/akash-network/console/issues/2554)) ([2073e9f](https://github.com/akash-network/console/commit/2073e9fdc809259c0227fced997b455287b36061))
+
+
+### Code Refactoring
+
+* defines explicit exports inside internal packages ([#2551](https://github.com/akash-network/console/issues/2551)) ([71f907f](https://github.com/akash-network/console/commit/71f907fe6b8b85a042bd351ec5b2b3621ba8d89d))
+
+## [1.13.1](https://github.com/akash-network/console/compare/stats-web/v1.13.0...stats-web/v1.13.1) (2026-01-22)
+
+
+### Bug Fixes
+
+* passes required vars for stats-web sentry to work ([#2554](https://github.com/akash-network/console/issues/2554)) ([2073e9f](https://github.com/akash-network/console/commit/2073e9fdc809259c0227fced997b455287b36061))
+
+
+### Code Refactoring
+
+* defines explicit exports inside internal packages ([#2551](https://github.com/akash-network/console/issues/2551)) ([71f907f](https://github.com/akash-network/console/commit/71f907fe6b8b85a042bd351ec5b2b3621ba8d89d))
+
+## [1.13.0](https://github.com/akash-network/console/compare/stats-web/v1.12.1...stats-web/v1.13.0) (2026-01-20)
+
+
+### Features
+
+* **stats:** add Sentry observability with distributed tracing ([#2530](https://github.com/akash-network/console/issues/2530)) ([1a42dd4](https://github.com/akash-network/console/commit/1a42dd4fc9dc540a86bf23ce43b4520556c1ef56))
+
+## [1.12.1](https://github.com/akash-network/console/compare/stats-web/v1.12.0...stats-web/v1.12.1) (2026-01-17)
+
+
+### Bug Fixes
+
+* add proper logging for ssr ([#2502](https://github.com/akash-network/console/issues/2502)) ([563a7bb](https://github.com/akash-network/console/commit/563a7bbb61917c4070ba654fec7716212e2e1bee))
+* upgrades chain-sdk dependency ([#2508](https://github.com/akash-network/console/issues/2508)) ([adae126](https://github.com/akash-network/console/commit/adae126f86b55250412a93f5a96e7505c0bf36df))
+
+## [1.12.0](https://github.com/akash-network/console/compare/stats-web/v1.11.0...stats-web/v1.12.0) (2026-01-13)
+
+
+### Features
+
+* **deployment:** implements deploy button flow ([46004d4](https://github.com/akash-network/console/commit/46004d4429dc3b4ebb47bb88edf97cd99b1a0c0f)), closes [#2470](https://github.com/akash-network/console/issues/2470)
+
+## [1.11.0](https://github.com/akash-network/console/compare/stats-web/v1.10.5...stats-web/v1.11.0) (2026-01-08)
+
+
+### Features
+
+* improve stats app styling similar to console ([#2461](https://github.com/akash-network/console/issues/2461)) ([273c8dc](https://github.com/akash-network/console/commit/273c8dc2a31234c33c241547a3db3a9575b510db))
+* **observability:** forward client IP headers in stats-web to API requests  ([7b23468](https://github.com/akash-network/console/commit/7b23468a25385c11e6b51fd560c9336e11116ec5))
+
+## [1.10.5](https://github.com/akash-network/console/compare/stats-web/v1.10.4...stats-web/v1.10.5) (2026-01-06)
+
+
+### Bug Fixes
+
+* add global-error handling ([#2456](https://github.com/akash-network/console/issues/2456)) ([08fedde](https://github.com/akash-network/console/commit/08feddea144d416a32e5f25593ce5f899be8cade))
+
+## [1.10.4](https://github.com/akash-network/console/compare/stats-web/v1.10.3...stats-web/v1.10.4) (2026-01-06)
+
+
+### Bug Fixes
+
+* stats web styling + instrumentation ([#2454](https://github.com/akash-network/console/issues/2454)) ([e12b74a](https://github.com/akash-network/console/commit/e12b74a2a732de91bd78b4a52e54101813e8a9c6))
+
+## [1.10.3](https://github.com/akash-network/console/compare/stats-web/v1.10.2...stats-web/v1.10.3) (2026-01-05)
+
+
+### Bug Fixes
+
+* add healthz endpoint for stats ([#2450](https://github.com/akash-network/console/issues/2450)) ([3b8c7a0](https://github.com/akash-network/console/commit/3b8c7a01d8fff344bfd8a1db61c6b9929ec55451))
+
+## [1.10.2](https://github.com/akash-network/console/compare/stats-web/v1.10.1...stats-web/v1.10.2) (2025-12-29)
+
+
+### Code Refactoring
+
+* enables serializers in logger by default for browser ([#2424](https://github.com/akash-network/console/issues/2424)) ([dccb96d](https://github.com/akash-network/console/commit/dccb96d6c41f87e06775c38215d248f867d7b596))
+
+## [1.10.1](https://github.com/akash-network/console/compare/stats-web/v1.10.0...stats-web/v1.10.1) (2025-12-23)
+
+
+### Bug Fixes
+
+* **billing:** auto credit reload ui and setting update ([#2409](https://github.com/akash-network/console/issues/2409)) ([d0f0fb8](https://github.com/akash-network/console/commit/d0f0fb8c3247b4c29aba50cd7ec2ae6b2fa6854e))
+
+## [1.10.0](https://github.com/akash-network/console/compare/stats-web/v1.9.1...stats-web/v1.10.0) (2025-12-18)
+
+
+### Features
+
+* adds forget password form to embedded login page ([#2372](https://github.com/akash-network/console/issues/2372)) ([cd51331](https://github.com/akash-network/console/commit/cd51331e9bb2089de69751f527ca565512477d9b))
+* update frontend styling and theme ([#2331](https://github.com/akash-network/console/issues/2331)) ([0ae3a55](https://github.com/akash-network/console/commit/0ae3a557181a0eecaa3cdcf27d48513c0c09f79f))
+
+## [1.9.1](https://github.com/akash-network/console/compare/stats-web/v1.9.0...stats-web/v1.9.1) (2025-12-12)
+
+
+### Bug Fixes
+
+* upgrades nextjs to latest 14.x ([#2345](https://github.com/akash-network/console/issues/2345)) ([46d0b23](https://github.com/akash-network/console/commit/46d0b2315f7aed4dabdc31f75dac964f43a4264d))
+
+## [1.9.0](https://github.com/akash-network/console/compare/stats-web/v1.8.0...stats-web/v1.9.0) (2025-12-11)
+
+
+### Features
+
+* adds api for password authentication via auth0 ([#2333](https://github.com/akash-network/console/issues/2333)) ([f8d2a9a](https://github.com/akash-network/console/commit/f8d2a9a9136c688bc07d503e4042687bb54c3949))
+
+## [1.8.0](https://github.com/akash-network/console/compare/stats-web/v1.7.0...stats-web/v1.8.0) (2025-12-09)
+
+
+### Features
+
+* account overview, auto reload, and separate payment method page  ([46b0a99](https://github.com/akash-network/console/commit/46b0a99e66be7beab0e1908f687cece6880aa268)), closes [#1779](https://github.com/akash-network/console/issues/1779)
+
+## [1.7.0](https://github.com/akash-network/console/compare/stats-web/v1.6.0...stats-web/v1.7.0) (2025-12-05)
+
+
+### Features
+
+* **observability:** wraps jobs handlers into otel context and logs jobId ([1f55f3f](https://github.com/akash-network/console/commit/1f55f3fefb7c6a88d66cc58ad6f8807d5bc10558))
+
+## [1.6.0](https://github.com/akash-network/console/compare/stats-web/v1.5.1...stats-web/v1.6.0) (2025-11-29)
+
+
+### Features
+
+* adds CF-Ray to our application logging ([#2288](https://github.com/akash-network/console/issues/2288)) ([b2e8f53](https://github.com/akash-network/console/commit/b2e8f53df36468021743ca041e2430eb021b437a))
+
+## [1.5.1](https://github.com/akash-network/console/compare/stats-web/v1.5.0...stats-web/v1.5.1) (2025-11-28)
+
+
+### Code Refactoring
+
+* removes chainNetwork parameter when communicate to provider-proxy ([#2250](https://github.com/akash-network/console/issues/2250)) ([e8fdcfb](https://github.com/akash-network/console/commit/e8fdcfb55cfa178c505b7e6872681fe9e7572f98)), closes [#2189](https://github.com/akash-network/console/issues/2189)
+
+## [1.5.0](https://github.com/akash-network/console/compare/stats-web/v1.4.0...stats-web/v1.5.0) (2025-11-23)
+
+
+### Features
+
+* add maintenance page stats app ([#2270](https://github.com/akash-network/console/issues/2270)) ([1678bba](https://github.com/akash-network/console/commit/1678bba791c9e8af903e2c1451362e0c31211cc8))
+
+## [1.4.0](https://github.com/akash-network/console/compare/stats-web/v1.3.0...stats-web/v1.4.0) (2025-11-20)
+
+
+### Features
+
+* adds generic banner to stats-web ([#2265](https://github.com/akash-network/console/issues/2265)) ([d63afef](https://github.com/akash-network/console/commit/d63afef1dbb1c7ceeac227d2a2ded3eb02ba99d9))
+
+## [1.3.0](https://github.com/akash-network/console/compare/stats-web/v1.2.0...stats-web/v1.3.0) (2025-11-17)
+
+
+### Features
+
+* upgrade Node.js to 24.11.1 LTS ([#2223](https://github.com/akash-network/console/issues/2223)) ([d9feb09](https://github.com/akash-network/console/commit/d9feb090d45408ec9835216bfc5c6fb3f1329abc))
+
+
+### Bug Fixes
+
+* convert provider AxiosError to HTTP errors in provider service ([#2207](https://github.com/akash-network/console/issues/2207)) ([b9a6436](https://github.com/akash-network/console/commit/b9a64369ec35ba933fa097f88db8b7d1385b296a))
+
 ## [1.2.0](https://github.com/akash-network/console/compare/stats-web/v1.1.2...stats-web/v1.2.0) (2025-11-07)
 
 

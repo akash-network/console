@@ -6,14 +6,14 @@ import { CustomTooltip, FormField, FormItem, FormMessage, Input, Slider } from "
 import { cn } from "@akashnetwork/ui/utils";
 import { InfoCircle } from "iconoir-react";
 
-import type { RentGpusFormValuesType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { validationConfig } from "@src/utils/akash/units";
 import { FormPaper } from "./FormPaper";
 
 type Props = {
   serviceIndex: number;
   children?: ReactNode;
-  control: Control<SdlBuilderFormValuesType | RentGpusFormValuesType, any>;
+  control: Control<SdlBuilderFormValuesType, any>;
   currentService: ServiceType;
 };
 

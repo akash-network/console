@@ -1,5 +1,4 @@
-import type { Registry } from "@cosmjs/proto-signing";
-import type { EncodeObject } from "@cosmjs/proto-signing/build/registry";
+import type { EncodeObject, Registry } from "@cosmjs/proto-signing";
 import type { DeliverTxResponse } from "@cosmjs/stargate";
 import type { AxiosRequestConfig } from "axios";
 

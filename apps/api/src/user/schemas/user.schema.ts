@@ -1,26 +1,5 @@
 import { z } from "zod";
 
-export const AnonymousUserResponseOutputSchema = z.object({
-  data: z
-    .object({
-      id: z.string().openapi({})
-    })
-    .openapi({}),
-  token: z.string().openapi({})
-});
-
-export type AnonymousUserResponseOutput = z.infer<typeof AnonymousUserResponseOutputSchema>;
-
-export const GetUserResponseOutputSchema = z.object({
-  data: z
-    .object({
-      id: z.string().openapi({})
-    })
-    .openapi({})
-});
-
-export type GetUserResponseOutput = z.infer<typeof GetUserResponseOutputSchema>;
-
 export const UserSchema = z.object({
   id: z.string(),
   userId: z.string(),
@@ -36,3 +15,9 @@ export const UserSchema = z.object({
 });
 
 export type UserSchema = z.infer<typeof UserSchema>;
+
+export const GetUserResponseOutputSchema = z.object({
+  data: UserSchema.openapi({})
+});
+
+export type GetUserResponseOutput = z.infer<typeof GetUserResponseOutputSchema>;

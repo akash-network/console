@@ -1,7 +1,12 @@
-import { QueryTypes } from "sequelize";
-import { singleton } from "tsyringe";
+import { createOtelLogger } from "@akashnetwork/logging/otel";
+import { QueryTypes, Sequelize } from "sequelize";
+import { inject, singleton } from "tsyringe";
 
-import { chainDb } from "@src/db/dbConnection";
+import { UserWalletRepository } from "@src/billing/repositories/user-wallet/user-wallet.repository";
+import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
+import { CHAIN_DB } from "@src/chain/providers/sequelize.provider";
+
+const WALLET_MIGRATION_DATE = new Date("2025-11-24");
 
 export interface BillingUsageRawResult {
   date: string;
@@ -16,8 +21,20 @@ export interface BillingUsageRawResult {
 
 @singleton()
 export class UsageRepository {
+  private readonly logger = createOtelLogger({ context: UsageRepository.name });
+  readonly #chainDb: Sequelize;
+
+  constructor(
+    @inject(CHAIN_DB) chainDb: Sequelize,
+    private readonly userWalletRepository: UserWalletRepository,
+    private readonly txManagerService: TxManagerService
+  ) {
+    this.#chainDb = chainDb;
+  }
+
   async getHistory(address: string, startDate: string, endDate: string) {
-    const query = `
+    const addresses = await this.resolveAddresses(address);
+    const query = `/* billing-usage:history */
       WITH date_range AS (
         SELECT generate_series(
           :startDate::date,
@@ -45,7 +62,7 @@ export class UsageRepository {
         FROM date_range dr
                LEFT JOIN day d ON dr.date = d.date
                LEFT JOIN lease l ON
-          l.owner = :address AND
+          l.owner IN (:addresses) AND
           l."createdHeight" < COALESCE(d."lastBlockHeightYet", 999999999) AND
           COALESCE(l."closedHeight", l."predictedClosedHeight") > COALESCE(d."firstBlockHeight", 0)
       ),
@@ -92,9 +109,9 @@ export class UsageRepository {
       ORDER BY dr.date ASC;
     `;
 
-    const results = await chainDb.query<BillingUsageRawResult>(query, {
+    const results = await this.#chainDb.query<BillingUsageRawResult>(query, {
       type: QueryTypes.SELECT,
-      replacements: { address, startDate, endDate }
+      replacements: { addresses, startDate, endDate }
     });
 
     return results.map(row => ({
@@ -107,5 +124,32 @@ export class UsageRepository {
       dailyUsdSpent: parseFloat(String(row.dailyUsdSpent)),
       totalUsdSpent: parseFloat(String(row.totalUsdSpent))
     }));
+  }
+
+  private async resolveAddresses(address: string): Promise<string[]> {
+    const userWallet = await this.userWalletRepository.findOneByAddress(address);
+
+    if (!userWallet) {
+      return [address];
+    }
+
+    const walletCreatedBeforeMigration = userWallet.createdAt && userWallet.createdAt < WALLET_MIGRATION_DATE;
+
+    if (!walletCreatedBeforeMigration) {
+      return [address];
+    }
+
+    try {
+      const prevAddress = await this.txManagerService.getDerivedWalletAddress(userWallet.id, { walletVersion: "v1" });
+
+      if (prevAddress === address) {
+        return [address];
+      }
+
+      return [address, prevAddress];
+    } catch (error) {
+      this.logger.error({ event: "FAILED_TO_DERIVE_OLD_WALLET_ADDRESS", address, walletId: userWallet.id, error });
+      return [address];
+    }
   }
 }

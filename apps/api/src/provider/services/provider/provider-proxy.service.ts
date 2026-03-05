@@ -1,7 +1,7 @@
-import axios from "axios";
-import { singleton } from "tsyringe";
+import type { HttpClient } from "@akashnetwork/http-sdk";
+import { inject, singleton } from "tsyringe";
 
-import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
+import { PROVIDER_PROXY_HTTP_CLIENT } from "@src/provider/providers/provider-proxy.provider";
 
 export interface ProviderIdentity {
   owner: string;
@@ -33,17 +33,31 @@ export interface ProviderProxyPayload {
 
 @singleton()
 export class ProviderProxyService {
-  constructor(private readonly configService: DeploymentConfigService) {}
+  readonly #httpClient: HttpClient;
+
+  constructor(@inject(PROVIDER_PROXY_HTTP_CLIENT) httpClient: HttpClient) {
+    this.#httpClient = httpClient;
+  }
 
   async request<T>(url: string, options: ProviderProxyPayload): Promise<T> {
     const { chainNetwork, providerIdentity, timeout, ...params } = options;
-    const response = await axios.post(this.configService.get("PROVIDER_PROXY_URL"), {
-      ...params,
-      method: options.method || "GET",
-      url: providerIdentity.hostUri + url,
-      providerAddress: providerIdentity.owner,
-      network: chainNetwork
-    });
+    const response = await this.#httpClient.post(
+      "/",
+      {
+        ...params,
+        method: options.method || "GET",
+        url: providerIdentity.hostUri + url,
+        providerAddress: providerIdentity.owner,
+        network: chainNetwork,
+        timeout // this is per attempt timeout on provider-proxy side
+      },
+      {
+        ...(timeout && {
+          // this is total timeout for all attempts to communicate with the provider API, and it should be much higher than per attempt timeout
+          timeout: timeout * 5
+        })
+      }
+    );
     return response.data;
   }
 }

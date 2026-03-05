@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from "vitest";
+
 import type { UseProviderCredentialsResult } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import type { Props as CreateProviderCredentialsButtonProps } from "./CreateCredentialsButton";
 import { CreateCredentialsButton, DEPENDENCIES as CREATE_PROVIDER_CREDENTIALS_BUTTON_DEPENDENCIES } from "./CreateCredentialsButton";
@@ -55,7 +57,7 @@ describe(CreateCredentialsButton.name, () => {
     });
 
     it("shows spinner when generating credentials for `mtls`", () => {
-      const generate = jest.fn(() => new Promise<void>(() => {}));
+      const generate = vi.fn(() => new Promise<void>(() => {}));
       setup({
         providerCredentials: {
           generate,
@@ -127,7 +129,7 @@ describe(CreateCredentialsButton.name, () => {
     });
 
     it("shows spinner when generating credentials for `jwt`", () => {
-      const generate = jest.fn(() => new Promise<void>(() => {}));
+      const generate = vi.fn(() => new Promise<void>(() => {}));
       setup({
         providerCredentials: {
           generate,
@@ -162,7 +164,7 @@ describe(CreateCredentialsButton.name, () => {
         dependencies={{
           ...CREATE_PROVIDER_CREDENTIALS_BUTTON_DEPENDENCIES,
           useProviderCredentials: () => ({
-            generate: providerCredentials?.generate ?? jest.fn(() => Promise.resolve()),
+            generate: providerCredentials?.generate ?? vi.fn(() => Promise.resolve()),
             details: providerCredentials?.details ?? {
               type: "mtls",
               value: { cert: "certPem", key: "keyPem" },

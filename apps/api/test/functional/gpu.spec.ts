@@ -2,16 +2,11 @@ import { Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { MsgCreateBid } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 import type { ProviderSnapshotNodeGPU } from "@akashnetwork/database/dbSchemas/akash";
 import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
-import type { ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash/providerSnapshot";
-import type { ProviderSnapshotNode } from "@akashnetwork/database/dbSchemas/akash/providerSnapshotNode";
-import type { Day } from "@akashnetwork/database/dbSchemas/base/day";
-import type { Transaction } from "@akashnetwork/database/dbSchemas/base/transaction";
+import type { ProviderSnapshot, ProviderSnapshotNode } from "@akashnetwork/database/dbSchemas/akash";
+import type { Day, Transaction } from "@akashnetwork/database/dbSchemas/base";
 import { faker } from "@faker-js/faker";
-import { format, setHours, setMinutes, setSeconds } from "date-fns";
-import Long from "long";
 import nock from "nock";
 
-import { closeConnections } from "@src/core";
 import type { ListGpuResponse } from "@src/gpu/http-schemas/gpu.schema";
 import { app, initDb } from "@src/rest-app";
 
@@ -28,13 +23,14 @@ import {
   createProviderSnapshotNodeGpu,
   createTransaction
 } from "@test/seeders";
+import { formatUTCDate } from "@test/utils";
 
 describe("GPU API", () => {
-  const now = setSeconds(setMinutes(setHours(new Date(), 12), 0), 0);
-  const date = format(now, "yyyy-MM-dd");
+  const now = new Date();
+  now.setUTCHours(12, 0, 0, 0);
+  const date = formatUTCDate(now);
 
   afterAll(async () => {
-    await closeConnections();
     nock.cleanAll();
   });
 
@@ -292,7 +288,8 @@ describe("GPU API", () => {
               total: 1,
               available: 1
             },
-            price: null
+            price: null,
+            priceUakt: null
           },
           {
             vendor: "amd",
@@ -314,6 +311,14 @@ describe("GPU API", () => {
               avg: 1.2,
               weightedAverage: 1.2,
               med: 1.2
+            },
+            priceUakt: {
+              currency: "uakt",
+              min: 1200000,
+              max: 1200000,
+              avg: 1200000,
+              weightedAverage: 1200000,
+              med: 1200000
             }
           },
           {
@@ -336,6 +341,14 @@ describe("GPU API", () => {
               avg: 0.6,
               weightedAverage: 0.6,
               med: 0.6
+            },
+            priceUakt: {
+              currency: "uakt",
+              min: 600000,
+              max: 600000,
+              avg: 600000,
+              weightedAverage: 600000,
+              med: 600000
             }
           },
           {
@@ -351,7 +364,8 @@ describe("GPU API", () => {
               total: 1,
               available: 1
             },
-            price: null
+            price: null,
+            priceUakt: null
           }
         ]
       });
@@ -562,12 +576,12 @@ describe("GPU API", () => {
       createDeployment({
         owner: testData.providers[0].owner,
         createdHeight: block.height,
-        dseq: Long.fromNumber(1).toString()
+        dseq: "1"
       }),
       createDeployment({
         owner: testData.providers[1].owner,
         createdHeight: block.height,
-        dseq: Long.fromNumber(2).toString()
+        dseq: "2"
       })
     ]);
     const deploymentGroups = await Promise.all([
@@ -604,10 +618,10 @@ describe("GPU API", () => {
         height: block.height,
         data: Buffer.from(
           MsgCreateBid.encode(
-            MsgCreateBid.create({
+            MsgCreateBid.fromPartial({
               id: {
                 owner: testData.providers[0].owner,
-                dseq: Long.fromNumber(1),
+                dseq: 1,
                 oseq: 1,
                 gseq: 1,
                 provider: testData.providers[0].owner
@@ -668,10 +682,10 @@ describe("GPU API", () => {
         height: block.height,
         data: Buffer.from(
           MsgCreateBid.encode(
-            MsgCreateBid.create({
+            MsgCreateBid.fromPartial({
               id: {
                 owner: testData.providers[1].owner,
-                dseq: Long.fromNumber(2),
+                dseq: 2,
                 oseq: 1,
                 gseq: 1,
                 provider: testData.providers[1].owner

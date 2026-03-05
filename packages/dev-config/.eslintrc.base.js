@@ -4,7 +4,7 @@ module.exports = {
     es2021: true
   },
   extends: ["eslint:recommended"],
-  plugins: ["simple-import-sort", "import-x"],
+  plugins: ["simple-import-sort", "import-x", "akash"],
   settings: {
     "import-x/resolver": {
       typescript: {
@@ -33,13 +33,15 @@ module.exports = {
     "import-x/no-extraneous-dependencies": ["error"],
     "import-x/no-cycle": ["error", { ignoreExternal: true }],
     "import-x/no-self-import": ["error"],
-    "import-x/no-useless-path-segments": ["error"]
+    "import-x/no-useless-path-segments": ["error"],
+    "akash/no-mnemonic": ["error"]
   },
   overrides: [
     {
-      files: ["**/sentry.*.config.js"],
+      files: ["**/sentry.*.config.js", "**/packages/releaser/**/*.js"],
       parserOptions: {
-        sourceType: "module"
+        sourceType: "module",
+        ecmaVersion: 2022
       }
     }
   ]

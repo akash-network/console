@@ -1,6 +1,7 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
-import path from "path";
+import { randomUUID } from "node:crypto";
+import path from "node:path";
 import postgres from "postgres";
 
 export class TestDatabaseService {
@@ -12,16 +13,11 @@ export class TestDatabaseService {
 
   private readonly postgresUri: string;
 
-  private get postgres() {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    return require("../../src/core/providers/postgres.provider");
-  }
-
   constructor(testPath: string) {
     this.testFileName = path.basename(testPath, ".spec.ts");
-    const timestamp = Date.now();
-    this.dbName = `${timestamp}_test_user_${this.testFileName}`.replace(/\W+/g, "_");
-    this.indexerDbName = `${timestamp}_test_indexer_${this.testFileName}`.replace(/\W+/g, "_");
+    const dbPrefix = randomUUID().replace("-", "");
+    this.dbName = `${dbPrefix}_test_user_${this.testFileName}`.replace(/\W+/g, "_");
+    this.indexerDbName = `${dbPrefix}_test_indexer_${this.testFileName}`.replace(/\W+/g, "_");
     this.postgresUri = process.env.POSTGRES_URI || "postgres://postgres:password@localhost:5432";
 
     process.env.POSTGRES_DB_URI = `${this.postgresUri}/${this.dbName}`;
@@ -32,7 +28,10 @@ export class TestDatabaseService {
     console.log(`Setting up test databases for: ${this.testFileName}: ${this.dbName}, ${this.indexerDbName}`);
     await Promise.all([this.createDatabase(this.dbName), this.createDatabase(this.indexerDbName)]);
 
-    await Promise.all([this.postgres.migratePG(), this.migrateIndexerDb()]);
+    // Need to load it dynamically to ensure it doesn't trigger side effects too early
+    const { migratePG } = await import("../../src/core/providers/postgres.provider.ts");
+
+    await Promise.all([migratePG(), this.migrateIndexerDb()]);
   }
 
   private async migrateIndexerDb() {
@@ -44,14 +43,16 @@ export class TestDatabaseService {
     const pgMigrationDatabase = drizzle(migrationClient);
     const migrationsFolder = path.resolve(process.cwd(), "../indexer/drizzle");
 
-    await migrate(pgMigrationDatabase, { migrationsFolder });
+    try {
+      await migrate(pgMigrationDatabase, { migrationsFolder });
+    } finally {
+      await migrationClient.end();
+    }
   }
 
   async teardown(): Promise<void> {
-    await this.postgres.closeConnections();
-
     console.log(`Dropping test databases: ${this.dbName}, ${this.indexerDbName}`);
-    const sql = postgres(this.postgresUri);
+    const sql = postgres(this.postgresUri, { max: 1 });
 
     try {
       await Promise.all(
@@ -72,7 +73,7 @@ export class TestDatabaseService {
   }
 
   private async createDatabase(dbName: string): Promise<void> {
-    const sql = postgres(this.postgresUri);
+    const sql = postgres(this.postgresUri, { max: 1 });
 
     try {
       const [exists] = await sql`

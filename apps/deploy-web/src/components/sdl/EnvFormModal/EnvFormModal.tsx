@@ -9,7 +9,7 @@ import { Bin } from "iconoir-react";
 import { nanoid } from "nanoid";
 
 import { protectedEnvironmentVariables } from "@src/config/remote-deploy.config";
-import type { EnvironmentVariableType, RentGpusFormValuesType, SdlBuilderFormValuesType } from "@src/types";
+import type { EnvironmentVariableType, SdlBuilderFormValuesType } from "@src/types";
 import { FormPaper } from "../FormPaper";
 
 export const COMPONENTS = {
@@ -27,7 +27,7 @@ export type EnvFormModalProps = {
   serviceIndex: number;
   onClose: () => void;
   envs: EnvironmentVariableType[];
-  control: Control<SdlBuilderFormValuesType | RentGpusFormValuesType, any>;
+  control: Control<SdlBuilderFormValuesType, any>;
   hasSecretOption?: boolean;
   children?: ReactNode;
   isRemoteDeployEnvHidden?: boolean;

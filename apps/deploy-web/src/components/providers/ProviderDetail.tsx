@@ -13,17 +13,16 @@ import { LabelValue } from "@src/components/shared/LabelValue";
 import { useWallet } from "@src/context/WalletProvider";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
 import { useProviderAttributesSchema, useProviderDetail, useProviderStatus } from "@src/queries/useProvidersQuery";
-import type { ApiProviderDetail, ClientProviderDetailWithStatus, StatsItem } from "@src/types/provider";
+import type { ApiProviderDetail, ClientProviderDetailWithStatus } from "@src/types/provider";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 import { Title } from "../shared/Title";
 import { ActiveLeasesGraph } from "./ActiveLeasesGraph";
-import type { Props as NetworkCapacityProps } from "./NetworkCapacity";
 import ProviderDetailLayout, { ProviderDetailTabs } from "./ProviderDetailLayout";
 import { ProviderSpecs } from "./ProviderSpecs";
 
-const NetworkCapacity = dynamic(() => import("./NetworkCapacity"), {
+const NetworkCapacity = dynamic(() => import("./NetworkCapacity/NetworkCapacity"), {
   ssr: false
 });
 
@@ -84,29 +83,6 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
     }
   }, [leases]);
 
-  const networkCapacity = useMemo<NetworkCapacityProps>(() => {
-    return {
-      activeCPU: provider.stats.cpu.active / 1000,
-      pendingCPU: provider.stats.cpu.pending / 1000,
-      totalCPU: collectTotals(provider.stats.cpu) / 1000,
-      activeGPU: provider.stats.gpu.active,
-      pendingGPU: provider.stats.gpu.pending,
-      totalGPU: collectTotals(provider.stats.gpu),
-      activeMemory: provider.stats.memory.active,
-      pendingMemory: provider.stats.memory.pending,
-      totalMemory: collectTotals(provider.stats.memory),
-      activeStorage: provider.stats.storage.ephemeral.active + provider.stats.storage.persistent.active,
-      pendingStorage: provider.stats.storage.ephemeral.pending + provider.stats.storage.persistent.pending,
-      totalStorage: collectTotals(provider.stats.storage.ephemeral) + collectTotals(provider.stats.storage.persistent),
-      activeEphemeralStorage: provider.stats.storage.ephemeral.active,
-      pendingEphemeralStorage: provider.stats.storage.ephemeral.pending,
-      availableEphemeralStorage: provider.stats.storage.ephemeral.available,
-      activePersistentStorage: provider.stats.storage.persistent.active,
-      pendingPersistentStorage: provider.stats.storage.persistent.pending,
-      availablePersistentStorage: provider.stats.storage.persistent.available
-    };
-  }, [provider]);
-
   const refresh = () => {
     getProviderDetail();
     getLeases();
@@ -157,13 +133,13 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
           </Alert>
         )}
 
-        {networkCapacity && wasRecentlyOnline && (
+        {provider?.stats && wasRecentlyOnline && (
           <>
-            <div className="mb-4">
-              <NetworkCapacity {...networkCapacity} />
+            <div className="mb-6">
+              <NetworkCapacity stats={provider.stats} />
             </div>
 
-            <div className="grid grid-cols-1 gap-4 space-y-4 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-6 space-y-6 lg:grid-cols-2">
               <div className="basis-1/2">
                 <ActiveLeasesGraph provider={provider} />
               </div>
@@ -199,12 +175,12 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
 
         {provider && providerAttributesSchema && (
           <>
-            <div className="mt-4">
-              <Title subTitle className="mb-4 font-normal tracking-tight">
+            <div className="mb-6 mt-6">
+              <Title subTitle className="mb-4 font-normal">
                 General Info
               </Title>
 
-              <Card className="mb-4">
+              <Card className="mb-6">
                 <CardContent className="mb-4 grid grid-cols-1 gap-4 p-4 sm:grid-cols-2">
                   <div>
                     <LabelValue label="Host" value={provider.host} />
@@ -225,16 +201,19 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
                 </CardContent>
               </Card>
 
-              <Title subTitle className="mb-4 font-normal tracking-tight">
+              <Title subTitle className="mb-4 font-normal">
                 Specs
               </Title>
-              <ProviderSpecs provider={provider} />
 
-              <Title subTitle className="mb-4 mt-4 font-normal tracking-tight">
+              <div className="mb-6">
+                <ProviderSpecs provider={provider} />
+              </div>
+
+              <Title subTitle className="mb-4 font-normal">
                 Features
               </Title>
-              <Card className="mb-4">
-                <CardContent className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2">
+              <Card className="mb-6">
+                <CardContent className="grid grid-cols-1 gap-4 pt-6 sm:grid-cols-2">
                   <div>
                     <LabelValue label="Akash version" value={provider.akashVersion || "Unknown"} />
                     <LabelValue label="IP Leases" value={provider.featEndpointIp && <Check className="ml-0 text-primary sm:ml-2" />} />
@@ -248,12 +227,12 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
                 </CardContent>
               </Card>
 
-              <Title subTitle className="mb-4 font-normal tracking-tight">
+              <Title subTitle className="mb-4 font-normal">
                 Stats
               </Title>
 
               <Card className="mb-4">
-                <CardContent className="p-4">
+                <CardContent className="pt-6">
                   <LabelValue label="Deployments" value={provider.deploymentCount} />
                   <LabelValue label="Leases" value={provider.leaseCount} />
                   <LabelValue label="Orders" value={provider.orderCount || "0"} />
@@ -262,11 +241,11 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
               </Card>
             </div>
 
-            <Title subTitle className="mb-4 font-normal tracking-tight">
+            <Title subTitle className="mb-4 font-normal">
               Raw attributes
             </Title>
             <Card>
-              <CardContent className="p-4">
+              <CardContent className="pt-6">
                 {provider.attributes.map(x => (
                   <LabelValue key={x.key} label={x.key} value={x.value} />
                 ))}
@@ -278,7 +257,3 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
     </Layout>
   );
 };
-
-function collectTotals(item: StatsItem): number {
-  return item.active + item.available + item.pending;
-}

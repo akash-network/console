@@ -12,12 +12,13 @@ type HttpRequestLog = {
     protocol?: string;
     remoteIp?: string;
     duration: string;
+    cfRay?: string;
   };
   fingerprint?: string;
   userId?: string;
 };
 
-export class HttpLoggerIntercepter {
+export class HttpLoggerInterceptor {
   constructor(private readonly logger?: LoggerService) {}
 
   intercept(): MiddlewareHandler {
@@ -44,6 +45,7 @@ export class HttpLoggerIntercepter {
         if (clientInfo) {
           log.httpRequest.userAgent = clientInfo.userAgent;
           log.httpRequest.remoteIp = clientInfo.ip;
+          log.httpRequest.cfRay = c.req.header("cf-ray");
           log.fingerprint = clientInfo.fingerprint;
         }
 
@@ -51,7 +53,15 @@ export class HttpLoggerIntercepter {
           log.userId = currentUser.id;
         }
 
-        this.logger?.info(log);
+        const status = c.res.status;
+
+        if (status >= 500) {
+          this.logger?.error(log);
+        } else if (status >= 400) {
+          this.logger?.warn(log);
+        } else {
+          this.logger?.info(log);
+        }
       }
     };
   }

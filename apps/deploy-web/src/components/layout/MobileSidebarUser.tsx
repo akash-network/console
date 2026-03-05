@@ -76,7 +76,7 @@ export const MobileSidebarUser: React.FunctionComponent = () => {
             <SignUpButton className={cn(buttonVariants({ variant: "default", size: "sm" }), "w-full")} />
           </li>
           <li>
-            <Link href={UrlService.login()} className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "w-full")}>
+            <Link href={UrlService.newLogin()} className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "w-full")} passHref prefetch={false}>
               Sign in
             </Link>
           </li>

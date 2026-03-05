@@ -1,8 +1,10 @@
+import { describe, expect, it, vi } from "vitest";
+
 import { COMPONENTS, ProviderRawData } from "@src/components/providers/ProviderRawData/ProviderRawData";
 import type { AppDIContainer } from "@src/context/ServicesProvider";
 import type { ApiProviderDetail } from "@src/types/provider";
 
-import { act, render, waitFor } from "@testing-library/react";
+import { act, render } from "@testing-library/react";
 import { buildProvider } from "@tests/seeders/provider";
 import { MockComponents } from "@tests/unit/mocks";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
@@ -15,14 +17,14 @@ describe(ProviderRawData.name, () => {
 
     expect(components.Layout).toHaveBeenCalled();
     expect(components.CustomNextSeo).toHaveBeenCalled();
-    await waitFor(() => expect(components.ProviderDetailLayout).toHaveBeenCalledWith(expect.objectContaining({ address: provider.owner, provider }), {}));
+    await vi.waitFor(() => expect(components.ProviderDetailLayout).toHaveBeenCalledWith(expect.objectContaining({ address: provider.owner, provider }), {}));
     expect(components.DynamicReactJson).toHaveBeenCalledWith(expect.objectContaining({ src: JSON.parse(JSON.stringify(provider)) }), {});
   });
 
   async function setup(props?: Props) {
     const publicConsoleApiHttpClient = () =>
       ({
-        get: jest.fn(async url => {
+        get: vi.fn(async url => {
           if (url.includes("/providers/"))
             return {
               data: props?.provider || buildProvider()
@@ -33,14 +35,14 @@ describe(ProviderRawData.name, () => {
       }) as unknown as AppDIContainer["publicConsoleApiHttpClient"];
     const chainApiHttpClient = () =>
       ({
-        get: jest.fn(async url => {
+        get: vi.fn(async url => {
           if (url.includes("/leases/")) return { data: [] };
           throw new Error(`unexpected request: ${url}`);
         })
       }) as unknown as AppDIContainer["chainApiHttpClient"];
     const providerProxy = () =>
       ({
-        fetchProviderUrl: jest.fn(() => {
+        fetchProviderUrl: vi.fn(() => {
           return new Promise(() => {});
         })
       }) as unknown as AppDIContainer["providerProxy"];

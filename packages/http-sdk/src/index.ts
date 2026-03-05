@@ -3,7 +3,6 @@ export * from "./authz/authz-http.service";
 export * from "./api-http/api-http.service";
 export * from "./tx-http/tx-http.service";
 export * from "./managed-wallet-http/managed-wallet-http.service";
-export * from "./user-http/user-http.service";
 export * from "./balance/balance-http.service";
 export * from "./block/block-http.service";
 export * from "./types/denom.type";
@@ -14,6 +13,7 @@ export * from "./deployment-setting/deployment-setting-http.service";
 export * from "./api-key";
 export * from "./bid/bid-http.service";
 export * from "./deployment/deployment-http.service";
+export * from "./deployment/managed-deployment-http.service";
 export * from "./lease/lease-http.service";
 export * from "./provider/provider-http.service";
 export * from "./utils/isHttpError";
@@ -22,5 +22,14 @@ export * from "./cosmos";
 export * from "./coin-gecko";
 export * from "./node";
 export * from "./certificates/certificates.service";
+export * from "./wallet-settings/wallet-settings-http.service";
+export * from "./stripe/stripe.service";
+export * from "./stripe/stripe.types";
 export { getAllItems } from "./utils/pagination.utils";
 export { createHttpClient, type HttpClient, type HttpClientOptions } from "./utils/httpClient";
+export {
+  createFetchAdapter,
+  type FetchAdapterOptions,
+  isNetworkOrIdempotentRequestError,
+  isRetriableError
+} from "./utils/createFetchAdapter/createFetchAdapter";

@@ -1,4 +1,4 @@
-import { LoggerService } from "@akashnetwork/logging";
+import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { PromisePool } from "@supercharge/promise-pool";
 import addDays from "date-fns/addDays";
 import subDays from "date-fns/subDays";
@@ -6,19 +6,21 @@ import { singleton } from "tsyringe";
 
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
-import { ManagedUserWalletService, WalletInitializerService } from "@src/billing/services";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
-import { Semaphore } from "@src/core/lib/semaphore.decorator";
+import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
+import { ManagedUserWalletService } from "@src/billing/services/managed-user-wallet/managed-user-wallet.service";
+import { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 
 @singleton()
 export class RefillService {
-  private readonly logger = LoggerService.forContext(RefillService.name);
+  private readonly logger = createOtelLogger({ context: RefillService.name });
 
   constructor(
     @InjectBillingConfig() private readonly config: BillingConfig,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly managedUserWalletService: ManagedUserWalletService,
+    private readonly managedSignerService: ManagedSignerService,
     private readonly balancesService: BalancesService,
     private readonly walletInitializerService: WalletInitializerService,
     private readonly analyticsService: AnalyticsService
@@ -47,7 +49,7 @@ export class RefillService {
 
     const expiration = isInTrialWindow && userWallet.createdAt ? addDays(userWallet.createdAt, this.config.TRIAL_ALLOWANCE_EXPIRATION_DAYS) : undefined;
 
-    await this.managedUserWalletService.authorizeSpending({
+    await this.managedUserWalletService.authorizeSpending(this.managedSignerService, {
       address: userWallet.address!,
       limits: {
         fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT
@@ -62,23 +64,52 @@ export class RefillService {
    * @param amountUsd - The amount in USD *cents* to top up the wallet with (e.g. 10000 = $100)
    * @param userId - The ID of the user to top up the wallet for
    */
-  async topUpWallet(amountUsd: number, userId: UserWalletOutput["userId"]) {
+  async topUpWallet(amountUsd: number, userId: UserWalletOutput["userId"], options: { endTrial?: boolean } = {}) {
     const userWallet = await this.getOrCreateUserWallet(userId);
     const currentLimit = await this.balancesService.retrieveDeploymentLimit(userWallet);
 
     const nextLimit = currentLimit + amountUsd * 10000;
     const limits = { deployment: nextLimit, fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT };
-    await this.managedUserWalletService.authorizeSpending({
+    await this.managedUserWalletService.authorizeSpending(this.managedSignerService, {
       address: userWallet.address!,
       limits
     });
 
-    await this.balancesService.refreshUserWalletLimits(userWallet, { endTrial: true });
-    this.analyticsService.track(userId!, "balance_top_up");
+    await this.balancesService.refreshUserWalletLimits(userWallet, { endTrial: options.endTrial ?? true });
+    this.analyticsService.track(userId, "balance_top_up");
     this.logger.debug({ event: "WALLET_TOP_UP", userWallet, limits });
   }
 
-  @Semaphore()
+  /**
+   * Reduce the wallet balance (e.g., for refunds)
+   * @param amountUsd - The amount in USD *cents* to reduce from the wallet (e.g. 10000 = $100)
+   * @param userId - The ID of the user to reduce the wallet for
+   */
+  async reduceWalletBalance(amountUsd: number, userId: UserWalletOutput["userId"]) {
+    const userWallet = await this.userWalletRepository.findOneBy({ userId });
+
+    if (!userWallet || !userWallet.address) {
+      this.logger.warn({ event: "WALLET_REDUCE_NO_WALLET", userId });
+      return;
+    }
+
+    const currentLimit = await this.balancesService.retrieveDeploymentLimit(userWallet);
+    const reductionAmount = amountUsd * 10000;
+
+    // Ensure we don't go below 0
+    const nextLimit = Math.max(0, currentLimit - reductionAmount);
+    const limits = { deployment: nextLimit, fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT };
+
+    await this.managedUserWalletService.authorizeSpending(this.managedSignerService, {
+      address: userWallet.address,
+      limits
+    });
+
+    await this.balancesService.refreshUserWalletLimits(userWallet);
+    this.analyticsService.track(userId, "balance_refund");
+    this.logger.info({ event: "WALLET_BALANCE_REDUCED", userId, amountUsd, previousLimit: currentLimit, nextLimit });
+  }
+
   private async getOrCreateUserWallet(userId: UserWalletOutput["userId"]) {
     const userWallet = await this.userWalletRepository.findOneBy({ userId });
     if (userWallet) {

@@ -58,14 +58,14 @@ describe(PodLogsCollectorService.name, () => {
       podName: "test-pod",
       namespace: "test-namespace",
       containerName: "app",
-      message: "Starting log collection for container"
+      event: "CONTAINER_LOG_COLLECTION_STARTED"
     });
 
     expect(loggerService.info).toHaveBeenCalledWith({
       podName: "test-pod",
       namespace: "test-namespace",
       containerName: "sidecar",
-      message: "Starting log collection for container"
+      event: "CONTAINER_LOG_COLLECTION_STARTED"
     });
   });
 
@@ -78,7 +78,7 @@ describe(PodLogsCollectorService.name, () => {
     expect(loggerService.warn).toHaveBeenCalledWith({
       podName: "test-pod",
       namespace: "test-namespace",
-      message: "No containers found in pod"
+      event: "POD_LOGS_NO_CONTAINERS"
     });
   });
 
@@ -134,7 +134,7 @@ describe(PodLogsCollectorService.name, () => {
       podName: "test-pod",
       namespace: "test-namespace",
       containerName: "app",
-      message: "Starting log collection for container"
+      event: "CONTAINER_LOG_COLLECTION_STARTED"
     });
   });
 
@@ -227,6 +227,41 @@ describe(PodLogsCollectorService.name, () => {
     );
   });
 
+  it("should log warning and return on 403 Forbidden", async () => {
+    const { podLogsCollectorService, fileDestination, errorHandlerService, loggerService } = setup({
+      containerNames: ["app"]
+    });
+
+    fileDestination.getLastLogLines.mockResolvedValue([]);
+    fileDestination.createWriteStream.mockResolvedValue(mock<NodeJS.WritableStream>());
+
+    const forbiddenError = Object.assign(new Error("Forbidden"), { statusCode: 403 });
+    errorHandlerService.aggregateConcurrentResults.mockRejectedValue(new AggregateError([forbiddenError], "container log collection"));
+
+    await podLogsCollectorService.collectPodLogs();
+
+    expect(loggerService.warn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "POD_LOGS_COLLECTION_FORBIDDEN",
+        message: expect.stringContaining("permissions")
+      })
+    );
+  });
+
+  it("should re-throw non-forbidden errors", async () => {
+    const { podLogsCollectorService, fileDestination, errorHandlerService } = setup({
+      containerNames: ["app"]
+    });
+
+    fileDestination.getLastLogLines.mockResolvedValue([]);
+    fileDestination.createWriteStream.mockResolvedValue(mock<NodeJS.WritableStream>());
+
+    const error = new Error("Something went wrong");
+    errorHandlerService.aggregateConcurrentResults.mockRejectedValue(error);
+
+    await expect(podLogsCollectorService.collectPodLogs()).rejects.toThrow("Something went wrong");
+  });
+
   function setup(overrides: { containerNames: string[] } = { containerNames: ["app"] }) {
     container.clearInstances();
 
@@ -238,6 +273,8 @@ describe(PodLogsCollectorService.name, () => {
     const fileDestination = mockProvider(FileDestinationService);
     const k8sLogClient = mockProvider(K8sLog);
     const errorHandlerService = mockProvider(ErrorHandlerService);
+    const realErrorHandler = new ErrorHandlerService();
+    errorHandlerService.isForbidden.mockImplementation((error: unknown) => realErrorHandler.isForbidden(error));
     const loggerService = mockProvider(LoggerService);
 
     const podLogsCollectorService = new PodLogsCollectorService(podInfo, fileDestination, k8sLogClient, errorHandlerService, loggerService);

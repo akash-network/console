@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import React from "react";
 import type { ButtonProps } from "@akashnetwork/ui/components";
 import { Button } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import { Wallet } from "iconoir-react";
 
 import { useSelectedChain } from "@src/context/CustomChainProvider";
@@ -16,9 +17,15 @@ export const ConnectWalletButton: React.FunctionComponent<Props> = ({ className 
   const { connect } = useSelectedChain();
 
   return (
-    <Button variant="outline" onClick={() => connect()} className={className} {...rest} data-testid="connect-wallet-btn">
+    <Button
+      variant="outline"
+      onClick={() => connect()}
+      className={cn("flex items-center gap-2 whitespace-nowrap", className)}
+      {...rest}
+      data-testid="connect-wallet-btn"
+    >
       <Wallet className="text-xs" />
-      <span className="ml-2 whitespace-nowrap">Connect Wallet</span>
+      <span>Connect Wallet</span>
     </Button>
   );
 };

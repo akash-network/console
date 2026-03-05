@@ -1,8 +1,8 @@
-import type { Session } from "@auth0/nextjs-auth0";
 import { wrapApiHandlerWithSentry } from "@sentry/nextjs";
 import type { NextApiHandler, NextApiRequest, NextApiResponse } from "next";
 import type { z } from "zod";
 
+import type { Session } from "@src/lib/auth0";
 import { services } from "@src/services/app-di-container/server-di-container.service";
 import { createRequestExecutionContext, requestExecutionContext } from "../requestExecutionContext";
 
@@ -15,6 +15,10 @@ export function defineApiHandler<TResponse, TSchema extends z.ZodSchema<any> | u
 ): NextApiHandler<TResponse> {
   return wrapApiHandlerWithSentry(
     (async (req, res) => {
+      if (options.method && req.method !== options.method) {
+        return res.status(405).json({ message: "Method not allowed" } as TResponse);
+      }
+
       const requestServices = (req as NextApiRequestWithServices)[REQ_SERVICES_KEY] || services;
       const session = await requestServices.getSession(req, res);
 
@@ -57,6 +61,7 @@ export interface ApiHandlerOptions<TResponse, TSchema extends z.ZodSchema<any> |
    * The parametrized route of the API handler.
    */
   route: string;
+  method?: "GET" | "POST" | "PUT" | "DELETE" | "PATCH" | "OPTIONS" | "HEAD";
   schema?: TSchema;
   handler(context: ApiHandlerContext<TResponse, TSchema>): Promise<void> | void;
 }

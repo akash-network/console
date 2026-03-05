@@ -1,3 +1,5 @@
+import { describe, expect, it } from "vitest";
+
 import { netConfigData } from "../generated/netConfigData";
 import { NetConfig, type SupportedChainNetworks } from "./NetConfig";
 

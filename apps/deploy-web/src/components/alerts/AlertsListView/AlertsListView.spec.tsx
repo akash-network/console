@@ -1,9 +1,8 @@
-import "@testing-library/jest-dom";
-
 import React from "react";
 import { TooltipProvider } from "@akashnetwork/ui/components";
 import { PopupProvider } from "@akashnetwork/ui/context";
 import { capitalize, startCase } from "lodash";
+import { describe, expect, it, vi } from "vitest";
 
 import type { useFlag } from "@src/hooks/useFlag";
 import type { Props } from "./AlertsListView";
@@ -98,14 +97,14 @@ describe(AlertsListView.name, () => {
       },
       data: Array.from({ length: 10 }, buildAlert),
       isLoading: false,
-      onToggle: jest.fn(),
+      onToggle: vi.fn(),
       loadingIds: new Set(),
-      onPaginationChange: jest.fn(),
+      onPaginationChange: vi.fn(),
       isError: false,
       ...props
     };
 
-    const mockUseFlag = jest.fn((flag: string) => {
+    const mockUseFlag = vi.fn((flag: string) => {
       if (flag === "notifications_general_alerts_update") {
         return true;
       }

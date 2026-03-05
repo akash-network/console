@@ -1,16 +1,17 @@
 import React from "react";
 import { UserProvider } from "@auth0/nextjs-auth0/client";
 import { faker } from "@faker-js/faker";
+import { describe, expect, it, vi } from "vitest";
 
 import { RegisteredUsersOnly } from "./registered-users-only.hoc";
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 
 describe("RegisteredUsersOnly", () => {
   it("renders the wrapped component when user is registered", async () => {
     setup({ isRegistered: true });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(screen.getByTestId("test-component")).toBeInTheDocument();
       expect(screen.getByText("Test Component Content")).toBeInTheDocument();
       expect(screen.queryByTestId("fallback")).not.toBeInTheDocument();
@@ -31,7 +32,7 @@ describe("RegisteredUsersOnly", () => {
       props: { testProp: "test-value" }
     });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(screen.getByTestId("test-component")).toBeInTheDocument();
       expect(screen.getByTestId("test-prop")).toBeInTheDocument();
       expect(screen.getByText("test-value")).toBeInTheDocument();

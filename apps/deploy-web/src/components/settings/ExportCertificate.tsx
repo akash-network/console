@@ -3,11 +3,12 @@ import { useEffect } from "react";
 import { Alert, Popup } from "@akashnetwork/ui/components";
 
 import { CodeSnippet } from "@src/components/shared/CodeSnippet";
-import { analyticsService } from "@src/services/analytics/analytics.service";
+import { useServices } from "@src/context/ServicesProvider";
 import { useSelectedWalletFromStorage } from "@src/utils/walletUtils";
 
 export function ExportCertificate({ isOpen, onClose }: React.PropsWithChildren<{ isOpen: boolean; onClose: () => void }>) {
   const selectedWallet = useSelectedWalletFromStorage();
+  const { analyticsService } = useServices();
 
   useEffect(() => {
     async function init() {

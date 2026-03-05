@@ -6,7 +6,6 @@ import { useSnackbar } from "notistack";
 import { useServices } from "@src/context/ServicesProvider";
 import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import type { DownloadMessagesResult } from "@src/services/provider-proxy/provider-proxy.service";
-import networkStore from "@src/store/networkStore";
 import type { ApiProviderList } from "@src/types/provider";
 
 export type ProviderInfo = Pick<ApiProviderList, "owner" | "hostUri">;
@@ -22,7 +21,6 @@ type ProviderApiActions = {
 export const useProviderApiActions = (): ProviderApiActions => {
   const providerCredentials = useProviderCredentials();
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
-  const chainNetwork = networkStore.useSelectedNetworkId();
   const { providerProxy, logger } = useServices();
 
   const showSnackbar = useCallback(
@@ -64,7 +62,6 @@ export const useProviderApiActions = (): ProviderApiActions => {
           providerBaseUrl: provider.hostUri,
           providerAddress: provider.owner,
           providerCredentials: providerCredentials.details,
-          chainNetwork,
           dseq,
           gseq,
           oseq,
@@ -83,7 +80,7 @@ export const useProviderApiActions = (): ProviderApiActions => {
         closeSnackbar(snackbarKey);
       }
     },
-    [providerCredentials.details, chainNetwork, providerProxy, showSnackbar, closeSnackbar, displayResult]
+    [providerCredentials.details, providerProxy, showSnackbar, closeSnackbar, displayResult]
   );
 
   const downloadFileFromShell: ProviderApiActions["downloadFileFromShell"] = useCallback(
@@ -94,7 +91,6 @@ export const useProviderApiActions = (): ProviderApiActions => {
           providerBaseUrl: provider.hostUri,
           providerAddress: provider.owner,
           providerCredentials: providerCredentials.details,
-          chainNetwork,
           dseq,
           gseq,
           oseq,
@@ -114,7 +110,7 @@ export const useProviderApiActions = (): ProviderApiActions => {
         closeSnackbar(snackbarKey);
       }
     },
-    [providerCredentials.details, chainNetwork, providerProxy, showSnackbar, closeSnackbar, displayResult]
+    [providerCredentials.details, providerProxy, showSnackbar, closeSnackbar, displayResult]
   );
 
   return useMemo(

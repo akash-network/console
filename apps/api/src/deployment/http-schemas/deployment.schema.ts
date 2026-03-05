@@ -3,40 +3,40 @@ import { z } from "zod";
 
 import { SignTxResponseOutputSchema } from "@src/billing/http-schemas/tx.schema";
 import { openApiExampleAddress } from "@src/utils/constants";
-import { AkashAddressSchema } from "@src/utils/schema";
+import { AkashAddressSchema, DseqSchema } from "@src/utils/schema";
 import { LeaseStatusResponseSchema } from "./lease.schema";
+
+const DeploymentLeaseSchema = z.object({
+  id: z.object({
+    owner: z.string(),
+    dseq: DseqSchema,
+    gseq: z.number(),
+    oseq: z.number(),
+    provider: z.string(),
+    bseq: z.number()
+  }),
+  state: z.string(),
+  price: z.object({
+    denom: z.string(),
+    amount: z.string()
+  }),
+  created_at: z.string(),
+  closed_on: z.string(),
+  reason: z.string().optional(),
+  status: z.nullable(LeaseStatusResponseSchema)
+});
 
 export const DeploymentResponseSchema = z.object({
   deployment: z.object({
     id: z.object({
       owner: z.string(),
-      dseq: z.string()
+      dseq: DseqSchema
     }),
     state: z.string(),
     hash: z.string(),
     created_at: z.string()
   }),
-  leases: z.array(
-    z.object({
-      id: z.object({
-        owner: z.string(),
-        dseq: z.string(),
-        gseq: z.number(),
-        oseq: z.number(),
-        provider: z.string(),
-        bseq: z.number()
-      }),
-      state: z.string(),
-      price: z.object({
-        denom: z.string(),
-        amount: z.string()
-      }),
-      created_at: z.string(),
-      closed_on: z.string(),
-      reason: z.string().optional(),
-      status: z.nullable(LeaseStatusResponseSchema)
-    })
-  ),
+  leases: z.array(DeploymentLeaseSchema),
   escrow_account: z.object({
     id: z.object({
       scope: z.string(),
@@ -73,8 +73,16 @@ export const DeploymentResponseSchema = z.object({
   })
 });
 
+const DeploymentLeaseListItemSchema = DeploymentResponseSchema.extend({
+  leases: z.array(DeploymentLeaseSchema.omit({ status: true }))
+});
+
 export const GetDeploymentResponseSchema = z.object({
   data: DeploymentResponseSchema
+});
+
+export const GetDeploymentParamsSchema = z.object({
+  dseq: DseqSchema.describe("Deployment sequence number")
 });
 
 export const CreateDeploymentRequestSchema = z.object({
@@ -86,14 +94,14 @@ export const CreateDeploymentRequestSchema = z.object({
 
 export const CreateDeploymentResponseSchema = z.object({
   data: z.object({
-    dseq: z.string(),
+    dseq: DseqSchema,
     manifest: z.string(),
     signTx: SignTxResponseOutputSchema.shape.data
   })
 });
 
 export const CloseDeploymentParamsSchema = z.object({
-  dseq: z.string().describe("Deployment sequence number")
+  dseq: DseqSchema.describe("Deployment sequence number")
 });
 
 export const CloseDeploymentResponseSchema = z.object({
@@ -104,7 +112,7 @@ export const CloseDeploymentResponseSchema = z.object({
 
 export const DepositDeploymentRequestSchema = z.object({
   data: z.object({
-    dseq: z.string().describe("Deployment sequence number"),
+    dseq: DseqSchema.describe("Deployment sequence number"),
     deposit: z.number().describe("Amount to deposit in dollars (e.g. 5.5)")
   })
 });
@@ -136,7 +144,7 @@ export const ListDeploymentsQuerySchema = z.object({
 
 export const ListDeploymentsResponseSchema = z.object({
   data: z.object({
-    deployments: z.array(DeploymentResponseSchema),
+    deployments: z.array(DeploymentLeaseListItemSchema),
     pagination: z.object({
       total: z.number(),
       skip: z.number(),
@@ -183,7 +191,7 @@ export const ListWithResourcesResponseSchema = z.object({
   results: z.array(
     z.object({
       owner: z.string(),
-      dseq: z.string(),
+      dseq: DseqSchema,
       status: z.string(),
       createdHeight: z.number(),
       cpuUnits: z.number(),
@@ -200,7 +208,7 @@ export const ListWithResourcesResponseSchema = z.object({
               hostUri: z.string()
             })
             .optional(),
-          dseq: z.string(),
+          dseq: DseqSchema,
           gseq: z.number(),
           oseq: z.number(),
           state: z.string(),
@@ -216,16 +224,12 @@ export const GetDeploymentByOwnerDseqParamsSchema = z.object({
     description: "Owner's Address",
     example: openApiExampleAddress
   }),
-  dseq: z.string().regex(/^\d+$/, "Invalid dseq, must be a positive integer").openapi({
-    description: "Deployment DSEQ",
-    type: "integer",
-    example: "1000000"
-  })
+  dseq: DseqSchema.openapi("Deployment DSEQ")
 });
 
 export const GetDeploymentByOwnerDseqResponseSchema = z.object({
   owner: z.string(),
-  dseq: z.string(),
+  dseq: DseqSchema,
   balance: z.number(),
   denom: z.string(),
   status: z.string(),
@@ -265,6 +269,12 @@ export const GetDeploymentByOwnerDseqResponseSchema = z.object({
   other: DeploymentInfoSchema
 });
 
+export const GetWeeklyDeploymentCostResponseSchema = z.object({
+  data: z.object({
+    weeklyCost: z.number().describe("Total weekly cost in USD for all deployments with auto top-up enabled")
+  })
+});
+
 export type GetDeploymentResponse = z.infer<typeof GetDeploymentResponseSchema>;
 export type CreateDeploymentRequest = z.infer<typeof CreateDeploymentRequestSchema>;
 export type CreateDeploymentResponse = z.infer<typeof CreateDeploymentResponseSchema>;
@@ -276,4 +286,6 @@ export type UpdateDeploymentResponse = z.infer<typeof UpdateDeploymentResponseSc
 export type ListWithResourcesParams = z.infer<typeof ListWithResourcesParamsSchema>;
 export type ListWithResourcesQuery = z.infer<typeof ListWithResourcesQuerySchema>;
 export type ListWithResourcesResponse = z.infer<typeof ListWithResourcesResponseSchema>;
+export type ListDeploymentsItem = z.infer<typeof DeploymentLeaseListItemSchema>;
 export type GetDeploymentByOwnerDseqResponse = z.infer<typeof GetDeploymentByOwnerDseqResponseSchema>;
+export type GetWeeklyDeploymentCostResponse = z.infer<typeof GetWeeklyDeploymentCostResponseSchema>;

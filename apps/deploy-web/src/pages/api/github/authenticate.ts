@@ -11,7 +11,7 @@ export default defineApiHandler({
     })
   }),
   async handler({ body, res, services }) {
-    const { NEXT_PUBLIC_GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, NEXT_PUBLIC_REDIRECT_URI } = services.config;
+    const { NEXT_PUBLIC_GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, NEXT_PUBLIC_REDIRECT_URI } = services.privateConfig;
     const gitHubAuth = new GitHubAuth(
       NEXT_PUBLIC_GITHUB_CLIENT_ID as string,
       GITHUB_CLIENT_SECRET as string,

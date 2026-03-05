@@ -5,8 +5,10 @@ import { singleton } from "tsyringe";
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
 import { TxService } from "@src/core/services";
+import { Trace } from "@src/core/services/tracing/tracing.service";
 
-export type DbUserWalletInput = Partial<ApiPgTables["UserWallets"]["$inferInsert"]>;
+export type DbCreateUserWalletInput = ApiPgTables["UserWallets"]["$inferInsert"];
+export type DbUserWalletInput = Partial<DbCreateUserWalletInput>;
 export type UserWalletInput = Partial<
   Omit<DbUserWalletInput, "deploymentAllowance" | "feeAllowance"> & {
     deploymentAllowance: number;
@@ -19,11 +21,6 @@ export type UserWalletOutput = Omit<DbUserWalletOutput, "feeAllowance" | "deploy
   deploymentAllowance: number;
   feeAllowance: number;
 };
-
-export interface ListOptions {
-  limit?: number;
-  offset?: number;
-}
 
 export interface UserWalletPublicOutput {
   id: UserWalletOutput["id"];
@@ -73,7 +70,7 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
     return { wallet: wallet!, isNew: false };
   }
 
-  async create(input: Pick<UserWalletInput, "userId" | "address">) {
+  async create(input: Pick<DbCreateUserWalletInput, "userId" | "address">) {
     const value = {
       userId: input.userId,
       address: input.address
@@ -100,10 +97,18 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
     );
   }
 
+  @Trace()
   async findOneByUserId(userId: UserWalletOutput["userId"]) {
     if (!userId) return undefined;
 
     const userWallet = await this.cursor.query.UserWallets.findFirst({ where: this.whereAccessibleBy(eq(this.table.userId, userId)) });
+    if (!userWallet) return undefined;
+
+    return this.toOutput(userWallet);
+  }
+
+  async findOneByAddress(address: string) {
+    const userWallet = await this.cursor.query.UserWallets.findFirst({ where: this.whereAccessibleBy(eq(this.table.address, address)) });
     if (!userWallet) return undefined;
 
     return this.toOutput(userWallet);
