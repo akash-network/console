@@ -17,6 +17,7 @@ import type { PodInfo } from "@src/services/pod-discovery/pod-discovery.service"
  * - Timestamp-based log resumption to avoid duplicates using last log lines with same timestamp
  * - Stream processing with duplicate line detection against multiple last log lines
  * - Error aggregation for robust error handling
+ * - AbortSignal support for graceful teardown when a pod disappears
  */
 @singleton()
 export class PodLogsCollectorService {
@@ -38,13 +39,15 @@ export class PodLogsCollectorService {
    * @param k8sLogClient - Kubernetes client for log streaming
    * @param errorHandlerService - Service for aggregating errors from concurrent operations
    * @param loggerService - Service for logging application events
+   * @param signal - Optional AbortSignal for graceful teardown when a pod disappears
    */
   constructor(
     private readonly podInfo: PodInfo,
     private readonly fileDestination: FileDestinationService,
     private readonly k8sLogClient: K8sLog,
     private readonly errorHandlerService: ErrorHandlerService,
-    private readonly loggerService: LoggerService
+    private readonly loggerService: LoggerService,
+    private readonly signal?: AbortSignal
   ) {
     this.loggerService.setContext(PodLogsCollectorService.name);
   }
@@ -63,6 +66,8 @@ export class PodLogsCollectorService {
    * @throws AggregateError if any container fails to start log collection
    */
   async collectPodLogs(): Promise<void> {
+    if (this.signal?.aborted) return;
+
     const logLine = await this.fileDestination.getLastLogLines();
 
     if (this.podInfo.containerNames.length === 0) {
@@ -130,10 +135,10 @@ export class PodLogsCollectorService {
    * - Filter out empty lines
    * - Detect and skip duplicate log lines by comparing against all last log lines with same timestamp
    * - Write processed logs to the stable file destination
-   * - Return a promise that rejects if there are any stream errors
+   * - Resolve on stream close (when signal fires) or reject on stream errors
    *
    * @param logStream - The PassThrough stream to configure for log processing
-   * @returns Promise that stays pending and rejects on stream errors
+   * @returns Promise that resolves on stream close or rejects on stream errors
    */
   private write(logStream: PassThrough): Promise<void> {
     return new Promise<void>((resolve, reject) => {
@@ -142,9 +147,8 @@ export class PodLogsCollectorService {
           const writeStream = await this.fileDestination.createWriteStream();
           const lastLogLines = await this.fileDestination.getLastLogLines();
 
-          let isFirstChunk = true;
-          let firstChunkTimeout: NodeJS.Timeout | undefined = undefined;
-          let remainingBuffer = Buffer.alloc(0);
+          let remainingBuffer: Buffer<ArrayBufferLike> = Buffer.alloc(0);
+          const deduplicator = this.createDeduplicator(lastLogLines);
 
           writeStream.on("error", error => {
             this.loggerService.error({
@@ -166,41 +170,20 @@ export class PodLogsCollectorService {
             reject(error);
           });
 
+          logStream.on("close", () => {
+            this.loggerService.info({
+              event: "LOG_STREAM_CLOSED",
+              podName: this.podInfo.podName,
+              namespace: this.podInfo.namespace
+            });
+            writeStream.end(() => resolve());
+          });
+
           logStream.on("data", (chunk: Buffer) => {
-            const combinedBuffer = Buffer.concat([remainingBuffer, chunk]);
-            const lines = combinedBuffer.toString().split("\n");
+            const { lines, remaining } = this.splitChunkIntoLines(remainingBuffer, chunk);
+            remainingBuffer = remaining;
 
-            const isLastLineComplete = combinedBuffer[combinedBuffer.length - 1] === 10;
-            const linesToProcess = isLastLineComplete ? lines : lines.slice(0, -1);
-            remainingBuffer = isLastLineComplete ? Buffer.alloc(0) : Buffer.from(lines[lines.length - 1]);
-
-            const outputLines: string[] = [];
-
-            for (let i = 0; i < linesToProcess.length; i++) {
-              const line = linesToProcess[i];
-
-              if (!line.trim()) {
-                continue;
-              }
-
-              if (isFirstChunk && lastLogLines.length > 0 && lastLogLines.some(lastLogLine => lastLogLine.line === line)) {
-                this.loggerService.info({
-                  event: "LOG_LINE_DUPLICATE_SKIPPED",
-                  podName: this.podInfo.podName,
-                  namespace: this.podInfo.namespace,
-                  duplicateLine: line.substring(0, 100) + "..."
-                });
-                continue;
-              } else {
-                if (!firstChunkTimeout) {
-                  firstChunkTimeout = setTimeout(() => {
-                    isFirstChunk = false;
-                  }, 300);
-                }
-              }
-
-              outputLines.push(line);
-            }
+            const outputLines = deduplicator(lines);
 
             if (outputLines.length > 0) {
               const outputContent = outputLines.join("\n") + "\n";
@@ -219,12 +202,76 @@ export class PodLogsCollectorService {
   }
 
   /**
+   * Splits a buffer chunk into complete lines, carrying over incomplete trailing lines.
+   *
+   * @param remainingBuffer - Leftover bytes from the previous chunk
+   * @param chunk - The new data chunk to process
+   * @returns Object with complete lines and any remaining incomplete line bytes
+   */
+  private splitChunkIntoLines(remainingBuffer: Buffer<ArrayBufferLike>, chunk: Buffer): { lines: string[]; remaining: Buffer<ArrayBufferLike> } {
+    const combinedBuffer = Buffer.concat([remainingBuffer, chunk]);
+    const parts = combinedBuffer.toString().split("\n");
+    const NEWLINE_CHAR_CODE = 10;
+    const isLastLineComplete = combinedBuffer[combinedBuffer.length - 1] === NEWLINE_CHAR_CODE;
+
+    return {
+      lines: isLastLineComplete ? parts : parts.slice(0, -1),
+      remaining: isLastLineComplete ? Buffer.alloc(0) : Buffer.from(parts[parts.length - 1])
+    };
+  }
+
+  /**
+   * Creates a stateful deduplicator function that filters out duplicate log lines.
+   *
+   * Compares incoming lines against the last log lines from the file destination
+   * during the first chunk window (300ms), then stops deduplication to avoid
+   * false positives on legitimately repeated log lines.
+   *
+   * @param lastLogLines - Previously written log lines to compare against
+   * @returns A function that accepts lines and returns only non-duplicate lines
+   */
+  private createDeduplicator(lastLogLines: { line: string; timestamp?: number | null }[]): (lines: string[]) => string[] {
+    let isFirstChunk = true;
+    let firstChunkTimeout: NodeJS.Timeout | undefined;
+
+    return (lines: string[]) => {
+      const outputLines: string[] = [];
+
+      for (const line of lines) {
+        if (!line.trim()) {
+          continue;
+        }
+
+        if (isFirstChunk && lastLogLines.length > 0 && lastLogLines.some(lastLogLine => lastLogLine.line === line)) {
+          this.loggerService.info({
+            event: "LOG_LINE_DUPLICATE_SKIPPED",
+            podName: this.podInfo.podName,
+            namespace: this.podInfo.namespace,
+            duplicateLine: line.substring(0, 100) + "..."
+          });
+          continue;
+        } else {
+          if (!firstChunkTimeout) {
+            firstChunkTimeout = setTimeout(() => {
+              isFirstChunk = false;
+            }, 300);
+          }
+        }
+
+        outputLines.push(line);
+      }
+
+      return outputLines;
+    };
+  }
+
+  /**
    * Starts Kubernetes log streaming for a specific container
    *
    * Configures log stream options based on whether we're resuming from a timestamp
    * and initiates the Kubernetes log stream for the specified container.
-   * Note: Kubernetes sinceTime parameter ignores milliseconds, so timestamp-based
-   * resumption may include some duplicate logs that need to be filtered out.
+   * Hooks into the AbortSignal to tear down the k8s stream and logStream when
+   * the pod disappears.
    *
    * @param containerName - Name of the container to stream logs from
    * @param logStream - PassThrough stream to receive the log data
@@ -239,6 +286,37 @@ export class PodLogsCollectorService {
       timestamps: true
     };
 
-    await this.k8sLogClient.log(this.podInfo.namespace, this.podInfo.podName, containerName, logStream, logStreamOptions);
+    const k8sAbortRef: { current?: AbortController } = {};
+
+    if (this.signal) {
+      this.signal.addEventListener(
+        "abort",
+        () => {
+          k8sAbortRef.current?.abort();
+          logStream.destroy();
+        },
+        { once: true }
+      );
+
+      if (this.signal.aborted) {
+        logStream.destroy();
+        return;
+      }
+    }
+
+    k8sAbortRef.current = await this.k8sLogClient.log(this.podInfo.namespace, this.podInfo.podName, containerName, logStream, logStreamOptions);
+
+    if (this.signal?.aborted) {
+      k8sAbortRef.current?.abort();
+      logStream.destroy();
+    }
+
+    this.loggerService.info({
+      event: "K8S_LOG_STREAM_ESTABLISHED",
+      podName: this.podInfo.podName,
+      namespace: this.podInfo.namespace,
+      containerName,
+      aborted: k8sAbortRef.current?.signal?.aborted
+    });
   }
 }
