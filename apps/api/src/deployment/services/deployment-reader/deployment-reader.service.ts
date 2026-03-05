@@ -46,11 +46,7 @@ export class DeploymentReaderService {
     return this.findByWalletAndDseq(wallet, dseq);
   }
 
-  public async findByWalletAndDseq(
-    wallet: WalletInitialized,
-    dseq: string,
-    options?: { certificate?: { certPem: string; keyPem: string } }
-  ): Promise<GetDeploymentResponse["data"]> {
+  public async findByWalletAndDseq(wallet: WalletInitialized, dseq: string): Promise<GetDeploymentResponse["data"]> {
     const { address: owner } = wallet;
     const deploymentResponse = await this.getDeployment(owner, dseq);
     assert(deploymentResponse, 404, "Deployment not found");
@@ -71,7 +67,7 @@ export class DeploymentReaderService {
             lease.id.dseq,
             lease.id.gseq,
             lease.id.oseq,
-            await this.providerService.toProviderAuth(options?.certificate || { walletId: wallet.id, provider: lease.id.provider }, ["status"])
+            await this.providerService.toProviderAuth({ walletId: wallet.id, provider: lease.id.provider }, ["status"])
           );
           return {
             lease,

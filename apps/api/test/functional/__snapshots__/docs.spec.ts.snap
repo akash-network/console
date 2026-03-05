@@ -3109,14 +3109,10 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                             ],
                             "type": "object",
                           },
-                          "isCertificateRequired": {
-                            "type": "boolean",
-                          },
                         },
                         "required": [
                           "bid",
                           "escrow_account",
-                          "isCertificateRequired",
                         ],
                         "type": "object",
                       },
@@ -3558,14 +3554,10 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                             ],
                             "type": "object",
                           },
-                          "isCertificateRequired": {
-                            "type": "boolean",
-                          },
                         },
                         "required": [
                           "bid",
                           "escrow_account",
-                          "isCertificateRequired",
                         ],
                         "type": "object",
                       },
@@ -3824,42 +3816,23 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     "/v1/certificates": {
       "post": {
         "responses": {
-          "200": {
+          "400": {
             "content": {
               "application/json": {
                 "schema": {
                   "properties": {
-                    "data": {
-                      "properties": {
-                        "certPem": {
-                          "minLength": 1,
-                          "type": "string",
-                        },
-                        "encryptedKey": {
-                          "minLength": 1,
-                          "type": "string",
-                        },
-                        "pubkeyPem": {
-                          "minLength": 1,
-                          "type": "string",
-                        },
-                      },
-                      "required": [
-                        "certPem",
-                        "pubkeyPem",
-                        "encryptedKey",
-                      ],
-                      "type": "object",
+                    "error": {
+                      "type": "string",
                     },
                   },
                   "required": [
-                    "data",
+                    "error",
                   ],
                   "type": "object",
                 },
               },
             },
-            "description": "Certificate created",
+            "description": "This endpoint has been removed. mTLS certificates are no longer required as identity is now verified via API key.",
           },
         },
         "security": [
@@ -6416,21 +6389,6 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 "properties": {
                   "data": {
                     "properties": {
-                      "certificate": {
-                        "properties": {
-                          "certPem": {
-                            "type": "string",
-                          },
-                          "keyPem": {
-                            "type": "string",
-                          },
-                        },
-                        "required": [
-                          "certPem",
-                          "keyPem",
-                        ],
-                        "type": "object",
-                      },
                       "sdl": {
                         "type": "string",
                       },
@@ -7742,21 +7700,6 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "application/json": {
               "schema": {
                 "properties": {
-                  "certificate": {
-                    "properties": {
-                      "certPem": {
-                        "type": "string",
-                      },
-                      "keyPem": {
-                        "type": "string",
-                      },
-                    },
-                    "required": [
-                      "certPem",
-                      "keyPem",
-                    ],
-                    "type": "object",
-                  },
                   "leases": {
                     "items": {
                       "properties": {
