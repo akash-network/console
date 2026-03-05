@@ -3,14 +3,14 @@ import type { Control, UseFieldArrayAppend } from "react-hook-form";
 import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@akashnetwork/ui/components";
 import { NavArrowDown } from "iconoir-react";
 
-import type { RentGpusFormValuesType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { defaultPersistentStorage } from "@src/utils/sdl/data";
 import { defaultRamStorage } from "../../utils/sdl/data";
 
 type Props = {
   services: ServiceType[];
   serviceIndex: number;
-  control: Control<SdlBuilderFormValuesType | RentGpusFormValuesType, any>;
+  control: Control<SdlBuilderFormValuesType, any>;
   storageIndex: number;
   appendStorage: UseFieldArrayAppend<SdlBuilderFormValuesType, `services.${number}.profile.storage`>;
 };

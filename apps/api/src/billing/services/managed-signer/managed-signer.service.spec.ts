@@ -5,10 +5,10 @@ import type { LeaseHttpService } from "@akashnetwork/http-sdk";
 import type { MongoAbility } from "@casl/ability";
 import { createMongoAbility } from "@casl/ability";
 import type { EncodeObject, Registry } from "@cosmjs/proto-signing";
-import { mock } from "jest-mock-extended";
-import Long from "long";
+import { mock } from "vitest-mock-extended";
 
 import type { AuthService } from "@src/auth/services/auth.service";
+import { EnableDeploymentAlertCommand } from "@src/billing/commands/enable-deployment-alert.command";
 import { TrialDeploymentLeaseCreated } from "@src/billing/events/trial-deployment-lease-created";
 import type { UserWalletRepository } from "@src/billing/repositories";
 import type { BalancesService } from "@src/billing/services/balances/balances.service";
@@ -98,7 +98,7 @@ describe(ManagedSignerService.name, () => {
           typeUrl: MsgCreateLease.$type,
           value: MsgCreateLease.fromPartial({
             bidId: {
-              dseq: Long.fromNumber(123)
+              dseq: 123
             }
           })
         }
@@ -134,7 +134,7 @@ describe(ManagedSignerService.name, () => {
           typeUrl: MsgCreateLease.$type,
           value: MsgCreateLease.fromPartial({
             bidId: {
-              dseq: Long.fromNumber(123)
+              dseq: 123
             }
           })
         }
@@ -178,7 +178,7 @@ describe(ManagedSignerService.name, () => {
         typeUrl: MsgCreateLease.$type,
         value: MsgCreateLease.fromPartial({
           bidId: {
-            dseq: Long.fromNumber(123),
+            dseq: 123,
             owner: "akash1test",
             gseq: 1,
             oseq: 1,
@@ -206,8 +206,10 @@ describe(ManagedSignerService.name, () => {
       await service.executeDerivedDecodedTxByUserId("user-123", [deploymentMessage]);
 
       expect(domainEvents.publish).toHaveBeenCalledWith(expect.any(TrialDeploymentLeaseCreated));
-      const publishedEvent = (domainEvents.publish as jest.Mock).mock.lastCall?.[0] as TrialDeploymentLeaseCreated;
-      expect(publishedEvent.data).toEqual({
+      expect(domainEvents.publish).toHaveBeenCalledWith(expect.any(EnableDeploymentAlertCommand));
+      const publishCalls = (domainEvents.publish as jest.Mock).mock.calls;
+      const trialEvent = publishCalls.find(([e]: [unknown]) => e instanceof TrialDeploymentLeaseCreated)?.[0] as TrialDeploymentLeaseCreated;
+      expect(trialEvent.data).toEqual({
         walletId: wallet.id,
         dseq: "123",
         createdAt: expect.any(String),
@@ -217,8 +219,12 @@ describe(ManagedSignerService.name, () => {
       hasLeases.mockResolvedValue(true);
       await service.executeDerivedDecodedTxByUserId("user-123", [deploymentMessage]);
       expect(domainEvents.publish).toHaveBeenCalledWith(expect.any(TrialDeploymentLeaseCreated));
-      const anotherPublishedEvent = (domainEvents.publish as jest.Mock).mock.lastCall?.[0] as TrialDeploymentLeaseCreated;
-      expect(anotherPublishedEvent.data).toEqual({
+      const allCalls = (domainEvents.publish as jest.Mock).mock.calls;
+      const trialEvents = allCalls
+        .filter(([e]: [unknown]) => e instanceof TrialDeploymentLeaseCreated)
+        .map(([e]: [unknown]) => e as TrialDeploymentLeaseCreated);
+      const anotherTrialEvent = trialEvents[trialEvents.length - 1];
+      expect(anotherTrialEvent.data).toEqual({
         walletId: wallet.id,
         dseq: "123",
         createdAt: expect.any(String),
@@ -238,7 +244,7 @@ describe(ManagedSignerService.name, () => {
           typeUrl: MsgCreateLease.$type,
           value: MsgCreateLease.fromPartial({
             bidId: {
-              dseq: Long.fromNumber(123)
+              dseq: 123
             }
           })
         }
@@ -265,7 +271,7 @@ describe(ManagedSignerService.name, () => {
           typeUrl: MsgCreateLease.$type,
           value: MsgCreateLease.fromPartial({
             bidId: {
-              dseq: Long.fromNumber(123)
+              dseq: 123
             }
           })
         }
@@ -300,7 +306,7 @@ describe(ManagedSignerService.name, () => {
           typeUrl: MsgCreateLease.$type,
           value: MsgCreateLease.fromPartial({
             bidId: {
-              dseq: Long.fromNumber(123),
+              dseq: 123,
               provider: "akash1provider"
             }
           })
@@ -337,7 +343,7 @@ describe(ManagedSignerService.name, () => {
           typeUrl: MsgCreateLease.$type,
           value: MsgCreateLease.fromPartial({
             bidId: {
-              dseq: Long.fromNumber(123),
+              dseq: 123,
               provider: "akash1provider"
             }
           })
@@ -450,6 +456,58 @@ describe(ManagedSignerService.name, () => {
     });
   });
 
+  describe("executeFundingTx", () => {
+    it("signs and broadcasts with funding wallet", async () => {
+      const messages: EncodeObject[] = [{ typeUrl: MsgCreateDeployment.$type, value: MsgCreateDeployment.fromPartial({}) }];
+      const txResult = { code: 0, hash: "tx-hash", rawLog: "success" };
+
+      const { service, txManagerService } = setup({
+        signAndBroadcastWithFundingWallet: jest.fn().mockResolvedValue(txResult)
+      });
+
+      const result = await service.executeFundingTx(messages);
+
+      expect(txManagerService.signAndBroadcastWithFundingWallet).toHaveBeenCalledWith(messages);
+      expect(result).toEqual(txResult);
+    });
+
+    it("throws app error when chain call fails", async () => {
+      const messages: EncodeObject[] = [{ typeUrl: MsgCreateDeployment.$type, value: MsgCreateDeployment.fromPartial({}) }];
+      const chainError = new Error("Chain funding error");
+
+      const { service, chainErrorService } = setup({
+        signAndBroadcastWithFundingWallet: jest.fn().mockRejectedValue(chainError),
+        transformChainError: jest.fn().mockResolvedValue(new Error("Funding app error"))
+      });
+
+      await expect(service.executeFundingTx(messages)).rejects.toThrow("Funding app error");
+      expect(chainErrorService.toAppError).toHaveBeenCalledWith(chainError, messages);
+    });
+  });
+
+  describe("executeDerivedDecodedTxByUserId - result without hash", () => {
+    it("returns result as-is when hash is empty", async () => {
+      const wallet = UserWalletSeeder.create({ userId: "user-123", feeAllowance: 100, deploymentAllowance: 100 });
+      const user = UserSeeder.create({ userId: "user-123" });
+      const messages: EncodeObject[] = [{ typeUrl: MsgCreateLease.$type, value: MsgCreateLease.fromPartial({ bidId: { dseq: 123 } }) }];
+
+      const { service } = setup({
+        findOneByUserId: jest.fn().mockResolvedValue(wallet),
+        findById: jest.fn().mockResolvedValue(user),
+        signAndBroadcastWithDerivedWallet: jest.fn().mockResolvedValue({
+          code: 0,
+          hash: "",
+          rawLog: "empty hash"
+        }),
+        refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined)
+      });
+
+      const result = await service.executeDerivedDecodedTxByUserId("user-123", messages);
+
+      expect(result).toEqual({ code: 0, hash: "", rawLog: "empty hash" });
+    });
+  });
+
   function setup(input?: {
     findOneByUserId?: UserWalletRepository["findOneByUserId"];
     findById?: UserRepository["findById"];
@@ -459,6 +517,7 @@ describe(ManagedSignerService.name, () => {
     validateTrialLimit?: TrialValidationService["validateTrialLimit"];
     validateLeaseProvidersAuditors?: TrialValidationService["validateLeaseProvidersAuditors"];
     signAndBroadcastWithDerivedWallet?: TxManagerService["signAndBroadcastWithDerivedWallet"];
+    signAndBroadcastWithFundingWallet?: TxManagerService["signAndBroadcastWithFundingWallet"];
     refreshUserWalletLimits?: BalancesService["refreshUserWalletLimits"];
     retrieveAndCalcFeeLimit?: BalancesService["retrieveAndCalcFeeLimit"];
     retrieveDeploymentLimit?: BalancesService["retrieveDeploymentLimit"];
@@ -492,6 +551,7 @@ describe(ManagedSignerService.name, () => {
       }),
       txManagerService: mock<TxManagerService>({
         signAndBroadcastWithDerivedWallet: input?.signAndBroadcastWithDerivedWallet ?? jest.fn(),
+        signAndBroadcastWithFundingWallet: input?.signAndBroadcastWithFundingWallet ?? jest.fn(),
         getFundingWalletAddress: jest.fn().mockResolvedValue(createAkashAddress())
       }),
       domainEvents: mock<DomainEventsService>({

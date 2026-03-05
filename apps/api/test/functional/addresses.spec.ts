@@ -1,15 +1,13 @@
 import { AkashBlock, AkashMessage, Deployment, DeploymentGroup, Lease, Provider } from "@akashnetwork/database/dbSchemas/akash";
 import { AddressReference, Day, Transaction, Validator } from "@akashnetwork/database/dbSchemas/base";
 import { faker } from "@faker-js/faker";
-import { format } from "date-fns";
 import nock from "nock";
 import { container } from "tsyringe";
 
 import type { GetAddressTransactionsResponse } from "@src/address/http-schemas/address.schema";
 import { CORE_CONFIG } from "@src/core";
-import { connectUsingSequelize } from "@src/db/dbConnection";
 import type { ListWithResourcesResponse } from "@src/deployment/http-schemas/deployment.schema";
-import { app } from "@src/rest-app";
+import { app, initDb } from "@src/rest-app";
 import { deploymentVersion, marketVersion } from "@src/utils/constants";
 
 import { createAddressReferenceInDatabase } from "@test/seeders/address-reference.seeder";
@@ -23,6 +21,7 @@ import { createLease } from "@test/seeders/lease.seeder";
 import { createProvider } from "@test/seeders/provider.seeder";
 import { createTransaction } from "@test/seeders/transaction.seeder";
 import { createValidator } from "@test/seeders/validator.seeder";
+import { formatUTCDate } from "@test/utils";
 
 describe("Addresses API", () => {
   afterEach(async () => {
@@ -213,7 +212,7 @@ describe("Addresses API", () => {
   });
 
   const setup = async () => {
-    await connectUsingSequelize();
+    await initDb();
 
     const address = createAkashAddress();
     const validators = await Promise.all([
@@ -360,6 +359,7 @@ describe("Addresses API", () => {
         dseq: deployments[0].dseq,
         gseq: 1,
         oseq: 1,
+        bseq: 1,
         state: "active",
         deploymentId: deployments[0].id,
         deploymentGroupId: deploymentGroup[0].id,
@@ -370,6 +370,7 @@ describe("Addresses API", () => {
         dseq: deployments[1].dseq,
         gseq: 1,
         oseq: 1,
+        bseq: 2,
         state: "active",
         deploymentId: deployments[1].id,
         deploymentGroupId: deploymentGroup[1].id,
@@ -513,7 +514,7 @@ describe("Addresses API", () => {
     const height = 100;
 
     await createDay({
-      date: format(now, "yyyy-MM-dd"),
+      date: formatUTCDate(now),
       firstBlockHeight: height,
       lastBlockHeight: height,
       lastBlockHeightYet: height

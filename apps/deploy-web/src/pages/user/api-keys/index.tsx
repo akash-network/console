@@ -5,11 +5,14 @@ import { enqueueSnackbar } from "notistack";
 
 import { ApiKeyList } from "@src/components/api-keys/ApiKeyList";
 import Layout from "@src/components/layout/Layout";
-import { RequiredUserContainer } from "@src/components/user/RequiredUserContainer";
 import { useServices } from "@src/context/ServicesProvider";
+import { Guard } from "@src/hoc/guard/guard.hoc";
+import { useIsRegisteredUser } from "@src/hooks/useUser";
 import { useDeleteApiKey, useUserApiKeys } from "@src/queries/useApiKeysQuery";
 
-export default function ApiKeysPage() {
+export default Guard(ApiKeysPage, useIsRegisteredUser);
+
+function ApiKeysPage() {
   const { analyticsService } = useServices();
   const [apiKeyToDelete, setApiKeyToDelete] = useState<ApiKeyResponse | null>(null);
   const { data: apiKeys, isLoading: isLoadingApiKeys } = useUserApiKeys();
@@ -35,19 +38,17 @@ export default function ApiKeysPage() {
   };
 
   return (
-    <RequiredUserContainer>
-      <Layout isLoading={isLoading}>
-        <NextSeo title="API Keys" />
+    <Layout isLoading={isLoading}>
+      <NextSeo title="API Keys" />
 
-        <ApiKeyList
-          apiKeys={apiKeys}
-          onDeleteApiKey={onDeleteApiKey}
-          onDeleteClose={onDeleteClose}
-          isDeleting={isDeleting}
-          apiKeyToDelete={apiKeyToDelete}
-          updateApiKeyToDelete={apiKey => setApiKeyToDelete(apiKey)}
-        />
-      </Layout>
-    </RequiredUserContainer>
+      <ApiKeyList
+        apiKeys={apiKeys}
+        onDeleteApiKey={onDeleteApiKey}
+        onDeleteClose={onDeleteClose}
+        isDeleting={isDeleting}
+        apiKeyToDelete={apiKeyToDelete}
+        updateApiKeyToDelete={apiKey => setApiKeyToDelete(apiKey)}
+      />
+    </Layout>
   );
 }

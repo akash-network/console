@@ -3,8 +3,8 @@ import "@test/mocks/logger-service.mock";
 import type { AnyAbility } from "@casl/ability";
 import { faker } from "@faker-js/faker";
 import { addWeeks } from "date-fns";
-import { mock } from "jest-mock-extended";
 import { groupBy } from "lodash";
+import { mock } from "vitest-mock-extended";
 
 import type { UserWalletRepository } from "@src/billing/repositories";
 import type { BalancesService } from "@src/billing/services/balances/balances.service";
@@ -15,6 +15,7 @@ import type { DrainingDeploymentOutput, LeaseRepository } from "@src/deployment/
 import { averageBlockCountInAnHour } from "@src/utils/constants";
 import type { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 import type { DrainingDeploymentRpcService } from "../draining-deployment-rpc/draining-deployment-rpc.service";
+import type { TopUpManagedDeploymentsInstrumentationService } from "../top-up-managed-deployments/top-up-managed-deployments-instrumentation.service";
 import { DrainingDeploymentService } from "./draining-deployment.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
@@ -171,13 +172,13 @@ describe(DrainingDeploymentService.name, () => {
     it("calculates amount for integer block rate", async () => {
       const { service } = setup();
       const result = await service.calculateTopUpAmount({ blockRate: 50 });
-      expect(result).toBe(90000);
+      expect(result).toBe(1440000);
     });
 
     it("floors decimal block rate", async () => {
       const { service } = setup();
       const result = await service.calculateTopUpAmount({ blockRate: 10.7 });
-      expect(result).toBe(19260);
+      expect(result).toBe(308160);
     });
   });
 
@@ -535,9 +536,11 @@ describe(DrainingDeploymentService.name, () => {
     rpcService.findManyByDseqAndOwner.mockResolvedValue([]);
 
     const config = mockConfigService<DeploymentConfigService>({
-      AUTO_TOP_UP_JOB_INTERVAL_IN_H: 1,
-      AUTO_TOP_UP_DEPLOYMENT_INTERVAL_IN_H: 3
+      AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H: 24,
+      AUTO_TOP_UP_AMOUNT_IN_H: 48
     });
+
+    const instrumentation = mock<TopUpManagedDeploymentsInstrumentationService>();
 
     const service = new DrainingDeploymentService(
       blockHttpService,
@@ -547,7 +550,8 @@ describe(DrainingDeploymentService.name, () => {
       config,
       loggerService,
       rpcService,
-      balancesService
+      balancesService,
+      instrumentation
     );
 
     return {

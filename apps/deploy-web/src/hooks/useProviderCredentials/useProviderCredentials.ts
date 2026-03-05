@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from "react";
 
-import { useCertificate } from "@src/context/CertificateProvider";
 import { useSettings } from "@src/context/SettingsProvider";
+import { useCertificate } from "@src/hooks/useCertificate/useCertificate";
 import type { ProviderCredentials } from "@src/services/provider-proxy/provider-proxy.service";
 import { useProviderJwt } from "../useProviderJwt/useProviderJwt";
 
@@ -31,13 +31,16 @@ export function useProviderCredentials({ dependencies: d = DEPENDENCIES }: UsePr
   const generate = useCallback(() => {
     return settings.isBlockchainDown ? generateToken() : createCertificate();
   }, [settings.isBlockchainDown, createCertificate, generateToken]);
+  const isUsable = settings.isBlockchainDown
+    ? !!accessToken && !isTokenExpired
+    : !!localCert?.certPem && !!localCert?.keyPem && !isLocalCertExpired && isLocalCertMatching;
   const credentials = useMemo(() => {
     return settings.isBlockchainDown
       ? ({
           type: "jwt",
           value: accessToken,
           isExpired: isTokenExpired,
-          usable: !!accessToken && !isTokenExpired
+          usable: isUsable
         } as const)
       : ({
           type: "mtls",
@@ -49,9 +52,9 @@ export function useProviderCredentials({ dependencies: d = DEPENDENCIES }: UsePr
                 }
               : null,
           isExpired: isLocalCertExpired,
-          usable: !!localCert?.certPem && !!localCert?.keyPem && !isLocalCertExpired && isLocalCertMatching
+          usable: isUsable
         } as const);
-  }, [settings.isBlockchainDown, localCert, accessToken, isLocalCertExpired, isLocalCertMatching, isTokenExpired]);
+  }, [settings.isBlockchainDown, isUsable]);
 
   return useMemo(
     () => ({

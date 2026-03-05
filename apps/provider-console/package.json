@@ -1,14 +1,14 @@
 {
   "name": "@akashnetwork/provider-console",
-  "version": "1.34.1",
+  "version": "1.35.7",
   "private": true,
   "scripts": {
     "build": "npm run build-env-schemas && next build",
+    "build:container": "dc build provider-console --build-arg DEPLOYMENT_ENV=production",
     "build-env-schemas": "tsc src/config/env-config.schema.ts --outDir . --skipLibCheck",
     "dev": "next -p 3000",
     "format": "prettier --write ./*.{ts,js,json} **/*.{ts,tsx,js,json}",
     "lint": "eslint .",
-    "release": "release-it",
     "start": "next start",
     "test:cov": "NODE_ENV=test jest --coverage --reporters=default --reporters=jest-junit",
     "test:unit": "NODE_ENV=test jest",
@@ -91,6 +91,7 @@
     "nock": "^13.5.0",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
+    "ts-jest": "^29.4.6",
     "typescript": "~5.8.2",
     "whatwg-fetch": "^3.6.20"
   }

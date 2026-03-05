@@ -5,6 +5,7 @@ import { useTheme } from "next-themes";
 import { useSnackbar } from "notistack";
 
 import Layout from "@src/components/layout/Layout";
+import OnboardingRedirect from "@src/components/onboarding/OnboardingRedirect/OnboardingRedirect";
 import { ThreeDSecurePopup } from "@src/components/shared/PaymentMethodForm/ThreeDSecurePopup";
 import { PaymentMethodsList } from "@src/components/shared/PaymentMethodsList";
 import { Title } from "@src/components/shared/Title";
@@ -13,12 +14,15 @@ import { PaymentSuccessAnimation } from "@src/components/user/payment/PaymentSuc
 import { usePaymentPolling } from "@src/context/PaymentPollingProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { Guard } from "@src/hoc/guard/guard.hoc";
 import { use3DSecure } from "@src/hooks/use3DSecure";
+import { useIsOnboarded } from "@src/hooks/useIsOnboarded";
+import { useNotificator } from "@src/hooks/useNotificator";
 import { useUser } from "@src/hooks/useUser";
 import { defineServerSideProps } from "@src/lib/nextjs/defineServerSideProps/defineServerSideProps";
+import { redirectIfAccessTokenExpired } from "@src/lib/nextjs/pageGuards/pageGuards";
 import { usePaymentMethodsQuery, usePaymentMutations, useSetupIntentMutation } from "@src/queries";
 import { handleCouponError, handleStripeError } from "@src/utils/stripeErrorHandler";
-import { withCustomPageAuthRequired } from "@src/utils/withCustomPageAuthRequired";
 
 const MINIMUM_PAYMENT_AMOUNT = 20;
 
@@ -37,6 +41,7 @@ const PayPage: React.FunctionComponent = () => {
   const submittedAmountRef = useRef<string>("");
   const isDarkMode = resolvedTheme === "dark";
   const { enqueueSnackbar } = useSnackbar();
+  const notificator = useNotificator();
   const { user } = useUser();
   const { data: paymentMethods = [], isLoading: isLoadingPaymentMethods, refetch: refetchPaymentMethods } = usePaymentMethodsQuery();
   const { data: setupIntent, mutate: createSetupIntent, reset: resetSetupIntent } = useSetupIntentMutation();
@@ -119,7 +124,7 @@ const PayPage: React.FunctionComponent = () => {
 
       setError(errorInfo.message);
       setErrorAction(errorInfo.userAction);
-      enqueueSnackbar(<Snackbar title={errorInfo.message} iconVariant="error" />, { variant: "error" });
+      notificator.error(errorInfo.message, { title: "Payment Failed" });
     }
   };
 
@@ -142,7 +147,7 @@ const PayPage: React.FunctionComponent = () => {
 
       if (response.error) {
         const errorInfo = handleCouponError(response);
-        enqueueSnackbar(<Snackbar title={errorInfo.message} iconVariant="error" />, { variant: "error" });
+        notificator.error(errorInfo.message, { title: "Payment Failed" });
         return;
       }
 
@@ -155,7 +160,7 @@ const PayPage: React.FunctionComponent = () => {
       setCoupon("");
     } catch (error: unknown) {
       const errorInfo = handleStripeError(error);
-      enqueueSnackbar(<Snackbar title={errorInfo.message} iconVariant="error" />, { variant: "error" });
+      notificator.error(errorInfo.message, { title: "Payment Failed" });
       console.error("Coupon application error:", error);
     }
   };
@@ -176,7 +181,7 @@ const PayPage: React.FunctionComponent = () => {
       console.error("Failed to remove payment method:", error);
 
       const errorInfo = handleStripeError(error);
-      enqueueSnackbar(<Snackbar title={errorInfo.message} iconVariant="error" />, { variant: "error" });
+      notificator.error(errorInfo.message, { title: "Payment Failed" });
     } finally {
       setShowDeleteConfirmation(false);
       setCardToDelete(undefined);
@@ -234,7 +239,6 @@ const PayPage: React.FunctionComponent = () => {
       <div className="py-12">
         <Title className="text-center">Payment Methods</Title>
         <p className="mt-4 text-center text-gray-600">Manage your payment methods and make payments.</p>
-
         <div className="mx-auto max-w-md py-6">
           <PaymentSuccessAnimation
             show={showPaymentSuccess.show}
@@ -340,10 +344,9 @@ const PayPage: React.FunctionComponent = () => {
   );
 };
 
-export default PayPage;
+export default Guard(PayPage, useIsOnboarded, OnboardingRedirect);
 
-export const getServerSideProps = withCustomPageAuthRequired({
-  getServerSideProps: defineServerSideProps({
-    route: "/payment"
-  })
+export const getServerSideProps = defineServerSideProps({
+  if: redirectIfAccessTokenExpired,
+  route: "/payment"
 });

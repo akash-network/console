@@ -26,6 +26,8 @@ export type GpuBidType = {
   aktTokenPrice: number;
   hourlyPrice: number;
   monthlyPrice: number;
+  hourlyPriceUakt: number;
+  monthlyPriceUakt: number;
   deployment: {
     owner: string;
     cpuUnits: number;
@@ -48,4 +50,33 @@ export type GpuWithPricesType = GpuType & {
 export type ProviderWithBestBid = {
   provider: GpuProviderType;
   bestBid: GpuBidType;
+};
+
+export type GpuPricingStats<T extends string> = {
+  currency: T;
+  min: number;
+  max: number;
+  avg: number;
+  weightedAverage: number;
+  med: number;
+} | null;
+
+export type GpuPriceModel = {
+  vendor: string;
+  model: string;
+  ram: string;
+  interface: string;
+  availability: {
+    total: number;
+    available: number;
+  };
+  providerAvailability: {
+    total: number;
+    available: number;
+    providers?: GpuProviderType[];
+  };
+  price: GpuPricingStats<"USD">;
+  priceUakt: GpuPricingStats<"uakt">;
+  bidCount?: number;
+  providersWithBestBid?: ProviderWithBestBid[];
 };

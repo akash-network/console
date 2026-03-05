@@ -1,4 +1,4 @@
-import { LoggerService } from "@akashnetwork/logging";
+import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { ForbiddenError } from "@casl/ability";
 import { HTTPException } from "hono/http-exception";
 import { isHttpError } from "http-errors";
@@ -10,7 +10,7 @@ import type { AppContext } from "../../types/app-context";
 
 @singleton()
 export class HonoErrorHandlerService {
-  private readonly logger = LoggerService.forContext("ErrorHandler");
+  private readonly logger = createOtelLogger({ context: "ErrorHandler" });
 
   constructor() {
     this.handle = this.handle.bind(this);

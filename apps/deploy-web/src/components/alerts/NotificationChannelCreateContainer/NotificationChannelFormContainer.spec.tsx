@@ -1,16 +1,15 @@
-import "@testing-library/jest-dom";
-
 import React from "react";
 import { type components, createAPIClient } from "@akashnetwork/react-query-sdk/notifications";
 import { CustomSnackbarProvider } from "@akashnetwork/ui/context";
 import { faker } from "@faker-js/faker";
 import type { RequestFn, RequestFnResponse } from "@openapi-qraft/tanstack-query-react-types";
+import { describe, expect, it, vi } from "vitest";
 
 import type { ChildrenProps } from "@src/components/alerts/NotificationChannelCreateContainer/NotificationChannelCreateContainer";
 import { NotificationChannelCreateContainer } from "@src/components/alerts/NotificationChannelCreateContainer/NotificationChannelCreateContainer";
 import { queryClient } from "@src/queries";
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { createContainerTestingChildCapturer } from "@tests/unit/container-testing-child-capturer";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
@@ -20,7 +19,7 @@ describe("NotificationChannelCreateContainer", () => {
 
     child.create(input);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(requestFn).toHaveBeenCalledWith(
         expect.objectContaining({
           method: "post",
@@ -49,7 +48,7 @@ describe("NotificationChannelCreateContainer", () => {
 
     requestFn.mockRejectedValue(new Error());
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(requestFn).toHaveBeenCalledWith(
         expect.objectContaining({
           method: "post",
@@ -76,7 +75,7 @@ describe("NotificationChannelCreateContainer", () => {
       name: faker.lorem.word(),
       emails: [faker.internet.email()]
     };
-    const requestFn = jest.fn(
+    const requestFn = vi.fn(
       () =>
         Promise.resolve({
           data: {
@@ -103,7 +102,7 @@ describe("NotificationChannelCreateContainer", () => {
     render(
       <CustomSnackbarProvider>
         <TestContainerProvider services={services}>
-          <NotificationChannelCreateContainer onCreate={jest.fn()}>{childCapturer.renderChild}</NotificationChannelCreateContainer>
+          <NotificationChannelCreateContainer onCreate={vi.fn()}>{childCapturer.renderChild}</NotificationChannelCreateContainer>
         </TestContainerProvider>
       </CustomSnackbarProvider>
     );

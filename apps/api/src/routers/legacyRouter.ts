@@ -1,3 +1,4 @@
+import type { Context } from "hono";
 import { Hono } from "hono";
 
 export const legacyRouter = new Hono();
@@ -131,9 +132,7 @@ legacyRouter.get("/dashboardData", async c => {
   return c.redirect("/v1/dashboard-data", redirectStatusCode);
 });
 
-legacyRouter.post("/pricing", async c => {
-  return c.redirect("/v1/pricing", 307);
-});
+legacyRouter.post("/pricing", proxyToV1);
 
 legacyRouter.get("/getAuditors", async c => {
   return c.redirect("/v1/auditors", redirectStatusCode);
@@ -187,3 +186,62 @@ legacyRouter.get("/getGraphData/:dataName", async c => {
   const dataName = c.req.param("dataName");
   return c.redirect(`/v1/graph-data/${dataName}`, redirectStatusCode);
 });
+
+legacyRouter.get("/v1/templates-list.json", async c => {
+  return c.redirect("/v1/templates-list", redirectStatusCode);
+});
+
+legacyRouter.get("/v1/templates/:id{.+\\.json}", async c => {
+  const id = c.req.param("id");
+  const templateId = id.slice(0, -5); // Remove ".json" suffix
+  const queryString = new URL(c.req.url).search;
+  return c.redirect(`/v1/templates/${templateId}${queryString}`, redirectStatusCode);
+});
+
+legacyRouter.post("/user/subscribeToNewsletter", proxyToV1);
+
+legacyRouter.get("/user/byUsername/:username", async c => {
+  const username = c.req.param("username");
+  return c.redirect(`/v1/user/byUsername/${username}`, 301);
+});
+
+legacyRouter.get("/user/checkUsernameAvailability/:username", async c => {
+  const username = c.req.param("username");
+  return c.redirect(`/v1/user/checkUsernameAvailability/${username}`, 301);
+});
+
+legacyRouter.put("/user/updateSettings", proxyToV1);
+
+legacyRouter.get("/user/template/:id", async c => {
+  const id = c.req.param("id");
+  return c.redirect(`/v1/user/template/${id}`, 301);
+});
+
+legacyRouter.get("/user/templates/:username", async c => {
+  const username = c.req.param("username");
+  return c.redirect(`/v1/user/templates/${username}`, 301);
+});
+
+legacyRouter.delete("/user/deleteTemplate/:id", proxyToV1);
+
+legacyRouter.get("/user/favoriteTemplates", async c => {
+  return c.redirect("/v1/user/favoriteTemplates", 301);
+});
+
+legacyRouter.post("/user/saveTemplate", proxyToV1);
+
+legacyRouter.post("/user/saveTemplateDesc", proxyToV1);
+
+legacyRouter.post("/user/addFavoriteTemplate/:id", proxyToV1);
+
+legacyRouter.delete("/user/removeFavoriteTemplate/:id", proxyToV1);
+
+/**
+ * Local http proxy to http://127.0.0.1:3000/v1/*
+ */
+function proxyToV1(c: Context) {
+  const originalUrl = new URL(c.req.url);
+  const url = `http://127.0.0.1:${process.env.PORT || 3000}/v1${originalUrl.pathname}${originalUrl.search}`;
+
+  return fetch(new Request(url, c.req.raw));
+}

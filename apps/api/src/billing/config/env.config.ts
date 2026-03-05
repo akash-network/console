@@ -6,11 +6,11 @@ import { AUDITOR } from "@src/deployment/config/provider.config";
 dotenv.config({ path: "env/.env.funding-wallet-index" });
 
 export const envSchema = z.object({
-  FUNDING_WALLET_MNEMONIC: z.string(),
-  OLD_MASTER_WALLET_MNEMONIC: z.string(),
-  DERIVATION_WALLET_MNEMONIC: z.string(),
+  OLD_MASTER_WALLET_MNEMONIC: z.string().optional(),
+  FUNDING_WALLET_MNEMONIC: z.string().optional(),
   FUNDING_WALLET_MNEMONIC_V1: z.string().optional(),
   FUNDING_WALLET_MNEMONIC_V2: z.string().optional(),
+  DERIVATION_WALLET_MNEMONIC: z.string().optional(),
   DERIVATION_WALLET_MNEMONIC_V1: z.string().optional(),
   DERIVATION_WALLET_MNEMONIC_V2: z.string().optional(),
   NETWORK: z.enum(["mainnet", "testnet", "sandbox"]),
@@ -36,7 +36,8 @@ export const envSchema = z.object({
   MANAGED_WALLET_LEASE_ALLOWED_AUDITORS: z
     .string()
     .default(AUDITOR)
-    .transform(val => (val ? val.split(",").map(addr => addr.trim()) : []))
+    .transform(val => (val ? val.split(",").map(addr => addr.trim()) : [])),
+  TX_SIGNER_BASE_URL: z.string()
 });
 
 export type BillingConfig = z.infer<typeof envSchema>;

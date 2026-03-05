@@ -104,10 +104,11 @@ export class DeploymentRepository {
     return deployments ? (deployments as unknown as StaleDeploymentsOutput[]) : [];
   }
 
-  async findAllWithGpuResources(minHeight: number) {
-    return await Deployment.findAll({
-      attributes: ["id", "owner"],
-      where: { createdHeight: { [Op.gte]: minHeight } },
+  async *findAllWithGpuResources(options: { minHeight: number }) {
+    // First, get all deployment IDs matching the criteria (lightweight query)
+    const recordsWithIds = await Deployment.findAll({
+      attributes: ["id"],
+      where: { createdHeight: { [Op.gte]: options.minHeight } },
       include: [
         {
           attributes: [],
@@ -121,24 +122,44 @@ export class DeploymentRepository {
               where: { gpuUnits: 1 }
             }
           ]
-        },
-        {
-          attributes: ["height", "data", "type"],
-          model: AkashMessage,
-          as: "relatedMessages",
-          where: {
-            type: {
-              [Op.or]: ["/akash.market.v1beta4.MsgCreateBid", "/akash.market.v1beta5.MsgCreateBid"]
-            },
-            height: { [Op.gte]: minHeight }
-          },
-          include: [
-            { model: Block, attributes: ["height", "dayId", "datetime"], required: true },
-            { model: Transaction, attributes: ["hash"], required: true }
-          ]
         }
-      ]
+      ],
+      raw: true
     });
+
+    const ids = recordsWithIds.map(r => r.id);
+    const BATCH_SIZE = 200;
+
+    // Iterate over IDs in batches and yield each deployment
+    for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+      const batchIds = ids.slice(i, i + BATCH_SIZE);
+
+      const batch = await Deployment.findAll({
+        attributes: ["id", "owner"],
+        where: { id: { [Op.in]: batchIds } },
+        include: [
+          {
+            attributes: ["height", "data", "type"],
+            model: AkashMessage,
+            as: "relatedMessages",
+            where: {
+              type: {
+                [Op.or]: ["/akash.market.v1beta4.MsgCreateBid", "/akash.market.v1beta5.MsgCreateBid"]
+              },
+              height: { [Op.gte]: options.minHeight }
+            },
+            include: [
+              { model: Block, attributes: ["height", "dayId", "datetime"], required: true },
+              { model: Transaction, attributes: ["hash"], required: true }
+            ]
+          }
+        ]
+      });
+
+      for (const deployment of batch) {
+        yield deployment;
+      }
+    }
   }
 
   async findByIdWithGroups(owner: string, dseq: string): Promise<Deployment | null> {

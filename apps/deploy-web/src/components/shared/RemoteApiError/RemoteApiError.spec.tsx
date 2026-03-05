@@ -1,4 +1,5 @@
 import { AxiosError } from "axios";
+import { describe, expect, it } from "vitest";
 
 import { DEPENDENCIES, RemoteApiError } from "./RemoteApiError";
 

@@ -1,6 +1,7 @@
 import type { HttpClient } from "@akashnetwork/http-sdk";
-import type { MockProxy } from "jest-mock-extended";
-import { mock } from "jest-mock-extended";
+import { describe, expect, it } from "vitest";
+import type { MockProxy } from "vitest-mock-extended";
+import { mock } from "vitest-mock-extended";
 
 import { TurnstileVerifierService } from "./turnstile-verifier.service";
 

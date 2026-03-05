@@ -3,6 +3,7 @@ import { faker } from "@faker-js/faker";
 import type { TestingModule } from "@nestjs/testing";
 import { Test } from "@nestjs/testing";
 import Long from "long";
+import { describe, expect, it } from "vitest";
 
 import { RegistryProvider } from "@src/modules/chain/providers/registry.provider";
 import { MessageDecoderService } from "./message-decoder.service";

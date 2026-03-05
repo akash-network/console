@@ -1,26 +1,12 @@
 import { defineApiHandler } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
+import { proxyRequest } from "@src/lib/nextjs/proxyRequest/proxyRequest";
 import { sentryTraceToW3C } from "@src/services/error-handler/error-handler.service";
 
 export default defineApiHandler({
   route: "/api/proxy/[...path]",
   async handler({ req, res, services }) {
-    // removes the api prefix from url
-    req.url = req.url?.replace(/^\/api\/proxy/, "");
-
     services.logger.info({ event: "PROXY_API_REQUEST", url: req.url });
-    const session = await services.getSession(req, res);
-
-    // Extract and forward cf_clearance and unleash-session-id cookies
-    const cookies = req.headers.cookie?.split(";").map(c => c.trim());
-    const cfClearance = cookies?.find(c => c.startsWith("cf_clearance="));
-    const unleashSessionId = cookies?.find(c => c.startsWith("unleash-session-id="));
-
-    const cookiesToForward = [cfClearance, unleashSessionId].filter(Boolean);
-    req.headers.cookie = cookiesToForward.join("; ");
-
-    if (session?.accessToken) {
-      req.headers.authorization = `Bearer ${session.accessToken}`;
-    }
+    const url = req.url?.replace(/^\/api\/proxy\//, "/") || "";
 
     const headers: Record<string, string> = {
       "cf-connecting-ip": String(req.headers["cf-connecting-ip"] || req.socket.remoteAddress || "")
@@ -36,22 +22,28 @@ export default defineApiHandler({
       headers["baggage"] = req.headers["baggage"] as string;
     }
 
-    const proxy = services.httpProxy.createProxyServer({
-      changeOrigin: true,
-      target: services.apiUrlService.getBaseApiUrlFor(services.privateConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID),
-      secure: false,
-      autoRewrite: false,
-      headers
-    });
+    const session = await services.getSession(req, res);
 
-    return new Promise((resolve, reject) => {
-      proxy
-        .once("proxyRes", () => resolve(undefined))
-        .once("error", (error: Error) => {
-          services.logger.error({ error, event: "PROXY_API_REQUEST_ERROR" });
-          reject();
-        })
-        .web(req, res);
+    // Extract and forward cf_clearance and unleash-session-id cookies
+    const cookiesToForward = req.headers.cookie
+      ?.split(";")
+      .map(c => c.trim())
+      .filter(c => c.startsWith("cf_clearance=") || c.startsWith("unleash-session-id="));
+
+    if (cookiesToForward?.length) {
+      headers.cookie = cookiesToForward.join("; ");
+    }
+
+    if (session?.accessToken) {
+      headers.authorization = `Bearer ${session.accessToken}`;
+    }
+
+    await proxyRequest(req, res, {
+      target: services.apiUrlService.getBaseApiUrlFor(services.privateConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID) + url,
+      headers,
+      onError: error => {
+        services.logger.error({ event: "PROXY_API_REQUEST_ERROR", error });
+      }
     });
   }
 });

@@ -177,8 +177,8 @@ export async function topUpWallet(address: string, attempt = 0) {
   try {
     const balance = await getBalance(address);
 
-    if (balance > 100 * 1_000_000) {
-      // 100 AKT should be enough
+    if (balance > 50 * 1_000_000) {
+      // 50 AKT should be enough
       return;
     }
 

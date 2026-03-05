@@ -1,13 +1,16 @@
 import { LoggerService as LoggerServiceOriginal } from "@akashnetwork/logging";
 import { HttpLoggerInterceptor } from "@akashnetwork/logging/hono";
-import { collectOtel } from "@akashnetwork/logging/otel";
+import { collectOtel, createOtelLogger } from "@akashnetwork/logging/otel";
 import { container, injectable } from "tsyringe";
 
-// Set up OpenTelemetry mixin for all LoggerService instances
-// This collects trace information and adds it to log entries
-LoggerServiceOriginal.mixin = collectOtel;
+container.register(HttpLoggerInterceptor, { useValue: new HttpLoggerInterceptor(createOtelLogger({ context: "HTTP" })) });
 
-container.register(HttpLoggerInterceptor, { useValue: new HttpLoggerInterceptor(LoggerServiceOriginal.forContext("HTTP")) });
-
+/**
+ * Registered in DI as injectable service, so we get new instance on every injection.
+ */
 @injectable()
-export class LoggerService extends LoggerServiceOriginal {}
+export class LoggerService extends LoggerServiceOriginal {
+  constructor() {
+    super({ mixin: collectOtel });
+  }
+}

@@ -13,6 +13,7 @@ const route = createRoute({
   path: "/v1/dashboard-data",
   tags: ["Analytics"],
   security: SECURITY_NONE,
+  cache: { maxAge: 60, staleWhileRevalidate: 120 },
   responses: {
     200: {
       description: "Returns dashboard data",

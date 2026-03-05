@@ -1,7 +1,7 @@
 import "@test/mocks/logger-service.mock";
 
-import type { MockProxy } from "jest-mock-extended";
-import { mock } from "jest-mock-extended";
+import type { MockProxy } from "vitest-mock-extended";
+import { mock } from "vitest-mock-extended";
 
 import type { StaleManagedDeploymentsCleanerService } from "@src/deployment/services/stale-managed-deployments-cleaner/stale-managed-deployments-cleaner.service";
 import type { TopUpManagedDeploymentsService } from "@src/deployment/services/top-up-managed-deployments/top-up-managed-deployments.service";

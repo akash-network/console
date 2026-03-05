@@ -27,31 +27,17 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       enabled: ${{ github.event_name == 'push' || steps.has_changes.outputs.value == 'true' }}
-      has_changes: ${{ (github.event_name == 'pull_request' || github.event_name == 'pull_request_target') && steps.has_changes.outputs.value }}
+      has_changes: ${{ (github.event_name == 'pull_request' || github.event_name == 'pull_request_target' || github.event_name == 'merge_group') && steps.has_changes.outputs.value }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - uses: ./.github/actions/local-dependencies
+        if: contains(inputs.path, 'apps/')
         id: local_deps
         with:
           path: ${{ inputs.path }}
-
-      - name: Get package name
-        id: package_name
-        env:
-          WORKSPACE_PATH: ${{ inputs.path }}
-        run: |
-          package_name=${WORKSPACE_PATH##*/}
-
-          if [[ "$package_name" == "deploy-web" ]]; then
-            package_name="console-web"
-          elif [[ "$package_name" == "api" ]]; then
-            package_name="console-api"
-          fi
-
-          echo "value=$package_name" >> "$GITHUB_OUTPUT"
 
       - name: Check for changes
         uses: dorny/paths-filter@v3.0.2
@@ -59,10 +45,9 @@ jobs:
         with:
           token: ${{ secrets.gh-token }}
           filters: |
-            local_deps: &local_deps ${{ steps.local_deps.outputs.deps_json }}
+            local_deps: &local_deps ${{ steps.local_deps.outputs.deps_json || '[]' }}
             app_workflows: &app_workflows
-              - ".github/workflows/${{ steps.package_name.outputs.value }}-validate-n-build.yml"
-              - ".github/workflows/${{ steps.package_name.outputs.value }}-docker-build.yml"
+              - ".github/workflows/all-ci.yml"
               - ".github/workflows/reusable-should-validate.yml"
               - ".github/workflows/reusable-validate-app.yml"
               - ".github/workflows/reusable-validate-app-unsafe.yml"

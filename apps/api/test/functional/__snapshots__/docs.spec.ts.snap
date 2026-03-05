@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
+exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
 {
   "components": {
     "schemas": {},
@@ -4247,10 +4247,16 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                         "totalCPU": {
                           "type": "number",
                         },
+                        "totalEphemeralStorage": {
+                          "type": "number",
+                        },
                         "totalGPU": {
                           "type": "number",
                         },
                         "totalMemory": {
+                          "type": "number",
+                        },
+                        "totalPersistentStorage": {
                           "type": "number",
                         },
                         "totalStorage": {
@@ -4281,6 +4287,8 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                         "activePersistentStorage",
                         "pendingPersistentStorage",
                         "availablePersistentStorage",
+                        "totalEphemeralStorage",
+                        "totalPersistentStorage",
                       ],
                       "type": "object",
                     },
@@ -5756,122 +5764,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                     "state": {
                                       "type": "string",
                                     },
-                                    "status": {
-                                      "nullable": true,
-                                      "properties": {
-                                        "forwarded_ports": {
-                                          "additionalProperties": {
-                                            "items": {
-                                              "properties": {
-                                                "available": {
-                                                  "type": "number",
-                                                },
-                                                "externalPort": {
-                                                  "type": "number",
-                                                },
-                                                "host": {
-                                                  "type": "string",
-                                                },
-                                                "port": {
-                                                  "type": "number",
-                                                },
-                                              },
-                                              "required": [
-                                                "port",
-                                                "externalPort",
-                                              ],
-                                              "type": "object",
-                                            },
-                                            "type": "array",
-                                          },
-                                          "type": "object",
-                                        },
-                                        "ips": {
-                                          "additionalProperties": {
-                                            "items": {
-                                              "properties": {
-                                                "ExternalPort": {
-                                                  "type": "number",
-                                                },
-                                                "IP": {
-                                                  "type": "string",
-                                                },
-                                                "Port": {
-                                                  "type": "number",
-                                                },
-                                                "Protocol": {
-                                                  "type": "string",
-                                                },
-                                              },
-                                              "required": [
-                                                "IP",
-                                                "Port",
-                                                "ExternalPort",
-                                                "Protocol",
-                                              ],
-                                              "type": "object",
-                                            },
-                                            "type": "array",
-                                          },
-                                          "type": "object",
-                                        },
-                                        "services": {
-                                          "additionalProperties": {
-                                            "properties": {
-                                              "available": {
-                                                "type": "number",
-                                              },
-                                              "available_replicas": {
-                                                "type": "number",
-                                              },
-                                              "name": {
-                                                "type": "string",
-                                              },
-                                              "observed_generation": {
-                                                "type": "number",
-                                              },
-                                              "ready_replicas": {
-                                                "type": "number",
-                                              },
-                                              "replicas": {
-                                                "type": "number",
-                                              },
-                                              "total": {
-                                                "type": "number",
-                                              },
-                                              "updated_replicas": {
-                                                "type": "number",
-                                              },
-                                              "uris": {
-                                                "items": {
-                                                  "type": "string",
-                                                },
-                                                "type": "array",
-                                              },
-                                            },
-                                            "required": [
-                                              "name",
-                                              "available",
-                                              "total",
-                                              "uris",
-                                              "observed_generation",
-                                              "replicas",
-                                              "updated_replicas",
-                                              "ready_replicas",
-                                              "available_replicas",
-                                            ],
-                                            "type": "object",
-                                          },
-                                          "type": "object",
-                                        },
-                                      },
-                                      "required": [
-                                        "forwarded_ports",
-                                        "ips",
-                                        "services",
-                                      ],
-                                      "type": "object",
-                                    },
                                   },
                                   "required": [
                                     "id",
@@ -5879,7 +5771,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                     "price",
                                     "created_at",
                                     "closed_on",
-                                    "status",
                                   ],
                                   "type": "object",
                                 },
@@ -8502,100 +8393,172 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
               "application/json": {
                 "schema": {
                   "properties": {
-                    "activeCPU": {
-                      "type": "number",
-                    },
-                    "activeEphemeralStorage": {
-                      "type": "number",
-                    },
-                    "activeGPU": {
-                      "type": "number",
-                    },
-                    "activeMemory": {
-                      "type": "number",
-                    },
-                    "activePersistentStorage": {
-                      "type": "number",
-                    },
                     "activeProviderCount": {
                       "type": "number",
                     },
-                    "activeStorage": {
-                      "type": "number",
-                    },
-                    "availableCPU": {
-                      "type": "number",
-                    },
-                    "availableEphemeralStorage": {
-                      "type": "number",
-                    },
-                    "availableGPU": {
-                      "type": "number",
-                    },
-                    "availableMemory": {
-                      "type": "number",
-                    },
-                    "availablePersistentStorage": {
-                      "type": "number",
-                    },
-                    "availableStorage": {
-                      "type": "number",
-                    },
-                    "pendingCPU": {
-                      "type": "number",
-                    },
-                    "pendingEphemeralStorage": {
-                      "type": "number",
-                    },
-                    "pendingGPU": {
-                      "type": "number",
-                    },
-                    "pendingMemory": {
-                      "type": "number",
-                    },
-                    "pendingPersistentStorage": {
-                      "type": "number",
-                    },
-                    "pendingStorage": {
-                      "type": "number",
-                    },
-                    "totalCPU": {
-                      "type": "number",
-                    },
-                    "totalGPU": {
-                      "type": "number",
-                    },
-                    "totalMemory": {
-                      "type": "number",
-                    },
-                    "totalStorage": {
-                      "type": "number",
+                    "resources": {
+                      "properties": {
+                        "cpu": {
+                          "properties": {
+                            "active": {
+                              "type": "number",
+                            },
+                            "available": {
+                              "type": "number",
+                            },
+                            "pending": {
+                              "type": "number",
+                            },
+                            "total": {
+                              "type": "number",
+                            },
+                          },
+                          "required": [
+                            "active",
+                            "pending",
+                            "available",
+                            "total",
+                          ],
+                          "type": "object",
+                        },
+                        "gpu": {
+                          "properties": {
+                            "active": {
+                              "type": "number",
+                            },
+                            "available": {
+                              "type": "number",
+                            },
+                            "pending": {
+                              "type": "number",
+                            },
+                            "total": {
+                              "type": "number",
+                            },
+                          },
+                          "required": [
+                            "active",
+                            "pending",
+                            "available",
+                            "total",
+                          ],
+                          "type": "object",
+                        },
+                        "memory": {
+                          "properties": {
+                            "active": {
+                              "type": "number",
+                            },
+                            "available": {
+                              "type": "number",
+                            },
+                            "pending": {
+                              "type": "number",
+                            },
+                            "total": {
+                              "type": "number",
+                            },
+                          },
+                          "required": [
+                            "active",
+                            "pending",
+                            "available",
+                            "total",
+                          ],
+                          "type": "object",
+                        },
+                        "storage": {
+                          "properties": {
+                            "ephemeral": {
+                              "properties": {
+                                "active": {
+                                  "type": "number",
+                                },
+                                "available": {
+                                  "type": "number",
+                                },
+                                "pending": {
+                                  "type": "number",
+                                },
+                                "total": {
+                                  "type": "number",
+                                },
+                              },
+                              "required": [
+                                "active",
+                                "pending",
+                                "available",
+                                "total",
+                              ],
+                              "type": "object",
+                            },
+                            "persistent": {
+                              "properties": {
+                                "active": {
+                                  "type": "number",
+                                },
+                                "available": {
+                                  "type": "number",
+                                },
+                                "pending": {
+                                  "type": "number",
+                                },
+                                "total": {
+                                  "type": "number",
+                                },
+                              },
+                              "required": [
+                                "active",
+                                "pending",
+                                "available",
+                                "total",
+                              ],
+                              "type": "object",
+                            },
+                            "total": {
+                              "properties": {
+                                "active": {
+                                  "type": "number",
+                                },
+                                "available": {
+                                  "type": "number",
+                                },
+                                "pending": {
+                                  "type": "number",
+                                },
+                                "total": {
+                                  "type": "number",
+                                },
+                              },
+                              "required": [
+                                "active",
+                                "pending",
+                                "available",
+                                "total",
+                              ],
+                              "type": "object",
+                            },
+                          },
+                          "required": [
+                            "ephemeral",
+                            "persistent",
+                            "total",
+                          ],
+                          "type": "object",
+                        },
+                      },
+                      "required": [
+                        "cpu",
+                        "gpu",
+                        "memory",
+                        "storage",
+                      ],
+                      "type": "object",
                     },
                   },
                   "required": [
                     "activeProviderCount",
-                    "activeCPU",
-                    "activeGPU",
-                    "activeMemory",
-                    "activeStorage",
-                    "pendingCPU",
-                    "pendingGPU",
-                    "pendingMemory",
-                    "pendingStorage",
-                    "availableCPU",
-                    "availableGPU",
-                    "availableMemory",
-                    "availableStorage",
-                    "totalCPU",
-                    "totalGPU",
-                    "totalMemory",
-                    "totalStorage",
-                    "activeEphemeralStorage",
-                    "pendingEphemeralStorage",
-                    "availableEphemeralStorage",
-                    "activePersistentStorage",
-                    "pendingPersistentStorage",
-                    "availablePersistentStorage",
+                    "resources",
                   ],
                   "type": "object",
                 },
@@ -8856,6 +8819,8 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                       ],
                       "type": "object",
                     },
+                    "maxItems": 10,
+                    "minItems": 1,
                     "type": "array",
                   },
                 ],
@@ -8985,7 +8950,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                 },
               },
             },
-            "description": "Returns a list of deployment templates grouped by cateogories",
+            "description": "Returns a list of deployment templates grouped by categories",
           },
           "400": {
             "description": "Invalid parameters",
@@ -11162,29 +11127,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                 "schema": {
                   "items": {
                     "properties": {
-                      "activeStats": {
-                        "properties": {
-                          "cpu": {
-                            "type": "number",
-                          },
-                          "gpu": {
-                            "type": "number",
-                          },
-                          "memory": {
-                            "type": "number",
-                          },
-                          "storage": {
-                            "type": "number",
-                          },
-                        },
-                        "required": [
-                          "cpu",
-                          "gpu",
-                          "memory",
-                          "storage",
-                        ],
-                        "type": "object",
-                      },
                       "akashVersion": {
                         "type": "string",
                       },
@@ -11212,29 +11154,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                           "type": "object",
                         },
                         "type": "array",
-                      },
-                      "availableStats": {
-                        "properties": {
-                          "cpu": {
-                            "type": "number",
-                          },
-                          "gpu": {
-                            "type": "number",
-                          },
-                          "memory": {
-                            "type": "number",
-                          },
-                          "storage": {
-                            "type": "number",
-                          },
-                        },
-                        "required": [
-                          "cpu",
-                          "gpu",
-                          "memory",
-                          "storage",
-                        ],
-                        "type": "object",
                       },
                       "city": {
                         "nullable": true,
@@ -11415,29 +11334,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                       "owner": {
                         "type": "string",
                       },
-                      "pendingStats": {
-                        "properties": {
-                          "cpu": {
-                            "type": "number",
-                          },
-                          "gpu": {
-                            "type": "number",
-                          },
-                          "memory": {
-                            "type": "number",
-                          },
-                          "storage": {
-                            "type": "number",
-                          },
-                        },
-                        "required": [
-                          "cpu",
-                          "gpu",
-                          "memory",
-                          "storage",
-                        ],
-                        "type": "object",
-                      },
                       "statusPage": {
                         "nullable": true,
                         "type": "string",
@@ -11497,9 +11393,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                       "isOnline",
                       "lastOnlineDate",
                       "isAudited",
-                      "activeStats",
-                      "pendingStats",
-                      "availableStats",
                       "gpuModels",
                       "attributes",
                       "host",
@@ -11564,29 +11457,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
               "application/json": {
                 "schema": {
                   "properties": {
-                    "activeStats": {
-                      "properties": {
-                        "cpu": {
-                          "type": "number",
-                        },
-                        "gpu": {
-                          "type": "number",
-                        },
-                        "memory": {
-                          "type": "number",
-                        },
-                        "storage": {
-                          "type": "number",
-                        },
-                      },
-                      "required": [
-                        "cpu",
-                        "gpu",
-                        "memory",
-                        "storage",
-                      ],
-                      "type": "object",
-                    },
                     "akashVersion": {
                       "type": "string",
                     },
@@ -11614,29 +11484,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                         "type": "object",
                       },
                       "type": "array",
-                    },
-                    "availableStats": {
-                      "properties": {
-                        "cpu": {
-                          "type": "number",
-                        },
-                        "gpu": {
-                          "type": "number",
-                        },
-                        "memory": {
-                          "type": "number",
-                        },
-                        "storage": {
-                          "type": "number",
-                        },
-                      },
-                      "required": [
-                        "cpu",
-                        "gpu",
-                        "memory",
-                        "storage",
-                      ],
-                      "type": "object",
                     },
                     "city": {
                       "nullable": true,
@@ -11792,6 +11639,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                       "type": "string",
                     },
                     "name": {
+                      "nullable": true,
                       "type": "string",
                     },
                     "networkProvider": {
@@ -11810,29 +11658,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                     },
                     "owner": {
                       "type": "string",
-                    },
-                    "pendingStats": {
-                      "properties": {
-                        "cpu": {
-                          "type": "number",
-                        },
-                        "gpu": {
-                          "type": "number",
-                        },
-                        "memory": {
-                          "type": "number",
-                        },
-                        "storage": {
-                          "type": "number",
-                        },
-                      },
-                      "required": [
-                        "cpu",
-                        "gpu",
-                        "memory",
-                        "storage",
-                      ],
-                      "type": "object",
                     },
                     "stats": {
                       "properties": {
@@ -12032,9 +11857,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                     "lastOnlineDate",
                     "isAudited",
                     "stats",
-                    "activeStats",
-                    "pendingStats",
-                    "availableStats",
                     "gpuModels",
                     "attributes",
                     "host",
@@ -12783,6 +12605,9 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                 "properties": {
                   "data": {
                     "properties": {
+                      "awaitResolved": {
+                        "type": "boolean",
+                      },
                       "couponId": {
                         "type": "string",
                       },
@@ -12864,6 +12689,21 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                             "message",
                           ],
                           "type": "object",
+                        },
+                        "transactionId": {
+                          "type": "string",
+                        },
+                        "transactionStatus": {
+                          "enum": [
+                            "created",
+                            "pending",
+                            "requires_action",
+                            "succeeded",
+                            "failed",
+                            "refunded",
+                            "canceled",
+                          ],
+                          "type": "string",
                         },
                       },
                       "type": "object",
@@ -13050,6 +12890,16 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                           "isDefault": {
                             "type": "boolean",
                           },
+                          "link": {
+                            "nullable": true,
+                            "properties": {
+                              "email": {
+                                "nullable": true,
+                                "type": "string",
+                              },
+                            },
+                            "type": "object",
+                          },
                           "type": {
                             "type": "string",
                           },
@@ -13205,6 +13055,16 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                         },
                         "isDefault": {
                           "type": "boolean",
+                        },
+                        "link": {
+                          "nullable": true,
+                          "properties": {
+                            "email": {
+                              "nullable": true,
+                              "type": "string",
+                            },
+                          },
+                          "type": "object",
                         },
                         "type": {
                           "type": "string",
@@ -13701,6 +13561,16 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                   "isDefault": {
                                     "type": "boolean",
                                   },
+                                  "link": {
+                                    "nullable": true,
+                                    "properties": {
+                                      "email": {
+                                        "nullable": true,
+                                        "type": "string",
+                                      },
+                                    },
+                                    "type": "object",
+                                  },
                                   "type": {
                                     "type": "string",
                                   },
@@ -13779,6 +13649,9 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                         "minimum": 20,
                         "type": "number",
                       },
+                      "awaitResolved": {
+                        "type": "boolean",
+                      },
                       "currency": {
                         "type": "string",
                       },
@@ -13826,9 +13699,25 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                         "success": {
                           "type": "boolean",
                         },
+                        "transactionId": {
+                          "type": "string",
+                        },
+                        "transactionStatus": {
+                          "enum": [
+                            "created",
+                            "pending",
+                            "requires_action",
+                            "succeeded",
+                            "failed",
+                            "refunded",
+                            "canceled",
+                          ],
+                          "type": "string",
+                        },
                       },
                       "required": [
                         "success",
+                        "transactionId",
                       ],
                       "type": "object",
                     },
@@ -13861,9 +13750,25 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                         "success": {
                           "type": "boolean",
                         },
+                        "transactionId": {
+                          "type": "string",
+                        },
+                        "transactionStatus": {
+                          "enum": [
+                            "created",
+                            "pending",
+                            "requires_action",
+                            "succeeded",
+                            "failed",
+                            "refunded",
+                            "canceled",
+                          ],
+                          "type": "string",
+                        },
                       },
                       "required": [
                         "success",
+                        "transactionId",
                       ],
                       "type": "object",
                     },
@@ -13955,97 +13860,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
         ],
       },
     },
-    "/v1/templates": {
-      "get": {
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "properties": {
-                      "templates": {
-                        "items": {
-                          "properties": {
-                            "config": {
-                              "properties": {
-                                "ssh": {
-                                  "type": "boolean",
-                                },
-                              },
-                              "type": "object",
-                            },
-                            "deploy": {
-                              "type": "string",
-                            },
-                            "githubUrl": {
-                              "type": "string",
-                            },
-                            "guide": {
-                              "type": "string",
-                            },
-                            "id": {
-                              "type": "string",
-                            },
-                            "logoUrl": {
-                              "nullable": true,
-                              "type": "string",
-                            },
-                            "name": {
-                              "type": "string",
-                            },
-                            "path": {
-                              "type": "string",
-                            },
-                            "persistentStorageEnabled": {
-                              "type": "boolean",
-                            },
-                            "readme": {
-                              "type": "string",
-                            },
-                            "summary": {
-                              "type": "string",
-                            },
-                          },
-                          "required": [
-                            "id",
-                            "name",
-                            "path",
-                            "logoUrl",
-                            "summary",
-                            "readme",
-                            "deploy",
-                            "persistentStorageEnabled",
-                            "githubUrl",
-                            "config",
-                          ],
-                          "type": "object",
-                        },
-                        "type": "array",
-                      },
-                      "title": {
-                        "type": "string",
-                      },
-                    },
-                    "required": [
-                      "title",
-                      "templates",
-                    ],
-                    "type": "object",
-                  },
-                  "type": "array",
-                },
-              },
-            },
-            "description": "Returns a list of deployment templates grouped by categories",
-          },
-        },
-        "security": [],
-        "tags": [
-          "Other",
-        ],
-      },
-    },
     "/v1/templates-list": {
       "get": {
         "responses": {
@@ -14060,23 +13874,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                           "templates": {
                             "items": {
                               "properties": {
-                                "config": {
-                                  "properties": {
-                                    "ssh": {
-                                      "type": "boolean",
-                                    },
-                                  },
-                                  "type": "object",
-                                },
-                                "deploy": {
-                                  "type": "string",
-                                },
-                                "githubUrl": {
-                                  "type": "string",
-                                },
-                                "guide": {
-                                  "type": "string",
-                                },
                                 "id": {
                                   "type": "string",
                                 },
@@ -14087,30 +13884,21 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                 "name": {
                                   "type": "string",
                                 },
-                                "path": {
-                                  "type": "string",
-                                },
-                                "persistentStorageEnabled": {
-                                  "type": "boolean",
-                                },
-                                "readme": {
-                                  "type": "string",
-                                },
                                 "summary": {
                                   "type": "string",
+                                },
+                                "tags": {
+                                  "items": {
+                                    "type": "string",
+                                  },
+                                  "type": "array",
                                 },
                               },
                               "required": [
                                 "id",
                                 "name",
-                                "path",
                                 "logoUrl",
                                 "summary",
-                                "readme",
-                                "deploy",
-                                "persistentStorageEnabled",
-                                "githubUrl",
-                                "config",
                               ],
                               "type": "object",
                             },
@@ -14768,6 +14556,192 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/user/addFavoriteTemplate/{templateId}": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "templateId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+        ],
+        "responses": {
+          "200": {
+            "description": "Template added to favorites",
+          },
+          "400": {
+            "description": "Invalid template ID",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Add favorite template",
+        "tags": [
+          "Users",
+        ],
+      },
+    },
+    "/v1/user/byUsername/{username}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "username",
+            "required": true,
+            "schema": {
+              "type": "string",
+            },
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "bio": {
+                      "nullable": true,
+                      "type": "string",
+                    },
+                    "username": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "username",
+                    "bio",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Returns user profile",
+          },
+          "404": {
+            "description": "User not found",
+          },
+        },
+        "security": [],
+        "summary": "Get user by username",
+        "tags": [
+          "Users",
+        ],
+      },
+    },
+    "/v1/user/checkUsernameAvailability/{username}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "username",
+            "required": true,
+            "schema": {
+              "type": "string",
+            },
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "isAvailable": {
+                      "type": "boolean",
+                    },
+                  },
+                  "required": [
+                    "isAvailable",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Returns username availability",
+          },
+        },
+        "security": [],
+        "summary": "Check if username is available",
+        "tags": [
+          "Users",
+        ],
+      },
+    },
+    "/v1/user/deleteTemplate/{id}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+        ],
+        "responses": {
+          "200": {
+            "description": "Template deleted successfully",
+          },
+          "400": {
+            "description": "Invalid template ID",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Delete template",
+        "tags": [
+          "Users",
+        ],
+      },
+    },
+    "/v1/user/favoriteTemplates": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Returns favorite templates",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Get favorite templates",
+        "tags": [
+          "Users",
+        ],
+      },
+    },
     "/v1/user/me": {
       "get": {
         "responses": {
@@ -14847,6 +14821,312 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
           },
         ],
         "summary": "Retrieves the logged in user",
+        "tags": [
+          "Users",
+        ],
+      },
+    },
+    "/v1/user/removeFavoriteTemplate/{templateId}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "templateId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+        ],
+        "responses": {
+          "200": {
+            "description": "Template removed from favorites",
+          },
+          "400": {
+            "description": "Invalid template ID",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Remove favorite template",
+        "tags": [
+          "Users",
+        ],
+      },
+    },
+    "/v1/user/saveTemplate": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "cpu": {
+                    "type": "number",
+                  },
+                  "description": {
+                    "maxLength": 2000,
+                    "type": "string",
+                  },
+                  "id": {
+                    "format": "uuid",
+                    "type": "string",
+                  },
+                  "isPublic": {
+                    "type": "boolean",
+                  },
+                  "ram": {
+                    "type": "number",
+                  },
+                  "sdl": {
+                    "type": "string",
+                  },
+                  "storage": {
+                    "type": "number",
+                  },
+                  "title": {
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "sdl",
+                  "title",
+                  "cpu",
+                  "ram",
+                  "storage",
+                  "isPublic",
+                ],
+                "type": "object",
+              },
+            },
+          },
+        },
+        "responses": {
+          "200": {
+            "description": "Template saved successfully",
+          },
+          "400": {
+            "description": "Invalid input",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Save template",
+        "tags": [
+          "Users",
+        ],
+      },
+    },
+    "/v1/user/saveTemplateDesc": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "description": {
+                    "type": "string",
+                  },
+                  "id": {
+                    "format": "uuid",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "id",
+                  "description",
+                ],
+                "type": "object",
+              },
+            },
+          },
+        },
+        "responses": {
+          "200": {
+            "description": "Template description saved successfully",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Save template description",
+        "tags": [
+          "Users",
+        ],
+      },
+    },
+    "/v1/user/subscribeToNewsletter": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Subscribed successfully",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Subscribe to newsletter",
+        "tags": [
+          "Users",
+        ],
+      },
+    },
+    "/v1/user/template/{id}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns template",
+          },
+          "400": {
+            "description": "Invalid template ID",
+          },
+          "404": {
+            "description": "Template not found",
+          },
+        },
+        "security": [],
+        "summary": "Get template by ID",
+        "tags": [
+          "Users",
+        ],
+      },
+    },
+    "/v1/user/templates/{username}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "username",
+            "required": true,
+            "schema": {
+              "type": "string",
+            },
+          },
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns templates",
+          },
+          "404": {
+            "description": "User not found",
+          },
+        },
+        "security": [],
+        "summary": "Get templates by username",
+        "tags": [
+          "Users",
+        ],
+      },
+    },
+    "/v1/user/updateSettings": {
+      "put": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "bio": {
+                    "maxLength": 5000,
+                    "nullable": true,
+                    "type": "string",
+                  },
+                  "githubUsername": {
+                    "maxLength": 200,
+                    "nullable": true,
+                    "type": "string",
+                  },
+                  "subscribedToNewsletter": {
+                    "type": "boolean",
+                  },
+                  "twitterUsername": {
+                    "maxLength": 200,
+                    "nullable": true,
+                    "type": "string",
+                  },
+                  "username": {
+                    "pattern": "^[a-zA-Z0-9_-]+$",
+                    "type": "string",
+                  },
+                  "youtubeUsername": {
+                    "maxLength": 200,
+                    "nullable": true,
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "username",
+                ],
+                "type": "object",
+              },
+            },
+          },
+        },
+        "responses": {
+          "200": {
+            "description": "Settings updated successfully",
+          },
+          "400": {
+            "description": "Invalid input",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Update user settings",
         "tags": [
           "Users",
         ],
@@ -15296,18 +15576,12 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
       "get": {
         "parameters": [
           {
+            "description": "The ID of the user to get the wallets for",
             "in": "query",
             "name": "userId",
             "required": true,
             "schema": {
-              "type": "string",
-            },
-          },
-          {
-            "in": "query",
-            "name": "awaitSessionId",
-            "required": false,
-            "schema": {
+              "format": "uuid",
               "type": "string",
             },
           },

@@ -12,6 +12,7 @@ import { DrainingDeployment } from "@src/deployment/types/draining-deployment";
 import { averageBlockCountInAnHour } from "@src/utils/constants";
 import { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 import { DrainingDeploymentRpcService } from "../draining-deployment-rpc/draining-deployment-rpc.service";
+import { TopUpManagedDeploymentsInstrumentationService } from "../top-up-managed-deployments/top-up-managed-deployments-instrumentation.service";
 
 export type { DrainingDeployment } from "@src/deployment/types/draining-deployment";
 
@@ -25,7 +26,8 @@ export class DrainingDeploymentService {
     private readonly config: DeploymentConfigService,
     private readonly loggerService: LoggerService,
     private readonly rpcService: DrainingDeploymentRpcService,
-    private readonly balancesService: BalancesService
+    private readonly balancesService: BalancesService,
+    private readonly instrumentation: TopUpManagedDeploymentsInstrumentationService
   ) {
     loggerService.setContext(DrainingDeploymentService.name);
   }
@@ -40,7 +42,7 @@ export class DrainingDeploymentService {
    */
   async *findDrainingDeploymentsByOwner(): AsyncGenerator<{ address: string; deployments: DrainingDeployment[] }> {
     const currentHeight = await this.blockHttpService.getCurrentHeight();
-    const expectedClosureHeight = Math.floor(currentHeight + averageBlockCountInAnHour * 2 * this.config.get("AUTO_TOP_UP_JOB_INTERVAL_IN_H"));
+    const expectedClosureHeight = Math.floor(currentHeight + averageBlockCountInAnHour * this.config.get("AUTO_TOP_UP_LOOK_AHEAD_WINDOW_IN_H"));
 
     for await (const { address, deploymentSettings } of this.deploymentSettingRepository.findAutoTopUpDeploymentsByOwnerIteratively()) {
       if (deploymentSettings.length === 0) {
@@ -76,6 +78,7 @@ export class DrainingDeploymentService {
 
         if (missingIds.length) {
           await this.deploymentSettingRepository.updateManyById(missingIds, { closed: true });
+          this.instrumentation.recordDeploymentsMarkedClosed(missingIds.length);
         }
 
         if (active.length) {
@@ -119,7 +122,7 @@ export class DrainingDeploymentService {
    * @returns Top-up amount in credits
    */
   async calculateTopUpAmount(deployment: Pick<DrainingDeploymentOutput, "blockRate">): Promise<number> {
-    return Math.floor(deployment.blockRate * (averageBlockCountInAnHour * this.config.get("AUTO_TOP_UP_DEPLOYMENT_INTERVAL_IN_H")));
+    return Math.floor(deployment.blockRate * (averageBlockCountInAnHour * this.config.get("AUTO_TOP_UP_AMOUNT_IN_H")));
   }
 
   /**

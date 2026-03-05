@@ -1,4 +1,5 @@
 import { ThemeProvider as NextThemeProvider } from "next-themes";
+import { describe, expect, it } from "vitest";
 
 import { CustomThemeProvider } from "@src/context/CustomThemeContext/CustomThemeContext";
 import { AuthLayout } from "./AuthLayout";

@@ -52,13 +52,15 @@ export class MessageAddressesIndexer extends Indexer {
           messageId: msg.id,
           transactionId: msg.txId,
           address: decodedMessage.fromAddress,
-          type: "Sender"
+          type: "Sender",
+          height
         },
         {
           messageId: msg.id,
           transactionId: msg.txId,
           address: decodedMessage.toAddress,
-          type: "Receiver"
+          type: "Receiver",
+          height
         }
       ],
       { transaction: dbTransaction }
@@ -72,13 +74,15 @@ export class MessageAddressesIndexer extends Indexer {
       messageId: msg.id,
       transactionId: msg.txId,
       address: input.address,
-      type: "Sender"
+      type: "Sender",
+      height
     }));
     const receivers = decodedMessage.outputs.map(output => ({
       messageId: msg.id,
       transactionId: msg.txId,
       address: output.address,
-      type: "Receiver"
+      type: "Receiver",
+      height
     }));
 
     await AddressReference.bulkCreate([...senders, ...receivers], { transaction: dbTransaction });
@@ -114,7 +118,8 @@ export class MessageAddressesIndexer extends Indexer {
         messageId: null,
         transactionId: currentTransaction.id,
         address: address,
-        type: "Signer"
+        type: "Signer",
+        height: currentTransaction.height
       })),
       { transaction: dbTransaction }
     );

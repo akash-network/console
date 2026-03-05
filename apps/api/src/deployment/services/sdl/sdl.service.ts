@@ -1,4 +1,4 @@
-import type { v2Manifest, v2Sdl, v3Manifest } from "@akashnetwork/akashjs/build/sdl/types";
+import type { v2Manifest, v2Sdl, v3Manifest } from "@akashnetwork/chain-sdk";
 import type { NetworkId } from "@akashnetwork/chain-sdk";
 import { SDL } from "@akashnetwork/chain-sdk";
 import yaml from "js-yaml";

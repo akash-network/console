@@ -1,6 +1,7 @@
 import type { HttpClient } from "@akashnetwork/http-sdk";
-import { mock, type MockProxy } from "jest-mock-extended";
 import type { Result } from "ts-results";
+import { describe, expect, it, vi } from "vitest";
+import { mock, type MockProxy } from "vitest-mock-extended";
 
 import { Session } from "@src/lib/auth0";
 import type { UserSettings } from "@src/types/user";
@@ -134,6 +135,44 @@ describe(SessionService.name, () => {
           client_id: config.CLIENT_ID,
           email: "user@example.com",
           password: "weak",
+          connection: "Username-Password-Authentication"
+        },
+        expect.objectContaining({ validateStatus: expect.any(Function) })
+      );
+      expect(consoleApiHttpClient.post).not.toHaveBeenCalled();
+      expect(externalHttpClient.get).not.toHaveBeenCalled();
+    });
+
+    it("returns friendly_message as error message when present", async () => {
+      const { service, externalHttpClient, consoleApiHttpClient, config } = setup();
+
+      externalHttpClient.post.mockResolvedValueOnce({
+        status: 400,
+        data: {
+          friendly_message: "This is a user-friendly error message",
+          message: "Technical error message",
+          description: "Error description"
+        },
+        headers: {}
+      });
+
+      const result = await service.signUp({ email: "user@example.com", password: "Password123!" });
+
+      expect(result.ok).toBe(false);
+      const error = expectErr(result);
+      expect(error).toEqual(
+        expect.objectContaining({
+          message: "This is a user-friendly error message",
+          code: "signup_failed"
+        })
+      );
+      expect(externalHttpClient.post).toHaveBeenCalledTimes(1);
+      expect(externalHttpClient.post).toHaveBeenCalledWith(
+        `${new URL(config.ISSUER_BASE_URL).origin}/dbconnections/signup`,
+        {
+          client_id: config.CLIENT_ID,
+          email: "user@example.com",
+          password: "Password123!",
           connection: "Username-Password-Authentication"
         },
         expect.objectContaining({ validateStatus: expect.any(Function) })
@@ -369,8 +408,8 @@ describe(SessionService.name, () => {
 
 function createHttpClientMock(): MockProxy<HttpClient> {
   return mock<HttpClient>({
-    post: jest.fn(),
-    get: jest.fn()
+    post: vi.fn(),
+    get: vi.fn()
   } as unknown as HttpClient);
 }
 

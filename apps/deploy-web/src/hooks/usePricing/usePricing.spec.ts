@@ -1,14 +1,15 @@
 import { SANDBOX_ID } from "@akashnetwork/chain-sdk/web";
 import type { HttpClient } from "@akashnetwork/http-sdk";
 import type { NetworkStore } from "@akashnetwork/network-store";
-import { mock } from "jest-mock-extended";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { UAKT_DENOM } from "@src/config/denom.config";
 import type { MarketData } from "@src/types/dashboard";
 import { getUsdcDenom } from "@src/utils/priceUtils";
 import { usePricing } from "./usePricing";
 
-import { waitFor } from "@testing-library/react";
+import {} from "@testing-library/react";
 import { setupQuery } from "@tests/unit/query-client";
 
 describe(usePricing.name, () => {
@@ -18,7 +19,7 @@ describe(usePricing.name, () => {
       marketData: buildMarketData({ price })
     });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(result.current.isLoaded).toBe(true);
     });
 

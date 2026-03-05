@@ -4,7 +4,7 @@ import { useCustomUser } from "@src/hooks/useCustomUser";
 import type { CustomUserProfile } from "@src/types/user";
 
 export const useUser = (): {
-  user: CustomUserProfile;
+  user: CustomUserProfile | undefined;
   isLoading: boolean;
   checkSession: () => Promise<void>;
 } => {
@@ -24,6 +24,6 @@ export const useIsRegisteredUser = () => {
 
   return {
     isLoading,
-    canVisit: !!user.userId
+    canVisit: !!user?.userId
   };
 };

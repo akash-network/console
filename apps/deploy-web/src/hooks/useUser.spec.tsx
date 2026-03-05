@@ -1,6 +1,7 @@
 import { CustomSnackbarProvider } from "@akashnetwork/ui/context";
 import { UserProvider } from "@auth0/nextjs-auth0/client";
-import { mock } from "jest-mock-extended";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type * as useCustomUserModule from "@src/hooks/useCustomUser";
 import { useIsRegisteredUser } from "./useUser";
@@ -39,8 +40,8 @@ describe("useIsRegisteredUser", () => {
       checkSession: mock()
     }));
 
-    jest.clearAllMocks();
-    jest.restoreAllMocks();
+    vi.clearAllMocks();
+    vi.restoreAllMocks();
 
     return setupQuery(() => useIsRegisteredUser(), {
       wrapper: ({ children }) => (

@@ -1,4 +1,4 @@
-import { LoggerService } from "@akashnetwork/logging";
+import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { PromisePool } from "@supercharge/promise-pool";
 import addDays from "date-fns/addDays";
 import subDays from "date-fns/subDays";
@@ -10,12 +10,11 @@ import { BalancesService } from "@src/billing/services/balances/balances.service
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { ManagedUserWalletService } from "@src/billing/services/managed-user-wallet/managed-user-wallet.service";
 import { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
-import { Semaphore } from "@src/core/lib/semaphore.decorator";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 
 @singleton()
 export class RefillService {
-  private readonly logger = LoggerService.forContext(RefillService.name);
+  private readonly logger = createOtelLogger({ context: RefillService.name });
 
   constructor(
     @InjectBillingConfig() private readonly config: BillingConfig,
@@ -65,7 +64,7 @@ export class RefillService {
    * @param amountUsd - The amount in USD *cents* to top up the wallet with (e.g. 10000 = $100)
    * @param userId - The ID of the user to top up the wallet for
    */
-  async topUpWallet(amountUsd: number, userId: UserWalletOutput["userId"]) {
+  async topUpWallet(amountUsd: number, userId: UserWalletOutput["userId"], options: { endTrial?: boolean } = {}) {
     const userWallet = await this.getOrCreateUserWallet(userId);
     const currentLimit = await this.balancesService.retrieveDeploymentLimit(userWallet);
 
@@ -76,7 +75,7 @@ export class RefillService {
       limits
     });
 
-    await this.balancesService.refreshUserWalletLimits(userWallet, { endTrial: true });
+    await this.balancesService.refreshUserWalletLimits(userWallet, { endTrial: options.endTrial ?? true });
     this.analyticsService.track(userId, "balance_top_up");
     this.logger.debug({ event: "WALLET_TOP_UP", userWallet, limits });
   }
@@ -111,7 +110,6 @@ export class RefillService {
     this.logger.info({ event: "WALLET_BALANCE_REDUCED", userId, amountUsd, previousLimit: currentLimit, nextLimit });
   }
 
-  @Semaphore()
   private async getOrCreateUserWallet(userId: UserWalletOutput["userId"]) {
     const userWallet = await this.userWalletRepository.findOneBy({ userId });
     if (userWallet) {

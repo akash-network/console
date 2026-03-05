@@ -1,13 +1,13 @@
 "use client";
 import React from "react";
 import { FormattedDate } from "react-intl";
-import { Card, Progress, Skeleton } from "@akashnetwork/ui/components";
-import { InfoCircle } from "iconoir-react";
+import { Card, Skeleton } from "@akashnetwork/ui/components";
+import { Check, InfoCircle } from "iconoir-react";
 
 import { useTrialBalance } from "@src/hooks/useTrialBalance";
 
 export const TrialStatusBar: React.FC = () => {
-  const { total: TRIAL_TOTAL, remaining: creditsRemaining, used: creditsUsed, remainingPercentage, isLoading, trialEndDate, daysRemaining } = useTrialBalance();
+  const { remaining: creditsRemaining, isLoading, trialEndDate, daysRemaining } = useTrialBalance();
 
   if (isLoading) {
     return (
@@ -24,14 +24,6 @@ export const TrialStatusBar: React.FC = () => {
           <div className="px-1">
             <Skeleton className="h-3 w-full max-w-xs" />
           </div>
-
-          <div className="space-y-2">
-            <Skeleton className="h-2 w-full" />
-            <div className="flex flex-col gap-1 text-xs sm:flex-row sm:justify-between sm:text-sm">
-              <Skeleton className="h-4 w-20" />
-              <Skeleton className="h-4 w-40" />
-            </div>
-          </div>
         </div>
       </Card>
     );
@@ -41,8 +33,11 @@ export const TrialStatusBar: React.FC = () => {
     <Card className="border-border bg-card/50 backdrop-blur-sm">
       <div className="space-y-4 p-4 sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4 md:gap-6">
-          <div className="rounded-md bg-akash/10 px-3 py-1.5">
-            <span className="whitespace-nowrap text-sm font-semibold text-akash">Trial Active</span>
+          <div className="rounded-md bg-green-600/10 px-3 py-1.5">
+            <span className="inline-flex items-center gap-1 whitespace-nowrap text-sm font-semibold text-green-600">
+              <Check className="h-4 w-4" />
+              Trial Active
+            </span>
           </div>
           <div className="space-y-1">
             <div className="text-base font-semibold sm:text-lg">Free Trial Credits: ${creditsRemaining.toFixed(2)}</div>
@@ -56,16 +51,6 @@ export const TrialStatusBar: React.FC = () => {
         <div className="flex items-center gap-1.5 px-1 text-xs text-muted-foreground">
           <InfoCircle className="h-3.5 w-3.5 flex-shrink-0" />
           <span>Deployments last for maximum 1 day during trial</span>
-        </div>
-
-        <div className="space-y-2">
-          <Progress value={remainingPercentage} className="h-2" />
-          <div className="flex flex-col gap-1 text-xs text-muted-foreground sm:flex-row sm:justify-between">
-            <span>${creditsUsed.toFixed(2)} used</span>
-            <span>
-              ${creditsRemaining.toFixed(2)} remaining of ${TRIAL_TOTAL.toFixed(2)}
-            </span>
-          </div>
         </div>
       </div>
     </Card>

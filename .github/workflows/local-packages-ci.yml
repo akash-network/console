@@ -1,0 +1,41 @@
+name: "Local Packages CI"
+
+on:
+  merge_group:
+  pull_request:
+    branches: ["main", "main-sdk-next"]
+    paths:
+      - "packages/**"
+      - ".github/workflows/local-packages-validate.yml"
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  should-validate:
+    uses: ./.github/workflows/reusable-should-validate.yml
+    with:
+      path: packages
+
+  validate:
+    needs: should-validate
+    if: needs.should-validate.outputs.has_changes == 'true'
+    name: Validate local packages
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-app-deps
+
+      - name: Static analysis
+        if: github.event_name != 'merge_group'
+        run: npm run lint -w ./packages --if-present -- --quiet
+
+      - name: Type checking
+        run: npm run validate:types -w ./packages --if-present
+
+      - name: Run local package tests
+        run: npm run test -w ./packages --if-present

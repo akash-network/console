@@ -8,7 +8,7 @@ import { useServices } from "../ServicesProvider";
 import { settingsIdAtom } from "../SettingsProvider/settingsStore";
 import { DeploymentNameModal } from "./DeploymentNameModal";
 
-type ContextType = {
+export type ContextType = {
   getDeploymentName: (dseq: string | number) => string | null | undefined;
   changeDeploymentName: (dseq: string | number) => void;
   getDeploymentData: (dseq: string | number) => Partial<LocalDeploymentData> | null;
@@ -59,6 +59,6 @@ export const LocalNoteProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   );
 };
 
-export const useLocalNotes = () => {
+export const useLocalNotes = (): ContextType => {
   return { ...React.useContext(LocalNoteProviderContext) };
 };

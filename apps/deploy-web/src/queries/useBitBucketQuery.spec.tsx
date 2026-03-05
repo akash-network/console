@@ -1,6 +1,7 @@
 import { faker } from "@faker-js/faker";
 import type { AxiosError } from "axios";
-import { mock } from "jest-mock-extended";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { BitbucketService } from "@src/services/remote-deploy/bitbucket-http.service";
 import {
@@ -14,7 +15,7 @@ import {
   useWorkspaces
 } from "./useBitBucketQuery";
 
-import { act, waitFor } from "@testing-library/react";
+import { act } from "@testing-library/react";
 import { setupQuery } from "@tests/unit/query-client";
 import { readToken, writeToken } from "@tests/unit/token";
 
@@ -23,9 +24,9 @@ describe("useBitBucketQuery", () => {
     it("fetches access token and update token state", async () => {
       const mockData = { accessToken: "test-access-token", refreshToken: "test-refresh-token" };
       const mockBitbucketService = mock<BitbucketService>({
-        fetchAccessToken: jest.fn().mockResolvedValue(mockData)
+        fetchAccessToken: vi.fn().mockResolvedValue(mockData)
       });
-      const onSuccess = jest.fn();
+      const onSuccess = vi.fn();
 
       const { result } = setupQuery(() => useBitFetchAccessToken(onSuccess), {
         services: {
@@ -37,7 +38,7 @@ describe("useBitBucketQuery", () => {
         await result.current.mutateAsync("test-code");
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(mockBitbucketService.fetchAccessToken).toHaveBeenCalledWith("test-code");
         expect(onSuccess).toHaveBeenCalled();
         expect(readToken()).toBe(mockData.accessToken);
@@ -66,7 +67,7 @@ describe("useBitBucketQuery", () => {
         location: null
       };
       const mockBitbucketService = mock<BitbucketService>({
-        fetchUserProfile: jest.fn().mockResolvedValue(mockData)
+        fetchUserProfile: vi.fn().mockResolvedValue(mockData)
       });
 
       const { result } = setupQuery(() => useBitUserProfile(), {
@@ -75,7 +76,7 @@ describe("useBitBucketQuery", () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
         expect(result.current.data).toEqual(mockData);
       });
@@ -102,13 +103,13 @@ describe("useBitBucketQuery", () => {
         location: null
       };
       const mockBitbucketService = mock<BitbucketService>({
-        fetchUserProfile: jest.fn().mockImplementation((token: string) => {
+        fetchUserProfile: vi.fn().mockImplementation((token: string) => {
           if (token === "test-token") {
             return Promise.reject(mockError);
           }
           return Promise.resolve(mockData);
         }),
-        fetchRefreshToken: jest.fn().mockResolvedValue({
+        fetchRefreshToken: vi.fn().mockResolvedValue({
           accessToken: "new-token",
           refreshToken: "new-refresh-token"
         })
@@ -120,7 +121,7 @@ describe("useBitBucketQuery", () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(mockBitbucketService.fetchUserProfile).toHaveBeenCalledWith("test-token");
         expect(mockBitbucketService.fetchRefreshToken).toHaveBeenCalledWith("test-refresh-token");
         expect(result.current.isError).toBe(true);
@@ -133,7 +134,7 @@ describe("useBitBucketQuery", () => {
       writeToken({ accessToken: "test-token", refreshToken: "test-refresh-token", type: "bitbucket" });
       const mockData = { values: [{ hash: faker.git.commitSha() }] };
       const mockBitbucketService = mock<BitbucketService>({
-        fetchCommits: jest.fn().mockResolvedValue(mockData)
+        fetchCommits: vi.fn().mockResolvedValue(mockData)
       });
 
       const { result } = setupQuery(() => useBitBucketCommits("test-repo"), {
@@ -142,7 +143,7 @@ describe("useBitBucketQuery", () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(mockBitbucketService.fetchCommits).toHaveBeenCalledWith("test-repo", "test-token");
         expect(result.current.isSuccess).toBe(true);
         expect(result.current.data).toEqual(mockData);
@@ -160,7 +161,7 @@ describe("useBitBucketQuery", () => {
       writeToken({ accessToken: "test-token", refreshToken: "test-refresh-token", type: "bitbucket" });
       const mockData = { values: [{ uuid: faker.string.uuid() }] };
       const mockBitbucketService = mock<BitbucketService>({
-        fetchWorkspaces: jest.fn().mockResolvedValue(mockData)
+        fetchWorkspaces: vi.fn().mockResolvedValue(mockData)
       });
 
       const { result } = setupQuery(() => useWorkspaces(), {
@@ -169,7 +170,7 @@ describe("useBitBucketQuery", () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(mockBitbucketService.fetchWorkspaces).toHaveBeenCalledWith("test-token");
         expect(result.current.isSuccess).toBe(true);
         expect(result.current.data).toEqual(mockData);
@@ -182,7 +183,7 @@ describe("useBitBucketQuery", () => {
       writeToken({ accessToken: "test-token", refreshToken: "test-refresh-token", type: "bitbucket" });
       const mockData = { values: [{ name: faker.lorem.word() }] };
       const mockBitbucketService = mock<BitbucketService>({
-        fetchReposByWorkspace: jest.fn().mockResolvedValue(mockData)
+        fetchReposByWorkspace: vi.fn().mockResolvedValue(mockData)
       });
 
       const { result } = setupQuery(() => useBitReposByWorkspace("test-workspace"), {
@@ -191,7 +192,7 @@ describe("useBitBucketQuery", () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(mockBitbucketService.fetchReposByWorkspace).toHaveBeenCalledWith("test-workspace", "test-token");
         expect(result.current.isSuccess).toBe(true);
         expect(result.current.data).toEqual(mockData);
@@ -211,7 +212,7 @@ describe("useBitBucketQuery", () => {
       writeToken({ accessToken: "test-token", refreshToken: "test-refresh-token", type: "bitbucket" });
       const mockData = { values: [{ name: faker.lorem.word() }] };
       const mockBitbucketService = mock<BitbucketService>({
-        fetchBranches: jest.fn().mockResolvedValue(mockData)
+        fetchBranches: vi.fn().mockResolvedValue(mockData)
       });
 
       const { result } = setupQuery(() => useBitBranches("test-repo"), {
@@ -220,7 +221,7 @@ describe("useBitBucketQuery", () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(mockBitbucketService.fetchBranches).toHaveBeenCalledWith("test-repo", "test-token");
         expect(result.current.isSuccess).toBe(true);
         expect(result.current.data).toEqual(mockData);
@@ -237,9 +238,9 @@ describe("useBitBucketQuery", () => {
     it("fetches package.json and call onSettled callback", async () => {
       writeToken({ accessToken: "test-token", refreshToken: "test-refresh-token", type: "bitbucket" });
       const mockPackageJson = { dependencies: ["foo", "bar"] };
-      const onSettled = jest.fn();
+      const onSettled = vi.fn();
       const mockBitbucketService = mock<BitbucketService>({
-        fetchPackageJson: jest.fn().mockResolvedValue(mockPackageJson)
+        fetchPackageJson: vi.fn().mockResolvedValue(mockPackageJson)
       });
 
       const { result } = setupQuery(() => useBitPackageJson(onSettled, "test-repo", "main", "src"), {
@@ -248,7 +249,7 @@ describe("useBitBucketQuery", () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(mockBitbucketService.fetchPackageJson).toHaveBeenCalledWith("test-repo", "main", "src", "test-token");
         expect(result.current.isSuccess).toBe(true);
         expect(onSettled).toHaveBeenCalledWith(mockPackageJson);
@@ -260,9 +261,9 @@ describe("useBitBucketQuery", () => {
     it("fetches source folders and call onSettled callback", async () => {
       writeToken({ accessToken: "test-token", refreshToken: "test-refresh-token", type: "bitbucket" });
       const mockFolders = [{ name: faker.lorem.word() }];
-      const onSettled = jest.fn();
+      const onSettled = vi.fn();
       const mockBitbucketService = mock<BitbucketService>({
-        fetchSrcFolders: jest.fn().mockResolvedValue({ values: mockFolders })
+        fetchSrcFolders: vi.fn().mockResolvedValue({ values: mockFolders })
       });
 
       const { result } = setupQuery(() => useBitSrcFolders(onSettled, "test-repo", "main"), {
@@ -271,7 +272,7 @@ describe("useBitBucketQuery", () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(mockBitbucketService.fetchSrcFolders).toHaveBeenCalledWith("test-repo", "main", "test-token");
         expect(result.current.isSuccess).toBe(true);
         expect(onSettled).toHaveBeenCalledWith(mockFolders);

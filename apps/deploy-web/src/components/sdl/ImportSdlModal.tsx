@@ -1,9 +1,8 @@
 "use client";
 import type { ReactNode } from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import type { UseFormSetValue } from "react-hook-form";
 import { Alert, Popup, Snackbar } from "@akashnetwork/ui/components";
-import Editor from "@monaco-editor/react";
 import { ArrowDown } from "iconoir-react";
 import type { editor } from "monaco-editor";
 import { useTheme } from "next-themes";
@@ -12,7 +11,7 @@ import { useSnackbar } from "notistack";
 import { useServices } from "@src/context/ServicesProvider";
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
-import { Timer } from "@src/utils/timer";
+import { SDLEditor } from "./SDLEditor/SDLEditor";
 
 type Props = {
   setValue: UseFormSetValue<SdlBuilderFormValuesType>;
@@ -29,21 +28,6 @@ export const ImportSdlModal: React.FunctionComponent<Props> = ({ onClose, setVal
   const onEditorMount = useCallback((editorInstance: editor.IStandaloneCodeEditor) => {
     editorInstance.focus();
   }, []);
-
-  useEffect(() => {
-    const timer = Timer(500);
-
-    timer.start().then(() => {
-      createAndValidateSdl(sdl || "");
-    });
-
-    return () => {
-      if (timer) {
-        timer.abort();
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sdl]);
 
   const createAndValidateSdl = (yamlStr: string) => {
     try {
@@ -118,13 +102,13 @@ export const ImportSdlModal: React.FunctionComponent<Props> = ({ onClose, setVal
         Paste your sdl here to import <ArrowDown className="ml-4 text-sm" />
       </h6>
       <div className="mb-2">
-        <Editor
+        <SDLEditor
           height="500px"
-          defaultLanguage="yaml"
-          value={sdl}
+          value={sdl || ""}
           onChange={value => setSdl(value)}
           theme={resolvedTheme === "dark" ? "vs-dark" : "light"}
           onMount={onEditorMount}
+          onValidate={() => setParsingError(null)}
         />
       </div>
       {parsingError && (

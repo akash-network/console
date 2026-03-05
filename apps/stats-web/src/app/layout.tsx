@@ -4,7 +4,6 @@ import "../styles/index.css";
 import { cn } from "@akashnetwork/ui/utils";
 import { GeistSans } from "geist/font/sans"; // eslint-disable-line import-x/no-unresolved
 import type { Metadata, Viewport } from "next";
-import getConfig from "next/config";
 import { cookies } from "next/headers";
 
 import GoogleAnalytics from "@/components/layout/CustomGoogleAnalytics";
@@ -12,8 +11,6 @@ import Providers from "@/components/layout/CustomProviders";
 import { Footer } from "@/components/layout/Footer";
 import { Nav } from "@/components/layout/Nav";
 import { customColors } from "@/lib/colors";
-
-const { publicRuntimeConfig } = getConfig();
 
 export const metadata: Metadata = {
   title: "Akash Network Stats",
@@ -92,7 +89,6 @@ function getTheme() {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const theme = getTheme() as string;
-  const version = publicRuntimeConfig?.version;
 
   return (
     <html lang="en" className={theme} style={{ colorScheme: theme }} suppressHydrationWarning>
@@ -103,7 +99,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Nav />
           <div className="flex min-h-[calc(100vh-60px)] flex-col justify-between">
             {children}
-            <Footer version={version} />
+            <Footer version={process.env.NEXT_PUBLIC_APP_VERSION || "0.0.0"} />
           </div>
         </Providers>
       </body>

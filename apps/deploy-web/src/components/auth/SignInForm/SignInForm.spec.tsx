@@ -1,10 +1,9 @@
-import "@testing-library/jest-dom";
-
 import type { ComponentProps } from "react";
+import { describe, expect, it, vi } from "vitest";
 
 import { DEPENDENCIES, SignInForm, type SignInFormValues } from "./SignInForm";
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 describe(SignInForm.name, () => {
@@ -15,7 +14,7 @@ describe(SignInForm.name, () => {
     await userEvent.type(screen.getByLabelText(/Password/i), "password123");
     await userEvent.click(screen.getByRole("button", { name: "Log in" }));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(onSubmit).toHaveBeenCalledTimes(1);
       expect(onSubmit).toHaveBeenCalledWith({ email: "alice@example.com", password: "password123" });
     });
@@ -52,8 +51,8 @@ describe(SignInForm.name, () => {
   });
 
   function setup(input: Partial<ComponentProps<typeof SignInForm>> = {}) {
-    const goBack = jest.fn();
-    const onSubmit = input?.onSubmit ?? jest.fn<void, [SignInFormValues]>();
+    const goBack = vi.fn();
+    const onSubmit = input?.onSubmit ?? vi.fn<void, [SignInFormValues]>();
     const props: ComponentProps<typeof SignInForm> = {
       isLoading: false,
       ...input,

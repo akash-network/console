@@ -1,6 +1,6 @@
 import { HTTPException } from "hono/http-exception";
 import createHttpError from "http-errors";
-import { mock } from "jest-mock-extended";
+import { mock } from "vitest-mock-extended";
 import { z } from "zod";
 
 import type { AppContext } from "../../types/app-context";

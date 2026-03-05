@@ -1,4 +1,4 @@
-import { LoggerService } from "@akashnetwork/logging";
+import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { singleton } from "tsyringe";
 
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
@@ -12,7 +12,7 @@ import { DeploymentRepository } from "@src/deployment/repositories/deployment/de
 
 @singleton()
 export class ProviderCleanupService {
-  private readonly logger = LoggerService.forContext(ProviderCleanupService.name);
+  private readonly logger = createOtelLogger({ context: ProviderCleanupService.name });
 
   constructor(
     @InjectBillingConfig() private readonly config: BillingConfig,

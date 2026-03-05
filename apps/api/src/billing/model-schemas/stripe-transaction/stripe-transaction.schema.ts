@@ -28,6 +28,7 @@ export const StripeTransactions = pgTable(
     type: stripeTransactionTypeEnum("type").notNull(),
     status: stripeTransactionStatusEnum("status").notNull().default("created"),
     amount: integer("amount").notNull(), // Amount in cents
+    amountRefunded: integer("amount_refunded").notNull().default(0), // Cumulative refunded amount in cents
     currency: varchar("currency", { length: 3 }).notNull().default("usd"),
     stripePaymentIntentId: varchar("stripe_payment_intent_id", { length: 255 }),
     stripeChargeId: varchar("stripe_charge_id", { length: 255 }),

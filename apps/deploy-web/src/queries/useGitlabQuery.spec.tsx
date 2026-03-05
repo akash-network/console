@@ -1,6 +1,7 @@
 import { faker } from "@faker-js/faker";
 import type { AxiosError } from "axios";
-import { mock } from "jest-mock-extended";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { GitLabService } from "@src/services/remote-deploy/gitlab-http.service";
 import {
@@ -14,7 +15,7 @@ import {
   useGitLabUserProfile
 } from "./useGitlabQuery";
 
-import { act, waitFor } from "@testing-library/react";
+import { act } from "@testing-library/react";
 import { setupQuery } from "@tests/unit/query-client";
 import { readToken, writeToken } from "@tests/unit/token";
 
@@ -23,9 +24,9 @@ describe("useGitlabQuery", () => {
     it("fetches access token and update token state", async () => {
       const mockData = { accessToken: "test-access-token", refreshToken: "test-refresh-token" };
       const mockGitlabService = mock<GitLabService>({
-        fetchAccessToken: jest.fn().mockResolvedValue(mockData)
+        fetchAccessToken: vi.fn().mockResolvedValue(mockData)
       });
-      const onSuccess = jest.fn();
+      const onSuccess = vi.fn();
 
       const { result } = setupQuery(() => useGitLabFetchAccessToken(onSuccess), {
         services: {
@@ -37,7 +38,7 @@ describe("useGitlabQuery", () => {
         await result.current.mutateAsync("test-code");
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(mockGitlabService.fetchAccessToken).toHaveBeenCalledWith("test-code");
         expect(onSuccess).toHaveBeenCalled();
         expect(readToken()).toBe("test-access-token");
@@ -50,7 +51,7 @@ describe("useGitlabQuery", () => {
       writeToken({ accessToken: "test-token", refreshToken: "test-refresh-token", type: "gitlab" });
       const mockData = { username: "test-username" };
       const mockGitlabService = mock<GitLabService>({
-        fetchUserProfile: jest.fn().mockResolvedValue(mockData)
+        fetchUserProfile: vi.fn().mockResolvedValue(mockData)
       });
 
       const { result } = setupQuery(() => useGitLabUserProfile(), {
@@ -59,7 +60,7 @@ describe("useGitlabQuery", () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
         expect(result.current.data).toEqual(mockData);
       });
@@ -70,13 +71,13 @@ describe("useGitlabQuery", () => {
       const mockError = { response: { status: 401 } } as AxiosError;
       const mockData = { username: "test-username" };
       const mockGitlabService = mock<GitLabService>({
-        fetchUserProfile: jest.fn().mockImplementation((token: string) => {
+        fetchUserProfile: vi.fn().mockImplementation((token: string) => {
           if (token === "test-token") {
             return Promise.reject(mockError);
           }
           return Promise.resolve(mockData);
         }),
-        refreshToken: jest.fn().mockResolvedValue({
+        refreshToken: vi.fn().mockResolvedValue({
           accessToken: "new-token",
           refreshToken: "new-refresh-token"
         })
@@ -88,7 +89,7 @@ describe("useGitlabQuery", () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(mockGitlabService.fetchUserProfile).toHaveBeenCalledWith("test-token");
         expect(mockGitlabService.refreshToken).toHaveBeenCalled();
         expect(result.current.isError).toBe(true);
@@ -101,7 +102,7 @@ describe("useGitlabQuery", () => {
       writeToken({ accessToken: "test-token", refreshToken: "test-refresh-token", type: "gitlab" });
       const mockData = [{ hash: faker.git.commitSha() }];
       const mockGitlabService = mock<GitLabService>({
-        fetchCommits: jest.fn().mockResolvedValue(mockData)
+        fetchCommits: vi.fn().mockResolvedValue(mockData)
       });
 
       const { result } = setupQuery(() => useGitLabCommits("test-repo", "main"), {
@@ -110,7 +111,7 @@ describe("useGitlabQuery", () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
         expect(mockGitlabService.fetchCommits).toHaveBeenCalledWith("test-repo", "main", "test-token");
         expect(result.current.data).toEqual(mockData);
@@ -123,7 +124,7 @@ describe("useGitlabQuery", () => {
       writeToken({ accessToken: "test-token", refreshToken: "test-refresh-token", type: "gitlab" });
       const mockData = [{ id: faker.string.uuid() }];
       const mockGitlabService = mock<GitLabService>({
-        fetchGitLabGroups: jest.fn().mockResolvedValue(mockData)
+        fetchGitLabGroups: vi.fn().mockResolvedValue(mockData)
       });
 
       const { result } = setupQuery(() => useGitLabGroups(), {
@@ -132,7 +133,7 @@ describe("useGitlabQuery", () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
         expect(mockGitlabService.fetchGitLabGroups).toHaveBeenCalledWith("test-token");
         expect(result.current.data).toEqual(mockData);
@@ -145,7 +146,7 @@ describe("useGitlabQuery", () => {
       writeToken({ accessToken: "test-token", refreshToken: "test-refresh-token", type: "gitlab" });
       const mockData = [{ name: faker.lorem.word() }];
       const mockGitlabService = mock<GitLabService>({
-        fetchReposByGroup: jest.fn().mockResolvedValue(mockData)
+        fetchReposByGroup: vi.fn().mockResolvedValue(mockData)
       });
 
       const { result } = setupQuery(() => useGitLabReposByGroup("test-group"), {
@@ -154,7 +155,7 @@ describe("useGitlabQuery", () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
         expect(mockGitlabService.fetchReposByGroup).toHaveBeenCalledWith("test-group", "test-token");
         expect(result.current.data).toEqual(mockData);
@@ -174,7 +175,7 @@ describe("useGitlabQuery", () => {
       writeToken({ accessToken: "test-token", refreshToken: "test-refresh-token", type: "gitlab" });
       const mockData = [{ name: faker.lorem.word() }];
       const mockGitlabService = mock<GitLabService>({
-        fetchBranches: jest.fn().mockResolvedValue(mockData)
+        fetchBranches: vi.fn().mockResolvedValue(mockData)
       });
 
       const { result } = setupQuery(() => useGitLabBranches("test-repo"), {
@@ -183,7 +184,7 @@ describe("useGitlabQuery", () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
         expect(mockGitlabService.fetchBranches).toHaveBeenCalledWith("test-repo", "test-token");
         expect(result.current.data).toEqual(mockData);
@@ -200,9 +201,9 @@ describe("useGitlabQuery", () => {
     it("fetches package.json and call onSettled callback", async () => {
       writeToken({ accessToken: "test-token", refreshToken: "test-refresh-token", type: "gitlab" });
       const mockPackageJson = { dependencies: ["foo", "bar"] };
-      const onSettled = jest.fn();
+      const onSettled = vi.fn();
       const mockGitlabService = mock<GitLabService>({
-        fetchPackageJson: jest.fn().mockResolvedValue({
+        fetchPackageJson: vi.fn().mockResolvedValue({
           content: btoa(JSON.stringify(mockPackageJson))
         })
       });
@@ -213,7 +214,7 @@ describe("useGitlabQuery", () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
         expect(mockGitlabService.fetchPackageJson).toHaveBeenCalledWith("test-repo", "src", "test-token");
         expect(onSettled).toHaveBeenCalledWith(mockPackageJson);
@@ -225,9 +226,9 @@ describe("useGitlabQuery", () => {
     it("fetches source folders and call onSettled callback", async () => {
       writeToken({ accessToken: "test-token", refreshToken: "test-refresh-token", type: "gitlab" });
       const mockFolders = [{ name: faker.lorem.word() }];
-      const onSettled = jest.fn();
+      const onSettled = vi.fn();
       const mockGitlabService = mock<GitLabService>({
-        fetchSrcFolders: jest.fn().mockResolvedValue(mockFolders)
+        fetchSrcFolders: vi.fn().mockResolvedValue(mockFolders)
       });
 
       const { result } = setupQuery(() => useGitlabSrcFolders(onSettled, "test-repo"), {
@@ -236,7 +237,7 @@ describe("useGitlabQuery", () => {
         }
       });
 
-      await waitFor(() => {
+      await vi.waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
         expect(mockGitlabService.fetchSrcFolders).toHaveBeenCalledWith("test-repo", "test-token");
         expect(onSettled).toHaveBeenCalledWith(mockFolders);

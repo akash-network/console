@@ -2,6 +2,7 @@ import { JwtTokenManager } from "@akashnetwork/chain-sdk";
 import { Secp256k1HdWallet } from "@cosmjs/amino";
 import { setTimeout } from "timers/promises";
 import type { TLSSocket } from "tls";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import WebSocket from "ws";
 
 import { createX509CertPair } from "../seeders/createX509CertPair";
@@ -127,7 +128,7 @@ describe("Provider proxy ws", () => {
   });
 
   it("closes provider websocket when client websocket is closed", async () => {
-    const onProviderWsClose = jest.fn();
+    const onProviderWsClose = vi.fn();
     const providerAddress = generateBech32();
     const certPair = createX509CertPair({ commonName: providerAddress });
     const chainServer = await startChainApiServer([certPair.cert]);

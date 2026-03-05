@@ -1,5 +1,5 @@
 // TODO: replace this import with @akashnetwork/chain-sdk when it exports those types
-import type { Attribute, SignedBy } from "@akashnetwork/akashjs/build/sdl/types";
+import type { Attribute, SignedBy } from "@akashnetwork/chain-sdk";
 import {
   Provider,
   ProviderAttribute,
@@ -126,12 +126,14 @@ export class ProviderRepository {
     return rows.map(row => row.hostUri);
   }
 
-  async getWithAttributesAndAuditors({ trial = false }: { trial?: boolean } = {}) {
+  async getWithAttributesAndAuditors({ trial = false, limit, offset }: { trial?: boolean; limit?: number; offset?: number } = {}) {
     return await Provider.findAll({
       where: {
         deletedHeight: null
       },
       order: [["createdHeight", "ASC"]],
+      limit,
+      offset,
       include: [
         {
           model: ProviderAttribute
@@ -153,12 +155,14 @@ export class ProviderRepository {
     });
   }
 
-  async getProviderWithNodes() {
+  async getProviderWithNodes({ limit, offset }: { limit?: number; offset?: number } = {}) {
     return await Provider.findAll({
       attributes: ["owner"],
       where: {
         deletedHeight: null
       },
+      limit,
+      offset,
       include: [
         {
           model: ProviderSnapshot,

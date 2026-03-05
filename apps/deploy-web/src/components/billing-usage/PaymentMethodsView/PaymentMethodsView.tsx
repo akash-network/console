@@ -1,5 +1,5 @@
 import React from "react";
-import type { PaymentMethod, SetupIntentResponse } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
+import type { PaymentMethod, SetupIntentResponse } from "@akashnetwork/http-sdk";
 import { Button, Card, CardContent, CardFooter, CardHeader, Spinner, Table, TableBody } from "@akashnetwork/ui/components";
 import { CircularProgress } from "@mui/material";
 import { Plus } from "lucide-react";

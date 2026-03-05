@@ -1,7 +1,8 @@
 import type { LoggerService } from "@akashnetwork/logging";
-import { mock } from "jest-mock-extended";
 import type { GetServerSidePropsContext } from "next";
 import { Err, Ok } from "ts-results";
+import { describe, expect, it } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { AppTypedContext } from "@src/lib/nextjs/defineServerSideProps/defineServerSideProps";
 import type { TurnstileVerifierService } from "@src/services/turnstile-verifier/turnstile-verifier.service";

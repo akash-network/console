@@ -1,16 +1,17 @@
 import type { AkashBlock, Provider, ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash";
-import { format, subHours } from "date-fns";
+import { subHours } from "date-fns";
 
 import { app, initDb } from "@src/rest-app";
 
 import { createAkashBlock, createDay, createProvider, createProviderSnapshot } from "@test/seeders";
+import { formatUTCDate } from "@test/utils";
 
 describe("Dashboard Data", () => {
   let providers: Provider[];
   let providerSnapshots: ProviderSnapshot[];
   let blocks: AkashBlock[];
   const now = new Date();
-  now.setHours(12, 0, 0, 0);
+  now.setUTCHours(12, 0, 0, 0);
   const yesterday = subHours(now, 24);
   const twoDaysAgo = subHours(now, 48);
 
@@ -19,19 +20,19 @@ describe("Dashboard Data", () => {
 
     await Promise.all([
       createDay({
-        date: format(twoDaysAgo, "yyyy-MM-dd"),
+        date: formatUTCDate(twoDaysAgo),
         firstBlockHeight: 1,
         lastBlockHeight: 100,
         lastBlockHeightYet: 100
       }),
       createDay({
-        date: format(yesterday, "yyyy-MM-dd"),
+        date: formatUTCDate(yesterday),
         firstBlockHeight: 101,
         lastBlockHeight: 200,
         lastBlockHeightYet: 200
       }),
       createDay({
-        date: format(now, "yyyy-MM-dd"),
+        date: formatUTCDate(now),
         firstBlockHeight: 201,
         lastBlockHeight: 300,
         lastBlockHeightYet: 300

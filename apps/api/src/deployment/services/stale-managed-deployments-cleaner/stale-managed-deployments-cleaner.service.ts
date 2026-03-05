@@ -1,8 +1,8 @@
-import { LoggerService } from "@akashnetwork/logging";
+import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { secondsInMinute } from "date-fns/constants";
 import { singleton } from "tsyringe";
 
-import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
+import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { ManagedUserWalletService, RpcMessageService } from "@src/billing/services";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
@@ -14,7 +14,7 @@ import { averageBlockTime } from "@src/utils/constants";
 
 @singleton()
 export class StaleManagedDeploymentsCleanerService {
-  private readonly logger = LoggerService.forContext(StaleManagedDeploymentsCleanerService.name);
+  private readonly logger = createOtelLogger({ context: StaleManagedDeploymentsCleanerService.name });
 
   private readonly MAX_LIVE_BLOCKS = Math.floor((10 * secondsInMinute) / averageBlockTime);
 

@@ -1,13 +1,14 @@
 import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
-import { format, subDays } from "date-fns";
-import mcache from "memory-cache";
+import { subDays } from "date-fns";
 import nock from "nock";
 import { container } from "tsyringe";
 
+import { cacheEngine } from "@src/caching/helpers";
 import type { ProviderEarningsResponse } from "@src/provider/http-schemas/provider-earnings.schema";
 import { app, initDb } from "@src/rest-app";
 
 import { createAkashBlock, createProvider } from "@test/seeders";
+import { formatUTCDate } from "@test/utils";
 
 describe("Provider Earnings API", () => {
   let provider: Provider;
@@ -36,7 +37,7 @@ describe("Provider Earnings API", () => {
 
   afterAll(async () => {
     await container.dispose();
-    mcache.clear();
+    cacheEngine.clearAllKeyInCache();
   });
 
   afterEach(() => {
@@ -45,8 +46,8 @@ describe("Provider Earnings API", () => {
 
   describe("GET /v1/provider-earnings/{owner}?from=YYYY-MM-DD&to=YYYY-MM-DD", () => {
     it("should return earnings for a valid provider and date range", async () => {
-      const from = format(subDays(Date.now(), 2), "yyyy-MM-dd");
-      const to = format(subDays(Date.now(), 1), "yyyy-MM-dd");
+      const from = formatUTCDate(subDays(Date.now(), 2));
+      const to = formatUTCDate(subDays(Date.now(), 1));
 
       const response = await app.request(`/v1/provider-earnings/${provider.owner}?from=${from}&to=${to}`);
 
@@ -61,8 +62,8 @@ describe("Provider Earnings API", () => {
 
     it("should return 404 for an invalid provider", async () => {
       const nonExistentOwner = "0x1234567890abcdef1234567890abcdef12345678";
-      const from = format(subDays(Date.now(), 2), "yyyy-MM-dd");
-      const to = format(subDays(Date.now(), 1), "yyyy-MM-dd");
+      const from = formatUTCDate(subDays(Date.now(), 2));
+      const to = formatUTCDate(subDays(Date.now(), 1));
 
       const res = await app.request(`/v1/provider-earnings/${nonExistentOwner}?from=${from}&to=${to}`);
       expect(res.status).toBe(404);

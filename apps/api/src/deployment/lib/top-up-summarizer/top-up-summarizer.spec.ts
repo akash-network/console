@@ -5,8 +5,6 @@ import { TopUpSummarizer } from "./top-up-summarizer";
 
 import { createAkashAddress } from "@test/seeders";
 
-jest.mock("@akashnetwork/logging");
-
 describe(TopUpSummarizer.name, () => {
   let summarizer: TopUpSummarizer;
 
@@ -143,6 +141,7 @@ describe(TopUpSummarizer.name, () => {
         deploymentCount: 2,
         deploymentTopUpCount: 1,
         deploymentTopUpErrorCount: 1,
+        deploymentsMarkedClosedCount: 0,
         insufficientBalanceCount: 1,
         walletsCount: 2,
         walletsTopUpCount: 1,
@@ -160,6 +159,7 @@ describe(TopUpSummarizer.name, () => {
         deploymentCount: 0,
         deploymentTopUpCount: 0,
         deploymentTopUpErrorCount: 0,
+        deploymentsMarkedClosedCount: 0,
         insufficientBalanceCount: 0,
         walletsCount: 0,
         walletsTopUpCount: 0,

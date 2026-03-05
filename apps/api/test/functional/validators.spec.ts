@@ -3,7 +3,7 @@ import nock from "nock";
 import { container } from "tsyringe";
 
 import { CORE_CONFIG } from "@src/core";
-import { app } from "@src/rest-app";
+import { app, initDb } from "@src/rest-app";
 
 import { createValidator } from "@test/seeders";
 
@@ -11,6 +11,7 @@ describe("Validators API", () => {
   let validators: Validator[];
 
   beforeAll(async () => {
+    await initDb();
     validators = await Promise.all([
       createValidator({
         operatorAddress: "akashvaloper1w3cg3uq7uwlwkrtlrmtatqh80al42m3hzmcjmx"

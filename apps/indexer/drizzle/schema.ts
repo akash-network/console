@@ -582,12 +582,18 @@ export const addressReference = pgTable(
     transactionId: uuid().notNull(),
     messageId: uuid(),
     address: varchar({ length: 255 }).notNull(),
-    type: varchar({ length: 255 }).notNull()
+    type: varchar({ length: 255 }).notNull(),
+    height: integer()
   },
   table => [
     index("address_reference_address").using("btree", table.address.asc().nullsLast().op("text_ops")),
     index("address_reference_transaction_id").using("btree", table.transactionId.asc().nullsLast().op("uuid_ops")),
     index("address_reference_address_transaction_id").using("btree", table.address.asc().nullsLast(), table.transactionId.asc().nullsLast()),
+    index("address_reference_address_height_desc").using(
+      "btree",
+      table.address.asc().nullsLast().op("text_ops"),
+      table.height.desc().nullsLast().op("int4_ops")
+    ),
     foreignKey({
       columns: [table.messageId],
       foreignColumns: [message.id],
@@ -630,6 +636,7 @@ export const transaction = pgTable(
     index("transaction_id_has_procesing_error_false")
       .using("btree", table.id.asc().nullsLast().op("uuid_ops"))
       .where(sql`("hasProcessingError" = false)`),
+    index("transaction_height_desc_index_desc").using("btree", table.height.desc().nullsLast().op("int4_ops"), table.index.desc().nullsLast().op("int4_ops")),
     foreignKey({
       columns: [table.height],
       foreignColumns: [block.height],

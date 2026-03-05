@@ -8,8 +8,14 @@ import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/ope
 import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
 
 export const GetWalletRequestQuerySchema = z.object({
-  userId: z.string().openapi({}),
-  awaitSessionId: z.string().optional().openapi({})
+  userId: z
+    .string()
+    .uuid()
+    .openapi({
+      param: {
+        description: "The ID of the user to get the wallets for"
+      }
+    })
 });
 export type GetWalletQuery = z.infer<typeof GetWalletRequestQuerySchema>;
 

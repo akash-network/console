@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from "react";
-import type { PaymentMethod } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
+import type { PaymentMethod } from "@akashnetwork/http-sdk";
 import { Badge, Button, DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, TableCell, TableRow } from "@akashnetwork/ui/components";
 import { ClickAwayListener } from "@mui/material";
 import { BadgeCheck, CheckCircle, MoreHoriz, Trash } from "iconoir-react";
@@ -43,22 +43,35 @@ export const PaymentMethodsRow: React.FC<PaymentMethodsRowProps> = ({
     setOpen(false);
   };
 
-  const card = useCallback((paymentMethod: PaymentMethod) => {
-    return (
-      <>
-        {capitalizeFirstLetter(paymentMethod.card?.brand || "")} {paymentMethod.card?.funding} **** {paymentMethod.card?.last4}
-      </>
-    );
-  }, []);
+  const paymentMethodLabel = useMemo(() => {
+    if (paymentMethod.card) {
+      return (
+        <>
+          {capitalizeFirstLetter(paymentMethod.card.brand || "")} {paymentMethod.card.funding} **** {paymentMethod.card.last4}
+        </>
+      );
+    }
 
-  const validUntil = useCallback((paymentMethod: PaymentMethod) => {
-    const month = paymentMethod.card?.exp_month?.toString().padStart(2, "0");
+    if (paymentMethod.type === "link") {
+      const email = paymentMethod.link?.email;
+      return <>{email ? `Link (${email})` : "Link"}</>;
+    }
+
+    return <>{capitalizeFirstLetter(paymentMethod.type)}</>;
+  }, [paymentMethod]);
+
+  const validUntilContent = useMemo(() => {
+    if (!paymentMethod.card) {
+      return null;
+    }
+
+    const month = paymentMethod.card.exp_month?.toString().padStart(2, "0");
     return (
       <>
-        {month}/{paymentMethod.card?.exp_year}
+        {month}/{paymentMethod.card.exp_year}
       </>
     );
-  }, []);
+  }, [paymentMethod]);
 
   const defaultBadge = useMemo(() => {
     if (!paymentMethod.isDefault) {
@@ -86,9 +99,9 @@ export const PaymentMethodsRow: React.FC<PaymentMethodsRowProps> = ({
   return (
     <d.TableRow className="flex border-0 py-2 hover:bg-transparent">
       <d.TableCell className="flex items-center">
-        {card(paymentMethod)} {defaultBadge}
+        {paymentMethodLabel} {defaultBadge}
       </d.TableCell>
-      <d.TableCell className="flex flex-grow items-center justify-end">Valid until {validUntil(paymentMethod)}</d.TableCell>
+      {validUntilContent && <d.TableCell className="flex flex-grow items-center justify-end">Valid until {validUntilContent}</d.TableCell>}
       {hasOtherPaymentMethods && (
         <d.TableCell className="min-h-[72px] min-w-[72px]">
           {!paymentMethod.isDefault && (

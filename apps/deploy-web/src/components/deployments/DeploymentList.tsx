@@ -23,13 +23,11 @@ import { LinkTo } from "@src/components/shared/LinkTo";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useListSelection } from "@src/hooks/useListSelection/useListSelection";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useDeploymentList } from "@src/queries/useDeploymentQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import sdlStore from "@src/store/sdlStore";
-import walletStore from "@src/store/walletStore";
 import type { DeploymentDto, NamedDeploymentDto } from "@src/types/deployment";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { UrlService } from "@src/utils/urlUtils";
@@ -59,8 +57,6 @@ export const DeploymentList: React.FunctionComponent = () => {
   const pageCount = Math.ceil(orderedDeployments.length / pageSize);
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const { closeDeploymentConfirm } = useManagedDeploymentConfirm();
-  const [isSignedInWithTrial] = useAtom(walletStore.isSignedInWithTrial);
-  const { user } = useCustomUser();
 
   const { selectedItemIds, selectItem, clearSelection } = useListSelection<string>({
     ids: currentPageDeployments.map(deployment => deployment.dseq)
@@ -217,8 +213,6 @@ export const DeploymentList: React.FunctionComponent = () => {
           onDeployClick={onDeployClick}
           hasDeployments={Boolean(deployments && deployments.length > 0)}
           isWalletConnected={isWalletConnected}
-          isSignedInWithTrial={isSignedInWithTrial}
-          hasUser={Boolean(user)}
           showTemplatesButton
         />
       )}

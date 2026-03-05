@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { DseqSchema } from "@src/utils/schema";
+import { AkashAddressSchema, DseqSchema } from "@src/utils/schema";
 
 export const CreateLeaseRequestSchema = z.object({
   manifest: z.string(),
@@ -15,7 +15,7 @@ export const CreateLeaseRequestSchema = z.object({
       dseq: DseqSchema,
       gseq: z.number(),
       oseq: z.number(),
-      provider: z.string()
+      provider: AkashAddressSchema
     })
   )
 });

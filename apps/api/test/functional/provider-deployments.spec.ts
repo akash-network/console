@@ -1,9 +1,9 @@
 import type { Deployment, Provider } from "@akashnetwork/database/dbSchemas/akash";
 import map from "lodash/map";
-import mcache from "memory-cache";
 import nock from "nock";
 import { container } from "tsyringe";
 
+import { cacheEngine } from "@src/caching/helpers";
 import { app, initDb } from "@src/rest-app";
 
 import { createAkashBlock, createDay, createDeployment, createDeploymentGroup, createLease, createProvider } from "@test/seeders";
@@ -14,7 +14,6 @@ describe("Provider deployments", () => {
 
   beforeAll(async () => {
     await initDb();
-
     const day = await createDay({
       date: new Date(),
       firstBlockHeight: 1,
@@ -110,9 +109,13 @@ describe("Provider deployments", () => {
     ]);
   });
 
+  beforeEach(async () => {
+    await initDb();
+  });
+
   afterAll(async () => {
     await container.dispose();
-    mcache.clear();
+    cacheEngine.clearAllKeyInCache();
   });
 
   afterEach(() => {

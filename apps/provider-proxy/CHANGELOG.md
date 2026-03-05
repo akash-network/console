@@ -1,5 +1,129 @@
 
 
+## [2.10.2](https://github.com/akash-network/console/compare/provider-proxy/v2.10.1...provider-proxy/v2.10.2) (2026-02-18)
+
+
+### Code Refactoring
+
+* migrates provider-proxy build to tsup ([#2735](https://github.com/akash-network/console/issues/2735)) ([ffaac51](https://github.com/akash-network/console/commit/ffaac516d5c8a5185388eb33a404412ef67cf358))
+
+## [2.10.1](https://github.com/akash-network/console/compare/provider-proxy/v2.10.0...provider-proxy/v2.10.1) (2026-02-12)
+
+
+### Bug Fixes
+
+* **sdl:** ensures proper validation and upgrades chain sdk  ([3381424](https://github.com/akash-network/console/commit/3381424e554f76c09ad52850b650e18c21ea76fa))
+
+## [2.10.0](https://github.com/akash-network/console/compare/provider-proxy/v2.9.11...provider-proxy/v2.10.0) (2026-02-12)
+
+
+### Features
+
+* upgrades chain sdk to latest ([a5cbbf7](https://github.com/akash-network/console/commit/a5cbbf7c909329e122942ca1a965c4c7b8dfcd62))
+
+
+### Bug Fixes
+
+* increases timeout on provider-proxy requests ([#2699](https://github.com/akash-network/console/issues/2699)) ([d238bac](https://github.com/akash-network/console/commit/d238bac7984e5df3b9d0564a1cdeceb5e3c5e332))
+
+## [2.9.11](https://github.com/akash-network/console/compare/provider-proxy/v2.9.8...provider-proxy/v2.9.11) (2026-02-05)
+
+
+### Bug Fixes
+
+* ensure SDL is not reset on changes during redeploy ([#2674](https://github.com/akash-network/console/issues/2674)) ([ae0d6a9](https://github.com/akash-network/console/commit/ae0d6a9fbea8b1362aecc57faaca4da26bd44b00))
+* update chain-sdk to alpha.21 ([#2666](https://github.com/akash-network/console/issues/2666)) ([7db8f76](https://github.com/akash-network/console/commit/7db8f76e1ffe53bd800bb1c8ef67e17dbeb0d58e))
+
+## [2.9.10](https://github.com/akash-network/console/compare/provider-proxy/v2.9.8...provider-proxy/v2.9.10) (2026-02-05)
+
+
+### Bug Fixes
+
+* ensure SDL is not reset on changes during redeploy ([#2674](https://github.com/akash-network/console/issues/2674)) ([ae0d6a9](https://github.com/akash-network/console/commit/ae0d6a9fbea8b1362aecc57faaca4da26bd44b00))
+* update chain-sdk to alpha.21 ([#2666](https://github.com/akash-network/console/issues/2666)) ([7db8f76](https://github.com/akash-network/console/commit/7db8f76e1ffe53bd800bb1c8ef67e17dbeb0d58e))
+
+## [2.9.9](https://github.com/akash-network/console/compare/provider-proxy/v2.9.8...provider-proxy/v2.9.9) (2026-02-04)
+
+
+### Bug Fixes
+
+* update chain-sdk to alpha.21 ([#2666](https://github.com/akash-network/console/issues/2666)) ([7db8f76](https://github.com/akash-network/console/commit/7db8f76e1ffe53bd800bb1c8ef67e17dbeb0d58e))
+
+## [2.9.8](https://github.com/akash-network/console/compare/provider-proxy/v2.9.7...provider-proxy/v2.9.8) (2026-02-03)
+
+
+### Bug Fixes
+
+* switch container build target to production ([#2647](https://github.com/akash-network/console/issues/2647)) ([d583e61](https://github.com/akash-network/console/commit/d583e615431f543ba84c1302efec9b878645acd8))
+
+## [2.9.7](https://github.com/akash-network/console/compare/provider-proxy/v2.9.6...provider-proxy/v2.9.7) (2026-01-30)
+
+
+### Code Refactoring
+
+* extracts tx signer into a dedicated service ([8a74b7e](https://github.com/akash-network/console/commit/8a74b7e3346e5aee6249a6baeb3e91099db97677))
+
+## [2.9.6](https://github.com/akash-network/console/compare/provider-proxy/v2.9.4...provider-proxy/v2.9.6) (2026-01-30)
+
+
+### Bug Fixes
+
+* ensure that tsbuild picks proper dependencies for internal packages ([#2596](https://github.com/akash-network/console/issues/2596)) ([c869c78](https://github.com/akash-network/console/commit/c869c78a19e7a6569d62bf1cdd2ab5be0340cdd6))
+* replaces fetch API with octokit.getContent ([#2570](https://github.com/akash-network/console/issues/2570)) ([079f0d4](https://github.com/akash-network/console/commit/079f0d4640aa3936d6ef337e46ae4bcb2a8104d4))
+* set timestamp setting in env-loader ([#2594](https://github.com/akash-network/console/issues/2594)) ([ab74ab0](https://github.com/akash-network/console/commit/ab74ab03465148ce9761e2f21408f33c6ac1c2e0))
+
+
+### Code Refactoring
+
+* migrates from webpack to tsup in console-api ([#2547](https://github.com/akash-network/console/issues/2547)) ([43c75c0](https://github.com/akash-network/console/commit/43c75c07282b88c3776545a6134754ab97901734))
+
+## [2.9.5](https://github.com/akash-network/console/compare/provider-proxy/v2.9.4...provider-proxy/v2.9.5) (2026-01-28)
+
+
+### Bug Fixes
+
+* replaces fetch API with octokit.getContent ([#2570](https://github.com/akash-network/console/issues/2570)) ([079f0d4](https://github.com/akash-network/console/commit/079f0d4640aa3936d6ef337e46ae4bcb2a8104d4))
+
+
+### Code Refactoring
+
+* migrates from webpack to tsup in console-api ([#2547](https://github.com/akash-network/console/issues/2547)) ([43c75c0](https://github.com/akash-network/console/commit/43c75c07282b88c3776545a6134754ab97901734))
+
+## [2.9.4](https://github.com/akash-network/console/compare/provider-proxy/v2.9.3...provider-proxy/v2.9.4) (2026-01-26)
+
+
+### Bug Fixes
+
+* install sharp lib for image optimization ([#2546](https://github.com/akash-network/console/issues/2546)) ([4790cd6](https://github.com/akash-network/console/commit/4790cd6ff2053229ec6faaad26a7e18d67e60f74))
+
+
+### Code Refactoring
+
+* replaces LoggerService class with createOtelLogger ([#2555](https://github.com/akash-network/console/issues/2555)) ([fa01b2c](https://github.com/akash-network/console/commit/fa01b2cb4cd522758ae47f2e8b44253269051a57))
+
+## [2.9.3](https://github.com/akash-network/console/compare/provider-proxy/v2.9.2...provider-proxy/v2.9.3) (2026-01-22)
+
+
+### Code Refactoring
+
+* defines explicit exports inside internal packages ([#2551](https://github.com/akash-network/console/issues/2551)) ([71f907f](https://github.com/akash-network/console/commit/71f907fe6b8b85a042bd351ec5b2b3621ba8d89d))
+
+## [2.9.2](https://github.com/akash-network/console/compare/provider-proxy/v2.9.1...provider-proxy/v2.9.2) (2026-01-20)
+
+## [2.9.1](https://github.com/akash-network/console/compare/provider-proxy/v2.9.0...provider-proxy/v2.9.1) (2026-01-17)
+
+
+### Bug Fixes
+
+* upgrades chain-sdk dependency ([#2508](https://github.com/akash-network/console/issues/2508)) ([adae126](https://github.com/akash-network/console/commit/adae126f86b55250412a93f5a96e7505c0bf36df))
+
+## [2.9.0](https://github.com/akash-network/console/compare/provider-proxy/v2.8.0...provider-proxy/v2.9.0) (2026-01-13)
+
+
+### Features
+
+* **deployment:** implements deploy button flow ([46004d4](https://github.com/akash-network/console/commit/46004d4429dc3b4ebb47bb88edf97cd99b1a0c0f)), closes [#2470](https://github.com/akash-network/console/issues/2470)
+
 ## [2.8.0](https://github.com/akash-network/console/compare/provider-proxy/v2.7.1...provider-proxy/v2.8.0) (2026-01-08)
 
 

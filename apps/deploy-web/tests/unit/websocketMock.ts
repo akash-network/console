@@ -1,4 +1,5 @@
-import { mock } from "jest-mock-extended";
+import { vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { wait } from "@src/utils/timer";
 
@@ -19,7 +20,7 @@ export function createWebsocketMock(): WebSocket {
     onmessage: null,
     onerror: null,
     onclose: null,
-    close: jest.fn(function close() {
+    close: vi.fn(function close() {
       this.readyState = WebSocket.CLOSED;
       dispatchWsEvent(this, new Event("close"));
     })

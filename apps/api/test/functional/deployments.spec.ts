@@ -21,13 +21,12 @@ import { UserRepository } from "@src/user/repositories";
 import { deploymentVersion, marketVersion } from "@src/utils/constants";
 
 import { ApiKeySeeder } from "@test/seeders/api-key.seeder";
+import { createDeployment } from "@test/seeders/deployment.seeder";
 import { DeploymentInfoSeeder } from "@test/seeders/deployment-info.seeder";
 import { LeaseApiResponseSeeder } from "@test/seeders/lease-api-response.seeder";
 import { LeaseStatusSeeder } from "@test/seeders/lease-status.seeder";
 import { UserSeeder } from "@test/seeders/user.seeder";
 import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
-
-jest.setTimeout(20000);
 
 describe("Deployments API", () => {
   const userRepository = container.resolve(UserRepository);
@@ -126,7 +125,7 @@ describe("Deployments API", () => {
     return { user, userApiKeySecret, wallets };
   }
 
-  function setupDeploymentInfoMock(wallets: UserWalletOutput[], dseq: string, deploymentInfo?: RestAkashDeploymentInfoResponse) {
+  async function setupDeploymentInfoMock(wallets: UserWalletOutput[], dseq: string, deploymentInfo?: RestAkashDeploymentInfoResponse) {
     const address = wallets[0].address;
     const defaultDeploymentInfo =
       deploymentInfo ||
@@ -167,6 +166,7 @@ describe("Deployments API", () => {
           next_key: null
         }
       });
+    await createDeployment({ owner: wallets[0].address!, dseq });
 
     const leases = LeaseApiResponseSeeder.createMany(2, {
       owner: address!,
@@ -237,7 +237,7 @@ describe("Deployments API", () => {
     it("returns deployment by dseq", async () => {
       const dseq = "1234";
       const { userApiKeySecret, wallets } = await mockUser();
-      setupDeploymentInfoMock(wallets, dseq);
+      await setupDeploymentInfoMock(wallets, dseq);
 
       const response = await app.request(`/v1/deployments/${dseq}`, {
         method: "GET",
@@ -256,7 +256,7 @@ describe("Deployments API", () => {
     it("returns 404 for an error in deployment info", async () => {
       const dseq = "1234";
       const { userApiKeySecret, wallets } = await mockUser();
-      setupDeploymentInfoMock(wallets, dseq, DeploymentInfoSeeder.createError());
+      await setupDeploymentInfoMock(wallets, dseq, DeploymentInfoSeeder.createError());
 
       const response = await app.request(`/v1/deployments/${dseq}`, {
         method: "GET",
@@ -564,7 +564,7 @@ describe("Deployments API", () => {
     it("should close a deployment successfully", async () => {
       const { userApiKeySecret, wallets } = await mockUser();
       const dseq = "1234";
-      setupDeploymentInfoMock(wallets, dseq);
+      await setupDeploymentInfoMock(wallets, dseq);
 
       const mockTxResult = {
         code: 0,
@@ -671,7 +671,7 @@ describe("Deployments API", () => {
     it("should deposit into a deployment successfully", async () => {
       const { userApiKeySecret, wallets } = await mockUser();
       const dseq = "1234";
-      setupDeploymentInfoMock(wallets, dseq);
+      await setupDeploymentInfoMock(wallets, dseq);
 
       const mockTxResult = {
         code: 0,
@@ -767,7 +767,7 @@ describe("Deployments API", () => {
     it("should update a deployment successfully", async () => {
       const { userApiKeySecret, wallets } = await mockUser();
       const dseq = "1234";
-      setupDeploymentInfoMock(wallets, dseq);
+      await setupDeploymentInfoMock(wallets, dseq);
 
       const mockTxResult = {
         code: 0,
@@ -802,7 +802,7 @@ describe("Deployments API", () => {
     it("should update a deployment successfully with a certificate provided", async () => {
       const { userApiKeySecret, wallets } = await mockUser();
       const dseq = "1234";
-      setupDeploymentInfoMock(wallets, dseq);
+      await setupDeploymentInfoMock(wallets, dseq);
 
       const mockTxResult = {
         code: 0,
@@ -911,7 +911,7 @@ describe("Deployments API", () => {
     it("returns deployment by dseq", async () => {
       const dseq = "1234";
       const { userApiKeySecret, wallets } = await mockUser();
-      setupDeploymentInfoMock(wallets, dseq);
+      await setupDeploymentInfoMock(wallets, dseq);
 
       const response = await app.request(`/v1/addresses/${wallets[0].address}/deployments/0/1`, {
         method: "GET",
@@ -943,7 +943,7 @@ describe("Deployments API", () => {
     it("returns deployment by owner and dseq", async () => {
       const dseq = "1234";
       const { userApiKeySecret, wallets } = await mockUser();
-      setupDeploymentInfoMock(wallets, dseq);
+      await setupDeploymentInfoMock(wallets, dseq);
 
       const response = await app.request(`/v1/deployment/${wallets[0].address}/${dseq}`, {
         method: "GET",
@@ -959,7 +959,7 @@ describe("Deployments API", () => {
     it("returns 404 when deployment is not found", async () => {
       const dseq = "1234";
       const { userApiKeySecret, wallets } = await mockUser();
-      setupDeploymentInfoMock(wallets, dseq);
+      await setupDeploymentInfoMock(wallets, dseq);
 
       const response = await app.request(`/v1/deployment/${wallets[0].address}/9876`, {
         method: "GET",

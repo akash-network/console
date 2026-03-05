@@ -63,7 +63,7 @@ export const useWalletBalance = (): WalletBalanceReturnType => {
         totalDeploymentEscrowUUSDC: balances.deploymentEscrowUUSDC,
         totalDeploymentEscrowUSD: totalDeploymentEscrowUSD,
         totalDeploymentGrantsUAKT: balances.deploymentGrantsUAKT,
-        totalDeploymentGrantsUUSDC: balances.deploymentEscrowUAKT,
+        totalDeploymentGrantsUUSDC: balances.deploymentGrantsUUSDC,
         totalDeploymentGrantsUSD: totalDeploymentGrantsUSD
       });
     }

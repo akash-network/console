@@ -1,16 +1,15 @@
-import "@testing-library/jest-dom";
-
 import React from "react";
 import { type components, createAPIClient } from "@akashnetwork/react-query-sdk/notifications";
 import { CustomSnackbarProvider } from "@akashnetwork/ui/context";
 import { faker } from "@faker-js/faker";
 import type { RequestFnResponse } from "@openapi-qraft/react/src/lib/requestFn";
+import { describe, expect, it, vi } from "vitest";
 
 import type { ChildrenProps } from "@src/components/alerts/NotificationChannelEditContainer/NotificationChannelEditContainer";
 import { NotificationChannelEditContainer } from "@src/components/alerts/NotificationChannelEditContainer/NotificationChannelEditContainer";
 import { queryClient } from "@src/queries";
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { buildNotificationChannel } from "@tests/seeders/notificationChannel";
 import { createContainerTestingChildCapturer } from "@tests/unit/container-testing-child-capturer";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
@@ -21,7 +20,7 @@ describe("NotificationChannelEditContainer", () => {
 
     child.onEdit(input);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(requestFn).toHaveBeenCalledWith(
         expect.objectContaining({
           method: "patch",
@@ -54,7 +53,7 @@ describe("NotificationChannelEditContainer", () => {
 
     child.onEdit(input);
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(requestFn).toHaveBeenCalledWith(
         expect.objectContaining({
           method: "patch",
@@ -86,7 +85,7 @@ describe("NotificationChannelEditContainer", () => {
       name: faker.lorem.word(),
       emails: [faker.internet.email()]
     };
-    const requestFn = jest.fn(
+    const requestFn = vi.fn(
       () =>
         Promise.resolve({
           data: buildNotificationChannel(input)
@@ -106,7 +105,7 @@ describe("NotificationChannelEditContainer", () => {
     render(
       <CustomSnackbarProvider>
         <TestContainerProvider services={services}>
-          <NotificationChannelEditContainer id={input.id} onEditSuccess={jest.fn()}>
+          <NotificationChannelEditContainer id={input.id} onEditSuccess={vi.fn()}>
             {childCapturer.renderChild}
           </NotificationChannelEditContainer>
         </TestContainerProvider>

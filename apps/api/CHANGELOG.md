@@ -1,5 +1,350 @@
 
 
+## [3.32.0](https://github.com/akash-network/console/compare/console-api/v3.31.2...console-api/v3.32.0) (2026-02-18)
+
+
+### Features
+
+* add ManagedDeploymentLeaseCreated event and handler ([#2728](https://github.com/akash-network/console/issues/2728)) ([9f4ae3d](https://github.com/akash-network/console/commit/9f4ae3d87ef6341fabd0ec7b142b03773da5fa80))
+
+## [3.31.2](https://github.com/akash-network/console/compare/console-api/v3.31.1...console-api/v3.31.2) (2026-02-18)
+
+
+### Bug Fixes
+
+* **billing:** delegate coupon wallet top-up to Stripe webhook for reliable payment processing ([#2730](https://github.com/akash-network/console/issues/2730)) ([ade3ade](https://github.com/akash-network/console/commit/ade3ade37ce39705063a2b8f49c89a9c79075ac1))
+
+## [3.31.1](https://github.com/akash-network/console/compare/console-api/v3.31.0...console-api/v3.31.1) (2026-02-18)
+
+
+### Code Refactoring
+
+* adds observability to api serving requests ([#2758](https://github.com/akash-network/console/issues/2758)) ([ab274b3](https://github.com/akash-network/console/commit/ab274b3cb21dd4985bab3f9b5db8cb5b9af24e0f))
+
+## [3.31.0](https://github.com/akash-network/console/compare/console-api/v3.30.3...console-api/v3.31.0) (2026-02-17)
+
+
+### Features
+
+* add akash console memo ([#2738](https://github.com/akash-network/console/issues/2738)) ([c1ade4a](https://github.com/akash-network/console/commit/c1ade4a795226cf0ca235ef95738e8298093db84))
+
+
+### Bug Fixes
+
+* **deployment:** only warns on negative top up amount ([95a4b9b](https://github.com/akash-network/console/commit/95a4b9b38dea42c81c1e12ca863c0917c153626e))
+
+## [3.30.3](https://github.com/akash-network/console/compare/console-api/v3.30.2...console-api/v3.30.3) (2026-02-13)
+
+
+### Bug Fixes
+
+* remove PgSemaphore to fix the payment deadlock ([5e19905](https://github.com/akash-network/console/commit/5e19905ad7aa50d0f83e14dadf1757f13ae05a50))
+
+## [3.30.2](https://github.com/akash-network/console/compare/console-api/v3.30.1...console-api/v3.30.2) (2026-02-12)
+
+
+### Bug Fixes
+
+* switch to in-memory semaphore ([#2718](https://github.com/akash-network/console/issues/2718)) ([5ff03f5](https://github.com/akash-network/console/commit/5ff03f5dc73318ad8aa9f452cee8c9bd843f4027))
+
+## [3.30.1](https://github.com/akash-network/console/compare/console-api/v3.30.0...console-api/v3.30.1) (2026-02-12)
+
+
+### Bug Fixes
+
+* **sdl:** ensures proper validation and upgrades chain sdk  ([3381424](https://github.com/akash-network/console/commit/3381424e554f76c09ad52850b650e18c21ea76fa))
+
+## [3.30.0](https://github.com/akash-network/console/compare/console-api/v3.29.0...console-api/v3.30.0) (2026-02-12)
+
+
+### Features
+
+* **observability:** adds detailed tracing for the lease endpoint  ([a6a49e7](https://github.com/akash-network/console/commit/a6a49e70a973b483cd36c5668150872d70d44ec4))
+* upgrades chain sdk to latest ([a5cbbf7](https://github.com/akash-network/console/commit/a5cbbf7c909329e122942ca1a965c4c7b8dfcd62))
+
+
+### Bug Fixes
+
+* increase HTTP request timeout from 10s to 30s ([#2635](https://github.com/akash-network/console/issues/2635)) ([a231221](https://github.com/akash-network/console/commit/a2312219ee15c9d0c9bb735459ea1a7a752e1c0b))
+* increases timeout on provider-proxy requests ([#2699](https://github.com/akash-network/console/issues/2699)) ([d238bac](https://github.com/akash-network/console/commit/d238bac7984e5df3b9d0564a1cdeceb5e3c5e332))
+* update template retrieval and response handling ([#2663](https://github.com/akash-network/console/issues/2663)) ([cee7d45](https://github.com/akash-network/console/commit/cee7d45bfddede2290ccc5da4b7009ed31b0ad83))
+
+## [3.29.0](https://github.com/akash-network/console/compare/console-api/v3.28.0...console-api/v3.29.0) (2026-02-06)
+
+
+### Features
+
+* implements distributed semaphore using PostgreSQL advisory locks in api ([772c422](https://github.com/akash-network/console/commit/772c4223948b423c91e3ff7d2f198ecbd3cfddb5))
+* put browser fingerprint trial check behind feature flag ([#2685](https://github.com/akash-network/console/issues/2685)) ([b93c248](https://github.com/akash-network/console/commit/b93c248e03e4d6ba656c05aed4d5ba1a711cf9bb))
+
+## [3.28.0](https://github.com/akash-network/console/compare/console-api/v3.27.5...console-api/v3.28.0) (2026-02-05)
+
+
+### Features
+
+* add existence check for deployments ([#2671](https://github.com/akash-network/console/issues/2671)) ([24e860b](https://github.com/akash-network/console/commit/24e860bba88f6713aa0e907c8462d5a9aef74e57))
+* api key + auto top up enabled ([#2682](https://github.com/akash-network/console/issues/2682)) ([c8d7137](https://github.com/akash-network/console/commit/c8d7137960e76483f8acca6667a11f3cdd45df2a))
+* enhance wallet trial creation logic ([#2670](https://github.com/akash-network/console/issues/2670)) ([ade6999](https://github.com/akash-network/console/commit/ade6999ebd570cee7194bbea42be328451140c69))
+
+
+### Bug Fixes
+
+* **user:** shows friendly auth0 message and skips username update ([3501687](https://github.com/akash-network/console/commit/35016878c280263deb05d235137ab0a22035c50a))
+
+## [3.27.5](https://github.com/akash-network/console/compare/console-api/v3.27.2...console-api/v3.27.5) (2026-02-05)
+
+
+### Bug Fixes
+
+* ensure SDL is not reset on changes during redeploy ([#2674](https://github.com/akash-network/console/issues/2674)) ([ae0d6a9](https://github.com/akash-network/console/commit/ae0d6a9fbea8b1362aecc57faaca4da26bd44b00))
+* update chain-sdk to alpha.21 ([#2666](https://github.com/akash-network/console/issues/2666)) ([7db8f76](https://github.com/akash-network/console/commit/7db8f76e1ffe53bd800bb1c8ef67e17dbeb0d58e))
+
+## [3.27.4](https://github.com/akash-network/console/compare/console-api/v3.27.2...console-api/v3.27.4) (2026-02-05)
+
+
+### Bug Fixes
+
+* ensure SDL is not reset on changes during redeploy ([#2674](https://github.com/akash-network/console/issues/2674)) ([ae0d6a9](https://github.com/akash-network/console/commit/ae0d6a9fbea8b1362aecc57faaca4da26bd44b00))
+* update chain-sdk to alpha.21 ([#2666](https://github.com/akash-network/console/issues/2666)) ([7db8f76](https://github.com/akash-network/console/commit/7db8f76e1ffe53bd800bb1c8ef67e17dbeb0d58e))
+
+## [3.27.3](https://github.com/akash-network/console/compare/console-api/v3.27.2...console-api/v3.27.3) (2026-02-04)
+
+
+### Bug Fixes
+
+* update chain-sdk to alpha.21 ([#2666](https://github.com/akash-network/console/issues/2666)) ([7db8f76](https://github.com/akash-network/console/commit/7db8f76e1ffe53bd800bb1c8ef67e17dbeb0d58e))
+
+## [3.27.2](https://github.com/akash-network/console/compare/console-api/v3.27.1...console-api/v3.27.2) (2026-02-03)
+
+
+### Bug Fixes
+
+* adds execution context to http handling in bg jobs server ([#2662](https://github.com/akash-network/console/issues/2662)) ([bbec329](https://github.com/akash-network/console/commit/bbec329fcc95dbeac82a4b44a6eb5a2b294d0c3f))
+* prepends /v1 to all user/template urls and added proxies ([#2659](https://github.com/akash-network/console/issues/2659)) ([4834db0](https://github.com/akash-network/console/commit/4834db0a26f50134710639d51c284079c98cd024))
+
+## [3.27.1](https://github.com/akash-network/console/compare/console-api/v3.27.0...console-api/v3.27.1) (2026-02-03)
+
+
+### Code Refactoring
+
+* removes dead code related to user endpoints ([#2650](https://github.com/akash-network/console/issues/2650)) ([823030c](https://github.com/akash-network/console/commit/823030cf2635d641fb1838e247e1459ac1b395c1))
+
+## [3.27.0](https://github.com/akash-network/console/compare/console-api/v3.26.2...console-api/v3.27.0) (2026-02-03)
+
+
+### Features
+
+* enhance AuthInterceptor to handle invalid bearer tokens ([#2612](https://github.com/akash-network/console/issues/2612)) ([a4ece4b](https://github.com/akash-network/console/commit/a4ece4b5a935f92f7a5b42a60e2db14f1875dc70))
+
+
+### Bug Fixes
+
+* switch container build target to production ([#2647](https://github.com/akash-network/console/issues/2647)) ([d583e61](https://github.com/akash-network/console/commit/d583e615431f543ba84c1302efec9b878645acd8))
+
+## [3.26.2](https://github.com/akash-network/console/compare/console-api/v3.26.1...console-api/v3.26.2) (2026-02-02)
+
+
+### Code Refactoring
+
+*  moves userRouter into modular user service architecture with AuthService ([#2600](https://github.com/akash-network/console/issues/2600)) ([45124ed](https://github.com/akash-network/console/commit/45124edb39cf83536331b2741a8eb28ccdc1d2eb))
+
+## [3.26.1](https://github.com/akash-network/console/compare/console-api/v3.26.0...console-api/v3.26.1) (2026-02-02)
+
+
+### Bug Fixes
+
+* fixes dispose of sequelize db connections ([#2642](https://github.com/akash-network/console/issues/2642)) ([da3610e](https://github.com/akash-network/console/commit/da3610ee444af84df6b33d0ba45e6b1b137560e3))
+
+
+### Code Refactoring
+
+* moves sequelize creation into DI container factory ([#2636](https://github.com/akash-network/console/issues/2636)) ([977950b](https://github.com/akash-network/console/commit/977950b2ba88058bccf31c4725e6ec21fe72dc85))
+* outputs built templates into separate files for summary and templates ([#2643](https://github.com/akash-network/console/issues/2643)) ([3bdb346](https://github.com/akash-network/console/commit/3bdb3469bda4a77503df66f6b7eb1960f876f376))
+
+## [3.26.0](https://github.com/akash-network/console/compare/console-api/v3.25.0...console-api/v3.26.0) (2026-01-30)
+
+
+### Features
+
+* integrate execution context service and MongoAbility in CLI han… ([#2630](https://github.com/akash-network/console/issues/2630)) ([cbf18ce](https://github.com/akash-network/console/commit/cbf18cebb18f90f19cc7310f725b5fb8cacfdb5a))
+
+## [3.25.0](https://github.com/akash-network/console/compare/console-api/v3.24.1...console-api/v3.25.0) (2026-01-30)
+
+
+### Features
+
+* enhance Stripe webhook route with additional content type support ([#2631](https://github.com/akash-network/console/issues/2631)) ([1d9e86b](https://github.com/akash-network/console/commit/1d9e86b2a960436e4ec066cd83adf95795db9baf))
+
+## [3.24.1](https://github.com/akash-network/console/compare/console-api/v3.24.0...console-api/v3.24.1) (2026-01-30)
+
+
+### Bug Fixes
+
+* update JSON schema type for Stripe webhook route ([#2628](https://github.com/akash-network/console/issues/2628)) ([6e1e0f1](https://github.com/akash-network/console/commit/6e1e0f17b33826faadcceb849708b2f10a1cd577))
+
+## [3.24.0](https://github.com/akash-network/console/compare/console-api/v3.23.1...console-api/v3.24.0) (2026-01-30)
+
+
+### Features
+
+* add JSON schema support to Stripe webhook route ([#2626](https://github.com/akash-network/console/issues/2626)) ([594d0d3](https://github.com/akash-network/console/commit/594d0d34b0be8d4c91449314731046287d35e9db))
+
+## [3.23.1](https://github.com/akash-network/console/compare/console-api/v3.23.0...console-api/v3.23.1) (2026-01-30)
+
+
+### Code Refactoring
+
+* extracts tx signer into a dedicated service ([8a74b7e](https://github.com/akash-network/console/commit/8a74b7e3346e5aee6249a6baeb3e91099db97677))
+
+## [3.23.0](https://github.com/akash-network/console/compare/console-api/v3.22.1...console-api/v3.23.0) (2026-01-30)
+
+
+### Features
+
+* add uakt pricing calculations to GpuPriceService ([#2604](https://github.com/akash-network/console/issues/2604)) ([fe08aea](https://github.com/akash-network/console/commit/fe08aea62658d48c0f3a464e408eb1ab7f3df1e2))
+* add utility function for formatting UTC dates and update tests … ([#2611](https://github.com/akash-network/console/issues/2611)) ([d80986f](https://github.com/akash-network/console/commit/d80986fa061b66bf364e0d0bfd25fc2c0f5c42ae))
+* enhance deployment reader service with logging and improve prov… ([#2606](https://github.com/akash-network/console/issues/2606)) ([b8b2317](https://github.com/akash-network/console/commit/b8b231732e26c58eda36c43a0e685ef55b6e9b46))
+
+
+### Bug Fixes
+
+* adds body limit to all openapi routes ([#2601](https://github.com/akash-network/console/issues/2601)) ([9fb1719](https://github.com/akash-network/console/commit/9fb1719e4048900fe17a850406025d2ea2651345))
+* ensure that tsbuild picks proper dependencies for internal packages ([#2596](https://github.com/akash-network/console/issues/2596)) ([c869c78](https://github.com/akash-network/console/commit/c869c78a19e7a6569d62bf1cdd2ab5be0340cdd6))
+* set timestamp setting in env-loader ([#2594](https://github.com/akash-network/console/issues/2594)) ([ab74ab0](https://github.com/akash-network/console/commit/ab74ab03465148ce9761e2f21408f33c6ac1c2e0))
+
+
+### Code Refactoring
+
+* makes /pricing endpoint to be async ([#2602](https://github.com/akash-network/console/issues/2602)) ([13bfeeb](https://github.com/akash-network/console/commit/13bfeeb2eb045503683d65dd844111d49ddb6d66))
+* removes legacy stats from provider responses ([#2608](https://github.com/akash-network/console/issues/2608)) ([3c72572](https://github.com/akash-network/console/commit/3c7257295793e44e3b36d8998b8ccdece5fe2e45))
+* replace per-file GitHub API calls with ZIP archive downloads ([#2607](https://github.com/akash-network/console/issues/2607)) ([c9cc429](https://github.com/akash-network/console/commit/c9cc4297d08d0ced5e59a635879ed385af0712ca))
+* utilizes anonymous gh access and then fallback to our token ([#2599](https://github.com/akash-network/console/issues/2599)) ([9e642b3](https://github.com/akash-network/console/commit/9e642b3a50f00139f7345234969b2a8bd3940903))
+
+
+### Performance Improvements
+
+* **api:** optimize /v1/providers ([#2595](https://github.com/akash-network/console/issues/2595)) ([cbc50e3](https://github.com/akash-network/console/commit/cbc50e3fcf8301e48c8e7b45a0c4c90ee0344439))
+* optimizes gpu-prices endpoint ([#2613](https://github.com/akash-network/console/issues/2613)) ([4fd2c43](https://github.com/akash-network/console/commit/4fd2c437db3f8af09e75cf6af2eac1f7347a2c71))
+
+## [3.22.1](https://github.com/akash-network/console/compare/console-api/v3.22.0...console-api/v3.22.1) (2026-01-28)
+
+
+### Bug Fixes
+
+* disconnecting child process on SIGINT and SIGNTERM to let parent  ([#2576](https://github.com/akash-network/console/issues/2576)) ([0488646](https://github.com/akash-network/console/commit/04886467da388e472ea8b50bdedfabab04de2233))
+* replaces fetch API with octokit.getContent ([#2570](https://github.com/akash-network/console/issues/2570)) ([079f0d4](https://github.com/akash-network/console/commit/079f0d4640aa3936d6ef337e46ae4bcb2a8104d4))
+
+
+### Code Refactoring
+
+* migrates from webpack to tsup in console-api ([#2547](https://github.com/akash-network/console/issues/2547)) ([43c75c0](https://github.com/akash-network/console/commit/43c75c07282b88c3776545a6134754ab97901734))
+
+## [3.22.0](https://github.com/akash-network/console/compare/console-api/v3.21.4...console-api/v3.22.0) (2026-01-26)
+
+
+### Features
+
+* add cache control middleware and improve response handling ([#2565](https://github.com/akash-network/console/issues/2565)) ([2d922ba](https://github.com/akash-network/console/commit/2d922baf2aaced12330c33d75205f1d130d74da1))
+
+
+### Bug Fixes
+
+* **billing:** add network error recovery for transaction retrieval ([#2559](https://github.com/akash-network/console/issues/2559)) ([51b37e4](https://github.com/akash-network/console/commit/51b37e4d63b868060bbb930265e2dcb55aac99ba))
+* improve address fetching ([#2558](https://github.com/akash-network/console/issues/2558)) ([5f7a629](https://github.com/akash-network/console/commit/5f7a62975663d11872faaba3770d8c0f393c2a1c))
+* install sharp lib for image optimization ([#2546](https://github.com/akash-network/console/issues/2546)) ([4790cd6](https://github.com/akash-network/console/commit/4790cd6ff2053229ec6faaad26a7e18d67e60f74))
+
+
+### Code Refactoring
+
+* adds proper logger and move templates into module ([#2563](https://github.com/akash-network/console/issues/2563)) ([695c5a3](https://github.com/akash-network/console/commit/695c5a33e4132d1340e4ebc52f1613d3395e47a9))
+* replaces LoggerService class with createOtelLogger ([#2555](https://github.com/akash-network/console/issues/2555)) ([fa01b2c](https://github.com/akash-network/console/commit/fa01b2cb4cd522758ae47f2e8b44253269051a57))
+* skips parsing JSON cache when serving templates ([#2566](https://github.com/akash-network/console/issues/2566)) ([b02c3bd](https://github.com/akash-network/console/commit/b02c3bdf58e64422c49ea9229955228b92fabd0d))
+
+## [3.21.4](https://github.com/akash-network/console/compare/console-api/v3.21.3...console-api/v3.21.4) (2026-01-22)
+
+
+### Bug Fixes
+
+* **billing:** defers succeeded payment intent status update to process payments reliably ([75c3b66](https://github.com/akash-network/console/commit/75c3b66c9f0467728822467e02129bbe8bbdb282))
+
+## [3.21.3](https://github.com/akash-network/console/compare/console-api/v3.21.2...console-api/v3.21.3) (2026-01-22)
+
+
+### Bug Fixes
+
+* ensure provider address in managed wapi /leases is bech32 ([#2548](https://github.com/akash-network/console/issues/2548)) ([dcff23e](https://github.com/akash-network/console/commit/dcff23e5890d6e18575179e87c1c7e64aba012ca))
+
+
+### Code Refactoring
+
+* defines explicit exports inside internal packages ([#2551](https://github.com/akash-network/console/issues/2551)) ([71f907f](https://github.com/akash-network/console/commit/71f907fe6b8b85a042bd351ec5b2b3621ba8d89d))
+
+## [3.21.2](https://github.com/akash-network/console/compare/console-api/v3.21.1...console-api/v3.21.2) (2026-01-21)
+
+
+### Bug Fixes
+
+* **auth:** properly responds in case of failed jwt validation ([11d8d70](https://github.com/akash-network/console/commit/11d8d70512b14d9fbc5686dbdb2e7b6a401093c7))
+
+## [3.21.1](https://github.com/akash-network/console/compare/console-api/v3.21.0...console-api/v3.21.1) (2026-01-20)
+
+
+### Bug Fixes
+
+* **wallet:** strictly validates user id when requesting a wallet ([046fb27](https://github.com/akash-network/console/commit/046fb27a51389cff5b3bb03c468f09b3325c3d71))
+
+## [3.21.0](https://github.com/akash-network/console/compare/console-api/v3.20.4...console-api/v3.21.0) (2026-01-20)
+
+
+### Features
+
+* **billing:** implement upsert for payment methods and enhance webhook handling for idempotency ([#2534](https://github.com/akash-network/console/issues/2534)) ([7d4f2dd](https://github.com/akash-network/console/commit/7d4f2dd2faa029914a39ce4ad5bd99c3e48f47b8))
+
+
+### Bug Fixes
+
+* improve sql perf ([#2535](https://github.com/akash-network/console/issues/2535)) ([7dcd048](https://github.com/akash-network/console/commit/7dcd0485f1ae0f483ba33ec81f2aae6ec376e1bb))
+
+## [3.20.4](https://github.com/akash-network/console/compare/console-api/v3.20.3...console-api/v3.20.4) (2026-01-19)
+
+
+### Bug Fixes
+
+* **analytics:** remove amplitude sampling to restore full reporting ([0cc8def](https://github.com/akash-network/console/commit/0cc8def33c792dc55ee6567b3900732e08311264)), closes [#2525](https://github.com/akash-network/console/issues/2525)
+
+## [3.20.3](https://github.com/akash-network/console/compare/console-api/v3.20.2...console-api/v3.20.3) (2026-01-17)
+
+
+### Bug Fixes
+
+* upgrades chain-sdk dependency ([#2508](https://github.com/akash-network/console/issues/2508)) ([adae126](https://github.com/akash-network/console/commit/adae126f86b55250412a93f5a96e7505c0bf36df))
+
+## [3.20.2](https://github.com/akash-network/console/compare/console-api/v3.20.1...console-api/v3.20.2) (2026-01-15)
+
+
+### Bug Fixes
+
+* replace [@injectable](https://github.com/injectable)() with [@singleton](https://github.com/singleton)() for templates and others ([#2501](https://github.com/akash-network/console/issues/2501)) ([3bfa541](https://github.com/akash-network/console/commit/3bfa5412e30831c54e8a5581b000bd3e1dee6516))
+
+## [3.20.1](https://github.com/akash-network/console/compare/console-api/v3.20.0...console-api/v3.20.1) (2026-01-15)
+
+
+### Code Refactoring
+
+* adds support for automatic cancellation of unauthorized requests ([#2491](https://github.com/akash-network/console/issues/2491)) ([4c0db77](https://github.com/akash-network/console/commit/4c0db778fbb3e8b79c3c57f353c3aaaadcf6a609))
+
+## [3.20.0](https://github.com/akash-network/console/compare/console-api/v3.19.0...console-api/v3.20.0) (2026-01-13)
+
+
+### Features
+
+* **deployment:** implements deploy button flow ([46004d4](https://github.com/akash-network/console/commit/46004d4429dc3b4ebb47bb88edf97cd99b1a0c0f)), closes [#2470](https://github.com/akash-network/console/issues/2470)
+
+
+### Code Refactoring
+
+* injects browserEnvConfig from DI container ([#2453](https://github.com/akash-network/console/issues/2453)) ([869b02a](https://github.com/akash-network/console/commit/869b02ae088b9ca9167a175c1437c271ea08f6f3))
+
 ## [3.19.0](https://github.com/akash-network/console/compare/console-api/v3.18.3...console-api/v3.19.0) (2026-01-08)
 
 

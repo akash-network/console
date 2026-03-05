@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { Separator, Tabs, TabsContent, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
+import { Button, Separator, Tabs, TabsContent, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { useMutation } from "@tanstack/react-query";
 import { DollarSignIcon, RocketIcon, ZapIcon } from "lucide-react";
 import { useSearchParams } from "next/navigation";
@@ -13,6 +13,8 @@ import { RemoteApiError } from "@src/components/shared/RemoteApiError/RemoteApiE
 import type { TurnstileRef } from "@src/components/turnstile/Turnstile";
 import { ClientOnlyTurnstile } from "@src/components/turnstile/Turnstile";
 import { useServices } from "@src/context/ServicesProvider";
+import { useWallet as useWalletOriginal } from "@src/context/WalletProvider";
+import { useReturnTo } from "@src/hooks/useReturnTo";
 import { useUser } from "@src/hooks/useUser";
 import { AuthLayout } from "../AuthLayout/AuthLayout";
 import { ForgotPasswordForm } from "../ForgotPasswordForm/ForgotPasswordForm";
@@ -39,10 +41,13 @@ export const DEPENDENCIES = {
   RocketIcon,
   ZapIcon,
   AkashConsoleLogo,
+  Button,
   Separator,
   useUser,
   useSearchParams,
-  useRouter
+  useRouter,
+  useReturnTo,
+  useWallet: useWalletOriginal
 };
 
 interface Props {
@@ -50,26 +55,28 @@ interface Props {
 }
 
 export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
-  const { authService, publicConfig } = useServices();
+  const { authService, publicConfig, analyticsService } = useServices();
   const router = d.useRouter();
   const searchParams = d.useSearchParams();
   const { checkSession } = d.useUser();
   const [email, setEmail] = useState("");
   const turnstileRef = useRef<TurnstileRef | null>(null);
+  const { returnTo, navigateBack } = d.useReturnTo({ defaultReturnTo: "/" });
 
   const redirectToSocialLogin = useCallback(
     async (provider: "github" | "google-oauth2") => {
-      const returnUrl = searchParams.get("from") || searchParams.get("returnTo") || "/";
-      await authService.loginViaOauth({ returnTo: returnUrl, connection: provider });
+      analyticsService.track("social_login_init", { provider });
+      await authService.loginViaOauth({ returnTo: returnTo, connection: provider });
     },
-    [searchParams]
+    [analyticsService, authService, returnTo]
   );
+
   const signInOrSignUp = useMutation({
     async mutationFn(input: Tagged<"signin", SignInFormValues> | Tagged<"signup", SignUpFormValues>) {
+      analyticsService.track("password_auth_submit", { type: input.type });
       if (!turnstileRef.current) {
         throw new Error("Captcha has not been rendered");
       }
-      const returnUrl = searchParams.get("from") || searchParams.get("returnTo") || "/";
 
       const { token: captchaToken } = await turnstileRef.current.renderAndWaitResponse();
 
@@ -79,7 +86,7 @@ export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
         await authService.signup({ ...input.value, captchaToken });
       }
       await checkSession();
-      router.push(returnUrl);
+      navigateBack();
     }
   });
 
@@ -94,6 +101,7 @@ export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
     },
     [searchParams, router]
   );
+
   const forgotPassword = useMutation({
     async mutationFn(input: { email: string }) {
       if (!turnstileRef.current) {
@@ -103,6 +111,7 @@ export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
       await authService.sendPasswordResetEmail({ email: input.email, captchaToken });
     }
   });
+
   const resetMutations = useCallback(() => {
     signInOrSignUp.reset();
     forgotPassword.reset();

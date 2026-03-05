@@ -1,10 +1,10 @@
-import { LoggerService } from "@akashnetwork/logging";
-import { QueryTypes } from "sequelize";
-import { singleton } from "tsyringe";
+import { createOtelLogger } from "@akashnetwork/logging/otel";
+import { QueryTypes, Sequelize } from "sequelize";
+import { inject, singleton } from "tsyringe";
 
 import { UserWalletRepository } from "@src/billing/repositories/user-wallet/user-wallet.repository";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
-import { chainDb } from "@src/db/dbConnection";
+import { CHAIN_DB } from "@src/chain/providers/sequelize.provider";
 
 const WALLET_MIGRATION_DATE = new Date("2025-11-24");
 
@@ -21,16 +21,20 @@ export interface BillingUsageRawResult {
 
 @singleton()
 export class UsageRepository {
-  private readonly logger = LoggerService.forContext(UsageRepository.name);
+  private readonly logger = createOtelLogger({ context: UsageRepository.name });
+  readonly #chainDb: Sequelize;
 
   constructor(
+    @inject(CHAIN_DB) chainDb: Sequelize,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly txManagerService: TxManagerService
-  ) {}
+  ) {
+    this.#chainDb = chainDb;
+  }
 
   async getHistory(address: string, startDate: string, endDate: string) {
     const addresses = await this.resolveAddresses(address);
-    const query = `
+    const query = `/* billing-usage:history */
       WITH date_range AS (
         SELECT generate_series(
           :startDate::date,
@@ -105,7 +109,7 @@ export class UsageRepository {
       ORDER BY dr.date ASC;
     `;
 
-    const results = await chainDb.query<BillingUsageRawResult>(query, {
+    const results = await this.#chainDb.query<BillingUsageRawResult>(query, {
       type: QueryTypes.SELECT,
       replacements: { addresses, startDate, endDate }
     });

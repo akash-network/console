@@ -5,24 +5,23 @@ import type { infer as ZodInfer } from "zod";
 
 import { AuthService, Protected } from "@src/auth/services/auth.service";
 import type { StripePricesOutputResponse } from "@src/billing";
-import {
-  CustomerTransactionsCsvExportQuerySchema,
+import type {
   PaymentMethodMarkAsDefaultInput,
   PaymentMethodResponse,
-  PaymentMethodsResponse
+  PaymentMethodsResponse,
+  UpdateCustomerOrganizationRequest
 } from "@src/billing/http-schemas/stripe.schema";
 import {
   ApplyCouponRequest,
   ConfirmPaymentRequest,
   ConfirmPaymentResponse,
-  Transaction,
-  UpdateCustomerOrganizationRequest
+  CustomerTransactionsCsvExportQuerySchema,
+  Transaction
 } from "@src/billing/http-schemas/stripe.schema";
+import type { StripeTransactionOutput } from "@src/billing/repositories";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
 import { StripeErrorService } from "@src/billing/services/stripe-error/stripe-error.service";
-import { Semaphore } from "@src/core/lib/semaphore.decorator";
-
 @singleton()
 export class StripeController {
   constructor(
@@ -78,7 +77,6 @@ export class StripeController {
     return { data: [] };
   }
 
-  @Semaphore()
   @Protected([{ action: "create", subject: "StripePayment" }])
   async confirmPayment(params: ConfirmPaymentRequest["data"]): Promise<ConfirmPaymentResponse> {
     const currentUser = this.authService.getCurrentPayingUser({ strict: false });
@@ -104,7 +102,9 @@ export class StripeController {
             success: false,
             requiresAction: true,
             clientSecret: result.clientSecret,
-            paymentIntentId: result.paymentIntentId
+            paymentIntentId: result.paymentIntentId,
+            transactionId: result.transactionId,
+            transactionStatus: result.transactionStatus
           }
         };
       }
@@ -114,7 +114,12 @@ export class StripeController {
         throw new Error("Payment not successful");
       }
 
-      return { data: { success: true } };
+      if (params.awaitResolved) {
+        const transaction = await this.stripe.resolveTransaction(result.transactionId);
+        return { data: { success: true, transactionId: result.transactionId, transactionStatus: transaction.status } };
+      }
+
+      return { data: { success: true, transactionId: result.transactionId, transactionStatus: result.transactionStatus } };
     } catch (error) {
       if (this.stripeErrorService.isKnownError(error, "payment")) {
         throw this.stripeErrorService.toAppError(error, "payment");
@@ -124,11 +129,16 @@ export class StripeController {
     }
   }
 
-  @Semaphore()
   @Protected([{ action: "create", subject: "StripePayment" }])
-  async applyCoupon(
-    params: ApplyCouponRequest["data"]
-  ): Promise<{ data: { coupon: Stripe.Coupon | Stripe.PromotionCode | null; amountAdded?: number; error?: { message: string } } }> {
+  async applyCoupon(params: ApplyCouponRequest["data"]): Promise<{
+    data: {
+      coupon: Stripe.Coupon | Stripe.PromotionCode | null;
+      amountAdded?: number;
+      transactionId?: string;
+      transactionStatus?: StripeTransactionOutput["status"];
+      error?: { message: string };
+    };
+  }> {
     const { currentUser } = this.authService;
 
     assert(currentUser.stripeCustomerId, 500, "Payment account not properly configured. Please contact support.");
@@ -137,7 +147,15 @@ export class StripeController {
 
     try {
       const result = await this.stripe.applyCoupon(currentUser, params.couponId);
-      return { data: { coupon: result.coupon, amountAdded: result.amountAdded } };
+
+      if (params.awaitResolved) {
+        const transaction = await this.stripe.resolveTransaction(result.transactionId);
+        return { data: { coupon: result.coupon, amountAdded: result.amountAdded, transactionId: result.transactionId, transactionStatus: transaction.status } };
+      }
+
+      return {
+        data: { coupon: result.coupon, amountAdded: result.amountAdded, transactionId: result.transactionId, transactionStatus: result.transactionStatus }
+      };
     } catch (error: unknown) {
       if (this.stripeErrorService.isKnownError(error, "coupon")) {
         return { data: this.stripeErrorService.toCouponResponseError(error) };

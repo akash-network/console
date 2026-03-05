@@ -23,5 +23,13 @@ export * from "./coin-gecko";
 export * from "./node";
 export * from "./certificates/certificates.service";
 export * from "./wallet-settings/wallet-settings-http.service";
+export * from "./stripe/stripe.service";
+export * from "./stripe/stripe.types";
 export { getAllItems } from "./utils/pagination.utils";
 export { createHttpClient, type HttpClient, type HttpClientOptions } from "./utils/httpClient";
+export {
+  createFetchAdapter,
+  type FetchAdapterOptions,
+  isNetworkOrIdempotentRequestError,
+  isRetriableError
+} from "./utils/createFetchAdapter/createFetchAdapter";

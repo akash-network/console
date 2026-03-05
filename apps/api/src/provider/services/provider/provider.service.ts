@@ -1,24 +1,27 @@
 import { Provider, ProviderSnapshotNode, ProviderSnapshotNodeGPU } from "@akashnetwork/database/dbSchemas/akash";
-import { ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash/providerSnapshot";
+import { ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash";
 import { NetConfig, SupportedChainNetworks } from "@akashnetwork/net";
 import { AxiosError } from "axios";
 import { add } from "date-fns";
 import assert from "http-assert";
 import createError from "http-errors";
 import { Op } from "sequelize";
-import { setTimeout as delay } from "timers/promises";
 import { singleton } from "tsyringe";
 
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { Memoize } from "@src/caching/helpers";
 import { LeaseStatusResponse } from "@src/deployment/http-schemas/lease.schema";
 import { ProviderRepository } from "@src/provider/repositories/provider/provider.repository";
 import { ProviderAuth, ProviderIdentity, ProviderMtlsAuth, ProviderProxyService } from "@src/provider/services/provider/provider-proxy.service";
 import { ProviderJwtTokenService } from "@src/provider/services/provider-jwt-token/provider-jwt-token.service";
 import { ProviderList } from "@src/types/provider";
 import { toUTC } from "@src/utils";
+import { forEachInChunks } from "@src/utils/array/array";
 import { mapProviderToList } from "@src/utils/map/provider";
 import { AuditorService } from "../auditors/auditors.service";
 import { ProviderAttributesSchemaService } from "../provider-attributes-schema/provider-attributes-schema.service";
+
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 @singleton()
 export class ProviderService {
@@ -33,7 +36,7 @@ export class ProviderService {
     private readonly auditorsService: AuditorService,
     private readonly jwtTokenService: ProviderJwtTokenService,
     private readonly config: BillingConfigService,
-    private readonly netConfig: NetConfig
+    netConfig: NetConfig
   ) {
     this.chainNetwork = netConfig.mapped(this.config.get("NETWORK"));
   }
@@ -52,13 +55,16 @@ export class ProviderService {
     return await this.sendManifestToProvider({ dseq: options.dseq, manifest, auth: options.auth, providerIdentity });
   }
 
-  async toProviderAuth(auth: Omit<ProviderMtlsAuth, "type"> | { walletId: number; provider: string }): Promise<ProviderAuth> {
+  async toProviderAuth(
+    auth: Omit<ProviderMtlsAuth, "type"> | { walletId: number; provider: string },
+    scope: Parameters<ProviderJwtTokenService["getGranularLeases"]>[0]["scope"] = ["send-manifest"]
+  ): Promise<ProviderAuth> {
     if ("walletId" in auth) {
       const result = await this.jwtTokenService.generateJwtToken({
         walletId: auth.walletId,
         leases: this.jwtTokenService.getGranularLeases({
           provider: auth.provider,
-          scope: ["send-manifest"]
+          scope
         })
       });
 
@@ -82,7 +88,7 @@ export class ProviderService {
           auth: options.auth,
           chainNetwork: this.chainNetwork,
           providerIdentity: options.providerIdentity,
-          timeout: 60000
+          timeout: 15_000
         });
 
         if (result) return result;
@@ -131,32 +137,60 @@ export class ProviderService {
       auth,
       chainNetwork: this.chainNetwork,
       providerIdentity,
-      timeout: 30000
+      timeout: 15000
     });
   }
 
-  async getProviderList({ trial = false }: { trial?: boolean } = {}): Promise<ProviderList[]> {
-    const providersWithAttributesAndAuditors = await this.providerRepository.getWithAttributesAndAuditors({ trial });
-    const providerWithNodes = await this.providerRepository.getProviderWithNodes();
+  @Memoize({ ttlInSeconds: 60 })
+  async getProviderList(trial = false): Promise<ProviderList[]> {
+    // Fetch providers in batches to avoid blocking event loop during Sequelize hydration
+    const BATCH_SIZE = 200;
+    const providersWithAttributesAndAuditors: Provider[] = [];
+    let offset = 0;
+    let batch: Provider[];
+    do {
+      batch = await this.providerRepository.getWithAttributesAndAuditors({ trial, limit: BATCH_SIZE, offset });
+      providersWithAttributesAndAuditors.push(...batch);
+      offset += BATCH_SIZE;
+    } while (batch.length === BATCH_SIZE);
 
-    const distinctProviders = Object.values(
-      providersWithAttributesAndAuditors.reduce((acc: Record<string, Provider>, provider: Provider) => {
-        acc[provider.hostUri] = provider;
-        return acc;
-      }, {})
-    );
+    const providerWithNodes: Provider[] = [];
+    offset = 0;
+    do {
+      batch = await this.providerRepository.getProviderWithNodes({ limit: BATCH_SIZE, offset });
+      providerWithNodes.push(...batch);
+      offset += BATCH_SIZE;
+    } while (batch.length === BATCH_SIZE);
+
+    const seenProviders = new Set<string>();
+    const distinctProviders: Provider[] = [];
+    await forEachInChunks(providersWithAttributesAndAuditors, provider => {
+      if (!seenProviders.has(provider.hostUri)) {
+        seenProviders.add(provider.hostUri);
+        distinctProviders.push(provider);
+      }
+    });
 
     const [auditors, providerAttributeSchema] = await Promise.all([
       this.auditorsService.getAuditors(),
       this.providerAttributesSchemaService.getProviderAttributesSchema()
     ]);
 
-    return distinctProviders.map(x => {
-      const lastSuccessfulSnapshot = providerWithNodes.find(p => p.owner === x.owner)?.lastSuccessfulSnapshot;
-      return mapProviderToList(x, providerAttributeSchema, auditors, lastSuccessfulSnapshot);
+    const providerByOwner = new Map<string, Provider>();
+    await forEachInChunks(providerWithNodes, provider => {
+      providerByOwner.set(provider.owner, provider);
     });
+    const finalProviders: ProviderList[] = [];
+
+    await forEachInChunks(distinctProviders, provider => {
+      const lastSuccessfulSnapshot = providerByOwner.get(provider.owner)?.lastSuccessfulSnapshot;
+      finalProviders.push(mapProviderToList(provider, providerAttributeSchema, auditors, lastSuccessfulSnapshot));
+    });
+
+    return finalProviders;
   }
 
+  @Memoize({ ttlInSeconds: 30 })
   async getProvider(address: string) {
     const nowUtc = toUTC(new Date());
     const provider = await this.providerRepository.getProviderByAddressWithAttributes(address);

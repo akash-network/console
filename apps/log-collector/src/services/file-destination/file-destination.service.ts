@@ -1,11 +1,11 @@
 import * as fsGlobal from "fs";
-import memoize from "lodash/memoize";
 import { once } from "node:events";
 import * as pathGlobal from "path";
 import * as readlineGlobal from "readline";
 import { PassThrough } from "stream";
 import { setTimeout as delay } from "timers/promises";
 
+import { memoizeAsync } from "@src/lib/memoize-async";
 import type { ConfigService } from "@src/services/config/config.service";
 import type { LoggerService } from "@src/services/logger/logger.service";
 import type { PodInfo } from "@src/services/pod-discovery/pod-discovery.service";
@@ -22,7 +22,7 @@ interface ParsedLine {
  * - Creating and managing log files for individual pods
  * - Automatic log file rotation based on configurable size limits
  * - Retrieving the last log lines with the same timestamp for resumption purposes
- * - Memoized log path generation and last log line retrieval for performance
+ * - Memoized log path generation for performance
  * - Graceful error handling for file system operations
  * - Streaming-based log reading to avoid memory issues with large files
  *
@@ -52,8 +52,8 @@ export class FileDestinationService {
     private readonly path = pathGlobal,
     private readonly readline = readlineGlobal
   ) {
-    this.getLogPath = memoize(this.getLogPath.bind(this));
-    this.getLastLogLines = memoize(this.getLastLogLines.bind(this));
+    this.getLogPath = memoizeAsync(this.getLogPath.bind(this));
+    this.createWriteStream = memoizeAsync(this.createWriteStream.bind(this));
   }
 
   /**
@@ -158,14 +158,14 @@ export class FileDestinationService {
       } catch (dirError) {
         await this.fs.promises.mkdir(logDir, { recursive: true });
         this.loggerService.info({
-          message: "Created log directory",
+          event: "LOG_DIR_CREATED",
           path: logDir
         });
       }
 
       await this.fs.promises.writeFile(filePath, "");
       this.loggerService.info({
-        message: "Created log file",
+        event: "LOG_FILE_CREATED",
         filePath,
         namespace: this.podInfo.namespace,
         podName: this.podInfo.podName
@@ -219,7 +219,7 @@ export class FileDestinationService {
                   ]);
                 } catch (error) {
                   this.loggerService.warn({
-                    message: "Write stream close failed, proceeding with rotation",
+                    event: "WRITE_STREAM_CLOSE_FAILED",
                     filePath,
                     error
                   });
@@ -235,13 +235,13 @@ export class FileDestinationService {
                 stableStream.pipe(currentWriteStream);
 
                 this.loggerService.info({
-                  message: "Log file rotated successfully",
+                  event: "LOG_FILE_ROTATED",
                   filePath
                 });
               } catch (error) {
                 this.loggerService.error({
+                  event: "LOG_FILE_ROTATION_FAILED",
                   error,
-                  message: "Failed to rotate log file",
                   filePath
                 });
                 stableStream.emit("error", error);
@@ -250,8 +250,8 @@ export class FileDestinationService {
             }
           } catch (error) {
             this.loggerService.error({
+              event: "LOG_FILE_SIZE_CHECK_FAILED",
               error,
-              message: "Failed to check file size for rotation",
               filePath
             });
           }
@@ -260,8 +260,8 @@ export class FileDestinationService {
 
       checkFileSizePeriodically().catch(error => {
         this.loggerService.error({
+          event: "LOG_FILE_SIZE_CHECK_LOOP_FAILED",
           error,
-          message: "File size checking loop failed",
           filePath
         });
         stableStream.emit("error", error);
@@ -302,11 +302,18 @@ export class FileDestinationService {
       try {
         lastLines = await this.readLastLineFromSpecificFile(rotatedFilePath);
       } catch (error) {
-        this.loggerService.debug({
-          message: "No rotated file found or readable",
-          rotatedFilePath,
-          error
-        });
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+          this.loggerService.debug({
+            event: "ROTATED_FILE_NOT_FOUND",
+            rotatedFilePath
+          });
+        } else {
+          this.loggerService.error({
+            event: "ROTATED_FILE_READ_ERROR",
+            rotatedFilePath,
+            error
+          });
+        }
       }
     }
 
@@ -382,22 +389,8 @@ export class FileDestinationService {
    * @throws Error if file system operations fail (except for missing files)
    */
   private async rotateLogFile(filePath: string): Promise<void> {
-    try {
-      await this.shiftRotatedFiles(filePath);
-      await this.removeOldestRotatedFile(filePath);
-      this.loggerService.info({
-        message: "Log file rotated",
-        filePath
-      });
-    } catch (error) {
-      this.loggerService.error({
-        error,
-        message: "Failed to rotate log file",
-        filePath
-      });
-
-      throw error;
-    }
+    await this.shiftRotatedFiles(filePath);
+    await this.removeOldestRotatedFile(filePath);
   }
 
   /**

@@ -1,9 +1,7 @@
-import "reflect-metadata";
-import "@akashnetwork/env-loader";
-
 import { fork } from "child_process";
 
-import { type RawAppConfig } from "./core/providers/raw-app-config.provider";
+import type { RawAppConfig } from "./core/providers/raw-app-config.provider";
+import { bootstrapEntry } from "./bootstrap-entry";
 
 const SUPPORTED_INTERFACES = ["rest", "background-jobs"];
 
@@ -14,18 +12,18 @@ async function bootstrap(rawAppConfig: RawAppConfig): Promise<void> {
   const port = parseInt(rawAppConfig.PORT?.toString() || "3080", 10) || 3080;
 
   if (INTERFACE === "all") {
-    const boostrapList = SUPPORTED_INTERFACES.map((interfaceName, index) => bootstrapInChildProcess({ PORT: String(port + index), INTERFACE: interfaceName }));
-    await Promise.all(boostrapList);
+    const bootstrapList = SUPPORTED_INTERFACES.map((interfaceName, index) => bootstrapInChildProcess({ PORT: String(port + index), INTERFACE: interfaceName }));
+    await Promise.all(bootstrapList);
     return;
   }
 
   let appModule: { bootstrap: () => Promise<void> };
   switch (INTERFACE) {
     case "rest":
-      appModule = await import("./rest-app");
+      appModule = await bootstrapEntry(() => import("./rest-app.ts"));
       break;
     case "background-jobs":
-      appModule = await import("./background-jobs-app");
+      appModule = await bootstrapEntry(() => import("./background-jobs-app.ts"));
       break;
     default:
       throw new Error(`Received invalid interface: ${INTERFACE}. Valid values: ${SUPPORTED_INTERFACES.join(", ")}`);
@@ -33,7 +31,6 @@ async function bootstrap(rawAppConfig: RawAppConfig): Promise<void> {
 
   await appModule.bootstrap();
   if (process.send) {
-    process.on("disconnect", () => process.exit(0));
     process.send("ready");
   }
 }
@@ -54,8 +51,12 @@ function bootstrapInChildProcess({ PORT, INTERFACE }: RawAppConfig): Promise<voi
     child.once("error", reject);
     child.once("exit", code => (code !== 0 ? reject(new Error(`[${INTERFACE}] exited ${code}`)) : undefined));
 
-    process.on("SIGTERM", () => child.kill("SIGTERM"));
-    process.on("SIGINT", () => child.kill("SIGINT"));
-    process.on("exit", () => child.kill());
+    const disconnect = (signal?: NodeJS.Signals) => {
+      child.disconnect();
+      child.kill(signal);
+    };
+    process.on("SIGTERM", disconnect);
+    process.on("SIGINT", disconnect);
+    process.on("exit", disconnect);
   });
 }

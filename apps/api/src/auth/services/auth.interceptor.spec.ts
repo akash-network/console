@@ -1,10 +1,10 @@
 import { Hono } from "hono";
-import { mock } from "jest-mock-extended";
+import { isHttpError } from "http-errors";
 import { container as globalContainer } from "tsyringe";
+import { mock } from "vitest-mock-extended";
 
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyAuthService } from "@src/auth/services/api-key/api-key-auth.service";
-import { AuthTokenService } from "@src/auth/services/auth-token/auth-token.service";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { UserOutput } from "@src/user/repositories/user/user.repository";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
@@ -47,6 +47,36 @@ describe(AuthInterceptor.name, () => {
       } finally {
         jest.useRealTimers();
       }
+    });
+  });
+
+  describe("Mutually exclusive headers", () => {
+    it("rejects request with both Authorization and X-Api-Key headers", async () => {
+      const { callInterceptor } = setup({ bearer: "Bearer some-token", apiKey: "some-api-key" });
+
+      const response = await callInterceptor();
+
+      expect(response.status).toBe(400);
+    });
+  });
+
+  describe("Invalid bearer token", () => {
+    it("proceeds as unauthenticated when getValidUserId returns null", async () => {
+      const { di, callInterceptor } = setup({ bearer: "Bearer invalid-token", tokenBehavior: "null" });
+
+      const response = await callInterceptor();
+
+      expect(response.status).toBe(200);
+      expect(di.resolve(UserRepository).findByUserId).not.toHaveBeenCalled();
+    });
+
+    it("proceeds as unauthenticated when getValidUserId throws", async () => {
+      const { di, callInterceptor } = setup({ bearer: "Bearer malformed-token", tokenBehavior: "throw" });
+
+      const response = await callInterceptor();
+
+      expect(response.status).toBe(200);
+      expect(di.resolve(UserRepository).findByUserId).not.toHaveBeenCalled();
     });
   });
 
@@ -98,17 +128,17 @@ describe(AuthInterceptor.name, () => {
     );
     di.registerInstance(AuthService, mock());
     di.registerInstance(
-      AuthTokenService,
-      mock<AuthTokenService>({
-        getValidUserId: jest.fn().mockImplementation(async () => {
-          return input?.apiKey && input?.user?.userId ? undefined : input?.user?.id;
-        })
-      })
-    );
-    di.registerInstance(
       UserAuthTokenService,
       mock<UserAuthTokenService>({
-        getValidUserId: jest.fn().mockImplementation(async () => (input?.apiKey ? undefined : input?.user?.userId))
+        getValidUserId: jest.fn().mockImplementation(async () => {
+          if (input?.tokenBehavior === "throw") {
+            throw new Error("Invalid token");
+          }
+          if (input?.tokenBehavior === "null") {
+            return null;
+          }
+          return input?.apiKey ? undefined : input?.user?.userId;
+        })
       })
     );
     di.registerInstance(ApiKeyRepository, mock());
@@ -140,10 +170,20 @@ describe(AuthInterceptor.name, () => {
       })
     });
 
-    const app = new Hono().use(di.resolve(AuthInterceptor).intercept()).get("/", c => c.text("Ok"));
+    const app = new Hono()
+      .onError((error, c) => {
+        if (isHttpError(error)) {
+          return c.json({ error: error.message }, { status: error.status });
+        }
+        throw error;
+      })
+      .use(di.resolve(AuthInterceptor).intercept())
+      .get("/", c => c.text("Ok"));
     const headers: Record<string, string> = {};
 
-    if (input?.user) {
+    if (input?.bearer) {
+      headers.authorization = input.bearer;
+    } else if (input?.user && !input?.apiKey) {
       headers.authorization = `Bearer ${input.user.userId}`;
     }
 
@@ -163,5 +203,7 @@ describe(AuthInterceptor.name, () => {
   interface SetupInput {
     user?: UserOutput;
     apiKey?: string;
+    bearer?: string;
+    tokenBehavior?: "null" | "throw";
   }
 });

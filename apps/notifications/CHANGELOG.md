@@ -1,5 +1,172 @@
 
 
+## [2.16.0](https://github.com/akash-network/console/compare/notifications/v2.15.0...notifications/v2.16.0) (2026-02-16)
+
+
+### Features
+
+* **notifications:** upgrades nestjs to the latest version ([85c77fa](https://github.com/akash-network/console/commit/85c77faafae521eec504b727a017cd8ee5ba5c5c))
+* **notifications:** upgrades pg boss to the latest version ([ca124f1](https://github.com/akash-network/console/commit/ca124f1e4c3734d1a7e653ad65d308d868ab151d))
+
+## [2.15.0](https://github.com/akash-network/console/compare/notifications/v2.14.1...notifications/v2.15.0) (2026-02-16)
+
+
+### Features
+
+* **notifications:** uses connection pool and logs db errors ([a53c594](https://github.com/akash-network/console/commit/a53c5942654cec3bcae35e771ac059db4716a7e4))
+
+## [2.14.1](https://github.com/akash-network/console/compare/notifications/v2.14.0...notifications/v2.14.1) (2026-02-12)
+
+
+### Bug Fixes
+
+* **sdl:** ensures proper validation and upgrades chain sdk  ([3381424](https://github.com/akash-network/console/commit/3381424e554f76c09ad52850b650e18c21ea76fa))
+
+## [2.14.0](https://github.com/akash-network/console/compare/notifications/v2.13.8...notifications/v2.14.0) (2026-02-12)
+
+
+### Features
+
+* upgrades chain sdk to latest ([a5cbbf7](https://github.com/akash-network/console/commit/a5cbbf7c909329e122942ca1a965c4c7b8dfcd62))
+
+
+### Bug Fixes
+
+* increase HTTP request timeout from 10s to 30s ([#2635](https://github.com/akash-network/console/issues/2635)) ([a231221](https://github.com/akash-network/console/commit/a2312219ee15c9d0c9bb735459ea1a7a752e1c0b))
+* update template retrieval and response handling ([#2663](https://github.com/akash-network/console/issues/2663)) ([cee7d45](https://github.com/akash-network/console/commit/cee7d45bfddede2290ccc5da4b7009ed31b0ad83))
+
+## [2.13.8](https://github.com/akash-network/console/compare/notifications/v2.13.5...notifications/v2.13.8) (2026-02-05)
+
+
+### Bug Fixes
+
+* ensure SDL is not reset on changes during redeploy ([#2674](https://github.com/akash-network/console/issues/2674)) ([ae0d6a9](https://github.com/akash-network/console/commit/ae0d6a9fbea8b1362aecc57faaca4da26bd44b00))
+* update chain-sdk to alpha.21 ([#2666](https://github.com/akash-network/console/issues/2666)) ([7db8f76](https://github.com/akash-network/console/commit/7db8f76e1ffe53bd800bb1c8ef67e17dbeb0d58e))
+
+## [2.13.7](https://github.com/akash-network/console/compare/notifications/v2.13.5...notifications/v2.13.7) (2026-02-05)
+
+
+### Bug Fixes
+
+* ensure SDL is not reset on changes during redeploy ([#2674](https://github.com/akash-network/console/issues/2674)) ([ae0d6a9](https://github.com/akash-network/console/commit/ae0d6a9fbea8b1362aecc57faaca4da26bd44b00))
+* update chain-sdk to alpha.21 ([#2666](https://github.com/akash-network/console/issues/2666)) ([7db8f76](https://github.com/akash-network/console/commit/7db8f76e1ffe53bd800bb1c8ef67e17dbeb0d58e))
+
+## [2.13.6](https://github.com/akash-network/console/compare/notifications/v2.13.5...notifications/v2.13.6) (2026-02-04)
+
+
+### Bug Fixes
+
+* update chain-sdk to alpha.21 ([#2666](https://github.com/akash-network/console/issues/2666)) ([7db8f76](https://github.com/akash-network/console/commit/7db8f76e1ffe53bd800bb1c8ef67e17dbeb0d58e))
+
+## [2.13.5](https://github.com/akash-network/console/compare/notifications/v2.13.4...notifications/v2.13.5) (2026-02-03)
+
+
+### Bug Fixes
+
+* switch container build target to production ([#2647](https://github.com/akash-network/console/issues/2647)) ([d583e61](https://github.com/akash-network/console/commit/d583e615431f543ba84c1302efec9b878645acd8))
+
+## [2.13.4](https://github.com/akash-network/console/compare/notifications/v2.13.3...notifications/v2.13.4) (2026-02-02)
+
+
+### Code Refactoring
+
+* outputs built templates into separate files for summary and templates ([#2643](https://github.com/akash-network/console/issues/2643)) ([3bdb346](https://github.com/akash-network/console/commit/3bdb3469bda4a77503df66f6b7eb1960f876f376))
+
+## [2.13.3](https://github.com/akash-network/console/compare/notifications/v2.13.2...notifications/v2.13.3) (2026-01-30)
+
+
+### Code Refactoring
+
+* extracts tx signer into a dedicated service ([8a74b7e](https://github.com/akash-network/console/commit/8a74b7e3346e5aee6249a6baeb3e91099db97677))
+
+## [2.13.2](https://github.com/akash-network/console/compare/notifications/v2.13.0...notifications/v2.13.2) (2026-01-30)
+
+
+### Bug Fixes
+
+* ensure that tsbuild picks proper dependencies for internal packages ([#2596](https://github.com/akash-network/console/issues/2596)) ([c869c78](https://github.com/akash-network/console/commit/c869c78a19e7a6569d62bf1cdd2ab5be0340cdd6))
+* replaces fetch API with octokit.getContent ([#2570](https://github.com/akash-network/console/issues/2570)) ([079f0d4](https://github.com/akash-network/console/commit/079f0d4640aa3936d6ef337e46ae4bcb2a8104d4))
+* set timestamp setting in env-loader ([#2594](https://github.com/akash-network/console/issues/2594)) ([ab74ab0](https://github.com/akash-network/console/commit/ab74ab03465148ce9761e2f21408f33c6ac1c2e0))
+
+
+### Code Refactoring
+
+* migrates from webpack to tsup in console-api ([#2547](https://github.com/akash-network/console/issues/2547)) ([43c75c0](https://github.com/akash-network/console/commit/43c75c07282b88c3776545a6134754ab97901734))
+
+
+### Performance Improvements
+
+* **api:** optimize /v1/providers ([#2595](https://github.com/akash-network/console/issues/2595)) ([cbc50e3](https://github.com/akash-network/console/commit/cbc50e3fcf8301e48c8e7b45a0c4c90ee0344439))
+
+## [2.13.1](https://github.com/akash-network/console/compare/notifications/v2.13.0...notifications/v2.13.1) (2026-01-28)
+
+
+### Bug Fixes
+
+* replaces fetch API with octokit.getContent ([#2570](https://github.com/akash-network/console/issues/2570)) ([079f0d4](https://github.com/akash-network/console/commit/079f0d4640aa3936d6ef337e46ae4bcb2a8104d4))
+
+
+### Code Refactoring
+
+* migrates from webpack to tsup in console-api ([#2547](https://github.com/akash-network/console/issues/2547)) ([43c75c0](https://github.com/akash-network/console/commit/43c75c07282b88c3776545a6134754ab97901734))
+
+## [2.13.0](https://github.com/akash-network/console/compare/notifications/v2.12.6...notifications/v2.13.0) (2026-01-26)
+
+
+### Features
+
+* add cache control middleware and improve response handling ([#2565](https://github.com/akash-network/console/issues/2565)) ([2d922ba](https://github.com/akash-network/console/commit/2d922baf2aaced12330c33d75205f1d130d74da1))
+
+
+### Bug Fixes
+
+* **billing:** add network error recovery for transaction retrieval ([#2559](https://github.com/akash-network/console/issues/2559)) ([51b37e4](https://github.com/akash-network/console/commit/51b37e4d63b868060bbb930265e2dcb55aac99ba))
+* install sharp lib for image optimization ([#2546](https://github.com/akash-network/console/issues/2546)) ([4790cd6](https://github.com/akash-network/console/commit/4790cd6ff2053229ec6faaad26a7e18d67e60f74))
+
+## [2.12.6](https://github.com/akash-network/console/compare/notifications/v2.12.4...notifications/v2.12.6) (2026-01-22)
+
+
+### Code Refactoring
+
+* defines explicit exports inside internal packages ([#2551](https://github.com/akash-network/console/issues/2551)) ([71f907f](https://github.com/akash-network/console/commit/71f907fe6b8b85a042bd351ec5b2b3621ba8d89d))
+
+## [2.12.5](https://github.com/akash-network/console/compare/notifications/v2.12.4...notifications/v2.12.5) (2026-01-22)
+
+
+### Code Refactoring
+
+* defines explicit exports inside internal packages ([#2551](https://github.com/akash-network/console/issues/2551)) ([71f907f](https://github.com/akash-network/console/commit/71f907fe6b8b85a042bd351ec5b2b3621ba8d89d))
+
+## [2.12.4](https://github.com/akash-network/console/compare/notifications/v2.12.3...notifications/v2.12.4) (2026-01-20)
+
+## [2.12.3](https://github.com/akash-network/console/compare/notifications/v2.12.2...notifications/v2.12.3) (2026-01-17)
+
+
+### Bug Fixes
+
+* upgrades chain-sdk dependency ([#2508](https://github.com/akash-network/console/issues/2508)) ([adae126](https://github.com/akash-network/console/commit/adae126f86b55250412a93f5a96e7505c0bf36df))
+
+## [2.12.2](https://github.com/akash-network/console/compare/notifications/v2.12.1...notifications/v2.12.2) (2026-01-15)
+
+
+### Bug Fixes
+
+* install autoinstrumentation otel for notifications ([#2505](https://github.com/akash-network/console/issues/2505)) ([87abd66](https://github.com/akash-network/console/commit/87abd6636acfbe462a0724fd043571e5e0bf7bf8))
+
+## [2.12.1](https://github.com/akash-network/console/compare/notifications/v2.12.0...notifications/v2.12.1) (2026-01-15)
+
+
+### Code Refactoring
+
+* adds support for automatic cancellation of unauthorized requests ([#2491](https://github.com/akash-network/console/issues/2491)) ([4c0db77](https://github.com/akash-network/console/commit/4c0db778fbb3e8b79c3c57f353c3aaaadcf6a609))
+
+## [2.12.0](https://github.com/akash-network/console/compare/notifications/v2.11.0...notifications/v2.12.0) (2026-01-13)
+
+
+### Features
+
+* **deployment:** implements deploy button flow ([46004d4](https://github.com/akash-network/console/commit/46004d4429dc3b4ebb47bb88edf97cd99b1a0c0f)), closes [#2470](https://github.com/akash-network/console/issues/2470)
+
 ## [2.11.0](https://github.com/akash-network/console/compare/notifications/v2.10.2...notifications/v2.11.0) (2026-01-08)
 
 

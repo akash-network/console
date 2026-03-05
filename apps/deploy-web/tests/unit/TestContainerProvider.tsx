@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { mock } from "jest-mock-extended";
 import type { NextRouter } from "next/router";
+import { mock } from "vitest-mock-extended";
 
 import type { Props as ServicesProviderProps } from "@src/context/ServicesProvider/ServicesProvider";
 import { ServicesProvider, useServices } from "@src/context/ServicesProvider/ServicesProvider";

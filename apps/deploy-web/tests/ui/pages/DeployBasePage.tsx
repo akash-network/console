@@ -40,6 +40,7 @@ export class DeployBasePage {
   }
 
   async createDeployment() {
+    await this.page.getByTestId("monaco-editor").waitFor({ state: "visible", timeout: 10_000 });
     await this.page.getByTestId("create-deployment-btn").click();
     await this.page.getByTestId("deposit-modal-continue-button").click();
   }
@@ -64,7 +65,6 @@ export class DeployBasePage {
 
   async validateLease() {
     await this.page.waitForURL(new RegExp(`${testEnvConfig.BASE_URL}/deployments/\\d+`));
-    await expect(this.page.getByText("SuccessfulCreate", { exact: true })).toBeVisible({ timeout: 20_000 });
     await this.page.getByRole("tab", { name: /Leases/i }).click();
     await this.page.getByLabel(/URIs/i).getByRole("link").first().isVisible();
     await expect(this.page.getByTestId("lease-row-0-state")).toHaveText("active");

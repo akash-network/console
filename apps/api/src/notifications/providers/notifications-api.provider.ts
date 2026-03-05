@@ -20,4 +20,4 @@ function createNotificationsApiClient(config: NotificationsConfig) {
   });
 }
 
-export { operations } from "@akashnetwork/react-query-sdk/notifications";
+export type { operations } from "@akashnetwork/react-query-sdk/notifications";

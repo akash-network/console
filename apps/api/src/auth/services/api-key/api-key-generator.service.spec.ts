@@ -1,9 +1,8 @@
 import { container } from "tsyringe";
+import { mock, type MockProxy } from "vitest-mock-extended";
 
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
 import type { CoreConfigService } from "@src/core/services/core-config/core-config.service";
-
-import { stub } from "@test/services/stub";
 
 const FULL_API_KEY_PATTERN = /^ac\.sk\.test\.[A-Za-z0-9]{64}$/;
 const OBFUSCATED_API_KEY_PATTERN = /^ac\.sk\.test\.[A-Za-z0-9]{6}\*{3}[A-Za-z0-9]{6}$/;
@@ -12,11 +11,11 @@ const HASHED_API_KEY_PATTERN = /^\$2[abxy]\$\d{2}\$[A-Za-z0-9./]{53}$/;
 describe("ApiKeyGeneratorService", () => {
   let service: ApiKeyGeneratorService;
   let originalEnv: string | undefined;
-  let config: jest.Mocked<CoreConfigService>;
+  let config: MockProxy<CoreConfigService>;
 
   beforeEach(() => {
     originalEnv = process.env.NODE_ENV;
-    config = stub<CoreConfigService>({ get: jest.fn() });
+    config = mock<CoreConfigService>({ get: jest.fn() });
     config.get.mockReturnValue("test");
     service = new ApiKeyGeneratorService(config);
   });

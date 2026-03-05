@@ -6,6 +6,26 @@ import { openApiExampleAddress } from "@src/utils/constants";
 import { AkashAddressSchema, DseqSchema } from "@src/utils/schema";
 import { LeaseStatusResponseSchema } from "./lease.schema";
 
+const DeploymentLeaseSchema = z.object({
+  id: z.object({
+    owner: z.string(),
+    dseq: DseqSchema,
+    gseq: z.number(),
+    oseq: z.number(),
+    provider: z.string(),
+    bseq: z.number()
+  }),
+  state: z.string(),
+  price: z.object({
+    denom: z.string(),
+    amount: z.string()
+  }),
+  created_at: z.string(),
+  closed_on: z.string(),
+  reason: z.string().optional(),
+  status: z.nullable(LeaseStatusResponseSchema)
+});
+
 export const DeploymentResponseSchema = z.object({
   deployment: z.object({
     id: z.object({
@@ -16,27 +36,7 @@ export const DeploymentResponseSchema = z.object({
     hash: z.string(),
     created_at: z.string()
   }),
-  leases: z.array(
-    z.object({
-      id: z.object({
-        owner: z.string(),
-        dseq: DseqSchema,
-        gseq: z.number(),
-        oseq: z.number(),
-        provider: z.string(),
-        bseq: z.number()
-      }),
-      state: z.string(),
-      price: z.object({
-        denom: z.string(),
-        amount: z.string()
-      }),
-      created_at: z.string(),
-      closed_on: z.string(),
-      reason: z.string().optional(),
-      status: z.nullable(LeaseStatusResponseSchema)
-    })
-  ),
+  leases: z.array(DeploymentLeaseSchema),
   escrow_account: z.object({
     id: z.object({
       scope: z.string(),
@@ -71,6 +71,10 @@ export const DeploymentResponseSchema = z.object({
       )
     })
   })
+});
+
+const DeploymentLeaseListItemSchema = DeploymentResponseSchema.extend({
+  leases: z.array(DeploymentLeaseSchema.omit({ status: true }))
 });
 
 export const GetDeploymentResponseSchema = z.object({
@@ -140,7 +144,7 @@ export const ListDeploymentsQuerySchema = z.object({
 
 export const ListDeploymentsResponseSchema = z.object({
   data: z.object({
-    deployments: z.array(DeploymentResponseSchema),
+    deployments: z.array(DeploymentLeaseListItemSchema),
     pagination: z.object({
       total: z.number(),
       skip: z.number(),
@@ -282,5 +286,6 @@ export type UpdateDeploymentResponse = z.infer<typeof UpdateDeploymentResponseSc
 export type ListWithResourcesParams = z.infer<typeof ListWithResourcesParamsSchema>;
 export type ListWithResourcesQuery = z.infer<typeof ListWithResourcesQuerySchema>;
 export type ListWithResourcesResponse = z.infer<typeof ListWithResourcesResponseSchema>;
+export type ListDeploymentsItem = z.infer<typeof DeploymentLeaseListItemSchema>;
 export type GetDeploymentByOwnerDseqResponse = z.infer<typeof GetDeploymentByOwnerDseqResponseSchema>;
 export type GetWeeklyDeploymentCostResponse = z.infer<typeof GetWeeklyDeploymentCostResponseSchema>;

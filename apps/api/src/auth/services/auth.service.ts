@@ -14,6 +14,10 @@ export class AuthService {
     this.executionContextService.set("CURRENT_USER", user);
   }
 
+  get safeCurrentUser(): UserOutput | undefined {
+    return this.executionContextService.get("CURRENT_USER");
+  }
+
   get currentUser(): UserOutput {
     // BUGALERT: https://github.com/akash-network/console/issues/1447
     const user = this.executionContextService.get("CURRENT_USER")!;

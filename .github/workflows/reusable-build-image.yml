@@ -63,7 +63,7 @@ jobs:
       base_image_tag: ${{ steps.determine.outputs.base_tag }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
@@ -76,12 +76,14 @@ jobs:
         id: determine
         env:
           SENTRY_AUTH_TOKEN_CONSOLE_WEB: ${{ secrets.SENTRY_AUTH_TOKEN_CONSOLE_WEB }}
+          SENTRY_AUTH_TOKEN_STATS_WEB: ${{ secrets.SENTRY_AUTH_TOKEN_STATS_WEB }}
         run: |
           tag="${{ inputs.tag }}"
 
           if [[ "$tag" == console-api/* ]]; then
             echo "registry=${{ vars.API_REGISTRY }}" >> "$GITHUB_ENV"
             echo "app=api" >> "$GITHUB_ENV"
+            echo "GITHUB_PAT=${{ secrets.TEMPLATES_GITHUB_PAT || secrets.GITHUB_TOKEN }}" >> "$GITHUB_ENV" # used to fetch Akash templates
           elif [[ "$tag" == console-web/* ]]; then
             echo "registry=${{ vars.WEB_REGISTRY }}" >> "$GITHUB_ENV"
             echo "app=deploy-web" >> "$GITHUB_ENV"
@@ -96,12 +98,16 @@ jobs:
           elif [[ "$tag" == stats-web/* ]]; then
             echo "registry=${{ vars.STATS_WEB_REGISTRY }}" >> "$GITHUB_ENV"
             echo "app=stats-web" >> "$GITHUB_ENV"
+            echo "SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN_STATS_WEB}" >> "$GITHUB_ENV"
           elif [[ "$tag" == notifications/* ]]; then
             echo "registry=${{ vars.NOTIFICATIONS_REGISTRY }}" >> "$GITHUB_ENV"
             echo "app=notifications" >> "$GITHUB_ENV"
           elif [[ "$tag" == indexer/* ]]; then
             echo "registry=${{ vars.INDEXER_REGISTRY }}" >> "$GITHUB_ENV"
             echo "app=indexer" >> "$GITHUB_ENV"
+          elif [[ "$tag" == tx-signer/* ]]; then
+            echo "registry=${{ vars.TX_SIGNER_REGISTRY }}" >> "$GITHUB_ENV"
+            echo "app=tx-signer" >> "$GITHUB_ENV"
           else
             echo "Error: Unknown tag format = $tag"
             exit 1
@@ -116,8 +122,9 @@ jobs:
       - name: Build Docker image
         env:
           DEPLOYMENT_ENV: ${{ inputs.deployment-env }}
-          GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }} # used by console-api to fetch Akash templates
           GIT_COMMIT_HASH: ${{ github.sha }}
+          APP_PATH: "apps/${{ env.app }}"
+          APP_VERSION: ${{ steps.determine.outputs.base_tag }}
         run: |
           if [[ -n "${{ env.force_build }}" ]]; then
             force_build="${{ env.force_build }}"
@@ -125,5 +132,16 @@ jobs:
             force_build="-f"
           fi
 
+          # shellcheck disable=SC2016
+          node -e '
+            const fs = require("fs");
+            const lockfile = JSON.parse(fs.readFileSync("./package-lock.json", "utf-8"));
+            const pkgfile = JSON.parse(fs.readFileSync(`./${process.env.APP_PATH}/package.json`, "utf-8"));
+            lockfile.packages[process.env.APP_PATH].version=process.env.APP_VERSION;
+            pkgfile.version=process.env.APP_VERSION;
+            fs.writeFileSync(`./${process.env.APP_PATH}/package.json`, JSON.stringify(pkgfile, null, 2));
+            fs.writeFileSync("./package-lock.json", JSON.stringify(lockfile, null, 2));
+          ';
+
           # shellcheck disable=SC2086
-          ./packages/docker/script/build.sh -r ${{ env.registry }} -t ${{ env.tag }} -a ${{ env.app }} -l "${{ inputs.tag-latest }}" $force_build
+          ./packages/docker/script/build.sh -r "${{ env.registry }}" -t "${{ env.tag }}" -a "${{ env.app }}" -l "${{ inputs.tag-latest }}" $force_build

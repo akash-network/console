@@ -14,6 +14,7 @@ const route = createRoute({
   summary: "Stripe Webhook Handler",
   tags: ["Payment"],
   security: SECURITY_NONE,
+  additionalContentTypes: ["application/json"],
   request: {
     body: {
       content: {

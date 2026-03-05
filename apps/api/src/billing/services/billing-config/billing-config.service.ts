@@ -1,7 +1,8 @@
 import { inject, singleton } from "tsyringe";
 
 import { appConfig } from "@src/billing/config";
-import { BillingConfig, envSchema } from "@src/billing/config/env.config";
+import type { BillingConfig } from "@src/billing/config/env.config";
+import { envSchema } from "@src/billing/config/env.config";
 import { BILLING_CONFIG } from "@src/billing/providers/config.provider";
 import { ConfigService } from "@src/core/services/config/config.service";
 

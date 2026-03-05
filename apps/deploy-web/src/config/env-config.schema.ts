@@ -25,7 +25,6 @@ export const browserEnvSchema = z.object({
   NEXT_PUBLIC_GA_ENABLED: coercedBoolean(),
   NEXT_PUBLIC_AMPLITUDE_ENABLED: coercedBoolean(),
   NEXT_PUBLIC_AMPLITUDE_API_KEY: z.string(),
-  NEXT_PUBLIC_AMPLITUDE_SAMPLING: z.number({ coerce: true }).optional().default(1),
   NEXT_PUBLIC_AMPLITUDE_PROXY_URL: z.string().optional().describe("A url to proxy Amplitude events to via nextjs rewrite config to avoid blockers"),
   NEXT_PUBLIC_REDIRECT_URI: z.string().url(),
   NEXT_PUBLIC_GITHUB_APP_INSTALLATION_URL: z.string().url(),
@@ -39,7 +38,8 @@ export const browserEnvSchema = z.object({
   NEXT_PUBLIC_GROWTH_CHANNEL_TRACKING_ENABLED: coercedBoolean().optional().default("false"),
   NEXT_PUBLIC_UNLEASH_ENABLE_ALL: coercedBoolean().optional().default("false"),
   NEXT_PUBLIC_GTM_ID: z.string().optional(),
-  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional()
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional(),
+  NEXT_PUBLIC_BASE_TEMPLATES_URL: z.string().url()
 });
 
 export const serverEnvSchema = browserEnvSchema.extend({

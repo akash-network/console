@@ -1,5 +1,5 @@
 import React from "react";
-import type { PaymentMethod } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
+import type { PaymentMethod } from "@akashnetwork/http-sdk";
 import { Card, CardContent, RadioGroup } from "@akashnetwork/ui/components";
 
 import { PaymentMethodCard } from "../PaymentMethodCard/PaymentMethodCard";

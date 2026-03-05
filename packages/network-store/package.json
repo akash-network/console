@@ -5,6 +5,12 @@
   "keywords": [],
   "license": "Apache-2.0",
   "author": "",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "default": "./src/index.ts"
+    }
+  },
   "main": "src/index.ts",
   "scripts": {
     "format": "prettier --write ./*.{ts,json} **/*.{ts,json}",
@@ -12,7 +18,7 @@
     "validate:types": "tsc --noEmit && echo"
   },
   "dependencies": {
-    "@akashnetwork/chain-sdk": "1.0.0-alpha.12",
+    "@akashnetwork/chain-sdk": "1.0.0-alpha.24",
     "@akashnetwork/net": "*",
     "jotai": "^2.9.2"
   }

@@ -22,9 +22,9 @@ spec:
             - /bin/sh
             - -c
             - |
-              while true; do 
-                echo "$(date -u +%Y-%m-%dT%H:%M:%S.%NZ) [INFO] Dummy log message from pod dummy-logging-pod"
-                echo "$(date -u +%Y-%m-%dT%H:%M:%S.%NZ) [ERROR] This is a test error message"
-                echo "$(date -u +%Y-%m-%dT%H:%M:%S.%NZ) [DEBUG] Debug information for testing"
-                sleep 5
+              while true; do
+                echo "$(date -u +%Y-%m-%dT%H:%M:%S).000Z [INFO] Dummy log message from pod dummy-logging-pod"
+                echo "$(date -u +%Y-%m-%dT%H:%M:%S).000Z [ERROR] This is a test error message"
+                echo "$(date -u +%Y-%m-%dT%H:%M:%S).000Z [DEBUG] Debug information for testing"
+                sleep 30
               done

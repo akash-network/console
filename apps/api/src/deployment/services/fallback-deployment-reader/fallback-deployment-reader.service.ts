@@ -2,7 +2,8 @@ import { Deployment, DeploymentGroup, DeploymentGroupResource } from "@akashnetw
 import { inject, singleton } from "tsyringe";
 
 import { USDC_IBC_DENOMS } from "@src/billing/config/network.config";
-import { CORE_CONFIG, CoreConfig } from "@src/core/providers/config.provider";
+import type { CoreConfig } from "@src/core/providers/config.provider";
+import { CORE_CONFIG } from "@src/core/providers/config.provider";
 import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import { DatabaseDeploymentListParams } from "@src/deployment/repositories/deployment/deployment.repository";
 import { RestAkashDeploymentInfoResponse } from "@src/types/rest/akashDeploymentInfoResponse";

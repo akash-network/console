@@ -1,5 +1,6 @@
 import type { TestingModule } from "@nestjs/testing";
 import { Test } from "@nestjs/testing";
+import { describe, expect, it } from "vitest";
 
 import { TemplateService } from "@src/modules/alert/services/template/template.service";
 import { AlertMessageService } from "./alert-message.service";

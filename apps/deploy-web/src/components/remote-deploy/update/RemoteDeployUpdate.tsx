@@ -9,7 +9,7 @@ import { EnvVarList } from "@src/components/sdl/EnvVarList";
 import { CURRENT_SERVICE, protectedEnvironmentVariables } from "@src/config/remote-deploy.config";
 import { SdlBuilderProvider } from "@src/context/SdlBuilderProvider";
 import { useServices } from "@src/context/ServicesProvider";
-import { EnvVarUpdater } from "@src/services/remote-deploy/remote-deployment-controller.service";
+import { EnvVarManagerService } from "@src/services/remote-deploy/env-var-manager.service";
 import { tokens } from "@src/store/remoteDeployStore";
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { defaultService } from "@src/utils/sdl/data";
@@ -26,7 +26,7 @@ const RemoteDeployUpdate = ({ sdlString, onManifestChange }: { sdlString: string
   const [isEditingEnv, setIsEditingEnv] = useState<number | boolean | null>(false);
   const { control, watch, setValue } = useForm<SdlBuilderFormValuesType>({ defaultValues: { services: [defaultService] } });
   const { fields: services } = useFieldArray({ control, name: "services", keyName: "id" });
-  const envVarUpdater = useMemo(() => new EnvVarUpdater(services), [services]);
+  const envVarManagerService = useMemo(() => new EnvVarManagerService(services), [services]);
   const { publicConfig } = useServices();
 
   useEffect(() => {
@@ -75,7 +75,7 @@ const RemoteDeployUpdate = ({ sdlString, onManifestChange }: { sdlString: string
             onCheckedChange={value => {
               const pull = !value ? "yes" : "no";
 
-              setValue(CURRENT_SERVICE, envVarUpdater.addOrUpdateEnvironmentVariable(protectedEnvironmentVariables.DISABLE_PULL, pull, false));
+              setValue(CURRENT_SERVICE, envVarManagerService.addOrUpdateEnvironmentVariable(protectedEnvironmentVariables.DISABLE_PULL, pull, false));
               enqueueSnackbar(<Snackbar title={"Info"} subTitle="You need to click update deployment button to apply changes" iconVariant="info" />, {
                 variant: "info"
               });

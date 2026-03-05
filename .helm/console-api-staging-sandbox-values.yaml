@@ -1,4 +1,6 @@
 deploymentEnv: staging
+nodeOptions:
+  enabledOTEL: true
 
 chain: sandbox
 hostNames:
@@ -22,11 +24,15 @@ jobs:
       - node
       - dist/console.js
       - cleanup-stale-deployments
-  - name: cleanup-stale-anonymous-users
-    schedule: "0 9 * * 1" # 9:00 AM every Monday
-    command:
-      - node
-      - dist/console.js
-      - cleanup-stale-anonymous-users
-      - -c
-      - "100"
+
+replicas: 2
+
+resources:
+  limits:
+    cpu: "4"
+    ephemeral-storage: "2Gi"
+    memory: "8Gi"
+  requests:
+    cpu: "0.5"
+    ephemeral-storage: "0.5Gi"
+    memory: "1Gi"

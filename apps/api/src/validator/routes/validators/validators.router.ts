@@ -17,6 +17,7 @@ const getValidatorListRoute = createRoute({
   path: "/v1/validators",
   tags: ["Validators"],
   security: SECURITY_NONE,
+  cache: { maxAge: 300, staleWhileRevalidate: 600 },
   responses: {
     200: {
       description: "Returns validators",
@@ -39,6 +40,7 @@ const getValidatorByAddressRoute = createRoute({
   path: "/v1/validators/{address}",
   tags: ["Validators"],
   security: SECURITY_NONE,
+  cache: { maxAge: 300, staleWhileRevalidate: 600 },
   request: {
     params: GetValidatorByAddressParamsSchema
   },

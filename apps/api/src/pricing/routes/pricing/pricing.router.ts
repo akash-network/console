@@ -14,6 +14,9 @@ const postPricingRoute = createRoute({
   tags: ["Other"],
   security: SECURITY_NONE,
   summary: "Estimate the price of a deployment on akash and other cloud providers.",
+  bodyLimit: {
+    maxSize: 512 // 512 bytes
+  },
   request: {
     body: {
       description:
@@ -27,7 +30,7 @@ const postPricingRoute = createRoute({
   },
   responses: {
     200: {
-      description: "Returns a list of deployment templates grouped by cateogories",
+      description: "Returns a list of deployment templates grouped by categories",
       content: {
         "application/json": {
           schema: PricingResponseSchema
@@ -40,8 +43,8 @@ const postPricingRoute = createRoute({
   }
 });
 pricingRouter.openapi(postPricingRoute, async function routePostPricing(c) {
-  const body = PricingBodySchema.parse(await c.req.json());
-  const pricing = container.resolve(PricingController).getPricing(body);
+  const body = c.req.valid("json");
+  const pricing = await container.resolve(PricingController).getPricing(body);
 
   return c.json(pricing);
 });

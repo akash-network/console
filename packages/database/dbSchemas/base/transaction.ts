@@ -18,7 +18,14 @@ import { TransactionEvent } from "./transactionEvent"; // eslint-disable-line im
     { unique: false, fields: ["height"] },
     { unique: false, fields: ["height", "isProcessed", "hasProcessingError"] },
     { unique: false, fields: ["hash"] },
-    { unique: false, fields: ["id"], where: { hasProcessingError: false }, name: "transaction_id_has_procesing_error_false" }
+    { unique: false, fields: ["id"], where: { hasProcessingError: false }, name: "transaction_id_has_procesing_error_false" },
+    {
+      unique: false,
+      fields: [
+        { name: "height", order: "DESC" },
+        { name: "index", order: "DESC" }
+      ]
+    }
   ]
 })
 export class Transaction extends Model {

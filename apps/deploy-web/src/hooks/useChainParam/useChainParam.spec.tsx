@@ -1,5 +1,6 @@
 import type { UseQueryResult } from "@tanstack/react-query";
-import { mock } from "jest-mock-extended";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { SettingsContextType } from "@src/context/SettingsProvider";
 import type { DepositParams } from "@src/types/deployment";
@@ -63,8 +64,8 @@ describe(useChainParam.name, () => {
 
     const depositParamsResult = mock<UseQueryResult<DepositParams[], Error>>();
     depositParamsResult.data = depositParams;
-    const useDepositParamsSpy = jest.fn().mockReturnValue(depositParamsResult);
-    const useUsdcDenomSpy = jest.fn().mockReturnValue(usdcDenom);
+    const useDepositParamsSpy = vi.fn().mockReturnValue(depositParamsResult);
+    const useUsdcDenomSpy = vi.fn().mockReturnValue(usdcDenom);
 
     const { result } = renderHook(() =>
       useChainParam({

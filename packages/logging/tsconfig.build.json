@@ -4,5 +4,11 @@
     "noImplicitAny": true,
     "strict": true
   },
+  "include": [
+    "**/*.ts"
+  ],
+  "exclude": [
+    "vitest.config.ts"
+  ],
   "extends": "@akashnetwork/dev-config/tsconfig.base-node.json"
 }

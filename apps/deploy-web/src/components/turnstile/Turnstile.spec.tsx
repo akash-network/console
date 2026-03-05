@@ -1,14 +1,14 @@
 import { forwardRef, useEffect } from "react";
-import { act } from "react-dom/test-utils";
 import type { TurnstileInstance } from "@marsidev/react-turnstile";
 import { type TurnstileProps } from "@marsidev/react-turnstile";
-import { mock } from "jest-mock-extended";
 import { setTimeout as wait } from "node:timers/promises";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { TurnstileRef } from "./Turnstile";
 import { COMPONENTS, Turnstile } from "./Turnstile";
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe(Turnstile.name, () => {
@@ -72,7 +72,7 @@ describe(Turnstile.name, () => {
       useForwardedRef(ref, turnstileInstance);
       return <div>Turnstile</div>;
     });
-    const onDismissed = jest.fn();
+    const onDismissed = vi.fn();
 
     await setup({
       enabled: true,

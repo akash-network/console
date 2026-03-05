@@ -40,4 +40,24 @@ export class ErrorHandlerService {
 
     return successfulResults;
   }
+
+  isForbidden(error: unknown): boolean {
+    if (typeof error !== "object" || error === null) {
+      return false;
+    }
+
+    if ("statusCode" in error && (error as { statusCode: number }).statusCode === 403) {
+      return true;
+    }
+
+    if ("code" in error && (error as { code: number }).code === 403) {
+      return true;
+    }
+
+    if (error instanceof AggregateError) {
+      return error.errors.length > 0 && error.errors.every(e => this.isForbidden(e));
+    }
+
+    return false;
+  }
 }

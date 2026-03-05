@@ -2,8 +2,9 @@ import type { RestAkashLeaseListResponse } from "@akashnetwork/http-sdk";
 import { DeploymentHttpService, LeaseHttpService } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
 import { Test } from "@nestjs/testing";
-import type { MockProxy } from "jest-mock-extended";
 import { Ok } from "ts-results";
+import { describe, expect, it } from "vitest";
+import type { MockProxy } from "vitest-mock-extended";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import { DeploymentService } from "./deployment.service";

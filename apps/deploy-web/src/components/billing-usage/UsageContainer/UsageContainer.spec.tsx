@@ -1,6 +1,5 @@
-import "@testing-library/jest-dom";
-
 import React from "react";
+import { describe, expect, it, type MockedFunction, vi } from "vitest";
 
 import type { ChildrenProps, UsageContainerProps } from "@src/components/billing-usage/UsageContainer/UsageContainer";
 import { UsageContainer } from "@src/components/billing-usage/UsageContainer/UsageContainer";
@@ -80,21 +79,21 @@ describe(UsageContainer.name, () => {
     const isFetchingUsageHistoryStats = overrides.isFetchingUsageHistoryStats ?? false;
     const isUsageHistoryStatsError = overrides.isUsageHistoryStatsError ?? false;
 
-    const onDateRangeChange = jest.fn();
+    const onDateRangeChange = vi.fn();
 
-    const mockedUseWallet = jest.fn(() => ({ address: "0xABCDEF" })) as unknown as jest.MockedFunction<typeof useWallet>;
+    const mockedUseWallet = vi.fn(() => ({ address: "0xABCDEF" })) as unknown as MockedFunction<typeof useWallet>;
 
-    const mockedUseUsage = jest.fn(() => ({
+    const mockedUseUsage = vi.fn(() => ({
       data: usageHistoryData,
       isError: isUsageHistoryError,
       isFetching: isFetchingUsageHistory
-    })) as unknown as jest.MockedFunction<typeof useUsage>;
+    })) as unknown as MockedFunction<typeof useUsage>;
 
-    const mockedUseUsageStats = jest.fn(() => ({
+    const mockedUseUsageStats = vi.fn(() => ({
       data: usageHistoryStatsData,
       isError: isUsageHistoryStatsError,
       isFetching: isFetchingUsageHistoryStats
-    })) as unknown as jest.MockedFunction<typeof useUsageStats>;
+    })) as unknown as MockedFunction<typeof useUsageStats>;
 
     const dependencies: NonNullable<UsageContainerProps["dependencies"]> = {
       useWallet: mockedUseWallet,

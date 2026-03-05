@@ -3,7 +3,7 @@ import { Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { TxRaw } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 import { BidHttpService, BlockHttpService } from "@akashnetwork/http-sdk";
-import { LoggerService } from "@akashnetwork/logging";
+import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { DirectSecp256k1HdWallet, EncodeObject, Registry } from "@cosmjs/proto-signing";
 import { calculateFee, SigningStargateClient } from "@cosmjs/stargate";
 import pick from "lodash/pick";
@@ -12,13 +12,13 @@ import { inject, singleton } from "tsyringe";
 
 import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provider";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
-import { DEPLOYMENT_CONFIG, DeploymentConfig } from "@src/deployment/config/config.provider";
+import { DEPLOYMENT_CONFIG, type DeploymentConfig } from "@src/deployment/config/config.provider";
 import { GpuService } from "@src/gpu/services/gpu.service";
 import { sdlTemplateWithRam, sdlTemplateWithRamAndInterface } from "./sdl-templates";
 
 @singleton()
 export class GpuBidsCreatorService {
-  private readonly logger = LoggerService.forContext(GpuBidsCreatorService.name);
+  private readonly logger = createOtelLogger({ context: GpuBidsCreatorService.name });
   readonly #deploymentConfig: DeploymentConfig;
 
   constructor(

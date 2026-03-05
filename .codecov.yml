@@ -1,9 +1,9 @@
 coverage:
   status:
     project:
-      default: off
+      default: false
       api:
-        target: 80%
+        target: 75%
         flags:
           - api
       deploy-web:

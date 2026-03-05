@@ -20,8 +20,8 @@ import NProgress from "nprogress";
 import GoogleAnalytics from "@src/components/layout/CustomGoogleAnalytics";
 import { CustomIntlProvider } from "@src/components/layout/CustomIntlProvider";
 import { PageHead } from "@src/components/layout/PageHead";
+import { OnboardingRedirectEffect } from "@src/components/onboarding/OnboardingRedirectEffect/OnboardingRedirectEffect";
 import { UserProviders } from "@src/components/user/UserProviders/UserProviders";
-import { CertificateProvider } from "@src/context/CertificateProvider";
 import { CustomChainProvider } from "@src/context/CustomChainProvider";
 import { ColorModeProvider } from "@src/context/CustomThemeContext";
 import { FlagProvider } from "@src/context/FlagProvider/FlagProvider";
@@ -58,11 +58,10 @@ const App: React.FunctionComponent<Props> = props => {
           <FlagProvider>
             <WalletProvider>
               <PaymentPollingProvider>
-                <CertificateProvider>
-                  <NavigationGuardProvider>
-                    <Component {...pageProps} />
-                  </NavigationGuardProvider>
-                </CertificateProvider>
+                <NavigationGuardProvider>
+                  <OnboardingRedirectEffect />
+                  <Component {...pageProps} />
+                </NavigationGuardProvider>
               </PaymentPollingProvider>
             </WalletProvider>
           </FlagProvider>

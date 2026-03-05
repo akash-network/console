@@ -1,13 +1,12 @@
 "use client";
 
 import { useEffect } from "react";
-import { LoggerService } from "@akashnetwork/logging";
 
-const globalErrorLogger = new LoggerService({ name: "global-error" });
+import { errorHandler } from "@/services/di";
 
 export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
-    globalErrorLogger.error(error);
+    errorHandler.reportError({ error });
   }, [error]);
 
   return (

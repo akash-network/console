@@ -1,10 +1,9 @@
-import "@testing-library/jest-dom";
-
 import type { ComponentProps } from "react";
+import { describe, expect, it, vi } from "vitest";
 
 import { DEPENDENCIES, SignUpForm, type SignUpFormValues } from "./SignUpForm";
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 describe(SignUpForm.name, () => {
@@ -20,7 +19,7 @@ describe(SignUpForm.name, () => {
     );
     await userEvent.click(screen.getByRole("button", { name: "Sign up" }));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(onSubmit).toHaveBeenCalledTimes(1);
       expect(onSubmit).toHaveBeenCalledWith({
         email: "jane@example.com",
@@ -60,8 +59,8 @@ describe(SignUpForm.name, () => {
   });
 
   function setup(input: Partial<ComponentProps<typeof SignUpForm>> = {}) {
-    const goBack = jest.fn();
-    const onSubmit = input?.onSubmit ?? jest.fn<void, [SignUpFormValues]>();
+    const goBack = vi.fn();
+    const onSubmit = input?.onSubmit ?? vi.fn<void, [SignUpFormValues]>();
     const props: ComponentProps<typeof SignUpForm> = {
       isLoading: false,
       ...input,

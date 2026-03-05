@@ -1,5 +1,5 @@
 import type { Dispatch } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { UseFormSetValue } from "react-hook-form";
 import {
   Button,
@@ -29,7 +29,7 @@ import { CURRENT_SERVICE, protectedEnvironmentVariables, ROOT_FOLDER_NAME } from
 import useRemoteDeployFramework from "@src/hooks/useRemoteDeployFramework";
 import { useSrcFolders } from "@src/queries/useGithubQuery";
 import { useGitlabSrcFolders } from "@src/queries/useGitlabQuery";
-import { EnvVarUpdater, formatUrlWithoutInitialPath } from "@src/services/remote-deploy/remote-deployment-controller.service";
+import { EnvVarManagerService, formatUrlWithoutInitialPath } from "@src/services/remote-deploy/env-var-manager.service";
 import { tokens } from "@src/store/remoteDeployStore";
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import type { CustomRepo, IGithubDirectoryItem } from "@src/types/remotedeploy";
@@ -65,6 +65,19 @@ const Repos = ({
   const [directory, setDirectory] = useState<IGithubDirectoryItem[] | null>(null);
   const [open, setOpen] = useState(false);
   const [accounts, setAccounts] = useState<string[]>([]);
+  const handleSetCpus = useCallback(
+    (cpus: number) => {
+      setValue("services.0.profile.cpu", +cpus > 2 ? +cpus : 2);
+    },
+    [setValue]
+  );
+  const setFolders = useCallback((data: IGithubDirectoryItem[]) => {
+    if (data?.length > 0) {
+      setDirectory(data);
+    } else {
+      setDirectory(null);
+    }
+  }, []);
   const repo = repos?.find(r => r.html_url === currentRepoUrl);
   const currentFolder = currentServiceEnv?.find(e => e.key === protectedEnvironmentVariables.FRONTEND_FOLDER);
   const { currentFramework, isLoading: frameworkLoading } = useRemoteDeployFramework({
@@ -72,7 +85,7 @@ const Repos = ({
     currentBranchName,
     currentGitlabProjectId: currentServiceEnv?.find(e => e.key === protectedEnvironmentVariables.GITLAB_PROJECT_ID)?.value,
     subFolder: currentFolder?.value,
-    setCpus: (cpus: number) => setValue("services.0.profile.cpu", +cpus > 2 ? +cpus : 2)
+    setCpus: handleSetCpus
   });
   const { isLoading: isGettingDirectory, isFetching: isGithubLoading } = useSrcFolders(setFolders, formatUrlWithoutInitialPath(currentRepoUrl));
   const { isLoading: isGettingDirectoryBit, isFetching: isBitLoading } = useBitSrcFolders(
@@ -85,7 +98,7 @@ const Repos = ({
     currentServiceEnv?.find(e => e.key === protectedEnvironmentVariables.GITLAB_PROJECT_ID)?.value
   );
   const isLoadingDirectories = isGithubLoading || isGitlabLoading || isBitLoading || isGettingDirectory || isGettingDirectoryBit || isGettingDirectoryGitlab;
-  const envVarUpdater = useMemo(() => new EnvVarUpdater(services), [services]);
+  const envVarManagerService = useMemo(() => new EnvVarManagerService(services), [services]);
 
   useEffect(() => {
     if (type === "github") {
@@ -101,14 +114,6 @@ const Repos = ({
     setFilteredRepos(repos);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repos, type, profile]);
-
-  function setFolders(data: IGithubDirectoryItem[]) {
-    if (data?.length > 0) {
-      setDirectory(data);
-    } else {
-      setDirectory(null);
-    }
-  }
 
   return (
     <div className="flex flex-col gap-5 rounded border bg-card px-6 py-6 text-card-foreground">
@@ -268,11 +273,11 @@ const Repos = ({
                           className="gap-0"
                           onValueChange={value => {
                             if (value === ROOT_FOLDER_NAME) {
-                              setValue(CURRENT_SERVICE, envVarUpdater?.deleteEnvironmentVariable(protectedEnvironmentVariables.FRONTEND_FOLDER));
+                              setValue(CURRENT_SERVICE, envVarManagerService?.deleteEnvironmentVariable(protectedEnvironmentVariables.FRONTEND_FOLDER));
                             } else {
                               setValue(
                                 CURRENT_SERVICE,
-                                envVarUpdater?.addOrUpdateEnvironmentVariable(protectedEnvironmentVariables.FRONTEND_FOLDER, value, false)
+                                envVarManagerService?.addOrUpdateEnvironmentVariable(protectedEnvironmentVariables.FRONTEND_FOLDER, value, false)
                               );
                             }
                           }}
@@ -303,7 +308,7 @@ const Repos = ({
                         onChange={e =>
                           setValue(
                             CURRENT_SERVICE,
-                            envVarUpdater?.addOrUpdateEnvironmentVariable(protectedEnvironmentVariables.FRONTEND_FOLDER, e.target.value, false)
+                            envVarManagerService?.addOrUpdateEnvironmentVariable(protectedEnvironmentVariables.FRONTEND_FOLDER, e.target.value, false)
                           )
                         }
                         label="Frontend Folder"

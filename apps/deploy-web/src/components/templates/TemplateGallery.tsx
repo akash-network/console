@@ -20,14 +20,29 @@ import { TemplateBox } from "./TemplateBox";
 
 let timeoutId: NodeJS.Timeout | null = null;
 
-export const TemplateGallery: React.FunctionComponent = () => {
+const isRecommended = (t: TemplateOutputSummaryWithCategory) => t.tags?.includes("recommended") ?? false;
+const isPopular = (t: TemplateOutputSummaryWithCategory) => t.tags?.includes("popular") ?? false;
+
+const FEATURED_TEMPLATE_IDS = ["akash-network-awesome-akash-openclaw"];
+
+export const DEPENDENCIES = {
+  useRouter,
+  useSearchParams,
+  useTemplates,
+  Layout,
+  CustomNextSeo,
+  MobileTemplatesFilter,
+  TemplateBox
+};
+
+export const TemplateGallery: React.FunctionComponent<{ dependencies?: typeof DEPENDENCIES }> = ({ dependencies: d = DEPENDENCIES }) => {
   const [selectedCategoryTitle, setSelectedCategoryTitle] = useState<string | null>(null);
   const [searchTerms, setSearchTerms] = useState("");
   const [shownTemplates, setShownTemplates] = useState<TemplateOutputSummaryWithCategory[]>([]);
-  const { isLoading: isLoadingTemplates, categories, templates } = useTemplates();
-  const router = useRouter();
+  const { isLoading: isLoadingTemplates, categories, templates } = d.useTemplates();
+  const router = d.useRouter();
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
-  const searchParams = useSearchParams();
+  const searchParams = d.useSearchParams();
 
   useEffect(() => {
     const queryCategory = searchParams?.get("category") as string;
@@ -49,15 +64,25 @@ export const TemplateGallery: React.FunctionComponent = () => {
 
     if (queryCategory) {
       const selectedCategory = categories.find(x => x.title === queryCategory);
-      _templates = selectedCategory?.templates || [];
+      _templates = [...(selectedCategory?.templates || [])];
     } else {
-      _templates = templates;
+      _templates = [...templates];
     }
+
+    _templates.sort((a, b) => {
+      const aFeatured = FEATURED_TEMPLATE_IDS.indexOf(a.id) !== -1 ? FEATURED_TEMPLATE_IDS.indexOf(a.id) : Infinity;
+      const bFeatured = FEATURED_TEMPLATE_IDS.indexOf(b.id) !== -1 ? FEATURED_TEMPLATE_IDS.indexOf(b.id) : Infinity;
+      if (aFeatured !== bFeatured) return aFeatured - bFeatured;
+
+      const aTag = isRecommended(a) ? 0 : isPopular(a) ? 1 : 2;
+      const bTag = isRecommended(b) ? 0 : isPopular(b) ? 1 : 2;
+      return aTag - bTag;
+    });
 
     if (querySearch) {
       // TODO: use minisearch instead https://lucaong.github.io/minisearch/
       const searchTermsSplit = querySearch?.split(" ").map(x => x.toLowerCase());
-      _templates = templates.filter(x => searchTermsSplit.some(s => x.name?.toLowerCase().includes(s) || x.summary?.toLowerCase().includes(s)));
+      _templates = _templates.filter(x => searchTermsSplit.some(s => x.name?.toLowerCase().includes(s) || x.summary?.toLowerCase().includes(s)));
     }
 
     setShownTemplates(_templates);
@@ -115,29 +140,33 @@ export const TemplateGallery: React.FunctionComponent = () => {
   );
 
   return (
-    <Layout isLoading={isLoadingTemplates}>
-      <CustomNextSeo
+    <d.Layout isLoading={isLoadingTemplates}>
+      <d.CustomNextSeo
         title="Template Gallery"
         url={`${domainName}${UrlService.templates()}`}
         description="Explore all the templates made by the community to easily deploy any docker container on the Akash Network."
       />
 
-      <div className="mb-6 sm:mb-8 md:mb-12">
-        <Title className="mb-2">Find your Template</Title>
+      <div className="mb-6">
+        <Title className="mb-2">Deploy an App</Title>
 
         <Title subTitle className="text-base font-normal text-muted-foreground sm:text-lg">
           Jumpstart your app development process with our pre-built solutions.
         </Title>
       </div>
 
-      <div className="mb-4 block md:hidden">
+      <div className="mb-8">
+        <div className="hidden md:block">{searchBar}</div>
+      </div>
+
+      <div className="mb-8 block md:hidden">
         {searchBar}
 
-        <Button onClick={() => setIsMobileSearchOpen(true)} className="flex w-full items-center" variant="outline">
-          Filter Templates
+        <Button onClick={() => setIsMobileSearchOpen(true)} className="mt-2 flex w-full items-center" variant="outline">
+          Filter by category
           <FilterList className="ml-2 text-xs" />
         </Button>
-        <MobileTemplatesFilter
+        <d.MobileTemplatesFilter
           handleDrawerToggle={() => setIsMobileSearchOpen(prev => !prev)}
           isOpen={isMobileSearchOpen}
           templates={templates}
@@ -152,9 +181,7 @@ export const TemplateGallery: React.FunctionComponent = () => {
       <div className="flex">
         {templates.length > 0 && (
           <div className="mr-12 hidden w-[222px] md:block">
-            <p className="mb-4 font-bold">Filter Templates</p>
-
-            <div className="mb-6">{searchBar}</div>
+            <p className="mb-4 font-bold">Filter by category</p>
 
             <ul className="flex flex-col items-start">
               {templates && (
@@ -173,24 +200,22 @@ export const TemplateGallery: React.FunctionComponent = () => {
                 </li>
               )}
 
-              {categories
-                .sort((a, b) => (a.title < b.title ? -1 : 1))
-                .map(category => (
-                  <li
-                    key={category.title}
-                    className={cn(
-                      { ["bg-muted-foreground/10"]: category.title === selectedCategoryTitle },
-                      buttonVariants({ variant: "ghost" }),
-                      "h-8 w-full justify-start px-4 py-0"
-                    )}
-                    onClick={() => onCategoryClick(category.title)}
-                  >
-                    {category.title}{" "}
-                    <span className="text-xs">
-                      <small className="ml-2 text-muted-foreground">({category.templates.length})</small>
-                    </span>
-                  </li>
-                ))}
+              {categories.map(category => (
+                <li
+                  key={category.title}
+                  className={cn(
+                    { ["bg-muted-foreground/10"]: category.title === selectedCategoryTitle },
+                    buttonVariants({ variant: "ghost" }),
+                    "h-8 w-full justify-start px-4 py-0"
+                  )}
+                  onClick={() => onCategoryClick(category.title)}
+                >
+                  {category.title}{" "}
+                  <span className="text-xs">
+                    <small className="ml-2 text-muted-foreground">({category.templates.length})</small>
+                  </span>
+                </li>
+              ))}
             </ul>
           </div>
         )}
@@ -210,7 +235,7 @@ export const TemplateGallery: React.FunctionComponent = () => {
 
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3">
             {shownTemplates.map((template, id) => (
-              <TemplateBox key={`${template.id}_${id}`} template={template} />
+              <d.TemplateBox key={`${template.id}_${id}`} template={template} isRecommended={isRecommended(template)} isPopular={isPopular(template)} />
             ))}
           </div>
 
@@ -228,6 +253,6 @@ export const TemplateGallery: React.FunctionComponent = () => {
           )}
         </div>
       </div>
-    </Layout>
+    </d.Layout>
   );
 };

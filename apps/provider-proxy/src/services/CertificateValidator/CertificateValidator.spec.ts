@@ -1,5 +1,6 @@
 import type { X509Certificate } from "crypto";
 import { setTimeout } from "timers/promises";
+import { describe, expect, it, vi } from "vitest";
 
 import { createX509CertPair } from "../../../test/seeders/createX509CertPair";
 import type { ProviderService } from "../ProviderService/ProviderService";
@@ -16,7 +17,7 @@ describe(CertificateValidator.name, () => {
       commonName: "akash1rk090a6mq9gvm0h6ljf8kz8mrxglwwxsk4srxh",
       serialNumber: "177831BE7F249E66"
     });
-    const getCertificate = jest.fn(() => Promise.resolve(null));
+    const getCertificate = vi.fn(() => Promise.resolve(null));
     const validator = setup({ getCertificate });
 
     const result = (await validator.validate(cert, "provider")) as CertValidationResultError;
@@ -33,7 +34,7 @@ describe(CertificateValidator.name, () => {
       commonName: "akash1rk090a6mq9gvm0h6ljf8kz8mrxglwwxsk4srxh",
       serialNumber: "177831BE7F249E66"
     });
-    const getCertificate = jest.fn(() =>
+    const getCertificate = vi.fn(() =>
       Promise.resolve(
         createX509CertPair({
           validFrom: new Date(),
@@ -65,7 +66,7 @@ describe(CertificateValidator.name, () => {
       commonName: "akash1rk090a6mq9gvm0h6ljf8kz8mrxglwwxsk4srxh",
       serialNumber: "177831BE7F249E11"
     });
-    const getCertificate = jest.fn().mockReturnValueOnce(Promise.resolve(cert)).mockReturnValueOnce(Promise.resolve(anotherCert)).mockReturnValue(null);
+    const getCertificate = vi.fn().mockReturnValueOnce(Promise.resolve(cert)).mockReturnValueOnce(Promise.resolve(anotherCert)).mockReturnValue(null);
     const validator = setup({ getCertificate });
 
     let result = await validator.validate(cert, "provider");
@@ -161,7 +162,7 @@ describe(CertificateValidator.name, () => {
       commonName: "akash1rk090a6mq9gvm0h6ljf8kz8mrxglwwxsk4srxh",
       serialNumber: "177831BE7F249E66"
     });
-    const getCertificate = jest.fn(() => setTimeout(20, cert));
+    const getCertificate = vi.fn(() => setTimeout(20, cert));
     const validator = setup({ getCertificate });
 
     const results = await Promise.all([
@@ -181,7 +182,7 @@ describe(CertificateValidator.name, () => {
     return new CertificateValidator(
       () => params?.now ?? Date.now(),
       {
-        getCertificate: params?.getCertificate || jest.fn()
+        getCertificate: params?.getCertificate || vi.fn()
       } as ProviderService,
       params?.instrumentation
     );

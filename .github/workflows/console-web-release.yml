@@ -1,65 +1,71 @@
-name: Release Deploy Web
+name: Deploy Console Web
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "apps/deploy-web/package.json"
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to deploy (e.g., latest, 1.0.0, v1.0.0)"
+        required: false
+        type: string
+      cancel-if-stale:
+        description: "Cancel this deployment if a newer version is already queued, running, or recently deployed"
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false # don't cancel deployments!
 
 jobs:
-  release:
-    name: Create Release
-    uses: ./.github/workflows/reusable-create-github-release.yml
-    secrets: inherit
+  setup:
+    uses: ./.github/workflows/reusable-deploy-setup.yml
     with:
-      app: deploy-web
-
-  build-beta:
-    needs: release
-    name: Build Beta Docker image
-    if: needs.release.outputs.git_tag != ''
-    uses: ./.github/workflows/reusable-build-image.yml
-    secrets: inherit
-    permissions:
-      contents: write
-      packages: write
-    with:
-      tag: ${{ needs.release.outputs.git_tag }}-beta
-      deployment-env: staging
+      app: console-web
+      image_tag: ${{ inputs.image_tag || github.ref_name }}
+      cancel-if-stale: ${{ inputs.cancel-if-stale == 'true' }}
 
   deploy-beta:
-    needs: build-beta
-    name: Deploy to beta sandbox
-    if: needs.build-beta.outputs.base_image_tag != ''
+    permissions:
+      contents: read
+      pull-requests: read
+      deployments: write
+    needs: setup
+    if: ${{ !needs.setup.outputs.skip }}
+    name: Deploy to beta
     uses: ./.github/workflows/reusable-deploy-k8s.yml
     secrets: inherit
     with:
       app: console-web
-      appVersion: ${{ needs.build-beta.outputs.base_image_tag }}
+      appVersion: ${{ needs.setup.outputs.image_tag }}
       environment: staging
 
   test-beta:
     runs-on: ubuntu-latest
-    needs: deploy-beta
+    needs:
+      - setup
+      - deploy-beta
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/console-web-ui-testing
         with:
+          ref: console-web/v${{ needs.setup.outputs.image_tag }}
           url: ${{ vars.CONSOLE_WEB_BETA_URL }}
           slack-webhook-url: ${{ secrets.FAILED_E2E_TESTS_SLACK_WEBHOOK_URL }}
           test-wallet-mnemonic: ${{ secrets.CONSOLE_WEB_E2E_TEST_WALLET_MNEMONIC }}
           gh-user-to-slack-user: ${{ vars.GH_USER_TO_SLACK_USER }}
           testing-client-token: ${{ secrets.CONSOLE_WEB_E2E_TESTING_CLIENT_TOKEN_BETA }}
 
-  build-prod:
-    needs: release
-    name: Build Prod Docker image
-    uses: ./.github/workflows/reusable-build-image.yml
-    secrets: inherit
+  deploy-prod:
     permissions:
-      contents: write
-      packages: write
+      contents: read
+      pull-requests: read
+      deployments: write
+    needs: [setup, test-beta]
+    name: Deploy to prod
+    uses: ./.github/workflows/reusable-deploy-k8s.yml
+    secrets: inherit
     with:
-      tag: ${{ needs.release.outputs.git_tag }}
-      deployment-env: production
+      app: console-web
+      appVersion: ${{ needs.setup.outputs.image_tag }}
+      environment: prod

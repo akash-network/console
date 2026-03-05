@@ -10,9 +10,12 @@ import { TransactionRow } from "@/components/blockchain/TransactionRow";
 import PageContainer from "@/components/PageContainer";
 import { Title } from "@/components/Title";
 import { networkId } from "@/config/env-config.schema";
+import { createLogger } from "@/lib/createLogger/createLogger";
 import { serverFetch } from "@/lib/serverFetch";
 import { serverApiUrlService } from "@/services/api-url/server-api-url.service";
 import type { BlockDetail } from "@/types";
+
+const logger = createLogger({ context: "BlockDetailPage" });
 
 const BlockDetailPageSchema = z.object({
   params: z.object({
@@ -30,13 +33,16 @@ export async function generateMetadata({ params: { height } }: BlockDetailPagePr
   };
 }
 
-async function fetchBlockData(height: string, network: Network["id"]): Promise<BlockDetail> {
+async function fetchBlockData(height: string, network: Network["id"]): Promise<BlockDetail | null> {
   const apiUrl = serverApiUrlService.getBaseApiUrlFor(network);
   const response = await serverFetch(`${apiUrl}/v1/blocks/${height}`);
 
-  if (!response.ok) {
-    // This will activate the closest `error.js` Error Boundary
-    throw new Error("Error fetching block data");
+  if (!response.ok && response.status !== 404) {
+    logger.error({ event: "BLOCK_FETCH_ERROR", height, network, status: response.status });
+    throw new Error(`Error fetching block data: ${height}`);
+  } else if (response.status === 404) {
+    logger.debug({ event: "BLOCK_NOT_FOUND", height, network });
+    return null;
   }
 
   return response.json();
@@ -48,6 +54,15 @@ export default async function BlockDetailPage(props: BlockDetailPageProps) {
     searchParams: { network }
   } = BlockDetailPageSchema.parse(props);
   const block = await fetchBlockData(height, network);
+
+  if (!block) {
+    return (
+      <PageContainer>
+        <Title className="mb-4">Details for Block #{height}</Title>
+        <div className="py-8 text-center text-muted-foreground">Block not found or not indexed yet. Please check the block height and try again.</div>
+      </PageContainer>
+    );
+  }
 
   return (
     <PageContainer>

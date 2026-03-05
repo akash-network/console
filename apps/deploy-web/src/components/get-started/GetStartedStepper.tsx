@@ -8,23 +8,19 @@ import StepContent from "@mui/material/StepContent";
 import StepLabel from "@mui/material/StepLabel";
 import Stepper from "@mui/material/Stepper";
 import { Check, HandCard, Rocket, WarningCircle, XmarkCircleSolid } from "iconoir-react";
-import { useAtom } from "jotai";
 import Link from "next/link";
 
 import { AddFundsLink } from "@src/components/user/AddFundsLink";
-import { ConnectManagedWalletButton } from "@src/components/wallet/ConnectManagedWalletButton";
 import { useWallet } from "@src/context/WalletProvider";
 import { useChainParam } from "@src/hooks/useChainParam/useChainParam";
-import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
-import walletStore from "@src/store/walletStore";
 import { RouteStep } from "@src/types/route-steps.type";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { uaktToAKT } from "@src/utils/priceUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import LiquidityModal from "../liquidity-modal";
 import { ExternalLink } from "../shared/ExternalLink";
-import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
+import { WalletConnectionButtons } from "../wallet/WalletConnectionButtons";
 import { QontoConnector, QontoStepIcon } from "./Stepper";
 
 export const GetStartedStepper: React.FunctionComponent = () => {
@@ -34,8 +30,6 @@ export const GetStartedStepper: React.FunctionComponent = () => {
   const { minDeposit } = useChainParam();
   const aktBalance = walletBalance ? uaktToAKT(walletBalance.balanceUAKT) : 0;
   const usdcBalance = walletBalance ? udenomToDenom(walletBalance.balanceUUSDC) : 0;
-  const [isSignedInWithTrial] = useAtom(walletStore.isSignedInWithTrial);
-  const { user } = useCustomUser();
 
   useEffect(() => {
     const getStartedStep = localStorage.getItem("getStartedStep");
@@ -141,16 +135,7 @@ export const GetStartedStepper: React.FunctionComponent = () => {
                 <span>Billing is not set up</span>
               </div>
 
-              <div className="flex items-center gap-2">
-                {!isSignedInWithTrial && <ConnectManagedWalletButton className="mr-2 w-full md:w-auto" />}
-                <ConnectWalletButton />
-
-                {isSignedInWithTrial && !user && (
-                  <Link className={cn(buttonVariants({ variant: "outline" }))} href={UrlService.newLogin()} passHref prefetch={false}>
-                    Sign in
-                  </Link>
-                )}
-              </div>
+              <WalletConnectionButtons className="gap-2" connectManagedWalletButtonClassName="mr-2 w-full md:w-auto" />
             </div>
           )}
 

@@ -1,21 +1,24 @@
 import { certificateManager, type NetworkId } from "@akashnetwork/chain-sdk/web";
+import type { HttpClientOptions } from "@akashnetwork/http-sdk";
 import {
   ApiKeyHttpService,
   AuthHttpService,
   createHttpClient,
   DeploymentSettingHttpService,
+  isHttpError,
   ManagedDeploymentHttpService,
+  StripeService as HttpStripeService,
   TemplateHttpService,
   TxHttpService,
   UsageHttpService,
   WalletSettingsHttpService
 } from "@akashnetwork/http-sdk";
-import { StripeService as HttpStripeService } from "@akashnetwork/http-sdk/src/stripe/stripe.service";
 import { LoggerService } from "@akashnetwork/logging";
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
-import type { Axios, AxiosInstance, AxiosResponse, CreateAxiosDefaults, InternalAxiosRequestConfig } from "axios";
+import type { Axios, AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from "axios";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
+import { UrlReturnToStack } from "@src/hooks/useReturnTo/UrlReturnToStack";
 import { AnalyticsService } from "@src/services/analytics/analytics.service";
 import networkStore from "@src/store/networkStore";
 import { registry } from "@src/utils/customRegistry";
@@ -30,7 +33,7 @@ import { StripeService } from "../stripe/stripe.service";
 import { UserTracker } from "../user-tracker/user-tracker.service";
 
 export const createAppRootContainer = (config: ServicesConfig) => {
-  const apiConfig = { baseURL: config.BASE_API_MAINNET_URL, adapter: "fetch" };
+  const apiConfig = { baseURL: config.BASE_API_MAINNET_URL, adapter: "fetch" as const };
   const container = createContainer({
     publicConfig: () => browserEnvConfig,
 
@@ -65,7 +68,17 @@ export const createAppRootContainer = (config: ServicesConfig) => {
       container.applyAxiosInterceptors(new TxHttpService(registry, apiConfig), {
         request: [withUserToken]
       }),
-    template: () => container.applyAxiosInterceptors(new TemplateHttpService(apiConfig)),
+    template: () => {
+      const httpClient = container.createAxios({
+        baseURL: container.publicConfig.NEXT_PUBLIC_BASE_TEMPLATES_URL
+      });
+      if (config.runtimeEnv === "browser") {
+        // Need to remove these extra headers to avoid CORS preflight requests
+        delete httpClient.defaults.headers["Content-Type"];
+        delete httpClient.defaults.headers.common.Accept;
+      }
+      return new TemplateHttpService(httpClient);
+    },
     usage: () =>
       container.applyAxiosInterceptors(new UsageHttpService(apiConfig), {
         request: [withUserToken]
@@ -118,15 +131,14 @@ export const createAppRootContainer = (config: ServicesConfig) => {
     },
     createAxios:
       () =>
-      (options?: CreateAxiosDefaults): AxiosInstance =>
-        createHttpClient({ adapter: "fetch", ...options }),
+      (options?: HttpClientOptions): AxiosInstance =>
+        createHttpClient(options),
     certificateManager: () => certificateManager,
     analyticsService: () =>
       new AnalyticsService({
         amplitude: {
           enabled: container.publicConfig.NEXT_PUBLIC_AMPLITUDE_ENABLED,
           apiKey: container.publicConfig.NEXT_PUBLIC_AMPLITUDE_API_KEY,
-          samplingRate: container.publicConfig.NEXT_PUBLIC_AMPLITUDE_SAMPLING,
           serverUrl: container.publicConfig.NEXT_PUBLIC_AMPLITUDE_PROXY_URL
         },
         ga: {
@@ -158,6 +170,13 @@ export const createAppRootContainer = (config: ServicesConfig) => {
       ),
     queryClient: () =>
       new QueryClient({
+        defaultOptions: {
+          queries: {
+            retry(failureCount, error) {
+              return isHttpError(error) && !!error.response && error.response.status >= 500 && failureCount < 3;
+            }
+          }
+        },
         queryCache: new QueryCache({
           onError: error => container.errorHandler.reportError({ error })
         }),
@@ -177,6 +196,7 @@ export const createAppRootContainer = (config: ServicesConfig) => {
         }
       }),
     urlService: () => UrlService,
+    urlReturnToStack: () => UrlReturnToStack,
     userTracker: () => new UserTracker()
   });
 

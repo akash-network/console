@@ -1,10 +1,11 @@
 import type { Provider, ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash";
-import { format, subHours } from "date-fns";
+import { subHours } from "date-fns";
 import { container } from "tsyringe";
 
 import { app, initDb } from "@src/rest-app";
 
 import { createAkashBlock, createDay, createProvider, createProviderSnapshot } from "@test/seeders";
+import { formatUTCDate } from "@test/utils";
 
 describe("Network Capacity", () => {
   let providers: Provider[];
@@ -18,19 +19,19 @@ describe("Network Capacity", () => {
 
     await Promise.all([
       createDay({
-        date: format(twoDaysAgo, "yyyy-MM-dd"),
+        date: formatUTCDate(twoDaysAgo),
         firstBlockHeight: 1,
         lastBlockHeight: 100,
         lastBlockHeightYet: 100
       }),
       createDay({
-        date: format(yesterday, "yyyy-MM-dd"),
+        date: formatUTCDate(yesterday),
         firstBlockHeight: 101,
         lastBlockHeight: 200,
         lastBlockHeightYet: 200
       }),
       createDay({
-        date: format(now, "yyyy-MM-dd"),
+        date: formatUTCDate(now),
         firstBlockHeight: 201,
         lastBlockHeight: 300,
         lastBlockHeightYet: 300
@@ -205,28 +206,16 @@ describe("Network Capacity", () => {
       expect(response.status).toBe(200);
       expect(data).toEqual({
         activeProviderCount: 2,
-        activeCPU: 902,
-        pendingCPU: 912,
-        availableCPU: 922,
-        activeGPU: 904,
-        pendingGPU: 914,
-        availableGPU: 924,
-        activeMemory: 906,
-        pendingMemory: 916,
-        availableMemory: 926,
-        activeStorage: 1818,
-        pendingStorage: 1838,
-        availableStorage: 1858,
-        activeEphemeralStorage: 910,
-        pendingEphemeralStorage: 920,
-        availableEphemeralStorage: 930,
-        activePersistentStorage: 908,
-        pendingPersistentStorage: 918,
-        availablePersistentStorage: 928,
-        totalCPU: 2736,
-        totalGPU: 2742,
-        totalMemory: 2748,
-        totalStorage: 5514
+        resources: {
+          cpu: { active: 902, pending: 912, available: 922, total: 2736 },
+          gpu: { active: 904, pending: 914, available: 924, total: 2742 },
+          memory: { active: 906, pending: 916, available: 926, total: 2748 },
+          storage: {
+            ephemeral: { active: 910, pending: 920, available: 930, total: 2760 },
+            persistent: { active: 908, pending: 918, available: 928, total: 2754 },
+            total: { active: 1818, pending: 1838, available: 1858, total: 5514 }
+          }
+        }
       });
     });
   });

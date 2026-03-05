@@ -23,7 +23,8 @@ export const CHAIN_API_HTTP_CLIENT: InjectionToken<HttpClient> = Symbol("CHAIN_A
 container.register(CHAIN_API_HTTP_CLIENT, {
   useFactory: instancePerContainerCachingFactory(c =>
     createHttpClient({
-      baseURL: c.resolve(CoreConfigService).get("REST_API_NODE_URL")
+      baseURL: c.resolve(CoreConfigService).get("REST_API_NODE_URL"),
+      adapter: "http"
     })
   )
 });
@@ -48,10 +49,10 @@ NON_AXIOS_SERVICES.forEach(Service =>
 
 container.register(GitHubHttpService, { useValue: new GitHubHttpService({ baseURL: "https://raw.githubusercontent.com" }) });
 container.register(CoinGeckoHttpService, {
-  useFactory: instancePerContainerCachingFactory(() => new CoinGeckoHttpService(createHttpClient({ baseURL: "https://api.coingecko.com" })))
+  useFactory: instancePerContainerCachingFactory(() => new CoinGeckoHttpService(createHttpClient({ baseURL: "https://api.coingecko.com", adapter: "http" })))
 });
 container.register(NodeHttpService, {
   useFactory: instancePerContainerCachingFactory(
-    c => new NodeHttpService(createHttpClient({ baseURL: c.resolve(CoreConfigService).get("NODE_API_BASE_PATH") }))
+    c => new NodeHttpService(createHttpClient({ baseURL: c.resolve(CoreConfigService).get("NODE_API_BASE_PATH"), adapter: "http" }))
   )
 });

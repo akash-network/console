@@ -1,3 +1,4 @@
+import { LRUCache } from "lru-cache";
 import { singleton } from "tsyringe";
 
 import { BalancesService } from "@src/billing/services/balances/balances.service";
@@ -20,7 +21,7 @@ export class CachedBalance {
 
 @singleton()
 export class CachedBalanceService {
-  private readonly balanceCache = new Map<string, CachedBalance>();
+  private readonly balanceCache = new LRUCache<string, CachedBalance>({ max: 10000 });
 
   constructor(private readonly balancesService: BalancesService) {}
 

@@ -1,9 +1,11 @@
+import type { TypedResponse } from "hono";
 import { container } from "tsyringe";
 
 import { createRoute } from "@src/core/lib/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 import { ProviderController } from "@src/provider/controllers/provider/provider.controller";
+import type { ProviderListResponse } from "@src/provider/http-schemas/provider.schema";
 import {
   ProviderActiveLeasesGraphDataParamsSchema,
   ProviderActiveLeasesGraphDataResponseSchema,
@@ -21,6 +23,7 @@ const providerListRoute = createRoute({
   summary: "Get a list of providers.",
   tags: ["Providers"],
   security: SECURITY_NONE,
+  cache: { maxAge: 60, staleWhileRevalidate: 120 },
   request: {
     query: ProviderListQuerySchema
   },
@@ -35,11 +38,16 @@ const providerListRoute = createRoute({
     }
   }
 });
+
 providersRouter.openapi(providerListRoute, async function routeListProviders(c) {
   const { scope } = c.req.valid("query");
-  const providers = await container.resolve(ProviderController).getProviderList(scope);
+  const controller = container.resolve(ProviderController);
 
-  return c.json(providers);
+  const buffer = await controller.getProviderListBuffer(scope);
+  return new Response(buffer, {
+    status: 200,
+    headers: { "Content-Type": "application/json" }
+  }) as unknown as TypedResponse<ProviderListResponse, 200, "json">;
 });
 
 const providerRoute = createRoute({
@@ -48,6 +56,7 @@ const providerRoute = createRoute({
   summary: "Get a provider details.",
   tags: ["Providers"],
   security: SECURITY_NONE,
+  cache: { maxAge: 60, staleWhileRevalidate: 120 },
   request: {
     params: ProviderParamsSchema
   },
@@ -88,6 +97,7 @@ const activeLeasesGraphDataRoute = createRoute({
   path: "/v1/providers/{providerAddress}/active-leases-graph-data",
   tags: ["Analytics", "Providers"],
   security: SECURITY_NONE,
+  cache: { maxAge: 60, staleWhileRevalidate: 120 },
   request: {
     params: ProviderActiveLeasesGraphDataParamsSchema
   },

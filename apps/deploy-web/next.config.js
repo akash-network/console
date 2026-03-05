@@ -22,23 +22,9 @@ const withPWA = require("next-pwa")({
 });
 const { withSentryConfig } = require("@sentry/nextjs");
 const path = require("path");
-
-let browserEnv;
-try {
-  const { browserEnvSchema } = require("./env-config.schema");
-
-  browserEnv = browserEnvSchema.parse(process.env);
-} catch (error) {
-  if (error.message.includes("Cannot find module")) {
-    console.warn("No env-config.schema.js found, skipping env validation");
-  }
-}
+const CopyPlugin = require("copy-webpack-plugin");
 
 const transpilePackages = ["geist", "@akashnetwork/ui", "@auth0/nextjs-auth0"];
-
-if (process.env.NODE_ENV === "test") {
-  transpilePackages.push("nanoid", "uint8arrays", "multiformats", "@marsidev/react-turnstile", "@panva/hkdf", "jose");
-}
 
 /**
  * @type {import('next').NextConfig}
@@ -84,10 +70,35 @@ const nextConfig = {
     });
     config.externals.push("pino-pretty");
 
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      // Stub prettier to reduce bundle size (used by monaco-yaml for formatting, which we disable)
+      "prettier/standalone": false,
+      "prettier/plugins/yaml": false,
+      prettier: false
+    };
+
     if (options.isServer) {
       // see ./src/lib/auth0/setSession/setSession.ts for more details
       config.resolve.alias["@auth0/nextjs-auth0/session"] = path.join(require.resolve("@auth0/nextjs-auth0"), "..", "session", "index.js");
       config.resolve.alias["@auth0/nextjs-auth0/update-session"] = path.join(require.resolve("@auth0/nextjs-auth0"), "..", "session", "update-session.js");
+    } else {
+      config.plugins.push(
+        new CopyPlugin({
+          patterns: [
+            {
+              from: path.join(require.resolve("@akashnetwork/chain-sdk"), "..", "..", "sdl-schema.yaml"),
+              to: "../public/sdl-schema.yaml"
+            }
+          ]
+        })
+      );
+    }
+
+    if (process.env.ANALYZE === "true") {
+      // More readable in bundle analyzer
+      config.optimization.moduleIds = "named";
+      config.optimization.chunkIds = "named";
     }
 
     return config;
@@ -170,16 +181,7 @@ const nextConfig = {
         permanent: false
       }
     ];
-  },
-  rewrites: async () =>
-    browserEnv.NEXT_PUBLIC_AMPLITUDE_PROXY_URL
-      ? [
-          {
-            source: browserEnv.NEXT_PUBLIC_AMPLITUDE_PROXY_URL,
-            destination: "https://api2.amplitude.com/2/httpapi"
-          }
-        ]
-      : []
+  }
 };
 
 const REPOSITORY_URL = new URL(repository.url);

@@ -3,6 +3,7 @@ import type { SupportedChainNetworks } from "@akashnetwork/net";
 import { Secp256k1HdWallet } from "@cosmjs/amino";
 import { setTimeout as wait } from "timers/promises";
 import type { TLSSocket } from "tls";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createX509CertPair } from "../seeders/createX509CertPair";
 import { generateBech32, startChainApiServer, stopChainAPIServer } from "../setup/chainApiServer";
@@ -16,6 +17,29 @@ describe("Provider HTTP proxy", () => {
 
   afterEach(async () => {
     await Promise.all([stopServer(), stopProviderServer(), stopChainAPIServer()]);
+  });
+
+  it("exposes /status endpoint", async () => {
+    const providerAddress = generateBech32();
+    const validCertPair = createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
+    const chainServer = await startChainApiServer([validCertPair.cert]);
+
+    await startServer({ REST_API_NODE_URL: chainServer.url });
+
+    const response = await request("/status");
+    expect(response.status).toBe(200);
+
+    const body = await response.json();
+    expect(body).toEqual({
+      eventStreaming: expect.any(String),
+      logDownload: expect.any(String),
+      logStreaming: expect.any(String),
+      openClientWebSocketCount: expect.any(Number),
+      shell: expect.any(String),
+      totalRequestCount: expect.any(Number),
+      totalTransferred: expect.any(String),
+      version: "0.0.0-local"
+    });
   });
 
   it("proxies request if provider uses self-signed certificate which is available on chain", async () => {
@@ -529,7 +553,7 @@ describe("Provider HTTP proxy", () => {
     const chainServer = await startChainApiServer([validCertPair.cert]);
 
     const providerStreamingBegun = Promise.withResolvers<void>();
-    const providerResponseEnded = jest.fn();
+    const providerResponseEnded = vi.fn();
     const { providerUrl } = await startProviderServer({
       certPair: validCertPair,
       handlers: {

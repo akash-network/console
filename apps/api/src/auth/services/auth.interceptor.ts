@@ -1,13 +1,14 @@
-import { LoggerService } from "@akashnetwork/logging";
+import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { secondsInMinute } from "date-fns";
 import { Context, Next } from "hono";
-import { Unauthorized } from "http-errors";
+import { BadRequest, Unauthorized } from "http-errors";
 import { LRUCache } from "lru-cache";
 import { singleton } from "tsyringe";
 
 import { AbilityService } from "@src/auth/services/ability/ability.service";
 import { AuthService } from "@src/auth/services/auth.service";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import { withSpan } from "@src/core/services/tracing/tracing.service";
 import type { HonoInterceptor } from "@src/core/types/hono-interceptor.type";
 import { UserOutput, UserRepository } from "@src/user/repositories";
 import { ApiKeyOutput, ApiKeyRepository } from "../repositories/api-key/api-key.repository";
@@ -18,7 +19,7 @@ const LAST_USER_ACTIVITY_THROTTLE_TIME_SECONDS = 30 * secondsInMinute;
 
 @singleton()
 export class AuthInterceptor implements HonoInterceptor {
-  private readonly logger = LoggerService.forContext(AuthInterceptor.name);
+  private readonly logger = createOtelLogger({ context: AuthInterceptor.name });
   private readonly lastUserActivityCache = new LRUCache<string, Date>({
     max: 1e5,
     ttl: LAST_USER_ACTIVITY_THROTTLE_TIME_SECONDS * 1000,
@@ -37,36 +38,48 @@ export class AuthInterceptor implements HonoInterceptor {
 
   intercept() {
     return async (c: Context, next: Next) => {
-      const bearer = c.req.header("authorization");
+      return withSpan("AuthInterceptor.intercept", async () => {
+        const bearer = c.req.header("authorization");
+        const apiKey = c.req.header("x-api-key");
 
-      const userId = bearer && (await this.userAuthService.getValidUserId(bearer, c.env));
-
-      if (userId) {
-        const currentUser = await this.userRepository.findByUserId(userId);
-        await this.auth(currentUser);
-        c.set("user", currentUser);
-        return await next();
-      }
-
-      const apiKey = c.req.header("x-api-key");
-
-      if (apiKey) {
-        try {
-          const apiKeyOutput = await this.apiKeyAuthService.getAndValidateApiKeyFromHeader(apiKey);
-          const currentUser = await this.userRepository.findById(apiKeyOutput.userId);
-
-          await Promise.all([currentUser ? this.markApiKeyAsUsed(apiKeyOutput) : null, this.auth(currentUser)]);
-          c.set("user", currentUser);
-
-          return await next();
-        } catch (error) {
-          this.logger.error(error);
-          throw new Unauthorized("Invalid API key");
+        if (bearer && apiKey) {
+          throw new BadRequest("Authorization and X-Api-Key headers are mutually exclusive");
         }
-      }
 
-      this.authService.ability = this.abilityService.EMPTY_ABILITY;
-      return await next();
+        let userId: string | null | undefined;
+        if (bearer) {
+          try {
+            userId = await this.userAuthService.getValidUserId(bearer, c.env);
+          } catch (error) {
+            this.logger.warn({ event: "AUTH_TOKEN_VALIDATION_FAILED", error });
+          }
+        }
+
+        if (userId) {
+          const currentUser = await this.userRepository.findByUserId(userId);
+          await this.auth(currentUser);
+          c.set("user", currentUser);
+          return await next();
+        }
+
+        if (apiKey) {
+          try {
+            const apiKeyOutput = await this.apiKeyAuthService.getAndValidateApiKeyFromHeader(apiKey);
+            const currentUser = await this.userRepository.findById(apiKeyOutput.userId);
+
+            await Promise.all([currentUser ? this.markApiKeyAsUsed(apiKeyOutput) : null, this.auth(currentUser)]);
+            c.set("user", currentUser);
+
+            return await next();
+          } catch (error) {
+            this.logger.error(error);
+            throw new Unauthorized("Invalid API key");
+          }
+        }
+
+        this.authService.ability = this.abilityService.EMPTY_ABILITY;
+        return await next();
+      });
     };
   }
 

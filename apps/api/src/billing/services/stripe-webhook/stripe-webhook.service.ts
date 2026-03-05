@@ -1,8 +1,9 @@
-import { LoggerService } from "@akashnetwork/logging";
+import { createOtelLogger } from "@akashnetwork/logging/otel";
+import assert from "http-assert";
 import Stripe from "stripe";
 import { singleton } from "tsyringe";
 
-import { PaymentMethodRepository, StripeTransactionRepository } from "@src/billing/repositories";
+import { PaymentMethodRepository, type StripeTransactionOutput, StripeTransactionRepository } from "@src/billing/repositories";
 import { assertIsPayingUser } from "@src/billing/services/paying-user/paying-user";
 import { RefillService } from "@src/billing/services/refill/refill.service";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
@@ -12,7 +13,7 @@ import { BillingConfigService } from "../billing-config/billing-config.service";
 
 @singleton()
 export class StripeWebhookService {
-  private readonly logger = LoggerService.forContext(StripeWebhookService.name);
+  private readonly logger = createOtelLogger({ context: StripeWebhookService.name });
 
   constructor(
     private readonly stripe: StripeService,
@@ -36,6 +37,9 @@ export class StripeWebhookService {
       switch (event.type) {
         case "payment_intent.succeeded":
           await this.tryToTopUpWalletFromPaymentIntent(event);
+          break;
+        case "invoice.payment_succeeded":
+          await this.tryToTopUpWalletFromInvoice(event);
           break;
         case "payment_intent.payment_failed":
           await this.handlePaymentIntentFailed(event);
@@ -64,70 +68,187 @@ export class StripeWebhookService {
     }
   }
 
-  @WithTransaction()
+  async tryToTopUpWalletFromInvoice(event: Stripe.InvoicePaymentSucceededEvent) {
+    const invoice = event.data.object;
+    const customerId = typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id ?? null;
+
+    const transaction = await this.stripeTransactionRepository.findByInvoiceId(invoice.id);
+    if (!transaction) {
+      this.logger.info({
+        event: "INVOICE_NO_MATCHING_TRANSACTION",
+        invoiceId: invoice.id
+      });
+      return;
+    }
+
+    const payment = invoice.payments?.data[0]?.payment;
+    const chargeId = payment?.charge ? (typeof payment.charge === "string" ? payment.charge : payment.charge.id) : undefined;
+    const stripePaymentIntentId = payment?.payment_intent
+      ? typeof payment.payment_intent === "string"
+        ? payment.payment_intent
+        : payment.payment_intent.id
+      : undefined;
+    const endTrial = transaction.type !== "coupon_claim";
+
+    await this.topUpWalletFromTransaction({
+      customerId,
+      transaction,
+      chargeId,
+      paymentMethodType: undefined,
+      paymentAmount: transaction.amount,
+      stripePaymentIntentId,
+      eventDescription: `invoice ${invoice.id}`,
+      endTrial
+    });
+  }
+
   async tryToTopUpWalletFromPaymentIntent(event: Stripe.PaymentIntentSucceededEvent) {
     const paymentIntent = event.data.object;
     const customerId = paymentIntent.customer as string;
 
-    if (!customerId) {
-      this.logger.error({
-        event: "PAYMENT_INTENT_MISSING_CUSTOMER_ID",
+    if (paymentIntent.metadata.type === "payment_method_validation") {
+      this.logger.info({
+        event: "SKIP_PAYMENT_METHOD_VALIDATION_PROCESSING",
         paymentIntentId: paymentIntent.id
       });
       return;
     }
 
-    const user = await this.userRepository.findOneBy({ stripeCustomerId: customerId });
-    if (!user) {
-      this.logger.error({
-        event: "USER_NOT_FOUND",
-        customerId,
-        paymentIntentId: paymentIntent.id
-      });
-      return;
-    }
+    const transaction = paymentIntent.metadata.internal_transaction_id
+      ? await this.stripeTransactionRepository.findById(paymentIntent.metadata.internal_transaction_id)
+      : await this.stripeTransactionRepository.findByPaymentIntentId(paymentIntent.id);
 
-    // Update transaction status with charge details
+    assert(transaction, 500, "Failed to find existing transaction for payment intent", {
+      paymentIntentId: paymentIntent.id,
+      stripeTransactionId: paymentIntent.metadata.internal_transaction_id
+    });
+
     const chargeId = paymentIntent.latest_charge
       ? typeof paymentIntent.latest_charge === "string"
         ? paymentIntent.latest_charge
         : paymentIntent.latest_charge.id
       : undefined;
 
-    const paymentMethodDetails = paymentIntent.payment_method_types?.[0];
+    const paymentAmount = paymentIntent.amount_received ?? paymentIntent.amount;
 
-    // Fetch charge details to get card info and receipt URL
+    await this.topUpWalletFromTransaction({
+      customerId,
+      transaction,
+      chargeId,
+      paymentMethodType: paymentIntent.payment_method_types?.[0],
+      paymentAmount,
+      stripePaymentIntentId: paymentIntent.id,
+      eventDescription: `payment_intent ${paymentIntent.id}`
+    });
+  }
+
+  private async topUpWalletFromTransaction(params: {
+    customerId: string | null;
+    transaction: StripeTransactionOutput;
+    chargeId: string | undefined;
+    paymentMethodType: string | undefined;
+    paymentAmount: number;
+    stripePaymentIntentId: string | undefined;
+    eventDescription: string;
+    endTrial?: boolean;
+  }): Promise<void> {
+    if (!params.customerId) {
+      this.logger.error({
+        event: "PAYMENT_MISSING_CUSTOMER_ID",
+        description: params.eventDescription
+      });
+      return;
+    }
+
+    const user = await this.userRepository.findOneBy({ stripeCustomerId: params.customerId });
+    if (!user) {
+      this.logger.error({
+        event: "USER_NOT_FOUND",
+        customerId: params.customerId,
+        description: params.eventDescription
+      });
+      return;
+    }
+
     let cardBrand: string | undefined;
     let cardLast4: string | undefined;
     let receiptUrl: string | undefined;
 
-    if (chargeId) {
+    if (params.chargeId) {
       try {
-        const charge = await this.stripe.charges.retrieve(chargeId);
+        const charge = await this.stripe.charges.retrieve(params.chargeId);
         cardBrand = charge.payment_method_details?.card?.brand ?? undefined;
         cardLast4 = charge.payment_method_details?.card?.last4 ?? undefined;
         receiptUrl = charge.receipt_url ?? undefined;
       } catch (error) {
         this.logger.warn({
           event: "CHARGE_DETAILS_FETCH_FAILED",
-          chargeId,
+          chargeId: params.chargeId,
           error
         });
       }
     }
 
-    await this.stripeTransactionRepository.updateStatusByPaymentIntentId(paymentIntent.id, {
-      status: "succeeded",
-      stripeChargeId: chargeId,
-      paymentMethodType: paymentMethodDetails,
+    await this.updateTransactionAndTopUp({
+      transactionId: params.transaction.id,
+      chargeId: params.chargeId,
+      paymentMethodType: params.paymentMethodType,
       cardBrand,
       cardLast4,
-      receiptUrl
+      receiptUrl,
+      stripePaymentIntentId: params.stripePaymentIntentId,
+      paymentAmount: params.paymentAmount,
+      userId: user.id,
+      eventDescription: params.eventDescription,
+      endTrial: params.endTrial
+    });
+  }
+
+  @WithTransaction()
+  private async updateTransactionAndTopUp(params: {
+    transactionId: string;
+    chargeId: string | undefined;
+    paymentMethodType: string | undefined;
+    cardBrand: string | undefined;
+    cardLast4: string | undefined;
+    receiptUrl: string | undefined;
+    stripePaymentIntentId: string | undefined;
+    paymentAmount: number;
+    userId: string;
+    eventDescription: string;
+    endTrial?: boolean;
+  }): Promise<void> {
+    const transaction = await this.stripeTransactionRepository.findOneByAndLock({ id: params.transactionId });
+
+    if (!transaction) {
+      this.logger.warn({
+        event: "TRANSACTION_NOT_FOUND_FOR_UPDATE",
+        transactionId: params.transactionId,
+        description: params.eventDescription
+      });
+      return;
+    }
+
+    if (transaction.status === "succeeded") {
+      this.logger.info({
+        event: "PAYMENT_ALREADY_PROCESSED",
+        transactionId: params.transactionId,
+        description: params.eventDescription
+      });
+      return;
+    }
+
+    await this.stripeTransactionRepository.updateById(params.transactionId, {
+      status: "succeeded",
+      stripeChargeId: params.chargeId,
+      paymentMethodType: params.paymentMethodType,
+      cardBrand: params.cardBrand,
+      cardLast4: params.cardLast4,
+      receiptUrl: params.receiptUrl,
+      stripePaymentIntentId: params.stripePaymentIntentId
     });
 
-    // Use amount_received when available (for partial captures), otherwise use amount
-    const paymentAmount = paymentIntent.amount_received ?? paymentIntent.amount;
-    await this.refillService.topUpWallet(paymentAmount, user.id);
+    await this.refillService.topUpWallet(params.paymentAmount, params.userId, { endTrial: params.endTrial });
   }
 
   @WithTransaction()
@@ -135,7 +256,7 @@ export class StripeWebhookService {
     const paymentIntent = event.data.object;
     const errorMessage = paymentIntent.last_payment_error?.message ?? "Payment failed";
 
-    await this.stripeTransactionRepository.updateStatusByPaymentIntentId(paymentIntent.id, {
+    await this.stripeTransactionRepository.updateByPaymentIntentId(paymentIntent.id, {
       status: "failed",
       errorMessage
     });
@@ -151,7 +272,7 @@ export class StripeWebhookService {
   async handlePaymentIntentCanceled(event: Stripe.PaymentIntentCanceledEvent) {
     const paymentIntent = event.data.object;
 
-    await this.stripeTransactionRepository.updateStatusByPaymentIntentId(paymentIntent.id, {
+    await this.stripeTransactionRepository.updateByPaymentIntentId(paymentIntent.id, {
       status: "canceled"
     });
 
@@ -171,12 +292,6 @@ export class StripeWebhookService {
       return;
     }
 
-    const refundedAmount = this.calculateRefundDelta(event);
-    if (refundedAmount <= 0) {
-      this.logger.warn({ event: "CHARGE_REFUNDED_NO_DELTA", chargeId: charge.id, totalRefunded: charge.amount_refunded });
-      return;
-    }
-
     const user = await this.userRepository.findOneBy({ stripeCustomerId: customerId });
     if (!user) {
       this.logger.error({ event: "CHARGE_REFUNDED_USER_NOT_FOUND", customerId, chargeId: charge.id });
@@ -190,8 +305,28 @@ export class StripeWebhookService {
       return;
     }
 
+    // Idempotency check: if we've already processed up to this refund amount, skip
+    if (transaction.amountRefunded >= charge.amount_refunded) {
+      this.logger.info({
+        event: "CHARGE_REFUND_ALREADY_PROCESSED",
+        chargeId: charge.id,
+        transactionId: transaction.id,
+        storedAmountRefunded: transaction.amountRefunded,
+        incomingAmountRefunded: charge.amount_refunded
+      });
+      return;
+    }
+
+    // Calculate delta based on what we've already processed, not previous_attributes
+    // This handles both retries and partial refunds correctly
+    const refundedAmount = charge.amount_refunded - transaction.amountRefunded;
+    if (refundedAmount <= 0) {
+      this.logger.warn({ event: "CHARGE_REFUNDED_NO_DELTA", chargeId: charge.id, totalRefunded: charge.amount_refunded });
+      return;
+    }
+
     // Only reduce wallet balance if the transaction was successful (user actually received credits)
-    if (transaction.status !== "succeeded") {
+    if (transaction.status !== "succeeded" && transaction.status !== "refunded") {
       this.logger.info({
         event: "CHARGE_REFUNDED_SKIPPED",
         chargeId: charge.id,
@@ -204,9 +339,11 @@ export class StripeWebhookService {
 
     const isFullyRefunded = charge.refunded;
 
-    if (isFullyRefunded) {
-      await this.stripeTransactionRepository.updateById(transaction.id, { status: "refunded" });
-    }
+    // Update transaction with new refund amount and status
+    await this.stripeTransactionRepository.updateById(transaction.id, {
+      amountRefunded: charge.amount_refunded,
+      ...(isFullyRefunded ? { status: "refunded" } : {})
+    });
 
     await this.refillService.reduceWalletBalance(refundedAmount, user.id);
 
@@ -216,20 +353,10 @@ export class StripeWebhookService {
       userId: user.id,
       refundedAmount,
       totalRefunded: charge.amount_refunded,
+      previouslyRefunded: transaction.amountRefunded,
       isFullyRefunded,
       transactionId: transaction.id
     });
-  }
-
-  /**
-   * Calculate the refund delta from a charge.refunded event.
-   * Uses previous_attributes to get the delta, not the cumulative amount_refunded.
-   */
-  private calculateRefundDelta(event: Stripe.ChargeRefundedEvent): number {
-    const charge = event.data.object;
-    const previousAttributes = event.data.previous_attributes as { amount_refunded?: number } | undefined;
-    const previousAmountRefunded = previousAttributes?.amount_refunded ?? 0;
-    return charge.amount_refunded - previousAmountRefunded;
   }
 
   @WithTransaction()
@@ -255,35 +382,46 @@ export class StripeWebhookService {
       return;
     }
 
-    const fingerprint = paymentMethod.card?.fingerprint;
+    assertIsPayingUser(user);
+
+    const fingerprint = this.stripe.extractFingerprint(paymentMethod);
     if (!fingerprint) {
       this.logger.error({
         event: "PAYMENT_METHOD_MISSING_FINGERPRINT",
-        paymentMethodId: paymentMethod.id
+        paymentMethodId: paymentMethod.id,
+        type: paymentMethod.type
       });
       return;
     }
 
-    const count = await this.paymentMethodRepository.countByUserId(user.id);
-    const isDefault = count === 0;
+    // Use upsert for idempotency - handles Stripe webhook retries gracefully
+    const { paymentMethod: localPaymentMethod, isNew } = await this.paymentMethodRepository.upsert({
+      userId: user.id,
+      fingerprint,
+      paymentMethodId: paymentMethod.id
+    });
 
-    assertIsPayingUser(user);
-
-    await Promise.all([
-      this.paymentMethodRepository.create({
-        userId: user.id,
-        fingerprint,
-        paymentMethodId: paymentMethod.id,
-        isDefault
-      }),
-      ...(isDefault ? [this.stripe.markRemotePaymentMethodAsDefault(paymentMethod.id, user)] : [])
-    ]);
+    // Only set as default on Stripe if newly created AND is the first payment method (default)
+    if (isNew && localPaymentMethod.isDefault) {
+      try {
+        await this.stripe.markRemotePaymentMethodAsDefault(paymentMethod.id, user);
+      } catch (error) {
+        // Log but don't fail - local record exists, Stripe sync can be retried manually if needed
+        this.logger.warn({
+          event: "STRIPE_DEFAULT_PAYMENT_METHOD_SYNC_FAILED",
+          paymentMethodId: paymentMethod.id,
+          userId: user.id,
+          error
+        });
+      }
+    }
 
     this.logger.info({
       event: "PAYMENT_METHOD_ATTACHED",
       paymentMethodId: paymentMethod.id,
       userId: user.id,
-      isDefault
+      isDefault: localPaymentMethod.isDefault,
+      wasAlreadyProcessed: !isNew
     });
   }
 
@@ -291,7 +429,7 @@ export class StripeWebhookService {
   async handlePaymentMethodDetached(event: Stripe.PaymentMethodDetachedEvent) {
     const paymentMethod = event.data.object;
     const customerId = paymentMethod.customer || event.data.previous_attributes?.customer;
-    const fingerprint = paymentMethod.card?.fingerprint;
+    const fingerprint = this.stripe.extractFingerprint(paymentMethod);
 
     this.logger.info({
       event: "PAYMENT_METHOD_DETACHED",
@@ -303,7 +441,8 @@ export class StripeWebhookService {
     if (!fingerprint) {
       this.logger.warn({
         event: "PAYMENT_METHOD_DETACHED_NO_FINGERPRINT",
-        paymentMethodId: paymentMethod.id
+        paymentMethodId: paymentMethod.id,
+        type: paymentMethod.type
       });
       return;
     }

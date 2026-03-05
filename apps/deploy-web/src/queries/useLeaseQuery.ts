@@ -97,7 +97,8 @@ export function useLeaseStatus(
 
       return response.data;
     },
-    ...options
+    ...options,
+    enabled: options.enabled !== false && providerCredentials.details.usable
   });
 }
 export const USE_LEASE_STATUS_DEPENDENCIES = {

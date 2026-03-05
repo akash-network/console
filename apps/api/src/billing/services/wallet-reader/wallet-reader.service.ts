@@ -3,6 +3,7 @@ import { Lifecycle, scoped } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
 import { UserWalletOutput, UserWalletPublicOutput, UserWalletRepository } from "@src/billing/repositories";
+import { Trace } from "@src/core/services/tracing/tracing.service";
 
 export interface GetWalletOptions {
   userId: string;
@@ -25,6 +26,7 @@ export class WalletReaderService {
 
   async getWalletByUserId(userId: string): Promise<WalletInitialized>;
   async getWalletByUserId(userId: string, options: { isInitialised: true }): Promise<UserWalletOutput>;
+  @Trace()
   async getWalletByUserId(userId: string, options?: { isInitialised: boolean }): Promise<UserWalletOutput | WalletInitialized> {
     const { ability } = this.authService;
 

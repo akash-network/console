@@ -5,7 +5,7 @@ import { once } from "lodash";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 import type { Session } from "@src/lib/auth0";
-import { AccessTokenError, AccessTokenErrorCode, getSession } from "@src/lib/auth0";
+import { AccessTokenError, AccessTokenErrorCode, CallbackHandlerError, MissingStateCookieError } from "@src/lib/auth0";
 import { handleAuth, handleCallback, handleLogin, handleLogout } from "@src/lib/auth0";
 import { defineApiHandler } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
 import type { AppServices } from "@src/services/app-di-container/server-di-container.service";
@@ -22,13 +22,12 @@ export default defineApiHandler({
 const authHandler = once((services: AppServices) =>
   handleAuth({
     async login(req: NextApiRequest, res: NextApiResponse) {
-      const returnUrl = decodeURIComponent((req.query.from as string) ?? "/");
       if (services.privateConfig.AUTH0_LOCAL_ENABLED && services.privateConfig.AUTH0_REDIRECT_BASE_URL) {
         rewriteLocalRedirect(res, services.privateConfig);
       }
 
       await handleLogin(req, res, {
-        returnTo: returnUrl,
+        returnTo: req.url ? services.urlReturnToStack.getReturnTo(req.url) : undefined,
         // Reduce the scope to minimize session data
         authorizationParams: {
           scope: "openid profile email offline_access",
@@ -51,6 +50,14 @@ const authHandler = once((services: AppServices) =>
           }
         });
       } catch (error) {
+        if (isMissingStateCookieError(error)) {
+          services.logger.warn({ event: "AUTH_CALLBACK_MISSING_STATE_COOKIE" });
+          services.errorHandler.reportError({ severity: "warning", error, tags: { category: "auth0", event: "AUTH_CALLBACK_MISSING_STATE_COOKIE" } });
+          res.writeHead(302, { Location: "/login" });
+          res.end();
+          return;
+        }
+
         services.errorHandler.reportError({ error, tags: { category: "auth0", event: "AUTH_CALLBACK_ERROR" } });
         throw error;
       }
@@ -71,9 +78,16 @@ const authHandler = once((services: AppServices) =>
     async profile(req: NextApiRequest, res: NextApiResponse) {
       services.logger.info({ event: "AUTH_PROFILE_REQUEST", url: req.url });
       try {
-        const session = await getSession(req, res);
+        const session = await services.getSession(req, res);
         if (!session) {
           services.logger.info({ event: "AUTH_PROFILE_REQUEST_NO_SESSION", url: req.url });
+          res.status(401).json({ error: "Not authenticated" });
+          return;
+        }
+
+        const accessTokenExpiry = new Date((session.accessTokenExpiresAt || 0) * 1_000);
+        if (accessTokenExpiry <= new Date()) {
+          services.logger.info({ event: "AUTH_PROFILE_REQUEST_ACCESS_TOKEN_EXPIRED", url: req.url });
           res.status(401).json({ error: "Not authenticated" });
           return;
         }
@@ -117,6 +131,10 @@ function isGeneralAxiosError(error: unknown): error is AxiosError {
   return isAxiosError(error) && !!error?.status && error.status >= 400 && error.status < 500;
 }
 
+function isMissingStateCookieError(error: unknown): boolean {
+  return error instanceof CallbackHandlerError && error.cause instanceof MissingStateCookieError;
+}
+
 function clearSessionAndRedirectToLogin(req: NextApiRequest, res: NextApiResponse): void {
   // Clear invalid session cookies before redirecting
   const cookies = req.cookies;
@@ -128,8 +146,8 @@ function clearSessionAndRedirectToLogin(req: NextApiRequest, res: NextApiRespons
     res.setHeader("Set-Cookie", expiredCookies);
   }
 
-  const returnUrl = encodeURIComponent(req.url || "/");
-  const loginUrl = `/api/auth/login?from=${returnUrl}`;
+  const returnTo = encodeURIComponent(req.url || "/");
+  const loginUrl = `/api/auth/login?returnTo=${returnTo}`;
   res.writeHead(302, { Location: loginUrl });
   res.end();
 }

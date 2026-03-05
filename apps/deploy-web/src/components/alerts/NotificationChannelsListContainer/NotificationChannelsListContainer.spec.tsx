@@ -1,15 +1,14 @@
-import "@testing-library/jest-dom";
-
 import React from "react";
 import { createAPIClient } from "@akashnetwork/react-query-sdk/notifications";
 import { CustomSnackbarProvider } from "@akashnetwork/ui/context";
 import type { RequestFn, RequestFnResponse } from "@openapi-qraft/tanstack-query-react-types";
+import { describe, expect, it, vi } from "vitest";
 
 import { NotificationChannelsListContainer } from "@src/components/alerts/NotificationChannelsListContainer/NotificationChannelsListContainer";
 import type { NotificationChannelsListViewProps } from "@src/components/alerts/NotificationChannelsListView/NotificationChannelsListView";
 import { queryClient } from "@src/queries";
 
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { buildNotificationChannel } from "@tests/seeders/notificationChannel";
 import { createContainerTestingChildCapturer } from "@tests/unit/container-testing-child-capturer";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
@@ -24,7 +23,7 @@ describe("NotificationChannelsListContainer", () => {
     const { mockData, requestFn, child } = await setup();
     await act(() => child.onRemove(mockData.data[0].id));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(requestFn).toHaveBeenCalledWith(
         expect.objectContaining({ method: "delete", url: "/v1/notification-channels/{id}" }),
         expect.objectContaining({ baseUrl: "", body: undefined, parameters: { path: { id: mockData.data[0].id } } })
@@ -38,7 +37,7 @@ describe("NotificationChannelsListContainer", () => {
     requestFn.mockRejectedValue(new Error());
     await act(() => child.onRemove(mockData.data[0].id));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(requestFn).toHaveBeenCalledWith(
         expect.objectContaining({ method: "delete", url: "/v1/notification-channels/{id}" }),
         expect.objectContaining({ baseUrl: "", body: undefined, parameters: { path: { id: mockData.data[0].id } } })
@@ -51,7 +50,7 @@ describe("NotificationChannelsListContainer", () => {
     const { requestFn, child } = await setup();
     await act(() => child.onPaginationChange({ page: child.pagination.page + 1, limit: child.pagination.limit }));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(requestFn).toHaveBeenCalledWith(
         expect.objectContaining({ method: "get", url: "/v1/notification-channels" }),
         expect.objectContaining({
@@ -76,7 +75,7 @@ describe("NotificationChannelsListContainer", () => {
         totalPages: 2
       }
     };
-    const requestFn = jest.fn(
+    const requestFn = vi.fn(
       () =>
         Promise.resolve({
           data: mockData

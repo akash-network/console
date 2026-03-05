@@ -2,6 +2,7 @@ import { relations, sql } from "drizzle-orm";
 import { boolean, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { UserWallets } from "@src/billing/model-schemas/user-wallet/user-wallet.schema"; // eslint-disable-line import-x/no-cycle
+import { Templates } from "@src/user/model-schemas/template/template.schema"; // eslint-disable-line import-x/no-cycle
 
 export const userAgentMaxLength = 500;
 
@@ -27,9 +28,10 @@ export const Users = pgTable("userSetting", {
   createdAt: timestamp("created_at").defaultNow()
 });
 
-export const UsersRelations = relations(Users, ({ one }) => ({
+export const UsersRelations = relations(Users, ({ one, many }) => ({
   userWallets: one(UserWallets, {
     fields: [Users.id],
     references: [UserWallets.userId]
-  })
+  }),
+  templates: many(Templates)
 }));

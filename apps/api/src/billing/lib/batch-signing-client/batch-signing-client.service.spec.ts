@@ -6,7 +6,7 @@ import { Registry } from "@cosmjs/proto-signing";
 import type { Account, DeliverTxResponse, SigningStargateClient } from "@cosmjs/stargate";
 import type { IndexedTx } from "@cosmjs/stargate/build/stargateclient";
 import { faker } from "@faker-js/faker";
-import { mock } from "jest-mock-extended";
+import { mock } from "vitest-mock-extended";
 
 import { createAkashAddress } from "../../../../test/seeders";
 import { RpcMessageService } from "../../services";
@@ -94,6 +94,89 @@ describe(BatchSigningClientService.name, () => {
     expect(results).toEqual(allTestData.map(data => data.tx));
     expect(client.broadcastTx).toHaveBeenCalledTimes(2);
     expect(client.broadcastTxSync).toHaveBeenCalledTimes(allTestData.length - 1);
+  });
+
+  it("should recover transaction when getTx fails with network error but tx exists on chain", async () => {
+    const granter = createAkashAddress();
+    const testData = createTransactionTestData(granter);
+
+    const { service, client } = setup([testData]);
+
+    // Reset getTx mock to simulate network error then recovery
+    client.getTx.mockReset();
+    const networkError1 = Object.assign(new Error("fetch failed"), { code: "ECONNRESET" });
+    const networkError2 = Object.assign(new Error("fetch failed"), { code: "ECONNRESET" });
+    client.getTx
+      .mockRejectedValueOnce(networkError1) // First call fails with network error
+      .mockRejectedValueOnce(networkError2) // Second call also fails (retry)
+      .mockResolvedValueOnce(testData.tx); // Recovery call succeeds
+
+    const result = await service.signAndBroadcast(testData.messages);
+
+    expect(result).toEqual(testData.tx);
+    expect(client.getTx).toHaveBeenCalledTimes(3);
+  });
+
+  it("should recover transaction when getTx fails with socket error", async () => {
+    const granter = createAkashAddress();
+    const testData = createTransactionTestData(granter);
+
+    const { service, client } = setup([testData]);
+
+    // Reset getTx mock to simulate socket error then recovery
+    client.getTx.mockReset();
+    const socketError1 = Object.assign(new Error("other side closed"), { code: "UND_ERR_SOCKET" });
+    const socketError2 = Object.assign(new Error("other side closed"), { code: "UND_ERR_SOCKET" });
+    client.getTx
+      .mockRejectedValueOnce(socketError1) // Socket error like in production
+      .mockRejectedValueOnce(socketError2) // Retry
+      .mockResolvedValueOnce(testData.tx); // Recovery call succeeds
+
+    const result = await service.signAndBroadcast(testData.messages);
+
+    expect(result).toEqual(testData.tx);
+    expect(client.getTx).toHaveBeenCalledTimes(3);
+  });
+
+  it("should recover transaction when getTx fails with cosmjs fetch failed error with cause", async () => {
+    const granter = createAkashAddress();
+    const testData = createTransactionTestData(granter);
+
+    const { service, client } = setup([testData]);
+
+    // Reset getTx mock to simulate cosmjs "fetch failed" error with network error in .cause
+    client.getTx.mockReset();
+    const causeError1 = Object.assign(new Error("connect ECONNRESET"), { code: "ECONNRESET" });
+    const fetchFailedError1 = Object.assign(new Error("fetch failed"), { cause: causeError1 });
+    const causeError2 = Object.assign(new Error("connect ECONNRESET"), { code: "ECONNRESET" });
+    const fetchFailedError2 = Object.assign(new Error("fetch failed"), { cause: causeError2 });
+    client.getTx
+      .mockRejectedValueOnce(fetchFailedError1) // First call fails with wrapped network error
+      .mockRejectedValueOnce(fetchFailedError2) // Second call also fails (retry)
+      .mockResolvedValueOnce(testData.tx); // Recovery call succeeds
+
+    const result = await service.signAndBroadcast(testData.messages);
+
+    expect(result).toEqual(testData.tx);
+    expect(client.getTx).toHaveBeenCalledTimes(3);
+  });
+
+  it("should not attempt recovery for non-network errors", async () => {
+    const granter = createAkashAddress();
+    const testData = createTransactionTestData(granter);
+
+    const { service, client } = setup([testData]);
+
+    // Reset getTx mock to simulate a non-network error (e.g., invalid argument)
+    client.getTx.mockReset();
+    const nonNetworkError = Object.assign(new Error("Invalid argument"), { code: "INVALID_ARGUMENT" });
+    client.getTx.mockRejectedValue(nonNetworkError);
+
+    // Non-network errors are rethrown, not swallowed
+    await expect(service.signAndBroadcast(testData.messages)).rejects.toThrow("Invalid argument");
+
+    // Should only be called once (no recovery attempt for non-network errors)
+    expect(client.getTx).toHaveBeenCalledTimes(1);
   });
 
   function createTransactionTestData(granter: string): TransactionTestData {

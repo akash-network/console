@@ -1,12 +1,11 @@
-import "@testing-library/jest-dom";
-
 import React from "react";
-import { mock } from "jest-mock-extended";
 import type { NextRouter } from "next/router";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { DEPENDENCIES, SignUpButton } from "./SignUpButton";
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe(SignUpButton.name, () => {
@@ -31,7 +30,7 @@ describe(SignUpButton.name, () => {
     expect(linkElement).toHaveClass("custom-class");
     expect(linkElement).toHaveAttribute("data-testid", "signup-link");
     expect(linkElement).toHaveAttribute("id", "signup-btn");
-    expect(linkElement).toHaveAttribute("href", `/login?from=${encodeURIComponent("/")}&tab=signup`);
+    expect(linkElement).toHaveAttribute("href", `/login?tab=signup&returnTo=${encodeURIComponent("/")}`);
   });
 
   it("renders as a button when specified", () => {
@@ -46,14 +45,14 @@ describe(SignUpButton.name, () => {
   });
 
   it("calls authService.loginViaOauth when clicked on button", async () => {
-    const navigate = jest.fn();
+    const navigate = vi.fn();
     setup({ wrapper: "button", navigate });
 
     const buttonElement = screen.getByRole("button");
     fireEvent.click(buttonElement);
 
-    await waitFor(() => {
-      expect(navigate).toHaveBeenCalledWith(`/login?from=${encodeURIComponent("/")}&tab=signup`);
+    await vi.waitFor(() => {
+      expect(navigate).toHaveBeenCalledWith(`/login?tab=signup&returnTo=${encodeURIComponent("/")}`);
     });
   });
 
@@ -63,7 +62,7 @@ describe(SignUpButton.name, () => {
   }: Partial<React.ComponentProps<typeof SignUpButton>> & {
     navigate?: NextRouter["push"];
   } = {}) {
-    const router = mock<NextRouter>({ push: navigate ?? jest.fn() });
+    const router = mock<NextRouter>({ push: navigate ?? vi.fn() });
 
     render(
       <TestContainerProvider>
