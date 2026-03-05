@@ -1,11 +1,12 @@
 import type { UseFormReturn } from "react-hook-form";
 import { FormProvider, useForm } from "react-hook-form";
+import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { useSdlEnv } from "./useSdlEnv";
 
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { buildSDLService } from "@tests/seeders/sdlService";
 
 describe("useSdlEnv", () => {
@@ -120,7 +121,7 @@ describe("useSdlEnv", () => {
 
     return {
       result,
-      form: await waitFor(() => methods)
+      form: await vi.waitFor(() => methods)
     };
   }
 });

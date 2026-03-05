@@ -17,7 +17,9 @@ import { Op } from "sequelize";
 import { singleton } from "tsyringe";
 
 import { WalletInitialized, WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
-import { GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
+import { Memoize } from "@src/caching/helpers";
+import { LoggerService } from "@src/core";
+import { GetDeploymentResponse, ListDeploymentsItem } from "@src/deployment/http-schemas/deployment.schema";
 import { FallbackLeaseReaderService } from "@src/deployment/services/fallback-lease-reader/fallback-lease-reader.service";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { ProviderList } from "@src/types/provider";
@@ -35,7 +37,8 @@ export class DeploymentReaderService {
     private readonly leaseHttpService: LeaseHttpService,
     private readonly fallbackLeaseReaderService: FallbackLeaseReaderService,
     private readonly messageService: MessageService,
-    private readonly walletReaderService: WalletReaderService
+    private readonly walletReaderService: WalletReaderService,
+    private readonly logger: LoggerService
   ) {}
 
   public async findByUserIdAndDseq(userId: string, dseq: string): Promise<GetDeploymentResponse["data"]> {
@@ -68,13 +71,21 @@ export class DeploymentReaderService {
             lease.id.dseq,
             lease.id.gseq,
             lease.id.oseq,
-            await this.providerService.toProviderAuth(options?.certificate || { walletId: wallet.id, provider: lease.id.provider })
+            await this.providerService.toProviderAuth(options?.certificate || { walletId: wallet.id, provider: lease.id.provider }, ["status"])
           );
           return {
             lease,
             status: leaseStatus
           };
-        } catch {
+        } catch (error) {
+          this.logger.warn({
+            event: "LEASE_STATUS_FETCH_FAILED",
+            provider: lease.id.provider,
+            dseq: lease.id.dseq,
+            gseq: lease.id.gseq,
+            oseq: lease.id.oseq,
+            error
+          });
           return {
             lease,
             status: null
@@ -101,8 +112,9 @@ export class DeploymentReaderService {
     query: { userId: string };
     skip?: number;
     limit?: number;
-  }): Promise<{ deployments: GetDeploymentResponse["data"][]; total: number; hasMore: boolean }> {
-    const { address: owner } = await this.walletReaderService.getWalletByUserId(query.userId);
+  }): Promise<{ deployments: ListDeploymentsItem[]; total: number; hasMore: boolean }> {
+    const wallet = await this.walletReaderService.getWalletByUserId(query.userId);
+    const { address: owner } = wallet;
     const pagination = skip !== undefined || limit !== undefined ? { offset: skip, limit } : undefined;
     const deploymentReponse = await this.getDeploymentsList({ owner, state: "active", pagination });
     const deployments = deploymentReponse.deployments;
@@ -114,11 +126,7 @@ export class DeploymentReaderService {
 
     const deploymentsWithLeases = deployments.map((deployment, index) => ({
       deployment: deployment.deployment,
-      leases:
-        leaseResults[index]?.leases?.map(({ lease }) => ({
-          ...lease,
-          status: null as null
-        })) ?? [],
+      leases: leaseResults[index]?.leases?.map(({ lease }) => lease) ?? [],
       escrow_account: deployment.escrow_account
     }));
     return {
@@ -153,6 +161,7 @@ export class DeploymentReaderService {
     });
     const leaseResponse = await this.leaseHttpService.list({ owner: address, state: "active" });
     const providers = response.deployments.length ? await this.providerService.getProviderList() : ([] as ProviderList[]);
+    const providerMap = new Map(providers.map(p => [p.owner, p]));
 
     return {
       count: parseInt(response.pagination.total),
@@ -181,7 +190,7 @@ export class DeploymentReaderService {
         leases: leaseResponse.leases
           .filter(l => l.lease.id.dseq === x.deployment.id.dseq)
           .map(lease => {
-            const provider = providers.find(p => p.owner === lease.lease.id.provider);
+            const provider = providerMap.get(lease.lease.id.provider);
             return {
               id: lease.lease.id.dseq + lease.lease.id.gseq + lease.lease.id.oseq,
               owner: lease.lease.id.owner,
@@ -202,7 +211,14 @@ export class DeploymentReaderService {
     };
   }
 
+  @Memoize({ ttlInSeconds: 30 })
   public async getDeploymentByOwnerAndDseq(owner: string, dseq: string) {
+    // Quick existence check - avoids expensive blockchain HTTP call for non-existent deployments
+    const count = await Deployment.count({ where: { owner, dseq } });
+    if (count === 0) {
+      return null;
+    }
+
     let deploymentData: RestAkashDeploymentInfoResponse | null = null;
     try {
       deploymentData = await this.getDeployment(owner, dseq);
@@ -253,10 +269,11 @@ export class DeploymentReaderService {
       },
       include: [{ model: ProviderAttribute }]
     });
+    const providerMap = new Map(providers.map(p => [p.owner, p]));
     const deploymentDenom = deploymentData.escrow_account.state.funds[0]?.denom || deploymentData.escrow_account.state.transferred[0]?.denom;
 
     const leases = leasesData.leases.map(x => {
-      const provider = providers.find(p => p.owner === x.lease.id.provider);
+      const provider = providerMap.get(x.lease.id.provider);
       const group = (deploymentData as DeploymentInfo).groups.find(g => g.id.gseq === x.lease.id.gseq);
       const dbLease = dbDeployment?.leases.find(l => l.gseq === x.lease.id.gseq && l.oseq === x.lease.id.oseq);
 

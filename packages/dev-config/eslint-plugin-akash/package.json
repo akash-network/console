@@ -1,0 +1,8 @@
+{
+  "name": "eslint-plugin-akash",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "bip39": "3.1.0"
+  }
+}

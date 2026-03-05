@@ -8,24 +8,19 @@ import StepContent from "@mui/material/StepContent";
 import StepLabel from "@mui/material/StepLabel";
 import Stepper from "@mui/material/Stepper";
 import { Check, HandCard, Rocket, WarningCircle, XmarkCircleSolid } from "iconoir-react";
-import { useAtom } from "jotai";
 import Link from "next/link";
 
 import { AddFundsLink } from "@src/components/user/AddFundsLink";
-import { ConnectManagedWalletButton } from "@src/components/wallet/ConnectManagedWalletButton";
-import { browserEnvConfig } from "@src/config/browser-env.config";
-import { useChainParam } from "@src/context/ChainParamProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { useCustomUser } from "@src/hooks/useCustomUser";
+import { useChainParam } from "@src/hooks/useChainParam/useChainParam";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
-import walletStore from "@src/store/walletStore";
 import { RouteStep } from "@src/types/route-steps.type";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { uaktToAKT } from "@src/utils/priceUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import LiquidityModal from "../liquidity-modal";
 import { ExternalLink } from "../shared/ExternalLink";
-import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
+import { WalletConnectionButtons } from "../wallet/WalletConnectionButtons";
 import { QontoConnector, QontoStepIcon } from "./Stepper";
 
 export const GetStartedStepper: React.FunctionComponent = () => {
@@ -35,8 +30,6 @@ export const GetStartedStepper: React.FunctionComponent = () => {
   const { minDeposit } = useChainParam();
   const aktBalance = walletBalance ? uaktToAKT(walletBalance.balanceUAKT) : 0;
   const usdcBalance = walletBalance ? udenomToDenom(walletBalance.balanceUUSDC) : 0;
-  const [isSignedInWithTrial] = useAtom(walletStore.isSignedInWithTrial);
-  const { user } = useCustomUser();
 
   useEffect(() => {
     const getStartedStep = localStorage.getItem("getStartedStep");
@@ -76,13 +69,13 @@ export const GetStartedStepper: React.FunctionComponent = () => {
           onClick={() => (activeStep > 0 ? onStepClick(0) : null)}
           classes={{ label: cn("text-xl tracking-tight", { ["cursor-pointer hover:text-primary"]: activeStep > 0, ["!font-bold"]: activeStep === 0 }) }}
         >
-          {browserEnvConfig.NEXT_PUBLIC_BILLING_ENABLED ? "Trial / Billing" : "Billing"}
+          Trial / Billing
         </StepLabel>
 
         <StepContent>
-          {browserEnvConfig.NEXT_PUBLIC_BILLING_ENABLED && !isWalletConnected && (
+          {!isWalletConnected && (
             <p className="text-muted-foreground">
-              You can pay using either USD (fiat) or with crypto ($AKT or $USDC). To pay with USD click "Start Trial". To pay with crypto, click "Connect
+              You can pay using either USD (fiat) or with crypto ($AKT or $USDC). To pay with USD, click "Start Trial". To pay with crypto, click "Connect
               Wallet"
             </p>
           )}
@@ -101,12 +94,12 @@ export const GetStartedStepper: React.FunctionComponent = () => {
             </p>
           )}
 
-          <div className="my-4 flex items-center space-x-4">
+          <div className="flex items-center space-x-4">
             {isManagedWallet && (
               <div className="flex items-start gap-2">
                 <AddFundsLink className={cn("hover:no-underline", buttonVariants({ variant: "default" }))} href={UrlService.payment()}>
-                  <HandCard className="text-xs text-accent-foreground" />
-                  <span className="m-2 whitespace-nowrap text-accent-foreground">Add Funds</span>
+                  <HandCard className="text-xs" />
+                  <span className="m-2 whitespace-nowrap">Add Funds</span>
                 </AddFundsLink>
               </div>
             )}
@@ -142,16 +135,7 @@ export const GetStartedStepper: React.FunctionComponent = () => {
                 <span>Billing is not set up</span>
               </div>
 
-              <div className="flex items-center gap-2">
-                {browserEnvConfig.NEXT_PUBLIC_BILLING_ENABLED && !isSignedInWithTrial && <ConnectManagedWalletButton className="mr-2 w-full md:w-auto" />}
-                <ConnectWalletButton />
-
-                {isSignedInWithTrial && !user && (
-                  <Link className={cn(buttonVariants({ variant: "outline" }))} href={UrlService.login()}>
-                    Sign in
-                  </Link>
-                )}
-              </div>
+              <WalletConnectionButtons className="gap-2" connectManagedWalletButtonClassName="mr-2 w-full md:w-auto" />
             </div>
           )}
 
@@ -236,13 +220,13 @@ export const GetStartedStepper: React.FunctionComponent = () => {
               className={cn("space-x-2", buttonVariants({ variant: "default" }))}
               href={UrlService.newDeployment({ templateId: "hello-world", step: RouteStep.editDeployment })}
             >
-              <span>Deploy!</span>
               <Rocket className="rotate-45" />
+              <span>Deploy!</span>
             </Link>
 
             <Button onClick={handleReset} className="space-x-2" variant="ghost">
-              <span>Reset</span>
               <MdRestartAlt />
+              <span>Reset</span>
             </Button>
           </div>
         </StepContent>

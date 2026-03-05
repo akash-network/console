@@ -11,8 +11,19 @@ export const TEST_CONSTANTS = {
   COUPON_ID: "coupon_123"
 } as const;
 
-export function createTestPaymentIntent(overrides: Partial<Stripe.PaymentIntent> = {}): Stripe.PaymentIntent {
+function wrapStripeResponse<T>(data: T): Stripe.Response<T> {
   return {
+    ...data,
+    lastResponse: {
+      headers: {},
+      requestId: "req_test123",
+      statusCode: 200
+    }
+  } as Stripe.Response<T>;
+}
+
+export function createTestPaymentIntent(overrides: Partial<Stripe.PaymentIntent> = {}): Stripe.Response<Stripe.PaymentIntent> {
+  const paymentIntent = {
     id: TEST_CONSTANTS.PAYMENT_INTENT_ID,
     status: "succeeded",
     amount: 100,
@@ -40,7 +51,6 @@ export function createTestPaymentIntent(overrides: Partial<Stripe.PaymentIntent>
     cancellation_reason: null,
     capture_method: "automatic",
     description: null,
-    invoice: null,
     last_payment_error: null,
     latest_charge: null,
     next_action: null,
@@ -53,7 +63,9 @@ export function createTestPaymentIntent(overrides: Partial<Stripe.PaymentIntent>
     statement_descriptor_suffix: null,
     payment_method_configuration_details: null,
     ...overrides
-  } as Stripe.PaymentIntent;
+  };
+
+  return wrapStripeResponse(paymentIntent as Stripe.PaymentIntent);
 }
 
 export function createTestCharge(overrides: Partial<Stripe.Charge> = {}): Stripe.Charge {
@@ -133,10 +145,125 @@ export function createTestPromotionCode(overrides: Partial<Stripe.PromotionCode>
   };
 }
 
-export function createTestCoupon(overrides: Partial<Stripe.Coupon> = {}) {
+export function createTestCoupon(overrides: Partial<Stripe.Coupon> = {}): Stripe.Coupon {
   const stripeData = StripeSeederCreate();
+  const baseCoupon = stripeData.promotionCode.promotion.coupon;
+  if (typeof baseCoupon === "string") {
+    throw new Error("Coupon should be expanded");
+  }
   return {
-    ...stripeData.promotionCode.coupon,
+    ...baseCoupon,
+    ...overrides
+  } as Stripe.Coupon;
+}
+
+export function createTestInvoice(overrides: Partial<Stripe.Invoice> = {}): Stripe.Response<Stripe.Invoice> {
+  const invoice = {
+    id: "in_test_123",
+    object: "invoice",
+    account_country: "US",
+    account_name: "Test Account",
+    account_tax_ids: null,
+    amount_due: 0,
+    amount_paid: 0,
+    amount_remaining: 0,
+    amount_shipping: 0,
+    application: null,
+    application_fee_amount: null,
+    attempt_count: 0,
+    attempted: false,
+    auto_advance: false,
+    automatic_tax: {
+      enabled: false,
+      liability: null,
+      status: null
+    },
+    billing_reason: "manual",
+    charge: null,
+    collection_method: "charge_automatically",
+    created: 1234567890,
+    currency: "usd",
+    custom_fields: null,
+    customer: TEST_CONSTANTS.CUSTOMER_ID,
+    customer_address: null,
+    customer_email: "test@example.com",
+    customer_name: null,
+    customer_phone: null,
+    customer_shipping: null,
+    customer_tax_exempt: "none",
+    customer_tax_ids: [],
+    default_payment_method: null,
+    default_source: null,
+    default_tax_rates: [],
+    description: null,
+    discount: null,
+    discounts: [],
+    due_date: null,
+    effective_at: null,
+    ending_balance: 0,
+    footer: null,
+    from_invoice: null,
+    hosted_invoice_url: null,
+    invoice_pdf: null,
+    issuer: {
+      type: "self"
+    },
+    last_finalization_error: null,
+    latest_revision: null,
+    lines: {
+      object: "list",
+      data: [],
+      has_more: false,
+      url: "/v1/invoices/in_test_123/lines"
+    },
+    livemode: false,
+    metadata: {},
+    next_payment_attempt: null,
+    number: null,
+    on_behalf_of: null,
+    paid: true,
+    paid_out_of_band: false,
+    payment_intent: null,
+    payment_settings: {
+      default_mandate: null,
+      payment_method_options: null,
+      payment_method_types: null
+    },
+    period_end: 1234567890,
+    period_start: 1234567890,
+    post_payment_credit_notes_amount: 0,
+    pre_payment_credit_notes_amount: 0,
+    quote: null,
+    receipt_number: null,
+    rendering: null,
+    rendering_options: null,
+    shipping_cost: null,
+    shipping_details: null,
+    starting_balance: 0,
+    statement_descriptor: null,
+    status: "paid",
+    status_transitions: {
+      finalized_at: 1234567890,
+      marked_uncollectible_at: null,
+      paid_at: 1234567890,
+      voided_at: null
+    },
+    subscription: null,
+    subscription_details: {
+      metadata: null
+    },
+    subtotal: 0,
+    subtotal_excluding_tax: 0,
+    tax: null,
+    test_clock: null,
+    total: 0,
+    total_discount_amounts: [],
+    total_excluding_tax: 0,
+    total_tax_amounts: [],
+    transfer_data: null,
+    webhooks_delivered_at: null,
     ...overrides
   };
+
+  return wrapStripeResponse(invoice as Stripe.Invoice);
 }

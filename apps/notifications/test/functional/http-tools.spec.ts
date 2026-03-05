@@ -2,10 +2,11 @@ import { faker } from "@faker-js/faker";
 import { Body, Controller, INestApplication, Module, Post, Query } from "@nestjs/common";
 import { APP_INTERCEPTOR, Reflector } from "@nestjs/core";
 import { Test, TestingModule } from "@nestjs/testing";
-import { MockProxy } from "jest-mock-extended";
 import { createZodDto, ZodSerializerInterceptor } from "nestjs-zod";
 import request from "supertest";
 import { Ok } from "ts-results";
+import { describe, expect, it } from "vitest";
+import { MockProxy } from "vitest-mock-extended";
 import { z } from "zod";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";

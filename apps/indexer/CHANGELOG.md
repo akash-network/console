@@ -1,5 +1,175 @@
 
 
+## [1.25.1](https://github.com/akash-network/console/compare/indexer/v1.25.0...indexer/v1.25.1) (2026-02-12)
+
+
+### Bug Fixes
+
+* **sdl:** ensures proper validation and upgrades chain sdk  ([3381424](https://github.com/akash-network/console/commit/3381424e554f76c09ad52850b650e18c21ea76fa))
+
+## [1.25.0](https://github.com/akash-network/console/compare/indexer/v1.24.8...indexer/v1.25.0) (2026-02-12)
+
+
+### Features
+
+* upgrades chain sdk to latest ([a5cbbf7](https://github.com/akash-network/console/commit/a5cbbf7c909329e122942ca1a965c4c7b8dfcd62))
+
+## [1.24.8](https://github.com/akash-network/console/compare/indexer/v1.24.7...indexer/v1.24.8) (2026-02-10)
+
+
+### Bug Fixes
+
+* migrates another part of indexer to strict types ([#2686](https://github.com/akash-network/console/issues/2686)) ([d41c7c3](https://github.com/akash-network/console/commit/d41c7c3582c208005b9443b4baf428dd2289026c))
+
+## [1.24.7](https://github.com/akash-network/console/compare/indexer/v1.24.4...indexer/v1.24.7) (2026-02-05)
+
+
+### Bug Fixes
+
+* update chain-sdk to alpha.21 ([#2666](https://github.com/akash-network/console/issues/2666)) ([7db8f76](https://github.com/akash-network/console/commit/7db8f76e1ffe53bd800bb1c8ef67e17dbeb0d58e))
+
+## [1.24.6](https://github.com/akash-network/console/compare/indexer/v1.24.4...indexer/v1.24.6) (2026-02-05)
+
+
+### Bug Fixes
+
+* update chain-sdk to alpha.21 ([#2666](https://github.com/akash-network/console/issues/2666)) ([7db8f76](https://github.com/akash-network/console/commit/7db8f76e1ffe53bd800bb1c8ef67e17dbeb0d58e))
+
+## [1.24.5](https://github.com/akash-network/console/compare/indexer/v1.24.4...indexer/v1.24.5) (2026-02-04)
+
+
+### Bug Fixes
+
+* update chain-sdk to alpha.21 ([#2666](https://github.com/akash-network/console/issues/2666)) ([7db8f76](https://github.com/akash-network/console/commit/7db8f76e1ffe53bd800bb1c8ef67e17dbeb0d58e))
+
+## [1.24.4](https://github.com/akash-network/console/compare/indexer/v1.24.3...indexer/v1.24.4) (2026-02-03)
+
+
+### Bug Fixes
+
+* switch container build target to production ([#2647](https://github.com/akash-network/console/issues/2647)) ([d583e61](https://github.com/akash-network/console/commit/d583e615431f543ba84c1302efec9b878645acd8))
+
+## [1.24.3](https://github.com/akash-network/console/compare/indexer/v1.24.2...indexer/v1.24.3) (2026-01-30)
+
+
+### Code Refactoring
+
+* extracts tx signer into a dedicated service ([8a74b7e](https://github.com/akash-network/console/commit/8a74b7e3346e5aee6249a6baeb3e91099db97677))
+
+## [1.24.2](https://github.com/akash-network/console/compare/indexer/v1.24.0...indexer/v1.24.2) (2026-01-30)
+
+
+### Bug Fixes
+
+* ensure that tsbuild picks proper dependencies for internal packages ([#2596](https://github.com/akash-network/console/issues/2596)) ([c869c78](https://github.com/akash-network/console/commit/c869c78a19e7a6569d62bf1cdd2ab5be0340cdd6))
+* replaces fetch API with octokit.getContent ([#2570](https://github.com/akash-network/console/issues/2570)) ([079f0d4](https://github.com/akash-network/console/commit/079f0d4640aa3936d6ef337e46ae4bcb2a8104d4))
+* set timestamp setting in env-loader ([#2594](https://github.com/akash-network/console/issues/2594)) ([ab74ab0](https://github.com/akash-network/console/commit/ab74ab03465148ce9761e2f21408f33c6ac1c2e0))
+
+
+### Code Refactoring
+
+* migrates from webpack to tsup in console-api ([#2547](https://github.com/akash-network/console/issues/2547)) ([43c75c0](https://github.com/akash-network/console/commit/43c75c07282b88c3776545a6134754ab97901734))
+
+## [1.24.1](https://github.com/akash-network/console/compare/indexer/v1.24.0...indexer/v1.24.1) (2026-01-28)
+
+
+### Bug Fixes
+
+* replaces fetch API with octokit.getContent ([#2570](https://github.com/akash-network/console/issues/2570)) ([079f0d4](https://github.com/akash-network/console/commit/079f0d4640aa3936d6ef337e46ae4bcb2a8104d4))
+
+
+### Code Refactoring
+
+* migrates from webpack to tsup in console-api ([#2547](https://github.com/akash-network/console/issues/2547)) ([43c75c0](https://github.com/akash-network/console/commit/43c75c07282b88c3776545a6134754ab97901734))
+
+## [1.24.0](https://github.com/akash-network/console/compare/indexer/v1.23.5...indexer/v1.24.0) (2026-01-26)
+
+
+### Features
+
+* add cache control middleware and improve response handling ([#2565](https://github.com/akash-network/console/issues/2565)) ([2d922ba](https://github.com/akash-network/console/commit/2d922baf2aaced12330c33d75205f1d130d74da1))
+
+
+### Bug Fixes
+
+* improve address fetching ([#2558](https://github.com/akash-network/console/issues/2558)) ([5f7a629](https://github.com/akash-network/console/commit/5f7a62975663d11872faaba3770d8c0f393c2a1c))
+* install sharp lib for image optimization ([#2546](https://github.com/akash-network/console/issues/2546)) ([4790cd6](https://github.com/akash-network/console/commit/4790cd6ff2053229ec6faaad26a7e18d67e60f74))
+
+## [1.23.5](https://github.com/akash-network/console/compare/indexer/v1.23.4...indexer/v1.23.5) (2026-01-22)
+
+
+### Code Refactoring
+
+* defines explicit exports inside internal packages ([#2551](https://github.com/akash-network/console/issues/2551)) ([71f907f](https://github.com/akash-network/console/commit/71f907fe6b8b85a042bd351ec5b2b3621ba8d89d))
+
+## [1.23.4](https://github.com/akash-network/console/compare/indexer/v1.23.3...indexer/v1.23.4) (2026-01-20)
+
+
+### Bug Fixes
+
+* improve sql perf ([#2535](https://github.com/akash-network/console/issues/2535)) ([7dcd048](https://github.com/akash-network/console/commit/7dcd0485f1ae0f483ba33ec81f2aae6ec376e1bb))
+
+## [1.23.3](https://github.com/akash-network/console/compare/indexer/v1.23.2...indexer/v1.23.3) (2026-01-19)
+
+
+### Bug Fixes
+
+* adds otel dependencies to indexer ([#2531](https://github.com/akash-network/console/issues/2531)) ([c2e811a](https://github.com/akash-network/console/commit/c2e811ae26a5ed69ef4c9a4d36d83d426cb710f5))
+
+## [1.23.2](https://github.com/akash-network/console/compare/indexer/v1.23.1...indexer/v1.23.2) (2026-01-17)
+
+
+### Bug Fixes
+
+* upgrades chain-sdk dependency ([#2508](https://github.com/akash-network/console/issues/2508)) ([adae126](https://github.com/akash-network/console/commit/adae126f86b55250412a93f5a96e7505c0bf36df))
+
+## [1.23.1](https://github.com/akash-network/console/compare/indexer/v1.23.0...indexer/v1.23.1) (2026-01-15)
+
+
+### Code Refactoring
+
+* migrates some parts of indexer to strict types ([#2504](https://github.com/akash-network/console/issues/2504)) ([fa870d0](https://github.com/akash-network/console/commit/fa870d012ef9118f2b57c77dd5be784626fadace))
+
+## [1.23.0](https://github.com/akash-network/console/compare/indexer/v1.22.2...indexer/v1.23.0) (2026-01-13)
+
+
+### Features
+
+* **deployment:** implements deploy button flow ([46004d4](https://github.com/akash-network/console/commit/46004d4429dc3b4ebb47bb88edf97cd99b1a0c0f)), closes [#2470](https://github.com/akash-network/console/issues/2470)
+
+## [1.22.2](https://github.com/akash-network/console/compare/indexer/v1.22.1...indexer/v1.22.2) (2025-12-05)
+
+
+### Bug Fixes
+
+* indexer memory ([#2327](https://github.com/akash-network/console/issues/2327)) ([68a1da0](https://github.com/akash-network/console/commit/68a1da0a2ed3dbd5b308a6a73cd5859b4dbaa36d))
+
+## [1.22.1](https://github.com/akash-network/console/compare/indexer/v1.22.0...indexer/v1.22.1) (2025-12-05)
+
+
+### Bug Fixes
+
+* ignore multi send tx events ([#2326](https://github.com/akash-network/console/issues/2326)) ([498245d](https://github.com/akash-network/console/commit/498245d3d739d9595dcca1d10134bd9454c74825))
+
+## [1.22.0](https://github.com/akash-network/console/compare/indexer/v1.21.0...indexer/v1.22.0) (2025-11-29)
+
+
+### Features
+
+* **indexer:** add Cosmos authz message handling to AkashStatsIndexer ([#2287](https://github.com/akash-network/console/issues/2287)) ([104fa88](https://github.com/akash-network/console/commit/104fa88f9ad70bc83d32075ff44f3584047cb4f8))
+
+## [1.21.0](https://github.com/akash-network/console/compare/indexer/v1.20.5...indexer/v1.21.0) (2025-11-17)
+
+
+### Features
+
+* upgrade Node.js to 24.11.1 LTS ([#2223](https://github.com/akash-network/console/issues/2223)) ([d9feb09](https://github.com/akash-network/console/commit/d9feb090d45408ec9835216bfc5c6fb3f1329abc))
+
+
+### Bug Fixes
+
+* correct typos and formatting issues ([#2221](https://github.com/akash-network/console/issues/2221)) ([28e7a98](https://github.com/akash-network/console/commit/28e7a98d2a9f8a8cdefb6b538307c1ec4f34cf55))
+
 ## [1.20.5](https://github.com/akash-network/console/compare/indexer/v1.20.4...indexer/v1.20.5) (2025-11-06)
 
 

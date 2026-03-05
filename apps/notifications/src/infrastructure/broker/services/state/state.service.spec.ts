@@ -1,7 +1,8 @@
 import { Test, type TestingModule } from "@nestjs/testing";
-import type { MockProxy } from "jest-mock-extended";
-import { Client } from "pg";
-import PgBoss from "pg-boss";
+import { Pool } from "pg";
+import { PgBoss } from "pg-boss";
+import { describe, expect, it } from "vitest";
+import type { MockProxy } from "vitest-mock-extended";
 
 import { PgBossHandlerService } from "@src/infrastructure/broker/services/pg-boss-handler/pg-boss-handler.service";
 import { StateService } from "./state.service";
@@ -28,7 +29,7 @@ describe(StateService.name, () => {
     expect(service.getState()).toBe("active");
   });
 
-  it("should stop pgBoss and pg client and set state to 'stopped' on shutdown", async () => {
+  it("should stop pgBoss and pg pool and set state to 'stopped' on shutdown", async () => {
     const { service, boss, pg } = await setup();
 
     await service.onApplicationShutdown();
@@ -41,7 +42,7 @@ describe(StateService.name, () => {
   it("should update state to 'stopped' when PgBoss emits 'stopped'", async () => {
     const { service, boss } = await setup();
 
-    const stoppedListener = boss.on.mock.calls.find(([event]) => event === "stopped")?.[1];
+    const stoppedListener = (boss.on as jest.Mock).mock.calls.find(([event]: [string]) => event === "stopped")?.[1] as (() => void) | undefined;
     expect(stoppedListener).toBeDefined();
 
     stoppedListener?.();
@@ -54,16 +55,16 @@ describe(StateService.name, () => {
     service: StateService;
     pgBossHandlerService: MockProxy<PgBossHandlerService>;
     boss: MockProxy<PgBoss>;
-    pg: MockProxy<Client>;
+    pg: MockProxy<Pool>;
   }> {
     const module = await Test.createTestingModule({
-      providers: [StateService, MockProvider(PgBossHandlerService), MockProvider(PgBoss), MockProvider(Client)]
+      providers: [StateService, MockProvider(PgBossHandlerService), MockProvider(PgBoss), MockProvider(Pool)]
     }).compile();
 
     const service = module.get(StateService);
     const pgBossHandlerService = module.get<MockProxy<PgBossHandlerService>>(PgBossHandlerService);
     const boss = module.get<MockProxy<PgBoss>>(PgBoss);
-    const pg = module.get<MockProxy<Client>>(Client);
+    const pg = module.get<MockProxy<Pool>>(Pool);
 
     return {
       module,

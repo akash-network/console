@@ -5,7 +5,7 @@ import type { PgTableWithColumns } from "drizzle-orm/pg-core";
 import type { SQL } from "drizzle-orm/sql/sql";
 import { PostgresError } from "postgres";
 
-import type { ApiPgDatabase, ApiPgTables, TxService } from "@src/core";
+import type { ApiPgDatabase, ApiPgTables, ApiTransaction, TxService } from "@src/core";
 import { DrizzleAbility } from "@src/lib/drizzle-ability/drizzle-ability";
 
 export type AbilityParams = [AnyAbility, Parameters<AnyAbility["can"]>[0]];
@@ -55,6 +55,16 @@ export abstract class BaseRepository<
   }
 
   abstract accessibleBy(...abilityParams: AbilityParams): this;
+
+  protected async ensureTransaction<T>(cb: (tx: ApiTransaction) => Promise<T>) {
+    const txCursor = this.txManager.getPgTx();
+
+    if (txCursor) {
+      return await cb(txCursor);
+    }
+
+    return await this.pg.transaction(async tx => await cb(tx));
+  }
 
   async create(input: Input): Promise<Output> {
     this.ability?.throwUnlessCanExecute(input);
@@ -172,6 +182,14 @@ export abstract class BaseRepository<
   async deleteById(id: Output["id"] | Output["id"][]): Promise<void> {
     const where = Array.isArray(id) ? inArray(this.table.id, id) : eq(this.table.id, id);
     await this.cursor.delete(this.table).where(this.whereAccessibleBy(where));
+  }
+
+  async count(query?: Partial<Output>): Promise<number> {
+    const [result] = await this.cursor
+      .select({ count: sql<number>`count(*)::int` })
+      .from(this.table)
+      .where(this.queryToWhere(query));
+    return result?.count ?? 0;
   }
 
   async deleteBy(query: Partial<Output>, options?: MutationOptions): Promise<Output>;

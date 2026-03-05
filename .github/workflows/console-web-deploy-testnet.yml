@@ -55,5 +55,4 @@ jobs:
       app: console-web-testnet
       appVersion: ${{ needs.build-beta-testnet.outputs.base_image_tag }}
       environment: staging
-      skip_beta_deployment_check: true
       force-rollout: true

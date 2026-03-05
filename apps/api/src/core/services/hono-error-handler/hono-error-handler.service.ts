@@ -1,7 +1,8 @@
-import { LoggerService } from "@akashnetwork/logging";
+import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { ForbiddenError } from "@casl/ability";
+import { HTTPException } from "hono/http-exception";
 import { isHttpError } from "http-errors";
-import { ConnectionAcquireTimeoutError, ConnectionError, DatabaseError } from "sequelize";
+import { ConnectionAcquireTimeoutError, ConnectionError } from "sequelize";
 import { singleton } from "tsyringe";
 import { ZodError } from "zod";
 
@@ -9,21 +10,38 @@ import type { AppContext } from "../../types/app-context";
 
 @singleton()
 export class HonoErrorHandlerService {
-  private readonly logger = LoggerService.forContext("ErrorHandler");
+  private readonly logger = createOtelLogger({ context: "ErrorHandler" });
 
   constructor() {
     this.handle = this.handle.bind(this);
   }
 
   async handle(error: unknown, c: AppContext): Promise<Response> {
-    this.logger.error(this.toLoggableError(error));
+    this.logger.error(error);
+
+    // Handle Hono's HTTPException (e.g., malformed JSON from validators)
+    if (error instanceof HTTPException) {
+      const errorCode = this.getErrorCode(error);
+      const errorType = this.getErrorType(error);
+
+      return c.json(
+        {
+          error: error.name || "HTTPException",
+          message: error.message,
+          code: errorCode,
+          type: errorType
+        },
+        { status: error.status }
+      );
+    }
 
     if (isHttpError(error)) {
       const { name } = error.constructor;
       const errorCode = error.data?.errorCode || this.getErrorCode(error);
       const errorType = error.data?.errorType || this.getErrorType(error);
 
-      return c.json(
+      return this.unsafeJson(
+        c,
         {
           error: name,
           message: error.message,
@@ -36,7 +54,8 @@ export class HonoErrorHandlerService {
     }
 
     if (error instanceof ZodError) {
-      return c.json(
+      return this.unsafeJson(
+        c,
         {
           error: "BadRequestError",
           message: "Validation error",
@@ -118,11 +137,21 @@ export class HonoErrorHandlerService {
     return "unknown_error";
   }
 
-  private toLoggableError(error: unknown) {
-    if (error instanceof DatabaseError) {
-      return { error, sql: error.sql };
-    }
-
-    return error;
+  /**
+   * c.json doesn't serialize bigint values, so we use this method to serialize the response.
+   */
+  private unsafeJson(c: AppContext, json: unknown, responseInit: Omit<ResponseInit, "headers"> & { headers?: Record<string, string> }) {
+    return c.body(JSON.stringify(json, replaceNonJsonValues), {
+      ...responseInit,
+      headers: {
+        ...responseInit.headers,
+        "Content-Type": "application/json; charset=UTF-8"
+      }
+    });
   }
+}
+
+function replaceNonJsonValues(_: string, value: unknown): unknown {
+  if (typeof value === "bigint") return value.toString();
+  return value;
 }

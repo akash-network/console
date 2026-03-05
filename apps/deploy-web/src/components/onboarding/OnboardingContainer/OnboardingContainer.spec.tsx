@@ -1,17 +1,17 @@
-import "@testing-library/jest-dom";
-
-import React from "react";
-import { act } from "react-dom/test-utils";
-import { mock } from "jest-mock-extended";
+import React, { useState } from "react";
+import type { ReadonlyURLSearchParams } from "next/navigation";
 import type { Router } from "next/router";
+import { describe, expect, it, type Mock, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { AuthService } from "@src/services/auth/auth/auth.service";
+import type { ErrorHandlerService } from "@src/services/error-handler/error-handler.service";
 import type { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { UrlService } from "@src/utils/urlUtils";
 import { OnboardingContainer, OnboardingStepIndex } from "./OnboardingContainer";
 
-import { render } from "@testing-library/react";
+import { act, render } from "@testing-library/react";
 
 describe("OnboardingContainer", () => {
   it("should initialize with default state", () => {
@@ -65,10 +65,8 @@ describe("OnboardingContainer", () => {
   });
 
   it("should track analytics and redirect when starting trial", async () => {
-    const { child, mockAnalyticsService, mockUrlService, authService } = setup();
-
-    (mockUrlService.onboarding as jest.Mock).mockReturnValue("/onboarding");
-    (mockUrlService.signup as jest.Mock).mockReturnValue("/signup");
+    const { child, mockAnalyticsService, mockRouter, mockUrlService } = setup();
+    (mockUrlService.newSignup as Mock).mockReturnValue("/login?tab=signup");
 
     const { onStartTrial } = child.mock.calls[0][0];
     await act(async () => {
@@ -78,8 +76,8 @@ describe("OnboardingContainer", () => {
     expect(mockAnalyticsService.track).toHaveBeenCalledWith("onboarding_free_trial_started", {
       category: "onboarding"
     });
-    expect(mockUrlService.onboarding).toHaveBeenCalledWith(true);
-    expect(authService.signup).toHaveBeenCalledWith({ returnTo: expect.stringContaining("/onboarding") });
+    expect(mockUrlService.newSignup).toHaveBeenCalledWith({ fromSignup: "true" });
+    expect(mockRouter.push).toHaveBeenCalledWith("/login?tab=signup");
   });
 
   it("should track analytics when payment method is completed", async () => {
@@ -88,6 +86,8 @@ describe("OnboardingContainer", () => {
     });
 
     const { onPaymentMethodComplete } = child.mock.calls[0][0];
+    const initialStep = child.mock.calls[0][0].currentStep;
+
     await act(async () => {
       onPaymentMethodComplete();
     });
@@ -95,6 +95,9 @@ describe("OnboardingContainer", () => {
     expect(mockAnalyticsService.track).toHaveBeenCalledWith("onboarding_payment_method_added", {
       category: "onboarding"
     });
+
+    const currentStep = child.mock.calls[child.mock.calls.length - 1][0].currentStep;
+    expect(currentStep).toBe(initialStep);
   });
 
   it("should redirect to deployment and connect managed wallet when onboarding is completed", async () => {
@@ -110,16 +113,15 @@ describe("OnboardingContainer", () => {
   });
 
   it("should redirect to home when user has managed wallet and no saved step", async () => {
-    const { mockRouter } = setup({
+    const { mockNavigateBack } = setup({
       wallet: { hasManagedWallet: true, isWalletLoading: false }
     });
 
-    // Wait for the useEffect to run
     await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise(resolve => setTimeout(resolve, 10));
     });
 
-    expect(mockRouter.replace).toHaveBeenCalledWith("/");
+    expect(mockNavigateBack).toHaveBeenCalled();
   });
 
   it("should not redirect when user has managed wallet but has saved step", async () => {
@@ -128,7 +130,6 @@ describe("OnboardingContainer", () => {
       savedStep: "2"
     });
 
-    // Wait for the useEffect to run
     await act(async () => {
       await new Promise(resolve => setTimeout(resolve, 0));
     });
@@ -144,11 +145,10 @@ describe("OnboardingContainer", () => {
         origin: "http://localhost"
       },
       windowHistory: {
-        replaceState: jest.fn()
+        replaceState: vi.fn()
       }
     });
 
-    // Wait for the useEffect to run
     await act(async () => {
       await new Promise(resolve => setTimeout(resolve, 0));
     });
@@ -161,6 +161,52 @@ describe("OnboardingContainer", () => {
     expect(child.mock.calls[child.mock.calls.length - 1][0].currentStep).toBe(OnboardingStepIndex.EMAIL_VERIFICATION);
   });
 
+  it("replaces uakt with managed denom when completing onboarding", async () => {
+    const { child, mockUseManagedWalletDenom, mockNewDeploymentData } = setup();
+
+    mockUseManagedWalletDenom.mockReturnValue("ibc/usdc");
+
+    const { onComplete } = child.mock.calls[0][0];
+    await act(async () => {
+      await onComplete("hello-akash");
+    });
+
+    const sdlArgument = mockNewDeploymentData.mock.calls[0][1];
+    expect(sdlArgument).not.toContain("uakt");
+    expect(mockUseManagedWalletDenom).toHaveBeenCalled();
+  });
+
+  it("does not replace uakt when managed denom is uakt", async () => {
+    const { child, mockUseManagedWalletDenom, mockNewDeploymentData } = setup();
+
+    mockUseManagedWalletDenom.mockReturnValue("uakt");
+
+    const { onComplete } = child.mock.calls[0][0];
+    await act(async () => {
+      await onComplete("hello-akash");
+    });
+
+    const sdlArgument = mockNewDeploymentData.mock.calls[0][1];
+    expect(sdlArgument).toBe("mock-sdl-content");
+    expect(mockUseManagedWalletDenom).toHaveBeenCalled();
+  });
+
+  it("does not corrupt SDL when managed denom is undefined", async () => {
+    const { child, mockUseManagedWalletDenom, mockNewDeploymentData } = setup();
+
+    mockUseManagedWalletDenom.mockReturnValue(undefined);
+
+    const { onComplete } = child.mock.calls[0][0];
+    await act(async () => {
+      await onComplete("hello-akash");
+    });
+
+    const sdlArgument = mockNewDeploymentData.mock.calls[0][1];
+    expect(sdlArgument).toBe("mock-sdl-content");
+    expect(sdlArgument).not.toContain("undefined");
+    expect(mockUseManagedWalletDenom).toHaveBeenCalled();
+  });
+
   function setup(
     input: {
       paymentMethods?: Array<{ id: string; type: string }>;
@@ -171,11 +217,11 @@ describe("OnboardingContainer", () => {
       savedStep?: string;
     } = {}
   ) {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Mock localStorage using jest-mock-extended
     const mockLocalStorage = mock<Storage>({
-      getItem: jest.fn().mockReturnValue(input.savedStep || null)
+      getItem: vi.fn().mockReturnValue(input.savedStep || null)
     });
 
     // Store original window objects
@@ -202,70 +248,104 @@ describe("OnboardingContainer", () => {
     const mockAnalyticsService = mock<AnalyticsService>();
     const mockRouter = mock<Router>();
     const authService = mock<AuthService>();
-    const mockConnectManagedWallet = jest.fn();
-    const mockSignAndBroadcastTx = jest.fn().mockResolvedValue({ transactionHash: "mock-hash" });
-    const mockGenNewCertificateIfLocalIsInvalid = jest.fn().mockResolvedValue(null);
-    const mockUpdateSelectedCertificate = jest.fn().mockResolvedValue(undefined);
+    const mockConnectManagedWallet = vi.fn();
+    const mockSignAndBroadcastTx = vi.fn().mockResolvedValue({ transactionHash: "mock-hash" });
+    const mockGenNewCertificateIfLocalIsInvalid = vi.fn().mockResolvedValue(null);
+    const mockUpdateSelectedCertificate = vi.fn().mockResolvedValue(undefined);
 
     const mockUrlService = {
       ...UrlService,
-      onboarding: jest.fn(() => "/onboarding"),
-      signup: jest.fn(() => "/signup"),
-      newDeployment: jest.fn(() => "/deployments/new")
+      onboarding: vi.fn(() => "/onboarding"),
+      signup: vi.fn(() => "/signup"),
+      newSignup: vi.fn(() => "/login?tab=signup"),
+      newDeployment: vi.fn(() => "/deployments/new")
     };
 
     const mockChainApiHttpClient = {
-      get: jest.fn()
+      get: vi.fn()
     };
 
     const mockDeploymentLocalStorage = {
-      update: jest.fn()
+      update: vi.fn()
     };
 
     const mockAppConfig = {
       NEXT_PUBLIC_DEFAULT_INITIAL_DEPOSIT: "5000000"
     };
 
-    const mockUseUser = jest.fn().mockReturnValue(input.user || { emailVerified: false });
-    const mockUsePaymentMethodsQuery = jest.fn().mockReturnValue({ data: input.paymentMethods || [] });
-    const mockUseServices = jest.fn().mockReturnValue({
+    const mockUseUser = vi.fn().mockReturnValue(input.user || { emailVerified: false });
+    const mockUsePaymentMethodsQuery = vi.fn().mockReturnValue({ data: input.paymentMethods || [] });
+    const mockUseChainParam = vi.fn().mockReturnValue({ minDeposit: { akt: 0.5, usdc: 5 } });
+    const mockDenomToUdenom = vi.fn().mockImplementation((amount: number) => amount * 1_000_000);
+    const mockErrorHandler = mock<ErrorHandlerService>();
+    const mockTemplateService = {
+      findById: vi.fn().mockResolvedValue({ deploy: "mock-template-sdl" })
+    };
+
+    const mockUseServices = vi.fn().mockReturnValue({
       analyticsService: mockAnalyticsService,
       urlService: mockUrlService,
       authService,
       chainApiHttpClient: mockChainApiHttpClient,
       deploymentLocalStorage: mockDeploymentLocalStorage,
-      appConfig: mockAppConfig,
+      publicConfig: mockAppConfig,
+      errorHandler: mockErrorHandler,
       windowLocation,
-      windowHistory
+      windowHistory,
+      template: mockTemplateService
     });
-    const mockUseRouter = jest.fn().mockReturnValue(mockRouter);
-    const mockUseWallet = jest.fn().mockReturnValue({
+    const mockUseRouter = vi.fn().mockReturnValue(mockRouter);
+    const mockUseWallet = vi.fn().mockReturnValue({
       hasManagedWallet: input.wallet?.hasManagedWallet || false,
       isWalletLoading: input.wallet?.isWalletLoading || false,
       connectManagedWallet: mockConnectManagedWallet,
       address: "akash1test",
       signAndBroadcastTx: mockSignAndBroadcastTx
     });
-    const mockUseTemplates = jest.fn().mockReturnValue({ templates: [] });
-    const mockUseCertificate = jest.fn().mockReturnValue({
+    const mockUseCertificate = vi.fn().mockReturnValue({
       genNewCertificateIfLocalIsInvalid: mockGenNewCertificateIfLocalIsInvalid,
       updateSelectedCertificate: mockUpdateSelectedCertificate
     });
-    const mockUseSnackbar = jest.fn().mockReturnValue({
-      enqueueSnackbar: jest.fn()
+    const mockUseSnackbar = vi.fn().mockReturnValue({
+      enqueueSnackbar: vi.fn()
+    });
+    const mockNotificator = { success: vi.fn(), error: vi.fn() };
+    const mockUseNotificator = vi.fn().mockReturnValue(mockNotificator);
+    const mockUseManagedWalletDenom = vi.fn().mockReturnValue("uakt");
+
+    const mockNavigateBack = vi.fn();
+    const mockNavigateWithReturnTo = vi.fn();
+    const mockUseReturnTo = vi.fn().mockReturnValue({
+      returnTo: "/",
+      navigateWithReturnTo: mockNavigateWithReturnTo,
+      navigateBack: mockNavigateBack,
+      hasReturnTo: true,
+      isDeploymentReturnTo: false
     });
 
-    const mockNewDeploymentData = jest.fn().mockResolvedValue({
+    const params = new URLSearchParams();
+    if (input.windowLocation?.search) {
+      const searchParams = new URLSearchParams(input.windowLocation.search.replace("?", ""));
+      searchParams.forEach((value, key) => {
+        params.set(key, value);
+      });
+    }
+    const useSearchParams = () => {
+      const [pageParams] = useState(params);
+      return pageParams as ReadonlyURLSearchParams;
+    };
+
+    const mockNewDeploymentData = vi.fn().mockResolvedValue({
       deploymentId: { dseq: "123" },
       hash: "mock-hash"
     });
 
     const mockDeploymentData = {
       NewDeploymentData: mockNewDeploymentData,
-      getManifest: jest.fn(),
-      getManifestVersion: jest.fn(),
-      appendTrialAttribute: jest.fn(),
-      appendAuditorRequirement: jest.fn(sdl => sdl),
+      getManifest: vi.fn(),
+      getManifestVersion: vi.fn(),
+      appendTrialAttribute: vi.fn(),
+      appendAuditorRequirement: vi.fn(sdl => sdl),
       ENDPOINT_NAME_VALIDATION_REGEX: /^[a-z]+[-_\da-z]+$/,
       TRIAL_ATTRIBUTE: "console/trials" as const,
       TRIAL_REGISTERED_ATTRIBUTE: "console/trials-registered" as const,
@@ -273,8 +353,8 @@ describe("OnboardingContainer", () => {
       MANAGED_WALLET_ALLOWED_AUDITORS: ["akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63" as const]
     };
 
-    const mockValidateDeploymentData = jest.fn();
-    const mockAppendAuditorRequirement = jest.fn(sdl => sdl);
+    const mockValidateDeploymentData = vi.fn();
+    const mockAppendAuditorRequirement = vi.fn(sdl => sdl);
     const mockHelloWorldTemplate = {
       title: "Hello World",
       name: "Hello World",
@@ -287,41 +367,45 @@ describe("OnboardingContainer", () => {
     };
     const mockTransactionMessageData = {
       prototype: {},
-      getRevokeCertificateMsg: jest.fn(),
-      getCreateCertificateMsg: jest.fn(),
-      getCreateLeaseMsg: jest.fn(),
-      getCreateDeploymentMsg: jest.fn(),
-      getUpdateDeploymentMsg: jest.fn(),
-      getDepositDeploymentMsg: jest.fn(),
-      getCloseDeploymentMsg: jest.fn(),
-      getSendTokensMsg: jest.fn(),
-      getGrantMsg: jest.fn(),
-      getRevokeDepositMsg: jest.fn(),
-      getGrantBasicAllowanceMsg: jest.fn(),
-      getRevokeAllowanceMsg: jest.fn(),
-      getUpdateProviderMsg: jest.fn()
+      getRevokeCertificateMsg: vi.fn(),
+      getCreateCertificateMsg: vi.fn(),
+      getCreateLeaseMsg: vi.fn(),
+      getCreateDeploymentMsg: vi.fn(),
+      getUpdateDeploymentMsg: vi.fn(),
+      getDepositDeploymentMsg: vi.fn(),
+      getCloseDeploymentMsg: vi.fn(),
+      getSendTokensMsg: vi.fn(),
+      getGrantMsg: vi.fn(),
+      getRevokeDepositMsg: vi.fn(),
+      getGrantBasicAllowanceMsg: vi.fn(),
+      getRevokeAllowanceMsg: vi.fn(),
+      getUpdateProviderMsg: vi.fn()
     };
 
     // Create dependencies object
     const dependencies = {
       useUser: mockUseUser,
       usePaymentMethodsQuery: mockUsePaymentMethodsQuery,
+      useChainParam: mockUseChainParam,
       useServices: mockUseServices,
       useRouter: mockUseRouter,
       useWallet: mockUseWallet,
-      useTemplates: mockUseTemplates,
       useCertificate: mockUseCertificate,
       useSnackbar: mockUseSnackbar,
+      useNotificator: mockUseNotificator,
+      useManagedWalletDenom: mockUseManagedWalletDenom,
+      useReturnTo: mockUseReturnTo,
       localStorage: mockLocalStorage,
       deploymentData: mockDeploymentData,
       validateDeploymentData: mockValidateDeploymentData,
       appendAuditorRequirement: mockAppendAuditorRequirement,
       helloWorldTemplate: mockHelloWorldTemplate,
       TransactionMessageData: mockTransactionMessageData as unknown as typeof TransactionMessageData,
-      UrlService
+      useSearchParams,
+      denomToUdenom: mockDenomToUdenom
     };
 
-    const mockChildren = jest.fn().mockReturnValue(<div>Test</div>);
+    const mockChildren = vi.fn().mockReturnValue(<div>Test</div>);
 
     render(<OnboardingContainer dependencies={dependencies}>{mockChildren}</OnboardingContainer>);
 
@@ -333,9 +417,13 @@ describe("OnboardingContainer", () => {
       authService,
       mockUseUser,
       mockUsePaymentMethodsQuery,
+      mockUseChainParam,
+      mockDenomToUdenom,
       mockUseServices,
       mockUseRouter,
       mockConnectManagedWallet,
+      mockNavigateBack,
+      mockNavigateWithReturnTo,
       mockLocalStorage,
       mockSignAndBroadcastTx,
       mockGenNewCertificateIfLocalIsInvalid,
@@ -345,7 +433,8 @@ describe("OnboardingContainer", () => {
       mockNewDeploymentData,
       mockValidateDeploymentData,
       mockAppendAuditorRequirement,
-      mockTransactionMessageData
+      mockTransactionMessageData,
+      mockUseManagedWalletDenom
     };
   }
 });

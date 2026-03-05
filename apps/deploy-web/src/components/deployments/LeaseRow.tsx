@@ -13,7 +13,7 @@ import { CodeSnippet } from "@src/components/shared/CodeSnippet";
 import { FavoriteButton } from "@src/components/shared/FavoriteButton";
 import { LabelValueOld } from "@src/components/shared/LabelValueOld";
 import { PriceEstimateTooltip } from "@src/components/shared/PriceEstimateTooltip";
-import { PricePerMonth } from "@src/components/shared/PricePerMonth";
+import { PricePerTimeUnit } from "@src/components/shared/PricePerTimeUnit";
 import { SpecDetail } from "@src/components/shared/SpecDetail";
 import { StatusPill } from "@src/components/shared/StatusPill";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
@@ -23,7 +23,6 @@ import { useBidInfo } from "@src/queries/useBidQuery";
 import type { LeaseStatusDto } from "@src/queries/useLeaseQuery";
 import { useLeaseStatus } from "@src/queries/useLeaseQuery";
 import { useProviderStatus } from "@src/queries/useProvidersQuery";
-import networkStore from "@src/store/networkStore";
 import type { LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { copyTextToClipboard } from "@src/utils/copyClipboard";
@@ -32,7 +31,7 @@ import { getGpusFromAttributes } from "@src/utils/deploymentUtils";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { sshVmImages } from "@src/utils/sdl/data";
 import { CopyTextToClipboardButton } from "../shared/CopyTextToClipboardButton";
-import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar";
+import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar/ManifestErrorSnackbar";
 import { ProviderName } from "../shared/ProviderName";
 
 type Props = {
@@ -116,13 +115,12 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
       loadLeaseStatus();
     }, [lease, provider, providerCredentials.details, loadLeaseStatus]);
 
-    const chainNetwork = networkStore.useSelectedNetworkId();
     async function sendManifest() {
       setIsSendingManifest(true);
       try {
         const manifest = deploymentData.getManifest(parsedManifest, true);
 
-        await providerProxy.sendManifest(provider, manifest, { dseq, credentials: providerCredentials.details, chainNetwork });
+        await providerProxy.sendManifest(provider, manifest, { dseq, credentials: providerCredentials.details });
 
         enqueueSnackbar(<Snackbar title="Manifest sent!" iconVariant="success" />, { variant: "success", autoHideDuration: 10_000 });
 
@@ -169,21 +167,21 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
 
     return (
       <Card className="mb-4">
-        <CardHeader className="bg-secondary py-2">
+        <CardHeader className="rounded-t-lg bg-secondary py-2">
           <div className="flex items-center">
             <div className="inline-flex items-center text-xs text-muted-foreground">
               <span data-testid={`lease-row-${index}-state`}>{lease.state}</span>
               <StatusPill state={lease.state} size="small" />
 
-              <span className="ml-4 text-muted-foreground">GSEQ:</span>
+              <span className="ml-6 text-muted-foreground">GSEQ:</span>
               <span className="ml-1">{lease.gseq}</span>
 
-              <span className="ml-4">OSEQ:</span>
+              <span className="ml-6">OSEQ:</span>
               <span className="ml-1">{lease.oseq}</span>
             </div>
 
             {isLeaseActive && (
-              <div className="ml-4 inline-flex">
+              <div className="ml-6 inline-flex">
                 <Link className="text-sm" href={`/deployments/${dseq}?tab=LOGS`}>
                   View logs
                 </Link>
@@ -191,9 +189,9 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
             )}
           </div>
         </CardHeader>
-        <CardContent className="pt-4">
-          <div className="space-y-2">
-            <div className="mb-4">
+        <CardContent className="pt-6">
+          <div className="space-y-4">
+            <div>
               <SpecDetail
                 cpuAmount={lease.cpuAmount}
                 gpuAmount={lease.gpuAmount}
@@ -208,8 +206,13 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
               label="Price:"
               value={
                 <div className="flex items-center">
-                  <PricePerMonth denom={lease.price.denom} perBlockValue={udenomToDenom(lease.price.amount, 10)} className="text-lg" />
-                  <PriceEstimateTooltip denom={lease.price.denom} value={lease.price.amount} />
+                  <PricePerTimeUnit
+                    denom={lease.price.denom}
+                    perBlockValue={udenomToDenom(lease.price.amount, 10)}
+                    className="text-lg"
+                    showAsHourly={!!lease.gpuAmount && lease.gpuAmount > 0}
+                  />
+                  <PriceEstimateTooltip denom={lease.price.denom} value={lease.price.amount} showAsHourly={!!lease.gpuAmount && lease.gpuAmount > 0} />
                 </div>
               }
             />
@@ -266,8 +269,8 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
               .map(n => leaseStatus.services[n])
               .map((service, i) => (
                 <div
-                  className={cn("mt-2", {
-                    ["border-b pb-2"]: servicesNames.length > 1 && i !== servicesNames.length - 1
+                  className={cn("mt-4", {
+                    ["border-b pb-4"]: servicesNames.length > 1 && i !== servicesNames.length - 1
                   })}
                   key={`${service.name}_${i}`}
                 >
@@ -361,7 +364,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
                   {isRemoteDeploy && repo && (
                     <div className="mt-2">
                       <LabelValueOld label="Deployed Repo:" />
-                      <ul className="mt-2 space-y-2">
+                      <ul className="mt-2 space-y-6">
                         <li className="flex items-center">
                           <Link href={repo} target="_blank" className="inline-flex items-center space-x-2 truncate text-sm">
                             <span>{repo?.replace("https://github.com/", "")?.replace("https://gitlab.com/", "")}</span> <OpenInWindow className="text-xs" />
@@ -372,9 +375,9 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
                   )}
                   {service.uris?.length > 0 && (
                     <>
-                      <div className="mt-2">
+                      <div>
                         <LabelValueOld label="URI(s):" />
-                        <ul className="mt-2 space-y-2" aria-label="URIs">
+                        <ul className="space-y-2" aria-label="URIs">
                           {service.uris.map(uri => {
                             return (
                               <li className="flex items-center" key={uri}>
@@ -443,7 +446,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
           )}
 
           {sshInstructions && (
-            <div className="mt-4">
+            <div className="mt-6">
               <h5 className="font-bold dark:text-neutral-500">SSH Instructions:</h5>
               <ul className="list-inside list-disc space-y-1">
                 <li>

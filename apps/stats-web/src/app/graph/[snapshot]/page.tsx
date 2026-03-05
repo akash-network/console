@@ -33,7 +33,7 @@ export default function GraphPage({ params: { snapshot: snapshotUrlParam } }: IG
   return (
     <PageContainer>
       <div className="m-auto max-w-3xl">
-        <div className="mb-8">
+        <div className="mb-6 mt-6">
           <Link href={UrlService.home()}>
             <Button variant="ghost">
               <ArrowLeft className="mr-2 h-4 w-4" /> Back

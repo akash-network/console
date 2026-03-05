@@ -102,7 +102,7 @@ export const NotificationChannelsListView: FC<NotificationChannelsListViewProps>
                     void onRemove(info.row.original.id);
                   }
                 }}
-                className="text-sm text-red-500 hover:text-red-700"
+                className="text-xs"
                 data-testid="remove-notification-channel-button"
               >
                 {isRemoving ? <Spinner size="small" /> : <Bin className="text-xs" />}
@@ -177,7 +177,7 @@ export const NotificationChannelsListView: FC<NotificationChannelsListViewProps>
           {table.getRowModel().rows.map(row => (
             <TableRow key={row.id} className="[&>td]:px-4 [&>td]:py-2">
               {row.getVisibleCells().map(cell => (
-                <TableCell key={cell.id} className="align-top">
+                <TableCell key={cell.id} className="align-middle">
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </TableCell>
               ))}

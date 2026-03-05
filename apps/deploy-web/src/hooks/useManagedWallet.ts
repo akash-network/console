@@ -1,35 +1,33 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import type { ApiManagedWalletOutput } from "@akashnetwork/http-sdk";
 import { useAtom } from "jotai";
 
-import { browserEnvConfig } from "@src/config/browser-env.config";
-import { useSelectedChain } from "@src/context/CustomChainProvider";
 import { useUser } from "@src/hooks/useUser";
 import { useCreateManagedWalletMutation, useManagedWalletQuery } from "@src/queries/useManagedWalletQuery";
 import walletStore from "@src/store/walletStore";
-import { deleteManagedWalletFromStorage, ensureUserManagedWalletOwnership, getSelectedStorageWallet, updateStorageManagedWallet } from "@src/utils/walletUtils";
+import { ensureUserManagedWalletOwnership, getSelectedStorageWallet, updateStorageManagedWallet } from "@src/utils/walletUtils";
 import { useCustomUser } from "./useCustomUser";
-
-const { NEXT_PUBLIC_BILLING_ENABLED } = browserEnvConfig;
-const isBillingEnabled = NEXT_PUBLIC_BILLING_ENABLED;
 
 export const useManagedWallet = () => {
   const { user } = useUser();
   const { user: signedInUser } = useCustomUser();
-  const userWallet = useSelectedChain();
   const [selectedWalletType, setSelectedWalletType] = useAtom(walletStore.selectedWalletType);
-  const { data: queried, isFetched, isLoading: isInitialLoading, isFetching, refetch } = useManagedWalletQuery(isBillingEnabled ? user?.id : undefined);
+  const { data: queried, isLoading: isInitialLoading, isFetching, refetch } = useManagedWalletQuery(user?.id);
   const { mutate: create, data: created, isPending: isCreating, isSuccess: isCreated, error: createError } = useCreateManagedWalletMutation();
   const wallet = useMemo(() => (queried || created) as ApiManagedWalletOutput, [queried, created]);
   const isLoading = isInitialLoading || isCreating;
   const [, setIsSignedInWithTrial] = useAtom(walletStore.isSignedInWithTrial);
   const selected = getSelectedStorageWallet();
+  const hasAutoSwitched = useRef(false);
 
   useEffect(() => {
-    if (selectedWalletType === "custodial" && queried && !userWallet.isWalletConnected && !userWallet.isWalletConnecting) {
-      setSelectedWalletType("managed");
+    if (!hasAutoSwitched.current && queried) {
+      hasAutoSwitched.current = true;
+      if (selectedWalletType === "custodial") {
+        setSelectedWalletType("managed");
+      }
     }
-  }, [queried, selectedWalletType, setSelectedWalletType, userWallet.isWalletConnected, userWallet.isWalletConnecting]);
+  }, [queried, selectedWalletType, setSelectedWalletType]);
 
   useEffect(() => {
     if (signedInUser?.id && (!!queried || !!created)) {
@@ -38,18 +36,12 @@ export const useManagedWallet = () => {
   }, [signedInUser?.id, queried, created, setIsSignedInWithTrial]);
 
   useEffect(() => {
-    if (!isBillingEnabled) {
-      return;
-    }
-
     if (wallet && isCreated) {
       updateStorageManagedWallet({ ...wallet, selected: true });
-    } else if (isFetched && !wallet) {
-      deleteManagedWalletFromStorage();
     } else if (wallet) {
       updateStorageManagedWallet(wallet);
     }
-  }, [isFetched, isCreated, wallet]);
+  }, [isCreated, wallet]);
 
   useEffect(() => {
     if (user?.id && !user.userId) {
@@ -61,10 +53,6 @@ export const useManagedWallet = () => {
     const isConfigured = !!wallet;
     return {
       create: () => {
-        if (!isBillingEnabled) {
-          throw new Error("Billing is not enabled");
-        }
-
         if (!user?.id) {
           throw new Error("User is not initialized yet");
         }

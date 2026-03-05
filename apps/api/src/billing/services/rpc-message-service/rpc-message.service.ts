@@ -10,7 +10,6 @@ import { GroupSpec, MsgCloseDeployment, MsgCreateDeployment, MsgUpdateDeployment
 import { MsgCreateLease } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 import { BasicAllowance, MsgExec, MsgGrant, MsgGrantAllowance, MsgRevoke, MsgRevokeAllowance } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 import addYears from "date-fns/addYears";
-import Long from "long";
 import { singleton } from "tsyringe";
 
 export interface SpendingAuthorizationMsgOptions {
@@ -130,7 +129,7 @@ export class RpcMessageService {
       value: MsgCloseDeployment.fromPartial({
         id: {
           owner: address,
-          dseq: Long.fromString(dseq.toString(), true)
+          dseq
         }
       })
     };
@@ -163,7 +162,7 @@ export class RpcMessageService {
       value: MsgCreateLease.fromPartial({
         bidId: {
           owner,
-          dseq: Long.fromString(dseq.toString(), true),
+          dseq,
           gseq,
           oseq,
           provider

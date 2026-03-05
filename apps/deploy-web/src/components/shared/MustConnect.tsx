@@ -14,7 +14,7 @@ export const MustConnect: React.FunctionComponent<Props> = ({ message }) => {
   return (
     <Alert>
       {message}, please{" "}
-      <Link href={UrlService.login()} passHref>
+      <Link href={UrlService.newLogin()} passHref prefetch={false}>
         login
       </Link>{" "}
       or <SignUpButton>register</SignUpButton>.

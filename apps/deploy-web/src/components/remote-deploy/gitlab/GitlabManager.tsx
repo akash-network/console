@@ -27,7 +27,7 @@ const GitlabManager = ({
   const { data: repos, isLoading } = useGitLabReposByGroup(group);
 
   return (
-    <>
+    <div className="grid gap-6 md:grid-cols-2">
       <Groups isLoading={loading} setGroup={setGroup} />
       <Repos
         services={services}
@@ -48,7 +48,7 @@ const GitlabManager = ({
         type="gitlab"
       />
       <GitlabBranches services={services} control={control} repos={repos} />
-    </>
+    </div>
   );
 };
 

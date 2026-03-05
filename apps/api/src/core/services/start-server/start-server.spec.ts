@@ -2,9 +2,9 @@ import type { LoggerService } from "@akashnetwork/logging";
 import type { ServerType } from "@hono/node-server";
 import EventEmitter from "events";
 import type { Hono } from "hono";
-import { mock } from "jest-mock-extended";
 import { setTimeout as delay } from "timers/promises";
 import type { DependencyContainer } from "tsyringe";
+import { mock } from "vitest-mock-extended";
 
 import type { AppInitializer } from "@src/core/providers/app-initializer";
 import { APP_INITIALIZER, ON_APP_START } from "@src/core/providers/app-initializer";
@@ -122,6 +122,25 @@ describe("startServer", () => {
 
     expect(closeServer).toHaveBeenCalledTimes(1);
     expect(container.dispose).toHaveBeenCalledTimes(1);
+  });
+
+  it("logs error when app.fetch throws an error", async () => {
+    const error = new Error("Unexpected error");
+    const { start, app, logger } = setup();
+    app.fetch.mockRejectedValue(error);
+
+    const server = await start();
+    const { port } = server!.address() as { port: number };
+
+    await fetch(`http://localhost:${port}`).catch(() => {});
+    await delay(10);
+
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "OUTSIDE_OF_APP_ERROR",
+        error
+      })
+    );
   });
 
   it("disposes container when `beforeStart` throws an error", async () => {

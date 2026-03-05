@@ -20,7 +20,7 @@ export const TimeRange: React.FunctionComponent<Props> = ({ selectedRange, onRan
     <ToggleGroup type="single" aria-label="Graph range select" color="secondary" size="sm" className="mx-auto my-0 sm:mx-0">
       <ToggleGroupItem
         value="7D"
-        className={cn({ ["!bg-primary font-bold !text-white"]: selectedRange === SELECTED_RANGE_VALUES["7D"] })}
+        className={cn({ ["bg-primary font-bold text-primary-foreground"]: selectedRange === SELECTED_RANGE_VALUES["7D"] })}
         onClick={() => _onRangeChange(SELECTED_RANGE_VALUES["7D"])}
         size="sm"
       >
@@ -28,7 +28,7 @@ export const TimeRange: React.FunctionComponent<Props> = ({ selectedRange, onRan
       </ToggleGroupItem>
       <ToggleGroupItem
         value="1M"
-        className={cn({ ["!bg-primary font-bold !text-white"]: selectedRange === SELECTED_RANGE_VALUES["1M"] })}
+        className={cn({ ["bg-primary font-bold text-primary-foreground"]: selectedRange === SELECTED_RANGE_VALUES["1M"] })}
         onClick={() => _onRangeChange(SELECTED_RANGE_VALUES["1M"])}
         size="sm"
       >
@@ -36,7 +36,7 @@ export const TimeRange: React.FunctionComponent<Props> = ({ selectedRange, onRan
       </ToggleGroupItem>
       <ToggleGroupItem
         value="ALL"
-        className={cn({ ["!bg-primary font-bold !text-white"]: selectedRange === SELECTED_RANGE_VALUES["ALL"] })}
+        className={cn({ ["bg-primary font-bold text-primary-foreground"]: selectedRange === SELECTED_RANGE_VALUES["ALL"] })}
         onClick={() => _onRangeChange(SELECTED_RANGE_VALUES["ALL"])}
         size="sm"
       >

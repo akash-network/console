@@ -1,9 +1,10 @@
-import { LoggerService } from "@akashnetwork/logging";
+import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { differenceInSeconds } from "date-fns";
+import { LRUCache } from "lru-cache";
 
 import MemoryCacheEngine from "./memoryCacheEngine";
 
-const logger = LoggerService.forContext("Caching");
+const logger = createOtelLogger({ context: "Caching" });
 
 export const cacheEngine = new MemoryCacheEngine();
 const pendingRequests = new Map<string, Promise<unknown>>();
@@ -40,7 +41,7 @@ export async function cacheResponse<T>(seconds: number, key: string, refreshRequ
   const cachedObject = cacheEngine.getFromCache<CachedObject<T>>(key);
   logger.debug(`Request for key: ${key}`);
 
-  const hasCachedData = cachedObject !== false;
+  const hasCachedData = cachedObject !== undefined;
 
   // Check if cached data is still valid (only if we have cached data)
   let isExpired = true;
@@ -111,7 +112,7 @@ export async function cacheResponse<T>(seconds: number, key: string, refreshRequ
 }
 
 export function memoizeAsync<T extends (...args: unknown[]) => Promise<unknown>>(fn: T): T {
-  const cache = new Map<string, ReturnType<T>>();
+  const cache = new LRUCache<string, ReturnType<T>>({ max: 100 });
 
   return ((...args: Parameters<T>) => {
     const key = JSON.stringify(args);
@@ -138,12 +139,31 @@ export const cacheKeys = {
   getProviderActiveLeasesGraphData: "getProviderActiveLeasesGraphData",
   getTemplates: "getTemplates",
   getMarketData: "getMarketData",
-  getProviderList: "getProviderList",
-  getTrialProviderList: "getTrialProviderList",
+  getProviderListJson: "getProviderListJson",
+  getTrialProviderListJson: "getTrialProviderListJson",
   getTrialRegisteredProviderList: "getTrialRegisteredProviderList",
   getChainStats: "getChainStats",
   getGpuModels: "getGpuModels",
   getTrialProviders: "getTrialProviders",
   getGpuUtilization: "getGpuUtilization",
-  getGpuBreakdown: "getGpuBreakdown"
+  getGpuBreakdown: "getGpuBreakdown",
+  getProviderListGzipped: "getProviderListGzipped",
+  getTrialProviderListGzipped: "getTrialProviderListGzipped"
 };
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function reusePendingPromise<T extends (...args: any[]) => Promise<unknown>>(fn: T, options?: { getKey?: (...args: Parameters<T>) => string }): T {
+  const pendingPromises = new Map<string, Promise<unknown>>();
+
+  return ((...args: Parameters<T>) => {
+    const key = options?.getKey ? options.getKey(...args) : JSON.stringify(args);
+
+    let pendingPromise = pendingPromises.get(key);
+    if (!pendingPromise) {
+      pendingPromise = fn(...args).finally(() => pendingPromises.delete(key)) as ReturnType<T>;
+      pendingPromises.set(key, pendingPromise);
+    }
+
+    return pendingPromise as ReturnType<T>;
+  }) as unknown as T;
+}

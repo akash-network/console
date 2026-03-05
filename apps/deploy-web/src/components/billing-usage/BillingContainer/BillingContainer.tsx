@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import type { Charge } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
+import type { Charge } from "@akashnetwork/http-sdk";
 import { useToast } from "@akashnetwork/ui/hooks";
 import type { PaginationState } from "@tanstack/react-table";
 import axios from "axios";

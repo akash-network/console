@@ -3,8 +3,11 @@ import React, { useState } from "react";
 import { Alert, Button } from "@akashnetwork/ui/components";
 import { AddressElement, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 
+import { StripeInput } from "../StripeInput";
+
 interface PaymentMethodFormProps {
-  onSuccess: () => void;
+  onSuccess: (organization?: string) => void;
+  onReady?: React.ComponentProps<typeof PaymentElement>["onReady"];
   buttonText?: string;
   processingText?: string;
   className?: string;
@@ -12,6 +15,7 @@ interface PaymentMethodFormProps {
 
 export const PaymentMethodForm: React.FC<PaymentMethodFormProps> = ({
   onSuccess,
+  onReady,
   buttonText = "Add Card",
   processingText = "Processing...",
   className = ""
@@ -20,6 +24,7 @@ export const PaymentMethodForm: React.FC<PaymentMethodFormProps> = ({
   const elements = useElements();
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [organization, setOrganization] = useState<string>("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,18 +36,18 @@ export const PaymentMethodForm: React.FC<PaymentMethodFormProps> = ({
     setIsProcessing(true);
 
     try {
-      const { error: setupError, setupIntent } = await stripe.confirmSetup({
+      const result = await stripe.confirmSetup({
         elements,
         redirect: "if_required"
       });
 
-      if (setupError) {
-        setError(setupError.message || "An error occurred while processing your payment method.");
+      if (result.error) {
+        setError(result.error.message || "An error occurred while processing your payment method.");
         return;
       }
 
-      if (setupIntent?.status === "succeeded") {
-        onSuccess();
+      if (result.setupIntent?.status === "succeeded") {
+        onSuccess(organization.trim() || undefined);
       }
     } catch (err) {
       setError("An unexpected error occurred.");
@@ -53,6 +58,16 @@ export const PaymentMethodForm: React.FC<PaymentMethodFormProps> = ({
 
   return (
     <form className={`space-y-6 ${className}`} onSubmit={handleSubmit}>
+      {/* Organization Input - Styled to match Stripe Elements */}
+      <StripeInput
+        id="organization"
+        type="text"
+        label="Organization (Optional)"
+        value={organization}
+        onChange={e => setOrganization(e.target.value)}
+        autoComplete="organization"
+      />
+
       {/* Billing Address Section */}
       <div className="space-y-4">
         <h3 className="text-left text-sm font-semibold text-muted-foreground">Billing Address</h3>
@@ -66,7 +81,12 @@ export const PaymentMethodForm: React.FC<PaymentMethodFormProps> = ({
       {/* Payment Element */}
       <div className="space-y-2">
         <h3 className="text-left text-sm font-semibold text-muted-foreground">Card Information</h3>
-        <PaymentElement />
+        <PaymentElement
+          options={{
+            layout: "tabs"
+          }}
+          onReady={onReady}
+        />
       </div>
 
       {error && (

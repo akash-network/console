@@ -1,6 +1,7 @@
 import type { AuthzHttpService } from "@akashnetwork/http-sdk";
 import type { AxiosInstance, AxiosResponse } from "axios";
-import { mock } from "jest-mock-extended";
+import { describe, expect, it } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { UAKT_DENOM, USDC_IBC_DENOMS } from "@src/config/denom.config";
 import type { RestApiBalancesResponseType } from "@src/types";
@@ -101,7 +102,7 @@ describe(WalletBalancesService.name, () => {
             return Promise.resolve({
               data: input.getBalances?.() || {
                 balances: [
-                  { denom: USDC_IBC_DENOMS.sandbox, amount: "49944457" },
+                  { denom: USDC_IBC_DENOMS.sandbox, amount: "0" },
                   { denom: UAKT_DENOM, amount: "73477804" }
                 ]
               }
@@ -111,7 +112,10 @@ describe(WalletBalancesService.name, () => {
           return Promise.reject(new Error("Not implemented"));
         }
       }) as unknown as AxiosInstance,
-      input.masterWalletAddress || "akash1234"
+      {
+        uakt: UAKT_DENOM,
+        usdc: USDC_IBC_DENOMS.sandbox!
+      }
     );
   }
 });

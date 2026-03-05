@@ -32,12 +32,17 @@ export interface PaymentMethod {
   type: string;
   created: number;
   validated: boolean;
+  isDefault?: boolean;
   card?: {
     brand: string;
     last4: string;
+    funding: "credit" | "debit" | "prepaid" | "unknown";
     exp_month: number;
     exp_year: number;
   };
+  link?: {
+    email?: string | null;
+  } | null;
 }
 
 export interface Charge {
@@ -111,4 +116,8 @@ export interface ConfirmPaymentResponse {
 export interface ThreeDSecureAuthParams {
   paymentMethodId: string;
   paymentIntentId: string;
+}
+
+export interface SetPaymentMethodAsDefaultParams {
+  id: string;
 }

@@ -1,7 +1,10 @@
+import { Lifecycle, scoped } from "tsyringe";
+
 interface TopUpSummary {
   deploymentCount: number;
   deploymentTopUpCount: number;
   deploymentTopUpErrorCount: number;
+  deploymentsMarkedClosedCount: number;
   insufficientBalanceCount: number;
   walletsCount: number;
   walletsTopUpCount: number;
@@ -13,6 +16,7 @@ interface TopUpSummary {
   totalTopUpAmount: number;
 }
 
+@scoped(Lifecycle.ResolutionScoped)
 export class TopUpSummarizer {
   private deploymentCount = 0;
 
@@ -21,6 +25,8 @@ export class TopUpSummarizer {
   private insufficientBalanceCount = 0;
 
   private deploymentTopUpErrorCount = 0;
+
+  private deploymentsMarkedClosedCount = 0;
 
   private minPredictedClosedHeight?: number;
 
@@ -38,7 +44,13 @@ export class TopUpSummarizer {
 
   private failedWalletAddresses = new Set<string>();
 
-  inc(param: keyof Pick<TopUpSummary, "deploymentCount" | "deploymentTopUpCount" | "deploymentTopUpErrorCount" | "insufficientBalanceCount">, value = 1) {
+  inc(
+    param: keyof Pick<
+      TopUpSummary,
+      "deploymentCount" | "deploymentTopUpCount" | "deploymentTopUpErrorCount" | "deploymentsMarkedClosedCount" | "insufficientBalanceCount"
+    >,
+    value = 1
+  ) {
     this[param] += value;
   }
 
@@ -92,6 +104,7 @@ export class TopUpSummarizer {
       deploymentCount: this.deploymentCount,
       deploymentTopUpCount: this.deploymentTopUpCount,
       deploymentTopUpErrorCount: this.deploymentTopUpErrorCount,
+      deploymentsMarkedClosedCount: this.deploymentsMarkedClosedCount,
       insufficientBalanceCount: this.insufficientBalanceCount,
       walletsCount: this.walletAddresses.size,
       walletsTopUpCount: this.successfulWalletAddresses.size,

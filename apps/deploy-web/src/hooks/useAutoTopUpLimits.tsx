@@ -3,17 +3,18 @@ import type { ExactDepositDeploymentGrant, FeeAllowance } from "@akashnetwork/ht
 import { isFuture } from "date-fns";
 import invokeMap from "lodash/invokeMap";
 
-import { browserEnvConfig } from "@src/config/browser-env.config";
+import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useExactDeploymentGrantsQuery } from "@src/queries/useExactDeploymentGrantsQuery";
 import { useExactFeeAllowanceQuery } from "@src/queries/useExactFeeAllowanceQuery";
 
 export const useAutoTopUpLimits = () => {
+  const { publicConfig } = useServices();
   const { address } = useWallet();
-  const uaktFeeAllowance = useExactFeeAllowanceQuery(address, browserEnvConfig.NEXT_PUBLIC_UAKT_TOP_UP_MASTER_WALLET_ADDRESS, { enabled: false });
-  const uaktDeploymentGrant = useExactDeploymentGrantsQuery(address, browserEnvConfig.NEXT_PUBLIC_UAKT_TOP_UP_MASTER_WALLET_ADDRESS, { enabled: false });
-  const usdcFeeAllowance = useExactFeeAllowanceQuery(address, browserEnvConfig.NEXT_PUBLIC_USDC_TOP_UP_MASTER_WALLET_ADDRESS, { enabled: false });
-  const usdcDeploymentGrant = useExactDeploymentGrantsQuery(address, browserEnvConfig.NEXT_PUBLIC_USDC_TOP_UP_MASTER_WALLET_ADDRESS, { enabled: false });
+  const uaktFeeAllowance = useExactFeeAllowanceQuery(address, publicConfig.NEXT_PUBLIC_UAKT_TOP_UP_MASTER_WALLET_ADDRESS, { enabled: false });
+  const uaktDeploymentGrant = useExactDeploymentGrantsQuery(address, publicConfig.NEXT_PUBLIC_UAKT_TOP_UP_MASTER_WALLET_ADDRESS, { enabled: false });
+  const usdcFeeAllowance = useExactFeeAllowanceQuery(address, publicConfig.NEXT_PUBLIC_USDC_TOP_UP_MASTER_WALLET_ADDRESS, { enabled: false });
+  const usdcDeploymentGrant = useExactDeploymentGrantsQuery(address, publicConfig.NEXT_PUBLIC_USDC_TOP_UP_MASTER_WALLET_ADDRESS, { enabled: false });
   const uaktFeeLimit = useMemo(() => extractFeeLimit(uaktFeeAllowance.data), [uaktFeeAllowance.data]);
   const usdcFeeLimit = useMemo(() => extractFeeLimit(usdcFeeAllowance.data), [usdcFeeAllowance.data]);
   const uaktDeploymentLimit = useMemo(() => extractDeploymentLimit(uaktDeploymentGrant.data), [uaktDeploymentGrant.data]);

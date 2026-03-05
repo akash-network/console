@@ -16,17 +16,24 @@ export const TemplateSchema = z.object({
   })
 });
 
-export const TemplateCategorySchema = z.object({
-  title: z.string(),
-  templates: z.array(TemplateSchema)
+export const TemplateSummarySchema = TemplateSchema.pick({
+  id: true,
+  name: true,
+  logoUrl: true,
+  summary: true
+}).extend({
+  tags: z.array(z.string()).optional()
 });
 
-export const GetTemplatesFullResponseSchema = z.array(TemplateCategorySchema);
-export type GetTemplatesFullResponse = z.infer<typeof GetTemplatesFullResponseSchema>;
+export const TemplateCategorySchema = z.object({
+  title: z.string(),
+  templates: z.array(TemplateSummarySchema)
+});
 
 export const GetTemplatesListResponseSchema = z.object({
   data: z.array(TemplateCategorySchema)
 });
+
 export type GetTemplatesListResponse = z.infer<typeof GetTemplatesListResponseSchema>;
 
 export const GetTemplateByIdParamsSchema = z.object({
@@ -36,7 +43,5 @@ export const GetTemplateByIdParamsSchema = z.object({
   })
 });
 
-export const GetTemplateByIdResponseSchema = z.object({
-  data: TemplateSchema
-});
+export const GetTemplateByIdResponseSchema = z.object({ data: TemplateSchema });
 export type GetTemplateByIdResponse = z.infer<typeof GetTemplateByIdResponseSchema>;

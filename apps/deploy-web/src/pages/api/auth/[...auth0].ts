@@ -1,18 +1,16 @@
 // pages/api/auth/[...auth0].js
-import type { Session } from "@auth0/nextjs-auth0";
-import { AccessTokenError, AccessTokenErrorCode, ProfileHandlerError } from "@auth0/nextjs-auth0";
-import { handleAuth, handleCallback, handleLogin, handleLogout, handleProfile } from "@auth0/nextjs-auth0";
 import type { AxiosError } from "axios";
-import { AxiosHeaders, isAxiosError } from "axios";
+import { isAxiosError } from "axios";
 import { once } from "lodash";
 import type { NextApiRequest, NextApiResponse } from "next";
 
+import type { Session } from "@src/lib/auth0";
+import { AccessTokenError, AccessTokenErrorCode, CallbackHandlerError, MissingStateCookieError } from "@src/lib/auth0";
+import { handleAuth, handleCallback, handleLogin, handleLogout } from "@src/lib/auth0";
 import { defineApiHandler } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
 import type { AppServices } from "@src/services/app-di-container/server-di-container.service";
 import { rewriteLocalRedirect } from "@src/services/auth/auth/rewrite-local-redirect";
 import type { SeverityLevel } from "@src/services/error-handler/error-handler.service";
-import type { UserSettings } from "@src/types/user";
-import { ANONYMOUS_HEADER_COOKIE_NAME } from "./signup";
 
 export default defineApiHandler({
   route: "/api/auth/[...auth0]",
@@ -24,16 +22,16 @@ export default defineApiHandler({
 const authHandler = once((services: AppServices) =>
   handleAuth({
     async login(req: NextApiRequest, res: NextApiResponse) {
-      const returnUrl = decodeURIComponent((req.query.from as string) ?? "/");
-      if (services.config.AUTH0_LOCAL_ENABLED && services.config.AUTH0_REDIRECT_BASE_URL) {
-        rewriteLocalRedirect(res, services.config);
+      if (services.privateConfig.AUTH0_LOCAL_ENABLED && services.privateConfig.AUTH0_REDIRECT_BASE_URL) {
+        rewriteLocalRedirect(res, services.privateConfig);
       }
 
       await handleLogin(req, res, {
-        returnTo: returnUrl,
+        returnTo: req.url ? services.urlReturnToStack.getReturnTo(req.url) : undefined,
         // Reduce the scope to minimize session data
         authorizationParams: {
-          scope: "openid profile email offline_access"
+          scope: "openid profile email offline_access",
+          connection: req.query.connection as string | undefined
         }
       });
     },
@@ -42,36 +40,8 @@ const authHandler = once((services: AppServices) =>
         await handleCallback(req, res, {
           afterCallback: async (req: NextApiRequest, res: NextApiResponse, session: Session) => {
             try {
-              const user_metadata = session.user["https://console.akash.network/user_metadata"];
-              const headers = new AxiosHeaders({
-                Authorization: `Bearer ${session.accessToken}`
-              });
-
-              const anonymousAuthorization = req.cookies[ANONYMOUS_HEADER_COOKIE_NAME];
-
-              if (anonymousAuthorization) {
-                headers.set("x-anonymous-authorization", decodeURIComponent(anonymousAuthorization));
-              }
-
-              const userSettings = await services.consoleApiHttpClient.post<{ data: UserSettings }>(
-                `${services.apiUrlService.getBaseApiUrlFor(services.config.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID)}/v1/register-user`,
-                {
-                  wantedUsername: session.user.nickname,
-                  email: session.user.email,
-                  emailVerified: session.user.email_verified,
-                  subscribedToNewsletter: user_metadata?.subscribedToNewsletter === "true"
-                },
-                {
-                  headers: headers.toJSON()
-                }
-              );
-
-              session.user = { ...session.user, ...userSettings.data.data };
-              const isSecure = services.config.NODE_ENV === "production";
-              res.setHeader(
-                "Set-Cookie",
-                `${ANONYMOUS_HEADER_COOKIE_NAME}=; Path=/api/auth/callback; HttpOnly; ${isSecure ? "Secure;" : ""} SameSite=Lax; Expires=Thu, 01 Jan 1970 00:00:00 GMT`
-              );
+              const userSettings = await services.sessionService.createLocalUser(session);
+              session.user = { ...session.user, ...userSettings };
             } catch (error) {
               services.errorHandler.reportError({ error, tags: { category: "auth0" } });
             }
@@ -80,11 +50,19 @@ const authHandler = once((services: AppServices) =>
           }
         });
       } catch (error) {
+        if (isMissingStateCookieError(error)) {
+          services.logger.warn({ event: "AUTH_CALLBACK_MISSING_STATE_COOKIE" });
+          services.errorHandler.reportError({ severity: "warning", error, tags: { category: "auth0", event: "AUTH_CALLBACK_MISSING_STATE_COOKIE" } });
+          res.writeHead(302, { Location: "/login" });
+          res.end();
+          return;
+        }
+
         services.errorHandler.reportError({ error, tags: { category: "auth0", event: "AUTH_CALLBACK_ERROR" } });
         throw error;
       }
     },
-    logout: services.config.AUTH0_LOCAL_ENABLED
+    logout: services.privateConfig.AUTH0_LOCAL_ENABLED
       ? async function (req: NextApiRequest, res: NextApiResponse) {
           const cookies = req.cookies;
           const expiredCookies = Object.keys(cookies)
@@ -100,33 +78,30 @@ const authHandler = once((services: AppServices) =>
     async profile(req: NextApiRequest, res: NextApiResponse) {
       services.logger.info({ event: "AUTH_PROFILE_REQUEST", url: req.url });
       try {
-        await handleProfile(req, res, {
-          refetch: true,
-          afterRefetch: async (req, res, session) => {
-            try {
-              const headers = new AxiosHeaders({
-                Authorization: `Bearer ${session.accessToken}`
-              });
+        const session = await services.getSession(req, res);
+        if (!session) {
+          services.logger.info({ event: "AUTH_PROFILE_REQUEST_NO_SESSION", url: req.url });
+          res.status(401).json({ error: "Not authenticated" });
+          return;
+        }
 
-              const userSettings = await services.consoleApiHttpClient.get<{ data: UserSettings }>(
-                `${services.apiUrlService.getBaseApiUrlFor(services.config.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID)}/v1/user/me`,
-                {
-                  headers: headers.toJSON()
-                }
-              );
+        const accessTokenExpiry = new Date((session.accessTokenExpiresAt || 0) * 1_000);
+        if (accessTokenExpiry <= new Date()) {
+          services.logger.info({ event: "AUTH_PROFILE_REQUEST_ACCESS_TOKEN_EXPIRED", url: req.url });
+          res.status(401).json({ error: "Not authenticated" });
+          return;
+        }
 
-              session.user = { ...session.user, ...userSettings.data.data };
-            } catch (error) {
-              services.errorHandler.reportError({ error, tags: { category: "auth0" } });
-            }
-
-            return session;
-          }
+        const userSettings = await services.sessionService.getLocalUserDetails(session).catch(error => {
+          services.errorHandler.reportError({ error, tags: { category: "auth0", event: "AUTH_GET_LOCAL_PROFILE_ERROR" } });
+          return undefined;
         });
+
+        res.json({ ...session.user, ...userSettings });
       } catch (error: unknown) {
-        if (isAccessTokenExpiredError(error)) {
-          services.logger.warn({ event: "AUTH_ACCESS_TOKEN_EXPIRED", url: req.url });
-          redirectToLogin(req, res);
+        if (isInvalidSessionError(error)) {
+          services.logger.warn({ event: "AUTH_SESSION_INVALID", url: req.url });
+          clearSessionAndRedirectToLogin(req, res);
           return;
         }
         let severity: SeverityLevel = "error";
@@ -142,17 +117,37 @@ const authHandler = once((services: AppServices) =>
   })
 );
 
-function isAccessTokenExpiredError(error: unknown): boolean {
-  return error instanceof ProfileHandlerError && error.cause instanceof AccessTokenError && error.cause.code === AccessTokenErrorCode.EXPIRED_ACCESS_TOKEN;
+function isInvalidSessionError(error: unknown): boolean {
+  if (!(error instanceof AccessTokenError)) {
+    return false;
+  }
+
+  const invalidSessionCodes: string[] = [AccessTokenErrorCode.EXPIRED_ACCESS_TOKEN, AccessTokenErrorCode.FAILED_REFRESH_GRANT];
+
+  return invalidSessionCodes.includes(error.code);
 }
 
 function isGeneralAxiosError(error: unknown): error is AxiosError {
   return isAxiosError(error) && !!error?.status && error.status >= 400 && error.status < 500;
 }
 
-function redirectToLogin(req: NextApiRequest, res: NextApiResponse): void {
-  const returnUrl = encodeURIComponent(req.url || "/");
-  const loginUrl = `/api/auth/login?from=${returnUrl}`;
+function isMissingStateCookieError(error: unknown): boolean {
+  return error instanceof CallbackHandlerError && error.cause instanceof MissingStateCookieError;
+}
+
+function clearSessionAndRedirectToLogin(req: NextApiRequest, res: NextApiResponse): void {
+  // Clear invalid session cookies before redirecting
+  const cookies = req.cookies;
+  const expiredCookies = Object.keys(cookies)
+    .filter(key => key.startsWith("appSession"))
+    .map(key => `${key}=; Path=/; HttpOnly; SameSite=Lax; Expires=Thu, 01 Jan 1970 00:00:00 GMT`);
+
+  if (expiredCookies.length > 0) {
+    res.setHeader("Set-Cookie", expiredCookies);
+  }
+
+  const returnTo = encodeURIComponent(req.url || "/");
+  const loginUrl = `/api/auth/login?returnTo=${returnTo}`;
   res.writeHead(302, { Location: loginUrl });
   res.end();
 }

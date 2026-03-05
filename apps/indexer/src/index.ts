@@ -3,6 +3,7 @@ import "@akashnetwork/env-loader";
 import { activeChain, chainDefinitions } from "@akashnetwork/database/chainDefinitions";
 import * as Sentry from "@sentry/node";
 import express from "express";
+import { setTimeout as sleep } from "node:timers/promises";
 
 import packageJson from "../package.json";
 import { getSyncStatus, syncBlocks } from "./chain/chainSync";
@@ -15,7 +16,6 @@ import { syncPriceHistory } from "./db/priceHistoryProvider";
 import { updateProvidersLocation } from "./providers/ipLocationProvider";
 import { syncProvidersInfo } from "./providers/providerStatusProvider";
 import { ExecutionMode, executionMode, isProd } from "./shared/constants";
-import { sleep } from "./shared/utils/delay";
 import { env } from "./shared/utils/env";
 import { bytesToHumanReadableSize } from "./shared/utils/files";
 import { updateProviderUptime } from "./tasks/providerUptimeTracker";
@@ -70,7 +70,7 @@ app.get("/status", async (req, res) => {
     res.send({ version, ...cacheSize, memory, activeNodeCount, tasks: tasksStatus, sync: syncStatus });
   } catch (err) {
     Sentry.captureException(err);
-    res.status(500).send("An error occured");
+    res.status(500).send("An error occurred");
   }
 });
 
@@ -80,7 +80,7 @@ app.get("/nodes", async (req, res) => {
     res.send(nodeStatus);
   } catch (err) {
     Sentry.captureException(err);
-    res.status(500).send("An error occured");
+    res.status(500).send("An error occurred");
   }
 });
 

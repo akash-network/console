@@ -1,11 +1,12 @@
 "use client";
 import React, { type FC, useCallback, useEffect, useState } from "react";
-import type { ApiWalletWithOptional3DS } from "@akashnetwork/http-sdk/src/managed-wallet-http/managed-wallet-http.service";
-import type { PaymentMethod, SetupIntentResponse } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
-import { useSnackbar } from "notistack";
+import type { ApiWalletWithOptional3DS } from "@akashnetwork/http-sdk";
+import type { PaymentMethod, SetupIntentResponse } from "@akashnetwork/http-sdk";
 
+import { useServices } from "@src/context/ServicesProvider/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { use3DSecure } from "@src/hooks/use3DSecure";
+import { useNotificator } from "@src/hooks/useNotificator";
 import { useUser } from "@src/hooks/useUser";
 import { useCreateManagedWalletMutation } from "@src/queries/useManagedWalletQuery";
 import { usePaymentMethodsQuery, usePaymentMutations, useSetupIntentMutation } from "@src/queries/usePaymentQueries";
@@ -33,7 +34,7 @@ export type PaymentMethodContainerProps = {
     isLoading: boolean;
     isRemoving: boolean;
     managedWalletError?: AppError;
-    onSuccess: () => void;
+    onSuccess: (organization?: string) => void;
     onRemovePaymentMethod: (paymentMethodId: string) => void;
     onConfirmRemovePaymentMethod: () => Promise<void>;
     onNext: () => void;
@@ -55,12 +56,13 @@ export type PaymentMethodContainerProps = {
 };
 
 export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ children, onComplete, dependencies: d = DEPENDENCIES }) => {
-  const { data: setupIntent, mutate: createSetupIntent } = d.useSetupIntentMutation();
+  const { data: setupIntent, mutate: createSetupIntent, reset: resetSetupIntent } = d.useSetupIntentMutation();
   const { data: paymentMethods = [], refetch: refetchPaymentMethods } = d.usePaymentMethodsQuery();
   const { removePaymentMethod } = d.usePaymentMutations();
   const { isWalletLoading, hasManagedWallet, managedWalletError } = d.useWallet();
   const { user } = d.useUser();
-  const { enqueueSnackbar } = useSnackbar();
+  const { stripe, errorHandler } = useServices();
+  const notificator = useNotificator();
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
@@ -100,7 +102,7 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
         console.error("Wallet creation failed after 3D Secure:", error);
         setIsConnectingWallet(false);
         const errorMessage = extractErrorMessage(error as AppError);
-        enqueueSnackbar(errorMessage, { variant: "error", autoHideDuration: 5000 });
+        notificator.error(errorMessage);
       }
     },
     onError: (error: string) => {
@@ -117,13 +119,13 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
       // Validate required fields
       if (!clientSecret || clientSecret.trim() === "") {
         console.error("3D Secure validation failed: clientSecret is missing or empty");
-        enqueueSnackbar("Authentication data is incomplete. Please try again.", { variant: "error" });
+        notificator.error("Authentication data is incomplete. Please try again.");
         return false;
       }
 
       if ((!paymentIntentId || paymentIntentId.trim() === "") && (!paymentMethodId || paymentMethodId.trim() === "")) {
         console.error("3D Secure validation failed: both paymentIntentId and paymentMethodId are missing or empty");
-        enqueueSnackbar("Payment method information is incomplete. Please try again.", { variant: "error" });
+        notificator.error("Payment method information is incomplete. Please try again.");
         return false;
       }
 
@@ -134,7 +136,7 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
       });
       return true;
     },
-    [threeDSecure, enqueueSnackbar]
+    [threeDSecure, notificator]
   );
 
   useEffect(() => {
@@ -156,7 +158,18 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
     }
   }, [isConnectingWallet, managedWalletError]);
 
-  const handleSuccess = () => {
+  const handleSuccess = async (organization?: string) => {
+    if (organization) {
+      try {
+        await stripe.updateCustomerOrganization(organization);
+      } catch (error) {
+        errorHandler.reportError({
+          error,
+          tags: { category: "onboarding" }
+        });
+      }
+    }
+
     setShowAddForm(false);
     refetchPaymentMethods();
   };
@@ -172,6 +185,9 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
     try {
       await removePaymentMethod.mutateAsync(cardToDelete);
 
+      // Reset the setupIntent to force a fresh one when form is shown
+      resetSetupIntent();
+
       setShowDeleteConfirmation(false);
       setCardToDelete(undefined);
       await refetchPaymentMethods();
@@ -179,10 +195,7 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
       console.error("Failed to remove payment method:", error);
       const errorMessage = extractErrorMessage(error as AppError);
 
-      enqueueSnackbar(errorMessage, {
-        variant: "error",
-        autoHideDuration: 5000
-      });
+      notificator.error(errorMessage);
     }
   };
 
@@ -219,10 +232,7 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
 
       const errorMessage = extractErrorMessage(error as AppError);
 
-      enqueueSnackbar(errorMessage, {
-        variant: "error",
-        autoHideDuration: 5000
-      });
+      notificator.error(errorMessage);
     }
   };
 

@@ -3,39 +3,37 @@ import type { TemplateExecutor } from "lodash";
 import template from "lodash/template";
 import { singleton } from "tsyringe";
 
-import { FeatureFlags, FeatureFlagValue } from "@src/core/services/feature-flags/feature-flags";
+import { FeatureFlagValue } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { UserOutput } from "@src/user/repositories";
 
-type Role = "REGULAR_USER" | "REGULAR_ANONYMOUS_USER" | "REGULAR_PAYING_USER" | "SUPER_USER";
+type Role = "REGULAR_USER" | "REGULAR_PAYING_USER" | "SUPER_USER";
 
 @singleton()
 export class AbilityService {
   readonly EMPTY_ABILITY = createMongoAbility([]);
 
   private readonly RULES: Record<Role, Array<RawRule & { enabledIf?: FeatureFlagValue }>> = {
-    REGULAR_ANONYMOUS_USER: [
-      { action: ["read", "sign"], subject: "UserWallet", conditions: { userId: "${user.id}" } },
-      { action: "create", subject: "UserWallet", conditions: { userId: "${user.id}" }, enabledIf: FeatureFlags.ANONYMOUS_FREE_TRIAL },
-      { action: "read", subject: "User", conditions: { id: "${user.id}" } },
-      { action: "verify-email", subject: "User", conditions: { email: "${user.email}" } },
-      { action: "manage", subject: "DeploymentSetting", conditions: { userId: "${user.id}" } }
-    ],
     REGULAR_USER: [
       { action: ["create", "read", "sign"], subject: "UserWallet", conditions: { userId: "${user.id}" } },
+      { action: "manage", subject: "WalletSetting", conditions: { userId: "${user.id}" } },
       { action: "read", subject: "User", conditions: { id: "${user.id}" } },
       { action: "verify-email", subject: "User", conditions: { email: "${user.email}" } },
       { action: ["create", "read", "delete"], subject: "StripePayment" },
+      { action: "manage", subject: "PaymentMethod", conditions: { userId: "${user.id}" } },
       { action: "create", subject: "VerificationEmail", conditions: { id: "${user.id}" } },
       { action: "manage", subject: "DeploymentSetting", conditions: { userId: "${user.id}" } },
+      { action: "manage", subject: "ApiKey", conditions: { userId: "${user.id}" } },
       { action: "manage", subject: "Alert", conditions: { userId: "${user.id}" } },
       { action: "manage", subject: "NotificationChannel", conditions: { userId: "${user.id}" } }
     ],
     REGULAR_PAYING_USER: [
       { action: ["create", "read", "sign"], subject: "UserWallet", conditions: { userId: "${user.id}" } },
+      { action: "manage", subject: "WalletSetting", conditions: { userId: "${user.id}" } },
       { action: "read", subject: "User", conditions: { id: "${user.id}" } },
       { action: "verify-email", subject: "User", conditions: { email: "${user.email}" } },
       { action: ["create", "read", "delete"], subject: "StripePayment" },
+      { action: "manage", subject: "PaymentMethod", conditions: { userId: "${user.id}" } },
       { action: "create", subject: "VerificationEmail", conditions: { id: "${user.id}" } },
       { action: "manage", subject: "DeploymentSetting", conditions: { userId: "${user.id}" } },
       { action: "manage", subject: "ApiKey", conditions: { userId: "${user.id}" } },

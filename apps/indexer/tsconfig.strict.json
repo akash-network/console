@@ -1,0 +1,17 @@
+{
+  "exclude": ["node_modules", "dist"],
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "strict": true
+  },
+  "include": [
+    "src/shared/**/*.ts",
+    "src/monitors/**/*.ts",
+    "src/tasks/**/*.ts",
+    "src/scheduler.ts",
+    "src/providers/**/*.ts",
+    "src/db/dbConnection.ts",
+    "src/db/keybaseProvider.ts",
+    "src/db/priceHistoryProvider.ts",
+  ]
+}

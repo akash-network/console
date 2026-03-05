@@ -28,35 +28,17 @@ export class WalletTestingService<T extends Hono<any>> {
     await userRepository.updateById(wallet.id, { isTrialing: false });
   }
 
-  /** @deprecated anonymous users will not be supported in the nearest future */
-  async createAnonymousUserAndWallet() {
-    const { user, token } = await this.createUser();
-    const wallet = await this.createWallet(user);
-
-    return { user, token, wallet };
-  }
-
   private async createWallet(user: UserOutput) {
-    jest.spyOn(container.resolve(DomainEventsService), "publish").mockResolvedValue(undefined);
+    jest.spyOn(container.resolve(DomainEventsService), "publish").mockResolvedValue(null);
 
     return container.resolve(ExecutionContextService).runWithContext(async () => {
       container.resolve(AuthService).currentUser = user;
-      const role = user.userId ? "REGULAR_USER" : "REGULAR_ANONYMOUS_USER";
+      const role = "REGULAR_USER";
       container.resolve(AuthService).ability = container.resolve(AbilityService).getAbilityFor(role, user);
       return (await container.resolve(WalletInitializerService).initializeAndGrantTrialLimits(user.id)) as {
         [K in keyof UserWalletOutput]: NonNullable<UserWalletOutput[K]>;
       };
     });
-  }
-
-  async createUser() {
-    const userResponse = await this.app.request("/v1/anonymous-users", {
-      method: "POST",
-      headers: new Headers({ "Content-Type": "application/json" })
-    });
-    const { data: user, token } = (await userResponse.json()) as any;
-
-    return { user, token };
   }
 
   /**
@@ -85,7 +67,7 @@ export class WalletTestingService<T extends Hono<any>> {
       redirect_uri: redirectUri,
       audience: "my-audience",
       action: "signup",
-      nonce: "9iicXKCPLq68WIm8DPexHa4j7-qLqRpWXkxbOBjgrQI"
+      nonce: faker.string.alphanumeric(43)
     });
     const tokenResponse = await fetch(`${oauth2ServerUrl}/default/authorize?${requestParams}`, {
       method: "POST",
@@ -148,6 +130,10 @@ export class WalletTestingService<T extends Hono<any>> {
       })
     });
     const body = (await userResponse.json()) as { data: any };
+
+    if (!body.data.id) {
+      throw new Error("User registration failed");
+    }
 
     return { user: body.data, token: access_token };
   }

@@ -1,8 +1,8 @@
-import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
-import { z } from "zod";
 
+import { createRoute } from "@src/core/lib/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { SECURITY_BEARER_OR_API_KEY, SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 import { DeploymentController } from "@src/deployment/controllers/deployment/deployment.controller";
 import {
   CloseDeploymentParamsSchema,
@@ -13,7 +13,9 @@ import {
   DepositDeploymentResponseSchema,
   GetDeploymentByOwnerDseqParamsSchema,
   GetDeploymentByOwnerDseqResponseSchema,
+  GetDeploymentParamsSchema,
   GetDeploymentResponseSchema,
+  GetWeeklyDeploymentCostResponseSchema,
   ListDeploymentsQuerySchema,
   ListDeploymentsResponseSchema,
   ListWithResourcesParamsSchema,
@@ -30,15 +32,16 @@ import {
 } from "@src/deployment/http-schemas/deployment-rpc.schema";
 import { FallbackDeploymentReaderService } from "@src/deployment/services/fallback-deployment-reader/fallback-deployment-reader.service";
 
+export const deploymentsRouter = new OpenApiHonoHandler();
+
 const getRoute = createRoute({
   method: "get",
   path: "/v1/deployments/{dseq}",
   summary: "Get a deployment",
   tags: ["Deployments"],
+  security: SECURITY_BEARER_OR_API_KEY,
   request: {
-    params: z.object({
-      dseq: z.string()
-    })
+    params: GetDeploymentParamsSchema
   },
   responses: {
     200: {
@@ -51,12 +54,18 @@ const getRoute = createRoute({
     }
   }
 });
+deploymentsRouter.openapi(getRoute, async function routeGetDeployment(c) {
+  const { dseq } = c.req.valid("param");
+  const result = await container.resolve(DeploymentController).findByDseq(dseq);
+  return c.json(result, 200);
+});
 
 const postRoute = createRoute({
   method: "post",
   path: "/v1/deployments",
   summary: "Create new deployment",
   tags: ["Deployments"],
+  security: SECURITY_BEARER_OR_API_KEY,
   request: {
     body: {
       content: {
@@ -77,12 +86,18 @@ const postRoute = createRoute({
     }
   }
 });
+deploymentsRouter.openapi(postRoute, async function routeCreateDeployment(c) {
+  const { data } = c.req.valid("json");
+  const result = await container.resolve(DeploymentController).create(data);
+  return c.json(result, 201);
+});
 
 const deleteRoute = createRoute({
   method: "delete",
   path: "/v1/deployments/{dseq}",
   summary: "Close a deployment",
   tags: ["Deployments"],
+  security: SECURITY_BEARER_OR_API_KEY,
   request: {
     params: CloseDeploymentParamsSchema
   },
@@ -97,12 +112,18 @@ const deleteRoute = createRoute({
     }
   }
 });
+deploymentsRouter.openapi(deleteRoute, async function routeCloseDeployment(c) {
+  const { dseq } = c.req.valid("param");
+  const result = await container.resolve(DeploymentController).close(dseq);
+  return c.json(result, 200);
+});
 
 const depositRoute = createRoute({
   method: "post",
   path: "/v1/deposit-deployment",
   summary: "Deposit into a deployment",
   tags: ["Deployments"],
+  security: SECURITY_BEARER_OR_API_KEY,
   request: {
     body: {
       content: {
@@ -123,12 +144,18 @@ const depositRoute = createRoute({
     }
   }
 });
+deploymentsRouter.openapi(depositRoute, async function routeDepositDeployment(c) {
+  const { data } = c.req.valid("json");
+  const result = await container.resolve(DeploymentController).deposit(data);
+  return c.json(result, 200);
+});
 
 const updateRoute = createRoute({
   method: "put",
   path: "/v1/deployments/{dseq}",
   summary: "Update a deployment",
   tags: ["Deployments"],
+  security: SECURITY_BEARER_OR_API_KEY,
   request: {
     params: CloseDeploymentParamsSchema,
     body: {
@@ -150,12 +177,19 @@ const updateRoute = createRoute({
     }
   }
 });
+deploymentsRouter.openapi(updateRoute, async function routeUpdateDeployment(c) {
+  const { dseq } = c.req.valid("param");
+  const { data } = c.req.valid("json");
+  const result = await container.resolve(DeploymentController).update(dseq, data);
+  return c.json(result, 200);
+});
 
 const listRoute = createRoute({
   method: "get",
   path: "/v1/deployments",
   summary: "List deployments with pagination and filtering",
   tags: ["Deployments"],
+  security: SECURITY_BEARER_OR_API_KEY,
   request: {
     query: ListDeploymentsQuerySchema
   },
@@ -170,12 +204,19 @@ const listRoute = createRoute({
     }
   }
 });
+deploymentsRouter.openapi(listRoute, async function routeListDeployments(c) {
+  const { skip, limit } = c.req.valid("query");
+  const result = await container.resolve(DeploymentController).list({ skip, limit });
+  return c.json(result, 200);
+});
 
 const listWithResourcesRoute = createRoute({
   method: "get",
   path: "/v1/addresses/{address}/deployments/{skip}/{limit}",
   summary: "Get a list of deployments by owner address.",
   tags: ["Addresses", "Deployments"],
+  security: SECURITY_NONE,
+  cache: { maxAge: 6, staleWhileRevalidate: 30 },
   request: {
     params: ListWithResourcesParamsSchema,
     query: ListWithResourcesQuerySchema
@@ -194,12 +235,27 @@ const listWithResourcesRoute = createRoute({
     }
   }
 });
+deploymentsRouter.openapi(listWithResourcesRoute, async function routeListDeploymentsWithResources(c) {
+  const { address, skip, limit } = c.req.valid("param");
+  const { status, reverseSorting } = c.req.valid("query");
+  const result = await container.resolve(DeploymentController).listWithResources({
+    address,
+    status,
+    skip,
+    limit,
+    reverseSorting
+  });
+
+  return c.json(result, 200);
+});
 
 const getByOwnerAndDseqRoute = createRoute({
   method: "get",
   path: "/v1/deployment/{owner}/{dseq}",
   summary: "Get deployment details",
   tags: ["Deployments"],
+  security: SECURITY_NONE,
+  cache: { maxAge: 30, staleWhileRevalidate: 60 },
   request: {
     params: GetDeploymentByOwnerDseqParamsSchema
   },
@@ -220,12 +276,23 @@ const getByOwnerAndDseqRoute = createRoute({
     }
   }
 });
+deploymentsRouter.openapi(getByOwnerAndDseqRoute, async function routeGetDeploymentByOwnerAndDseq(c) {
+  const { owner, dseq } = c.req.valid("param");
+  const deployment = await container.resolve(DeploymentController).getByOwnerAndDseq(owner, dseq);
+
+  if (deployment) {
+    return c.json(deployment);
+  } else {
+    return c.json({ error: "NotFoundError", message: "Deployment Not Found" }, { status: 404 });
+  }
+});
 
 const fallbackListRoute = createRoute({
   method: "get",
   path: "/akash/deployment/{version}/deployments/list",
   summary: "List deployments (database fallback)",
   tags: ["Deployments"],
+  security: SECURITY_NONE,
   request: {
     query: FallbackDeploymentListQuerySchema
   },
@@ -240,94 +307,6 @@ const fallbackListRoute = createRoute({
     }
   }
 });
-
-const fallbackInfoRoute = createRoute({
-  method: "get",
-  path: "/akash/deployment/{version}/deployments/info",
-  summary: "Get deployment info (database fallback)",
-  tags: ["Deployments"],
-  request: {
-    query: FallbackDeploymentInfoQuerySchema
-  },
-  responses: {
-    200: {
-      description: "Returns deployment info from database",
-      content: {
-        "application/json": {
-          schema: FallbackDeploymentInfoResponseSchema
-        }
-      }
-    },
-    404: {
-      description: "Deployment not found"
-    }
-  }
-});
-
-export const deploymentsRouter = new OpenApiHonoHandler();
-
-deploymentsRouter.openapi(getRoute, async function routeGetDeployment(c) {
-  const { dseq } = c.req.valid("param");
-  const result = await container.resolve(DeploymentController).findByDseq(dseq);
-  return c.json(result, 200);
-});
-
-deploymentsRouter.openapi(postRoute, async function routeCreateDeployment(c) {
-  const { data } = c.req.valid("json");
-  const result = await container.resolve(DeploymentController).create(data);
-  return c.json(result, 201);
-});
-
-deploymentsRouter.openapi(deleteRoute, async function routeCloseDeployment(c) {
-  const { dseq } = c.req.valid("param");
-  const result = await container.resolve(DeploymentController).close(dseq);
-  return c.json(result, 200);
-});
-
-deploymentsRouter.openapi(depositRoute, async function routeDepositDeployment(c) {
-  const { data } = c.req.valid("json");
-  const result = await container.resolve(DeploymentController).deposit(data);
-  return c.json(result, 200);
-});
-
-deploymentsRouter.openapi(updateRoute, async function routeUpdateDeployment(c) {
-  const { dseq } = c.req.valid("param");
-  const { data } = c.req.valid("json");
-  const result = await container.resolve(DeploymentController).update(dseq, data);
-  return c.json(result, 200);
-});
-
-deploymentsRouter.openapi(listRoute, async function routeListDeployments(c) {
-  const { skip, limit } = c.req.valid("query");
-  const result = await container.resolve(DeploymentController).list({ skip, limit });
-  return c.json(result, 200);
-});
-
-deploymentsRouter.openapi(listWithResourcesRoute, async function routeListDeploymentsWithResources(c) {
-  const { address, skip, limit } = c.req.valid("param");
-  const { status, reverseSorting } = c.req.valid("query");
-  const result = await container.resolve(DeploymentController).listWithResources({
-    address,
-    status,
-    skip,
-    limit,
-    reverseSorting
-  });
-
-  return c.json(result, 200);
-});
-
-deploymentsRouter.openapi(getByOwnerAndDseqRoute, async function routeGetDeploymentByOwnerAndDseq(c) {
-  const { owner, dseq } = c.req.valid("param");
-  const deployment = await container.resolve(DeploymentController).getByOwnerAndDseq(owner, dseq);
-
-  if (deployment) {
-    return c.json(deployment);
-  } else {
-    return c.json({ error: "NotFoundError", message: "Deployment Not Found" }, { status: 404 });
-  }
-});
-
 deploymentsRouter.openapi(fallbackListRoute, async function routeFallbackListDeployments(c) {
   const query = c.req.valid("query");
   const deploymentService = container.resolve(FallbackDeploymentReaderService);
@@ -345,6 +324,29 @@ deploymentsRouter.openapi(fallbackListRoute, async function routeFallbackListDep
   return c.json(result, 200);
 });
 
+const fallbackInfoRoute = createRoute({
+  method: "get",
+  path: "/akash/deployment/{version}/deployments/info",
+  summary: "Get deployment info (database fallback)",
+  tags: ["Deployments"],
+  security: SECURITY_NONE,
+  request: {
+    query: FallbackDeploymentInfoQuerySchema
+  },
+  responses: {
+    200: {
+      description: "Returns deployment info from database",
+      content: {
+        "application/json": {
+          schema: FallbackDeploymentInfoResponseSchema
+        }
+      }
+    },
+    404: {
+      description: "Deployment not found"
+    }
+  }
+});
 deploymentsRouter.openapi(fallbackInfoRoute, async function routeFallbackDeploymentInfo(c) {
   const query = c.req.valid("query");
   const deploymentService = container.resolve(FallbackDeploymentReaderService);
@@ -363,4 +365,26 @@ deploymentsRouter.openapi(fallbackInfoRoute, async function routeFallbackDeploym
       404
     );
   }
+});
+
+const getWeeklyDeploymentCostRoute = createRoute({
+  method: "get",
+  path: "/v1/weekly-cost",
+  summary: "Get weekly deployment cost",
+  tags: ["Deployments"],
+  security: SECURITY_BEARER_OR_API_KEY,
+  responses: {
+    200: {
+      description: "Returns weekly cost for all deployments with auto top-up enabled",
+      content: {
+        "application/json": {
+          schema: GetWeeklyDeploymentCostResponseSchema
+        }
+      }
+    }
+  }
+});
+deploymentsRouter.openapi(getWeeklyDeploymentCostRoute, async function routeGetWeeklyDeploymentCost(c) {
+  const result = await container.resolve(DeploymentController).getWeeklyDeploymentCost();
+  return c.json(result, 200);
 });

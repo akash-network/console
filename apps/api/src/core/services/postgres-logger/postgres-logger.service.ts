@@ -1,4 +1,5 @@
-import { LoggerService } from "@akashnetwork/logging";
+import type { LoggerService } from "@akashnetwork/logging";
+import { createOtelLogger } from "@akashnetwork/logging/otel";
 import type { LogWriter } from "drizzle-orm/logger";
 import { format } from "sql-formatter";
 
@@ -17,7 +18,7 @@ export class PostgresLoggerService implements LogWriter {
 
   constructor(options?: PostgresLoggerServiceOptions) {
     const orm = options?.orm || "drizzle";
-    this.logger = new LoggerService({ base: { context: "POSTGRES", orm, database: options?.database } });
+    this.logger = createOtelLogger({ base: { context: "POSTGRES", orm, database: options?.database } });
     this.isDrizzle = orm === "drizzle";
     this.useFormat = options?.useFormat || false;
   }

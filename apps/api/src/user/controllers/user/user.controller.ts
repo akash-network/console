@@ -3,26 +3,16 @@ import assert from "http-assert";
 import { singleton } from "tsyringe";
 
 import { AuthService, Protected } from "@src/auth/services/auth.service";
-import { AuthTokenService } from "@src/auth/services/auth-token/auth-token.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
-import { UserRepository } from "@src/user/repositories";
-import type { GetUserParams } from "@src/user/routes/get-anonymous-user/get-anonymous-user.router";
 import type { RegisterUserInput, RegisterUserResponse } from "@src/user/routes/register-user/register-user.router";
-import { AnonymousUserResponseOutput, GetUserResponseOutput, UserSchema } from "@src/user/schemas/user.schema";
-import {
-  StaleAnonymousUsersCleanerOptions,
-  StaleAnonymousUsersCleanerService
-} from "@src/user/services/stale-anonymous-users-cleaner/stale-anonymous-users-cleaner.service";
+import { UserSchema } from "@src/user/schemas/user.schema";
 import { UserService } from "@src/user/services/user/user.service";
 
 @singleton()
 export class UserController {
   constructor(
-    private readonly userRepository: UserRepository,
     private readonly authService: AuthService,
-    private readonly anonymousUserAuthService: AuthTokenService,
-    private readonly staleAnonymousUsersCleanerService: StaleAnonymousUsersCleanerService,
     private readonly executionContextService: ExecutionContextService,
     private readonly userService: UserService,
     private readonly userAuthTokenService: UserAuthTokenService
@@ -32,39 +22,11 @@ export class UserController {
     return this.executionContextService.get("HTTP_CONTEXT")!;
   }
 
-  async create(): Promise<AnonymousUserResponseOutput> {
-    const user = await this.userRepository.create({
-      lastIp: this.httpContext.var.clientInfo?.ip,
-      lastUserAgent: this.httpContext.var.clientInfo?.userAgent,
-      lastFingerprint: this.httpContext.var.clientInfo?.fingerprint
-    });
-    return {
-      data: user,
-      token: this.anonymousUserAuthService.signTokenFor({ id: user.id })
-    };
-  }
-
-  @Protected([{ action: "read", subject: "User" }])
-  async getById({ id }: GetUserParams): Promise<{ data: UserSchema } | GetUserResponseOutput> {
-    const user = await this.userRepository.accessibleBy(this.authService.ability, "read").findById(id);
-
-    assert(user, 404);
-
-    return { data: user };
-  }
-
-  async cleanUpStaleAnonymousUsers(options: StaleAnonymousUsersCleanerOptions) {
-    await this.staleAnonymousUsersCleanerService.cleanUpStaleAnonymousUsers(options);
-  }
-
   async registerUser(data: RegisterUserInput): Promise<RegisterUserResponse> {
     const { req, env, var: httpVars } = this.httpContext;
-    const [userId, anonymousUserId] = await Promise.all([
-      this.userAuthTokenService.getValidUserId(req.header("authorization") || "", env),
-      this.anonymousUserAuthService.getValidUserId(req.header("x-anonymous-authorization") || "")
-    ]);
+    const userId = await this.userAuthTokenService.getValidUserId(req.header("authorization") || "", env);
+    assert(userId, 401, "Invalid or expired token");
     const user = await this.userService.registerUser({
-      anonymousUserId,
       userId,
       wantedUsername: data.wantedUsername,
       email: data.email,
@@ -82,5 +44,37 @@ export class UserController {
     assert(this.authService.currentUser, 401);
 
     return { data: this.authService.currentUser as UserSchema };
+  }
+
+  async getUserByUsername(username: string) {
+    const user = await this.userService.getUserByUsername(username);
+    assert(user, 404, "User not found");
+    return user;
+  }
+
+  async updateSettings(data: {
+    username: string;
+    subscribedToNewsletter?: boolean;
+    bio?: string | null;
+    youtubeUsername?: string | null;
+    twitterUsername?: string | null;
+    githubUsername?: string | null;
+  }): Promise<void> {
+    assert(this.authService.currentUser?.id, 401);
+
+    const userId = this.authService.currentUser.id;
+    await this.userService.updateUserDetails(userId, data);
+  }
+
+  async checkUsernameAvailable(username: string) {
+    const existingUser = await this.userService.getUserByUsername(username);
+    const isAvailable = !existingUser;
+    return { isAvailable };
+  }
+
+  async subscribeToNewsletter() {
+    assert(this.authService.currentUser?.id, 401);
+    const userId = this.authService.currentUser.id;
+    await this.userService.subscribeToNewsletter(userId);
   }
 }

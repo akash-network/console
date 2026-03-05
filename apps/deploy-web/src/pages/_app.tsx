@@ -19,24 +19,18 @@ import NProgress from "nprogress";
 
 import GoogleAnalytics from "@src/components/layout/CustomGoogleAnalytics";
 import { CustomIntlProvider } from "@src/components/layout/CustomIntlProvider";
-import { Loading } from "@src/components/layout/Layout";
 import { PageHead } from "@src/components/layout/PageHead";
-import { ClientOnlyTurnstile } from "@src/components/turnstile/Turnstile";
+import { OnboardingRedirectEffect } from "@src/components/onboarding/OnboardingRedirectEffect/OnboardingRedirectEffect";
 import { UserProviders } from "@src/components/user/UserProviders/UserProviders";
-import { browserEnvConfig } from "@src/config/browser-env.config";
-import { CertificateProvider } from "@src/context/CertificateProvider";
-import { ChainParamProvider } from "@src/context/ChainParamProvider";
 import { CustomChainProvider } from "@src/context/CustomChainProvider";
 import { ColorModeProvider } from "@src/context/CustomThemeContext";
 import { FlagProvider } from "@src/context/FlagProvider/FlagProvider";
 import { LocalNoteProvider } from "@src/context/LocalNoteProvider";
 import { PaymentPollingProvider } from "@src/context/PaymentPollingProvider";
-import { PricingProvider } from "@src/context/PricingProvider/PricingProvider";
 import { ServicesProvider } from "@src/context/ServicesProvider";
 import { RootContainerProvider, useRootContainer } from "@src/context/ServicesProvider/RootContainerProvider";
 import { SettingsProvider } from "@src/context/SettingsProvider";
 import { WalletProvider } from "@src/context/WalletProvider";
-import { useInjectedConfig } from "@src/hooks/useInjectedConfig";
 import { store } from "@src/store/global-store";
 
 interface Props extends AppProps {
@@ -54,35 +48,20 @@ Router.events.on("routeChangeError", () => NProgress.done());
 
 const App: React.FunctionComponent<Props> = props => {
   const { Component, pageProps } = props;
-  const { config, isLoaded: isLoadedInjectedConfig } = useInjectedConfig();
-
-  if (!isLoadedInjectedConfig) {
-    return (
-      <AppRoot {...props}>
-        <Loading text="Loading settings..." />
-      </AppRoot>
-    );
-  }
 
   return (
     <AppRoot {...props}>
       <>
-        <ClientOnlyTurnstile
-          enabled={config?.NEXT_PUBLIC_TURNSTILE_ENABLED || browserEnvConfig.NEXT_PUBLIC_TURNSTILE_ENABLED}
-          siteKey={config?.NEXT_PUBLIC_TURNSTILE_SITE_KEY || browserEnvConfig.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
-        />
-
         <GoogleAnalytics />
 
         <UserProviders>
           <FlagProvider>
             <WalletProvider>
               <PaymentPollingProvider>
-                <CertificateProvider>
-                  <NavigationGuardProvider>
-                    <Component {...pageProps} />
-                  </NavigationGuardProvider>
-                </CertificateProvider>
+                <NavigationGuardProvider>
+                  <OnboardingRedirectEffect />
+                  <Component {...pageProps} />
+                </NavigationGuardProvider>
               </PaymentPollingProvider>
             </WalletProvider>
           </FlagProvider>
@@ -97,7 +76,7 @@ export default App;
 function AppRoot(props: Props & { children: React.ReactNode }) {
   const { queryClient } = useRootContainer();
   return (
-    <main className={cn("h-full bg-background font-sans tracking-wide antialiased", GeistSans.variable)}>
+    <main className={cn("h-full bg-background font-sans antialiased", GeistSans.variable)}>
       <PageHead pageSeo={props.pageProps.seo} />
 
       <RootContainerProvider>
@@ -110,17 +89,13 @@ function AppRoot(props: Props & { children: React.ReactNode }) {
                     <CustomSnackbarProvider>
                       <TooltipProvider>
                         <PopupProvider>
-                          <PricingProvider>
-                            <SettingsProvider>
-                              <ServicesProvider>
-                                <CustomChainProvider>
-                                  <ChainParamProvider>
-                                    <LocalNoteProvider>{props.children}</LocalNoteProvider>
-                                  </ChainParamProvider>
-                                </CustomChainProvider>
-                              </ServicesProvider>
-                            </SettingsProvider>
-                          </PricingProvider>
+                          <SettingsProvider>
+                            <ServicesProvider>
+                              <CustomChainProvider>
+                                <LocalNoteProvider>{props.children}</LocalNoteProvider>
+                              </CustomChainProvider>
+                            </ServicesProvider>
+                          </SettingsProvider>
                         </PopupProvider>
                       </TooltipProvider>
                     </CustomSnackbarProvider>

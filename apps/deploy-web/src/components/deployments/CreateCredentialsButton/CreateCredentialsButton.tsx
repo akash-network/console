@@ -44,8 +44,7 @@ export const CreateCredentialsButton: FC<Props> = ({ afterCreate, containerClass
   }, [credentials.generate, afterCreate]);
   const warningText = useMemo(() => {
     if (credentials.details.isExpired) return MESSAGES[credentials.details.type].expired;
-    if (!credentials.details.value) return MESSAGES[credentials.details.type].missing;
-    return undefined;
+    return MESSAGES[credentials.details.type].missing;
   }, [credentials]);
   const buttonText = useMemo(() => MESSAGES[credentials.details.type][credentials.details.isExpired ? "regenerateButton" : "createButton"], [credentials]);
 
@@ -53,9 +52,11 @@ export const CreateCredentialsButton: FC<Props> = ({ afterCreate, containerClass
 
   return (
     <div className={containerClassName}>
-      <d.Alert variant="warning" className={cn({ "py-2 text-sm": buttonProps?.size === "sm" }, "truncate")}>
-        {warningText}
-      </d.Alert>
+      {warningText && (
+        <d.Alert variant="warning" className={cn({ "py-2 text-sm": buttonProps?.size === "sm" }, "truncate")}>
+          {warningText}
+        </d.Alert>
+      )}
       <d.Button
         className={warningText ? "mt-4" : ""}
         {...buttonProps}

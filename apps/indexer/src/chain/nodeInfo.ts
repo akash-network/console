@@ -1,6 +1,5 @@
 import axios from "axios";
-
-import { sleep } from "@src/shared/utils/delay";
+import { setTimeout as sleep } from "node:timers/promises";
 
 const RateLimitWaitingPeriod = 2 * 60_000; // 2 minutes
 const LateNodeWaitingPeriod = 5 * 60_000; // 5 minutes

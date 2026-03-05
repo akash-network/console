@@ -4,7 +4,7 @@ import type { CustomUserProfile } from "@src/types/user";
 import { plans } from "@src/utils/plans";
 
 type UseCustomUser = {
-  user: CustomUserProfile;
+  user: CustomUserProfile | undefined;
   isLoading: boolean;
   error: Error | undefined;
   checkSession: () => Promise<void>;
@@ -18,7 +18,7 @@ export const useCustomUser = (): UseCustomUser => {
   const completeUser = user ? { ...user, plan: plans.find(x => x.code === user.planCode) } : user;
 
   return {
-    user: completeUser as CustomUserProfile,
+    user: completeUser,
     isLoading,
     error,
     checkSession

@@ -1,7 +1,7 @@
-import { getSession } from "@auth0/nextjs-auth0";
 import { z } from "zod";
 
 import { UserTemplate } from "@src/components/templates/UserTemplate";
+import { getSession } from "@src/lib/auth0";
 import { defineServerSideProps } from "@src/lib/nextjs/defineServerSideProps/defineServerSideProps";
 import type { ITemplate } from "@src/types";
 
@@ -35,7 +35,7 @@ export const getServerSideProps = defineServerSideProps({
       };
     }
     const response = await services.consoleApiHttpClient.get(
-      `${services.apiUrlService.getBaseApiUrlFor(services.config.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID)}/user/template/${params.id}`,
+      `${services.apiUrlService.getBaseApiUrlFor(services.privateConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID)}/user/template/${params.id}`,
       config
     );
 

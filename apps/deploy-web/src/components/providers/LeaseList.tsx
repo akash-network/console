@@ -1,6 +1,19 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { CheckboxWithLabel, CustomPagination, Spinner, Table, TableBody, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CheckboxWithLabel,
+  CustomPagination,
+  Spinner,
+  Table,
+  TableBody,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@akashnetwork/ui/components";
 import isEqual from "lodash/isEqual";
 
 import type { LeaseDto } from "@src/types/deployment";
@@ -44,47 +57,53 @@ const MemoLeaseList: React.FunctionComponent<Props> = ({ leases, isLoadingLeases
   };
 
   return (
-    <>
-      <div className="flex items-center pb-2">
-        <h5 className="text-xl">Your leases</h5>
-
-        <div className="ml-4">
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-6">
+          <CardTitle>Your leases</CardTitle>
           <CheckboxWithLabel checked={isFilteringActive} onCheckedChange={onIsActiveChange} label="Active" />
         </div>
-      </div>
-
-      {currentPageLeases?.length === 0 && isLoadingLeases && (
-        <div className="flex items-center justify-center">
-          <Spinner size="large" />
-        </div>
-      )}
-
-      {currentPageLeases?.length === 0 && !isLoadingLeases && <p>You have 0 {isFilteringActive ? "active" : ""} lease for this provider.</p>}
-
-      {currentPageLeases?.length > 0 && (
-        <>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Status</TableHead>
-                <TableHead>Dseq</TableHead>
-                <TableHead>Price</TableHead>
-              </TableRow>
-            </TableHeader>
-
-            <TableBody>
-              {currentPageLeases.map(lease => (
-                <LeaseRow key={lease.id} lease={lease} />
-              ))}
-            </TableBody>
-          </Table>
-
-          <div className="flex items-center justify-center py-8">
-            <CustomPagination pageSize={pageSize} setPageIndex={setPageIndex} pageIndex={pageIndex} totalPageCount={pageCount} setPageSize={onPageSizeChange} />
+      </CardHeader>
+      <CardContent>
+        {currentPageLeases?.length === 0 && isLoadingLeases && (
+          <div className="flex items-center justify-center">
+            <Spinner size="large" />
           </div>
-        </>
-      )}
-    </>
+        )}
+
+        {currentPageLeases?.length === 0 && !isLoadingLeases && <p>You have 0 {isFilteringActive ? "active" : ""} lease for this provider.</p>}
+
+        {currentPageLeases?.length > 0 && (
+          <>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Dseq</TableHead>
+                  <TableHead>Price</TableHead>
+                </TableRow>
+              </TableHeader>
+
+              <TableBody>
+                {currentPageLeases.map(lease => (
+                  <LeaseRow key={lease.id} lease={lease} />
+                ))}
+              </TableBody>
+            </Table>
+
+            <div className="flex items-center justify-center pt-6">
+              <CustomPagination
+                pageSize={pageSize}
+                setPageIndex={setPageIndex}
+                pageIndex={pageIndex}
+                totalPageCount={pageCount}
+                setPageSize={onPageSizeChange}
+              />
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 

@@ -1,8 +1,11 @@
-import { createRoute } from "@hono/zod-openapi";
+import type { TypedResponse } from "hono";
 import { container } from "tsyringe";
 
+import { createRoute } from "@src/core/lib/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 import { ProviderController } from "@src/provider/controllers/provider/provider.controller";
+import type { ProviderListResponse } from "@src/provider/http-schemas/provider.schema";
 import {
   ProviderActiveLeasesGraphDataParamsSchema,
   ProviderActiveLeasesGraphDataResponseSchema,
@@ -12,11 +15,15 @@ import {
   ProviderResponseSchema
 } from "@src/provider/http-schemas/provider.schema";
 
+export const providersRouter = new OpenApiHonoHandler();
+
 const providerListRoute = createRoute({
   method: "get",
   path: "/v1/providers",
   summary: "Get a list of providers.",
   tags: ["Providers"],
+  security: SECURITY_NONE,
+  cache: { maxAge: 60, staleWhileRevalidate: 120 },
   request: {
     query: ProviderListQuerySchema
   },
@@ -32,11 +39,24 @@ const providerListRoute = createRoute({
   }
 });
 
+providersRouter.openapi(providerListRoute, async function routeListProviders(c) {
+  const { scope } = c.req.valid("query");
+  const controller = container.resolve(ProviderController);
+
+  const buffer = await controller.getProviderListBuffer(scope);
+  return new Response(buffer, {
+    status: 200,
+    headers: { "Content-Type": "application/json" }
+  }) as unknown as TypedResponse<ProviderListResponse, 200, "json">;
+});
+
 const providerRoute = createRoute({
   method: "get",
   path: "/v1/providers/{address}",
   summary: "Get a provider details.",
   tags: ["Providers"],
+  security: SECURITY_NONE,
+  cache: { maxAge: 60, staleWhileRevalidate: 120 },
   request: {
     params: ProviderParamsSchema
   },
@@ -57,11 +77,27 @@ const providerRoute = createRoute({
     }
   }
 });
+providersRouter.openapi(providerRoute, async function routeGetProvider(c) {
+  const { address } = c.req.valid("param");
+  if (!address) {
+    return c.text("Address is undefined.", 400);
+  }
+
+  const provider = await container.resolve(ProviderController).getProvider(address);
+
+  if (!provider) {
+    return c.text("Provider not found.", 404);
+  }
+
+  return c.json(provider);
+});
 
 const activeLeasesGraphDataRoute = createRoute({
   method: "get",
   path: "/v1/providers/{providerAddress}/active-leases-graph-data",
   tags: ["Analytics", "Providers"],
+  security: SECURITY_NONE,
+  cache: { maxAge: 60, staleWhileRevalidate: 120 },
   request: {
     params: ProviderActiveLeasesGraphDataParamsSchema
   },
@@ -79,31 +115,6 @@ const activeLeasesGraphDataRoute = createRoute({
     }
   }
 });
-
-export const providersRouter = new OpenApiHonoHandler();
-
-providersRouter.openapi(providerListRoute, async function routeListProviders(c) {
-  const { scope } = c.req.valid("query");
-  const providers = await container.resolve(ProviderController).getProviderList(scope);
-
-  return c.json(providers);
-});
-
-providersRouter.openapi(providerRoute, async function routeGetProvider(c) {
-  const { address } = c.req.valid("param");
-  if (!address) {
-    return c.text("Address is undefined.", 400);
-  }
-
-  const provider = await container.resolve(ProviderController).getProvider(address);
-
-  if (!provider) {
-    return c.text("Provider not found.", 404);
-  }
-
-  return c.json(provider);
-});
-
 providersRouter.openapi(activeLeasesGraphDataRoute, async function routeProviderActiveLeasesGraphData(c) {
   const providerAddress = c.req.valid("param").providerAddress;
   const graphData = await container.resolve(ProviderController).getProviderActiveLeasesGraphData(providerAddress);

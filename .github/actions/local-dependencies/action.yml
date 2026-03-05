@@ -17,8 +17,8 @@ runs:
       id: deps
       shell: bash
       run: |
-        node -e '
-          const findLocalPackageDependencies = require("./packages/releaser/find-local-package-dependencies");
+        node --input-type=module -e '
+          import { findLocalPackageDependencies } from "./packages/releaser/find-local-package-dependencies.js";
           const localDependencies = findLocalPackageDependencies("./${{ inputs.path }}")
             .map(path => `${path}/**`);
           console.log(JSON.stringify(localDependencies));

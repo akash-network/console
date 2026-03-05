@@ -1,14 +1,14 @@
 {
   "name": "@akashnetwork/provider-console",
-  "version": "1.30.0",
+  "version": "1.35.7",
   "private": true,
   "scripts": {
     "build": "npm run build-env-schemas && next build",
+    "build:container": "dc build provider-console --build-arg DEPLOYMENT_ENV=production",
     "build-env-schemas": "tsc src/config/env-config.schema.ts --outDir . --skipLibCheck",
     "dev": "next -p 3000",
     "format": "prettier --write ./*.{ts,js,json} **/*.{ts,tsx,js,json}",
     "lint": "eslint .",
-    "release": "release-it",
     "start": "next start",
     "test:cov": "NODE_ENV=test jest --coverage --reporters=default --reporters=jest-junit",
     "test:unit": "NODE_ENV=test jest",
@@ -24,6 +24,8 @@
     "@cosmos-kit/keplr": "^2.12.2",
     "@cosmos-kit/leap-extension": "^2.12.2",
     "@cosmos-kit/react": "^2.18.0",
+    "@emotion/react": "~11.11.4",
+    "@emotion/styled": "~11.11.5",
     "@hookform/resolvers": "^3.9.0",
     "@interchain-ui/react": "1.23.31",
     "@melloware/react-logviewer": "^6.1.2",
@@ -48,7 +50,7 @@
     "jsencrypt": "^3.3.2",
     "jwt-decode": "^4.0.0",
     "lucide-react": "^0.395.0",
-    "next": "^14.2.25",
+    "next": "^14.2.35",
     "next-themes": "^0.2.1",
     "nextjs-google-analytics": "^2.3.7",
     "notistack": "^3.0.1",
@@ -89,6 +91,7 @@
     "nock": "^13.5.0",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
+    "ts-jest": "^29.4.6",
     "typescript": "~5.8.2",
     "whatwg-fetch": "^3.6.20"
   }

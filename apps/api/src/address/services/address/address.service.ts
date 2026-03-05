@@ -1,14 +1,17 @@
 import type { Coin } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
-import { CosmosHttpService } from "@akashnetwork/http-sdk/src/cosmos/cosmos-http.service";
-import { LoggerService } from "@akashnetwork/logging";
+import { CosmosHttpService } from "@akashnetwork/http-sdk";
+import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { asset_lists } from "@chain-registry/assets";
+import { AxiosError } from "axios";
 import { singleton } from "tsyringe";
 
 import type { GetAddressResponse } from "@src/address/http-schemas/address.schema";
+import { Memoize } from "@src/caching/helpers";
 import { TransactionService } from "@src/transaction/services/transaction/transaction.service";
+import { averageBlockTime } from "@src/utils/constants";
 import { ValidatorRepository } from "@src/validator/repositories/validator/validator.repository";
 
-const logger = LoggerService.forContext("AddressService");
+const logger = createOtelLogger({ context: "AddressService" });
 
 @singleton()
 export class AddressService {
@@ -18,13 +21,14 @@ export class AddressService {
     private readonly validatorRepository: ValidatorRepository
   ) {}
 
+  @Memoize({ ttlInSeconds: averageBlockTime })
   async getAddressDetails(address: string): Promise<GetAddressResponse> {
     const [balancesResponse, delegationsResponse, rewardsResponse, redelegationsResponse, latestTransactions] = await Promise.all([
       this.cosmosHttpService.getBankBalancesByAddress(address),
       this.cosmosHttpService.getStakingDelegationsByAddress(address),
       this.cosmosHttpService.getDistributionDelegatorsRewardsByAddress(address),
       this.cosmosHttpService.getStakingDelegatorsRedelegationsByAddress(address),
-      this.transactionService.getTransactionsByAddress({ address, skip: 0, limit: 5 })
+      this.transactionService.getTransactionsByAddress(address, 0, 5)
     ]);
 
     const allValidatorsFromDb = await this.validatorRepository.findAll();
@@ -32,9 +36,24 @@ export class AddressService {
     let commission = 0;
 
     if (validatorFromDb?.operatorAddress) {
-      const commissionData = await this.cosmosHttpService.getDistributionValidatorsCommissionByAddress(validatorFromDb.operatorAddress);
-      const coin = commissionData.commission.commission.find(x => x.denom === "uakt");
-      commission = coin ? parseFloat(coin.amount) : 0;
+      try {
+        const commissionData = await this.cosmosHttpService.getDistributionValidatorsCommissionByAddress(validatorFromDb.operatorAddress);
+        const coin = commissionData.commission.commission.find(x => x.denom === "uakt");
+        commission = coin ? parseFloat(coin.amount) : 0;
+      } catch (error) {
+        // If validator doesn't exist on-chain (e.g., unbonded/jailed), treat commission as 0
+        if (error instanceof AxiosError && error.response?.status === 500) {
+          logger.error({
+            event: "CHAIN_GET_VALIDATOR_ERROR",
+            msg: `Validator ${validatorFromDb.operatorAddress} not found on-chain, setting commission to 0`,
+            error,
+            response: error.response.data
+          });
+          commission = 0;
+        } else {
+          throw error;
+        }
+      }
     }
 
     const assets = balancesResponse.balances.map(b => this.coinToAsset(b));

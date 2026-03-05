@@ -2,20 +2,22 @@ import castArray from "lodash/castArray";
 import { singleton } from "tsyringe";
 
 import { PricingBody, PricingResponse } from "@src/pricing/http-schemas/pricing.schema";
+import { forEachInChunks } from "@src/utils/array/array";
 import { averageHoursInAMonth } from "@src/utils/constants";
 import { round } from "@src/utils/math";
 
 @singleton()
 export class PricingService {
-  public getPricing(specs: PricingBody): PricingResponse {
-    const pricing = castArray(specs).map(({ cpu, memory, storage }) => {
-      return {
+  async getPricing(specs: PricingBody): Promise<PricingResponse> {
+    const pricing: PricingResponse = [];
+    await forEachInChunks(castArray(specs), ({ cpu, memory, storage }) => {
+      pricing.push({
         spec: { cpu, memory, storage },
         akash: round(this.getAkashPricing(cpu, memory, storage), 2),
         aws: round(this.getAWSPricing(cpu, memory, storage), 2),
         gcp: round(this.getGCPPricing(cpu, memory, storage), 2),
         azure: round(this.getAzurePricing(cpu, memory, storage), 2)
-      };
+      });
     });
 
     return Array.isArray(specs) ? pricing : pricing[0];

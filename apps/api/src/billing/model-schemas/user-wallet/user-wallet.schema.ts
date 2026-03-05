@@ -6,13 +6,14 @@ export const UserWallets = pgTable("user_wallets", {
   id: serial("id").primaryKey(),
   userId: uuid("user_id")
     .references(() => Users.id, { onDelete: "cascade" })
-    .unique(),
+    .unique()
+    .notNull(),
   address: varchar("address").unique(),
   deploymentAllowance: allowance("deployment_allowance"),
   feeAllowance: allowance("fee_allowance"),
   isTrialing: boolean("trial").default(true),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow()
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
 
 function allowance(name: string) {

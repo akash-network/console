@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "noImplicitAny": true,
+    "strict": true,
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true
+  },
+  "include": [
+    "**/*.ts"
+  ],
+  "exclude": [
+    "vitest.config.ts"
+  ],
+  "extends": "@akashnetwork/dev-config/tsconfig.base-node.json"
+}

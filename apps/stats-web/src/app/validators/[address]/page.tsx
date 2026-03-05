@@ -7,6 +7,7 @@ import { ValidatorsInfo } from "./ValidatorInfo";
 import PageContainer from "@/components/PageContainer";
 import { Title } from "@/components/Title";
 import { networkId } from "@/config/env-config.schema";
+import { serverFetch } from "@/lib/serverFetch";
 import { UrlService } from "@/lib/urlUtils";
 import { serverApiUrlService } from "@/services/api-url/server-api-url.service";
 import type { ValidatorDetail } from "@/types";
@@ -24,7 +25,7 @@ type ValidatorDetailPageProps = z.infer<typeof ValidatorDetailPageSchema>;
 export async function generateMetadata({ params: { address }, searchParams: { network } }: ValidatorDetailPageProps): Promise<Metadata> {
   const url = `https://stats.akash.network${UrlService.validator(address)}`;
   const apiUrl = serverApiUrlService.getBaseApiUrlFor(network);
-  const response = await fetch(`${apiUrl}/v1/validators/${address}`);
+  const response = await serverFetch(`${apiUrl}/v1/validators/${address}`);
   const data = (await response.json()) as ValidatorDetail;
 
   return {
@@ -40,7 +41,7 @@ export async function generateMetadata({ params: { address }, searchParams: { ne
 
 async function fetchValidatorData(address: string, network: Network["id"]): Promise<ValidatorDetail> {
   const apiUrl = serverApiUrlService.getBaseApiUrlFor(network);
-  const response = await fetch(`${apiUrl}/v1/validators/${address}`);
+  const response = await serverFetch(`${apiUrl}/v1/validators/${address}`);
 
   if (!response.ok) {
     // This will activate the closest `error.js` Error Boundary

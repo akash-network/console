@@ -1,5 +1,7 @@
-import { mockDeep } from "jest-mock-extended";
+import { type DeepMockProxy, mock, mockDeep, type MockProxy } from "vitest-mock-extended";
 
+import type { LoggerService } from "@src/core/providers/logging.provider";
+import type { UserOutput, UserRepository } from "@src/user/repositories";
 import type { NotificationsApiClient } from "../../providers/notifications-api.provider";
 import { type CreateNotificationInput, NotificationService } from "./notification.service";
 
@@ -143,7 +145,7 @@ describe(NotificationService.name, () => {
       expect(result.status).toBe("rejected");
       expect((result as PromiseRejectedResult).reason.cause).toBe(error);
       expect(api.v1.createDefaultChannel).not.toHaveBeenCalled();
-      expect(api.v1.createNotification).toHaveBeenCalledTimes(10);
+      expect(api.v1.createNotification).toHaveBeenCalledTimes(5);
     });
 
     it("fails after 10 attempts if notification service is not available and logs an error", async () => {
@@ -163,14 +165,122 @@ describe(NotificationService.name, () => {
 
       expect(result.status).toBe("rejected");
       expect((result as PromiseRejectedResult).reason.cause).toBe(error);
-      expect(api.v1.createNotification).toHaveBeenCalledTimes(10);
+      expect(api.v1.createNotification).toHaveBeenCalledTimes(5);
     });
   });
 
-  function setup() {
-    const api = mockDeep<NotificationsApiClient>();
-    const service = new NotificationService(api);
+  describe("autoEnableDeploymentAlert", () => {
+    it("creates default channel when no channels exist, then upserts alert", async () => {
+      const { service, api, userRepository } = setup();
 
-    return { service, api };
+      userRepository.findById.mockResolvedValue({ id: "user-1", email: "user@example.com" } as UserOutput);
+      api.v1.getNotificationChannels
+        .mockResolvedValueOnce({ data: { data: [] } } as never)
+        .mockResolvedValueOnce({ data: { data: [{ id: "channel-1" }] } } as never);
+      api.v1.createDefaultChannel.mockResolvedValue({} as never);
+      api.v1.upsertDeploymentAlert.mockResolvedValue({} as never);
+
+      await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123", escrowBalance: 1000000 });
+
+      expect(api.v1.getNotificationChannels).toHaveBeenCalledTimes(2);
+      expect(api.v1.createDefaultChannel).toHaveBeenCalled();
+      expect(api.v1.upsertDeploymentAlert).toHaveBeenCalledWith({
+        parameters: {
+          path: { dseq: "123" },
+          header: { "x-owner-address": "akash1abc", "x-user-id": "user-1" }
+        },
+        body: {
+          data: {
+            alerts: {
+              deploymentBalance: { notificationChannelId: "channel-1", enabled: true, threshold: 300000 },
+              deploymentClosed: { notificationChannelId: "channel-1", enabled: true }
+            }
+          }
+        }
+      });
+    });
+
+    it("uses existing channel without creating default channel", async () => {
+      const { service, api, userRepository } = setup();
+
+      userRepository.findById.mockResolvedValue({ id: "user-1", email: "user@example.com" } as UserOutput);
+      api.v1.getNotificationChannels.mockResolvedValue({ data: { data: [{ id: "channel-1" }] } } as never);
+      api.v1.upsertDeploymentAlert.mockResolvedValue({} as never);
+
+      await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123", escrowBalance: 1000000 });
+
+      expect(api.v1.getNotificationChannels).toHaveBeenCalledTimes(1);
+      expect(api.v1.createDefaultChannel).not.toHaveBeenCalled();
+      expect(api.v1.upsertDeploymentAlert).toHaveBeenCalled();
+    });
+
+    it("skips when user has no email", async () => {
+      const { service, api, userRepository } = setup();
+
+      userRepository.findById.mockResolvedValue({ id: "user-1", email: null } as UserOutput);
+
+      await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123", escrowBalance: 1000000 });
+
+      expect(api.v1.getNotificationChannels).not.toHaveBeenCalled();
+      expect(api.v1.createDefaultChannel).not.toHaveBeenCalled();
+      expect(api.v1.upsertDeploymentAlert).not.toHaveBeenCalled();
+    });
+
+    it("skips when user is not found", async () => {
+      const { service, api, userRepository } = setup();
+
+      userRepository.findById.mockResolvedValue(undefined);
+
+      await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123", escrowBalance: 1000000 });
+
+      expect(api.v1.getNotificationChannels).not.toHaveBeenCalled();
+      expect(api.v1.createDefaultChannel).not.toHaveBeenCalled();
+      expect(api.v1.upsertDeploymentAlert).not.toHaveBeenCalled();
+    });
+
+    it("skips when no channel found after creation", async () => {
+      const { service, api, userRepository } = setup();
+
+      userRepository.findById.mockResolvedValue({ id: "user-1", email: "user@example.com" } as UserOutput);
+      api.v1.getNotificationChannels.mockResolvedValue({ data: { data: [] } } as never);
+      api.v1.createDefaultChannel.mockResolvedValue({} as never);
+
+      await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123", escrowBalance: 1000000 });
+
+      expect(api.v1.createDefaultChannel).toHaveBeenCalled();
+      expect(api.v1.upsertDeploymentAlert).not.toHaveBeenCalled();
+    });
+
+    it("skips when threshold would be 0", async () => {
+      const { service, api, userRepository } = setup();
+
+      userRepository.findById.mockResolvedValue({ id: "user-1", email: "user@example.com" } as UserOutput);
+      api.v1.getNotificationChannels.mockResolvedValue({ data: { data: [{ id: "channel-1" }] } } as never);
+
+      await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123", escrowBalance: 0 });
+
+      expect(api.v1.createDefaultChannel).not.toHaveBeenCalled();
+      expect(api.v1.upsertDeploymentAlert).not.toHaveBeenCalled();
+    });
+
+    it("skips when escrow balance is NaN", async () => {
+      const { service, api, userRepository } = setup();
+
+      userRepository.findById.mockResolvedValue({ id: "user-1", email: "user@example.com" } as UserOutput);
+      api.v1.getNotificationChannels.mockResolvedValue({ data: { data: [{ id: "channel-1" }] } } as never);
+
+      await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123", escrowBalance: NaN });
+
+      expect(api.v1.upsertDeploymentAlert).not.toHaveBeenCalled();
+    });
+  });
+
+  function setup(overrides?: { api?: DeepMockProxy<NotificationsApiClient>; userRepository?: MockProxy<UserRepository>; logger?: MockProxy<LoggerService> }) {
+    const api = overrides?.api ?? mockDeep<NotificationsApiClient>();
+    const userRepository = overrides?.userRepository ?? mock<UserRepository>();
+    const logger = overrides?.logger ?? mock<LoggerService>();
+    const service = new NotificationService(api, userRepository, logger);
+
+    return { service, api, userRepository, logger };
   }
 });

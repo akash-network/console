@@ -23,9 +23,9 @@ export const Nav = () => {
   const { hasBanner } = useTopBanner();
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background backdrop-blur supports-[backdrop-filter]:bg-background">
+    <header className="sticky top-0 z-50 w-full border-b bg-header backdrop-blur supports-[backdrop-filter]:bg-header">
       {hasBanner && (
-        <div className="mb-4">
+        <div>
           <TopBanner />
         </div>
       )}

@@ -1,15 +1,17 @@
-import type { UserHttpService } from "@akashnetwork/http-sdk";
-import type { AxiosInstance } from "axios";
-import { mock } from "jest-mock-extended";
+import { useUser } from "@auth0/nextjs-auth0/client";
+import type { AxiosResponse } from "axios";
+import { type AxiosInstance } from "axios";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
-import type { BrowserEnvConfig } from "@src/config/browser-env.config";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { UserTracker } from "@src/services/user-tracker/user-tracker.service";
 import type { CustomUserProfile } from "@src/types/user";
 import { UserProviders } from "./UserProviders";
 
-import { act, render, screen, waitFor } from "@testing-library/react";
-import { buildAnonymousUser, buildUser } from "@tests/seeders/user";
+import { act, render, screen } from "@testing-library/react";
+import { buildUser } from "@tests/seeders/user";
+import { ComponentMock } from "@tests/unit/mocks";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe(UserProviders.name, () => {
@@ -23,21 +25,19 @@ describe(UserProviders.name, () => {
 
   it("tracks user changes", async () => {
     const user = buildUser();
-    const anonymousUser = buildAnonymousUser();
     const userTracker = mock<UserTracker>();
     const analyticsService = mock<AnalyticsService>();
 
     const { rerender } = await setup({
-      getProfile: jest
+      getProfile: vi
         .fn()
-        .mockImplementationOnce(async () => user)
-        .mockImplementationOnce(async () => undefined),
-      getOrCreateAnonymousUser: jest.fn(async () => ({ data: anonymousUser })),
+        .mockImplementationOnce(async () => ({ status: 200, data: user }))
+        .mockImplementationOnce(async () => ({ status: 401, data: undefined })),
       userTracker,
       analyticsService
     });
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(screen.queryByRole("status")).not.toBeInTheDocument();
     });
 
@@ -49,51 +49,64 @@ describe(UserProviders.name, () => {
     });
 
     act(() => rerender());
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(screen.queryByRole("status")).not.toBeInTheDocument();
     });
 
     expect(userTracker.track).toHaveBeenCalledWith(undefined);
-    expect(userTracker.track).toHaveBeenCalledWith(anonymousUser);
-    expect(analyticsService.identify).toHaveBeenCalledTimes(2);
-    expect(analyticsService.identify).toHaveBeenCalledWith({
-      id: anonymousUser.id,
-      anonymous: !anonymousUser.userId,
-      emailVerified: anonymousUser.emailVerified
+    expect(analyticsService.identify).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not error if user is not logged in", async () => {
+    await setup({
+      getProfile: vi.fn(() =>
+        Promise.resolve({
+          status: 401,
+          data: undefined
+        } as AxiosResponse<{ data: CustomUserProfile } | undefined>)
+      ),
+      Content: () => {
+        const { user, error } = useUser();
+        return (
+          <div>
+            User: {user?.sub || "not logged in"} Error: {error?.message || "no error"}
+          </div>
+        );
+      }
+    });
+
+    await vi.waitFor(() => {
+      expect(screen.getByText(/User: not logged/i)).toBeInTheDocument();
+      expect(screen.getByText(/Error: no error/i)).toBeInTheDocument();
     });
   });
 
   async function setup(input?: {
-    getProfile?: () => Promise<CustomUserProfile>;
+    getProfile?: () => Promise<AxiosResponse<{ data: CustomUserProfile } | undefined>>;
     userTracker?: UserTracker;
     analyticsService?: AnalyticsService;
-    getOrCreateAnonymousUser?: UserHttpService["getOrCreateAnonymousUser"];
+    Content?: React.ComponentType;
   }) {
     const services = {
       internalApiHttpClient: () =>
         mock<Omit<AxiosInstance, "defaults">>({
           get: (() => {
-            if (input?.getProfile) return input.getProfile().then(data => ({ data }));
+            if (input?.getProfile) return input.getProfile();
             return Promise.resolve({
               data: buildUser()
             });
           }) as AxiosInstance["get"]
         }) as unknown as AxiosInstance,
       userTracker: () => input?.userTracker || mock<UserTracker>(),
-      analyticsService: () => input?.analyticsService || mock<AnalyticsService>(),
-      appConfig: () =>
-        mock<BrowserEnvConfig>({
-          NEXT_PUBLIC_BILLING_ENABLED: true
-        }),
-      user: () =>
-        mock<UserHttpService>({
-          getOrCreateAnonymousUser: input?.getOrCreateAnonymousUser || (async () => ({ data: buildAnonymousUser() }))
-        })
+      analyticsService: () => input?.analyticsService || mock<AnalyticsService>()
     };
+    const Content = input?.Content || ComponentMock;
     let id = 0;
     const genContent = () => (
       <TestContainerProvider services={services}>
-        <UserProviders key={++id}>content</UserProviders>
+        <UserProviders key={++id}>
+          <Content>content</Content>
+        </UserProviders>
       </TestContainerProvider>
     );
 

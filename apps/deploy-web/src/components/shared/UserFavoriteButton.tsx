@@ -46,7 +46,7 @@ export const UserFavoriteButton: React.FunctionComponent<Props> = ({ id, isFavor
       setIsFavorite(prev => !prev);
     } catch (error) {
       console.log(error);
-      enqueueSnackbar(<Snackbar title="An error has occured." iconVariant="error" />, {
+      enqueueSnackbar(<Snackbar title="An error has occurred." iconVariant="error" />, {
         variant: "error"
       });
     }

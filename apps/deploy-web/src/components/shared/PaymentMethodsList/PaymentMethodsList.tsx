@@ -1,5 +1,5 @@
 import React from "react";
-import type { PaymentMethod } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
+import type { PaymentMethod } from "@akashnetwork/http-sdk";
 import { Card, CardContent, RadioGroup } from "@akashnetwork/ui/components";
 
 import { PaymentMethodCard } from "../PaymentMethodCard/PaymentMethodCard";
@@ -36,7 +36,7 @@ export const PaymentMethodsList: React.FC<PaymentMethodsListProps> = ({
     return (
       <div className="space-y-3">
         <Card className="rounded-lg border shadow-sm">
-          <CardContent className="flex flex-col gap-4 pt-4">
+          <CardContent className="flex flex-col gap-4 pt-6">
             <RadioGroup value={selectedPaymentMethodId} onValueChange={onPaymentMethodSelect} className="space-y-2">
               {paymentMethods.map(method => (
                 <PaymentMethodCard
@@ -59,7 +59,7 @@ export const PaymentMethodsList: React.FC<PaymentMethodsListProps> = ({
 
   // Display mode - used in onboarding
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {paymentMethods.map(method => (
         <PaymentMethodCard key={method.id} method={method} isRemoving={isRemoving} onRemove={onRemovePaymentMethod} showValidationBadge={showValidationBadge} />
       ))}

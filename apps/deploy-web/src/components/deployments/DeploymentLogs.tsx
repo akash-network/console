@@ -9,8 +9,8 @@ import { Download, MoreHoriz } from "iconoir-react";
 import type { editor } from "monaco-editor";
 
 import { CustomDropdownLinkItem } from "@src/components/shared/CustomDropdownLinkItem";
+import { Editor } from "@src/components/shared/Editor/Editor";
 import { LinearLoadingSkeleton } from "@src/components/shared/LinearLoadingSkeleton";
-import { MemoMonaco } from "@src/components/shared/MemoMonaco";
 import { SelectCheckbox } from "@src/components/shared/SelectCheckbox";
 import ViewPanel from "@src/components/shared/ViewPanel";
 import { useServices } from "@src/context/ServicesProvider";
@@ -34,7 +34,7 @@ type Props = {
 };
 
 export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selectedLogsMode }) => {
-  const { analyticsService, providerProxy, networkStore, errorHandler } = useServices();
+  const { analyticsService, providerProxy, errorHandler } = useServices();
   const [isLoadingLogs, setIsLoadingLogs] = useState(true);
   const [isConnectionEstablished, setIsConnectionEstablished] = useState(false);
   // TODO Type
@@ -56,8 +56,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
     isFetching: isLoadingStatus
   } = useLeaseStatus({
     provider: providerInfo,
-    lease: selectedLease,
-    enabled: false
+    lease: selectedLease
   });
   const services = useMemo(() => (leaseStatus ? Object.keys(leaseStatus.services) : []), [leaseStatus]);
   const muiTheme = useMuiTheme();
@@ -131,7 +130,6 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
         oseq: selectedLease.oseq,
         type: selectedLogsMode,
         follow: true,
-        chainNetwork: networkStore.selectedNetworkId,
         services: selectedServices.length < services.length ? selectedServices : undefined,
         signal: abortController.signal
       }),
@@ -145,6 +143,8 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
 
     return () => {
       abortController.abort();
+      setIsLoadingLogs(false);
+      setIsConnectionEstablished(false);
     };
   }, [providerCredentials.details, selectedLogsMode, selectedLease, selectedServices, services?.length, providerInfo?.owner, providerInfo?.hostUri]);
 
@@ -290,8 +290,9 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
               <LinearLoadingSkeleton isLoading={isLoadingLogs} />
 
               <ViewPanel stickToBottom style={{ overflow: "hidden" }}>
-                <MemoMonaco
+                <Editor
                   value={logText}
+                  language={selectedLogsMode === "logs" ? "log" : "k8s-events"}
                   onMount={handleEditorDidMount}
                   options={{
                     readOnly: true

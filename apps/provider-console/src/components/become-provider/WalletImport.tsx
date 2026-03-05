@@ -174,7 +174,22 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
       }
     } catch (error) {
       console.error("Error during wallet verification:", error);
-      setError("An error occurred while processing your request. Please try again.");
+
+      // Check if the error has the specific WAL_007 error code or any other API error
+      if (error && typeof error === "object" && "response" in error) {
+        const axiosError = error as { response?: { data?: { detail?: { status?: string; error?: { message?: string; error_code?: string } } } } };
+        const errorDetail = axiosError.response?.data?.detail?.error;
+
+        if (errorDetail?.error_code === "WAL_007" && errorDetail?.message) {
+          setError(errorDetail.message);
+        } else if (errorDetail?.message) {
+          setError(errorDetail.message);
+        } else {
+          setError("An error occurred while processing your request. Please try again.");
+        }
+      } else {
+        setError("An error occurred while processing your request. Please try again.");
+      }
     } finally {
       setIsLoading(false);
       onComplete();

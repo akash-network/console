@@ -1,5 +1,6 @@
 import { ServiceUnavailableException } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
+import { describe, expect, it, vi } from "vitest";
 
 import type { HealthzService, HealthzStatus } from "@src/common/types/healthz.type";
 import { HealthzHelperService } from "./healthz-helper.service";
@@ -91,14 +92,14 @@ describe(HealthzHelperService.name, () => {
 
     const dbService: HealthzService = {
       name: "db",
-      getReadinessStatus: jest.fn(() => Promise.resolve(dbResult)),
-      getLivenessStatus: jest.fn(() => Promise.resolve(dbResult))
+      getReadinessStatus: vi.fn(() => Promise.resolve(dbResult)),
+      getLivenessStatus: vi.fn(() => Promise.resolve(dbResult))
     };
 
     const brokerService: HealthzService = {
       name: "broker",
-      getReadinessStatus: jest.fn(() => Promise.resolve(brokerResult)),
-      getLivenessStatus: jest.fn(() => Promise.resolve(brokerResult))
+      getReadinessStatus: vi.fn(() => Promise.resolve(brokerResult)),
+      getLivenessStatus: vi.fn(() => Promise.resolve(brokerResult))
     };
 
     return {

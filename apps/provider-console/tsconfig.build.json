@@ -15,5 +15,13 @@
     ],
     "strictNullChecks": true
   },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "next-env.d.ts",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "src/**/*.spec.ts", "src/**/*.spec.tsx", "node_modules"],
   "extends": "@akashnetwork/dev-config/tsconfig.base-next.json"
 }

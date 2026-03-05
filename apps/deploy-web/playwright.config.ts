@@ -2,6 +2,8 @@ import { defineConfig, devices } from "@playwright/test";
 import dotenv from "dotenv";
 import path from "path";
 
+import { getUserAgent } from "./tests/ui/fixture/base-test"; // for process.env types
+
 dotenv.config({ path: path.resolve(__dirname, "env/.env.test") });
 
 /**
@@ -9,18 +11,15 @@ dotenv.config({ path: path.resolve(__dirname, "env/.env.test") });
  */
 export default defineConfig({
   testDir: "./tests/ui",
-  /* Run tests in files in parallel */
-  fullyParallel: true,
-  /* Fail the build on CI if you accidentally left test.only in the source code. */
+  fullyParallel: false,
+  workers: 1,
   forbidOnly: !!process.env.CI,
-  /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
-  /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: "html",
   timeout: 60 * 1000,
   globalTimeout: process.env.CI ? 60 * 60 * 1000 : undefined,
+  globalSetup: "./tests/ui/globalSetup/setup-wallet.ts",
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
@@ -28,7 +27,8 @@ export default defineConfig({
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: "retain-on-failure",
-    video: "retain-on-failure"
+    video: "retain-on-failure",
+    actionTimeout: 15_000
   },
 
   /* Configure projects for major browsers */
@@ -37,7 +37,8 @@ export default defineConfig({
       name: "chromium",
       use: {
         ...devices["Desktop Chrome"],
-        channel: "chromium" // https://github.com/microsoft/playwright/issues/33566
+        channel: "chromium", // https://github.com/microsoft/playwright/issues/33566
+        userAgent: getUserAgent()
       }
     }
 

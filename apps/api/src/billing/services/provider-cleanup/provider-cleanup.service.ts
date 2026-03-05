@@ -1,4 +1,4 @@
-import { LoggerService } from "@akashnetwork/logging";
+import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { singleton } from "tsyringe";
 
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
@@ -12,7 +12,7 @@ import { DeploymentRepository } from "@src/deployment/repositories/deployment/de
 
 @singleton()
 export class ProviderCleanupService {
-  private readonly logger = LoggerService.forContext(ProviderCleanupService.name);
+  private readonly logger = createOtelLogger({ context: ProviderCleanupService.name });
 
   constructor(
     @InjectBillingConfig() private readonly config: BillingConfig,
@@ -56,19 +56,19 @@ export class ProviderCleanupService {
 
       try {
         if (!options.dryRun) {
-          await this.managedSignerService.executeManagedTx(wallet.id, [message]);
+          await this.managedSignerService.executeDerivedTx(wallet.id, [message]);
           this.logger.info({ event: "PROVIDER_CLEAN_UP_SUCCESS" });
         }
       } catch (error: any) {
         if (error.message.includes("not allowed to pay fees")) {
           if (!options.dryRun) {
-            await this.managedUserWalletService.authorizeSpending({
+            await this.managedUserWalletService.authorizeSpending(this.managedSignerService, {
               address: wallet.address!,
               limits: {
                 fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT
               }
             });
-            await this.managedSignerService.executeManagedTx(wallet.id, [message]);
+            await this.managedSignerService.executeDerivedTx(wallet.id, [message]);
             this.logger.info({ event: "PROVIDER_CLEAN_UP_SUCCESS" });
           }
         } else {

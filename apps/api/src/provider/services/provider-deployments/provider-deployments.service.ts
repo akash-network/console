@@ -1,6 +1,7 @@
 import { Block } from "@akashnetwork/database/dbSchemas";
 import { Deployment, Lease } from "@akashnetwork/database/dbSchemas/akash";
 import type { WhereOptions } from "sequelize";
+import { QueryTypes } from "sequelize";
 import { Op } from "sequelize";
 import { singleton } from "tsyringe";
 
@@ -22,22 +23,27 @@ export class ProviderDeploymentsService {
   }
 
   async getProviderDeployments(provider: string, skip: number, limit: number, status?: ProviderDeploymentsQuery["status"]) {
-    const leaseFilter: WhereOptions<Lease> = { providerAddress: provider };
-
-    if (status) {
-      leaseFilter.closedHeight = { [status === "active" ? Op.is : Op.ne]: null };
+    let statusCondition = "";
+    if (status === "active") {
+      statusCondition = `AND l."closedHeight" IS NULL`;
+    } else if (status === "closed") {
+      statusCondition = `AND l."closedHeight" IS NOT NULL`;
     }
 
-    const deploymentDseqs = await Deployment.findAll({
-      attributes: ["dseq", "createdHeight"],
-      include: [{ model: Lease, attributes: [], required: true, where: leaseFilter }],
-      order: [
-        ["createdHeight", "DESC"],
-        ["dseq", "DESC"]
-      ],
-      offset: skip,
-      limit: limit
-    });
+    const deploymentDseqs = await Deployment.sequelize!.query<{ dseq: string }>(
+      `/* provider-deployments:paginated-dseqs */ SELECT d."dseq"
+       FROM "deployment" d
+       INNER JOIN "lease" l ON l."deploymentId" = d."id"
+         AND l."providerAddress" = $1
+         ${statusCondition}
+       GROUP BY d."id"
+       ORDER BY d."createdHeight" DESC, d."dseq" DESC
+       LIMIT $2 OFFSET $3`,
+      {
+        bind: [provider, limit, skip],
+        type: QueryTypes.SELECT
+      }
+    );
 
     const deployments = await Deployment.findAll({
       where: {
@@ -56,7 +62,10 @@ export class ProviderDeploymentsService {
         { model: Block, required: true, as: "createdBlock" },
         { model: Block, required: false, as: "closedBlock" }
       ],
-      order: [["createdHeight", "DESC"]]
+      order: [
+        ["createdHeight", "DESC"],
+        ["dseq", "DESC"]
+      ]
     });
 
     return deployments.map(d => ({

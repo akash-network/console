@@ -1,10 +1,11 @@
 import { millisecondsInMinute } from "date-fns";
-import { inject, injectable } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
-import { DB_HEALTHCHECK, DbHealthcheck, JOB_QUEUE_HEALTHCHECK, JobQueueHealthcheck } from "@src/core";
+import type { DbHealthcheck, JobQueueHealthcheck } from "@src/core";
+import { DB_HEALTHCHECK, JOB_QUEUE_HEALTHCHECK } from "@src/core";
 import { LoggerService } from "@src/core/providers/logging.provider";
 
-@injectable()
+@singleton()
 export class HealthzService {
   private readonly healthchecks: Healthcheck[] = [];
 
@@ -60,7 +61,8 @@ export interface HealthzResult {
 
 class Healthcheck {
   private checkedAt: Date | null = null;
-  private isFailed: boolean | null = null;
+  private hasSucceeded = false;
+  private isFailed = false;
   private inflightPing?: Promise<void>;
 
   constructor(
@@ -78,6 +80,7 @@ class Healthcheck {
     try {
       if (options?.ignoreCache || !this.checkedAt || now - this.checkedAt.getTime() > this.options.cacheTTL) {
         await this.check();
+        this.hasSucceeded = true;
         this.isFailed = false;
       }
 
@@ -89,7 +92,7 @@ class Healthcheck {
       });
 
       const prevIsFailed = this.isFailed;
-      if (this.isFailed === null || prevIsFailed || options?.ignoreCache) return false;
+      if (prevIsFailed || !this.hasSucceeded || options?.ignoreCache) return false;
 
       this.isFailed = true;
       // tolerate failure for the 1st time and wait for the cache to expire until the next check

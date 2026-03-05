@@ -1,4 +1,3 @@
-import React from "react";
 import type { Network } from "@akashnetwork/network-store";
 import { Alert, Card, CardContent } from "@akashnetwork/ui/components";
 import type { Metadata } from "next";
@@ -11,8 +10,12 @@ import { Title } from "@/components/Title";
 import { TxMessageRow } from "@/components/transactions/TxMessageRow";
 import { networkId } from "@/config/env-config.schema";
 import { getSplitText } from "@/hooks/useShortText";
+import { createLogger } from "@/lib/createLogger/createLogger";
+import { serverFetch } from "@/lib/serverFetch";
 import { serverApiUrlService } from "@/services/api-url/server-api-url.service";
 import type { TransactionDetail } from "@/types";
+
+const logger = createLogger({ context: "TransactionDetailPage" });
 
 const TransactionDetailPageSchema = z.object({
   params: z.object({
@@ -33,12 +36,13 @@ export async function generateMetadata({ params: { hash } }: TransactionDetailPa
 
 async function fetchTransactionData(hash: string, network: Network["id"]): Promise<TransactionDetail | null> {
   const apiUrl = serverApiUrlService.getBaseApiUrlFor(network);
-  const response = await fetch(`${apiUrl}/v1/transactions/${hash}`);
+  const response = await serverFetch(`${apiUrl}/v1/transactions/${hash}`);
 
   if (!response.ok && response.status !== 404) {
-    // This will activate the closest `error.js` Error Boundary
-    throw new Error("Error fetching transaction data");
+    logger.error({ event: "TRANSACTION_FETCH_ERROR", hash, network, status: response.status });
+    throw new Error(`Error fetching transaction data: ${hash}`);
   } else if (response.status === 404) {
+    logger.debug({ event: "TRANSACTION_NOT_FOUND", hash, network });
     return null;
   }
   return response.json();

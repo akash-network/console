@@ -1,0 +1,1 @@
+ALTER TABLE "wallet_settings" ADD COLUMN "auto_reload_job_id" uuid;

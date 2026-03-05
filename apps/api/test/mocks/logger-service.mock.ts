@@ -1,4 +1,6 @@
-jest.mock("@akashnetwork/logging", () => {
+import { vi } from "vitest";
+
+vi.mock("@akashnetwork/logging", () => {
   class LoggerService {
     static forContext() {
       return new LoggerService();
@@ -9,9 +11,9 @@ jest.mock("@akashnetwork/logging", () => {
     info() {}
   }
 
-  jest.spyOn(LoggerService.prototype, "error");
-  jest.spyOn(LoggerService.prototype, "debug");
-  jest.spyOn(LoggerService.prototype, "info");
+  vi.spyOn(LoggerService.prototype, "error");
+  vi.spyOn(LoggerService.prototype, "debug");
+  vi.spyOn(LoggerService.prototype, "info");
 
   return { LoggerService };
 });

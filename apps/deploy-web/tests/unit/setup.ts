@@ -1,27 +1,51 @@
-import "@testing-library/jest-dom";
-import "whatwg-fetch";
+import "@testing-library/jest-dom/vitest";
 
 import { Blob } from "node:buffer";
-import { TextDecoder, TextEncoder } from "util";
+import { afterEach, beforeAll, vi } from "vitest";
 
-Object.assign(global, {
-  TextDecoder,
-  TextEncoder,
-  Blob
+import { cleanup } from "@testing-library/react";
+
+Object.assign(globalThis, {
+  Blob,
+  ResizeObserver: class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
 });
+
+// Mock hasPointerCapture and scrollIntoView for jsdom compatibility with Radix UI
+Object.defineProperty(HTMLElement.prototype, "hasPointerCapture", {
+  value: () => false,
+  writable: true,
+  configurable: true
+});
+
+Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+  value: () => {},
+  writable: true,
+  configurable: true
+});
+
+document.queryCommandSupported ??= () => false;
 
 beforeAll(() => {
   Object.defineProperty(window, "matchMedia", {
     writable: true,
-    value: jest.fn().mockImplementation(query => ({
+    value: vi.fn().mockImplementation(query => ({
       matches: false,
       media: query,
       onchange: null,
-      addListener: jest.fn(), // Deprecated
-      removeListener: jest.fn(), // Deprecated
-      addEventListener: jest.fn(),
-      removeEventListener: jest.fn(),
-      dispatchEvent: jest.fn()
+      addListener: vi.fn(), // Deprecated
+      removeListener: vi.fn(), // Deprecated
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn()
     }))
   });
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+  cleanup();
 });

@@ -41,7 +41,7 @@ export const SettingsContainer: React.FunctionComponent = () => {
 
       <SettingsLayout page={SettingsTabs.GENERAL} title="Settings">
         {isSelectingNetwork && <SelectNetworkModal onClose={onSelectNetworkModalClose} />}
-        <div className="grid-col-1 mb-4 grid gap-4 md:grid-cols-2">
+        <div className="grid-col-1 mb-6 grid gap-6 md:grid-cols-2">
           <Fieldset label="Network">
             <LabelValue
               value={

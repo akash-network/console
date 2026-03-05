@@ -5,8 +5,8 @@ import { cn } from "@akashnetwork/ui/utils";
 import { CloudXmark, WarningTriangle } from "iconoir-react";
 
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
+import { useServices } from "@src/context/ServicesProvider";
 import { useProviderStatus } from "@src/queries/useProvidersQuery";
-import { analyticsService } from "@src/services/analytics/analytics.service";
 import type { BidDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { getGpusFromAttributes } from "@src/utils/deploymentUtils";
@@ -17,7 +17,7 @@ import { Uptime } from "../../providers/Uptime";
 import { CopyTextToClipboardButton } from "../../shared/CopyTextToClipboardButton";
 import { FavoriteButton } from "../../shared/FavoriteButton";
 import { PriceEstimateTooltip } from "../../shared/PriceEstimateTooltip";
-import { PricePerMonth } from "../../shared/PricePerMonth";
+import { PricePerTimeUnit } from "../../shared/PricePerTimeUnit";
 import { ProviderName } from "../../shared/ProviderName";
 
 type Props = {
@@ -38,7 +38,7 @@ export const COMPONENTS = {
   Spinner,
   TableCell,
   TableRow,
-  PricePerMonth,
+  PricePerTimeUnit,
   PriceEstimateTooltip,
   FavoriteButton,
   ProviderName,
@@ -57,6 +57,7 @@ export const BidRow: React.FunctionComponent<Props> = ({
   isSendingManifest,
   components: c = COMPONENTS
 }) => {
+  const { analyticsService } = useServices();
   const { favoriteProviders, updateFavoriteProviders } = useLocalNotes();
   const isFavorite = provider ? favoriteProviders.some(x => provider.owner === x) : false;
   const isCurrentBid = selectedBid?.id === bid.id;
@@ -105,8 +106,13 @@ export const BidRow: React.FunctionComponent<Props> = ({
     >
       <c.TableCell align="center">
         <div className="flex items-center justify-center whitespace-nowrap">
-          <c.PricePerMonth denom={bid.price.denom} perBlockValue={udenomToDenom(bid.price.amount, 10)} className="text-xl" />
-          <c.PriceEstimateTooltip denom={bid.price.denom} value={bid.price.amount} />
+          <c.PricePerTimeUnit
+            denom={bid.price.denom}
+            perBlockValue={udenomToDenom(bid.price.amount, 10)}
+            className="text-xl"
+            showAsHourly={gpuModels.length > 0}
+          />
+          <c.PriceEstimateTooltip denom={bid.price.denom} value={bid.price.amount} showAsHourly={gpuModels.length > 0} />
         </div>
       </c.TableCell>
 

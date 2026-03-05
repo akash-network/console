@@ -1,0 +1,5 @@
+deploymentEnv: staging
+nodeOptions:
+  enabledOTEL: false
+
+chain: mainnet

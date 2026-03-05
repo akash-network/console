@@ -1,8 +1,14 @@
 {
+  "extends": "@akashnetwork/dev-config/tsconfig.base-node.json",
   "compilerOptions": {
     "baseUrl": ".",
     "noImplicitAny": true,
     "strict": true
   },
-  "extends": "@akashnetwork/dev-config/tsconfig.base-node.json"
+  "exclude": [
+    "node_modules"
+  ],
+  "include": [
+    "**/*.ts"
+  ]
 }

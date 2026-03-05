@@ -1,5 +1,5 @@
+import { z } from "@hono/zod-openapi";
 import { differenceInDays } from "date-fns";
-import { z } from "zod";
 
 export const SetupIntentResponseSchema = z.object({
   data: z.object({
@@ -7,49 +7,70 @@ export const SetupIntentResponseSchema = z.object({
   })
 });
 
-export const PaymentMethodSchema = z.object({
-  type: z.string(),
-  validated: z.boolean().optional(),
-  card: z
-    .object({
-      brand: z.string().nullable(),
-      last4: z.string().nullable(),
-      exp_month: z.number(),
-      exp_year: z.number(),
-      funding: z.string().nullable().optional(),
-      country: z.string().nullable().optional(),
-      network: z.string().nullable().optional(),
-      three_d_secure_usage: z
-        .object({
-          supported: z.boolean().nullable().optional()
-        })
-        .nullable()
-        .optional()
-    })
-    .nullable()
-    .optional(),
-  billing_details: z
-    .object({
-      address: z
-        .object({
-          city: z.string().nullable(),
-          country: z.string().nullable(),
-          line1: z.string().nullable(),
-          line2: z.string().nullable(),
-          postal_code: z.string().nullable(),
-          state: z.string().nullable()
-        })
-        .nullable()
-        .optional(),
-      email: z.string().nullable().optional(),
-      name: z.string().nullable().optional(),
-      phone: z.string().nullable().optional()
-    })
-    .optional()
+export const PaymentMethodMarkAsDefaultInputSchema = z.object({
+  data: z.object({
+    id: z.string()
+  })
 });
+
+export const PaymentMethodSchema = z
+  .object({
+    type: z.string(),
+    validated: z.boolean().optional(),
+    isDefault: z.boolean().optional(),
+    card: z
+      .object({
+        brand: z.string().nullable(),
+        last4: z.string().nullable(),
+        exp_month: z.number(),
+        exp_year: z.number(),
+        funding: z.string().nullable().optional(),
+        country: z.string().nullable().optional(),
+        network: z.string().nullable().optional(),
+        three_d_secure_usage: z
+          .object({
+            supported: z.boolean().nullable().optional()
+          })
+          .nullable()
+          .optional()
+      })
+      .nullable()
+      .optional(),
+    link: z
+      .object({
+        email: z.string().nullable().optional()
+      })
+      .nullable()
+      .optional(),
+    billing_details: z
+      .object({
+        address: z
+          .object({
+            city: z.string().nullable(),
+            country: z.string().nullable(),
+            line1: z.string().nullable(),
+            line2: z.string().nullable(),
+            postal_code: z.string().nullable(),
+            state: z.string().nullable()
+          })
+          .nullable()
+          .optional(),
+        email: z.string().nullable().optional(),
+        name: z.string().nullable().optional(),
+        phone: z.string().nullable().optional()
+      })
+      .optional()
+  })
+  .refine(data => !!(data.card || data.link), {
+    message: "At least one of card or link must be provided"
+  });
 
 export const PaymentMethodsResponseSchema = z.object({
   data: z.array(PaymentMethodSchema)
+});
+
+export const PaymentMethodResponseSchema = z.object({
+  data: PaymentMethodSchema
 });
 
 export const ConfirmPaymentRequestSchema = z.object({
@@ -57,15 +78,20 @@ export const ConfirmPaymentRequestSchema = z.object({
     userId: z.string(),
     paymentMethodId: z.string(),
     amount: z.number().gte(20, "Amount must be greater or equal to $20"),
-    currency: z.string()
+    currency: z.string(),
+    awaitResolved: z.boolean().optional()
   })
 });
+
+export const TransactionStatusSchema = z.enum(["created", "pending", "requires_action", "succeeded", "failed", "refunded", "canceled"]);
 
 export const PaymentIntentResultSchema = z.object({
   success: z.boolean(),
   requiresAction: z.boolean().optional(),
   clientSecret: z.string().optional(),
-  paymentIntentId: z.string().optional()
+  paymentIntentId: z.string().optional(),
+  transactionId: z.string(),
+  transactionStatus: TransactionStatusSchema.optional()
 });
 
 export const PaymentMethodValidationResultSchema = z.object({
@@ -83,7 +109,8 @@ export const ConfirmPaymentResponseSchema = z.object({
 export const ApplyCouponRequestSchema = z.object({
   data: z.object({
     couponId: z.string(),
-    userId: z.string()
+    userId: z.string(),
+    awaitResolved: z.boolean().optional()
   })
 });
 
@@ -100,6 +127,8 @@ export const ApplyCouponResponseSchema = z.object({
   data: z.object({
     coupon: CouponSchema.nullable().optional(),
     amountAdded: z.number().optional(),
+    transactionId: z.string().optional(),
+    transactionStatus: TransactionStatusSchema.optional(),
     error: z
       .object({
         message: z.string(),
@@ -205,24 +234,31 @@ export const ValidatePaymentMethodResponseSchema = z.object({
   success: z.boolean()
 });
 
-export const ErrorResponseSchema = z.object({
-  message: z.string(),
-  code: z.string().optional(),
-  type: z.string().optional()
+export const UpdateCustomerOrganizationRequestSchema = z.object({
+  organization: z.string()
+});
+
+export const RemovePaymentMethodParamsSchema = z.object({
+  paymentMethodId: z.string().openapi({
+    param: {
+      name: "paymentMethodId",
+      in: "path"
+    },
+    description: "The unique identifier of the payment method to remove",
+    example: "pm_1234567890"
+  })
 });
 
 export type SetupIntentResponse = z.infer<typeof SetupIntentResponseSchema>;
+export type PaymentMethodMarkAsDefaultInput = z.infer<typeof PaymentMethodMarkAsDefaultInputSchema>;
 export type PaymentMethod = z.infer<typeof PaymentMethodSchema>;
 export type PaymentMethodsResponse = z.infer<typeof PaymentMethodsResponseSchema>;
+export type PaymentMethodResponse = z.infer<typeof PaymentMethodResponseSchema>;
 export type ConfirmPaymentRequest = z.infer<typeof ConfirmPaymentRequestSchema>;
 export type PaymentIntentResult = z.infer<typeof PaymentIntentResultSchema>;
 export type PaymentMethodValidationResult = z.infer<typeof PaymentMethodValidationResultSchema>;
 export type ConfirmPaymentResponse = z.infer<typeof ConfirmPaymentResponseSchema>;
 export type ApplyCouponRequest = z.infer<typeof ApplyCouponRequestSchema>;
 export type Coupon = z.infer<typeof CouponSchema>;
-export type ApplyCouponResponse = z.infer<typeof ApplyCouponResponseSchema>;
 export type Transaction = z.infer<typeof TransactionSchema>;
-export type CustomerTransactionsResponse = z.infer<typeof CustomerTransactionsResponseSchema>;
-export type CustomerTransactionsQuery = z.infer<typeof CustomerTransactionsQuerySchema>;
-export type ValidatePaymentMethodRequest = z.infer<typeof ValidatePaymentMethodRequestSchema>;
-export type ValidatePaymentMethodResponse = z.infer<typeof ValidatePaymentMethodResponseSchema>;
+export type UpdateCustomerOrganizationRequest = z.infer<typeof UpdateCustomerOrganizationRequestSchema>;

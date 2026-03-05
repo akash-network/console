@@ -122,7 +122,7 @@ export const AlertsListContainer: FC<AlertsListContainerProps> = ({ children }) 
   const dataWithNames = useMemo(() => {
     return data?.data.map(item => ({
       ...item,
-      deploymentName: (item.params?.dseq && getDeploymentName(item.params.dseq)) || "NA"
+      deploymentName: (item.params && "dseq" in item.params && getDeploymentName(item.params.dseq)) || "NA"
     }));
   }, [data?.data, getDeploymentName]);
 

@@ -1,9 +1,10 @@
 import type { RadioGroupItem } from "@akashnetwork/ui/components";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { LocalNoteProvider } from "@src/context/LocalNoteProvider/LocalNoteContext";
-import { ServicesProvider } from "@src/context/ServicesProvider/ServicesProvider";
 import { queryClient } from "@src/queries/queryClient";
+import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { ProviderProxyService } from "@src/services/provider-proxy/provider-proxy.service";
 import type { BidDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
@@ -14,6 +15,7 @@ import { render } from "@testing-library/react";
 import { buildDeploymentBid } from "@tests/seeders/deploymentBid";
 import { buildProvider } from "@tests/seeders/provider";
 import { MockComponents } from "@tests/unit/mocks";
+import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe(BidRow.name, () => {
   it("displays bid details", () => {
@@ -29,10 +31,10 @@ describe(BidRow.name, () => {
       provider: provider.owner
     });
     const components = {
-      PricePerMonth: jest.fn(),
-      ProviderName: jest.fn(),
-      Uptime: jest.fn(),
-      RadioGroupItem: jest.fn() as unknown as typeof RadioGroupItem
+      PricePerTimeUnit: vi.fn(),
+      ProviderName: vi.fn(),
+      Uptime: vi.fn(),
+      RadioGroupItem: vi.fn() as unknown as typeof RadioGroupItem
     };
     const { getByText } = setup({
       bid,
@@ -40,7 +42,7 @@ describe(BidRow.name, () => {
       components
     });
 
-    expect(components.PricePerMonth).toHaveBeenCalledWith(
+    expect(components.PricePerTimeUnit).toHaveBeenCalledWith(
       expect.objectContaining({
         denom: bid.price.denom,
         perBlockValue: udenomToDenom(bid.price.amount, 10)
@@ -73,7 +75,7 @@ describe(BidRow.name, () => {
     });
     let bid = buildDeploymentBid({ provider: provider.owner });
     const components = {
-      RadioGroupItem: jest.fn() as unknown as typeof RadioGroupItem
+      RadioGroupItem: vi.fn() as unknown as typeof RadioGroupItem
     };
     setup({
       bid,
@@ -105,26 +107,24 @@ describe(BidRow.name, () => {
   ) {
     const providerProxy = () =>
       ({
-        request: jest.fn(() => {
+        request: vi.fn(() => {
           return new Promise(() => {});
         })
       }) as unknown as ProviderProxyService;
     return render(
-      <ServicesProvider services={{ providerProxy }}>
-        <QueryClientProvider client={queryClient}>
-          <LocalNoteProvider>
-            <BidRow
-              bid={props?.bid ?? buildDeploymentBid()}
-              selectedBid={props?.selectedBid}
-              handleBidSelected={props?.handleBidSelected || (() => {})}
-              disabled={props?.disabled ?? false}
-              provider={props?.provider ?? buildProvider()}
-              isSendingManifest={props?.isSendingManifest ?? false}
-              components={MockComponents(COMPONENTS, props?.components)}
-            />
-          </LocalNoteProvider>
-        </QueryClientProvider>
-      </ServicesProvider>
+      <TestContainerProvider services={{ providerProxy, queryClient: () => queryClient, analyticsService: () => mock<AnalyticsService>() }}>
+        <LocalNoteProvider>
+          <BidRow
+            bid={props?.bid ?? buildDeploymentBid()}
+            selectedBid={props?.selectedBid}
+            handleBidSelected={props?.handleBidSelected || (() => {})}
+            disabled={props?.disabled ?? false}
+            provider={props?.provider ?? buildProvider()}
+            isSendingManifest={props?.isSendingManifest ?? false}
+            components={MockComponents(COMPONENTS, props?.components)}
+          />
+        </LocalNoteProvider>
+      </TestContainerProvider>
     );
   }
 });

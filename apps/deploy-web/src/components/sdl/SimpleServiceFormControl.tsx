@@ -40,6 +40,7 @@ import { getAvgCostPerMonth } from "@src/utils/priceUtils";
 import { LeaseSpecDetail } from "../shared/LeaseSpecDetail";
 import { PriceValue } from "../shared/PriceValue";
 import { EnvFormModal } from "./EnvFormModal/EnvFormModal";
+import { ImageCredentialsHost } from "./ImageCredentialsHost/ImageCredentialsHost";
 import { isLogCollectorService, LogCollectorControl } from "./LogCollectorControl/LogCollectorControl";
 import { CommandFormModal } from "./CommandFormModal";
 import { CommandList } from "./CommandList";
@@ -50,7 +51,6 @@ import { ExposeFormModal } from "./ExposeFormModal";
 import { ExposeList } from "./ExposeList";
 import { FormPaper } from "./FormPaper";
 import { GpuFormControl } from "./GpuFormControl";
-import { ImageCredentialsHost } from "./ImageCredentialsHost";
 import { ImageCredentialsPassword } from "./ImageCredentialsPassword";
 import { ImageCredentialsUsername } from "./ImageCredentialsUsername";
 import { ImageInput } from "./ImageInput";
@@ -127,7 +127,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
 
   return (
     <Collapsible open={expanded} onOpenChange={onExpandClick}>
-      <Card className="mt-4 rounded-sm border border-muted-foreground/20">
+      <Card className="mt-6 rounded-sm border border-muted-foreground/20">
         <CardContent className="p-0">
           {/** Edit Environment Variables */}
           {_isEditingEnv && (

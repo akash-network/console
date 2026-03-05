@@ -41,6 +41,7 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
   endIconClassName?: string;
   error?: boolean;
   inputClassName?: string;
+  labelClassName?: string;
   description?: string;
   label?: string | React.ReactNode;
   isForm?: boolean;
@@ -49,14 +50,26 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
 // TODO Variants
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, startIconClassName, endIconClassName, inputClassName, type, startIcon, endIcon, error, label, isForm, id: inputId, ...props }, ref) => {
+  (
+    { className, startIconClassName, endIconClassName, inputClassName, type, startIcon, endIcon, error, label, isForm, id: inputId, labelClassName, ...props },
+    ref
+  ) => {
     const id = React.useId();
     const formField = useFormField();
     const finalId = inputId ?? formField.id ?? id;
 
     return (
       <div className={cn("space-y-1", className)}>
-        {label && (formField.id ? <FormLabel htmlFor={`${finalId}-input`}>{label}</FormLabel> : <Label htmlFor={`${finalId}-input`}>{label}</Label>)}
+        {label &&
+          (formField.id ? (
+            <FormLabel className={labelClassName} htmlFor={`${finalId}-input`}>
+              {label}
+            </FormLabel>
+          ) : (
+            <Label className={labelClassName} htmlFor={`${finalId}-input`}>
+              {label}
+            </Label>
+          ))}
         <div className="relative flex items-center">
           {startIcon && <div className={cn("absolute inset-y-0 left-0 flex items-center", startIconClassName)}>{startIcon}</div>}
           <input

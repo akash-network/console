@@ -1,5 +1,123 @@
 
 
+## [1.35.7](https://github.com/akash-network/console/compare/provider-console/v1.35.6...provider-console/v1.35.7) (2026-02-03)
+
+
+### Bug Fixes
+
+* switch container build target to production ([#2647](https://github.com/akash-network/console/issues/2647)) ([d583e61](https://github.com/akash-network/console/commit/d583e615431f543ba84c1302efec9b878645acd8))
+
+## [1.35.6](https://github.com/akash-network/console/compare/provider-console/v1.35.5...provider-console/v1.35.6) (2026-01-30)
+
+
+### Code Refactoring
+
+* extracts tx signer into a dedicated service ([8a74b7e](https://github.com/akash-network/console/commit/8a74b7e3346e5aee6249a6baeb3e91099db97677))
+
+## [1.35.5](https://github.com/akash-network/console/compare/provider-console/v1.35.3...provider-console/v1.35.5) (2026-01-30)
+
+
+### Bug Fixes
+
+* ensure that tsbuild picks proper dependencies for internal packages ([#2596](https://github.com/akash-network/console/issues/2596)) ([c869c78](https://github.com/akash-network/console/commit/c869c78a19e7a6569d62bf1cdd2ab5be0340cdd6))
+* replaces fetch API with octokit.getContent ([#2570](https://github.com/akash-network/console/issues/2570)) ([079f0d4](https://github.com/akash-network/console/commit/079f0d4640aa3936d6ef337e46ae4bcb2a8104d4))
+* set timestamp setting in env-loader ([#2594](https://github.com/akash-network/console/issues/2594)) ([ab74ab0](https://github.com/akash-network/console/commit/ab74ab03465148ce9761e2f21408f33c6ac1c2e0))
+
+
+### Code Refactoring
+
+* migrates from webpack to tsup in console-api ([#2547](https://github.com/akash-network/console/issues/2547)) ([43c75c0](https://github.com/akash-network/console/commit/43c75c07282b88c3776545a6134754ab97901734))
+
+## [1.35.4](https://github.com/akash-network/console/compare/provider-console/v1.35.3...provider-console/v1.35.4) (2026-01-28)
+
+
+### Bug Fixes
+
+* replaces fetch API with octokit.getContent ([#2570](https://github.com/akash-network/console/issues/2570)) ([079f0d4](https://github.com/akash-network/console/commit/079f0d4640aa3936d6ef337e46ae4bcb2a8104d4))
+
+
+### Code Refactoring
+
+* migrates from webpack to tsup in console-api ([#2547](https://github.com/akash-network/console/issues/2547)) ([43c75c0](https://github.com/akash-network/console/commit/43c75c07282b88c3776545a6134754ab97901734))
+
+## [1.35.3](https://github.com/akash-network/console/compare/provider-console/v1.35.2...provider-console/v1.35.3) (2026-01-26)
+
+
+### Bug Fixes
+
+* install sharp lib for image optimization ([#2546](https://github.com/akash-network/console/issues/2546)) ([4790cd6](https://github.com/akash-network/console/commit/4790cd6ff2053229ec6faaad26a7e18d67e60f74))
+
+## [1.35.2](https://github.com/akash-network/console/compare/provider-console/v1.35.1...provider-console/v1.35.2) (2026-01-22)
+
+
+### Code Refactoring
+
+* defines explicit exports inside internal packages ([#2551](https://github.com/akash-network/console/issues/2551)) ([71f907f](https://github.com/akash-network/console/commit/71f907fe6b8b85a042bd351ec5b2b3621ba8d89d))
+
+## [1.35.1](https://github.com/akash-network/console/compare/provider-console/v1.35.0...provider-console/v1.35.1) (2026-01-20)
+
+## [1.35.0](https://github.com/akash-network/console/compare/provider-console/v1.34.1...provider-console/v1.35.0) (2026-01-13)
+
+
+### Features
+
+* **deployment:** implements deploy button flow ([46004d4](https://github.com/akash-network/console/commit/46004d4429dc3b4ebb47bb88edf97cd99b1a0c0f)), closes [#2470](https://github.com/akash-network/console/issues/2470)
+
+## [1.34.1](https://github.com/akash-network/console/compare/provider-console/v1.34.0...provider-console/v1.34.1) (2025-12-23)
+
+
+### Bug Fixes
+
+* **billing:** auto credit reload ui and setting update ([#2409](https://github.com/akash-network/console/issues/2409)) ([d0f0fb8](https://github.com/akash-network/console/commit/d0f0fb8c3247b4c29aba50cd7ec2ae6b2fa6854e))
+
+## [1.34.0](https://github.com/akash-network/console/compare/provider-console/v1.33.2...provider-console/v1.34.0) (2025-12-18)
+
+
+### Features
+
+* adds forget password form to embedded login page ([#2372](https://github.com/akash-network/console/issues/2372)) ([cd51331](https://github.com/akash-network/console/commit/cd51331e9bb2089de69751f527ca565512477d9b))
+* update frontend styling and theme ([#2331](https://github.com/akash-network/console/issues/2331)) ([0ae3a55](https://github.com/akash-network/console/commit/0ae3a557181a0eecaa3cdcf27d48513c0c09f79f))
+
+## [1.33.2](https://github.com/akash-network/console/compare/provider-console/v1.33.1...provider-console/v1.33.2) (2025-12-12)
+
+
+### Bug Fixes
+
+* wallet aware local storage and fixed error message on wallet screen ([#2350](https://github.com/akash-network/console/issues/2350)) ([e16b45d](https://github.com/akash-network/console/commit/e16b45d8fb28f6332a7b2c651c4ec88e1439cab3))
+
+## [1.33.1](https://github.com/akash-network/console/compare/provider-console/v1.33.0...provider-console/v1.33.1) (2025-12-12)
+
+
+### Bug Fixes
+
+* upgrades nextjs to latest 14.x ([#2345](https://github.com/akash-network/console/issues/2345)) ([46d0b23](https://github.com/akash-network/console/commit/46d0b2315f7aed4dabdc31f75dac964f43a4264d))
+
+## [1.33.0](https://github.com/akash-network/console/compare/provider-console/v1.32.0...provider-console/v1.33.0) (2025-12-11)
+
+
+### Features
+
+* adds api for password authentication via auth0 ([#2333](https://github.com/akash-network/console/issues/2333)) ([f8d2a9a](https://github.com/akash-network/console/commit/f8d2a9a9136c688bc07d503e4042687bb54c3949))
+
+## [1.32.0](https://github.com/akash-network/console/compare/provider-console/v1.31.0...provider-console/v1.32.0) (2025-12-09)
+
+
+### Features
+
+* account overview, auto reload, and separate payment method page  ([46b0a99](https://github.com/akash-network/console/commit/46b0a99e66be7beab0e1908f687cece6880aa268)), closes [#1779](https://github.com/akash-network/console/issues/1779)
+
+## [1.31.0](https://github.com/akash-network/console/compare/provider-console/v1.30.0...provider-console/v1.31.0) (2025-11-17)
+
+
+### Features
+
+* upgrade Node.js to 24.11.1 LTS ([#2223](https://github.com/akash-network/console/issues/2223)) ([d9feb09](https://github.com/akash-network/console/commit/d9feb090d45408ec9835216bfc5c6fb3f1329abc))
+
+
+### Bug Fixes
+
+* correct typos and formatting issues ([#2221](https://github.com/akash-network/console/issues/2221)) ([28e7a98](https://github.com/akash-network/console/commit/28e7a98d2a9f8a8cdefb6b538307c1ec4f34cf55))
+
 ## [1.30.0](https://github.com/akash-network/console/compare/provider-console/v1.29.1...provider-console/v1.30.0) (2025-11-07)
 
 

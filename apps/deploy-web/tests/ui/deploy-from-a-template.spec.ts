@@ -5,18 +5,21 @@ test("user can choose a template from the templates page", async ({ page, contex
   const templateListPage = new DeployBasePage(context, page, "new-deployment");
   await templateListPage.goto();
 
-  const templateList = page.locator('[aria-label="Template list"]');
+  const templateList = page.getByLabel("Template list");
 
   await expect(templateList).toBeVisible();
 
   const templateLinks = templateList.getByRole("link");
+  await expect(templateLinks.nth(0)).toBeVisible({ timeout: 15_000 });
+
   const templateCount = await templateLinks.count();
-  expect(templateCount).toBeGreaterThan(0);
 
   for (let i = 0; i < templateCount; i++) {
-    const [newPage] = await Promise.all([context.waitForEvent("page"), templateLinks.nth(i).click({ modifiers: ["Shift"] })]);
+    const link = templateLinks.nth(i);
+    const [newPage] = await Promise.all([context.waitForEvent("page"), link.click({ modifiers: ["Shift"] })]);
 
-    await expect(newPage).toHaveURL(/\/new-deployment\?step=edit-deployment&templateId=.*/);
+    const templateName = await newPage.getByLabel(/Name your deployment/i).inputValue();
+    await expect(link).toContainText(templateName);
     await newPage.close();
   }
 });

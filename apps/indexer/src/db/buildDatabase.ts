@@ -1,7 +1,7 @@
 import { activeChain } from "@akashnetwork/database/chainDefinitions";
 import { Block, Message } from "@akashnetwork/database/dbSchemas";
 import { Day, Transaction, TransactionEvent, TransactionEventAttribute } from "@akashnetwork/database/dbSchemas/base";
-import { MonitoredValue } from "@akashnetwork/database/dbSchemas/base/monitoredValue";
+import { MonitoredValue } from "@akashnetwork/database/dbSchemas/base";
 
 import { getGenesis } from "@src/chain/genesisImporter";
 import { indexers } from "@src/indexers";

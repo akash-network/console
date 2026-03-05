@@ -6,6 +6,8 @@
   "license": "Apache-2.0",
   "author": "",
   "exports": {
+    ".": "./src/index.ts",
+    "./package.json": "./package.json",
     "./notifications": "./src/notifications/index.ts"
   },
   "main": "src/index.ts",

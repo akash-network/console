@@ -1,8 +1,7 @@
-import * as amplitude from "@amplitude/analytics-browser";
-import murmurhash from "murmurhash";
-import { event } from "nextjs-google-analytics";
+"use client";
 
-import { browserEnvConfig } from "@src/config/browser-env.config";
+import * as amplitude from "@amplitude/analytics-browser";
+import { event } from "nextjs-google-analytics";
 
 export type AnalyticsUser = {
   id?: string;
@@ -16,7 +15,7 @@ export type AnalyticsOptions = {
   amplitude: {
     apiKey: string;
     enabled: boolean;
-    samplingRate: number;
+    serverUrl?: string;
   };
   ga: {
     measurementId: string;
@@ -27,6 +26,8 @@ export type AnalyticsOptions = {
 type AnalyticsTarget = "Amplitude" | "GA";
 
 export type AnalyticsEvent =
+  | "social_login_init"
+  | "password_auth_submit"
   | "connect_wallet"
   | "connect_managed_wallet"
   | "disconnect_wallet"
@@ -78,6 +79,7 @@ export type AnalyticsEvent =
   | "builder_mode_btn_clk"
   | "yml_mode_btn_clk"
   | "bid_selected"
+  | "bids_received"
   | "filtered_by_favorite_providers"
   | "filtered_by_audited_providers"
   | "close_deployment_btn_clk"
@@ -101,7 +103,7 @@ export type AnalyticsEvent =
   | "onboarding_email_verified"
   | "onboarding_payment_method_added"
   | "onboarding_completed"
-  | "onboarding_back_to_console";
+  | "onboarding_logout";
 
 export type AnalyticsCategory =
   | "user"
@@ -138,14 +140,14 @@ const isBrowser = typeof window !== "undefined";
 
 export type Amplitude = Pick<typeof amplitude, "init" | "Identify" | "identify" | "track" | "setUserId">;
 export type GoogleAnalytics = { event: typeof event };
-export type HashFn = typeof murmurhash.v3;
 
 export class AnalyticsService {
   private readonly STORAGE_KEY = "analytics_values_cache";
 
   private readonly valuesCache: Map<string, string> = this.loadSwitchValuesFromStorage();
 
-  private isAmplitudeEnabled: boolean | undefined;
+  private readonly isAmplitudeEnabled: boolean;
+  private amplitudeInitialized = false;
 
   private get gtag() {
     return this.getGtag();
@@ -153,15 +155,12 @@ export class AnalyticsService {
 
   constructor(
     private readonly options: AnalyticsOptions,
-    private readonly amplitude: Amplitude,
-    private readonly hash: HashFn,
-    private readonly ga: GoogleAnalytics,
-    private readonly getGtag: () => Gtag.Gtag | undefined = () => undefined,
-    private readonly storage?: Pick<Storage, "getItem" | "setItem">
+    private readonly amplitudeClient: Amplitude = amplitude,
+    private readonly ga: GoogleAnalytics = { event },
+    private readonly getGtag: () => Gtag.Gtag | undefined = () => (isBrowser ? window.gtag : undefined),
+    private readonly storage: Pick<Storage, "getItem" | "setItem"> | undefined = isBrowser ? window.localStorage : undefined
   ) {
-    if (this.options.amplitude.enabled === false) {
-      this.isAmplitudeEnabled = false;
-    }
+    this.isAmplitudeEnabled = this.options.amplitude.enabled;
   }
 
   private loadSwitchValuesFromStorage() {
@@ -185,13 +184,12 @@ export class AnalyticsService {
       this.gtag("config", this.options.ga.measurementId, { user_id: user.id });
     }
 
-    this.ensureAmplitudeFor(user);
-
     if (!this.isAmplitudeEnabled) {
       return;
     }
 
-    const event = new this.amplitude.Identify();
+    this.initAmplitude();
+    const event = new this.amplitudeClient.Identify();
 
     for (const key in user) {
       if (key !== "id") {
@@ -199,25 +197,26 @@ export class AnalyticsService {
       }
     }
 
-    this.amplitude.identify(event);
+    this.amplitudeClient.identify(event);
 
     if (user.id) {
-      this.amplitude.setUserId(user.id);
+      this.amplitudeClient.setUserId(user.id);
     }
   }
 
-  private ensureAmplitudeFor(user: AnalyticsUser) {
-    if (typeof this.isAmplitudeEnabled === "undefined" && user.id) {
-      this.isAmplitudeEnabled = this.shouldSampleUser(user.id);
-
-      if (this.isAmplitudeEnabled) {
-        this.amplitude.init(this.options.amplitude.apiKey);
-      }
+  private initAmplitude() {
+    if (this.amplitudeInitialized) {
+      return;
     }
+
+    const { serverUrl } = this.options.amplitude;
+    const initOptions = serverUrl ? { serverUrl } : undefined;
+    this.amplitudeClient.init(this.options.amplitude.apiKey, undefined, initOptions);
+    this.amplitudeInitialized = true;
   }
 
   trackSwitch(eventName: "connect_wallet", value: "managed" | "custodial", target?: AnalyticsTarget): void;
-  trackSwitch(eventName: any, value: any, target?: AnalyticsTarget) {
+  trackSwitch(eventName: AnalyticsEvent, value: string, target?: AnalyticsTarget) {
     if (!isBrowser) {
       return;
     }
@@ -248,7 +247,8 @@ export class AnalyticsService {
     const eventProperties = typeof eventPropertiesOrTarget === "object" ? eventPropertiesOrTarget : {};
 
     if (this.isAmplitudeEnabled && (!analyticsTarget || analyticsTarget === "Amplitude")) {
-      this.amplitude.track(eventName, eventProperties);
+      this.initAmplitude();
+      this.amplitudeClient.track(eventName, eventProperties);
     }
 
     if (this.options.ga.enabled && (!analyticsTarget || analyticsTarget === "GA")) {
@@ -263,34 +263,4 @@ export class AnalyticsService {
 
     return [GA_EVENTS[eventName as keyof typeof GA_EVENTS] || eventName, eventProperties];
   }
-
-  private shouldSampleUser(userId: string): boolean {
-    const hashValue = this.hash(userId);
-    const percentage = Math.abs(hashValue) % 100;
-    return percentage < this.options.amplitude.samplingRate * 100;
-  }
 }
-
-const localStorage = isBrowser ? window.localStorage : undefined;
-
-/**
- * @deprecated use useServices() instead
- */
-export const analyticsService = new AnalyticsService(
-  {
-    amplitude: {
-      enabled: browserEnvConfig.NEXT_PUBLIC_AMPLITUDE_ENABLED,
-      apiKey: browserEnvConfig.NEXT_PUBLIC_AMPLITUDE_API_KEY,
-      samplingRate: browserEnvConfig.NEXT_PUBLIC_AMPLITUDE_SAMPLING
-    },
-    ga: {
-      measurementId: browserEnvConfig.NEXT_PUBLIC_GA_MEASUREMENT_ID,
-      enabled: browserEnvConfig.NEXT_PUBLIC_GA_ENABLED
-    }
-  },
-  amplitude,
-  murmurhash.v3,
-  { event },
-  () => (isBrowser ? window.gtag : undefined),
-  localStorage
-);

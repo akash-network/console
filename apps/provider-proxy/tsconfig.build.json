@@ -5,6 +5,9 @@
     "target": "es2022",
     "lib": ["ESNext", "ES2024"],
     "module": "NodeNext",
+    "noEmit": true
   },
-  "extends": "@akashnetwork/dev-config/tsconfig.base-node.json"
+  "extends": "@akashnetwork/dev-config/tsconfig.base-node.json",
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.spec.ts"]
 }

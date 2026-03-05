@@ -1,4 +1,5 @@
 import { createMongoAbility, MongoAbility } from "@casl/ability";
+import { context, propagation, SpanStatusCode, trace } from "@opentelemetry/api";
 import PgBoss from "pg-boss";
 import { Disposable, inject, InjectionToken, singleton } from "tsyringe";
 
@@ -12,6 +13,7 @@ export const PG_BOSS_TOKEN: InjectionToken<PgBoss> = Symbol("pgBoss");
 export class JobQueueService implements Disposable {
   private readonly pgBoss: PgBoss;
   private handlers?: JobHandler<Job>[];
+  private readonly tracer = trace.getTracer("job-queue");
 
   constructor(
     private readonly logger: LoggerService,
@@ -24,7 +26,8 @@ export class JobQueueService implements Disposable {
       new PgBoss({
         connectionString: this.coreConfig.get("POSTGRES_DB_URI"),
         schema: this.coreConfig.get("POSTGRES_BACKGROUND_JOBS_SCHEMA"),
-        schedule: false
+        schedule: false,
+        max: this.coreConfig.get("POSTGRES_BACKGROUND_JOBS_POOL_SIZE")
       });
   }
 
@@ -40,7 +43,8 @@ export class JobQueueService implements Disposable {
         name: queueName,
         retryLimit: 5,
         retryBackoff: true,
-        retryDelayMax: 5 * 60
+        retryDelayMax: 5 * 60,
+        policy: handler.policy
       });
     });
     await Promise.all(promises);
@@ -79,16 +83,107 @@ export class JobQueueService implements Disposable {
    * @param options - The custom options to enqueue the job with.
    */
   async enqueue(job: Job, options?: EnqueueOptions): Promise<string | null> {
-    this.logger.info({
-      event: "JOB_ENQUEUED",
-      job
-    });
-
-    return await this.pgBoss.send({
+    const jobId = await this.pgBoss.send({
       name: job.name,
       data: { ...job.data, version: job.version },
       options
     });
+
+    this.logger.info({
+      event: "JOB_ENQUEUED",
+      job,
+      jobId,
+      options
+    });
+
+    return jobId;
+  }
+
+  async cancel(name: string, id: string): Promise<void> {
+    try {
+      await this.pgBoss.cancel(name, id);
+      this.logger.info({
+        event: "JOB_CANCELLED",
+        jobId: id,
+        name
+      });
+    } catch (error) {
+      if (this.isTerminalStateError(error)) {
+        this.logger.warn({
+          event: "JOB_CANCEL_FAILED",
+          jobId: id,
+          name,
+          error
+        });
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  async cancelCreatedBy(query: { name: string; singletonKey: string }): Promise<void> {
+    const db = await this.pgBoss.getDb();
+    const schema = this.coreConfig.get("POSTGRES_BACKGROUND_JOBS_SCHEMA");
+    const result = (await db.executeSql(
+      `
+        WITH results as (
+          UPDATE ${schema}.job
+          SET completed_on = now(),
+            state = 'cancelled'
+          WHERE name = $1
+            AND state = 'created'
+            AND singleton_key = $2
+          RETURNING id
+        )
+        SELECT id FROM results
+      `,
+      [query.name, query.singletonKey]
+    )) as { rows: { id: string }[] };
+
+    this.logger.info({
+      event: "JOBS_CANCELLED",
+      jobIds: result.rows.map(r => r.id)
+    });
+  }
+
+  async complete(name: string, id: string): Promise<void> {
+    try {
+      await this.pgBoss.complete(name, id);
+      this.logger.info({
+        event: "JOB_COMPLETED",
+        jobId: id,
+        name
+      });
+    } catch (error) {
+      if (this.isTerminalStateError(error)) {
+        this.logger.warn({
+          event: "JOB_COMPLETE_FAILED",
+          jobId: id,
+          name,
+          error
+        });
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  private isTerminalStateError(error: unknown): boolean {
+    if (!(error instanceof Error)) {
+      return false;
+    }
+
+    const terminalStatePatterns = [
+      /job.+not found/i,
+      /job.+already.+completed/i,
+      /job.+already.+cancelled/i,
+      /job.+already.+failed/i,
+      /job.+in.+terminal.+state/i,
+      /cannot.+cancel.+job/i,
+      /cannot.+complete.+job/i
+    ];
+
+    return terminalStatePatterns.some(pattern => pattern.test(error.message));
   }
 
   /** Starts jobs processing */
@@ -103,45 +198,47 @@ export class JobQueueService implements Disposable {
       const queueName = handler.accepts[JOB_NAME];
       const workersPromises = Array.from({ length: handler.concurrency ?? concurrency ?? 2 }).map(() =>
         this.pgBoss.work<JobPayload<Job>>(queueName, workerOptions, async ([job]) => {
-          await this.executionContextService.runWithContext(async () => {
-            this.executionContextService.set("CURRENT_USER", {
-              id: "bg-job-user",
-              bio: "",
-              email: "bg-job-user@akash.network",
-              emailVerified: false,
-              stripeCustomerId: "",
-              subscribedToNewsletter: false,
-              createdAt: new Date(),
-              lastActiveAt: new Date(),
-              lastIp: null,
-              lastUserAgent: null,
-              lastFingerprint: null,
-              youtubeUsername: null,
-              twitterUsername: null,
-              githubUsername: null,
-              userId: "system:bg-job-user",
-              username: "___bg_job_user___",
-              trial: false
-            });
-            this.executionContextService.set("ABILITY", createMongoAbility<MongoAbility>());
-            this.logger.info({
-              event: "JOB_STARTED",
-              jobId: job.id
-            });
-            try {
-              await handler.handle(job.data);
+          await this.#executeWithOtelContext(queueName, job.id, async () => {
+            await this.executionContextService.runWithContext(async () => {
+              this.executionContextService.set("CURRENT_USER", {
+                id: "bg-job-user",
+                bio: "",
+                email: "bg-job-user@akash.network",
+                emailVerified: false,
+                stripeCustomerId: "",
+                subscribedToNewsletter: false,
+                createdAt: new Date(),
+                lastActiveAt: new Date(),
+                lastIp: null,
+                lastUserAgent: null,
+                lastFingerprint: null,
+                youtubeUsername: null,
+                twitterUsername: null,
+                githubUsername: null,
+                userId: "system:bg-job-user",
+                username: "___bg_job_user___",
+                trial: false
+              });
+              this.executionContextService.set("ABILITY", createMongoAbility<MongoAbility>());
               this.logger.info({
-                event: "JOB_DONE",
+                event: "JOB_STARTED",
                 jobId: job.id
               });
-            } catch (error) {
-              this.logger.error({
-                event: "JOB_FAILED",
-                jobId: job.id,
-                error
-              });
-              throw error;
-            }
+              try {
+                await handler.handle(job.data, { id: job.id });
+                this.logger.info({
+                  event: "JOB_DONE",
+                  jobId: job.id
+                });
+              } catch (error) {
+                this.logger.error({
+                  event: "JOB_FAILED",
+                  jobId: job.id,
+                  error
+                });
+                throw error;
+              }
+            });
           });
         })
       );
@@ -150,6 +247,34 @@ export class JobQueueService implements Disposable {
     });
 
     await Promise.all(jobs);
+  }
+
+  async #executeWithOtelContext<T>(queueName: string, jobId: string, handler: () => Promise<T>): Promise<T> {
+    const span = this.tracer.startSpan(`job.${queueName}`);
+    span.setAttribute("job.id", jobId);
+    span.setAttribute("job.name", queueName);
+
+    const activeContext = context.active();
+    const baggage = propagation.createBaggage().setEntry("job.id", { value: jobId });
+    const contextWithBaggage = propagation.setBaggage(activeContext, baggage);
+    const contextWithSpan = trace.setSpan(contextWithBaggage, span);
+
+    try {
+      const result = await context.with(contextWithSpan, async () => {
+        return await handler();
+      });
+      span.setStatus({ code: SpanStatusCode.OK });
+      return result;
+    } catch (error) {
+      span.setStatus({
+        code: SpanStatusCode.ERROR,
+        message: error instanceof Error ? error.message : String(error)
+      });
+      span.recordException(error instanceof Error ? error : new Error(String(error)));
+      throw error;
+    } finally {
+      span.end();
+    }
   }
 
   async dispose(): Promise<void> {
@@ -192,10 +317,13 @@ export type JobType<T extends Job> = {
   [JOB_NAME]: string;
 };
 
+export type JobMeta = Pick<PgBoss.Job, "id">;
+
 export interface JobHandler<T extends Job> {
   accepts: JobType<T>;
   concurrency?: ProcessOptions["concurrency"];
-  handle(payload: JobPayload<T>): Promise<void>;
+  policy?: PgBoss.Queue["policy"];
+  handle(payload: JobPayload<T>, job?: JobMeta): Promise<void>;
 }
 
 export type EnqueueOptions = PgBoss.SendOptions;

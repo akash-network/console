@@ -17,7 +17,6 @@ import { Nav } from "./Nav";
 import { Sidebar } from "./Sidebar";
 import { TopBanner } from "./TopBanner";
 import { TrackingScripts } from "./TrackingScripts";
-import { WelcomeToTrialModal } from "./WelcomeToTrialModal";
 
 type Props = {
   isLoading?: boolean;
@@ -94,7 +93,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
   };
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full flex-col">
       <TopBanner />
 
       <div className="w-full flex-1" style={{ marginTop: `${ACCOUNT_BAR_HEIGHT + (hasBanner ? 40 : 0)}px` }}>
@@ -121,14 +120,13 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
               <ErrorBoundary FallbackComponent={ErrorFallback}>
                 {!isUsingSettings || isSettingsInit ? (
                   !isUsingWallet || isWalletLoaded ? (
-                    <div className={cn({ ["container pb-8 pt-4"]: !disableContainer }, containerClassName)}>{children}</div>
+                    <div className={cn({ ["container p-6 pb-8"]: !disableContainer }, containerClassName)}>{children}</div>
                   ) : (
                     <Loading text="Loading wallet..." />
                   )
                 ) : (
                   <Loading text="Loading settings..." />
                 )}
-                <WelcomeToTrialModal />
               </ErrorBoundary>
             </div>
           </div>

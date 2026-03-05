@@ -1,21 +1,21 @@
 import { useMemo } from "react";
 
 import { useCustomUser } from "@src/hooks/useCustomUser";
-import { useStoredAnonymousUser } from "@src/hooks/useStoredAnonymousUser";
 import type { CustomUserProfile } from "@src/types/user";
 
 export const useUser = (): {
-  user: CustomUserProfile;
+  user: CustomUserProfile | undefined;
   isLoading: boolean;
+  checkSession: () => Promise<void>;
 } => {
-  const { user: registeredUser, isLoading: isLoadingRegisteredUser } = useCustomUser();
-  const { user: anonymousUser, isLoading: isLoadingAnonymousUser } = useStoredAnonymousUser();
-  const user = useMemo(() => registeredUser || anonymousUser, [registeredUser, anonymousUser]);
-  const isLoading = useMemo(() => isLoadingRegisteredUser || isLoadingAnonymousUser, [isLoadingRegisteredUser, isLoadingAnonymousUser]);
+  const { user: registeredUser, isLoading: isLoadingRegisteredUser, checkSession } = useCustomUser();
+  const user = useMemo(() => registeredUser, [registeredUser]);
+  const isLoading = useMemo(() => isLoadingRegisteredUser, [isLoadingRegisteredUser]);
 
   return {
     user,
-    isLoading
+    isLoading,
+    checkSession
   };
 };
 
@@ -24,6 +24,6 @@ export const useIsRegisteredUser = () => {
 
   return {
     isLoading,
-    canVisit: !!user.userId
+    canVisit: !!user?.userId
   };
 };

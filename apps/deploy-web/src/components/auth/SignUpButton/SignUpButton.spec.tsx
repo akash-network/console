@@ -1,12 +1,11 @@
-import "@testing-library/jest-dom";
-
 import React from "react";
-import { mock } from "jest-mock-extended";
+import type { NextRouter } from "next/router";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
-import type { AuthService } from "@src/services/auth/auth/auth.service";
-import { SignUpButton } from "./SignUpButton";
+import { DEPENDENCIES, SignUpButton } from "./SignUpButton";
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe(SignUpButton.name, () => {
@@ -31,7 +30,7 @@ describe(SignUpButton.name, () => {
     expect(linkElement).toHaveClass("custom-class");
     expect(linkElement).toHaveAttribute("data-testid", "signup-link");
     expect(linkElement).toHaveAttribute("id", "signup-btn");
-    expect(linkElement).toHaveAttribute("href", "#");
+    expect(linkElement).toHaveAttribute("href", `/login?tab=signup&returnTo=${encodeURIComponent("/")}`);
   });
 
   it("renders as a button when specified", () => {
@@ -45,41 +44,29 @@ describe(SignUpButton.name, () => {
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
 
-  it("calls authService.signup when clicked on link", async () => {
-    const signup = jest.fn(() => Promise.resolve());
-    setup({ signup });
-
-    const linkElement = screen.getByRole("link");
-    fireEvent.click(linkElement);
-
-    await waitFor(() => {
-      expect(signup).toHaveBeenCalledWith();
-    });
-  });
-
-  it("calls authService.signup when clicked on button", async () => {
-    const signup = jest.fn(() => Promise.resolve());
-    setup({ wrapper: "button", signup });
+  it("calls authService.loginViaOauth when clicked on button", async () => {
+    const navigate = vi.fn();
+    setup({ wrapper: "button", navigate });
 
     const buttonElement = screen.getByRole("button");
     fireEvent.click(buttonElement);
 
-    await waitFor(() => {
-      expect(signup).toHaveBeenCalledWith();
+    await vi.waitFor(() => {
+      expect(navigate).toHaveBeenCalledWith(`/login?tab=signup&returnTo=${encodeURIComponent("/")}`);
     });
   });
 
   function setup({
-    signup,
+    navigate,
     ...props
   }: Partial<React.ComponentProps<typeof SignUpButton>> & {
-    signup?: AuthService["signup"];
+    navigate?: NextRouter["push"];
   } = {}) {
-    const authService = mock<AuthService>({ signup });
+    const router = mock<NextRouter>({ push: navigate ?? vi.fn() });
 
     render(
-      <TestContainerProvider services={{ authService: () => authService }}>
-        <SignUpButton {...props} />
+      <TestContainerProvider>
+        <SignUpButton {...props} dependencies={{ ...DEPENDENCIES, useRouter: () => router }} />
       </TestContainerProvider>
     );
   }

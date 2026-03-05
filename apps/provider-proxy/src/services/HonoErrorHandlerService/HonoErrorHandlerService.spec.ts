@@ -1,5 +1,6 @@
 import type { LoggerService } from "@akashnetwork/logging";
-import { mock } from "jest-mock-extended";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 import { ZodError } from "zod";
 
 import type { AppContext } from "../../types/AppContext";
@@ -10,7 +11,7 @@ describe(HonoErrorHandlerService.name, () => {
     const service = setup();
     const error = new ZodError([]);
     const response = {};
-    const json = jest.fn(() => response);
+    const json = vi.fn(() => response);
 
     const result = await service.handle(error, { json } as unknown as AppContext);
 
@@ -31,7 +32,7 @@ describe(HonoErrorHandlerService.name, () => {
     const service = setup();
     const error = new Error("Unknown error");
     const response = {};
-    const json = jest.fn(() => response);
+    const json = vi.fn(() => response);
 
     const result = await service.handle(error, { json } as unknown as AppContext);
 
@@ -51,7 +52,7 @@ describe(HonoErrorHandlerService.name, () => {
     const logger = mock<LoggerService>();
     const service = setup({ logger });
     const error = new Error("Unknown error");
-    const json = jest.fn();
+    const json = vi.fn();
     await service.handle(error, { json } as unknown as AppContext);
 
     expect(logger.error).toHaveBeenCalledWith({ error });

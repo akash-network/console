@@ -1,12 +1,15 @@
-import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+import { OpenAPIHono, z } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 
+import { createRoute } from "@src/core/lib/create-route/create-route";
+import { SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 import { ProviderController } from "@src/provider/controllers/provider/provider.controller";
 
 const route = createRoute({
   method: "get",
   path: "/trial-providers",
   tags: ["Trial", "Providers"],
+  security: SECURITY_NONE,
   summary: "Get a list of trial providers.",
   responses: {
     200: {

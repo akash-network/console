@@ -1,10 +1,10 @@
 "use client";
 import React, { useCallback, useEffect, useState } from "react";
+import { createFetchAdapter } from "@akashnetwork/http-sdk";
 import { netConfig } from "@akashnetwork/net";
 
 import { useLocalStorage } from "@src/hooks/useLocalStorage";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
-import { createFetchAdapter } from "@src/services/createFetchAdapter/createFetchAdapter";
 import type { FCWithChildren } from "@src/types/component";
 import type { NodeStatus } from "@src/types/node";
 import { migrateLocalStorage } from "@src/utils/localStorage";
@@ -191,10 +191,7 @@ export const SettingsProvider: FCWithChildren = ({ children }) => {
     try {
       const response = await externalApiHttpClient.get<{ result: NodeStatus }>(`${rpcUrl}/status`, {
         timeout: 5000,
-        adapter: fetchAdapter,
-        "axios-retry": {
-          retries: 0
-        }
+        adapter: fetchAdapter
       });
       nodeStatus = response.data.result;
       status = "active";

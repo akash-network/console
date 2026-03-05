@@ -85,14 +85,14 @@ const ProviderDetailLayout: React.FunctionComponent<Props> = ({ children, page, 
           <ProviderSummary provider={provider as ClientProviderDetailWithStatus} />
 
           <Tabs value={page} onValueChange={handleTabChange}>
-            <TabsList className="mb-4 grid w-full grid-cols-3 rounded-t-none">
+            <TabsList className="grid w-full grid-cols-3 rounded-t-none">
               <TabsTrigger value={ProviderDetailTabs.DETAIL}>Detail</TabsTrigger>
               <TabsTrigger value={ProviderDetailTabs.LEASES}>My Leases</TabsTrigger>
               <TabsTrigger value={ProviderDetailTabs.RAW}>Raw Data</TabsTrigger>
             </TabsList>
 
             <ErrorBoundary FallbackComponent={ErrorFallback}>
-              <div className="pt-8">{children}</div>
+              <div className="pt-6">{children}</div>
             </ErrorBoundary>
           </Tabs>
         </>

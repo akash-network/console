@@ -17,13 +17,13 @@ export function useUserApiKeys(
   dependencies: typeof USE_API_KEYS_DEPENDENCIES = USE_API_KEYS_DEPENDENCIES
 ) {
   const { user } = dependencies.useUser();
-  const { isTrialing, isManaged } = dependencies.useWallet();
+  const { isManaged } = dependencies.useWallet();
   const { apiKey } = useServices();
 
   return useQuery<ApiKeyResponse[], Error>({
     queryKey: QueryKeys.getApiKeysKey(user?.userId ?? ""),
     queryFn: async () => await apiKey.getApiKeys(),
-    enabled: !!user?.userId && !isTrialing && isManaged,
+    enabled: !!user?.userId && isManaged,
     refetchInterval: 10_000,
     retry: failureCount => failureCount < 5,
     retryDelay: 10_000,

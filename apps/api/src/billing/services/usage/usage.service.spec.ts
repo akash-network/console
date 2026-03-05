@@ -1,6 +1,6 @@
 import { faker } from "@faker-js/faker";
 import { addDays, format } from "date-fns";
-import { mock } from "jest-mock-extended";
+import { mock } from "vitest-mock-extended";
 
 import type { BillingUsageRawResult, UsageRepository } from "@src/billing/repositories/usage/usage.repository";
 import type { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";

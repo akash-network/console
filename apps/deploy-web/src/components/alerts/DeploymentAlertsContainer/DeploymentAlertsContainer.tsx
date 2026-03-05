@@ -7,9 +7,9 @@ import type { components } from "@akashnetwork/react-query-sdk/notifications";
 import { useQueryClient } from "@tanstack/react-query";
 import { merge } from "lodash";
 
-import { usePricing } from "@src/context/PricingProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { useNotificator } from "@src/hooks/useNotificator";
+import { usePricing } from "@src/hooks/usePricing/usePricing";
 import { useWhen } from "@src/hooks/useWhen";
 import type { DeploymentDto } from "@src/types/deployment";
 import { ceilDecimal, denomToUdenom, udenomToDenom } from "@src/utils/mathHelpers";

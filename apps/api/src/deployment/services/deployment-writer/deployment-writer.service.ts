@@ -2,8 +2,6 @@ import { BlockHttpService } from "@akashnetwork/http-sdk";
 import assert from "http-assert";
 import { singleton } from "tsyringe";
 
-import { Wallet } from "@src/billing/lib/wallet/wallet";
-import { InjectWallet } from "@src/billing/providers/wallet.provider";
 import { UserWalletOutput } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
@@ -26,7 +24,6 @@ export class DeploymentWriterService {
   constructor(
     private readonly blockHttpService: BlockHttpService,
     private readonly signerService: ManagedSignerService,
-    @InjectWallet("MANAGED") private readonly masterWallet: Wallet,
     private readonly rpcMessageService: RpcMessageService,
     private readonly sdlService: SdlService,
     private readonly billingConfig: BillingConfigService,
@@ -46,6 +43,11 @@ export class DeploymentWriterService {
       sdl = sdl.replace(/uakt/g, deploymentGrantDenom);
     }
 
+    const allowedAuditors = this.billingConfig.get("MANAGED_WALLET_LEASE_ALLOWED_AUDITORS");
+    if (allowedAuditors && allowedAuditors.length > 0) {
+      sdl = this.sdlService.appendAuditorRequirement(sdl, allowedAuditors);
+    }
+
     const dseq = await this.blockHttpService.getCurrentHeight();
     const groups = this.sdlService.getDeploymentGroups(sdl, "beta3");
     const manifestVersion = await this.sdlService.getManifestVersion(sdl, "beta3");
@@ -60,7 +62,7 @@ export class DeploymentWriterService {
       hash: manifestVersion
     });
 
-    const result = await this.signerService.executeDecodedTxByUserId(wallet.userId, [message]);
+    const result = await this.signerService.executeDerivedDecodedTxByUserId(wallet.userId, [message]);
     return {
       dseq: dseq.toString(),
       manifest,
@@ -92,16 +94,22 @@ export class DeploymentWriterService {
       signer: wallet.address
     });
 
-    await this.signerService.executeDecodedTxByUserId(wallet.userId, [message]);
+    await this.signerService.executeDerivedDecodedTxByUserId(wallet.userId, [message]);
 
     return await this.deploymentReaderService.findByWalletAndDseq(wallet, options.dseq);
   }
 
   public async updateByUserIdAndDseq(userId: string, dseq: string, input: UpdateDeploymentRequest["data"]): Promise<GetDeploymentResponse["data"]> {
     const wallet = await this.walletReaderService.getWalletByUserId(userId);
-    const { sdl, certificate } = input;
+    let sdl = input.sdl;
+    const { certificate } = input;
 
     assert(this.sdlService.validateSdl(sdl), 400, "Invalid SDL");
+
+    const allowedAuditors = this.billingConfig.get("MANAGED_WALLET_LEASE_ALLOWED_AUDITORS");
+    if (allowedAuditors && allowedAuditors.length > 0) {
+      sdl = this.sdlService.appendAuditorRequirement(sdl, allowedAuditors);
+    }
 
     const deployment = await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq);
     const manifestVersion = await this.sdlService.getManifestVersion(sdl, "beta3");
@@ -127,7 +135,7 @@ export class DeploymentWriterService {
         hash: manifestVersion
       });
 
-      await this.signerService.executeDecodedTxByUserId(wallet.userId, [message]);
+      await this.signerService.executeDerivedDecodedTxByUserId(wallet.userId, [message]);
     }
   }
 

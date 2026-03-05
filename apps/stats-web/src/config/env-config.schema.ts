@@ -2,7 +2,8 @@ import { LoggerService } from "@akashnetwork/logging";
 import { z } from "zod";
 
 export const networkId = z.enum(["mainnet", "sandbox", "testnet"]);
-const envLogger = LoggerService.forContext("apps/stats-web/src/config/env-config.schema.ts");
+const coercedBoolean = () => z.enum(["true", "false"]).transform(val => val === "true");
+const envLogger = LoggerService.forContext("env-config-schema");
 
 export const browserEnvSchema = z.object({
   NEXT_PUBLIC_DEFAULT_NETWORK_ID: networkId.optional().default("mainnet"),
@@ -20,6 +21,7 @@ export const browserEnvSchema = z.object({
 });
 
 export const serverEnvSchema = browserEnvSchema.extend({
+  MAINTENANCE_MODE: coercedBoolean().optional().default("false"),
   BASE_API_MAINNET_URL: z.string().url(),
   BASE_API_TESTNET_URL: z.string().url(),
   BASE_API_SANDBOX_URL: z.string().url()

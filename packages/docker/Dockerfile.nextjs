@@ -1,6 +1,6 @@
-# syntax=docker/dockerfile:1.7-labs
+# syntax=docker/dockerfile:1.20
 
-FROM node:22.14.0-alpine AS base
+FROM node:24.13.0-alpine AS base
 
 ARG CI
 ENV CI $CI
@@ -28,7 +28,7 @@ COPY /$WORKSPACE/package.json /app/$WORKSPACE/package.json
 COPY --parents /packages/*/package.json /app
 # reset app version to 1.0.0 to avoid cache busting after every release
 RUN npm version --allow-same-version 1.0.0 -w $WORKSPACE --no-workspaces-update && \
-    npm install --package-lock-only
+    node -e "const fs=require('fs'); const lockfile=require('./package-lock.json'); lockfile.packages['$WORKSPACE'].version='1.0.0';fs.writeFileSync('./package-lock.json', JSON.stringify(lockfile, null, 2));"
 
 COPY script/safe-deps-install.sh /app/script/safe-deps-install.sh
 
@@ -40,7 +40,7 @@ RUN apk add --no-cache libc6-compat
 
 COPY --from=prepare /app .
 
-RUN npm run safe-install && npm cache clean --force
+RUN --mount=type=cache,id=npm-cache,target=/root/.npm npm run safe-install
 
 COPY $WORKSPACE ./$WORKSPACE
 COPY /packages /app/packages
@@ -64,7 +64,8 @@ ENV APP_GROUP_ID 1001
 ENV APP_GROUP nodejs
 ENV APP_USER app
 
-RUN addgroup --system --gid $APP_GROUP_ID $APP_GROUP \
+RUN apk add --no-cache libc6-compat \
+    && addgroup --system --gid $APP_GROUP_ID $APP_GROUP \
     && adduser --system --uid $APP_GROUP_ID $APP_USER
 
 COPY --from=builder /app/$WORKSPACE/package.json ./$WORKSPACE/package.json
@@ -88,7 +89,7 @@ FROM production AS production-nginx
 
 USER root
 
-RUN apk add --no-cache libcap nginx openssl \
+RUN apk add --no-cache libcap nginx openssl libc6-compat \
     && setcap cap_net_bind_service=+ep `readlink -f \`which node\`` \
     && mkdir -p /etc/nginx/ssl \
     && openssl req -x509 -newkey rsa:4096 -sha256 -nodes -keyout /etc/nginx/ssl/my_ssl_key.key -out /etc/nginx/ssl/my_ssl_cert.crt -subj "/CN=akash.network" -days 600 \

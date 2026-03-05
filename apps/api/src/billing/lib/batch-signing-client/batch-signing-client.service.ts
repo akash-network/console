@@ -1,5 +1,6 @@
 import { TxRaw } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
-import { LoggerService } from "@akashnetwork/logging";
+import { isRetriableError } from "@akashnetwork/http-sdk";
+import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { sha256 } from "@cosmjs/crypto";
 import { toHex } from "@cosmjs/encoding";
 import type { EncodeObject, Registry } from "@cosmjs/proto-signing";
@@ -15,7 +16,6 @@ import { Err, Ok } from "ts-results";
 import type { CreateSigningStargateClient } from "@src/billing/lib/signing-stargate-client-factory/signing-stargate-client.factory";
 import type { Wallet } from "@src/billing/lib/wallet/wallet";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
-import type { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import { memoizeAsync } from "@src/caching/helpers";
 import { withSpan } from "@src/core/services/tracing/tracing.service";
 
@@ -56,6 +56,8 @@ interface SignAndBroadcastBatchOptions {
  * Transactions are signed locally and then broadcast to the blockchain network.
  */
 export class BatchSigningClientService {
+  private readonly MEMO = "akash console";
+
   /**
    * The denomination for transaction fees (uakt = micro AKT).
    */
@@ -67,9 +69,9 @@ export class BatchSigningClientService {
   private client: SigningStargateClient;
 
   /**
-   * Semaphore to ensure only one batch is processed at a time.
+   * In-process semaphore to serialize batch signing operations.
    */
-  private readonly semaphore = new Sema(1);
+  private readonly sema = new Sema(1);
 
   /**
    * DataLoader instance that batches transaction requests and schedules execution.
@@ -94,14 +96,21 @@ export class BatchSigningClientService {
   );
 
   /**
-   * Retry executor for transaction retrieval operations.
+   * Retry executor for transaction recovery.
    *
-   * Retries up to 5 times with exponential backoff when the transaction is not yet available (falsy result).
-   * Uses a longer max delay (7 seconds) to account for blockchain confirmation times.
+   * Retries up to 5 times with exponential backoff when:
+   * - The transaction is not found (null result)
+   * - Network errors occur during transaction retrieval
+   *
+   * This handles cases where the transaction may have been included in a block
+   * but is not yet indexed, or when the RPC connection fails.
    */
-  private readonly getTxExecutor = retry(
-    handleWhenResult(res => !res),
-    { maxAttempts: 5, backoff: new ExponentialBackoff({ maxDelay: 7_000, initialDelay: 500 }) }
+  private readonly txRecoveryExecutor = retry(
+    handleWhenResult(res => !res).orWhen(err => this.isRetriableNetworkError(err)),
+    {
+      maxAttempts: 5,
+      backoff: new ExponentialBackoff({ maxDelay: 10_000, initialDelay: 1_000 })
+    }
   );
 
   /**
@@ -127,7 +136,7 @@ export class BatchSigningClientService {
   /**
    * Logger instance for this service.
    */
-  private readonly logger = LoggerService.forContext(this.loggerContext);
+  private readonly logger = createOtelLogger({ context: this.loggerContext });
 
   /**
    * Checks if there are pending transactions waiting to be batched.
@@ -135,7 +144,7 @@ export class BatchSigningClientService {
    * @returns `true` if there are transactions waiting in the semaphore, `false` otherwise.
    */
   get hasPendingTransactions() {
-    return this.semaphore.nrWaiting() > 0;
+    return this.sema.nrWaiting() > 0;
   }
 
   /**
@@ -145,7 +154,6 @@ export class BatchSigningClientService {
    * @param wallet - The wallet used to sign transactions.
    * @param registry - Protocol buffer registry for encoding/decoding messages.
    * @param createClientWithSigner - Factory function to create a SyncSigningStargateClient.
-   * @param chainErrorService - Service for converting chain errors to application errors.
    * @param loggerContext - Context name for logging (defaults to class name).
    */
   constructor(
@@ -153,7 +161,6 @@ export class BatchSigningClientService {
     private readonly wallet: Wallet,
     private readonly registry: Registry,
     createClientWithSigner: CreateSigningStargateClient,
-    private readonly chainErrorService: ChainErrorService,
     private readonly loggerContext = BatchSigningClientService.name
   ) {
     this.client = createClientWithSigner(this.config.get("RPC_NODE_ENDPOINT"), this.wallet, {
@@ -167,6 +174,9 @@ export class BatchSigningClientService {
    * This method adds the transaction to a batch queue. Multiple transactions
    * are collected and executed together for efficiency. The method retries
    * on sequence mismatch errors with exponential backoff.
+   *
+   * If a network error occurs during transaction retrieval, the method will
+   * attempt to recover by re-querying the transaction after a brief delay.
    *
    * @param messages - The protocol buffer messages to include in the transaction.
    * @param options - Optional execution options (e.g., fee granter).
@@ -190,19 +200,28 @@ export class BatchSigningClientService {
         event: "SIGN_AND_BROADCAST_ERROR",
         error: result.val
       });
-      throw await this.chainErrorService.toAppError(result.val as Error, messages);
+      throw result.val;
     }
 
-    const tx = await this.getTx(result.val);
+    const txHash = result.val;
+
+    const tx = await this.tryRecoverTransaction(txHash);
 
     if (!tx) {
       const error = new Error("Failed to sign and broadcast transaction");
       this.logger.error({
-        event: "SIGN_AND_BROADCAST_ERROR",
+        event: "SIGN_AND_BROADCAST_TX_NOT_FOUND",
+        txHash,
         error
       });
       throw error;
     }
+
+    this.logger.debug({
+      event: "SIGN_AND_BROADCAST_SUCCESS",
+      txHash,
+      height: tx.height
+    });
 
     return tx;
   }
@@ -214,11 +233,11 @@ export class BatchSigningClientService {
    * @returns Array of results, each containing either a transaction hash (Ok) or an error (Err).
    */
   private async signAndBroadcastBatchBlocking(inputs: readonly SignAndBroadcastBatchOptions[]): Promise<Result<string, unknown>[]> {
-    await this.semaphore.acquire();
+    await this.sema.acquire();
     try {
       return await this.executeAndBroadcastBatch(inputs);
     } finally {
-      this.semaphore.release();
+      this.sema.release();
     }
   }
 
@@ -263,7 +282,7 @@ export class BatchSigningClientService {
         const { messages, options } = input;
         const fee = await this.estimateFee(messages, this.FEES_DENOM, options?.fee?.granter);
 
-        const signedTx = await this.client.sign(accountInfo.address, messages, fee, "", {
+        const signedTx = await this.client.sign(accountInfo.address, messages, fee, this.MEMO, {
           accountNumber: accountInfo.accountNumber,
           sequence: currentSequence,
           chainId
@@ -329,15 +348,55 @@ export class BatchSigningClientService {
   }
 
   /**
-   * Retrieves a transaction from the blockchain by hash.
+   * Checks if an error is a retriable network error.
    *
-   * Retries with exponential backoff if the transaction is not yet available.
+   * Network errors can occur when the RPC connection is interrupted, but the
+   * transaction may have already been successfully included in a block.
+   * Cosmjs wraps network errors in a "fetch failed" error with the actual
+   * error in the `.cause` property.
    *
-   * @param hash - The transaction hash to look up.
-   * @returns The indexed transaction, or `undefined` if not found after retries.
+   * @param error - The error to check.
+   * @returns `true` if the error is a retriable network error.
    */
-  private async getTx(hash: string) {
-    return await this.getTxExecutor.execute(() => this.client.getTx(hash));
+  private isRetriableNetworkError(error: unknown): boolean {
+    if (!(error instanceof Error)) return false;
+
+    if ("code" in error) {
+      return isRetriableError(error as Error & { code: unknown });
+    }
+
+    // Cosmjs wraps network errors in "fetch failed" with the actual error in .cause
+    if ("cause" in error && error.cause instanceof Error && "code" in error.cause) {
+      return isRetriableError(error.cause as Error & { code: unknown });
+    }
+
+    return false;
+  }
+
+  /**
+   * Attempts to retrieve a transaction with retry logic for both network errors
+   * and cases where the transaction is not yet indexed.
+   *
+   * This handles cases where:
+   * - The transaction was broadcast but is not yet indexed
+   * - Network errors occur during retrieval
+   *
+   * @param hash - The transaction hash to retrieve.
+   * @returns The indexed transaction if found, or `null` if not found after retries.
+   */
+  private async tryRecoverTransaction(hash: string): Promise<IndexedTx | null> {
+    try {
+      return await this.txRecoveryExecutor.execute(context => {
+        this.logger.debug({ event: "TX_RECOVERY_ATTEMPT", txHash: hash, attempt: context.attempt });
+        return this.client.getTx(hash);
+      });
+    } catch (error) {
+      if (this.isRetriableNetworkError(error)) {
+        this.logger.warn({ event: "TX_RECOVERY_FAILED", txHash: hash, error });
+        return null;
+      }
+      throw error;
+    }
   }
 
   /**
@@ -353,7 +412,7 @@ export class BatchSigningClientService {
    * @returns The calculated fee structure.
    */
   private async estimateFee(messages: readonly EncodeObject[], denom: string, granter?: string) {
-    const gasEstimation = await this.client.simulate(await this.getAddress(), messages, "");
+    const gasEstimation = await this.client.simulate(await this.getAddress(), messages, this.MEMO);
     const estimatedGas = Math.ceil(gasEstimation * this.config.get("GAS_SAFETY_MULTIPLIER"));
 
     const fee = calculateFee(estimatedGas, GasPrice.fromString(`${this.config.get("AVERAGE_GAS_PRICE")}${denom}`));

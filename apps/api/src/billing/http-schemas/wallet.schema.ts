@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "@hono/zod-openapi";
 
 const WalletOutputSchema = z.object({
   id: z.number().nullable().openapi({}),
@@ -7,13 +7,6 @@ const WalletOutputSchema = z.object({
   address: z.string().nullable().openapi({}),
   isTrialing: z.boolean(),
   createdAt: z.coerce.date().nullable().openapi({})
-});
-
-const ThreeDSecureAuthSchema = z.object({
-  requires3DS: z.boolean(),
-  clientSecret: z.string(),
-  paymentIntentId: z.string(),
-  paymentMethodId: z.string()
 });
 
 const WalletWithOptional3DSSchema = WalletOutputSchema.extend({
@@ -53,11 +46,25 @@ export const StartTrialRequestInputSchema = z.object({
   })
 });
 
-export type WalletOutput = z.infer<typeof WalletOutputSchema>;
-export type ThreeDSecureAuth = z.infer<typeof ThreeDSecureAuthSchema>;
-export type WalletWithOptional3DS = z.infer<typeof WalletWithOptional3DSSchema>;
+export const WalletSettingsSchema = z.object({
+  autoReloadEnabled: z.boolean().openapi({})
+});
+
+export const WalletSettingsResponseSchema = z.object({
+  data: WalletSettingsSchema
+});
+
+export const CreateWalletSettingsRequestSchema = z.object({
+  data: WalletSettingsSchema
+});
+
+export const UpdateWalletSettingsRequestSchema = z.object({
+  data: WalletSettingsSchema
+});
+
 export type WalletOutputResponse = z.infer<typeof WalletResponseOutputSchema>;
-export type WalletResponseNo3DSOutput = z.infer<typeof WalletResponseNo3DSOutputSchema>;
-export type WalletResponse3DSOutput = z.infer<typeof WalletResponse3DSOutputSchema>;
 export type WalletListOutputResponse = z.infer<typeof WalletListResponseOutputSchema>;
 export type StartTrialRequestInput = z.infer<typeof StartTrialRequestInputSchema>;
+export type WalletSettingsResponse = z.infer<typeof WalletSettingsResponseSchema>;
+export type CreateWalletSettingsRequest = z.infer<typeof CreateWalletSettingsRequestSchema>;
+export type UpdateWalletSettingsRequest = z.infer<typeof UpdateWalletSettingsRequestSchema>;

@@ -1,7 +1,6 @@
 import type { Deployment } from "@akashnetwork/database/dbSchemas/akash";
 import type { DeploymentGroup } from "@akashnetwork/database/dbSchemas/akash";
 import type { DeploymentGroupResource } from "@akashnetwork/database/dbSchemas/akash";
-import Long from "long";
 
 import { app, initDb } from "@src/rest-app";
 import type { RestAkashDeploymentInfoResponse } from "@src/types/rest/akashDeploymentInfoResponse";
@@ -149,7 +148,7 @@ describe("Deployment Info Fallback API", () => {
       createDeployment({
         owner: testData.addresses[0],
         createdHeight: height1,
-        dseq: Long.fromNumber(1 + parseInt(uniqueId.slice(-3))).toString(),
+        dseq: 1 + parseInt(uniqueId.slice(-3)),
         denom: "uakt",
         balance: 1000000,
         withdrawnAmount: 500000,
@@ -158,7 +157,7 @@ describe("Deployment Info Fallback API", () => {
       createDeployment({
         owner: testData.addresses[1],
         createdHeight: height2,
-        dseq: Long.fromNumber(2 + parseInt(uniqueId.slice(-3))).toString(),
+        dseq: 2 + parseInt(uniqueId.slice(-3)),
         denom: "uakt",
         balance: 2000000,
         withdrawnAmount: 1000000,

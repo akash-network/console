@@ -22,26 +22,37 @@ const chartConfig = {
 
 type ChartData = Array<{ date: string; dailyUsdSpent: number }>;
 
-export const COMPONENTS = {
-  BarChart
+export const DEPENDENCIES = {
+  BarChart,
+  ChartContainer,
+  CartesianGrid,
+  XAxis,
+  ChartTooltip,
+  ChartTooltipContent,
+  Bar,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Spinner
 };
 
 export type DailyUsageBarChartProps = {
   isFetching: boolean;
   data: ChartData;
-  components?: typeof COMPONENTS;
+  dependencies?: typeof DEPENDENCIES;
 };
 
-export const DailyUsageBarChart: FC<DailyUsageBarChartProps> = ({ isFetching, data, components: C = COMPONENTS }) => {
+export const DailyUsageBarChart: FC<DailyUsageBarChartProps> = ({ isFetching, data, dependencies: d = DEPENDENCIES }) => {
   return (
-    <Card className="w-full py-0">
-      <CardHeader className="flex flex-row items-center gap-3 space-y-0 border-b px-6">
-        <CardTitle className="text-lg">Daily Usage</CardTitle>
-        {isFetching && <Spinner size="small" variant="dark" />}
-      </CardHeader>
-      <CardContent className="px-2 sm:p-6">
-        <ChartContainer config={chartConfig} className={cn("aspect-auto h-[250px] w-full", isFetching && "pointer-events-none")} role="chart-container">
-          <C.BarChart
+    <d.Card className="w-full py-0">
+      <d.CardHeader className="flex flex-row items-center gap-3 space-y-0 border-b px-6">
+        <d.CardTitle className="text-lg">Daily Usage</d.CardTitle>
+        {isFetching && <d.Spinner size="small" variant="dark" />}
+      </d.CardHeader>
+      <d.CardContent className="px-2 sm:p-6">
+        <d.ChartContainer config={chartConfig} className={cn("aspect-auto h-[250px] w-full", isFetching && "pointer-events-none")} role="chart-container">
+          <d.BarChart
             accessibilityLayer
             data={data}
             margin={{
@@ -50,8 +61,8 @@ export const DailyUsageBarChart: FC<DailyUsageBarChartProps> = ({ isFetching, da
             }}
             role="bar-chart"
           >
-            <CartesianGrid vertical={false} />
-            <XAxis
+            <d.CartesianGrid vertical={false} />
+            <d.XAxis
               dataKey="date"
               tickLine={false}
               axisLine={false}
@@ -62,9 +73,9 @@ export const DailyUsageBarChart: FC<DailyUsageBarChartProps> = ({ isFetching, da
                 return isNaN(date.getTime()) ? value : format(new Date(value), "M/d");
               }}
             />
-            <ChartTooltip
+            <d.ChartTooltip
               content={
-                <ChartTooltipContent
+                <d.ChartTooltipContent
                   className="w-[150px]"
                   nameKey="dailyUsdSpent"
                   labelFormatter={value => {
@@ -74,10 +85,10 @@ export const DailyUsageBarChart: FC<DailyUsageBarChartProps> = ({ isFetching, da
                 />
               }
             />
-            <Bar dataKey="dailyUsdSpent" fill="hsl(var(--primary))" className={cn(isFetching && "opacity-80")} />
-          </C.BarChart>
-        </ChartContainer>
-      </CardContent>
-    </Card>
+            <d.Bar dataKey="dailyUsdSpent" fill="hsl(var(--primary))" className={cn(isFetching && "opacity-80")} />
+          </d.BarChart>
+        </d.ChartContainer>
+      </d.CardContent>
+    </d.Card>
   );
 };

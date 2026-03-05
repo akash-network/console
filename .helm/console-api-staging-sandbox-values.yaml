@@ -1,3 +1,38 @@
+deploymentEnv: staging
+nodeOptions:
+  enabledOTEL: true
+
 chain: sandbox
 hostNames:
   - console-api-sandbox-staging.akash.network
+jobs:
+  - name: top-up-deployments
+    schedule: "0 * * * *" # 0 minutes past the hour
+    command:
+      - node
+      - dist/console.js
+      - top-up-deployments
+  - name: refill-wallets
+    schedule: "45 * * * *" # 45 minutes past the hour
+    command:
+      - node
+      - dist/console.js
+      - refill-wallets
+  - name: cleanup-stale-deployments
+    schedule: "30 10 * * 2" # 10:30 AM every Tuesday
+    command:
+      - node
+      - dist/console.js
+      - cleanup-stale-deployments
+
+replicas: 2
+
+resources:
+  limits:
+    cpu: "4"
+    ephemeral-storage: "2Gi"
+    memory: "8Gi"
+  requests:
+    cpu: "0.5"
+    ephemeral-storage: "0.5Gi"
+    memory: "1Gi"

@@ -1,4 +1,4 @@
-import { Day } from "@akashnetwork/database/dbSchemas/base/day";
+import { Day } from "@akashnetwork/database/dbSchemas/base";
 import { faker } from "@faker-js/faker";
 import type { CreationAttributes } from "sequelize";
 

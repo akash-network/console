@@ -1,20 +1,29 @@
-import { mock } from "jest-mock-extended";
+import { createMongoAbility } from "@casl/ability";
+import crypto from "crypto";
 import type Stripe from "stripe";
+import { mock } from "vitest-mock-extended";
 
-import type { PaymentMethodRepository } from "@src/billing/repositories";
+import type { PaymentMethodRepository, StripeTransactionRepository } from "@src/billing/repositories";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
-import type { RefillService } from "@src/billing/services/refill/refill.service";
+import type { LoggerService } from "@src/core/providers/logging.provider";
 import type { UserRepository } from "@src/user/repositories";
 import { StripeService } from "./stripe.service";
 
 import { generateDatabasePaymentMethod } from "@test/seeders/database-payment-method.seeder";
+import { generateDatabaseStripeTransaction } from "@test/seeders/database-stripe-transaction.seeder";
 import { generatePaymentMethod } from "@test/seeders/payment-method.seeder";
 import { create as StripeSeederCreate } from "@test/seeders/stripe.seeder";
-import { createTestCharge, createTestCoupon, createTestPaymentIntent, createTestPromotionCode, TEST_CONSTANTS } from "@test/seeders/stripe-test-data.seeder";
+import {
+  createTestCharge,
+  createTestCoupon,
+  createTestInvoice,
+  createTestPaymentIntent,
+  createTestPromotionCode,
+  TEST_CONSTANTS
+} from "@test/seeders/stripe-test-data.seeder";
 import { createTestTransaction } from "@test/seeders/stripe-transaction-test.seeder";
 import { UserSeeder } from "@test/seeders/user.seeder";
 import { createTestUser } from "@test/seeders/user-test.seeder";
-import { stub } from "@test/services/stub";
 
 describe(StripeService.name, () => {
   describe("getStripeCustomerId", () => {
@@ -46,6 +55,7 @@ describe(StripeService.name, () => {
 
   describe("createPaymentIntent", () => {
     const mockPaymentParams = {
+      userId: TEST_CONSTANTS.USER_ID,
       customer: TEST_CONSTANTS.CUSTOMER_ID,
       payment_method: TEST_CONSTANTS.PAYMENT_METHOD_ID,
       amount: 100,
@@ -54,8 +64,15 @@ describe(StripeService.name, () => {
     };
 
     it("creates payment intent successfully", async () => {
-      const { service } = setup();
+      const { service, stripeTransactionRepository } = setup();
       const result = await service.createPaymentIntent(mockPaymentParams);
+      expect(stripeTransactionRepository.create).toHaveBeenCalledWith({
+        userId: mockPaymentParams.userId,
+        type: "payment_intent",
+        status: "created",
+        amount: 10000,
+        currency: mockPaymentParams.currency
+      });
       expect(service.paymentIntents.create).toHaveBeenCalledWith({
         customer: mockPaymentParams.customer,
         payment_method: mockPaymentParams.payment_method,
@@ -65,11 +82,16 @@ describe(StripeService.name, () => {
         automatic_payment_methods: {
           enabled: true,
           allow_redirects: "never"
+        },
+        metadata: {
+          internal_transaction_id: "test-transaction-id"
         }
       });
       expect(result).toEqual({
         success: true,
-        paymentIntentId: StripeSeederCreate().paymentIntent.id
+        paymentIntentId: StripeSeederCreate().paymentIntent.id,
+        transactionId: "test-transaction-id",
+        transactionStatus: "created"
       });
     });
   });
@@ -81,9 +103,9 @@ describe(StripeService.name, () => {
       const mockCharges = {
         data: [mockCharge],
         has_more: false
-      };
+      } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Charge>>;
 
-      jest.spyOn(service.charges, "list").mockResolvedValue(stub(mockCharges));
+      jest.spyOn(service.charges, "list").mockResolvedValue(mockCharges);
 
       const result = await service.getCustomerTransactions(TEST_CONSTANTS.CUSTOMER_ID);
       expect(result).toEqual({
@@ -106,15 +128,52 @@ describe(StripeService.name, () => {
       });
     });
 
+    it("sanitizes link email from payment method details", async () => {
+      const { service } = setup();
+      const mockCharge = createTestCharge({
+        id: "ch_link",
+        payment_method_details: { type: "link", link: { email: "user@test.com" } } as unknown as Stripe.Charge.PaymentMethodDetails
+      });
+      const mockCharges = {
+        data: [mockCharge],
+        has_more: false
+      } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Charge>>;
+
+      jest.spyOn(service.charges, "list").mockResolvedValue(mockCharges);
+
+      const result = await service.getCustomerTransactions(TEST_CONSTANTS.CUSTOMER_ID);
+      expect(result.transactions[0].paymentMethod).toEqual({
+        type: "link",
+        link: { email: undefined }
+      });
+    });
+
+    it("returns null paymentMethod when payment_method_details is null", async () => {
+      const { service } = setup();
+      const mockCharge = createTestCharge({
+        id: "ch_null_pm",
+        payment_method_details: null as unknown as Stripe.Charge.PaymentMethodDetails
+      });
+      const mockCharges = {
+        data: [mockCharge],
+        has_more: false
+      } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Charge>>;
+
+      jest.spyOn(service.charges, "list").mockResolvedValue(mockCharges);
+
+      const result = await service.getCustomerTransactions(TEST_CONSTANTS.CUSTOMER_ID);
+      expect(result.transactions[0].paymentMethod).toBeNull();
+    });
+
     it("calls charges.list with endingBefore parameter", async () => {
       const { service } = setup();
       const mockCharge = createTestCharge({ id: "ch_456", amount: 2000 });
       const mockCharges = {
         data: [mockCharge],
         has_more: true
-      };
+      } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Charge>>;
 
-      jest.spyOn(service.charges, "list").mockResolvedValue(stub(mockCharges));
+      jest.spyOn(service.charges, "list").mockResolvedValue(mockCharges);
 
       await service.getCustomerTransactions(TEST_CONSTANTS.CUSTOMER_ID, {
         endingBefore: "ch_before_id",
@@ -137,9 +196,9 @@ describe(StripeService.name, () => {
       const mockCharges = {
         data: [mockCharge],
         has_more: false
-      };
+      } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Charge>>;
 
-      jest.spyOn(service.charges, "list").mockResolvedValue(stub(mockCharges));
+      jest.spyOn(service.charges, "list").mockResolvedValue(mockCharges);
 
       const startDate = new Date("2022-01-01T00:00:00Z").toISOString();
       const endDate = new Date("2022-12-31T23:59:59Z").toISOString();
@@ -178,9 +237,9 @@ describe(StripeService.name, () => {
       const mockCharges = {
         data: [firstCharge, secondCharge],
         has_more: true
-      };
+      } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Charge>>;
 
-      jest.spyOn(service.charges, "list").mockResolvedValue(stub(mockCharges));
+      jest.spyOn(service.charges, "list").mockResolvedValue(mockCharges);
 
       const result = await service.getCustomerTransactions(TEST_CONSTANTS.CUSTOMER_ID, {
         startingAfter: "ch_previous_id"
@@ -226,9 +285,9 @@ describe(StripeService.name, () => {
       const mockCharges = {
         data: [mockCharge],
         has_more: false
-      };
+      } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Charge>>;
 
-      jest.spyOn(service.charges, "list").mockResolvedValue(stub(mockCharges));
+      jest.spyOn(service.charges, "list").mockResolvedValue(mockCharges);
 
       const result = await service.getCustomerTransactions(TEST_CONSTANTS.CUSTOMER_ID);
 
@@ -237,15 +296,12 @@ describe(StripeService.name, () => {
 
     it("calls charges.list with all parameters combined", async () => {
       const { service } = setup();
-      const mockCharges: {
-        data: Stripe.Charge[];
-        has_more: boolean;
-      } = {
+      const mockCharges = {
         data: [],
         has_more: false
-      };
+      } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Charge>>;
 
-      jest.spyOn(service.charges, "list").mockResolvedValue(stub(mockCharges));
+      jest.spyOn(service.charges, "list").mockResolvedValue(mockCharges);
 
       const startDate = new Date("2021-01-01T00:00:00Z").toISOString();
       const endDate = new Date("2021-12-31T23:59:59Z").toISOString();
@@ -292,7 +348,10 @@ describe(StripeService.name, () => {
         timezone: "America/New_York"
       });
 
-      const chunks = await Array.fromAsync(csvStream);
+      const chunks: string[] = [];
+      for await (const chunk of csvStream) {
+        chunks.push(chunk);
+      }
 
       const fullCsv = chunks.join("");
 
@@ -356,7 +415,10 @@ describe(StripeService.name, () => {
         timezone: "America/New_York"
       });
 
-      const chunks = await Array.fromAsync(csvStream);
+      const chunks: string[] = [];
+      for await (const chunk of csvStream) {
+        chunks.push(chunk);
+      }
 
       const fullCsv = chunks.join("");
 
@@ -396,7 +458,10 @@ describe(StripeService.name, () => {
         timezone: "America/New_York"
       });
 
-      const chunks = await Array.fromAsync(csvStream);
+      const chunks: string[] = [];
+      for await (const chunk of csvStream) {
+        chunks.push(chunk);
+      }
 
       const fullCsv = chunks.join("");
       expect(fullCsv).toContain("No transactions found for the specified date range");
@@ -428,7 +493,10 @@ describe(StripeService.name, () => {
         timezone: "America/New_York"
       });
 
-      const chunks = await Array.fromAsync(csvStream);
+      const chunks: string[] = [];
+      for await (const chunk of csvStream) {
+        chunks.push(chunk);
+      }
 
       const fullCsv = chunks.join("");
 
@@ -457,7 +525,7 @@ describe(StripeService.name, () => {
         timezone: "America/New_York"
       });
 
-      const chunks = [];
+      const chunks: string[] = [];
       for await (const chunk of csvStream) {
         chunks.push(chunk);
       }
@@ -471,33 +539,125 @@ describe(StripeService.name, () => {
   });
 
   describe("applyCoupon", () => {
-    it("applies promotion code successfully and tops up wallet", async () => {
-      const { service, refillService } = setup();
+    it("applies promotion code successfully, creates invoice with item, and leaves transaction pending for webhook", async () => {
+      const { service, stripeTransactionRepository } = setup();
       const mockUser = createTestUser();
+      const mockCoupon = createTestCoupon({
+        id: "coupon_123",
+        amount_off: 1000,
+        percent_off: null,
+        valid: true,
+        currency: "usd",
+        name: "Test Coupon"
+      });
       const mockPromotionCode = createTestPromotionCode({
-        coupon: {
-          ...createTestCoupon(),
-          amount_off: 1000,
-          percent_off: null as any,
-          valid: true
+        id: "promo_123",
+        promotion: {
+          type: "coupon",
+          coupon: mockCoupon
         }
       });
-      jest.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(stub(mockPromotionCode));
-      refillService.topUpWallet.mockResolvedValue();
+      const mockInvoice = createTestInvoice({ id: "in_123", status: "draft" });
+      const mockFinalizedInvoice = createTestInvoice({ id: "in_123", status: "paid" });
+
+      jest.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(mockPromotionCode);
+      jest.spyOn(service.invoices, "create").mockResolvedValue(mockInvoice);
+      jest.spyOn(service.invoiceItems, "create").mockResolvedValue(mock<Stripe.Response<Stripe.InvoiceItem>>());
+      jest.spyOn(service.invoices, "finalizeInvoice").mockResolvedValue(mockFinalizedInvoice);
 
       const result = await service.applyCoupon(mockUser, mockPromotionCode.code);
 
-      expect(refillService.topUpWallet).toHaveBeenCalledWith(1000, mockUser.id);
-      expect(service.customers.update).toHaveBeenCalledTimes(2);
-      expect(service.customers.update).toHaveBeenNthCalledWith(1, TEST_CONSTANTS.CUSTOMER_ID, {
-        promotion_code: mockPromotionCode.id
+      expect(service.invoices.create).toHaveBeenCalledWith({
+        customer: mockUser.stripeCustomerId,
+        auto_advance: false,
+        discounts: [{ promotion_code: mockPromotionCode.id }]
       });
-      expect(service.customers.update).toHaveBeenNthCalledWith(2, TEST_CONSTANTS.CUSTOMER_ID, {
-        promotion_code: null
+      expect(service.invoiceItems.create).toHaveBeenCalledWith({
+        amount: 1000,
+        customer: mockUser.stripeCustomerId,
+        invoice: mockInvoice.id,
+        currency: "usd",
+        description: "Akash Network Console"
       });
+      expect(service.invoices.finalizeInvoice).toHaveBeenCalledWith(mockInvoice.id);
+
+      expect(stripeTransactionRepository.create).toHaveBeenCalledWith({
+        userId: mockUser.id,
+        type: "coupon_claim",
+        status: "pending",
+        amount: 1000,
+        currency: "usd",
+        stripeCouponId: mockCoupon.id,
+        stripePromotionCodeId: mockPromotionCode.id,
+        stripeInvoiceId: mockInvoice.id,
+        description: `Coupon: ${mockCoupon.name}`
+      });
+
+      expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+
       expect(result).toEqual({
         coupon: mockPromotionCode,
-        amountAdded: 10 // 1000 cents = $10
+        amountAdded: 10, // 1000 cents = $10
+        transactionId: "test-transaction-id",
+        transactionStatus: "pending"
+      });
+    });
+
+    it("applies coupon successfully when no promotion code found", async () => {
+      const { service, stripeTransactionRepository } = setup();
+      const mockUser = createTestUser();
+      const mockCoupon = createTestCoupon({
+        id: "coupon_direct",
+        amount_off: 500,
+        percent_off: null,
+        valid: true,
+        currency: "usd",
+        name: "Direct Coupon"
+      });
+      const mockInvoice = createTestInvoice({ id: "in_456", status: "draft" });
+      const mockFinalizedInvoice = createTestInvoice({ id: "in_456", status: "paid" });
+
+      jest.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(undefined);
+      jest.spyOn(service, "listCoupons").mockResolvedValue({ coupons: [mockCoupon] });
+      jest.spyOn(service.invoices, "create").mockResolvedValue(mockInvoice);
+      jest.spyOn(service.invoiceItems, "create").mockResolvedValue(mock<Stripe.Response<Stripe.InvoiceItem>>());
+      jest.spyOn(service.invoices, "finalizeInvoice").mockResolvedValue(mockFinalizedInvoice);
+
+      const result = await service.applyCoupon(mockUser, mockCoupon.id);
+
+      expect(service.invoices.create).toHaveBeenCalledWith({
+        customer: mockUser.stripeCustomerId,
+        auto_advance: false,
+        discounts: [{ coupon: mockCoupon.id }]
+      });
+      expect(service.invoiceItems.create).toHaveBeenCalledWith({
+        amount: 500,
+        customer: mockUser.stripeCustomerId,
+        invoice: mockInvoice.id,
+        currency: "usd",
+        description: "Akash Network Console"
+      });
+      expect(service.invoices.finalizeInvoice).toHaveBeenCalledWith(mockInvoice.id);
+
+      expect(stripeTransactionRepository.create).toHaveBeenCalledWith({
+        userId: mockUser.id,
+        type: "coupon_claim",
+        status: "pending",
+        amount: 500,
+        currency: "usd",
+        stripeCouponId: mockCoupon.id,
+        stripePromotionCodeId: undefined,
+        stripeInvoiceId: mockInvoice.id,
+        description: `Coupon: ${mockCoupon.name}`
+      });
+
+      expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+
+      expect(result).toEqual({
+        coupon: mockCoupon,
+        amountAdded: 5, // 500 cents = $5
+        transactionId: "test-transaction-id",
+        transactionStatus: "pending"
       });
     });
 
@@ -505,14 +665,17 @@ describe(StripeService.name, () => {
       const { service } = setup();
       const mockUser = createTestUser();
       const mockPromotionCode = createTestPromotionCode({
-        coupon: {
-          ...createTestCoupon(),
-          percent_off: 20,
-          amount_off: null as any,
-          valid: true
+        promotion: {
+          type: "coupon",
+          coupon: {
+            ...createTestCoupon(),
+            percent_off: 20,
+            amount_off: null,
+            valid: true
+          }
         }
       });
-      jest.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(mockPromotionCode as any);
+      jest.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(mockPromotionCode);
 
       await expect(service.applyCoupon(mockUser, mockPromotionCode.code)).rejects.toThrow(
         "Percentage-based coupons are not supported. Only fixed amount coupons are allowed."
@@ -523,14 +686,17 @@ describe(StripeService.name, () => {
       const { service } = setup();
       const mockUser = createTestUser();
       const mockPromotionCode = createTestPromotionCode({
-        coupon: {
-          ...createTestCoupon(),
-          percent_off: null as any,
-          amount_off: null as any,
-          valid: true
+        promotion: {
+          type: "coupon",
+          coupon: {
+            ...createTestCoupon(),
+            percent_off: null,
+            amount_off: null,
+            valid: true
+          }
         }
       });
-      jest.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(mockPromotionCode as any);
+      jest.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(mockPromotionCode);
 
       await expect(service.applyCoupon(mockUser, mockPromotionCode.code)).rejects.toThrow("Invalid coupon type. Only fixed amount coupons are supported.");
     });
@@ -540,11 +706,11 @@ describe(StripeService.name, () => {
       const mockUser = createTestUser();
       const mockCoupon = createTestCoupon({
         percent_off: 20,
-        amount_off: null as any,
+        amount_off: null,
         valid: true
       });
-      jest.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(null as any);
-      jest.spyOn(service, "listCoupons").mockResolvedValue({ coupons: [mockCoupon] } as any);
+      jest.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(undefined);
+      jest.spyOn(service, "listCoupons").mockResolvedValue({ coupons: [mockCoupon] });
 
       await expect(service.applyCoupon(mockUser, mockCoupon.id)).rejects.toThrow(
         "Percentage-based coupons are not supported. Only fixed amount coupons are allowed."
@@ -555,12 +721,12 @@ describe(StripeService.name, () => {
       const { service } = setup();
       const mockUser = createTestUser();
       const mockCoupon = createTestCoupon({
-        percent_off: null as any,
-        amount_off: null as any,
+        percent_off: null,
+        amount_off: null,
         valid: true
       });
-      jest.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(null as any);
-      jest.spyOn(service, "listCoupons").mockResolvedValue({ coupons: [mockCoupon] } as any);
+      jest.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(undefined);
+      jest.spyOn(service, "listCoupons").mockResolvedValue({ coupons: [mockCoupon] });
 
       await expect(service.applyCoupon(mockUser, mockCoupon.id)).rejects.toThrow("Invalid coupon type. Only fixed amount coupons are supported.");
     });
@@ -568,40 +734,41 @@ describe(StripeService.name, () => {
     it("throws error for invalid promotion code", async () => {
       const { service } = setup();
       const mockUser = createTestUser();
-      jest.spyOn(service.promotionCodes, "list").mockResolvedValue(stub({ data: [] }));
-      jest.spyOn(service.coupons, "list").mockResolvedValue(stub({ data: [] }));
+      jest.spyOn(service.promotionCodes, "list").mockResolvedValue({ data: [] } as unknown as Stripe.Response<Stripe.ApiList<Stripe.PromotionCode>>);
+      jest.spyOn(service.coupons, "list").mockResolvedValue({ data: [] } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Coupon>>);
 
       await expect(service.applyCoupon(mockUser, "INVALID_CODE")).rejects.toThrow("No valid promotion code or coupon found with the provided code");
     });
 
-    it("rolls back coupon application when topUpWallet fails", async () => {
-      const { service, refillService } = setup();
+    it("voids invoice on error after invoice is created", async () => {
+      const { service, stripeTransactionRepository } = setup();
       const mockUser = createTestUser();
+      const mockCoupon = createTestCoupon({
+        id: "coupon_123",
+        amount_off: 1000,
+        percent_off: null,
+        valid: true,
+        currency: "usd",
+        name: "Test Coupon"
+      });
       const mockPromotionCode = createTestPromotionCode({
-        coupon: {
-          ...createTestCoupon(),
-          amount_off: 1000,
-          percent_off: null as number | null,
-          valid: true
+        id: "promo_123",
+        promotion: {
+          type: "coupon",
+          coupon: mockCoupon
         }
       });
+      const mockInvoice = createTestInvoice({ id: "in_123", status: "draft" });
 
-      jest.spyOn(service.promotionCodes, "list").mockResolvedValue({ data: [mockPromotionCode] } as any);
-      jest.spyOn(service.customers, "update").mockResolvedValue({} as any);
+      jest.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(mockPromotionCode);
+      jest.spyOn(service.invoices, "create").mockResolvedValue(mockInvoice);
+      jest.spyOn(service.invoiceItems, "create").mockRejectedValue(new Error("Invoice item creation failed"));
+      jest.spyOn(service.invoices, "voidInvoice").mockResolvedValue(mock<Stripe.Response<Stripe.Invoice>>());
 
-      // Mock topUpWallet to fail
-      refillService.topUpWallet.mockRejectedValue(new Error("Wallet top-up failed"));
+      await expect(service.applyCoupon(mockUser, mockPromotionCode.code)).rejects.toThrow("Invoice item creation failed");
 
-      await expect(service.applyCoupon(mockUser, mockPromotionCode.code)).rejects.toThrow("Wallet top-up failed");
-
-      // Verify that the coupon was applied and then rolled back
-      expect(service.customers.update).toHaveBeenCalledTimes(2);
-      expect(service.customers.update).toHaveBeenNthCalledWith(1, TEST_CONSTANTS.CUSTOMER_ID, {
-        promotion_code: mockPromotionCode.id
-      });
-      expect(service.customers.update).toHaveBeenNthCalledWith(2, TEST_CONSTANTS.CUSTOMER_ID, {
-        promotion_code: null
-      });
+      expect(service.invoices.voidInvoice).toHaveBeenCalledWith(mockInvoice.id);
+      expect(stripeTransactionRepository.create).not.toHaveBeenCalled();
     });
   });
 
@@ -609,7 +776,7 @@ describe(StripeService.name, () => {
     it("creates setup intent with correct parameters", async () => {
       const { service } = setup();
       const stripeData = StripeSeederCreate();
-      jest.spyOn(service.setupIntents, "create").mockResolvedValue(stub(stripeData.setupIntent));
+      jest.spyOn(service.setupIntents, "create").mockResolvedValue(stripeData.setupIntent);
 
       const result = await service.createSetupIntent(TEST_CONSTANTS.CUSTOMER_ID);
       expect(service.setupIntents.create).toHaveBeenCalledWith({
@@ -621,70 +788,6 @@ describe(StripeService.name, () => {
     });
   });
 
-  describe("startCheckoutSession", () => {
-    it("creates checkout session with custom amount", async () => {
-      const { service } = setup();
-      const stripeData = StripeSeederCreate();
-      const mockPrice = { id: "price_123", unit_amount: 2000 };
-
-      jest.spyOn(service.prices, "list").mockResolvedValue(stub({ data: [mockPrice] }));
-      jest.spyOn(service.checkout.sessions, "create").mockResolvedValue(stub(stripeData.checkoutSession));
-
-      const result = await service.startCheckoutSession({
-        customerId: TEST_CONSTANTS.CUSTOMER_ID,
-        redirectUrl: "https://return.url",
-        amount: "20"
-      });
-
-      expect(service.checkout.sessions.create).toHaveBeenCalledWith({
-        line_items: [{ price: "price_123", quantity: 1 }],
-        mode: "payment",
-        allow_promotion_codes: true,
-        customer: TEST_CONSTANTS.CUSTOMER_ID,
-        success_url: "https://return.url?session_id={CHECKOUT_SESSION_ID}&payment-success=true",
-        cancel_url: "https://return.url?session_id={CHECKOUT_SESSION_ID}&payment-canceled=true"
-      });
-      expect(result).toEqual(stripeData.checkoutSession);
-    });
-
-    it("creates checkout session without amount", async () => {
-      const { service } = setup();
-      const stripeData = StripeSeederCreate();
-      const mockPrice = { id: "price_123", custom_unit_amount: true };
-
-      jest.spyOn(service.prices, "list").mockResolvedValue(stub({ data: [mockPrice] }));
-      jest.spyOn(service.checkout.sessions, "create").mockResolvedValue(stub(stripeData.checkoutSession));
-
-      const result = await service.startCheckoutSession({
-        customerId: TEST_CONSTANTS.CUSTOMER_ID,
-        redirectUrl: "https://return.url"
-      });
-
-      expect(service.checkout.sessions.create).toHaveBeenCalledWith({
-        line_items: [{ price: "price_123", quantity: 1 }],
-        mode: "payment",
-        allow_promotion_codes: false,
-        customer: TEST_CONSTANTS.CUSTOMER_ID,
-        success_url: "https://return.url?session_id={CHECKOUT_SESSION_ID}&payment-success=true",
-        cancel_url: "https://return.url?session_id={CHECKOUT_SESSION_ID}&payment-canceled=true"
-      });
-      expect(result).toEqual(stripeData.checkoutSession);
-    });
-
-    it("throws error for invalid price", async () => {
-      const { service } = setup();
-      jest.spyOn(service.prices, "list").mockResolvedValue(stub({ data: [] }));
-
-      await expect(
-        service.startCheckoutSession({
-          customerId: TEST_CONSTANTS.CUSTOMER_ID,
-          redirectUrl: "https://return.url",
-          amount: "20"
-        })
-      ).rejects.toThrow("Price invalid");
-    });
-  });
-
   describe("findPrices", () => {
     it("returns sorted prices", async () => {
       const { service } = setup();
@@ -693,7 +796,7 @@ describe(StripeService.name, () => {
         { unit_amount: 1000, currency: "usd" },
         { unit_amount: 2000, currency: "usd" }
       ];
-      jest.spyOn(service.prices, "list").mockResolvedValue(stub({ data: mockPrices }));
+      jest.spyOn(service.prices, "list").mockResolvedValue({ data: mockPrices } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Price>>);
 
       const result = await service.findPrices();
       expect(result).toEqual([
@@ -729,7 +832,8 @@ describe(StripeService.name, () => {
             },
             email: "Claudie27@yahoo.com",
             name: "Winifred Wiegand",
-            phone: "1-233-340-5835 x45200"
+            phone: "1-233-340-5835 x45200",
+            tax_id: null
           }
         }),
         generatePaymentMethod({
@@ -753,14 +857,21 @@ describe(StripeService.name, () => {
             },
             email: "Golda_Rodriguez95@yahoo.com",
             name: "Robin Nader V",
-            phone: "336.613.4413 x6559"
+            phone: "336.613.4413 x6559",
+            tax_id: null
           }
         })
       ];
-      jest.spyOn(service.paymentMethods, "list").mockResolvedValue(stub({ data: mockPaymentMethods }));
+      jest
+        .spyOn(service.paymentMethods, "list")
+        .mockResolvedValue({ data: mockPaymentMethods } as unknown as Stripe.Response<Stripe.ApiList<Stripe.PaymentMethod>>);
       paymentMethodRepository.findByUserId.mockResolvedValue([]);
 
-      const result = await service.getPaymentMethods(TEST_CONSTANTS.USER_ID, TEST_CONSTANTS.CUSTOMER_ID);
+      const result = await service.getPaymentMethods(
+        TEST_CONSTANTS.USER_ID,
+        TEST_CONSTANTS.CUSTOMER_ID,
+        createMongoAbility([{ action: "read", subject: "PaymentMethod" }])
+      );
       expect(service.paymentMethods.list).toHaveBeenCalledWith({
         customer: TEST_CONSTANTS.CUSTOMER_ID
       });
@@ -768,11 +879,13 @@ describe(StripeService.name, () => {
       expect(result).toEqual([
         {
           ...mockPaymentMethods[0],
-          validated: false
+          validated: false,
+          isDefault: false
         },
         {
           ...mockPaymentMethods[1],
-          validated: false
+          validated: false,
+          isDefault: false
         }
       ]);
     });
@@ -783,11 +896,13 @@ describe(StripeService.name, () => {
       const { service } = setup();
       const stripeData = StripeSeederCreate();
       const mockPromotionCodes = [stripeData.promotionCode, { id: "promo_456", code: "TEST100", coupon: { id: "coupon_456" } }];
-      jest.spyOn(service.promotionCodes, "list").mockResolvedValue(stub({ data: mockPromotionCodes }));
+      jest
+        .spyOn(service.promotionCodes, "list")
+        .mockResolvedValue({ data: mockPromotionCodes } as unknown as Stripe.Response<Stripe.ApiList<Stripe.PromotionCode>>);
 
       const result = await service.listPromotionCodes();
       expect(service.promotionCodes.list).toHaveBeenCalledWith({
-        expand: ["data.coupon"]
+        expand: ["data.promotion.coupon"]
       });
       expect(result).toEqual({ promotionCodes: mockPromotionCodes });
     });
@@ -800,7 +915,7 @@ describe(StripeService.name, () => {
         { id: TEST_CONSTANTS.COUPON_ID, percent_off: 50 },
         { id: "coupon_456", amount_off: 1000 }
       ];
-      jest.spyOn(service.coupons, "list").mockResolvedValue(stub({ data: mockCoupons }));
+      jest.spyOn(service.coupons, "list").mockResolvedValue({ data: mockCoupons } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Coupon>>);
 
       const result = await service.listCoupons();
       expect(service.coupons.list).toHaveBeenCalledWith({
@@ -814,7 +929,7 @@ describe(StripeService.name, () => {
     it("returns coupon by id", async () => {
       const { service } = setup();
       const mockCoupon = { id: TEST_CONSTANTS.COUPON_ID, percent_off: 50 };
-      jest.spyOn(service.coupons, "retrieve").mockResolvedValue(stub(mockCoupon));
+      jest.spyOn(service.coupons, "retrieve").mockResolvedValue(mockCoupon as unknown as Stripe.Response<Stripe.Coupon>);
 
       const result = await service.getCoupon(TEST_CONSTANTS.COUPON_ID);
       expect(service.coupons.retrieve).toHaveBeenCalledWith(TEST_CONSTANTS.COUPON_ID);
@@ -901,6 +1016,52 @@ describe(StripeService.name, () => {
       expect(paymentMethodRepository.findOthersTrialingByFingerprint).toHaveBeenCalledWith(expectedFingerprints, currentUserId);
     });
 
+    it("should extract fingerprint from link payment method email", async () => {
+      const { service, paymentMethodRepository } = setup();
+      const currentUserId = TEST_CONSTANTS.USER_ID;
+      const expectedFingerprint = `link_${crypto.createHash("sha256").update("user@test.com").digest("hex")}`;
+      const paymentMethods = [
+        generatePaymentMethod({
+          id: "pm_link",
+          type: "link",
+          card: null,
+          link: { email: "User@Test.com" }
+        } as unknown as Parameters<typeof generatePaymentMethod>[0])
+      ];
+
+      paymentMethodRepository.findOthersTrialingByFingerprint.mockResolvedValue(undefined);
+
+      const result = await service.hasDuplicateTrialAccount(paymentMethods, currentUserId);
+
+      expect(result).toBe(false);
+      expect(paymentMethodRepository.findOthersTrialingByFingerprint).toHaveBeenCalledWith([expectedFingerprint], currentUserId);
+    });
+
+    it("should handle mixed card and link payment methods", async () => {
+      const { service, paymentMethodRepository } = setup();
+      const currentUserId = TEST_CONSTANTS.USER_ID;
+      const expectedLinkFingerprint = `link_${crypto.createHash("sha256").update("user@test.com").digest("hex")}`;
+      const paymentMethods = [
+        generatePaymentMethod({
+          id: "pm_card",
+          card: { fingerprint: "fp_card_123" }
+        }),
+        generatePaymentMethod({
+          id: "pm_link",
+          type: "link",
+          card: null,
+          link: { email: "user@test.com" }
+        } as unknown as Parameters<typeof generatePaymentMethod>[0])
+      ];
+
+      paymentMethodRepository.findOthersTrialingByFingerprint.mockResolvedValue(undefined);
+
+      const result = await service.hasDuplicateTrialAccount(paymentMethods, currentUserId);
+
+      expect(result).toBe(false);
+      expect(paymentMethodRepository.findOthersTrialingByFingerprint).toHaveBeenCalledWith(["fp_card_123", expectedLinkFingerprint], currentUserId);
+    });
+
     it("should resolve with false provided empty payment methods array", async () => {
       const { service, paymentMethodRepository } = setup();
       const currentUserId = TEST_CONSTANTS.USER_ID;
@@ -937,8 +1098,8 @@ describe(StripeService.name, () => {
 
       jest.spyOn(userRepository, "findOneBy").mockResolvedValue(mockUser);
       paymentMethodRepository.findValidatedByUserId.mockResolvedValue([]);
-      jest.spyOn(service.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as any);
-      paymentMethodRepository.markAsValidated.mockResolvedValue({} as any);
+      jest.spyOn(service.paymentIntents, "create").mockResolvedValue(mockPaymentIntent);
+      paymentMethodRepository.markAsValidated.mockResolvedValue(undefined);
 
       const result = await service.createTestCharge(mockParams);
 
@@ -971,11 +1132,11 @@ describe(StripeService.name, () => {
 
     it("handles 3D Secure authentication requirement in trialing wallets", async () => {
       const mockUser = UserSeeder.create({ id: "user_123", stripeCustomerId: "cus_123" });
-      const mockPaymentIntent = {
+      const mockPaymentIntent = createTestPaymentIntent({
         id: "pi_test_123",
         status: "requires_action",
         client_secret: "pi_test_123_secret_abc123"
-      } as Partial<Stripe.PaymentIntent> as Stripe.PaymentIntent;
+      });
 
       const { service } = setup({
         user: mockUser,
@@ -1003,7 +1164,7 @@ describe(StripeService.name, () => {
       } as Partial<Stripe.PaymentIntent> as Stripe.PaymentIntent;
 
       // Override default payment intent mock
-      jest.spyOn(service.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as any);
+      jest.spyOn(service.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as unknown as Stripe.Response<Stripe.PaymentIntent>);
 
       const result = await service.createTestCharge(mockParams);
 
@@ -1023,10 +1184,10 @@ describe(StripeService.name, () => {
       } as Partial<Stripe.PaymentIntent> as Stripe.PaymentIntent;
 
       // Override default payment intent mock
-      jest.spyOn(service.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as any);
+      jest.spyOn(service.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as unknown as Stripe.Response<Stripe.PaymentIntent>);
 
       // Mock payment method validation
-      paymentMethodRepository.markAsValidated.mockResolvedValue({} as any);
+      paymentMethodRepository.markAsValidated.mockResolvedValue(undefined);
 
       const result = await service.createTestCharge(mockParams);
 
@@ -1046,7 +1207,7 @@ describe(StripeService.name, () => {
       } as Partial<Stripe.PaymentIntent> as Stripe.PaymentIntent;
 
       // Override default payment intent mock
-      jest.spyOn(service.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as any);
+      jest.spyOn(service.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as unknown as Stripe.Response<Stripe.PaymentIntent>);
 
       const result = await service.createTestCharge(mockParams);
 
@@ -1057,11 +1218,11 @@ describe(StripeService.name, () => {
     });
 
     it("handles user not found scenario", async () => {
-      const mockPaymentIntent = {
+      const mockPaymentIntent = createTestPaymentIntent({
         id: "pi_test_123",
         status: "succeeded",
         amount: 100
-      } as Partial<Stripe.PaymentIntent> as Stripe.PaymentIntent;
+      });
 
       const { service, paymentMethodRepository } = setup({
         user: null,
@@ -1087,7 +1248,7 @@ describe(StripeService.name, () => {
       } as Stripe.PaymentIntent;
 
       // Override default payment intent mock
-      jest.spyOn(service.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as any);
+      jest.spyOn(service.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as unknown as Stripe.Response<Stripe.PaymentIntent>);
 
       // Mock payment method validation to fail
       paymentMethodRepository.markAsValidated.mockRejectedValue(new Error("Database error"));
@@ -1127,10 +1288,10 @@ describe(StripeService.name, () => {
       } as Partial<Stripe.PaymentIntent> as Stripe.PaymentIntent;
 
       // Override default payment intent mock
-      jest.spyOn(service.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as any);
+      jest.spyOn(service.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as unknown as Stripe.Response<Stripe.PaymentIntent>);
 
       // Mock payment method validation
-      paymentMethodRepository.markAsValidated.mockResolvedValue({} as any);
+      paymentMethodRepository.markAsValidated.mockResolvedValue(undefined);
 
       const result = await service.validatePaymentMethodForTrial(mockParams);
 
@@ -1148,7 +1309,7 @@ describe(StripeService.name, () => {
       } as Partial<Stripe.PaymentIntent> as Stripe.PaymentIntent;
 
       // Mock payment intent creation - only one call needed since we reuse the existing intent
-      jest.spyOn(service.paymentIntents, "create").mockResolvedValueOnce(mockPaymentIntent as any);
+      jest.spyOn(service.paymentIntents, "create").mockResolvedValueOnce(mockPaymentIntent as unknown as Stripe.Response<Stripe.PaymentIntent>);
 
       const result = await service.validatePaymentMethodForTrial(mockParams);
 
@@ -1173,7 +1334,7 @@ describe(StripeService.name, () => {
       } as Partial<Stripe.PaymentIntent> as Stripe.PaymentIntent;
 
       // Override default payment intent mock
-      jest.spyOn(service.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as any);
+      jest.spyOn(service.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as unknown as Stripe.Response<Stripe.PaymentIntent>);
 
       await expect(service.validatePaymentMethodForTrial(mockParams)).rejects.toThrow(
         "Card validation failed. Please ensure your payment method is valid and try again."
@@ -1209,10 +1370,10 @@ describe(StripeService.name, () => {
       } as Partial<Stripe.PaymentIntent> as Stripe.PaymentIntent;
 
       // Mock payment intent retrieval
-      jest.spyOn(service.paymentIntents, "retrieve").mockResolvedValue(mockPaymentIntent as any);
+      jest.spyOn(service.paymentIntents, "retrieve").mockResolvedValue(mockPaymentIntent as unknown as Stripe.Response<Stripe.PaymentIntent>);
 
       // Mock payment method validation
-      paymentMethodRepository.markAsValidated.mockResolvedValue({} as any);
+      paymentMethodRepository.markAsValidated.mockResolvedValue(undefined);
 
       const result = await service.validatePaymentMethodAfter3DS(mockParams.customerId, mockParams.paymentMethodId, mockParams.paymentIntentId);
 
@@ -1233,10 +1394,10 @@ describe(StripeService.name, () => {
       } as Partial<Stripe.PaymentIntent> as Stripe.PaymentIntent;
 
       // Mock payment intent retrieval
-      jest.spyOn(service.paymentIntents, "retrieve").mockResolvedValue(mockPaymentIntent as any);
+      jest.spyOn(service.paymentIntents, "retrieve").mockResolvedValue(mockPaymentIntent as unknown as Stripe.Response<Stripe.PaymentIntent>);
 
       // Mock payment method validation
-      paymentMethodRepository.markAsValidated.mockResolvedValue({} as any);
+      paymentMethodRepository.markAsValidated.mockResolvedValue(undefined);
 
       const result = await service.validatePaymentMethodAfter3DS(mockParams.customerId, mockParams.paymentMethodId, mockParams.paymentIntentId);
 
@@ -1256,7 +1417,7 @@ describe(StripeService.name, () => {
       } as Partial<Stripe.PaymentIntent> as Stripe.PaymentIntent;
 
       // Mock payment intent retrieval
-      jest.spyOn(service.paymentIntents, "retrieve").mockResolvedValue(mockPaymentIntent as any);
+      jest.spyOn(service.paymentIntents, "retrieve").mockResolvedValue(mockPaymentIntent as unknown as Stripe.Response<Stripe.PaymentIntent>);
 
       const result = await service.validatePaymentMethodAfter3DS(mockParams.customerId, mockParams.paymentMethodId, mockParams.paymentIntentId);
 
@@ -1288,7 +1449,7 @@ describe(StripeService.name, () => {
       } as Partial<Stripe.PaymentIntent> as Stripe.PaymentIntent;
 
       // Mock payment intent retrieval
-      jest.spyOn(service.paymentIntents, "retrieve").mockResolvedValue(mockPaymentIntent as any);
+      jest.spyOn(service.paymentIntents, "retrieve").mockResolvedValue(mockPaymentIntent as unknown as Stripe.Response<Stripe.PaymentIntent>);
 
       const result = await service.validatePaymentMethodAfter3DS(mockParams.customerId, mockParams.paymentMethodId, mockParams.paymentIntentId);
 
@@ -1308,7 +1469,7 @@ describe(StripeService.name, () => {
       } as Partial<Stripe.PaymentIntent> as Stripe.PaymentIntent;
 
       // Mock payment intent retrieval
-      jest.spyOn(service.paymentIntents, "retrieve").mockResolvedValue(mockPaymentIntent as any);
+      jest.spyOn(service.paymentIntents, "retrieve").mockResolvedValue(mockPaymentIntent as unknown as Stripe.Response<Stripe.PaymentIntent>);
 
       await expect(service.validatePaymentMethodAfter3DS(mockParams.customerId, mockParams.paymentMethodId, mockParams.paymentIntentId)).rejects.toThrow(
         "Payment intent does not belong to the user"
@@ -1326,28 +1487,102 @@ describe(StripeService.name, () => {
       } as Partial<Stripe.PaymentIntent> as Stripe.PaymentIntent;
 
       // Mock payment intent retrieval
-      jest.spyOn(service.paymentIntents, "retrieve").mockResolvedValue(mockPaymentIntent as any);
+      jest.spyOn(service.paymentIntents, "retrieve").mockResolvedValue(mockPaymentIntent as unknown as Stripe.Response<Stripe.PaymentIntent>);
 
       await expect(service.validatePaymentMethodAfter3DS(mockParams.customerId, mockParams.paymentMethodId, mockParams.paymentIntentId)).rejects.toThrow(
         "Payment intent does not reference the provided payment method"
       );
     });
   });
+
+  describe("resolveTransaction", () => {
+    it("returns transaction once it reaches terminal status", async () => {
+      const { service, stripeTransactionRepository } = setup();
+      const terminalTransaction = generateDatabaseStripeTransaction({ id: "tx_1", status: "succeeded" });
+
+      stripeTransactionRepository.findById.mockResolvedValue(terminalTransaction);
+
+      const result = await service.resolveTransaction("tx_1");
+
+      expect(result).toEqual(terminalTransaction);
+      expect(stripeTransactionRepository.findById).toHaveBeenCalledWith("tx_1");
+    }, 10_000);
+
+    it("keeps polling until transaction reaches terminal status", async () => {
+      const { service, stripeTransactionRepository } = setup();
+      const pendingTransaction = generateDatabaseStripeTransaction({ id: "tx_1", status: "pending" });
+      const succeededTransaction = generateDatabaseStripeTransaction({ id: "tx_1", status: "succeeded" });
+
+      stripeTransactionRepository.findById
+        .mockResolvedValueOnce(pendingTransaction)
+        .mockResolvedValueOnce(pendingTransaction)
+        .mockResolvedValueOnce(succeededTransaction);
+
+      const result = await service.resolveTransaction("tx_1");
+
+      expect(result).toEqual(succeededTransaction);
+      expect(stripeTransactionRepository.findById).toHaveBeenCalledTimes(3);
+    }, 10_000);
+
+    it("throws 404 when transaction is not found", async () => {
+      const { service, stripeTransactionRepository } = setup();
+
+      stripeTransactionRepository.findById.mockResolvedValue(undefined);
+
+      await expect(service.resolveTransaction("tx_nonexistent")).rejects.toMatchObject({ status: 404 });
+    }, 10_000);
+
+    it("resolves with failed status as terminal", async () => {
+      const { service, stripeTransactionRepository } = setup();
+      const failedTransaction = generateDatabaseStripeTransaction({ id: "tx_1", status: "failed" });
+
+      stripeTransactionRepository.findById.mockResolvedValue(failedTransaction);
+
+      const result = await service.resolveTransaction("tx_1");
+
+      expect(result).toEqual(failedTransaction);
+    }, 10_000);
+  });
 });
 
 function setup(
   params: {
     user?: ReturnType<typeof createTestUser> | null;
-    paymentIntent?: Stripe.PaymentIntent;
+    paymentIntent?: Stripe.Response<Stripe.PaymentIntent>;
     paymentMethodValidation?: any[];
   } = {}
 ) {
   const billingConfig = mock<BillingConfigService>({ get: jest.fn().mockReturnValue("sk_live_key") });
   const userRepository = mock<UserRepository>();
-  const refillService = mock<RefillService>();
   const paymentMethodRepository = mock<PaymentMethodRepository>();
+  const stripeTransactionRepository = mock<StripeTransactionRepository>();
 
-  const service = new StripeService(billingConfig, userRepository, refillService, paymentMethodRepository);
+  const service = new StripeService(billingConfig, userRepository, paymentMethodRepository, stripeTransactionRepository, mock<LoggerService>());
+
+  // Setup stripe transaction repository mocks
+  stripeTransactionRepository.create.mockImplementation(async input => ({
+    id: "test-transaction-id",
+    userId: input.userId,
+    type: input.type,
+    status: input.status ?? "created",
+    amount: input.amount,
+    amountRefunded: input.amountRefunded ?? 0,
+    currency: input.currency ?? "usd",
+    stripePaymentIntentId: input.stripePaymentIntentId ?? null,
+    stripeChargeId: input.stripeChargeId ?? null,
+    stripeCouponId: input.stripeCouponId ?? null,
+    stripePromotionCodeId: input.stripePromotionCodeId ?? null,
+    stripeInvoiceId: input.stripeInvoiceId ?? null,
+    paymentMethodType: input.paymentMethodType ?? null,
+    cardBrand: input.cardBrand ?? null,
+    cardLast4: input.cardLast4 ?? null,
+    receiptUrl: input.receiptUrl ?? null,
+    description: input.description ?? null,
+    errorMessage: input.errorMessage ?? null,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  }));
+  stripeTransactionRepository.updateById.mockResolvedValue(undefined);
   const stripeData = StripeSeederCreate();
 
   // Store the last user for correct mocking
@@ -1386,37 +1621,41 @@ function setup(
   // Setup payment method validation mock based on parameters
   const validationToReturn = params.paymentMethodValidation || [];
   paymentMethodRepository.findValidatedByUserId.mockResolvedValue(validationToReturn);
-  paymentMethodRepository.markAsValidated.mockResolvedValue({} as any);
+  paymentMethodRepository.markAsValidated.mockResolvedValue(undefined);
   paymentMethodRepository.findOthersTrialingByFingerprint.mockResolvedValue(undefined);
+  paymentMethodRepository.accessibleBy.mockReturnValue(paymentMethodRepository);
 
   // Setup user repository mock based on parameters
   const userToReturn = "user" in params ? params.user : createTestUser();
-  jest.spyOn(userRepository, "findOneBy").mockResolvedValue(userToReturn as any);
+  jest.spyOn(userRepository, "findOneBy").mockResolvedValue(userToReturn ?? undefined);
 
   // Mock Stripe methods
-  jest.spyOn(service.customers, "create").mockResolvedValue(stub(stripeData.customer));
-  jest.spyOn(service.customers, "update").mockResolvedValue(stub({}));
-  jest.spyOn(service.customers, "retrieve").mockResolvedValue(stub({}));
+  jest.spyOn(service.customers, "create").mockResolvedValue(stripeData.customer);
+  jest.spyOn(service.customers, "update").mockResolvedValue({} as unknown as Stripe.Response<Stripe.Customer>);
+  jest.spyOn(service.customers, "retrieve").mockResolvedValue({} as unknown as Stripe.Response<Stripe.Customer>);
   // Setup payment intent mock based on parameters
   const paymentIntentToReturn = params.paymentIntent || stripeData.paymentIntent;
-  jest.spyOn(service.paymentIntents, "create").mockResolvedValue(stub(paymentIntentToReturn));
-  jest.spyOn(service.paymentIntents, "retrieve").mockResolvedValue(stub(stripeData.paymentIntent));
-  jest.spyOn(service.prices, "list").mockResolvedValue(stub({ data: [] }));
-  jest.spyOn(service.promotionCodes, "list").mockResolvedValue(stub({ data: [] }));
-  jest.spyOn(service.coupons, "list").mockResolvedValue(stub({ data: [] }));
-  jest.spyOn(service.coupons, "retrieve").mockResolvedValue(stub({}));
-  jest.spyOn(service.charges, "list").mockResolvedValue(stub({ data: [], has_more: false }));
-  jest.spyOn(service.refunds, "create").mockResolvedValue(stub({}));
-  jest.spyOn(service.refunds, "list").mockResolvedValue(stub({ data: [] }));
-  jest.spyOn(service.setupIntents, "create").mockResolvedValue(stub(stripeData.setupIntent));
-  jest.spyOn(service.checkout.sessions, "create").mockResolvedValue(stub(stripeData.checkoutSession));
-  jest.spyOn(service.paymentMethods, "list").mockResolvedValue(stub({ data: [] }));
+  jest.spyOn(service.paymentIntents, "create").mockResolvedValue(paymentIntentToReturn);
+  jest.spyOn(service.paymentIntents, "retrieve").mockResolvedValue(stripeData.paymentIntent);
+  jest.spyOn(service.prices, "list").mockResolvedValue({ data: [] } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Price>>);
+  jest.spyOn(service.promotionCodes, "list").mockResolvedValue({ data: [] } as unknown as Stripe.Response<Stripe.ApiList<Stripe.PromotionCode>>);
+  jest.spyOn(service.coupons, "list").mockResolvedValue({ data: [] } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Coupon>>);
+  jest.spyOn(service.coupons, "retrieve").mockResolvedValue({} as unknown as Stripe.Response<Stripe.Coupon>);
+  jest.spyOn(service.charges, "list").mockResolvedValue({ data: [], has_more: false } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Charge>>);
+  jest.spyOn(service.refunds, "create").mockResolvedValue({} as unknown as Stripe.Response<Stripe.Refund>);
+  jest.spyOn(service.refunds, "list").mockResolvedValue({ data: [] } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Refund>>);
+  jest.spyOn(service.setupIntents, "create").mockResolvedValue(stripeData.setupIntent);
+  jest.spyOn(service.paymentMethods, "list").mockResolvedValue({ data: [] } as unknown as Stripe.Response<Stripe.ApiList<Stripe.PaymentMethod>>);
+  jest.spyOn(service.invoices, "create").mockResolvedValue(createTestInvoice());
+  jest.spyOn(service.invoices, "finalizeInvoice").mockResolvedValue(createTestInvoice({ status: "paid" }));
+  jest.spyOn(service.invoices, "voidInvoice").mockResolvedValue({} as unknown as Stripe.Response<Stripe.Invoice>);
+  jest.spyOn(service.invoiceItems, "create").mockResolvedValue({} as unknown as Stripe.Response<Stripe.InvoiceItem>);
 
   return {
     service,
     userRepository,
-    refillService,
     billingConfig,
-    paymentMethodRepository
+    paymentMethodRepository,
+    stripeTransactionRepository
   };
 }

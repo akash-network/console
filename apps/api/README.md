@@ -3,6 +3,7 @@
 - [Environment Variables](#environment-variables)
 - [How to run](#how-to-run)
 
+
 ## How to run
 
 1. Make sure you have a valid [Akash database](../README.md#how-to-run) first.

@@ -1,0 +1,1 @@
+ALTER TABLE "stripe_transactions" ADD COLUMN "amount_refunded" integer DEFAULT 0 NOT NULL;

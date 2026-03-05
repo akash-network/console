@@ -6,7 +6,7 @@ export const PricingSpecsSchema = z.object({
   storage: z.number().min(0).openapi({ description: "Storage in bytes", type: "number", example: 1000000000 })
 });
 
-export const PricingBodySchema = PricingSpecsSchema.or(z.array(PricingSpecsSchema));
+export const PricingBodySchema = PricingSpecsSchema.or(z.array(PricingSpecsSchema).min(1).max(10));
 
 const PricingCalculationSchema = z.object({
   spec: PricingSpecsSchema,

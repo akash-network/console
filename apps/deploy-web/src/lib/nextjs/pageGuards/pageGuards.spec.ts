@@ -1,9 +1,11 @@
 import type { LoggerService } from "@akashnetwork/logging";
-import type { Session } from "@auth0/nextjs-auth0";
 import { faker } from "@faker-js/faker";
-import { mock } from "jest-mock-extended";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
+import type { Session } from "@src/lib/auth0";
 import type { FeatureFlagService } from "@src/services/feature-flag/feature-flag.service";
+import { UrlService } from "@src/utils/urlUtils";
 import type { AppTypedContext } from "../defineServerSideProps/defineServerSideProps";
 import { isAuthenticated, isFeatureEnabled, redirectIfAccessTokenExpired } from "./pageGuards";
 
@@ -14,7 +16,8 @@ describe("pageGuards", () => {
         session: {
           user: {
             id: faker.string.uuid()
-          }
+          },
+          accessTokenExpiresAt: Date.now() + 1000 * 60 * 60 * 24 * 30
         }
       });
 
@@ -62,7 +65,7 @@ describe("pageGuards", () => {
   });
 
   describe("redirectIfAccessTokenExpired", () => {
-    it("returns null when access token is not expired", async () => {
+    it("returns true when access token is not expired", async () => {
       const context = setup({
         session: {
           accessTokenExpiresAt: Date.now() + 1000 * 60 * 60 * 24 * 30
@@ -71,7 +74,7 @@ describe("pageGuards", () => {
 
       const result = await redirectIfAccessTokenExpired(context);
 
-      expect(result).toBeNull();
+      expect(result).toBe(true);
     });
 
     it("returns redirect when access token is expired", async () => {
@@ -85,7 +88,7 @@ describe("pageGuards", () => {
 
       expect(result).toEqual({
         redirect: {
-          destination: expect.stringMatching(/^\/api\/auth\/login/),
+          destination: expect.stringMatching(/^\/login/),
           permanent: false
         }
       });
@@ -95,12 +98,20 @@ describe("pageGuards", () => {
 
 function setup(input?: { enabledFeatures?: string[]; session?: Partial<Session> }) {
   return mock<AppTypedContext>({
-    session: input?.session,
+    getCurrentSession: vi.fn().mockImplementation(async () => {
+      if (!input?.session) return null;
+      return {
+        ...input.session,
+        accessTokenExpiresAt: input.session.accessTokenExpiresAt ? new Date(input.session.accessTokenExpiresAt).getTime() / 1000 : undefined
+      };
+    }),
     services: {
       featureFlagService: mock<FeatureFlagService>({
-        isEnabledForCtx: jest.fn(async featureName => !!input?.enabledFeatures?.includes(featureName))
+        isEnabledForCtx: vi.fn(async featureName => !!input?.enabledFeatures?.includes(featureName))
       }),
-      logger: mock<LoggerService>()
-    }
+      logger: mock<LoggerService>(),
+      urlService: UrlService
+    },
+    resolvedUrl: faker.internet.url()
   });
 }

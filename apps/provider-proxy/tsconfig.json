@@ -3,6 +3,7 @@
     "outDir": "dist",
     "noEmit": true
   },
-  "exclude": ["node_modules", "dist", "build", "test"],
+  "include": ["**/*.ts"],
+  "exclude": [],
   "extends": "./tsconfig.build.json"
 }

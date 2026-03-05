@@ -1,12 +1,13 @@
 import { isSameDay, minutesToSeconds } from "date-fns";
 import { cloneDeep } from "lodash";
-import { QueryTypes } from "sequelize";
-import { singleton } from "tsyringe";
+import { QueryTypes, Sequelize } from "sequelize";
+import { inject, singleton } from "tsyringe";
 
 import { Memoize } from "@src/caching/helpers";
-import { chainDb } from "@src/db/dbConnection";
+import { CHAIN_DB } from "@src/chain";
+import type { ProviderConfig } from "@src/provider/providers/config.provider";
+import { PROVIDER_CONFIG } from "@src/provider/providers/config.provider";
 import { type ProviderStats, type ProviderStatsKey } from "@src/types";
-import { env } from "@src/utils/env";
 
 export const emptyProviderGraphData = {
   currentValue: 0,
@@ -33,12 +34,20 @@ export const emptyProviderGraphData = {
 
 @singleton()
 export class ProviderGraphDataService {
+  readonly #providerConfig: ProviderConfig;
+  readonly #chainDb: Sequelize;
+
+  constructor(@inject(CHAIN_DB) chainDb: Sequelize, @inject(PROVIDER_CONFIG) providerConfig: ProviderConfig) {
+    this.#chainDb = chainDb;
+    this.#providerConfig = providerConfig;
+  }
+
   @Memoize({ ttlInSeconds: minutesToSeconds(5) })
   async getProviderGraphData(dataName: ProviderStatsKey) {
     const getter = (block: ProviderStats) => (typeof block[dataName] === "number" ? (block[dataName] as number) : parseInt(block[dataName] as string) || 0);
 
     const result = this.removeLastAroundMidnight(
-      await chainDb.query<ProviderStats>(
+      await this.#chainDb.query<ProviderStats>(
         `SELECT d."date", (SUM("activeCPU") + SUM("pendingCPU") + SUM("availableCPU")) AS "cpu", (SUM("activeGPU") + SUM("pendingGPU") + SUM("availableGPU")) AS "gpu", (SUM("activeMemory") + SUM("pendingMemory") + SUM("availableMemory")) AS memory, (SUM("activeStorage") + SUM("pendingStorage") + SUM("availableStorage")) as storage, COUNT(*) as count
             FROM "day" d
             INNER JOIN (
@@ -62,7 +71,7 @@ export class ProviderGraphDataService {
         {
           type: QueryTypes.SELECT,
           replacements: {
-            grace_duration: env.PROVIDER_UPTIME_GRACE_PERIOD_MINUTES
+            grace_duration: this.#providerConfig.PROVIDER_UPTIME_GRACE_PERIOD_MINUTES
           }
         }
       )

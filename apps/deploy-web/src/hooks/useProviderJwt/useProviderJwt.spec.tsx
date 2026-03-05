@@ -1,7 +1,8 @@
 import type { JwtTokenPayload } from "@akashnetwork/chain-sdk/web";
 import type { HttpClient } from "@akashnetwork/http-sdk";
 import type { NetworkStore } from "@akashnetwork/network-store";
-import { mock } from "jest-mock-extended";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { ChainContext as CustodialWallet, useSelectedChain } from "@src/context/CustomChainProvider";
 import type { ContextType as WalletContext } from "@src/context/WalletProvider";
@@ -26,7 +27,7 @@ describe(useProviderJwt.name, () => {
   it("retrieves token from storage when wallet address changes", () => {
     const token = genFakeToken();
     const storedWalletsService = mock<StoredWalletsService>({
-      getStorageWallets: jest.fn().mockReturnValue([{ address: "akash1234567890", token }])
+      getStorageWallets: vi.fn().mockReturnValue([{ address: "akash1234567890", token }])
     });
 
     const { result } = setup({
@@ -45,14 +46,14 @@ describe(useProviderJwt.name, () => {
   it("generates token for managed wallet via API", async () => {
     const token = genFakeToken();
     const consoleApiHttpClient = mock<HttpClient>({
-      post: jest.fn().mockResolvedValue({
+      post: vi.fn().mockResolvedValue({
         data: { data: { token } }
       })
     } as unknown as HttpClient);
 
     const storedWalletsService = mock<StoredWalletsService>({
-      updateWallet: jest.fn(),
-      getStorageWallets: jest.fn().mockReturnValue([{ address: "akash1234567890", token }])
+      updateWallet: vi.fn(),
+      getStorageWallets: vi.fn().mockReturnValue([{ address: "akash1234567890", token }])
     });
 
     const { result } = setup({
@@ -86,13 +87,13 @@ describe(useProviderJwt.name, () => {
     const address = "akash1".padEnd(6 + 38, "0");
     const custodialWallet = mock<CustodialWallet>({
       address,
-      signArbitrary: jest.fn().mockResolvedValue({ signature: btoa("signature") })
+      signArbitrary: vi.fn().mockResolvedValue({ signature: btoa("signature") })
     });
 
     const storedWallets: storedWalletsService.LocalWallet[] = [{ address } as storedWalletsService.LocalWallet];
     const storedWalletsService = mock<StoredWalletsService>({
-      getStorageWallets: jest.fn(() => storedWallets),
-      updateWallet: jest.fn((address, fn) => {
+      getStorageWallets: vi.fn(() => storedWallets),
+      updateWallet: vi.fn((address, fn) => {
         const walletIndex = storedWallets.findIndex(w => w.address === address);
         if (walletIndex !== -1) {
           storedWallets[walletIndex] = fn(storedWallets[walletIndex]);
@@ -123,7 +124,7 @@ describe(useProviderJwt.name, () => {
 
   it("does not generate token when wallet is not connected", async () => {
     const consoleApiHttpClient = mock<HttpClient>({
-      post: jest.fn()
+      post: vi.fn()
     } as unknown as HttpClient);
 
     const { result } = setup({
@@ -175,9 +176,9 @@ describe(useProviderJwt.name, () => {
               address: "akash1234567890",
               walletName: "test-wallet",
               isWalletLoaded: true,
-              connectManagedWallet: jest.fn(),
-              logout: jest.fn(),
-              signAndBroadcastTx: jest.fn(),
+              connectManagedWallet: vi.fn(),
+              logout: vi.fn(),
+              signAndBroadcastTx: vi.fn(),
               isManaged: false,
               isWalletConnected: true,
               isCustodial: false,
@@ -185,7 +186,7 @@ describe(useProviderJwt.name, () => {
               isTrialing: false,
               isOnboarding: false,
               creditAmount: 0,
-              switchWalletType: jest.fn(),
+              switchWalletType: vi.fn(),
               hasManagedWallet: false,
               managedWalletError: undefined,
               ...input?.wallet
@@ -193,7 +194,7 @@ describe(useProviderJwt.name, () => {
             useSelectedChain: () =>
               input?.custodialWallet ??
               mock<CustodialWallet>({
-                signArbitrary: jest.fn()
+                signArbitrary: vi.fn()
               })
           }
         }),

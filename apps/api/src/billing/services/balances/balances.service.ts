@@ -2,32 +2,41 @@ import { AuthzHttpService, DeploymentHttpService, DeploymentInfo } from "@akashn
 import { singleton } from "tsyringe";
 
 import type { GetBalancesResponseOutput } from "@src/billing/http-schemas/balance.schema";
-import { Wallet } from "@src/billing/lib/wallet/wallet";
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
-import { InjectWallet } from "@src/billing/providers/wallet.provider";
 import { type UserWalletInput, type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
+import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { Memoize } from "@src/caching/helpers";
+import { Trace } from "@src/core/services/tracing/tracing.service";
+import { StatsService } from "@src/dashboard/services/stats/stats.service";
 import { averageBlockTime } from "@src/utils/constants";
 
 @singleton()
 export class BalancesService {
+  #currencyFormatter = new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+    useGrouping: false
+  });
+
   constructor(
     @InjectBillingConfig() private readonly config: BillingConfig,
     private readonly userWalletRepository: UserWalletRepository,
-    @InjectWallet("MANAGED") private readonly masterWallet: Wallet,
+    private txManagerService: TxManagerService,
     private readonly authzHttpService: AuthzHttpService,
-    private readonly deploymentHttpService: DeploymentHttpService
+    private readonly deploymentHttpService: DeploymentHttpService,
+    private readonly statsService: StatsService
   ) {}
 
+  @Trace()
   async refreshUserWalletLimits(userWallet: UserWalletOutput, options?: { endTrial: boolean }): Promise<void> {
     const update = await this.getFreshLimitsUpdate(userWallet);
 
-    if (!Object.keys(update).length) {
-      return;
-    }
-
     if (options?.endTrial && userWallet.isTrialing) {
       update.isTrialing = false;
+    }
+
+    if (!Object.keys(update).length) {
+      return;
     }
 
     await this.userWalletRepository.updateById(userWallet.id, update);
@@ -53,9 +62,10 @@ export class BalancesService {
     return { fee, deployment };
   }
 
-  private async retrieveAndCalcFeeLimit(userWallet: Pick<UserWalletOutput, "address">): Promise<number> {
-    const masterWalletAddress = await this.masterWallet.getFirstAddress();
-    const feeAllowance = await this.authzHttpService.getFeeAllowanceForGranterAndGrantee(masterWalletAddress, userWallet.address!);
+  @Trace()
+  async retrieveAndCalcFeeLimit(userWallet: Pick<UserWalletOutput, "address">): Promise<number> {
+    const fundingWalletAddress = await this.txManagerService.getFundingWalletAddress();
+    const feeAllowance = await this.authzHttpService.getFeeAllowanceForGranterAndGrantee(fundingWalletAddress, userWallet.address!);
 
     if (!feeAllowance) {
       return 0;
@@ -64,9 +74,10 @@ export class BalancesService {
     return feeAllowance.allowance.spend_limit.reduce((acc, { denom, amount }) => (denom === "uakt" ? acc + parseInt(amount) : acc), 0);
   }
 
+  @Trace()
   async retrieveDeploymentLimit(userWallet: Pick<UserWalletOutput, "address">): Promise<number> {
-    const masterWalletAddress = await this.masterWallet.getFirstAddress();
-    const depositDeploymentGrant = await this.authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee(masterWalletAddress, userWallet.address!);
+    const fundingWalletAddress = await this.txManagerService.getFundingWalletAddress();
+    const depositDeploymentGrant = await this.authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee(fundingWalletAddress, userWallet.address!);
 
     if (!depositDeploymentGrant || depositDeploymentGrant.authorization.spend_limit.denom !== this.config.DEPLOYMENT_GRANT_DENOM) {
       return 0;
@@ -91,7 +102,12 @@ export class BalancesService {
       return total + parseFloat(escrowAccount.state.funds.reduce((sum, { amount }) => sum + parseFloat(amount), 0).toFixed(18));
     }, 0);
   }
+
   @Memoize({ ttlInSeconds: averageBlockTime })
+  async getFullBalanceMemoized(address: string): Promise<GetBalancesResponseOutput> {
+    return this.getFullBalance(address);
+  }
+
   async getFullBalance(address: string): Promise<GetBalancesResponseOutput> {
     const [balanceData, deploymentEscrowBalance] = await Promise.all([this.getFreshLimits({ address }), this.calculateDeploymentEscrowBalance(address)]);
 
@@ -102,5 +118,33 @@ export class BalancesService {
         total: balanceData.deployment + deploymentEscrowBalance
       }
     };
+  }
+
+  @Memoize({ ttlInSeconds: averageBlockTime })
+  async getFullBalanceInFiatMemoized(address: string): Promise<GetBalancesResponseOutput["data"]> {
+    return this.getFullBalanceInFiat(address);
+  }
+
+  async getFullBalanceInFiat(address: string): Promise<GetBalancesResponseOutput["data"]> {
+    const { data } = await this.getFullBalance(address);
+
+    const balance = await this.toFiatAmount(data.balance);
+    const deployments = await this.toFiatAmount(data.deployments);
+    const total = this.ensure2floatingDigits(balance + deployments);
+
+    return { balance, deployments, total };
+  }
+
+  async toFiatAmount(uTokenAmount: number) {
+    return this.ensure2floatingDigits(await this.#convertToFiatAmount(uTokenAmount / 1_000_000));
+  }
+
+  async #convertToFiatAmount(amount: number): Promise<number> {
+    const coin = this.config.DEPLOYMENT_GRANT_DENOM === "uakt" ? "akash-network" : "usd-coin";
+    return await this.statsService.convertToFiatAmount(amount, coin);
+  }
+
+  ensure2floatingDigits(amount: number) {
+    return Number(this.#currencyFormatter.format(amount));
   }
 }

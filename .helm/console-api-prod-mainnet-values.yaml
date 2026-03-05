@@ -1,3 +1,7 @@
+deploymentEnv: production
+nodeOptions:
+  enabledOTEL: true
+
 chain: mainnet
 hostNames:
   - console-api-mainnet.akash.network
@@ -22,11 +26,21 @@ jobs:
       - node
       - dist/console.js
       - cleanup-stale-deployments
-  - name: cleanup-stale-anonymous-users
-    schedule: "0 9 * * 1" # 9:00 AM every Monday
+  - name: gpu-pricing-bot
+    schedule: "0 12 * * *"
     command:
       - node
       - dist/console.js
-      - cleanup-stale-anonymous-users
-      - -c
-      - "100"
+      - gpu-pricing-bot
+
+replicas: 3
+
+resources:
+  limits:
+    cpu: "4"
+    ephemeral-storage: "2Gi"
+    memory: "8Gi"
+  requests:
+    cpu: "1"
+    ephemeral-storage: "1Gi"
+    memory: "4Gi"

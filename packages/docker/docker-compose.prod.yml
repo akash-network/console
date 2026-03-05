@@ -3,11 +3,21 @@ services:
     restart: always
     environment:
       PORT: 3000
+      GITHUB_PAT: ${GITHUB_PAT}
     env_file:
       - .env.sandbox.docker-compose-dev
     ports:
-      - '3080:3000'
-      - '3081:3001' # background jobs server
+      - "3080:3000"
+      - "3081:3001" # background jobs server
+
+  tx-signer:
+    restart: always
+    environment:
+      PORT: 3000
+    env_file:
+      - .env.sandbox.docker-compose-dev
+    ports:
+      - "3091:3000"
 
   notifications:
     restart: always
@@ -27,6 +37,8 @@ services:
     restart: always
     environment:
       PORT: 3000
+    env_file:
+      - .env.sandbox.docker-compose-dev
     ports:
       - '3040:3000'
 

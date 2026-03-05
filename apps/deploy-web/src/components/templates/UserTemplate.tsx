@@ -12,10 +12,10 @@ import { LeaseSpecDetail } from "@src/components/shared/LeaseSpecDetail";
 import { Title } from "@src/components/shared/Title";
 import { UserFavoriteButton } from "@src/components/shared/UserFavoriteButton";
 import { USER_TEMPLATE_CODE } from "@src/config/deploy.config";
+import { useServices } from "@src/context/ServicesProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { getShortText } from "@src/hooks/useShortText";
 import { useDeleteTemplate } from "@src/queries/useTemplateQuery";
-import { analyticsService } from "@src/services/analytics/analytics.service";
 import sdlStore from "@src/store/sdlStore";
 import type { ITemplate } from "@src/types";
 import { RouteStep } from "@src/types/route-steps.type";
@@ -31,6 +31,7 @@ type Props = {
 };
 
 export const UserTemplate: React.FunctionComponent<Props> = ({ id, template }) => {
+  const { analyticsService } = useServices();
   const [description, setDescription] = useState("");
   const [isShowingDelete, setIsShowingDelete] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
@@ -105,7 +106,7 @@ export const UserTemplate: React.FunctionComponent<Props> = ({ id, template }) =
         Are you sure you want to delete template: "{template.title}"?
       </Popup>
 
-      <div className="mb-4 flex items-baseline">
+      <div className="mb-6 flex items-baseline">
         <Title className="m-0">{template.title}</Title>
         &nbsp;&nbsp;by&nbsp;
         <span
@@ -120,7 +121,7 @@ export const UserTemplate: React.FunctionComponent<Props> = ({ id, template }) =
         </span>
       </div>
 
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center space-x-6">
         <Button
           onClick={() => {
             analyticsService.track("deploy_sdl", {
@@ -138,14 +139,16 @@ export const UserTemplate: React.FunctionComponent<Props> = ({ id, template }) =
 
             router.push(UrlService.newDeployment({ step: RouteStep.editDeployment }));
           }}
+          size="sm"
+          className="space-x-2"
         >
-          Deploy
-          <Rocket className="ml-2 rotate-45 text-sm" />
+          <Rocket className="rotate-45 text-sm" />
+          <span className="whitespace-nowrap">Deploy</span>
         </Button>
 
         <Link
           href={UrlService.sdlBuilder(template.id)}
-          className={cn(buttonVariants({ variant: "text" }))}
+          className={cn(buttonVariants({ variant: "text", size: "sm" }))}
           onClick={() => {
             analyticsService.track("click_edit_sdl_template", {
               category: "sdl_builder",
@@ -180,7 +183,7 @@ export const UserTemplate: React.FunctionComponent<Props> = ({ id, template }) =
         )}
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center space-x-6">
+      <div className="mt-6 flex flex-wrap items-center space-x-6">
         <LeaseSpecDetail type="cpu" value={template.cpu / 1_000} />
         <LeaseSpecDetail type="ram" value={`${roundDecimal(_ram.value, 1)} ${_ram.unit}`} />
         <LeaseSpecDetail type="storage" value={`${roundDecimal(_storage.value, 1)} ${_storage.unit}`} />
@@ -189,10 +192,10 @@ export const UserTemplate: React.FunctionComponent<Props> = ({ id, template }) =
       {isEditingDescription ? (
         <EditDescriptionForm id={id} description={description} onCancel={() => setIsEditingDescription(false)} onSave={onDescriptionSave} />
       ) : (
-        <Card className="relative mt-4 whitespace-pre-wrap">
-          <CardContent className="p-4">
+        <Card className="relative mt-6 whitespace-pre-wrap">
+          <CardContent className="p-6">
             {isCurrentUserTemplate && (
-              <div className="absolute right-2 top-2">
+              <div className="absolute right-4 top-4">
                 <Button onClick={() => setIsEditingDescription(true)} size="icon" variant="ghost">
                   <Edit />
                 </Button>

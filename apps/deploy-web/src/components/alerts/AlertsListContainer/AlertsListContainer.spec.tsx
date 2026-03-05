@@ -1,21 +1,18 @@
-import "@testing-library/jest-dom";
-
 import React from "react";
 import { createAPIClient } from "@akashnetwork/react-query-sdk/notifications";
 import { CustomSnackbarProvider } from "@akashnetwork/ui/context";
 import { faker } from "@faker-js/faker";
-import type { RequestFnResponse } from "@openapi-qraft/react/src/lib/requestFn";
-import { QueryClientProvider } from "@tanstack/react-query";
+import type { RequestFnResponse } from "@openapi-qraft/react";
+import { describe, expect, it, vi } from "vitest";
 
-import { AlertsListContainer } from "@src/components/alerts/AlertsListContainer/AlertsListContainer";
-import type { AlertsListViewProps } from "@src/components/alerts/AlertsListView/AlertsListView";
+import { AlertsListContainer, type ChildrenProps as AlertsListViewProps } from "@src/components/alerts/AlertsListContainer/AlertsListContainer";
 import { LocalNoteProvider } from "@src/context/LocalNoteProvider";
-import { ServicesProvider } from "@src/context/ServicesProvider";
 import { queryClient } from "@src/queries";
 
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { buildAlert } from "@tests/seeders/alert";
 import { createContainerTestingChildCapturer } from "@tests/unit/container-testing-child-capturer";
+import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe(AlertsListContainer.name, () => {
   it("renders alerts list with data", async () => {
@@ -27,7 +24,7 @@ describe(AlertsListContainer.name, () => {
     const { mockData, requestFn, child } = await setup();
     await act(() => child.onRemove(mockData.data[0].id));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(requestFn).toHaveBeenCalledWith(
         expect.objectContaining({ method: "delete", url: "/v1/alerts/{id}" }),
         expect.objectContaining({ baseUrl: "", body: undefined, parameters: { path: { id: mockData.data[0].id } } })
@@ -41,7 +38,7 @@ describe(AlertsListContainer.name, () => {
     requestFn.mockRejectedValue(new Error());
     await act(() => child.onRemove(mockData.data[0].id));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(requestFn).toHaveBeenCalledWith(
         expect.objectContaining({ method: "delete", url: "/v1/alerts/{id}" }),
         expect.objectContaining({ baseUrl: "", body: undefined, parameters: { path: { id: mockData.data[0].id } } })
@@ -54,7 +51,7 @@ describe(AlertsListContainer.name, () => {
     const { requestFn, child } = await setup();
     await act(() => child.onPaginationChange({ page: child.pagination.page + 1, limit: child.pagination.limit }));
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(requestFn).toHaveBeenCalledWith(
         expect.objectContaining({ method: "get", url: "/v1/alerts" }),
         expect.objectContaining({
@@ -79,16 +76,17 @@ describe(AlertsListContainer.name, () => {
         totalPages: 2
       }
     };
-    const requestFn = jest.fn(
+    const requestFn = vi.fn(
       () =>
         Promise.resolve({
           data: mockData
         }) as Promise<RequestFnResponse<typeof mockData, unknown>>
     );
     const services = {
+      queryClient: () => queryClient,
       notificationsApi: () =>
         createAPIClient({
-          requestFn,
+          requestFn: requestFn as any,
           baseUrl: "",
           queryClient
         })
@@ -97,13 +95,11 @@ describe(AlertsListContainer.name, () => {
 
     render(
       <CustomSnackbarProvider>
-        <ServicesProvider services={services}>
-          <QueryClientProvider client={queryClient}>
-            <LocalNoteProvider>
-              <AlertsListContainer>{childCapturer.renderChild}</AlertsListContainer>
-            </LocalNoteProvider>
-          </QueryClientProvider>
-        </ServicesProvider>
+        <TestContainerProvider services={services}>
+          <LocalNoteProvider>
+            <AlertsListContainer>{childCapturer.renderChild}</AlertsListContainer>
+          </LocalNoteProvider>
+        </TestContainerProvider>
       </CustomSnackbarProvider>
     );
 
