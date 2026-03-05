@@ -12,7 +12,7 @@ import { CloseTrialDeployment } from "../close-trial-deployment/close-trial-depl
 export class TrialDeploymentLeaseCreatedHandler implements JobHandler<TrialDeploymentLeaseCreated> {
   public readonly accepts = TrialDeploymentLeaseCreated;
 
-  public readonly concurrency = 5;
+  public readonly concurrency = 2;
 
   constructor(
     private readonly userWalletRepository: UserWalletRepository,

@@ -11,7 +11,7 @@ import { NotificationService } from "@src/notifications/services/notification/no
 export class EnableDeploymentAlertHandler implements JobHandler<EnableDeploymentAlertCommand> {
   public readonly accepts = EnableDeploymentAlertCommand;
 
-  public readonly concurrency = 5;
+  public readonly concurrency = 2;
 
   constructor(
     private readonly notificationService: NotificationService,
