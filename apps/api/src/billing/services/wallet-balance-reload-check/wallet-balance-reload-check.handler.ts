@@ -36,7 +36,7 @@ const millisecondsInDay = 24 * millisecondsInHour;
 export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalanceReloadCheck> {
   public readonly accepts = WalletBalanceReloadCheck;
 
-  public readonly concurrency = 10;
+  public readonly concurrency = 2;
 
   public readonly policy = "singleton";
 

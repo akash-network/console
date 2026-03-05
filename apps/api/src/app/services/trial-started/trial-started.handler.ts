@@ -14,7 +14,7 @@ import { UserRepository } from "@src/user/repositories";
 export class TrialStartedHandler implements JobHandler<TrialStarted> {
   public readonly accepts = TrialStarted;
 
-  public readonly concurrency = 10;
+  public readonly concurrency = 2;
 
   constructor(
     private readonly notificationService: NotificationService,

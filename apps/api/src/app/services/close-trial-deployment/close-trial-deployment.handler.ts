@@ -24,7 +24,7 @@ export class CloseTrialDeployment implements Job {
 export class CloseTrialDeploymentHandler implements JobHandler<CloseTrialDeployment> {
   public readonly accepts = CloseTrialDeployment;
 
-  public readonly concurrency = 10;
+  public readonly concurrency = 2;
 
   constructor(
     private readonly userWalletRepository: UserWalletRepository,
