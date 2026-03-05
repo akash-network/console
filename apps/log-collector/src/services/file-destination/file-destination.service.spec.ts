@@ -43,7 +43,7 @@ describe(FileDestinationService.name, () => {
 
       expect(mockFs.promises.mkdir).toHaveBeenCalledWith(logDir, { recursive: true });
       expect(loggerService.info).toHaveBeenCalledWith({
-        message: "Created log directory",
+        event: "LOG_DIR_CREATED",
         path: logDir
       });
     });
@@ -57,7 +57,7 @@ describe(FileDestinationService.name, () => {
 
       expect(mockFs.promises.writeFile).toHaveBeenCalledWith(expectedPath, "");
       expect(loggerService.info).toHaveBeenCalledWith({
-        message: "Created log file",
+        event: "LOG_FILE_CREATED",
         filePath: expectedPath,
         namespace: "test-namespace",
         podName: "test-pod"

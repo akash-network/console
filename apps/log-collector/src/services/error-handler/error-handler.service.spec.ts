@@ -34,4 +34,42 @@ describe(ErrorHandlerService.name, () => {
 
     expect(result).toEqual([]);
   });
+
+  describe("isForbidden", () => {
+    it("should return true for error with statusCode 403", () => {
+      const errorHandlerService = new ErrorHandlerService();
+      const error = Object.assign(new Error("Forbidden"), { statusCode: 403 });
+
+      expect(errorHandlerService.isForbidden(error)).toBe(true);
+    });
+
+    it("should return true for error with code 403", () => {
+      const errorHandlerService = new ErrorHandlerService();
+      const error = Object.assign(new Error("Forbidden"), { code: 403 });
+
+      expect(errorHandlerService.isForbidden(error)).toBe(true);
+    });
+
+    it("should return true for AggregateError where all errors are forbidden", () => {
+      const errorHandlerService = new ErrorHandlerService();
+      const error = new AggregateError([Object.assign(new Error("Forbidden"), { statusCode: 403 }), Object.assign(new Error("Forbidden"), { code: 403 })]);
+
+      expect(errorHandlerService.isForbidden(error)).toBe(true);
+    });
+
+    it("should return false for empty AggregateError", () => {
+      const errorHandlerService = new ErrorHandlerService();
+      const error = new AggregateError([]);
+
+      expect(errorHandlerService.isForbidden(error)).toBe(false);
+    });
+
+    it("should return false for non-forbidden errors", () => {
+      const errorHandlerService = new ErrorHandlerService();
+
+      expect(errorHandlerService.isForbidden(new Error("not forbidden"))).toBe(false);
+      expect(errorHandlerService.isForbidden(null)).toBe(false);
+      expect(errorHandlerService.isForbidden("string")).toBe(false);
+    });
+  });
 });
