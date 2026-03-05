@@ -50,7 +50,7 @@ function extract_metadata(tag, timestamp, record)
     local service = string.match(pod_name, "^(.-)%-%d+$")
     if not service then
         -- Pattern 2: Deployment format "service-hash-random" → service = "service"
-        service = string.match(pod_name, "^(.-)%-.+%-.+$")
+        service = string.match(pod_name, "^(.+)%-%w+%-%w+$")
     end
     if not service then
         -- Pattern 3: Fallback - use entire pod name as service

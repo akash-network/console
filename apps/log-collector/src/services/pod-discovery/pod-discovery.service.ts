@@ -75,7 +75,7 @@ export class PodDiscoveryService {
   async discoverPodsInNamespace(): Promise<PodInfo[]> {
     const namespace = this.getCurrentNamespace();
 
-    this.loggerService.info({ message: "Discovering pods in namespace", namespace });
+    this.loggerService.info({ event: "POD_DISCOVERY_STARTED", namespace });
 
     const { items: podsRaw } = await this.k8sClient.listNamespacedPod({
       namespace,
@@ -88,11 +88,11 @@ export class PodDiscoveryService {
     const targetPods = this.filterOutPodsFromSameDeployment(pods, currentPodName);
 
     this.loggerService.info({
+      event: "POD_DISCOVERY_COMPLETED",
       namespace,
       totalPods: pods.length,
       targetPods: targetPods.length,
-      currentPodName,
-      message: "Pod discovery completed"
+      currentPodName
     });
 
     return targetPods;
@@ -128,10 +128,10 @@ export class PodDiscoveryService {
    */
   private getNamespaceFromKubeConfig(): string {
     const currentContext = this.kubeConfig.getCurrentContext();
-    this.loggerService.debug({ currentContext });
+    this.loggerService.debug({ event: "KUBE_CONFIG_CONTEXT", currentContext });
 
     const context = this.kubeConfig.getContextObject(currentContext);
-    this.loggerService.debug({ context });
+    this.loggerService.debug({ event: "KUBE_CONFIG_CONTEXT_OBJECT", context });
 
     if (!context) {
       throw new Error(`Context object not found for current context: ${currentContext}`);
@@ -143,7 +143,7 @@ export class PodDiscoveryService {
       throw new Error(`No namespace provided in k8s context: ${currentContext}. Please set namespace in context or provide KUBERNETES_NAMESPACE_OVERRIDE`);
     }
 
-    this.loggerService.info({ namespace, source: "kubeconfig" });
+    this.loggerService.info({ event: "NAMESPACE_RESOLVED", namespace, source: "kubeconfig" });
 
     return namespace;
   }

@@ -67,14 +67,27 @@ export class PodLogsCollectorService {
 
     if (this.podInfo.containerNames.length === 0) {
       this.loggerService.warn({
+        event: "POD_LOGS_NO_CONTAINERS",
         podName: this.podInfo.podName,
-        namespace: this.podInfo.namespace,
-        message: "No containers found in pod"
+        namespace: this.podInfo.namespace
       });
       return;
     }
 
-    await this.startLogCollectionForAllContainers(this.podInfo.containerNames, logLine[0]?.timestamp);
+    try {
+      await this.startLogCollectionForAllContainers(this.podInfo.containerNames, logLine[0]?.timestamp);
+    } catch (error) {
+      if (this.errorHandlerService.isForbidden(error)) {
+        this.loggerService.warn({
+          event: "POD_LOGS_COLLECTION_FORBIDDEN",
+          podName: this.podInfo.podName,
+          namespace: this.podInfo.namespace,
+          message: 'Logs collection is forbidden. Ensure the SDL includes permissions: { read: ["logs"] }'
+        });
+        return;
+      }
+      throw error;
+    }
   }
 
   /**
@@ -94,10 +107,10 @@ export class PodLogsCollectorService {
       const writePromise = this.write(logStream);
 
       this.loggerService.info({
+        event: "CONTAINER_LOG_COLLECTION_STARTED",
         podName: this.podInfo.podName,
         namespace: this.podInfo.namespace,
-        containerName,
-        message: "Starting log collection for container"
+        containerName
       });
 
       const k8sPromise = this.startKubernetesLogStream(containerName, logStream, lastTimestamp);
@@ -135,8 +148,8 @@ export class PodLogsCollectorService {
 
           writeStream.on("error", error => {
             this.loggerService.error({
+              event: "WRITE_STREAM_ERROR",
               error,
-              message: "Write stream error during log collection",
               podName: this.podInfo.podName,
               namespace: this.podInfo.namespace
             });
@@ -145,8 +158,8 @@ export class PodLogsCollectorService {
 
           logStream.on("error", error => {
             this.loggerService.error({
+              event: "LOG_STREAM_ERROR",
               error,
-              message: "Log stream error during log collection",
               podName: this.podInfo.podName,
               namespace: this.podInfo.namespace
             });
@@ -172,9 +185,9 @@ export class PodLogsCollectorService {
 
               if (isFirstChunk && lastLogLines.length > 0 && lastLogLines.some(lastLogLine => lastLogLine.line === line)) {
                 this.loggerService.info({
+                  event: "LOG_LINE_DUPLICATE_SKIPPED",
                   podName: this.podInfo.podName,
                   namespace: this.podInfo.namespace,
-                  message: "Skipping duplicate log line",
                   duplicateLine: line.substring(0, 100) + "..."
                 });
                 continue;
