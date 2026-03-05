@@ -16,19 +16,20 @@ import { Factory } from "@src/types/factory.interface";
  * destination service for that pod.
  */
 @singleton()
-export class PodLogsCollectorFactory implements Factory<PodLogsCollectorService, [PodInfo, FileDestinationService]> {
+export class PodLogsCollectorFactory implements Factory<PodLogsCollectorService, [PodInfo, FileDestinationService, AbortSignal]> {
   /**
    * Creates a new PodLogsCollectorService instance
    *
    * @param podInfo - Information about the pod to collect logs from
    * @param fileDestinationService - File destination service for writing logs
+   * @param signal - AbortSignal that fires when the pod disappears
    * @returns A new PodLogsCollectorService instance
    */
-  create(podInfo: PodInfo, fileDestinationService: FileDestinationService): PodLogsCollectorService {
+  create(podInfo: PodInfo, fileDestinationService: FileDestinationService, signal: AbortSignal): PodLogsCollectorService {
     const k8sLogClient = container.resolve(Log);
     const loggerService = container.resolve(LoggerService);
     const errorHandlerService = container.resolve(ErrorHandlerService);
 
-    return new PodLogsCollectorService(podInfo, fileDestinationService, k8sLogClient, errorHandlerService, loggerService);
+    return new PodLogsCollectorService(podInfo, fileDestinationService, k8sLogClient, errorHandlerService, loggerService, signal);
   }
 }
