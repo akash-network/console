@@ -8,18 +8,10 @@ export interface ProviderIdentity {
   hostUri: string;
 }
 
-export type ProviderMtlsAuth = {
-  type: "mtls";
-  certPem: string;
-  keyPem: string;
+export type ProviderAuth = {
+  type: "jwt";
+  token: string;
 };
-
-export type ProviderAuth =
-  | ProviderMtlsAuth
-  | {
-      type: "jwt";
-      token: string;
-    };
 
 export interface ProviderProxyPayload {
   method?: "GET" | "POST" | "PUT" | "DELETE";

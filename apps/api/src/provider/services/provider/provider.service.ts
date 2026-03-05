@@ -1,5 +1,4 @@
-import { Provider, ProviderSnapshotNode, ProviderSnapshotNodeGPU } from "@akashnetwork/database/dbSchemas/akash";
-import { ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash";
+import { Provider, ProviderSnapshot, ProviderSnapshotNode, ProviderSnapshotNodeGPU } from "@akashnetwork/database/dbSchemas/akash";
 import { NetConfig, SupportedChainNetworks } from "@akashnetwork/net";
 import { AxiosError } from "axios";
 import { add } from "date-fns";
@@ -12,7 +11,7 @@ import { BillingConfigService } from "@src/billing/services/billing-config/billi
 import { Memoize } from "@src/caching/helpers";
 import { LeaseStatusResponse } from "@src/deployment/http-schemas/lease.schema";
 import { ProviderRepository } from "@src/provider/repositories/provider/provider.repository";
-import { ProviderAuth, ProviderIdentity, ProviderMtlsAuth, ProviderProxyService } from "@src/provider/services/provider/provider-proxy.service";
+import { ProviderAuth, ProviderIdentity, ProviderProxyService } from "@src/provider/services/provider/provider-proxy.service";
 import { ProviderJwtTokenService } from "@src/provider/services/provider-jwt-token/provider-jwt-token.service";
 import { ProviderList } from "@src/types/provider";
 import { toUTC } from "@src/utils";
@@ -56,26 +55,20 @@ export class ProviderService {
   }
 
   async toProviderAuth(
-    auth: Omit<ProviderMtlsAuth, "type"> | { walletId: number; provider: string },
+    auth: { walletId: number; provider: string },
     scope: Parameters<ProviderJwtTokenService["getGranularLeases"]>[0]["scope"] = ["send-manifest"]
   ): Promise<ProviderAuth> {
-    if ("walletId" in auth) {
-      const result = await this.jwtTokenService.generateJwtToken({
-        walletId: auth.walletId,
-        leases: this.jwtTokenService.getGranularLeases({
-          provider: auth.provider,
-          scope
-        })
-      });
+    const result = await this.jwtTokenService.generateJwtToken({
+      walletId: auth.walletId,
+      leases: this.jwtTokenService.getGranularLeases({
+        provider: auth.provider,
+        scope
+      })
+    });
 
-      return {
-        type: "jwt",
-        token: result.unwrap()
-      };
-    }
     return {
-      type: "mtls",
-      ...auth
+      type: "jwt",
+      token: result.unwrap()
     };
   }
 

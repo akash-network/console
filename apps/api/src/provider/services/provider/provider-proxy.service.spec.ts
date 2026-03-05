@@ -82,9 +82,8 @@ describe(ProviderProxyService.name, () => {
         hostUri: faker.internet.url({ appendSlash: false })
       },
       auth: {
-        type: "mtls",
-        certPem: faker.string.sample(),
-        keyPem: faker.string.sample()
+        type: "jwt",
+        token: faker.string.sample()
       },
       ...overrides
     };

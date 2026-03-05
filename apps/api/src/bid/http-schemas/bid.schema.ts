@@ -114,8 +114,7 @@ export const BidResponseSchema = z.object({
         })
       )
     })
-  }),
-  isCertificateRequired: z.boolean()
+  })
 });
 
 export const ListBidsQuerySchema = z.object({

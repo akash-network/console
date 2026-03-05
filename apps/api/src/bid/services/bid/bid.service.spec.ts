@@ -7,7 +7,6 @@ import type { AuthService } from "@src/auth/services/auth.service";
 import type { UserWalletRepository } from "@src/billing/repositories";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { ProviderRepository } from "@src/provider/repositories/provider/provider.repository";
-import type { ProviderService } from "@src/provider/services/provider/provider.service";
 import { BidService } from "./bid.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
@@ -146,20 +145,18 @@ describe(BidService.name, () => {
     const bidHttpService = mock<BidHttpService>();
     const authService = mock<AuthService>();
     const userWalletRepository = mock<UserWalletRepository>();
-    const providerService = mock<ProviderService>();
     const billingConfig = mockConfigService<BillingConfigService>({
       MANAGED_WALLET_LEASE_ALLOWED_AUDITORS: config.allowedAuditors || []
     });
     const providerRepository = mock<ProviderRepository>();
 
-    const service = new BidService(bidHttpService, authService, userWalletRepository, providerService, billingConfig, providerRepository);
+    const service = new BidService(bidHttpService, authService, userWalletRepository, billingConfig, providerRepository);
 
     return {
       service,
       bidHttpService,
       authService,
       userWalletRepository,
-      providerService,
       billingConfig,
       providerRepository
     };

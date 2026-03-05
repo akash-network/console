@@ -1,10 +1,8 @@
-import { container } from "tsyringe";
+import { z } from "@hono/zod-openapi";
 
 import { createRoute } from "@src/core/lib/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
-import { CertificateController } from "../controllers/certificate.controller";
-import { CreateCertificateResponseSchema } from "../http-schemas/create-certificate.schema";
 
 export const certificateRouter = new OpenApiHonoHandler();
 
@@ -15,17 +13,19 @@ const createCertificateRoute = createRoute({
   tags: ["Certificate"],
   security: SECURITY_BEARER_OR_API_KEY,
   responses: {
-    200: {
-      description: "Certificate created",
+    400: {
+      description: "This endpoint has been removed. mTLS certificates are no longer required as identity is now verified via API key.",
       content: {
         "application/json": {
-          schema: CreateCertificateResponseSchema
+          schema: z.object({
+            error: z.string()
+          })
         }
       }
     }
   }
 });
 certificateRouter.openapi(createCertificateRoute, async function routeCreateCertificate(c) {
-  const result = await container.resolve(CertificateController).create();
-  return c.json(result, 200);
+  const result = { error: "This endpoint has been removed. mTLS certificates are no longer required as identity is now verified via API key." };
+  return c.json(result, 400);
 });
