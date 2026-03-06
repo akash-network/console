@@ -6,7 +6,7 @@ import "../providers/k8s-client.provider";
 import { container } from "tsyringe";
 
 import { PROCESS } from "@src/providers/nodejs-process.provider";
-import { K8sLogCollectorService } from "@src/services/k8s-log-collector/k8s-log-collector.service";
+import { K8sCollectorService } from "@src/services/k8s-collector/k8s-collector.service";
 import { LoggerService } from "@src/services/logger/logger.service";
 
 /**
@@ -29,7 +29,7 @@ export const bootstrap = async (c = container) => {
   loggerService.setContext("INIT");
 
   try {
-    await c.resolve(K8sLogCollectorService).start();
+    await c.resolve(K8sCollectorService).start();
   } catch (error) {
     loggerService.error({ error });
     c.resolve<NodeJS.Process>(PROCESS).exit(1);

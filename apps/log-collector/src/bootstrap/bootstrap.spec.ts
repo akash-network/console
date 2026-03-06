@@ -1,7 +1,7 @@
 import { container } from "tsyringe";
 
 import { PROCESS } from "@src/providers/nodejs-process.provider";
-import { K8sLogCollectorService } from "@src/services/k8s-log-collector/k8s-log-collector.service";
+import { K8sCollectorService } from "@src/services/k8s-collector/k8s-collector.service";
 import { LoggerService } from "@src/services/logger/logger.service";
 import { bootstrap } from "./bootstrap";
 
@@ -30,7 +30,7 @@ describe("bootstrap", () => {
 
   function setup() {
     const loggerService = mockProvider(LoggerService);
-    const logCollectorService = mockProvider(K8sLogCollectorService);
+    const logCollectorService = mockProvider(K8sCollectorService);
     const process = mockProvider<NodeJS.Process>(PROCESS);
 
     logCollectorService.start.mockResolvedValue();

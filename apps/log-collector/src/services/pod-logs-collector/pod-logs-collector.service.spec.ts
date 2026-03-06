@@ -180,17 +180,17 @@ describe(PodLogsCollectorService.name, () => {
   it("should extract timestamp from log line correctly", async () => {
     const { podLogsCollectorService, fileDestination, k8sLogClient } = setup({ containerNames: ["app"] });
     const logLineWithTimestamp = "2024-01-15T10:30:45.123456789Z INFO Application started";
+    const expectedTimestamp = new Date("2024-01-15T10:30:45.123456789Z").getTime();
 
     const mockWriteStream = mock<NodeJS.WritableStream>();
     const mockAbortController = new AbortController();
 
-    fileDestination.getLastLogLines.mockResolvedValue([{ timestamp: new Date("2024-01-15T10:30:45.123456789Z").getTime(), line: logLineWithTimestamp }]);
+    fileDestination.getLastLogLines.mockResolvedValue([{ timestamp: expectedTimestamp, line: logLineWithTimestamp }]);
     fileDestination.createWriteStream.mockResolvedValue(mockWriteStream);
     k8sLogClient.log.mockResolvedValue(mockAbortController);
 
     await podLogsCollectorService.collectPodLogs();
 
-    const expectedTimestamp = new Date("2024-01-15T10:30:45.123456789Z").getTime();
     expect(k8sLogClient.log).toHaveBeenCalledWith(
       "test-namespace",
       "test-pod",
@@ -262,7 +262,56 @@ describe(PodLogsCollectorService.name, () => {
     await expect(podLogsCollectorService.collectPodLogs()).rejects.toThrow("Something went wrong");
   });
 
-  function setup(overrides: { containerNames: string[] } = { containerNames: ["app"] }) {
+  it("should return early when signal is already aborted", async () => {
+    const abortController = new AbortController();
+    abortController.abort();
+
+    const { podLogsCollectorService, fileDestination, k8sLogClient } = setup({
+      containerNames: ["app"],
+      signal: abortController.signal
+    });
+
+    await podLogsCollectorService.collectPodLogs();
+
+    expect(fileDestination.getLastLogLines).not.toHaveBeenCalled();
+    expect(k8sLogClient.log).not.toHaveBeenCalled();
+  });
+
+  it("should abort k8s log stream when signal fires", async () => {
+    const abortController = new AbortController();
+    const { podLogsCollectorService, fileDestination, k8sLogClient } = setup({
+      containerNames: ["app"],
+      signal: abortController.signal
+    });
+
+    const mockWriteStream = mock<NodeJS.WritableStream>();
+    const k8sAbortController = new AbortController();
+    const k8sAbortSpy = jest.spyOn(k8sAbortController, "abort");
+
+    fileDestination.getLastLogLines.mockResolvedValue([]);
+    fileDestination.createWriteStream.mockResolvedValue(mockWriteStream);
+    k8sLogClient.log.mockImplementation((_ns, _pod, _container, _stream) => {
+      return Promise.resolve(k8sAbortController);
+    });
+
+    const collectPromise = podLogsCollectorService.collectPodLogs();
+
+    // Let the stream setup complete
+    await new Promise(resolve => setImmediate(resolve));
+
+    // Abort the signal
+    abortController.abort();
+
+    // Let microtasks settle
+    await new Promise(resolve => setImmediate(resolve));
+
+    expect(k8sAbortSpy).toHaveBeenCalled();
+
+    // The write promise should resolve via the logStream close event
+    await collectPromise;
+  });
+
+  function setup(overrides: { containerNames: string[]; signal?: AbortSignal } = { containerNames: ["app"] }) {
     container.clearInstances();
 
     const podInfo = seedPodInfoTestData({
@@ -277,7 +326,7 @@ describe(PodLogsCollectorService.name, () => {
     errorHandlerService.isForbidden.mockImplementation((error: unknown) => realErrorHandler.isForbidden(error));
     const loggerService = mockProvider(LoggerService);
 
-    const podLogsCollectorService = new PodLogsCollectorService(podInfo, fileDestination, k8sLogClient, errorHandlerService, loggerService);
+    const podLogsCollectorService = new PodLogsCollectorService(podInfo, fileDestination, k8sLogClient, errorHandlerService, loggerService, overrides.signal);
 
     return {
       podLogsCollectorService,

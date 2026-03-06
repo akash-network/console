@@ -1,4 +1,5 @@
 import { CoreV1Api, KubeConfig, V1Pod } from "@kubernetes/client-node";
+import { setTimeout as delay } from "timers/promises";
 import { singleton } from "tsyringe";
 
 import { ConfigService } from "@src/services/config/config.service";
@@ -26,6 +27,8 @@ export interface PodInfo {
   containerNames: string[];
 }
 
+export type PodCallback = (podInfo: PodInfo, signal: AbortSignal) => void;
+
 /**
  * Discovers Kubernetes pods in the current namespace for log collection
  *
@@ -35,6 +38,7 @@ export interface PodInfo {
  * - Mapping Kubernetes pod objects to simplified PodInfo structures
  * - Determining the current namespace from kubeconfig or environment
  * - Providing pod metadata needed for log collection
+ * - Polling for pod changes and notifying via callbacks
  *
  * The service supports namespace override via environment variables
  * and automatically excludes the current pod from discovery to prevent
@@ -42,6 +46,10 @@ export interface PodInfo {
  */
 @singleton()
 export class PodDiscoveryService {
+  private readonly controllers = new Map<string, { ac: AbortController; podInfo: PodInfo }>();
+
+  private namespace?: string;
+
   /**
    * Creates a new PodDiscoveryService instance
    *
@@ -60,14 +68,63 @@ export class PodDiscoveryService {
   }
 
   /**
-   * Discovers all pods in the current namespace, excluding the current pod
+   * Watches for pod changes and invokes callback for each discovered pod.
    *
-   * This method:
-   * 1. Determines the current namespace from config or kubeconfig
-   * 2. Lists all pods in the namespace using the Kubernetes API with optional label filtering
-   * 3. Maps raw pod objects to simplified PodInfo structures
-   * 4. Filters out the current pod to prevent self-collection
-   * 5. Logs discovery statistics
+   * Performs an initial discovery, then enters a polling loop to detect
+   * pod additions and removals. The returned promise stays pending
+   * indefinitely (same contract as the future watch-based implementation).
+   *
+   * @param callback - Called for each discovered pod with an AbortSignal that fires when the pod disappears
+   */
+  async watchPods(callback: PodCallback): Promise<void> {
+    const pods = await this.discoverPodsInNamespace();
+
+    for (const pod of pods) {
+      this.trackPod(pod, callback);
+    }
+
+    await this.startPodWatch(callback);
+  }
+
+  /**
+   * Enters a polling loop that periodically re-lists pods and reconciles
+   * additions/removals against the tracked set. Never resolves normally.
+   *
+   * @param callback - Forwarded to trackPod for newly discovered pods
+   */
+  private async startPodWatch(callback: PodCallback): Promise<void> {
+    const pollInterval = this.config.get("POD_POLL_INTERVAL_MS");
+    const ALWAYS_TRUE_TO_RUN_INDEFINITELY = true;
+
+    while (ALWAYS_TRUE_TO_RUN_INDEFINITELY) {
+      await delay(pollInterval);
+
+      try {
+        const currentPods = await this.discoverPodsInNamespace();
+        const currentPodNames = new Set(currentPods.map(p => p.podName));
+
+        for (const pod of currentPods) {
+          if (!this.controllers.has(pod.podName)) {
+            this.trackPod(pod, callback);
+          }
+        }
+
+        for (const [podName, { podInfo }] of this.controllers) {
+          if (!currentPodNames.has(podName)) {
+            this.untrackPod(podInfo);
+          }
+        }
+      } catch (error) {
+        this.loggerService.error({
+          event: "POD_POLL_ERROR",
+          error
+        });
+      }
+    }
+  }
+
+  /**
+   * Discovers all pods in the current namespace, excluding the current pod
    *
    * @returns Promise that resolves to an array of PodInfo objects for discovered pods
    * @throws Error if namespace cannot be determined or Kubernetes API calls fail
@@ -82,15 +139,16 @@ export class PodDiscoveryService {
       labelSelector: this.config.get("POD_LABEL_SELECTOR")
     });
 
-    const pods = podsRaw.map(pod => this.mapPodToInfo(pod, namespace));
-
     const currentPodName = this.config.get("HOSTNAME");
+    const pods = podsRaw.filter(pod => this.isPodReady(pod)).map(pod => this.mapPodToInfo(pod, namespace));
+
     const targetPods = this.filterOutPodsFromSameDeployment(pods, currentPodName);
 
     this.loggerService.info({
       event: "POD_DISCOVERY_COMPLETED",
       namespace,
-      totalPods: pods.length,
+      totalPods: podsRaw.length,
+      readyPods: pods.length,
       targetPods: targetPods.length,
       currentPodName
     });
@@ -99,21 +157,100 @@ export class PodDiscoveryService {
   }
 
   /**
+   * Starts tracking a pod by creating an AbortController and invoking the callback.
+   *
+   * @param podInfo - The pod to track
+   * @param callback - Called with the pod info and an AbortSignal tied to this pod's lifecycle
+   */
+  private trackPod(podInfo: PodInfo, callback: PodCallback): void {
+    const ac = new AbortController();
+    this.controllers.set(podInfo.podName, { ac, podInfo });
+    this.loggerService.info({
+      event: "POD_READY",
+      podName: podInfo.podName,
+      namespace: podInfo.namespace
+    });
+    callback(podInfo, ac.signal);
+  }
+
+  /**
+   * Stops tracking a pod by aborting its signal and removing it from the map.
+   *
+   * @param podInfo - The pod to untrack
+   */
+  private untrackPod(podInfo: PodInfo): void {
+    const entry = this.controllers.get(podInfo.podName);
+    if (entry) {
+      this.loggerService.info({
+        event: "POD_DELETED",
+        podName: podInfo.podName,
+        namespace: podInfo.namespace
+      });
+      entry.ac.abort();
+      this.controllers.delete(podInfo.podName);
+    }
+  }
+
+  /**
+   * Checks if a pod has a Ready condition set to True.
+   */
+  private isPodReady(pod: V1Pod): boolean {
+    return pod.status?.conditions?.some(c => c.type === "Ready" && c.status === "True") ?? false;
+  }
+
+  /**
+   * Checks whether a pod name belongs to the same deployment as the current pod.
+   *
+   * @param podName - Name of the pod to check
+   * @param currentPodName - Name of the current pod
+   * @returns true if the pod belongs to the same deployment
+   */
+  private isPodFromSameDeployment(podName: string, currentPodName: string): boolean {
+    const currentParts = currentPodName.split("-");
+    if (currentParts.length < 3) return false;
+    const currentDeployment = currentParts.slice(0, -2).join("-");
+
+    const podParts = podName.split("-");
+    if (podParts.length < 3) return false;
+    const podDeployment = podParts.slice(0, -2).join("-");
+
+    return podDeployment === currentDeployment;
+  }
+
+  /**
+   * Filters out all pods from the same deployment as the current pod.
+   *
+   * @param pods - Array of discovered pods
+   * @param currentPodName - Name of the current pod
+   * @returns Array of pods excluding all pods from the same deployment
+   */
+  private filterOutPodsFromSameDeployment(pods: PodInfo[], currentPodName: string): PodInfo[] {
+    return pods.filter(pod => !this.isPodFromSameDeployment(pod.podName, currentPodName));
+  }
+
+  /**
    * Determines the current namespace for pod discovery
    *
-   * Checks for a namespace override in configuration first, then falls back
-   * to extracting the namespace from the current Kubernetes context.
+   * Uses a cached value if available, then checks for a namespace override
+   * in configuration, and falls back to extracting the namespace from
+   * the current Kubernetes context.
    *
    * @returns The namespace to discover pods in
    * @throws Error if namespace cannot be determined from config or kubeconfig
    */
   private getCurrentNamespace(): string {
-    const overrideNamespace = this.config.get("KUBERNETES_NAMESPACE_OVERRIDE");
-    if (overrideNamespace) {
-      return overrideNamespace;
+    if (this.namespace) {
+      return this.namespace;
     }
 
-    return this.getNamespaceFromKubeConfig();
+    const overrideNamespace = this.config.get("KUBERNETES_NAMESPACE_OVERRIDE");
+    if (overrideNamespace) {
+      this.namespace = overrideNamespace;
+      return this.namespace;
+    }
+
+    this.namespace = this.getNamespaceFromKubeConfig();
+    return this.namespace;
   }
 
   /**
@@ -151,10 +288,6 @@ export class PodDiscoveryService {
   /**
    * Maps a Kubernetes V1Pod object to a simplified PodInfo structure
    *
-   * Extracts relevant information from the raw Kubernetes pod object
-   * and creates a simplified structure containing only the data needed
-   * for log collection operations.
-   *
    * @param pod - The raw Kubernetes pod object
    * @param namespace - The namespace the pod belongs to
    * @returns A PodInfo object with extracted pod information
@@ -170,31 +303,5 @@ export class PodDiscoveryService {
       annotations: pod.metadata?.annotations || {},
       containerNames: pod.spec?.containers?.map(container => container.name) ?? []
     };
-  }
-
-  /**
-   * Filters out all pods from the same deployment as the current pod
-   *
-   * Extracts the deployment name from the current pod name by removing the last two parts
-   * (which typically represent the deployment ID and replica ID). Then filters out all pods
-   * that start with that deployment name to prevent the log collector from collecting logs
-   * from other pods in the same deployment.
-   *
-   * For example:
-   * - "log-collector-6bdb59678c-w9jww" -> extracts "log-collector" -> excludes all "log-collector-*" pods
-   * - "web-78d5c9c5b-hxqxs" -> extracts "web" -> excludes all "web-*" pods
-   *
-   * @param pods - Array of discovered pods
-   * @param currentPodName - Name of the current pod
-   * @returns Array of pods excluding all pods from the same deployment
-   */
-  private filterOutPodsFromSameDeployment(pods: PodInfo[], currentPodName: string): PodInfo[] {
-    const parts = currentPodName.split("-");
-
-    if (parts.length < 3) return pods;
-
-    const deploymentName = parts.slice(0, -2).join("-");
-
-    return pods.filter(pod => !pod.podName.startsWith(deploymentName + "-"));
   }
 }
