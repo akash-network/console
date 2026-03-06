@@ -13,7 +13,6 @@ import type { JobPayload } from "../../../core";
 import { WalletBalanceReloadCheckHandler } from "./wallet-balance-reload-check.handler";
 import type { WalletBalanceReloadCheckInstrumentationService } from "./wallet-balance-reload-check-instrumentation.service";
 
-import { generateBalance } from "@test/seeders/balance.seeder";
 import { generateMergedPaymentMethod as generatePaymentMethod } from "@test/seeders/payment-method.seeder";
 import { UserSeeder } from "@test/seeders/user.seeder";
 import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
@@ -32,7 +31,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       const expectedReloadAmount = 40.0; // max(50 - 10, 20) = 40
 
       const { handler, drainingDeploymentService, stripeService, instrumentationService, walletReloadJobService, job, jobMeta } = setup({
-        balance: { total: balance },
+        balance,
         weeklyCostInDenom: costUntilTargetDateInDenom,
         weeklyCostInFiat: costUntilTargetDateInFiat
       });
@@ -95,7 +94,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       const expectedReloadAmount = 20.0; // max(20 - 4, 20) = 20
 
       const { handler, stripeService, job, jobMeta } = setup({
-        balance: { total: balance },
+        balance,
         weeklyCostInDenom: costUntilTargetDateInDenom,
         weeklyCostInFiat: costUntilTargetDateInFiat
       });
@@ -121,7 +120,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       const costUntilTargetDateInFiat = 50.0;
 
       const { handler, stripeService, instrumentationService, job, jobMeta } = setup({
-        balance: { total: balance },
+        balance,
         weeklyCostInDenom: costUntilTargetDateInDenom,
         weeklyCostInFiat: costUntilTargetDateInFiat
       });
@@ -150,7 +149,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       const costUntilTargetDateInFiat = 50.0;
 
       const { handler, stripeService, instrumentationService, job, jobMeta } = setup({
-        balance: { total: balance },
+        balance,
         weeklyCostInDenom: costUntilTargetDateInDenom,
         weeklyCostInFiat: costUntilTargetDateInFiat
       });
@@ -177,7 +176,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       const weeklyCostInFiat = 50.0;
 
       const { handler, walletReloadJobService, walletSetting, job, jobMeta } = setup({
-        balance: { total: balance },
+        balance,
         weeklyCostInDenom,
         weeklyCostInFiat
       });
@@ -203,7 +202,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       const error = new Error("Failed to schedule");
 
       const { handler, walletReloadJobService, instrumentationService, job, jobMeta } = setup({
-        balance: { total: balance },
+        balance,
         weeklyCostInDenom,
         weeklyCostInFiat
       });
@@ -292,7 +291,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       const balance = 15.0;
 
       const { handler, instrumentationService, stripeService, job, jobMeta } = setup({
-        balance: { total: balance }
+        balance
       });
       stripeService.getDefaultPaymentMethod.mockResolvedValue(undefined);
 
@@ -310,7 +309,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
   });
 
   function setup(input?: {
-    balance?: { total: number };
+    balance?: number;
     weeklyCostInDenom?: number;
     weeklyCostInFiat?: number;
     jobId?: string | null;
@@ -365,7 +364,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       recordSchedulingError: jest.fn()
     });
 
-    const balance = input?.balance ?? { total: 50.0 };
+    const balance = input?.balance ?? 50.0;
     const weeklyCostInDenom = input?.weeklyCostInDenom ?? 50_000_000;
     const weeklyCostInFiat = input?.weeklyCostInFiat ?? 50.0;
     const jobId = input?.jobId ?? faker.string.uuid();
@@ -377,7 +376,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     }
 
     if (!input?.walletSettingNotFound && userWithStripe.stripeCustomerId) {
-      balancesService.getFullBalanceInFiat.mockResolvedValue(generateBalance(balance));
+      balancesService.getDeploymentBalanceInFiat.mockResolvedValue(balance);
       balancesService.toFiatAmount.mockResolvedValue(weeklyCostInFiat);
       drainingDeploymentService.calculateAllDeploymentCostUntilDate.mockResolvedValue(weeklyCostInDenom);
       stripeService.getDefaultPaymentMethod.mockResolvedValue(generatePaymentMethod());
