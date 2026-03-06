@@ -5,9 +5,9 @@ import { CheckCircle, WarningCircle } from "iconoir-react";
 
 import { useWallet } from "@src/context/WalletProvider";
 import { useChainParam } from "@src/hooks/useChainParam/useChainParam";
+import { useSupportsACT } from "@src/hooks/useSupportsACT/useSupportsACT";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
 import { denomToUdenom } from "@src/utils/mathHelpers";
-import { aktToUakt } from "@src/utils/priceUtils";
 import { ConnectWallet } from "./ConnectWallet";
 import { Title } from "./Title";
 
@@ -22,16 +22,20 @@ export const PrerequisiteList: React.FunctionComponent<Props> = ({ onClose, onCo
   const { address, isManaged } = useWallet();
   const { balance: walletBalance } = useWalletBalance();
   const { minDeposit } = useChainParam();
+  const isACTSupported = useSupportsACT();
 
   useEffect(() => {
     if (isManaged) {
       onContinue();
     }
 
-    if (address && (minDeposit.akt || minDeposit.usdc) && !!walletBalance) {
+    if (address && (minDeposit.akt || minDeposit.usdc || minDeposit.act) && !!walletBalance) {
       setIsLoadingPrerequisites(true);
 
-      const isBalanceValidated = walletBalance.balanceUAKT >= aktToUakt(minDeposit.akt) || walletBalance.balanceUUSDC >= denomToUdenom(minDeposit.usdc);
+      const isBalanceValidated =
+        walletBalance.balanceUAKT >= denomToUdenom(minDeposit.akt) ||
+        (!isACTSupported && walletBalance.balanceUUSDC >= denomToUdenom(minDeposit.usdc)) ||
+        walletBalance.balanceUACT >= denomToUdenom(minDeposit.act);
 
       setIsBalanceValidated(isBalanceValidated);
       setIsLoadingPrerequisites(false);
@@ -41,7 +45,16 @@ export const PrerequisiteList: React.FunctionComponent<Props> = ({ onClose, onCo
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [address, walletBalance?.balanceUAKT, walletBalance?.balanceUUSDC, minDeposit.akt, minDeposit.usdc, isManaged]);
+  }, [
+    address,
+    walletBalance?.balanceUAKT,
+    walletBalance?.balanceUUSDC,
+    walletBalance?.balanceUACT,
+    minDeposit.akt,
+    minDeposit.usdc,
+    minDeposit.act,
+    isManaged
+  ]);
 
   return (
     <Popup
@@ -89,7 +102,9 @@ export const PrerequisiteList: React.FunctionComponent<Props> = ({ onClose, onCo
                     Wallet Balance
                   </Title>
                   <p className="text-sm text-muted-foreground">
-                    The balance of the wallet needs to be of at least {minDeposit.akt} AKT or {minDeposit.usdc} USDC to create a deployment.
+                    {isACTSupported
+                      ? `The balance of the wallet needs to be of at least ${minDeposit.act} ACT or ${minDeposit.akt} AKT to create a deployment.`
+                      : `The balance of the wallet needs to be of at least ${minDeposit.akt} AKT or ${minDeposit.usdc} USDC to create a deployment.`}
                   </p>
                 </div>
               </li>

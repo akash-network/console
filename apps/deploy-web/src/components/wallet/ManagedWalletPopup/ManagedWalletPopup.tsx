@@ -9,17 +9,33 @@ import { useWallet } from "@src/context/WalletProvider";
 import { useManagedEscrowFaqModal } from "@src/hooks/useManagedEscrowFaqModal";
 import type { WalletBalance } from "@src/hooks/useWalletBalance";
 import { UrlService } from "@src/utils/urlUtils";
-import { LinkTo } from "../shared/LinkTo";
-import { AddFundsLink } from "../user/AddFundsLink";
+import { LinkTo } from "../../shared/LinkTo";
+import { AddFundsLink } from "../../user/AddFundsLink";
 
 interface ManagedWalletPopupProps extends React.PropsWithChildren {
   walletBalance?: WalletBalance | null;
+  dependencies?: typeof DEPENDENCIES;
 }
 
-export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBalance }) => {
-  const { isManaged, isTrialing, switchWalletType } = useWallet();
-  const { showManagedEscrowFaqModal } = useManagedEscrowFaqModal();
-  const { connect, isWalletConnected } = useSelectedChain();
+export const DEPENDENCIES = {
+  Card,
+  CardContent,
+  Separator,
+  Button,
+  LinkTo,
+  AddFundsLink,
+  CoinsSwap,
+  HandCard,
+  FormattedNumber,
+  useWallet,
+  useManagedEscrowFaqModal,
+  useSelectedChain
+};
+
+export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBalance, dependencies: d = DEPENDENCIES }) => {
+  const { isManaged, isTrialing, switchWalletType } = d.useWallet();
+  const { showManagedEscrowFaqModal } = d.useManagedEscrowFaqModal();
+  const { connect, isWalletConnected } = d.useSelectedChain();
 
   return (
     <div className="w-[300px] p-2">
@@ -28,13 +44,13 @@ export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBa
           <p className="text-center">Free Trial</p>
         </div>
       )}
-      <Card>
+      <d.Card>
         {walletBalance ? (
-          <CardContent className="space-y-2 p-4">
+          <d.CardContent className="space-y-2 p-4">
             <div className="flex items-center justify-between space-x-2">
               <span className="text-xs">Credits Remaining:</span>
               <span>
-                <FormattedNumber
+                <d.FormattedNumber
                   value={walletBalance.totalDeploymentGrantsUSD}
                   // eslint-disable-next-line react/style-prop-object
                   style="currency"
@@ -43,12 +59,12 @@ export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBa
               </span>
             </div>
 
-            <Separator />
+            <d.Separator />
 
             <div className="flex items-center justify-between space-x-2">
               <span className="text-xs">Deposits:</span>
               <span>
-                <FormattedNumber
+                <d.FormattedNumber
                   value={walletBalance.totalDeploymentEscrowUSD}
                   // eslint-disable-next-line react/style-prop-object
                   style="currency"
@@ -56,15 +72,15 @@ export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBa
                 />
               </span>
             </div>
-          </CardContent>
+          </d.CardContent>
         ) : (
-          <CardContent className="p-4 text-xs">Wallet Balance is unknown because the blockchain is unavailable</CardContent>
+          <d.CardContent className="p-4 text-xs">Wallet Balance is unknown because the blockchain is unavailable</d.CardContent>
         )}
-      </Card>
+      </d.Card>
       <div className="mb-2 mt-1 flex items-center justify-end">
-        <LinkTo className="text-xs text-foreground no-underline" onClick={() => showManagedEscrowFaqModal()}>
+        <d.LinkTo className="text-xs text-foreground no-underline" onClick={() => showManagedEscrowFaqModal()}>
           What's this?
-        </LinkTo>
+        </d.LinkTo>
       </div>
 
       {isManaged && isTrialing && (
@@ -75,15 +91,15 @@ export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBa
       )}
 
       <div className="flex flex-col items-center justify-end space-y-2 pt-2">
-        <AddFundsLink className={cn("w-full space-x-2 hover:no-underline", buttonVariants({ variant: "default" }))} href={UrlService.payment()}>
-          <HandCard className="text-xs" />
+        <d.AddFundsLink className={cn("w-full space-x-2 hover:no-underline", buttonVariants({ variant: "default" }))} href={UrlService.payment()}>
+          <d.HandCard className="text-xs" />
           <span className="whitespace-nowrap">Add Funds</span>
-        </AddFundsLink>
-        <Separator className="my-2 bg-secondary/90 dark:bg-white/10" />
-        <Button onClick={isWalletConnected ? switchWalletType : connect} variant="outline" className="w-full space-x-2">
-          <CoinsSwap />
+        </d.AddFundsLink>
+        <d.Separator className="my-2 bg-secondary/90 dark:bg-white/10" />
+        <d.Button onClick={isWalletConnected ? switchWalletType : connect} variant="outline" className="w-full space-x-2">
+          <d.CoinsSwap />
           <span>Switch to Wallet Payments</span>
-        </Button>
+        </d.Button>
       </div>
     </div>
   );
