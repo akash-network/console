@@ -1,7 +1,7 @@
 import { and, desc, eq, isNotNull } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
-import { UserWallets } from "@src/billing/model-schemas";
+import { UserWallets, WalletSetting } from "@src/billing/model-schemas";
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
 import { TxService } from "@src/core/services";
@@ -20,6 +20,7 @@ export type AutoTopUpDeployment = {
   walletId: number;
   dseq: string;
   address: string;
+  isWalletAutoTopUpEnabled: boolean;
 };
 
 @singleton()
@@ -72,11 +73,13 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
         id: this.table.id,
         dseq: this.table.dseq,
         walletId: UserWallets.id,
-        address: UserWallets.address
+        address: UserWallets.address,
+        isWalletAutoTopUpEnabled: WalletSetting.autoReloadEnabled
       })
       .from(this.table)
       .leftJoin(Users, eq(this.table.userId, Users.id))
       .innerJoin(UserWallets, eq(Users.id, UserWallets.userId))
+      .leftJoin(WalletSetting, eq(UserWallets.id, WalletSetting.walletId))
       .where(and(...clauses))
       .orderBy(desc(this.table.id));
 
