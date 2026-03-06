@@ -9,7 +9,7 @@ export const browserEnvSchema = z.object({
   NEXT_PUBLIC_USDC_TOP_UP_MASTER_WALLET_ADDRESS: z.string(),
   NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID: networkId.optional().default("mainnet"),
   NEXT_PUBLIC_DEFAULT_NETWORK_ID: networkId.optional().default("mainnet"),
-  NEXT_PUBLIC_MANAGED_WALLET_DENOM: z.enum(["uakt", "usdc"]).optional().default("usdc"),
+  NEXT_PUBLIC_MANAGED_WALLET_DENOM: z.enum(["uakt", "usdc", "uact"]).optional().default("usdc"),
   NEXT_PUBLIC_API_BASE_URL: z.string(),
   NEXT_PUBLIC_STATS_APP_URL: z.string().url(),
   NEXT_PUBLIC_PROVIDER_PROXY_URL: z.string(),

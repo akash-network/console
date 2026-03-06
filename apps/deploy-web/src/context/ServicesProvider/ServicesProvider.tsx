@@ -2,7 +2,7 @@ import React, { useContext, useMemo } from "react";
 import type { NetworkId } from "@akashnetwork/chain-sdk";
 import { AuthzHttpService, CertificatesService } from "@akashnetwork/http-sdk";
 
-import { UAKT_DENOM, USDC_IBC_DENOMS } from "@src/config/denom.config";
+import { UACT_DENOM, UAKT_DENOM, USDC_IBC_DENOMS } from "@src/config/denom.config";
 import { services as rootContainer } from "@src/services/app-di-container/browser-di-container";
 import type { DIContainer, Factories } from "@src/services/container/createContainer";
 import { createChildContainer } from "@src/services/container/createContainer";
@@ -41,6 +41,7 @@ function createAppContainer<T extends Factories>(settingsState: SettingsContextT
     walletBalancesService: () =>
       new WalletBalancesService(di.authzHttpService, di.chainApiHttpClient, {
         uakt: UAKT_DENOM,
+        uact: UACT_DENOM,
         usdc: USDC_IBC_DENOMS[rootContainer.networkStore.selectedNetworkId as NetworkId]
       }),
     certificatesService: () => new CertificatesService(di.chainApiHttpClient),

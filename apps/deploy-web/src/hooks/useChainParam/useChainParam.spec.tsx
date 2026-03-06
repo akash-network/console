@@ -12,20 +12,21 @@ describe(useChainParam.name, () => {
   it("returns zeros when deposit params are undefined", () => {
     const { result } = setup({ depositParams: undefined });
 
-    expect(result.current.minDeposit).toEqual({ akt: 0, usdc: 0 });
+    expect(result.current.minDeposit).toEqual({ akt: 0, usdc: 0, act: 0 });
   });
 
-  it("converts uakt and usdc amounts", () => {
+  it("converts udenoms amounts to denom amounts", () => {
     const usdcDenom = "ibc/uusdc";
     const { result } = setup({
       usdcDenom,
       depositParams: [
-        { denom: "uakt", amount: "1234567" },
-        { denom: usdcDenom, amount: "2500000" }
+        { denom: "uakt", amount: "1234000" },
+        { denom: usdcDenom, amount: "2500000" },
+        { denom: "uact", amount: "5000000" }
       ]
     });
 
-    expect(result.current.minDeposit).toEqual({ akt: 1.235, usdc: 2.5 });
+    expect(result.current.minDeposit).toEqual({ akt: 1.234, usdc: 2.5, act: 5 });
   });
 
   it("returns 0 for missing denom", () => {
@@ -35,7 +36,7 @@ describe(useChainParam.name, () => {
       depositParams: [{ denom: usdcDenom, amount: "2500000" }]
     });
 
-    expect(result.current.minDeposit).toEqual({ akt: 0, usdc: 2.5 });
+    expect(result.current.minDeposit).toEqual({ akt: 0, act: 0, usdc: 2.5 });
   });
 
   it("passes enabled=false to useDepositParams when settings are not initialized", () => {
