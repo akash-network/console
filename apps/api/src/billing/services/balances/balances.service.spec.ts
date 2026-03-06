@@ -69,7 +69,20 @@ describe(BalancesService.name, () => {
     });
   });
 
-  function setup(input?: { limitsUpdate?: Partial<UserWalletInput> }) {
+  describe("getDeploymentBalanceInFiat", () => {
+    it("returns deployment limit converted to fiat", async () => {
+      const deploymentLimit = 50_000_000;
+      const expectedFiat = 50.0;
+      const address = "akash1test";
+      const { service } = setup({ deploymentLimit, fiatAmount: expectedFiat });
+
+      const result = await service.getDeploymentBalanceInFiat(address);
+
+      expect(result).toBe(expectedFiat);
+    });
+  });
+
+  function setup(input?: { limitsUpdate?: Partial<UserWalletInput>; deploymentLimit?: number; fiatAmount?: number }) {
     const billingConfig = mock<BillingConfig>();
     const userWalletRepository = mock<UserWalletRepository>();
     const txManagerService = mock<TxManagerService>();
@@ -80,6 +93,14 @@ describe(BalancesService.name, () => {
     const service = new BalancesService(billingConfig, userWalletRepository, txManagerService, authzHttpService, deploymentHttpService, statsService);
 
     vi.spyOn(service, "getFreshLimitsUpdate").mockResolvedValue(input?.limitsUpdate ?? {});
+
+    if (input?.deploymentLimit !== undefined) {
+      vi.spyOn(service, "retrieveDeploymentLimit").mockResolvedValue(input.deploymentLimit);
+    }
+
+    if (input?.fiatAmount !== undefined) {
+      vi.spyOn(service, "toFiatAmount").mockResolvedValue(input.fiatAmount);
+    }
 
     return { service, userWalletRepository };
   }

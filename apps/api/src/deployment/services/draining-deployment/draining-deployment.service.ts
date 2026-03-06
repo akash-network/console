@@ -126,12 +126,14 @@ export class DrainingDeploymentService {
   }
 
   /**
-   * Calculates the total cost for all deployments that would close before the target date.
-   * This is based on each deployment's block rate and the number of blocks needed to keep them running until the target date.
+   * Calculates the unfunded cost for all deployments that would close before the target date.
+   * For each draining deployment, computes the cost from its predicted close height (when escrow runs out)
+   * to the target height — i.e. only the portion not already covered by escrow.
+   * Deployments whose escrow lasts beyond the target date are excluded (they don't need additional funding).
    *
    * @param address - The address to calculate the deployment costs for
    * @param targetDate - The target date to calculate the costs until and till which deployments would close
-   * @returns The total cost (in credits) needed to keep all draining deployments running until the target date
+   * @returns The unfunded cost (in credits) needed to keep all draining deployments running until the target date
    */
   async calculateAllDeploymentCostUntilDate(address: string, targetDate: Date): Promise<number> {
     const deploymentSettings = await this.#findAutoTopUpDeploymentSettings(address);
@@ -149,7 +151,7 @@ export class DrainingDeploymentService {
 
     return await this.#accumulateDeploymentCost(drainingDeployments, ({ predictedClosedHeight, blockRate }) => {
       if (predictedClosedHeight && predictedClosedHeight >= currentHeight && predictedClosedHeight <= targetHeight) {
-        const blocksNeeded = targetHeight - currentHeight;
+        const blocksNeeded = targetHeight - predictedClosedHeight;
         return Math.floor(blockRate * blocksNeeded);
       }
       return 0;

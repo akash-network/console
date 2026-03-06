@@ -18,6 +18,7 @@ export class TopUpManagedDeploymentsInstrumentationService {
   private readonly deploymentsMarkedClosed: Counter;
   private readonly depositAmount: Histogram;
   private readonly predictedCloseBlocks: Histogram;
+  private readonly insufficientBalanceWithAutoReload: Counter;
   private readonly settingToggles: Counter;
   private startTime: number | undefined;
   private options: DryRunOptions | undefined;
@@ -63,6 +64,10 @@ export class TopUpManagedDeploymentsInstrumentationService {
 
     this.predictedCloseBlocks = this.metricsService.createHistogram(this.meter, "auto_top_up_predicted_close_blocks", {
       description: "Number of blocks until predicted closure at detection time"
+    });
+
+    this.insufficientBalanceWithAutoReload = this.metricsService.createCounter(this.meter, "auto_top_up_insufficient_balance_with_auto_reload_total", {
+      description: "Total number of insufficient balance errors where wallet auto-reload is enabled"
     });
 
     this.settingToggles = this.metricsService.createCounter(this.meter, "auto_top_up_setting_toggles_total", {
@@ -170,6 +175,10 @@ export class TopUpManagedDeploymentsInstrumentationService {
 
       this.execWhenEnabled(() => {
         this.messagePreparationErrors.add(1, { error_type: "insufficient_balance" });
+
+        if (errorDetails.deployment.isWalletAutoTopUpEnabled) {
+          this.insufficientBalanceWithAutoReload.add(1);
+        }
       });
     } else {
       this.topUpSummarizer.inc("deploymentTopUpErrorCount");
