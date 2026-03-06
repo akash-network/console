@@ -111,10 +111,10 @@ export async function cacheResponse<T>(seconds: number, key: string, refreshRequ
   return await pendingRequest;
 }
 
-export function memoizeAsync<T extends (...args: unknown[]) => Promise<unknown>>(fn: T): T {
-  const cache = new LRUCache<string, ReturnType<T>>({ max: 100 });
+export function memoizeAsync<A extends unknown[], R>(fn: (...args: A) => Promise<R>, options?: { cacheItemLimit: number }): (...args: A) => Promise<R> {
+  const cache = new LRUCache<string, Promise<R>>({ max: options?.cacheItemLimit ?? 100 });
 
-  return ((...args: Parameters<T>) => {
+  return (...args: A) => {
     const key = JSON.stringify(args);
 
     const cached = cache.get(key);
@@ -122,7 +122,7 @@ export function memoizeAsync<T extends (...args: unknown[]) => Promise<unknown>>
       return cached;
     }
 
-    const promise = fn(...args) as ReturnType<T>;
+    const promise = fn(...args);
 
     promise.catch(() => {
       cache.delete(key);
@@ -130,7 +130,7 @@ export function memoizeAsync<T extends (...args: unknown[]) => Promise<unknown>>
 
     cache.set(key, promise);
     return promise;
-  }) as unknown as T;
+  };
 }
 
 export const cacheKeys = {
