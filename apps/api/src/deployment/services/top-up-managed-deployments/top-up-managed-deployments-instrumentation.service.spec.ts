@@ -1,6 +1,7 @@
 import "@test/mocks/logger-service.mock";
 
 import { faker } from "@faker-js/faker";
+import type { Counter } from "@opentelemetry/api";
 import { mock } from "vitest-mock-extended";
 
 import type { LoggerService, MetricsService } from "@src/core";
@@ -85,6 +86,26 @@ describe(TopUpManagedDeploymentsInstrumentationService.name, () => {
       expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "MESSAGE_PREPARATION_ERROR" }));
     });
 
+    it("increments auto-reload counter when insufficient balance and wallet auto-reload is enabled", () => {
+      const { service, countersByName } = setup();
+      service.start(100, { dryRun: false });
+      const deployment = createDrainingDeployment({ isWalletAutoTopUpEnabled: true });
+
+      service.recordMessagePreparationError({ deployment, error: new Error("Insufficient balance for address") });
+
+      expect(countersByName["auto_top_up_insufficient_balance_with_auto_reload_total"]?.add).toHaveBeenCalledWith(1);
+    });
+
+    it("does not increment auto-reload counter when insufficient balance and wallet auto-reload is disabled", () => {
+      const { service, countersByName } = setup();
+      service.start(100, { dryRun: false });
+      const deployment = createDrainingDeployment({ isWalletAutoTopUpEnabled: false });
+
+      service.recordMessagePreparationError({ deployment, error: new Error("Insufficient balance for address") });
+
+      expect(countersByName["auto_top_up_insufficient_balance_with_auto_reload_total"]?.add).not.toHaveBeenCalled();
+    });
+
     it("tracks other errors as deployment errors", () => {
       const { service, logger, summarizer } = setup();
       service.start(100, { dryRun: false });
@@ -152,10 +173,10 @@ describe(TopUpManagedDeploymentsInstrumentationService.name, () => {
     });
   });
 
-  function createDrainingDeployment(): DrainingDeployment {
-    const base = AutoTopUpDeploymentSeeder.create();
+  function createDrainingDeployment(overrides?: Partial<DrainingDeployment>): DrainingDeployment {
+    const base = AutoTopUpDeploymentSeeder.create(overrides);
     const extra = DrainingDeploymentSeeder.create({ dseq: Number(base.dseq), owner: base.address });
-    return { ...base, ...extra, dseq: base.dseq } as DrainingDeployment;
+    return { ...base, ...extra, dseq: base.dseq, ...overrides } as DrainingDeployment;
   }
 
   function createDepositDetails() {
@@ -178,9 +199,14 @@ describe(TopUpManagedDeploymentsInstrumentationService.name, () => {
   }
 
   function setup() {
+    const countersByName: Record<string, Counter> = {};
     const metricsService = mock<MetricsService>();
     metricsService.getMeter.mockReturnValue(mock());
-    metricsService.createCounter.mockReturnValue(mock());
+    metricsService.createCounter.mockImplementation((_meter, name) => {
+      const counter = mock<Counter>();
+      countersByName[name] = counter;
+      return counter;
+    });
     metricsService.createHistogram.mockReturnValue(mock());
 
     const summarizer = new TopUpSummarizer();
@@ -188,6 +214,6 @@ describe(TopUpManagedDeploymentsInstrumentationService.name, () => {
 
     const service = new TopUpManagedDeploymentsInstrumentationService(metricsService, summarizer, logger);
 
-    return { service, metricsService, summarizer, logger };
+    return { service, metricsService, countersByName, summarizer, logger };
   }
 });

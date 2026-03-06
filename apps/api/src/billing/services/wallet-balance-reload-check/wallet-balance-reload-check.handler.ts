@@ -93,9 +93,9 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
       return paymentMethod;
     }
 
-    const balance = await this.balancesService.getFullBalanceInFiat(wallet.address);
+    const balance = await this.balancesService.getDeploymentBalanceInFiat(wallet.address);
 
-    return Ok({ ...walletResult.val, paymentMethod: paymentMethod.val, balance: balance.total });
+    return Ok({ ...walletResult.val, paymentMethod: paymentMethod.val, balance });
   }
 
   async #getValidWalletResources(userId: JobPayload<WalletBalanceReloadCheck>["userId"]): Promise<Result<Resources, ValidationError>> {

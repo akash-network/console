@@ -120,19 +120,9 @@ export class BalancesService {
     };
   }
 
-  @Memoize({ ttlInSeconds: averageBlockTime })
-  async getFullBalanceInFiatMemoized(address: string): Promise<GetBalancesResponseOutput["data"]> {
-    return this.getFullBalanceInFiat(address);
-  }
-
-  async getFullBalanceInFiat(address: string): Promise<GetBalancesResponseOutput["data"]> {
-    const { data } = await this.getFullBalance(address);
-
-    const balance = await this.toFiatAmount(data.balance);
-    const deployments = await this.toFiatAmount(data.deployments);
-    const total = this.ensure2floatingDigits(balance + deployments);
-
-    return { balance, deployments, total };
+  async getDeploymentBalanceInFiat(address: string): Promise<number> {
+    const { deployment } = await this.getFreshLimits({ address });
+    return await this.toFiatAmount(deployment);
   }
 
   async toFiatAmount(uTokenAmount: number) {

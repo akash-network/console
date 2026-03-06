@@ -409,7 +409,10 @@ describe(DrainingDeploymentService.name, () => {
           deployments
         });
         const expectedTargetHeight = 1100800;
-        const expectedTotal = 12600000;
+        // Cost = sum of blockRate × (targetHeight - predictedClosedHeight) for each deployment
+        // Deployment 1: 50 × (1100800 - 1000100) = 50 × 100700 = 5035000
+        // Deployment 2: 75 × (1100800 - 1000200) = 75 × 100600 = 7545000
+        const expectedTotal = 5035000 + 7545000;
 
         const result = await service.calculateAllDeploymentCostUntilDate(address, targetDate);
 
