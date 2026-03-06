@@ -5,9 +5,9 @@ description: Plan, create, and improve Linear issues by analyzing the codebase a
 
 # Linear Issue Planner & Creator
 
-This skill does three things: **plans** the technical work by analyzing the codebase, **creates** well-structured Linear issues scoped for small reviewable PRs, and **improves** existing issues to match the team's standards.
+This skill does three things: **analyzes** the codebase to understand the problem space, **creates** well-structured Linear issues scoped for small reviewable PRs, and **improves** existing issues to match the team's standards.
 
-The goal is consistency across the team — every issue has the right structure, a clear technical plan, and is small enough that the resulting PR is easy to review.
+The goal is consistency across the team — every issue clearly defines the problem and acceptance criteria, and is small enough that the resulting PR is easy to review. Implementation details (specific files, approach, abstractions) belong in the PR description, not the issue.
 
 ## Modes
 
@@ -53,7 +53,7 @@ Before diving into code, check if observability data can inform the issue — es
 
 Use ToolSearch to load these tools before calling them. Only query what's relevant — don't run every tool on every issue. For bugs, Grafana logs and error patterns are usually most valuable. For features, Amplitude usage data helps scope the impact.
 
-Include findings in the issue description — link to specific dashboards, paste key log lines, or note error rates. This gives reviewers and implementers real data instead of guesses.
+Include findings in the issue description — link to specific dashboards, paste key log lines, or note error rates. Redact tokens, emails, user IDs, and any sensitive payload fields before posting. This gives reviewers and implementers real data instead of guesses.
 
 #### From the codebase
 Explore the codebase to understand what exists and what needs to change. This is the most important step — good issues come from understanding the code, not guessing.
@@ -71,15 +71,24 @@ For features/enablers, also look for:
 - Database schemas that may need migration
 - API contracts that may need versioning
 
-### Phase 2: Technical Plan
+### Phase 2: Define the Problem
 
-Based on your codebase analysis, create a technical plan. This plan lives in the **parent issue** (if breaking into sub-issues) or in the issue's Notes section (if it's a single issue).
+Issues should clearly capture **what** needs to happen and **why**. This is the core of the issue — it lives in Linear forever and must be useful to anyone who reads it.
 
-The plan should include:
-- **Files to change** — list the specific files with a brief note on what changes
-- **Approach** — how to implement it (which patterns to follow, which abstractions to use)
+What belongs in the issue:
+- **Problem statement** — what's wrong or what's needed
+- **Acceptance criteria** — how we know it's done
 - **Risks / edge cases** — anything tricky the implementer should know
 - **Dependencies** — does this depend on or block other work?
+- **Scope** — which area of the codebase is affected
+
+#### Suggested Solution
+
+Add a high-level suggested approach — enough to scope the work and unblock the implementer, but not so detailed that it becomes stale or creates pressure to execute as written.
+
+Keep it directional (e.g., "add a polling mechanism to the deploy status page" not "modify `src/components/DeployStatus.tsx` line 42"). Specific file paths, prescribed abstractions, and line-by-line plans go stale fast and belong in the PR description — written by the implementer who has full context from actually working in the code.
+
+**For non-trivial work, suggest a throwaway spike first.** 20 minutes of exploration on a throwaway branch surfaces where existing abstractions don't fit and where the plan would break down. The issue written after a spike is significantly better than one written from static analysis alone.
 
 ### Phase 3: Break Into Small Issues
 
@@ -98,7 +107,7 @@ This is critical. Every issue should map to a **single small PR** that's easy to
 When estimating, count additions + deletions across all non-excluded files. If an issue would likely produce an L or XL PR, it **must** be split into smaller issues.
 
 **How to split:**
-- **By layer** — schema/migration first, then backend logic, then API endpoint, then frontend
+- **Vertical slices** (preferred) — each issue delivers a narrow but complete slice of functionality across layers, giving reviewers full context. A reviewer seeing "add deploy status polling" understands the change; "add utils layer" does not.
 - **By feature boundary** — each independent piece of functionality gets its own issue
 - **By risk** — risky changes (migrations, breaking API changes) get isolated into their own issue
 - **Enablers first** — if the feature needs refactoring or new abstractions, those go in a separate preceding issue
@@ -134,8 +143,7 @@ Actual: ...
 [What you found in the codebase — root cause, affected files, relevant code paths.]
 
 ## Scope
-- App: <app>
-- Area: <area>
+- Area: <area from .commitlintrc.json scopes>
 ```
 
 #### Feature / Story
@@ -147,16 +155,12 @@ Actual: ...
 ## What
 [What we're building. Link Figma/discussion if applicable.]
 
-## Technical Plan
-[Files to change, approach, patterns to follow. Keep it concise but specific.]
-
 ## Acceptance Criteria
 - [ ] ...
 - [ ] ...
 
 ## Scope
-- App: <app>
-- Area: <area>
+- Area: <area from .commitlintrc.json scopes>
 
 ## Notes
 [Dependencies, migrations, edge cases, observability data.]
@@ -172,12 +176,8 @@ Actual: ...
 - [ ] Task 1
 - [ ] Task 2
 
-## Technical Plan
-[Files to change, approach, patterns to follow.]
-
 ## Scope
-- App: <app>
-- Area: <area>
+- Area: <area from .commitlintrc.json scopes>
 ```
 
 **Drop any section that has no content** — empty placeholders are worse than no section.
@@ -189,13 +189,14 @@ Show the user ALL issues you plan to create — titles, descriptions, and orderi
 Then create each issue using the Linear CLI:
 
 ```bash
-cat <<'EOF' > /tmp/linear-issue-desc.md
+DESC_FILE=$(mktemp /tmp/linear-issue-desc.XXXXXX.md)
+cat <<'EOF' > "$DESC_FILE"
 <description content>
 EOF
 
 linear issue create \
   --title "<title>" \
-  --description-file /tmp/linear-issue-desc.md \
+  --description-file "$DESC_FILE" \
   --no-interactive \
   [--priority <1-4>] \
   [--label "<label>"] \
@@ -203,58 +204,19 @@ linear issue create \
   [--assignee "<assignee>"] \
   [--project "<project>"] \
   [--parent "<parent-issue-id>"]
+
+rm "$DESC_FILE"
 ```
 
-Always use `--description-file` (not inline `--description`) and `--no-interactive`.
+Always use `--description-file` (not inline `--description`) and `--no-interactive`. Use `mktemp` for unique temp file names to avoid collisions.
 
 For multi-issue plans, create the parent issue first, then create child issues with `--parent` pointing to the parent's ID.
 
-After creation, clean up temp files and show the user all issue identifiers/URLs.
+After creation, show the user all issue identifiers/URLs.
 
-## Valid Values
+## Valid Scope Values
 
-### Apps (Scope > App)
-- deploy-web
-- api
-- indexer
-- stats-web
-- notifications
-- provider-console
-- provider-proxy
-- log-collector
-- tx-signer
-
-### Areas (Scope > Area) — from .commitlintrc.json
-- network
-- wallet
-- sdl
-- user
-- auth
-- billing
-- provider
-- deployment
-- indexer
-- certificate
-- dx
-- config
-- stats
-- release
-- ci
-- repo
-- styling
-- observability
-- analytics
-- template
-- notifications
-- alert
-- notification-channel
-- jwt
-- log-collector
-- bid
-- onboarding
-- managed-wallet
-
-These area values are kept in sync with the project's commitlint scopes so that issue labels and commit messages align.
+Area values come from the `scopes` field in `.commitlintrc.json`. Always read that file for the current list — do not hardcode values. These are business domains (e.g., `deployment`, `billing`, `auth`), not app names.
 
 ## Labeling Convention
 
@@ -280,19 +242,19 @@ This returns the full issue data as JSON including title, description, state, la
 ### Step 2: Analyze gaps
 
 Compare the current description against the appropriate template (Bug / Feature / Enabler). Identify:
-- **Missing sections** — e.g., no Scope, no Acceptance Criteria, no Technical Plan
+- **Missing sections** — e.g., no Scope, no Acceptance Criteria
 - **Vague content** — sections that exist but lack specifics (e.g., "fix the bug" with no repro steps)
-- **Missing codebase analysis** — no file references, no technical plan
+- **Missing context** — no codebase references, no observability data
 - **Too large** — the issue describes work that should be multiple PRs
 - **Wrong format** — uses non-standard headers or structure
 
 ### Step 3: Enrich
 
 Run the same codebase analysis and observability queries as in Create mode (Phase 1). Use the findings to:
-- Add a **Technical Plan** or **Technical Analysis** section with specific files and approach
-- Fill in missing **Scope** (App + Area)
+- Add a **Technical Analysis** section for bugs (root cause, affected area)
+- Fill in missing **Scope** (Area)
 - Add concrete **Acceptance Criteria** if missing
-- Add **observability data** (Grafana log links, Amplitude usage data) if relevant
+- Add **sanitized observability data** (Grafana log links, Amplitude usage data) if relevant — redact PII/secrets
 - Tighten vague descriptions with specifics from the code
 
 ### Step 4: Split if needed
@@ -306,29 +268,25 @@ Show the user a diff — what the description looks like now vs what you propose
 Then update the existing issue:
 
 ```bash
-cat <<'EOF' > /tmp/linear-issue-desc.md
+DESC_FILE=$(mktemp /tmp/linear-issue-desc.XXXXXX.md)
+cat <<'EOF' > "$DESC_FILE"
 <updated description>
 EOF
 
 linear issue update <issue-id> \
-  --description-file /tmp/linear-issue-desc.md
+  --description-file "$DESC_FILE"
+
+rm "$DESC_FILE"
 ```
 
 If splitting into sub-issues, create the new child issues with `--parent <issue-id>` after updating the parent.
 
-If the title also needs improvement, update it in the same command:
-
-```bash
-linear issue update <issue-id> \
-  --description-file /tmp/linear-issue-desc.md \
-  --title "<improved title>"
-```
+If the title also needs improvement, add `--title "<improved title>"` to the update command.
 
 ## Tips
 
 - If the user dumps a Sentry error or stack trace, extract the key info and query Grafana Loki for related logs
 - If the user references a Figma link or GitHub discussion, include it in the "What" section
-- Multiple apps affected? List them all in the Scope and consider splitting by app
-- Multiple areas? List the primary one first
-- For large features, the parent issue description should contain the full technical plan; child issues reference it
+- Multiple areas affected? List the primary one first and consider splitting by area
+- For large features, the parent issue should describe the overall goal and acceptance criteria; child issues handle individual slices
 - When in doubt about PR size, err on the side of smaller — aim for S (50–199 lines). An L label on a PR is a code review red flag
