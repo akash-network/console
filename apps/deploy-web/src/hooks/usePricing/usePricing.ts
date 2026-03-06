@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useMemo } from "react";
 
-import { UAKT_DENOM } from "@src/config/denom.config";
+import { UACT_DENOM, UAKT_DENOM } from "@src/config/denom.config";
 import { useUsdcDenom } from "@src/hooks/useDenom";
 import { useMarketData } from "@src/queries";
 import { roundDecimal, udenomToDenom } from "@src/utils/mathHelpers";
@@ -35,6 +35,8 @@ export function usePricing(): PricingContext {
     switch (denom) {
       case UAKT_DENOM:
         return marketData?.price || 0;
+      case UACT_DENOM:
+        return 1;
       case usdcIbcDenom:
         return 1; // TODO Get price from API
 
@@ -50,7 +52,7 @@ export function usePricing(): PricingContext {
 
       if (denom === UAKT_DENOM) {
         value = uaktToAKT(parsedAmount, 6) * (marketData?.price || 0);
-      } else if (denom === usdcIbcDenom || denom === "usdc") {
+      } else if (denom === usdcIbcDenom || denom === "usdc" || denom === UACT_DENOM) {
         value = udenomToDenom(parsedAmount, 6);
       }
 

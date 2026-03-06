@@ -1,7 +1,7 @@
-import { LRUCache } from "lru-cache";
 import { singleton } from "tsyringe";
 
 import { BalancesService } from "@src/billing/services/balances/balances.service";
+import { memoizeAsync } from "@src/caching/helpers";
 
 export class CachedBalance {
   constructor(private value: number) {}
@@ -21,18 +21,13 @@ export class CachedBalance {
 
 @singleton()
 export class CachedBalanceService {
-  private readonly balanceCache = new LRUCache<string, CachedBalance>({ max: 10000 });
+  public get = memoizeAsync(
+    async (address: string) => {
+      const limits = await this.balancesService.getFreshLimits({ address });
+      return new CachedBalance(limits.deployment);
+    },
+    { cacheItemLimit: 10_000 }
+  );
 
   constructor(private readonly balancesService: BalancesService) {}
-
-  public async get(address: string): Promise<CachedBalance> {
-    let cachedBalance = this.balanceCache.get(address);
-    if (!cachedBalance) {
-      const limits = await this.balancesService.getFreshLimits({ address });
-      cachedBalance = new CachedBalance(limits.deployment);
-      this.balanceCache.set(address, cachedBalance);
-    }
-
-    return cachedBalance;
-  }
 }
