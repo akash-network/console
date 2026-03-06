@@ -14,7 +14,7 @@ export const WelcomePanel: React.FC = () => {
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-3xl font-semibold">Welcome to Akash Console!</h2>
         <CollapsibleTrigger asChild>
-          <Button size="icon" variant="ghost" className="!m-0 rounded-full" onClick={() => setExpanded(prev => !prev)}>
+          <Button size="icon" variant="ghost" className="!m-0 rounded-full">
             <NavArrowDown fontSize="1rem" className={cn("transition-all duration-100", { ["rotate-180"]: expanded })} />
           </Button>
         </CollapsibleTrigger>
