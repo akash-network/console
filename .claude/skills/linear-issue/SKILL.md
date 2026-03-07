@@ -28,11 +28,11 @@ If the user doesn't specify a type, infer it from context. A report about someth
 
 ## Project Assignment
 
-Every issue must be assigned to a project. **Suggest** a project based on the scope-to-project mapping below, then ask the user to confirm or change it before creating the issue.
+Every issue must be assigned to a project. **Suggest** a project by querying the live project list, then ask the user to confirm or change it before creating the issue.
 
 ### How to suggest a project
 
-1. Run `linear project list --all-teams` to get the current list of projects — names and slugs change over time, never hardcode them.
+1. Run `linear project list --all-teams` to get the current list of projects — names and slugs change over time, so always query the live list rather than relying on a static mapping.
 2. Based on the issue's context (scope, type, source, description), suggest the most fitting project.
 3. Present your suggestion and let the user confirm: *"I'd suggest project **X** for this. Does that work, or should it go elsewhere?"*
 
@@ -218,7 +218,7 @@ Actual: ...
 
 Show the user ALL issues you plan to create with the following details for each:
 - **Title** and **description**
-- **Suggested project** (from scope mapping) — ask user to confirm or change
+- **Suggested project** (from live project list) — ask user to confirm or change
 - **Source label** (inferred from context)
 - **Type label** (Bug/Feature/Improvement)
 - **Initial status** (Triage by default)
