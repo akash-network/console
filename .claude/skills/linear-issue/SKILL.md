@@ -26,6 +26,47 @@ There are three templates. Pick the one that matches what the user describes:
 
 If the user doesn't specify a type, infer it from context. A report about something not working → Bug. A request for new behavior → Feature. Internal cleanup or tooling → Enabler.
 
+## Project Assignment
+
+Every issue must be assigned to a project. **Suggest** a project based on the scope-to-project mapping below, then ask the user to confirm or change it before creating the issue.
+
+### How to suggest a project
+
+1. Run `linear project list --all-teams` to get the current list of projects — names and slugs change over time, never hardcode them.
+2. Based on the issue's context (scope, type, source, description), suggest the most fitting project.
+3. Present your suggestion and let the user confirm: *"I'd suggest project **X** for this. Does that work, or should it go elsewhere?"*
+
+Note: "Console" (CON) is the **team**, not a project. All issues belong to team CON and are assigned to a project within it.
+
+When creating the issue, use `--project "<project name>"` in the CLI command.
+
+## Source Labels
+
+Every issue should have a source label indicating where it came from. Infer from context or ask the user:
+
+| Label | When to use |
+|-------|------------|
+| `source:customer` | User/customer reported the issue (support ticket, feedback, user complaint) |
+| `source:error-log` | Discovered via Grafana, Sentry, error logs, or monitoring alerts |
+| `source:internal` | Team-identified improvement, tech debt, or internal request |
+| `source:roadmap` | Planned feature from product roadmap, Figma designs, or product specs |
+
+If the user pastes a Sentry error or Grafana alert → `source:error-log`. If they say "a user reported..." → `source:customer`. If they describe a planned feature or link Figma → `source:roadmap`. Internal cleanup or DX improvements → `source:internal`.
+
+Include the source label alongside the type label (Bug/Feature/Improvement) using multiple `--label` flags.
+
+## Initial Status
+
+Set the initial workflow status based on issue readiness:
+
+| Status | When to use |
+|--------|------------|
+| **Triage** | Default for most new issues — needs validation/prioritization by tech lead |
+| **Backlog** | Issue is well-defined with clear acceptance criteria but not yet prioritized for a cycle |
+| **Todo** | Issue is fully ready to pick up — has all context, is prioritized, and a dev can start immediately |
+
+Use `--status "<status>"` in the CLI command. Default to **Triage** unless the user explicitly says the issue is ready to work on.
+
 ## Workflow
 
 ### Phase 1: Gather Context
@@ -33,25 +74,16 @@ If the user doesn't specify a type, infer it from context. A report about someth
 #### From the user
 Ask the user what they need. If they give enough context upfront, don't interrogate — fill in what you can and confirm the rest.
 
+Infer the **source** from how the user describes the issue (customer report, error log, internal idea, roadmap item). If unclear, ask.
+
 #### From observability tools (when relevant)
 Before diving into code, check if observability data can inform the issue — especially for bugs and production incidents.
 
-**Grafana** — Use when investigating errors, performance issues, or production behavior:
-- `mcp__grafana__query_loki_logs` — Search logs for errors, stack traces, or specific request patterns
-- `mcp__grafana__find_error_pattern_logs` — Find elevated error patterns in Loki
-- `mcp__grafana__find_slow_requests` — Find slow requests in Tempo
-- `mcp__grafana__query_prometheus` — Check metrics (error rates, latency, resource usage)
-- `mcp__grafana__search_dashboards` — Find relevant dashboards for the affected service
-- `mcp__grafana__list_alert_rules` — Check if there are existing alerts for this area
-- `mcp__grafana__list_incidents` — Check for related active incidents
+**Grafana** — Use when investigating errors, performance issues, or production behavior. Search logs for errors and stack traces, find elevated error patterns, identify slow requests, check metrics (error rates, latency, resource usage), find relevant dashboards, and check for existing alerts or active incidents.
 
-**Amplitude** — Use when understanding user behavior or impact:
-- `mcp__claude_ai_Amplitude__query_dataset` — Query event data to understand scope/frequency
-- `mcp__claude_ai_Amplitude__get_session_replays` — Watch session replays of the issue
-- `mcp__claude_ai_Amplitude__search` — Find relevant charts or experiments
-- `mcp__claude_ai_Amplitude__get_feedback_insights` — Check if users have reported this
+**Amplitude** — Use when understanding user behavior or impact. Query event data to understand scope/frequency, watch session replays, find relevant charts or experiments, and check if users have reported the issue.
 
-Use ToolSearch to load these tools before calling them. Only query what's relevant — don't run every tool on every issue. For bugs, Grafana logs and error patterns are usually most valuable. For features, Amplitude usage data helps scope the impact.
+Use ToolSearch to discover available methods on these MCP servers before calling them. Only query what's relevant — don't run every tool on every issue. For bugs, Grafana logs and error patterns are usually most valuable. For features, Amplitude usage data helps scope the impact.
 
 Include findings in the issue description — link to specific dashboards, paste key log lines, or note error rates. Redact tokens, emails, user IDs, and any sensitive payload fields before posting. This gives reviewers and implementers real data instead of guesses.
 
@@ -184,7 +216,16 @@ Actual: ...
 
 ### Phase 5: Confirm & Create
 
-Show the user ALL issues you plan to create — titles, descriptions, and ordering. Let them adjust before you create anything.
+Show the user ALL issues you plan to create with the following details for each:
+- **Title** and **description**
+- **Suggested project** (from scope mapping) — ask user to confirm or change
+- **Source label** (inferred from context)
+- **Type label** (Bug/Feature/Improvement)
+- **Initial status** (Triage by default)
+- **Priority** (if known)
+- **Ordering** (for multi-issue plans)
+
+Let them adjust before you create anything.
 
 Then create each issue using the Linear CLI:
 
@@ -198,11 +239,13 @@ linear issue create \
   --title "<title>" \
   --description-file "$DESC_FILE" \
   --no-interactive \
+  --team "CON" \
+  --project "<project name>" \
+  --status "<Triage|Backlog|Todo>" \
+  --label "<Bug|Feature|Improvement>" \
+  --label "<source:customer|source:error-log|source:internal|source:roadmap>" \
   [--priority <1-4>] \
-  [--label "<label>"] \
-  [--team "<team>"] \
   [--assignee "<assignee>"] \
-  [--project "<project>"] \
   [--parent "<parent-issue-id>"]
 
 rm "$DESC_FILE"
@@ -220,12 +263,20 @@ Area values come from the `scopes` field in `.commitlintrc.json`. Always read th
 
 ## Labeling Convention
 
-When the user specifies an issue type, suggest adding a label that matches:
-- Bug → label `bug`
-- Feature / Story → label `feature`
-- Enabler / Chore → label `chore`
+Each issue gets **two labels** — one for type and one for source:
 
-Only suggest — don't force it. The user's workspace may have different label names.
+**Type labels** (based on issue type):
+- Bug → label `Bug`
+- Feature / Story → label `Feature`
+- Enabler / Chore → label `Improvement`
+
+**Source labels** (based on where the issue came from):
+- `source:customer` — customer/user reported
+- `source:error-log` — discovered via monitoring/logs
+- `source:internal` — team-identified
+- `source:roadmap` — planned from roadmap
+
+Use multiple `--label` flags in the CLI command to apply both labels.
 
 ## Improve Existing Issues
 
