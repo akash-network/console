@@ -325,7 +325,8 @@ cat <<'EOF' > "$DESC_FILE"
 EOF
 
 linear issue update <issue-id> \
-  --description-file "$DESC_FILE"
+  --description-file "$DESC_FILE" \
+  --no-interactive
 
 rm "$DESC_FILE"
 ```
