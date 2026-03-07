@@ -1,93 +1,49 @@
 "use client";
 import type { FC, ReactNode } from "react";
-import React, { useCallback, useState } from "react";
-import { Snackbar } from "@akashnetwork/ui/components";
-import { useSnackbar } from "notistack";
+import React, { useCallback, useEffect } from "react";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
-import { useNotificator } from "@src/hooks/useNotificator";
 
-const DEPENDENCIES = {
+export const DEPENDENCIES = {
   useCustomUser,
-  useSnackbar,
-  useServices,
-  Snackbar,
-  useNotificator
+  useServices
 };
 
 export type EmailVerificationContainerProps = {
-  children: (props: {
-    isEmailVerified: boolean;
-    isResending: boolean;
-    isChecking: boolean;
-    onResendEmail: () => void;
-    onCheckVerification: () => void;
-    onContinue: () => void;
-  }) => ReactNode;
+  children: (props: { sendCode: () => Promise<void>; verifyCode: (code: string) => Promise<void> }) => ReactNode;
   onComplete: () => void;
   dependencies?: typeof DEPENDENCIES;
 };
 
 export const EmailVerificationContainer: FC<EmailVerificationContainerProps> = ({ children, onComplete, dependencies: d = DEPENDENCIES }) => {
   const { user, checkSession } = d.useCustomUser();
-  const { enqueueSnackbar } = d.useSnackbar();
-  const notificator = d.useNotificator();
-  const [isResending, setIsResending] = useState(false);
-  const [isChecking, setIsChecking] = useState(false);
   const { analyticsService, auth } = d.useServices();
 
-  const isEmailVerified = !!user?.emailVerified;
+  const advance = useCallback(() => {
+    analyticsService.track("onboarding_email_verified", {
+      category: "onboarding"
+    });
+    onComplete();
+  }, [analyticsService, onComplete]);
 
-  const handleResendEmail = useCallback(async () => {
-    if (!user?.id) return;
-
-    setIsResending(true);
-    try {
-      await auth.sendVerificationEmail(user.id);
-      enqueueSnackbar(<d.Snackbar title="Verification email sent" subTitle="Please check your email and click the verification link" iconVariant="success" />, {
-        variant: "success"
-      });
-    } catch (error) {
-      notificator.error("Failed to send verification email. Please try again later");
-    } finally {
-      setIsResending(false);
+  useEffect(() => {
+    if (user?.emailVerified) {
+      advance();
     }
-  }, [user?.id, auth, enqueueSnackbar, d.Snackbar, notificator]);
+  }, [user?.emailVerified, advance]);
 
-  const handleCheckVerification = useCallback(async () => {
-    setIsChecking(true);
-    try {
+  const sendCode = useCallback(async () => {
+    await auth.sendVerificationCode();
+  }, [auth]);
+
+  const verifyCode = useCallback(
+    async (code: string) => {
+      await auth.verifyEmailCode(code);
       await checkSession();
-      enqueueSnackbar(<d.Snackbar title="Verification status updated" subTitle="Your email verification status has been refreshed" iconVariant="success" />, {
-        variant: "success"
-      });
-    } catch (error) {
-      notificator.error("Failed to check verification. Please try again or refresh the page");
-    } finally {
-      setIsChecking(false);
-    }
-  }, [checkSession, enqueueSnackbar, d.Snackbar, notificator]);
-
-  const handleContinue = useCallback(() => {
-    if (isEmailVerified) {
-      analyticsService.track("onboarding_email_verified", {
-        category: "onboarding"
-      });
-      onComplete();
-    }
-  }, [isEmailVerified, analyticsService, onComplete]);
-
-  return (
-    <>
-      {children({
-        isEmailVerified,
-        isResending,
-        isChecking,
-        onResendEmail: handleResendEmail,
-        onCheckVerification: handleCheckVerification,
-        onContinue: handleContinue
-      })}
-    </>
+    },
+    [auth, checkSession]
   );
+
+  return <>{children({ sendCode, verifyCode })}</>;
 };

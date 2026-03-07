@@ -57,7 +57,7 @@ export const OnboardingView: FC<OnboardingViewProps> = ({
       ...steps[OnboardingStepIndex.EMAIL_VERIFICATION],
       component: (
         <d.EmailVerificationContainer onComplete={() => onStepChange(OnboardingStepIndex.PAYMENT_METHOD)}>
-          {props => <d.EmailVerificationStep {...props} />}
+          {({ sendCode, verifyCode }) => <d.EmailVerificationStep sendCode={sendCode} verifyCode={verifyCode} />}
         </d.EmailVerificationContainer>
       )
     },
