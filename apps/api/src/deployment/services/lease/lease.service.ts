@@ -5,7 +5,6 @@ import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-
 import { Trace } from "@src/core/services/tracing/tracing.service";
 import { GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import { CreateLeaseRequest } from "@src/deployment/http-schemas/lease.schema";
-import { LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { DeploymentReaderService } from "../deployment-reader/deployment-reader.service";
 
@@ -16,17 +15,11 @@ export class LeaseService {
     private readonly rpcMessageService: RpcMessageService,
     private readonly providerService: ProviderService,
     private readonly deploymentReaderService: DeploymentReaderService,
-    private readonly leaseRepository: LeaseRepository,
     private readonly walletReaderService: WalletReaderService
   ) {}
 
   @Trace()
-  public async createLeasesAndSendManifest({
-    leases,
-    manifest,
-    certificate,
-    userId
-  }: CreateLeaseRequest & { userId: string }): Promise<GetDeploymentResponse["data"]> {
+  public async createLeasesAndSendManifest({ leases, manifest, userId }: CreateLeaseRequest & { userId: string }): Promise<GetDeploymentResponse["data"]> {
     const wallet = await this.walletReaderService.getWalletByUserId(userId);
 
     const leaseMessages = leases.map(lease =>
@@ -49,7 +42,7 @@ export class LeaseService {
       };
       await this.providerService.sendManifest({
         ...commonParams,
-        auth: await this.providerService.toProviderAuth(certificate || { walletId: wallet.id, provider: lease.provider })
+        auth: await this.providerService.toProviderAuth({ walletId: wallet.id, provider: lease.provider })
       });
     }
 
