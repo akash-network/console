@@ -9,8 +9,8 @@ import { NavArrowDown, Wallet } from "iconoir-react";
 import { useWallet } from "@src/context/WalletProvider";
 import { getSplitText } from "@src/hooks/useShortText";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
-import { CustodialWalletPopup } from "../wallet/CustodialWalletPopup";
-import { ManagedWalletPopup } from "../wallet/ManagedWalletPopup";
+import { CustodialWalletPopup } from "../wallet/CustodialWalletPopup/CustodialWalletPopup";
+import { ManagedWalletPopup } from "../wallet/ManagedWalletPopup/ManagedWalletPopup";
 import { WalletConnectionButtons } from "../wallet/WalletConnectionButtons";
 
 export function WalletStatus() {

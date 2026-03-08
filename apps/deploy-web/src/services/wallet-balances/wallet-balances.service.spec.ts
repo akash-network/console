@@ -43,13 +43,16 @@ describe(WalletBalancesService.name, () => {
       const balances = await service.getBalances(walletAddress);
 
       expect(balances).toEqual({
+        balanceUACT: 0,
         balanceUAKT: 73477804,
         balanceUUSDC: 0,
         deploymentEscrowUAKT: 0.8768,
         deploymentEscrowUUSDC: 0,
+        deploymentEscrowUACT: 0,
         deploymentGrants: [],
         deploymentGrantsUAKT: 0,
         deploymentGrantsUUSDC: 0,
+        deploymentGrantsUACT: 0,
         activeDeployments: deployments.map(d => deploymentToDto(d))
       });
     });

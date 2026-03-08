@@ -35,10 +35,10 @@ export function useSaveSettings() {
   });
 }
 
-async function getDepositParams(chainApiHttpClient: AxiosInstance) {
+async function getDepositParams(chainApiHttpClient: AxiosInstance): Promise<DepositParams[]> {
   const depositParamsQuery = await chainApiHttpClient.get<RpcDepositParams>(ApiUrlService.depositParams(""));
   const depositParams = depositParamsQuery.data;
-  return JSON.parse(depositParams.param.value) as DepositParams[];
+  return depositParams.param.value ? JSON.parse(depositParams.param.value) : [];
 }
 
 const ONE_HOUR_IN_MS = 60 * 60 * 1000;

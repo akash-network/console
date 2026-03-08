@@ -2,10 +2,10 @@ import type { Coin } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1"
 import type { NetworkId } from "@akashnetwork/chain-sdk/web";
 import add from "date-fns/add";
 
-import { READABLE_DENOMS, UAKT_DENOM, USDC_IBC_DENOMS } from "@src/config/denom.config";
+import { READABLE_DENOMS, UACT_DENOM, UAKT_DENOM, USDC_IBC_DENOMS } from "@src/config/denom.config";
 import networkStore from "@src/store/networkStore";
 import { averageDaysInMonth } from "./dateUtils";
-import { denomToUdenom } from "./mathHelpers";
+import { denomToUdenom, udenomToDenom } from "./mathHelpers";
 
 export const averageBlockTime = 6.098;
 
@@ -13,21 +13,23 @@ export const getUsdcDenom = (networkId?: NetworkId): string => {
   return USDC_IBC_DENOMS[networkId ?? (networkStore.selectedNetworkId as keyof typeof USDC_IBC_DENOMS)] as string;
 };
 
-export function uaktToAKT(amount: number, precision: number = 3) {
-  return Math.round((amount / 1000000 + Number.EPSILON) * Math.pow(10, precision)) / Math.pow(10, precision);
+/** @deprecated use udenomToDenom */
+export function uaktToAKT(amount: number, precision = 3) {
+  return udenomToDenom(amount, precision);
 }
 
+/** @deprecated use denomToUdenom */
 export function aktToUakt(amount: number | string) {
-  return Math.round((typeof amount === "string" ? parseFloat(amount) : amount) * 1_000_000);
+  return denomToUdenom(String(amount));
 }
 
 export function coinToUDenom(coin: Coin) {
   let value: number | null = null;
   const usdcDenom = getUsdcDenom();
 
-  if (coin.denom === "akt") {
+  if (coin.denom === "akt" || coin.denom === "act") {
     value = denomToUdenom(coin.amount);
-  } else if (coin.denom === UAKT_DENOM || coin.denom === usdcDenom) {
+  } else if (coin.denom === UAKT_DENOM || coin.denom === usdcDenom || coin.denom === UACT_DENOM) {
     value = parseFloat(coin.amount);
   } else {
     throw Error("Unrecognized denom: " + coin.denom);
@@ -40,10 +42,10 @@ export function coinToDenom(coin: Coin) {
   let value: number | null = null;
   const usdcDenom = getUsdcDenom();
 
-  if (coin.denom === "akt") {
+  if (coin.denom === "akt" || coin.denom === "act") {
     value = parseFloat(coin.amount);
-  } else if (coin.denom === UAKT_DENOM || coin.denom === usdcDenom) {
-    value = uaktToAKT(parseFloat(coin.amount), 6);
+  } else if (coin.denom === UAKT_DENOM || coin.denom === usdcDenom || coin.denom === UACT_DENOM) {
+    value = udenomToDenom(coin.amount);
   } else {
     throw Error("Unrecognized denom: " + coin.denom);
   }

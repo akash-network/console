@@ -11,12 +11,7 @@ interface ResourceSummaryInput {
   isBytes?: boolean;
 }
 
-const summarizeStatuses = ({
-  active = 0,
-  pending = 0,
-  available = 0,
-  isBytes = false
-}: ResourceSummaryInput) => {
+const summarizeStatuses = ({ active = 0, pending = 0, available = 0, isBytes = false }: ResourceSummaryInput) => {
   const total = active + pending + available;
   if (total === 0) return null;
 
@@ -71,44 +66,47 @@ export const RenderResourceCard: React.FC<{
 );
 
 export const ResourceCards = ({ providerDetails }: { providerDetails: any }) => {
-  const resources = useMemo(() => [
-    {
-      title: "CPUs",
-      data: providerDetails?.activeStats?.cpu || providerDetails?.pendingStats?.cpu || providerDetails?.availableStats?.cpu
-        ? summarizeStatuses({
-            active: (providerDetails?.activeStats?.cpu ?? 0) / 1000,
-            pending: (providerDetails?.pendingStats?.cpu ?? 0) / 1000,
-            available: (providerDetails?.availableStats?.cpu ?? 0) / 1000
-          })
-        : null
-    },
-    {
-      title: "GPUs",
-      data: summarizeStatuses({
-        active: providerDetails?.activeStats?.gpu,
-        pending: providerDetails?.pendingStats?.gpu,
-        available: providerDetails?.availableStats?.gpu
-      })
-    },
-    {
-      title: "Memory",
-      data: summarizeStatuses({
-        active: providerDetails?.activeStats?.memory,
-        pending: providerDetails?.pendingStats?.memory,
-        available: providerDetails?.availableStats?.memory,
-        isBytes: true
-      })
-    },
-    {
-      title: "Storage",
-      data: summarizeStatuses({
-        active: providerDetails?.activeStats?.storage,
-        pending: providerDetails?.pendingStats?.storage,
-        available: providerDetails?.availableStats?.storage,
-        isBytes: true
-      })
-    }
-  ], [providerDetails]);
+  const resources = useMemo(
+    () => [
+      {
+        title: "CPUs",
+        data: providerDetails?.stats?.cpu
+          ? summarizeStatuses({
+              active: (providerDetails.stats.cpu.active ?? 0) / 1000,
+              pending: (providerDetails.stats.cpu.pending ?? 0) / 1000,
+              available: (providerDetails.stats.cpu.available ?? 0) / 1000
+            })
+          : null
+      },
+      {
+        title: "GPUs",
+        data: summarizeStatuses({
+          active: providerDetails?.stats?.gpu?.active,
+          pending: providerDetails?.stats?.gpu?.pending,
+          available: providerDetails?.stats?.gpu?.available
+        })
+      },
+      {
+        title: "Memory",
+        data: summarizeStatuses({
+          active: providerDetails?.stats?.memory?.active,
+          pending: providerDetails?.stats?.memory?.pending,
+          available: providerDetails?.stats?.memory?.available,
+          isBytes: true
+        })
+      },
+      {
+        title: "Storage",
+        data: summarizeStatuses({
+          active: providerDetails?.stats?.storage?.total?.active,
+          pending: providerDetails?.stats?.storage?.total?.pending,
+          available: providerDetails?.stats?.storage?.total?.available,
+          isBytes: true
+        })
+      }
+    ],
+    [providerDetails]
+  );
 
   const validResources = resources.filter(resource => resource.data !== null);
 

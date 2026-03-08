@@ -16,9 +16,6 @@ export interface ProviderDetails {
   ipCountryCode: string;
   ipLat: string;
   ipLon: string;
-  activeStats: Stats;
-  pendingStats: Stats;
-  availableStats: Stats;
   gpuModels: string[];
   uptime1d: number;
   uptime7d: number;
@@ -55,9 +52,13 @@ export interface ProviderDetails {
   featEndpointIp: boolean;
   uptime: Uptime[];
   stats: {
+    cpu: StatStatus;
+    gpu: StatStatus;
+    memory: StatStatus;
     storage: {
       ephemeral: StatStatus;
       persistent: StatStatus;
+      total: StatStatus;
     };
   };
 }
@@ -66,13 +67,7 @@ interface StatStatus {
   available: number;
   active: number;
   pending: number;
-}
-
-interface Stats {
-  cpu: number;
-  gpu: number;
-  memory: number;
-  storage: number;
+  total: number;
 }
 
 interface Attribute {
