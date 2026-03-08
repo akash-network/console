@@ -54,7 +54,7 @@ describe(ManagedWalletPopup.name, () => {
     setup();
 
     expect(screen.getByText("Add Funds")).toBeInTheDocument();
-    expect(screen.getByTestId("add-funds-link")).toHaveAttribute("href", "/payment");
+    expect(screen.getByTestId("add-funds-link")).toHaveAttribute("href", "/billing?openPayment=true");
   });
 
   it("calls switchWalletType when Switch to Wallet Payments is clicked and wallet is connected", () => {
