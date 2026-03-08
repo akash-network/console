@@ -5,10 +5,10 @@ import { cn } from "@akashnetwork/ui/utils";
 import { CoinsSwap, HandCard } from "iconoir-react";
 
 import { useSelectedChain } from "@src/context/CustomChainProvider";
+import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useManagedEscrowFaqModal } from "@src/hooks/useManagedEscrowFaqModal";
 import type { WalletBalance } from "@src/hooks/useWalletBalance";
-import { UrlService } from "@src/utils/urlUtils";
 import { LinkTo } from "../../shared/LinkTo";
 import { AddFundsLink } from "../../user/AddFundsLink";
 
@@ -29,13 +29,15 @@ export const DEPENDENCIES = {
   FormattedNumber,
   useWallet,
   useManagedEscrowFaqModal,
-  useSelectedChain
+  useSelectedChain,
+  useServices
 };
 
 export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBalance, dependencies: d = DEPENDENCIES }) => {
   const { isManaged, isTrialing, switchWalletType } = d.useWallet();
   const { showManagedEscrowFaqModal } = d.useManagedEscrowFaqModal();
   const { connect, isWalletConnected } = d.useSelectedChain();
+  const { urlService } = d.useServices();
 
   return (
     <div className="w-[300px] p-2">
@@ -93,7 +95,7 @@ export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBa
       <div className="flex flex-col items-center justify-end space-y-2 pt-2">
         <d.AddFundsLink
           className={cn("w-full space-x-2 hover:no-underline", buttonVariants({ variant: "default" }))}
-          href={UrlService.billing({ openPayment: true })}
+          href={urlService.billing({ openPayment: true })}
         >
           <HandCard className="text-xs" />
           <span className="whitespace-nowrap">Add Funds</span>

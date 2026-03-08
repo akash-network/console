@@ -34,7 +34,7 @@ describe(AccountOverview.name, () => {
     expect(screen.queryByTestId("payment-popup")).not.toBeInTheDocument();
   });
 
-  it("does not open payment popup when no default payment method", () => {
+  it("opens payment popup when openPayment query param is true even without default payment method", () => {
     const mockReplace = vi.fn();
     setup({
       searchParamsGet: (key: string) => (key === "openPayment" ? "true" : null),
@@ -43,8 +43,8 @@ describe(AccountOverview.name, () => {
       isLoading: false
     });
 
-    expect(mockReplace).not.toHaveBeenCalled();
-    expect(screen.queryByTestId("payment-popup")).not.toBeInTheDocument();
+    expect(mockReplace).toHaveBeenCalledWith("/billing", { scroll: false });
+    expect(screen.queryByTestId("payment-popup")).toBeInTheDocument();
   });
 
   it("does not open payment popup while still loading", () => {

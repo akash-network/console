@@ -59,11 +59,11 @@ export const AccountOverview: React.FunctionComponent<{ dependencies?: typeof DE
   const isLoading = isLoadingDefaultPaymentMethod;
 
   useEffect(() => {
-    if (!isLoading && searchParams.get("openPayment") === "true" && defaultPaymentMethod) {
+    if (!isLoading && searchParams.get("openPayment") === "true") {
       setShowPaymentPopup(true);
       router.replace(urlService.billing(), { scroll: false });
     }
-  }, [isLoading, searchParams, defaultPaymentMethod, router, urlService]);
+  }, [isLoading, searchParams, router, urlService]);
 
   const defaultPaymentMethodId = useMemo(() => {
     return defaultPaymentMethod?.id;

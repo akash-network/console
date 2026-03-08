@@ -12,8 +12,15 @@ import {
   Form,
   FormField,
   FormInput,
+  Label,
   LoadingButton,
   Popup,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Skeleton,
   Snackbar
 } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -21,11 +28,12 @@ import { Xmark } from "iconoir-react";
 import { useSnackbar } from "notistack";
 import { z } from "zod";
 
+import { getPaymentMethodDisplay } from "@src/components/shared/PaymentMethodCard/PaymentMethodCard";
 import { usePaymentPolling } from "@src/context/PaymentPollingProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { use3DSecure } from "@src/hooks/use3DSecure";
 import { useUser } from "@src/hooks/useUser";
-import { usePaymentMutations } from "@src/queries";
+import { usePaymentMethodsQuery, usePaymentMutations } from "@src/queries";
 import { handleCouponError, handleStripeError } from "@src/utils/stripeErrorHandler";
 
 export const DEPENDENCIES = {
@@ -38,11 +46,18 @@ export const DEPENDENCIES = {
   Form,
   FormField,
   FormInput,
+  Label,
   LoadingButton,
   FormattedNumber,
   Alert,
   Button,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Xmark,
+  Skeleton,
   Snackbar,
   useForm,
   zodResolver,
@@ -51,9 +66,10 @@ export const DEPENDENCIES = {
   use3DSecure,
   useUser,
   usePaymentMutations,
+  usePaymentMethodsQuery,
   handleCouponError,
   handleStripeError,
-  useServices,
+  useServices
 };
 
 const MINIMUM_PAYMENT_AMOUNT = 20;
@@ -89,10 +105,12 @@ export const PaymentPopup: React.FC<PaymentPopupProps> = ({
   const { errorHandler } = d.useServices();
   const { enqueueSnackbar } = d.useSnackbar();
 
+  const [selectedMethodId, setSelectedMethodId] = useState<string | undefined>(selectedPaymentMethodId);
   const [error, setError] = useState<string>();
   const [errorAction, setErrorAction] = useState<string>();
   const submittedAmountRef = useRef<string>("");
   const { user } = d.useUser();
+  const { data: paymentMethods, isLoading: isLoadingPaymentMethods } = d.usePaymentMethodsQuery();
   const {
     confirmPayment: { isPending: isConfirmingPayment, mutateAsync: confirmPayment },
     applyCoupon: { isPending: isApplyingCoupon, mutateAsync: applyCoupon }
@@ -141,7 +159,7 @@ export const PaymentPopup: React.FC<PaymentPopupProps> = ({
       return;
     }
 
-    if (!selectedPaymentMethodId) {
+    if (!selectedMethodId) {
       return;
     }
 
@@ -152,7 +170,7 @@ export const PaymentPopup: React.FC<PaymentPopupProps> = ({
     try {
       const response = await confirmPayment({
         userId: user.id,
-        paymentMethodId: selectedPaymentMethodId,
+        paymentMethodId: selectedMethodId,
         amount,
         currency: "usd"
       });
@@ -161,7 +179,7 @@ export const PaymentPopup: React.FC<PaymentPopupProps> = ({
         threeDSecure.start3DSecure({
           clientSecret: response.clientSecret,
           paymentIntentId: response.paymentIntentId,
-          paymentMethodId: selectedPaymentMethodId
+          paymentMethodId: selectedMethodId
         });
       } else if (response.success) {
         pollForPayment();
@@ -222,7 +240,7 @@ export const PaymentPopup: React.FC<PaymentPopupProps> = ({
 
   const amount = paymentForm.watch("amount");
   const isProcessing = isConfirmingPayment || isPolling || isApplyingCoupon;
-  const disabled = isProcessing || !selectedPaymentMethodId;
+  const disabled = isProcessing || !selectedMethodId;
 
   return (
     <d.Popup
@@ -245,6 +263,29 @@ export const PaymentPopup: React.FC<PaymentPopupProps> = ({
             <d.CardTitle className="text-lg">Add credits</d.CardTitle>
           </d.CardHeader>
           <d.CardContent className="space-y-4">
+            <div>
+              <d.Label>Payment Method</d.Label>
+              {isLoadingPaymentMethods ? (
+                <d.Skeleton className="mt-1 h-10 w-full" />
+              ) : (
+                <>
+                  <d.Select value={selectedMethodId ?? ""} onValueChange={setSelectedMethodId}>
+                    <d.SelectTrigger>
+                      <d.SelectValue placeholder="Select a payment method" />
+                    </d.SelectTrigger>
+                    <d.SelectContent>
+                      {paymentMethods?.map(method => (
+                        <d.SelectItem key={method.id} value={method.id}>
+                          {getPaymentMethodDisplay(method).label}
+                        </d.SelectItem>
+                      ))}
+                    </d.SelectContent>
+                  </d.Select>
+                  {!paymentMethods?.length && <p className="mt-1 text-sm text-muted-foreground">No payment methods available</p>}
+                </>
+              )}
+            </div>
+
             <d.Form {...paymentForm}>
               <form onSubmit={paymentForm.handleSubmit(onPayment)} className="space-y-4">
                 <d.FormField
@@ -258,6 +299,7 @@ export const PaymentPopup: React.FC<PaymentPopupProps> = ({
                       step="0.01"
                       placeholder="0.00"
                       label="Amount (USD)"
+                      autoFocus
                       onChange={e => {
                         field.onChange(e);
                         clearError();
@@ -277,8 +319,6 @@ export const PaymentPopup: React.FC<PaymentPopupProps> = ({
                 </d.LoadingButton>
               </form>
             </d.Form>
-
-            {!selectedPaymentMethodId && <p className="text-center text-sm text-muted-foreground">Please select a payment method above</p>}
 
             {error && (
               <div className="mx-auto mt-6 max-w-md">

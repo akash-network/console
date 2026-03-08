@@ -96,6 +96,22 @@ const MockSnackbar = ({ title, iconVariant }: any) => (
   </div>
 );
 
+const MockLabel = ({ children }: any) => <label>{children}</label>;
+
+const MockSelect = ({ children, value, onValueChange }: any) => (
+  <div data-testid="select" data-value={value}>
+    {React.Children.map(children, (child: any) => (child ? React.cloneElement(child, { onValueChange }) : null))}
+  </div>
+);
+const MockSelectTrigger = ({ children }: any) => <div data-testid="select-trigger">{children}</div>;
+const MockSelectValue = ({ placeholder }: any) => <span data-testid="select-value">{placeholder}</span>;
+const MockSelectContent = ({ children }: any) => <div data-testid="select-content">{children}</div>;
+const MockSelectItem = ({ children, value }: any) => (
+  <div data-testid="select-item" data-value={value}>
+    {children}
+  </div>
+);
+
 describe(PaymentPopup.name, () => {
   describe("Rendering", () => {
     it("renders popup when open is true", () => {
@@ -132,14 +148,28 @@ describe(PaymentPopup.name, () => {
       expect(screen.getByText("Cancel")).toBeInTheDocument();
     });
 
-    it("displays message when no payment method is selected", () => {
-      setup({ open: true, selectedPaymentMethodId: undefined });
-      expect(screen.getByText("Please select a payment method above")).toBeInTheDocument();
+    it("renders payment method dropdown", () => {
+      setup({
+        open: true,
+        paymentMethods: [
+          { id: "pm_1", type: "card", created: 0, validated: true, card: { brand: "visa", last4: "4242", funding: "credit", exp_month: 12, exp_year: 2027 } },
+          {
+            id: "pm_2",
+            type: "card",
+            created: 0,
+            validated: true,
+            card: { brand: "mastercard", last4: "5555", funding: "credit", exp_month: 6, exp_year: 2028 }
+          }
+        ]
+      });
+      expect(screen.getByText("Payment Method")).toBeInTheDocument();
+      expect(screen.getByText("VISA •••• 4242")).toBeInTheDocument();
+      expect(screen.getByText("MASTERCARD •••• 5555")).toBeInTheDocument();
     });
 
-    it("does not display message when payment method is selected", () => {
-      setup({ open: true, selectedPaymentMethodId: "pm_123" });
-      expect(screen.queryByText("Please select a payment method above")).not.toBeInTheDocument();
+    it("displays message when no payment methods are available", () => {
+      setup({ open: true, paymentMethods: [] });
+      expect(screen.getByText("No payment methods available")).toBeInTheDocument();
     });
   });
 
@@ -785,6 +815,7 @@ function setup(
     start3DSecure?: Mock;
     stripeErrorResponse?: any;
     mockUse3DSecure?: Mock;
+    paymentMethods?: any[];
   } = {}
 ) {
   const mockOnClose = input.onClose || vi.fn();
@@ -891,10 +922,16 @@ function setup(
     Form: MockForm,
     FormField: MockFormField,
     FormInput: MockFormInput,
+    Label: MockLabel,
     LoadingButton: MockLoadingButton,
     FormattedNumber: MockFormattedNumber,
     Alert: MockAlert,
     Button: MockButton,
+    Select: MockSelect,
+    SelectContent: MockSelectContent,
+    SelectItem: MockSelectItem,
+    SelectTrigger: MockSelectTrigger,
+    SelectValue: MockSelectValue,
     Xmark: MockXmark,
     Snackbar: MockSnackbar,
     useForm: mockUseForm,
@@ -917,6 +954,17 @@ function setup(
         isPending: input.isApplyingCoupon || false,
         mutateAsync: mockApplyCoupon
       }
+    })),
+    usePaymentMethodsQuery: vi.fn(() => ({
+      data: input.paymentMethods ?? [
+        {
+          id: "pm_default",
+          type: "card",
+          created: 0,
+          validated: true,
+          card: { brand: "visa", last4: "4242", funding: "credit", exp_month: 12, exp_year: 2027 }
+        }
+      ]
     })),
     handleCouponError: mockHandleCouponError,
     handleStripeError: mockHandleStripeError,

@@ -90,6 +90,11 @@ describe(ManagedWalletPopup.name, () => {
         connect,
         isWalletConnected: input?.isWalletConnected ?? false
       }),
+      useServices: () => ({
+        urlService: {
+          billing: ({ openPayment }: { openPayment?: boolean } = {}) => (openPayment ? "/billing?openPayment=true" : "/billing")
+        }
+      }),
       FormattedNumber: ({ value }: { value: number }) => <span>{value}</span>,
       LinkTo: ({ children, className, onClick }: { children: React.ReactNode; className?: string; onClick?: () => void }) => (
         <a className={className} onClick={onClick}>
