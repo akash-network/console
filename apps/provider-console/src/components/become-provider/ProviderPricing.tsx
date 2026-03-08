@@ -119,15 +119,15 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
           gpu: totalGpu
         });
       } else if (providerDetails) {
-        const { activeStats, pendingStats, availableStats } = providerDetails;
+        const { stats } = providerDetails;
 
-        // Calculate totals by summing active, pending, and available stats
-        const totalCpu = (activeStats.cpu + pendingStats.cpu + availableStats.cpu) / 1000;
-        const totalGpu = activeStats.gpu + pendingStats.gpu + availableStats.gpu;
+        // Calculate totals from stats
+        const totalCpu = stats.cpu.total / 1000;
+        const totalGpu = stats.gpu.total;
         // Convert memory from bytes to GB
-        const totalMemory = Math.floor((activeStats.memory + pendingStats.memory + availableStats.memory) / (1024 * 1024 * 1024));
+        const totalMemory = Math.floor(stats.memory.total / (1024 * 1024 * 1024));
         // Convert storage from bytes to GB
-        const totalStorage = Math.floor((activeStats.storage + pendingStats.storage + availableStats.storage) / (1024 * 1024 * 1024));
+        const totalStorage = Math.floor(stats.storage.total.total / (1024 * 1024 * 1024));
 
         setResources({
           cpu: totalCpu,
