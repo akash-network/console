@@ -11,9 +11,9 @@ import { useSnackbar } from "notistack";
 import { PaymentPopup } from "@src/components/billing-usage/PaymentPopup/PaymentPopup";
 import { PaymentSuccessAnimation } from "@src/components/billing-usage/PaymentSuccessAnimation/PaymentSuccessAnimation";
 import { Title } from "@src/components/shared/Title";
+import { useServices } from "@src/context/ServicesProvider/ServicesProvider";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
 import { useDefaultPaymentMethodQuery, useWalletSettingsMutations, useWalletSettingsQuery, useWeeklyDeploymentCostQuery } from "@src/queries";
-import { UrlService } from "@src/utils/urlUtils";
 
 export const DEPENDENCIES = {
   useSnackbar,
@@ -25,6 +25,7 @@ export const DEPENDENCIES = {
   usePopup,
   useSearchParams,
   useRouter,
+  useServices,
   PaymentPopup,
   PaymentSuccessAnimation,
   Title,
@@ -38,8 +39,7 @@ export const DEPENDENCIES = {
   Skeleton,
   Snackbar,
   Switch,
-  LinearProgress,
-  UrlService
+  LinearProgress
 };
 
 export const AccountOverview: React.FunctionComponent<{ dependencies?: typeof DEPENDENCIES }> = ({ dependencies: d = DEPENDENCIES }) => {
@@ -55,14 +55,15 @@ export const AccountOverview: React.FunctionComponent<{ dependencies?: typeof DE
 
   const searchParams = d.useSearchParams();
   const router = d.useRouter();
+  const { urlService } = d.useServices();
   const isLoading = isLoadingDefaultPaymentMethod;
 
   useEffect(() => {
     if (!isLoading && searchParams.get("openPayment") === "true" && defaultPaymentMethod) {
       setShowPaymentPopup(true);
-      router.replace(d.UrlService.billing(), { scroll: false });
+      router.replace(urlService.billing(), { scroll: false });
     }
-  }, [isLoading, searchParams, defaultPaymentMethod, router, d.UrlService]);
+  }, [isLoading, searchParams, defaultPaymentMethod, router, urlService]);
 
   const defaultPaymentMethodId = useMemo(() => {
     return defaultPaymentMethod?.id;
@@ -209,7 +210,7 @@ export const AccountOverview: React.FunctionComponent<{ dependencies?: typeof DE
                   </p>
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    <d.Link href={d.UrlService.paymentMethods()} className="text-primary underline">
+                    <d.Link href={urlService.paymentMethods()} className="text-primary underline">
                       Add a payment method
                     </d.Link>{" "}
                     to enable auto recharge

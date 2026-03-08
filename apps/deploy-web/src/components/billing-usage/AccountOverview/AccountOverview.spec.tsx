@@ -1,10 +1,10 @@
-import React from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import type { DEPENDENCIES } from "./AccountOverview";
+import { DEPENDENCIES } from "./AccountOverview";
 import { AccountOverview } from "./AccountOverview";
 
 import { render, screen } from "@testing-library/react";
+import { MockComponents } from "@tests/unit/mocks";
 
 describe(AccountOverview.name, () => {
   it("opens payment popup when openPayment query param is true and payment method exists", () => {
@@ -70,11 +70,9 @@ describe(AccountOverview.name, () => {
     const mockRouter = { replace: mockReplace, push: vi.fn() };
 
     const MockPaymentPopup = vi.fn((props: { open: boolean }) => (props.open ? <div data-testid="payment-popup" /> : null));
-    const MockPaymentSuccessAnimation = vi.fn(() => null);
-    const Stub = ({ children }: { children?: React.ReactNode }) => <div>{children}</div>;
-    const MockFormattedNumber = ({ value }: { value: number }) => <span>{value}</span>;
 
     const dependencies = {
+      ...MockComponents(DEPENDENCIES),
       useSnackbar: vi.fn(() => ({ enqueueSnackbar: vi.fn() })),
       useDefaultPaymentMethodQuery: vi.fn(() => ({
         data: input.defaultPaymentMethod,
@@ -92,24 +90,13 @@ describe(AccountOverview.name, () => {
       usePopup: vi.fn(() => ({ confirm: vi.fn() })),
       useSearchParams: vi.fn(() => mockSearchParams),
       useRouter: vi.fn(() => mockRouter),
-      PaymentPopup: MockPaymentPopup,
-      PaymentSuccessAnimation: MockPaymentSuccessAnimation,
-      Title: Stub,
-      FormattedNumber: MockFormattedNumber,
-      Link: Stub,
-      Button: Stub,
-      Card: Stub,
-      CardContent: Stub,
-      CardHeader: Stub,
-      CustomTooltip: Stub,
-      Skeleton: Stub,
-      Snackbar: Stub,
-      Switch: Stub,
-      LinearProgress: Stub,
-      UrlService: {
-        billing: () => "/billing",
-        paymentMethods: () => "/payment-methods"
-      }
+      useServices: vi.fn(() => ({
+        urlService: {
+          billing: () => "/billing",
+          paymentMethods: () => "/payment-methods"
+        }
+      })),
+      PaymentPopup: MockPaymentPopup
     } as unknown as typeof DEPENDENCIES;
 
     render(<AccountOverview dependencies={dependencies} />);
