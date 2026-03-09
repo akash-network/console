@@ -1,31 +1,69 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FormattedNumber } from "react-intl";
 import { Button, Card, CardContent, CardHeader, CustomTooltip, Skeleton, Snackbar, Switch } from "@akashnetwork/ui/components";
 import { usePopup } from "@akashnetwork/ui/context";
 import { LinearProgress } from "@mui/material";
 import { InfoCircle, Plus, Wallet } from "iconoir-react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useSnackbar } from "notistack";
 
 import { PaymentPopup } from "@src/components/billing-usage/PaymentPopup/PaymentPopup";
+import { PaymentSuccessAnimation } from "@src/components/billing-usage/PaymentSuccessAnimation/PaymentSuccessAnimation";
 import { Title } from "@src/components/shared/Title";
-import { PaymentSuccessAnimation } from "@src/components/user/payment/PaymentSuccessAnimation";
+import { useServices } from "@src/context/ServicesProvider/ServicesProvider";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
 import { useDefaultPaymentMethodQuery, useWalletSettingsMutations, useWalletSettingsQuery, useWeeklyDeploymentCostQuery } from "@src/queries";
-import { UrlService } from "@src/utils/urlUtils";
 
-export const AccountOverview: React.FunctionComponent = () => {
+export const DEPENDENCIES = {
+  useSnackbar,
+  useDefaultPaymentMethodQuery,
+  useWalletBalance,
+  useWalletSettingsQuery,
+  useWeeklyDeploymentCostQuery,
+  useWalletSettingsMutations,
+  usePopup,
+  useSearchParams,
+  useRouter,
+  useServices,
+  PaymentPopup,
+  PaymentSuccessAnimation,
+  Title,
+  FormattedNumber,
+  Link,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CustomTooltip,
+  Skeleton,
+  Snackbar,
+  Switch,
+  LinearProgress
+};
+
+export const AccountOverview: React.FunctionComponent<{ dependencies?: typeof DEPENDENCIES }> = ({ dependencies: d = DEPENDENCIES }) => {
   const [showPaymentPopup, setShowPaymentPopup] = useState(false);
   const [showPaymentSuccess, setShowPaymentSuccess] = useState<{ amount: string; show: boolean }>({ amount: "", show: false });
-  const { enqueueSnackbar } = useSnackbar();
-  const { data: defaultPaymentMethod, isLoading: isLoadingDefaultPaymentMethod } = useDefaultPaymentMethodQuery();
-  const { balance: walletBalance, isLoading: isWalletBalanceLoading } = useWalletBalance();
-  const { data: walletSettings } = useWalletSettingsQuery();
-  const { data: weeklyCost } = useWeeklyDeploymentCostQuery();
-  const { upsertWalletSettings } = useWalletSettingsMutations();
-  const { confirm } = usePopup();
+  const { enqueueSnackbar } = d.useSnackbar();
+  const { data: defaultPaymentMethod, isLoading: isLoadingDefaultPaymentMethod } = d.useDefaultPaymentMethodQuery();
+  const { balance: walletBalance, isLoading: isWalletBalanceLoading } = d.useWalletBalance();
+  const { data: walletSettings } = d.useWalletSettingsQuery();
+  const { data: weeklyCost } = d.useWeeklyDeploymentCostQuery();
+  const { upsertWalletSettings } = d.useWalletSettingsMutations();
+  const { confirm } = d.usePopup();
 
+  const searchParams = d.useSearchParams();
+  const router = d.useRouter();
+  const { urlService } = d.useServices();
   const isLoading = isLoadingDefaultPaymentMethod;
+
+  useEffect(() => {
+    if (!isLoading && searchParams.get("openPayment") === "true") {
+      setShowPaymentPopup(true);
+      router.replace(urlService.billing(), { scroll: false });
+    }
+  }, [isLoading, searchParams, router, urlService]);
 
   const defaultPaymentMethodId = useMemo(() => {
     return defaultPaymentMethod?.id;
@@ -54,11 +92,11 @@ export const AccountOverview: React.FunctionComponent = () => {
 
       upsertWalletSettings.mutate(settings, {
         onSuccess: response =>
-          enqueueSnackbar(<Snackbar title={`Auto Reload ${response.autoReloadEnabled ? "enabled" : "disabled"}`} iconVariant="success" />, {
+          enqueueSnackbar(<d.Snackbar title={`Auto Reload ${response.autoReloadEnabled ? "enabled" : "disabled"}`} iconVariant="success" />, {
             variant: "success",
             autoHideDuration: 3000
           }),
-        onError: () => enqueueSnackbar(<Snackbar title="Failed to update Auto Reload settings" iconVariant="error" />, { variant: "error" })
+        onError: () => enqueueSnackbar(<d.Snackbar title="Failed to update Auto Reload settings" iconVariant="error" />, { variant: "error" })
       });
     },
     [confirm, enqueueSnackbar, upsertWalletSettings]
@@ -74,36 +112,36 @@ export const AccountOverview: React.FunctionComponent = () => {
     return (
       <div>
         <div className="flex items-center justify-between">
-          <Title subTitle>Your account</Title>
-          <Skeleton className="h-9 w-28" />
+          <d.Title subTitle>Your account</d.Title>
+          <d.Skeleton className="h-9 w-28" />
         </div>
 
         <div className="pt-4">
           <div className="grid gap-6 md:grid-cols-2">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-                <Skeleton className="h-4 w-28" />
-                <Skeleton className="h-4 w-4" />
-              </CardHeader>
-              <CardContent>
+            <d.Card>
+              <d.CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                <d.Skeleton className="h-4 w-28" />
+                <d.Skeleton className="h-4 w-4" />
+              </d.CardHeader>
+              <d.CardContent>
                 <div className="flex flex-col gap-1">
-                  <Skeleton className="h-8 w-24" />
-                  <Skeleton className="h-4 w-40" />
+                  <d.Skeleton className="h-8 w-24" />
+                  <d.Skeleton className="h-4 w-40" />
                 </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-                <Skeleton className="h-4 w-28" />
-                <Skeleton className="h-4 w-4" />
-              </CardHeader>
-              <CardContent>
+              </d.CardContent>
+            </d.Card>
+            <d.Card>
+              <d.CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                <d.Skeleton className="h-4 w-28" />
+                <d.Skeleton className="h-4 w-4" />
+              </d.CardHeader>
+              <d.CardContent>
                 <div className="flex flex-col gap-2">
-                  <Skeleton className="h-6 w-12 rounded-full" />
-                  <Skeleton className="h-4 w-56" />
+                  <d.Skeleton className="h-6 w-12 rounded-full" />
+                  <d.Skeleton className="h-4 w-56" />
                 </div>
-              </CardContent>
-            </Card>
+              </d.CardContent>
+            </d.Card>
           </div>
         </div>
       </div>
@@ -113,77 +151,77 @@ export const AccountOverview: React.FunctionComponent = () => {
   return (
     <div>
       <div className="flex items-center justify-between">
-        <Title subTitle>Your account</Title>
-        <CustomTooltip title="Add a payment method first to add funds" disabled={hasPaymentMethod}>
-          <Button onClick={() => setShowPaymentPopup(true)} disabled={isWalletBalanceLoading || !hasPaymentMethod} size="sm">
+        <d.Title subTitle>Your account</d.Title>
+        <d.CustomTooltip title="Add a payment method first to add funds" disabled={hasPaymentMethod}>
+          <d.Button onClick={() => setShowPaymentPopup(true)} disabled={isWalletBalanceLoading || !hasPaymentMethod} size="sm">
             <Plus className="h-4 w-4" />
             Add Funds
-          </Button>
-        </CustomTooltip>
+          </d.Button>
+        </d.CustomTooltip>
       </div>
 
       <div className="pt-6">
         <div className="grid gap-6 md:grid-cols-2">
-          <Card className="relative overflow-hidden">
+          <d.Card className="relative overflow-hidden">
             {(!walletBalance || isWalletBalanceLoading) && (
               <div className="absolute left-0 right-0 top-0 flex flex-1 items-center">
-                <LinearProgress color="primary" className="mx-auto w-full" />
+                <d.LinearProgress color="primary" className="mx-auto w-full" />
               </div>
             )}
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+            <d.CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
               <h3 className="text-sm font-medium leading-none text-muted-foreground">Available Balance</h3>
               <Wallet className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
+            </d.CardHeader>
+            <d.CardContent>
               <div className="flex flex-col gap-1">
                 <p className="text-2xl font-bold leading-none">
-                  {walletBalance && <FormattedNumber value={walletBalance.totalDeploymentGrantsUSD} style="currency" currency="USD" />}
+                  {walletBalance && <d.FormattedNumber value={walletBalance.totalDeploymentGrantsUSD} style="currency" currency="USD" />}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {walletBalance && <FormattedNumber value={walletBalance.totalDeploymentEscrowUSD} style="currency" currency="USD" />} used in deployments
+                  {walletBalance && <d.FormattedNumber value={walletBalance.totalDeploymentEscrowUSD} style="currency" currency="USD" />} used in deployments
                 </p>
               </div>
-            </CardContent>
-          </Card>
-          <Card className="relative overflow-hidden">
+            </d.CardContent>
+          </d.Card>
+          <d.Card className="relative overflow-hidden">
             {upsertWalletSettings.isPending && (
               <div className="absolute left-0 right-0 top-0 flex flex-1 items-center">
-                <LinearProgress color="primary" className="mx-auto w-full" />
+                <d.LinearProgress color="primary" className="mx-auto w-full" />
               </div>
             )}
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+            <d.CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
               <div className="flex items-center gap-1">
                 <h3 className="text-sm font-medium leading-none text-muted-foreground">Auto Recharge</h3>
-                <CustomTooltip title="Automatically add credits to your account using your default payment method to keep deployments running.">
+                <d.CustomTooltip title="Automatically add credits to your account using your default payment method to keep deployments running.">
                   <InfoCircle className="h-4 w-4 cursor-pointer text-muted-foreground" />
-                </CustomTooltip>
+                </d.CustomTooltip>
               </div>
-            </CardHeader>
-            <CardContent>
+            </d.CardHeader>
+            <d.CardContent>
               <div className="flex flex-col gap-2">
-                <Switch checked={walletSettings?.autoReloadEnabled ?? false} onCheckedChange={toggleAutoReload} disabled={isReloadChangeDisabled} />
+                <d.Switch checked={walletSettings?.autoReloadEnabled ?? false} onCheckedChange={toggleAutoReload} disabled={isReloadChangeDisabled} />
                 {hasPaymentMethod ? (
                   <p className="text-sm text-muted-foreground">
                     Recharge amount is approximately{" "}
                     <span className="font-medium text-foreground">
-                      <FormattedNumber value={weeklyCost ?? 0} style="currency" currency="USD" />
+                      <d.FormattedNumber value={weeklyCost ?? 0} style="currency" currency="USD" />
                     </span>{" "}
                     per week
                   </p>
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    <Link href={UrlService.paymentMethods()} className="text-primary underline">
+                    <d.Link href={urlService.paymentMethods()} className="text-primary underline">
                       Add a payment method
-                    </Link>{" "}
+                    </d.Link>{" "}
                     to enable auto recharge
                   </p>
                 )}
               </div>
-            </CardContent>
-          </Card>
+            </d.CardContent>
+          </d.Card>
         </div>
 
-        <PaymentSuccessAnimation
+        <d.PaymentSuccessAnimation
           show={showPaymentSuccess.show}
           amount={showPaymentSuccess.amount}
           onComplete={() => setShowPaymentSuccess({ amount: "", show: false })}
@@ -191,7 +229,7 @@ export const AccountOverview: React.FunctionComponent = () => {
       </div>
 
       {showPaymentPopup && (
-        <PaymentPopup
+        <d.PaymentPopup
           open={showPaymentPopup}
           onClose={() => setShowPaymentPopup(false)}
           selectedPaymentMethodId={defaultPaymentMethodId}

@@ -68,7 +68,7 @@ export class UrlService {
   static userProfile = (username: string) => `/profile/${username}`;
   static usage = () => "/usage";
   static paymentMethods = () => "/payment-methods";
-  static billing = () => "/billing";
+  static billing = ({ openPayment }: { openPayment?: boolean } = {}) => `/billing${appendSearchParams({ openPayment })}`;
   /** @deprecated use .newLogin instead */
   static login = () => "/api/auth/login";
   /** @deprecated use .newSignup instead */
@@ -79,7 +79,6 @@ export class UrlService {
   static logout = () => "/api/auth/logout";
   static onboarding = ({ returnTo }: ReturnableOptions = {}) => getSafeReturnableUrl("/signup", returnTo);
   static template = (id: string) => `/template/${id}`;
-  static payment = () => "/payment";
 
   // Deploy
   static deploymentList = () => `/deployments`;

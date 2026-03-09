@@ -18,7 +18,7 @@ export const DEPENDENCIES = {
   CreditCard
 };
 
-function getPaymentMethodDisplay(method: PaymentMethod): { label: string; expiry: string | null } {
+export function getPaymentMethodDisplay(method: PaymentMethod): { label: string; expiry: string | null } {
   if (method.card) {
     return {
       label: `${method.card.brand?.toUpperCase() || ""} •••• ${method.card.last4 || ""}`,

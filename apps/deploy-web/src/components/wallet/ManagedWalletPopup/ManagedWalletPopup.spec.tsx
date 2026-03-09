@@ -54,7 +54,7 @@ describe(ManagedWalletPopup.name, () => {
     setup();
 
     expect(screen.getByText("Add Funds")).toBeInTheDocument();
-    expect(screen.getByTestId("add-funds-link")).toHaveAttribute("href", "/payment");
+    expect(screen.getByTestId("add-funds-link")).toHaveAttribute("href", "/billing?openPayment=true");
   });
 
   it("calls switchWalletType when Switch to Wallet Payments is clicked and wallet is connected", () => {
@@ -89,6 +89,11 @@ describe(ManagedWalletPopup.name, () => {
       useSelectedChain: () => ({
         connect,
         isWalletConnected: input?.isWalletConnected ?? false
+      }),
+      useServices: () => ({
+        urlService: {
+          billing: ({ openPayment }: { openPayment?: boolean } = {}) => (openPayment ? "/billing?openPayment=true" : "/billing")
+        }
       }),
       FormattedNumber: ({ value }: { value: number }) => <span>{value}</span>,
       LinkTo: ({ children, className, onClick }: { children: React.ReactNode; className?: string; onClick?: () => void }) => (

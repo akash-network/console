@@ -217,7 +217,7 @@ describe(NotificationHandler.name, () => {
     });
 
     const vars = {
-      paymentLink: "https://example.com/payment"
+      paymentLink: "https://example.com/billing?openPayment=true"
     };
     await handler.handle({
       template: "afterTrialEnds",

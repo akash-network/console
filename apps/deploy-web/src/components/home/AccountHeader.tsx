@@ -22,7 +22,10 @@ export const AccountHeader: React.FC<Props> = ({ isManagedWallet, onDeployClick,
       <h3 className="text-xl font-semibold">Your account</h3>
       <div className="flex gap-4">
         {isManagedWallet && (
-          <AddFundsLink className={cn(buttonVariants({ variant: "outline", size: "sm" }), "flex items-center gap-2")} href={urlService.payment()}>
+          <AddFundsLink
+            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "flex items-center gap-2")}
+            href={urlService.billing({ openPayment: true })}
+          >
             <Plus className="h-4 w-4" />
             <span className="whitespace-nowrap">Add Funds</span>
           </AddFundsLink>

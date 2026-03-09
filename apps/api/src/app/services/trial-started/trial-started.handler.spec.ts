@@ -213,7 +213,7 @@ describe(TrialStartedHandler.name, () => {
     initialCredits?: number;
     deploymentLifetimeInHours?: number;
   }) {
-    const paymentLink = "https://console.akash.network/payment";
+    const paymentLink = "https://console.akash.network/billing?openPayment=true";
     const mocks = {
       notificationService: mock<NotificationService>({
         createNotification: input?.createNotification ?? jest.fn().mockResolvedValue(undefined)

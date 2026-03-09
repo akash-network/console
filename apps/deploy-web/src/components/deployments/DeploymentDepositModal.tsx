@@ -74,7 +74,7 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
   };
 
   const goToCheckout = () => {
-    router.push(UrlService.payment());
+    router.push(UrlService.billing({ openPayment: true }));
   };
 
   useEffect(() => {
