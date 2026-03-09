@@ -10,6 +10,7 @@ import { UserWalletRepository } from "@src/billing/repositories";
 import type { GetWalletQuery } from "@src/billing/routes/get-wallet-list/get-wallet-list.router";
 import { WalletInitializerService } from "@src/billing/services";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
+import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { RefillService } from "@src/billing/services/refill/refill.service";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
@@ -32,7 +33,8 @@ export class WalletController {
     private readonly stripeService: StripeService,
     private readonly stripeErrorService: StripeErrorService,
     private readonly featureFlagsService: FeatureFlagsService,
-    private readonly userRepository: UserRepository
+    private readonly userRepository: UserRepository,
+    private readonly billingConfigService: BillingConfigService
   ) {}
 
   @Protected([{ action: "create", subject: "UserWallet" }])
@@ -70,6 +72,7 @@ export class WalletController {
             id: null,
             userId: currentUser.id,
             address: null,
+            denom: this.billingConfigService.get("DEPLOYMENT_GRANT_DENOM"),
             creditAmount: 0,
             isTrialing: false,
             createdAt: null,
@@ -88,15 +91,20 @@ export class WalletController {
       throw error;
     }
 
+    const denom = this.billingConfigService.get("DEPLOYMENT_GRANT_DENOM");
+
     return {
-      data: await this.walletInitializer.initializeAndGrantTrialLimits(userId)
+      data: { ...(await this.walletInitializer.initializeAndGrantTrialLimits(userId)), denom }
     };
   }
 
   @Protected([{ action: "read", subject: "UserWallet" }])
   async getWallets(query: GetWalletQuery): Promise<WalletListOutputResponse> {
+    const denom = this.billingConfigService.get("DEPLOYMENT_GRANT_DENOM");
+    const wallets = await this.walletReaderService.getWallets(query as GetWalletOptions);
+
     return {
-      data: await this.walletReaderService.getWallets(query as GetWalletOptions)
+      data: wallets.map(wallet => ({ ...wallet, denom }))
     };
   }
 

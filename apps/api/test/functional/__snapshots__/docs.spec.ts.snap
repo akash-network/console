@@ -12380,6 +12380,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "creditAmount": {
                           "type": "number",
                         },
+                        "denom": {
+                          "type": "string",
+                        },
                         "id": {
                           "nullable": true,
                           "type": "number",
@@ -12408,6 +12411,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "userId",
                         "creditAmount",
                         "address",
+                        "denom",
                         "isTrialing",
                         "createdAt",
                       ],
@@ -12446,6 +12450,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "creditAmount": {
                           "type": "number",
                         },
+                        "denom": {
+                          "type": "string",
+                        },
                         "id": {
                           "nullable": true,
                           "type": "number",
@@ -12474,6 +12481,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "userId",
                         "creditAmount",
                         "address",
+                        "denom",
                         "isTrialing",
                         "createdAt",
                       ],
@@ -15553,6 +15561,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "creditAmount": {
                             "type": "number",
                           },
+                          "denom": {
+                            "type": "string",
+                          },
                           "id": {
                             "nullable": true,
                             "type": "number",
@@ -15581,6 +15592,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "userId",
                           "creditAmount",
                           "address",
+                          "denom",
                           "isTrialing",
                           "createdAt",
                         ],

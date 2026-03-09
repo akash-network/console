@@ -19,6 +19,7 @@ import { useWallet } from "@src/context/WalletProvider";
 import { useCurrencyFormatter } from "@src/hooks/useCurrencyFormatter/useCurrencyFormatter";
 import { useDeploymentMetrics } from "@src/hooks/useDeploymentMetrics";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
+import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import { usePricing } from "@src/hooks/usePricing/usePricing";
 import { useUser } from "@src/hooks/useUser";
@@ -47,7 +48,8 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
   deployment,
   leases
 }) => {
-  const { analyticsService, publicConfig } = useServices();
+  const { analyticsService } = useServices();
+  const managedDenom = useManagedWalletDenom();
   const { changeDeploymentName, getDeploymentData, getDeploymentName } = useLocalNotes();
   const { udenomToUsd } = usePricing();
   const router = useRouter();
@@ -230,9 +232,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
                   title={
                     <div className="space-y-2">
                       <div>
-                        <div>
-                          Estimated amount: ${udenomToUsd(deploymentSetting.data?.estimatedTopUpAmount || 0, publicConfig.NEXT_PUBLIC_MANAGED_WALLET_DENOM)}
-                        </div>
+                        <div>Estimated amount: ${udenomToUsd(deploymentSetting.data?.estimatedTopUpAmount || 0, managedDenom)}</div>
                         <div>Check period: {formatDuration(intervalToDuration({ start: 0, end: deploymentSetting.data?.topUpFrequencyMs || 0 }))}</div>
                       </div>
                       <div className="text-xs text-muted-foreground">

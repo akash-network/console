@@ -5,8 +5,13 @@ import { container as rootContainer } from "tsyringe";
 import { mock } from "vitest-mock-extended";
 
 import { AuthService } from "@src/auth/services/auth.service";
-import { WalletInitializerService } from "@src/billing/services";
+import { UserWalletRepository } from "@src/billing/repositories";
+import { ManagedSignerService, WalletInitializerService } from "@src/billing/services";
+import { BalancesService } from "@src/billing/services/balances/balances.service";
+import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { RefillService } from "@src/billing/services/refill/refill.service";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
+import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import type { UserOutput } from "@src/user/repositories";
 import { UserRepository } from "@src/user/repositories";
 import { WalletController } from "./wallet.controller";
@@ -158,6 +163,7 @@ describe("WalletController", () => {
         id: null,
         userId: user.id,
         address: null,
+        denom: "uakt",
         creditAmount: 0,
         isTrialing: false,
         createdAt: null,
@@ -274,6 +280,26 @@ describe("WalletController", () => {
       useValue: mock<UserRepository>({
         findTrialUsersByFingerprint: jest.fn().mockResolvedValue(input?.hasDuplicateFingerprint ? [{ id: faker.string.uuid() }] : [])
       })
+    });
+    rootContainer.register(BillingConfigService, {
+      useValue: mock<BillingConfigService>({
+        get: jest.fn().mockReturnValue("uakt")
+      })
+    });
+    rootContainer.register(ManagedSignerService, {
+      useValue: mock<ManagedSignerService>()
+    });
+    rootContainer.register(RefillService, {
+      useValue: mock<RefillService>()
+    });
+    rootContainer.register(WalletReaderService, {
+      useValue: mock<WalletReaderService>()
+    });
+    rootContainer.register(BalancesService, {
+      useValue: mock<BalancesService>()
+    });
+    rootContainer.register(UserWalletRepository, {
+      useValue: mock<UserWalletRepository>()
     });
 
     return rootContainer;

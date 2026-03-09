@@ -25,7 +25,7 @@ describe(useManagedWalletQuery.name, () => {
       });
 
       await vi.waitFor(() => {
-        expect(managedWalletService.getWallet).toHaveBeenCalledWith(mockData.userId);
+        expect(managedWalletService.getWallet).toHaveBeenCalledWith({ userId: mockData.userId });
         expect(result.current.isSuccess).toBe(true);
         expect(result.current.data).toEqual(mockData);
       });

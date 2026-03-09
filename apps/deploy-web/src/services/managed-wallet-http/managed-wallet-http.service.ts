@@ -1,6 +1,5 @@
-import type { ApiManagedWalletOutput, ApiWalletOutput } from "@akashnetwork/http-sdk";
+import type { ApiManagedWalletOutput, HttpClient } from "@akashnetwork/http-sdk";
 import { ManagedWalletHttpService as ManagedWalletHttpServiceOriginal } from "@akashnetwork/http-sdk";
-import type { AxiosRequestConfig } from "axios";
 
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 
@@ -8,11 +7,10 @@ export class ManagedWalletHttpService extends ManagedWalletHttpServiceOriginal {
   private checkoutSessionId: string | null = null;
 
   constructor(
-    config: AxiosRequestConfig,
+    httpClient: HttpClient,
     private readonly analyticsService: AnalyticsService
   ) {
-    super(config);
-
+    super(httpClient);
     this.extractSessionResults();
   }
 
@@ -34,12 +32,10 @@ export class ManagedWalletHttpService extends ManagedWalletHttpServiceOriginal {
     }
   }
 
-  async getWallet(userId: string): Promise<ApiManagedWalletOutput | null> {
-    const [wallet] = this.extractApiData(await this.get<ApiWalletOutput[]>("v1/wallets", { params: this.getWalletListParams(userId) }));
-
+  async getWallet(input: { userId: string }): Promise<ApiManagedWalletOutput | null> {
+    const wallet = await super.getWallet(this.getWalletListParams(input.userId));
     this.clearSessionResults();
-
-    return wallet ? this.addWalletEssentials(wallet) : null;
+    return wallet;
   }
 
   private getWalletListParams(userId: string) {

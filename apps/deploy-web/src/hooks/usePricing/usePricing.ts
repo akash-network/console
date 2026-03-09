@@ -5,7 +5,6 @@ import { UACT_DENOM, UAKT_DENOM } from "@src/config/denom.config";
 import { useUsdcDenom } from "@src/hooks/useDenom";
 import { useMarketData } from "@src/queries";
 import { roundDecimal, udenomToDenom } from "@src/utils/mathHelpers";
-import { uaktToAKT } from "@src/utils/priceUtils";
 
 export function usePricing(): PricingContext {
   const { data: marketData, isLoading } = useMarketData({
@@ -51,7 +50,7 @@ export function usePricing(): PricingContext {
       const parsedAmount = typeof amount === "number" ? amount : parseFloat(amount);
 
       if (denom === UAKT_DENOM) {
-        value = uaktToAKT(parsedAmount, 6) * (marketData?.price || 0);
+        value = udenomToDenom(parsedAmount, 6) * (marketData?.price || 0);
       } else if (denom === usdcIbcDenom || denom === "usdc" || denom === UACT_DENOM) {
         value = udenomToDenom(parsedAmount, 6);
       }
