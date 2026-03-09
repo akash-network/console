@@ -1,7 +1,8 @@
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import { FileDestinationFactory } from "@src/factories/file-destination/file-destination.factory";
 import { PodLogsCollectorFactory } from "@src/factories/pod-logs-collector/pod-logs-collector.factory";
+import { PROCESS } from "@src/providers/nodejs-process.provider";
 import { ErrorHandlerService } from "@src/services/error-handler/error-handler.service";
 import { LoggerService } from "@src/services/logger/logger.service";
 import { PodDiscoveryService, PodInfo } from "@src/services/pod-discovery/pod-discovery.service";
@@ -13,7 +14,8 @@ export class K8sCollectorService {
     private readonly podLogsCollectorFactory: PodLogsCollectorFactory,
     private readonly fileDestinationFactory: FileDestinationFactory,
     private readonly loggerService: LoggerService,
-    private readonly errorHandlerService: ErrorHandlerService
+    private readonly errorHandlerService: ErrorHandlerService,
+    @inject(PROCESS) private readonly nodeProcess: NodeJS.Process
   ) {
     this.loggerService.setContext(K8sCollectorService.name);
   }
@@ -35,26 +37,14 @@ export class K8sCollectorService {
     }
   }
 
-  private startCollectionForPod(podInfo: PodInfo, signal: AbortSignal): void {
+  private async startCollectionForPod(podInfo: PodInfo, signal: AbortSignal): Promise<void> {
     try {
       const fileDestination = this.fileDestinationFactory.create(podInfo);
       const podLogsCollector = this.podLogsCollectorFactory.create(podInfo, fileDestination, signal);
-
-      podLogsCollector.collectPodLogs().catch(error => {
-        this.loggerService.error({
-          event: "POD_LOG_COLLECTION_FAILED",
-          error,
-          podName: podInfo.podName,
-          namespace: podInfo.namespace
-        });
-      });
+      await podLogsCollector.collectPodLogs();
     } catch (error) {
-      this.loggerService.error({
-        event: "POD_LOG_COLLECTION_FAILED",
-        error,
-        podName: podInfo.podName,
-        namespace: podInfo.namespace
-      });
+      this.loggerService.error({ event: "POD_LOG_COLLECTION_FAILED", error, podName: podInfo.podName, namespace: podInfo.namespace });
+      this.nodeProcess.exit(1);
     }
   }
 }

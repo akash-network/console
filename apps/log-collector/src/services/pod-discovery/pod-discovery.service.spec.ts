@@ -525,6 +525,61 @@ describe(PodDiscoveryService.name, () => {
 
       void watchPromise.catch(() => {});
     });
+
+    it("throws AggregateError after 3 consecutive poll failures", async () => {
+      const namespace = faker.internet.domainWord();
+      const { podDiscoveryService, k8sClient, loggerService } = setup({
+        KUBERNETES_NAMESPACE_OVERRIDE: namespace,
+        POD_POLL_INTERVAL_MS: "100"
+      });
+
+      const pollError = new Error("K8s API unavailable");
+      let callCount = 0;
+      k8sClient.listNamespacedPod.mockImplementation(async () => {
+        callCount++;
+        if (callCount === 1) {
+          return { items: [] };
+        }
+        throw pollError;
+      });
+
+      const callback = jest.fn();
+
+      await expect(podDiscoveryService.watchPods(callback)).rejects.toThrow("Pod polling failed 3 times consecutively");
+
+      expect(loggerService.error).toHaveBeenCalledTimes(3);
+      expect(loggerService.error).toHaveBeenCalledWith(expect.objectContaining({ event: "POD_POLL_ERROR", consecutiveFailures: 3 }));
+    });
+
+    it("resets consecutive error count on successful poll", async () => {
+      const namespace = faker.internet.domainWord();
+      const { podDiscoveryService, k8sClient, loggerService } = setup({
+        KUBERNETES_NAMESPACE_OVERRIDE: namespace,
+        POD_POLL_INTERVAL_MS: "100"
+      });
+
+      const pollError = new Error("K8s API unavailable");
+      let callCount = 0;
+      k8sClient.listNamespacedPod.mockImplementation(async () => {
+        callCount++;
+        if (callCount === 1) {
+          return { items: [] };
+        }
+        // Fail twice, succeed, fail twice, succeed, fail 3 times
+        if (callCount <= 3) throw pollError;
+        if (callCount === 4) return { items: [] };
+        if (callCount <= 6) throw pollError;
+        if (callCount === 7) return { items: [] };
+        throw pollError;
+      });
+
+      const callback = jest.fn();
+
+      await expect(podDiscoveryService.watchPods(callback)).rejects.toThrow("Pod polling failed 3 times consecutively");
+
+      // 2 + 2 + 3 = 7 errors total, but only 3 consecutive at the end
+      expect(loggerService.error).toHaveBeenCalledTimes(7);
+    });
   });
 
   function setup(envOverrides: Record<string, string> = {}) {

@@ -27,11 +27,17 @@ import { LoggerService } from "@src/services/logger/logger.service";
 export const bootstrap = async (c = container) => {
   const loggerService = c.resolve(LoggerService);
   loggerService.setContext("INIT");
+  const nodeProcess = c.resolve<NodeJS.Process>(PROCESS);
+
+  nodeProcess.on("unhandledRejection", (error: unknown) => {
+    loggerService.error({ event: "UNHANDLED_REJECTION", error });
+    nodeProcess.exit(1);
+  });
 
   try {
     await c.resolve(K8sCollectorService).start();
   } catch (error) {
     loggerService.error({ error });
-    c.resolve<NodeJS.Process>(PROCESS).exit(1);
+    nodeProcess.exit(1);
   }
 };

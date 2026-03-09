@@ -3,6 +3,7 @@ import { container } from "tsyringe";
 
 import { FileDestinationFactory } from "@src/factories/file-destination/file-destination.factory";
 import { PodLogsCollectorFactory } from "@src/factories/pod-logs-collector/pod-logs-collector.factory";
+import { PROCESS } from "@src/providers/nodejs-process.provider";
 import { ErrorHandlerService } from "@src/services/error-handler/error-handler.service";
 import type { FileDestinationService } from "@src/services/file-destination/file-destination.service";
 import { LoggerService } from "@src/services/logger/logger.service";
@@ -77,8 +78,8 @@ describe(K8sCollectorService.name, () => {
     await expect(k8sCollectorService.start()).rejects.toThrow("Connection refused");
   });
 
-  it("should isolate per-pod errors and log them", async () => {
-    const { k8sCollectorService, podDiscoveryService, podLogsCollectorFactory, fileDestinationFactory, loggerService } = setup();
+  it("logs error and exits process when pod log collection fails", async () => {
+    const { k8sCollectorService, podDiscoveryService, podLogsCollectorFactory, fileDestinationFactory, loggerService, nodeProcess } = setup();
     const pod = seedPodInfoTestData();
 
     const mockPodLogsCollector = mock<PodLogsCollectorService>();
@@ -93,8 +94,6 @@ describe(K8sCollectorService.name, () => {
     fileDestinationFactory.create.mockReturnValue(mock<FileDestinationService>());
 
     await k8sCollectorService.start();
-
-    // Allow microtask to settle (fire-and-forget catch)
     await new Promise(resolve => setTimeout(resolve, 0));
 
     expect(loggerService.error).toHaveBeenCalledWith(
@@ -104,6 +103,7 @@ describe(K8sCollectorService.name, () => {
         error: collectionError
       })
     );
+    expect(nodeProcess.exit).toHaveBeenCalledWith(1);
   });
 
   function setup() {
@@ -114,6 +114,8 @@ describe(K8sCollectorService.name, () => {
     const errorHandlerService = mockProvider(ErrorHandlerService);
     const podLogsCollectorFactory = mockProvider(PodLogsCollectorFactory);
     const fileDestinationFactory = mockProvider(FileDestinationFactory);
+    const nodeProcess = mock<NodeJS.Process>();
+    container.register(PROCESS, { useValue: nodeProcess });
 
     const k8sCollectorService = container.resolve(K8sCollectorService);
 
@@ -123,7 +125,8 @@ describe(K8sCollectorService.name, () => {
       podLogsCollectorFactory,
       fileDestinationFactory,
       loggerService,
-      errorHandlerService
+      errorHandlerService,
+      nodeProcess
     };
   }
 });

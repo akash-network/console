@@ -95,7 +95,7 @@ export class PodDiscoveryService {
   private async startPodWatch(callback: PodCallback): Promise<void> {
     const pollInterval = this.config.get("POD_POLL_INTERVAL_MS");
     const ALWAYS_TRUE_TO_RUN_INDEFINITELY = true;
-
+    const consecutiveErrors: Error[] = [];
     while (ALWAYS_TRUE_TO_RUN_INDEFINITELY) {
       await delay(pollInterval);
 
@@ -114,11 +114,15 @@ export class PodDiscoveryService {
             this.untrackPod(podInfo);
           }
         }
+
+        consecutiveErrors.length = 0;
       } catch (error) {
-        this.loggerService.error({
-          event: "POD_POLL_ERROR",
-          error
-        });
+        consecutiveErrors.push(error instanceof Error ? error : new Error(String(error)));
+        this.loggerService.error({ event: "POD_POLL_ERROR", error, consecutiveFailures: consecutiveErrors.length });
+
+        if (consecutiveErrors.length >= 3) {
+          throw new AggregateError(consecutiveErrors, `Pod polling failed ${consecutiveErrors.length} times consecutively`);
+        }
       }
     }
   }
