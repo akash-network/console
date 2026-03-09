@@ -1,6 +1,8 @@
 "use client";
 import type { ComponentProps, Dispatch, SetStateAction } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { SDLInput } from "@akashnetwork/chain-sdk/web";
+import { yaml } from "@akashnetwork/chain-sdk/web";
 import { Alert, Button, CustomTooltip, FileButton, Input, Snackbar, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import type { EncodeObject } from "@cosmjs/proto-signing";
@@ -11,12 +13,14 @@ import { useAtom } from "jotai";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSnackbar } from "notistack";
 
+import { UACT_DENOM, UAKT_DENOM } from "@src/config/denom.config";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useCertificate } from "@src/hooks/useCertificate/useCertificate";
 import { useImportSimpleSdl } from "@src/hooks/useImportSimpleSdl";
 import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom";
+import { useSupportsACT } from "@src/hooks/useSupportsACT/useSupportsACT";
 import { useWhen } from "@src/hooks/useWhen";
 import { useDepositParams } from "@src/queries/useSaveSettings";
 import sdlStore from "@src/store/sdlStore";
@@ -80,7 +84,8 @@ export const DEPENDENCIES = {
   useMediaQuery,
   useSnackbar,
   useRouter,
-  useSearchParams
+  useSearchParams,
+  useSupportsACT
 };
 
 export const ManifestEdit: React.FunctionComponent<Props> = ({
@@ -99,7 +104,18 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
   const [isCheckingPrerequisites, setIsCheckingPrerequisites] = useState(false);
   const [selectedSdlEditMode, setSelectedSdlEditMode] = useAtom(sdlStore.selectedSdlEditMode);
   const [isRepoInputValid, setIsRepoInputValid] = useState(false);
-  const [sdlDenom, setSdlDenom] = useState("uakt");
+  const isACTSupported = d.useSupportsACT();
+  const sdlDenom = useMemo(() => {
+    const defaultValue = isACTSupported ? UACT_DENOM : UAKT_DENOM;
+    if (!editedManifest) return defaultValue;
+
+    try {
+      const sdl: SDLInput = yaml.template(editedManifest);
+      return Object.values(Object.values(sdl.profiles.placement)[0].pricing)[0].denom;
+    } catch {
+      return defaultValue;
+    }
+  }, [editedManifest]);
 
   const { analyticsService, chainApiHttpClient, publicConfig: appConfig, deploymentLocalStorage } = d.useServices();
   const { settings } = d.useSettings();
@@ -124,7 +140,6 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
     wallet.isManaged && sdlDenom === "uakt" && editedManifest,
     () => {
       setEditedManifest(prev => (prev ? prev.replace(/uakt/g, managedDenom) : prev));
-      setSdlDenom(managedDenom);
     },
     [editedManifest, wallet.isManaged, sdlDenom]
   );
@@ -173,9 +188,6 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
 
       const dd = await deploymentData.NewDeploymentData(chainApiHttpClient, yamlStr, dseq, address, deposit);
       validateDeploymentData(dd, selectedTemplate);
-
-      setSdlDenom(dd.deposit.denom);
-
       setParsingError(null);
 
       return dd;
