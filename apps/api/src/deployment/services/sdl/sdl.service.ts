@@ -56,7 +56,7 @@ export class SdlService {
   public validateSdl(yamlJson: string) {
     try {
       const sdlInput = sdlYaml.template<SDLInput>(yamlJson);
-      const result = generateManifest(sdlInput);
+      const result = generateManifest(sdlInput, this.networkId);
       return !!result.ok;
     } catch {
       return false;
