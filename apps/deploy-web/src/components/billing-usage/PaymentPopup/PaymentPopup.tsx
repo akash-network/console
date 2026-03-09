@@ -25,6 +25,7 @@ import {
 } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Xmark } from "iconoir-react";
+import Link from "next/link";
 import { useSnackbar } from "notistack";
 import { z } from "zod";
 
@@ -59,6 +60,7 @@ export const DEPENDENCIES = {
   Xmark,
   Skeleton,
   Snackbar,
+  Link,
   useForm,
   zodResolver,
   useSnackbar,
@@ -102,7 +104,7 @@ export const PaymentPopup: React.FC<PaymentPopupProps> = ({
   setShowPaymentSuccess,
   dependencies: d = DEPENDENCIES
 }) => {
-  const { errorHandler } = d.useServices();
+  const { errorHandler, urlService } = d.useServices();
   const { enqueueSnackbar } = d.useSnackbar();
 
   const [selectedMethodId, setSelectedMethodId] = useState<string | undefined>(selectedPaymentMethodId);
@@ -281,7 +283,14 @@ export const PaymentPopup: React.FC<PaymentPopupProps> = ({
                       ))}
                     </d.SelectContent>
                   </d.Select>
-                  {!paymentMethods?.length && <p className="mt-1 text-sm text-muted-foreground">No payment methods available</p>}
+                  {!paymentMethods?.length && (
+                    <d.Alert className="mt-2">
+                      <p className="text-sm">No payment methods available.</p>
+                      <d.Link href={urlService.paymentMethods()} className="mt-1 inline-block text-sm font-medium text-primary underline">
+                        Add a payment method
+                      </d.Link>
+                    </d.Alert>
+                  )}
                 </>
               )}
             </div>

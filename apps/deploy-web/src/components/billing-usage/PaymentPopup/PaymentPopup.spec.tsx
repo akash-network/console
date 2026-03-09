@@ -97,6 +97,11 @@ const MockSnackbar = ({ title, iconVariant }: any) => (
 );
 
 const MockLabel = ({ children }: any) => <label>{children}</label>;
+const MockLink = ({ children, href, className }: any) => (
+  <a data-testid="link" href={href} className={className}>
+    {children}
+  </a>
+);
 
 const MockSelect = ({ children, value, onValueChange }: any) => (
   <div data-testid="select" data-value={value}>
@@ -167,9 +172,12 @@ describe(PaymentPopup.name, () => {
       expect(screen.getByText("MASTERCARD •••• 5555")).toBeInTheDocument();
     });
 
-    it("displays message when no payment methods are available", () => {
+    it("displays alert with add payment method link when no payment methods are available", () => {
       setup({ open: true, paymentMethods: [] });
-      expect(screen.getByText("No payment methods available")).toBeInTheDocument();
+      expect(screen.getByText("No payment methods available.")).toBeInTheDocument();
+      const link = screen.getByText("Add a payment method");
+      expect(link).toBeInTheDocument();
+      expect(link.closest("a")).toHaveAttribute("href", "/payment-methods");
     });
   });
 
@@ -934,6 +942,7 @@ function setup(
     SelectValue: MockSelectValue,
     Xmark: MockXmark,
     Snackbar: MockSnackbar,
+    Link: MockLink,
     useForm: mockUseForm,
     zodResolver: mockZodResolver,
     useSnackbar: vi.fn(() => ({ enqueueSnackbar: mockEnqueueSnackbar })),
@@ -968,7 +977,7 @@ function setup(
     })),
     handleCouponError: mockHandleCouponError,
     handleStripeError: mockHandleStripeError,
-    useServices: vi.fn(() => ({ errorHandler: mockErrorHandler }))
+    useServices: vi.fn(() => ({ errorHandler: mockErrorHandler, urlService: { paymentMethods: () => "/payment-methods" } }))
   };
 
   const props: React.ComponentProps<typeof PaymentPopup> = {
