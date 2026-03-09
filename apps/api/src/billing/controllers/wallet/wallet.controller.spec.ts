@@ -5,7 +5,7 @@ import { container as rootContainer } from "tsyringe";
 import { mock } from "vitest-mock-extended";
 
 import { AuthService } from "@src/auth/services/auth.service";
-import { UserWalletRepository } from "@src/billing/repositories";
+import { type UserWalletPublicOutput, UserWalletRepository } from "@src/billing/repositories";
 import { ManagedSignerService, WalletInitializerService } from "@src/billing/services";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
@@ -199,6 +199,55 @@ describe("WalletController", () => {
     expect(container.resolve(WalletInitializerService).initializeAndGrantTrialLimits).not.toHaveBeenCalled();
   });
 
+  describe("getWallets", () => {
+    it("returns wallets with denom from billing config", async () => {
+      const userId = faker.string.uuid();
+      const wallets = [
+        {
+          id: faker.string.uuid(),
+          userId,
+          address: faker.string.alphanumeric(44),
+          creditAmount: 100,
+          isTrialing: true,
+          createdAt: new Date()
+        },
+        {
+          id: faker.string.uuid(),
+          userId,
+          address: faker.string.alphanumeric(44),
+          creditAmount: 200,
+          isTrialing: false,
+          createdAt: new Date()
+        }
+      ];
+      const container = setup({
+        user: UserSeeder.create(),
+        wallets
+      });
+      const walletController = container.resolve(WalletController);
+
+      const result = await walletController.getWallets({ userId });
+
+      expect(result).toEqual({
+        data: wallets.map(wallet => ({ ...wallet, denom: "uakt" }))
+      });
+      expect(container.resolve(WalletReaderService).getWallets).toHaveBeenCalledWith({ userId });
+    });
+
+    it("returns empty list when no wallets found", async () => {
+      const userId = faker.string.uuid();
+      const container = setup({
+        user: UserSeeder.create(),
+        wallets: []
+      });
+      const walletController = container.resolve(WalletController);
+
+      const result = await walletController.getWallets({ userId });
+
+      expect(result).toEqual({ data: [] });
+    });
+  });
+
   it("handles stripe error in controller", async () => {
     const user = UserSeeder.create({
       emailVerified: true,
@@ -230,6 +279,7 @@ describe("WalletController", () => {
     requires3DS?: boolean;
     validationFails?: boolean;
     stripeError?: boolean;
+    wallets?: UserWalletPublicOutput[];
   }) {
     rootContainer.register(AuthService, {
       useValue: mock<AuthService>({
@@ -293,7 +343,9 @@ describe("WalletController", () => {
       useValue: mock<RefillService>()
     });
     rootContainer.register(WalletReaderService, {
-      useValue: mock<WalletReaderService>()
+      useValue: mock<WalletReaderService>({
+        getWallets: jest.fn().mockResolvedValue(input?.wallets ?? [])
+      })
     });
     rootContainer.register(BalancesService, {
       useValue: mock<BalancesService>()

@@ -28,7 +28,32 @@ import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import { averageBlockTime } from "@src/utils/priceUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { UrlService } from "@src/utils/urlUtils";
-import { DeploymentDepositModal } from "./DeploymentDepositModal";
+import { DeploymentDepositModal } from "../DeploymentDepositModal";
+
+export const DEPENDENCIES = {
+  Button,
+  CustomTooltip,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+  Spinner,
+  Switch,
+  CustomDropdownLinkItem,
+  DeploymentDepositModal,
+  useServices,
+  useLocalNotes,
+  useWallet,
+  useCurrencyFormatter,
+  useDeploymentMetrics,
+  useManagedDeploymentConfirm,
+  useManagedWalletDenom,
+  usePreviousRoute,
+  usePricing,
+  useUser,
+  useDeploymentSettingQuery,
+  usePopup,
+  useRouter
+};
 
 type Props = {
   address: string;
@@ -38,6 +63,7 @@ type Props = {
   deployment: DeploymentDto;
   leases: LeaseDto[] | undefined | null;
   children?: ReactNode;
+  dependencies?: typeof DEPENDENCIES;
 };
 
 export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
@@ -46,23 +72,24 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
   removeLeases,
   onDeploymentClose,
   deployment,
-  leases
+  leases,
+  dependencies: d = DEPENDENCIES
 }) => {
-  const { analyticsService } = useServices();
-  const managedDenom = useManagedWalletDenom();
-  const { changeDeploymentName, getDeploymentData, getDeploymentName } = useLocalNotes();
-  const { udenomToUsd } = usePricing();
-  const router = useRouter();
-  const { signAndBroadcastTx, isManaged } = useWallet();
+  const { analyticsService } = d.useServices();
+  const managedDenom = d.useManagedWalletDenom();
+  const { changeDeploymentName, getDeploymentData, getDeploymentName } = d.useLocalNotes();
+  const { udenomToUsd } = d.usePricing();
+  const router = d.useRouter();
+  const { signAndBroadcastTx, isManaged } = d.useWallet();
   const [isDepositingDeployment, setIsDepositingDeployment] = useState(false);
   const storageDeploymentData = getDeploymentData(deployment?.dseq);
   const deploymentName = getDeploymentName(deployment?.dseq);
-  const previousRoute = usePreviousRoute();
-  const { closeDeploymentConfirm } = useManagedDeploymentConfirm();
-  const { user } = useUser();
-  const deploymentSetting = useDeploymentSettingQuery({ userId: user?.id, dseq: deployment.dseq });
-  const { realTimeLeft, deploymentCost } = useDeploymentMetrics({ deployment, leases });
-  const { confirm } = usePopup();
+  const previousRoute = d.usePreviousRoute();
+  const { closeDeploymentConfirm } = d.useManagedDeploymentConfirm();
+  const { user } = d.useUser();
+  const deploymentSetting = d.useDeploymentSettingQuery({ userId: user?.id, dseq: deployment.dseq });
+  const { realTimeLeft, deploymentCost } = d.useDeploymentMetrics({ deployment, leases });
+  const { confirm } = d.usePopup();
 
   function handleBackClick() {
     if (previousRoute) {
@@ -161,26 +188,26 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
   return (
     <>
       <div className="flex items-center space-x-2 px-2 pb-2">
-        <Button aria-label="back" onClick={handleBackClick} size="icon" variant="ghost">
+        <d.Button aria-label="back" onClick={handleBackClick} size="icon" variant="ghost">
           <NavArrowLeft />
-        </Button>
+        </d.Button>
 
         <h3 className="truncate text-2xl font-bold">{deploymentName ? deploymentName : "Deployment detail"}</h3>
 
-        <Button aria-label="refresh" onClick={() => loadDeploymentDetail()} size="icon" variant="text">
+        <d.Button aria-label="refresh" onClick={() => loadDeploymentDetail()} size="icon" variant="text">
           <Refresh />
-        </Button>
+        </d.Button>
 
         {deployment?.state === "active" && (
           <div className="flex items-center">
-            <DropdownMenu modal={false}>
-              <DropdownMenuTrigger asChild>
-                <Button size="icon" variant="ghost" className="rounded-full" data-testid="deployment-detail-dropdown">
+            <d.DropdownMenu modal={false}>
+              <d.DropdownMenuTrigger asChild>
+                <d.Button size="icon" variant="ghost" className="rounded-full" data-testid="deployment-detail-dropdown">
                   <MoreHoriz />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <CustomDropdownLinkItem
+                </d.Button>
+              </d.DropdownMenuTrigger>
+              <d.DropdownMenuContent align="end">
+                <d.CustomDropdownLinkItem
                   onClick={() => {
                     onChangeName();
                     analyticsService.track("edit_name_btn_clk", "Amplitude");
@@ -188,9 +215,9 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
                   icon={<Edit fontSize="small" />}
                 >
                   Edit Name
-                </CustomDropdownLinkItem>
+                </d.CustomDropdownLinkItem>
                 {storageDeploymentData?.manifest && (
-                  <CustomDropdownLinkItem
+                  <d.CustomDropdownLinkItem
                     onClick={() => {
                       redeploy();
                       analyticsService.track("redeploy_btn_clk", "Amplitude");
@@ -198,9 +225,9 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
                     icon={<Upload fontSize="small" />}
                   >
                     Redeploy
-                  </CustomDropdownLinkItem>
+                  </d.CustomDropdownLinkItem>
                 )}
-                <CustomDropdownLinkItem
+                <d.CustomDropdownLinkItem
                   onClick={() => {
                     onCloseDeployment();
                     analyticsService.track("close_deployment_btn_clk", "Amplitude");
@@ -209,10 +236,10 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
                   data-testid="deployment-detail-close-button"
                 >
                   Close
-                </CustomDropdownLinkItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <Button
+                </d.CustomDropdownLinkItem>
+              </d.DropdownMenuContent>
+            </d.DropdownMenu>
+            <d.Button
               variant="default"
               className="ml-2 whitespace-nowrap"
               onClick={() => {
@@ -222,13 +249,13 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
               size="sm"
             >
               Add funds
-            </Button>
+            </d.Button>
 
             {isManaged && (
               <div className="ml-4 flex items-center gap-2">
-                <Switch checked={deploymentSetting.data?.autoTopUpEnabled} onCheckedChange={setAutoTopUpEnabled} disabled={deploymentSetting.isLoading} />
+                <d.Switch checked={deploymentSetting.data?.autoTopUpEnabled} onCheckedChange={setAutoTopUpEnabled} disabled={deploymentSetting.isLoading} />
                 <span>Auto top-up</span>
-                <CustomTooltip
+                <d.CustomTooltip
                   title={
                     <div className="space-y-2">
                       <div>
@@ -242,8 +269,8 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
                   }
                 >
                   <span className="cursor-help text-muted-foreground">ⓘ</span>
-                </CustomTooltip>
-                {deploymentSetting.isLoading && <Spinner size="small" />}
+                </d.CustomTooltip>
+                {deploymentSetting.isLoading && <d.Spinner size="small" />}
               </div>
             )}
           </div>
@@ -251,7 +278,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
 
         {deployment?.state === "closed" && (
           <div className="flex items-center space-x-2">
-            <Button
+            <d.Button
               onClick={() => {
                 onChangeName();
                 analyticsService.track("edit_name_btn_clk", "Amplitude");
@@ -263,10 +290,10 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
             >
               <Edit fontSize="small" />
               &nbsp;Edit Name
-            </Button>
+            </d.Button>
 
             {storageDeploymentData?.manifest && (
-              <Button
+              <d.Button
                 onClick={() => {
                   redeploy();
                   analyticsService.track("redeploy_btn_clk", "Amplitude");
@@ -278,14 +305,14 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
               >
                 <Upload fontSize="small" />
                 &nbsp;Redeploy
-              </Button>
+              </d.Button>
             )}
           </div>
         )}
       </div>
 
       {isDepositingDeployment && (
-        <DeploymentDepositModal
+        <d.DeploymentDepositModal
           denom={deployment.escrowAccount.state.funds[0]?.denom || ""}
           disableMin
           handleCancel={() => setIsDepositingDeployment(false)}

@@ -29,7 +29,7 @@ import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 import { Title } from "../shared/Title";
 import { CreateCredentialsButton } from "./CreateCredentialsButton/CreateCredentialsButton";
-import { DeploymentDetailTopBar } from "./DeploymentDetailTopBar";
+import { DeploymentDetailTopBar } from "./DeploymentDetailTopBar/DeploymentDetailTopBar";
 import { DeploymentLeaseShell } from "./DeploymentLeaseShell";
 import { DeploymentLogs } from "./DeploymentLogs";
 import { DeploymentSubHeader } from "./DeploymentSubHeader";

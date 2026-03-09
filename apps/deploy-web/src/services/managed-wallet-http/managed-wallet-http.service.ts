@@ -34,7 +34,9 @@ export class ManagedWalletHttpService extends ManagedWalletHttpServiceOriginal {
 
   async getWallet(input: { userId: string }): Promise<ApiManagedWalletOutput | null> {
     const wallet = await super.getWallet(this.getWalletListParams(input.userId));
-    this.clearSessionResults();
+    if (wallet || !this.checkoutSessionId) {
+      this.clearSessionResults();
+    }
     return wallet;
   }
 
