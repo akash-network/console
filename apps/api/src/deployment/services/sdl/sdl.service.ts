@@ -1,5 +1,6 @@
 import type { Manifest, NetworkId, SDLInput } from "@akashnetwork/chain-sdk";
 import { generateManifest, generateManifestVersion, manifestToSortedJSON, yaml as sdlYaml } from "@akashnetwork/chain-sdk";
+import assert from "http-assert";
 import jsYaml from "js-yaml";
 import { singleton } from "tsyringe";
 
@@ -21,9 +22,7 @@ export class SdlService {
 
   private buildManifest(sdlInput: SDLInput) {
     const result = generateManifest(sdlInput, this.networkId);
-    if (!result.ok) {
-      throw new Error(result.value.map(e => e.message).join(", "));
-    }
+    assert(result.ok, 400, `Invalid SDL: ${result.ok === false ? result.value.map(e => e.message).join(", ") : ""}`);
     return result.value;
   }
 

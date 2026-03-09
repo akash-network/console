@@ -7,6 +7,7 @@ import { BidHttpService, BlockHttpService } from "@akashnetwork/http-sdk";
 import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { DirectSecp256k1HdWallet, EncodeObject, Registry } from "@cosmjs/proto-signing";
 import { calculateFee, SigningStargateClient } from "@cosmjs/stargate";
+import assert from "http-assert";
 import pick from "lodash/pick";
 import { setTimeout as sleep } from "timers/promises";
 import { inject, singleton } from "tsyringe";
@@ -133,9 +134,7 @@ export class GpuBidsCreatorService {
   private async createDeployment(client: SigningStargateClient, sdlStr: string, owner: string, dseq: string) {
     const sdlInput = sdlYaml.template<SDLInput>(sdlStr);
     const manifest = generateManifest(sdlInput);
-    if (!manifest.ok) {
-      throw new Error(manifest.value.map(e => e.message).join(", "));
-    }
+    assert(manifest.ok, 400, `Invalid SDL: ${manifest.ok === false ? manifest.value.map(e => e.message).join(", ") : ""}`);
 
     const manifestVersion = await generateManifestVersion(manifest.value.groups);
     const message = {
