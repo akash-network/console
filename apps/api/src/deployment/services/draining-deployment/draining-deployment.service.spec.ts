@@ -409,7 +409,10 @@ describe(DrainingDeploymentService.name, () => {
           deployments
         });
         const expectedTargetHeight = 1100800;
-        const expectedTotal = 12600000;
+        const expectedTotal = deployments.reduce((sum, d) => {
+          const blocksNeeded = expectedTargetHeight - d.predictedClosedHeight;
+          return sum + Math.floor(d.blockRate * blocksNeeded);
+        }, 0);
 
         const result = await service.calculateAllDeploymentCostUntilDate(address, targetDate);
 

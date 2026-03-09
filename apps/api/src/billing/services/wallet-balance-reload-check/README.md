@@ -87,7 +87,7 @@ WalletBalanceReloadCheckHandler.handle()
     │   ├─► Get user wallet (verify initialized)
     │   ├─► Get user (verify Stripe customer ID)
     │   ├─► Get default payment method
-    │   ├─► Get current balance (in USD)
+    │   ├─► Get available balance excluding escrow (in USD)
     │   └─► Calculate cost for 7 days ahead (deployments with auto top-up enabled)
     │
     ├─► Try to Reload
@@ -141,14 +141,14 @@ This means: reload when balance can only cover less than 25% of the 7-day cost p
 
 ## Cost Calculation
 
-The handler calculates the total cost needed to keep all active deployments with auto top-up enabled running for 7 days:
+The handler calculates the **unfunded** cost for all active deployments with auto top-up enabled — i.e. only the portion not already covered by escrow:
 
 1. Gets all auto-top-up deployments for the user's wallet
-2. For each deployment:
-   - Finds when it would close (predicted closed height)
-   - Calculates blocks needed from closure to target date (7 days from now)
-   - Multiplies by block rate to get cost
-3. Sums all costs to get total 7-day cost
+2. For each deployment that would close before the target date (7 days from now):
+   - Finds when it would close (predicted closed height, when escrow runs out)
+   - Calculates blocks needed from closure to target date
+   - Multiplies by block rate to get the unfunded cost
+3. Sums all unfunded costs (deployments whose escrow lasts beyond 7 days are excluded)
 
 **Note**: Only deployments with auto top-up enabled are considered in the cost calculation.
 
