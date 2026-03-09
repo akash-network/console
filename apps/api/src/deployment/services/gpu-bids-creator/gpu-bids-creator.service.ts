@@ -1,4 +1,5 @@
-import { SDL } from "@akashnetwork/chain-sdk";
+import type { SDLInput } from "@akashnetwork/chain-sdk";
+import { generateManifest, generateManifestVersion, yaml as sdlYaml } from "@akashnetwork/chain-sdk";
 import { Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { TxRaw } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
@@ -130,9 +131,13 @@ export class GpuBidsCreatorService {
   }
 
   private async createDeployment(client: SigningStargateClient, sdlStr: string, owner: string, dseq: string) {
-    const sdl = SDL.fromString(sdlStr, "beta3");
+    const sdlInput = sdlYaml.template<SDLInput>(sdlStr);
+    const manifest = generateManifest(sdlInput);
+    if (!manifest.ok) {
+      throw new Error(manifest.value.map(e => e.message).join(", "));
+    }
 
-    const manifestVersion = await sdl.manifestVersion();
+    const manifestVersion = await generateManifestVersion(manifest.value.groups);
     const message = {
       typeUrl: `/${MsgCreateDeployment.$type}`,
       value: MsgCreateDeployment.fromPartial({
@@ -140,7 +145,7 @@ export class GpuBidsCreatorService {
           owner: owner,
           dseq: dseq
         },
-        groups: sdl.groups(),
+        groups: manifest.value.groupSpecs,
         hash: manifestVersion,
         deposit: {
           amount: {

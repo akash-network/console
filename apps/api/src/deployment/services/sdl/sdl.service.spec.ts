@@ -1,4 +1,4 @@
-import type { v2Sdl } from "@akashnetwork/chain-sdk";
+import type { SDLInput } from "@akashnetwork/chain-sdk";
 import yaml from "js-yaml";
 
 import type { BillingConfig } from "@src/billing/providers";
@@ -49,9 +49,9 @@ deployment:
 `;
 
       const result = service.appendAuditorRequirement(inputSdl, [auditor]);
-      const parsedResult = yaml.load(result) as v2Sdl;
+      const parsedResult = yaml.load(result) as SDLInput;
 
-      expect(parsedResult.profiles.placement.westcoast.signedBy.anyOf).toContain(auditor);
+      expect(parsedResult.profiles.placement.westcoast.signedBy!.anyOf).toContain(auditor);
     });
 
     it("does not duplicate auditor if already present in anyOf", () => {
@@ -100,9 +100,9 @@ deployment:
 `;
 
       const result = service.appendAuditorRequirement(inputSdl, [auditor]);
-      const parsedResult = yaml.load(result) as v2Sdl;
+      const parsedResult = yaml.load(result) as SDLInput;
 
-      const anyOfCount = parsedResult.profiles.placement.westcoast.signedBy.anyOf.filter((a: string) => a === auditor).length;
+      const anyOfCount = parsedResult.profiles.placement.westcoast.signedBy!.anyOf!.filter((a: string) => a === auditor).length;
       expect(anyOfCount).toBe(1);
     });
 
@@ -150,10 +150,10 @@ deployment:
 `;
 
       const result = service.appendAuditorRequirement(inputSdl, [auditor1, auditor2]);
-      const parsedResult = yaml.load(result) as v2Sdl;
+      const parsedResult = yaml.load(result) as SDLInput;
 
-      expect(parsedResult.profiles.placement.westcoast.signedBy.anyOf).toContain(auditor1);
-      expect(parsedResult.profiles.placement.westcoast.signedBy.anyOf).toContain(auditor2);
+      expect(parsedResult.profiles.placement.westcoast.signedBy!.anyOf).toContain(auditor1);
+      expect(parsedResult.profiles.placement.westcoast.signedBy!.anyOf).toContain(auditor2);
     });
 
     it("preserves existing signedBy allOf when adding anyOf", () => {
@@ -203,10 +203,10 @@ deployment:
 `;
 
       const result = service.appendAuditorRequirement(inputSdl, [auditor]);
-      const parsedResult = yaml.load(result) as v2Sdl;
+      const parsedResult = yaml.load(result) as SDLInput;
 
-      expect(parsedResult.profiles.placement.westcoast.signedBy.anyOf).toContain(auditor);
-      expect(parsedResult.profiles.placement.westcoast.signedBy.allOf).toContain(existingAllOf);
+      expect(parsedResult.profiles.placement.westcoast.signedBy!.anyOf).toContain(auditor);
+      expect(parsedResult.profiles.placement.westcoast.signedBy!.allOf).toContain(existingAllOf);
     });
 
     it("applies auditor requirement to all placement profiles", () => {
@@ -284,10 +284,10 @@ deployment:
 `;
 
       const result = service.appendAuditorRequirement(inputSdl, [auditor]);
-      const parsedResult = yaml.load(result) as v2Sdl;
+      const parsedResult = yaml.load(result) as SDLInput;
 
-      expect(parsedResult.profiles.placement.westcoast.signedBy.anyOf).toContain(auditor);
-      expect(parsedResult.profiles.placement.eastcoast.signedBy.anyOf).toContain(auditor);
+      expect(parsedResult.profiles.placement.westcoast.signedBy!.anyOf).toContain(auditor);
+      expect(parsedResult.profiles.placement.eastcoast.signedBy!.anyOf).toContain(auditor);
     });
   });
 

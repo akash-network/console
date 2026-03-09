@@ -1,7 +1,6 @@
-import type { v2Manifest, v2Sdl, v3Manifest } from "@akashnetwork/chain-sdk";
-import type { NetworkId } from "@akashnetwork/chain-sdk";
-import { SDL } from "@akashnetwork/chain-sdk";
-import yaml from "js-yaml";
+import type { Manifest, NetworkId, SDLInput } from "@akashnetwork/chain-sdk";
+import { generateManifest, generateManifestVersion, manifestToSortedJSON, yaml as sdlYaml } from "@akashnetwork/chain-sdk";
+import jsYaml from "js-yaml";
 import { singleton } from "tsyringe";
 
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
@@ -16,52 +15,57 @@ export class SdlService {
     this.networkId = this.config.NETWORK as NetworkId;
   }
 
-  private isValidString(value: unknown): value is string {
-    return typeof value === "string" && !!value;
+  private parseSdlInput(yamlJson: string | SDLInput): SDLInput {
+    return typeof yamlJson === "string" ? sdlYaml.template<SDLInput>(yamlJson) : yamlJson;
   }
 
-  private getSdl(yamlJson: string | v2Sdl, networkType: NetworkType) {
-    return this.isValidString(yamlJson) ? SDL.fromString(yamlJson, networkType, this.networkId) : new SDL(yamlJson, networkType, this.networkId);
-  }
-
-  public getDeploymentGroups(yamlJson: string | v2Sdl, networkType: NetworkType) {
-    const sdl = this.getSdl(yamlJson, networkType);
-    return sdl.groups();
-  }
-
-  public getManifest(yamlJson: string | v2Sdl, networkType: NetworkType, asString: true): string;
-  public getManifest(yamlJson: string | v2Sdl, networkType: NetworkType, asString?: false): v2Manifest | v3Manifest;
-  public getManifest(yamlJson: string | v2Sdl, networkType: NetworkType, asString = false): string | v2Manifest | v3Manifest {
-    const sdl = this.getSdl(yamlJson, networkType);
-    const manifest = sdl.manifest(asString) as v2Manifest | v3Manifest | string;
-    if (asString) {
-      return JSON.stringify(manifest);
+  private buildManifest(sdlInput: SDLInput) {
+    const result = generateManifest(sdlInput, this.networkId);
+    if (!result.ok) {
+      throw new Error(result.value.map(e => e.message).join(", "));
     }
-    return manifest;
+    return result.value;
   }
 
-  public async getManifestVersion(yamlJson: string | v2Sdl, networkType: NetworkType) {
-    const sdl = this.getSdl(yamlJson, networkType);
-    return sdl.manifestVersion();
+  public getDeploymentGroups(yamlJson: string | SDLInput, _networkType: NetworkType) {
+    const sdlInput = this.parseSdlInput(yamlJson);
+    return this.buildManifest(sdlInput).groupSpecs;
   }
 
-  public getManifestYaml(sdlConfig: v2Sdl, networkType: NetworkType) {
-    const sdl = this.getSdl(sdlConfig, networkType);
-    return sdl.manifestSortedJSON();
+  public getManifest(yamlJson: string | SDLInput, _networkType: NetworkType, asString: true): string;
+  public getManifest(yamlJson: string | SDLInput, _networkType: NetworkType, asString?: false): Manifest;
+  public getManifest(yamlJson: string | SDLInput, _networkType: NetworkType, asString = false): string | Manifest {
+    const sdlInput = this.parseSdlInput(yamlJson);
+    const { groups } = this.buildManifest(sdlInput);
+    if (asString) {
+      return manifestToSortedJSON(groups);
+    }
+    return groups;
+  }
+
+  public async getManifestVersion(yamlJson: string | SDLInput, _networkType: NetworkType) {
+    const sdlInput = this.parseSdlInput(yamlJson);
+    const { groups } = this.buildManifest(sdlInput);
+    return generateManifestVersion(groups);
+  }
+
+  public getManifestYaml(sdlConfig: SDLInput, _networkType: NetworkType) {
+    const { groups } = this.buildManifest(sdlConfig);
+    return manifestToSortedJSON(groups);
   }
 
   public validateSdl(yamlJson: string) {
     try {
-      SDL.fromString(yamlJson, "beta3");
-      return true;
+      const sdlInput = sdlYaml.template<SDLInput>(yamlJson);
+      const result = generateManifest(sdlInput);
+      return !!result.ok;
     } catch {
       return false;
     }
   }
 
   public appendAuditorRequirement(yamlStr: string, allowedAuditors: string[]): string {
-    const sdl = this.getSdl(yamlStr, "beta3");
-    const sdlData = sdl.data as v2Sdl;
+    const sdlData = jsYaml.load(yamlStr) as SDLInput;
     const placementData = sdlData?.profiles?.placement || {};
 
     for (const [, value] of Object.entries(placementData)) {
@@ -73,13 +77,13 @@ export class SdlService {
       }
 
       for (const auditor of allowedAuditors) {
-        if (!value.signedBy.anyOf.includes(auditor)) {
-          value.signedBy.anyOf.push(auditor);
+        if (!value.signedBy!.anyOf!.includes(auditor)) {
+          value.signedBy!.anyOf!.push(auditor);
         }
       }
     }
 
-    const result = yaml.dump(sdlData, {
+    const result = jsYaml.dump(sdlData, {
       indent: 2,
       quotingType: '"',
       styles: {
