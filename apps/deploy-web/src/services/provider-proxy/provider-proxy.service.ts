@@ -1,3 +1,4 @@
+import { type Manifest, manifestToSortedJSON } from "@akashnetwork/chain-sdk/web";
 import type { HttpClient } from "@akashnetwork/http-sdk";
 import type { LoggerService } from "@akashnetwork/logging";
 import type { AxiosResponse } from "axios";
@@ -39,21 +40,14 @@ export class ProviderProxyService {
     );
   }
 
-  async sendManifest(providerInfo: ApiProviderList | undefined | null, manifest: unknown, options: SendManifestToProviderOptions) {
+  async sendManifest(providerInfo: ApiProviderList | undefined | null, manifest: Manifest, options: SendManifestToProviderOptions) {
     if (!providerInfo) return;
     this.logger.info({ event: "START_SEND_MANIFEST", providerAddress: providerInfo.owner, dseq: options.dseq });
-
-    const jsonStr = JSON.stringify(manifest, (_, value) => {
-      if (typeof value !== "object" || value === null || !("quantity" in value)) return value;
-
-      const { quantity, ...rest } = value;
-      if (typeof quantity !== "object" || quantity === null || !("val" in quantity)) return value;
-      return { ...rest, size: quantity };
-    });
 
     // Waiting for provider to have lease
     await wait(ProviderProxyService.BEFORE_SEND_MANIFEST_DELAY);
 
+    const serializedManifest = manifestToSortedJSON(manifest);
     let response: AxiosResponse | undefined;
 
     for (let i = 1; i <= 3 && !response; i++) {
@@ -63,7 +57,7 @@ export class ProviderProxyService {
           response = await this.request(`/deployment/${options.dseq}/manifest`, {
             method: "PUT",
             credentials: options.credentials,
-            body: jsonStr,
+            body: serializedManifest,
             timeout: 60_000,
             providerIdentity: providerInfo
           });

@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import type { Manifest } from "@akashnetwork/chain-sdk/web";
 import { Alert, Button, CustomTooltip, Snackbar } from "@akashnetwork/ui/components";
 import { InfoCircle, WarningCircle } from "iconoir-react";
 import yaml from "js-yaml";
@@ -88,7 +89,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
     window.open("https://akash.network/docs/deployments/akash-cli/installation/#update-the-deployment", "_blank");
   }
 
-  async function sendManifest(providerInfo: ApiProviderList, manifest: any) {
+  async function sendManifest(providerInfo: ApiProviderList, manifest: Manifest) {
     try {
       return await providerProxy.sendManifest(providerInfo, manifest, {
         dseq: deployment.dseq,
