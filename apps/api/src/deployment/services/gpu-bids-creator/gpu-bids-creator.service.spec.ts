@@ -1,50 +1,19 @@
 import "@test/mocks/logger-service.mock";
 
-import type { NetworkId, SDLInput } from "@akashnetwork/chain-sdk";
-import { generateManifest, yaml as sdlYaml } from "@akashnetwork/chain-sdk";
 import type { BidHttpService, BlockHttpService } from "@akashnetwork/http-sdk";
-import type { DirectSecp256k1HdWallet, Registry } from "@cosmjs/proto-signing";
+import type { Registry } from "@cosmjs/proto-signing";
 import type { SigningStargateClient } from "@cosmjs/stargate";
+import { vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import type { LoggerService } from "@src/core";
 import type { DeploymentConfig } from "@src/deployment/config/config.provider";
 import type { GpuService } from "@src/gpu/services/gpu.service";
-
-import { mockConfigService } from "@test/mocks/config-service.mock";
-
-import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { GpuBidsCreatorService } from "./gpu-bids-creator.service";
 import { sdlTemplateWithRam, sdlTemplateWithRamAndInterface } from "./sdl-templates";
 
-vi.mock("@akashnetwork/chain-sdk", async importOriginal => {
-  const actual = await importOriginal<typeof import("@akashnetwork/chain-sdk")>();
-  return {
-    ...actual,
-    generateManifest: vi.fn(),
-    generateManifestVersion: vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3]))
-  };
-});
-
-vi.mock("@cosmjs/proto-signing", async importOriginal => {
-  const actual = await importOriginal<typeof import("@cosmjs/proto-signing")>();
-  return {
-    ...actual,
-    DirectSecp256k1HdWallet: {
-      fromMnemonic: vi.fn()
-    }
-  };
-});
-
-vi.mock("@cosmjs/stargate", async importOriginal => {
-  const actual = await importOriginal<typeof import("@cosmjs/stargate")>();
-  return {
-    ...actual,
-    calculateFee: vi.fn().mockReturnValue({ amount: [{ denom: "uakt", amount: "5000" }], gas: "200000" }),
-    SigningStargateClient: {
-      connectWithSigner: vi.fn()
-    }
-  };
-});
+import { mockConfigService } from "@test/mocks/config-service.mock";
 
 vi.mock("timers/promises", () => ({
   setTimeout: vi.fn().mockResolvedValue(undefined)
@@ -96,16 +65,7 @@ describe(GpuBidsCreatorService.name, () => {
       const { service, signingClient } = setup();
       const sdlStr = sdlTemplateWithRam.replace("<VENDOR>", "nvidia").replace("<MODEL>", "a100").replace("<RAM>", "80Gi");
 
-      const mockGroups = [{ name: "akash" }];
-      const mockGroupSpecs = [{ name: "akash", requirements: {} }];
-      vi.mocked(generateManifest).mockReturnValue({
-        ok: true,
-        value: { groups: mockGroups, groupSpecs: mockGroupSpecs, meta: undefined }
-      } as any);
-
       await service["createDeployment"](signingClient, sdlStr, "akash1owner", "12345");
-
-      expect(generateManifest).toHaveBeenCalledWith(expect.anything(), "mainnet");
       expect(signingClient.simulate).toHaveBeenCalled();
       expect(signingClient.sign).toHaveBeenCalled();
       expect(signingClient.broadcastTx).toHaveBeenCalled();
@@ -114,11 +74,6 @@ describe(GpuBidsCreatorService.name, () => {
     it("throws when SDL is invalid", async () => {
       const { service, signingClient } = setup();
       const sdlStr = "invalid sdl";
-
-      vi.mocked(generateManifest).mockReturnValue({
-        ok: false,
-        value: [{ message: "Invalid manifest" }]
-      } as any);
 
       await expect(service["createDeployment"](signingClient, sdlStr, "akash1owner", "12345")).rejects.toThrow();
     });
@@ -150,11 +105,6 @@ describe(GpuBidsCreatorService.name, () => {
         }
       };
 
-      vi.mocked(generateManifest).mockReturnValue({
-        ok: true,
-        value: { groups: [], groupSpecs: [], meta: undefined }
-      } as any);
-
       bidHttpService.list.mockResolvedValue([]);
 
       await service["createBidsForAllModels"](gpuModels as any, signingClient, "akash1owner", false);
@@ -165,7 +115,7 @@ describe(GpuBidsCreatorService.name, () => {
     });
 
     it("skips duplicate model+ram combos when includeInterface is false", async () => {
-      const { service, signingClient, bidHttpService, blockHttpService } = setup();
+      const { service, signingClient, bidHttpService } = setup();
       const gpuModels = {
         gpus: {
           total: { allocatable: 10, allocated: 5 },
@@ -177,11 +127,6 @@ describe(GpuBidsCreatorService.name, () => {
           }
         }
       };
-
-      vi.mocked(generateManifest).mockReturnValue({
-        ok: true,
-        value: { groups: [], groupSpecs: [], meta: undefined }
-      } as any);
 
       bidHttpService.list.mockResolvedValue([]);
 
@@ -204,11 +149,6 @@ describe(GpuBidsCreatorService.name, () => {
         }
       };
 
-      vi.mocked(generateManifest).mockReturnValue({
-        ok: true,
-        value: { groups: [], groupSpecs: [], meta: undefined }
-      } as any);
-
       bidHttpService.list.mockResolvedValue([]);
 
       await service["createBidsForAllModels"](gpuModels as any, signingClient, "akash1owner", true);
@@ -227,11 +167,6 @@ describe(GpuBidsCreatorService.name, () => {
           }
         }
       };
-
-      vi.mocked(generateManifest).mockReturnValue({
-        ok: true,
-        value: { groups: [], groupSpecs: [], meta: undefined }
-      } as any);
 
       bidHttpService.list.mockResolvedValue([]);
 
@@ -317,10 +252,10 @@ describe(GpuBidsCreatorService.name, () => {
 
     const typeRegistry = mock<Registry>();
 
-    const deploymentConfig: DeploymentConfig = {
+    const deploymentConfig = {
       GPU_BOT_WALLET_MNEMONIC: "gpuBotWalletMnemonic" in input ? input.gpuBotWalletMnemonic : "test mnemonic words here",
       PROVIDER_PROXY_URL: "https://proxy.example.com"
-    };
+    } as DeploymentConfig;
 
     const signingClient = mock<SigningStargateClient>();
     signingClient.simulate.mockResolvedValue(100000);
@@ -328,7 +263,7 @@ describe(GpuBidsCreatorService.name, () => {
     signingClient.broadcastTx.mockResolvedValue({ code: 0, rawLog: "" } as any);
     signingClient.getBalance.mockResolvedValue({ amount: "1000000", denom: "uakt" });
 
-    const service = new GpuBidsCreatorService(config, bidHttpService, gpuService, blockHttpService, typeRegistry, deploymentConfig);
+    const service = new GpuBidsCreatorService(config, bidHttpService, gpuService, blockHttpService, typeRegistry, deploymentConfig, mock<LoggerService>());
 
     return {
       service,
