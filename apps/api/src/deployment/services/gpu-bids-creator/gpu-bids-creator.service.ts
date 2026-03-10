@@ -1,24 +1,25 @@
-import { SDL } from "@akashnetwork/chain-sdk";
+import type { NetworkId, SDLInput } from "@akashnetwork/chain-sdk";
+import { generateManifest, generateManifestVersion, yaml as sdlYaml } from "@akashnetwork/chain-sdk";
 import { Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { TxRaw } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 import { BidHttpService, BlockHttpService } from "@akashnetwork/http-sdk";
-import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { DirectSecp256k1HdWallet, EncodeObject, Registry } from "@cosmjs/proto-signing";
 import { calculateFee, SigningStargateClient } from "@cosmjs/stargate";
+import assert from "http-assert";
 import pick from "lodash/pick";
 import { setTimeout as sleep } from "timers/promises";
 import { inject, singleton } from "tsyringe";
 
 import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provider";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { LoggerService } from "@src/core";
 import { DEPLOYMENT_CONFIG, type DeploymentConfig } from "@src/deployment/config/config.provider";
 import { GpuService } from "@src/gpu/services/gpu.service";
 import { sdlTemplateWithRam, sdlTemplateWithRamAndInterface } from "./sdl-templates";
 
 @singleton()
 export class GpuBidsCreatorService {
-  private readonly logger = createOtelLogger({ context: GpuBidsCreatorService.name });
   readonly #deploymentConfig: DeploymentConfig;
 
   constructor(
@@ -27,9 +28,11 @@ export class GpuBidsCreatorService {
     private readonly gpuService: GpuService,
     private readonly blockHttpService: BlockHttpService,
     @InjectTypeRegistry() private readonly typeRegistry: Registry,
-    @inject(DEPLOYMENT_CONFIG) deploymentConfig: DeploymentConfig
+    @inject(DEPLOYMENT_CONFIG) deploymentConfig: DeploymentConfig,
+    private readonly logger: LoggerService
   ) {
     this.#deploymentConfig = deploymentConfig;
+    this.logger.setContext(GpuBidsCreatorService.name);
   }
 
   async createGpuBids() {
@@ -130,9 +133,12 @@ export class GpuBidsCreatorService {
   }
 
   private async createDeployment(client: SigningStargateClient, sdlStr: string, owner: string, dseq: string) {
-    const sdl = SDL.fromString(sdlStr, "beta3");
+    const sdlInput = sdlYaml.template<SDLInput>(sdlStr);
+    const networkId = this.config.get("NETWORK") as NetworkId;
+    const manifest = generateManifest(sdlInput, networkId);
+    assert(manifest.ok, 400, `Invalid SDL: ${manifest.ok === false ? manifest.value.map(e => e.message).join(", ") : ""}`);
 
-    const manifestVersion = await sdl.manifestVersion();
+    const manifestVersion = await generateManifestVersion(manifest.value.groups);
     const message = {
       typeUrl: `/${MsgCreateDeployment.$type}`,
       value: MsgCreateDeployment.fromPartial({
@@ -140,7 +146,7 @@ export class GpuBidsCreatorService {
           owner: owner,
           dseq: dseq
         },
-        groups: sdl.groups(),
+        groups: manifest.value.groupSpecs,
         hash: manifestVersion,
         deposit: {
           amount: {
