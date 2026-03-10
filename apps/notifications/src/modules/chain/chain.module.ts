@@ -35,6 +35,6 @@ import * as schema from "./model-schemas";
     BlockCursorRepository,
     DbHealthzService
   ],
-  exports: [BlockMessageService, MessageDecoderService, DbHealthzService]
+  exports: [BlockMessageService, MessageDecoderService, DbHealthzService, ChainEventsPollerService]
 })
 export class ChainModule {}

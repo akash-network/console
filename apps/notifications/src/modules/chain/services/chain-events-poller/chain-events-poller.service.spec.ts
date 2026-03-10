@@ -89,6 +89,53 @@ describe(ChainEventsPollerService.name, () => {
     expect(module.get(ShutdownService).shutdown).toHaveBeenCalled();
   });
 
+  describe("getReadinessStatus", () => {
+    it("returns ok before poller has started", async () => {
+      const { service } = await setup();
+
+      const result = await service.getReadinessStatus();
+
+      expect(result).toEqual({ status: "ok", data: { poller: true } });
+    });
+
+    it("returns ok while poller is running", async () => {
+      const { service, blockMessageService } = await setup();
+      blockMessageService.getMessages.mockResolvedValue(generateMockBlockData({ time: new Date().toISOString() }));
+
+      await service.onModuleInit();
+      await delay(50);
+
+      const result = await service.getReadinessStatus();
+
+      expect(result).toEqual({ status: "ok", data: { poller: true } });
+
+      await service.onModuleDestroy();
+    });
+
+    it("returns error after poller crashes", async () => {
+      const { service, blockCursorRepository } = await setup();
+      blockCursorRepository.getNextBlockForProcessing.mockRejectedValue(new Error("fail"));
+
+      service.onModuleInit();
+      await delay(500);
+
+      const result = await service.getReadinessStatus();
+
+      expect(result).toEqual({ status: "error", data: { poller: false } });
+    });
+  });
+
+  describe("getLivenessStatus", () => {
+    it("delegates to getReadinessStatus", async () => {
+      const { service } = await setup();
+
+      const readiness = await service.getReadinessStatus();
+      const liveness = await service.getLivenessStatus();
+
+      expect(liveness).toEqual(readiness);
+    });
+  });
+
   it("completes currently processed block before shutdown is finalized", async () => {
     const { service, blockMessageService } = await setup();
     const controller = Promise.withResolvers<ReturnType<typeof generateMockBlockData>>();

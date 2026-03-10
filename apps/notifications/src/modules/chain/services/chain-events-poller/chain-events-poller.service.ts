@@ -9,6 +9,7 @@ import { setTimeout as delay } from "timers/promises";
 import { eventKeyRegistry } from "@src/common/config/event-key-registry.config";
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import { ShutdownService } from "@src/common/services/shutdown/shutdown.service";
+import type { HealthzService, ProbeResult } from "@src/common/types/healthz.type";
 import { BrokerService } from "@src/infrastructure/broker";
 import type { ChainEventsConfig } from "@src/modules/chain/config";
 import { BlockCursorRepository } from "@src/modules/chain/repositories/block-cursor/block-cursor.repository";
@@ -17,7 +18,9 @@ import { TxEventsService } from "@src/modules/chain/services/tx-events-service/t
 import { BlockMessageService } from "../block-message/block-message.service";
 
 @Injectable()
-export class ChainEventsPollerService implements OnModuleInit, OnModuleDestroy {
+export class ChainEventsPollerService implements OnModuleInit, OnModuleDestroy, HealthzService {
+  readonly name = "chain-events-poller";
+
   private abortController?: AbortController;
 
   constructor(
@@ -134,12 +137,24 @@ export class ChainEventsPollerService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  async getReadinessStatus(): Promise<ProbeResult> {
+    const isLive = !this.abortController?.signal?.aborted;
+    return {
+      status: isLive ? "ok" : "error",
+      data: { poller: isLive }
+    };
+  }
+
+  async getLivenessStatus(): Promise<ProbeResult> {
+    return this.getReadinessStatus();
+  }
+
   async onModuleDestroy() {
     await this.finishPolling();
   }
 
   private async finishPolling() {
-    if (this.abortController) {
+    if (this.abortController && !this.abortController.signal.aborted) {
       const completePolling = once(this.abortController.signal, "complete");
       this.abortController.abort();
       await completePolling;
