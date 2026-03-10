@@ -1,6 +1,6 @@
 deploymentEnv: production
-nodeOptions:
-  enabledOTEL: true
+otel:
+  enabled: true
 
 chain: sandbox
 nodePort: 30000
