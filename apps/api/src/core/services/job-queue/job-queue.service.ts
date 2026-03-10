@@ -1,6 +1,6 @@
 import { createMongoAbility, MongoAbility } from "@casl/ability";
 import { context, propagation, SpanStatusCode, trace } from "@opentelemetry/api";
-import PgBoss from "pg-boss";
+import { Job as PgBossJob, PgBoss, Queue as PgBossQueue, SendOptions as PgBossSendOptions, WorkOptions as PgBossWorkOptions } from "pg-boss";
 import { Disposable, inject, InjectionToken, singleton } from "tsyringe";
 
 import { LoggerService } from "@src/core/providers/logging.provider";
@@ -27,7 +27,8 @@ export class JobQueueService implements Disposable {
         connectionString: this.coreConfig.get("POSTGRES_DB_URI"),
         schema: this.coreConfig.get("POSTGRES_BACKGROUND_JOBS_SCHEMA"),
         schedule: false,
-        max: this.coreConfig.get("POSTGRES_BACKGROUND_JOBS_POOL_SIZE")
+        max: this.coreConfig.get("POSTGRES_BACKGROUND_JOBS_POOL_SIZE"),
+        connectionTimeoutMillis: this.coreConfig.get("POSTGRES_BACKGROUND_JOBS_CONNECT_TIMEOUT") * 1000
       });
   }
 
@@ -40,7 +41,6 @@ export class JobQueueService implements Disposable {
       }
       seenJobs.add(queueName);
       await this.pgBoss.createQueue(queueName, {
-        name: queueName,
         retryLimit: 5,
         retryBackoff: true,
         retryDelayMax: 5 * 60,
@@ -317,17 +317,17 @@ export type JobType<T extends Job> = {
   [JOB_NAME]: string;
 };
 
-export type JobMeta = Pick<PgBoss.Job, "id">;
+export type JobMeta = Pick<PgBossJob, "id">;
 
 export interface JobHandler<T extends Job> {
   accepts: JobType<T>;
   concurrency?: ProcessOptions["concurrency"];
-  policy?: PgBoss.Queue["policy"];
+  policy?: PgBossQueue["policy"];
   handle(payload: JobPayload<T>, job?: JobMeta): Promise<void>;
 }
 
-export type EnqueueOptions = PgBoss.SendOptions;
-export interface ProcessOptions extends Omit<PgBoss.WorkOptions, "batchSize"> {
+export type EnqueueOptions = PgBossSendOptions;
+export interface ProcessOptions extends Omit<PgBossWorkOptions, "batchSize"> {
   /**
    * The number of workers to start. Defaults to 2.
    * Specify higher concurrency to process jobs faster. Specify 1 to process jobs one by one.
