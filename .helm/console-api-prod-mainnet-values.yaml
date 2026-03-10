@@ -41,6 +41,6 @@ resources:
     ephemeral-storage: "2Gi"
     memory: "8Gi"
   requests:
-    cpu: "1"
+    cpu: "2"
     ephemeral-storage: "1Gi"
     memory: "4Gi"
