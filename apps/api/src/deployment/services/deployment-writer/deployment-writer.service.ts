@@ -1,3 +1,4 @@
+import { manifestToSortedJSON } from "@akashnetwork/chain-sdk";
 import { BlockHttpService } from "@akashnetwork/http-sdk";
 import assert from "http-assert";
 import { singleton } from "tsyringe";
@@ -33,30 +34,15 @@ export class DeploymentWriterService {
 
   public async create(input: CreateDeploymentRequest["data"] & { userId: string }): Promise<CreateDeploymentResponse["data"]> {
     const wallet = await this.walletReaderService.getWalletByUserId(input.userId);
-    let sdl: string = input.sdl;
-    const deploymentGrantDenom = this.billingConfig.get("DEPLOYMENT_GRANT_DENOM");
+    const manifest = this.#parseManifest(input.sdl);
 
-    assert(this.sdlService.validateSdl(sdl), 400, "Invalid SDL");
-
-    if (deploymentGrantDenom !== "uakt") {
-      sdl = sdl.replace(/uakt/g, deploymentGrantDenom);
-    }
-
-    const allowedAuditors = this.billingConfig.get("MANAGED_WALLET_LEASE_ALLOWED_AUDITORS");
-    if (allowedAuditors && allowedAuditors.length > 0) {
-      sdl = this.sdlService.appendAuditorRequirement(sdl, allowedAuditors);
-    }
-
-    const dseq = await this.blockHttpService.getCurrentHeight();
-    const groups = this.sdlService.getDeploymentGroups(sdl, "beta3");
-    const manifestVersion = await this.sdlService.getManifestVersion(sdl, "beta3");
-    const manifest = this.sdlService.getManifest(sdl, "beta3", true) as string;
+    const [dseq, manifestVersion] = await Promise.all([this.blockHttpService.getCurrentHeight(), this.sdlService.generateManifestVersion(manifest.groups)]);
 
     const message = this.rpcMessageService.getCreateDeploymentMsg({
       owner: wallet.address,
       dseq,
-      groups,
-      denom: deploymentGrantDenom,
+      groups: manifest.groupSpecs,
+      denom: this.billingConfig.get("DEPLOYMENT_GRANT_DENOM"),
       amount: denomToUdenom(input.deposit),
       hash: manifestVersion
     });
@@ -64,7 +50,7 @@ export class DeploymentWriterService {
     const result = await this.signerService.executeDerivedDecodedTxByUserId(wallet.userId, [message]);
     return {
       dseq: dseq.toString(),
-      manifest,
+      manifest: manifestToSortedJSON(manifest.groups),
       signTx: result
     };
   }
@@ -100,24 +86,24 @@ export class DeploymentWriterService {
 
   public async updateByUserIdAndDseq(userId: string, dseq: string, input: UpdateDeploymentRequest["data"]): Promise<GetDeploymentResponse["data"]> {
     const wallet = await this.walletReaderService.getWalletByUserId(userId);
-    let sdl = input.sdl;
+    const manifest = this.#parseManifest(input.sdl);
 
-    assert(this.sdlService.validateSdl(sdl), 400, "Invalid SDL");
-
-    const allowedAuditors = this.billingConfig.get("MANAGED_WALLET_LEASE_ALLOWED_AUDITORS");
-    if (allowedAuditors && allowedAuditors.length > 0) {
-      sdl = this.sdlService.appendAuditorRequirement(sdl, allowedAuditors);
-    }
-
-    const deployment = await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq);
-    const manifestVersion = await this.sdlService.getManifestVersion(sdl, "beta3");
-    const manifest = this.sdlService.getManifest(sdl, "beta3", true) as string;
+    const [deployment, manifestVersion] = await Promise.all([
+      this.deploymentReaderService.findByWalletAndDseq(wallet, dseq),
+      this.sdlService.generateManifestVersion(manifest.groups)
+    ]);
 
     await this.ensureDeploymentIsUpToDate(wallet, dseq, manifestVersion, deployment);
     const auth = { walletId: wallet.id };
-    await this.sendManifestToProviders({ auth, dseq, manifest, leases: deployment.leases });
+    await this.sendManifestToProviders({ auth, dseq, manifest: manifestToSortedJSON(manifest.groups), leases: deployment.leases });
 
     return await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq);
+  }
+
+  #parseManifest(sdl: string) {
+    const manifestResult = this.sdlService.generateManifest(sdl);
+    assert(manifestResult.ok, 400, `Invalid SDL: ${manifestResult.ok === false ? manifestResult.value.map(e => e.message).join(", ") : ""}`);
+    return manifestResult.value;
   }
 
   private async ensureDeploymentIsUpToDate(
@@ -147,7 +133,7 @@ export class DeploymentWriterService {
     leases: GetDeploymentResponse["data"]["leases"];
     auth: { walletId: number };
   }): Promise<void> {
-    const leaseProviders = leases.map(lease => lease.id.provider).filter((v, i, s) => s.indexOf(v) === i);
+    const leaseProviders = new Set(leases.map(lease => lease.id.provider));
     for (const provider of leaseProviders) {
       await this.providerService.sendManifest({
         provider,

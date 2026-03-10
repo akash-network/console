@@ -1,96 +1,61 @@
-import type { Manifest, NetworkId, SDLInput } from "@akashnetwork/chain-sdk";
-import { generateManifest, generateManifestVersion, manifestToSortedJSON, yaml as sdlYaml } from "@akashnetwork/chain-sdk";
-import assert from "http-assert";
-import jsYaml from "js-yaml";
+import type { GenerateManifestResult, Manifest, NetworkId, SDLInput } from "@akashnetwork/chain-sdk";
+import { generateManifest, generateManifestVersion, yaml } from "@akashnetwork/chain-sdk";
 import { singleton } from "tsyringe";
 
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 
-type NetworkType = "beta2" | "beta3";
-
 @singleton()
 export class SdlService {
-  private readonly networkId: NetworkId;
+  readonly #networkId: NetworkId;
+  readonly #config: BillingConfig;
 
-  constructor(@InjectBillingConfig() private readonly config: BillingConfig) {
-    this.networkId = this.config.NETWORK as NetworkId;
+  constructor(@InjectBillingConfig() config: BillingConfig) {
+    this.#networkId = config.NETWORK as NetworkId;
+    this.#config = config;
   }
 
-  private parseSdlInput(yamlJson: string | SDLInput): SDLInput {
-    return typeof yamlJson === "string" ? sdlYaml.template<SDLInput>(yamlJson) : yamlJson;
-  }
+  generateManifest(rawSDL: string): GenerateManifestResult {
+    const potentiallyInvalidSDL = yaml.template<SDLInput>(rawSDL);
+    const deploymentGrantDenom = this.#config.DEPLOYMENT_GRANT_DENOM;
+    const sdlPlacement =
+      potentiallyInvalidSDL?.profiles?.placement && typeof potentiallyInvalidSDL?.profiles?.placement === "object"
+        ? potentiallyInvalidSDL.profiles.placement
+        : {};
 
-  private buildManifest(sdlInput: SDLInput) {
-    const result = generateManifest(sdlInput, this.networkId);
-    assert(result.ok, 400, `Invalid SDL: ${result.ok === false ? result.value.map(e => e.message).join(", ") : ""}`);
-    return result.value;
-  }
+    Object.values(sdlPlacement).forEach(profile => {
+      if (typeof profile !== "object" || !profile || !profile.pricing || typeof profile.pricing !== "object") return;
+      Object.values(profile.pricing).forEach(price => {
+        if (typeof price !== "object" || !price || price.denom === deploymentGrantDenom) return;
+        price.denom = deploymentGrantDenom;
+      });
+    });
 
-  public getDeploymentGroups(yamlJson: string | SDLInput, _networkType: NetworkType) {
-    const sdlInput = this.parseSdlInput(yamlJson);
-    return this.buildManifest(sdlInput).groupSpecs;
-  }
-
-  public getManifest(yamlJson: string | SDLInput, _networkType: NetworkType, asString: true): string;
-  public getManifest(yamlJson: string | SDLInput, _networkType: NetworkType, asString?: false): Manifest;
-  public getManifest(yamlJson: string | SDLInput, _networkType: NetworkType, asString = false): string | Manifest {
-    const sdlInput = this.parseSdlInput(yamlJson);
-    const { groups } = this.buildManifest(sdlInput);
-    if (asString) {
-      return manifestToSortedJSON(groups);
+    const allowedAuditors = this.#config.MANAGED_WALLET_LEASE_ALLOWED_AUDITORS;
+    if (allowedAuditors && allowedAuditors.length > 0) {
+      this.#appendAuditorRequirement(sdlPlacement, allowedAuditors);
     }
-    return groups;
+
+    const result = generateManifest(potentiallyInvalidSDL, this.#networkId);
+    if (!result.ok) return result;
+
+    return result;
   }
 
-  public async getManifestVersion(yamlJson: string | SDLInput, _networkType: NetworkType) {
-    const sdlInput = this.parseSdlInput(yamlJson);
-    const { groups } = this.buildManifest(sdlInput);
-    return generateManifestVersion(groups);
+  async generateManifestVersion(manifest: Manifest): Promise<Uint8Array> {
+    return generateManifestVersion(manifest);
   }
 
-  public getManifestYaml(sdlConfig: SDLInput, _networkType: NetworkType) {
-    const { groups } = this.buildManifest(sdlConfig);
-    return manifestToSortedJSON(groups);
-  }
-
-  public validateSdl(yamlJson: string) {
-    try {
-      const sdlInput = sdlYaml.template<SDLInput>(yamlJson);
-      const result = generateManifest(sdlInput, this.networkId);
-      return !!result.ok;
-    } catch {
-      return false;
-    }
-  }
-
-  public appendAuditorRequirement(yamlStr: string, allowedAuditors: string[]): string {
-    const sdlData = jsYaml.load(yamlStr) as SDLInput;
-    const placementData = sdlData?.profiles?.placement || {};
-
-    for (const [, value] of Object.entries(placementData)) {
-      if (!value.signedBy?.anyOf || !value.signedBy?.allOf) {
-        value.signedBy = {
-          anyOf: value.signedBy?.anyOf || [],
-          allOf: value.signedBy?.allOf || []
-        };
-      }
+  #appendAuditorRequirement(placement: SDLInput["profiles"]["placement"], allowedAuditors: string[]): void {
+    for (const value of Object.values(placement)) {
+      if (!value) continue;
 
       for (const auditor of allowedAuditors) {
-        if (!value.signedBy!.anyOf!.includes(auditor)) {
-          value.signedBy!.anyOf!.push(auditor);
+        if (!value.signedBy?.anyOf || !value.signedBy.anyOf.includes(auditor)) {
+          value.signedBy ??= {};
+          value.signedBy.anyOf ??= [];
+          value.signedBy.anyOf.push(auditor);
         }
       }
     }
-
-    const result = jsYaml.dump(sdlData, {
-      indent: 2,
-      quotingType: '"',
-      styles: {
-        "!!null": "empty"
-      }
-    });
-
-    return `---
-${result}`;
   }
 }

@@ -15,7 +15,7 @@ profiles:
         cpu:
           units: 0.5
         memory:
-          size: 512Mi
+          size2: 512Mi
         storage:
           - size: 512Mi
   placement:
