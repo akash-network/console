@@ -1,3 +1,5 @@
+import type { UseMutationResult } from "@tanstack/react-query";
+
 import { createProxy } from "./createProxy";
 
 interface User {
@@ -122,7 +124,7 @@ describe(createProxy.name, () => {
         })
       );
 
-      const mutationFn = useMutation.mock.calls[0][0].mutationFn;
+      const mutationFn = useMutation.mock.calls[0][0]?.mutationFn;
       mutationFn({ name: "John" });
       expect(sdk.users.create).toHaveBeenCalledWith({ name: "John" });
     });
@@ -148,6 +150,15 @@ describe(createProxy.name, () => {
           onSuccess
         })
       );
+    });
+
+    it("allows to pass method input as a value to mutation", () => {
+      const { proxy, useMutation } = setup();
+      const mutation = proxy.users.create.useMutation();
+
+      mutation.mutate({ name: "Alice" });
+
+      expect(useMutation).toHaveBeenCalled();
     });
   });
 
@@ -267,7 +278,9 @@ describe(createProxy.name, () => {
   function setup() {
     const sdk = createSdk();
     const useQuery = jest.fn();
-    const useMutation = jest.fn();
+    const useMutation = jest.fn().mockReturnValue({
+      mutate: jest.fn()
+    } as unknown as UseMutationResult<any, any, any, any>);
     const proxy = createProxy(sdk, {
       useQuery,
       useMutation
