@@ -21,6 +21,8 @@ export type AutoTopUpDeployment = {
   dseq: string;
   address: string;
   isWalletAutoTopUpEnabled: boolean;
+  walletIsTrialing: boolean;
+  walletCreatedAt: Date;
 };
 
 @singleton()
@@ -74,7 +76,9 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
         dseq: this.table.dseq,
         walletId: UserWallets.id,
         address: UserWallets.address,
-        isWalletAutoTopUpEnabled: sql<boolean>`coalesce(${WalletSetting.autoReloadEnabled}, false)`
+        isWalletAutoTopUpEnabled: sql<boolean>`coalesce(${WalletSetting.autoReloadEnabled}, false)`,
+        walletIsTrialing: sql<boolean>`coalesce(${UserWallets.isTrialing}, true)`,
+        walletCreatedAt: UserWallets.createdAt
       })
       .from(this.table)
       .leftJoin(Users, eq(this.table.userId, Users.id))

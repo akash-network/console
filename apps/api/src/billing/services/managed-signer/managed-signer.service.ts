@@ -169,12 +169,19 @@ export class ManagedSignerService {
   async #validateBalances(userWallet: UserWalletOutput, messages: EncodeObject[]) {
     return withSpan("ManagedSignerService.validateBalances", async () => {
       const hasDeploymentMessage = messages.some(message => message.typeUrl.endsWith(".MsgCreateDeployment"));
-      const [existingFeeAllowance, deploymentAllowance] = await Promise.all([
-        this.balancesService.retrieveAndCalcFeeLimit(userWallet),
+      const [feeAllowance, deploymentAllowance] = await Promise.all([
+        this.ensureFeeGrants(userWallet),
         !hasDeploymentMessage ? Promise.resolve(userWallet.deploymentAllowance) : this.balancesService.retrieveDeploymentLimit(userWallet)
       ]);
 
-      let feeAllowance = existingFeeAllowance;
+      assert(feeAllowance > 0, 402, "Not enough funds to cover the transaction fee");
+      assert(!hasDeploymentMessage || deploymentAllowance > 0, 402, "Not enough funds to cover the deployment costs");
+    });
+  }
+
+  async ensureFeeGrants(wallet: Pick<UserWalletOutput, "address" | "isTrialing" | "createdAt">): Promise<number> {
+    return withSpan("ManagedSignerService.ensureFeeGrants", async () => {
+      let feeAllowance = await this.balancesService.retrieveAndCalcFeeLimit(wallet);
       const needsRefill = feeAllowance < this.billingConfigService.get("FEE_ALLOWANCE_REFILL_THRESHOLD");
 
       const span = trace.getSpan(context.active());
@@ -182,12 +189,11 @@ export class ManagedSignerService {
       span?.setAttribute("balance.needsRefill", needsRefill);
 
       if (needsRefill) {
-        await this.managedUserWalletService.refillWalletFees(this, userWallet);
-        feeAllowance = await this.balancesService.retrieveAndCalcFeeLimit(userWallet);
+        await this.managedUserWalletService.refillWalletFees(this, wallet);
+        feeAllowance = await this.balancesService.retrieveAndCalcFeeLimit(wallet);
       }
 
-      assert(feeAllowance > 0, 402, "Not enough funds to cover the transaction fee");
-      assert(!hasDeploymentMessage || deploymentAllowance > 0, 402, "Not enough funds to cover the deployment costs");
+      return feeAllowance;
     });
   }
 
