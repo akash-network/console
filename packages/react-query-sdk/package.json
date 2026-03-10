@@ -8,7 +8,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./package.json": "./package.json",
-    "./notifications": "./src/notifications/index.ts"
+    "./notifications": "./src/notifications/index.ts",
+    "./notifications/create-react-query-client": "./src/notifications/create-react-query-client.ts"
   },
   "main": "src/index.ts",
   "scripts": {
