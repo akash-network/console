@@ -19,9 +19,29 @@ import { createColumnHelper, flexRender, getCoreRowModel, getPaginationRowModel,
 import { Bin, Edit } from "iconoir-react";
 
 import { AKTAmount } from "@src/components/shared/AKTAmount";
+import { useUsdcDenom as useUsdcDenomOriginal } from "@src/hooks/useDenom";
 import type { GrantType } from "@src/types/grant";
 import { coinToUDenom } from "@src/utils/priceUtils";
-import { LinkTo } from "../shared/LinkTo";
+import { LinkTo } from "../../shared/LinkTo";
+
+export const DEPENDENCIES = {
+  FormattedTime,
+  Address,
+  Button,
+  Checkbox,
+  CustomPagination,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  AKTAmount,
+  LinkTo,
+  Bin,
+  Edit,
+  useUsdcDenom: useUsdcDenomOriginal
+};
 
 interface Props {
   grants: GrantType[];
@@ -33,6 +53,7 @@ interface Props {
   onPageChange: (pageIndex: number, pageSize: number) => void;
   pageIndex: number;
   pageSize: number;
+  dependencies?: typeof DEPENDENCIES;
 }
 
 const logger = LoggerService.forContext("DeploymentGrantTable");
@@ -46,8 +67,10 @@ export const DeploymentGrantTable: React.FC<Props> = ({
   setSelectedGrants,
   selectedGrants,
   pageIndex,
-  pageSize
+  pageSize,
+  dependencies: d = DEPENDENCIES
 }) => {
+  const usdcDenom = d.useUsdcDenom();
   const selectGrants = (checked: boolean, grant: GrantType) => {
     setSelectedGrants(prev => {
       return checked ? prev.concat([grant]) : prev.filter(x => x.grantee !== grant.grantee);
@@ -59,7 +82,7 @@ export const DeploymentGrantTable: React.FC<Props> = ({
   const columns = [
     columnHelper.accessor("grantee", {
       header: () => <div>Grantee</div>,
-      cell: info => <Address address={info.getValue()} isCopyable />
+      cell: info => <d.Address address={info.getValue()} isCopyable />
     }),
     columnHelper.accessor(
       row => {
@@ -72,7 +95,7 @@ export const DeploymentGrantTable: React.FC<Props> = ({
 
           return (
             <div className="text-center">
-              <AKTAmount uakt={coinToUDenom(value)} /> {value.denom === "uakt" ? "AKT" : "USDC"}
+              <d.AKTAmount uakt={coinToUDenom(value)} /> {value.denom === usdcDenom ? "USDC" : value.denom.toUpperCase().replace("U", "")}
             </div>
           );
         },
@@ -83,7 +106,7 @@ export const DeploymentGrantTable: React.FC<Props> = ({
       header: () => <div className="text-center">Expiration</div>,
       cell: info => (
         <div className="text-center">
-          <FormattedTime year="numeric" month={"numeric"} day={"numeric"} value={info.getValue()} />
+          <d.FormattedTime year="numeric" month={"numeric"} day={"numeric"} value={info.getValue()} />
         </div>
       )
     }),
@@ -93,19 +116,19 @@ export const DeploymentGrantTable: React.FC<Props> = ({
         <div>
           {selectedGrants.length > 0 && (
             <div className="flex items-center justify-end space-x-4">
-              <LinkTo onClick={() => setSelectedGrants([])} className="text-xs">
+              <d.LinkTo onClick={() => setSelectedGrants([])} className="text-xs">
                 Clear
-              </LinkTo>
-              <Button onClick={() => setDeletingGrants(selectedGrants)} variant="outline" size="sm" className="h-6 p-2 text-xs">
+              </d.LinkTo>
+              <d.Button onClick={() => setDeletingGrants(selectedGrants)} variant="outline" size="sm" className="h-6 p-2 text-xs">
                 Revoke selected ({selectedGrants.length})
-              </Button>
+              </d.Button>
             </div>
           )}
           {grants.length > 0 && selectedGrants.length === 0 && (
             <div className="flex items-center justify-end">
-              <Button onClick={() => setDeletingGrants(grants)} variant="outline" size="sm" className="h-6 p-2 text-xs">
+              <d.Button onClick={() => setDeletingGrants(grants)} variant="outline" size="sm" className="h-6 p-2 text-xs">
                 Revoke all
-              </Button>
+              </d.Button>
             </div>
           )}
         </div>
@@ -116,7 +139,7 @@ export const DeploymentGrantTable: React.FC<Props> = ({
         return (
           <div className="flex items-center justify-end space-x-2">
             <div className="flex w-[40px] items-center justify-center">
-              <Checkbox
+              <d.Checkbox
                 checked={selectedGrants.some(x => x.grantee === grant.grantee && x.granter === grant.granter)}
                 onClick={event => {
                   event.stopPropagation();
@@ -130,12 +153,12 @@ export const DeploymentGrantTable: React.FC<Props> = ({
                 }}
               />
             </div>
-            <Button variant="ghost" size="icon" onClick={() => onEditGrant(grant)} aria-label="Edit Authorization">
-              <Edit className="text-xs" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => setDeletingGrants([grant])} aria-label="Revoke Authorization">
-              <Bin className="text-xs" />
-            </Button>
+            <d.Button variant="ghost" size="icon" onClick={() => onEditGrant(grant)} aria-label="Edit Authorization">
+              <d.Edit className="text-xs" />
+            </d.Button>
+            <d.Button variant="ghost" size="icon" onClick={() => setDeletingGrants([grant])} aria-label="Revoke Authorization">
+              <d.Bin className="text-xs" />
+            </d.Button>
           </div>
         );
       }
@@ -164,33 +187,33 @@ export const DeploymentGrantTable: React.FC<Props> = ({
 
   return (
     <div>
-      <Table>
-        <TableHeader>
+      <d.Table>
+        <d.TableHeader>
           {table.getHeaderGroups().map(headerGroup => (
-            <TableRow key={headerGroup.id}>
+            <d.TableRow key={headerGroup.id}>
               {headerGroup.headers.map(header => (
-                <TableHead key={header.id} className="w-1/4">
+                <d.TableHead key={header.id} className="w-1/4">
                   {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                </TableHead>
+                </d.TableHead>
               ))}
-            </TableRow>
+            </d.TableRow>
           ))}
-        </TableHeader>
+        </d.TableHeader>
 
-        <TableBody>
+        <d.TableBody>
           {table.getRowModel().rows.map(row => (
-            <TableRow key={row.id} className="[&>td]:px-2 [&>td]:py-1">
+            <d.TableRow key={row.id} className="[&>td]:px-2 [&>td]:py-1">
               {row.getVisibleCells().map(cell => (
-                <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                <d.TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</d.TableCell>
               ))}
-            </TableRow>
+            </d.TableRow>
           ))}
-        </TableBody>
-      </Table>
+        </d.TableBody>
+      </d.Table>
 
       {pageCount > MIN_PAGE_SIZE && (
         <div className="flex items-center justify-center pt-6">
-          <CustomPagination
+          <d.CustomPagination
             totalPageCount={pageCount}
             setPageIndex={table.setPageIndex}
             pageIndex={pagination.pageIndex}

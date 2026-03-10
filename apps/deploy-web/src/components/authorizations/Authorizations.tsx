@@ -20,12 +20,12 @@ import Layout from "../layout/Layout";
 import { SettingsLayout, SettingsTabs } from "../settings/SettingsLayout";
 import { ConnectWallet } from "../shared/ConnectWallet";
 import { Title } from "../shared/Title";
+import { DeploymentGrantTable } from "./DeploymentGrantTable/DeploymentGrantTable";
+import { GrantModal } from "./GrantModal/GrantModal";
 import { AllowanceGrantedRow } from "./AllowanceGrantedRow";
 import { AllowanceModal } from "./AllowanceModal";
-import { DeploymentGrantTable } from "./DeploymentGrantTable";
 import { FeeGrantTable } from "./FeeGrantTable";
 import { GranteeRow } from "./GranteeRow";
-import { GrantModal } from "./GrantModal";
 
 type RefreshingType = "granterGrants" | "granteeGrants" | "allowancesIssued" | "allowancesGranted" | null;
 const defaultRefetchInterval = 30 * 1000;
