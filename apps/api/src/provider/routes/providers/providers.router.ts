@@ -40,8 +40,13 @@ const providerListRoute = createRoute({
 });
 
 providersRouter.openapi(providerListRoute, async function routeListProviders(c) {
-  const { scope } = c.req.valid("query");
+  const { scope, addresses } = c.req.valid("query");
   const controller = container.resolve(ProviderController);
+
+  if (addresses) {
+    const data = await controller.getFilteredProviderList(scope, addresses);
+    return c.json(data) as TypedResponse<ProviderListResponse, 200, "json">;
+  }
 
   const buffer = await controller.getProviderListBuffer(scope);
   return new Response(buffer, {

@@ -121,6 +121,40 @@ describe("Providers", () => {
       expect(response.status).toBe(200);
       expectProviders(data, [providers[0]]);
     });
+
+    it("returns only providers matching the addresses filter", async () => {
+      const response = await app.request(`/v1/providers?addresses=${providers[0].owner},${providers[2].owner}`);
+
+      const data = (await response.json()) as any;
+
+      expect(response.status).toBe(200);
+      expectProviders(data, [providers[0], providers[2]]);
+    });
+
+    it("returns only matching trial providers when addresses and scope=trial are combined", async () => {
+      const response = await app.request(`/v1/providers?scope=trial&addresses=${providers[0].owner},${providers[1].owner}`);
+
+      const data = (await response.json()) as any;
+
+      expect(response.status).toBe(200);
+      expectProviders(data, [providers[0]]);
+    });
+
+    it("returns an empty array for unknown addresses", async () => {
+      const response = await app.request("/v1/providers?addresses=akash1unknown");
+
+      const data = (await response.json()) as any;
+
+      expect(response.status).toBe(200);
+      expect(data).toEqual([]);
+    });
+
+    it("returns 400 when more than 20 addresses are provided", async () => {
+      const addresses = Array.from({ length: 21 }, (_, i) => `akash1addr${i}`).join(",");
+      const response = await app.request(`/v1/providers?addresses=${addresses}`);
+
+      expect(response.status).toBe(400);
+    });
   });
 
   describe("GET /v1/providers/:address", () => {
