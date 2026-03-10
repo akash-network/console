@@ -11,6 +11,8 @@ export class AutoTopUpDeploymentSeeder {
       dseq: faker.string.numeric(),
       address: createAkashAddress(),
       isWalletAutoTopUpEnabled: false,
+      walletIsTrialing: false,
+      walletCreatedAt: faker.date.recent(),
       ...overrides
     };
   }

@@ -96,16 +96,16 @@ export class ManagedUserWalletService {
    * @param userWallet - The user wallet to refill fees for
    */
   @Trace()
-  async refillWalletFees(signer: ManagedSignerService, { address, ...userWallet }: UserWalletOutput) {
-    assert(address, 402, "Wallet is not initialized");
+  async refillWalletFees(signer: ManagedSignerService, wallet: Pick<UserWalletOutput, "address" | "isTrialing" | "createdAt">) {
+    assert(wallet.address, 402, "Wallet is not initialized");
 
     const trialWindowStart = subDays(new Date(), this.config.TRIAL_ALLOWANCE_EXPIRATION_DAYS);
-    const isInTrialWindow = userWallet.isTrialing && isAfter(userWallet.createdAt, trialWindowStart);
-    const expiration = isInTrialWindow ? addDays(userWallet.createdAt, this.config.TRIAL_ALLOWANCE_EXPIRATION_DAYS) : undefined;
+    const isInTrialWindow = wallet.isTrialing && isAfter(wallet.createdAt, trialWindowStart);
+    const expiration = isInTrialWindow ? addDays(wallet.createdAt, this.config.TRIAL_ALLOWANCE_EXPIRATION_DAYS) : undefined;
     const fees = this.config.FEE_ALLOWANCE_REFILL_AMOUNT;
 
     await this.authorizeSpending(signer, {
-      address,
+      address: wallet.address,
       limits: {
         fees
       },

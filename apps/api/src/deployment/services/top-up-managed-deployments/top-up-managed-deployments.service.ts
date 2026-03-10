@@ -118,6 +118,18 @@ export class TopUpManagedDeploymentsService {
 
     try {
       if (!options.dryRun) {
+        const { address, walletIsTrialing: isTrialing, walletCreatedAt: createdAt } = ownerInputs[0].deployment;
+        const feeAllowance = await this.managedSignerService.ensureFeeGrants({ address, isTrialing, createdAt });
+
+        if (feeAllowance <= 0) {
+          this.instrumentation.recordChainTxError({
+            owner,
+            items: ownerInputs,
+            error: new Error(`Fee grant missing for wallet ${owner}, unable to top up deployments`)
+          });
+          return;
+        }
+
         await this.managedSignerService.executeDerivedTx(
           walletId,
           ownerInputs.map(i => i.message)
