@@ -15,7 +15,6 @@ import {
 } from "@src/deployment/http-schemas/deployment.schema";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
-import { ProviderMtlsAuth } from "@src/provider/services/provider/provider-proxy.service";
 import { denomToUdenom } from "@src/utils/math";
 import { DeploymentReaderService } from "../deployment-reader/deployment-reader.service";
 
@@ -102,7 +101,6 @@ export class DeploymentWriterService {
   public async updateByUserIdAndDseq(userId: string, dseq: string, input: UpdateDeploymentRequest["data"]): Promise<GetDeploymentResponse["data"]> {
     const wallet = await this.walletReaderService.getWalletByUserId(userId);
     let sdl = input.sdl;
-    const { certificate } = input;
 
     assert(this.sdlService.validateSdl(sdl), 400, "Invalid SDL");
 
@@ -116,7 +114,7 @@ export class DeploymentWriterService {
     const manifest = this.sdlService.getManifest(sdl, "beta3", true) as string;
 
     await this.ensureDeploymentIsUpToDate(wallet, dseq, manifestVersion, deployment);
-    const auth = certificate ? { certificate } : { walletId: wallet.id };
+    const auth = { walletId: wallet.id };
     await this.sendManifestToProviders({ auth, dseq, manifest, leases: deployment.leases });
 
     return await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq);
@@ -147,14 +145,14 @@ export class DeploymentWriterService {
     dseq: string;
     manifest: string;
     leases: GetDeploymentResponse["data"]["leases"];
-    auth: { certificate: Omit<ProviderMtlsAuth, "type"> } | { walletId: number };
+    auth: { walletId: number };
   }): Promise<void> {
     const leaseProviders = leases.map(lease => lease.id.provider).filter((v, i, s) => s.indexOf(v) === i);
     for (const provider of leaseProviders) {
       await this.providerService.sendManifest({
         provider,
         ...options,
-        auth: await this.providerService.toProviderAuth("certificate" in auth ? auth.certificate : { walletId: auth.walletId, provider })
+        auth: await this.providerService.toProviderAuth({ walletId: auth.walletId, provider })
       });
     }
   }

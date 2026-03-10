@@ -35,26 +35,22 @@ describe("Bids API", () => {
       });
 
       expect(await response.json()).toMatchObject({
-        data: expect.arrayContaining([
-          expectBid({ owner: wallet.address!, dseq, provider: providers[0].owner, isCertificateRequired: true }),
-          expectBid({ owner: wallet.address!, dseq, provider: providers[1].owner, isCertificateRequired: false })
-        ])
+        data: expect.arrayContaining(
+          Array.from({ length: 2 }, (_, i) =>
+            expect.objectContaining({
+              bid: expect.objectContaining({
+                id: expect.objectContaining({
+                  owner: wallet.address!,
+                  dseq,
+                  provider: providers[i].owner
+                })
+              })
+            })
+          )
+        )
       });
     });
   });
-
-  function expectBid(params: { owner: string; dseq: string; provider: string; isCertificateRequired: boolean }) {
-    return expect.objectContaining({
-      bid: expect.objectContaining({
-        id: expect.objectContaining({
-          owner: params.owner,
-          dseq: params.dseq,
-          provider: params.provider
-        })
-      }),
-      isCertificateRequired: params.isCertificateRequired
-    });
-  }
 
   async function setup() {
     await connectUsingSequelize();
