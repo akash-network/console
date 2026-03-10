@@ -10,7 +10,7 @@ export function useManagedWalletQuery(userId?: string) {
     queryKey: QueryKeys.getManagedWalletKey(userId) as QueryKey,
     queryFn: async () => {
       if (userId) {
-        return await managedWalletService.getWallet(userId);
+        return await managedWalletService.getWallet({ userId });
       }
       return null;
     },

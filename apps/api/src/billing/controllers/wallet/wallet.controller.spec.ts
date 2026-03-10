@@ -5,8 +5,13 @@ import { container as rootContainer } from "tsyringe";
 import { mock } from "vitest-mock-extended";
 
 import { AuthService } from "@src/auth/services/auth.service";
-import { WalletInitializerService } from "@src/billing/services";
+import { type UserWalletPublicOutput, UserWalletRepository } from "@src/billing/repositories";
+import { ManagedSignerService, WalletInitializerService } from "@src/billing/services";
+import { BalancesService } from "@src/billing/services/balances/balances.service";
+import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { RefillService } from "@src/billing/services/refill/refill.service";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
+import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import type { UserOutput } from "@src/user/repositories";
 import { UserRepository } from "@src/user/repositories";
 import { WalletController } from "./wallet.controller";
@@ -158,6 +163,7 @@ describe("WalletController", () => {
         id: null,
         userId: user.id,
         address: null,
+        denom: "uakt",
         creditAmount: 0,
         isTrialing: false,
         createdAt: null,
@@ -193,6 +199,55 @@ describe("WalletController", () => {
     expect(container.resolve(WalletInitializerService).initializeAndGrantTrialLimits).not.toHaveBeenCalled();
   });
 
+  describe("getWallets", () => {
+    it("returns wallets with denom from billing config", async () => {
+      const userId = faker.string.uuid();
+      const wallets = [
+        {
+          id: faker.string.uuid(),
+          userId,
+          address: faker.string.alphanumeric(44),
+          creditAmount: 100,
+          isTrialing: true,
+          createdAt: new Date()
+        },
+        {
+          id: faker.string.uuid(),
+          userId,
+          address: faker.string.alphanumeric(44),
+          creditAmount: 200,
+          isTrialing: false,
+          createdAt: new Date()
+        }
+      ];
+      const container = setup({
+        user: UserSeeder.create(),
+        wallets
+      });
+      const walletController = container.resolve(WalletController);
+
+      const result = await walletController.getWallets({ userId });
+
+      expect(result).toEqual({
+        data: wallets.map(wallet => ({ ...wallet, denom: "uakt" }))
+      });
+      expect(container.resolve(WalletReaderService).getWallets).toHaveBeenCalledWith({ userId });
+    });
+
+    it("returns empty list when no wallets found", async () => {
+      const userId = faker.string.uuid();
+      const container = setup({
+        user: UserSeeder.create(),
+        wallets: []
+      });
+      const walletController = container.resolve(WalletController);
+
+      const result = await walletController.getWallets({ userId });
+
+      expect(result).toEqual({ data: [] });
+    });
+  });
+
   it("handles stripe error in controller", async () => {
     const user = UserSeeder.create({
       emailVerified: true,
@@ -224,6 +279,7 @@ describe("WalletController", () => {
     requires3DS?: boolean;
     validationFails?: boolean;
     stripeError?: boolean;
+    wallets?: UserWalletPublicOutput[];
   }) {
     rootContainer.register(AuthService, {
       useValue: mock<AuthService>({
@@ -274,6 +330,28 @@ describe("WalletController", () => {
       useValue: mock<UserRepository>({
         findTrialUsersByFingerprint: jest.fn().mockResolvedValue(input?.hasDuplicateFingerprint ? [{ id: faker.string.uuid() }] : [])
       })
+    });
+    rootContainer.register(BillingConfigService, {
+      useValue: mock<BillingConfigService>({
+        get: jest.fn().mockReturnValue("uakt")
+      })
+    });
+    rootContainer.register(ManagedSignerService, {
+      useValue: mock<ManagedSignerService>()
+    });
+    rootContainer.register(RefillService, {
+      useValue: mock<RefillService>()
+    });
+    rootContainer.register(WalletReaderService, {
+      useValue: mock<WalletReaderService>({
+        getWallets: jest.fn().mockResolvedValue(input?.wallets ?? [])
+      })
+    });
+    rootContainer.register(BalancesService, {
+      useValue: mock<BalancesService>()
+    });
+    rootContainer.register(UserWalletRepository, {
+      useValue: mock<UserWalletRepository>()
     });
 
     return rootContainer;

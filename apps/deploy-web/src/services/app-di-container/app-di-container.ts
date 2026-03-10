@@ -147,27 +147,20 @@ export const createAppRootContainer = (config: ServicesConfig) => {
         }
       }),
     apiUrlService: config.apiUrlService,
-    managedWalletService: () =>
-      container.applyAxiosInterceptors(
-        new ManagedWalletHttpService(
-          {
-            baseURL: container.apiUrlService.getBaseApiUrlFor(config.MANAGED_WALLET_NETWORK_ID),
-            adapter: "fetch"
-          },
-          container.analyticsService
-        ),
-        {
-          request: [withUserToken],
-          response: [
-            response => {
-              if (response.config.url === "v1/start-trial" && response.config.method === "post" && response.status === 200) {
-                container.analyticsService.track("trial_started", { category: "billing", label: "Trial Started" });
-              }
-              return response;
+    managedWalletService: () => {
+      const httpClient = container.applyAxiosInterceptors(createHttpClient(apiConfig), {
+        request: [withUserToken],
+        response: [
+          response => {
+            if (response.config.url === "v1/start-trial" && response.config.method === "post" && response.status === 200) {
+              container.analyticsService.track("trial_started", { category: "billing", label: "Trial Started" });
             }
-          ]
-        }
-      ),
+            return response;
+          }
+        ]
+      });
+      return new ManagedWalletHttpService(httpClient, container.analyticsService);
+    },
     queryClient: () =>
       new QueryClient({
         defaultOptions: {
