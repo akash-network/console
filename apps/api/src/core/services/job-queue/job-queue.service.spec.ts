@@ -1,5 +1,5 @@
 import { faker } from "@faker-js/faker";
-import type PgBoss from "pg-boss";
+import type { Job as PgBossJob, PgBoss, WorkHandler } from "pg-boss";
 import { describe, expect, it, vi } from "vitest";
 import { mock, mockDeep } from "vitest-mock-extended";
 
@@ -18,7 +18,6 @@ describe(JobQueueService.name, () => {
       await service.registerHandlers([handler]);
 
       expect(pgBoss.createQueue).toHaveBeenCalledWith("test", {
-        name: "test",
         retryBackoff: true,
         retryDelayMax: 5 * 60,
         retryLimit: 5,
@@ -51,14 +50,12 @@ describe(JobQueueService.name, () => {
 
       expect(pgBoss.createQueue).toHaveBeenCalledTimes(2);
       expect(pgBoss.createQueue).toHaveBeenCalledWith("test", {
-        name: "test",
         retryBackoff: true,
         retryDelayMax: 5 * 60,
         retryLimit: 5,
         policy: undefined
       });
       expect(pgBoss.createQueue).toHaveBeenCalledWith("another", {
-        name: "another",
         retryBackoff: true,
         retryDelayMax: 5 * 60,
         retryLimit: 5,
@@ -125,7 +122,7 @@ describe(JobQueueService.name, () => {
     it("cancels a job", async () => {
       const { service, pgBoss, logger } = setup();
       const jobId = faker.string.uuid();
-      vi.spyOn(pgBoss, "cancel").mockResolvedValue();
+      vi.spyOn(pgBoss, "cancel").mockResolvedValue({});
 
       await service.cancel("test", jobId);
 
@@ -223,8 +220,8 @@ describe(JobQueueService.name, () => {
 
       const job = { id: "1", data: { message: "Job 1", userId: "user-1" } };
 
-      vi.spyOn(pgBoss, "work").mockImplementation(async (queueName: string, options: unknown, processFn: PgBoss.WorkHandler<unknown>) => {
-        await processFn([job as PgBoss.Job<unknown>]);
+      vi.spyOn(pgBoss, "work").mockImplementation(async (queueName: string, options: unknown, processFn: WorkHandler<unknown>) => {
+        await processFn([job as PgBossJob<unknown>]);
         return "work-id";
       });
 
@@ -232,7 +229,6 @@ describe(JobQueueService.name, () => {
       await service.startWorkers({ concurrency: 5 });
 
       expect(pgBoss.createQueue).toHaveBeenCalledWith("test", {
-        name: "test",
         retryBackoff: true,
         retryDelayMax: 5 * 60,
         retryLimit: 5,
@@ -260,8 +256,8 @@ describe(JobQueueService.name, () => {
 
       const job = { id: "1", data: { message: "Job 1", userId: "user-1" } };
 
-      vi.spyOn(pgBoss, "work").mockImplementation(async (queueName: string, options: unknown, processFn: PgBoss.WorkHandler<unknown>) => {
-        await processFn([job as PgBoss.Job<unknown>]);
+      vi.spyOn(pgBoss, "work").mockImplementation(async (queueName: string, options: unknown, processFn: WorkHandler<unknown>) => {
+        await processFn([job as PgBossJob<unknown>]);
         return "work-id";
       });
 
@@ -285,8 +281,8 @@ describe(JobQueueService.name, () => {
       const { service, pgBoss } = setup();
       const job = { id: "1", data: { message: "Job 1", userId: "user-1" } };
 
-      vi.spyOn(pgBoss, "work").mockImplementation(async (queueName: string, options: unknown, processFn: PgBoss.WorkHandler<unknown>) => {
-        await processFn([job as PgBoss.Job<unknown>]);
+      vi.spyOn(pgBoss, "work").mockImplementation(async (queueName: string, options: unknown, processFn: WorkHandler<unknown>) => {
+        await processFn([job as PgBossJob<unknown>]);
         return "work-id";
       });
 
@@ -317,7 +313,7 @@ describe(JobQueueService.name, () => {
       const mockError = new Error("PgBoss connection failed");
 
       let errorHandler: (error: Error) => void;
-      vi.spyOn(pgBoss, "on").mockImplementation(((event, handler) => {
+      vi.spyOn(pgBoss, "on").mockImplementation(((event: string, handler: unknown) => {
         if (event === "error") {
           errorHandler = handler as (error: Error) => void;
         }
