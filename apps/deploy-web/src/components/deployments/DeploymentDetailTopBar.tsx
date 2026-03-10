@@ -77,12 +77,15 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
       return;
     }
 
+    //push to deployment list immediately to avoid showing a deployment that is in the process of closing,
+    // the deployment detail page will handle showing the correct state while the transaction is being processed
+    router.push(UrlService.deploymentList());
+
     const message = TransactionMessageData.getCloseDeploymentMsg(address, deployment.dseq);
     const response = await signAndBroadcastTx([message]);
     if (response) {
       onDeploymentClose();
       removeLeases();
-      loadDeploymentDetail();
 
       analyticsService.track("close_deployment", {
         category: "deployments",

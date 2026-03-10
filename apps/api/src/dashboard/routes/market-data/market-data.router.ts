@@ -10,7 +10,7 @@ export const marketDataRouter = new OpenApiHonoHandler();
 
 const marketDataRoute = createRoute({
   method: "get",
-  path: "/v1/market-data/{coin?}",
+  path: "/v1/market-data/{coin}",
   tags: ["Analytics"],
   security: SECURITY_NONE,
   cache: { maxAge: 300, staleWhileRevalidate: 600 },
