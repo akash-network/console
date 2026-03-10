@@ -1,5 +1,5 @@
 import { DepositAuthorization, DepositAuthorization_Scope, MsgAccountDeposit, Scope, Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
-import { MsgCreateCertificate, MsgRevokeCertificate } from "@akashnetwork/chain-sdk/private-types/akash.v1";
+import { MsgBurnACT, MsgCreateCertificate, MsgMintACT, MsgRevokeCertificate } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { MsgCloseDeployment, MsgCreateDeployment, MsgUpdateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { MsgUpdateProvider } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { MsgCreateLease } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
@@ -216,6 +216,34 @@ export class TransactionMessageData {
       value: MsgRevokeAllowance.fromPartial({
         granter: granter,
         grantee: grantee
+      })
+    };
+  }
+
+  static getMintACTMsg(owner: string, amount: number, denom: string) {
+    return {
+      typeUrl: `/${MsgMintACT.$type}`,
+      value: MsgMintACT.fromPartial({
+        owner,
+        to: owner,
+        coinsToBurn: {
+          denom,
+          amount: amount.toString()
+        }
+      })
+    };
+  }
+
+  static getBurnACTMsg(owner: string, amount: number) {
+    return {
+      typeUrl: `/${MsgBurnACT.$type}`,
+      value: MsgBurnACT.fromPartial({
+        owner,
+        to: owner,
+        coinsToBurn: {
+          denom: "uact",
+          amount: amount.toString()
+        }
       })
     };
   }
