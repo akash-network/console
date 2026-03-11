@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - "apps/log-collector/package.json"
 
 jobs:
   release:
