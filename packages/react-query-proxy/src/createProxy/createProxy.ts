@@ -91,15 +91,17 @@ type HooksProxy<T extends (...args: any[]) => any> = undefined extends Parameter
       getKey: (input?: undefined) => PropertyKey[];
       useQuery: (
         input?: undefined,
-        options?: Omit<UseQueryOptions<ReturnType<T>, Error, any, QueryKey>, "queryFn" | "queryKey"> & { queryKey?: QueryKey }
+        options?: Omit<UseQueryOptions<Awaited<ReturnType<T>>, Error, any, QueryKey>, "queryFn" | "queryKey"> & { queryKey?: QueryKey }
       ) => UseQueryResult<Awaited<ReturnType<T>>>;
-      useMutation: (options?: Omit<UseMutationOptions<ReturnType<T>, Error, any, any>, "mutationFn">) => UseMutationResult<Awaited<ReturnType<T>>>;
+      useMutation: (options?: Omit<UseMutationOptions<Awaited<ReturnType<T>>, Error, unknown, any>, "mutationFn">) => UseMutationResult<Awaited<ReturnType<T>>>;
     }
   : {
       getKey: (input: Parameters<T>[0]) => PropertyKey[];
       useQuery: (
         input: Parameters<T>[0],
-        options?: Omit<UseQueryOptions<ReturnType<T>, Error, any, QueryKey>, "queryFn" | "queryKey"> & { queryKey?: QueryKey }
+        options?: Omit<UseQueryOptions<Awaited<ReturnType<T>>, Error, any, QueryKey>, "queryFn" | "queryKey"> & { queryKey?: QueryKey }
       ) => UseQueryResult<Awaited<ReturnType<T>>>;
-      useMutation: (options?: Omit<UseMutationOptions<ReturnType<T>, Error, any, any>, "mutationFn">) => UseMutationResult<Awaited<ReturnType<T>>>;
+      useMutation: (
+        options?: Omit<UseMutationOptions<Awaited<ReturnType<T>>, Error, Parameters<T>[0], any>, "mutationFn">
+      ) => UseMutationResult<Awaited<ReturnType<T>>, Error, Parameters<T>[0], any>;
     };
