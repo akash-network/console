@@ -215,6 +215,35 @@ describe(DeploymentBalanceAlertsService.name, () => {
       });
     });
 
+    it("should only update minBlockHeight when deployment has multiple denominations", async () => {
+      const { service, alertRepository, deploymentService, alertMessageService } = await setup();
+      const owner = mockAkashAddress();
+      const dseq = faker.string.numeric(6);
+      const alert = generateDeploymentBalanceAlert({
+        params: {
+          owner,
+          dseq
+        },
+        conditions: { field: "balance", value: 10000000, operator: "lt" },
+        minBlockHeight: 1000
+      });
+      const alerts: DeploymentBalanceAlertOutput[] = [alert];
+      alertRepository.paginateAll.mockImplementation(async options => {
+        await options.callback(alerts as any);
+      });
+
+      deploymentService.getDeploymentBalance.mockResolvedValue(Err(new RichError("Multiple denominations are not supported", "MULTIPLE_DENOMINATIONS")));
+      const onMessage = vi.fn();
+
+      await service.alertFor({ height: 1000 }, onMessage);
+
+      expect(alertRepository.updateById).toHaveBeenCalledWith(alert.id, {
+        minBlockHeight: 1010
+      });
+      expect(alertMessageService.getMessage).not.toHaveBeenCalled();
+      expect(onMessage).not.toHaveBeenCalled();
+    });
+
     it("should log error if alert repository call fails and reject", async () => {
       const { service, alertRepository, loggerService, alertMessageService } = await setup();
       const error = new Error("test");

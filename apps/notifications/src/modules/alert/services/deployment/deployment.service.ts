@@ -40,11 +40,23 @@ export class DeploymentService {
       }
 
       const blocksPassed = Math.abs(parseInt(deploymentInfo.escrow_account.state.settled_at, 10) - block);
-      const balance = parseFloat(deploymentInfo.escrow_account.state.funds.reduce((sum, { amount }) => sum + parseFloat(amount), 0).toFixed(18));
+      const { balance, denoms } = deploymentInfo.escrow_account.state.funds.reduce(
+        (result, { amount, denom }) => {
+          result.balance += parseFloat(amount);
+          result.denoms.add(denom);
+          return result;
+        },
+        { balance: 0, denoms: new Set() }
+      );
+
+      if (denoms.size > 1) {
+        return Err(new RichError("Multiple denominations are not supported", "MULTIPLE_DENOMINATIONS"));
+      }
+
       const blocksLeft = balance / pricePerBlock - blocksPassed;
       const escrow = Math.max(blocksLeft * pricePerBlock, 0);
 
-      return Ok({ balance: escrow });
+      return Ok({ balance: parseFloat(escrow.toFixed(18)) });
     } catch (error: unknown) {
       return Err(RichError.enrich(error, "UNKNOWN"));
     }
