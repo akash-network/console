@@ -195,6 +195,31 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
       );
     });
 
+    it("records reload failure and throws when payment intent fails", async () => {
+      const balance = 10.0;
+      const costUntilTargetDateInDenom = 50_000_000;
+      const costUntilTargetDateInFiat = 50.0;
+      const error = new Error("Payment failed");
+
+      const { handler, stripeService, instrumentationService, job, jobMeta } = setup({
+        balance,
+        weeklyCostInDenom: costUntilTargetDateInDenom,
+        weeklyCostInFiat: costUntilTargetDateInFiat
+      });
+      stripeService.createPaymentIntent.mockRejectedValue(error);
+
+      await expect(handler.handle(job, jobMeta)).rejects.toThrow(error);
+
+      expect(instrumentationService.recordReloadFailed).toHaveBeenCalledWith(
+        error,
+        expect.objectContaining({
+          walletAddress: expect.any(String),
+          balance,
+          costUntilTargetDateInFiat
+        })
+      );
+    });
+
     it("logs error and throws when scheduling next check fails", async () => {
       const balance = 50.0;
       const weeklyCostInDenom = 50_000_000;
