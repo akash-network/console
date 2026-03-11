@@ -15,7 +15,10 @@ export class ChainErrorService {
     "invalid owner address": 400,
     "bid not open": 400,
     "order not open": 400,
-    "insufficient balance": 402
+    "insufficient balance": 402,
+    "bad status on response: 502": 503,
+    "bad status on response: 503": 503,
+    "bad status on response: 504": 503
   };
 
   getChainErrorStatus(message: string): number | undefined {
