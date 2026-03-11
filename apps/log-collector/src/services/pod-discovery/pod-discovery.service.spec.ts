@@ -5,6 +5,7 @@ import { container } from "tsyringe";
 
 import { ConfigService } from "@src/services/config/config.service";
 import { LoggerService } from "@src/services/logger/logger.service";
+import type { PodCallback } from "./pod-discovery.service";
 import { PodDiscoveryService } from "./pod-discovery.service";
 
 import { seedKubernetesPodTestData } from "@test/seeders/kubernetes-pod.seeder";
@@ -20,23 +21,28 @@ describe(PodDiscoveryService.name, () => {
     const podsRaw = [
       seedKubernetesPodTestData({
         metadata: { name: "web-78d5c9c5b-hxqxs", namespace },
-        spec: { containers: [{ name: "app" }, { name: "sidecar" }] }
+        spec: { containers: [{ name: "app" }, { name: "sidecar" }] },
+        status: { phase: "Running", conditions: [{ type: "Ready", status: "True" }] }
       }),
       seedKubernetesPodTestData({
         metadata: { name: "api-abc123-def456", namespace },
-        spec: { containers: [{ name: "nginx" }] }
+        spec: { containers: [{ name: "nginx" }] },
+        status: { phase: "Running", conditions: [{ type: "Ready", status: "True" }] }
       }),
       seedKubernetesPodTestData({
         metadata: { name: currentPodName, namespace },
-        spec: { containers: [{ name: "collector" }] }
+        spec: { containers: [{ name: "collector" }] },
+        status: { phase: "Running", conditions: [{ type: "Ready", status: "True" }] }
       }),
       seedKubernetesPodTestData({
         metadata: { name: "log-collector-c5f7d6bc5-d8nrl", namespace },
-        spec: { containers: [{ name: "collector" }] }
+        spec: { containers: [{ name: "collector" }] },
+        status: { phase: "Running", conditions: [{ type: "Ready", status: "True" }] }
       }),
       seedKubernetesPodTestData({
         metadata: { name: "log-collector-xyz789-abc123", namespace },
-        spec: { containers: [{ name: "collector" }] }
+        spec: { containers: [{ name: "collector" }] },
+        status: { phase: "Running", conditions: [{ type: "Ready", status: "True" }] }
       })
     ];
 
@@ -66,9 +72,42 @@ describe(PodDiscoveryService.name, () => {
       event: "POD_DISCOVERY_COMPLETED",
       namespace,
       totalPods: 5,
+      readyPods: 5,
       targetPods: 2,
       currentPodName
     });
+  });
+
+  it("should filter out pods that are not ready", async () => {
+    const namespace = faker.internet.domainWord();
+    const { podDiscoveryService, k8sClient } = setup({
+      KUBERNETES_NAMESPACE_OVERRIDE: namespace
+    });
+
+    const podsRaw = [
+      seedKubernetesPodTestData({
+        metadata: { name: "ready-pod", namespace },
+        spec: { containers: [{ name: "app" }] },
+        status: { phase: "Running", conditions: [{ type: "Ready", status: "True" }] }
+      }),
+      seedKubernetesPodTestData({
+        metadata: { name: "not-ready-pod", namespace },
+        spec: { containers: [{ name: "app" }] },
+        status: { phase: "Pending", conditions: [{ type: "Ready", status: "False" }] }
+      }),
+      seedKubernetesPodTestData({
+        metadata: { name: "no-conditions-pod", namespace },
+        spec: { containers: [{ name: "app" }] },
+        status: { phase: "Pending" }
+      })
+    ];
+
+    k8sClient.listNamespacedPod.mockResolvedValue({ items: podsRaw });
+
+    const result = await podDiscoveryService.discoverPodsInNamespace();
+
+    expect(result).toHaveLength(1);
+    expect(result[0].podName).toBe("ready-pod");
   });
 
   it("should use namespace override when provided", async () => {
@@ -154,6 +193,7 @@ describe(PodDiscoveryService.name, () => {
       event: "POD_DISCOVERY_COMPLETED",
       namespace,
       totalPods: 0,
+      readyPods: 0,
       targetPods: 0,
       currentPodName
     });
@@ -168,11 +208,13 @@ describe(PodDiscoveryService.name, () => {
     const podsRaw = [
       seedKubernetesPodTestData({
         metadata: { name: "simple-pod", namespace },
-        spec: { containers: [{ name: "app" }] }
+        spec: { containers: [{ name: "app" }] },
+        status: { phase: "Running", conditions: [{ type: "Ready", status: "True" }] }
       }),
       seedKubernetesPodTestData({
         metadata: { name: "other-pod", namespace },
-        spec: { containers: [{ name: "nginx" }] }
+        spec: { containers: [{ name: "nginx" }] },
+        status: { phase: "Running", conditions: [{ type: "Ready", status: "True" }] }
       })
     ];
 
@@ -180,16 +222,16 @@ describe(PodDiscoveryService.name, () => {
 
     const result = await podDiscoveryService.discoverPodsInNamespace();
 
-    // Should include all pods when deployment name can't be extracted
-    expect(result).toHaveLength(2);
-    expect(result[0].podName).toBe("simple-pod");
-    expect(result[1].podName).toBe("other-pod");
+    // Current pod excluded by exact name match even when deployment name can't be extracted
+    expect(result).toHaveLength(1);
+    expect(result[0].podName).toBe("other-pod");
 
     expect(loggerService.info).toHaveBeenCalledWith({
       event: "POD_DISCOVERY_COMPLETED",
       namespace,
       totalPods: 2,
-      targetPods: 2,
+      readyPods: 2,
+      targetPods: 1,
       currentPodName: "simple-pod"
     });
   });
@@ -213,7 +255,8 @@ describe(PodDiscoveryService.name, () => {
       },
       status: {
         phase: faker.helpers.arrayElement(["Running", "Pending", "Succeeded", "Failed", "Unknown"]),
-        podIP: faker.internet.ip()
+        podIP: faker.internet.ip(),
+        conditions: [{ type: "Ready", status: "True" }]
       }
     });
 
@@ -253,7 +296,8 @@ describe(PodDiscoveryService.name, () => {
       },
       status: {
         phase: undefined,
-        podIP: undefined
+        podIP: undefined,
+        conditions: [{ type: "Ready", status: "True" }]
       }
     });
 
@@ -283,7 +327,7 @@ describe(PodDiscoveryService.name, () => {
     const podRaw: V1Pod = {
       metadata: { name: podName },
       spec: undefined,
-      status: undefined
+      status: { conditions: [{ type: "Ready", status: "True" }] }
     };
 
     k8sClient.listNamespacedPod.mockResolvedValue({ items: [podRaw] });
@@ -355,6 +399,189 @@ describe(PodDiscoveryService.name, () => {
     });
   });
 
+  describe("watchPods", () => {
+    it("should call callback for each initially discovered pod", async () => {
+      const namespace = faker.internet.domainWord();
+      const { podDiscoveryService, k8sClient } = setup({
+        KUBERNETES_NAMESPACE_OVERRIDE: namespace
+      });
+
+      const pod1 = seedKubernetesPodTestData({
+        metadata: { name: "pod-1", namespace },
+        spec: { containers: [{ name: "app" }] },
+        status: { phase: "Running", conditions: [{ type: "Ready", status: "True" }] }
+      });
+      const pod2 = seedKubernetesPodTestData({
+        metadata: { name: "pod-2", namespace },
+        spec: { containers: [{ name: "app" }] },
+        status: { phase: "Running", conditions: [{ type: "Ready", status: "True" }] }
+      });
+
+      let callCount = 0;
+      k8sClient.listNamespacedPod.mockImplementation(async () => {
+        callCount++;
+        if (callCount === 1) {
+          return { items: [pod1, pod2] };
+        }
+        // Never resolves on second call to stop the polling loop
+        return new Promise(() => {});
+      });
+
+      const callback = jest.fn();
+      const watchPromise = podDiscoveryService.watchPods(callback);
+
+      await flushPromises();
+
+      expect(callback).toHaveBeenCalledTimes(2);
+      expect(callback).toHaveBeenCalledWith(expect.objectContaining({ podName: "pod-1" }), expect.any(AbortSignal));
+      expect(callback).toHaveBeenCalledWith(expect.objectContaining({ podName: "pod-2" }), expect.any(AbortSignal));
+
+      void watchPromise.catch(() => {});
+    });
+
+    it("should detect new pods on subsequent polls and call callback", async () => {
+      const namespace = faker.internet.domainWord();
+      const { podDiscoveryService, k8sClient, loggerService } = setup({
+        KUBERNETES_NAMESPACE_OVERRIDE: namespace,
+        POD_POLL_INTERVAL_MS: "100"
+      });
+
+      const pod1 = seedKubernetesPodTestData({
+        metadata: { name: "pod-1", namespace },
+        spec: { containers: [{ name: "app" }] },
+        status: { phase: "Running", conditions: [{ type: "Ready", status: "True" }] }
+      });
+      const pod2 = seedKubernetesPodTestData({
+        metadata: { name: "pod-2", namespace },
+        spec: { containers: [{ name: "app" }] },
+        status: { phase: "Running", conditions: [{ type: "Ready", status: "True" }] }
+      });
+
+      let callCount = 0;
+      k8sClient.listNamespacedPod.mockImplementation(async () => {
+        callCount++;
+        if (callCount <= 1) {
+          return { items: [pod1] };
+        }
+        if (callCount === 2) {
+          return { items: [pod1, pod2] };
+        }
+        return new Promise(() => {});
+      });
+
+      const callback = jest.fn();
+      const watchPromise = podDiscoveryService.watchPods(callback);
+
+      await waitFor(() => expect(callback).toHaveBeenCalledTimes(2));
+
+      expect(callback).toHaveBeenLastCalledWith(expect.objectContaining({ podName: "pod-2" }), expect.any(AbortSignal));
+      expect(loggerService.info).toHaveBeenCalledWith(expect.objectContaining({ event: "POD_READY", podName: "pod-2" }));
+
+      void watchPromise.catch(() => {});
+    });
+
+    it("should abort signal for removed pods on subsequent polls", async () => {
+      const namespace = faker.internet.domainWord();
+      const { podDiscoveryService, k8sClient, loggerService } = setup({
+        KUBERNETES_NAMESPACE_OVERRIDE: namespace,
+        POD_POLL_INTERVAL_MS: "100"
+      });
+
+      const pod1 = seedKubernetesPodTestData({
+        metadata: { name: "pod-1", namespace },
+        spec: { containers: [{ name: "app" }] },
+        status: { phase: "Running", conditions: [{ type: "Ready", status: "True" }] }
+      });
+      const pod2 = seedKubernetesPodTestData({
+        metadata: { name: "pod-2", namespace },
+        spec: { containers: [{ name: "app" }] },
+        status: { phase: "Running", conditions: [{ type: "Ready", status: "True" }] }
+      });
+
+      let callCount = 0;
+      k8sClient.listNamespacedPod.mockImplementation(async () => {
+        callCount++;
+        if (callCount === 1) {
+          return { items: [pod1, pod2] };
+        }
+        if (callCount === 2) {
+          return { items: [pod1] }; // pod2 is gone
+        }
+        return new Promise(() => {});
+      });
+
+      const signals: AbortSignal[] = [];
+      const callback: PodCallback = jest.fn((_podInfo, signal) => {
+        signals.push(signal);
+      });
+      const watchPromise = podDiscoveryService.watchPods(callback);
+
+      await waitFor(() => expect(signals).toHaveLength(2));
+      expect(signals[1].aborted).toBe(false);
+
+      await waitFor(() => expect(signals[1].aborted).toBe(true));
+
+      expect(loggerService.info).toHaveBeenCalledWith(expect.objectContaining({ event: "POD_DELETED", podName: "pod-2" }));
+
+      void watchPromise.catch(() => {});
+    });
+
+    it("throws AggregateError after 3 consecutive poll failures", async () => {
+      const namespace = faker.internet.domainWord();
+      const { podDiscoveryService, k8sClient, loggerService } = setup({
+        KUBERNETES_NAMESPACE_OVERRIDE: namespace,
+        POD_POLL_INTERVAL_MS: "100"
+      });
+
+      const pollError = new Error("K8s API unavailable");
+      let callCount = 0;
+      k8sClient.listNamespacedPod.mockImplementation(async () => {
+        callCount++;
+        if (callCount === 1) {
+          return { items: [] };
+        }
+        throw pollError;
+      });
+
+      const callback = jest.fn();
+
+      await expect(podDiscoveryService.watchPods(callback)).rejects.toThrow("Pod polling failed 3 times consecutively");
+
+      expect(loggerService.error).toHaveBeenCalledTimes(3);
+      expect(loggerService.error).toHaveBeenCalledWith(expect.objectContaining({ event: "POD_POLL_ERROR", consecutiveFailures: 3 }));
+    });
+
+    it("resets consecutive error count on successful poll", async () => {
+      const namespace = faker.internet.domainWord();
+      const { podDiscoveryService, k8sClient, loggerService } = setup({
+        KUBERNETES_NAMESPACE_OVERRIDE: namespace,
+        POD_POLL_INTERVAL_MS: "100"
+      });
+
+      const pollError = new Error("K8s API unavailable");
+      let callCount = 0;
+      k8sClient.listNamespacedPod.mockImplementation(async () => {
+        callCount++;
+        if (callCount === 1) {
+          return { items: [] };
+        }
+        // Fail twice, succeed, fail twice, succeed, fail 3 times
+        if (callCount <= 3) throw pollError;
+        if (callCount === 4) return { items: [] };
+        if (callCount <= 6) throw pollError;
+        if (callCount === 7) return { items: [] };
+        throw pollError;
+      });
+
+      const callback = jest.fn();
+
+      await expect(podDiscoveryService.watchPods(callback)).rejects.toThrow("Pod polling failed 3 times consecutively");
+
+      // 2 + 2 + 3 = 7 errors total, but only 3 consecutive at the end
+      expect(loggerService.error).toHaveBeenCalledTimes(7);
+    });
+  });
+
   function setup(envOverrides: Record<string, string> = {}) {
     container.clearInstances();
 
@@ -383,3 +610,23 @@ describe(PodDiscoveryService.name, () => {
     };
   }
 });
+
+function flushPromises(): Promise<void> {
+  return new Promise(resolve => setImmediate(resolve));
+}
+
+async function waitFor(assertion: () => void, timeout = 2000, interval = 10): Promise<void> {
+  const start = Date.now();
+  const POLL = true;
+  while (POLL) {
+    try {
+      assertion();
+      return;
+    } catch {
+      if (Date.now() - start > timeout) {
+        assertion();
+      }
+      await new Promise(resolve => setTimeout(resolve, interval));
+    }
+  }
+}
