@@ -7,6 +7,7 @@ import { container } from "tsyringe";
 
 import { cacheEngine } from "@src/caching/helpers";
 import { AUDITOR, TRIAL_ATTRIBUTE } from "@src/deployment/config/provider.config";
+import type { ProviderListResponse, ProviderResponse } from "@src/provider/http-schemas/provider.schema";
 import { app, initDb } from "@src/rest-app";
 
 import { createDay, createDeployment, createDeploymentGroup, createLease, createProvider, createProviderSnapshot } from "@test/seeders";
@@ -85,7 +86,7 @@ describe("Providers", () => {
     nock.cleanAll();
   });
 
-  const expectProviders = (providersFound: Provider[], providersExpected: Provider[]) => {
+  const expectProviders = (providersFound: { owner: string }[], providersExpected: { owner: string }[]) => {
     expect(providersFound.length).toBe(providersExpected.length);
 
     const ownersFound = map(providersFound, "owner");
@@ -98,7 +99,7 @@ describe("Providers", () => {
     it("returns all providers by default", async () => {
       const response = await app.request("/v1/providers");
 
-      const data = (await response.json()) as any;
+      const data = (await response.json()) as ProviderListResponse;
 
       expect(response.status).toBe(200);
       expectProviders(data, providers);
@@ -107,7 +108,7 @@ describe("Providers", () => {
     it("returns all providers when scope=all", async () => {
       const response = await app.request("/v1/providers?scope=all");
 
-      const data = (await response.json()) as any;
+      const data = (await response.json()) as ProviderListResponse;
 
       expect(response.status).toBe(200);
       expectProviders(data, providers);
@@ -116,10 +117,44 @@ describe("Providers", () => {
     it("returns trial providers when scope=trial", async () => {
       const response = await app.request("/v1/providers?scope=trial");
 
-      const data = (await response.json()) as any;
+      const data = (await response.json()) as ProviderListResponse;
 
       expect(response.status).toBe(200);
       expectProviders(data, [providers[0]]);
+    });
+
+    it("returns only providers matching the addresses filter", async () => {
+      const response = await app.request(`/v1/providers?addresses=${providers[0].owner},${providers[2].owner}`);
+
+      const data = (await response.json()) as ProviderListResponse;
+
+      expect(response.status).toBe(200);
+      expectProviders(data, [providers[0], providers[2]]);
+    });
+
+    it("returns only matching trial providers when addresses and scope=trial are combined", async () => {
+      const response = await app.request(`/v1/providers?scope=trial&addresses=${providers[0].owner},${providers[1].owner}`);
+
+      const data = (await response.json()) as ProviderListResponse;
+
+      expect(response.status).toBe(200);
+      expectProviders(data, [providers[0]]);
+    });
+
+    it("returns an empty array for unknown addresses", async () => {
+      const response = await app.request("/v1/providers?addresses=akash1unknown");
+
+      const data = (await response.json()) as ProviderListResponse;
+
+      expect(response.status).toBe(200);
+      expect(data).toEqual([]);
+    });
+
+    it("returns 400 when more than 20 addresses are provided", async () => {
+      const addresses = Array.from({ length: 21 }, (_, i) => `akash1addr${i}`).join(",");
+      const response = await app.request(`/v1/providers?addresses=${addresses}`);
+
+      expect(response.status).toBe(400);
     });
   });
 
@@ -127,7 +162,7 @@ describe("Providers", () => {
     it("returns a provider by address", async () => {
       const response = await app.request(`/v1/providers/${providers[0].owner}`);
 
-      const data = (await response.json()) as any;
+      const data = (await response.json()) as ProviderResponse;
 
       expect(response.status).toBe(200);
       expect(data.owner).toEqual(providers[0].owner);

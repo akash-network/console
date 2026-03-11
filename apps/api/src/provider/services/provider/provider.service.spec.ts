@@ -1,5 +1,6 @@
 import type { JwtTokenPayload } from "@akashnetwork/chain-sdk";
 import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
+import type { ProviderAttributesSchema } from "@akashnetwork/http-sdk";
 import { netConfig } from "@akashnetwork/net";
 import { faker } from "@faker-js/faker";
 import { AxiosError } from "axios";
@@ -7,9 +8,10 @@ import { Ok } from "ts-results";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { AUDITOR } from "@src/deployment/config/provider.config";
 import { mockConfigService } from "../../../../test/mocks/config-service.mock";
 import { LeaseStatusSeeder } from "../../../../test/seeders/lease-status.seeder";
-import { createProviderSeed } from "../../../../test/seeders/provider.seeder";
+import { createProviderSeed, createProviderWithAttributeSignatures } from "../../../../test/seeders/provider.seeder";
 import { UserWalletSeeder } from "../../../../test/seeders/user-wallet.seeder";
 import type { BillingConfigService } from "../../../billing/services/billing-config/billing-config.service";
 import type { ProviderRepository } from "../../repositories/provider/provider.repository";
@@ -18,6 +20,37 @@ import type { ProviderAttributesSchemaService } from "../provider-attributes-sch
 import type { ProviderJwtTokenService } from "../provider-jwt-token/provider-jwt-token.service";
 import { ProviderService } from "./provider.service";
 import type { ProviderProxyService } from "./provider-proxy.service";
+
+const schemaDetail = { key: "test", type: "string" as const, required: false, description: "test", values: null };
+const providerAttributeSchemaStub: ProviderAttributesSchema = {
+  host: schemaDetail,
+  email: schemaDetail,
+  organization: schemaDetail,
+  website: schemaDetail,
+  tier: schemaDetail,
+  "status-page": schemaDetail,
+  "location-region": schemaDetail,
+  country: schemaDetail,
+  city: schemaDetail,
+  timezone: schemaDetail,
+  "location-type": schemaDetail,
+  "hosting-provider": schemaDetail,
+  "hardware-cpu": schemaDetail,
+  "hardware-cpu-arch": schemaDetail,
+  "hardware-gpu": schemaDetail,
+  "hardware-gpu-model": schemaDetail,
+  "hardware-disk": schemaDetail,
+  "hardware-memory": schemaDetail,
+  "network-provider": schemaDetail,
+  "network-speed-up": schemaDetail,
+  "network-speed-down": schemaDetail,
+  "feat-persistent-storage": schemaDetail,
+  "feat-persistent-storage-type": schemaDetail,
+  "workload-support-chia": schemaDetail,
+  "workload-support-chia-capabilities": schemaDetail,
+  "feat-endpoint-ip": schemaDetail,
+  "feat-endpoint-custom-domain": schemaDetail
+};
 
 describe(ProviderService.name, () => {
   describe("sendManifest", () => {
@@ -342,6 +375,71 @@ describe(ProviderService.name, () => {
       await expect(
         service.getLeaseStatus(provider.owner, dseq, gseq, oseq, await service.toProviderAuth({ walletId: wallet.id, provider: provider.owner }))
       ).rejects.toThrow(`Provider ${provider.owner} not found`);
+    });
+  });
+
+  describe("getProviderListByAddresses", () => {
+    it("should return mapped providers for given addresses", async () => {
+      const { service, providerRepository, auditorsService, providerAttributesSchemaService } = setup();
+
+      const provider1 = createProviderWithAttributeSignatures(AUDITOR) as unknown as Provider;
+      const provider2 = createProviderWithAttributeSignatures(AUDITOR) as unknown as Provider;
+      const addresses = [provider1.owner, provider2.owner];
+
+      providerRepository.getWithAttributesAndAuditors.mockResolvedValue([provider1, provider2]);
+      providerRepository.getProviderWithNodes.mockResolvedValue([]);
+      auditorsService.getAuditors.mockResolvedValue([]);
+      providerAttributesSchemaService.getProviderAttributesSchema.mockResolvedValue(providerAttributeSchemaStub);
+
+      const result = await service.getProviderListByAddresses(addresses);
+
+      expect(providerRepository.getWithAttributesAndAuditors).toHaveBeenCalledWith({ trial: false, addresses });
+      expect(providerRepository.getProviderWithNodes).toHaveBeenCalledWith({ addresses });
+      expect(result).toHaveLength(2);
+      expect(result.map(p => p.owner)).toEqual([provider1.owner, provider2.owner]);
+    });
+
+    it("should pass trial flag to repository", async () => {
+      const { service, providerRepository, auditorsService, providerAttributesSchemaService } = setup();
+
+      providerRepository.getWithAttributesAndAuditors.mockResolvedValue([]);
+      providerRepository.getProviderWithNodes.mockResolvedValue([]);
+      auditorsService.getAuditors.mockResolvedValue([]);
+      providerAttributesSchemaService.getProviderAttributesSchema.mockResolvedValue(providerAttributeSchemaStub);
+
+      await service.getProviderListByAddresses(["addr1"], true);
+
+      expect(providerRepository.getWithAttributesAndAuditors).toHaveBeenCalledWith({ trial: true, addresses: ["addr1"] });
+    });
+
+    it("should deduplicate providers with the same owner", async () => {
+      const { service, providerRepository, auditorsService, providerAttributesSchemaService } = setup();
+
+      const provider1 = createProviderWithAttributeSignatures(AUDITOR) as unknown as Provider;
+      const provider2 = { ...createProviderWithAttributeSignatures(AUDITOR), owner: provider1.owner } as unknown as Provider;
+
+      providerRepository.getWithAttributesAndAuditors.mockResolvedValue([provider1, provider2]);
+      providerRepository.getProviderWithNodes.mockResolvedValue([]);
+      auditorsService.getAuditors.mockResolvedValue([]);
+      providerAttributesSchemaService.getProviderAttributesSchema.mockResolvedValue(providerAttributeSchemaStub);
+
+      const result = await service.getProviderListByAddresses([provider1.owner]);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].owner).toBe(provider1.owner);
+    });
+
+    it("should return empty array when no providers match", async () => {
+      const { service, providerRepository, auditorsService, providerAttributesSchemaService } = setup();
+
+      providerRepository.getWithAttributesAndAuditors.mockResolvedValue([]);
+      providerRepository.getProviderWithNodes.mockResolvedValue([]);
+      auditorsService.getAuditors.mockResolvedValue([]);
+      providerAttributesSchemaService.getProviderAttributesSchema.mockResolvedValue(providerAttributeSchemaStub);
+
+      const result = await service.getProviderListByAddresses(["unknown-addr"]);
+
+      expect(result).toEqual([]);
     });
   });
 

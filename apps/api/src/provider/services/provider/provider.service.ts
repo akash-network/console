@@ -1,4 +1,5 @@
 import { Provider, ProviderSnapshot, ProviderSnapshotNode, ProviderSnapshotNodeGPU } from "@akashnetwork/database/dbSchemas/akash";
+import type { ProviderAttributesSchema } from "@akashnetwork/http-sdk";
 import { NetConfig, SupportedChainNetworks } from "@akashnetwork/net";
 import { AxiosError } from "axios";
 import { add } from "date-fns";
@@ -10,6 +11,7 @@ import { singleton } from "tsyringe";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { Memoize } from "@src/caching/helpers";
 import { LeaseStatusResponse } from "@src/deployment/http-schemas/lease.schema";
+import type { Auditor } from "@src/provider/http-schemas/auditor.schema";
 import { ProviderRepository } from "@src/provider/repositories/provider/provider.repository";
 import { ProviderAuth, ProviderIdentity, ProviderProxyService } from "@src/provider/services/provider/provider-proxy.service";
 import { ProviderJwtTokenService } from "@src/provider/services/provider-jwt-token/provider-jwt-token.service";
@@ -181,6 +183,43 @@ export class ProviderService {
     });
 
     return finalProviders;
+  }
+
+  async getProviderListByAddresses(addresses: string[], trial = false): Promise<ProviderList[]> {
+    const [providersWithAttributesAndAuditors, providerWithNodes, auditors, providerAttributeSchema] = await Promise.all([
+      this.providerRepository.getWithAttributesAndAuditors({ trial, addresses }),
+      this.providerRepository.getProviderWithNodes({ addresses }),
+      this.auditorsService.getAuditors(),
+      this.providerAttributesSchemaService.getProviderAttributesSchema()
+    ]);
+
+    return this.mapProviderResults(providersWithAttributesAndAuditors, providerWithNodes, auditors, providerAttributeSchema);
+  }
+
+  private mapProviderResults(
+    providersWithAttributesAndAuditors: Provider[],
+    providerWithNodes: Provider[],
+    auditors: Auditor[],
+    providerAttributeSchema: ProviderAttributesSchema
+  ): ProviderList[] {
+    const seenProviders = new Set<string>();
+    const distinctProviders: Provider[] = [];
+    for (const provider of providersWithAttributesAndAuditors) {
+      if (!seenProviders.has(provider.owner)) {
+        seenProviders.add(provider.owner);
+        distinctProviders.push(provider);
+      }
+    }
+
+    const providerByOwner = new Map<string, Provider>();
+    for (const provider of providerWithNodes) {
+      providerByOwner.set(provider.owner, provider);
+    }
+
+    return distinctProviders.map(provider => {
+      const lastSuccessfulSnapshot = providerByOwner.get(provider.owner)?.lastSuccessfulSnapshot;
+      return mapProviderToList(provider, providerAttributeSchema, auditors, lastSuccessfulSnapshot);
+    });
   }
 
   @Memoize({ ttlInSeconds: 30 })

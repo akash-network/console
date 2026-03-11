@@ -3,8 +3,21 @@ import { z } from "zod";
 import { openApiExampleProviderAddress } from "@src/utils/constants";
 import { AkashAddressSchema } from "@src/utils/schema";
 
+const MAX_ADDRESSES = 20;
+
+const AddressesSchema = z
+  .string()
+  .transform(val =>
+    val
+      .split(",")
+      .map(a => a.trim())
+      .filter(Boolean)
+  )
+  .pipe(z.array(z.string().min(1)).min(1).max(MAX_ADDRESSES));
+
 export const ProviderListQuerySchema = z.object({
-  scope: z.enum(["all", "trial"]).default("all")
+  scope: z.enum(["all", "trial"]).default("all"),
+  addresses: AddressesSchema.optional()
 });
 export const ProviderListResponseSchema = z.array(
   z.object({

@@ -126,10 +126,16 @@ export class ProviderRepository {
     return rows.map(row => row.hostUri);
   }
 
-  async getWithAttributesAndAuditors({ trial = false, limit, offset }: { trial?: boolean; limit?: number; offset?: number } = {}) {
+  async getWithAttributesAndAuditors({
+    trial = false,
+    addresses,
+    limit,
+    offset
+  }: { trial?: boolean; addresses?: string[]; limit?: number; offset?: number } = {}) {
     return await Provider.findAll({
       where: {
-        deletedHeight: null
+        deletedHeight: null,
+        ...(addresses && { owner: { [Op.in]: addresses } })
       },
       order: [["createdHeight", "ASC"]],
       limit,
@@ -155,11 +161,12 @@ export class ProviderRepository {
     });
   }
 
-  async getProviderWithNodes({ limit, offset }: { limit?: number; offset?: number } = {}) {
+  async getProviderWithNodes({ addresses, limit, offset }: { addresses?: string[]; limit?: number; offset?: number } = {}) {
     return await Provider.findAll({
       attributes: ["owner"],
       where: {
-        deletedHeight: null
+        deletedHeight: null,
+        ...(addresses && { owner: { [Op.in]: addresses } })
       },
       limit,
       offset,
