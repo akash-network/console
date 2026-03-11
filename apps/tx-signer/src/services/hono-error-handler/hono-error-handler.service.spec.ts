@@ -1,4 +1,5 @@
-import { mock } from "jest-mock-extended";
+import { describe, expect, it } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { AppContext } from "../../types/app-context";
 import type { ChainErrorService } from "../chain-error/chain-error.service";
