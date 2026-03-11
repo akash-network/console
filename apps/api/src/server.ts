@@ -52,7 +52,9 @@ function bootstrapInChildProcess({ PORT, INTERFACE }: RawAppConfig): Promise<voi
     child.once("exit", code => (code !== 0 ? reject(new Error(`[${INTERFACE}] exited ${code}`)) : undefined));
 
     const disconnect = (signal?: NodeJS.Signals) => {
-      child.disconnect();
+      if (child.connected) {
+        child.disconnect();
+      }
       child.kill(signal);
     };
     process.on("SIGTERM", disconnect);
