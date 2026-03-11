@@ -412,18 +412,18 @@ describe(ProviderService.name, () => {
       expect(providerRepository.getWithAttributesAndAuditors).toHaveBeenCalledWith({ trial: true, addresses: ["addr1"] });
     });
 
-    it("should deduplicate providers with the same hostUri", async () => {
+    it("should deduplicate providers with the same owner", async () => {
       const { service, providerRepository, auditorsService, providerAttributesSchemaService } = setup();
 
       const provider1 = createProviderWithAttributeSignatures(AUDITOR) as unknown as Provider;
-      const provider2 = { ...createProviderWithAttributeSignatures(AUDITOR), hostUri: provider1.hostUri } as unknown as Provider;
+      const provider2 = { ...createProviderWithAttributeSignatures(AUDITOR), owner: provider1.owner } as unknown as Provider;
 
       providerRepository.getWithAttributesAndAuditors.mockResolvedValue([provider1, provider2]);
       providerRepository.getProviderWithNodes.mockResolvedValue([]);
       auditorsService.getAuditors.mockResolvedValue([]);
       providerAttributesSchemaService.getProviderAttributesSchema.mockResolvedValue(providerAttributeSchemaStub);
 
-      const result = await service.getProviderListByAddresses([provider1.owner, provider2.owner]);
+      const result = await service.getProviderListByAddresses([provider1.owner]);
 
       expect(result).toHaveLength(1);
       expect(result[0].owner).toBe(provider1.owner);
