@@ -107,7 +107,7 @@ REQUESTED_SERVICES=()
 DC_FILES_DIR="$(dirname "$(dirname "$(readlink -f "$0")")")/"
 COMPOSE_FILES=(
   "${DC_FILES_DIR}docker-compose.build.yml"
-  "${DC_FILES_DIR}docker-compose.prod.yml"
+  "${DC_FILES_DIR}docker-compose.runtime.yml"
   "${DC_FILES_DIR}docker-compose.prod-with-db.yml"
   "${DC_FILES_DIR}docker-compose.dev.yml"
 )

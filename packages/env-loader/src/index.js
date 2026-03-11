@@ -31,12 +31,18 @@ if (process.env.DEPLOYMENT_ENV === "") {
   delete process.env.DEPLOYMENT_ENV;
 }
 
-if (!process.env.DEPLOYMENT_ENV) {
-  config("../../.env.local");
+if (process.env.ALLOW_LOCAL_DOTENV === "true" || process.env.DEPLOYMENT_ENV !== "production") {
+  config("env/.env.local");
 }
 
-config(`env/.env.${process.env.DEPLOYMENT_ENV || "local"}`);
-config(`env/.env.${process.env.NETWORK}`);
+const WORD_REGEX = /^\w+$/;
+
+if (WORD_REGEX.test(process.env.DEPLOYMENT_ENV ?? "")) {
+  config(`env/.env.${process.env.DEPLOYMENT_ENV}`);
+}
+if (WORD_REGEX.test(process.env.NETWORK ?? "")) {
+  config(`env/.env.${process.env.NETWORK}`);
+}
 config("env/.env");
 
 logger.info(`Loaded env files: ${files.join(", ")}`);
