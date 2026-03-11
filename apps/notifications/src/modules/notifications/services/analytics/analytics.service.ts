@@ -4,8 +4,8 @@ import { ConfigService } from "@nestjs/config";
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import { Namespaced } from "@src/lib/types/namespaced-config.type";
 import { NotificationEnvConfig } from "@src/modules/notifications/config/env.config";
-import { Amplitude } from "@src/modules/notifications/providers/amplitude.provider";
-import { Hasher } from "@src/modules/notifications/providers/hash.provider";
+import type { Amplitude } from "@src/modules/notifications/providers/amplitude.provider";
+import type { Hasher } from "@src/modules/notifications/providers/hash.provider";
 
 type AnalyticsEvent = "email_sent" | "email_failed";
 
