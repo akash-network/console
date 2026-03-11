@@ -1,5 +1,5 @@
 import React from "react";
-import { createAPIClient } from "@akashnetwork/react-query-sdk/notifications";
+import { createReactQueryApiClient } from "@akashnetwork/react-query-sdk/notifications/create-react-query-client";
 import { CustomSnackbarProvider } from "@akashnetwork/ui/context";
 import { faker } from "@faker-js/faker";
 import type { RequestFnResponse } from "@openapi-qraft/react";
@@ -85,7 +85,7 @@ describe(AlertsListContainer.name, () => {
     const services = {
       queryClient: () => queryClient,
       notificationsApi: () =>
-        createAPIClient({
+        createReactQueryApiClient({
           requestFn: requestFn as any,
           baseUrl: "",
           queryClient

@@ -3,35 +3,14 @@
  * Do not make direct changes to the file.
  */
 
-import type {
-  APIBasicClientServices,
-  APIBasicQueryClientServices,
-  APIDefaultQueryClientServices,
-  APIUtilityClientServices,
-  CreateAPIBasicClientOptions,
-  CreateAPIBasicQueryClientOptions,
-  CreateAPIClientOptions,
-  CreateAPIQueryClientOptions
-} from "@openapi-qraft/react";
+import type { APIQueryClientServices, CreateAPIBasicClientOptions } from "@openapi-qraft/react";
 import { qraftAPIClient } from "@openapi-qraft/react";
-import * as allCallbacks from "@openapi-qraft/react/callbacks/index";
+import { operationInvokeFn } from "@openapi-qraft/react/callbacks/operationInvokeFn";
 
 import { services } from "./services/index";
-export function createAPIClient(options: CreateAPIQueryClientOptions): APIDefaultQueryClientServices<Services>;
-export function createAPIClient(options: CreateAPIBasicQueryClientOptions): APIBasicQueryClientServices<Services, AllCallbacks>;
-export function createAPIClient(options: CreateAPIBasicClientOptions): APIBasicClientServices<Services, AllCallbacks>;
-export function createAPIClient(): APIUtilityClientServices<Services, AllCallbacks>;
-export function createAPIClient(
-  options?: CreateAPIClientOptions
-):
-  | APIDefaultQueryClientServices<Services>
-  | APIBasicQueryClientServices<Services, AllCallbacks>
-  | APIBasicClientServices<Services, AllCallbacks>
-  | APIUtilityClientServices<Services, AllCallbacks> {
-  if (!options) return qraftAPIClient(services, allCallbacks);
-  if ("requestFn" in options) return qraftAPIClient(services, allCallbacks, options);
-  if ("queryClient" in options) return qraftAPIClient(services, allCallbacks, options);
-  return qraftAPIClient(services, allCallbacks);
+
+const allCallbacks = { operationInvokeFn };
+export function createAPIClient(options: CreateAPIBasicClientOptions): APIQueryClientServices<Services, typeof allCallbacks> {
+  return qraftAPIClient(services, allCallbacks, options);
 }
-type AllCallbacks = typeof allCallbacks;
 type Services = typeof services;

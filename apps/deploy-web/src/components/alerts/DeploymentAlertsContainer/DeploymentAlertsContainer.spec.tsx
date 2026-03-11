@@ -1,8 +1,8 @@
 import React from "react";
 import type { components } from "@akashnetwork/react-query-sdk/notifications";
-import { createAPIClient } from "@akashnetwork/react-query-sdk/notifications";
+import { createReactQueryApiClient } from "@akashnetwork/react-query-sdk/notifications/create-react-query-client";
 import { CustomSnackbarProvider } from "@akashnetwork/ui/context";
-import type { RequestFn, RequestFnResponse } from "@openapi-qraft/tanstack-query-react-types";
+import type { RequestFn, RequestFnResponse } from "@openapi-qraft/react";
 import merge from "lodash/merge";
 import { describe, expect, it, vi } from "vitest";
 
@@ -221,7 +221,7 @@ describe(DeploymentAlertsContainer.name, () => {
     const services = {
       queryClient: () => queryClient,
       notificationsApi: () =>
-        createAPIClient({
+        createReactQueryApiClient({
           requestFn: requestFn as RequestFn<any, Error>,
           baseUrl: "",
           queryClient

@@ -1,8 +1,9 @@
 import React from "react";
-import { type components, createAPIClient } from "@akashnetwork/react-query-sdk/notifications";
+import type { components } from "@akashnetwork/react-query-sdk/notifications";
+import { createReactQueryApiClient } from "@akashnetwork/react-query-sdk/notifications/create-react-query-client";
 import { CustomSnackbarProvider } from "@akashnetwork/ui/context";
 import { faker } from "@faker-js/faker";
-import type { RequestFn, RequestFnResponse } from "@openapi-qraft/tanstack-query-react-types";
+import type { RequestFn, RequestFnResponse } from "@openapi-qraft/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { ChildrenProps } from "@src/components/alerts/NotificationChannelCreateContainer/NotificationChannelCreateContainer";
@@ -91,7 +92,7 @@ describe("NotificationChannelCreateContainer", () => {
     const services = {
       queryClient: () => queryClient,
       notificationsApi: () =>
-        createAPIClient({
+        createReactQueryApiClient({
           requestFn: requestFn as RequestFn<any, Error>,
           baseUrl: "",
           queryClient
