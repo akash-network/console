@@ -37,7 +37,15 @@ describe("Alerts CRUD", () => {
   async function prepareAlert(userId: string, notificationChannelId: string, app: INestApplication): Promise<AlertOutputMeta> {
     const repository = app.get(AlertRepository);
     const { params, ...input } = generateMock(chainMessageCreateInputSchema);
-    const alert = await repository.create({ ...input, userId, notificationChannelId, enabled: true });
+    const alert = await repository.create({
+      ...input,
+      name: input.name || faker.lorem.words(3),
+      summary: input.summary || faker.lorem.sentence(),
+      description: input.description || faker.lorem.sentence(),
+      userId,
+      notificationChannelId,
+      enabled: true
+    });
 
     return {
       id: alert.id,

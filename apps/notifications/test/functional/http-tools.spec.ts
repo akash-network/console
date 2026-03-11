@@ -117,7 +117,7 @@ describe("HTTP Tools", () => {
   function generateValidInput() {
     return {
       foo: faker.lorem.word(),
-      bar: faker.lorem.word()
+      bar: faker.lorem.word({ length: { min: 3, max: 10 } })
     };
   }
 });
