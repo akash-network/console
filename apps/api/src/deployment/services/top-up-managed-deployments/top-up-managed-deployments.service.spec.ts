@@ -23,6 +23,7 @@ import { DrainingDeploymentSeeder } from "@test/seeders/draining-deployment.seed
 describe(TopUpManagedDeploymentsService.name, () => {
   const DEPLOYMENT_GRANT_DENOM = "ibc/170C677610AC31DF0904FFE09CD3B5C657492170E7E52372E48756B71E56F2F1";
   const CURRENT_BLOCK_HEIGHT = 7481457;
+  const SUFFICIENT_FEE_ALLOWANCE = 100001;
 
   function createMockCachedBalance(reserveSufficientAmount: (desiredAmount: number) => number) {
     const balance = mock<CachedBalance>();
@@ -433,12 +434,107 @@ describe(TopUpManagedDeploymentsService.name, () => {
       expect(instrumentation.recordChainTxError).toHaveBeenCalledWith(expect.objectContaining({ error }));
       expect(instrumentation.finish).toHaveBeenCalledWith("success", CURRENT_BLOCK_HEIGHT);
     });
+
+    it("should call ensureFeeGrants before executing top-up", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService, managedSignerService } = setup();
+      const deployment = AutoTopUpDeploymentSeeder.create();
+      const predictedClosedHeight = CURRENT_BLOCK_HEIGHT + 1500;
+
+      drainingDeploymentService.findDrainingDeploymentsByOwner.mockImplementation(() =>
+        (async function* () {
+          yield {
+            address: deployment.address,
+            deployments: [
+              {
+                ...deployment,
+                ...DrainingDeploymentSeeder.create({ dseq: Number(deployment.dseq), owner: deployment.address, predictedClosedHeight }),
+                dseq: deployment.dseq
+              } as DrainingDeployment
+            ]
+          };
+        })()
+      );
+      drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(1000000);
+      cachedBalanceService.get.mockResolvedValue(createMockCachedBalance(() => 500000));
+
+      await service.topUpDeployments({ dryRun: false });
+
+      expect(managedSignerService.ensureFeeGrants).toHaveBeenCalledWith({
+        address: deployment.address,
+        isTrialing: deployment.walletIsTrialing,
+        createdAt: deployment.walletCreatedAt
+      });
+      expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(1);
+    });
+
+    it("should not execute top-up when fee grant is missing and cannot be refilled", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService, managedSignerService, instrumentation } = setup({ feeAllowance: 0 });
+      const deployment = AutoTopUpDeploymentSeeder.create();
+      const predictedClosedHeight = CURRENT_BLOCK_HEIGHT + 1500;
+
+      drainingDeploymentService.findDrainingDeploymentsByOwner.mockImplementation(() =>
+        (async function* () {
+          yield {
+            address: deployment.address,
+            deployments: [
+              {
+                ...deployment,
+                ...DrainingDeploymentSeeder.create({ dseq: Number(deployment.dseq), owner: deployment.address, predictedClosedHeight }),
+                dseq: deployment.dseq
+              } as DrainingDeployment
+            ]
+          };
+        })()
+      );
+      drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(1000000);
+      cachedBalanceService.get.mockResolvedValue(createMockCachedBalance(() => 500000));
+
+      await service.topUpDeployments({ dryRun: false });
+
+      expect(managedSignerService.ensureFeeGrants).toHaveBeenCalled();
+      expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
+      expect(instrumentation.recordChainTxError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          error: expect.objectContaining({ message: expect.stringContaining("Fee grant missing") })
+        })
+      );
+    });
+
+    it("should skip fee grant validation in dry run mode", async () => {
+      const { service, drainingDeploymentService, cachedBalanceService, managedSignerService } = setup();
+      const deployment = AutoTopUpDeploymentSeeder.create();
+      const predictedClosedHeight = CURRENT_BLOCK_HEIGHT + 1500;
+
+      drainingDeploymentService.findDrainingDeploymentsByOwner.mockImplementation(() =>
+        (async function* () {
+          yield {
+            address: deployment.address,
+            deployments: [
+              {
+                ...deployment,
+                ...DrainingDeploymentSeeder.create({ dseq: Number(deployment.dseq), owner: deployment.address, predictedClosedHeight }),
+                dseq: deployment.dseq
+              } as DrainingDeployment
+            ]
+          };
+        })()
+      );
+      drainingDeploymentService.calculateTopUpAmount.mockResolvedValue(1000000);
+      cachedBalanceService.get.mockResolvedValue(createMockCachedBalance(() => 500000));
+
+      await service.topUpDeployments({ dryRun: true });
+
+      expect(managedSignerService.ensureFeeGrants).not.toHaveBeenCalled();
+      expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
+    });
   });
 
-  function setup(input?: { currentBlockHeight?: number }) {
+  function setup(input?: { currentBlockHeight?: number; feeAllowance?: number }) {
     const currentBlockHeight = input?.currentBlockHeight ?? CURRENT_BLOCK_HEIGHT;
+    const feeAllowance = input?.feeAllowance ?? SUFFICIENT_FEE_ALLOWANCE;
 
     const managedSignerService = mock<ManagedSignerService>();
+    managedSignerService.ensureFeeGrants.mockResolvedValue(feeAllowance);
     const billingConfig = mockConfigService<BillingConfigService>({
       DEPLOYMENT_GRANT_DENOM,
       USDC_IBC_DENOMS: {
