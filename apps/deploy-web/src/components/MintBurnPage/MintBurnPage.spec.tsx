@@ -4,18 +4,11 @@ import { describe, expect, it, vi } from "vitest";
 import type { WalletBalance } from "@src/hooks/useWalletBalance";
 import { DEPENDENCIES, MintBurnPage, PRESET_AMOUNTS } from "./MintBurnPage";
 
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { buildWalletBalance } from "@tests/seeders/walletBalance";
 
 describe(MintBurnPage.name, () => {
-  it("renders page title and description", () => {
-    setup();
-
-    expect(screen.getByText("Mint & Burn")).toBeInTheDocument();
-    expect(screen.getByText(/Convert between AKT and ACT/)).toBeInTheDocument();
-  });
-
-  it("displays AKT and ACT balances", () => {
+  it("displays From balance for current mode", () => {
     setup({
       walletBalance: buildWalletBalance({
         balanceUAKT: 203_080_000,
@@ -23,39 +16,42 @@ describe(MintBurnPage.name, () => {
       })
     });
 
-    expect(screen.getByTestId("akt-balance")).toHaveTextContent("203.08 AKT");
-    expect(screen.getByTestId("act-balance")).toHaveTextContent("50 ACT");
+    expect(screen.getByText(/Balance: 203.08 AKT/)).toBeInTheDocument();
+
+    act(() => {
+      fireEvent.click(screen.getByLabelText("Swap tokens"));
+    });
+
+    expect(screen.getByText(/Balance: 50 ACT/)).toBeInTheDocument();
   });
 
-  it("defaults to Mint ACT tab with $100 preset selected", () => {
-    setup();
+  it("defaults to Mint mode with ACT amount of 100", () => {
+    setup({ price: 2 });
 
-    expect(screen.getByTestId("from-denom")).toHaveTextContent("AKT");
-    expect(screen.getByTestId("to-denom")).toHaveTextContent("ACT");
-    expect(screen.getByTestId("submit-button")).toHaveTextContent("Mint ACT");
+    expect(screen.getByText("AKT", { selector: "span" })).toBeInTheDocument();
+    expect(screen.getByText("ACT", { selector: "span" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Submit" })).toHaveTextContent("Mint ACT");
+    expect((screen.getByLabelText("To") as HTMLInputElement).value).toBe("100");
   });
 
-  it("computes AKT cost from preset amount using oracle rate", () => {
+  it("computes AKT cost from default ACT amount using oracle rate", () => {
     setup({
       walletBalance: buildWalletBalance({ balanceUAKT: 1_000_000_000 }),
       price: 2
     });
 
-    expect(screen.getByTestId("from-amount")).toHaveTextContent("50");
-    expect(screen.getByTestId("to-amount")).toHaveTextContent("100");
+    expect((screen.getByLabelText("From") as HTMLInputElement).value).toBe("50");
+    expect((screen.getByLabelText("To") as HTMLInputElement).value).toBe("100");
   });
 
-  it("switches to Burn ACT tab and swaps denoms", () => {
-    setup();
+  it("swaps denoms when swap button is clicked", () => {
+    setup({ price: 2 });
 
     act(() => {
-      const burnTab = screen.getByText("Burn ACT");
-      burnTab.click();
+      fireEvent.click(screen.getByLabelText("Swap tokens"));
     });
 
-    expect(screen.getByTestId("from-denom")).toHaveTextContent("ACT");
-    expect(screen.getByTestId("to-denom")).toHaveTextContent("AKT");
-    expect(screen.getByTestId("submit-button")).toHaveTextContent("Burn ACT");
+    expect(screen.getByRole("button", { name: "Submit" })).toHaveTextContent("Burn ACT");
   });
 
   it("selects preset amount and updates computed values", () => {
@@ -65,35 +61,24 @@ describe(MintBurnPage.name, () => {
     });
 
     act(() => {
-      fireEvent.click(screen.getByTestId("preset-50"));
+      fireEvent.click(screen.getByText("$50"));
     });
 
-    expect(screen.getByTestId("from-amount")).toHaveTextContent("12.5");
-    expect(screen.getByTestId("to-amount")).toHaveTextContent("50");
+    expect((screen.getByLabelText("From") as HTMLInputElement).value).toBe("12.5");
+    expect((screen.getByLabelText("To") as HTMLInputElement).value).toBe("50");
   });
 
-  it("shows custom input when Custom button is clicked", () => {
-    setup();
-
-    act(() => {
-      fireEvent.click(screen.getByTestId("preset-custom"));
-    });
-
-    expect(screen.getByTestId("custom-amount-input")).toBeInTheDocument();
-  });
-
-  it("fills max amount when MAX button is clicked", () => {
+  it("fills max amount when Everything button is clicked", () => {
     setup({
       walletBalance: buildWalletBalance({ balanceUAKT: 100_000_000 }),
       price: 2
     });
 
     act(() => {
-      fireEvent.click(screen.getByTestId("max-button"));
+      fireEvent.click(screen.getByText("Everything"));
     });
 
-    expect(screen.getByTestId("custom-amount-input")).toBeInTheDocument();
-    expect(screen.getByTestId("custom-amount-input")).toHaveValue(200);
+    expect((screen.getByLabelText("From") as HTMLInputElement).value).toBe("100");
   });
 
   it("shows insufficient balance alert when amount exceeds balance", () => {
@@ -102,7 +87,7 @@ describe(MintBurnPage.name, () => {
       price: 2
     });
 
-    expect(screen.getByTestId("insufficient-balance-alert")).toBeInTheDocument();
+    expect(screen.getByText(/Insufficient AKT balance/)).toBeInTheDocument();
   });
 
   it("does not show insufficient balance alert when amount is within balance", () => {
@@ -111,7 +96,7 @@ describe(MintBurnPage.name, () => {
       price: 2
     });
 
-    expect(screen.queryByTestId("insufficient-balance-alert")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Insufficient/)).not.toBeInTheDocument();
   });
 
   it("disables submit button when balance is insufficient", () => {
@@ -120,13 +105,13 @@ describe(MintBurnPage.name, () => {
       price: 2
     });
 
-    expect(screen.getByTestId("submit-button")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Submit" })).toBeDisabled();
   });
 
   it("disables submit button when price is not loaded", () => {
     setup({ price: undefined });
 
-    expect(screen.getByTestId("submit-button")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Submit" })).toBeDisabled();
   });
 
   it("calls signAndBroadcastTx on submit for minting", async () => {
@@ -136,7 +121,7 @@ describe(MintBurnPage.name, () => {
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId("submit-button"));
+      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
     });
 
     expect(signAndBroadcastTx).toHaveBeenCalledTimes(1);
@@ -156,11 +141,11 @@ describe(MintBurnPage.name, () => {
     });
 
     act(() => {
-      screen.getByText("Burn ACT").click();
+      fireEvent.click(screen.getByLabelText("Swap tokens"));
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId("submit-button"));
+      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
     });
 
     expect(signAndBroadcastTx).toHaveBeenCalledTimes(1);
@@ -173,33 +158,45 @@ describe(MintBurnPage.name, () => {
     );
   });
 
-  it("shows success snackbar after successful mint", async () => {
-    const { enqueueSnackbar, signAndBroadcastTx } = setup({
+  it("resets form and refetches balance after successful mint", async () => {
+    const { refetchBalance } = setup({
       walletBalance: buildWalletBalance({ balanceUAKT: 1_000_000_000 }),
       price: 2
     });
-    signAndBroadcastTx.mockResolvedValue(true);
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId("submit-button"));
+      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
     });
 
-    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ variant: "success" }));
+    await waitFor(() => {
+      expect(refetchBalance).toHaveBeenCalledTimes(1);
+    });
+    expect((screen.getByLabelText("To") as HTMLInputElement).value).toBe("");
   });
 
-  it("displays rate information when price is loaded", () => {
+  it("displays rate information when price is loaded in mint mode", () => {
     setup({ price: 4 });
 
-    expect(screen.getByTestId("rate-display")).toHaveTextContent("Rate: 1 ACT = $1.00 (0.25 AKT)");
+    expect(screen.getByText(/Rate: 1 AKT = 4 ACT/)).toBeInTheDocument();
+  });
+
+  it("displays rate information when price is loaded in burn mode", () => {
+    setup({ price: 4 });
+
+    act(() => {
+      fireEvent.click(screen.getByLabelText("Swap tokens"));
+    });
+
+    expect(screen.getByText(/Rate: 1 ACT = 0.25 AKT/)).toBeInTheDocument();
   });
 
   it("renders all preset amount buttons", () => {
     setup();
 
     for (const amount of PRESET_AMOUNTS) {
-      expect(screen.getByTestId(`preset-${amount}`)).toHaveTextContent(`$${amount}`);
+      expect(screen.getByText(`$${amount}`)).toBeInTheDocument();
     }
-    expect(screen.getByTestId("preset-custom")).toHaveTextContent("Custom");
+    expect(screen.getByText("Everything")).toBeInTheDocument();
   });
 
   it("renders back to dashboard link", () => {
@@ -214,44 +211,44 @@ describe(MintBurnPage.name, () => {
     expect(screen.getByText(/ACT is USD-pegged and used only for deployments/)).toBeInTheDocument();
   });
 
+  it("updates To field when typing in From field", () => {
+    setup({ price: 2 });
+
+    const fromInput = screen.getByLabelText("From") as HTMLInputElement;
+
+    act(() => {
+      fireEvent.focus(fromInput);
+    });
+
+    act(() => {
+      fireEvent.change(fromInput, { target: { value: "10" } });
+    });
+
+    expect(fromInput.value).toBe("10");
+    expect((screen.getByLabelText("To") as HTMLInputElement).value).toBe("20");
+  });
+
+  it("updates From field when typing in To field", () => {
+    setup({ price: 4 });
+
+    const toInput = screen.getByLabelText("To") as HTMLInputElement;
+
+    act(() => {
+      fireEvent.focus(toInput);
+    });
+
+    act(() => {
+      fireEvent.change(toInput, { target: { value: "40" } });
+    });
+
+    expect(toInput.value).toBe("40");
+    expect((screen.getByLabelText("From") as HTMLInputElement).value).toBe("10");
+  });
+
   function setup(input?: { walletBalance?: WalletBalance | null; price?: number }) {
     const signAndBroadcastTx = vi.fn().mockResolvedValue(true);
     const refetchBalance = vi.fn();
     const enqueueSnackbar = vi.fn();
-
-    const MockTabs: React.FC<{ value: string; onValueChange?: (value: string) => void; children: React.ReactNode }> = ({
-      value,
-      onValueChange,
-      children
-    }) => {
-      return <div data-value={value}>{React.Children.map(children, child => (React.isValidElement(child) ? React.cloneElement(child, { onValueChange } as Record<string, unknown>) : child))}</div>;
-    };
-
-    const MockTabsList: React.FC<{ children: React.ReactNode; className?: string; onValueChange?: (value: string) => void }> = ({
-      children,
-      className,
-      onValueChange
-    }) => {
-      return (
-        <div className={className} role="tablist">
-          {React.Children.map(children, child =>
-            React.isValidElement(child) ? React.cloneElement(child, { onValueChange } as Record<string, unknown>) : child
-          )}
-        </div>
-      );
-    };
-
-    const MockTabsTrigger: React.FC<{ value: string; children: React.ReactNode; className?: string; onValueChange?: (value: string) => void }> = ({
-      value,
-      children,
-      onValueChange
-    }) => {
-      return (
-        <button role="tab" onClick={() => onValueChange?.(value)}>
-          {children}
-        </button>
-      );
-    };
 
     const dependencies = {
       ...DEPENDENCIES,
@@ -263,15 +260,13 @@ describe(MintBurnPage.name, () => {
         </a>
       ),
       NavArrowLeft: ({ className }: { className?: string }) => <span className={className} />,
-      ArrowDown: ({ className }: { className?: string }) => <span className={className} />,
+      ArrowUpDown: ({ className }: { className?: string }) => <span className={className} />,
       FormattedNumber: ({ value }: { value: number }) => <span>{value}</span>,
       Snackbar: ({ title }: { title: string }) => <span>{title}</span>,
-      Tabs: MockTabs,
-      TabsList: MockTabsList,
-      TabsTrigger: MockTabsTrigger,
       useWallet: () => ({
         address: "akash1testaddress",
-        signAndBroadcastTx
+        signAndBroadcastTx,
+        isCustodial: true
       }),
       useWalletBalance: () => ({
         balance: input?.walletBalance ?? buildWalletBalance({ balanceUAKT: 500_000_000, balanceUACT: 100_000_000 }),
@@ -284,7 +279,8 @@ describe(MintBurnPage.name, () => {
       }),
       useSnackbar: () => ({
         enqueueSnackbar
-      })
+      }),
+      useSupportsACT: () => true
     } as unknown as typeof DEPENDENCIES;
 
     render(<MintBurnPage dependencies={dependencies} />);
