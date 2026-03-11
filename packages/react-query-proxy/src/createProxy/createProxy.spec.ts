@@ -1,4 +1,5 @@
 import type { UseMutationResult } from "@tanstack/react-query";
+import { describe, expect, it, vi } from "vitest";
 
 import { createProxy } from "./createProxy";
 
@@ -102,8 +103,8 @@ describe(createProxy.name, () => {
         }
       }
       const userService = new UserService();
-      jest.spyOn(userService, "getById");
-      const useQuery = jest.fn();
+      vi.spyOn(userService, "getById");
+      const useQuery = vi.fn();
       const proxy = createProxy(userService, { useQuery });
       proxy.getById.useQuery({ id: 1 });
       const queryFn = useQuery.mock.calls[0][0].queryFn;
@@ -141,7 +142,7 @@ describe(createProxy.name, () => {
     });
 
     it("passes through additional options to useMutation", () => {
-      const onSuccess = jest.fn();
+      const onSuccess = vi.fn();
       const { proxy, useMutation } = setup();
       proxy.users.create.useMutation({ onSuccess });
 
@@ -229,7 +230,7 @@ describe(createProxy.name, () => {
 
     it("applies custom inputToKey in useQuery", () => {
       const sdk = createSdk();
-      const useQuery = jest.fn();
+      const useQuery = vi.fn();
       const proxy = createProxy(sdk, {
         inputToKey: (input: unknown) => (input ? [JSON.stringify(input)] : []),
         useQuery
@@ -266,7 +267,7 @@ describe(createProxy.name, () => {
       const sdk = {
         nullValue: null as null,
         users: {
-          list: jest.fn()
+          list: vi.fn()
         }
       };
       const proxy = createProxy(sdk);
@@ -277,9 +278,9 @@ describe(createProxy.name, () => {
 
   function setup() {
     const sdk = createSdk();
-    const useQuery = jest.fn();
-    const useMutation = jest.fn().mockReturnValue({
-      mutate: jest.fn()
+    const useQuery = vi.fn();
+    const useMutation = vi.fn().mockReturnValue({
+      mutate: vi.fn()
     } as unknown as UseMutationResult<any, any, any, any>);
     const proxy = createProxy(sdk, {
       useQuery,
@@ -291,13 +292,13 @@ describe(createProxy.name, () => {
   function createSdk(): Sdk {
     return {
       users: {
-        list: jest.fn().mockResolvedValue([]),
-        getById: jest.fn().mockResolvedValue({ id: 1 }),
-        create: jest.fn().mockResolvedValue({ id: 1 })
+        list: vi.fn().mockResolvedValue([]),
+        getById: vi.fn().mockResolvedValue({ id: 1 }),
+        create: vi.fn().mockResolvedValue({ id: 1 })
       },
       admin: {
         settings: {
-          update: jest.fn().mockResolvedValue({ success: true })
+          update: vi.fn().mockResolvedValue({ success: true })
         }
       }
     };
