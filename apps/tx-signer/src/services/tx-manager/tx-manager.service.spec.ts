@@ -1,6 +1,7 @@
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import type { IndexedTx } from "@cosmjs/stargate/build/stargateclient";
-import { mock } from "jest-mock-extended";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { createAkashAddress } from "../../../test/seeders";
 import type { BatchSigningClientService, SignAndBroadcastOptions } from "../../lib/batch-signing-client/batch-signing-client.service";
@@ -24,7 +25,7 @@ describe(TxManagerService.name, () => {
       });
 
       const { service, fundingSigningClient } = setup({
-        fundingSignAndBroadcast: jest.fn().mockResolvedValue(txResult)
+        fundingSignAndBroadcast: vi.fn().mockResolvedValue(txResult)
       });
 
       const result = await service.signAndBroadcastWithFundingWallet(messages);
@@ -69,7 +70,7 @@ describe(TxManagerService.name, () => {
 
       const { service, logger, derivedWallet, batchSigningClientServiceFactory } = setup({
         derivedWalletAddress: address,
-        derivedSignAndBroadcast: jest.fn().mockResolvedValue(txResult),
+        derivedSignAndBroadcast: vi.fn().mockResolvedValue(txResult),
         hasPendingTransactions: false
       });
 
@@ -98,7 +99,7 @@ describe(TxManagerService.name, () => {
 
       const { service, logger } = setup({
         derivedWalletAddress: address,
-        derivedSignAndBroadcast: jest.fn().mockResolvedValue(txResult),
+        derivedSignAndBroadcast: vi.fn().mockResolvedValue(txResult),
         hasPendingTransactions: false
       });
 
@@ -124,7 +125,7 @@ describe(TxManagerService.name, () => {
 
       const { service, logger } = setup({
         derivedWalletAddress: address,
-        derivedSignAndBroadcast: jest.fn().mockResolvedValue(txResult),
+        derivedSignAndBroadcast: vi.fn().mockResolvedValue(txResult),
         hasPendingTransactions: true
       });
 
@@ -146,7 +147,7 @@ describe(TxManagerService.name, () => {
 
       const { service, logger } = setup({
         derivedWalletAddress: address,
-        derivedSignAndBroadcast: jest.fn().mockRejectedValue(error),
+        derivedSignAndBroadcast: vi.fn().mockRejectedValue(error),
         hasPendingTransactions: false
       });
 
@@ -194,39 +195,39 @@ describe(TxManagerService.name, () => {
     const derivedWalletAddress = input?.derivedWalletAddress ?? createAkashAddress();
 
     const fundingWallet = mock<Wallet>({
-      getFirstAddress: jest.fn().mockResolvedValue(fundingWalletAddress)
+      getFirstAddress: vi.fn().mockResolvedValue(fundingWalletAddress)
     });
 
     const oldMasterWallet = mock<Wallet>({
-      getFirstAddress: jest.fn().mockResolvedValue(createAkashAddress())
+      getFirstAddress: vi.fn().mockResolvedValue(createAkashAddress())
     });
 
     const derivedWallet = mock<Wallet>({
-      getFirstAddress: jest.fn().mockResolvedValue(derivedWalletAddress)
+      getFirstAddress: vi.fn().mockResolvedValue(derivedWalletAddress)
     });
 
     const fundingSigningClient = mock<BatchSigningClientService>({
-      signAndBroadcast: input?.fundingSignAndBroadcast ?? jest.fn()
+      signAndBroadcast: input?.fundingSignAndBroadcast ?? vi.fn()
     });
 
     const oldMasterSigningClient = mock<BatchSigningClientService>({
-      signAndBroadcast: jest.fn()
+      signAndBroadcast: vi.fn()
     });
 
     const derivedSigningClient = mock<BatchSigningClientService>({
-      signAndBroadcast: input?.derivedSignAndBroadcast ?? jest.fn(),
+      signAndBroadcast: input?.derivedSignAndBroadcast ?? vi.fn(),
       hasPendingTransactions: input?.hasPendingTransactions ?? false
     });
 
-    const walletFactory = jest.fn().mockImplementation((_index: number) => {
+    const walletFactory = vi.fn().mockImplementation((_index: number) => {
       return derivedWallet;
     });
 
-    const oldWalletFactory = jest.fn().mockImplementation((_index: number) => {
+    const oldWalletFactory = vi.fn().mockImplementation((_index: number) => {
       return derivedWallet;
     });
 
-    const batchSigningClientServiceFactory = jest.fn().mockImplementation((_wallet: Wallet) => {
+    const batchSigningClientServiceFactory = vi.fn().mockImplementation((_wallet: Wallet) => {
       return derivedSigningClient;
     });
 

@@ -1,5 +1,6 @@
-import { mock } from "jest-mock-extended";
 import { container } from "tsyringe";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { TxController } from "../../controllers/tx/tx.controller";
 import { txRouter } from "./tx.router";
@@ -7,7 +8,7 @@ import { txRouter } from "./tx.router";
 describe("txRouter", () => {
   it("handles derived tx route", async () => {
     const controller = mock<TxController>({
-      signWithDerivedWallet: jest.fn().mockResolvedValue({
+      signWithDerivedWallet: vi.fn().mockResolvedValue({
         data: { code: 0, hash: "tx-hash", rawLog: "" }
       })
     });

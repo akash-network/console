@@ -1,8 +1,9 @@
 import { MsgCreateCertificate } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import type { Registry } from "@cosmjs/proto-signing";
 import type { IndexedTx } from "@cosmjs/stargate/build/stargateclient";
-import { mock } from "jest-mock-extended";
 import { container } from "tsyringe";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { TxController } from "@src/controllers/tx/tx.controller";
 import { TYPE_REGISTRY } from "@src/providers/type-registry.provider";
@@ -40,7 +41,7 @@ describe(TxController.name, () => {
       rawLog: "success"
     });
     const txManagerService = mock<TxManagerService>({
-      signAndBroadcastWithDerivedWallet: jest.fn().mockResolvedValue(txResult)
+      signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue(txResult)
     });
     container.registerInstance(TxManagerService, txManagerService);
 

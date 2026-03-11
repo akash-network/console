@@ -6,7 +6,8 @@ import { Registry } from "@cosmjs/proto-signing";
 import type { Account, DeliverTxResponse, SigningStargateClient } from "@cosmjs/stargate";
 import type { IndexedTx } from "@cosmjs/stargate/build/stargateclient";
 import { faker } from "@faker-js/faker";
-import { mock } from "jest-mock-extended";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { createAkashAddress } from "../../../test/seeders";
 import type { AppConfigService } from "../../services/app-config/app-config.service";
@@ -183,11 +184,11 @@ describe(BatchSigningClientService.name, () => {
 
   function setup(testData: TransactionTestData[]) {
     const wallet = mock<Wallet>({
-      getFirstAddress: jest.fn(() => Promise.resolve(createAkashAddress()))
+      getFirstAddress: vi.fn(() => Promise.resolve(createAkashAddress()))
     });
 
     const billingConfigService = mock<AppConfigService>({
-      get: jest.fn().mockImplementation(key => {
+      get: vi.fn().mockImplementation(key => {
         const values = {
           RPC_NODE_ENDPOINT: "http://localhost:26657",
           WALLET_BATCHING_INTERVAL_MS: 0,
@@ -201,8 +202,8 @@ describe(BatchSigningClientService.name, () => {
     const registry = new Registry();
 
     const client = mock<SigningStargateClient>({
-      getChainId: jest.fn(async () => "test-chain"),
-      getAccount: jest.fn(async (address: string) => ({ accountNumber: 0, sequence: 1, address }) as Account)
+      getChainId: vi.fn(async () => "test-chain"),
+      getAccount: vi.fn(async (address: string) => ({ accountNumber: 0, sequence: 1, address }) as Account)
     });
 
     testData.forEach((data, index) => {
@@ -228,7 +229,7 @@ describe(BatchSigningClientService.name, () => {
       }
     });
 
-    const createClientWithSigner = jest.fn(() => client);
+    const createClientWithSigner = vi.fn(() => client);
     const service = new BatchSigningClientService(billingConfigService, wallet, registry, createClientWithSigner);
 
     return { service, client };

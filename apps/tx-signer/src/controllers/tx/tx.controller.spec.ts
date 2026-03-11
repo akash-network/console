@@ -1,5 +1,6 @@
 import type { Registry } from "@cosmjs/proto-signing";
-import { mock } from "jest-mock-extended";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { TxManagerService } from "@src/services/tx-manager/tx-manager.service";
 import { TxController } from "./tx.controller";
@@ -8,10 +9,10 @@ describe(TxController.name, () => {
   it("decodes messages and signs with funding wallet", async () => {
     const decodedMessage = { typeUrl: "/test.MsgTest", value: { foo: "bar" } };
     const registry = mock<Registry>({
-      decode: jest.fn().mockReturnValue(decodedMessage.value)
+      decode: vi.fn().mockReturnValue(decodedMessage.value)
     });
     const txManagerService = mock<TxManagerService>({
-      signAndBroadcastWithFundingWallet: jest.fn().mockResolvedValue({ code: 0, hash: "tx", rawLog: "" })
+      signAndBroadcastWithFundingWallet: vi.fn().mockResolvedValue({ code: 0, hash: "tx", rawLog: "" })
     });
 
     const controller = new TxController(registry, txManagerService);

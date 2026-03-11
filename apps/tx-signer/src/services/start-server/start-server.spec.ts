@@ -1,7 +1,8 @@
 import type { LoggerService } from "@akashnetwork/logging";
 import { EventEmitter } from "events";
 import { Hono } from "hono";
-import { mock } from "jest-mock-extended";
+import { describe, expect, it } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { startServer } from "./start-server";
 

@@ -1,7 +1,8 @@
 import type { SigningStargateClient } from "@cosmjs/stargate";
 import type { Comet38Client, HttpClient } from "@cosmjs/tendermint-rpc";
 import { faker } from "@faker-js/faker";
-import { mock } from "jest-mock-extended";
+import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import type { Wallet } from "../wallet/wallet";
 import { createSigningStargateClientFactory } from "./signing-stargate-client.factory";
@@ -13,11 +14,13 @@ describe(createSigningStargateClientFactory.name, () => {
     const mockClient = mock<SigningStargateClient>({});
     const mockCometClient = mock<Comet38Client>();
     const mockHttpClientInstance = mock<HttpClient>();
-    const mockFactory = jest.fn().mockReturnValue(mockClient);
+    const mockFactory = vi.fn().mockReturnValue(mockClient);
 
-    const MockHttpClient = jest.fn().mockImplementation(() => mockHttpClientInstance);
+    const MockHttpClient = vi.fn(function () {
+      return mockHttpClientInstance;
+    });
     const MockComet38Client = {
-      create: jest.fn().mockReturnValue(mockCometClient)
+      create: vi.fn().mockReturnValue(mockCometClient)
     } as unknown as typeof Comet38Client;
 
     const factory = createSigningStargateClientFactory(MockHttpClient as unknown as typeof HttpClient, MockComet38Client, mockFactory);
