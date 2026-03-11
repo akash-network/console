@@ -30,11 +30,11 @@ import Layout from "../layout/Layout";
 import { Title } from "../shared/Title";
 import { CreateCredentialsButton } from "./CreateCredentialsButton/CreateCredentialsButton";
 import { DeploymentDetailTopBar } from "./DeploymentDetailTopBar/DeploymentDetailTopBar";
+import { ManifestUpdate } from "./ManifestUpdate/ManifestUpdate";
 import { DeploymentLeaseShell } from "./DeploymentLeaseShell";
 import { DeploymentLogs } from "./DeploymentLogs";
 import { DeploymentSubHeader } from "./DeploymentSubHeader";
 import { LeaseRow } from "./LeaseRow";
-import { ManifestUpdate } from "./ManifestUpdate";
 
 export interface DeploymentDetailProps {
   dseq: string;
