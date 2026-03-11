@@ -1,6 +1,6 @@
 deploymentEnv: production
-nodeOptions:
-  enabledOTEL: true
+otel:
+  enabled: true
 
 chain: mainnet
 hostNames:
@@ -12,24 +12,32 @@ jobs:
     schedule: "0 * * * *" # 0 minutes past the hour
     command:
       - node
+      - --require
+      - "@opentelemetry/auto-instrumentations-node/register"
       - dist/console.js
       - top-up-deployments
   - name: refill-wallets
     schedule: "45 * * * *" # 45 minutes past the hour
     command:
       - node
+      - --require
+      - "@opentelemetry/auto-instrumentations-node/register"
       - dist/console.js
       - refill-wallets
   - name: cleanup-stale-deployments
     schedule: "30 10,22 * * *" # 10:30 AM and 10:30 PM every day
     command:
       - node
+      - --require
+      - "@opentelemetry/auto-instrumentations-node/register"
       - dist/console.js
       - cleanup-stale-deployments
   - name: gpu-pricing-bot
     schedule: "0 12 * * *"
     command:
       - node
+      - --require
+      - "@opentelemetry/auto-instrumentations-node/register"
       - dist/console.js
       - gpu-pricing-bot
 

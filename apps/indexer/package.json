@@ -23,7 +23,7 @@
     "lint": "eslint .",
     "migration:exec": "drizzle-kit migrate",
     "migration:pull": "drizzle-kit pull",
-    "prod": "node --max-old-space-size=8192 dist/index.js",
+    "prod": "node --max-old-space-size=8192 --require @opentelemetry/auto-instrumentations-node/register dist/index.js",
     "start": "tsup --watch",
     "validate:types": "tsc -p tsconfig.strict.json --noEmit && echo"
   },
