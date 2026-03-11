@@ -14,7 +14,6 @@ export class WalletBalanceReloadCheckInstrumentationService {
   private readonly reloadFailures: Counter;
   private readonly validationErrors: Counter;
   private readonly schedulingErrors: Counter;
-  private readonly reloadAmounts: Histogram;
   private readonly balanceCoverageRatio: Histogram;
   private readonly projectedCost: Histogram;
 
@@ -52,11 +51,6 @@ export class WalletBalanceReloadCheckInstrumentationService {
       description: "Total number of errors when scheduling next check"
     });
 
-    this.reloadAmounts = this.metricsService.createHistogram(this.meter, "wallet_balance_reload_check_reload_amount_usd", {
-      description: "Amount of wallet balance reloads in USD",
-      unit: "USD"
-    });
-
     this.balanceCoverageRatio = this.metricsService.createHistogram(this.meter, "wallet_balance_reload_check_balance_coverage_ratio", {
       description: "Ratio of current balance to projected cost (balance / costUntilTargetDate)"
     });
@@ -84,7 +78,6 @@ export class WalletBalanceReloadCheckInstrumentationService {
 
   recordReloadTriggered(amount: number, balance: number, threshold: number, costUntilTargetDate: number, logContext: Record<string, unknown>): void {
     this.reloadsTriggered.add(1);
-    this.reloadAmounts.record(amount);
     // Only record balance coverage ratio if cost is greater than 0 to avoid division by zero
     if (costUntilTargetDate > 0) {
       this.balanceCoverageRatio.record(balance / costUntilTargetDate);
@@ -119,11 +112,10 @@ export class WalletBalanceReloadCheckInstrumentationService {
     });
   }
 
-  recordReloadFailed(amount: number, error: unknown, logContext: Record<string, unknown>): void {
+  recordReloadFailed(error: unknown, logContext: Record<string, unknown>): void {
     this.reloadFailures.add(1, {
       error_type: error instanceof Error ? error.constructor.name : "Unknown"
     });
-    this.reloadAmounts.record(amount);
     this.logger.error({
       ...logContext,
       event: "WALLET_BALANCE_RELOAD_FAILED",
