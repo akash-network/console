@@ -205,8 +205,8 @@ export class ProviderService {
     const seenProviders = new Set<string>();
     const distinctProviders: Provider[] = [];
     for (const provider of providersWithAttributesAndAuditors) {
-      if (!seenProviders.has(provider.hostUri)) {
-        seenProviders.add(provider.hostUri);
+      if (!seenProviders.has(provider.owner)) {
+        seenProviders.add(provider.owner);
         distinctProviders.push(provider);
       }
     }
