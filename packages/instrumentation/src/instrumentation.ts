@@ -11,7 +11,7 @@ import { NodeSDK } from "@opentelemetry/sdk-node";
 export const sdk = new NodeSDK({
   instrumentations: [
     new RuntimeNodeInstrumentation({
-      monitoringPrecision: 5000
+      monitoringPrecision: 10 // this is actually a resolution option for nodejs perf_hooks not a reporting option
     }),
     new HttpInstrumentation(),
     new PgInstrumentation(),
