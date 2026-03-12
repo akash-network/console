@@ -13,7 +13,7 @@ jobs:
     command:
       - node
       - --require
-      - "@opentelemetry/auto-instrumentations-node/register"
+      - "dist/instrumentation"
       - dist/console.js
       - top-up-deployments
   - name: refill-wallets
@@ -21,7 +21,7 @@ jobs:
     command:
       - node
       - --require
-      - "@opentelemetry/auto-instrumentations-node/register"
+      - "dist/instrumentation"
       - dist/console.js
       - refill-wallets
   - name: cleanup-stale-deployments
@@ -29,7 +29,7 @@ jobs:
     command:
       - node
       - --require
-      - "@opentelemetry/auto-instrumentations-node/register"
+      - "dist/instrumentation"
       - dist/console.js
       - cleanup-stale-deployments
   - name: gpu-pricing-bot
@@ -37,7 +37,7 @@ jobs:
     command:
       - node
       - --require
-      - "@opentelemetry/auto-instrumentations-node/register"
+      - "dist/instrumentation"
       - dist/console.js
       - gpu-pricing-bot
 
