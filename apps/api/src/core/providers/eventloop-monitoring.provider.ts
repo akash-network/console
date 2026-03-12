@@ -1,3 +1,4 @@
+/* v8 ignore start */
 import blockedAt from "blocked-at";
 import { container, instancePerContainerCachingFactory } from "tsyringe";
 
