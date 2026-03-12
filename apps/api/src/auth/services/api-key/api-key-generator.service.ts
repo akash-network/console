@@ -1,5 +1,5 @@
 import { compare, hash } from "bcryptjs";
-import { randomBytes } from "crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { singleton } from "tsyringe";
 
 import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
@@ -22,6 +22,10 @@ export class ApiKeyGeneratorService {
 
   async hashApiKey(apiKey: string): Promise<string> {
     return hash(apiKey, this.SALT_ROUNDS);
+  }
+
+  hashApiKeySha256(apiKey: string): string {
+    return createHash("sha256").update(apiKey).digest("hex");
   }
 
   async validateApiKey(apiKey: string, hashedKey: string): Promise<boolean> {

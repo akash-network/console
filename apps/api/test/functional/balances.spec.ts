@@ -158,23 +158,21 @@ describe("Balances", () => {
       return undefined;
     });
 
-    vi.spyOn(apiKeyRepository, "find").mockImplementation(async () => {
-      const now = new Date().toISOString();
-      return [
-        {
-          id: faker.string.uuid(),
-          userId: userWithId.id,
-          key: apiKey,
-          hashedKey: await apiKeyGenerator.hashApiKey(apiKey),
-          keyFormat: "sk",
-          name: "test",
-          createdAt: now,
-          updatedAt: now,
-          expiresAt: null,
-          lastUsedAt: null
-        }
-      ];
-    });
+    const apiKeyData = {
+      id: faker.string.uuid(),
+      userId: userWithId.id,
+      hashedKey: await apiKeyGenerator.hashApiKey(apiKey),
+      keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey),
+      name: "test",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      expiresAt: null,
+      lastUsedAt: null
+    };
+
+    vi.spyOn(apiKeyRepository, "findOneBy").mockResolvedValue(undefined);
+    vi.spyOn(apiKeyRepository, "findBcryptKeysByKeyFormat").mockResolvedValue([apiKeyData]);
+    vi.spyOn(apiKeyRepository, "updateHash").mockResolvedValue(undefined as any);
 
     vi.spyOn(userWalletRepository, "accessibleBy").mockReturnValue(userWalletRepository);
     vi.spyOn(userWalletRepository, "findOneByUserId").mockImplementation(async id => {

@@ -1,4 +1,3 @@
-import { container } from "tsyringe";
 import { mock, type MockProxy } from "vitest-mock-extended";
 
 import type { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
@@ -9,102 +8,157 @@ import { ApiKeyGeneratorService } from "./api-key-generator.service";
 import { ApiKeySeeder } from "@test/seeders/api-key.seeder";
 
 describe("ApiKeyAuthService", () => {
-  let service: ApiKeyAuthService;
-  let apiKeyGenerator: ApiKeyGeneratorService;
-  let apiKeyRepository: MockProxy<ApiKeyRepository>;
-  let config: MockProxy<CoreConfigService>;
-
-  beforeEach(() => {
-    config = mock<CoreConfigService>({ get: jest.fn() });
-    config.get.mockReturnValue("test");
-    apiKeyGenerator = new ApiKeyGeneratorService(config);
-    apiKeyRepository = mock<ApiKeyRepository>({ findOneBy: jest.fn(), find: jest.fn() });
-
-    service = new ApiKeyAuthService(apiKeyGenerator, apiKeyRepository, config);
-  });
-
-  afterEach(() => {
-    container.clearInstances();
-    jest.resetAllMocks();
-  });
-
-  describe("validateApiKeyFromHeader", () => {
+  describe("getAndValidateApiKeyFromHeader", () => {
     it("should throw for undefined key", async () => {
+      const { service } = setup();
       await expect(service.getAndValidateApiKeyFromHeader(undefined)).rejects.toThrow("Invalid API key");
     });
 
     it("should throw for invalid format", async () => {
+      const { service } = setup();
       await expect(service.getAndValidateApiKeyFromHeader("invalid-key")).rejects.toThrow("Invalid API key format");
     });
 
     it("should throw for wrong prefix", async () => {
+      const { service, apiKeyGenerator } = setup();
       const key = apiKeyGenerator.generateApiKey().replace("ac", "wrong");
       await expect(service.getAndValidateApiKeyFromHeader(key)).rejects.toThrow("Invalid API key format");
     });
 
     it("should throw for wrong type", async () => {
+      const { service, apiKeyGenerator } = setup();
       const key = apiKeyGenerator.generateApiKey().replace("sk", "wrong");
       await expect(service.getAndValidateApiKeyFromHeader(key)).rejects.toThrow("Invalid API key format");
     });
 
     it("should throw for wrong environment", async () => {
-      config.get.mockReturnValue("live");
-      const testApiKeyGeneratorService = new ApiKeyGeneratorService(config);
-      const testApiKeyAuthService = new ApiKeyAuthService(testApiKeyGeneratorService, apiKeyRepository, config);
-      const key = testApiKeyGeneratorService.generateApiKey().replace("live", "test");
-      await expect(testApiKeyAuthService.getAndValidateApiKeyFromHeader(key)).rejects.toThrow("Invalid API key format");
+      const { service, apiKeyGenerator } = setup({ env: "live" });
+      const key = apiKeyGenerator.generateApiKey().replace("live", "test");
+      await expect(service.getAndValidateApiKeyFromHeader(key)).rejects.toThrow("Invalid API key format");
     });
 
     it("should throw when key not found in database", async () => {
+      const { service, apiKeyGenerator, apiKeyRepository } = setup();
       const key = apiKeyGenerator.generateApiKey();
-      apiKeyRepository.find.mockResolvedValue([]);
+      apiKeyRepository.findOneBy.mockResolvedValue(undefined);
+      apiKeyRepository.findBcryptKeysByKeyFormat.mockResolvedValue([]);
 
       await expect(service.getAndValidateApiKeyFromHeader(key)).rejects.toThrow("API key not found");
     });
 
-    it("should throw for expired key", async () => {
-      const pastDate = new Date();
-      pastDate.setDate(pastDate.getDate() - 1);
+    describe("sha256 lookup", () => {
+      it("should return key found by sha256 hash", async () => {
+        const { service, apiKeyGenerator, apiKeyRepository } = setup();
+        const apiKey = apiKeyGenerator.generateApiKey();
+        const data = ApiKeySeeder.create({
+          hashedKey: apiKeyGenerator.hashApiKeySha256(apiKey),
+          keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey)
+        });
 
-      const apiKey = apiKeyGenerator.generateApiKey();
-      const data = ApiKeySeeder.create({
-        expiresAt: pastDate.toISOString(),
-        hashedKey: await apiKeyGenerator.hashApiKey(apiKey),
-        keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey)
+        apiKeyRepository.findOneBy.mockResolvedValue(data);
+
+        const result = await service.getAndValidateApiKeyFromHeader(apiKey);
+        expect(result).toBe(data);
+        expect(apiKeyRepository.findBcryptKeysByKeyFormat).not.toHaveBeenCalled();
       });
 
-      apiKeyRepository.find.mockResolvedValue([data]);
+      it("should throw for expired key found by sha256", async () => {
+        const { service, apiKeyGenerator, apiKeyRepository } = setup();
+        const pastDate = new Date();
+        pastDate.setDate(pastDate.getDate() - 1);
 
-      await expect(service.getAndValidateApiKeyFromHeader(apiKey)).rejects.toThrow("API key has expired");
+        const apiKey = apiKeyGenerator.generateApiKey();
+        const data = ApiKeySeeder.create({
+          expiresAt: pastDate.toISOString(),
+          hashedKey: apiKeyGenerator.hashApiKeySha256(apiKey),
+          keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey)
+        });
+
+        apiKeyRepository.findOneBy.mockResolvedValue(data);
+
+        await expect(service.getAndValidateApiKeyFromHeader(apiKey)).rejects.toThrow("API key has expired");
+      });
+
+      it("should return key with future expiration", async () => {
+        const { service, apiKeyGenerator, apiKeyRepository } = setup();
+        const futureDate = new Date();
+        futureDate.setUTCFullYear(futureDate.getUTCFullYear() + 1);
+
+        const apiKey = apiKeyGenerator.generateApiKey();
+        const data = ApiKeySeeder.create({
+          expiresAt: futureDate.toISOString(),
+          hashedKey: apiKeyGenerator.hashApiKeySha256(apiKey),
+          keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey)
+        });
+
+        apiKeyRepository.findOneBy.mockResolvedValue(data);
+
+        const result = await service.getAndValidateApiKeyFromHeader(apiKey);
+        expect(result).toBe(data);
+      });
     });
 
-    it("should return API key data for valid key with future expiration", async () => {
-      const futureDate = new Date();
-      futureDate.setUTCFullYear(futureDate.getUTCFullYear() + 1);
+    describe("bcrypt fallback", () => {
+      it("should fallback to bcrypt when sha256 not found", async () => {
+        const { service, apiKeyGenerator, apiKeyRepository } = setup();
+        const apiKey = apiKeyGenerator.generateApiKey();
+        const data = ApiKeySeeder.create({
+          hashedKey: await apiKeyGenerator.hashApiKey(apiKey),
+          keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey)
+        });
 
-      const apiKey = apiKeyGenerator.generateApiKey();
-      const data = ApiKeySeeder.create({
-        expiresAt: futureDate.toISOString(),
-        hashedKey: await apiKeyGenerator.hashApiKey(apiKey),
-        keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey)
+        apiKeyRepository.findOneBy.mockResolvedValue(undefined);
+        apiKeyRepository.findBcryptKeysByKeyFormat.mockResolvedValue([data]);
+
+        const result = await service.getAndValidateApiKeyFromHeader(apiKey);
+        expect(result).toBe(data);
       });
 
-      apiKeyRepository.find.mockResolvedValue([data]);
+      it("should update hashedKey to sha256 after bcrypt match", async () => {
+        const { service, apiKeyGenerator, apiKeyRepository } = setup();
+        const apiKey = apiKeyGenerator.generateApiKey();
+        const data = ApiKeySeeder.create({
+          hashedKey: await apiKeyGenerator.hashApiKey(apiKey),
+          keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey)
+        });
 
-      const result = await service.getAndValidateApiKeyFromHeader(apiKey);
-      expect(result).toBe(data);
-    });
+        apiKeyRepository.findOneBy.mockResolvedValue(undefined);
+        apiKeyRepository.findBcryptKeysByKeyFormat.mockResolvedValue([data]);
 
-    it("should return API key data for valid key with no expiration", async () => {
-      const apiKey = apiKeyGenerator.generateApiKey();
-      const data = ApiKeySeeder.create({
-        hashedKey: await apiKeyGenerator.hashApiKey(apiKey),
-        keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey)
+        await service.getAndValidateApiKeyFromHeader(apiKey);
+
+        const expectedSha256 = apiKeyGenerator.hashApiKeySha256(apiKey);
+        expect(apiKeyRepository.updateHash).toHaveBeenCalledWith(data.id, expectedSha256);
       });
-      apiKeyRepository.find.mockResolvedValue([data]);
 
-      const result = await service.getAndValidateApiKeyFromHeader(apiKey);
-      expect(result).toBe(data);
+      it("should throw for expired key found by bcrypt", async () => {
+        const { service, apiKeyGenerator, apiKeyRepository } = setup();
+        const pastDate = new Date();
+        pastDate.setDate(pastDate.getDate() - 1);
+
+        const apiKey = apiKeyGenerator.generateApiKey();
+        const data = ApiKeySeeder.create({
+          expiresAt: pastDate.toISOString(),
+          hashedKey: await apiKeyGenerator.hashApiKey(apiKey),
+          keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey)
+        });
+
+        apiKeyRepository.findOneBy.mockResolvedValue(undefined);
+        apiKeyRepository.findBcryptKeysByKeyFormat.mockResolvedValue([data]);
+
+        await expect(service.getAndValidateApiKeyFromHeader(apiKey)).rejects.toThrow("API key has expired");
+      });
     });
   });
+
+  function setup(input: { env?: string } = {}) {
+    const config = mock<CoreConfigService>();
+    config.get.mockReturnValue(input.env ?? "test");
+
+    const apiKeyGenerator = new ApiKeyGeneratorService(config);
+    const apiKeyRepository: MockProxy<ApiKeyRepository> = mock<ApiKeyRepository>();
+    const service = new ApiKeyAuthService(apiKeyGenerator, apiKeyRepository, config);
+
+    return { service, apiKeyGenerator, apiKeyRepository, config };
+  }
 });

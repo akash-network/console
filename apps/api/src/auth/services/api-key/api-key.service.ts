@@ -26,7 +26,7 @@ export class ApiKeyService {
 
   async create(input: ApiKeyInput): Promise<ApiKeyOutput & { apiKey: string }> {
     const apiKey = this.apiKeyGenerator.generateApiKey();
-    const hashedKey = await this.apiKeyGenerator.hashApiKey(apiKey);
+    const hashedKey = this.apiKeyGenerator.hashApiKeySha256(apiKey);
     const obfuscatedKey = this.apiKeyGenerator.obfuscateApiKey(apiKey);
 
     const created = await this.apiKeyRepository.accessibleBy(this.authService.ability, "create").create({

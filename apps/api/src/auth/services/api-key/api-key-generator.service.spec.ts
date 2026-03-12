@@ -71,6 +71,24 @@ describe("ApiKeyGeneratorService", () => {
     });
   });
 
+  describe("hashApiKeySha256", () => {
+    it("should generate consistent hashes", () => {
+      const apiKey = service.generateApiKey();
+      const hash1 = service.hashApiKeySha256(apiKey);
+      const hash2 = service.hashApiKeySha256(apiKey);
+
+      expect(hash1).toBe(hash2);
+      expect(hash1).toMatch(/^[a-f0-9]{64}$/);
+    });
+
+    it("should generate different hashes for different keys", () => {
+      const key1 = service.generateApiKey();
+      const key2 = service.generateApiKey();
+
+      expect(service.hashApiKeySha256(key1)).not.toBe(service.hashApiKeySha256(key2));
+    });
+  });
+
   describe("obfuscateApiKey", () => {
     it("should obfuscate API key correctly", () => {
       const apiKey = service.generateApiKey();
