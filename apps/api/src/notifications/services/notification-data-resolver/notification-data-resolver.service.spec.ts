@@ -1,4 +1,5 @@
 import { faker } from "@faker-js/faker";
+import type { Mock } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { LoggerService } from "@src/core/providers/logging.provider";
@@ -106,7 +107,7 @@ describe(NotificationDataResolverService.name, () => {
     expect(resolver).toHaveBeenCalledWith(user);
   });
 
-  function setup(input?: { resolvers?: Record<string, { resolve: jest.Mock }> }) {
+  function setup(input?: { resolvers?: Record<string, { resolve: Mock }> }) {
     const mocks = {
       resolvers: mock<NotificationDataResolvers>(input?.resolvers ?? {}),
       logger: mock<LoggerService>()

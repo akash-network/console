@@ -1,6 +1,7 @@
 import type { BalanceHttpService } from "@akashnetwork/http-sdk";
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import { BadRequest, PaymentRequired, ServiceUnavailable } from "http-errors";
+import type { Mock } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
 
@@ -10,7 +11,7 @@ import { ChainErrorService } from "./chain-error.service";
 
 const USDC_IBC_DENOMS = {
   mainnetId: "ibc/170C677610AC31DF0904FFE09CD3B5C657492170E7E52372E48756B71E56F2F1",
-  sandboxId: "ibc/12C6A0C374171B595A0A9E18B83FA09D295FB1F2D8C6DAA3AC28683471752D84"
+  sandboxId: "ibc/028CD1864059EEFB48A6048376165318E3E82C234390AE5A6D7B22001725B06E"
 };
 
 describe(ChainErrorService.name, () => {
@@ -39,7 +40,7 @@ describe(ChainErrorService.name, () => {
       const { service, balanceHttpService } = setup();
       const denom = USDC_IBC_DENOMS.mainnetId;
       const err = new Error(`insufficient funds: 10${denom} is smaller than 20${denom}`);
-      balanceHttpService.getBalance.mockResolvedValue({ amount: 5, denom: "ibc/12C6A0C374171B595A0A9E18B83FA09D295FB1F2D8C6DAA3AC28683471752D84" });
+      balanceHttpService.getBalance.mockResolvedValue({ amount: 5, denom: "ibc/028CD1864059EEFB48A6048376165318E3E82C234390AE5A6D7B22001725B06E" });
 
       const appErr = await service.toAppError(err, encodeMessages);
       expect(appErr).toBeInstanceOf(ServiceUnavailable);
@@ -72,7 +73,7 @@ describe(ChainErrorService.name, () => {
       const { service, balanceHttpService } = setup();
       const denom = USDC_IBC_DENOMS.mainnetId;
       const err = new Error(`insufficient funds: 10${denom} is smaller than 20${denom}`);
-      balanceHttpService.getBalance.mockResolvedValue({ amount: 20, denom: "ibc/12C6A0C374171B595A0A9E18B83FA09D295FB1F2D8C6DAA3AC28683471752D84" });
+      balanceHttpService.getBalance.mockResolvedValue({ amount: 20, denom: "ibc/028CD1864059EEFB48A6048376165318E3E82C234390AE5A6D7B22001725B06E" });
 
       const appErr = await service.toAppError(err, encodeMessages);
       expect(appErr).toBeInstanceOf(BadRequest);
@@ -83,7 +84,7 @@ describe(ChainErrorService.name, () => {
       const { service, balanceHttpService } = setup();
       const denom = USDC_IBC_DENOMS.sandboxId;
       const err = new Error(`insufficient funds: 10${denom} is smaller than 20${denom}`);
-      balanceHttpService.getBalance.mockResolvedValue({ amount: 20, denom: "ibc/12C6A0C374171B595A0A9E18B83FA09D295FB1F2D8C6DAA3AC28683471752D84" });
+      balanceHttpService.getBalance.mockResolvedValue({ amount: 20, denom: "ibc/028CD1864059EEFB48A6048376165318E3E82C234390AE5A6D7B22001725B06E" });
 
       const appErr = await service.toAppError(err, encodeMessages);
       expect(appErr).toBeInstanceOf(BadRequest);
@@ -182,7 +183,7 @@ describe(ChainErrorService.name, () => {
     const billingConfigService = mock<BillingConfigService>();
     const txManagerService = mock<TxManagerService>();
 
-    (billingConfigService.get as jest.Mock).mockImplementation((key: string) => {
+    (billingConfigService.get as Mock).mockImplementation((key: string) => {
       if (key === "USDC_IBC_DENOMS") return USDC_IBC_DENOMS;
       if (key === "DEPLOYMENT_GRANT_DENOM") return "uakt";
       return undefined;

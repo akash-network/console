@@ -1,3 +1,6 @@
+import type { Mocked } from "vitest";
+import { vi } from "vitest";
+
 import type { BalancesService } from "@src/billing/services/balances/balances.service";
 import { CachedBalanceService } from "./cached-balance.service";
 
@@ -5,12 +8,12 @@ import { createAkashAddress } from "@test/seeders";
 
 describe(CachedBalanceService.name, () => {
   let service: CachedBalanceService;
-  let balancesService: jest.Mocked<BalancesService>;
+  let balancesService: Mocked<BalancesService>;
 
   beforeEach(() => {
     balancesService = {
-      getFreshLimits: jest.fn()
-    } as unknown as jest.Mocked<BalancesService>;
+      getFreshLimits: vi.fn()
+    } as unknown as Mocked<BalancesService>;
 
     service = new CachedBalanceService(balancesService);
   });
