@@ -8,9 +8,16 @@ import Layout from "@src/components/layout/Layout";
 import { useServices } from "@src/context/ServicesProvider";
 import { Guard } from "@src/hoc/guard/guard.hoc";
 import { useIsRegisteredUser } from "@src/hooks/useUser";
+import { defineServerSideProps } from "@src/lib/nextjs/defineServerSideProps/defineServerSideProps";
+import { redirectIfAccessTokenExpired } from "@src/lib/nextjs/pageGuards/pageGuards";
 import { useDeleteApiKey, useUserApiKeys } from "@src/queries/useApiKeysQuery";
 
 export default Guard(ApiKeysPage, useIsRegisteredUser);
+
+export const getServerSideProps = defineServerSideProps({
+  if: redirectIfAccessTokenExpired,
+  route: "/user/api-keys"
+});
 
 function ApiKeysPage() {
   const { analyticsService } = useServices();
