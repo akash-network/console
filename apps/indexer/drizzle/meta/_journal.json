@@ -43,6 +43,13 @@
       "when": 1762600000000,
       "tag": "0005_add_height_to_address_reference",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1762700000000,
+      "tag": "0006_add_total_uact_spent_to_block",
+      "breakpoints": true
     }
   ]
 }

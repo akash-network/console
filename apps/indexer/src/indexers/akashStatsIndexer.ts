@@ -45,10 +45,12 @@ class IActiveLeases {
   persistentStorageSum: number;
   priceSumUAKT: number;
   priceSumUUSDC: number;
+  priceSumUACT: number;
 }
 
 const denomMapping = {
   uakt: "uakt",
+  uact: "uact",
   "ibc/12C6A0C374171B595A0A9E18B83FA09D295FB1F2D8C6DAA3AC28683471752D84": "uusdc", // USDC on Sandbox
   "ibc/170C677610AC31DF0904FFE09CD3B5C657492170E7E52372E48756B71E56F2F1": "uusdc" // USDC on Mainnet
 };
@@ -200,6 +202,7 @@ export class AkashStatsIndexer extends Indexer {
     currentBlock.activePersistentStorage = this.activeLeases.persistentStorageSum;
     currentBlock.totalUAktSpent = (previousBlock?.totalUAktSpent || 0) + this.activeLeases.priceSumUAKT;
     currentBlock.totalUUsdcSpent = (previousBlock?.totalUUsdcSpent || 0) + this.activeLeases.priceSumUUSDC;
+    currentBlock.totalUActSpent = (previousBlock?.totalUActSpent || 0) + this.activeLeases.priceSumUACT;
   }
 
   @benchmark.measureMethodAsync
@@ -237,6 +240,10 @@ export class AkashStatsIndexer extends Indexer {
         .reduce((a, b) => a + b, 0),
       priceSumUUSDC: activeLeases
         .filter(x => x.denom === "uusdc")
+        .map(x => x.price)
+        .reduce((a, b) => a + b, 0),
+      priceSumUACT: activeLeases
+        .filter(x => x.denom === "uact")
         .map(x => x.price)
         .reduce((a, b) => a + b, 0)
     };
