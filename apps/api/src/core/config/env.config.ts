@@ -47,7 +47,8 @@ export const envSchema = z
     NODE_API_BASE_PATH: z.string().optional().default("https://raw.githubusercontent.com/akash-network"),
     CORS_WEBSITE_URLS: z.string().default(["http://localhost:3000", "http://localhost:3001"].join(",")),
     SECRET_TOKEN: z.string().optional(), // private api token
-    SERVER_ORIGIN: z.string().default("http://localhost:3080")
+    SERVER_ORIGIN: z.string().default("http://localhost:3080"),
+    EVENTLOOP_MONITORING_ENABLED: z.coerce.boolean().default(false)
   })
   .superRefine((value, ctx) => {
     if (!value.FEATURE_FLAGS_ENABLE_ALL && (!value.UNLEASH_SERVER_API_URL || !value.UNLEASH_SERVER_API_TOKEN)) {
