@@ -68,6 +68,7 @@ jobs:
           DOCKER_BUILDKIT_CACHE_SCOPE: ${{ github.workflow }}-${{ inputs.app }}
           DOCKER_BUILDKIT_CACHE_FALLBACK_SCOPE: ${{ github.workflow }}-${{ inputs.app }}-${{ env.BRANCH_NAME_SAFE }}
           BUILDX_BAKE_ENTITLEMENTS_FS: 0
+          POSTGRES_SKIP_IMPORT: "true"
         run: |
           npm run --if-present --workspace=apps/${{ inputs.app }} test:ci-setup
 
