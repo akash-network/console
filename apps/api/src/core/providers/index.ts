@@ -2,6 +2,7 @@ import "./auth.provider";
 import "./http-sdk.provider";
 import "./logging.provider";
 import "./postgres.provider";
+import "./eventloop-monitoring.provider";
 
 export * from "./auth.provider";
 export * from "./postgres.provider";
