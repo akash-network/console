@@ -255,6 +255,7 @@ export const block = pgTable(
     totalTxCount: bigint({ mode: "number" }).notNull(),
     totalUAktSpent: doublePrecision(),
     totalUUsdcSpent: doublePrecision(),
+    totalUActSpent: doublePrecision(),
     activeLeaseCount: integer(),
     totalLeaseCount: integer(),
     activeCPU: integer(),

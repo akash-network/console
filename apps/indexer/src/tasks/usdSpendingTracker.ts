@@ -56,13 +56,14 @@ export async function updateUsdSpending() {
 
     const totalUUAktSpentEndOfPreviousDay = lastBlockOfPreviousDay?.totalUAktSpent ?? 0;
     const totalUUsdcSpentEndOfPreviousDay = lastBlockOfPreviousDay?.totalUUsdcSpent ?? 0;
+    const totalUActSpentEndOfPreviousDay = lastBlockOfPreviousDay?.totalUActSpent ?? 0;
     const totalUUsdSpentEndOfPreviousDay = lastBlockOfPreviousDay?.totalUUsdSpent ?? 0;
     const uaktToUUsd = day.aktPrice ?? 0;
 
     const [affectedCount] = await AkashBlock.update(
       {
         totalUUsdSpent: sequelize.literal(
-          `${totalUUsdSpentEndOfPreviousDay} + ("totalUUsdcSpent" - ${totalUUsdcSpentEndOfPreviousDay}) + ("totalUAktSpent" - ${totalUUAktSpentEndOfPreviousDay}) * ${uaktToUUsd}`
+          `${totalUUsdSpentEndOfPreviousDay} + ("totalUUsdcSpent" - ${totalUUsdcSpentEndOfPreviousDay}) + ("totalUAktSpent" - ${totalUUAktSpentEndOfPreviousDay}) * ${uaktToUUsd} + (COALESCE("totalUActSpent", 0) - ${totalUActSpentEndOfPreviousDay})`
         )
       },
       {

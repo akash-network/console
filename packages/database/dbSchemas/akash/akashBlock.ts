@@ -24,6 +24,10 @@ export class AkashBlock extends Block {
    */
   @Column(DataTypes.DOUBLE) totalUUsdcSpent?: number;
   /**
+   * Total amount of ACT spent at current block height in uact
+   */
+  @Column(DataTypes.DOUBLE) totalUActSpent?: number;
+  /**
    * Total amount of USD spent at current block height in usd
    */
   @Column(DataTypes.DOUBLE) totalUUsdSpent?: number;
