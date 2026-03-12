@@ -6,6 +6,8 @@ services:
       GITHUB_PAT: ${GITHUB_PAT}
     env_file:
       - .env.sandbox.docker-compose-dev
+      - path: ../../.env.local
+        required: false
     ports:
       - "3080:3000"
       - "3081:3001" # background jobs server
@@ -16,6 +18,8 @@ services:
       PORT: 3000
     env_file:
       - .env.sandbox.docker-compose-dev
+      - path: ../../.env.local
+        required: false
     ports:
       - "3091:3000"
 
@@ -25,6 +29,8 @@ services:
       PORT: 3000
     env_file:
       - .env.sandbox.docker-compose-dev
+      - path: ../../.env.local
+        required: false
     ports:
       - '3090:3000'
 
@@ -32,6 +38,8 @@ services:
     restart: always
     env_file:
       - .env.sandbox.docker-compose-dev
+      - path: ../../.env.local
+        required: false
 
   provider-proxy:
     restart: always
@@ -39,6 +47,8 @@ services:
       PORT: 3000
     env_file:
       - .env.sandbox.docker-compose-dev
+      - path: ../../.env.local
+        required: false
     ports:
       - '3040:3000'
 
@@ -48,6 +58,8 @@ services:
       API_HOST: api
     env_file:
       - .env.sandbox.docker-compose-dev
+      - path: ../../.env.local
+        required: false
     ports:
       - '3000:3000'
     depends_on:
@@ -59,6 +71,8 @@ services:
     restart: always
     env_file:
       - .env.sandbox.docker-compose-dev
+      - path: ../../.env.local
+        required: false
     ports:
       - '3001:3000'
     depends_on:
@@ -69,5 +83,7 @@ services:
     restart: always
     env_file:
       - .env.sandbox.docker-compose-dev
+      - path: ../../.env.local
+        required: false
     ports:
       - '3003:3000'
