@@ -52,6 +52,15 @@ export class DeploymentBalanceAlertsService {
   private async processSingleAlert(block: ChainBlockCreatedDto, alert: DeploymentBalanceAlertOutput, onMessage: MessageCallback) {
     try {
       const balanceResult = await this.deploymentService.getDeploymentBalance(alert.params.owner, alert.params.dseq, block.height);
+      const hasMultipleDenominations = balanceResult.err && balanceResult.val.code === "MULTIPLE_DENOMINATIONS";
+
+      if (hasMultipleDenominations) {
+        await this.alertRepository.updateById(alert.id, {
+          minBlockHeight: block.height + this.configService.getOrThrow("alert.DEPLOYMENT_BALANCE_BLOCKS_THROTTLE")
+        });
+        return;
+      }
+
       if (balanceResult.err) {
         const payload = await this.suspendErroneousAlert(balanceResult.val, alert);
 

@@ -53,6 +53,49 @@ describe(DeploymentService.name, () => {
       expect(deploymentHttpService.findByOwnerAndDseq).toHaveBeenCalledWith(owner, dseq);
     });
 
+    it("should return error for multiple denominations", async () => {
+      const { service, deploymentHttpService, CURRENT_HEIGHT, leaseHttpService } = await setup();
+      deploymentHttpService.findByOwnerAndDseq.mockResolvedValue(
+        generateDeploymentBalanceResponse({
+          state: "active",
+          funds: [
+            {
+              denom: "uakt",
+              amount: 400000
+            },
+            {
+              denom: "uusdc",
+              amount: 400000
+            }
+          ],
+          settledAt: 900
+        })
+      );
+      const owner = mockAkashAddress();
+      const dseq = faker.string.alphanumeric(6);
+      leaseHttpService.list.mockResolvedValue({
+        leases: [
+          {
+            lease: {
+              price: {
+                amount: "1000"
+              }
+            }
+          }
+        ]
+      } as RestAkashLeaseListResponse);
+
+      const balance = await service.getDeploymentBalance(owner, dseq, CURRENT_HEIGHT);
+
+      expect(balance).toMatchObject({
+        err: true,
+        val: {
+          message: "Multiple denominations are not supported",
+          code: "MULTIPLE_DENOMINATIONS"
+        }
+      });
+    });
+
     it("should return null if deployment is closed", async () => {
       const { service, deploymentHttpService, leaseHttpService, CURRENT_HEIGHT } = await setup();
       deploymentHttpService.findByOwnerAndDseq.mockResolvedValue(
