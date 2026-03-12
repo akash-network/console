@@ -40,6 +40,7 @@ To get started with Akash Console, follow these steps:
 git clone git@github.com:akash-network/console.git ./akash-console
 cd akash-console && npm install
 cp apps/deploy-web/.env.local.sample apps/deploy-web/.env.local
+cp apps/api/env/.env.local.sample apps/api/env/.env.local
 npm run dc:up:dev -- deploy-web
 ```
 
