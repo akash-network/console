@@ -30,7 +30,6 @@ export const envSchema = z.object({
   STRIPE_SECRET_KEY: z.string(),
   STRIPE_PRODUCT_ID: z.string(),
   STRIPE_WEBHOOK_SECRET: z.string(),
-  STRIPE_CHECKOUT_REDIRECT_URL: z.string(),
   STRIPE_ENABLE_COUPONS: z.enum(["true", "false"]).default("false"),
   CONSOLE_WEB_PAYMENT_LINK: z.string(),
   MANAGED_WALLET_LEASE_ALLOWED_AUDITORS: z
