@@ -1,11 +1,14 @@
 import type { Attribute } from "@akashnetwork/chain-sdk/private-types/akash.v1";
+import type { GroupSpec } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
+import type { Manifest as AkashManifest, SDLInput } from "@akashnetwork/chain-sdk/web";
+import { generateManifestVersion } from "@akashnetwork/chain-sdk/web";
 import type { HttpClient } from "@akashnetwork/http-sdk";
 import yaml from "js-yaml";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import networkStore from "@src/store/networkStore";
 import type { DepositParams } from "@src/types/deployment";
-import { CustomValidationError, getSdl, Manifest, ManifestVersion } from "./helpers";
+import { buildManifest, CustomValidationError, Manifest, ManifestVersion, parseSdlInput } from "./helpers";
 
 export const ENDPOINT_NAME_VALIDATION_REGEX = /^[a-z]+[-_\da-z]+$/;
 export const TRIAL_ATTRIBUTE = "console/trials";
@@ -13,7 +16,7 @@ export const TRIAL_REGISTERED_ATTRIBUTE = "console/trials-registered";
 export const AUDITOR = "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63";
 export const MANAGED_WALLET_ALLOWED_AUDITORS = [AUDITOR];
 
-export function getManifest(yamlJson: any, asString: boolean) {
+export function getManifest(yamlJson: any, asString: boolean): AkashManifest {
   return Manifest(yamlJson, "beta3", networkStore.selectedNetworkId, asString);
 }
 
@@ -23,27 +26,27 @@ export async function getManifestVersion(yamlJson: any) {
   return Buffer.from(version).toString("base64");
 }
 
-const getDenomFromSdl = (groups: any[]): string => {
-  const denoms = groups.flatMap(g => g.resources).map(resource => resource.price.denom);
+const getDenomFromSdl = (groups: GroupSpec[]): string => {
+  const denoms = groups.flatMap(g => g.resources).map(resource => resource.price?.denom);
 
   // TODO handle multiple denoms in an sdl? (different denom for each service?)
-  return denoms[0];
+  return denoms.find(d => !!d)!;
 };
 
 export function appendTrialAttribute(yamlStr: string, attributeKey: string) {
-  const sdl = getSdl(yamlStr, "beta3", networkStore.selectedNetworkId);
-  const placementData = sdl.data?.profiles?.placement || {};
+  const sdlData = yaml.load(yamlStr) as SDLInput;
+  const placementData = sdlData?.profiles?.placement || {};
 
   for (const [, value] of Object.entries(placementData)) {
     if (!value.attributes) {
-      value.attributes = [];
-    } else if (!Array.isArray(value.attributes)) {
-      value.attributes = Object.entries(value.attributes).map(([key, value]) => ({ key, value: value as string }));
+      value.attributes = {};
+    } else if (Array.isArray(value.attributes)) {
+      value.attributes = (value.attributes as unknown as Attribute[]).reduce<Record<string, unknown>>((acc, curr) => ((acc[curr.key] = curr.value), acc), {});
     }
 
-    const hasTrialAttribute = value.attributes.find(attr => attr.key === attributeKey);
-    if (!hasTrialAttribute) {
-      value.attributes.push({ key: attributeKey, value: "true" });
+    const attrs = value.attributes as Record<string, unknown>;
+    if (!(attributeKey in attrs)) {
+      attrs[attributeKey] = "true";
     }
 
     if (!value.signedBy?.anyOf || !value.signedBy?.allOf) {
@@ -53,23 +56,16 @@ export function appendTrialAttribute(yamlStr: string, attributeKey: string) {
       };
     }
 
-    if (!value.signedBy.allOf.includes(AUDITOR)) {
+    if (value?.signedBy?.allOf && !value.signedBy.allOf.includes(AUDITOR)) {
       value.signedBy.allOf.push(AUDITOR);
     }
   }
 
-  const result = yaml.dump(sdl.data, {
+  const result = yaml.dump(sdlData, {
     indent: 2,
     quotingType: '"',
     styles: {
       "!!null": "empty" // dump null as empty value
-    },
-    replacer: (key, value) => {
-      const isCurrentKeyProviderAttributes = key === "attributes" && Array.isArray(value) && value.some(attr => attr.key === attributeKey);
-      if (isCurrentKeyProviderAttributes) {
-        return mapProviderAttributes(value);
-      }
-      return value;
     }
   });
 
@@ -78,8 +74,8 @@ ${result}`;
 }
 
 export function appendAuditorRequirement(yamlStr: string) {
-  const sdl = getSdl(yamlStr, "beta3", networkStore.selectedNetworkId);
-  const placementData = sdl.data?.profiles?.placement || {};
+  const sdlData = yaml.load(yamlStr) as SDLInput;
+  const placementData = sdlData?.profiles?.placement || {};
 
   for (const [, value] of Object.entries(placementData)) {
     if (!value.signedBy?.anyOf || !value.signedBy?.allOf) {
@@ -90,13 +86,13 @@ export function appendAuditorRequirement(yamlStr: string) {
     }
 
     for (const auditor of MANAGED_WALLET_ALLOWED_AUDITORS) {
-      if (!value.signedBy.anyOf.includes(auditor)) {
+      if (value?.signedBy?.anyOf && !value.signedBy.anyOf.includes(auditor)) {
         value.signedBy.anyOf.push(auditor);
       }
     }
   }
 
-  const result = yaml.dump(sdl.data, {
+  const result = yaml.dump(sdlData, {
     indent: 2,
     quotingType: '"',
     styles: {
@@ -108,11 +104,6 @@ export function appendAuditorRequirement(yamlStr: string) {
 ${result}`;
 }
 
-// Attributes is a key value pair object, but we store it as an array of objects with key and value
-function mapProviderAttributes(attributes: Attribute[]) {
-  return attributes?.reduce<Record<string, string>>((acc, curr) => ((acc[curr.key] = curr.value), acc), {});
-}
-
 export async function NewDeploymentData(
   chainApiHttpClient: HttpClient,
   yamlStr: string,
@@ -122,11 +113,12 @@ export async function NewDeploymentData(
 ) {
   try {
     const networkId = networkStore.selectedNetworkId;
-    const sdl = getSdl(yamlStr, "beta3", networkId);
-    const groups = sdl.groups();
-    const mani = sdl.manifest();
+    const sdlInput = parseSdlInput(yamlStr);
+    const manifest = buildManifest(sdlInput, networkId);
+    const groups = manifest.groupSpecs;
+    const mani = manifest.groups;
     const denom = getDenomFromSdl(groups);
-    const version = await sdl.manifestVersion();
+    const version = await generateManifestVersion(manifest.groups);
     const _deposit = (Array.isArray(deposit) && deposit.find(d => d.denom === denom)) || { denom, amount: deposit.toString() };
 
     let finalDseq: string = dseq || "";
@@ -136,7 +128,7 @@ export async function NewDeploymentData(
     }
 
     return {
-      sdl: sdl.data,
+      sdl: sdlInput,
       manifest: mani,
       groups: groups,
       deploymentId: {

@@ -1,3 +1,5 @@
+import type { Manifest } from "@akashnetwork/chain-sdk/web";
+import { manifestToSortedJSON } from "@akashnetwork/chain-sdk/web";
 import type { HttpClient } from "@akashnetwork/http-sdk";
 import type { LoggerService } from "@akashnetwork/logging";
 import { afterEach, describe, expect, it, type Mock, vi } from "vitest";
@@ -17,7 +19,7 @@ describe(ProviderProxyService.name, () => {
   describe("sendManifest", () => {
     it("does nothing if provider is undefined", () => {
       const { service, httpClient } = setup();
-      service.sendManifest(undefined, {}, { dseq: "1" });
+      service.sendManifest(undefined, [] as Manifest, { dseq: "1" });
       expect(httpClient.post).not.toHaveBeenCalled();
     });
 
@@ -32,31 +34,48 @@ describe(ProviderProxyService.name, () => {
       const provider = buildProvider();
 
       const dseq = "1";
-      const manifest = [
+      const manifest: Manifest = [
         {
-          profiles: {
-            compute: {
-              web: {
-                resources: {
-                  cpu: {
-                    units: {
-                      val: "0.5"
-                    }
-                  }
+          name: "web",
+          services: [
+            {
+              name: "web",
+              image: "test",
+              command: ["test"],
+              args: [],
+              count: 1,
+              env: [],
+              expose: [],
+              credentials: undefined,
+              params: undefined,
+              resources: {
+                id: 1,
+                cpu: {
+                  units: {
+                    val: new TextEncoder().encode("0.5")
+                  },
+                  attributes: []
                 },
                 memory: {
                   quantity: {
-                    val: "512Mi"
-                  }
+                    val: new TextEncoder().encode("512Mi")
+                  },
+                  attributes: []
                 },
-                storage: {
-                  quantity: {
-                    val: "512Mi"
+                storage: [
+                  {
+                    name: "test",
+                    quantity: {
+                      val: new TextEncoder().encode("512Mi")
+                    },
+                    attributes: []
                   }
-                }
+                ],
+                gpu: undefined,
+                endpoints: []
               }
             }
-          }
+          ]
         }
       ];
       const credentials: ProviderCredentials = { type: "mtls", value: { cert: "certPem", key: "keyPem" } };
@@ -75,33 +94,7 @@ describe(ProviderProxyService.name, () => {
             certPem: credentials.value?.cert,
             keyPem: credentials.value?.key
           },
-          body: JSON.stringify([
-            {
-              profiles: {
-                compute: {
-                  web: {
-                    resources: {
-                      cpu: {
-                        units: {
-                          val: "0.5"
-                        }
-                      }
-                    },
-                    memory: {
-                      size: {
-                        val: "512Mi"
-                      }
-                    },
-                    storage: {
-                      size: {
-                        val: "512Mi"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          ])
+          body: manifestToSortedJSON(manifest)
         },
         { timeout: expect.any(Number) }
       );
