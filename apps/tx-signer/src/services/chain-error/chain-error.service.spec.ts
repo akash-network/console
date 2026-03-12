@@ -81,6 +81,21 @@ describe(ChainErrorService.name, () => {
     ).toBe(402);
   });
 
+  it("returns 503 for bad status on response 502 error", () => {
+    const { service } = setup();
+    expect(service.getChainErrorStatus("Bad status on response: 502")).toBe(503);
+  });
+
+  it("returns 503 for bad status on response 503 error", () => {
+    const { service } = setup();
+    expect(service.getChainErrorStatus("Bad status on response: 503")).toBe(503);
+  });
+
+  it("returns 503 for bad status on response 504 error", () => {
+    const { service } = setup();
+    expect(service.getChainErrorStatus("Bad status on response: 504")).toBe(503);
+  });
+
   it("returns undefined for non-matching errors", () => {
     const { service } = setup();
     expect(service.getChainErrorStatus("Failed to sign and broadcast transaction")).toBeUndefined();
