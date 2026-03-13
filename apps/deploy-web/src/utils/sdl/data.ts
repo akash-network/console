@@ -1,3 +1,4 @@
+import cloneDeep from "lodash/cloneDeep";
 import { nanoid } from "nanoid";
 
 import type { ServiceType } from "@src/types";
@@ -114,6 +115,21 @@ export const defaultSshVMService: ServiceType = {
   ...defaultService,
   image: sshVmDistros[0],
   expose: []
+};
+
+export const getDefaultService = (options: { supportsACT: boolean; supportsSSH?: boolean }) => {
+  const res = cloneDeep(defaultService);
+
+  if (options.supportsSSH) {
+    res.image = sshVmDistros[0];
+    res.expose = [];
+  }
+
+  if (options.supportsACT) {
+    res.placement.pricing.denom = "uact";
+  }
+
+  return res;
 };
 
 export const nextCases = [

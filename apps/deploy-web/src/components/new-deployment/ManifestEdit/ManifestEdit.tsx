@@ -33,7 +33,7 @@ import { validateDeploymentData } from "@src/utils/deploymentUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { domainName, handleDocClick, UrlService } from "@src/utils/urlUtils";
 import { useSettings } from "../../../context/SettingsProvider";
-import { DeploymentDepositModal } from "../../deployments/DeploymentDepositModal";
+import { DeploymentDepositModal } from "../../deployments/DeploymentDepositModal/DeploymentDepositModal";
 import { DeploymentMinimumEscrowAlertText } from "../../sdl/DeploymentMinimumEscrowAlertText";
 import { SDLEditor } from "../../sdl/SDLEditor/SDLEditor";
 import { TrialDeploymentBadge } from "../../shared";
@@ -137,12 +137,21 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
   const services = d.useImportSimpleSdl(isValidSdl ? editedManifest : null);
 
   useWhen(
-    wallet.isManaged && sdlDenom === "uakt" && editedManifest,
+    isACTSupported && sdlDenom !== UACT_DENOM && editedManifest,
+    () => {
+      setEditedManifest(prev => (prev ? prev.replace(new RegExp(sdlDenom, "g"), UACT_DENOM) : prev));
+    },
+    [editedManifest, isACTSupported, sdlDenom]
+  );
+
+  useWhen(
+    !isACTSupported && wallet.isManaged && sdlDenom === "uakt" && editedManifest,
     () => {
       setEditedManifest(prev => (prev ? prev.replace(/uakt/g, managedDenom) : prev));
     },
-    [editedManifest, wallet.isManaged, sdlDenom]
+    [editedManifest, wallet.isManaged, sdlDenom, isACTSupported]
   );
+
   useWhen(hasComponent("ssh"), () => {
     setSelectedSdlEditMode("builder");
   });

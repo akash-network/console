@@ -9,16 +9,23 @@ import { useChainParam } from "./useChainParam";
 import { renderHook } from "@testing-library/react";
 
 describe(useChainParam.name, () => {
-  it("returns zeros when deposit params are undefined", () => {
-    const { result } = setup({ depositParams: undefined });
+  it("returns akt and usdc zeros when deposit params are undefined and act is not supported", () => {
+    const { result } = setup({ depositParams: undefined, supportsACT: false });
 
-    expect(result.current.minDeposit).toEqual({ akt: 0, usdc: 0, act: 0 });
+    expect(result.current.minDeposit).toEqual({ akt: 0, usdc: 0 });
   });
 
-  it("converts udenoms amounts to denom amounts", () => {
+  it("returns act zero when deposit params are undefined and act is supported", () => {
+    const { result } = setup({ depositParams: undefined, supportsACT: true });
+
+    expect(result.current.minDeposit).toEqual({ act: 0 });
+  });
+
+  it("converts udenoms to denom amounts with usdc when act is not supported", () => {
     const usdcDenom = "ibc/uusdc";
     const { result } = setup({
       usdcDenom,
+      supportsACT: false,
       depositParams: [
         { denom: "uakt", amount: "1234000" },
         { denom: usdcDenom, amount: "2500000" },
@@ -26,17 +33,33 @@ describe(useChainParam.name, () => {
       ]
     });
 
-    expect(result.current.minDeposit).toEqual({ akt: 1.234, usdc: 2.5, act: 5 });
+    expect(result.current.minDeposit).toEqual({ akt: 1.234, usdc: 2.5 });
   });
 
-  it("returns 0 for missing denom", () => {
+  it("converts udenoms to denom amounts with act when act is supported", () => {
     const usdcDenom = "ibc/uusdc";
     const { result } = setup({
       usdcDenom,
+      supportsACT: true,
+      depositParams: [
+        { denom: "uakt", amount: "1234000" },
+        { denom: usdcDenom, amount: "2500000" },
+        { denom: "uact", amount: "5000000" }
+      ]
+    });
+
+    expect(result.current.minDeposit).toEqual({ act: 5 });
+  });
+
+  it("returns 0 for missing akt denom", () => {
+    const usdcDenom = "ibc/uusdc";
+    const { result } = setup({
+      usdcDenom,
+      supportsACT: false,
       depositParams: [{ denom: usdcDenom, amount: "2500000" }]
     });
 
-    expect(result.current.minDeposit).toEqual({ akt: 0, act: 0, usdc: 2.5 });
+    expect(result.current.minDeposit).toEqual({ akt: 0, usdc: 2.5 });
   });
 
   it("passes enabled=false to useDepositParams when settings are not initialized", () => {
@@ -57,10 +80,17 @@ describe(useChainParam.name, () => {
     expect(useDepositParamsSpy).toHaveBeenCalledWith(expect.objectContaining({ enabled: true }));
   });
 
-  function setup(input?: { isSettingsInit?: boolean; isBlockchainDown?: boolean; usdcDenom?: string; depositParams?: DepositParams[] | undefined }) {
+  function setup(input?: {
+    isSettingsInit?: boolean;
+    isBlockchainDown?: boolean;
+    usdcDenom?: string;
+    supportsACT?: boolean;
+    depositParams?: DepositParams[] | undefined;
+  }) {
     const isSettingsInit = input?.isSettingsInit ?? true;
     const isBlockchainDown = input?.isBlockchainDown ?? false;
     const usdcDenom = input?.usdcDenom ?? "ibc/uusdc";
+    const supportsACT = input?.supportsACT ?? false;
     const depositParams = input?.depositParams;
 
     const depositParamsResult = mock<UseQueryResult<DepositParams[], Error>>();
@@ -73,6 +103,7 @@ describe(useChainParam.name, () => {
         dependencies: {
           useDepositParams: useDepositParamsSpy,
           useUsdcDenom: useUsdcDenomSpy,
+          useSupportsACT: () => supportsACT,
           useSettings: () =>
             ({
               isSettingsInit,

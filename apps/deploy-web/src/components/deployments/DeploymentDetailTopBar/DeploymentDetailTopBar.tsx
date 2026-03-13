@@ -28,7 +28,7 @@ import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import { averageBlockTime } from "@src/utils/priceUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { UrlService } from "@src/utils/urlUtils";
-import { DeploymentDepositModal } from "../DeploymentDepositModal";
+import { DeploymentDepositModal } from "../DeploymentDepositModal/DeploymentDepositModal";
 
 export const DEPENDENCIES = {
   Button,
