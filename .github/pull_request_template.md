@@ -2,7 +2,8 @@
 
 <!--
 - explain why you created this PR
-- include references to issues
+- include references to Linear issues using magic keywords: Closes CON-xxx
+- example: Closes CON-123
 -->
 
 ## What
