@@ -205,7 +205,7 @@ describe(createRoute.name, () => {
 
   describe("when given config with pre-existing middleware", () => {
     it("appends existing middleware after generated middleware", () => {
-      const existingMiddleware = jest.fn() as unknown as MiddlewareHandler;
+      const existingMiddleware = vi.fn() as unknown as MiddlewareHandler;
       const { route } = setup({
         method: "get",
         path: "/test",
