@@ -4,17 +4,17 @@ import React, { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Alert, Button, Form, Spinner } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
-import cloneDeep from "lodash/cloneDeep";
 
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom";
 import { useSdlServiceManager } from "@src/hooks/useSdlServiceManager/useSdlServiceManager";
+import { useSupportsACT } from "@src/hooks/useSupportsACT/useSupportsACT";
 import { useWhen } from "@src/hooks/useWhen";
 import { useGpuModels } from "@src/queries/useGpuQuery";
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { SdlBuilderFormValuesSchema } from "@src/types";
-import { defaultService, defaultSshVMService } from "@src/utils/sdl/data";
+import { getDefaultService } from "@src/utils/sdl/data";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { transformCustomSdlFields, TransformError } from "@src/utils/sdl/transformCustomSdlFields";
@@ -42,9 +42,10 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(
     const formRef = useRef<HTMLFormElement>(null);
     const [isInit, setIsInit] = useState(false);
     const { hasComponent, imageList } = useSdlBuilder();
+    const supportsACT = useSupportsACT();
     const form = useForm<SdlBuilderFormValuesType>({
       defaultValues: {
-        services: [cloneDeep(hasComponent("ssh") ? defaultSshVMService : defaultService)],
+        services: [getDefaultService({ supportsSSH: hasComponent("ssh"), supportsACT })],
         imageList: imageList,
         hasSSHKey: hasComponent("ssh")
       },

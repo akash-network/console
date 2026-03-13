@@ -1,15 +1,19 @@
 import { useMemo } from "react";
 
 import { useUsdcDenom } from "@src/hooks/useDenom";
+import { useSupportsACT } from "@src/hooks/useSupportsACT/useSupportsACT";
 import { useDepositParams } from "@src/queries/useSaveSettings";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { useSettings } from "../../context/SettingsProvider";
 
-type MinDeposit = {
-  akt: number;
-  usdc: number;
-  act: number;
-};
+type MinDeposit =
+  | {
+      akt: number;
+      usdc: number;
+    }
+  | {
+      act: number;
+    };
 
 type ContextType = {
   minDeposit: MinDeposit;
@@ -18,7 +22,8 @@ type ContextType = {
 export const DEPENDENCIES = {
   useSettings,
   useDepositParams,
-  useUsdcDenom
+  useUsdcDenom,
+  useSupportsACT
 };
 
 export function useChainParam({ dependencies: d = DEPENDENCIES }: { dependencies?: typeof DEPENDENCIES } = {}): ContextType {
@@ -27,22 +32,15 @@ export function useChainParam({ dependencies: d = DEPENDENCIES }: { dependencies
     enabled: isSettingsInit && !settings.isBlockchainDown
   });
   const usdcDenom = d.useUsdcDenom();
+  const supportsACT = d.useSupportsACT();
 
   return useMemo(() => {
-    const minDeposit = (depositParams || []).reduce(
-      (acc, param) => {
-        acc[param.denom] = parseFloat(param.amount) || 0;
-        return acc;
-      },
-      { uakt: 0, [usdcDenom]: 0, uact: 0 }
-    );
+    const byDenom = Object.fromEntries((depositParams || []).map(p => [p.denom, parseFloat(p.amount) || 0]));
 
     return {
-      minDeposit: {
-        akt: udenomToDenom(minDeposit.uakt),
-        usdc: udenomToDenom(minDeposit[usdcDenom]),
-        act: udenomToDenom(minDeposit.uact)
-      }
+      minDeposit: supportsACT
+        ? { act: udenomToDenom(byDenom.uact ?? 0) }
+        : { akt: udenomToDenom(byDenom.uakt ?? 0), usdc: udenomToDenom(byDenom[usdcDenom] ?? 0) }
     };
-  }, [depositParams, usdcDenom]);
+  }, [depositParams, usdcDenom, supportsACT]);
 }

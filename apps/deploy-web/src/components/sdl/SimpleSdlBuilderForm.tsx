@@ -14,23 +14,20 @@ import { USER_TEMPLATE_CODE } from "@src/config/deploy.config";
 import { useServices } from "@src/context/ServicesProvider";
 import useFormPersist from "@src/hooks/useFormPersist";
 import { useSdlServiceManager } from "@src/hooks/useSdlServiceManager/useSdlServiceManager";
+import { useSupportsACT } from "@src/hooks/useSupportsACT/useSupportsACT";
 import { useGpuModels } from "@src/queries/useGpuQuery";
 import sdlStore from "@src/store/sdlStore";
 import type { ITemplate, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { SdlBuilderFormValuesSchema } from "@src/types";
 import { RouteStep } from "@src/types/route-steps.type";
 import { memoryUnits, storageUnits } from "@src/utils/akash/units";
-import { defaultService } from "@src/utils/sdl/data";
+import { defaultService, getDefaultService } from "@src/utils/sdl/data";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { UrlService } from "@src/utils/urlUtils";
 import { ImportSdlModal } from "./ImportSdlModal";
 import { PreviewSdl } from "./PreviewSdl";
 import { SaveTemplateModal } from "./SaveTemplateModal";
-
-const DEFAULT_SERVICES = {
-  services: [{ ...defaultService }]
-};
 
 export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
   const { consoleApiHttpClient, analyticsService } = useServices();
@@ -47,15 +44,20 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
   const [sdlBuilderSdl, setSdlBuilderSdl] = useAtom(sdlStore.sdlBuilderSdl);
   const { data: gpuModels } = useGpuModels();
   const { enqueueSnackbar } = useSnackbar();
+  const supportsACT = useSupportsACT();
   const form = useForm<SdlBuilderFormValuesType>({
     resolver: zodResolver(SdlBuilderFormValuesSchema),
-    defaultValues: DEFAULT_SERVICES
+    defaultValues: {
+      services: [getDefaultService({ supportsACT })]
+    }
   });
   const { handleSubmit, reset, control, trigger, watch, setValue } = form;
   const { clear: clearFormStorage } = useFormPersist("sdl-builder-form", {
     watch,
     setValue,
-    defaultValues: DEFAULT_SERVICES,
+    defaultValues: {
+      services: [getDefaultService({ supportsACT })]
+    },
     storage: typeof window === "undefined" ? undefined : window.localStorage
   });
   const { services: _services } = watch();
