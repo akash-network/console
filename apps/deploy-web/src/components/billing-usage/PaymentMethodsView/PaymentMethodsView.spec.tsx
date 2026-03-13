@@ -2,6 +2,7 @@ import React from "react";
 import type { PaymentMethod, SetupIntentResponse } from "@akashnetwork/http-sdk";
 import { describe, expect, it, type Mock, vi } from "vitest";
 
+import type { PaymentMethodsRowProps } from "./PaymentMethodsRow";
 import type { DEPENDENCIES } from "./PaymentMethodsView";
 import { PaymentMethodsView } from "./PaymentMethodsView";
 
@@ -24,7 +25,7 @@ const MockPaymentMethodsRow = ({
   hasOtherPaymentMethods,
   isTrialing,
   isAutoReloadEnabled
-}: any) => (
+}: PaymentMethodsRowProps) => (
   <tr data-testid={`payment-method-row-${paymentMethod.id}`} data-is-trialing={isTrialing} data-auto-reload={isAutoReloadEnabled}>
     <td>
       <span>{paymentMethod.card?.last4}</span>

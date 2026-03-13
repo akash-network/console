@@ -291,7 +291,7 @@ describe(PaymentMethodsRow.name, () => {
       });
     });
 
-    it("shows both options for non-default payment method when trialing with other methods", async () => {
+    it("shows only 'Set as default' for non-default payment method when trialing with other methods", async () => {
       const user = userEvent.setup();
       setup({
         paymentMethod: createMockPaymentMethod({ isDefault: false }),
@@ -304,7 +304,7 @@ describe(PaymentMethodsRow.name, () => {
 
       await vi.waitFor(() => {
         expect(screen.getByText("Set as default")).toBeInTheDocument();
-        expect(screen.getByText("Remove")).toBeInTheDocument();
+        expect(screen.queryByText("Remove")).not.toBeInTheDocument();
       });
     });
   });

@@ -25,8 +25,8 @@ export const PaymentMethodsContainer: React.FC<PaymentMethodsContainerProps> = (
     isRefetching: isRefetchingPaymentMethods
   } = d.usePaymentMethodsQuery();
   const { isTrialing } = d.useWallet();
-  const { data: walletSettings } = d.useWalletSettingsQuery();
-  const isAutoReloadEnabled = walletSettings?.autoReloadEnabled ?? false;
+  const { data: walletSettings, isLoading: isWalletSettingsLoading } = d.useWalletSettingsQuery();
+  const isAutoReloadEnabled = walletSettings?.autoReloadEnabled ?? isWalletSettingsLoading;
   const paymentMutations = d.usePaymentMutations();
   const { data: setupIntent, mutate: createSetupIntent, reset: resetSetupIntent } = d.useSetupIntentMutation();
   const [showAddPaymentMethod, setShowAddPaymentMethod] = useState(false);

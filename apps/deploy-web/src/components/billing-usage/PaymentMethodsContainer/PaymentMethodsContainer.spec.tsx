@@ -172,9 +172,14 @@ describe(PaymentMethodsContainer.name, () => {
     expect(child.isAutoReloadEnabled).toBe(true);
   });
 
-  it("passes isAutoReloadEnabled as false when wallet settings data is undefined", async () => {
+  it("passes isAutoReloadEnabled as false when wallet settings data is undefined and not loading", async () => {
     const { child } = await setup();
     expect(child.isAutoReloadEnabled).toBe(false);
+  });
+
+  it("passes isAutoReloadEnabled as true when wallet settings are still loading", async () => {
+    const { child } = await setup({ isWalletSettingsLoading: true });
+    expect(child.isAutoReloadEnabled).toBe(true);
   });
 
   async function setup(
@@ -187,6 +192,7 @@ describe(PaymentMethodsContainer.name, () => {
       setupIntent: SetupIntentResponse;
       isTrialing: boolean;
       autoReloadEnabled: boolean;
+      isWalletSettingsLoading: boolean;
     }> = {}
   ) {
     const useDefaultPaymentMethods = !Object.prototype.hasOwnProperty.call(overrides, "paymentMethods");
@@ -236,7 +242,8 @@ describe(PaymentMethodsContainer.name, () => {
       : undefined;
 
     const mockedUseWalletSettingsQuery = vi.fn(() => ({
-      data: walletSettingsData
+      data: walletSettingsData,
+      isLoading: overrides.isWalletSettingsLoading ?? false
     })) as unknown as MockedFunction<typeof useWalletSettingsQuery>;
 
     const dependencies = {

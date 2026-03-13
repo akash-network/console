@@ -102,7 +102,7 @@ export const PaymentMethodsRow: React.FC<PaymentMethodsRowProps> = ({
 
   const canSetAsDefault = !paymentMethod.isDefault && hasOtherPaymentMethods;
   const isDefaultBlockedByAutoReload = paymentMethod.isDefault && isAutoReloadEnabled;
-  const canRemove = !isDefaultBlockedByAutoReload && (!isTrialing || (hasOtherPaymentMethods && !paymentMethod.isDefault));
+  const canRemove = !isDefaultBlockedByAutoReload && !isTrialing;
   const showActions = canSetAsDefault || canRemove;
 
   return (
