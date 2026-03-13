@@ -1,0 +1,34 @@
+import { DataTypes, UUIDV4 } from "sequelize";
+import { Column, Default, Model, PrimaryKey, Table } from "sequelize-typescript";
+
+import { Required } from "../decorators/requiredDecorator";
+
+/**
+ * BmeLedgerRecord model
+ *
+ * Stores every BME mint/burn execution from EventLedgerRecordExecuted events.
+ * Records come from both tx-level events (immediate execution) and block-level events (epoch-triggered).
+ * Includes burned/minted amounts with denominations, USD prices at execution time, and remint credit data.
+ */
+@Table({
+  modelName: "bmeLedgerRecord",
+  indexes: [
+    { unique: false, fields: ["height"] },
+    { unique: false, fields: ["burnedDenom", "height"] },
+    { unique: false, fields: ["mintedDenom", "height"] }
+  ]
+})
+export class BmeLedgerRecord extends Model {
+  @Required @PrimaryKey @Default(UUIDV4) @Column(DataTypes.UUID) id!: string;
+  @Required @Column height!: number;
+  @Required @Column burnedFrom!: string;
+  @Required @Column mintedTo!: string;
+  @Required @Column burnedDenom!: string;
+  @Required @Column(DataTypes.DECIMAL(30, 0)) burnedAmount!: string;
+  @Column(DataTypes.DECIMAL(20, 10)) burnedPrice?: string;
+  @Required @Column mintedDenom!: string;
+  @Required @Column(DataTypes.DECIMAL(30, 0)) mintedAmount!: string;
+  @Column(DataTypes.DECIMAL(20, 10)) mintedPrice?: string;
+  @Column(DataTypes.DECIMAL(30, 0)) remintCreditIssuedAmount?: string;
+  @Column(DataTypes.DECIMAL(30, 0)) remintCreditAccruedAmount?: string;
+}

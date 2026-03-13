@@ -50,6 +50,13 @@
       "when": 1762700000000,
       "tag": "0006_add_total_uact_spent_to_block",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1762800000000,
+      "tag": "0007_add_bme_tables",
+      "breakpoints": true
     }
   ]
 }
