@@ -2,8 +2,9 @@
 
 <!--
 - explain why you created this PR
-- include references to Linear issues using magic keywords: Closes CON-xxx
-- example: Closes CON-123
+- reference Linear issues with magic keywords:
+  - closing: Fixes CON-xxx, Closes CON-xxx, Resolves CON-xxx
+  - non-closing: Part of CON-xxx, Ref CON-xxx, Related to CON-xxx
 -->
 
 ## What

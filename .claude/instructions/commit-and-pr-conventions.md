@@ -16,5 +16,7 @@
 ## PR Descriptions
 - Must use the template from `.github/pull_request_template.md`
 - Always read the template before creating a PR to ensure the correct format is used
-- Reference Linear issues using magic keywords: `Closes CON-xxx`
-- Place the Linear reference in the **Why** section of the PR template
+- Reference Linear issues in the **Why** section using magic keywords + issue ID (e.g., `Fixes CON-123`)
+- **Closing keywords** (moves issue to Done on merge): `close`, `closes`, `fix`, `fixes`, `resolve`, `resolves`
+- **Non-closing keywords** (links PR without auto-closing): `ref`, `refs`, `part of`, `related to`, `contributes to`
+- Pick the right keyword — don't use `Closes` if the PR only partially addresses the issue
