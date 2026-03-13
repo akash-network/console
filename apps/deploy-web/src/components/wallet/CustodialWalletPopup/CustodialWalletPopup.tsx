@@ -14,7 +14,6 @@ import { useSupportsACT } from "@src/hooks/useSupportsACT/useSupportsACT";
 import type { WalletBalance } from "@src/hooks/useWalletBalance";
 import walletStore from "@src/store/walletStore";
 import { udenomToDenom } from "@src/utils/mathHelpers";
-import { uaktToAKT } from "@src/utils/priceUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { PriceValue } from "../../shared/PriceValue";
 import { ConnectManagedWalletButton } from "../ConnectManagedWalletButton";
@@ -73,8 +72,8 @@ export const CustodialWalletPopup: React.FC<CustodialWalletPopupProps> = ({ wall
             <div className="flex items-center justify-between space-x-2">
               <span className="text-xs">AKT</span>
               <span className="flex items-center space-x-1">
-                <d.PriceValue denom={UAKT_DENOM} value={uaktToAKT(walletBalance.totalUAKT, 2)} />
-                <span className="text-xs font-light">({uaktToAKT(walletBalance.totalUAKT, 2)} AKT)</span>
+                <d.PriceValue denom={UAKT_DENOM} value={udenomToDenom(walletBalance.totalUAKT, 2)} />
+                <span className="text-xs font-light">({udenomToDenom(walletBalance.totalUAKT, 2)} AKT)</span>
               </span>
             </div>
 
@@ -99,10 +98,18 @@ export const CustodialWalletPopup: React.FC<CustodialWalletPopupProps> = ({ wall
       <div className="text-xs text-muted-foreground">Wallet Actions</div>
 
       <div className="flex flex-col items-center justify-end space-y-2 pt-2">
-        <d.Button onClick={() => onAuthorizeSpendingClick()} variant="outline" className="w-full space-x-2">
-          <d.Bank />
-          <span>Authorize Spending</span>
-        </d.Button>
+        {isACTSupported ? (
+          <d.Button onClick={() => router.push(UrlService.mintBurn())} variant="outline" className="w-full space-x-2">
+            <d.Bank />
+            <span>Mint ACT</span>
+          </d.Button>
+        ) : (
+          <d.Button onClick={() => onAuthorizeSpendingClick()} variant="outline" className="w-full space-x-2">
+            <d.Bank />
+            <span>Authorize Spending</span>
+          </d.Button>
+        )}
+
         <d.Button onClick={logout} variant="outline" className="w-full space-x-2">
           <d.LogOut />
           <span>Disconnect Wallet</span>

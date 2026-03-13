@@ -55,6 +55,14 @@ describe(CustodialWalletPopup.name, () => {
     expect(push).toHaveBeenCalledWith("/settings/authorizations");
   });
 
+  it("navigates to mint-burn page when Mint ACT is clicked", () => {
+    const { push } = setup({ isACTSupported: true });
+
+    fireEvent.click(screen.getByRole("button", { name: /Mint ACT/ }));
+
+    expect(push).toHaveBeenCalledWith("/mint-burn");
+  });
+
   it("calls logout when Disconnect Wallet is clicked", () => {
     const { logout } = setup();
 
