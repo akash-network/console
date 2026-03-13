@@ -6,8 +6,8 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { TxController } from "@src/controllers/tx/tx.controller";
+import { app } from "@src/index";
 import { TYPE_REGISTRY } from "@src/providers/type-registry.provider";
-import { app } from "@src/server";
 import { TxManagerService } from "@src/services/tx-manager/tx-manager.service";
 
 import { createAkashAddress } from "@test/seeders";
