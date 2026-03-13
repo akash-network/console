@@ -1,5 +1,4 @@
 import { useEffect, useMemo } from "react";
-import { netConfig } from "@akashnetwork/net";
 import { useVariant } from "@unleash/nextjs/client";
 import axios from "axios";
 import { atom, useAtom } from "jotai";
@@ -20,7 +19,7 @@ const IS_GENERIC_BANNER_ATOM = atom(false);
 
 export function useTopBanner(): ITopBannerContext {
   const maintenanceBannerFlag = useVariant("maintenance_banner");
-  const networkId = networkStore.useSelectedNetworkId();
+  const chainNetwork = networkStore.useSelectedNetwork();
 
   const [isMaintenanceBannerOpen, setIsMaintenanceBannerOpen] = useAtom(IS_MAINTENANCE_ATOM);
   const [isBlockchainDown, setIsBlockchainDown] = useAtom(IS_BLOCKCHAIN_DOWN_ATOM);
@@ -44,7 +43,8 @@ export function useTopBanner(): ITopBannerContext {
   useEffect(() => {
     function pingBlockchainNode() {
       axios
-        .get(`${netConfig.getBaseAPIUrl(netConfig.mapped(networkId))}/cosmos/base/tendermint/v1beta1/node_info`, { timeout: 5000 })
+        .get<Array<{ api: string }>>(chainNetwork.nodesUrl)
+        .then(response => axios.get(`${response.data[0]?.api}/cosmos/base/tendermint/v1beta1/node_info`, { timeout: 5000 }))
         .then(response => {
           const isAvailable = response.status >= 200 && response.status < 300;
           setIsBlockchainDown(!isAvailable);
@@ -60,7 +60,7 @@ export function useTopBanner(): ITopBannerContext {
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [networkId]);
+  }, [chainNetwork.nodesUrl, setIsBlockchainDown]);
 
   return useMemo(
     () => ({
