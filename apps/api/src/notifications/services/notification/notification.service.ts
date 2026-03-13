@@ -130,6 +130,76 @@ export class NotificationService {
     return threshold;
   }
 
+  async disableDeploymentAlerts(input: { userId: string; walletAddress: string; dseq: string }): Promise<void> {
+    try {
+      const alertsResult = await this.getDeploymentAlerts(input.userId, input.dseq);
+      const alerts = alertsResult?.data?.data?.alerts;
+
+      if (!alerts) return;
+
+      const { deploymentBalance, deploymentClosed } = alerts;
+      const disableBalance = !!deploymentBalance?.enabled && !deploymentBalance.suppressedBySystem;
+      const disableClosed = !!deploymentClosed?.enabled && !deploymentClosed.suppressedBySystem;
+
+      if (!disableBalance && !disableClosed) return;
+
+      const alertsBody: {
+        deploymentBalance?: { notificationChannelId: string; enabled: boolean; threshold: number };
+        deploymentClosed?: { notificationChannelId: string; enabled: boolean };
+      } = {};
+
+      if (disableBalance) {
+        alertsBody.deploymentBalance = {
+          notificationChannelId: deploymentBalance!.notificationChannelId,
+          enabled: false,
+          threshold: deploymentBalance!.threshold
+        };
+      }
+
+      if (disableClosed) {
+        alertsBody.deploymentClosed = {
+          notificationChannelId: deploymentClosed!.notificationChannelId,
+          enabled: false
+        };
+      }
+
+      await backOff(
+        () =>
+          this.notificationsApi.v1.upsertDeploymentAlert({
+            parameters: {
+              path: { dseq: input.dseq },
+              header: { "x-owner-address": input.walletAddress, "x-user-id": input.userId } as operations["upsertDeploymentAlert"]["parameters"]["header"] & {
+                "x-user-id": string;
+              }
+            },
+            body: {
+              data: {
+                alerts: alertsBody
+              }
+            }
+          }),
+        DEFAULT_BACKOFF_OPTIONS
+      );
+    } catch (error) {
+      this.logger.error({ event: "DISABLE_DEPLOYMENT_ALERTS_FAILED", dseq: input.dseq, error });
+    }
+  }
+
+  private async getDeploymentAlerts(userId: string, dseq: string) {
+    return backOff(
+      () =>
+        this.notificationsApi.v1.getDeploymentAlerts({
+          parameters: {
+            path: { dseq },
+            header: { "x-user-id": userId } as operations["getDeploymentAlerts"]["parameters"]["header"] & {
+              "x-user-id": string;
+            }
+          }
+        }),
+      DEFAULT_BACKOFF_OPTIONS
+    );
+  }
+
   private async upsertDeploymentBalanceAlert(input: { userId: string; walletAddress: string; dseq: string; channelId: string; threshold: number }) {
     await backOff(
       () =>
