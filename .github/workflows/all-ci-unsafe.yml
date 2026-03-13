@@ -29,7 +29,7 @@ jobs:
     steps:
       - name: Decide whether to run scan
         id: decide
-        run: |
+        run: | # shell
           # If upstream CI failed, we must report failure (required check)
           if [ "${{ github.event.workflow_run.conclusion }}" != "success" ]; then
             echo "run_scan=false" >> "$GITHUB_OUTPUT"
@@ -51,8 +51,9 @@ jobs:
         id: create_check
         uses: actions/github-script@v7
         with:
-          script: |
+          script: | # js
             const sha = context.payload.workflow_run.head_sha;
+            const workflowRunUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
             const res = await github.rest.checks.create({
               name: "security-scan",
               owner: context.repo.owner,
@@ -61,7 +62,7 @@ jobs:
               status: "in_progress",
               output: {
                 title: "Security scan",
-                summary: "Initializing..."
+                summary: `Initializing... Managed in [this workflow run](${workflowRunUrl})`
               }
             });
 
@@ -75,7 +76,7 @@ jobs:
           SKIP_REASON: ${{ steps.decide.outputs.skip_reason }}
           RELATED_WORKFLOW_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
         with:
-          script: |
+          script: | # js
             const sha = context.payload.workflow_run.head_sha;
             const checkRunId = Number(process.env.CHECK_RUN_ID);
             const conclusion = process.env.RELATED_WORKFLOW_CONCLUSION === 'success' ? 'success' : 'failure';
@@ -102,8 +103,10 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.matrix.outputs.value }}
-      should_run: ${{ steps.check_label.outputs.should_run }}
-      skip_reason: ${{ steps.check_label.outputs.skip_reason }}
+      should_run_static_analyses: ${{ steps.check_label.outputs.should_run_static_analyses }}
+      skip_reason_static_analyses: ${{ steps.check_label.outputs.skip_reason_static_analyses }}
+      should_run_deps_scan: ${{ steps.check_label.outputs.should_run_deps_scan }}
+      skip_reason_deps_scan: ${{ steps.check_label.outputs.skip_reason_deps_scan }}
       pr_head_ref: ${{ steps.associated_pr.outputs.head_ref }}
       pr_head_repo: ${{ steps.associated_pr.outputs.head_repo }}
     steps:
@@ -116,33 +119,52 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
 
-      - name: Check for skip label
+      - name: Display associated PR details
+        if: steps.associated_pr.outputs.number != ''
+        env:
+          PR_NUMBER: ${{ steps.associated_pr.outputs.number }}
+          PR_TITLE: ${{ steps.associated_pr.outputs.title }}
+        run: | # shell
+          pr_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/pull/${PR_NUMBER}"
+          echo "### Associated PR" >> "$GITHUB_STEP_SUMMARY"
+          echo "[#${PR_NUMBER} - ${PR_TITLE}](${pr_url})" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Check for skip labels
         id: check_label
         env:
           PR_NUMBER: ${{ steps.associated_pr.outputs.number }}
           PR_LABELS: ${{ steps.associated_pr.outputs.labels }}
-        run: |
-          if [[ -z "$PR_NUMBER" ]]; then
-            echo "should_run=false" >> "$GITHUB_OUTPUT"
-            echo "skip_reason=No PR found for commit" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
+        uses: actions/github-script@v7
+        with:
+          script: | # js
+            const prNumber = process.env.PR_NUMBER;
+            const labels = (process.env.PR_LABELS || '').split(',').map(l => l.trim());
 
-          if echo "$PR_LABELS" | grep -q "ignore-static-security-analysis"; then
-            echo "should_run=false" >> "$GITHUB_OUTPUT"
-            echo "skip_reason=Label 'ignore-static-security-analysis' is present" >> "$GITHUB_OUTPUT"
-          else
-            echo "should_run=true" >> "$GITHUB_OUTPUT"
-            echo "skip_reason=" >> "$GITHUB_OUTPUT"
-          fi
+            const checks = [
+              { output: 'static_analyses', ignoreLabel: 'ignore-static-security-analysis' },
+              { output: 'deps_scan', ignoreLabel: 'ignore-apps-deps-scan' }
+            ];
+
+            for (const { output, ignoreLabel } of checks) {
+              if (!prNumber) {
+                core.setOutput(`should_run_${output}`, 'false');
+                core.setOutput(`skip_reason_${output}`, 'No PR found for commit');
+              } else if (labels.includes(ignoreLabel)) {
+                core.setOutput(`should_run_${output}`, 'false');
+                core.setOutput(`skip_reason_${output}`, `Label '${ignoreLabel}' is present`);
+              } else {
+                core.setOutput(`should_run_${output}`, 'true');
+                core.setOutput(`skip_reason_${output}`, '');
+              }
+            }
 
       - name: Build matrix from changed files
-        if: steps.check_label.outputs.should_run == 'true'
+        if: steps.check_label.outputs.should_run_static_analyses == 'true'
         id: matrix
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ steps.associated_pr.outputs.number }}
-        run: |
+        run: | # shell
           changed_files=$(gh api "/repos/${{ github.repository }}/pulls/$PR_NUMBER/files" \
             --paginate --jq '.[].filename')
 
@@ -165,7 +187,7 @@ jobs:
 
   security-scan:
     needs: [setup]
-    if: ${{ needs.setup.outputs.should_run == 'true' && needs.setup.outputs.matrix != '' }}
+    if: ${{ needs.setup.outputs.should_run_static_analyses == 'true' && needs.setup.outputs.matrix != '' }}
     strategy:
       matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
       fail-fast: false
@@ -181,7 +203,7 @@ jobs:
 
   apps-deps-scan:
     needs: [setup]
-    if: ${{ needs.setup.outputs.should_run == 'true' }}
+    if: ${{ needs.setup.outputs.should_run_deps_scan == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -196,48 +218,65 @@ jobs:
           name: "security/snyk (corysturtevant)"
           sha: ${{ github.event.workflow_run.head_sha }}
           check_type: status
-          expected_conclusions: "success;neutral"
 
       - name: Check socketio status
         uses: ./.github/actions/poll-check-status
         with:
           name: "Socket Security: Pull Request Alerts"
           sha: ${{ github.event.workflow_run.head_sha }}
-          expected_conclusions: "success;neutral"
 
   finalize:
     runs-on: ubuntu-latest
     needs: [create-check-run, setup, security-scan, apps-deps-scan]
     if: ${{ always() && needs.create-check-run.outputs.run_scan == 'true' }}
     steps:
-      - name: Decide final conclusion and summary
+      - name: Final conclusion and summary
         id: final
         env:
-          SETUP_SHOULD_RUN: ${{ needs.setup.outputs.should_run }}
-          SETUP_SKIP_REASON: ${{ needs.setup.outputs.skip_reason }}
+          SHOULD_RUN_STATIC_ANALYSES: ${{ needs.setup.outputs.should_run_static_analyses }}
+          SKIP_REASON_STATIC_ANALYSES: ${{ needs.setup.outputs.skip_reason_static_analyses }}
+          SHOULD_RUN_DEPS_SCAN: ${{ needs.setup.outputs.should_run_deps_scan }}
+          SKIP_REASON_DEPS_SCAN: ${{ needs.setup.outputs.skip_reason_deps_scan }}
           MATRIX: ${{ needs.setup.outputs.matrix }}
-          SCAN_RESULT: ${{ needs.security-scan.result }}
-          APPS_DEPS_SCAN_RESULT: ${{ needs.apps-deps-scan.result }}
-        run: |
+          STATIC_ANALYZES_RESULT: ${{ needs.security-scan.result }}
+          APPS_DEPS_STATIC_ANALYZES_RESULT: ${{ needs.apps-deps-scan.result }}
+        run: | # shell
           conclusion="success"
-          summary="Security scan passed."
+          details=()
 
-          if [[ "$SETUP_SHOULD_RUN" != "true" ]]; then
-            conclusion="success"
-            summary="Skipped (treated as pass): $SETUP_SKIP_REASON"
+          # Evaluate static analysis scan
+          if [[ "$SHOULD_RUN_STATIC_ANALYSES" != "true" ]]; then
+            details+=("Static analysis: skipped ($SKIP_REASON_STATIC_ANALYSES)")
           elif [[ -z "$MATRIX" ]]; then
-            conclusion="success"
-            summary="Skipped (treated as pass): No apps changed in this PR"
-          elif [[ "$SCAN_RESULT" != "success" ]]; then
+            details+=("Static analysis: skipped (no apps changed in this PR)")
+          elif [[ "$STATIC_ANALYZES_RESULT" != "success" ]]; then
             conclusion="failure"
-            summary="Security scan failed (result=$SCAN_RESULT)"
-          elif [[ "$APPS_DEPS_SCAN_RESULT" != "success" ]]; then
-            conclusion="failure"
-            summary="Apps dependencies scan failed (result=$APPS_DEPS_SCAN_RESULT)"
+            details+=("Static analysis: failed (result=$STATIC_ANALYZES_RESULT)")
+          else
+            details+=("Static analysis: passed")
           fi
 
-          echo "conclusion=$conclusion" >> "$GITHUB_OUTPUT"
-          echo "summary=$summary. Managed in [this workflow run](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})" >> "$GITHUB_OUTPUT"
+          # Evaluate apps dependencies scan
+          if [[ "$SHOULD_RUN_DEPS_SCAN" != "true" ]]; then
+            details+=("Apps deps scan: skipped ($SKIP_REASON_DEPS_SCAN)")
+          elif [[ "$APPS_DEPS_STATIC_ANALYZES_RESULT" != "success" ]]; then
+            conclusion="failure"
+            details+=("Apps deps scan: failed (result=$APPS_DEPS_STATIC_ANALYZES_RESULT)")
+          else
+            details+=("Apps deps scan: passed")
+          fi
+
+          workflow_run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          summary=$(printf '%s\n' "${details[@]}")
+          summary="$summary"$'\n\n'"Managed in [this workflow run]($workflow_run_url)"
+
+          # Use delimiter syntax for multiline output
+          {
+            echo "conclusion=$conclusion"
+            echo "summary<<SUMMARY_EOF"
+            echo "$summary"
+            echo "SUMMARY_EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Complete check run
         uses: actions/github-script@v7
@@ -246,7 +285,7 @@ jobs:
           CONCLUSION: ${{ steps.final.outputs.conclusion }}
           SUMMARY: ${{ steps.final.outputs.summary }}
         with:
-          script: |
+          script: | # js
             const sha = context.payload.workflow_run.head_sha;
             const checkRunId = Number(process.env.CHECK_RUN_ID);
 
