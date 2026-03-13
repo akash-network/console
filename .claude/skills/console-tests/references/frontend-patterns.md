@@ -202,21 +202,21 @@ describe(FeatureFlagService.name, () => {
 
 ## queryBy vs getBy
 
-In frontend test expectations, always use `queryBy*` instead of `getBy*`.
+In frontend test expectations:
+- Use `getBy*` for presence assertions
+- Use `queryBy*` for absence assertions
 
-- `queryBy*` returns `null` if element is not found — safe for both presence and absence checks
-- `getBy*` throws an error if not found — makes tests harder to debug
+- `getBy*` throws if missing and prints useful DOM context (better for debugging presence failures)
+- `queryBy*` returns `null`, which is ideal for absence checks
 
 ```typescript
 // Good
-expect(screen.queryByText("John Doe")).toBeInTheDocument();
+expect(screen.getByText("John Doe")).toBeInTheDocument();
 expect(screen.queryByText("Admin")).not.toBeInTheDocument();
 
 // Bad
-expect(screen.getByText("John Doe")).toBeInTheDocument();
+expect(screen.queryByText("John Doe")).toBeInTheDocument();
 ```
-
-**Note**: `getBy*` + `toBeInTheDocument` prints DOM structure on failure which can be useful for debugging. The team convention still prefers `queryBy*` for consistency, but be aware of this tradeoff.
 
 ## Snapshot Testing
 
