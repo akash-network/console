@@ -2,7 +2,7 @@
 
 <!--
 - explain why you created this PR
-- reference Linear issues with magic keywords:
+- reference Linear issues with magic keywords (e.g.):
   - closing: Fixes CON-xxx, Closes CON-xxx, Resolves CON-xxx
   - non-closing: Part of CON-xxx, Ref CON-xxx, Related to CON-xxx
 -->
