@@ -71,7 +71,9 @@ export const serverEnvSchema = browserEnvSchema.extend({
   TURNSTILE_BYPASS_SECRET_KEY: z.string().default("1x0000000000000000000000000000000AA"),
   E2E_TESTING_CLIENT_TOKEN: z.string({
     required_error: "This token is used to adjust configuration of the app for e2e testing. Can be any random string."
-  })
+  }),
+  DEFAULT_REST_API_NODE_URL_MAINNET: z.string().url().optional(),
+  DEFAULT_RPC_NODE_URL_MAINNET: z.string().url().optional()
 });
 
 export type BrowserEnvConfig = z.infer<typeof browserEnvSchema>;

@@ -5,6 +5,6 @@ import { store } from "@src/store/global-store";
 
 export default NetworkStore.create({
   defaultNetworkId: browserEnvConfig.NEXT_PUBLIC_DEFAULT_NETWORK_ID,
-  apiBaseUrl: browserEnvConfig.NEXT_PUBLIC_API_BASE_URL,
+  apiBaseUrl: "/api",
   store
 });
