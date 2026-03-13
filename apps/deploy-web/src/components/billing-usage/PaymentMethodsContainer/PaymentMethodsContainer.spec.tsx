@@ -2,7 +2,8 @@ import React from "react";
 import type { PaymentMethod, SetupIntentResponse } from "@akashnetwork/http-sdk";
 import { describe, expect, it, type MockedFunction, vi } from "vitest";
 
-import type { usePaymentMethodsQuery, usePaymentMutations, useSetupIntentMutation } from "@src/queries";
+import type { useWallet } from "@src/context/WalletProvider";
+import type { usePaymentMethodsQuery, usePaymentMutations, useSetupIntentMutation, useWalletSettingsQuery } from "@src/queries";
 import type { PaymentMethodsViewProps } from "../PaymentMethodsView/PaymentMethodsView";
 import { PaymentMethodsContainer } from "./PaymentMethodsContainer";
 
@@ -151,6 +152,31 @@ describe(PaymentMethodsContainer.name, () => {
     expect(child.isInProgress).toBe(true);
   });
 
+  it("passes isTrialing as false when wallet is not trialing", async () => {
+    const { child } = await setup({ isTrialing: false });
+    expect(child.isTrialing).toBe(false);
+  });
+
+  it("passes isTrialing as true when wallet is trialing", async () => {
+    const { child } = await setup({ isTrialing: true });
+    expect(child.isTrialing).toBe(true);
+  });
+
+  it("passes isAutoReloadEnabled as false when wallet settings have auto-reload disabled", async () => {
+    const { child } = await setup({ autoReloadEnabled: false });
+    expect(child.isAutoReloadEnabled).toBe(false);
+  });
+
+  it("passes isAutoReloadEnabled as true when wallet settings have auto-reload enabled", async () => {
+    const { child } = await setup({ autoReloadEnabled: true });
+    expect(child.isAutoReloadEnabled).toBe(true);
+  });
+
+  it("passes isAutoReloadEnabled as false when wallet settings data is undefined", async () => {
+    const { child } = await setup();
+    expect(child.isAutoReloadEnabled).toBe(false);
+  });
+
   async function setup(
     overrides: Partial<{
       paymentMethods: PaymentMethod[] | undefined;
@@ -159,6 +185,8 @@ describe(PaymentMethodsContainer.name, () => {
       isSetPaymentMethodAsDefaultPending: boolean;
       isRemovePaymentMethodPending: boolean;
       setupIntent: SetupIntentResponse;
+      isTrialing: boolean;
+      autoReloadEnabled: boolean;
     }> = {}
   ) {
     const useDefaultPaymentMethods = !Object.prototype.hasOwnProperty.call(overrides, "paymentMethods");
@@ -199,10 +227,24 @@ describe(PaymentMethodsContainer.name, () => {
       reset: mockResetSetupIntent
     })) as unknown as MockedFunction<typeof useSetupIntentMutation>;
 
+    const mockedUseWallet = vi.fn(() => ({
+      isTrialing: overrides.isTrialing ?? false
+    })) as unknown as MockedFunction<typeof useWallet>;
+
+    const walletSettingsData = Object.prototype.hasOwnProperty.call(overrides, "autoReloadEnabled")
+      ? { autoReloadEnabled: overrides.autoReloadEnabled! }
+      : undefined;
+
+    const mockedUseWalletSettingsQuery = vi.fn(() => ({
+      data: walletSettingsData
+    })) as unknown as MockedFunction<typeof useWalletSettingsQuery>;
+
     const dependencies = {
       usePaymentMethodsQuery: mockedUsePaymentMethodsQuery,
       usePaymentMutations: mockedUsePaymentMutations,
-      useSetupIntentMutation: mockedUseSetupIntentMutation
+      useSetupIntentMutation: mockedUseSetupIntentMutation,
+      useWallet: mockedUseWallet,
+      useWalletSettingsQuery: mockedUseWalletSettingsQuery
     };
 
     const childCapturer = createContainerTestingChildCapturer<PaymentMethodsViewProps>();

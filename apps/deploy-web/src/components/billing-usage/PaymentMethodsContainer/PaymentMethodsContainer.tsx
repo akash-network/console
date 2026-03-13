@@ -1,12 +1,15 @@
 import React, { useCallback, useState } from "react";
 
-import { usePaymentMethodsQuery, usePaymentMutations, useSetupIntentMutation } from "@src/queries";
+import { useWallet } from "@src/context/WalletProvider";
+import { usePaymentMethodsQuery, usePaymentMutations, useSetupIntentMutation, useWalletSettingsQuery } from "@src/queries";
 import type { PaymentMethodsViewProps } from "../PaymentMethodsView/PaymentMethodsView";
 
 const DEPENDENCIES = {
   usePaymentMethodsQuery,
   usePaymentMutations,
-  useSetupIntentMutation
+  useSetupIntentMutation,
+  useWallet,
+  useWalletSettingsQuery
 };
 
 type PaymentMethodsContainerProps = {
@@ -21,6 +24,9 @@ export const PaymentMethodsContainer: React.FC<PaymentMethodsContainerProps> = (
     refetch: refetchPaymentMethods,
     isRefetching: isRefetchingPaymentMethods
   } = d.usePaymentMethodsQuery();
+  const { isTrialing } = d.useWallet();
+  const { data: walletSettings } = d.useWalletSettingsQuery();
+  const isAutoReloadEnabled = walletSettings?.autoReloadEnabled ?? false;
   const paymentMutations = d.usePaymentMutations();
   const { data: setupIntent, mutate: createSetupIntent, reset: resetSetupIntent } = d.useSetupIntentMutation();
   const [showAddPaymentMethod, setShowAddPaymentMethod] = useState(false);
@@ -68,7 +74,9 @@ export const PaymentMethodsContainer: React.FC<PaymentMethodsContainerProps> = (
         setShowAddPaymentMethod,
         setupIntent,
         onAddCardSuccess,
-        isInProgress
+        isInProgress,
+        isTrialing,
+        isAutoReloadEnabled
       })}
     </>
   );
