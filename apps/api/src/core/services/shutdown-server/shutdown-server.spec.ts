@@ -1,5 +1,7 @@
 import type { Logger } from "@akashnetwork/logging";
 import type { ServerType } from "@hono/node-server";
+import type { Mock } from "vitest";
+import { vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { shutdownServer } from "./shutdown-server";
@@ -7,10 +9,10 @@ import { shutdownServer } from "./shutdown-server";
 describe(shutdownServer.name, () => {
   it("closes the server ", async () => {
     const server = mock<ServerType>({
-      close: jest.fn().mockImplementation(cb => cb())
+      close: vi.fn().mockImplementation(cb => cb())
     });
     const appLogger = mock<Logger>();
-    const onShutdown = jest.fn();
+    const onShutdown = vi.fn();
 
     await shutdownServer(server, appLogger, onShutdown);
 
@@ -22,10 +24,10 @@ describe(shutdownServer.name, () => {
   it("logs error if server close fails", async () => {
     const error = new Error("Failed to close server");
     const server = mock<ServerType>({
-      close: jest.fn().mockImplementation(cb => cb(error))
+      close: vi.fn().mockImplementation(cb => cb(error))
     });
     const appLogger = mock<Logger>();
-    const onShutdown = jest.fn();
+    const onShutdown = vi.fn();
 
     await shutdownServer(server, appLogger, onShutdown);
 
@@ -39,12 +41,12 @@ describe(shutdownServer.name, () => {
   it("logs error if server close throws", async () => {
     const error = new Error("Failed to close server");
     const server = mock<ServerType>({
-      close: jest.fn().mockImplementation(() => {
+      close: vi.fn().mockImplementation(() => {
         throw error;
-      }) as jest.Mock
+      }) as Mock
     });
     const appLogger = mock<Logger>();
-    const onShutdown = jest.fn();
+    const onShutdown = vi.fn();
 
     await shutdownServer(server, appLogger, onShutdown);
 
@@ -58,10 +60,10 @@ describe(shutdownServer.name, () => {
   it("logs error if onShutdown callback fails", async () => {
     const error = new Error("Failed to dispose container");
     const server = mock<ServerType>({
-      close: jest.fn().mockImplementation(cb => cb())
+      close: vi.fn().mockImplementation(cb => cb())
     });
     const appLogger = mock<Logger>();
-    const onShutdown = jest.fn().mockRejectedValue(error);
+    const onShutdown = vi.fn().mockRejectedValue(error);
 
     await shutdownServer(server, appLogger, onShutdown);
 
@@ -74,10 +76,10 @@ describe(shutdownServer.name, () => {
   it("calls shutdown directly if server is not listening", async () => {
     const server = mock<ServerType>({
       listening: false,
-      close: jest.fn()
+      close: vi.fn()
     });
     const appLogger = mock<Logger>();
-    const onShutdown = jest.fn();
+    const onShutdown = vi.fn();
 
     await shutdownServer(server, appLogger, onShutdown);
 
@@ -88,10 +90,10 @@ describe(shutdownServer.name, () => {
   it("calls server.close if server is listening", async () => {
     const server = mock<ServerType>({
       listening: true,
-      close: jest.fn().mockImplementation(cb => cb())
+      close: vi.fn().mockImplementation(cb => cb())
     });
     const appLogger = mock<Logger>();
-    const onShutdown = jest.fn();
+    const onShutdown = vi.fn();
 
     await shutdownServer(server, appLogger, onShutdown);
 

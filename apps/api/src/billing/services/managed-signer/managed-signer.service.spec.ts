@@ -5,6 +5,7 @@ import type { LeaseHttpService } from "@akashnetwork/http-sdk";
 import type { MongoAbility } from "@casl/ability";
 import { createMongoAbility } from "@casl/ability";
 import type { EncodeObject, Registry } from "@cosmjs/proto-signing";
+import { vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AuthService } from "@src/auth/services/auth.service";
@@ -207,8 +208,8 @@ describe(ManagedSignerService.name, () => {
 
       expect(domainEvents.publish).toHaveBeenCalledWith(expect.any(TrialDeploymentLeaseCreated));
       expect(domainEvents.publish).toHaveBeenCalledWith(expect.any(EnableDeploymentAlertCommand));
-      const publishCalls = (domainEvents.publish as jest.Mock).mock.calls;
-      const trialEvent = publishCalls.find(([e]: [unknown]) => e instanceof TrialDeploymentLeaseCreated)?.[0] as TrialDeploymentLeaseCreated;
+      const publishCalls = vi.mocked(domainEvents.publish).mock.calls;
+      const trialEvent = publishCalls.find(([e]) => e instanceof TrialDeploymentLeaseCreated)?.[0] as TrialDeploymentLeaseCreated;
       expect(trialEvent.data).toEqual({
         walletId: wallet.id,
         dseq: "123",
@@ -219,10 +220,8 @@ describe(ManagedSignerService.name, () => {
       hasLeases.mockResolvedValue(true);
       await service.executeDerivedDecodedTxByUserId("user-123", [deploymentMessage]);
       expect(domainEvents.publish).toHaveBeenCalledWith(expect.any(TrialDeploymentLeaseCreated));
-      const allCalls = (domainEvents.publish as jest.Mock).mock.calls;
-      const trialEvents = allCalls
-        .filter(([e]: [unknown]) => e instanceof TrialDeploymentLeaseCreated)
-        .map(([e]: [unknown]) => e as TrialDeploymentLeaseCreated);
+      const allCalls = vi.mocked(domainEvents.publish).mock.calls;
+      const trialEvents = allCalls.filter(([e]) => e instanceof TrialDeploymentLeaseCreated).map(([e]) => e as TrialDeploymentLeaseCreated);
       const anotherTrialEvent = trialEvents[trialEvents.length - 1];
       expect(anotherTrialEvent.data).toEqual({
         walletId: wallet.id,

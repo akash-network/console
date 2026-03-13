@@ -1,6 +1,8 @@
 import type { Context, Next } from "hono";
 import type { MiddlewareHandler } from "hono";
 import { container } from "tsyringe";
+import type { Mock } from "vitest";
+import { vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { AuthService } from "../../../auth/services/auth.service";
@@ -203,7 +205,7 @@ describe(createRoute.name, () => {
 
   describe("when given config with pre-existing middleware", () => {
     it("appends existing middleware after generated middleware", () => {
-      const existingMiddleware = jest.fn() as unknown as MiddlewareHandler;
+      const existingMiddleware = vi.fn() as unknown as MiddlewareHandler;
       const { route } = setup({
         method: "get",
         path: "/test",
@@ -281,7 +283,7 @@ describe(createRoute.name, () => {
       }
     });
 
-    const next = jest.fn().mockResolvedValue(undefined) as jest.MockedFunction<Next>;
+    const next = vi.fn().mockResolvedValue(undefined) as Mock<Next>;
 
     const getHeader = (name: string) => responseHeaders.get(name);
 

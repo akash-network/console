@@ -181,7 +181,7 @@ describe("Proposals", () => {
                       rate: 0
                     },
                     {
-                      denom: "ibc/12C6A0C374171B595A0A9E18B83FA09D295FB1F2D8C6DAA3AC28683471752D84",
+                      denom: "ibc/028CD1864059EEFB48A6048376165318E3E82C234390AE5A6D7B22001725B06E",
                       rate: 20
                     }
                   ])
@@ -195,7 +195,7 @@ describe("Proposals", () => {
                       amount: "5000000"
                     },
                     {
-                      denom: "ibc/12C6A0C374171B595A0A9E18B83FA09D295FB1F2D8C6DAA3AC28683471752D84",
+                      denom: "ibc/028CD1864059EEFB48A6048376165318E3E82C234390AE5A6D7B22001725B06E",
                       amount: "5000000"
                     }
                   ])
