@@ -26,7 +26,9 @@ Choose the lowest-effective test level. Writing E2E tests for logic that can be 
 
 **Functional / API tests** (black-box HTTP):
 - Test the service as a black box through its HTTP endpoints
-- External network calls MUST be mocked (nock/msw)
+- External network calls MUST be mocked:
+  - Use `nock` for HTTP clients built on Node.js `http`/`https` modules
+  - Use `fetch-mock` for code paths using native Node.js `fetch` (Node 18+)
 - Do NOT mock internal application services — they're implementation details at this level
 - Should only fail when functional requirements change, not from refactoring
 - Don't write functional tests for simple routes — test the service layer directly instead
@@ -192,7 +194,7 @@ Don't write tests for error paths that don't exist in the production code. If th
 Read `references/frontend-patterns.md` for the full set of frontend-specific patterns including the DEPENDENCIES/COMPONENTS pattern, hook testing, query testing, and container testing.
 
 Key points:
-- Use `queryBy*` (not `getBy*`) in expectations — returns `null` instead of throwing
+- Use `getBy*` for presence assertions (`toBeInTheDocument()`), and `queryBy*` for absence assertions (`not.toBeInTheDocument()`)
 - Use the `DEPENDENCIES` export + `dependencies` prop for component DI (never `vi.mock`)
 - Use `MockComponents()` helper to auto-mock child components
 - Services are injected via `useServices` hook, not via `DEPENDENCIES` prop

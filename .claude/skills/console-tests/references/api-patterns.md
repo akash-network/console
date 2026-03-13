@@ -189,7 +189,10 @@ describe("Wallets Refill", () => {
 
 - **Hit real endpoints**: Use `app.request()` (Hono) or `supertest` (NestJS), not direct service calls
 - **Minimal mocking**: Only mock external 3rd-party services (blockchain nodes, Stripe, Auth0)
-- **Mock via request interception**: Use `nock` for HTTP mocking, or mock at the SDK level (`ManagementClient`)
+- **Mock via request interception**:
+  - Use `nock` for non-native-fetch HTTP clients
+  - Use `fetch-mock` when the code path uses native Node.js `fetch` (Node 18+)
+  - Or mock at the SDK level (`ManagementClient`) when appropriate
 - **Seed data**: Use seeders and real DB inserts, never comment out test code
 - **Don't duplicate setup**: Use `setup-functional-tests.ts` — don't recreate DB setup per file
 - **Race condition tests**: Write them for upsert operations — concurrent requests hitting the same row is common
