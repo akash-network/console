@@ -36,3 +36,12 @@ export interface NodeStatus {
     voting_power: string;
   };
 }
+
+export interface AbciInfo {
+  response: {
+    data: string;
+    last_block_height: string;
+    last_block_app_hash: string;
+    version: string;
+  };
+}
