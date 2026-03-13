@@ -17,7 +17,7 @@ Branch names like `fix/dx` or `feature/billing` are technically valid but practi
 
 ## Branch Name Format
 
-```
+```text
 <type>/<scope>-<descriptive-slug>
 ```
 
