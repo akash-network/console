@@ -5,6 +5,9 @@ import {
   AkashBlock,
   AkashMessage,
   Bid,
+  BmeLedgerRecord,
+  BmeRawEvent,
+  BmeStatusChange,
   Deployment,
   DeploymentGroup,
   DeploymentGroupResource,
@@ -78,7 +81,10 @@ export const chainDefinitions: { [key: string]: ChainDef } = {
       ProviderSnapshotNode,
       ProviderSnapshotNodeCPU,
       ProviderSnapshotNodeGPU,
-      ProviderSnapshotStorage
+      ProviderSnapshotStorage,
+      BmeLedgerRecord,
+      BmeRawEvent,
+      BmeStatusChange
     ]
   },
   akashTestnet: {
@@ -111,7 +117,10 @@ export const chainDefinitions: { [key: string]: ChainDef } = {
       ProviderSnapshotNode,
       ProviderSnapshotNodeCPU,
       ProviderSnapshotNodeGPU,
-      ProviderSnapshotStorage
+      ProviderSnapshotStorage,
+      BmeLedgerRecord,
+      BmeRawEvent,
+      BmeStatusChange
     ]
   },
   akashSandbox: {
@@ -144,7 +153,10 @@ export const chainDefinitions: { [key: string]: ChainDef } = {
       ProviderSnapshotNode,
       ProviderSnapshotNodeCPU,
       ProviderSnapshotNodeGPU,
-      ProviderSnapshotStorage
+      ProviderSnapshotStorage,
+      BmeLedgerRecord,
+      BmeRawEvent,
+      BmeStatusChange
     ]
   }
 };

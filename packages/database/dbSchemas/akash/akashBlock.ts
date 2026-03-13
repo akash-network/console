@@ -65,4 +65,32 @@ export class AkashBlock extends Block {
    * Total amount of active providers at current block height
    */
   @Column activeProviderCount?: number;
+  /**
+   * Cumulative uakt burned to mint ACT via BME
+   */
+  @Column(DataTypes.DOUBLE) totalAktBurnedForAct?: number;
+  /**
+   * Cumulative uact minted from AKT burns via BME
+   */
+  @Column(DataTypes.DOUBLE) totalActMinted?: number;
+  /**
+   * Cumulative uact burned to remint AKT via BME
+   */
+  @Column(DataTypes.DOUBLE) totalActBurnedForAkt?: number;
+  /**
+   * Cumulative uakt reminted from ACT burns via BME
+   */
+  @Column(DataTypes.DOUBLE) totalAktReminted?: number;
+  /**
+   * Cumulative uakt seeded into BME vault via governance
+   */
+  @Column(DataTypes.DOUBLE) totalVaultSeeded?: number;
+  /**
+   * Cumulative remint credits issued via BME
+   */
+  @Column(DataTypes.DOUBLE) totalRemintCreditIssued?: number;
+  /**
+   * Cumulative remint credits used via BME
+   */
+  @Column(DataTypes.DOUBLE) totalRemintCreditAccrued?: number;
 }

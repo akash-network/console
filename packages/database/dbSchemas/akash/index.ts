@@ -11,6 +11,9 @@ export { ProviderAttributeSignature } from "./providerAttributeSignature";
 export { Lease } from "./lease";
 export { DeploymentGroupResource } from "./deploymentGroupResource";
 export { Bid } from "./bid";
+export { BmeLedgerRecord } from "./bmeLedgerRecord";
+export { BmeRawEvent } from "./bmeRawEvent";
+export { BmeStatusChange } from "./bmeStatusChange";
 
 // Overrides
 export { AkashBlock } from "./akashBlock";
