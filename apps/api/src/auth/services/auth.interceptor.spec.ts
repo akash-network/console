@@ -13,12 +13,12 @@ import { UserAuthTokenService } from "./user-auth-token/user-auth-token.service"
 import { AuthInterceptor } from "./auth.interceptor";
 import { AuthService } from "./auth.service";
 
-import { UserSeeder } from "@test/seeders/user.seeder";
+import { createUser } from "@test/seeders/user.seeder";
 
 describe(AuthInterceptor.name, () => {
   describe("Regular user", () => {
     it("marks user as active once per 30 minutes", async () => {
-      const { di, callInterceptor } = setup({ user: UserSeeder.create() });
+      const { di, callInterceptor } = setup({ user: createUser() });
 
       await Promise.all([callInterceptor(), callInterceptor()]);
       await callInterceptor();
@@ -28,7 +28,7 @@ describe(AuthInterceptor.name, () => {
     });
 
     it("marks user as active again after 30 minutes", async () => {
-      const { di, callInterceptor } = setup({ user: UserSeeder.create() });
+      const { di, callInterceptor } = setup({ user: createUser() });
 
       await callInterceptor();
       await callInterceptor();
@@ -82,7 +82,7 @@ describe(AuthInterceptor.name, () => {
 
   describe("API key user", () => {
     it("marks user and its api key as active once per 30 minutes", async () => {
-      const { di, callInterceptor } = setup({ apiKey: "123", user: UserSeeder.create() });
+      const { di, callInterceptor } = setup({ apiKey: "123", user: createUser() });
 
       await Promise.all([callInterceptor(), callInterceptor()]);
       await callInterceptor();
@@ -93,7 +93,7 @@ describe(AuthInterceptor.name, () => {
     });
 
     it("marks user and its api key as active again after 30 minutes", async () => {
-      const { di, callInterceptor } = setup({ apiKey: "123", user: UserSeeder.create() });
+      const { di, callInterceptor } = setup({ apiKey: "123", user: createUser() });
 
       await callInterceptor();
       await callInterceptor();
@@ -121,8 +121,8 @@ describe(AuthInterceptor.name, () => {
     di.registerInstance(
       UserRepository,
       mock<UserRepository>({
-        findByUserId: jest.fn().mockImplementation(async () => input?.user ?? UserSeeder.create()),
-        findById: jest.fn().mockImplementation(async () => input?.user ?? UserSeeder.create()),
+        findByUserId: jest.fn().mockImplementation(async () => input?.user ?? createUser()),
+        findById: jest.fn().mockImplementation(async () => input?.user ?? createUser()),
         markAsActive: jest.fn()
       })
     );

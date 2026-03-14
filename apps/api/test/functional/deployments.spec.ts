@@ -25,7 +25,7 @@ import { createDeployment } from "@test/seeders/deployment.seeder";
 import { DeploymentInfoSeeder } from "@test/seeders/deployment-info.seeder";
 import { LeaseApiResponseSeeder } from "@test/seeders/lease-api-response.seeder";
 import { LeaseStatusSeeder } from "@test/seeders/lease-status.seeder";
-import { UserSeeder } from "@test/seeders/user.seeder";
+import { createUser } from "@test/seeders/user.seeder";
 import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
 
 describe("Deployments API", () => {
@@ -112,7 +112,7 @@ describe("Deployments API", () => {
   async function mockUser() {
     const userId = faker.string.uuid();
     const userApiKeySecret = faker.word.noun();
-    const user = UserSeeder.create({ userId });
+    const user = createUser({ userId });
     const apiKey = ApiKeySeeder.create({ userId });
     const wallets = [UserWalletSeeder.create({ userId, address: "akash13265twfqejnma6cc93rw5dxk4cldyz2zyy8cdm" })];
 

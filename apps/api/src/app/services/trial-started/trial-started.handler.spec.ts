@@ -11,7 +11,7 @@ import { startTrialNotification } from "@src/notifications/services/notification
 import type { UserRepository } from "@src/user/repositories";
 import { TrialStartedHandler } from "./trial-started.handler";
 
-import { UserSeeder } from "@test/seeders/user.seeder";
+import { createUser } from "@test/seeders/user.seeder";
 import { mockConfig } from "@test/services/mock-config.service";
 
 describe(TrialStartedHandler.name, () => {
@@ -30,7 +30,7 @@ describe(TrialStartedHandler.name, () => {
     });
 
     it("does not send start trial notification when user has no email but enqueues notification jobs", async () => {
-      const user = UserSeeder.create({
+      const user = createUser({
         id: "user-123",
         email: null,
         emailVerified: false,
@@ -53,7 +53,7 @@ describe(TrialStartedHandler.name, () => {
     it("sends start trial notification when user has email and enqueues notification jobs", async () => {
       const USER_CREATED_AT = new Date("2025-09-22T07:58:47.770Z");
       const TRIAL_ENDS_AT = "2025-10-22T07:58:47.770Z";
-      const user = UserSeeder.create({
+      const user = createUser({
         id: "user-123",
         email: "user@example.com",
         emailVerified: true,
@@ -92,7 +92,7 @@ describe(TrialStartedHandler.name, () => {
     });
 
     it("enqueues all notification jobs with correct timing and data", async () => {
-      const user = UserSeeder.create({
+      const user = createUser({
         id: "user-123",
         email: "user@example.com",
         emailVerified: true,
@@ -168,7 +168,7 @@ describe(TrialStartedHandler.name, () => {
     });
 
     it("handles different trial expiration days configuration", async () => {
-      const user = UserSeeder.create({
+      const user = createUser({
         id: "user-123",
         email: "user@example.com",
         emailVerified: true,

@@ -6,7 +6,7 @@ import type { NotificationDataResolvers } from "@src/notifications/providers/not
 import type { UserOutput } from "@src/user/repositories";
 import { NotificationDataResolverService, RESOLVED_MARKER } from "./notification-data-resolver.service";
 
-import { UserSeeder } from "@test/seeders/user.seeder";
+import { createUser } from "@test/seeders/user.seeder";
 
 describe(NotificationDataResolverService.name, () => {
   it("returns undefined when vars is undefined", async () => {
@@ -25,7 +25,7 @@ describe(NotificationDataResolverService.name, () => {
       activeDeployments: { resolve: jest.fn().mockResolvedValue(activeDeployments) }
     };
     const { service } = setup({ resolvers });
-    const user = UserSeeder.create();
+    const user = createUser();
     const vars = {
       paymentLink: faker.internet.url(),
       trialEndsAt: "2023-11-13T12:00:00Z",
@@ -49,7 +49,7 @@ describe(NotificationDataResolverService.name, () => {
 
   it("logs error and skips resolution for unknown resolver", async () => {
     const { service, logger } = setup();
-    const user = UserSeeder.create();
+    const user = createUser();
     const vars = {
       paymentLink: faker.internet.url(),
       unknownField: RESOLVED_MARKER
@@ -73,7 +73,7 @@ describe(NotificationDataResolverService.name, () => {
         optionalField: { resolve: resolver }
       }
     });
-    const user = UserSeeder.create();
+    const user = createUser();
     const vars = {
       paymentLink: faker.internet.url(),
       optionalField: RESOLVED_MARKER
@@ -96,7 +96,7 @@ describe(NotificationDataResolverService.name, () => {
         failingField: { resolve: resolver }
       }
     });
-    const user = UserSeeder.create();
+    const user = createUser();
     const vars = {
       paymentLink: faker.internet.url(),
       failingField: RESOLVED_MARKER

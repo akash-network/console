@@ -13,7 +13,7 @@ import { trialEndedNotification } from "../notification-templates/trial-ended-no
 import type { NotificationJob } from "./notification.handler";
 import { NotificationHandler } from "./notification.handler";
 
-import { UserSeeder } from "@test/seeders/user.seeder";
+import { createUser } from "@test/seeders/user.seeder";
 
 describe(NotificationHandler.name, () => {
   it("logs error and returns early for unknown notification template", async () => {
@@ -56,7 +56,7 @@ describe(NotificationHandler.name, () => {
   });
 
   it("logs warning and returns early when user has no email", async () => {
-    const user = UserSeeder.create({
+    const user = createUser({
       id: "user-123",
       email: null
     });
@@ -84,7 +84,7 @@ describe(NotificationHandler.name, () => {
   });
 
   it("returns early when conditions are not met", async () => {
-    const user = UserSeeder.create({
+    const user = createUser({
       id: "user-123",
       email: "user@example.com",
       trial: false
@@ -109,7 +109,7 @@ describe(NotificationHandler.name, () => {
   });
 
   it("creates notification when conditions are met", async () => {
-    const user = UserSeeder.create({
+    const user = createUser({
       id: "user-123",
       email: "user@example.com",
       trial: true
@@ -135,7 +135,7 @@ describe(NotificationHandler.name, () => {
   });
 
   it("creates notification when no conditions are provided", async () => {
-    const user = UserSeeder.create({
+    const user = createUser({
       id: "user-123",
       email: "user@example.com"
     });
@@ -172,7 +172,7 @@ describe(NotificationHandler.name, () => {
 
     jest.useFakeTimers({ now: currentDate });
 
-    const user = UserSeeder.create({
+    const user = createUser({
       id: "user-123",
       email: "user@example.com",
       createdAt: createdDate,
@@ -206,7 +206,7 @@ describe(NotificationHandler.name, () => {
   });
 
   it("creates afterTrialEnds notification", async () => {
-    const user = UserSeeder.create({
+    const user = createUser({
       id: "user-123",
       email: "user@example.com",
       trial: true
@@ -232,7 +232,7 @@ describe(NotificationHandler.name, () => {
   });
 
   it("handles complex conditions with multiple properties", async () => {
-    const user = UserSeeder.create({
+    const user = createUser({
       id: "user-123",
       email: "user@example.com",
       trial: true,
@@ -263,7 +263,7 @@ describe(NotificationHandler.name, () => {
   });
 
   it("returns early when complex conditions are not met", async () => {
-    const user = UserSeeder.create({
+    const user = createUser({
       id: "user-123",
       email: "user@example.com",
       trial: true,
