@@ -5,12 +5,12 @@ import type { BalancesService } from "@src/billing/services/balances/balances.se
 import type { LoggerService } from "@src/core/providers/logging.provider";
 import { RemainingCreditsService } from "./remaining-credits.service";
 
-import { UserSeeder } from "@test/seeders/user.seeder";
+import { createUser } from "@test/seeders/user.seeder";
 import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
 
 describe(RemainingCreditsService.name, () => {
   it("returns remaining credits when user has wallet", async () => {
-    const user = UserSeeder.create();
+    const user = createUser();
     const remainingCreditsInUusdc = 100_000_000;
     const expectedCreditsInUsdc = 100;
 
@@ -28,7 +28,7 @@ describe(RemainingCreditsService.name, () => {
   });
 
   it("throws error when user has no wallet", async () => {
-    const user = UserSeeder.create();
+    const user = createUser();
 
     const { service, userWalletRepository, logger } = setup({
       findOneByUserId: jest.fn().mockResolvedValue(null)
@@ -44,7 +44,7 @@ describe(RemainingCreditsService.name, () => {
   });
 
   it("throws error when user wallet has no address", async () => {
-    const user = UserSeeder.create();
+    const user = createUser();
 
     const userWallet = UserWalletSeeder.create({ address: null });
     const { service, userWalletRepository, logger } = setup({

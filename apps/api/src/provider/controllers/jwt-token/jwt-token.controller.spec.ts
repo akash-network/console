@@ -2,7 +2,7 @@ import { faker } from "@faker-js/faker";
 import { Ok } from "ts-results";
 import { mock } from "vitest-mock-extended";
 
-import { UserSeeder } from "../../../../test/seeders/user.seeder";
+import { createUser } from "../../../../test/seeders/user.seeder";
 import { UserWalletSeeder } from "../../../../test/seeders/user-wallet.seeder";
 import type { AuthService } from "../../../auth/services/auth.service";
 import type { UserWalletRepository } from "../../../billing/repositories";
@@ -14,7 +14,7 @@ import { JwtTokenController } from "./jwt-token.controller";
 describe(JwtTokenController.name, () => {
   describe("createJwtToken", () => {
     it("creates JWT token successfully when user has wallet", async () => {
-      const user = UserSeeder.create();
+      const user = createUser();
       const { controller, authService, userWalletRepository, providerJwtTokenService, jwtToken, wallet } = setup({ user });
 
       authService.currentUser = user;
@@ -45,7 +45,7 @@ describe(JwtTokenController.name, () => {
     });
 
     it("returns BadRequestError when user has no wallet", async () => {
-      const user = UserSeeder.create();
+      const user = createUser();
       const { controller, authService, userWalletRepository } = setup({ user });
 
       authService.currentUser = user;

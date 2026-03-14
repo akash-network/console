@@ -25,7 +25,7 @@ import type { TxManagerService } from "../tx-manager/tx-manager.service";
 import { ManagedSignerService } from "./managed-signer.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
-import { UserSeeder } from "@test/seeders/user.seeder";
+import { createUser } from "@test/seeders/user.seeder";
 import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
 
 describe(ManagedSignerService.name, () => {
@@ -55,7 +55,7 @@ describe(ManagedSignerService.name, () => {
 
     it("throws 402 error when userWallet has no fee allowance", async () => {
       const wallet = UserWalletSeeder.create({ userId: "user-123", feeAllowance: 0 });
-      const user = UserSeeder.create({ userId: "user-123" });
+      const user = createUser({ userId: "user-123" });
       const { service } = setup({
         findOneByUserId: jest.fn().mockResolvedValue(wallet),
         findById: jest.fn().mockResolvedValue(user),
@@ -71,7 +71,7 @@ describe(ManagedSignerService.name, () => {
         feeAllowance: 100,
         deploymentAllowance: 0
       });
-      const user = UserSeeder.create({ userId: "user-123" });
+      const user = createUser({ userId: "user-123" });
       const deploymentMessage: EncodeObject = {
         typeUrl: MsgCreateDeployment.$type,
         value: MsgCreateDeployment.fromPartial({})
@@ -92,7 +92,7 @@ describe(ManagedSignerService.name, () => {
         feeAllowance: 100,
         deploymentAllowance: 100
       });
-      const user = UserSeeder.create({ userId: "user-123" });
+      const user = createUser({ userId: "user-123" });
       const messages: EncodeObject[] = [
         {
           typeUrl: MsgCreateLease.$type,
@@ -128,7 +128,7 @@ describe(ManagedSignerService.name, () => {
         feeAllowance: 100,
         deploymentAllowance: 100
       });
-      const user = UserSeeder.create({ userId: "user-123" });
+      const user = createUser({ userId: "user-123" });
       const messages: EncodeObject[] = [
         {
           typeUrl: MsgCreateLease.$type,
@@ -173,7 +173,7 @@ describe(ManagedSignerService.name, () => {
         deploymentAllowance: 100,
         isTrialing: true
       });
-      const user = UserSeeder.create({ userId: "user-123" });
+      const user = createUser({ userId: "user-123" });
       const deploymentMessage: EncodeObject = {
         typeUrl: MsgCreateLease.$type,
         value: MsgCreateLease.fromPartial({
@@ -238,7 +238,7 @@ describe(ManagedSignerService.name, () => {
         feeAllowance: 100,
         deploymentAllowance: 100
       });
-      const user = UserSeeder.create({ userId: "user-123" });
+      const user = createUser({ userId: "user-123" });
       const messages: EncodeObject[] = [
         {
           typeUrl: MsgCreateLease.$type,
@@ -264,7 +264,7 @@ describe(ManagedSignerService.name, () => {
     });
 
     it("uses current user when userId matches auth currentUser", async () => {
-      const currentUser = UserSeeder.create({ userId: "user-123" });
+      const currentUser = createUser({ userId: "user-123" });
       const wallet = UserWalletSeeder.create({ userId: "user-123", feeAllowance: 100 });
       const messages: EncodeObject[] = [
         {
@@ -300,7 +300,7 @@ describe(ManagedSignerService.name, () => {
         deploymentAllowance: 100,
         isTrialing: false
       });
-      const user = UserSeeder.create({ userId: "user-123" });
+      const user = createUser({ userId: "user-123" });
       const messages: EncodeObject[] = [
         {
           typeUrl: MsgCreateLease.$type,
@@ -337,7 +337,7 @@ describe(ManagedSignerService.name, () => {
         deploymentAllowance: 100,
         isTrialing: true
       });
-      const user = UserSeeder.create({ userId: "user-123" });
+      const user = createUser({ userId: "user-123" });
       const messages: EncodeObject[] = [
         {
           typeUrl: MsgCreateLease.$type,
@@ -375,7 +375,7 @@ describe(ManagedSignerService.name, () => {
         feeAllowance: 100,
         deploymentAllowance: 100
       });
-      const user = UserSeeder.create({ userId: "user-123" });
+      const user = createUser({ userId: "user-123" });
       const deploymentMessage = {
         typeUrl: MsgCreateDeployment.$type,
         value: Buffer.from(JSON.stringify({ id: { dseq: "123", owner: wallet.address } })).toString("base64")
@@ -403,7 +403,7 @@ describe(ManagedSignerService.name, () => {
         userId: "user-123",
         feeAllowance: 100
       });
-      const user = UserSeeder.create({ userId: "user-123" });
+      const user = createUser({ userId: "user-123" });
       const depositMessage = {
         typeUrl: MsgAccountDeposit.$type,
         value: Buffer.from(JSON.stringify({ owner: wallet.address, amount: "1000" })).toString("base64")
@@ -432,7 +432,7 @@ describe(ManagedSignerService.name, () => {
         feeAllowance: 100,
         deploymentAllowance: 100
       });
-      const user = UserSeeder.create({ userId: "user-123" });
+      const user = createUser({ userId: "user-123" });
       const leaseMessage = {
         typeUrl: MsgCreateLease.$type,
         value: Buffer.from(JSON.stringify({ bidId: { dseq: "123" } })).toString("base64")
@@ -488,7 +488,7 @@ describe(ManagedSignerService.name, () => {
   describe("executeDerivedDecodedTxByUserId - result without hash", () => {
     it("returns result as-is when hash is empty", async () => {
       const wallet = UserWalletSeeder.create({ userId: "user-123", feeAllowance: 100, deploymentAllowance: 100 });
-      const user = UserSeeder.create({ userId: "user-123" });
+      const user = createUser({ userId: "user-123" });
       const messages: EncodeObject[] = [{ typeUrl: MsgCreateLease.$type, value: MsgCreateLease.fromPartial({ bidId: { dseq: 123 } }) }];
 
       const { service } = setup({
@@ -540,7 +540,7 @@ describe(ManagedSignerService.name, () => {
         retrieveDeploymentLimit: input?.retrieveDeploymentLimit ?? jest.fn().mockResolvedValue(5000000)
       }),
       authService: mock<AuthService>({
-        currentUser: input?.currentUser ?? UserSeeder.create({ userId: "current-user" }),
+        currentUser: input?.currentUser ?? createUser({ userId: "current-user" }),
         ability: createMongoAbility<MongoAbility>()
       }),
       chainErrorService: mock<ChainErrorService>({

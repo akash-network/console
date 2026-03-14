@@ -5,7 +5,7 @@ import { AuthService } from "@src/auth/services/auth.service";
 import type { WalletSettingService } from "@src/billing/services/wallet-settings/wallet-settings.service";
 import { WalletSettingController } from "./wallet-settings.controller";
 
-import { UserSeeder } from "@test/seeders/user.seeder";
+import { createUser } from "@test/seeders/user.seeder";
 import { generateWalletSetting } from "@test/seeders/wallet-setting.seeder";
 
 describe(WalletSettingController.name, () => {
@@ -84,7 +84,7 @@ describe(WalletSettingController.name, () => {
   });
 
   function setup() {
-    const user = UserSeeder.create();
+    const user = createUser();
     const walletSetting = generateWalletSetting({
       userId: user.id
     });
