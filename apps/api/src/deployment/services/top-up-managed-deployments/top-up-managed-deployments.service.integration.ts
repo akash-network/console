@@ -13,7 +13,7 @@ import { TopUpManagedDeploymentsService } from "./top-up-managed-deployments.ser
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { DeploymentInfoSeeder } from "@test/seeders/deployment-info.seeder";
-import { LeaseApiResponseSeeder } from "@test/seeders/lease-api-response.seeder";
+import { createLeaseApiResponse } from "@test/seeders/lease-api-response.seeder";
 
 const CURRENT_HEIGHT = 1000000;
 const CLOSED_HEIGHT = String(CURRENT_HEIGHT - 500);
@@ -201,7 +201,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
   });
 
   function createActiveLease(owner: string, dseq: string) {
-    return LeaseApiResponseSeeder.create({
+    return createLeaseApiResponse({
       owner,
       dseq,
       state: "active",
@@ -210,7 +210,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
   }
 
   function createClosedLease(owner: string, dseq: string) {
-    return LeaseApiResponseSeeder.create({
+    return createLeaseApiResponse({
       owner,
       dseq,
       state: "closed",
@@ -305,7 +305,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
       return results[0];
     }
 
-    function mockLeasesForOwner(owner: string, leases: ReturnType<typeof LeaseApiResponseSeeder.create>[]) {
+    function mockLeasesForOwner(owner: string, leases: ReturnType<typeof createLeaseApiResponse>[]) {
       nock(apiNodeUrl)
         .get("/akash/market/v1beta5/leases/list")
         .query(query => query["filters.owner"] === owner)
