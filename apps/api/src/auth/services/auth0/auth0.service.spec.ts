@@ -5,13 +5,13 @@ import { mock } from "vitest-mock-extended";
 import type { AuthConfigService } from "@src/auth/services/auth-config/auth-config.service";
 import { Auth0Service } from "./auth0.service";
 
-import { Auth0UserSeeder } from "@test/seeders";
+import { createAuth0User } from "@test/seeders";
 
 describe(Auth0Service.name, () => {
   describe("getUserByEmail", () => {
     it("should return user when user is found", async () => {
       const email = faker.internet.email();
-      const mockUser: Partial<GetUsers200ResponseOneOfInner> = Auth0UserSeeder.create({
+      const mockUser: Partial<GetUsers200ResponseOneOfInner> = createAuth0User({
         email: email,
         email_verified: true
       });
@@ -42,11 +42,11 @@ describe(Auth0Service.name, () => {
     it("should return first user when multiple users are found", async () => {
       const email = faker.internet.email();
       const mockUsers: Partial<GetUsers200ResponseOneOfInner>[] = [
-        Auth0UserSeeder.create({
+        createAuth0User({
           email,
           email_verified: true
         }),
-        Auth0UserSeeder.create({
+        createAuth0User({
           email,
           email_verified: false
         })

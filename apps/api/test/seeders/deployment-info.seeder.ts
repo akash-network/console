@@ -3,7 +3,7 @@ import { faker } from "@faker-js/faker";
 import type { RestAkashDeploymentInfoResponse } from "@src/types/rest";
 import { deploymentVersion } from "@src/utils/constants";
 import { createAkashAddress } from "./akash-address.seeder";
-import { DenomSeeder } from "./denom.seeder";
+import { createDenom } from "./denom.seeder";
 
 export interface DeploymentInfoSeederInput {
   owner?: string;
@@ -30,7 +30,7 @@ export class DeploymentInfoSeeder {
       version = deploymentVersion,
       createdAt = "2021-01-01T00:00:00Z",
       amount = "5000000",
-      denom = DenomSeeder.create()
+      denom = createDenom()
     } = input;
 
     return {

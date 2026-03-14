@@ -4,18 +4,16 @@ import { merge } from "lodash";
 
 import type { GetBalancesResponseOutput } from "@src/billing/http-schemas/balance.schema";
 
-import { DenomSeeder } from "@test/seeders/denom.seeder";
+import { createDenom } from "@test/seeders/denom.seeder";
 
-export class BalanceSeeder {
-  static create(input: Partial<Balance> = {}): Balance {
-    return merge(
-      {
-        denom: DenomSeeder.create(),
-        amount: faker.number.int({ min: 0, max: 10000000 }).toString()
-      },
-      input
-    );
-  }
+export function createBalance(input: Partial<Balance> = {}): Balance {
+  return merge(
+    {
+      denom: createDenom(),
+      amount: faker.number.int({ min: 0, max: 10000000 }).toString()
+    },
+    input
+  );
 }
 
 export function generateBalance(overrides: Partial<GetBalancesResponseOutput["data"]> = {}): GetBalancesResponseOutput["data"] {

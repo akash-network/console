@@ -20,7 +20,7 @@ import type { UserOutput } from "@src/user/repositories";
 import { UserRepository } from "@src/user/repositories";
 import { deploymentVersion, marketVersion } from "@src/utils/constants";
 
-import { ApiKeySeeder } from "@test/seeders/api-key.seeder";
+import { createApiKey } from "@test/seeders/api-key.seeder";
 import { createDeployment } from "@test/seeders/deployment.seeder";
 import { DeploymentInfoSeeder } from "@test/seeders/deployment-info.seeder";
 import { LeaseApiResponseSeeder } from "@test/seeders/lease-api-response.seeder";
@@ -113,7 +113,7 @@ describe("Deployments API", () => {
     const userId = faker.string.uuid();
     const userApiKeySecret = faker.word.noun();
     const user = UserSeeder.create({ userId });
-    const apiKey = ApiKeySeeder.create({ userId });
+    const apiKey = createApiKey({ userId });
     const wallets = [UserWalletSeeder.create({ userId, address: "akash13265twfqejnma6cc93rw5dxk4cldyz2zyy8cdm" })];
 
     currentUser = user;
