@@ -13,7 +13,7 @@ import { POSTGRES_DB, resolveTable } from "@src/core";
 import { UserRepository } from "@src/user/repositories";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
-import { DeploymentGrantResponseSeeder } from "@test/seeders/deployment-grant-response.seeder";
+import { createDeploymentGrantResponseSeed } from "@test/seeders/deployment-grant-response.seeder";
 import { FeeAllowanceResponseSeeder } from "@test/seeders/fee-allowance-response.seeder";
 
 describe("Wallets Refill", () => {
@@ -56,7 +56,7 @@ describe("Wallets Refill", () => {
     nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
       .persist()
       .get(/\/cosmos\/authz\/v1beta1\/grants\?.*/)
-      .reply(200, DeploymentGrantResponseSeeder.create({ amount: String(config.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT) }));
+      .reply(200, createDeploymentGrantResponseSeed({ amount: String(config.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT) }));
 
     const NUMBER_OF_WALLETS = 5;
     return Promise.all(

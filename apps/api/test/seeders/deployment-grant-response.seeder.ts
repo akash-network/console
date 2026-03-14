@@ -8,30 +8,28 @@ export interface DeploymentGrantResponseSeederInput {
   grantType?: string;
 }
 
-export class DeploymentGrantResponseSeeder {
-  static create(input: DeploymentGrantResponseSeederInput = {}) {
-    return merge(
-      {
-        grants: [
-          {
-            granter: input.granter || "akash1testmasterwalletaddress",
-            grantee: input.grantee || "akash1testwalletaddress",
-            authorization: {
-              "@type": input.grantType || "/akash.escrow.v1.MsgAccountDeposit",
-              spend_limit: {
-                denom: "uakt",
-                amount: input.amount || "5000000"
-              }
-            },
-            expiration: faker.date.future().toISOString()
-          }
-        ],
-        pagination: {
-          next_key: null,
-          total: "1"
+export function createDeploymentGrantResponseSeed(input: DeploymentGrantResponseSeederInput = {}) {
+  return merge(
+    {
+      grants: [
+        {
+          granter: input.granter || "akash1testmasterwalletaddress",
+          grantee: input.grantee || "akash1testwalletaddress",
+          authorization: {
+            "@type": input.grantType || "/akash.escrow.v1.MsgAccountDeposit",
+            spend_limit: {
+              denom: "uakt",
+              amount: input.amount || "5000000"
+            }
+          },
+          expiration: faker.date.future().toISOString()
         }
-      },
-      input
-    );
-  }
+      ],
+      pagination: {
+        next_key: null,
+        total: "1"
+      }
+    },
+    input
+  );
 }

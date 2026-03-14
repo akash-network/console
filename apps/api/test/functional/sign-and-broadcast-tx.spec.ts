@@ -14,8 +14,8 @@ import { CORE_CONFIG } from "@src/core";
 import { app } from "@src/rest-app";
 import { certVersion, deploymentVersion } from "@src/utils/constants";
 
-import { DeploymentGrantResponseSeeder } from "@test/seeders/deployment-grant-response.seeder";
-import { DeploymentListResponseSeeder } from "@test/seeders/deployment-list-response.seeder";
+import { createDeploymentGrantResponseSeed } from "@test/seeders/deployment-grant-response.seeder";
+import { createDeploymentListResponseSeed } from "@test/seeders/deployment-list-response.seeder";
 import { FeeAllowanceResponseSeeder } from "@test/seeders/fee-allowance-response.seeder";
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
@@ -224,14 +224,14 @@ describe("Tx Sign", () => {
       .get(/\/cosmos\/authz\/v1beta1\/grants\?.*/)
       .reply(
         200,
-        DeploymentGrantResponseSeeder.create({
+        createDeploymentGrantResponseSeed({
           grantee: wallet.address,
           amount: input?.deploymentAllowance?.toString() ?? "0",
           grantType: "/akash.escrow.v1.DepositAuthorization"
         })
       )
       .get(/\/akash\/deployment\/.*\/deployments\/list\?.*/)
-      .reply(200, DeploymentListResponseSeeder.create({ owner: wallet.address }))
+      .reply(200, createDeploymentListResponseSeed({ owner: wallet.address }))
       .get("/cosmos/base/tendermint/v1beta1/blocks/latest")
       .reply(200, { block: { header: { height: Math.floor(Math.random() * 1000000).toString() } } });
 

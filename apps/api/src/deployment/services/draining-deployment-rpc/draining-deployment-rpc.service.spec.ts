@@ -8,7 +8,7 @@ import type { LoggerService } from "@src/core";
 import { DrainingDeploymentRpcService } from "./draining-deployment-rpc.service";
 
 import { createAkashAddress } from "@test/seeders";
-import { DeploymentListResponseSeeder } from "@test/seeders/deployment-list-response.seeder";
+import { createDeploymentListResponseSeed } from "@test/seeders/deployment-list-response.seeder";
 import { LeaseApiResponseSeeder } from "@test/seeders/lease-api-response.seeder";
 
 describe(DrainingDeploymentRpcService.name, () => {
@@ -220,7 +220,7 @@ describe(DrainingDeploymentRpcService.name, () => {
 
     const dseqs: string[] = [];
     const leases: ReturnType<typeof LeaseApiResponseSeeder.create>[] = [];
-    const deployments: ReturnType<typeof DeploymentListResponseSeeder.create>[] = [];
+    const deployments: ReturnType<typeof createDeploymentListResponseSeed>[] = [];
 
     inputs.forEach(input => {
       const dseq = input.deployment?.dseq ?? faker.string.numeric({ length: 6, allowLeadingZeros: false });
@@ -244,7 +244,7 @@ describe(DrainingDeploymentRpcService.name, () => {
         const funds = input.deployment.funds ?? 40000;
         const transferred = input.deployment.transferred ?? 20000;
 
-        const deployment = DeploymentListResponseSeeder.create(
+        const deployment = createDeploymentListResponseSeed(
           {
             owner,
             dseq,
