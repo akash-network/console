@@ -10,7 +10,7 @@ import type { CoreConfigService } from "@src/core/services/core-config/core-conf
 import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 
-import { ApiKeySeeder } from "@test/seeders/api-key.seeder";
+import { createApiKey } from "@test/seeders/api-key.seeder";
 
 const OBFUSCATED_API_KEY_PATTERN = /^ac\.sk\.test\.[A-Za-z0-9]{6}\*{3}[A-Za-z0-9]{6}$/;
 const FULL_API_KEY_PATTERN = /^ac\.sk\.test\.[A-Za-z0-9]{64}$/;
@@ -45,7 +45,7 @@ describe("API Keys", () => {
       const { user: user1, token, createUser } = await setup();
       const { token: token2 } = await createUser();
 
-      const key1 = ApiKeySeeder.create({
+      const key1 = createApiKey({
         userId: user1.id,
         name: "Test key 1"
       });
@@ -81,13 +81,13 @@ describe("API Keys", () => {
       const hashedKey2 = await apiKeyGenerator.hashApiKey(apiKey2);
       const obfuscatedKey2 = apiKeyGenerator.obfuscateApiKey(apiKey2);
 
-      const key1 = ApiKeySeeder.create({
+      const key1 = createApiKey({
         userId: user.id,
         name: "Test key 1",
         hashedKey,
         keyFormat: obfuscatedKey
       });
-      const key2 = ApiKeySeeder.create({
+      const key2 = createApiKey({
         userId: user.id,
         name: "Test key 2",
         hashedKey: hashedKey2,
