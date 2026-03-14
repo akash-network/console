@@ -14,7 +14,7 @@ import { DeploymentReaderService } from "./deployment-reader.service";
 
 import { createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
 import { createDeploymentListResponseSeed } from "@test/seeders/deployment-list-response.seeder";
-import { LeaseApiResponseSeeder } from "@test/seeders/lease-api-response.seeder";
+import { createLeaseApiResponse } from "@test/seeders/lease-api-response.seeder";
 import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
 
 describe(DeploymentReaderService.name, () => {
@@ -38,7 +38,7 @@ describe(DeploymentReaderService.name, () => {
       const wallet = UserWalletSeeder.create() as WalletInitialized;
       const dseq = "12345";
       const deploymentInfo = createDeploymentInfoSeed({ owner: wallet.address, dseq });
-      const lease = LeaseApiResponseSeeder.create({ owner: wallet.address, dseq, state: "active" });
+      const lease = createLeaseApiResponse({ owner: wallet.address, dseq, state: "active" });
       const { service, leaseHttpService, fallbackLeaseReaderService } = setup({
         fallbackDeploymentInfo: deploymentInfo,
         fallbackLeases: [lease]
@@ -101,7 +101,7 @@ describe(DeploymentReaderService.name, () => {
       wallet?: WalletInitialized;
       fallbackDeploymentInfo?: ReturnType<typeof createDeploymentInfoSeed>;
       fallbackDeploymentList?: ReturnType<typeof createDeploymentListResponseSeed>;
-      fallbackLeases?: ReturnType<typeof LeaseApiResponseSeeder.create>[];
+      fallbackLeases?: ReturnType<typeof createLeaseApiResponse>[];
     } = {}
   ) {
     const defaultWallet = UserWalletSeeder.create() as WalletInitialized;

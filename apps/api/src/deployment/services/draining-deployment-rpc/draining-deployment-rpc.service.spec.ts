@@ -9,7 +9,7 @@ import { DrainingDeploymentRpcService } from "./draining-deployment-rpc.service"
 
 import { createAkashAddress } from "@test/seeders";
 import { createDeploymentListResponseSeed } from "@test/seeders/deployment-list-response.seeder";
-import { LeaseApiResponseSeeder } from "@test/seeders/lease-api-response.seeder";
+import { createLeaseApiResponse } from "@test/seeders/lease-api-response.seeder";
 
 describe(DrainingDeploymentRpcService.name, () => {
   describe("findManyByDseqAndOwner", () => {
@@ -219,8 +219,8 @@ describe(DrainingDeploymentRpcService.name, () => {
     const closureHeight = 1000000;
 
     const dseqs: string[] = [];
-    const leases: ReturnType<typeof LeaseApiResponseSeeder.create>[] = [];
     const deployments: ReturnType<typeof createDeploymentListResponseSeed>[] = [];
+    const leases: ReturnType<typeof createLeaseApiResponse>[] = [];
 
     inputs.forEach(input => {
       const dseq = input.deployment?.dseq ?? faker.string.numeric({ length: 6, allowLeadingZeros: false });
@@ -228,7 +228,7 @@ describe(DrainingDeploymentRpcService.name, () => {
 
       input.leases.forEach((lease, leaseIdx) => {
         leases.push(
-          LeaseApiResponseSeeder.create({
+          createLeaseApiResponse({
             owner,
             dseq,
             gseq: lease.gseq ?? leaseIdx,
