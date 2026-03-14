@@ -30,42 +30,40 @@ export interface LeaseStatusOutput {
   };
 }
 
-export class LeaseStatusSeeder {
-  static create(serviceName = "web"): LeaseStatusOutput {
-    return {
-      services: {
-        [serviceName]: {
-          name: serviceName,
-          available: 1,
-          total: 1,
-          uris: ["http://example.com"],
-          observed_generation: 1,
-          replicas: 1,
-          updated_replicas: 1,
-          ready_replicas: 1,
-          available_replicas: 1
-        }
-      },
-      forwarded_ports: {
-        [serviceName]: [
-          {
-            port: 80,
-            externalPort: 30000,
-            host: "example.com",
-            available: 1
-          }
-        ]
-      },
-      ips: {
-        [serviceName]: [
-          {
-            IP: "192.168.1.1",
-            Port: 80,
-            ExternalPort: 30000,
-            Protocol: "tcp"
-          }
-        ]
+export function createLeaseStatus(serviceName = "web"): LeaseStatusOutput {
+  return {
+    services: {
+      [serviceName]: {
+        name: serviceName,
+        available: 1,
+        total: 1,
+        uris: ["http://example.com"],
+        observed_generation: 1,
+        replicas: 1,
+        updated_replicas: 1,
+        ready_replicas: 1,
+        available_replicas: 1
       }
-    };
-  }
+    },
+    forwarded_ports: {
+      [serviceName]: [
+        {
+          port: 80,
+          externalPort: 30000,
+          host: "example.com",
+          available: 1
+        }
+      ]
+    },
+    ips: {
+      [serviceName]: [
+        {
+          IP: "192.168.1.1",
+          Port: 80,
+          ExternalPort: 30000,
+          Protocol: "tcp"
+        }
+      ]
+    }
+  };
 }

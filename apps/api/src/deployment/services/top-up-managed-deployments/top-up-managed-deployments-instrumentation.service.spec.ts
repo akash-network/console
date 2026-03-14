@@ -9,8 +9,8 @@ import { TopUpSummarizer } from "@src/deployment/lib/top-up-summarizer/top-up-su
 import type { DrainingDeployment } from "@src/deployment/types/draining-deployment";
 import { TopUpManagedDeploymentsInstrumentationService } from "./top-up-managed-deployments-instrumentation.service";
 
-import { AutoTopUpDeploymentSeeder } from "@test/seeders/auto-top-up-deployment.seeder";
-import { DrainingDeploymentSeeder } from "@test/seeders/draining-deployment.seeder";
+import { createAutoTopUpDeployment } from "@test/seeders/auto-top-up-deployment.seeder";
+import { createDrainingDeployment as createDrainingDeploymentSeed } from "@test/seeders/draining-deployment.seeder";
 
 describe(TopUpManagedDeploymentsInstrumentationService.name, () => {
   describe("finish", () => {
@@ -174,8 +174,8 @@ describe(TopUpManagedDeploymentsInstrumentationService.name, () => {
   });
 
   function createDrainingDeployment(overrides?: Partial<DrainingDeployment>): DrainingDeployment {
-    const base = AutoTopUpDeploymentSeeder.create(overrides);
-    const extra = DrainingDeploymentSeeder.create({ dseq: Number(base.dseq), owner: base.address });
+    const base = createAutoTopUpDeployment(overrides);
+    const extra = createDrainingDeploymentSeed({ dseq: Number(base.dseq), owner: base.address });
     return { ...base, ...extra, dseq: base.dseq, ...overrides } as DrainingDeployment;
   }
 

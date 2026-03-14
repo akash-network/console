@@ -15,7 +15,7 @@ import { UserRepository } from "@src/user/repositories";
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { createDeploymentGrantResponseSeed } from "@test/seeders/deployment-grant-response.seeder";
 import { createDeploymentListResponseSeed } from "@test/seeders/deployment-list-response.seeder";
-import { FeeAllowanceResponseSeeder } from "@test/seeders/fee-allowance-response.seeder";
+import { createFeeAllowanceResponse } from "@test/seeders/fee-allowance-response.seeder";
 import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
 
 const mockMasterWalletAddress = "akash1testmasterwalletaddress";
@@ -187,7 +187,7 @@ describe("Balances", () => {
       .get(/\/cosmos\/feegrant\/v1beta1\/allowance\/.*\/.*/)
       .reply(
         200,
-        FeeAllowanceResponseSeeder.create({
+        createFeeAllowanceResponse({
           granter: mockMasterWalletAddress,
           grantee: wallet.address || undefined,
           amount: "1000000"
