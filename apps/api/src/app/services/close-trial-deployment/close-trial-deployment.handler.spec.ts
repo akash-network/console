@@ -11,7 +11,7 @@ import type { DeploymentWriterService } from "@src/deployment/services/deploymen
 import { NotificationJob } from "@src/notifications/services/notification-handler/notification.handler";
 import { CloseTrialDeployment, CloseTrialDeploymentHandler } from "./close-trial-deployment.handler";
 
-import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
+import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 describe(CloseTrialDeploymentHandler.name, () => {
   it("logs warning and returns early when wallet is not found", async () => {
@@ -40,7 +40,7 @@ describe(CloseTrialDeploymentHandler.name, () => {
   });
 
   it("logs debug and returns early when wallet is not in trial", async () => {
-    const wallet = UserWalletSeeder.create({
+    const wallet = createUserWallet({
       id: 123,
       userId: "user-123",
       address: "akash1test",
@@ -73,7 +73,7 @@ describe(CloseTrialDeploymentHandler.name, () => {
   });
 
   it("closes deployment and enqueues notification when wallet is found and in trial", async () => {
-    const wallet = UserWalletSeeder.create({
+    const wallet = createUserWallet({
       id: 123,
       userId: "user-123",
       address: "akash1test",
@@ -118,7 +118,7 @@ describe(CloseTrialDeploymentHandler.name, () => {
   });
 
   it("logs debug and skips close and notification when deployment is already closed", async () => {
-    const wallet = UserWalletSeeder.create({
+    const wallet = createUserWallet({
       id: 123,
       userId: "user-123",
       address: "akash1test",
@@ -152,7 +152,7 @@ describe(CloseTrialDeploymentHandler.name, () => {
   });
 
   it("skips notification when close deployment fails", async () => {
-    const wallet = UserWalletSeeder.create({
+    const wallet = createUserWallet({
       id: 123,
       userId: "user-123",
       address: "akash1test",
@@ -179,7 +179,7 @@ describe(CloseTrialDeploymentHandler.name, () => {
   });
 
   it("logs error when find deployment returns an error", async () => {
-    const wallet = UserWalletSeeder.create({ id: 123, userId: "user-123", address: "akash1test", isTrialing: true });
+    const wallet = createUserWallet({ id: 123, userId: "user-123", address: "akash1test", isTrialing: true });
 
     const errorResponse = { code: "error_code", message: "Error message", details: "Error details" };
     const { handler, jobQueueService, logger } = setup({
@@ -208,7 +208,7 @@ describe(CloseTrialDeploymentHandler.name, () => {
   });
 
   it("logs error when find deployment returns an error", async () => {
-    const wallet = UserWalletSeeder.create({
+    const wallet = createUserWallet({
       id: 123,
       userId: "user-123",
       address: "akash1test",
@@ -251,7 +251,7 @@ describe(CloseTrialDeploymentHandler.name, () => {
         findById:
           input?.findWalletById ??
           vi.fn(async () =>
-            UserWalletSeeder.create({
+            createUserWallet({
               id: 123,
               userId: "user-123",
               address: "akash1test",

@@ -11,7 +11,7 @@ import { UserRepository } from "@src/user/repositories/user/user.repository";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { DrainingDeploymentSeeder } from "@test/seeders/draining-deployment.seeder";
-import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
+import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 describe("Deployment Settings", () => {
   const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
@@ -337,7 +337,7 @@ describe("Deployment Settings", () => {
     const walletAddress = createAkashAddress();
     const token = faker.string.alphanumeric(40);
 
-    const wallet = UserWalletSeeder.create({ userId: user.id, address: walletAddress });
+    const wallet = createUserWallet({ userId: user.id, address: walletAddress });
 
     vi.spyOn(userAuthTokenService, "getValidUserId").mockResolvedValue(user.userId);
     vi.spyOn(userWalletRepository, "accessibleBy").mockReturnValue(userWalletRepository);

@@ -15,13 +15,13 @@ import { WalletInitializerService } from "./wallet-initializer.service";
 
 import { createChainWallet } from "@test/seeders/chain-wallet.seeder";
 import { UserSeeder } from "@test/seeders/user.seeder";
-import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
+import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 describe(WalletInitializerService.name, () => {
   describe("initializeAndGrantTrialLimits", () => {
     it("creates a new wallet and authorizes trial spending when no wallet exists", async () => {
       const userId = "test-user-id";
-      const newWallet = UserWalletSeeder.create({ userId });
+      const newWallet = createUserWallet({ userId });
       const chainWallet = createChainWallet();
       const getOrCreateWallet = jest.fn().mockImplementation(async () => ({ wallet: newWallet, isNew: true }));
       const updateWalletById = jest.fn().mockImplementation(async () => newWallet);
@@ -50,7 +50,7 @@ describe(WalletInitializerService.name, () => {
 
     it("does not authorizes trial spending for existing wallet", async () => {
       const userId = "test-user-id";
-      const existingWallet = UserWalletSeeder.create({ userId });
+      const existingWallet = createUserWallet({ userId });
       const getOrCreateWallet = jest.fn().mockResolvedValue({ wallet: existingWallet, isNew: false });
 
       const di = setup({
@@ -66,7 +66,7 @@ describe(WalletInitializerService.name, () => {
 
     it("throws an error when cannot authorize trial spending and deletes user wallet", async () => {
       const userId = "test-user-id";
-      const newWallet = UserWalletSeeder.create({ userId });
+      const newWallet = createUserWallet({ userId });
       const getOrCreateWallet = jest.fn().mockImplementation(async () => ({ wallet: newWallet, isNew: true }));
       const deleteWalletById = jest.fn().mockImplementation(async () => null);
 
@@ -85,7 +85,7 @@ describe(WalletInitializerService.name, () => {
 
     it(`publishes "TrialStarted" event`, async () => {
       const userId = "test-user-id";
-      const newWallet = UserWalletSeeder.create({ userId });
+      const newWallet = createUserWallet({ userId });
       const chainWallet = createChainWallet();
       const getOrCreateWallet = jest.fn().mockImplementation(async () => ({ wallet: newWallet, isNew: true }));
       const updateWalletById = jest.fn().mockImplementation(async () => newWallet);

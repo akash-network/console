@@ -8,12 +8,12 @@ import { BalancesService } from "@src/billing/services/balances/balances.service
 import type { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import type { StatsService } from "@src/dashboard/services/stats/stats.service";
 
-import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
+import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 describe(BalancesService.name, () => {
   describe("refreshUserWalletLimits", () => {
     it("updates both limits and isTrialing when limits changed and endTrial is true", async () => {
-      const wallet = UserWalletSeeder.create({ isTrialing: true });
+      const wallet = createUserWallet({ isTrialing: true });
       const limitsUpdate: Partial<UserWalletInput> = { feeAllowance: 300, deploymentAllowance: 400 };
       const { service, userWalletRepository } = setup({ limitsUpdate });
 
@@ -27,7 +27,7 @@ describe(BalancesService.name, () => {
     });
 
     it("updates isTrialing even when limits are unchanged", async () => {
-      const wallet = UserWalletSeeder.create({ isTrialing: true });
+      const wallet = createUserWallet({ isTrialing: true });
       const { service, userWalletRepository } = setup({ limitsUpdate: {} });
 
       await service.refreshUserWalletLimits(wallet, { endTrial: true });
@@ -38,7 +38,7 @@ describe(BalancesService.name, () => {
     });
 
     it("does not update when limits are unchanged and endTrial is not set", async () => {
-      const wallet = UserWalletSeeder.create({ isTrialing: true });
+      const wallet = createUserWallet({ isTrialing: true });
       const { service, userWalletRepository } = setup({ limitsUpdate: {} });
 
       await service.refreshUserWalletLimits(wallet);
@@ -47,7 +47,7 @@ describe(BalancesService.name, () => {
     });
 
     it("updates limits only when limits changed and endTrial is not set", async () => {
-      const wallet = UserWalletSeeder.create({ isTrialing: true });
+      const wallet = createUserWallet({ isTrialing: true });
       const limitsUpdate: Partial<UserWalletInput> = { feeAllowance: 300, deploymentAllowance: 400 };
       const { service, userWalletRepository } = setup({ limitsUpdate });
 
@@ -60,7 +60,7 @@ describe(BalancesService.name, () => {
     });
 
     it("does not set isTrialing when wallet is not trialing", async () => {
-      const wallet = UserWalletSeeder.create({ isTrialing: false });
+      const wallet = createUserWallet({ isTrialing: false });
       const { service, userWalletRepository } = setup({ limitsUpdate: {} });
 
       await service.refreshUserWalletLimits(wallet, { endTrial: true });

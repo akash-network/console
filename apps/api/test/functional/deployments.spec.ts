@@ -26,7 +26,7 @@ import { DeploymentInfoSeeder } from "@test/seeders/deployment-info.seeder";
 import { LeaseApiResponseSeeder } from "@test/seeders/lease-api-response.seeder";
 import { LeaseStatusSeeder } from "@test/seeders/lease-status.seeder";
 import { UserSeeder } from "@test/seeders/user.seeder";
-import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
+import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 describe("Deployments API", () => {
   const userRepository = container.resolve(UserRepository);
@@ -114,7 +114,7 @@ describe("Deployments API", () => {
     const userApiKeySecret = faker.word.noun();
     const user = UserSeeder.create({ userId });
     const apiKey = ApiKeySeeder.create({ userId });
-    const wallets = [UserWalletSeeder.create({ userId, address: "akash13265twfqejnma6cc93rw5dxk4cldyz2zyy8cdm" })];
+    const wallets = [createUserWallet({ userId, address: "akash13265twfqejnma6cc93rw5dxk4cldyz2zyy8cdm" })];
 
     currentUser = user;
     knownUsers[userId] = user;
