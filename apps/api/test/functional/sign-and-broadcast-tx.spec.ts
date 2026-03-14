@@ -16,7 +16,7 @@ import { certVersion, deploymentVersion } from "@src/utils/constants";
 
 import { DeploymentGrantResponseSeeder } from "@test/seeders/deployment-grant-response.seeder";
 import { DeploymentListResponseSeeder } from "@test/seeders/deployment-list-response.seeder";
-import { FeeAllowanceResponseSeeder } from "@test/seeders/fee-allowance-response.seeder";
+import { createFeeAllowanceResponse } from "@test/seeders/fee-allowance-response.seeder";
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
 describe("Tx Sign", () => {
@@ -184,7 +184,7 @@ describe("Tx Sign", () => {
     nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
       .get(/\/cosmos\/feegrant\/v1beta1\/allowances\/.*/)
       .once()
-      .reply(200, { allowances: [FeeAllowanceResponseSeeder.create()] });
+      .reply(200, { allowances: [createFeeAllowanceResponse()] });
 
     const { user, token, wallet } = await walletService.createUserAndWallet();
 
@@ -220,7 +220,7 @@ describe("Tx Sign", () => {
     nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
       .persist()
       .get(/\/cosmos\/feegrant\/v1beta1\/allowance\/.*\/.*/)
-      .reply(200, FeeAllowanceResponseSeeder.create({ grantee: wallet.address, amount: "5000000" }))
+      .reply(200, createFeeAllowanceResponse({ grantee: wallet.address, amount: "5000000" }))
       .get(/\/cosmos\/authz\/v1beta1\/grants\?.*/)
       .reply(
         200,

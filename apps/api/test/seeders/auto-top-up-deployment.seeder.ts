@@ -3,21 +3,19 @@ import { faker } from "@faker-js/faker";
 import type { AutoTopUpDeployment } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { createAkashAddress } from "./akash-address.seeder";
 
-export class AutoTopUpDeploymentSeeder {
-  static create(overrides: Partial<AutoTopUpDeployment> = {}): AutoTopUpDeployment {
-    return {
-      id: faker.string.uuid(),
-      walletId: faker.number.int(),
-      dseq: faker.string.numeric(),
-      address: createAkashAddress(),
-      isWalletAutoTopUpEnabled: false,
-      walletIsTrialing: false,
-      walletCreatedAt: faker.date.recent(),
-      ...overrides
-    };
-  }
+export function createAutoTopUpDeployment(overrides: Partial<AutoTopUpDeployment> = {}): AutoTopUpDeployment {
+  return {
+    id: faker.string.uuid(),
+    walletId: faker.number.int(),
+    dseq: faker.string.numeric(),
+    address: createAkashAddress(),
+    isWalletAutoTopUpEnabled: false,
+    walletIsTrialing: false,
+    walletCreatedAt: faker.date.recent(),
+    ...overrides
+  };
+}
 
-  static createMany(count: number, overrides: Partial<AutoTopUpDeployment> = {}): AutoTopUpDeployment[] {
-    return Array.from({ length: count }, () => AutoTopUpDeploymentSeeder.create(overrides));
-  }
+export function createManyAutoTopUpDeployments(count: number, overrides: Partial<AutoTopUpDeployment> = {}): AutoTopUpDeployment[] {
+  return Array.from({ length: count }, () => createAutoTopUpDeployment(overrides));
 }

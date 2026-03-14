@@ -14,7 +14,7 @@ import { UserRepository } from "@src/user/repositories";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { DeploymentGrantResponseSeeder } from "@test/seeders/deployment-grant-response.seeder";
-import { FeeAllowanceResponseSeeder } from "@test/seeders/fee-allowance-response.seeder";
+import { createFeeAllowanceResponse } from "@test/seeders/fee-allowance-response.seeder";
 
 describe("Wallets Refill", () => {
   const managedUserWalletService = container.resolve(ManagedUserWalletService);
@@ -51,7 +51,7 @@ describe("Wallets Refill", () => {
     nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
       .persist()
       .get(/\/cosmos\/feegrant\/v1beta1\/allowance\/.*\/.*/)
-      .reply(200, FeeAllowanceResponseSeeder.create({ amount: String(config.FEE_ALLOWANCE_REFILL_AMOUNT) }));
+      .reply(200, createFeeAllowanceResponse({ amount: String(config.FEE_ALLOWANCE_REFILL_AMOUNT) }));
 
     nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
       .persist()

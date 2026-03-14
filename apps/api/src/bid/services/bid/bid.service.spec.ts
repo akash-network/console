@@ -10,7 +10,7 @@ import type { ProviderRepository } from "@src/provider/repositories/provider/pro
 import { BidService } from "./bid.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
-import { BidSeeder } from "@test/seeders/bid.seeder";
+import { createBid } from "@test/seeders/bid.seeder";
 import { createProviderSeed, createProviderWithAttributeSignatures } from "@test/seeders/provider.seeder";
 
 describe(BidService.name, () => {
@@ -21,7 +21,7 @@ describe(BidService.name, () => {
       });
 
       const userWallet = { address: faker.finance.ethereumAddress(), userId: 1 };
-      const mockBids = [BidSeeder.create(), BidSeeder.create(), BidSeeder.create()];
+      const mockBids = [createBid(), createBid(), createBid()];
 
       authService.ability = {} as unknown as AuthService["ability"];
       userWalletRepository.accessibleBy.mockReturnValue({
@@ -51,9 +51,9 @@ describe(BidService.name, () => {
       } as unknown as Provider;
 
       const mockBids = [
-        BidSeeder.create({ provider: auditedProvider1.owner }),
-        BidSeeder.create({ provider: auditedProvider2.owner }),
-        BidSeeder.create({ provider: unauditedProvider.owner })
+        createBid({ provider: auditedProvider1.owner }),
+        createBid({ provider: auditedProvider2.owner }),
+        createBid({ provider: unauditedProvider.owner })
       ];
 
       authService.ability = {} as unknown as AuthService["ability"];
@@ -92,7 +92,7 @@ describe(BidService.name, () => {
         providerAttributes: []
       } as unknown as Provider;
 
-      const mockBids = [BidSeeder.create({ provider: unauditedProvider1.owner }), BidSeeder.create({ provider: unauditedProvider2.owner })];
+      const mockBids = [createBid({ provider: unauditedProvider1.owner }), createBid({ provider: unauditedProvider2.owner })];
 
       authService.ability = {} as unknown as AuthService["ability"];
       userWalletRepository.accessibleBy.mockReturnValue({

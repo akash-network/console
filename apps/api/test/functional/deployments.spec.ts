@@ -24,7 +24,7 @@ import { ApiKeySeeder } from "@test/seeders/api-key.seeder";
 import { createDeployment } from "@test/seeders/deployment.seeder";
 import { DeploymentInfoSeeder } from "@test/seeders/deployment-info.seeder";
 import { LeaseApiResponseSeeder } from "@test/seeders/lease-api-response.seeder";
-import { LeaseStatusSeeder } from "@test/seeders/lease-status.seeder";
+import { createLeaseStatus } from "@test/seeders/lease-status.seeder";
 import { UserSeeder } from "@test/seeders/user.seeder";
 import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
 
@@ -95,7 +95,7 @@ describe("Deployments API", () => {
     });
 
     jest.spyOn(providerService, "sendManifest").mockResolvedValue(true);
-    jest.spyOn(providerService, "getLeaseStatus").mockResolvedValue(LeaseStatusSeeder.create());
+    jest.spyOn(providerService, "getLeaseStatus").mockResolvedValue(createLeaseStatus());
   });
 
   afterEach(async () => {
