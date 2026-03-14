@@ -12,7 +12,7 @@ import { UserRepository } from "@src/user/repositories";
 import { marketVersion } from "@src/utils/constants";
 
 import { createAkashAddress, createProvider } from "@test/seeders";
-import { BidSeeder } from "@test/seeders/bid.seeder";
+import { createBid } from "@test/seeders/bid.seeder";
 import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
 
 describe("Bids API", () => {
@@ -78,8 +78,8 @@ describe("Bids API", () => {
       })
       .reply(200, {
         bids: [
-          BidSeeder.create({ dseq, owner: wallet.address!, provider: providers[0].owner }),
-          BidSeeder.create({ dseq, owner: wallet.address!, provider: providers[1].owner })
+          createBid({ dseq, owner: wallet.address!, provider: providers[0].owner }),
+          createBid({ dseq, owner: wallet.address!, provider: providers[1].owner })
         ]
       });
 

@@ -10,7 +10,7 @@ import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
-import { DrainingDeploymentSeeder } from "@test/seeders/draining-deployment.seeder";
+import { createDrainingDeployment } from "@test/seeders/draining-deployment.seeder";
 import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
 
 describe("Deployment Settings", () => {
@@ -343,7 +343,7 @@ describe("Deployment Settings", () => {
     vi.spyOn(userWalletRepository, "accessibleBy").mockReturnValue(userWalletRepository);
     vi.spyOn(userWalletRepository, "findFirst").mockResolvedValue(wallet);
     vi.spyOn(userWalletRepository, "findOneByUserId").mockResolvedValue(wallet);
-    vi.spyOn(leaseRepository, "findOneByDseqAndOwner").mockResolvedValue(DrainingDeploymentSeeder.create());
+    vi.spyOn(leaseRepository, "findOneByDseqAndOwner").mockResolvedValue(createDrainingDeployment());
 
     return { user, token, wallet };
   }

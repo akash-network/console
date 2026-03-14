@@ -17,8 +17,8 @@ import { TopUpManagedDeploymentsService } from "./top-up-managed-deployments.ser
 import type { TopUpManagedDeploymentsInstrumentationService } from "./top-up-managed-deployments-instrumentation.service";
 
 import { createAkashAddress } from "@test/seeders";
-import { AutoTopUpDeploymentSeeder } from "@test/seeders/auto-top-up-deployment.seeder";
-import { DrainingDeploymentSeeder } from "@test/seeders/draining-deployment.seeder";
+import { createAutoTopUpDeployment, createManyAutoTopUpDeployments } from "@test/seeders/auto-top-up-deployment.seeder";
+import { createDrainingDeployment } from "@test/seeders/draining-deployment.seeder";
 
 describe(TopUpManagedDeploymentsService.name, () => {
   const DEPLOYMENT_GRANT_DENOM = "ibc/170C677610AC31DF0904FFE09CD3B5C657492170E7E52372E48756B71E56F2F1";
@@ -34,7 +34,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
   describe("topUpDeployments", () => {
     it("should top up draining deployments", async () => {
       const { service, drainingDeploymentService, cachedBalanceService, managedSignerService, instrumentation } = setup();
-      const deployments = AutoTopUpDeploymentSeeder.createMany(2);
+      const deployments = createManyAutoTopUpDeployments(2);
       const desiredAmount = faker.number.int({ min: 3500000, max: 4000000 });
       const sufficientAmount = faker.number.int({ min: 1000000, max: 2000000 });
       const predictedClosedHeight1 = CURRENT_BLOCK_HEIGHT + 1500;
@@ -49,7 +49,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
               }
               acc[deployment.address].push({
                 ...deployment,
-                ...DrainingDeploymentSeeder.create({
+                ...createDrainingDeployment({
                   dseq: Number(deployment.dseq),
                   owner: deployment.address,
                   predictedClosedHeight: index === 0 ? predictedClosedHeight1 : predictedClosedHeight2,
@@ -128,7 +128,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
     it("should handle errors and continue processing", async () => {
       const { service, drainingDeploymentService, cachedBalanceService, managedSignerService } = setup();
-      const deployments = AutoTopUpDeploymentSeeder.createMany(2);
+      const deployments = createManyAutoTopUpDeployments(2);
       const predictedClosedHeight = CURRENT_BLOCK_HEIGHT + 1500;
 
       drainingDeploymentService.findDrainingDeploymentsByOwner.mockImplementation(() =>
@@ -140,7 +140,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
               }
               acc[deployment.address].push({
                 ...deployment,
-                ...DrainingDeploymentSeeder.create({
+                ...createDrainingDeployment({
                   dseq: Number(deployment.dseq),
                   owner: deployment.address,
                   predictedClosedHeight
@@ -169,7 +169,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
     it("should not execute transactions in dry run mode", async () => {
       const { service, drainingDeploymentService, cachedBalanceService, managedSignerService } = setup();
-      const deployments = AutoTopUpDeploymentSeeder.createMany(2);
+      const deployments = createManyAutoTopUpDeployments(2);
       const predictedClosedHeight = CURRENT_BLOCK_HEIGHT + 1500;
 
       drainingDeploymentService.findDrainingDeploymentsByOwner.mockImplementation(() =>
@@ -181,7 +181,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
               }
               acc[deployment.address].push({
                 ...deployment,
-                ...DrainingDeploymentSeeder.create({
+                ...createDrainingDeployment({
                   dseq: Number(deployment.dseq),
                   owner: deployment.address,
                   predictedClosedHeight
@@ -219,7 +219,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
       const { service, drainingDeploymentService, cachedBalanceService, managedSignerService } = setup();
       const owner = createAkashAddress();
       const walletId = faker.number.int({ min: 1000000, max: 9999999 });
-      const deployments = [AutoTopUpDeploymentSeeder.create({ address: owner, walletId }), AutoTopUpDeploymentSeeder.create({ address: owner, walletId })];
+      const deployments = [createAutoTopUpDeployment({ address: owner, walletId }), createAutoTopUpDeployment({ address: owner, walletId })];
       const desiredAmount = faker.number.int({ min: 3500000, max: 4000000 });
       const sufficientAmount = faker.number.int({ min: 1000000, max: 2000000 });
       const predictedClosedHeight = CURRENT_BLOCK_HEIGHT + 1500;
@@ -233,7 +233,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
               }
               acc[deployment.address].push({
                 ...deployment,
-                ...DrainingDeploymentSeeder.create({
+                ...createDrainingDeployment({
                   dseq: Number(deployment.dseq),
                   owner: deployment.address,
                   predictedClosedHeight
@@ -297,7 +297,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
     it("should log errors when message preparation fails", async () => {
       const { service, drainingDeploymentService, instrumentation } = setup();
-      const deployment = AutoTopUpDeploymentSeeder.create();
+      const deployment = createAutoTopUpDeployment();
       const error = new Error("Failed to calculate amount");
 
       drainingDeploymentService.findDrainingDeploymentsByOwner.mockImplementation(() =>
@@ -305,7 +305,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
           const items: DrainingDeployment[] = [
             {
               ...deployment,
-              ...DrainingDeploymentSeeder.create({
+              ...createDrainingDeployment({
                 dseq: Number(deployment.dseq),
                 owner: deployment.address,
                 predictedClosedHeight: CURRENT_BLOCK_HEIGHT + 1500
@@ -336,7 +336,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
     it("should handle master wallet insufficient funds error and stop processing", async () => {
       const { service, chainErrorService, managedSignerService, drainingDeploymentService, cachedBalanceService, instrumentation } = setup();
-      const deployments = AutoTopUpDeploymentSeeder.createMany(3);
+      const deployments = createManyAutoTopUpDeployments(3);
       const error = new Error(`insufficient funds: 10uakt is smaller than 20uakt`);
       const mockTx = mock<IndexedTx>({ code: 0, hash: "tx-hash", rawLog: "success" });
 
@@ -352,7 +352,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
               }
               acc[deployment.address].push({
                 ...deployment,
-                ...DrainingDeploymentSeeder.create({
+                ...createDrainingDeployment({
                   dseq: Number(deployment.dseq),
                   owner: deployment.address,
                   predictedClosedHeight: CURRENT_BLOCK_HEIGHT + 1500,
@@ -388,7 +388,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
     it("should handle user wallet insufficient funds error and continue processing", async () => {
       const { service, chainErrorService, managedSignerService, drainingDeploymentService, cachedBalanceService, instrumentation } = setup();
-      const deployments = AutoTopUpDeploymentSeeder.createMany(3);
+      const deployments = createManyAutoTopUpDeployments(3);
       const error = new Error(`insufficient funds: 10uakt is smaller than 20uakt`);
 
       chainErrorService.isMasterWalletInsufficientFundsError.mockResolvedValue(false);
@@ -408,7 +408,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
               }
               acc[deployment.address].push({
                 ...deployment,
-                ...DrainingDeploymentSeeder.create({
+                ...createDrainingDeployment({
                   dseq: Number(deployment.dseq),
                   owner: deployment.address,
                   predictedClosedHeight: CURRENT_BLOCK_HEIGHT + 1500,
@@ -437,7 +437,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
     it("should call ensureFeeGrants before executing top-up", async () => {
       const { service, drainingDeploymentService, cachedBalanceService, managedSignerService } = setup();
-      const deployment = AutoTopUpDeploymentSeeder.create();
+      const deployment = createAutoTopUpDeployment();
       const predictedClosedHeight = CURRENT_BLOCK_HEIGHT + 1500;
 
       drainingDeploymentService.findDrainingDeploymentsByOwner.mockImplementation(() =>
@@ -447,7 +447,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
             deployments: [
               {
                 ...deployment,
-                ...DrainingDeploymentSeeder.create({ dseq: Number(deployment.dseq), owner: deployment.address, predictedClosedHeight }),
+                ...createDrainingDeployment({ dseq: Number(deployment.dseq), owner: deployment.address, predictedClosedHeight }),
                 dseq: deployment.dseq
               } as DrainingDeployment
             ]
@@ -469,7 +469,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
     it("should not execute top-up when fee grant is missing and cannot be refilled", async () => {
       const { service, drainingDeploymentService, cachedBalanceService, managedSignerService, instrumentation } = setup({ feeAllowance: 0 });
-      const deployment = AutoTopUpDeploymentSeeder.create();
+      const deployment = createAutoTopUpDeployment();
       const predictedClosedHeight = CURRENT_BLOCK_HEIGHT + 1500;
 
       drainingDeploymentService.findDrainingDeploymentsByOwner.mockImplementation(() =>
@@ -479,7 +479,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
             deployments: [
               {
                 ...deployment,
-                ...DrainingDeploymentSeeder.create({ dseq: Number(deployment.dseq), owner: deployment.address, predictedClosedHeight }),
+                ...createDrainingDeployment({ dseq: Number(deployment.dseq), owner: deployment.address, predictedClosedHeight }),
                 dseq: deployment.dseq
               } as DrainingDeployment
             ]
@@ -502,7 +502,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
     it("should skip fee grant validation in dry run mode", async () => {
       const { service, drainingDeploymentService, cachedBalanceService, managedSignerService } = setup();
-      const deployment = AutoTopUpDeploymentSeeder.create();
+      const deployment = createAutoTopUpDeployment();
       const predictedClosedHeight = CURRENT_BLOCK_HEIGHT + 1500;
 
       drainingDeploymentService.findDrainingDeploymentsByOwner.mockImplementation(() =>
@@ -512,7 +512,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
             deployments: [
               {
                 ...deployment,
-                ...DrainingDeploymentSeeder.create({ dseq: Number(deployment.dseq), owner: deployment.address, predictedClosedHeight }),
+                ...createDrainingDeployment({ dseq: Number(deployment.dseq), owner: deployment.address, predictedClosedHeight }),
                 dseq: deployment.dseq
               } as DrainingDeployment
             ]
