@@ -14,7 +14,7 @@ import { WalletBalanceReloadCheckHandler } from "./wallet-balance-reload-check.h
 import type { WalletBalanceReloadCheckInstrumentationService } from "./wallet-balance-reload-check-instrumentation.service";
 
 import { generateMergedPaymentMethod as generatePaymentMethod } from "@test/seeders/payment-method.seeder";
-import { UserSeeder } from "@test/seeders/user.seeder";
+import { createUser } from "@test/seeders/user.seeder";
 import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
 import { generateWalletSetting } from "@test/seeders/wallet-setting.seeder";
 
@@ -268,7 +268,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     });
 
     it("logs validation error when user stripe customer ID is not set", async () => {
-      const userWithoutStripe = UserSeeder.create();
+      const userWithoutStripe = createUser();
       const userWithNullStripe = { ...userWithoutStripe, stripeCustomerId: null };
       const { handler, walletSettingRepository, instrumentationService, job, jobMeta } = setup({
         user: userWithNullStripe
@@ -316,9 +316,9 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     walletSettingNotFound?: boolean;
     autoReloadEnabled?: boolean;
     wallet?: ReturnType<typeof UserWalletSeeder.create>;
-    user?: ReturnType<typeof UserSeeder.create>;
+    user?: ReturnType<typeof createUser>;
   }) {
-    const user = input?.user ?? UserSeeder.create();
+    const user = input?.user ?? createUser();
     const userWithStripe =
       input?.user && input.user.stripeCustomerId === null
         ? user

@@ -11,7 +11,7 @@ import type { StripeErrorService } from "@src/billing/services/stripe-error/stri
 import { StripeController } from "./stripe.controller";
 
 import { generateDatabaseStripeTransaction } from "@test/seeders/database-stripe-transaction.seeder";
-import { UserSeeder } from "@test/seeders/user.seeder";
+import { createUser } from "@test/seeders/user.seeder";
 
 describe(StripeController.name, () => {
   describe("confirmPayment", () => {
@@ -172,7 +172,7 @@ describe(StripeController.name, () => {
   });
 
   function setup() {
-    const user = UserSeeder.create();
+    const user = createUser();
     const payingUser: PayingUser = { ...user, stripeCustomerId: user.stripeCustomerId! };
     const stripe = mock<StripeService>();
     const authService = mock<AuthService>({

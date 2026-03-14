@@ -17,11 +17,11 @@ import { UserRepository } from "@src/user/repositories";
 import { WalletController } from "./wallet.controller";
 
 import { generatePaymentMethod } from "@test/seeders/payment-method.seeder";
-import { UserSeeder } from "@test/seeders/user.seeder";
+import { createUser } from "@test/seeders/user.seeder";
 
 describe("WalletController", () => {
   it("forbids starting a trial for a user with not verified email", async () => {
-    const user = UserSeeder.create({
+    const user = createUser({
       emailVerified: false
     });
     const container = setup({
@@ -39,7 +39,7 @@ describe("WalletController", () => {
   });
 
   it("forbids starting a trial for a user without configured payments methods", async () => {
-    const user = UserSeeder.create({
+    const user = createUser({
       emailVerified: true,
       stripeCustomerId: faker.string.uuid()
     });
@@ -59,7 +59,7 @@ describe("WalletController", () => {
   });
 
   it("forbids starting a trial for a user with duplicate trial account", async () => {
-    const user = UserSeeder.create({
+    const user = createUser({
       emailVerified: true,
       stripeCustomerId: faker.string.uuid()
     });
@@ -80,7 +80,7 @@ describe("WalletController", () => {
   });
 
   it("forbids starting a trial for a user with duplicate fingerprint", async () => {
-    const user = UserSeeder.create({
+    const user = createUser({
       emailVerified: true,
       stripeCustomerId: faker.string.uuid(),
       lastFingerprint: "duplicate-fingerprint"
@@ -102,7 +102,7 @@ describe("WalletController", () => {
   });
 
   it("allows starting a trial when user has no fingerprint", async () => {
-    const user = UserSeeder.create({
+    const user = createUser({
       emailVerified: true,
       stripeCustomerId: faker.string.uuid(),
       lastFingerprint: null
@@ -122,7 +122,7 @@ describe("WalletController", () => {
   });
 
   it("creates a wallet for a user with all valid requirements", async () => {
-    const user = UserSeeder.create({
+    const user = createUser({
       emailVerified: true,
       stripeCustomerId: faker.string.uuid()
     });
@@ -141,7 +141,7 @@ describe("WalletController", () => {
   });
 
   it("handles 3DS required scenario in controller", async () => {
-    const user = UserSeeder.create({
+    const user = createUser({
       emailVerified: true,
       stripeCustomerId: faker.string.uuid()
     });
@@ -177,7 +177,7 @@ describe("WalletController", () => {
   });
 
   it("handles validation failure in controller", async () => {
-    const user = UserSeeder.create({
+    const user = createUser({
       emailVerified: true,
       stripeCustomerId: faker.string.uuid()
     });
@@ -221,7 +221,7 @@ describe("WalletController", () => {
         }
       ];
       const container = setup({
-        user: UserSeeder.create(),
+        user: createUser(),
         wallets
       });
       const walletController = container.resolve(WalletController);
@@ -237,7 +237,7 @@ describe("WalletController", () => {
     it("returns empty list when no wallets found", async () => {
       const userId = faker.string.uuid();
       const container = setup({
-        user: UserSeeder.create(),
+        user: createUser(),
         wallets: []
       });
       const walletController = container.resolve(WalletController);
@@ -249,7 +249,7 @@ describe("WalletController", () => {
   });
 
   it("handles stripe error in controller", async () => {
-    const user = UserSeeder.create({
+    const user = createUser({
       emailVerified: true,
       stripeCustomerId: faker.string.uuid()
     });
@@ -289,7 +289,7 @@ describe("WalletController", () => {
             subject: "UserWallet"
           }
         ]),
-        currentUser: input?.user || UserSeeder.create()
+        currentUser: input?.user || createUser()
       })
     });
     rootContainer.register(WalletInitializerService, {

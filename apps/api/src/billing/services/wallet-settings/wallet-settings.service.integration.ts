@@ -11,7 +11,7 @@ import type { UserRepository } from "@src/user/repositories";
 import { WalletSettingService } from "./wallet-settings.service";
 
 import { generatePaymentMethod } from "@test/seeders/payment-method.seeder";
-import { UserSeeder } from "@test/seeders/user.seeder";
+import { createUser } from "@test/seeders/user.seeder";
 import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
 import { generateWalletSetting } from "@test/seeders/wallet-setting.seeder";
 
@@ -170,7 +170,7 @@ describe(WalletSettingService.name, () => {
   });
 
   function setup() {
-    const user = UserSeeder.create();
+    const user = createUser();
     const userWithStripe = { ...user, stripeCustomerId: faker.string.uuid() };
     const userWallet = UserWalletSeeder.create({ userId: user.id });
     const walletSettingRepository = mock<WalletSettingRepository>();
