@@ -15,12 +15,12 @@ import { DeploymentReaderService } from "./deployment-reader.service";
 import { createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
 import { createDeploymentListResponseSeed } from "@test/seeders/deployment-list-response.seeder";
 import { createLeaseApiResponse } from "@test/seeders/lease-api-response.seeder";
-import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
+import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 describe(DeploymentReaderService.name, () => {
   describe("findByWalletAndDseq", () => {
     it("falls back to database for deployment data when blockchain node is unreachable", async () => {
-      const wallet = UserWalletSeeder.create() as WalletInitialized;
+      const wallet = createUserWallet() as WalletInitialized;
       const dseq = "12345";
       const deploymentInfo = createDeploymentInfoSeed({ owner: wallet.address, dseq });
       const { service, deploymentHttpService, fallbackDeploymentReaderService } = setup({
@@ -35,7 +35,7 @@ describe(DeploymentReaderService.name, () => {
     });
 
     it("falls back to database for lease data when blockchain node is unreachable", async () => {
-      const wallet = UserWalletSeeder.create() as WalletInitialized;
+      const wallet = createUserWallet() as WalletInitialized;
       const dseq = "12345";
       const deploymentInfo = createDeploymentInfoSeed({ owner: wallet.address, dseq });
       const lease = createLeaseApiResponse({ owner: wallet.address, dseq, state: "active" });
@@ -53,7 +53,7 @@ describe(DeploymentReaderService.name, () => {
     });
 
     it("does not fall back to database for non-network errors", async () => {
-      const wallet = UserWalletSeeder.create() as WalletInitialized;
+      const wallet = createUserWallet() as WalletInitialized;
       const dseq = "12345";
       const { service, fallbackDeploymentReaderService, deploymentHttpService } = setup();
 
@@ -65,8 +65,8 @@ describe(DeploymentReaderService.name, () => {
 
   describe("list", () => {
     it("falls back to database when blockchain node is unreachable", async () => {
-      const wallet = UserWalletSeeder.create() as WalletInitialized;
       const deploymentList = createDeploymentListResponseSeed({}, 2);
+      const wallet = createUserWallet() as WalletInitialized;
       const { service, deploymentHttpService, fallbackDeploymentReaderService } = setup({
         wallet,
         fallbackDeploymentList: deploymentList
@@ -104,7 +104,7 @@ describe(DeploymentReaderService.name, () => {
       fallbackLeases?: ReturnType<typeof createLeaseApiResponse>[];
     } = {}
   ) {
-    const defaultWallet = UserWalletSeeder.create() as WalletInitialized;
+    const defaultWallet = createUserWallet() as WalletInitialized;
     const wallet = input.wallet ?? defaultWallet;
     const defaultDeploymentInfo = createDeploymentInfoSeed();
     const defaultDeploymentList = createDeploymentListResponseSeed({}, 0);

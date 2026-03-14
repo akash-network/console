@@ -13,7 +13,7 @@ import { marketVersion } from "@src/utils/constants";
 
 import { createAkashAddress, createProvider } from "@test/seeders";
 import { createBid } from "@test/seeders/bid.seeder";
-import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
+import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 describe("Bids API", () => {
   const userRepository = container.resolve(UserRepository);
@@ -56,7 +56,7 @@ describe("Bids API", () => {
     await connectUsingSequelize();
     const user = await userRepository.create({ userId: faker.string.uuid() });
     const token = faker.string.alphanumeric(40);
-    const wallet = UserWalletSeeder.create({ userId: user.id, address: createAkashAddress() });
+    const wallet = createUserWallet({ userId: user.id, address: createAkashAddress() });
 
     vi.spyOn(userAuthTokenService, "getValidUserId").mockResolvedValue(user.userId);
     vi.spyOn(userWalletRepository, "accessibleBy").mockReturnValue(userWalletRepository);
