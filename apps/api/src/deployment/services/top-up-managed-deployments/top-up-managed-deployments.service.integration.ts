@@ -12,7 +12,7 @@ import { UserRepository } from "@src/user/repositories";
 import { TopUpManagedDeploymentsService } from "./top-up-managed-deployments.service";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
-import { DeploymentInfoSeeder } from "@test/seeders/deployment-info.seeder";
+import { createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
 import { LeaseApiResponseSeeder } from "@test/seeders/lease-api-response.seeder";
 
 const CURRENT_HEIGHT = 1000000;
@@ -93,7 +93,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
       mockLeasesForOwner(address, [createActiveLease(address, drainingDseq), createActiveLease(address, notYetDrainingDseq)]);
       mockDeploymentsForOwner(address, [
         createActiveDeployment(address, drainingDseq),
-        DeploymentInfoSeeder.create({
+        createDeploymentInfoSeed({
           owner: address,
           dseq: notYetDrainingDseq,
           state: "active",
@@ -220,7 +220,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
   }
 
   function createActiveDeployment(owner: string, dseq: string) {
-    return DeploymentInfoSeeder.create({
+    return createDeploymentInfoSeed({
       owner,
       dseq,
       state: "active",
@@ -231,7 +231,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
   }
 
   function createClosedDeployment(owner: string, dseq: string) {
-    return DeploymentInfoSeeder.create({
+    return createDeploymentInfoSeed({
       owner,
       dseq,
       state: "closed",
@@ -312,7 +312,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
         .reply(200, { leases, pagination: { next_key: null, total: String(leases.length) } });
     }
 
-    function mockDeploymentsForOwner(owner: string, deployments: ReturnType<typeof DeploymentInfoSeeder.create>[]) {
+    function mockDeploymentsForOwner(owner: string, deployments: ReturnType<typeof createDeploymentInfoSeed>[]) {
       nock(apiNodeUrl)
         .get("/akash/deployment/v1beta4/deployments/list")
         .query(query => String(query["filters.owner"]) === owner)

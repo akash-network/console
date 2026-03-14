@@ -12,8 +12,8 @@ import type { MessageService } from "@src/deployment/services/message-service/me
 import type { ProviderService } from "@src/provider/services/provider/provider.service";
 import { DeploymentReaderService } from "./deployment-reader.service";
 
-import { DeploymentInfoSeeder } from "@test/seeders/deployment-info.seeder";
-import { DeploymentListResponseSeeder } from "@test/seeders/deployment-list-response.seeder";
+import { createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
+import { createDeploymentListResponseSeed } from "@test/seeders/deployment-list-response.seeder";
 import { LeaseApiResponseSeeder } from "@test/seeders/lease-api-response.seeder";
 import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
 
@@ -22,7 +22,7 @@ describe(DeploymentReaderService.name, () => {
     it("falls back to database for deployment data when blockchain node is unreachable", async () => {
       const wallet = UserWalletSeeder.create() as WalletInitialized;
       const dseq = "12345";
-      const deploymentInfo = DeploymentInfoSeeder.create({ owner: wallet.address, dseq });
+      const deploymentInfo = createDeploymentInfoSeed({ owner: wallet.address, dseq });
       const { service, deploymentHttpService, fallbackDeploymentReaderService } = setup({
         fallbackDeploymentInfo: deploymentInfo
       });
@@ -37,7 +37,7 @@ describe(DeploymentReaderService.name, () => {
     it("falls back to database for lease data when blockchain node is unreachable", async () => {
       const wallet = UserWalletSeeder.create() as WalletInitialized;
       const dseq = "12345";
-      const deploymentInfo = DeploymentInfoSeeder.create({ owner: wallet.address, dseq });
+      const deploymentInfo = createDeploymentInfoSeed({ owner: wallet.address, dseq });
       const lease = LeaseApiResponseSeeder.create({ owner: wallet.address, dseq, state: "active" });
       const { service, leaseHttpService, fallbackLeaseReaderService } = setup({
         fallbackDeploymentInfo: deploymentInfo,
@@ -66,7 +66,7 @@ describe(DeploymentReaderService.name, () => {
   describe("list", () => {
     it("falls back to database when blockchain node is unreachable", async () => {
       const wallet = UserWalletSeeder.create() as WalletInitialized;
-      const deploymentList = DeploymentListResponseSeeder.create({}, 2);
+      const deploymentList = createDeploymentListResponseSeed({}, 2);
       const { service, deploymentHttpService, fallbackDeploymentReaderService } = setup({
         wallet,
         fallbackDeploymentList: deploymentList
@@ -99,15 +99,15 @@ describe(DeploymentReaderService.name, () => {
   function setup(
     input: {
       wallet?: WalletInitialized;
-      fallbackDeploymentInfo?: ReturnType<typeof DeploymentInfoSeeder.create>;
-      fallbackDeploymentList?: ReturnType<typeof DeploymentListResponseSeeder.create>;
+      fallbackDeploymentInfo?: ReturnType<typeof createDeploymentInfoSeed>;
+      fallbackDeploymentList?: ReturnType<typeof createDeploymentListResponseSeed>;
       fallbackLeases?: ReturnType<typeof LeaseApiResponseSeeder.create>[];
     } = {}
   ) {
     const defaultWallet = UserWalletSeeder.create() as WalletInitialized;
     const wallet = input.wallet ?? defaultWallet;
-    const defaultDeploymentInfo = DeploymentInfoSeeder.create();
-    const defaultDeploymentList = DeploymentListResponseSeeder.create({}, 0);
+    const defaultDeploymentInfo = createDeploymentInfoSeed();
+    const defaultDeploymentList = createDeploymentListResponseSeed({}, 0);
 
     const mocks = {
       providerService: mock<ProviderService>({
