@@ -8,7 +8,7 @@ import { RefillService } from "@src/billing/services/refill/refill.service";
 import type { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 
-import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
+import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 describe(RefillService.name, () => {
   describe("topUpWallet", () => {
@@ -18,7 +18,7 @@ describe(RefillService.name, () => {
     it("should top up existing wallet", async () => {
       const { service, userWalletRepository, managedUserWalletService, managedSignerService, balancesService, walletInitializerService, analyticsService } =
         setup();
-      const existingWallet = UserWalletSeeder.create({ userId });
+      const existingWallet = createUserWallet({ userId });
       userWalletRepository.findOneBy.mockResolvedValue(existingWallet);
       managedUserWalletService.authorizeSpending.mockResolvedValue();
       balancesService.retrieveDeploymentLimit.mockResolvedValue(5000);
@@ -39,7 +39,7 @@ describe(RefillService.name, () => {
 
     it("does not end trial when endTrial option is false", async () => {
       const { service, userWalletRepository, managedUserWalletService, balancesService } = setup();
-      const existingWallet = UserWalletSeeder.create({ userId });
+      const existingWallet = createUserWallet({ userId });
       userWalletRepository.findOneBy.mockResolvedValue(existingWallet);
       managedUserWalletService.authorizeSpending.mockResolvedValue();
       balancesService.retrieveDeploymentLimit.mockResolvedValue(5000);
@@ -53,7 +53,7 @@ describe(RefillService.name, () => {
     it("should create new wallet when none exists", async () => {
       const { service, userWalletRepository, walletInitializerService, balancesService, managedUserWalletService, managedSignerService, analyticsService } =
         setup();
-      const newWallet = UserWalletSeeder.create({ userId });
+      const newWallet = createUserWallet({ userId });
       userWalletRepository.findOneBy.mockResolvedValue(undefined);
       walletInitializerService.initialize.mockResolvedValue(newWallet);
       managedUserWalletService.authorizeSpending.mockResolvedValue();
@@ -111,7 +111,7 @@ describe(RefillService.name, () => {
 
     it("reduces wallet balance by the specified amount", async () => {
       const { service, userWalletRepository, managedUserWalletService, managedSignerService, balancesService, analyticsService } = setup();
-      const existingWallet = UserWalletSeeder.create({ userId, address: "akash1test..." });
+      const existingWallet = createUserWallet({ userId, address: "akash1test..." });
 
       userWalletRepository.findOneBy.mockResolvedValue(existingWallet);
       balancesService.retrieveDeploymentLimit.mockResolvedValue(5000000); // Current limit (500 usd worth)
@@ -133,7 +133,7 @@ describe(RefillService.name, () => {
 
     it("does not reduce balance below zero", async () => {
       const { service, userWalletRepository, managedUserWalletService, managedSignerService, balancesService, analyticsService } = setup();
-      const existingWallet = UserWalletSeeder.create({ userId, address: "akash1test..." });
+      const existingWallet = createUserWallet({ userId, address: "akash1test..." });
 
       userWalletRepository.findOneBy.mockResolvedValue(existingWallet);
       balancesService.retrieveDeploymentLimit.mockResolvedValue(50000); // Current limit $0.50
@@ -164,7 +164,7 @@ describe(RefillService.name, () => {
 
     it("does nothing when wallet has no address", async () => {
       const { service, userWalletRepository, managedUserWalletService, balancesService, analyticsService } = setup();
-      const walletWithoutAddress = UserWalletSeeder.create({ userId, address: null });
+      const walletWithoutAddress = createUserWallet({ userId, address: null });
 
       userWalletRepository.findOneBy.mockResolvedValue(walletWithoutAddress);
 

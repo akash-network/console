@@ -26,7 +26,7 @@ import { ManagedSignerService } from "./managed-signer.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
 import { UserSeeder } from "@test/seeders/user.seeder";
-import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
+import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 describe(ManagedSignerService.name, () => {
   describe("executeDerivedDecodedTxByUserId", () => {
@@ -54,7 +54,7 @@ describe(ManagedSignerService.name, () => {
     });
 
     it("throws 402 error when userWallet has no fee allowance", async () => {
-      const wallet = UserWalletSeeder.create({ userId: "user-123", feeAllowance: 0 });
+      const wallet = createUserWallet({ userId: "user-123", feeAllowance: 0 });
       const user = UserSeeder.create({ userId: "user-123" });
       const { service } = setup({
         findOneByUserId: jest.fn().mockResolvedValue(wallet),
@@ -66,7 +66,7 @@ describe(ManagedSignerService.name, () => {
     });
 
     it("throws 402 error when userWallet has no deployment allowance for deployment message", async () => {
-      const wallet = UserWalletSeeder.create({
+      const wallet = createUserWallet({
         userId: "user-123",
         feeAllowance: 100,
         deploymentAllowance: 0
@@ -87,7 +87,7 @@ describe(ManagedSignerService.name, () => {
     });
 
     it("skips trial validation when anonymous free trial is disabled", async () => {
-      const wallet = UserWalletSeeder.create({
+      const wallet = createUserWallet({
         userId: "user-123",
         feeAllowance: 100,
         deploymentAllowance: 100
@@ -123,7 +123,7 @@ describe(ManagedSignerService.name, () => {
     });
 
     it("executes transaction successfully and returns result", async () => {
-      const wallet = UserWalletSeeder.create({
+      const wallet = createUserWallet({
         userId: "user-123",
         feeAllowance: 100,
         deploymentAllowance: 100
@@ -167,7 +167,7 @@ describe(ManagedSignerService.name, () => {
     });
 
     it("publishes TrialDeploymentLeaseCreated event for trialing wallet with deployment message when anonymous trial is disabled", async () => {
-      const wallet = UserWalletSeeder.create({
+      const wallet = createUserWallet({
         userId: "user-123",
         feeAllowance: 100,
         deploymentAllowance: 100,
@@ -233,7 +233,7 @@ describe(ManagedSignerService.name, () => {
     });
 
     it("handles chain errors properly", async () => {
-      const wallet = UserWalletSeeder.create({
+      const wallet = createUserWallet({
         userId: "user-123",
         feeAllowance: 100,
         deploymentAllowance: 100
@@ -265,7 +265,7 @@ describe(ManagedSignerService.name, () => {
 
     it("uses current user when userId matches auth currentUser", async () => {
       const currentUser = UserSeeder.create({ userId: "user-123" });
-      const wallet = UserWalletSeeder.create({ userId: "user-123", feeAllowance: 100 });
+      const wallet = createUserWallet({ userId: "user-123", feeAllowance: 100 });
       const messages: EncodeObject[] = [
         {
           typeUrl: MsgCreateLease.$type,
@@ -294,7 +294,7 @@ describe(ManagedSignerService.name, () => {
     });
 
     it("validates lease provider for all leases regardless of trial status", async () => {
-      const wallet = UserWalletSeeder.create({
+      const wallet = createUserWallet({
         userId: "user-123",
         feeAllowance: 100,
         deploymentAllowance: 100,
@@ -331,7 +331,7 @@ describe(ManagedSignerService.name, () => {
     });
 
     it("validates lease provider for trial wallets", async () => {
-      const wallet = UserWalletSeeder.create({
+      const wallet = createUserWallet({
         userId: "user-123",
         feeAllowance: 100,
         deploymentAllowance: 100,
@@ -370,7 +370,7 @@ describe(ManagedSignerService.name, () => {
 
   describe("executeDerivedEncodedTxByUserId", () => {
     it("executes transaction and calls scheduleImmediate when transaction contains MsgCreateDeployment", async () => {
-      const wallet = UserWalletSeeder.create({
+      const wallet = createUserWallet({
         userId: "user-123",
         feeAllowance: 100,
         deploymentAllowance: 100
@@ -399,7 +399,7 @@ describe(ManagedSignerService.name, () => {
     });
 
     it("executes transaction and calls scheduleImmediate when transaction contains MsgAccountDeposit", async () => {
-      const wallet = UserWalletSeeder.create({
+      const wallet = createUserWallet({
         userId: "user-123",
         feeAllowance: 100
       });
@@ -427,7 +427,7 @@ describe(ManagedSignerService.name, () => {
     });
 
     it("executes transaction and does not call scheduleImmediate when transaction does not contain spending messages", async () => {
-      const wallet = UserWalletSeeder.create({
+      const wallet = createUserWallet({
         userId: "user-123",
         feeAllowance: 100,
         deploymentAllowance: 100
@@ -487,7 +487,7 @@ describe(ManagedSignerService.name, () => {
 
   describe("executeDerivedDecodedTxByUserId - result without hash", () => {
     it("returns result as-is when hash is empty", async () => {
-      const wallet = UserWalletSeeder.create({ userId: "user-123", feeAllowance: 100, deploymentAllowance: 100 });
+      const wallet = createUserWallet({ userId: "user-123", feeAllowance: 100, deploymentAllowance: 100 });
       const user = UserSeeder.create({ userId: "user-123" });
       const messages: EncodeObject[] = [{ typeUrl: MsgCreateLease.$type, value: MsgCreateLease.fromPartial({ bidId: { dseq: 123 } }) }];
 

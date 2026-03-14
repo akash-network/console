@@ -15,7 +15,7 @@ import type { WalletBalanceReloadCheckInstrumentationService } from "./wallet-ba
 
 import { generateMergedPaymentMethod as generatePaymentMethod } from "@test/seeders/payment-method.seeder";
 import { UserSeeder } from "@test/seeders/user.seeder";
-import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
+import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 import { generateWalletSetting } from "@test/seeders/wallet-setting.seeder";
 
 describe(WalletBalanceReloadCheckHandler.name, () => {
@@ -251,7 +251,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
 
     it("logs validation error when wallet is not initialized", async () => {
       const { handler, walletSettingRepository, instrumentationService, job, jobMeta } = setup({
-        wallet: UserWalletSeeder.create({ address: null })
+        wallet: createUserWallet({ address: null })
       });
 
       await handler.handle(job, jobMeta);
@@ -315,7 +315,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     jobId?: string | null;
     walletSettingNotFound?: boolean;
     autoReloadEnabled?: boolean;
-    wallet?: ReturnType<typeof UserWalletSeeder.create>;
+    wallet?: ReturnType<typeof createUserWallet>;
     user?: ReturnType<typeof UserSeeder.create>;
   }) {
     const user = input?.user ?? UserSeeder.create();
@@ -327,7 +327,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
           : user.stripeCustomerId
             ? user
             : { ...user, stripeCustomerId: faker.string.uuid() };
-    const wallet = input?.wallet ?? UserWalletSeeder.create({ userId: user.id });
+    const wallet = input?.wallet ?? createUserWallet({ userId: user.id });
     const walletSetting = generateWalletSetting({
       userId: user.id,
       walletId: wallet.id,

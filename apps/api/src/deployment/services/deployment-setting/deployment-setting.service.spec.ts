@@ -14,7 +14,7 @@ import type { TopUpManagedDeploymentsInstrumentationService } from "../top-up-ma
 import { DeploymentSettingService } from "./deployment-setting.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
-import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
+import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 describe(DeploymentSettingService.name, () => {
   describe("findOrCreateByUserIdAndDseq", () => {
@@ -36,7 +36,7 @@ describe(DeploymentSettingService.name, () => {
     it("creates with autoTopUpEnabled true when user has managed wallet", async () => {
       const { service, deploymentSettingRepository, userWalletRepository } = setup();
       const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
-      const userWallet = UserWalletSeeder.create({ userId: params.userId });
+      const userWallet = createUserWallet({ userId: params.userId });
       const created = createDeploymentSettingsOutput({ ...params, autoTopUpEnabled: true });
 
       deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
