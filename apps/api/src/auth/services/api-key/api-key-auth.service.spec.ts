@@ -5,7 +5,7 @@ import type { CoreConfigService } from "@src/core/services/core-config/core-conf
 import { ApiKeyAuthService } from "./api-key-auth.service";
 import { ApiKeyGeneratorService } from "./api-key-generator.service";
 
-import { ApiKeySeeder } from "@test/seeders/api-key.seeder";
+import { createApiKey } from "@test/seeders/api-key.seeder";
 
 describe("ApiKeyAuthService", () => {
   describe("getAndValidateApiKeyFromHeader", () => {
@@ -50,7 +50,7 @@ describe("ApiKeyAuthService", () => {
       it("should return key found by sha256 hash", async () => {
         const { service, apiKeyGenerator, apiKeyRepository } = setup();
         const apiKey = apiKeyGenerator.generateApiKey();
-        const data = ApiKeySeeder.create({
+        const data = createApiKey({
           hashedKey: apiKeyGenerator.hashApiKeySha256(apiKey),
           keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey)
         });
@@ -68,7 +68,7 @@ describe("ApiKeyAuthService", () => {
         pastDate.setDate(pastDate.getDate() - 1);
 
         const apiKey = apiKeyGenerator.generateApiKey();
-        const data = ApiKeySeeder.create({
+        const data = createApiKey({
           expiresAt: pastDate.toISOString(),
           hashedKey: apiKeyGenerator.hashApiKeySha256(apiKey),
           keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey)
@@ -85,7 +85,7 @@ describe("ApiKeyAuthService", () => {
         futureDate.setUTCFullYear(futureDate.getUTCFullYear() + 1);
 
         const apiKey = apiKeyGenerator.generateApiKey();
-        const data = ApiKeySeeder.create({
+        const data = createApiKey({
           expiresAt: futureDate.toISOString(),
           hashedKey: apiKeyGenerator.hashApiKeySha256(apiKey),
           keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey)
@@ -102,7 +102,7 @@ describe("ApiKeyAuthService", () => {
       it("should fallback to bcrypt when sha256 not found", async () => {
         const { service, apiKeyGenerator, apiKeyRepository } = setup();
         const apiKey = apiKeyGenerator.generateApiKey();
-        const data = ApiKeySeeder.create({
+        const data = createApiKey({
           hashedKey: await apiKeyGenerator.hashApiKey(apiKey),
           keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey)
         });
@@ -117,7 +117,7 @@ describe("ApiKeyAuthService", () => {
       it("should update hashedKey to sha256 after bcrypt match", async () => {
         const { service, apiKeyGenerator, apiKeyRepository } = setup();
         const apiKey = apiKeyGenerator.generateApiKey();
-        const data = ApiKeySeeder.create({
+        const data = createApiKey({
           hashedKey: await apiKeyGenerator.hashApiKey(apiKey),
           keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey)
         });
@@ -137,7 +137,7 @@ describe("ApiKeyAuthService", () => {
         pastDate.setDate(pastDate.getDate() - 1);
 
         const apiKey = apiKeyGenerator.generateApiKey();
-        const data = ApiKeySeeder.create({
+        const data = createApiKey({
           expiresAt: pastDate.toISOString(),
           hashedKey: await apiKeyGenerator.hashApiKey(apiKey),
           keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey)
