@@ -2,6 +2,7 @@ import React from "react";
 import type { PaymentMethod, SetupIntentResponse } from "@akashnetwork/http-sdk";
 import { describe, expect, it, type Mock, vi } from "vitest";
 
+import type { PaymentMethodsRowProps } from "./PaymentMethodsRow";
 import type { DEPENDENCIES } from "./PaymentMethodsView";
 import { PaymentMethodsView } from "./PaymentMethodsView";
 
@@ -17,12 +18,19 @@ const mockUseTheme = vi.fn(() => ({
   systemTheme: "light" as "light" | "dark" | undefined
 }));
 
-const MockPaymentMethodsRow = ({ paymentMethod, onSetPaymentMethodAsDefault, onRemovePaymentMethod, hasOtherPaymentMethods }: any) => (
-  <tr data-testid={`payment-method-row-${paymentMethod.id}`}>
+const MockPaymentMethodsRow = ({
+  paymentMethod,
+  onSetPaymentMethodAsDefault,
+  onRemovePaymentMethod,
+  hasOtherPaymentMethods,
+  isTrialing,
+  isAutoReloadEnabled
+}: PaymentMethodsRowProps) => (
+  <tr data-testid={`payment-method-row-${paymentMethod.id}`} data-is-trialing={isTrialing} data-auto-reload={isAutoReloadEnabled}>
     <td>
       <span>{paymentMethod.card?.last4}</span>
       <button onClick={() => onSetPaymentMethodAsDefault(paymentMethod.id)}>Set as Default</button>
-      {hasOtherPaymentMethods && <button onClick={() => onRemovePaymentMethod(paymentMethod.id)}>Remove</button>}
+      {(hasOtherPaymentMethods || !isTrialing) && <button onClick={() => onRemovePaymentMethod(paymentMethod.id)}>Remove</button>}
     </td>
   </tr>
 );
@@ -144,13 +152,20 @@ describe(PaymentMethodsView.name, () => {
       expect(row2.textContent).toContain("Remove");
     });
 
-    it("passes correct canBeRemoved prop when only one payment method exists", () => {
+    it("hides Remove for only payment method when trialing", () => {
       const paymentMethods = [createMockPaymentMethods()[0]];
-      setup({ data: paymentMethods });
+      setup({ data: paymentMethods, isTrialing: true });
 
-      // When there's only 1 payment method, it should not be removable
       const row = screen.getByTestId("payment-method-row-pm_123");
       expect(row.textContent).not.toContain("Remove");
+    });
+
+    it("shows Remove for only payment method when not trialing", () => {
+      const paymentMethods = [createMockPaymentMethods()[0]];
+      setup({ data: paymentMethods, isTrialing: false });
+
+      const row = screen.getByTestId("payment-method-row-pm_123");
+      expect(row.textContent).toContain("Remove");
     });
   });
 
@@ -405,6 +420,8 @@ function setup(
     setupIntent?: SetupIntentResponse;
     onAddCardSuccess?: Mock;
     isInProgress?: boolean;
+    isTrialing?: boolean;
+    isAutoReloadEnabled?: boolean;
     dependencies?: typeof DEPENDENCIES;
   } = {}
 ) {
@@ -419,6 +436,8 @@ function setup(
     setupIntent: undefined,
     onAddCardSuccess: vi.fn(),
     isInProgress: false,
+    isTrialing: false,
+    isAutoReloadEnabled: false,
     dependencies: mockDependencies
   };
 
