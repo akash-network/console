@@ -3,9 +3,10 @@ ALTER TABLE "block" ADD COLUMN IF NOT EXISTS "totalAktBurnedForAct" double preci
 ALTER TABLE "block" ADD COLUMN IF NOT EXISTS "totalActMinted" double precision;
 ALTER TABLE "block" ADD COLUMN IF NOT EXISTS "totalActBurnedForAkt" double precision;
 ALTER TABLE "block" ADD COLUMN IF NOT EXISTS "totalAktReminted" double precision;
-ALTER TABLE "block" ADD COLUMN IF NOT EXISTS "totalVaultSeeded" double precision;
 ALTER TABLE "block" ADD COLUMN IF NOT EXISTS "totalRemintCreditIssued" double precision;
 ALTER TABLE "block" ADD COLUMN IF NOT EXISTS "totalRemintCreditAccrued" double precision;
+ALTER TABLE "block" ADD COLUMN IF NOT EXISTS "vaultAkt" double precision;
+ALTER TABLE "block" ADD COLUMN IF NOT EXISTS "outstandingAct" double precision;
 
 -- Create bmeRawEvent table
 CREATE TABLE IF NOT EXISTS "bmeRawEvent" (
