@@ -273,9 +273,10 @@ export const block = pgTable(
     totalActMinted: doublePrecision(),
     totalActBurnedForAkt: doublePrecision(),
     totalAktReminted: doublePrecision(),
-    totalVaultSeeded: doublePrecision(),
     totalRemintCreditIssued: doublePrecision(),
-    totalRemintCreditAccrued: doublePrecision()
+    totalRemintCreditAccrued: doublePrecision(),
+    vaultAkt: doublePrecision(),
+    outstandingAct: doublePrecision()
   },
   table => [
     index("block_datetime").using("btree", table.datetime.asc().nullsLast().op("timestamptz_ops")),

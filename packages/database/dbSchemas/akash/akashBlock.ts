@@ -82,10 +82,6 @@ export class AkashBlock extends Block {
    */
   @Column(DataTypes.DOUBLE) totalAktReminted?: number;
   /**
-   * Cumulative uakt seeded into BME vault via governance
-   */
-  @Column(DataTypes.DOUBLE) totalVaultSeeded?: number;
-  /**
    * Cumulative remint credits issued via BME
    */
   @Column(DataTypes.DOUBLE) totalRemintCreditIssued?: number;
@@ -93,4 +89,12 @@ export class AkashBlock extends Block {
    * Cumulative remint credits used via BME
    */
   @Column(DataTypes.DOUBLE) totalRemintCreditAccrued?: number;
+  /**
+   * Absolute AKT held in BME vault as collateral (module account balance)
+   */
+  @Column(DataTypes.DOUBLE) vaultAkt?: number;
+  /**
+   * Total circulating supply of ACT
+   */
+  @Column(DataTypes.DOUBLE) outstandingAct?: number;
 }
