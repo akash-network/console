@@ -49,7 +49,7 @@ import { MockComponents } from "@tests/unit/mocks";
 describe(MyComponent.name, () => {
   it("renders title", () => {
     setup({ title: "Hello" });
-    expect(screen.queryByText("Hello")).toBeInTheDocument();
+    expect(screen.getByText("Hello")).toBeInTheDocument();
   });
 
   it("uses custom tooltip", () => {
