@@ -15,6 +15,8 @@ description: >
 
 Branch names like `fix/dx` or `feature/billing` are technically valid but practically useless. When you scan a list of branches, you should immediately understand what each one is about without having to look up the PR or commit history.
 
+**Exception**: For investigation or exploratory tasks where the outcome isn't known upfront, it's fine to name the branch after the task/ticket (e.g., `chore/investigate-memory-leak` or `chore/PROJ-123`). The descriptive slug matters most for feature and fix branches where the intent is clear.
+
 ## Branch Name Format
 
 ```text
@@ -36,7 +38,7 @@ Branch names like `fix/dx` or `feature/billing` are technically valid but practi
 
   *Auto-approve requires `experienced-contributor` label, small PR size, and restricted file scope.
 
-  Use `chore`/`test`/`docs` for internal changes that shouldn't ship a release (CI config tweaks, test-only changes, README updates). Use `refactor` only when you're restructuring production code — it triggers a patch release even though nothing user-facing changed.
+  Use `chore`/`test`/`docs` for changes that don't affect the shipped artifact (CI config, `.helm` charts, `package.json` scripts, test-only changes, README updates). These don't trigger a release even though they may affect production deployments. Use `refactor` only when you're restructuring code that ends up in the built/deployed application — it triggers a patch release even though nothing user-facing changed.
 - **scope**: A category from the project's `.commitlintrc.json` `scope-enum` list. Read this file to get the current allowed scopes. If nothing fits, use a short reasonable name. For app-specific changes, you can use a sub-path like `fix/provider-console/min-balance-issue`.
 - **descriptive-slug**: 3–6 words in kebab-case that describe *what* the change does. This is the part that matters most.
 
