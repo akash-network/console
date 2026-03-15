@@ -26,9 +26,7 @@ Choose the lowest-effective test level. Writing E2E tests for logic that can be 
 
 **Functional / API tests** (black-box HTTP):
 - Test the service as a black box through its HTTP endpoints
-- External network calls MUST be mocked:
-  - Use `nock` for HTTP clients built on Node.js `http`/`https` modules
-  - Use `fetch-mock` for code paths using native Node.js `fetch` (Node 18+)
+- External network calls MUST be mocked with `nock` (v14+ supports native `fetch` in addition to `http`/`https`)
 - Do NOT mock internal application services — they're implementation details at this level
 - Should only fail when functional requirements change, not from refactoring
 - Don't write functional tests for simple routes — test the service layer directly instead
@@ -143,7 +141,7 @@ Most apps use `globals: false`. Explicitly import from `vitest`:
 import { describe, expect, it, vi } from "vitest";
 ```
 
-Exception: `apps/api` uses `globals: true`, so imports are optional there.
+Exception: `apps/api` currently uses `globals: true` (transitional — to ease migration to vitest). Prefer explicit local imports even there, as they simplify TypeScript types and make dependencies visible.
 
 ### No `if` Statements in Assertions
 
@@ -185,42 +183,42 @@ it("creates a deployment grant", async () => {
 
 Remove obvious comments. If a comment just restates the method name or assertion, delete it.
 
-### Only Test What the Code Handles
+### Test Error Handling Thoughtfully
 
-Don't write tests for error paths that don't exist in the production code. If the service doesn't catch a specific error, don't test for it.
+When testing error paths, focus on errors the code explicitly handles — but don't skip error coverage just because the happy path works. If a service catches and transforms errors, test those paths. If important error scenarios aren't handled in production code, that may be a gap worth flagging rather than ignoring.
 
 ## Frontend Tests (deploy-web)
 
-Read `references/frontend-patterns.md` for the full set of frontend-specific patterns including the DEPENDENCIES/COMPONENTS pattern, hook testing, query testing, and container testing.
+Read @references/frontend-patterns.md for the full set of frontend-specific patterns including the DEPENDENCIES pattern, hook testing, query testing, and container testing.
 
 Key points:
 - Use `getBy*` for presence assertions (`toBeInTheDocument()`), and `queryBy*` for absence assertions (`not.toBeInTheDocument()`)
-- Use the `DEPENDENCIES` export + `dependencies` prop for component DI (never `vi.mock`)
-- Use `MockComponents()` helper to auto-mock child components
+- Use the `DEPENDENCIES` export + `dependencies` prop for component DI (never `vi.mock`) — this covers components, hooks, and any other heavy imports
+- Use `MockComponents()` helper to auto-mock dependencies
 - Services are injected via `useServices` hook, not via `DEPENDENCIES` prop
 - Use `setupQuery()` utility for React Query hook tests
 - Use `renderHook` from `@testing-library/react` for hook tests
 
 ## API Unit Tests
 
-Read `references/api-patterns.md` for the full set of API-specific patterns including service testing, config mocking, and seeder patterns.
+Read @references/api-patterns.md for the full set of API-specific patterns including service testing, config mocking, and seeder patterns.
 
 Key points:
 - Construct services manually with `mock<T>()` dependencies
 - Use seeders for test data (`apps/api/test/seeders/`)
-- Prefer function-based seeders over class-based ones (simpler to write and use)
+- Use function-based seeders (not class-based)
 - Use `@faker-js/faker` for randomized data in seeders
 - Seeder accepts `Partial<T>` overrides with sensible defaults
 
 ## API Functional Tests
 
-Read `references/api-patterns.md` for functional test setup details.
+Read @references/api-patterns.md for functional test setup details.
 
 Key points:
 - Each spec file gets its own database via `TestDatabaseService` (auto-created, migrated, dropped)
-- Use real DI container (`tsyringe`) to resolve services
+- Test as a black box through HTTP endpoints — don't resolve controllers/services from the DI container
 - Mock external HTTP calls with `nock`, not internal services
-- Test through HTTP endpoints using `app.request()` (Hono) or `supertest` (NestJS)
+- Use `app.request()` (Hono) or `supertest` (NestJS) for making HTTP requests
 - Use existing seeders to create test fixtures in the real database
 - Write race condition tests for upsert operations
 

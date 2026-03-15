@@ -1,7 +1,7 @@
 # Frontend Testing Patterns (deploy-web)
 
 ## Table of Contents
-1. [DEPENDENCIES / COMPONENTS Pattern](#dependencies--components-pattern)
+1. [DEPENDENCIES Pattern](#dependencies-pattern)
 2. [MockComponents Utility](#mockcomponents-utility)
 3. [Hook Testing](#hook-testing)
 4. [Query Hook Testing](#query-hook-testing)
@@ -10,9 +10,11 @@
 7. [queryBy vs getBy](#queryby-vs-getby)
 8. [Snapshot Testing](#snapshot-testing)
 
-## DEPENDENCIES / COMPONENTS Pattern
+## DEPENDENCIES Pattern
 
-This is the canonical pattern for testing React components without `vi.mock()`. Components export their heavy dependencies and accept them as a prop for test injection.
+This is the canonical pattern for testing React components without `vi.mock()`. Components export their heavy dependencies (child components, hooks, and any other heavy imports) and accept them as a prop for test injection.
+
+Use a single `DEPENDENCIES` export that covers everything — components, hooks, and other imports. There's no need for a separate `COMPONENTS` export.
 
 ### Source-side
 
@@ -23,19 +25,15 @@ import { CustomTooltip } from "../CustomTooltip";
 import { LabelValue } from "../LabelValue";
 import { useSettings } from "@src/hooks/useSettings";
 
-export const COMPONENTS = { CustomTooltip, LabelValue };
-// or for hooks/services:
-export const DEPENDENCIES = { useRouter, useSettings };
+export const DEPENDENCIES = { useRouter, useSettings, CustomTooltip, LabelValue };
 
 interface Props {
   title: string;
-  components?: typeof COMPONENTS;
   dependencies?: typeof DEPENDENCIES;
 }
 
-export function MyComponent({ title, components = COMPONENTS, dependencies = DEPENDENCIES }: Props) {
-  const { CustomTooltip, LabelValue } = components;
-  const { useRouter, useSettings } = dependencies;
+export function MyComponent({ title, dependencies = DEPENDENCIES }: Props) {
+  const { CustomTooltip, LabelValue, useRouter, useSettings } = dependencies;
   // ... use them normally
 }
 ```
@@ -43,9 +41,12 @@ export function MyComponent({ title, components = COMPONENTS, dependencies = DEP
 ### Test-side
 
 ```typescript
-import { COMPONENTS, MyComponent } from "./MyComponent";
+import { DEPENDENCIES, MyComponent } from "./MyComponent";
 import { MockComponents } from "@tests/unit/mocks";
 
+// Note: .name only works for named function declarations (function MyComponent() {}).
+// Arrow function components (const MyComponent = () => ...) return an empty string for .name.
+// In that case, use a string literal: describe("MyComponent", () => { ... })
 describe(MyComponent.name, () => {
   it("renders title", () => {
     setup({ title: "Hello" });
@@ -54,15 +55,15 @@ describe(MyComponent.name, () => {
 
   it("uses custom tooltip", () => {
     const CustomTooltip = vi.fn(() => <div>tooltip</div>);
-    setup({ title: "Test", components: { CustomTooltip } });
+    setup({ title: "Test", dependencies: { CustomTooltip } });
     expect(CustomTooltip).toHaveBeenCalled();
   });
 
-  function setup(input: { title: string; components?: Partial<typeof COMPONENTS> }) {
+  function setup(input: { title: string; dependencies?: Partial<typeof DEPENDENCIES> }) {
     return render(
       <MyComponent
         title={input.title}
-        components={MockComponents(COMPONENTS, input.components)}
+        dependencies={MockComponents(DEPENDENCIES, input.dependencies)}
       />
     );
   }

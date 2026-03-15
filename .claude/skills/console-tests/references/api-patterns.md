@@ -85,9 +85,7 @@ expect(logger.info).toHaveBeenCalledWith(
 
 ## Seeders
 
-Seeders generate test data with sensible defaults and `Partial<T>` overrides. Prefer function-based seeders.
-
-### Function-based seeder (preferred for new code)
+Seeders generate test data with sensible defaults and `Partial<T>` overrides. Use function-based seeders.
 
 ```typescript
 import { faker } from "@faker-js/faker";
@@ -106,22 +104,11 @@ export function createUserWallet(overrides: Partial<UserWalletOutput> = {}): Use
 }
 ```
 
-### Class-based seeder (legacy, still in use)
+For batch creation, add a companion function:
 
 ```typescript
-export class AutoTopUpDeploymentSeeder {
-  static create(overrides: Partial<AutoTopUpDeployment> = {}): AutoTopUpDeployment {
-    return {
-      id: faker.string.uuid(),
-      walletId: faker.number.int(),
-      dseq: faker.number.int().toString(),
-      ...overrides
-    };
-  }
-
-  static createMany(count: number, overrides: Partial<AutoTopUpDeployment> = {}): AutoTopUpDeployment[] {
-    return Array.from({ length: count }, () => AutoTopUpDeploymentSeeder.create(overrides));
-  }
+export function createManyUserWallets(count: number, overrides: Partial<UserWalletOutput> = {}): UserWalletOutput[] {
+  return Array.from({ length: count }, () => createUserWallet(overrides));
 }
 ```
 
@@ -153,19 +140,15 @@ The setup registers `RAW_APP_CONFIG` in the `tsyringe` container and provides cu
 
 ## Functional Test Pattern
 
-Functional tests resolve real services from the DI container, use real databases, and mock only external HTTP calls.
+Functional tests treat the service as a black box — interact only through HTTP endpoints, use real databases, and mock only external network calls. Don't resolve controllers or services from the DI container; that couples tests to implementation details and makes them break on refactoring.
 
 ```typescript
-import { container } from "tsyringe";
 import nock from "nock";
 
 describe("Wallets Refill", () => {
-  const walletController = container.resolve(WalletController);
-  const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
-
   it("refills wallets below threshold", async () => {
     // Seed data in real DB
-    const wallet = await db.insert(userWalletsTable).values({
+    await db.insert(userWalletsTable).values({
       userId: user.id,
       address: createAkashAddress(),
       creditAmount: 100
@@ -185,25 +168,39 @@ describe("Wallets Refill", () => {
 });
 ```
 
+The database handle (`db`) is available from the shared functional test setup — it's the only internal you should access directly (for seeding and verifying data).
+
 ### Key functional test rules
 
 - **Hit real endpoints**: Use `app.request()` (Hono) or `supertest` (NestJS), not direct service calls
 - **Minimal mocking**: Only mock external 3rd-party services (blockchain nodes, Stripe, Auth0)
-- **Mock via request interception**:
-  - Use `nock` for non-native-fetch HTTP clients
-  - Use `fetch-mock` when the code path uses native Node.js `fetch` (Node 18+)
-  - Or mock at the SDK level (`ManagementClient`) when appropriate
+- **Mock via request interception**: Use `nock` (v14+ supports both `http`/`https` and native `fetch`), or mock at the SDK level (`ManagementClient`) when appropriate
 - **Seed data**: Use seeders and real DB inserts, never comment out test code
 - **Don't duplicate setup**: Use `setup-functional-tests.ts` — don't recreate DB setup per file
 - **Race condition tests**: Write them for upsert operations — concurrent requests hitting the same row is common
 
-### `AppHttpService` (`apps/api/test/services/app-http.service.ts`)
+### Making HTTP requests
 
-A helper that wraps `app.request()` and returns both response and parsed JSON:
+For Hono apps, use `app.request()` directly — it's the simplest approach:
+
+```typescript
+const response = await app.request("/v1/blocks");
+expect(response.status).toBe(200);
+const body = await response.json();
+```
+
+There's also an `AppHttpService` helper (`apps/api/test/services/app-http.service.ts`) that wraps `app.request()` and returns both response and parsed JSON:
 
 ```typescript
 const { response, body } = await appHttp.get("/v1/blocks");
 expect(response.status).toBe(200);
+```
+
+For NestJS apps (notifications), use `supertest`:
+
+```typescript
+const res = await request(app.getHttpServer()).get("/v1/alerts");
+expect(res.status).toBe(200);
 ```
 
 ## Integration Test Pattern
