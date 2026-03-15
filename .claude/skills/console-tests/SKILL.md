@@ -135,13 +135,13 @@ const billingConfig = mockConfigService<BillingConfigService>({
 
 ### Vitest Imports
 
-Most apps use `globals: false`. Explicitly import from `vitest`:
+Always explicitly import from `vitest`:
 
 ```typescript
 import { describe, expect, it, vi } from "vitest";
 ```
 
-Exception: `apps/api` currently uses `globals: true` (transitional — to ease migration to vitest). Prefer explicit local imports even there, as they simplify TypeScript types and make dependencies visible.
+Explicit imports make dependencies visible and simplify TypeScript types.
 
 ### No `if` Statements in Assertions
 
