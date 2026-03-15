@@ -13,8 +13,8 @@ import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
-import { DeploymentGrantResponseSeeder } from "@test/seeders/deployment-grant-response.seeder";
-import { DeploymentListResponseSeeder } from "@test/seeders/deployment-list-response.seeder";
+import { createDeploymentGrantResponseSeed } from "@test/seeders/deployment-grant-response.seeder";
+import { createDeploymentListResponseSeed } from "@test/seeders/deployment-list-response.seeder";
 import { FeeAllowanceResponseSeeder } from "@test/seeders/fee-allowance-response.seeder";
 import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
 
@@ -199,7 +199,7 @@ describe("Balances", () => {
       .get(/\/cosmos\/authz\/v1beta1\/grants\?.*/)
       .reply(
         200,
-        DeploymentGrantResponseSeeder.create({
+        createDeploymentGrantResponseSeed({
           granter: mockMasterWalletAddress,
           grantee: wallet.address || undefined,
           amount: "5000000"
@@ -211,7 +211,7 @@ describe("Balances", () => {
       .get(/\/akash\/deployment\/v1beta4\/deployments\/list\?.*/)
       .reply(
         200,
-        DeploymentListResponseSeeder.create({
+        createDeploymentListResponseSeed({
           owner: wallet.address || undefined,
           amount: "1000000"
         })
