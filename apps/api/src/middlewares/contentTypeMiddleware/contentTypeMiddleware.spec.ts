@@ -1,4 +1,6 @@
 import type { Context, Next } from "hono";
+import type { Mock } from "vitest";
+import { vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { contentTypeMiddleware } from "./contentTypeMiddleware";
@@ -91,7 +93,7 @@ describe("contentTypeMiddleware", () => {
         header: (name: string) => (name === "Content-Type" ? input.contentType : undefined)
       } as Context["req"]
     });
-    const next = jest.fn() as jest.MockedFunction<Next>;
+    const next = vi.fn() as Mock<Next>;
 
     const middleware = contentTypeMiddleware({
       supportedContentTypes: input.supportedContentTypes ?? new Set(["application/json"])

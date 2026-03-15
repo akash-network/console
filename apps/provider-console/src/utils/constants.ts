@@ -23,7 +23,7 @@ export const isMaintenanceMode = process.env.MAINTENANCE_MODE === "true";
 export const uAktDenom = "uakt";
 export const usdcIbcDenoms = {
   [mainnetId]: "ibc/170C677610AC31DF0904FFE09CD3B5C657492170E7E52372E48756B71E56F2F1",
-  [sandboxId]: "ibc/12C6A0C374171B595A0A9E18B83FA09D295FB1F2D8C6DAA3AC28683471752D84"
+  [sandboxId]: "ibc/028CD1864059EEFB48A6048376165318E3E82C234390AE5A6D7B22001725B06E"
 };
 const readableAktDenom = "uAKT";
 const readableUsdcDenom = "uUSDC";

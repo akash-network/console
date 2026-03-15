@@ -1,4 +1,6 @@
 import { faker } from "@faker-js/faker";
+import type { Mock } from "vitest";
+import { vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { LoggerService } from "@src/core/providers/logging.provider";
@@ -21,8 +23,8 @@ describe(NotificationDataResolverService.name, () => {
     const remainingCredits = faker.number.int({ min: 1000, max: 10000 });
     const activeDeployments = faker.number.int({ min: 0, max: 10 });
     const resolvers = {
-      remainingCredits: { resolve: jest.fn().mockResolvedValue(remainingCredits) },
-      activeDeployments: { resolve: jest.fn().mockResolvedValue(activeDeployments) }
+      remainingCredits: { resolve: vi.fn().mockResolvedValue(remainingCredits) },
+      activeDeployments: { resolve: vi.fn().mockResolvedValue(activeDeployments) }
     };
     const { service } = setup({ resolvers });
     const user = UserSeeder.create();
@@ -67,7 +69,7 @@ describe(NotificationDataResolverService.name, () => {
   });
 
   it("handles resolver that returns undefined", async () => {
-    const resolver = jest.fn().mockResolvedValue(undefined);
+    const resolver = vi.fn().mockResolvedValue(undefined);
     const { service } = setup({
       resolvers: {
         optionalField: { resolve: resolver }
@@ -90,7 +92,7 @@ describe(NotificationDataResolverService.name, () => {
 
   it("handles resolver that throws error", async () => {
     const error = new Error("Resolver failed");
-    const resolver = jest.fn().mockRejectedValue(error);
+    const resolver = vi.fn().mockRejectedValue(error);
     const { service } = setup({
       resolvers: {
         failingField: { resolve: resolver }
@@ -106,7 +108,7 @@ describe(NotificationDataResolverService.name, () => {
     expect(resolver).toHaveBeenCalledWith(user);
   });
 
-  function setup(input?: { resolvers?: Record<string, { resolve: jest.Mock }> }) {
+  function setup(input?: { resolvers?: Record<string, { resolve: Mock }> }) {
     const mocks = {
       resolvers: mock<NotificationDataResolvers>(input?.resolvers ?? {}),
       logger: mock<LoggerService>()
