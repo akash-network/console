@@ -13,7 +13,7 @@ import Layout from "../layout/Layout";
 
 type Props = {
   username: string;
-  user: IUserSetting;
+  user: IUserSetting | null;
 };
 
 export const UserProfile: React.FunctionComponent<Props> = ({ username, user }) => {
