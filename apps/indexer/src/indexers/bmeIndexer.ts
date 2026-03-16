@@ -16,9 +16,33 @@ export const BME_EVENT_TYPES = {
 
 const BME_EVENT_TYPE_VALUES = Object.values(BME_EVENT_TYPES);
 
+/**
+ * Matches the proto CoinPrice message:
+ *   message CoinPrice { Coin coin = 1; string price = 2; }
+ * where Coin is { string denom; string amount; }
+ */
+interface CoinPrice {
+  coin: { denom: string; amount: string };
+  price: string;
+}
+
+/**
+ * Matches the proto LedgerRecordID message
+ */
+interface LedgerRecordID {
+  denom: string;
+  to_denom: string;
+  source: string;
+  height: number;
+  sequence: number;
+}
+
 interface ParsedLedgerRecord {
+  sequence: number | null;
   burnedFrom: string;
   mintedTo: string;
+  burner: string | null;
+  minter: string | null;
   burnedDenom: string;
   burnedAmount: string;
   burnedPrice: string | null;
@@ -38,66 +62,87 @@ interface ParsedStatusChange {
 interface ParsedVaultSeeded {
   amount: string;
   denom: string;
+  newVaultBalance: { amount: string; denom: string } | null;
 }
 
-function parseCoinString(coin: string): { amount: string; denom: string } {
-  const match = coin.match(/^(\d+)(.+)$/);
-  if (!match) return { amount: "0", denom: "" };
-  return { amount: match[1], denom: match[2] };
-}
-
-function parseJsonObj(value: string | null): Record<string, string> | null {
+function parseJsonValue<T>(value: string | null | undefined): T | null {
   if (!value) return null;
   try {
-    const parsed: unknown = JSON.parse(value);
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-      return parsed as Record<string, string>;
-    }
-    return null;
+    return JSON.parse(value) as T;
   } catch {
     return null;
   }
 }
 
-function parseLedgerRecordEvent(data: Record<string, string | null>): ParsedLedgerRecord {
-  const burned = parseJsonObj(data.burned);
-  const minted = parseJsonObj(data.minted);
-  const burnedCoin = burned?.amount ? parseCoinString(burned.amount) : { amount: "0", denom: "" };
-  const mintedCoin = minted?.amount ? parseCoinString(minted.amount) : { amount: "0", denom: "" };
+/**
+ * Parse a CoinPrice proto attribute.
+ * Event attribute is JSON: {"coin":{"denom":"uakt","amount":"1000"},"price":"1.23"}
+ */
+function parseCoinPrice(value: string | null | undefined): CoinPrice | null {
+  const parsed = parseJsonValue<CoinPrice>(value);
+  if (!parsed?.coin) return null;
+  return parsed;
+}
 
-  const remintCreditIssued = parseJsonObj(data.remint_credit_issued);
-  const remintCreditAccrued = parseJsonObj(data.remint_credit_accrued);
-  const remintIssuedCoin = remintCreditIssued?.amount ? parseCoinString(remintCreditIssued.amount) : null;
-  const remintAccruedCoin = remintCreditAccrued?.amount ? parseCoinString(remintCreditAccrued.amount) : null;
+/**
+ * Parse EventLedgerRecordExecuted attributes.
+ *
+ * Proto fields (from akash.bme.v1.EventLedgerRecordExecuted):
+ *   id (LedgerRecordID), burned_from, minted_to, burner, minter,
+ *   burned (CoinPrice), minted (CoinPrice),
+ *   remint_credit_issued (CoinPrice), remint_credit_accrued (CoinPrice)
+ */
+function parseLedgerRecordEvent(data: Record<string, string | null>): ParsedLedgerRecord {
+  const id = parseJsonValue<LedgerRecordID>(data.id);
+  const burned = parseCoinPrice(data.burned);
+  const minted = parseCoinPrice(data.minted);
+  const remintCreditIssued = parseCoinPrice(data.remint_credit_issued);
+  const remintCreditAccrued = parseCoinPrice(data.remint_credit_accrued);
 
   return {
-    burnedFrom: burned?.address || "",
-    mintedTo: minted?.address || "",
-    burnedDenom: burnedCoin.denom,
-    burnedAmount: burnedCoin.amount,
-    burnedPrice: data.burned_price || null,
-    mintedDenom: mintedCoin.denom,
-    mintedAmount: mintedCoin.amount,
-    mintedPrice: data.minted_price || null,
-    remintCreditIssuedAmount: remintIssuedCoin?.amount || null,
-    remintCreditAccruedAmount: remintAccruedCoin?.amount || null
+    sequence: id?.sequence ?? null,
+    burnedFrom: data.burned_from || "",
+    mintedTo: data.minted_to || "",
+    burner: data.burner || null,
+    minter: data.minter || null,
+    burnedDenom: burned?.coin.denom || "",
+    burnedAmount: burned?.coin.amount || "0",
+    burnedPrice: burned?.price || null,
+    mintedDenom: minted?.coin.denom || "",
+    mintedAmount: minted?.coin.amount || "0",
+    mintedPrice: minted?.price || null,
+    remintCreditIssuedAmount: remintCreditIssued?.coin.amount || null,
+    remintCreditAccruedAmount: remintCreditAccrued?.coin.amount || null
   };
 }
 
+/**
+ * Parse EventMintStatusChange attributes.
+ *
+ * Proto fields: previous_status (MintStatus enum), new_status (MintStatus enum), collateral_ratio (Dec)
+ */
 function parseStatusChangeEvent(data: Record<string, string | null>): ParsedStatusChange {
   return {
-    previousStatus: data.previous_status || data.old_status || "",
-    newStatus: data.new_status || data.status || "",
+    previousStatus: data.previous_status || "",
+    newStatus: data.new_status || "",
     collateralRatio: data.collateral_ratio || "0"
   };
 }
 
+/**
+ * Parse EventVaultSeeded attributes.
+ *
+ * Proto fields: amount (Coin), source (string), new_vault_balance (Coin)
+ */
 function parseVaultSeededEvent(data: Record<string, string | null>): ParsedVaultSeeded {
-  const amount = parseJsonObj(data.amount);
-  if (amount?.amount) {
-    return parseCoinString(amount.amount);
-  }
-  return { amount: data.amount || "0", denom: data.denom || "uakt" };
+  const amount = parseJsonValue<{ amount: string; denom: string }>(data.amount);
+  const newVaultBalance = parseJsonValue<{ amount: string; denom: string }>(data.new_vault_balance);
+
+  return {
+    amount: amount?.amount || "0",
+    denom: amount?.denom || "uakt",
+    newVaultBalance
+  };
 }
 
 function txEventToDataMap(event: TransactionEvent): Record<string, string | null> {
@@ -211,8 +256,8 @@ export class BmeIndexer extends Indexer {
         statusChanges.push({ height: currentBlock.height, ...parsed });
       } else if (rawEvent.type === BME_EVENT_TYPES.VAULT_SEEDED) {
         const parsed = parseVaultSeededEvent(rawEvent.data);
-        if (parsed.denom === "uakt") {
-          vaultAktFromEvent = parseFloat(parsed.amount);
+        if (parsed.newVaultBalance && parsed.newVaultBalance.denom === "uakt") {
+          vaultAktFromEvent = parseFloat(parsed.newVaultBalance.amount);
         }
       }
     }
@@ -244,9 +289,9 @@ export class BmeIndexer extends Indexer {
     currentBlock.totalRemintCreditIssued = (previousBlock?.totalRemintCreditIssued || 0) + sums.creditIssued;
     currentBlock.totalRemintCreditAccrued = (previousBlock?.totalRemintCreditAccrued || 0) + sums.creditAccrued;
 
-    // Absolute on-chain values
+    // Absolute on-chain vault balance from EventVaultSeeded.new_vault_balance
     if (vaultAktFromEvent !== null) {
-      currentBlock.vaultAkt = (previousBlock?.vaultAkt || 0) + vaultAktFromEvent;
+      currentBlock.vaultAkt = vaultAktFromEvent;
     } else {
       currentBlock.vaultAkt = previousBlock?.vaultAkt || null;
     }
