@@ -1,9 +1,10 @@
+/* v8 ignore start */
 import { chainModels } from "@akashnetwork/database/dbSchemas";
 import { createOtelLogger } from "@akashnetwork/logging/otel";
 import pg from "pg";
 import { Transaction as DbTransaction } from "sequelize";
 import { Sequelize } from "sequelize-typescript";
-import type { Disposable, InjectionToken } from "tsyringe";
+import type { InjectionToken } from "tsyringe";
 import { container, instancePerContainerCachingFactory } from "tsyringe";
 
 import { ChainConfigService } from "@src/chain/services/chain-config/chain-config.service";
@@ -29,7 +30,7 @@ container.register(CHAIN_DB, {
     const logger = c.resolve(SEQUELIZE_LOGGER);
     const config = c.resolve(CoreConfigService);
     const dbUri = c.resolve(ChainConfigService).get("CHAIN_INDEXER_POSTGRES_DB_URI");
-    return new Sequelize(dbUri, {
+    const sequelize = new Sequelize(dbUri, {
       dialectModule: pg,
       dialectOptions: {
         connectionTimeoutMillis: config.get("SEQUELIZE_CONNECTION_TIMEOUT"),
@@ -48,23 +49,19 @@ container.register(CHAIN_DB, {
         evict: config.get("SEQUELIZE_POOL_EVICT")
       }
     });
+    c.resolve(DisposableRegistry).register({ dispose: () => sequelize.close() });
+    return sequelize;
   })
 });
 
 container.register(APP_INITIALIZER, {
-  useFactory: instancePerContainerCachingFactory(
-    DisposableRegistry.registerFromFactory(c => {
-      const chainDb = c.resolve(CHAIN_DB);
-      return {
-        async [ON_APP_START]() {
-          await connectUsingSequelize(c.resolve(LoggerService));
-        },
-        async dispose() {
-          await chainDb.close();
-        }
-      } satisfies AppInitializer & Disposable;
-    })
-  )
+  useFactory: instancePerContainerCachingFactory(c => {
+    return {
+      async [ON_APP_START]() {
+        await connectUsingSequelize(c.resolve(LoggerService));
+      }
+    } satisfies AppInitializer;
+  })
 });
 
 /**
