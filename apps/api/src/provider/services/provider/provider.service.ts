@@ -1,6 +1,5 @@
 import { Provider, ProviderSnapshot, ProviderSnapshotNode, ProviderSnapshotNodeGPU } from "@akashnetwork/database/dbSchemas/akash";
 import type { ProviderAttributesSchema } from "@akashnetwork/http-sdk";
-import { NetConfig, SupportedChainNetworks } from "@akashnetwork/net";
 import { AxiosError } from "axios";
 import { add } from "date-fns";
 import assert from "http-assert";
@@ -8,7 +7,6 @@ import createError from "http-errors";
 import { Op } from "sequelize";
 import { singleton } from "tsyringe";
 
-import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { Memoize } from "@src/caching/helpers";
 import { LeaseStatusResponse } from "@src/deployment/http-schemas/lease.schema";
 import type { Auditor } from "@src/provider/http-schemas/auditor.schema";
@@ -28,19 +26,14 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 export class ProviderService {
   private readonly MANIFEST_SEND_MAX_RETRIES = 3;
   private readonly MANIFEST_SEND_RETRY_DELAY = 6000;
-  private readonly chainNetwork: SupportedChainNetworks;
 
   constructor(
     private readonly providerProxy: ProviderProxyService,
     private readonly providerRepository: ProviderRepository,
     private readonly providerAttributesSchemaService: ProviderAttributesSchemaService,
     private readonly auditorsService: AuditorService,
-    private readonly jwtTokenService: ProviderJwtTokenService,
-    private readonly config: BillingConfigService,
-    netConfig: NetConfig
-  ) {
-    this.chainNetwork = netConfig.mapped(this.config.get("NETWORK"));
-  }
+    private readonly jwtTokenService: ProviderJwtTokenService
+  ) {}
 
   async sendManifest(options: { provider: string; dseq: string; manifest: string; auth: ProviderAuth }) {
     const provider = await this.providerRepository.findActiveByAddress(options.provider);
@@ -81,7 +74,6 @@ export class ProviderService {
           method: "PUT",
           body: options.manifest,
           auth: options.auth,
-          chainNetwork: this.chainNetwork,
           providerIdentity: options.providerIdentity,
           timeout: 15_000
         });
@@ -130,7 +122,6 @@ export class ProviderService {
     return await this.providerProxy.request<LeaseStatusResponse>(`/lease/${dseq}/${gseq}/${oseq}/status`, {
       method: "GET",
       auth,
-      chainNetwork: this.chainNetwork,
       providerIdentity,
       timeout: 15000
     });

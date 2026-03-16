@@ -1,7 +1,6 @@
 import type { JwtTokenPayload } from "@akashnetwork/chain-sdk";
 import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
 import type { ProviderAttributesSchema } from "@akashnetwork/http-sdk";
-import { netConfig } from "@akashnetwork/net";
 import { faker } from "@faker-js/faker";
 import { AxiosError } from "axios";
 import { Ok } from "ts-results";
@@ -9,11 +8,9 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { AUDITOR } from "@src/deployment/config/provider.config";
-import { mockConfigService } from "../../../../test/mocks/config-service.mock";
 import { createLeaseStatus } from "../../../../test/seeders/lease-status.seeder";
 import { createProviderSeed, createProviderWithAttributeSignatures } from "../../../../test/seeders/provider.seeder";
 import { createUserWallet } from "../../../../test/seeders/user-wallet.seeder";
-import type { BillingConfigService } from "../../../billing/services/billing-config/billing-config.service";
 import type { ProviderRepository } from "../../repositories/provider/provider.repository";
 import type { AuditorService } from "../auditors/auditors.service";
 import type { ProviderAttributesSchemaService } from "../provider-attributes-schema/provider-attributes-schema.service";
@@ -93,7 +90,6 @@ describe(ProviderService.name, () => {
         method: "PUT",
         body: '{"size":{"val":"1"}}',
         auth: { type: "jwt", token: jwtToken },
-        chainNetwork: "sandbox-2",
         providerIdentity: {
           owner: provider.owner,
           hostUri: provider.hostUri
@@ -351,7 +347,6 @@ describe(ProviderService.name, () => {
       expect(providerProxyService.request).toHaveBeenCalledWith(`/lease/${dseq}/${gseq}/${oseq}/status`, {
         method: "GET",
         auth: { type: "jwt", token: jwtToken },
-        chainNetwork: "sandbox-2",
         providerIdentity: {
           owner: provider.owner,
           hostUri: provider.hostUri
@@ -451,19 +446,8 @@ describe(ProviderService.name, () => {
     const jwtTokenService = mock<ProviderJwtTokenService>({
       generateJwtToken: jest.fn().mockResolvedValue(Ok("mock-jwt-token"))
     });
-    const config = mockConfigService<BillingConfigService>({
-      NETWORK: "sandbox"
-    });
 
-    const service = new ProviderService(
-      providerProxyService,
-      providerRepository,
-      providerAttributesSchemaService,
-      auditorsService,
-      jwtTokenService,
-      config,
-      netConfig
-    );
+    const service = new ProviderService(providerProxyService, providerRepository, providerAttributesSchemaService, auditorsService, jwtTokenService);
 
     return {
       service,
