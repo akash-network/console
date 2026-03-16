@@ -4,13 +4,13 @@ import { akash, akashAssetList } from "./akash";
 
 export const akashTestnet: Chain = {
   ...akash,
-  chain_id: "testnet-upgrade",
+  chain_id: "testnet-bme",
   network_type: "testnet",
   chain_name: "akash-testnet",
   pretty_name: "Akash-Testnet",
   apis: {
-    rpc: [{ address: "https://rpc.testnet-upgrade.aksh.pw:443", provider: "ovrclk" }],
-    rest: [{ address: "https://api.testnet-upgrade.aksh.pw:443", provider: "ovrclk" }]
+    rpc: [{ address: "https://testnetrpc.akashnet.net:443", provider: "ovrclk" }],
+    rest: [{ address: "https://testnetapi.akashnet.net", provider: "ovrclk" }]
   }
 };
 
