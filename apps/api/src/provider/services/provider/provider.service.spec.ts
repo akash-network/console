@@ -10,7 +10,7 @@ import { mock } from "vitest-mock-extended";
 
 import { AUDITOR } from "@src/deployment/config/provider.config";
 import { mockConfigService } from "../../../../test/mocks/config-service.mock";
-import { LeaseStatusSeeder } from "../../../../test/seeders/lease-status.seeder";
+import { createLeaseStatus } from "../../../../test/seeders/lease-status.seeder";
 import { createProviderSeed, createProviderWithAttributeSignatures } from "../../../../test/seeders/provider.seeder";
 import { UserWalletSeeder } from "../../../../test/seeders/user-wallet.seeder";
 import type { BillingConfigService } from "../../../billing/services/billing-config/billing-config.service";
@@ -323,7 +323,7 @@ describe(ProviderService.name, () => {
       const oseq = faker.number.int({ min: 1, max: 10 });
       const jwtToken = faker.string.alphanumeric(32);
 
-      const leaseStatus = LeaseStatusSeeder.create();
+      const leaseStatus = createLeaseStatus();
 
       const leases: JwtTokenPayload["leases"] = {
         access: "granular",

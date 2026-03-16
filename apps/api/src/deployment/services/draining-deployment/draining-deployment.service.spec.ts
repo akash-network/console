@@ -20,15 +20,15 @@ import { DrainingDeploymentService } from "./draining-deployment.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
 import { createAkashAddress } from "@test/seeders";
-import { AutoTopUpDeploymentSeeder } from "@test/seeders/auto-top-up-deployment.seeder";
-import { DrainingDeploymentSeeder } from "@test/seeders/draining-deployment.seeder";
+import { createManyAutoTopUpDeployments } from "@test/seeders/auto-top-up-deployment.seeder";
+import { createDrainingDeployment } from "@test/seeders/draining-deployment.seeder";
 import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
 
 describe(DrainingDeploymentService.name, () => {
   describe("findDrainingDeploymentsByOwner", () => {
     it("paginates draining deployments by owner and marks closed ones as such", async () => {
       const { service, deploymentSettingRepository, leaseRepository, loggerService, currentHeight } = setup();
-      const deploymentSettings = AutoTopUpDeploymentSeeder.createMany(4);
+      const deploymentSettings = createManyAutoTopUpDeployments(4);
       const addresses = deploymentSettings.map(s => s.address);
       const dseqs = deploymentSettings.map(s => Number(s.dseq));
 
@@ -115,8 +115,8 @@ describe(DrainingDeploymentService.name, () => {
       const owner = createAkashAddress();
       const dseqs = [faker.string.numeric(6), faker.string.numeric(6)];
       const expectedLeases: DrainingDeploymentOutput[] = [
-        DrainingDeploymentSeeder.create({ owner, dseq: Number(dseqs[0]) }),
-        DrainingDeploymentSeeder.create({ owner, dseq: Number(dseqs[1]) })
+        createDrainingDeployment({ owner, dseq: Number(dseqs[0]) }),
+        createDrainingDeployment({ owner, dseq: Number(dseqs[1]) })
       ];
 
       rpcService.findManyByDseqAndOwner.mockResolvedValue(expectedLeases);
@@ -134,8 +134,8 @@ describe(DrainingDeploymentService.name, () => {
       const dseqs = [faker.string.numeric(6), faker.string.numeric(6)];
       const rpcError = new Error("RPC error");
       const expectedLeases: DrainingDeploymentOutput[] = [
-        DrainingDeploymentSeeder.create({ owner, dseq: Number(dseqs[0]) }),
-        DrainingDeploymentSeeder.create({ owner, dseq: Number(dseqs[1]) })
+        createDrainingDeployment({ owner, dseq: Number(dseqs[0]) }),
+        createDrainingDeployment({ owner, dseq: Number(dseqs[1]) })
       ];
 
       rpcService.findManyByDseqAndOwner.mockRejectedValue(rpcError);
@@ -188,7 +188,7 @@ describe(DrainingDeploymentService.name, () => {
       const dseq = faker.string.numeric(6);
       const address = createAkashAddress();
       const userWallet = UserWalletSeeder.create({ address });
-      const deployment = DrainingDeploymentSeeder.create();
+      const deployment = createDrainingDeployment();
       const expectedTopUpAmount = 100000;
 
       const { service, userWalletRepository, leaseRepository } = setup();
@@ -358,12 +358,12 @@ describe(DrainingDeploymentService.name, () => {
       baseSetup.userWalletRepository.findOneByUserId.mockResolvedValue(userWallet);
 
       baseSetup.deploymentSettingRepository.accessibleBy.mockReturnValue(baseSetup.deploymentSettingRepository);
-      const deploymentSettings = AutoTopUpDeploymentSeeder.createMany(input.deployments.length, { address });
+      const deploymentSettings = createManyAutoTopUpDeployments(input.deployments.length, { address });
 
       const drainingDeployments = deploymentSettings.map((setting, idx) => {
         const deployment = input.deployments[idx];
         const predictedClosedHeight = deployment?.predictedClosedHeight;
-        return DrainingDeploymentSeeder.create({
+        return createDrainingDeployment({
           dseq: Number(setting.dseq),
           owner: address,
           blockRate: deployment?.blockRate ?? 0,
@@ -497,12 +497,12 @@ describe(DrainingDeploymentService.name, () => {
       const baseSetup = setup();
       baseSetup.userWalletRepository.findOneBy.mockResolvedValue(userWallet);
 
-      const deploymentSettings = AutoTopUpDeploymentSeeder.createMany(input.deployments.length, { address });
+      const deploymentSettings = createManyAutoTopUpDeployments(input.deployments.length, { address });
 
       const drainingDeployments = deploymentSettings.map((setting, idx) => {
         const deployment = input.deployments[idx];
         const predictedClosedHeight = deployment?.predictedClosedHeight ?? undefined;
-        return DrainingDeploymentSeeder.create({
+        return createDrainingDeployment({
           dseq: Number(setting.dseq),
           owner: address,
           predictedClosedHeight: predictedClosedHeight === null ? undefined : predictedClosedHeight,
