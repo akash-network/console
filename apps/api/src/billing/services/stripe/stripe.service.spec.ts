@@ -22,7 +22,7 @@ import {
   TEST_CONSTANTS
 } from "@test/seeders/stripe-test-data.seeder";
 import { createTestTransaction } from "@test/seeders/stripe-transaction-test.seeder";
-import { UserSeeder } from "@test/seeders/user.seeder";
+import { createUser } from "@test/seeders/user.seeder";
 import { createTestUser } from "@test/seeders/user-test.seeder";
 
 describe(StripeService.name, () => {
@@ -1131,7 +1131,7 @@ describe(StripeService.name, () => {
     });
 
     it("handles 3D Secure authentication requirement in trialing wallets", async () => {
-      const mockUser = UserSeeder.create({ id: "user_123", stripeCustomerId: "cus_123" });
+      const mockUser = createUser({ id: "user_123", stripeCustomerId: "cus_123" });
       const mockPaymentIntent = createTestPaymentIntent({
         id: "pi_test_123",
         status: "requires_action",
@@ -1176,7 +1176,7 @@ describe(StripeService.name, () => {
 
     it("handles payment intent with requires_capture status", async () => {
       const { service, paymentMethodRepository } = setup();
-      const mockUser = UserSeeder.create({ id: "user_123", stripeCustomerId: "cus_123" });
+      const mockUser = createUser({ id: "user_123", stripeCustomerId: "cus_123" });
       const mockPaymentIntent = {
         id: "pi_test_123",
         status: "requires_capture",
@@ -1360,7 +1360,7 @@ describe(StripeService.name, () => {
 
     it("marks payment method as validated when payment intent succeeded", async () => {
       const { service, paymentMethodRepository } = setup();
-      const mockUser = UserSeeder.create({ id: "user_123", stripeCustomerId: "cus_123" });
+      const mockUser = createUser({ id: "user_123", stripeCustomerId: "cus_123" });
       const mockPaymentIntent = {
         id: "pi_123",
         status: "succeeded",
@@ -1384,7 +1384,7 @@ describe(StripeService.name, () => {
 
     it("marks payment method as validated when payment intent requires_capture", async () => {
       const { service, paymentMethodRepository } = setup();
-      const mockUser = UserSeeder.create({ id: "user_123", stripeCustomerId: "cus_123" });
+      const mockUser = createUser({ id: "user_123", stripeCustomerId: "cus_123" });
       const mockPaymentIntent = {
         id: "pi_123",
         status: "requires_capture",
@@ -1594,7 +1594,7 @@ function setup(
     if (query?.id && lastUser && lastUser.id === query.id) {
       return lastUser;
     }
-    // fallback for tests that don't use UserSeeder
+    // fallback for tests that don't use createUser
     if (query?.stripeCustomerId) {
       return { id: query.stripeCustomerId, stripeCustomerId: query.stripeCustomerId };
     }

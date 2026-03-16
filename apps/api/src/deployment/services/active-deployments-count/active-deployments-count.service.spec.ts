@@ -6,12 +6,12 @@ import type { LoggerService } from "@src/core/providers/logging.provider";
 import type { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import { ActiveDeploymentsCountService } from "./active-deployments-count.service";
 
-import { UserSeeder } from "@test/seeders/user.seeder";
+import { createUser } from "@test/seeders/user.seeder";
 import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
 
 describe(ActiveDeploymentsCountService.name, () => {
   it("returns active deployments count when user has wallet", async () => {
-    const user = UserSeeder.create();
+    const user = createUser();
     const activeCount = faker.number.int({ min: 0, max: 10 });
 
     const userWallet = UserWalletSeeder.create();
@@ -28,7 +28,7 @@ describe(ActiveDeploymentsCountService.name, () => {
   });
 
   it("throws error when user has no wallet", async () => {
-    const user = UserSeeder.create();
+    const user = createUser();
 
     const { service, userWalletRepository, logger } = setup({
       findOneByUserId: jest.fn().mockResolvedValue(null)
@@ -44,7 +44,7 @@ describe(ActiveDeploymentsCountService.name, () => {
   });
 
   it("throws error when user wallet has no address", async () => {
-    const user = UserSeeder.create();
+    const user = createUser();
 
     const userWallet = UserWalletSeeder.create({ address: null });
     const { service, userWalletRepository, logger } = setup({

@@ -14,7 +14,7 @@ import { ManagedUserWalletService } from "../managed-user-wallet/managed-user-wa
 import { WalletInitializerService } from "./wallet-initializer.service";
 
 import { createChainWallet } from "@test/seeders/chain-wallet.seeder";
-import { UserSeeder } from "@test/seeders/user.seeder";
+import { createUser } from "@test/seeders/user.seeder";
 import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
 
 describe(WalletInitializerService.name, () => {
@@ -132,7 +132,7 @@ describe(WalletInitializerService.name, () => {
       AuthService,
       mock<AuthService>({
         ability: {},
-        currentUser: UserSeeder.create({ id: input?.userId })
+        currentUser: createUser({ id: input?.userId })
       })
     );
     di.registerInstance(DomainEventsService, mock<DomainEventsService>());
