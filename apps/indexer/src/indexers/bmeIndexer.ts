@@ -41,12 +41,10 @@ interface ParsedLedgerRecord {
   sequence: number | null;
   burnedFrom: string;
   mintedTo: string;
-  burner: string | null;
-  minter: string | null;
-  burnedDenom: string;
+  burnedDenom: string | null;
   burnedAmount: string;
   burnedPrice: string | null;
-  mintedDenom: string;
+  mintedDenom: string | null;
   mintedAmount: string;
   mintedPrice: string | null;
   remintCreditIssuedAmount: string | null;
@@ -120,12 +118,10 @@ function parseLedgerRecordEvent(data: Record<string, string | null>): ParsedLedg
     sequence: id?.sequence != null ? Number(id.sequence) : null,
     burnedFrom: parseStringAttr(data.burned_from) || "",
     mintedTo: parseStringAttr(data.minted_to) || "",
-    burner: parseStringAttr(data.burner) || null,
-    minter: parseStringAttr(data.minter) || null,
-    burnedDenom: burned?.coin.denom || "",
+    burnedDenom: burned?.coin.denom || null,
     burnedAmount: burned?.coin.amount || "0",
     burnedPrice: burned?.price || null,
-    mintedDenom: minted?.coin.denom || "",
+    mintedDenom: minted?.coin.denom || null,
     mintedAmount: minted?.coin.amount || "0",
     mintedPrice: minted?.price || null,
     remintCreditIssuedAmount: remintCreditIssued?.coin.amount || null,
@@ -272,8 +268,6 @@ export class BmeIndexer extends Indexer {
     currentBlock.totalUactMinted = (previousBlock?.totalUactMinted || 0) + sums.actMinted;
     currentBlock.totalUactBurnedForUakt = (previousBlock?.totalUactBurnedForUakt || 0) + sums.actBurnedForAkt;
     currentBlock.totalUaktReminted = (previousBlock?.totalUaktReminted || 0) + sums.aktReminted;
-    currentBlock.totalRemintCreditIssued = (previousBlock?.totalRemintCreditIssued || 0) + sums.aktReminted;
-    currentBlock.totalRemintCreditAccrued = (previousBlock?.totalRemintCreditAccrued || 0) + sums.aktBurnedForAct;
 
     // Vault uAKT = AKT deposited via mints minus AKT withdrawn via burns, plus any governance seed
     if (vaultUaktFromEvent !== null) {
