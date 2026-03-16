@@ -7,14 +7,15 @@ import { Required } from "../decorators/requiredDecorator";
  * BmeRawEvent model
  *
  * Staging table for BME block-level events extracted from end_block_events.
- * Only BME-relevant events are stored (EventLedgerRecordExecuted, EventMintStatusChange, EventVaultBalance, EventActSupply).
+ * Only BME-relevant events are stored (EventLedgerRecordExecuted, EventMintStatusChange, EventVaultSeeded).
  * Marked as processed after the BmeIndexer consumes them.
  */
 @Table({
-  modelName: "bmeRawEvent",
+  tableName: "bme_raw_event",
+  underscored: true,
   indexes: [
     { unique: true, fields: ["height", "index"] },
-    { unique: false, fields: ["height", "isProcessed"] }
+    { unique: false, fields: ["height", "is_processed"] }
   ]
 })
 export class BmeRawEvent extends Model {

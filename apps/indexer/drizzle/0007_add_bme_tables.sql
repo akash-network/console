@@ -8,46 +8,49 @@ ALTER TABLE "block" ADD COLUMN IF NOT EXISTS "totalRemintCreditAccrued" double p
 ALTER TABLE "block" ADD COLUMN IF NOT EXISTS "vaultAkt" double precision;
 ALTER TABLE "block" ADD COLUMN IF NOT EXISTS "outstandingAct" double precision;
 
--- Create bmeRawEvent table
-CREATE TABLE IF NOT EXISTS "bmeRawEvent" (
+-- Create bme_raw_event table
+CREATE TABLE IF NOT EXISTS "bme_raw_event" (
   "id" uuid PRIMARY KEY NOT NULL DEFAULT gen_random_uuid(),
   "height" integer NOT NULL,
   "index" integer NOT NULL,
   "type" varchar(255) NOT NULL,
   "data" jsonb NOT NULL,
-  "isProcessed" boolean NOT NULL DEFAULT false
+  "is_processed" boolean NOT NULL DEFAULT false
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS "bme_raw_event_height_index" ON "bmeRawEvent" ("height", "index");
-CREATE INDEX IF NOT EXISTS "bme_raw_event_height_is_processed" ON "bmeRawEvent" ("height", "isProcessed");
+CREATE UNIQUE INDEX IF NOT EXISTS "bme_raw_event_height_index" ON "bme_raw_event" ("height", "index");
+CREATE INDEX IF NOT EXISTS "bme_raw_event_height_is_processed" ON "bme_raw_event" ("height", "is_processed");
 
--- Create bmeLedgerRecord table
-CREATE TABLE IF NOT EXISTS "bmeLedgerRecord" (
+-- Create bme_ledger_record table
+CREATE TABLE IF NOT EXISTS "bme_ledger_record" (
   "id" uuid PRIMARY KEY NOT NULL DEFAULT gen_random_uuid(),
   "height" integer NOT NULL,
-  "burnedFrom" varchar(255) NOT NULL,
-  "mintedTo" varchar(255) NOT NULL,
-  "burnedDenom" varchar(255) NOT NULL,
-  "burnedAmount" numeric(30, 0) NOT NULL,
-  "burnedPrice" numeric(20, 10),
-  "mintedDenom" varchar(255) NOT NULL,
-  "mintedAmount" numeric(30, 0) NOT NULL,
-  "mintedPrice" numeric(20, 10),
-  "remintCreditIssuedAmount" numeric(30, 0),
-  "remintCreditAccruedAmount" numeric(30, 0)
+  "sequence" integer,
+  "burned_from" varchar(255) NOT NULL,
+  "minted_to" varchar(255) NOT NULL,
+  "burner" varchar(255),
+  "minter" varchar(255),
+  "burned_denom" varchar(255) NOT NULL,
+  "burned_amount" numeric(30, 0) NOT NULL,
+  "burned_price" numeric(20, 10),
+  "minted_denom" varchar(255) NOT NULL,
+  "minted_amount" numeric(30, 0) NOT NULL,
+  "minted_price" numeric(20, 10),
+  "remint_credit_issued_amount" numeric(30, 0),
+  "remint_credit_accrued_amount" numeric(30, 0)
 );
 
-CREATE INDEX IF NOT EXISTS "bme_ledger_record_height" ON "bmeLedgerRecord" ("height");
-CREATE INDEX IF NOT EXISTS "bme_ledger_record_burned_denom_height" ON "bmeLedgerRecord" ("burnedDenom", "height");
-CREATE INDEX IF NOT EXISTS "bme_ledger_record_minted_denom_height" ON "bmeLedgerRecord" ("mintedDenom", "height");
+CREATE INDEX IF NOT EXISTS "bme_ledger_record_height" ON "bme_ledger_record" ("height");
+CREATE INDEX IF NOT EXISTS "bme_ledger_record_burned_denom_height" ON "bme_ledger_record" ("burned_denom", "height");
+CREATE INDEX IF NOT EXISTS "bme_ledger_record_minted_denom_height" ON "bme_ledger_record" ("minted_denom", "height");
 
--- Create bmeStatusChange table
-CREATE TABLE IF NOT EXISTS "bmeStatusChange" (
+-- Create bme_status_change table
+CREATE TABLE IF NOT EXISTS "bme_status_change" (
   "id" uuid PRIMARY KEY NOT NULL DEFAULT gen_random_uuid(),
   "height" integer NOT NULL,
-  "previousStatus" varchar(255) NOT NULL,
-  "newStatus" varchar(255) NOT NULL,
-  "collateralRatio" numeric(20, 10) NOT NULL
+  "previous_status" varchar(255) NOT NULL,
+  "new_status" varchar(255) NOT NULL,
+  "collateral_ratio" numeric(20, 10) NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS "bme_status_change_height" ON "bmeStatusChange" ("height");
+CREATE INDEX IF NOT EXISTS "bme_status_change_height" ON "bme_status_change" ("height");

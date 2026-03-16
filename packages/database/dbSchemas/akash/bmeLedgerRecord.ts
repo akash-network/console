@@ -8,21 +8,27 @@ import { Required } from "../decorators/requiredDecorator";
  *
  * Stores every BME mint/burn execution from EventLedgerRecordExecuted events.
  * Records come from both tx-level events (immediate execution) and block-level events (epoch-triggered).
- * Includes burned/minted amounts with denominations, USD prices at execution time, and remint credit data.
+ * Includes burned/minted amounts with denominations, oracle prices at execution time, and remint credit data.
+ *
+ * Proto: akash.bme.v1.EventLedgerRecordExecuted
  */
 @Table({
-  modelName: "bmeLedgerRecord",
+  tableName: "bme_ledger_record",
+  underscored: true,
   indexes: [
     { unique: false, fields: ["height"] },
-    { unique: false, fields: ["burnedDenom", "height"] },
-    { unique: false, fields: ["mintedDenom", "height"] }
+    { unique: false, fields: ["burned_denom", "height"] },
+    { unique: false, fields: ["minted_denom", "height"] }
   ]
 })
 export class BmeLedgerRecord extends Model {
   @Required @PrimaryKey @Default(UUIDV4) @Column(DataTypes.UUID) id!: string;
   @Required @Column height!: number;
+  @Column sequence?: number;
   @Required @Column burnedFrom!: string;
   @Required @Column mintedTo!: string;
+  @Column burner?: string;
+  @Column minter?: string;
   @Required @Column burnedDenom!: string;
   @Required @Column(DataTypes.DECIMAL(30, 0)) burnedAmount!: string;
   @Column(DataTypes.DECIMAL(20, 10)) burnedPrice?: string;
