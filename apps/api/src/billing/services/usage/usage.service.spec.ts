@@ -7,7 +7,7 @@ import type { DeploymentRepository } from "@src/deployment/repositories/deployme
 import { UsageService } from "./usage.service";
 
 import { createAkashAddress } from "@test/seeders";
-import { BillingUsageSeeder } from "@test/seeders/billing-usage.seeder";
+import { createBillingUsage } from "@test/seeders/billing-usage.seeder";
 
 describe(UsageService.name, () => {
   describe("getHistory", () => {
@@ -132,7 +132,7 @@ describe(UsageService.name, () => {
         const { address, startDate, endDate, service, usageRepository, deploymentRepository } = setup();
 
         const mockUsageData = [
-          BillingUsageSeeder.create({
+          createBillingUsage({
             date: "2024-01-01",
             activeDeployments: 1,
             dailyAktSpent: 5.5,
@@ -154,7 +154,7 @@ describe(UsageService.name, () => {
         const { address, startDate, endDate, service, usageRepository, deploymentRepository } = setup();
 
         const mockUsageData = [
-          BillingUsageSeeder.create({
+          createBillingUsage({
             date: "2024-01-01",
             activeDeployments: 1,
             dailyAktSpent: 100.123456789,
@@ -164,7 +164,7 @@ describe(UsageService.name, () => {
             dailyUsdSpent: 151.11111111,
             totalUsdSpent: 151.11111111
           }),
-          BillingUsageSeeder.create({
+          createBillingUsage({
             date: "2024-01-02",
             activeDeployments: 1,
             dailyAktSpent: 200.987654321,
@@ -195,7 +195,7 @@ describe(UsageService.name, () => {
     const totalDeployments = input?.totalDeployments ?? faker.number.int({ min: 1, max: 20 });
 
     const mockUsageData = input?.usageData || [
-      BillingUsageSeeder.create({
+      createBillingUsage({
         date: format(startDate, "yyyy-MM-dd"),
         activeDeployments: 1,
         dailyAktSpent: 5.5,
@@ -205,7 +205,7 @@ describe(UsageService.name, () => {
         dailyUsdSpent: 7.75,
         totalUsdSpent: 7.75
       }),
-      BillingUsageSeeder.create({
+      createBillingUsage({
         date: format(addDays(startDate, 1), "yyyy-MM-dd"),
         activeDeployments: 2,
         dailyAktSpent: 3.2,
@@ -215,7 +215,7 @@ describe(UsageService.name, () => {
         dailyUsdSpent: 4.7,
         totalUsdSpent: 12.45
       }),
-      BillingUsageSeeder.create({
+      createBillingUsage({
         date: format(addDays(startDate, 2), "yyyy-MM-dd"),
         activeDeployments: 1,
         dailyAktSpent: 2.1,
