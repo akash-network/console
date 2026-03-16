@@ -22,7 +22,7 @@ import { deploymentVersion, marketVersion } from "@src/utils/constants";
 
 import { ApiKeySeeder } from "@test/seeders/api-key.seeder";
 import { createDeployment } from "@test/seeders/deployment.seeder";
-import { DeploymentInfoSeeder } from "@test/seeders/deployment-info.seeder";
+import { createDeploymentInfoErrorSeed, createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
 import { LeaseApiResponseSeeder } from "@test/seeders/lease-api-response.seeder";
 import { LeaseStatusSeeder } from "@test/seeders/lease-status.seeder";
 import { UserSeeder } from "@test/seeders/user.seeder";
@@ -129,7 +129,7 @@ describe("Deployments API", () => {
     const address = wallets[0].address;
     const defaultDeploymentInfo =
       deploymentInfo ||
-      DeploymentInfoSeeder.create({
+      createDeploymentInfoSeed({
         owner: address!,
         dseq
       });
@@ -207,7 +207,7 @@ describe("Deployments API", () => {
 
     for (let i = 0; i < count; i++) {
       const dseq = faker.string.numeric();
-      const deploymentInfo = DeploymentInfoSeeder.create({
+      const deploymentInfo = createDeploymentInfoSeed({
         owner: address!,
         dseq,
         state
@@ -256,7 +256,7 @@ describe("Deployments API", () => {
     it("returns 404 for an error in deployment info", async () => {
       const dseq = "1234";
       const { userApiKeySecret, wallets } = await mockUser();
-      await setupDeploymentInfoMock(wallets, dseq, DeploymentInfoSeeder.createError());
+      await setupDeploymentInfoMock(wallets, dseq, createDeploymentInfoErrorSeed());
 
       const response = await app.request(`/v1/deployments/${dseq}`, {
         method: "GET",
