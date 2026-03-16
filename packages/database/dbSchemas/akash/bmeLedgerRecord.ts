@@ -27,12 +27,10 @@ export class BmeLedgerRecord extends Model {
   @Column sequence?: number;
   @Required @Column burnedFrom!: string;
   @Required @Column mintedTo!: string;
-  @Column burner?: string;
-  @Column minter?: string;
-  @Required @Column burnedDenom!: string;
+  @Column burnedDenom?: string;
   @Required @Column(DataTypes.DECIMAL(30, 0)) burnedAmount!: string;
   @Column(DataTypes.DECIMAL(20, 10)) burnedPrice?: string;
-  @Required @Column mintedDenom!: string;
+  @Column mintedDenom?: string;
   @Required @Column(DataTypes.DECIMAL(30, 0)) mintedAmount!: string;
   @Column(DataTypes.DECIMAL(20, 10)) mintedPrice?: string;
   @Column(DataTypes.DECIMAL(30, 0)) remintCreditIssuedAmount?: string;
