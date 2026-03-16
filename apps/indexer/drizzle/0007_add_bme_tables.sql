@@ -1,12 +1,12 @@
 -- Add BME running total columns to block table
-ALTER TABLE "block" ADD COLUMN IF NOT EXISTS "totalAktBurnedForAct" double precision;
-ALTER TABLE "block" ADD COLUMN IF NOT EXISTS "totalActMinted" double precision;
-ALTER TABLE "block" ADD COLUMN IF NOT EXISTS "totalActBurnedForAkt" double precision;
-ALTER TABLE "block" ADD COLUMN IF NOT EXISTS "totalAktReminted" double precision;
+ALTER TABLE "block" ADD COLUMN IF NOT EXISTS "totalUaktBurnedForUact" double precision;
+ALTER TABLE "block" ADD COLUMN IF NOT EXISTS "totalUactMinted" double precision;
+ALTER TABLE "block" ADD COLUMN IF NOT EXISTS "totalUactBurnedForUakt" double precision;
+ALTER TABLE "block" ADD COLUMN IF NOT EXISTS "totalUaktReminted" double precision;
 ALTER TABLE "block" ADD COLUMN IF NOT EXISTS "totalRemintCreditIssued" double precision;
 ALTER TABLE "block" ADD COLUMN IF NOT EXISTS "totalRemintCreditAccrued" double precision;
-ALTER TABLE "block" ADD COLUMN IF NOT EXISTS "vaultAkt" double precision;
-ALTER TABLE "block" ADD COLUMN IF NOT EXISTS "outstandingAct" double precision;
+ALTER TABLE "block" ADD COLUMN IF NOT EXISTS "vaultUakt" double precision;
+ALTER TABLE "block" ADD COLUMN IF NOT EXISTS "outstandingUact" double precision;
 
 -- Create bme_raw_event table
 CREATE TABLE IF NOT EXISTS "bme_raw_event" (
