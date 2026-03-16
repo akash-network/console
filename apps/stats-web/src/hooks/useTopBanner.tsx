@@ -44,7 +44,13 @@ export function useTopBanner(): ITopBannerContext {
     function pingBlockchainNode() {
       axios
         .get<Array<{ api: string }>>(chainNetwork.nodesUrl)
-        .then(response => axios.get(`${response.data[0]?.api}/cosmos/base/tendermint/v1beta1/node_info`, { timeout: 5000 }))
+        .then(response => {
+          const api = response.data[0]?.api;
+          if (!api) {
+            throw new Error("No blockchain API endpoint configured for selected network.");
+          }
+          return axios.get(`${api}/cosmos/base/tendermint/v1beta1/node_info`, { timeout: 5000 });
+        })
         .then(response => {
           const isAvailable = response.status >= 200 && response.status < 300;
           setIsBlockchainDown(!isAvailable);
