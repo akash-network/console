@@ -23,7 +23,7 @@ import { deploymentVersion, marketVersion } from "@src/utils/constants";
 import { createApiKey } from "@test/seeders/api-key.seeder";
 import { createDeployment } from "@test/seeders/deployment.seeder";
 import { createDeploymentInfoErrorSeed, createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
-import { LeaseApiResponseSeeder } from "@test/seeders/lease-api-response.seeder";
+import { createManyLeaseApiResponses } from "@test/seeders/lease-api-response.seeder";
 import { createLeaseStatus } from "@test/seeders/lease-status.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
@@ -168,7 +168,7 @@ describe("Deployments API", () => {
       });
     await createDeployment({ owner: wallets[0].address!, dseq });
 
-    const leases = LeaseApiResponseSeeder.createMany(2, {
+    const leases = createManyLeaseApiResponses(2, {
       owner: address!,
       dseq,
       state: "active"
@@ -219,7 +219,7 @@ describe("Deployments API", () => {
         .get(`/akash/deployment/${deploymentVersion}/deployments/info?id.owner=${address}&id.dseq=${dseq}`)
         .reply(200, deploymentInfo);
 
-      const leases = LeaseApiResponseSeeder.createMany(2, {
+      const leases = createManyLeaseApiResponses(2, {
         owner: address!,
         dseq,
         state: "active"

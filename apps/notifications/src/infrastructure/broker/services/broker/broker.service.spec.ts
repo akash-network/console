@@ -4,10 +4,10 @@ import type { TestingModule } from "@nestjs/testing";
 import { Test } from "@nestjs/testing";
 import type { PoolClient } from "pg";
 import { Pool } from "pg";
+import { PgBoss } from "pg-boss";
 import { describe, expect, it, vi } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
-import { PgBoss } from "pg-boss";
 
 import { eventKeyRegistry } from "@src/common/config/event-key-registry.config";
 import { LoggerService } from "@src/common/services/logger/logger.service";
