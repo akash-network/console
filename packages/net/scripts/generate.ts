@@ -9,7 +9,7 @@ const PROJECT_DIR = normalize(joinPath(scriptDir, "..", "..", ".."));
 const PACKAGE_DIR = normalize(joinPath(scriptDir, ".."));
 const OUT_DIR = joinPath(PACKAGE_DIR, "src", "generated");
 const AKASH_NET_BASE = "https://raw.githubusercontent.com/akash-network/net/main";
-const networks = ["mainnet", "sandbox-2", "testnet-8", "testnet-oracle"];
+const networks = ["mainnet", "sandbox-2", "testnet-8", "testnet-upgrade"];
 
 const apiSchema = z.object({
   address: z.string()
@@ -43,11 +43,27 @@ async function main() {
       fetchText(`${baseConfigUrl}/faucet-url.txt`).catch(() => null)
     ]);
 
+    let apiUrls = meta?.apis?.rest?.map(({ address }) => address) ?? [];
+    let rpcUrls = meta?.apis?.rpc?.map(({ address }) => address) ?? [];
+    let version = meta?.codebase?.recommended_version ?? null;
+
+    if (!apiUrls.length && !rpcUrls.length) {
+      const [apiNode, rpcNode, versionTxt] = await Promise.all([
+        fetchText(`${baseConfigUrl}/api-nodes.txt`).catch(() => null),
+        fetchText(`${baseConfigUrl}/rpc-nodes.txt`).catch(() => null),
+        fetchText(`${baseConfigUrl}/version.txt`).catch(() => null)
+      ]);
+
+      if (apiNode?.trim()) apiUrls = [apiNode.trim()];
+      if (rpcNode?.trim()) rpcUrls = [rpcNode.trim()];
+      if (versionTxt?.trim()) version = versionTxt.trim();
+    }
+
     const networkConfig = {
-      version: meta?.codebase?.recommended_version ?? null,
+      version,
       faucetUrl: faucetUrl?.trim() ?? null,
-      apiUrls: meta?.apis?.rest?.map(({ address }) => address) ?? [],
-      rpcUrls: meta?.apis?.rpc?.map(({ address }) => address) ?? []
+      apiUrls,
+      rpcUrls
     };
 
     if (networkConfig.apiUrls.length || networkConfig.rpcUrls.length) {

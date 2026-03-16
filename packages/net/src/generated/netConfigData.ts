@@ -40,10 +40,10 @@ export const netConfigData = {
     apiUrls: ["https://testnetapi.akashnet.net"],
     rpcUrls: ["https://testnetrpc.akashnet.net:443"]
   },
-  "testnet-oracle": {
-    version: "v2.1.0-a22",
-    faucetUrl: "https://oraclefaucet.dev.akash.pub/",
-    apiUrls: ["https://testnetoracleapi.akashnet.net"],
-    rpcUrls: ["https://testnetoraclerpc.akashnet.net:443"]
+  "testnet-upgrade": {
+    version: "1.2.1",
+    faucetUrl: "http://faucet.testnet-upgrade.aksh.pw/",
+    apiUrls: ["https://api.testnet-upgrade.aksh.pw:443"],
+    rpcUrls: ["https://rpc.testnet-upgrade.aksh.pw:443"]
   }
 };
