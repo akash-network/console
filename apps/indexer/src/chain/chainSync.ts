@@ -263,9 +263,10 @@ async function insertBlocks(startHeight: number, endHeight: number) {
       }
     }
 
-    // Extract BME-relevant events from end_block_events
-    if (blockResults?.end_block_events) {
-      for (const [eventIndex, event] of blockResults.end_block_events.entries()) {
+    // Extract BME-relevant events from end_block_events (or finalize_block_events in CometBFT ABCI 2.0+)
+    const endBlockEvents = blockResults?.finalize_block_events ?? blockResults?.end_block_events;
+    if (endBlockEvents) {
+      for (const [eventIndex, event] of endBlockEvents.entries()) {
         if ((BME_EVENT_TYPE_VALUES as readonly string[]).includes(event.type)) {
           const data: Record<string, string | null> = {};
           for (const attr of event.attributes) {

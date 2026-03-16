@@ -75,6 +75,23 @@ function parseJsonValue<T>(value: string | null | undefined): T | null {
 }
 
 /**
+ * Strip JSON string encoding from proto event attribute values.
+ * CometBFT ABCI 2.0+ JSON-encodes string/Dec attributes, e.g. `"bme"` or `"22314182.50..."`.
+ * Falls back to the raw value if it's not JSON-quoted.
+ */
+function parseStringAttr(value: string | null | undefined): string | null {
+  if (!value) return null;
+  if (value.startsWith('"') && value.endsWith('"')) {
+    try {
+      return JSON.parse(value) as string;
+    } catch {
+      return value;
+    }
+  }
+  return value;
+}
+
+/**
  * Parse a CoinPrice proto attribute.
  * Event attribute is JSON: {"coin":{"denom":"uakt","amount":"1000"},"price":"1.23"}
  */
@@ -100,11 +117,11 @@ function parseLedgerRecordEvent(data: Record<string, string | null>): ParsedLedg
   const remintCreditAccrued = parseCoinPrice(data.remint_credit_accrued);
 
   return {
-    sequence: id?.sequence ?? null,
-    burnedFrom: data.burned_from || "",
-    mintedTo: data.minted_to || "",
-    burner: data.burner || null,
-    minter: data.minter || null,
+    sequence: id?.sequence != null ? Number(id.sequence) : null,
+    burnedFrom: parseStringAttr(data.burned_from) || "",
+    mintedTo: parseStringAttr(data.minted_to) || "",
+    burner: parseStringAttr(data.burner) || null,
+    minter: parseStringAttr(data.minter) || null,
     burnedDenom: burned?.coin.denom || "",
     burnedAmount: burned?.coin.amount || "0",
     burnedPrice: burned?.price || null,
@@ -123,9 +140,9 @@ function parseLedgerRecordEvent(data: Record<string, string | null>): ParsedLedg
  */
 function parseStatusChangeEvent(data: Record<string, string | null>): ParsedStatusChange {
   return {
-    previousStatus: data.previous_status || "",
-    newStatus: data.new_status || "",
-    collateralRatio: data.collateral_ratio || "0"
+    previousStatus: parseStringAttr(data.previous_status) || "",
+    newStatus: parseStringAttr(data.new_status) || "",
+    collateralRatio: parseStringAttr(data.collateral_ratio) || "0"
   };
 }
 
@@ -145,41 +162,34 @@ function parseVaultSeededEvent(data: Record<string, string | null>): ParsedVault
   };
 }
 
-function txEventToDataMap(event: TransactionEvent): Record<string, string | null> {
-  const data: Record<string, string | null> = {};
-  for (const attr of event.attributes || []) {
-    data[attr.key] = attr.value;
-  }
-  return data;
-}
-
 interface BmeSums {
-  aktBurned: number;
+  /** AKT consumed to mint ACT — from remint_credit_accrued (AKT goes to vault, not burned) */
+  aktBurnedForAct: number;
+  /** ACT newly minted — from minted.coin when denom is uact */
   actMinted: number;
-  actBurned: number;
+  /** ACT burned to remint AKT — from burned.coin when denom is uact */
+  actBurnedForAkt: number;
+  /** AKT returned from vault — from remint_credit_issued (AKT comes from vault, not minted) */
   aktReminted: number;
-  creditIssued: number;
-  creditAccrued: number;
 }
 
 function accumulateLedgerSums(sums: BmeSums, parsed: ParsedLedgerRecord): void {
-  if (parsed.burnedDenom === "uakt") sums.aktBurned += parseFloat(parsed.burnedAmount);
+  // Mint operation (uakt→uact): AKT goes to vault via remint_credit_accrued, ACT is minted
+  if (parsed.remintCreditAccruedAmount) sums.aktBurnedForAct += parseFloat(parsed.remintCreditAccruedAmount);
   if (parsed.mintedDenom === "uact") sums.actMinted += parseFloat(parsed.mintedAmount);
-  if (parsed.burnedDenom === "uact") sums.actBurned += parseFloat(parsed.burnedAmount);
-  if (parsed.mintedDenom === "uakt") sums.aktReminted += parseFloat(parsed.mintedAmount);
-  if (parsed.remintCreditIssuedAmount) sums.creditIssued += parseFloat(parsed.remintCreditIssuedAmount);
-  if (parsed.remintCreditAccruedAmount) sums.creditAccrued += parseFloat(parsed.remintCreditAccruedAmount);
+
+  // Burn operation (uact→uakt): ACT is burned, AKT comes from vault via remint_credit_issued
+  if (parsed.burnedDenom === "uact") sums.actBurnedForAkt += parseFloat(parsed.burnedAmount);
+  if (parsed.remintCreditIssuedAmount) sums.aktReminted += parseFloat(parsed.remintCreditIssuedAmount);
 }
 
 function zeroBmeSums(): BmeSums {
-  return { aktBurned: 0, actMinted: 0, actBurned: 0, aktReminted: 0, creditIssued: 0, creditAccrued: 0 };
+  return { aktBurnedForAct: 0, actMinted: 0, actBurnedForAkt: 0, aktReminted: 0 };
 }
 
 export { BME_EVENT_TYPE_VALUES };
 
 export class BmeIndexer extends Indexer {
-  private txLevelSums: BmeSums = zeroBmeSums();
-
   constructor() {
     super();
     this.name = "BmeIndexer";
@@ -209,30 +219,13 @@ export class BmeIndexer extends Indexer {
     return Promise.resolve();
   }
 
-  private async persistBmeEvent(type: string, data: Record<string, string | null>, height: number, dbTransaction: DbTransaction, sums: BmeSums): Promise<void> {
-    if (type === BME_EVENT_TYPES.LEDGER_RECORD_EXECUTED) {
-      const parsed = parseLedgerRecordEvent(data);
-      await BmeLedgerRecord.create({ height, ...parsed }, { transaction: dbTransaction });
-      accumulateLedgerSums(sums, parsed);
-    } else if (type === BME_EVENT_TYPES.MINT_STATUS_CHANGE) {
-      const parsed = parseStatusChangeEvent(data);
-      await BmeStatusChange.create({ height, ...parsed }, { transaction: dbTransaction });
-    }
-  }
-
+  // BME events only appear in end_block_events, never in transaction events
   async afterEveryTransaction(
     _rawTx: DecodedTxRaw,
-    currentTransaction: Transaction,
-    dbTransaction: DbTransaction,
-    txEvents: TransactionEvent[]
-  ): Promise<void> {
-    for (const event of txEvents) {
-      if (event.type === BME_EVENT_TYPES.LEDGER_RECORD_EXECUTED || event.type === BME_EVENT_TYPES.MINT_STATUS_CHANGE) {
-        const data = txEventToDataMap(event);
-        await this.persistBmeEvent(event.type, data, currentTransaction.height, dbTransaction, this.txLevelSums);
-      }
-    }
-  }
+    _currentTransaction: Transaction,
+    _dbTransaction: DbTransaction,
+    _txEvents: TransactionEvent[]
+  ): Promise<void> {}
 
   @benchmark.measureMethodAsync
   async afterEveryBlock(currentBlock: Block, previousBlock: Block, dbTransaction: DbTransaction): Promise<void> {
@@ -272,34 +265,26 @@ export class BmeIndexer extends Indexer {
       await BmeRawEvent.update({ isProcessed: true }, { where: { height: currentBlock.height, isProcessed: false }, transaction: dbTransaction });
     }
 
-    // Combine tx-level and block-level sums
-    const sums = this.txLevelSums;
-    sums.aktBurned += blockLevelSums.aktBurned;
-    sums.actMinted += blockLevelSums.actMinted;
-    sums.actBurned += blockLevelSums.actBurned;
-    sums.aktReminted += blockLevelSums.aktReminted;
-    sums.creditIssued += blockLevelSums.creditIssued;
-    sums.creditAccrued += blockLevelSums.creditAccrued;
+    const sums = blockLevelSums;
 
     // Cumulative event-based counters (carry forward + current block delta)
-    currentBlock.totalAktBurnedForAct = (previousBlock?.totalAktBurnedForAct || 0) + sums.aktBurned;
+    currentBlock.totalAktBurnedForAct = (previousBlock?.totalAktBurnedForAct || 0) + sums.aktBurnedForAct;
     currentBlock.totalActMinted = (previousBlock?.totalActMinted || 0) + sums.actMinted;
-    currentBlock.totalActBurnedForAkt = (previousBlock?.totalActBurnedForAkt || 0) + sums.actBurned;
+    currentBlock.totalActBurnedForAkt = (previousBlock?.totalActBurnedForAkt || 0) + sums.actBurnedForAkt;
     currentBlock.totalAktReminted = (previousBlock?.totalAktReminted || 0) + sums.aktReminted;
-    currentBlock.totalRemintCreditIssued = (previousBlock?.totalRemintCreditIssued || 0) + sums.creditIssued;
-    currentBlock.totalRemintCreditAccrued = (previousBlock?.totalRemintCreditAccrued || 0) + sums.creditAccrued;
+    currentBlock.totalRemintCreditIssued = (previousBlock?.totalRemintCreditIssued || 0) + sums.aktReminted;
+    currentBlock.totalRemintCreditAccrued = (previousBlock?.totalRemintCreditAccrued || 0) + sums.aktBurnedForAct;
 
-    // Absolute on-chain vault balance from EventVaultSeeded.new_vault_balance
+    // Vault AKT = AKT deposited via mints minus AKT withdrawn via burns, plus any governance seed
     if (vaultAktFromEvent !== null) {
+      // EventVaultSeeded provides an absolute snapshot of vault balance
       currentBlock.vaultAkt = vaultAktFromEvent;
     } else {
-      currentBlock.vaultAkt = previousBlock?.vaultAkt || null;
+      // Compute from flows: AKT in (mints) minus AKT out (remints)
+      currentBlock.vaultAkt = currentBlock.totalAktBurnedForAct - currentBlock.totalAktReminted;
     }
 
-    // Outstanding ACT = total minted - total burned back
-    currentBlock.outstandingAct = currentBlock.totalActMinted - currentBlock.totalActBurnedForAkt;
-
-    // Reset tx-level sums for next block
-    this.txLevelSums = zeroBmeSums();
+    // Outstanding ACT = total minted - total burned back - spent on deployments
+    currentBlock.outstandingAct = currentBlock.totalActMinted - currentBlock.totalActBurnedForAkt - (currentBlock.totalUActSpent || 0);
   }
 }
