@@ -100,7 +100,6 @@ export const chainDefinitions: { [key: string]: ChainDef } = {
     bech32Prefix: "akash",
     denom: "act",
     udenom: "uact",
-    startHeight: 11_959,
     customBlockModel: AkashBlock,
     customMessageModel: AkashMessage,
     customModels: [
