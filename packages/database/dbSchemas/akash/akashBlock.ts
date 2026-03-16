@@ -82,14 +82,6 @@ export class AkashBlock extends Block {
    */
   @Column(DataTypes.DOUBLE) totalUaktReminted?: number;
   /**
-   * Cumulative remint credits issued via BME
-   */
-  @Column(DataTypes.DOUBLE) totalRemintCreditIssued?: number;
-  /**
-   * Cumulative remint credits used via BME
-   */
-  @Column(DataTypes.DOUBLE) totalRemintCreditAccrued?: number;
-  /**
    * Absolute uakt held in BME vault as collateral (module account balance)
    */
   @Column(DataTypes.DOUBLE) vaultUakt?: number;

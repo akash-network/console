@@ -3,8 +3,6 @@ ALTER TABLE "block" ADD COLUMN IF NOT EXISTS "totalUaktBurnedForUact" double pre
 ALTER TABLE "block" ADD COLUMN IF NOT EXISTS "totalUactMinted" double precision;
 ALTER TABLE "block" ADD COLUMN IF NOT EXISTS "totalUactBurnedForUakt" double precision;
 ALTER TABLE "block" ADD COLUMN IF NOT EXISTS "totalUaktReminted" double precision;
-ALTER TABLE "block" ADD COLUMN IF NOT EXISTS "totalRemintCreditIssued" double precision;
-ALTER TABLE "block" ADD COLUMN IF NOT EXISTS "totalRemintCreditAccrued" double precision;
 ALTER TABLE "block" ADD COLUMN IF NOT EXISTS "vaultUakt" double precision;
 ALTER TABLE "block" ADD COLUMN IF NOT EXISTS "outstandingUact" double precision;
 
@@ -28,12 +26,10 @@ CREATE TABLE IF NOT EXISTS "bme_ledger_record" (
   "sequence" integer,
   "burned_from" varchar(255) NOT NULL,
   "minted_to" varchar(255) NOT NULL,
-  "burner" varchar(255),
-  "minter" varchar(255),
-  "burned_denom" varchar(255) NOT NULL,
+  "burned_denom" varchar(255),
   "burned_amount" numeric(30, 0) NOT NULL,
   "burned_price" numeric(20, 10),
-  "minted_denom" varchar(255) NOT NULL,
+  "minted_denom" varchar(255),
   "minted_amount" numeric(30, 0) NOT NULL,
   "minted_price" numeric(20, 10),
   "remint_credit_issued_amount" numeric(30, 0),
