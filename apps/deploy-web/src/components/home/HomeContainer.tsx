@@ -14,7 +14,7 @@ import type { DeploymentDto } from "@src/types/deployment";
 import Layout from "../layout/Layout";
 import { WelcomePanel } from "./WelcomePanel";
 
-const YourAccount = dynamic(() => import("./YourAccount"), {
+const YourAccount = dynamic(() => import("./YourAccount/YourAccount"), {
   ssr: false
 });
 
