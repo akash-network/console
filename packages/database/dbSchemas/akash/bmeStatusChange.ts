@@ -9,9 +9,12 @@ import { Required } from "../decorators/requiredDecorator";
  * Tracks circuit breaker status changes from EventMintStatusChange events.
  * Records transitions between mint statuses (healthy, warning, halt_cr, halt_oracle)
  * along with the collateral ratio that triggered the change.
+ *
+ * Proto: akash.bme.v1.EventMintStatusChange
  */
 @Table({
-  modelName: "bmeStatusChange",
+  tableName: "bme_status_change",
+  underscored: true,
   indexes: [{ unique: false, fields: ["height"] }]
 })
 export class BmeStatusChange extends Model {
