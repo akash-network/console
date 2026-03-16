@@ -234,7 +234,7 @@ export class BmeIndexer extends Indexer {
       transaction: dbTransaction
     });
 
-    let vaultAktFromEvent: number | null = null;
+    let vaultUaktFromEvent: number | null = null;
     const blockLevelSums = zeroBmeSums();
     const ledgerRecords: Array<Parameters<typeof BmeLedgerRecord.bulkCreate>[0][number]> = [];
     const statusChanges: Array<Parameters<typeof BmeStatusChange.bulkCreate>[0][number]> = [];
@@ -250,7 +250,7 @@ export class BmeIndexer extends Indexer {
       } else if (rawEvent.type === BME_EVENT_TYPES.VAULT_SEEDED) {
         const parsed = parseVaultSeededEvent(rawEvent.data);
         if (parsed.newVaultBalance && parsed.newVaultBalance.denom === "uakt") {
-          vaultAktFromEvent = parseFloat(parsed.newVaultBalance.amount);
+          vaultUaktFromEvent = parseFloat(parsed.newVaultBalance.amount);
         }
       }
     }
@@ -268,23 +268,23 @@ export class BmeIndexer extends Indexer {
     const sums = blockLevelSums;
 
     // Cumulative event-based counters (carry forward + current block delta)
-    currentBlock.totalAktBurnedForAct = (previousBlock?.totalAktBurnedForAct || 0) + sums.aktBurnedForAct;
-    currentBlock.totalActMinted = (previousBlock?.totalActMinted || 0) + sums.actMinted;
-    currentBlock.totalActBurnedForAkt = (previousBlock?.totalActBurnedForAkt || 0) + sums.actBurnedForAkt;
-    currentBlock.totalAktReminted = (previousBlock?.totalAktReminted || 0) + sums.aktReminted;
+    currentBlock.totalUaktBurnedForUact = (previousBlock?.totalUaktBurnedForUact || 0) + sums.aktBurnedForAct;
+    currentBlock.totalUactMinted = (previousBlock?.totalUactMinted || 0) + sums.actMinted;
+    currentBlock.totalUactBurnedForUakt = (previousBlock?.totalUactBurnedForUakt || 0) + sums.actBurnedForAkt;
+    currentBlock.totalUaktReminted = (previousBlock?.totalUaktReminted || 0) + sums.aktReminted;
     currentBlock.totalRemintCreditIssued = (previousBlock?.totalRemintCreditIssued || 0) + sums.aktReminted;
     currentBlock.totalRemintCreditAccrued = (previousBlock?.totalRemintCreditAccrued || 0) + sums.aktBurnedForAct;
 
-    // Vault AKT = AKT deposited via mints minus AKT withdrawn via burns, plus any governance seed
-    if (vaultAktFromEvent !== null) {
+    // Vault uAKT = AKT deposited via mints minus AKT withdrawn via burns, plus any governance seed
+    if (vaultUaktFromEvent !== null) {
       // EventVaultSeeded provides an absolute snapshot of vault balance
-      currentBlock.vaultAkt = vaultAktFromEvent;
+      currentBlock.vaultUakt = vaultUaktFromEvent;
     } else {
       // Compute from flows: AKT in (mints) minus AKT out (remints)
-      currentBlock.vaultAkt = currentBlock.totalAktBurnedForAct - currentBlock.totalAktReminted;
+      currentBlock.vaultUakt = currentBlock.totalUaktBurnedForUact - currentBlock.totalUaktReminted;
     }
 
-    // Outstanding ACT = total minted - total burned back - spent on deployments
-    currentBlock.outstandingAct = currentBlock.totalActMinted - currentBlock.totalActBurnedForAkt - (currentBlock.totalUActSpent || 0);
+    // Outstanding uACT = total minted - total burned back - spent on deployments
+    currentBlock.outstandingUact = currentBlock.totalUactMinted - currentBlock.totalUactBurnedForUakt - (currentBlock.totalUActSpent || 0);
   }
 }
