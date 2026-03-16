@@ -66,21 +66,21 @@ export class AkashBlock extends Block {
    */
   @Column activeProviderCount?: number;
   /**
-   * Cumulative uakt burned to mint ACT via BME
+   * Cumulative uakt burned to mint uact via BME
    */
-  @Column(DataTypes.DOUBLE) totalAktBurnedForAct?: number;
+  @Column(DataTypes.DOUBLE) totalUaktBurnedForUact?: number;
   /**
-   * Cumulative uact minted from AKT burns via BME
+   * Cumulative uact minted from uakt burns via BME
    */
-  @Column(DataTypes.DOUBLE) totalActMinted?: number;
+  @Column(DataTypes.DOUBLE) totalUactMinted?: number;
   /**
-   * Cumulative uact burned to remint AKT via BME
+   * Cumulative uact burned to remint uakt via BME
    */
-  @Column(DataTypes.DOUBLE) totalActBurnedForAkt?: number;
+  @Column(DataTypes.DOUBLE) totalUactBurnedForUakt?: number;
   /**
-   * Cumulative uakt reminted from ACT burns via BME
+   * Cumulative uakt reminted from uact burns via BME
    */
-  @Column(DataTypes.DOUBLE) totalAktReminted?: number;
+  @Column(DataTypes.DOUBLE) totalUaktReminted?: number;
   /**
    * Cumulative remint credits issued via BME
    */
@@ -90,11 +90,11 @@ export class AkashBlock extends Block {
    */
   @Column(DataTypes.DOUBLE) totalRemintCreditAccrued?: number;
   /**
-   * Absolute AKT held in BME vault as collateral (module account balance)
+   * Absolute uakt held in BME vault as collateral (module account balance)
    */
-  @Column(DataTypes.DOUBLE) vaultAkt?: number;
+  @Column(DataTypes.DOUBLE) vaultUakt?: number;
   /**
-   * Total circulating supply of ACT
+   * Total circulating supply of uact
    */
-  @Column(DataTypes.DOUBLE) outstandingAct?: number;
+  @Column(DataTypes.DOUBLE) outstandingUact?: number;
 }

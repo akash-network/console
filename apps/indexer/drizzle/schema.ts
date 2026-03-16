@@ -269,14 +269,14 @@ export const block = pgTable(
     activePersistentStorage: bigint({ mode: "number" }),
     activeProviderCount: integer(),
     totalUUsdSpent: doublePrecision(),
-    totalAktBurnedForAct: doublePrecision(),
-    totalActMinted: doublePrecision(),
-    totalActBurnedForAkt: doublePrecision(),
-    totalAktReminted: doublePrecision(),
+    totalUaktBurnedForUact: doublePrecision(),
+    totalUactMinted: doublePrecision(),
+    totalUactBurnedForUakt: doublePrecision(),
+    totalUaktReminted: doublePrecision(),
     totalRemintCreditIssued: doublePrecision(),
     totalRemintCreditAccrued: doublePrecision(),
-    vaultAkt: doublePrecision(),
-    outstandingAct: doublePrecision()
+    vaultUakt: doublePrecision(),
+    outstandingUact: doublePrecision()
   },
   table => [
     index("block_datetime").using("btree", table.datetime.asc().nullsLast().op("timestamptz_ops")),
