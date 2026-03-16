@@ -187,7 +187,9 @@ describe(DeploymentAlertsContainer.name, () => {
     await act(() => child.upsert(input));
 
     expect(requestFn).toHaveBeenCalled();
-    expect(invalidateQueriesSpy).toHaveBeenCalled();
+    await vi.waitFor(() => {
+      expect(invalidateQueriesSpy).toHaveBeenCalled();
+    });
   });
 
   async function setup({ denom }: { denom?: "uakt" | (typeof USDC_IBC_DENOMS)["mainnet"] | (typeof USDC_IBC_DENOMS)["sandbox"] } = {}) {

@@ -6,7 +6,7 @@ import { netConfig } from "@akashnetwork/net";
 import { useLocalStorage } from "@src/hooks/useLocalStorage";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import type { FCWithChildren } from "@src/types/component";
-import type { NodeStatus } from "@src/types/node";
+import type { AbciInfo, NodeStatus } from "@src/types/node";
 import { migrateLocalStorage } from "@src/utils/localStorage";
 import { useRootContainer } from "../ServicesProvider/RootContainerProvider";
 
@@ -16,6 +16,7 @@ export type BlockchainNode = {
   status: string;
   latency: number;
   nodeInfo: NodeStatus | null;
+  appVersion?: string;
   id: string;
 };
 
@@ -95,7 +96,8 @@ export const SettingsProvider: FCWithChildren = ({ children }) => {
             ...node,
             status: nodeStatus.status,
             latency: nodeStatus.latency,
-            nodeInfo: nodeStatus.nodeInfo
+            nodeInfo: nodeStatus.nodeInfo,
+            appVersion: nodeStatus.appVersion
           };
         })
       );
@@ -117,6 +119,7 @@ export const SettingsProvider: FCWithChildren = ({ children }) => {
           status: nodeStatus.status,
           latency: nodeStatus.latency,
           nodeInfo: nodeStatus.nodeInfo,
+          appVersion: nodeStatus.appVersion,
           id: customNodeUrl.hostname
         };
 
@@ -135,15 +138,16 @@ export const SettingsProvider: FCWithChildren = ({ children }) => {
       if (!selectedNodeInSettings || (selectedNodeInSettings && settings.selectedNode?.status === "inactive")) {
         const randomNode = getFastestNode(nodesWithStatuses);
         // Use rpc proxy as a backup if there's no active nodes in the list
-        defaultApiNode = randomNode?.api || netConfig.getBaseAPIUrl(netConfig.mapped(selectedNetwork.id));
-        defaultRpcNode = randomNode?.rpc || netConfig.getBaseRpcUrl(netConfig.mapped(selectedNetwork.id));
+        defaultApiNode = randomNode?.api || netConfig.getBaseAPIUrl(selectedNetwork.id);
+        defaultRpcNode = randomNode?.rpc || netConfig.getBaseRpcUrl(selectedNetwork.id);
         selectedNode = randomNode || {
           api: defaultApiNode,
           rpc: defaultRpcNode,
           status: "active",
           latency: 0,
           nodeInfo: null,
-          id: netConfig.mapped(selectedNetwork.id)
+          appVersion: undefined,
+          id: new URL(defaultApiNode || defaultRpcNode).hostname
         };
         if ((selectedNode as BlockchainNode).nodeInfo === null) {
           Object.assign(selectedNode, await loadNodeStatus(selectedNode.api));
@@ -187,13 +191,21 @@ export const SettingsProvider: FCWithChildren = ({ children }) => {
     const start = performance.now();
     let status: "active" | "inactive" = "inactive";
     let nodeStatus: NodeStatus | null = null;
+    let nodeAppVersion: string | undefined;
 
     try {
-      const response = await externalApiHttpClient.get<{ result: NodeStatus }>(`${rpcUrl}/status`, {
-        timeout: 5000,
-        adapter: fetchAdapter
-      });
-      nodeStatus = response.data.result;
+      const [statusResponse, abciInfoResponse] = await Promise.all([
+        externalApiHttpClient.get<{ result: NodeStatus }>(`${rpcUrl}/status`, {
+          timeout: 5000,
+          adapter: fetchAdapter
+        }),
+        externalApiHttpClient.get<{ result: AbciInfo }>(`${rpcUrl}/abci_info`, {
+          timeout: 5000,
+          adapter: fetchAdapter
+        })
+      ]);
+      nodeStatus = statusResponse.data.result;
+      nodeAppVersion = abciInfoResponse.data.result.response.version;
       status = "active";
     } catch (error) {
       status = "inactive";
@@ -205,7 +217,8 @@ export const SettingsProvider: FCWithChildren = ({ children }) => {
     return {
       latency,
       status,
-      nodeInfo: nodeStatus
+      nodeInfo: nodeStatus,
+      appVersion: nodeAppVersion
     };
   };
 
@@ -261,6 +274,7 @@ export const SettingsProvider: FCWithChildren = ({ children }) => {
           status: nodeStatus.status,
           latency: nodeStatus.latency,
           nodeInfo: nodeStatus.nodeInfo,
+          appVersion: nodeStatus.appVersion,
           id: customNodeUrl.hostname,
           api: _apiEndpoint,
           rpc: _rpcEndpoint
@@ -272,6 +286,7 @@ export const SettingsProvider: FCWithChildren = ({ children }) => {
 
             return {
               ...node,
+              appVersion: nodeStatus.appVersion,
               status: nodeStatus.status,
               latency: nodeStatus.latency,
               nodeInfo: nodeStatus.nodeInfo
