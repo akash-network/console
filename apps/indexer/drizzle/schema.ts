@@ -672,7 +672,12 @@ export const bmeRawEvent = pgTable(
       "btree",
       table.height.asc().nullsLast().op("int4_ops"),
       table.is_processed.asc().nullsLast().op("bool_ops")
-    )
+    ),
+    foreignKey({
+      columns: [table.height],
+      foreignColumns: [block.height],
+      name: "bme_raw_event_height_fkey"
+    })
   ]
 );
 
@@ -707,7 +712,12 @@ export const bmeLedgerRecord = pgTable(
       "btree",
       table.minted_denom.asc().nullsLast().op("text_ops"),
       table.height.asc().nullsLast().op("int4_ops")
-    )
+    ),
+    foreignKey({
+      columns: [table.height],
+      foreignColumns: [block.height],
+      name: "bme_ledger_record_height_fkey"
+    })
   ]
 );
 
@@ -723,5 +733,12 @@ export const bmeStatusChange = pgTable(
     new_status: varchar({ length: 255 }).notNull(),
     collateral_ratio: numeric({ precision: 20, scale: 10 }).notNull()
   },
-  table => [index("bme_status_change_height").using("btree", table.height.asc().nullsLast().op("int4_ops"))]
+  table => [
+    index("bme_status_change_height").using("btree", table.height.asc().nullsLast().op("int4_ops")),
+    foreignKey({
+      columns: [table.height],
+      foreignColumns: [block.height],
+      name: "bme_status_change_height_fkey"
+    })
+  ]
 );

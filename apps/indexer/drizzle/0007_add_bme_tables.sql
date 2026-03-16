@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS "bme_raw_event" (
 
 CREATE UNIQUE INDEX IF NOT EXISTS "bme_raw_event_height_index" ON "bme_raw_event" ("height", "index");
 CREATE INDEX IF NOT EXISTS "bme_raw_event_height_is_processed" ON "bme_raw_event" ("height", "is_processed");
+ALTER TABLE "bme_raw_event" ADD CONSTRAINT "bme_raw_event_height_fkey" FOREIGN KEY ("height") REFERENCES "block" ("height");
 
 -- Create bme_ledger_record table
 CREATE TABLE IF NOT EXISTS "bme_ledger_record" (
@@ -39,6 +40,7 @@ CREATE TABLE IF NOT EXISTS "bme_ledger_record" (
 CREATE INDEX IF NOT EXISTS "bme_ledger_record_height" ON "bme_ledger_record" ("height");
 CREATE INDEX IF NOT EXISTS "bme_ledger_record_burned_denom_height" ON "bme_ledger_record" ("burned_denom", "height");
 CREATE INDEX IF NOT EXISTS "bme_ledger_record_minted_denom_height" ON "bme_ledger_record" ("minted_denom", "height");
+ALTER TABLE "bme_ledger_record" ADD CONSTRAINT "bme_ledger_record_height_fkey" FOREIGN KEY ("height") REFERENCES "block" ("height");
 
 -- Create bme_status_change table
 CREATE TABLE IF NOT EXISTS "bme_status_change" (
@@ -50,3 +52,4 @@ CREATE TABLE IF NOT EXISTS "bme_status_change" (
 );
 
 CREATE INDEX IF NOT EXISTS "bme_status_change_height" ON "bme_status_change" ("height");
+ALTER TABLE "bme_status_change" ADD CONSTRAINT "bme_status_change_height_fkey" FOREIGN KEY ("height") REFERENCES "block" ("height");
