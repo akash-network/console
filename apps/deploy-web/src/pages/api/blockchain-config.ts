@@ -14,28 +14,35 @@ export default defineApiHandler({
   async handler({ query, res, services }) {
     const config = {
       mainnet: [
-        {
-          id: "mainnet-1",
+        nodeWithId({
           api: services.privateConfig.DEFAULT_REST_API_NODE_URL_MAINNET ?? netConfig.getBaseAPIUrl("mainnet"),
           rpc: services.privateConfig.DEFAULT_RPC_NODE_URL_MAINNET ?? netConfig.getBaseRpcUrl("mainnet")
-        }
+        })
       ],
       sandbox: [
-        {
-          id: "sandbox-1",
+        nodeWithId({
           api: netConfig.getBaseAPIUrl("sandbox"),
           rpc: netConfig.getBaseRpcUrl("sandbox")
-        }
+        })
       ],
       testnet: [
-        {
-          id: "testnet-1",
+        nodeWithId({
           api: netConfig.getBaseAPIUrl("testnet"),
           rpc: netConfig.getBaseRpcUrl("testnet")
-        }
+        })
       ]
     };
-    const data = config[query.network];
+    const data = config[query.network]?.map(node => {
+      node.id = new URL(node.api).hostname;
+      return node;
+    });
     res.status(200).json(data);
   }
 });
+
+function nodeWithId(node: { api: string; rpc: string }) {
+  return {
+    ...node,
+    id: new URL(node.api).hostname
+  };
+}
