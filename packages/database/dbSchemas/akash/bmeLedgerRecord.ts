@@ -1,6 +1,7 @@
 import { DataTypes, UUIDV4 } from "sequelize";
-import { Column, Default, Model, PrimaryKey, Table } from "sequelize-typescript";
+import { BelongsTo, Column, Default, Model, PrimaryKey, Table } from "sequelize-typescript";
 
+import { Block } from "../base/block"; // eslint-disable-line import-x/no-cycle
 import { Required } from "../decorators/requiredDecorator";
 
 /**
@@ -24,6 +25,7 @@ import { Required } from "../decorators/requiredDecorator";
 export class BmeLedgerRecord extends Model {
   @Required @PrimaryKey @Default(UUIDV4) @Column(DataTypes.UUID) id!: string;
   @Required @Column height!: number;
+  @BelongsTo(() => Block, "height") block!: Block;
   @Column sequence?: number;
   @Required @Column burnedFrom!: string;
   @Required @Column mintedTo!: string;
