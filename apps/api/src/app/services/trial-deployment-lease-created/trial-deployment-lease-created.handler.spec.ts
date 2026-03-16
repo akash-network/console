@@ -12,7 +12,7 @@ import { NotificationJob } from "@src/notifications/services/notification-handle
 import { CloseTrialDeployment } from "../close-trial-deployment/close-trial-deployment.handler";
 import { TrialDeploymentLeaseCreatedHandler } from "./trial-deployment-lease-created.handler";
 
-import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
+import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 describe(TrialDeploymentLeaseCreatedHandler.name, () => {
   it("logs a warning when wallet is not found", async () => {
@@ -41,7 +41,7 @@ describe(TrialDeploymentLeaseCreatedHandler.name, () => {
   });
 
   it("ignores non-trialing wallets", async () => {
-    const wallet = UserWalletSeeder.create({
+    const wallet = createUserWallet({
       id: 123,
       userId: "user-123",
       address: "akash1test",
@@ -75,7 +75,7 @@ describe(TrialDeploymentLeaseCreatedHandler.name, () => {
   });
 
   it("enqueues notification and close job when wallet is in trial", async () => {
-    const wallet = UserWalletSeeder.create({
+    const wallet = createUserWallet({
       id: 123,
       userId: "user-123",
       address: "akash1test",
@@ -132,7 +132,7 @@ describe(TrialDeploymentLeaseCreatedHandler.name, () => {
   });
 
   it("logs a warning when wallet address is missing", async () => {
-    const wallet = UserWalletSeeder.create({
+    const wallet = createUserWallet({
       id: 789,
       userId: "user-789",
       address: null,
@@ -165,7 +165,7 @@ describe(TrialDeploymentLeaseCreatedHandler.name, () => {
   });
 
   it("enqueues additional notification when it's the first lease", async () => {
-    const wallet = UserWalletSeeder.create({
+    const wallet = createUserWallet({
       id: 123,
       userId: "user-123",
       address: "akash1test",

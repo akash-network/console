@@ -3,7 +3,7 @@ import { Ok } from "ts-results";
 import { mock } from "vitest-mock-extended";
 
 import { createUser } from "../../../../test/seeders/user.seeder";
-import { UserWalletSeeder } from "../../../../test/seeders/user-wallet.seeder";
+import { createUserWallet } from "../../../../test/seeders/user-wallet.seeder";
 import type { AuthService } from "../../../auth/services/auth.service";
 import type { UserWalletRepository } from "../../../billing/repositories";
 import type { UserOutput } from "../../../user/repositories/user/user.repository";
@@ -64,7 +64,7 @@ describe(JwtTokenController.name, () => {
 
     const controller = new JwtTokenController(providerJwtTokenService, authService, userWalletRepository);
 
-    const wallet = UserWalletSeeder.create({ userId: input?.user?.id });
+    const wallet = createUserWallet({ userId: input?.user?.id });
     const jwtToken = faker.string.alphanumeric(64);
 
     return {

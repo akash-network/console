@@ -16,7 +16,7 @@ import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { createDeploymentGrantResponseSeed } from "@test/seeders/deployment-grant-response.seeder";
 import { createDeploymentListResponseSeed } from "@test/seeders/deployment-list-response.seeder";
 import { createFeeAllowanceResponse } from "@test/seeders/fee-allowance-response.seeder";
-import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
+import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 const mockMasterWalletAddress = "akash1testmasterwalletaddress";
 
@@ -139,7 +139,7 @@ describe("Balances", () => {
 
     const user = await userRepository.create({});
     const userWithId = { ...user, userId: faker.string.uuid() };
-    const wallet = UserWalletSeeder.create({ userId: user.id, address: createAkashAddress() });
+    const wallet = createUserWallet({ userId: user.id, address: createAkashAddress() });
 
     const config = mock<CoreConfigService>({
       get: vi.fn().mockReturnValue("test")

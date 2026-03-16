@@ -12,7 +12,7 @@ import { AUDITOR } from "@src/deployment/config/provider.config";
 import { mockConfigService } from "../../../../test/mocks/config-service.mock";
 import { createLeaseStatus } from "../../../../test/seeders/lease-status.seeder";
 import { createProviderSeed, createProviderWithAttributeSignatures } from "../../../../test/seeders/provider.seeder";
-import { UserWalletSeeder } from "../../../../test/seeders/user-wallet.seeder";
+import { createUserWallet } from "../../../../test/seeders/user-wallet.seeder";
 import type { BillingConfigService } from "../../../billing/services/billing-config/billing-config.service";
 import type { ProviderRepository } from "../../repositories/provider/provider.repository";
 import type { AuditorService } from "../auditors/auditors.service";
@@ -62,7 +62,7 @@ describe(ProviderService.name, () => {
       const { service, jwtTokenService, providerRepository, providerProxyService } = setup();
 
       const provider = createProviderSeed() as unknown as Provider;
-      const wallet = UserWalletSeeder.create();
+      const wallet = createUserWallet();
       const dseq = faker.string.numeric(6);
       const manifest = '{"quantity":{"val":"1"}}';
       const jwtToken = faker.string.alphanumeric(32);
@@ -109,7 +109,7 @@ describe(ProviderService.name, () => {
       vi.useFakeTimers();
 
       const provider = createProviderSeed() as unknown as Provider;
-      const wallet = UserWalletSeeder.create();
+      const wallet = createUserWallet();
       const dseq = faker.string.numeric(6);
       const manifest = '{"quantity":{"val":"1"}}';
       const jwtToken = faker.string.alphanumeric(32);
@@ -138,7 +138,7 @@ describe(ProviderService.name, () => {
       const { service, providerRepository } = setup();
 
       const provider = createProviderSeed() as unknown as Provider;
-      const wallet = UserWalletSeeder.create();
+      const wallet = createUserWallet();
       const dseq = faker.string.numeric(6);
       const manifest = '{"quantity":{"val":"1"}}';
 
@@ -160,7 +160,7 @@ describe(ProviderService.name, () => {
       vi.useFakeTimers();
 
       const provider = createProviderSeed() as unknown as Provider;
-      const wallet = UserWalletSeeder.create();
+      const wallet = createUserWallet();
       const dseq = faker.number.int({ min: 1, max: 1000 }).toString();
       const manifest = '{"quantity":{"val":"1"}}';
       const jwtToken = faker.string.alphanumeric(32);
@@ -202,7 +202,7 @@ describe(ProviderService.name, () => {
       const { service, jwtTokenService, providerRepository, providerProxyService } = setup();
 
       const provider = createProviderSeed() as unknown as Provider;
-      const wallet = UserWalletSeeder.create();
+      const wallet = createUserWallet();
       const dseq = faker.number.int({ min: 1, max: 1000 }).toString();
       const manifest = '{"quantity":{"val":"1"}}';
       const jwtToken = faker.string.alphanumeric(32);
@@ -241,7 +241,7 @@ describe(ProviderService.name, () => {
       const { service, jwtTokenService, providerRepository, providerProxyService } = setup();
 
       const provider = createProviderSeed() as unknown as Provider;
-      const wallet = UserWalletSeeder.create();
+      const wallet = createUserWallet();
       const dseq = faker.string.numeric(6);
       const manifest = '{"quantity":{"val":"1"}}';
       const jwtToken = faker.string.alphanumeric(32);
@@ -278,7 +278,7 @@ describe(ProviderService.name, () => {
       const { service, jwtTokenService, providerRepository, providerProxyService } = setup();
 
       const provider = createProviderSeed() as unknown as Provider;
-      const wallet = UserWalletSeeder.create();
+      const wallet = createUserWallet();
       const dseq = faker.string.numeric(6);
       const manifest = '{"quantity":{"val":"1"}}';
       const jwtToken = faker.string.alphanumeric(32);
@@ -317,7 +317,7 @@ describe(ProviderService.name, () => {
       const { service, jwtTokenService, providerRepository, providerProxyService } = setup();
 
       const provider = createProviderSeed() as unknown as Provider;
-      const wallet = UserWalletSeeder.create();
+      const wallet = createUserWallet();
       const dseq = faker.string.numeric(6);
       const gseq = faker.number.int({ min: 1, max: 10 });
       const oseq = faker.number.int({ min: 1, max: 10 });
@@ -365,7 +365,7 @@ describe(ProviderService.name, () => {
       const { service, providerRepository } = setup();
 
       const provider = createProviderSeed() as unknown as Provider;
-      const wallet = UserWalletSeeder.create();
+      const wallet = createUserWallet();
       const dseq = faker.string.numeric(6);
       const gseq = faker.number.int({ min: 1, max: 10 });
       const oseq = faker.number.int({ min: 1, max: 10 });

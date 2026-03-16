@@ -22,7 +22,7 @@ import { mockConfigService } from "@test/mocks/config-service.mock";
 import { createAkashAddress } from "@test/seeders";
 import { createManyAutoTopUpDeployments } from "@test/seeders/auto-top-up-deployment.seeder";
 import { createDrainingDeployment } from "@test/seeders/draining-deployment.seeder";
-import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
+import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 describe(DrainingDeploymentService.name, () => {
   describe("findDrainingDeploymentsByOwner", () => {
@@ -187,8 +187,8 @@ describe(DrainingDeploymentService.name, () => {
       const userId = faker.string.uuid();
       const dseq = faker.string.numeric(6);
       const address = createAkashAddress();
-      const userWallet = UserWalletSeeder.create({ address });
       const deployment = createDrainingDeployment();
+      const userWallet = createUserWallet({ address });
       const expectedTopUpAmount = 100000;
 
       const { service, userWalletRepository, leaseRepository } = setup();
@@ -221,7 +221,7 @@ describe(DrainingDeploymentService.name, () => {
       const userId = faker.string.uuid();
       const dseq = faker.string.numeric(6);
       const address = createAkashAddress();
-      const userWallet = UserWalletSeeder.create({ address });
+      const userWallet = createUserWallet({ address });
       const { service, userWalletRepository, leaseRepository } = setup();
       userWalletRepository.findOneByUserId.mockResolvedValue(userWallet);
       leaseRepository.findOneByDseqAndOwner.mockResolvedValue(null);
@@ -286,7 +286,7 @@ describe(DrainingDeploymentService.name, () => {
 
     it("returns 0 when user wallet has no address", async () => {
       const { service, userId, ability } = await setupCalculateWeeklyCost({
-        userWallet: UserWalletSeeder.create({ address: null }),
+        userWallet: createUserWallet({ address: null }),
         deployments: [{ predictedClosedHeight: 1000100, blockRate: 50 }]
       });
 
@@ -344,13 +344,13 @@ describe(DrainingDeploymentService.name, () => {
     });
 
     async function setupCalculateWeeklyCost(input: {
-      userWallet?: ReturnType<typeof UserWalletSeeder.create> | undefined;
+      userWallet?: ReturnType<typeof createUserWallet> | undefined;
       deployments: Array<{ predictedClosedHeight: number | null; blockRate: number }>;
       expectedFiatAmount?: number;
     }) {
       const userId = faker.string.uuid();
       const address = createAkashAddress();
-      const userWallet = "userWallet" in input ? input.userWallet : UserWalletSeeder.create({ address, userId });
+      const userWallet = "userWallet" in input ? input.userWallet : createUserWallet({ address, userId });
       const ability = mock<AnyAbility>();
 
       const baseSetup = setup();
@@ -436,7 +436,7 @@ describe(DrainingDeploymentService.name, () => {
 
     it("returns 0 when user wallet has no address", async () => {
       const { service, address, targetDate } = await setupCalculateCost({
-        userWallet: UserWalletSeeder.create({ address: null }),
+        userWallet: createUserWallet({ address: null }),
         deployments: [{ predictedClosedHeight: 1000100, blockRate: 50 }]
       });
 
@@ -486,11 +486,11 @@ describe(DrainingDeploymentService.name, () => {
     });
 
     async function setupCalculateCost(input: {
-      userWallet?: ReturnType<typeof UserWalletSeeder.create> | undefined;
+      userWallet?: ReturnType<typeof createUserWallet> | undefined;
       deployments: Array<{ predictedClosedHeight: number | null; blockRate: number }>;
     }) {
       const address = createAkashAddress();
-      const userWallet = "userWallet" in input ? input.userWallet : UserWalletSeeder.create({ address });
+      const userWallet = "userWallet" in input ? input.userWallet : createUserWallet({ address });
       const now = new Date();
       const targetDate = addWeeks(now, 1);
 
