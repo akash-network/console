@@ -1,9 +1,14 @@
-import { useSettings as useSettingsOriginal } from "@src/context/SettingsProvider";
+import { useSettings } from "@src/context/SettingsProvider";
 import { compareVersions } from "@src/utils/semver";
 
-export function useSupportsACT(options?: { dependencies?: { useSettings: typeof useSettingsOriginal } }): boolean {
-  const { useSettings } = { useSettings: useSettingsOriginal, ...options?.dependencies };
-  const { settings } = useSettings();
-  const appVersion = settings.selectedNode?.appVersion;
+const DEPENDENCIES = { useSettings };
+interface HookInput {
+  dependencies?: typeof DEPENDENCIES;
+}
+
+export function useSupportsACT({ dependencies: d = DEPENDENCIES }: HookInput = { dependencies: DEPENDENCIES }): boolean {
+  const { settings } = d.useSettings();
+  const chainNode = settings.isCustomNode ? settings.customNode : settings.selectedNode;
+  const appVersion = chainNode?.appVersion;
   return !!appVersion && compareVersions(appVersion, "2.0.0") >= 0;
 }

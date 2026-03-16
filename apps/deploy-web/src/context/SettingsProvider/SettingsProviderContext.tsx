@@ -138,8 +138,8 @@ export const SettingsProvider: FCWithChildren = ({ children }) => {
       if (!selectedNodeInSettings || (selectedNodeInSettings && settings.selectedNode?.status === "inactive")) {
         const randomNode = getFastestNode(nodesWithStatuses);
         // Use rpc proxy as a backup if there's no active nodes in the list
-        defaultApiNode = randomNode?.api || netConfig.getBaseAPIUrl(netConfig.mapped(selectedNetwork.id));
-        defaultRpcNode = randomNode?.rpc || netConfig.getBaseRpcUrl(netConfig.mapped(selectedNetwork.id));
+        defaultApiNode = randomNode?.api || netConfig.getBaseAPIUrl(selectedNetwork.id);
+        defaultRpcNode = randomNode?.rpc || netConfig.getBaseRpcUrl(selectedNetwork.id);
         selectedNode = randomNode || {
           api: defaultApiNode,
           rpc: defaultRpcNode,
@@ -147,7 +147,7 @@ export const SettingsProvider: FCWithChildren = ({ children }) => {
           latency: 0,
           nodeInfo: null,
           appVersion: undefined,
-          id: netConfig.mapped(selectedNetwork.id)
+          id: new URL(defaultApiNode || defaultRpcNode).hostname
         };
         if ((selectedNode as BlockchainNode).nodeInfo === null) {
           Object.assign(selectedNode, await loadNodeStatus(selectedNode.api));
