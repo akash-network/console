@@ -34,12 +34,6 @@ export const netConfigData = {
     apiUrls: ["https://api.sandbox-2.aksh.pw:443"],
     rpcUrls: ["https://rpc.sandbox-2.aksh.pw:443"]
   },
-  "testnet-8": {
-    version: "v2.1.0-a22",
-    faucetUrl: "https://faucet.dev.akash.pub/",
-    apiUrls: ["https://testnetapi.akashnet.net"],
-    rpcUrls: ["https://testnetrpc.akashnet.net:443"]
-  },
   "testnet-oracle": {
     version: "v2.1.0-a22",
     faucetUrl: "https://oraclefaucet.dev.akash.pub/",
