@@ -1,3 +1,4 @@
+import { netConfig } from "@akashnetwork/net";
 import * as dotenv from "dotenv";
 import type { Model, ModelCtor } from "sequelize-typescript";
 
@@ -44,16 +45,10 @@ export interface ChainDef {
 export const chainDefinitions: { [key: string]: ChainDef } = {
   akash: {
     code: "akash",
-    rpcNodes: [
-      "http://akash.c29r3.xyz/rpc",
-      "https://rpc-akash.ecostake.com",
-      "https://akash-rpc.polkachu.com",
-      "https://akash-rpc.kleomedes.network",
-      "https://rpc.akt.dev/rpc"
-    ],
+    rpcNodes: netConfig.getAllBaseRpcUrls("mainnet"),
     cosmosDirectoryId: "akash",
     connectionString: process.env.AKASH_DATABASE_CS,
-    genesisFileUrl: "https://raw.githubusercontent.com/akash-network/net/master/mainnet/genesis.json",
+    genesisFileUrl: `https://raw.githubusercontent.com/akash-network/net/master/${netConfig.mapped("mainnet")}/genesis.json`,
     coinGeckoId: "akash-network",
     logoUrlSVG: "https://raw.githubusercontent.com/cosmos/chain-registry/master/akash/images/akt.svg",
     logoUrlPNG: "https://console.akash.network/images/chains/akash.png",
@@ -83,10 +78,10 @@ export const chainDefinitions: { [key: string]: ChainDef } = {
   },
   akashTestnet: {
     code: "akash-testnet",
-    rpcNodes: ["https://testnetoraclerpc.akashnet.net:443"],
+    rpcNodes: netConfig.getAllBaseRpcUrls("testnet"),
     cosmosDirectoryId: "akash",
     connectionString: process.env.AKASH_TESTNET_DATABASE_CS,
-    genesisFileUrl: "https://raw.githubusercontent.com/akash-network/net/master/testnet-oracle/genesis.json",
+    genesisFileUrl: `https://raw.githubusercontent.com/akash-network/net/master/${netConfig.mapped("testnet")}/genesis.json`,
     coinGeckoId: "akash-network",
     logoUrlSVG: "https://raw.githubusercontent.com/cosmos/chain-registry/master/akash/images/akt.svg",
     logoUrlPNG: "https://console.akash.network/images/chains/akash.png",
@@ -116,10 +111,10 @@ export const chainDefinitions: { [key: string]: ChainDef } = {
   },
   akashSandbox: {
     code: "akash-sandbox",
-    rpcNodes: ["https://rpc.sandbox-2.aksh.pw"],
+    rpcNodes: netConfig.getAllBaseRpcUrls("sandbox"),
     cosmosDirectoryId: "akash",
     connectionString: process.env.AKASH_SANDBOX_DATABASE_CS,
-    genesisFileUrl: "https://raw.githubusercontent.com/akash-network/net/master/sandbox-2/genesis.json",
+    genesisFileUrl: `https://raw.githubusercontent.com/akash-network/net/master/${netConfig.mapped("sandbox")}/genesis.json`,
     coinGeckoId: "akash-network",
     logoUrlSVG: "https://raw.githubusercontent.com/cosmos/chain-registry/master/akash/images/akt.svg",
     logoUrlPNG: "https://console.akash.network/images/chains/akash.png",

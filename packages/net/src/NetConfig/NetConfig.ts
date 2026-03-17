@@ -24,9 +24,12 @@ export class NetConfig {
     return netConfigData[this.mapped(network)].version;
   }
 
+  getAllBaseAPIUrls(network: string): string[] {
+    return netConfigData[this.mapped(network)].apiUrls;
+  }
+
   getBaseAPIUrl(network: string): string {
-    const apiUrls = netConfigData[this.mapped(network)].apiUrls;
-    return apiUrls[0];
+    return this.getAllBaseAPIUrls(network)[0];
   }
 
   getSupportedNetworks(): SupportedChainNetworks[] {
@@ -38,7 +41,10 @@ export class NetConfig {
   }
 
   getBaseRpcUrl(network: string): string {
-    const rpcUrls = netConfigData[this.mapped(network)].rpcUrls;
-    return rpcUrls[0];
+    return this.getAllBaseRpcUrls(network)[0];
+  }
+
+  getAllBaseRpcUrls(network: string): string[] {
+    return netConfigData[this.mapped(network)].rpcUrls;
   }
 }
