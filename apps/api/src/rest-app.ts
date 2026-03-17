@@ -49,7 +49,15 @@ import {
 import { blockPredictionRouter, blocksRouter } from "./block";
 import { connectUsingSequelize } from "./chain";
 import { CORE_CONFIG, migratePG } from "./core";
-import { bmeStatusHistoryRouter, dashboardDataRouter, graphDataRouter, leasesDurationRouter, marketDataRouter, networkCapacityRouter } from "./dashboard";
+import {
+  bmeDashboardDataRouter,
+  bmeStatusHistoryRouter,
+  dashboardDataRouter,
+  graphDataRouter,
+  leasesDurationRouter,
+  marketDataRouter,
+  networkCapacityRouter
+} from "./dashboard";
 import { gpuRouter } from "./gpu";
 import { networkRouter } from "./network";
 import { pricingRouter } from "./pricing";
@@ -134,6 +142,7 @@ const openApiHonoHandlers: OpenApiHonoHandler[] = [
   providerDeploymentsRouter,
   providerJwtTokenRouter,
   graphDataRouter,
+  bmeDashboardDataRouter,
   bmeStatusHistoryRouter,
   dashboardDataRouter,
   networkCapacityRouter,
