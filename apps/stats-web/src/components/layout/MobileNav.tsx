@@ -4,7 +4,7 @@ import "react-modern-drawer/dist/index.css";
 import { useState } from "react";
 import Drawer from "react-modern-drawer";
 import { Button } from "@akashnetwork/ui/components";
-import { ArrowUpRightSquare, Discord, Github, Menu, Rocket, StatsUpSquare, X as TwitterX } from "iconoir-react";
+import { ArrowUpRightSquare, Discord, FireFlame, Github, Menu, Rocket, StatsUpSquare, X as TwitterX } from "iconoir-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 
@@ -52,6 +52,12 @@ export function MobileNav() {
                   icon: <StatsUpSquare />,
                   variant: "ghost",
                   href: "/"
+                },
+                {
+                  title: "BME",
+                  icon: <FireFlame />,
+                  variant: "ghost",
+                  href: "/bme"
                 },
                 {
                   title: "akash.network",

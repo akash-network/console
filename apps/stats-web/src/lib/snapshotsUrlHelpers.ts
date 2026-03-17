@@ -1,4 +1,4 @@
-import { ProviderSnapshots, ProviderSnapshotsUrlParam, Snapshots, SnapshotsUrlParam } from "@/types";
+import { BmeSnapshots, BmeSnapshotsUrlParam, ProviderSnapshots, ProviderSnapshotsUrlParam, Snapshots, SnapshotsUrlParam } from "@/types";
 
 export type SNAPSHOT_NOT_FOUND = "NOT_FOUND";
 export const NOT_FOUND: SNAPSHOT_NOT_FOUND = "NOT_FOUND";
@@ -33,4 +33,24 @@ export const urlParamToProviderSnapshot = (snapshotsUrlParam: ProviderSnapshotsU
   };
 
   return snapshotUrlMapping[snapshotsUrlParam] ?? NOT_FOUND;
+};
+
+const BME_SNAPSHOT_URL = {
+  [BmeSnapshotsUrlParam.totalAktBurnedForAct]: BmeSnapshots.totalAktBurnedForAct,
+  [BmeSnapshotsUrlParam.dailyAktBurnedForAct]: BmeSnapshots.dailyAktBurnedForAct,
+  [BmeSnapshotsUrlParam.totalActMinted]: BmeSnapshots.totalActMinted,
+  [BmeSnapshotsUrlParam.dailyActMinted]: BmeSnapshots.dailyActMinted,
+  [BmeSnapshotsUrlParam.totalActBurnedForAkt]: BmeSnapshots.totalActBurnedForAkt,
+  [BmeSnapshotsUrlParam.dailyActBurnedForAkt]: BmeSnapshots.dailyActBurnedForAkt,
+  [BmeSnapshotsUrlParam.totalAktReminted]: BmeSnapshots.totalAktReminted,
+  [BmeSnapshotsUrlParam.dailyAktReminted]: BmeSnapshots.dailyAktReminted,
+  [BmeSnapshotsUrlParam.netAktBurned]: BmeSnapshots.netAktBurned,
+  [BmeSnapshotsUrlParam.dailyNetAktBurned]: BmeSnapshots.dailyNetAktBurned,
+  [BmeSnapshotsUrlParam.outstandingAct]: BmeSnapshots.outstandingAct,
+  [BmeSnapshotsUrlParam.vaultAkt]: BmeSnapshots.vaultAkt,
+  [BmeSnapshotsUrlParam.collateralRatio]: BmeSnapshots.collateralRatio
+};
+
+export const urlParamToBmeSnapshot = (snapshotsUrlParam: BmeSnapshotsUrlParam) => {
+  return BME_SNAPSHOT_URL[snapshotsUrlParam] ?? NOT_FOUND;
 };

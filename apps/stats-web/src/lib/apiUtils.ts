@@ -40,6 +40,9 @@ export class ApiUrlService {
   static networkCapacity() {
     return `${this.baseApiUrl}/v1/network-capacity`;
   }
+  static bmeStatusHistory() {
+    return `${this.baseApiUrl}/v1/bme/status-history`;
+  }
 
   static mainnetVersion() {
     return `${this.baseApiUrl}/v1/version/mainnet`;
