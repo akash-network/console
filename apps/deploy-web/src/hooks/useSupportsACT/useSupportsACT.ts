@@ -9,6 +9,6 @@ interface HookInput {
 export function useSupportsACT({ dependencies: d = DEPENDENCIES }: HookInput = { dependencies: DEPENDENCIES }): boolean {
   const { settings } = d.useSettings();
   const chainNode = settings.isCustomNode ? settings.customNode : settings.selectedNode;
-  const appVersion = chainNode?.appVersion;
+  const appVersion = chainNode?.appVersion?.startsWith("v") ? chainNode.appVersion.slice(1) : chainNode?.appVersion;
   return !!appVersion && compareVersions(appVersion, "2.0.0") >= 0;
 }

@@ -56,6 +56,11 @@ describe(useSupportsACT.name, () => {
     expect(result.current).toBe(false);
   });
 
+  it('can remove "v" prefix from appVersion', () => {
+    const { result } = setup({ appVersion: "v2.0.0" });
+    expect(result.current).toBe(true);
+  });
+
   function setup(input?: { appVersion?: string; selectedNode?: null; isCustomNode?: boolean; customNode?: { appVersion?: string } | null }) {
     const selectedNode =
       input?.selectedNode === null ? null : { api: "", rpc: "", status: "", latency: 0, id: "", nodeInfo: null, appVersion: input?.appVersion };
