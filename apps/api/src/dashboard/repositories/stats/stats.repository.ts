@@ -24,6 +24,14 @@ export type CollateralRatioRow = {
   collateralRatio: number;
 };
 
+export type BmeStatusHistoryRow = {
+  height: number;
+  date: Date;
+  previousStatus: string;
+  newStatus: string;
+  collateralRatio: number;
+};
+
 @injectable()
 export class StatsRepository {
   readonly #chainDb: Sequelize;
@@ -142,6 +150,23 @@ export class StatsRepository {
         }
       ]
     });
+  }
+
+  async findBmeStatusHistory(): Promise<BmeStatusHistoryRow[]> {
+    return this.#chainDb.query<BmeStatusHistoryRow>(
+      `/* dashboard-stats:bme-status-history */ SELECT
+          bsc."height",
+          b."datetime" AS "date",
+          bsc."previous_status" AS "previousStatus",
+          bsc."new_status" AS "newStatus",
+          bsc."collateral_ratio"::float AS "collateralRatio"
+        FROM "bme_status_change" bsc
+        INNER JOIN "block" b ON b."height" = bsc."height"
+        ORDER BY bsc."height" ASC`,
+      {
+        type: QueryTypes.SELECT
+      }
+    );
   }
 
   async findClosedLeases(owner: string, query: { dseq?: string; startDate: Date; endDate: Date }) {

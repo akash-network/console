@@ -6,6 +6,7 @@ import uniqBy from "lodash/uniqBy";
 import { singleton } from "tsyringe";
 
 import { Memoize } from "@src/caching/helpers";
+import { BmeStatusHistoryResponse } from "@src/dashboard/http-schemas/bme-status-history/bme-status-history.schema";
 import { GraphDataResponse } from "@src/dashboard/http-schemas/graph-data/graph-data.schema";
 import { LeasesDurationParams, LeasesDurationQuery, LeasesDurationResponse } from "@src/dashboard/http-schemas/leases-duration/leases-duration.schema";
 import { MarketDataParams } from "@src/dashboard/http-schemas/market-data/market-data.schema";
@@ -241,6 +242,19 @@ export class StatsService {
       compareValue: stats[stats.length - 2]?.value ?? 0,
       snapshots: stats
     };
+  }
+
+  @Memoize({ ttlInSeconds: minutesToSeconds(5) })
+  async getBmeStatusHistory(): Promise<BmeStatusHistoryResponse> {
+    const rows = await this.statsRepository.findBmeStatusHistory();
+
+    return rows.map(row => ({
+      height: row.height,
+      date: row.date,
+      previousStatus: row.previousStatus,
+      newStatus: row.newStatus,
+      collateralRatio: row.collateralRatio
+    }));
   }
 
   @Memoize({ ttlInSeconds: minutesToSeconds(5) })
