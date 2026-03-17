@@ -1,10 +1,11 @@
 import type { AuthzHttpService } from "@akashnetwork/http-sdk";
+import { getAllItems } from "@akashnetwork/http-sdk";
 import type { AxiosInstance } from "axios";
 
 import type { RestApiBalancesResponseType } from "@src/types";
 import type { Balances } from "@src/types/address";
 import type { RpcDeployment } from "@src/types/deployment";
-import { ApiUrlService, loadWithPagination } from "@src/utils/apiUtils";
+import { ApiUrlService } from "@src/utils/apiUtils";
 import { deploymentToDto } from "@src/utils/deploymentDetailUtils";
 
 export class WalletBalancesService {
@@ -22,7 +23,12 @@ export class WalletBalancesService {
     const [balanceResponse, deploymentGrants, activeDeploymentsResponse] = await Promise.all([
       this.chainApiHttpClient.get<RestApiBalancesResponseType>(ApiUrlService.balance("", address)),
       this.authzHttpService.getAllDepositDeploymentGrants({ grantee: address, limit: 1000 }),
-      loadWithPagination<RpcDeployment[]>(ApiUrlService.deploymentList("", address, true), "deployments", 1000, this.chainApiHttpClient)
+      getAllItems<RpcDeployment>(async params => {
+        const response = await this.chainApiHttpClient.get(ApiUrlService.deploymentList("", address, true), {
+          params: { "pagination.limit": 1000, ...params }
+        });
+        return { items: response.data.deployments, pagination: response.data.pagination };
+      })
     ]);
 
     const deploymentGrantsPerDenom = deploymentGrants.reduce<Record<string, number>>((acc, grant) => {
