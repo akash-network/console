@@ -11,42 +11,15 @@ import { Title } from "@/components/Title";
 import { udenomToDenom } from "@/lib/mathHelpers";
 import { UrlService } from "@/lib/urlUtils";
 import type { BmeStatusHistoryResponse } from "@/queries";
-import type { GraphResponse } from "@/types";
+import type { BmeDashboardData } from "@/types";
 import { BmeSnapshotsUrlParam } from "@/types";
 
 interface BmeDashboardProps {
-  outstandingActData: GraphResponse;
-  vaultAktData: GraphResponse;
-  collateralRatioData: GraphResponse;
+  dashboardData: BmeDashboardData;
   statusHistory: BmeStatusHistoryResponse;
-  dailyAktBurnedForActData: GraphResponse;
-  totalAktBurnedForActData: GraphResponse;
-  dailyActMintedData: GraphResponse;
-  totalActMintedData: GraphResponse;
-  dailyActBurnedForAktData: GraphResponse;
-  totalActBurnedForAktData: GraphResponse;
-  dailyAktRemintedData: GraphResponse;
-  totalAktRemintedData: GraphResponse;
-  dailyNetAktBurnedData: GraphResponse;
-  netAktBurnedData: GraphResponse;
 }
 
-export const BmeDashboard: React.FunctionComponent<BmeDashboardProps> = ({
-  outstandingActData,
-  vaultAktData,
-  collateralRatioData,
-  statusHistory,
-  dailyAktBurnedForActData,
-  totalAktBurnedForActData,
-  dailyActMintedData,
-  totalActMintedData,
-  dailyActBurnedForAktData,
-  totalActBurnedForAktData,
-  dailyAktRemintedData,
-  totalAktRemintedData,
-  dailyNetAktBurnedData,
-  netAktBurnedData
-}) => {
+export const BmeDashboard: React.FunctionComponent<BmeDashboardProps> = ({ dashboardData, statusHistory }) => {
   const latestStatus = statusHistory.length > 0 ? statusHistory[statusHistory.length - 1] : null;
 
   return (
@@ -57,9 +30,7 @@ export const BmeDashboard: React.FunctionComponent<BmeDashboardProps> = ({
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <StatsCard
-          number={
-            <FormattedNumber value={udenomToDenom(outstandingActData.currentValue)} maximumFractionDigits={2} notation="compact" compactDisplay="short" />
-          }
+          number={<FormattedNumber value={udenomToDenom(dashboardData.outstandingAct)} maximumFractionDigits={2} notation="compact" compactDisplay="short" />}
           text="Outstanding ACT"
           tooltip="Total ACT currently in circulation"
           graphPath={UrlService.bmeGraph(BmeSnapshotsUrlParam.outstandingAct)}
@@ -68,7 +39,7 @@ export const BmeDashboard: React.FunctionComponent<BmeDashboardProps> = ({
         <StatsCard
           number={
             <>
-              <FormattedNumber value={udenomToDenom(vaultAktData.currentValue)} maximumFractionDigits={2} notation="compact" compactDisplay="short" />
+              <FormattedNumber value={udenomToDenom(dashboardData.vaultAkt)} maximumFractionDigits={2} notation="compact" compactDisplay="short" />
               <span className="ml-1 text-sm">AKT</span>
             </>
           }
@@ -78,7 +49,7 @@ export const BmeDashboard: React.FunctionComponent<BmeDashboardProps> = ({
         />
 
         <StatsCard
-          number={<FormattedNumber value={collateralRatioData.currentValue} maximumFractionDigits={4} />}
+          number={<FormattedNumber value={dashboardData.collateralRatio} maximumFractionDigits={4} />}
           text="Collateral Ratio"
           tooltip="Ratio of vault value to outstanding ACT — a key health metric"
           graphPath={UrlService.bmeGraph(BmeSnapshotsUrlParam.collateralRatio)}
@@ -100,12 +71,7 @@ export const BmeDashboard: React.FunctionComponent<BmeDashboardProps> = ({
         <StatsCard
           number={
             <>
-              <FormattedNumber
-                value={udenomToDenom(dailyAktBurnedForActData.currentValue)}
-                maximumFractionDigits={2}
-                notation="compact"
-                compactDisplay="short"
-              />
+              <FormattedNumber value={udenomToDenom(dashboardData.dailyAktBurnedForAct)} maximumFractionDigits={2} notation="compact" compactDisplay="short" />
               <span className="ml-1 text-sm">AKT</span>
             </>
           }
@@ -116,12 +82,7 @@ export const BmeDashboard: React.FunctionComponent<BmeDashboardProps> = ({
         <StatsCard
           number={
             <>
-              <FormattedNumber
-                value={udenomToDenom(totalAktBurnedForActData.currentValue)}
-                maximumFractionDigits={2}
-                notation="compact"
-                compactDisplay="short"
-              />
+              <FormattedNumber value={udenomToDenom(dashboardData.totalAktBurnedForAct)} maximumFractionDigits={2} notation="compact" compactDisplay="short" />
               <span className="ml-1 text-sm">AKT</span>
             </>
           }
@@ -132,7 +93,7 @@ export const BmeDashboard: React.FunctionComponent<BmeDashboardProps> = ({
         <StatsCard
           number={
             <>
-              <FormattedNumber value={udenomToDenom(dailyActMintedData.currentValue)} maximumFractionDigits={2} notation="compact" compactDisplay="short" />
+              <FormattedNumber value={udenomToDenom(dashboardData.dailyActMinted)} maximumFractionDigits={2} notation="compact" compactDisplay="short" />
               <span className="ml-1 text-sm">ACT</span>
             </>
           }
@@ -143,7 +104,7 @@ export const BmeDashboard: React.FunctionComponent<BmeDashboardProps> = ({
         <StatsCard
           number={
             <>
-              <FormattedNumber value={udenomToDenom(totalActMintedData.currentValue)} maximumFractionDigits={2} notation="compact" compactDisplay="short" />
+              <FormattedNumber value={udenomToDenom(dashboardData.totalActMinted)} maximumFractionDigits={2} notation="compact" compactDisplay="short" />
               <span className="ml-1 text-sm">ACT</span>
             </>
           }
@@ -162,12 +123,7 @@ export const BmeDashboard: React.FunctionComponent<BmeDashboardProps> = ({
         <StatsCard
           number={
             <>
-              <FormattedNumber
-                value={udenomToDenom(dailyActBurnedForAktData.currentValue)}
-                maximumFractionDigits={2}
-                notation="compact"
-                compactDisplay="short"
-              />
+              <FormattedNumber value={udenomToDenom(dashboardData.dailyActBurnedForAkt)} maximumFractionDigits={2} notation="compact" compactDisplay="short" />
               <span className="ml-1 text-sm">ACT</span>
             </>
           }
@@ -178,12 +134,7 @@ export const BmeDashboard: React.FunctionComponent<BmeDashboardProps> = ({
         <StatsCard
           number={
             <>
-              <FormattedNumber
-                value={udenomToDenom(totalActBurnedForAktData.currentValue)}
-                maximumFractionDigits={2}
-                notation="compact"
-                compactDisplay="short"
-              />
+              <FormattedNumber value={udenomToDenom(dashboardData.totalActBurnedForAkt)} maximumFractionDigits={2} notation="compact" compactDisplay="short" />
               <span className="ml-1 text-sm">ACT</span>
             </>
           }
@@ -194,7 +145,7 @@ export const BmeDashboard: React.FunctionComponent<BmeDashboardProps> = ({
         <StatsCard
           number={
             <>
-              <FormattedNumber value={udenomToDenom(dailyAktRemintedData.currentValue)} maximumFractionDigits={2} notation="compact" compactDisplay="short" />
+              <FormattedNumber value={udenomToDenom(dashboardData.dailyAktReminted)} maximumFractionDigits={2} notation="compact" compactDisplay="short" />
               <span className="ml-1 text-sm">AKT</span>
             </>
           }
@@ -205,7 +156,7 @@ export const BmeDashboard: React.FunctionComponent<BmeDashboardProps> = ({
         <StatsCard
           number={
             <>
-              <FormattedNumber value={udenomToDenom(totalAktRemintedData.currentValue)} maximumFractionDigits={2} notation="compact" compactDisplay="short" />
+              <FormattedNumber value={udenomToDenom(dashboardData.totalAktReminted)} maximumFractionDigits={2} notation="compact" compactDisplay="short" />
               <span className="ml-1 text-sm">AKT</span>
             </>
           }
@@ -224,7 +175,7 @@ export const BmeDashboard: React.FunctionComponent<BmeDashboardProps> = ({
         <StatsCard
           number={
             <>
-              <FormattedNumber value={udenomToDenom(dailyNetAktBurnedData.currentValue)} maximumFractionDigits={2} notation="compact" compactDisplay="short" />
+              <FormattedNumber value={udenomToDenom(dashboardData.dailyNetAktBurned)} maximumFractionDigits={2} notation="compact" compactDisplay="short" />
               <span className="ml-1 text-sm">AKT</span>
             </>
           }
@@ -235,7 +186,7 @@ export const BmeDashboard: React.FunctionComponent<BmeDashboardProps> = ({
         <StatsCard
           number={
             <>
-              <FormattedNumber value={udenomToDenom(netAktBurnedData.currentValue)} maximumFractionDigits={2} notation="compact" compactDisplay="short" />
+              <FormattedNumber value={udenomToDenom(dashboardData.netAktBurned)} maximumFractionDigits={2} notation="compact" compactDisplay="short" />
               <span className="ml-1 text-sm">AKT</span>
             </>
           }

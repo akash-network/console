@@ -44,5 +44,6 @@ export class QueryKeys {
   static getBalancesKey = (address: string) => ["BALANCES", address];
   static getTemplatesKey = () => ["TEMPLATES"];
   static getProviderAttributesSchema = () => ["PROVIDER_ATTRIBUTES_SCHEMA"];
+  static getBmeDashboardDataKey = () => ["BME_DASHBOARD_DATA"];
   static getBmeStatusHistoryKey = () => ["BME_STATUS_HISTORY"];
 }

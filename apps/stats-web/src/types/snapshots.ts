@@ -88,3 +88,19 @@ export type GraphResponse = {
   currentValue: number;
   compareValue: number;
 };
+
+export type BmeDashboardData = {
+  outstandingAct: number;
+  vaultAkt: number;
+  collateralRatio: number;
+  dailyAktBurnedForAct: number;
+  totalAktBurnedForAct: number;
+  dailyActMinted: number;
+  totalActMinted: number;
+  dailyActBurnedForAkt: number;
+  totalActBurnedForAkt: number;
+  dailyAktReminted: number;
+  totalAktReminted: number;
+  dailyNetAktBurned: number;
+  netAktBurned: number;
+};
