@@ -1,21 +1,16 @@
-import { AkashBlock as Block, Lease, Provider, ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash";
-import { Day } from "@akashnetwork/database/dbSchemas/base";
+import { AkashBlock as Block } from "@akashnetwork/database/dbSchemas/akash";
 import { CoinGeckoHttpService, CosmosHttpService } from "@akashnetwork/http-sdk";
 import { createOtelLogger } from "@akashnetwork/logging/otel";
-import { differenceInSeconds, minutesToSeconds, sub, subHours } from "date-fns";
+import { differenceInSeconds, minutesToSeconds, subHours } from "date-fns";
 import uniqBy from "lodash/uniqBy";
-import { Op, QueryTypes, Sequelize } from "sequelize";
-import { inject, singleton } from "tsyringe";
+import { singleton } from "tsyringe";
 
 import { Memoize } from "@src/caching/helpers";
-import { CHAIN_DB } from "@src/chain";
 import { GraphDataResponse } from "@src/dashboard/http-schemas/graph-data/graph-data.schema";
 import { LeasesDurationParams, LeasesDurationQuery, LeasesDurationResponse } from "@src/dashboard/http-schemas/leases-duration/leases-duration.schema";
 import { MarketDataParams } from "@src/dashboard/http-schemas/market-data/market-data.schema";
-import type { DashboardConfig } from "@src/dashboard/providers/config.provider";
-import { DASHBOARD_CONFIG } from "@src/dashboard/providers/config.provider";
+import { StatsRepository } from "@src/dashboard/repositories/stats";
 import { ProviderCapacityStats, StatsItem } from "@src/types/provider";
-import { toUTC } from "@src/utils";
 import { forEachInChunks } from "@src/utils/array/array";
 import { createLoggingExecutor } from "@src/utils/logging";
 import type { AuthorizedGraphDataName, DashboardGraphDataName } from "./stats.types";
@@ -24,16 +19,6 @@ const numberOrZero: (x: number | undefined | null) => number = (x: number | unde
 
 const logger = createOtelLogger({ context: "StatsService" });
 const runOrLog = createLoggingExecutor(logger);
-
-type GpuUtilizationData = {
-  date: Date;
-  cpuUtilization: number;
-  cpu: number;
-  gpuUtilization: number;
-  gpu: number;
-  count: number;
-  node_count: number;
-};
 
 type DateValue = { date: Date; value: number };
 
@@ -113,46 +98,23 @@ const blockMetrics: Partial<Record<AuthorizedGraphDataName, BlockMetricConfig>> 
 
 @singleton()
 export class StatsService {
-  readonly #dashboardConfig: DashboardConfig;
-  readonly #chainDb: Sequelize;
-
   constructor(
-    @inject(DASHBOARD_CONFIG) dashboardConfig: DashboardConfig,
-    @inject(CHAIN_DB) chainDb: Sequelize,
+    private readonly statsRepository: StatsRepository,
     private readonly cosmosHttpService: CosmosHttpService,
     private readonly coinGeckoHttpService: CoinGeckoHttpService
-  ) {
-    this.#dashboardConfig = dashboardConfig;
-    this.#chainDb = chainDb;
-  }
+  ) {}
 
   async getDashboardData() {
-    const latestBlockStats = await Block.findOne({
-      where: {
-        isProcessed: true,
-        totalUUsdSpent: { [Op.not]: null }
-      },
-      order: [["height", "DESC"]]
-    });
+    const latestBlockStats = await this.statsRepository.findLatestProcessedBlock();
     if (!latestBlockStats) {
       throw new Error("No blocks stats found");
     }
 
     const compareDate = subHours(latestBlockStats.datetime, 24);
-    const compareBlockStats = (await Block.findOne({
-      order: [["datetime", "ASC"]],
-      where: {
-        datetime: { [Op.gte]: compareDate }
-      }
-    })) as Block;
+    const compareBlockStats = (await this.statsRepository.findFirstBlockSince(compareDate)) as Block;
 
     const secondCompareDate = subHours(latestBlockStats.datetime, 48);
-    const secondCompareBlockStats = (await Block.findOne({
-      order: [["datetime", "ASC"]],
-      where: {
-        datetime: { [Op.gte]: secondCompareDate }
-      }
-    })) as Block;
+    const secondCompareBlockStats = (await this.statsRepository.findFirstBlockSince(secondCompareDate)) as Block;
 
     return {
       now: {
@@ -223,18 +185,7 @@ export class StatsService {
   }
 
   private async fetchDailyBlockSnapshots(attributes: (keyof Block)[], getter: (block: Block) => number): Promise<DateValue[]> {
-    const result = await Day.findAll({
-      attributes: ["date"],
-      include: [
-        {
-          model: Block,
-          as: "lastBlock",
-          attributes: attributes,
-          required: true
-        }
-      ],
-      order: [["date", "ASC"]]
-    });
+    const result = await this.statsRepository.findDailyBlockSnapshots(attributes);
 
     return result.map(day => ({
       date: day.date,
@@ -262,45 +213,7 @@ export class StatsService {
 
   @Memoize({ ttlInSeconds: minutesToSeconds(5) })
   private async getGpuUtilization() {
-    const result = await this.#chainDb.query<GpuUtilizationData>(
-      `/* dashboard-stats:gpu-utilization */ SELECT
-          d."date",
-          ROUND(
-            COALESCE((SUM("activeCPU") + SUM("pendingCPU")) * 100.0 /
-            NULLIF(SUM("activeCPU") + SUM("pendingCPU") + SUM("availableCPU"), 0), 0),
-            2
-          )::float AS "cpuUtilization",
-          COALESCE(SUM("activeCPU") + SUM("pendingCPU") + SUM("availableCPU"), 0)::integer AS "cpu",
-          ROUND(
-            COALESCE((SUM("activeGPU") + SUM("pendingGPU")) * 100.0 /
-            NULLIF(SUM("activeGPU") + SUM("pendingGPU") + SUM("availableGPU"), 0), 0),
-            2
-          )::float AS "gpuUtilization",
-          COALESCE(SUM("activeGPU") + SUM("pendingGPU") + SUM("availableGPU"), 0)::integer AS "gpu",
-          COUNT(*) as provider_count,
-          COALESCE(COUNT(DISTINCT "nodeId"), 0) as node_count
-        FROM "day" d
-        INNER JOIN (
-          SELECT DISTINCT ON("hostUri",DATE("checkDate"))
-            DATE("checkDate") AS date,
-            ps."activeCPU", ps."pendingCPU", ps."availableCPU",
-            ps."activeGPU", ps."pendingGPU", ps."availableGPU",
-            ps."isOnline",
-            n.id as "nodeId"
-          FROM "providerSnapshot" ps
-          INNER JOIN "provider" ON "provider"."owner"=ps."owner"
-          INNER JOIN "providerSnapshotNode" n ON n."snapshotId"=ps.id AND n."gpuAllocatable" > 0
-          LEFT JOIN "providerSnapshotNodeGPU" gpu ON gpu."snapshotNodeId" = n.id
-          WHERE ps."isLastSuccessOfDay" = TRUE
-          ORDER BY "hostUri",DATE("checkDate"),"checkDate" DESC
-        ) "dailyProviderStats"
-        ON DATE(d."date")="dailyProviderStats"."date"
-        GROUP BY d."date"
-        ORDER BY d."date" ASC`,
-      {
-        type: QueryTypes.SELECT
-      }
-    );
+    const result = await this.statsRepository.findGpuUtilization();
 
     const stats = result.map(day => ({
       date: day.date,
@@ -316,21 +229,7 @@ export class StatsService {
 
   @Memoize({ ttlInSeconds: minutesToSeconds(5) })
   private async getCollateralRatio() {
-    const result = await this.#chainDb.query<{ date: Date; collateralRatio: number }>(
-      `/* dashboard-stats:collateral-ratio */ SELECT
-          d."date",
-          CASE
-            WHEN b."outstandingUact" IS NULL OR b."outstandingUact" = 0 THEN 0
-            ELSE ROUND((COALESCE(b."vaultUakt", 0) * COALESCE(d."aktPrice", 0) / b."outstandingUact")::numeric, 6)::float
-          END AS "collateralRatio"
-        FROM "day" d
-        INNER JOIN "block" b ON b."height" = d."lastBlockHeight"
-        WHERE b."vaultUakt" IS NOT NULL
-        ORDER BY d."date" ASC`,
-      {
-        type: QueryTypes.SELECT
-      }
-    );
+    const result = await this.statsRepository.findCollateralRatio();
 
     const stats = result.map(day => ({
       date: day.date,
@@ -435,19 +334,7 @@ export class StatsService {
 
   @Memoize({ ttlInSeconds: 15 })
   async getNetworkCapacity(): Promise<{ resources: ProviderCapacityStats; activeProviderCount: number }> {
-    const providers = await Provider.findAll({
-      where: {
-        deletedHeight: null
-      },
-      include: [
-        {
-          required: true,
-          model: ProviderSnapshot,
-          as: "lastSuccessfulSnapshot",
-          where: { checkDate: { [Op.gte]: toUTC(sub(new Date(), { minutes: this.#dashboardConfig.PROVIDER_UPTIME_GRACE_PERIOD_MINUTES })) } }
-        }
-      ]
-    });
+    const providers = await this.statsRepository.findActiveProvidersWithSnapshots();
 
     const filteredProviders = uniqBy(providers, provider => provider.hostUri);
     const stats = {
@@ -523,20 +410,7 @@ export class StatsService {
   }
 
   async getLeasesDuration(owner: LeasesDurationParams["owner"], query: LeasesDurationQuery): Promise<LeasesDurationResponse> {
-    const { dseq, startDate, endDate } = query;
-    const closedLeases = await Lease.findAll({
-      where: {
-        owner: owner,
-        closedHeight: { [Op.not]: null },
-        "$createdBlock.datetime$": { [Op.gte]: startDate },
-        "$closedBlock.datetime$": { [Op.lte]: endDate },
-        ...(dseq ? { dseq: dseq } : {})
-      },
-      include: [
-        { model: Block, as: "createdBlock" },
-        { model: Block, as: "closedBlock" }
-      ]
-    });
+    const closedLeases = await this.statsRepository.findClosedLeases(owner, query);
 
     const leases = closedLeases.map(x => ({
       dseq: x.dseq,
