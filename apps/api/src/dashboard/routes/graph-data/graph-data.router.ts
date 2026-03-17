@@ -6,7 +6,7 @@ import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/ope
 import { SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 import { GraphDataController } from "@src/dashboard/controllers/graph-data/graph-data.controller";
 import { GraphDataParamsSchema, GraphDataResponseSchema } from "@src/dashboard/http-schemas/graph-data/graph-data.schema";
-import { isValidGraphDataName } from "@src/services/db/statsService";
+import { isValidGraphDataName } from "@src/dashboard/services/stats/stats.types";
 
 const logger = createOtelLogger({ context: "GraphDataRouter" });
 

@@ -24,6 +24,12 @@ export const createAkashBlock = async (input: Partial<CreationAttributes<AkashBl
     activeMemory: input.activeMemory || faker.number.int({ min: 0, max: 10000000 }),
     activeEphemeralStorage: input.activeEphemeralStorage || faker.number.int({ min: 0, max: 10000000 }),
     activePersistentStorage: input.activePersistentStorage || faker.number.int({ min: 0, max: 10000000 }),
-    activeProviderCount: input.activeProviderCount || faker.number.int({ min: 0, max: 10000000 })
+    activeProviderCount: input.activeProviderCount || faker.number.int({ min: 0, max: 10000000 }),
+    totalUaktBurnedForUact: input.totalUaktBurnedForUact || faker.number.int({ min: 0, max: 10000000 }),
+    totalUactMinted: input.totalUactMinted || faker.number.int({ min: 0, max: 10000000 }),
+    totalUactBurnedForUakt: input.totalUactBurnedForUakt || faker.number.int({ min: 0, max: 10000000 }),
+    totalUaktReminted: input.totalUaktReminted || faker.number.int({ min: 0, max: 10000000 }),
+    vaultUakt: input.vaultUakt || faker.number.int({ min: 0, max: 10000000 }),
+    outstandingUact: input.outstandingUact || faker.number.int({ min: 1, max: 10000000 })
   });
 };

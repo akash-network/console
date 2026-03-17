@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { AuthorizedGraphDataNames } from "@src/services/db/statsService";
+import { AuthorizedGraphDataNames } from "@src/dashboard/services/stats/stats.types";
 
 export const GraphDataParamsSchema = z.object({
   dataName: z.string().openapi({ example: "dailyUAktSpent", enum: AuthorizedGraphDataNames })

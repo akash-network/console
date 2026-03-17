@@ -52,7 +52,7 @@ describe("Provider Dashboard", () => {
     });
 
     function setup() {
-      return new ProviderDashboardService();
+      return container.resolve(ProviderDashboardService);
     }
   });
 });
