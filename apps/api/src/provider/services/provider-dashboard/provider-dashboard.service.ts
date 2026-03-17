@@ -2,15 +2,24 @@ import { Block } from "@akashnetwork/database/dbSchemas";
 import { Provider } from "@akashnetwork/database/dbSchemas/akash";
 import subHours from "date-fns/subHours";
 import assert from "http-assert";
-import { Op } from "sequelize";
-import { singleton } from "tsyringe";
+import { Op, QueryTypes, Sequelize } from "sequelize";
+import { inject, singleton } from "tsyringe";
 
+import { CHAIN_DB } from "@src/chain";
 import { ProviderDashboardResponse } from "@src/provider/http-schemas/provider-dashboard.schema";
-import { getProviderEarningsAtHeight } from "@src/services/db/statsService";
-import { getProviderActiveResourcesAtHeight, getProviderTotalLeaseCountAtHeight } from "@src/services/db/statsService";
+import { ProviderEarningsService } from "@src/provider/services/provider-earnings/provider-earnings.service";
 
 @singleton()
 export class ProviderDashboardService {
+  readonly #chainDb: Sequelize;
+
+  constructor(
+    @inject(CHAIN_DB) chainDb: Sequelize,
+    private readonly providerEarningsService: ProviderEarningsService
+  ) {
+    this.#chainDb = chainDb;
+  }
+
   async getProviderDashboard(owner: string): Promise<ProviderDashboardResponse> {
     const provider = await Provider.findOne({
       where: { owner }
@@ -53,14 +62,14 @@ export class ProviderDashboardService {
       previousTotalEarnings,
       secondPreviousTotalEarnings
     ] = await Promise.all([
-      getProviderActiveResourcesAtHeight(provider.owner, latestBlock.height),
-      getProviderActiveResourcesAtHeight(provider.owner, earlierBlock24h.height),
-      getProviderTotalLeaseCountAtHeight(provider.owner, latestBlock.height),
-      getProviderTotalLeaseCountAtHeight(provider.owner, earlierBlock24h.height),
-      getProviderTotalLeaseCountAtHeight(provider.owner, earlierBlock48h.height),
-      getProviderEarningsAtHeight(provider.owner, provider.createdHeight, latestBlock.height),
-      getProviderEarningsAtHeight(provider.owner, provider.createdHeight, earlierBlock24h.height),
-      getProviderEarningsAtHeight(provider.owner, provider.createdHeight, earlierBlock48h.height)
+      this.getActiveResourcesAtHeight(provider.owner, latestBlock.height),
+      this.getActiveResourcesAtHeight(provider.owner, earlierBlock24h.height),
+      this.getTotalLeaseCountAtHeight(provider.owner, latestBlock.height),
+      this.getTotalLeaseCountAtHeight(provider.owner, earlierBlock24h.height),
+      this.getTotalLeaseCountAtHeight(provider.owner, earlierBlock48h.height),
+      this.providerEarningsService.getEarningsAtHeight(provider.owner, provider.createdHeight, latestBlock.height),
+      this.providerEarningsService.getEarningsAtHeight(provider.owner, provider.createdHeight, earlierBlock24h.height),
+      this.providerEarningsService.getEarningsAtHeight(provider.owner, provider.createdHeight, earlierBlock48h.height)
     ]);
 
     return {
@@ -103,5 +112,47 @@ export class ProviderDashboardService {
         activeStorage: previousActiveStats.ephemeralStorage + previousActiveStats.persistentStorage
       }
     };
+  }
+
+  private async getTotalLeaseCountAtHeight(provider: string, height: number) {
+    const [{ count: totalLeaseCount }] = await this.#chainDb.query<{
+      count: number;
+    }>(`/* provider-stats:total-lease-count-at-height */ SELECT COUNT(*) FROM lease l WHERE "providerAddress"=:provider AND l."createdHeight" <= :height`, {
+      type: QueryTypes.SELECT,
+      replacements: { provider, height }
+    });
+
+    return totalLeaseCount;
+  }
+
+  private async getActiveResourcesAtHeight(provider: string, height: number) {
+    const [activeStats] = await this.#chainDb.query<{
+      count: number;
+      cpu: number;
+      memory: number;
+      ephemeralStorage: number;
+      persistentStorage: number;
+      gpu: number;
+    }>(
+      `/* provider-stats:active-resources-at-height */
+    SELECT
+        COUNT(*) AS "count",
+        SUM("cpuUnits") AS "cpu",
+        SUM("memoryQuantity") AS "memory",
+        SUM("ephemeralStorageQuantity") AS "ephemeralStorage",
+        SUM("persistentStorageQuantity") AS "persistentStorage",
+        SUM("gpuUnits") AS "gpu"
+    FROM lease
+    WHERE
+        "providerAddress"=:provider
+        AND "createdHeight" <= :height
+        AND COALESCE("closedHeight", "predictedClosedHeight") > :height`,
+      {
+        type: QueryTypes.SELECT,
+        replacements: { provider, height }
+      }
+    );
+
+    return activeStats;
   }
 }

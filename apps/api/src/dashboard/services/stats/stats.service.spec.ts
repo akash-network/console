@@ -1,23 +1,21 @@
-import { Provider, ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash";
+import { AkashBlock as Block, Provider, ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash";
+import { Day } from "@akashnetwork/database/dbSchemas/base";
 import type { CoinGeckoHttpService, CosmosHttpService } from "@akashnetwork/http-sdk";
-import { container } from "tsyringe";
+import type { Sequelize } from "sequelize";
+import { describe, expect, it, type Mock, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { cacheEngine } from "@src/caching/helpers";
-import { CHAIN_DB } from "@src/chain";
 import type { DashboardConfig } from "../../providers/config.provider";
 import { StatsService } from "./stats.service";
+import { isValidGraphDataName } from "./stats.types";
 
 describe(StatsService.name, () => {
-  beforeEach(() => {
-    cacheEngine.clearAllKeyInCache();
-  });
-
   describe("getNetworkCapacity", () => {
     it("returns empty capacity when no providers found", async () => {
       const { service } = setup();
 
-      jest.spyOn(Provider, "findAll").mockResolvedValue([]);
+      vi.spyOn(Provider, "findAll").mockResolvedValue([]);
 
       const result = await service.getNetworkCapacity();
 
@@ -62,7 +60,7 @@ describe(StatsService.name, () => {
         lastSuccessfulSnapshot: mockSnapshot
       };
 
-      jest.spyOn(Provider, "findAll").mockResolvedValue([mockProvider as unknown as Provider]);
+      vi.spyOn(Provider, "findAll").mockResolvedValue([mockProvider as unknown as Provider]);
 
       const result = await service.getNetworkCapacity();
 
@@ -155,7 +153,7 @@ describe(StatsService.name, () => {
         { hostUri: "https://provider2.example.com", lastSuccessfulSnapshot: mockSnapshot2 }
       ];
 
-      jest.spyOn(Provider, "findAll").mockResolvedValue(mockProviders as unknown as Provider[]);
+      vi.spyOn(Provider, "findAll").mockResolvedValue(mockProviders as unknown as Provider[]);
 
       const result = await service.getNetworkCapacity();
 
@@ -248,7 +246,7 @@ describe(StatsService.name, () => {
         { hostUri: "https://provider1.example.com", lastSuccessfulSnapshot: mockSnapshot2 }
       ];
 
-      jest.spyOn(Provider, "findAll").mockResolvedValue(mockProviders as unknown as Provider[]);
+      vi.spyOn(Provider, "findAll").mockResolvedValue(mockProviders as unknown as Provider[]);
 
       const result = await service.getNetworkCapacity();
 
@@ -287,7 +285,7 @@ describe(StatsService.name, () => {
         lastSuccessfulSnapshot: mockSnapshot
       };
 
-      jest.spyOn(Provider, "findAll").mockResolvedValue([mockProvider as unknown as Provider]);
+      vi.spyOn(Provider, "findAll").mockResolvedValue([mockProvider as unknown as Provider]);
 
       const result = await service.getNetworkCapacity();
 
@@ -339,7 +337,7 @@ describe(StatsService.name, () => {
     it("queries providers with correct filters", async () => {
       const { service } = setup({ PROVIDER_UPTIME_GRACE_PERIOD_MINUTES: 10 });
 
-      const findAllSpy = jest.spyOn(Provider, "findAll").mockResolvedValue([]);
+      const findAllSpy = vi.spyOn(Provider, "findAll").mockResolvedValue([]);
 
       await service.getNetworkCapacity();
 
@@ -361,19 +359,329 @@ describe(StatsService.name, () => {
     });
   });
 
+  describe("isValidGraphDataName", () => {
+    it("returns true for valid graph data names", () => {
+      expect(isValidGraphDataName("dailyUAktSpent")).toBe(true);
+      expect(isValidGraphDataName("totalAktBurnedForAct")).toBe(true);
+      expect(isValidGraphDataName("collateralRatio")).toBe(true);
+      expect(isValidGraphDataName("vaultAkt")).toBe(true);
+      expect(isValidGraphDataName("outstandingAct")).toBe(true);
+    });
+
+    it("returns false for invalid graph data names", () => {
+      expect(isValidGraphDataName("invalidName")).toBe(false);
+      expect(isValidGraphDataName("")).toBe(false);
+      expect(isValidGraphDataName("randomMetric")).toBe(false);
+    });
+  });
+
+  describe("getGraphData", () => {
+    const day1 = new Date("2024-01-01");
+    const day2 = new Date("2024-01-02");
+    const day3 = new Date("2024-01-03");
+
+    it("returns snapshot-derived values for totalAktBurnedForAct", async () => {
+      const { service } = setup();
+
+      vi.spyOn(Day, "findAll").mockResolvedValue([
+        { date: day1, lastBlock: { totalUaktBurnedForUact: 100 } },
+        { date: day2, lastBlock: { totalUaktBurnedForUact: 300 } },
+        { date: day3, lastBlock: { totalUaktBurnedForUact: 600 } }
+      ] as unknown as Day[]);
+
+      const result = await service.getGraphData("totalAktBurnedForAct");
+
+      expect(result).toEqual({
+        currentValue: 600,
+        compareValue: 300,
+        snapshots: [
+          { date: day1, value: 100 },
+          { date: day2, value: 300 },
+          { date: day3, value: 600 }
+        ]
+      });
+    });
+
+    it("returns relative snapshot-derived values for dailyAktBurnedForAct", async () => {
+      const { service } = setup();
+
+      vi.spyOn(Day, "findAll").mockResolvedValue([
+        { date: day1, lastBlock: { totalUaktBurnedForUact: 100 } },
+        { date: day2, lastBlock: { totalUaktBurnedForUact: 300 } },
+        { date: day3, lastBlock: { totalUaktBurnedForUact: 600 } }
+      ] as unknown as Day[]);
+
+      const result = await service.getGraphData("dailyAktBurnedForAct");
+
+      expect(result).toEqual({
+        currentValue: 300,
+        compareValue: 200,
+        snapshots: [
+          { date: day1, value: 100 },
+          { date: day2, value: 200 },
+          { date: day3, value: 300 }
+        ]
+      });
+    });
+
+    it("returns snapshot-derived values for totalActMinted", async () => {
+      const { service } = setup();
+
+      vi.spyOn(Day, "findAll").mockResolvedValue([
+        { date: day1, lastBlock: { totalUactMinted: 500 } },
+        { date: day2, lastBlock: { totalUactMinted: 1200 } },
+        { date: day3, lastBlock: { totalUactMinted: 2000 } }
+      ] as unknown as Day[]);
+
+      const result = await service.getGraphData("totalActMinted");
+
+      expect(result).toEqual({
+        currentValue: 2000,
+        compareValue: 1200,
+        snapshots: [
+          { date: day1, value: 500 },
+          { date: day2, value: 1200 },
+          { date: day3, value: 2000 }
+        ]
+      });
+    });
+
+    it("computes netAktBurned as difference of totalUaktBurnedForUact minus totalUaktReminted", async () => {
+      const { service } = setup();
+
+      vi.spyOn(Day, "findAll").mockResolvedValue([
+        { date: day1, lastBlock: { totalUaktBurnedForUact: 1000, totalUaktReminted: 200 } },
+        { date: day2, lastBlock: { totalUaktBurnedForUact: 2000, totalUaktReminted: 500 } },
+        { date: day3, lastBlock: { totalUaktBurnedForUact: 3500, totalUaktReminted: 1000 } }
+      ] as unknown as Day[]);
+
+      const result = await service.getGraphData("netAktBurned");
+
+      expect(result).toEqual({
+        currentValue: 2500,
+        compareValue: 1500,
+        snapshots: [
+          { date: day1, value: 800 },
+          { date: day2, value: 1500 },
+          { date: day3, value: 2500 }
+        ]
+      });
+    });
+
+    it("computes dailyNetAktBurned as relative difference", async () => {
+      const { service } = setup();
+
+      vi.spyOn(Day, "findAll").mockResolvedValue([
+        { date: day1, lastBlock: { totalUaktBurnedForUact: 1000, totalUaktReminted: 200 } },
+        { date: day2, lastBlock: { totalUaktBurnedForUact: 2000, totalUaktReminted: 500 } },
+        { date: day3, lastBlock: { totalUaktBurnedForUact: 3500, totalUaktReminted: 1000 } }
+      ] as unknown as Day[]);
+
+      const result = await service.getGraphData("dailyNetAktBurned");
+
+      expect(result).toEqual({
+        currentValue: 1000,
+        compareValue: 700,
+        snapshots: [
+          { date: day1, value: 800 },
+          { date: day2, value: 700 },
+          { date: day3, value: 1000 }
+        ]
+      });
+    });
+
+    it("returns snapshot-derived values for outstandingAct", async () => {
+      const { service } = setup();
+
+      vi.spyOn(Day, "findAll").mockResolvedValue([
+        { date: day1, lastBlock: { outstandingUact: 5000 } },
+        { date: day2, lastBlock: { outstandingUact: 7500 } },
+        { date: day3, lastBlock: { outstandingUact: 10000 } }
+      ] as unknown as Day[]);
+
+      const result = await service.getGraphData("outstandingAct");
+
+      expect(result).toEqual({
+        currentValue: 10000,
+        compareValue: 7500,
+        snapshots: [
+          { date: day1, value: 5000 },
+          { date: day2, value: 7500 },
+          { date: day3, value: 10000 }
+        ]
+      });
+    });
+
+    it("returns snapshot-derived values for vaultAkt", async () => {
+      const { service } = setup();
+
+      vi.spyOn(Day, "findAll").mockResolvedValue([
+        { date: day1, lastBlock: { vaultUakt: 3000 } },
+        { date: day2, lastBlock: { vaultUakt: 4000 } },
+        { date: day3, lastBlock: { vaultUakt: 5000 } }
+      ] as unknown as Day[]);
+
+      const result = await service.getGraphData("vaultAkt");
+
+      expect(result).toEqual({
+        currentValue: 5000,
+        compareValue: 4000,
+        snapshots: [
+          { date: day1, value: 3000 },
+          { date: day2, value: 4000 },
+          { date: day3, value: 5000 }
+        ]
+      });
+    });
+
+    it("handles null BME field values as zero", async () => {
+      const { service } = setup();
+
+      vi.spyOn(Day, "findAll").mockResolvedValue([
+        { date: day1, lastBlock: { totalUaktBurnedForUact: null } },
+        { date: day2, lastBlock: { totalUaktBurnedForUact: 500 } }
+      ] as unknown as Day[]);
+
+      const result = await service.getGraphData("totalAktBurnedForAct");
+
+      expect(result).toEqual({
+        currentValue: 500,
+        compareValue: 0,
+        snapshots: [
+          { date: day1, value: 0 },
+          { date: day2, value: 500 }
+        ]
+      });
+    });
+
+    it("returns zeros when no snapshots exist for BME metric", async () => {
+      const { service } = setup();
+
+      vi.spyOn(Day, "findAll").mockResolvedValue([]);
+
+      const result = await service.getGraphData("totalAktBurnedForAct");
+
+      expect(result).toEqual({
+        currentValue: 0,
+        compareValue: 0,
+        snapshots: []
+      });
+    });
+
+    it("delegates collateralRatio to chainDb query", async () => {
+      const { service, chainDb } = setup();
+
+      (chainDb.query as unknown as Mock).mockResolvedValue([
+        { date: day1, collateralRatio: 1.5 },
+        { date: day2, collateralRatio: 1.8 },
+        { date: day3, collateralRatio: 2.0 }
+      ]);
+
+      const result = await service.getGraphData("collateralRatio");
+
+      expect(result).toEqual({
+        currentValue: 2.0,
+        compareValue: 1.8,
+        snapshots: [
+          { date: day1, value: 1.5 },
+          { date: day2, value: 1.8 },
+          { date: day3, value: 2.0 }
+        ]
+      });
+      expect(chainDb.query).toHaveBeenCalledWith(expect.stringContaining("collateralRatio"), expect.any(Object));
+    });
+
+    it("uses getDashboardData for non-BME metric currentValue and compareValue", async () => {
+      const { service } = setup();
+
+      const latestBlock = {
+        datetime: new Date("2024-01-03T12:00:00Z"),
+        height: 300,
+        activeLeaseCount: 50,
+        totalLeaseCount: 200,
+        totalUAktSpent: 1000,
+        totalUUsdcSpent: 2000,
+        totalUUsdSpent: 3000,
+        activeCPU: 500,
+        activeGPU: 10,
+        activeMemory: 1024,
+        activeEphemeralStorage: 2048,
+        activePersistentStorage: 4096,
+        isProcessed: true
+      };
+
+      const compareBlock = {
+        datetime: new Date("2024-01-02T12:00:00Z"),
+        height: 200,
+        activeLeaseCount: 40,
+        totalLeaseCount: 150,
+        totalUAktSpent: 800,
+        totalUUsdcSpent: 1500,
+        totalUUsdSpent: 2000,
+        activeCPU: 400,
+        activeGPU: 8,
+        activeMemory: 800,
+        activeEphemeralStorage: 1500,
+        activePersistentStorage: 3000
+      };
+
+      const secondCompareBlock = {
+        datetime: new Date("2024-01-01T12:00:00Z"),
+        height: 100,
+        totalLeaseCount: 100,
+        totalUAktSpent: 500,
+        totalUUsdcSpent: 1000,
+        totalUUsdSpent: 1200
+      };
+
+      vi.spyOn(Block, "findOne").mockImplementation((options: any) => {
+        if (options?.order?.[0]?.[1] === "DESC") {
+          return Promise.resolve(latestBlock) as any;
+        }
+        if (options?.order?.[0]?.[1] === "ASC") {
+          const where = options?.where?.datetime;
+          if (where) {
+            const gteDate = Object.values(where)[0] as Date;
+            if (gteDate < new Date("2024-01-02T00:00:00Z")) {
+              return Promise.resolve(secondCompareBlock) as any;
+            }
+          }
+          return Promise.resolve(compareBlock) as any;
+        }
+        return Promise.resolve(null) as any;
+      });
+
+      vi.spyOn(Day, "findAll").mockResolvedValue([
+        { date: day1, lastBlock: { activeCPU: 300 } },
+        { date: day2, lastBlock: { activeCPU: 400 } },
+        { date: day3, lastBlock: { activeCPU: 500 } }
+      ] as unknown as Day[]);
+
+      const result = await service.getGraphData("activeCPU");
+
+      expect(result.currentValue).toBe(500);
+      expect(result.compareValue).toBe(400);
+      expect(result.snapshots).toHaveLength(3);
+    });
+  });
+
   function setup(input?: { PROVIDER_UPTIME_GRACE_PERIOD_MINUTES?: number }) {
+    cacheEngine.clearAllKeyInCache();
+
     const cosmosHttpService = mock<CosmosHttpService>();
     const coinGeckoHttpService = mock<CoinGeckoHttpService>();
+    const chainDb = mock<Sequelize>();
     const dashboardConfig: DashboardConfig = {
       PROVIDER_UPTIME_GRACE_PERIOD_MINUTES: input?.PROVIDER_UPTIME_GRACE_PERIOD_MINUTES ?? 15
     };
 
-    const service = new StatsService(dashboardConfig, container.resolve(CHAIN_DB), cosmosHttpService, coinGeckoHttpService);
+    const service = new StatsService(dashboardConfig, chainDb, cosmosHttpService, coinGeckoHttpService);
 
     return {
       service,
       cosmosHttpService,
       coinGeckoHttpService,
+      chainDb,
       dashboardConfig
     };
   }

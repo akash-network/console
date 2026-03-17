@@ -2,8 +2,8 @@ import type { Provider, ProviderSnapshot } from "@akashnetwork/database/dbSchema
 import { subDays } from "date-fns";
 import { container } from "tsyringe";
 
+import { AuthorizedGraphDataNames } from "@src/dashboard/services/stats/stats.types";
 import { app, initDb } from "@src/rest-app";
-import { AuthorizedGraphDataNames } from "@src/services/db/statsService";
 
 import { createAkashBlock, createDay, createProvider, createProviderSnapshot, createProviderSnapshotNode, createProviderSnapshotNodeGpu } from "@test/seeders";
 import { formatUTCDate } from "@test/utils";

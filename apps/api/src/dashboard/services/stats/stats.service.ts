@@ -14,11 +14,11 @@ import { LeasesDurationParams, LeasesDurationQuery, LeasesDurationResponse } fro
 import { MarketDataParams } from "@src/dashboard/http-schemas/market-data/market-data.schema";
 import type { DashboardConfig } from "@src/dashboard/providers/config.provider";
 import { DASHBOARD_CONFIG } from "@src/dashboard/providers/config.provider";
-import { AuthorizedGraphDataName } from "@src/services/db/statsService";
 import { ProviderCapacityStats, StatsItem } from "@src/types/provider";
 import { toUTC } from "@src/utils";
 import { forEachInChunks } from "@src/utils/array/array";
 import { createLoggingExecutor } from "@src/utils/logging";
+import type { AuthorizedGraphDataName, DashboardGraphDataName } from "./stats.types";
 
 const numberOrZero: (x: number | undefined | null) => number = (x: number | undefined | null) => (typeof x === "number" ? x : 0);
 
@@ -33,6 +33,15 @@ type GpuUtilizationData = {
   gpu: number;
   count: number;
   node_count: number;
+};
+
+type DateValue = { date: Date; value: number };
+
+type BlockMetricConfig = {
+  attributes: (keyof Block)[];
+  getter: (block: Block) => number;
+  isRelative?: boolean;
+  dashboardKey?: DashboardGraphDataName;
 };
 
 export const emptyNetworkCapacity = {
@@ -61,6 +70,45 @@ export const emptyNetworkCapacity = {
   availablePersistentStorage: 0,
   totalEphemeralStorage: 0,
   totalPersistentStorage: 0
+};
+
+const blockMetrics: Partial<Record<AuthorizedGraphDataName, BlockMetricConfig>> = {
+  dailyUAktSpent: { attributes: ["totalUAktSpent"], getter: b => numberOrZero(b.totalUAktSpent), dashboardKey: "dailyUAktSpent", isRelative: true },
+  dailyUUsdcSpent: { attributes: ["totalUUsdcSpent"], getter: b => numberOrZero(b.totalUUsdcSpent), dashboardKey: "dailyUUsdcSpent", isRelative: true },
+  dailyUUsdSpent: { attributes: ["totalUUsdSpent"], getter: b => numberOrZero(b.totalUUsdSpent), dashboardKey: "dailyUUsdSpent", isRelative: true },
+  dailyLeaseCount: { attributes: ["totalLeaseCount"], getter: b => numberOrZero(b.totalLeaseCount), dashboardKey: "dailyLeaseCount", isRelative: true },
+  activeStorage: {
+    attributes: ["activeEphemeralStorage", "activePersistentStorage"],
+    getter: b => numberOrZero(b.activeEphemeralStorage) + numberOrZero(b.activePersistentStorage),
+    dashboardKey: "activeStorage"
+  },
+  totalUAktSpent: { attributes: ["totalUAktSpent"], getter: b => numberOrZero(b.totalUAktSpent), dashboardKey: "totalUAktSpent" },
+  totalUUsdcSpent: { attributes: ["totalUUsdcSpent"], getter: b => numberOrZero(b.totalUUsdcSpent), dashboardKey: "totalUUsdcSpent" },
+  totalUUsdSpent: { attributes: ["totalUUsdSpent"], getter: b => numberOrZero(b.totalUUsdSpent), dashboardKey: "totalUUsdSpent" },
+  activeLeaseCount: { attributes: ["activeLeaseCount"], getter: b => numberOrZero(b.activeLeaseCount), dashboardKey: "activeLeaseCount" },
+  totalLeaseCount: { attributes: ["totalLeaseCount"], getter: b => numberOrZero(b.totalLeaseCount), dashboardKey: "totalLeaseCount" },
+  activeCPU: { attributes: ["activeCPU"], getter: b => numberOrZero(b.activeCPU), dashboardKey: "activeCPU" },
+  activeGPU: { attributes: ["activeGPU"], getter: b => numberOrZero(b.activeGPU), dashboardKey: "activeGPU" },
+  activeMemory: { attributes: ["activeMemory"], getter: b => numberOrZero(b.activeMemory), dashboardKey: "activeMemory" },
+  totalAktBurnedForAct: { attributes: ["totalUaktBurnedForUact"], getter: b => numberOrZero(b.totalUaktBurnedForUact) },
+  dailyAktBurnedForAct: { attributes: ["totalUaktBurnedForUact"], getter: b => numberOrZero(b.totalUaktBurnedForUact), isRelative: true },
+  totalActMinted: { attributes: ["totalUactMinted"], getter: b => numberOrZero(b.totalUactMinted) },
+  dailyActMinted: { attributes: ["totalUactMinted"], getter: b => numberOrZero(b.totalUactMinted), isRelative: true },
+  totalActBurnedForAkt: { attributes: ["totalUactBurnedForUakt"], getter: b => numberOrZero(b.totalUactBurnedForUakt) },
+  dailyActBurnedForAkt: { attributes: ["totalUactBurnedForUakt"], getter: b => numberOrZero(b.totalUactBurnedForUakt), isRelative: true },
+  totalAktReminted: { attributes: ["totalUaktReminted"], getter: b => numberOrZero(b.totalUaktReminted) },
+  dailyAktReminted: { attributes: ["totalUaktReminted"], getter: b => numberOrZero(b.totalUaktReminted), isRelative: true },
+  netAktBurned: {
+    attributes: ["totalUaktBurnedForUact", "totalUaktReminted"],
+    getter: b => numberOrZero(b.totalUaktBurnedForUact) - numberOrZero(b.totalUaktReminted)
+  },
+  dailyNetAktBurned: {
+    attributes: ["totalUaktBurnedForUact", "totalUaktReminted"],
+    getter: b => numberOrZero(b.totalUaktBurnedForUact) - numberOrZero(b.totalUaktReminted),
+    isRelative: true
+  },
+  outstandingAct: { attributes: ["outstandingUact"], getter: b => numberOrZero(b.outstandingUact) },
+  vaultAkt: { attributes: ["vaultUakt"], getter: b => numberOrZero(b.vaultUakt) }
 };
 
 @singleton()
@@ -145,42 +193,36 @@ export class StatsService {
   }
 
   async getGraphData(dataName: AuthorizedGraphDataName): Promise<GraphDataResponse> {
-    let attributes: (keyof Block)[] = [];
-    let isRelative = false;
-    let getter: (block: Block) => number;
-
     switch (dataName) {
-      case "dailyUAktSpent":
-        attributes = ["totalUAktSpent"];
-        getter = (block: Block) => numberOrZero(block.totalUAktSpent);
-        isRelative = true;
-        break;
-      case "dailyUUsdcSpent":
-        attributes = ["totalUUsdcSpent"];
-        getter = (block: Block) => numberOrZero(block.totalUUsdcSpent);
-        isRelative = true;
-        break;
-      case "dailyUUsdSpent":
-        attributes = ["totalUUsdSpent"];
-        getter = (block: Block) => numberOrZero(block.totalUUsdSpent);
-        isRelative = true;
-        break;
-      case "dailyLeaseCount":
-        attributes = ["totalLeaseCount"];
-        getter = (block: Block) => numberOrZero(block.totalLeaseCount);
-        isRelative = true;
-        break;
-      case "activeStorage":
-        attributes = ["activeEphemeralStorage", "activePersistentStorage"];
-        getter = (block: Block) => numberOrZero(block.activeEphemeralStorage) + numberOrZero(block.activePersistentStorage);
-        break;
       case "gpuUtilization":
-        return await this.getGpuUtilization();
+        return this.getGpuUtilization();
+      case "collateralRatio":
+        return this.getCollateralRatio();
       default:
-        attributes = [dataName];
-        getter = (block: Block) => numberOrZero(block[dataName]);
+        return this.getBlockGraphData(dataName);
+    }
+  }
+
+  private async getBlockGraphData(dataName: Exclude<AuthorizedGraphDataName, "gpuUtilization" | "collateralRatio">): Promise<GraphDataResponse> {
+    const config = blockMetrics[dataName];
+    if (!config) {
+      throw new Error(`Unknown graph data name: ${dataName}`);
     }
 
+    let stats = await this.fetchDailyBlockSnapshots(config.attributes, config.getter);
+
+    if (dataName === "activeGPU") {
+      stats = stripLeadingZeros(stats);
+    }
+
+    if (config.isRelative) {
+      stats = toRelativeValues(stats);
+    }
+
+    return this.buildGraphDataResponse(stats, config.dashboardKey);
+  }
+
+  private async fetchDailyBlockSnapshots(attributes: (keyof Block)[], getter: (block: Block) => number): Promise<DateValue[]> {
     const result = await Day.findAll({
       attributes: ["date"],
       include: [
@@ -194,34 +236,26 @@ export class StatsService {
       order: [["date", "ASC"]]
     });
 
-    let stats = result.map(day => ({
+    return result.map(day => ({
       date: day.date,
       value: getter(day.lastBlock!)
     }));
+  }
 
-    if (dataName === "activeGPU") {
-      const firstWithValue = stats.findIndex(x => x.value > 0);
-      stats = stats.filter((_, i) => i >= firstWithValue);
+  private async buildGraphDataResponse(stats: DateValue[], dashboardKey?: DashboardGraphDataName): Promise<GraphDataResponse> {
+    if (dashboardKey) {
+      const dashboardData = await this.getDashboardData();
+
+      return {
+        currentValue: numberOrZero(dashboardData.now[dashboardKey]),
+        compareValue: numberOrZero(dashboardData.compare[dashboardKey]),
+        snapshots: stats
+      };
     }
-
-    if (isRelative) {
-      const relativeStats = stats.reduce<{ date: Date; value: number }[]>((arr, dataPoint, index) => {
-        arr[index] = {
-          date: dataPoint.date,
-          value: dataPoint.value - (index > 0 ? stats[index - 1].value : 0)
-        };
-
-        return arr;
-      }, []);
-
-      stats = relativeStats;
-    }
-
-    const dashboardData = await this.getDashboardData();
 
     return {
-      currentValue: numberOrZero(dashboardData.now[dataName]),
-      compareValue: numberOrZero(dashboardData.compare[dataName]),
+      currentValue: stats[stats.length - 1]?.value ?? 0,
+      compareValue: stats[stats.length - 2]?.value ?? 0,
       snapshots: stats
     };
   }
@@ -271,6 +305,36 @@ export class StatsService {
     const stats = result.map(day => ({
       date: day.date,
       value: day.gpuUtilization
+    }));
+
+    return {
+      currentValue: stats[stats.length - 1]?.value ?? 0,
+      compareValue: stats[stats.length - 2]?.value ?? 0,
+      snapshots: stats
+    };
+  }
+
+  @Memoize({ ttlInSeconds: minutesToSeconds(5) })
+  private async getCollateralRatio() {
+    const result = await this.#chainDb.query<{ date: Date; collateralRatio: number }>(
+      `/* dashboard-stats:collateral-ratio */ SELECT
+          d."date",
+          CASE
+            WHEN b."outstandingUact" IS NULL OR b."outstandingUact" = 0 THEN 0
+            ELSE ROUND((COALESCE(b."vaultUakt", 0) * COALESCE(d."aktPrice", 0) / b."outstandingUact")::numeric, 6)::float
+          END AS "collateralRatio"
+        FROM "day" d
+        INNER JOIN "block" b ON b."height" = d."lastBlockHeight"
+        WHERE b."vaultUakt" IS NOT NULL
+        ORDER BY d."date" ASC`,
+      {
+        type: QueryTypes.SELECT
+      }
+    );
+
+    const stats = result.map(day => ({
+      date: day.date,
+      value: day.collateralRatio
     }));
 
     return {
@@ -497,6 +561,18 @@ export class StatsService {
       leases
     };
   }
+}
+
+function stripLeadingZeros(stats: DateValue[]): DateValue[] {
+  const firstWithValue = stats.findIndex(x => x.value > 0);
+  return firstWithValue >= 0 ? stats.slice(firstWithValue) : stats;
+}
+
+function toRelativeValues(stats: DateValue[]): DateValue[] {
+  return stats.map((dataPoint, index) => ({
+    date: dataPoint.date,
+    value: dataPoint.value - (index > 0 ? stats[index - 1].value : 0)
+  }));
 }
 
 function buildStatItem(active: number, pending: number, available: number): StatsItem {

@@ -2,7 +2,7 @@ import { singleton } from "tsyringe";
 
 import { GraphDataResponse } from "@src/dashboard/http-schemas/graph-data/graph-data.schema";
 import { StatsService } from "@src/dashboard/services/stats/stats.service";
-import { AuthorizedGraphDataName } from "@src/services/db/statsService";
+import type { AuthorizedGraphDataName } from "@src/dashboard/services/stats/stats.types";
 
 @singleton()
 export class GraphDataController {
