@@ -6,6 +6,7 @@ import uniqBy from "lodash/uniqBy";
 import { singleton } from "tsyringe";
 
 import { Memoize } from "@src/caching/helpers";
+import { BmeDashboardDataResponse } from "@src/dashboard/http-schemas/bme-dashboard-data/bme-dashboard-data.schema";
 import { BmeStatusHistoryResponse } from "@src/dashboard/http-schemas/bme-status-history/bme-status-history.schema";
 import { GraphDataResponse } from "@src/dashboard/http-schemas/graph-data/graph-data.schema";
 import { LeasesDurationParams, LeasesDurationQuery, LeasesDurationResponse } from "@src/dashboard/http-schemas/leases-duration/leases-duration.schema";
@@ -241,6 +242,29 @@ export class StatsService {
       currentValue: stats[stats.length - 1]?.value ?? 0,
       compareValue: stats[stats.length - 2]?.value ?? 0,
       snapshots: stats
+    };
+  }
+
+  @Memoize({ ttlInSeconds: minutesToSeconds(5) })
+  async getBmeDashboardData(): Promise<BmeDashboardDataResponse> {
+    const { now, compare } = await this.statsRepository.findBmeDashboardData();
+
+    const daily = (nowTotal: number, compareTotal: number) => nowTotal - compareTotal;
+
+    return {
+      outstandingAct: now.outstandingUact,
+      vaultAkt: now.vaultUakt,
+      collateralRatio: now.collateralRatio,
+      totalAktBurnedForAct: now.totalUaktBurnedForUact,
+      dailyAktBurnedForAct: daily(now.totalUaktBurnedForUact, compare.totalUaktBurnedForUact),
+      totalActMinted: now.totalUactMinted,
+      dailyActMinted: daily(now.totalUactMinted, compare.totalUactMinted),
+      totalActBurnedForAkt: now.totalUactBurnedForUakt,
+      dailyActBurnedForAkt: daily(now.totalUactBurnedForUakt, compare.totalUactBurnedForUakt),
+      totalAktReminted: now.totalUaktReminted,
+      dailyAktReminted: daily(now.totalUaktReminted, compare.totalUaktReminted),
+      netAktBurned: now.totalUaktBurnedForUact - now.totalUaktReminted,
+      dailyNetAktBurned: daily(now.totalUaktBurnedForUact - now.totalUaktReminted, compare.totalUaktBurnedForUact - compare.totalUaktReminted)
     };
   }
 

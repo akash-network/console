@@ -32,6 +32,16 @@ export type BmeStatusHistoryRow = {
   collateralRatio: number;
 };
 
+export type BmeDashboardRow = {
+  outstandingUact: number;
+  vaultUakt: number;
+  collateralRatio: number;
+  totalUaktBurnedForUact: number;
+  totalUactMinted: number;
+  totalUactBurnedForUakt: number;
+  totalUaktReminted: number;
+};
+
 @injectable()
 export class StatsRepository {
   readonly #chainDb: Sequelize;
@@ -167,6 +177,70 @@ export class StatsRepository {
         type: QueryTypes.SELECT
       }
     );
+  }
+
+  async findBmeDashboardData(): Promise<{ now: BmeDashboardRow; compare: BmeDashboardRow }> {
+    const rows = await this.#chainDb.query<BmeDashboardRow & { period: string }>(
+      `/* dashboard-stats:bme-dashboard */ WITH latest AS (
+          SELECT b.*,
+            CASE
+              WHEN b."outstandingUact" IS NULL OR b."outstandingUact" = 0 THEN 0
+              ELSE ROUND((COALESCE(b."vaultUakt", 0) * COALESCE(d."aktPrice", 0) / b."outstandingUact")::numeric, 6)::float
+            END AS "collateralRatio"
+          FROM "block" b
+          INNER JOIN "day" d ON d."date" = DATE(b."datetime")
+          WHERE b."isProcessed" = TRUE AND b."vaultUakt" IS NOT NULL
+          ORDER BY b."height" DESC
+          LIMIT 1
+        ), compare AS (
+          SELECT b.*,
+            CASE
+              WHEN b."outstandingUact" IS NULL OR b."outstandingUact" = 0 THEN 0
+              ELSE ROUND((COALESCE(b."vaultUakt", 0) * COALESCE(d."aktPrice", 0) / b."outstandingUact")::numeric, 6)::float
+            END AS "collateralRatio"
+          FROM "block" b
+          INNER JOIN "day" d ON d."date" = DATE(b."datetime")
+          WHERE b."datetime" >= (SELECT "datetime" - INTERVAL '24 hours' FROM latest)
+            AND b."vaultUakt" IS NOT NULL
+          ORDER BY b."datetime" ASC
+          LIMIT 1
+        )
+        SELECT 'now' AS "period",
+          COALESCE("outstandingUact", 0) AS "outstandingUact",
+          COALESCE("vaultUakt", 0) AS "vaultUakt",
+          "collateralRatio",
+          COALESCE("totalUaktBurnedForUact", 0) AS "totalUaktBurnedForUact",
+          COALESCE("totalUactMinted", 0) AS "totalUactMinted",
+          COALESCE("totalUactBurnedForUakt", 0) AS "totalUactBurnedForUakt",
+          COALESCE("totalUaktReminted", 0) AS "totalUaktReminted"
+        FROM latest
+        UNION ALL
+        SELECT 'compare' AS "period",
+          COALESCE("outstandingUact", 0) AS "outstandingUact",
+          COALESCE("vaultUakt", 0) AS "vaultUakt",
+          "collateralRatio",
+          COALESCE("totalUaktBurnedForUact", 0) AS "totalUaktBurnedForUact",
+          COALESCE("totalUactMinted", 0) AS "totalUactMinted",
+          COALESCE("totalUactBurnedForUakt", 0) AS "totalUactBurnedForUakt",
+          COALESCE("totalUaktReminted", 0) AS "totalUaktReminted"
+        FROM compare`,
+      { type: QueryTypes.SELECT }
+    );
+
+    const emptyRow: BmeDashboardRow = {
+      outstandingUact: 0,
+      vaultUakt: 0,
+      collateralRatio: 0,
+      totalUaktBurnedForUact: 0,
+      totalUactMinted: 0,
+      totalUactBurnedForUakt: 0,
+      totalUaktReminted: 0
+    };
+
+    const nowRow = rows.find(r => r.period === "now") ?? emptyRow;
+    const compareRow = rows.find(r => r.period === "compare") ?? emptyRow;
+
+    return { now: nowRow, compare: compareRow };
   }
 
   async findClosedLeases(owner: string, query: { dseq?: string; startDate: Date; endDate: Date }) {
