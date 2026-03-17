@@ -2,7 +2,6 @@
 import type { ComponentProps, Dispatch, SetStateAction } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { SDLInput } from "@akashnetwork/chain-sdk/web";
-import { yaml } from "@akashnetwork/chain-sdk/web";
 import { Alert, Button, CustomTooltip, FileButton, Input, Snackbar, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import type { EncodeObject } from "@cosmjs/proto-signing";
@@ -10,6 +9,7 @@ import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { ArrowRight, InfoCircle, Upload } from "iconoir-react";
 import { useAtom } from "jotai";
+import jsYaml from "js-yaml";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSnackbar } from "notistack";
 
@@ -110,7 +110,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
     if (!editedManifest) return defaultValue;
 
     try {
-      const sdl: SDLInput = yaml.template(editedManifest);
+      const sdl = jsYaml.load(editedManifest) as SDLInput;
       return Object.values(Object.values(sdl.profiles.placement)[0].pricing)[0].denom;
     } catch {
       return defaultValue;
@@ -451,7 +451,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
         <d.DeploymentDepositModal
           handleCancel={() => setIsDepositingDeployment(false)}
           onDeploymentDeposit={onDeploymentDeposit}
-          denom={sdlDenom}
+          denom={wallet.isManaged ? managedDenom : sdlDenom}
           title="Confirm deployment creation?"
           infoText={
             <d.Alert className="mb-6 text-xs" variant="default">
