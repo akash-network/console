@@ -22,8 +22,7 @@ describe(ProviderProxyService.name, () => {
           auth: options.auth,
           method: "GET",
           url: options.providerIdentity.hostUri + url,
-          providerAddress: options.providerIdentity.owner,
-          network: options.chainNetwork
+          providerAddress: options.providerIdentity.owner
         },
         {}
       );
@@ -76,7 +75,6 @@ describe(ProviderProxyService.name, () => {
     const service = new ProviderProxyService(httpClient);
     const url = `/${faker.word.noun()}`;
     const options: ProviderProxyPayload = {
-      chainNetwork: faker.word.noun(),
       providerIdentity: {
         owner: faker.string.alphanumeric(44),
         hostUri: faker.internet.url({ appendSlash: false })

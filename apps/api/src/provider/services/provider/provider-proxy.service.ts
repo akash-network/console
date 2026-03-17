@@ -17,7 +17,6 @@ export interface ProviderProxyPayload {
   method?: "GET" | "POST" | "PUT" | "DELETE";
   body?: string;
   timeout?: number;
-  chainNetwork: string;
   providerIdentity: ProviderIdentity;
   headers?: Record<string, string>;
   auth: ProviderAuth;
@@ -32,7 +31,7 @@ export class ProviderProxyService {
   }
 
   async request<T>(url: string, options: ProviderProxyPayload): Promise<T> {
-    const { chainNetwork, providerIdentity, timeout, ...params } = options;
+    const { providerIdentity, timeout, ...params } = options;
     const response = await this.#httpClient.post(
       "/",
       {
@@ -40,7 +39,6 @@ export class ProviderProxyService {
         method: options.method || "GET",
         url: providerIdentity.hostUri + url,
         providerAddress: providerIdentity.owner,
-        network: chainNetwork,
         timeout // this is per attempt timeout on provider-proxy side
       },
       {
