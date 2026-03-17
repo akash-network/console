@@ -181,34 +181,34 @@ export class StatsRepository {
 
   async findBmeDashboardData(): Promise<{ now: BmeDashboardRow; compare: BmeDashboardRow }> {
     const rows = await this.#chainDb.query<BmeDashboardRow & { period: string }>(
-      `/* dashboard-stats:bme-dashboard */ WITH latest AS (
-          SELECT b.*,
-            CASE
-              WHEN b."outstandingUact" IS NULL OR b."outstandingUact" = 0 THEN 0
-              ELSE ROUND((COALESCE(b."vaultUakt", 0) * COALESCE(d."aktPrice", 0) / b."outstandingUact")::numeric, 6)::float
-            END AS "collateralRatio"
-          FROM "block" b
-          INNER JOIN "day" d ON d."date" = DATE(b."datetime")
-          WHERE b."isProcessed" = TRUE AND b."vaultUakt" IS NOT NULL
-          ORDER BY b."height" DESC
+      `/* dashboard-stats:bme-dashboard */ WITH akt_price AS (
+          SELECT "aktPrice" FROM "day"
+          WHERE "aktPrice" IS NOT NULL AND "aktPrice" > 0
+          ORDER BY "date" DESC
+          LIMIT 1
+        ), latest AS (
+          SELECT b.*
+          FROM "day" d
+          INNER JOIN "block" b ON b."height" = d."lastBlockHeight"
+          WHERE b."vaultUakt" IS NOT NULL
+          ORDER BY d."date" DESC
           LIMIT 1
         ), compare AS (
-          SELECT b.*,
-            CASE
-              WHEN b."outstandingUact" IS NULL OR b."outstandingUact" = 0 THEN 0
-              ELSE ROUND((COALESCE(b."vaultUakt", 0) * COALESCE(d."aktPrice", 0) / b."outstandingUact")::numeric, 6)::float
-            END AS "collateralRatio"
-          FROM "block" b
-          INNER JOIN "day" d ON d."date" = DATE(b."datetime")
-          WHERE b."datetime" >= (SELECT "datetime" - INTERVAL '24 hours' FROM latest)
-            AND b."vaultUakt" IS NOT NULL
-          ORDER BY b."datetime" ASC
+          SELECT b.*
+          FROM "day" d
+          INNER JOIN "block" b ON b."height" = d."lastBlockHeight"
+          WHERE b."vaultUakt" IS NOT NULL
+            AND d."date" <= (SELECT DATE("datetime") - INTERVAL '1 day' FROM latest)
+          ORDER BY d."date" DESC
           LIMIT 1
         )
         SELECT 'now' AS "period",
           COALESCE("outstandingUact", 0) AS "outstandingUact",
           COALESCE("vaultUakt", 0) AS "vaultUakt",
-          "collateralRatio",
+          CASE
+            WHEN "outstandingUact" IS NULL OR "outstandingUact" = 0 THEN 0
+            ELSE ROUND((COALESCE("vaultUakt", 0) * COALESCE((SELECT "aktPrice" FROM akt_price), 0) / "outstandingUact")::numeric, 6)::float
+          END AS "collateralRatio",
           COALESCE("totalUaktBurnedForUact", 0) AS "totalUaktBurnedForUact",
           COALESCE("totalUactMinted", 0) AS "totalUactMinted",
           COALESCE("totalUactBurnedForUakt", 0) AS "totalUactBurnedForUakt",
@@ -218,7 +218,10 @@ export class StatsRepository {
         SELECT 'compare' AS "period",
           COALESCE("outstandingUact", 0) AS "outstandingUact",
           COALESCE("vaultUakt", 0) AS "vaultUakt",
-          "collateralRatio",
+          CASE
+            WHEN "outstandingUact" IS NULL OR "outstandingUact" = 0 THEN 0
+            ELSE ROUND((COALESCE("vaultUakt", 0) * COALESCE((SELECT "aktPrice" FROM akt_price), 0) / "outstandingUact")::numeric, 6)::float
+          END AS "collateralRatio",
           COALESCE("totalUaktBurnedForUact", 0) AS "totalUaktBurnedForUact",
           COALESCE("totalUactMinted", 0) AS "totalUactMinted",
           COALESCE("totalUactBurnedForUakt", 0) AS "totalUactBurnedForUakt",
