@@ -7,6 +7,7 @@ import {
   foreignKey,
   index,
   integer,
+  jsonb,
   numeric,
   pgTable,
   serial,
@@ -267,7 +268,13 @@ export const block = pgTable(
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     activePersistentStorage: bigint({ mode: "number" }),
     activeProviderCount: integer(),
-    totalUUsdSpent: doublePrecision()
+    totalUUsdSpent: doublePrecision(),
+    totalUaktBurnedForUact: doublePrecision(),
+    totalUactMinted: doublePrecision(),
+    totalUactBurnedForUakt: doublePrecision(),
+    totalUaktReminted: doublePrecision(),
+    vaultUakt: doublePrecision(),
+    outstandingUact: doublePrecision()
   },
   table => [
     index("block_datetime").using("btree", table.datetime.asc().nullsLast().op("timestamptz_ops")),
@@ -643,5 +650,95 @@ export const transaction = pgTable(
       foreignColumns: [block.height],
       name: "transaction_height_fkey"
     }).onUpdate("cascade")
+  ]
+);
+
+export const bmeRawEvent = pgTable(
+  "bme_raw_event",
+  {
+    id: uuid()
+      .primaryKey()
+      .notNull()
+      .default(sql`gen_random_uuid()`),
+    height: integer().notNull(),
+    index: integer().notNull(),
+    type: varchar({ length: 255 }).notNull(),
+    data: jsonb().notNull(),
+    is_processed: boolean().default(false).notNull()
+  },
+  table => [
+    uniqueIndex("bme_raw_event_height_index").using("btree", table.height.asc().nullsLast().op("int4_ops"), table.index.asc().nullsLast().op("int4_ops")),
+    index("bme_raw_event_height_is_processed").using(
+      "btree",
+      table.height.asc().nullsLast().op("int4_ops"),
+      table.is_processed.asc().nullsLast().op("bool_ops")
+    ),
+    foreignKey({
+      columns: [table.height],
+      foreignColumns: [block.height],
+      name: "bme_raw_event_height_fkey"
+    })
+  ]
+);
+
+export const bmeLedgerRecord = pgTable(
+  "bme_ledger_record",
+  {
+    id: uuid()
+      .primaryKey()
+      .notNull()
+      .default(sql`gen_random_uuid()`),
+    height: integer().notNull(),
+    sequence: integer(),
+    burned_from: varchar({ length: 255 }).notNull(),
+    minted_to: varchar({ length: 255 }).notNull(),
+    burned_denom: varchar({ length: 255 }),
+    burned_amount: numeric({ precision: 30, scale: 0 }).notNull(),
+    burned_price: numeric({ precision: 20, scale: 10 }),
+    minted_denom: varchar({ length: 255 }),
+    minted_amount: numeric({ precision: 30, scale: 0 }).notNull(),
+    minted_price: numeric({ precision: 20, scale: 10 }),
+    remint_credit_issued_amount: numeric({ precision: 30, scale: 0 }),
+    remint_credit_accrued_amount: numeric({ precision: 30, scale: 0 })
+  },
+  table => [
+    index("bme_ledger_record_height").using("btree", table.height.asc().nullsLast().op("int4_ops")),
+    index("bme_ledger_record_burned_denom_height").using(
+      "btree",
+      table.burned_denom.asc().nullsLast().op("text_ops"),
+      table.height.asc().nullsLast().op("int4_ops")
+    ),
+    index("bme_ledger_record_minted_denom_height").using(
+      "btree",
+      table.minted_denom.asc().nullsLast().op("text_ops"),
+      table.height.asc().nullsLast().op("int4_ops")
+    ),
+    foreignKey({
+      columns: [table.height],
+      foreignColumns: [block.height],
+      name: "bme_ledger_record_height_fkey"
+    })
+  ]
+);
+
+export const bmeStatusChange = pgTable(
+  "bme_status_change",
+  {
+    id: uuid()
+      .primaryKey()
+      .notNull()
+      .default(sql`gen_random_uuid()`),
+    height: integer().notNull(),
+    previous_status: varchar({ length: 255 }).notNull(),
+    new_status: varchar({ length: 255 }).notNull(),
+    collateral_ratio: numeric({ precision: 20, scale: 10 }).notNull()
+  },
+  table => [
+    index("bme_status_change_height").using("btree", table.height.asc().nullsLast().op("int4_ops")),
+    foreignKey({
+      columns: [table.height],
+      foreignColumns: [block.height],
+      name: "bme_status_change_height_fkey"
+    })
   ]
 );
