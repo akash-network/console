@@ -101,36 +101,44 @@ interface ApplyDefaultsOptions extends Options {
   prependEffectsToEntries?: string[];
 }
 
-async function getExternalConfig(packageJson: Record<string, any>): Promise<Required<Pick<Options, "noExternal" | "external">>> {
-  const internalPackages = Object.keys(packageJson.dependencies).filter(
-    name => name !== "@akashnetwork/env-loader" && name.startsWith("@akashnetwork/") && packageJson.dependencies[name] === "*"
-  );
-
+async function getExternalConfig(packageJson: Record<string, any>) {
+  const deps = { ...packageJson.dependencies, ...packageJson.peerDependencies };
+  const bundledDeps = new Set<string>();
   const externalDeps = new Set<string>();
-  await Promise.all(
-    internalPackages.map(async internalPackageName => {
-      const pkgJsonPath = fileURLToPath(import.meta.resolve(`${internalPackageName}/package.json`));
-      const pkgJson = JSON.parse(await fs.readFile(pkgJsonPath, "utf8"));
-      const deps = { ...pkgJson.dependencies, ...pkgJson.peerDependencies };
-      Object.keys(deps).forEach(dep => {
-        if (internalPackages.includes(dep)) return;
-        if (isInternalPackageDependency(internalPackageName, dep)) {
-          // if package is not hoisted, we need to bundle it inside the app
-          // otherwise this package won't be found in runtime
-          console.warn(
-            `\x1b[33mWARN\x1b[0m: Bundling "${dep}" internal package dependency of "${internalPackageName}" inside app. Use "npm ls ${dep}" to check why it's not hoisted.`
-          );
-        } else {
-          externalDeps.add(dep);
-        }
-      });
-    })
-  );
 
-  return { noExternal: internalPackages, external: [...externalDeps] };
+  for (const dep of Object.keys(deps)) {
+    const isInternal = dep !== "@akashnetwork/env-loader" && dep.startsWith("@akashnetwork/") && packageJson.dependencies[dep] === "*";
+    if (!isInternal) {
+      externalDeps.add(dep);
+      continue;
+    }
+
+    bundledDeps.add(dep);
+
+    const pkgJsonPath = fileURLToPath(import.meta.resolve(`${dep}/package.json`));
+    const pkgJson = JSON.parse(await fs.readFile(pkgJsonPath, "utf8"));
+    const depConfig = await getExternalConfig(pkgJson);
+    depConfig.noExternal.forEach(d => bundledDeps.add(d));
+
+    depConfig.external.forEach(nestedDep => {
+      if (hasOwnCopyOfDependency(dep, nestedDep)) {
+        bundledDeps.add(nestedDep);
+        externalDeps.delete(nestedDep);
+        // if package is not hoisted, we need to bundle it inside the app
+        // otherwise this package won't be found in runtime
+        console.warn(
+          `\x1b[33mWARN\x1b[0m: Bundling "${nestedDep}" internal package dependency of "${dep}" inside app. Use "npm ls ${nestedDep}" to check why it's not hoisted.`
+        );
+      } else if (!bundledDeps.has(nestedDep)) {
+        externalDeps.add(nestedDep);
+      }
+    });
+  }
+
+  return { noExternal: [...bundledDeps], external: [...externalDeps] };
 }
 
-function isInternalPackageDependency(packageName: string, dependency: string): boolean {
+function hasOwnCopyOfDependency(packageName: string, dependency: string): boolean {
   const pathToPackage = import.meta.resolve(join(packageName, "package.json"));
   const possiblyInternalPackagePath = fileURLToPath(import.meta.resolve(join(pathToPackage, "..", "node_modules", dependency)));
   return existsSync(possiblyInternalPackagePath);
