@@ -4,10 +4,9 @@ import React from "react";
 import { FormattedTime } from "react-intl";
 import { Address, TableCell, TableRow } from "@akashnetwork/ui/components";
 
-import { AKTAmount } from "@src/components/shared/AKTAmount";
-import { useDenomData } from "@src/hooks/useWalletBalance";
 import type { GrantType } from "@src/types/grant";
 import { coinToUDenom } from "@src/utils/priceUtils";
+import { DenomAmount } from "../shared/DenomAmount/DenomAmount";
 
 type Props = {
   grant: GrantType;
@@ -16,7 +15,6 @@ type Props = {
 
 export const GranteeRow: React.FunctionComponent<Props> = ({ grant }) => {
   const limit = grant?.authorization?.spend_limit;
-  const denomData = useDenomData(limit?.denom);
 
   return (
     <TableRow className="[&>td]:px-2 [&>td]:py-1">
@@ -26,7 +24,7 @@ export const GranteeRow: React.FunctionComponent<Props> = ({ grant }) => {
       <TableCell align="right">
         {limit ? (
           <>
-            <AKTAmount uakt={coinToUDenom(limit)} /> {denomData?.label}
+            <DenomAmount amount={coinToUDenom(limit)} denom={limit.denom} />
           </>
         ) : (
           <span>Unlimited</span>

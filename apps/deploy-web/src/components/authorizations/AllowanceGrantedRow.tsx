@@ -4,10 +4,10 @@ import React from "react";
 import { FormattedTime } from "react-intl";
 import { Address, Checkbox, TableCell, TableRow } from "@akashnetwork/ui/components";
 
-import { AKTAmount } from "@src/components/shared/AKTAmount";
 import type { AllowanceType } from "@src/types/grant";
 import { getAllowanceTitleByType } from "@src/utils/grants";
 import { coinToUDenom } from "@src/utils/priceUtils";
+import { DenomAmount } from "../shared/DenomAmount/DenomAmount";
 
 type Props = {
   allowance: AllowanceType;
@@ -25,15 +25,7 @@ export const AllowanceGrantedRow: React.FunctionComponent<Props> = ({ allowance,
       </TableCell>
       <TableCell>{getAllowanceTitleByType(allowance)}</TableCell>
       <TableCell>{allowance.granter && <Address address={allowance.granter} isCopyable />}</TableCell>
-      <TableCell>
-        {limit ? (
-          <>
-            <AKTAmount uakt={coinToUDenom(limit)} /> AKT
-          </>
-        ) : (
-          <span>Unlimited</span>
-        )}
-      </TableCell>
+      <TableCell>{limit ? <DenomAmount amount={coinToUDenom(limit)} denom={limit.denom} /> : <span>Unlimited</span>}</TableCell>
       <TableCell align="right">{<FormattedTime year="numeric" month={"numeric"} day={"numeric"} value={allowance.allowance.expiration} />}</TableCell>
     </TableRow>
   );

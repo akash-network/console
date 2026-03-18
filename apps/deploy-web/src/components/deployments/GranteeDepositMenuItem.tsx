@@ -4,10 +4,9 @@ import React from "react";
 import { FormattedDate } from "react-intl";
 import { Address } from "@akashnetwork/ui/components";
 
-import { useDenomData } from "@src/hooks/useWalletBalance";
 import type { GrantType } from "@src/types/grant";
 import { coinToUDenom } from "@src/utils/priceUtils";
-import { AKTAmount } from "../shared/AKTAmount";
+import { DenomAmount } from "../shared/DenomAmount/DenomAmount";
 
 type Props = {
   grant: GrantType;
@@ -15,15 +14,11 @@ type Props = {
 };
 
 export const GranteeDepositMenuItem: React.FunctionComponent<Props> = ({ grant }) => {
-  const denomData = useDenomData(grant.authorization.spend_limit.denom);
-
   return (
     <div className="text-xs">
       <Address address={grant.granter} disableTooltip />
       &nbsp;<small className="text-muted-foreground">|</small>&nbsp;
-      <AKTAmount uakt={coinToUDenom(grant.authorization.spend_limit)} />
-      &nbsp;
-      {denomData?.label}
+      <DenomAmount amount={coinToUDenom(grant.authorization.spend_limit)} denom={grant.authorization.spend_limit.denom} />
       &nbsp;
       <small className="text-muted-foreground">
         (Exp:&nbsp;
