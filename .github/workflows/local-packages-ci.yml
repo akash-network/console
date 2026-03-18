@@ -6,7 +6,7 @@ on:
     branches: ["main", "main-sdk-next"]
     paths:
       - "packages/**"
-      - ".github/workflows/local-packages-validate.yml"
+      - ".github/workflows/local-packages-ci.yml"
 
 permissions:
   contents: read
