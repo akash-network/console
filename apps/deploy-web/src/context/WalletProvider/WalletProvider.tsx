@@ -39,6 +39,16 @@ const ERROR_MESSAGES = {
   25: "Invalid gas adjustment"
 };
 
+type ManagedWalletMarker =
+  | {
+      isManaged: true;
+      denom: string;
+    }
+  | {
+      isManaged: false;
+      denom: undefined;
+    };
+
 export type ContextType = {
   address: string;
   walletName: string;
@@ -47,7 +57,6 @@ export type ContextType = {
   connectManagedWallet: () => void;
   logout: () => void;
   signAndBroadcastTx: (msgs: EncodeObject[]) => Promise<boolean>;
-  isManaged: boolean;
   isCustodial: boolean;
   isWalletLoading: boolean;
   isTrialing: boolean;
@@ -56,7 +65,7 @@ export type ContextType = {
   switchWalletType: () => void;
   hasManagedWallet: boolean;
   managedWalletError?: AppError;
-};
+} & ManagedWalletMarker;
 
 /**
  * @private for testing only
@@ -95,7 +104,14 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   } = useMemo(() => (selectedWalletType === "managed" && managedWallet) || userWallet, [managedWallet, userWallet, selectedWalletType]);
   const { refetch: refetchBalances } = useBalances(walletAddress);
   const { addEndpoints } = useManager();
-  const isManaged = useMemo(() => !!managedWallet && managedWallet?.address === walletAddress, [walletAddress, managedWallet]);
+  const managedMarker = useMemo((): ManagedWalletMarker => {
+    if (!!managedWallet && managedWallet?.address === walletAddress) {
+      return { isManaged: true, denom: managedWallet.denom };
+    }
+
+    return { isManaged: false, denom: undefined };
+  }, [walletAddress, managedWallet]);
+  const { isManaged } = managedMarker;
   const {
     fee: { default: feeGranter }
   } = useAllowance(walletAddress as string, isManaged);
@@ -342,7 +358,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         connectManagedWallet,
         logout,
         signAndBroadcastTx,
-        isManaged,
         isCustodial: !isManaged,
         isWalletLoading: isLoading,
         isTrialing: isManaged && !!managedWallet?.isTrialing,
@@ -350,7 +365,8 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         creditAmount: isManaged ? managedWallet?.creditAmount : 0,
         hasManagedWallet: !!managedWallet,
         managedWalletError,
-        switchWalletType
+        switchWalletType,
+        ...managedMarker
       }}
     >
       {children}

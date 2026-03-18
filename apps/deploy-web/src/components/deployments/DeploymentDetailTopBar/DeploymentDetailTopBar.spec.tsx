@@ -219,7 +219,7 @@ describe(DeploymentDetailTopBar.name, () => {
     onDeploymentClose?: () => void;
     previousRoute?: string | null;
     router?: { back?: () => void; push?: () => void };
-    wallet?: { isManaged?: boolean; signAndBroadcastTx?: () => Promise<boolean> };
+    wallet?: { isManaged?: boolean; denom?: string; signAndBroadcastTx?: () => Promise<boolean> };
     analyticsTrack?: ReturnType<typeof vi.fn>;
     localNotes?: {
       getDeploymentName?: (dseq: string | number) => string | null | undefined;
@@ -243,6 +243,7 @@ describe(DeploymentDetailTopBar.name, () => {
       useWallet: vi.fn(() => ({
         signAndBroadcastTx: input?.wallet?.signAndBroadcastTx ?? vi.fn(() => Promise.resolve(true)),
         isManaged: input?.wallet?.isManaged ?? false,
+        denom: input?.wallet?.denom ?? "uakt",
         address: "akash1test",
         walletName: "test",
         isWalletConnected: true,
@@ -266,7 +267,6 @@ describe(DeploymentDetailTopBar.name, () => {
         getPriceForDenom: vi.fn(() => 0),
         udenomToUsd: vi.fn(() => 0)
       })) as typeof DEPENDENCIES.usePricing,
-      useManagedWalletDenom: vi.fn(() => "uakt") as typeof DEPENDENCIES.useManagedWalletDenom,
       usePreviousRoute: vi.fn(() => input?.previousRoute ?? null) as typeof DEPENDENCIES.usePreviousRoute,
       useManagedDeploymentConfirm: vi.fn(() => ({
         closeDeploymentConfirm: vi.fn(() => Promise.resolve(true))

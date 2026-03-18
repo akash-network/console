@@ -278,7 +278,6 @@ describe(ManifestEdit.name, () => {
         toggleCmp: vi.fn()
       })) as unknown as Dependencies["useSdlBuilder"],
       useImportSimpleSdl: () => [],
-      useManagedWalletDenom: () => "uakt",
       useDepositParams: (() => ({ data: 5000000 })) as unknown as Dependencies["useDepositParams"],
       useMuiTheme: () => ({
         breakpoints: {
