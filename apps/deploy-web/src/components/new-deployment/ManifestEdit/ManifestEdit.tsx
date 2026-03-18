@@ -110,7 +110,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
     if (!editedManifest) return defaultValue;
 
     try {
-      const sdl: SDLInput = yaml.template(editedManifest);
+      const sdl: SDLInput = yaml.raw(editedManifest);
       return Object.values(Object.values(sdl.profiles.placement)[0].pricing)[0].denom;
     } catch {
       return defaultValue;
