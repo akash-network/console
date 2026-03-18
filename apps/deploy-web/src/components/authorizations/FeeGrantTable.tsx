@@ -4,7 +4,7 @@ import { Button, CustomPagination, Table, TableBody, TableHead, TableHeader, Tab
 
 import type { AllowanceType } from "@src/types/grant";
 import { LinkTo } from "../shared/LinkTo";
-import { AllowanceIssuedRow } from "./AllowanceIssuedRow";
+import { AllowanceIssuedRow } from "./AllowanceIssuedRow/AllowanceIssuedRow";
 
 interface Props {
   allowances: AllowanceType[];
