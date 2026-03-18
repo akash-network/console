@@ -52,17 +52,28 @@ export const BmeDashboard: React.FunctionComponent<BmeDashboardProps> = ({ dashb
         />
 
         <StatsCard
-          number={<FormattedNumber value={now.collateralRatio} maximumFractionDigits={4} />}
-          text="Collateral Ratio"
-          tooltip="Ratio of vault value to outstanding ACT — a key health metric"
-          graphPath={UrlService.bmeGraph(BmeSnapshotsUrlParam.collateralRatio)}
-          diffPercent={percIncrease(compare.collateralRatio, now.collateralRatio)}
+          number={
+            <>
+              <FormattedNumber value={udenomToDenom(now.dailyNetAktBurned)} maximumFractionDigits={2} notation="compact" compactDisplay="short" />
+              <span className="ml-1 text-sm">AKT</span>
+            </>
+          }
+          text="Daily Net AKT Burned"
+          tooltip="Net AKT burned per day (burned minus reminted)"
+          graphPath={UrlService.bmeGraph(BmeSnapshotsUrlParam.dailyNetAktBurned)}
+          diffPercent={percIncrease(compare.dailyNetAktBurned, now.dailyNetAktBurned)}
         />
-
         <StatsCard
-          number={<BmeStatusBadge status={latestStatus?.newStatus ?? "unknown"} />}
-          text="Circuit Breaker Status"
-          tooltip="Current mint status derived from the latest circuit breaker event"
+          number={
+            <>
+              <FormattedNumber value={udenomToDenom(now.netAktBurned)} maximumFractionDigits={2} notation="compact" compactDisplay="short" />
+              <span className="ml-1 text-sm">AKT</span>
+            </>
+          }
+          text="Net AKT Burned"
+          tooltip="Cumulative net AKT burned (burned minus reminted)"
+          graphPath={UrlService.bmeGraph(BmeSnapshotsUrlParam.netAktBurned)}
+          diffPercent={percIncrease(compare.netAktBurned, now.netAktBurned)}
         />
       </div>
 
@@ -180,33 +191,21 @@ export const BmeDashboard: React.FunctionComponent<BmeDashboardProps> = ({ dashb
 
       <Separator className="mb-8 mt-8" />
       <Title subTitle className="mb-4">
-        Net Burn
+        Collateral &amp; Circuit Breaker
       </Title>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <StatsCard
-          number={
-            <>
-              <FormattedNumber value={udenomToDenom(now.dailyNetAktBurned)} maximumFractionDigits={2} notation="compact" compactDisplay="short" />
-              <span className="ml-1 text-sm">AKT</span>
-            </>
-          }
-          text="Daily Net AKT Burned"
-          tooltip="Net AKT burned per day (burned minus reminted)"
-          graphPath={UrlService.bmeGraph(BmeSnapshotsUrlParam.dailyNetAktBurned)}
-          diffPercent={percIncrease(compare.dailyNetAktBurned, now.dailyNetAktBurned)}
+          number={<FormattedNumber value={now.collateralRatio} maximumFractionDigits={4} />}
+          text="Collateral Ratio"
+          tooltip="Ratio of vault value to outstanding ACT — a key health metric"
+          graphPath={UrlService.bmeGraph(BmeSnapshotsUrlParam.collateralRatio)}
+          diffPercent={percIncrease(compare.collateralRatio, now.collateralRatio)}
         />
         <StatsCard
-          number={
-            <>
-              <FormattedNumber value={udenomToDenom(now.netAktBurned)} maximumFractionDigits={2} notation="compact" compactDisplay="short" />
-              <span className="ml-1 text-sm">AKT</span>
-            </>
-          }
-          text="Net AKT Burned"
-          tooltip="Cumulative net AKT burned (burned minus reminted)"
-          graphPath={UrlService.bmeGraph(BmeSnapshotsUrlParam.netAktBurned)}
-          diffPercent={percIncrease(compare.netAktBurned, now.netAktBurned)}
+          number={<BmeStatusBadge status={latestStatus?.newStatus ?? "unknown"} />}
+          text="Circuit Breaker Status"
+          tooltip="Current mint status derived from the latest circuit breaker event"
         />
       </div>
 
