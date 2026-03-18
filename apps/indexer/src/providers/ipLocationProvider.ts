@@ -1,6 +1,7 @@
 import { Provider } from "@akashnetwork/database/dbSchemas/akash";
 import axios from "axios";
 import dns from "dns/promises";
+import { isIP } from "net";
 import { setTimeout as sleep } from "node:timers/promises";
 
 const IpLookupDelay = 2_000;
@@ -34,14 +35,20 @@ export async function updateProvidersLocation() {
   for (const provider of providers) {
     try {
       const parsedUri = new URL(provider.hostUri);
-      const ips = await dns.resolve4(parsedUri.hostname);
+      let ip: string;
 
-      if (ips.length === 0) {
-        console.log(`Could not resolve ip for ${provider.hostUri}`);
-        continue;
+      if (isIP(parsedUri.hostname)) {
+        ip = parsedUri.hostname;
+      } else {
+        const ips = await dns.resolve4(parsedUri.hostname);
+
+        if (ips.length === 0) {
+          console.log(`Could not resolve ip for ${provider.hostUri}`);
+          continue;
+        }
+
+        ip = ips.sort()[0]; // Always use the first ip
       }
-
-      const ip = ips.sort()[0]; // Always use the first ip
 
       if (provider.ip === ip) {
         console.log(`Ip for ${provider.hostUri} is the same`);
