@@ -1,16 +1,17 @@
+import { netConfig } from "@akashnetwork/net";
 import type { AssetList, Chain } from "@chain-registry/types";
 
 import { akash, akashAssetList } from "./akash";
 
 export const akashTestnet: Chain = {
   ...akash,
-  chain_id: "testnet-oracle",
+  chain_id: netConfig.mapped("testnet"),
   network_type: "testnet",
   chain_name: "akash-testnet",
   pretty_name: "Akash-Testnet",
   apis: {
-    rpc: [{ address: "https://testnetoraclerpc.akashnet.net", provider: "ovrclk" }],
-    rest: [{ address: "https://testnetoracleapi.akashnet.net", provider: "ovrclk" }]
+    rpc: [{ address: netConfig.getBaseRpcUrl("testnet"), provider: "ovrclk" }],
+    rest: [{ address: netConfig.getBaseAPIUrl("testnet"), provider: "ovrclk" }]
   }
 };
 
