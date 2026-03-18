@@ -21,7 +21,7 @@ permissions:
 
 jobs:
   create-check-run:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, akash]
     outputs:
       run_scan: ${{ steps.decide.outputs.run_scan }}
       check_run_id: ${{ steps.create_check.outputs.check_run_id }}

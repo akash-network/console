@@ -9,7 +9,7 @@ on:
 
 jobs:
   lint:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, akash]
     steps:
       - uses: actions/checkout@v4
       - run: gh extension install https://github.com/cschleiden/gh-actionlint --pin v1.0.3

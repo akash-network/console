@@ -8,7 +8,7 @@ on:
 
 jobs:
   build-and-deploy-templates:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, akash]
     defaults:
       run:
         working-directory: .
