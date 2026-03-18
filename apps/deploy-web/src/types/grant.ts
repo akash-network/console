@@ -1,15 +1,6 @@
-export type GrantType = {
-  granter: string;
-  grantee: string;
-  expiration: string;
-  authorization: {
-    "@type": string;
-    spend_limit: {
-      denom: string;
-      amount: string;
-    };
-  };
-};
+import type { DepositDeploymentGrant } from "@akashnetwork/http-sdk";
+
+export type GrantType = DepositDeploymentGrant;
 
 export type AllowanceType = {
   granter: string;

@@ -28,15 +28,7 @@ export const AllowanceIssuedRow: React.FunctionComponent<Props> = ({ allowance, 
       <TableCell align="center">
         <Address address={allowance.grantee} isCopyable />
       </TableCell>
-      <TableCell align="center">
-        {limit ? (
-          <>
-            <DenomAmount amount={coinToUDenom(limit)} denom={limit.denom} />
-          </>
-        ) : (
-          <span>Unlimited</span>
-        )}
-      </TableCell>
+      <TableCell align="center">{limit ? <DenomAmount amount={coinToUDenom(limit)} denom={limit.denom} /> : <span>Unlimited</span>}</TableCell>
       <TableCell align="center">
         <FormattedTime year="numeric" month={"numeric"} day={"numeric"} value={allowance.allowance.expiration} />
       </TableCell>

@@ -74,7 +74,7 @@ function extractDeploymentLimit(deploymentGrant?: (ExactDepositDeploymentGrant &
     return undefined;
   }
 
-  return parseFloat(deploymentGrant?.authorization.spend_limit.amount);
+  return parseFloat(deploymentGrant?.authorization.spend_limits[0].amount);
 }
 
 function extractFeeLimit(feeLimit?: FeeAllowance) {

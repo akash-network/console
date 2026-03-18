@@ -14,7 +14,7 @@ type Props = {
 };
 
 export const GranteeRow: React.FunctionComponent<Props> = ({ grant }) => {
-  const limit = grant?.authorization?.spend_limit;
+  const limits = grant?.authorization?.spend_limits;
 
   return (
     <TableRow className="[&>td]:px-2 [&>td]:py-1">
@@ -22,9 +22,11 @@ export const GranteeRow: React.FunctionComponent<Props> = ({ grant }) => {
         <Address address={grant.granter} isCopyable />
       </TableCell>
       <TableCell align="right">
-        {limit ? (
+        {limits ? (
           <>
-            <DenomAmount amount={coinToUDenom(limit)} denom={limit.denom} />
+            {limits.map((limit, index) => (
+              <DenomAmount key={index} amount={coinToUDenom(limit)} denom={limit.denom} />
+            ))}
           </>
         ) : (
           <span>Unlimited</span>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { useAtom } from "jotai";
 
 import { UACT_DENOM, UAKT_DENOM } from "@src/config/denom.config";
@@ -53,7 +53,7 @@ export const useWalletBalance = (): WalletBalanceReturnType => {
       );
       const { deploymentGrants } = balances;
       const totalDeploymentGrantsUSD = deploymentGrants.reduce(
-        (sum, grant) => sum + udenomToUsd(grant.authorization.spend_limit.amount, grant.authorization.spend_limit.denom),
+        (sum, grant) => sum + grant.authorization.spend_limits.reduce((grantSum, spendLimit) => grantSum + udenomToUsd(spendLimit.amount, spendLimit.denom), 0),
         0
       );
 
@@ -94,13 +94,12 @@ type DenomData = {
 export const useDenomData = (denom?: string) => {
   const { isLoaded, price, aktToUSD } = usePricing();
   const { balance: walletBalance } = useWalletBalance();
-  const [depositData, setDepositData] = useState<DenomData | null>(null);
   const usdcIbcDenom = useUsdcDenom();
   const { minDeposit } = useChainParam();
   const { isManaged } = useWallet();
   const txFeeBuffer = isManaged ? 0 : TX_FEE_BUFFER;
 
-  useEffect(() => {
+  const depositData = useMemo(() => {
     if (isLoaded && walletBalance && minDeposit && (minDeposit.akt !== undefined || minDeposit.usdc !== undefined || minDeposit.act !== undefined) && price) {
       let depositData: DenomData | null = null;
       switch (denom) {
@@ -142,8 +141,10 @@ export const useDenomData = (denom?: string) => {
         }
       }
 
-      setDepositData(depositData);
+      return depositData;
     }
+
+    return null;
   }, [denom, isLoaded, price, walletBalance, usdcIbcDenom, minDeposit, isManaged, txFeeBuffer, aktToUSD]);
 
   return depositData;

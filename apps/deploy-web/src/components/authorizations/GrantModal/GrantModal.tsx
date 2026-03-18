@@ -23,14 +23,14 @@ import { z } from "zod";
 
 import { LinkTo } from "@src/components/shared/LinkTo";
 import { UACT_DENOM, UAKT_DENOM } from "@src/config/denom.config";
-import { useServices as useServicesOriginal } from "@src/context/ServicesProvider";
-import { useWallet as useWalletOriginal } from "@src/context/WalletProvider";
-import { useUsdcDenom as useUsdcDenomOriginal } from "@src/hooks/useDenom";
-import { useSupportsACT as useSupportsACTOriginal } from "@src/hooks/useSupportsACT/useSupportsACT";
-import { useDenomData as useDenomDataOriginal } from "@src/hooks/useWalletBalance";
+import { useServices } from "@src/context/ServicesProvider";
+import { useWallet } from "@src/context/WalletProvider";
+import { useUsdcDenom } from "@src/hooks/useDenom";
+import { useSupportsACT } from "@src/hooks/useSupportsACT/useSupportsACT";
+import { useDenomData } from "@src/hooks/useWalletBalance";
 import type { GrantType } from "@src/types/grant";
 import { denomToUdenom } from "@src/utils/mathHelpers";
-import { coinToDenom, getUsdcDenom } from "@src/utils/priceUtils";
+import { coinToDenom } from "@src/utils/priceUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { handleDocClick } from "@src/utils/urlUtils";
 
@@ -50,11 +50,11 @@ export const DEPENDENCIES = {
   SelectValue,
   FormattedDate,
   LinkTo,
-  useServices: useServicesOriginal,
-  useWallet: useWalletOriginal,
-  useUsdcDenom: useUsdcDenomOriginal,
-  useDenomData: useDenomDataOriginal,
-  useSupportsACT: useSupportsACTOriginal
+  useServices,
+  useWallet,
+  useUsdcDenom,
+  useDenomData,
+  useSupportsACT
 };
 
 type Props = {
@@ -81,8 +81,8 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
   const defaultToken = isACTSupported ? UACT_DENOM : UAKT_DENOM;
   const form = useForm<z.infer<typeof formSchema>>({
     defaultValues: {
-      token: editingGrant?.authorization.spend_limit.denom === usdcDenom ? "usdc" : defaultToken,
-      amount: editingGrant ? coinToDenom(editingGrant.authorization.spend_limit) : 0,
+      token: editingGrant?.authorization.spend_limits[0]?.denom === usdcDenom ? "usdc" : defaultToken,
+      amount: editingGrant ? coinToDenom(editingGrant.authorization.spend_limits[0]) : 0,
       expiration: format(addYears(new Date(), 1), "yyyy-MM-dd'T'HH:mm"),
       granteeAddress: editingGrant?.grantee ?? ""
     },
@@ -115,11 +115,12 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
   const onSubmit = async ({ amount, expiration, granteeAddress }: z.infer<typeof formSchema>) => {
     setError("");
     clearErrors();
-    const spendLimit = denomToUdenom(amount);
-    const denom = token === "usdc" ? getUsdcDenom() : token;
+    const denom = token === "usdc" ? usdcDenom : token;
+    const limit = { amount: denomToUdenom(amount).toString(), denom };
+    const spendLimit = isACTSupported ? [limit] : limit;
 
     const expirationDate = new Date(expiration);
-    const message = TransactionMessageData.getGrantMsg(address, granteeAddress, spendLimit, expirationDate, denom);
+    const message = TransactionMessageData.getGrantMsg(address, granteeAddress, spendLimit, expirationDate);
     const response = await signAndBroadcastTx([message]);
 
     if (response) {

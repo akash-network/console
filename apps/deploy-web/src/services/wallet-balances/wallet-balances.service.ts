@@ -26,10 +26,12 @@ export class WalletBalancesService {
     ]);
 
     const deploymentGrantsPerDenom = deploymentGrants.reduce<Record<string, number>>((acc, grant) => {
-      const spendLimit = grant.authorization?.spend_limit;
-      if (spendLimit) {
-        acc[spendLimit.denom] ??= 0;
-        acc[spendLimit.denom] += parseFloat(spendLimit.amount || "0") || 0;
+      const spendLimits = grant.authorization?.spend_limits;
+      if (spendLimits) {
+        spendLimits.forEach(spendLimit => {
+          acc[spendLimit.denom] ??= 0;
+          acc[spendLimit.denom] += parseFloat(spendLimit.amount || "0") || 0;
+        });
       }
       return acc;
     }, {});

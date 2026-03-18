@@ -1,14 +1,7 @@
 import type { Coin } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
+import type { DepositDeploymentGrant } from "@akashnetwork/http-sdk";
 
-export type Grant = {
-  granter: string;
-  grantee: string;
-  authorization: {
-    "@type": string;
-    spend_limit: Coin;
-  };
-  expiration: string;
-};
+export type Grant = DepositDeploymentGrant;
 
 export type RestApiBalancesResponseType = {
   balances: Coin[];

@@ -6,7 +6,7 @@ import type { Balances } from "@src/types";
 import { QueryKeys } from "./queryKeys";
 
 export function useBalances(address?: string, options?: Omit<UseQueryOptions<Balances | null>, "queryKey" | "queryFn">) {
-  const { walletBalancesService, authzHttpService, chainApiHttpClient } = useServices();
+  const { walletBalancesService, chainApiHttpClient } = useServices();
   return useQuery({
     queryKey: QueryKeys.getBalancesKey(address) as QueryKey,
     queryFn: () => {
@@ -14,6 +14,6 @@ export function useBalances(address?: string, options?: Omit<UseQueryOptions<Bal
       return walletBalancesService.getBalances(address);
     },
     ...options,
-    enabled: options?.enabled !== false && !!address && authzHttpService.isReady && !chainApiHttpClient.isFallbackEnabled
+    enabled: options?.enabled !== false && !!address && !chainApiHttpClient.isFallbackEnabled
   });
 }

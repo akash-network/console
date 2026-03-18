@@ -78,12 +78,9 @@ export class BalancesService {
   async retrieveDeploymentLimit(userWallet: Pick<UserWalletOutput, "address">): Promise<number> {
     const fundingWalletAddress = await this.txManagerService.getFundingWalletAddress();
     const depositDeploymentGrant = await this.authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee(fundingWalletAddress, userWallet.address!);
+    const limit = depositDeploymentGrant?.authorization.spend_limits.find(limit => limit.denom === this.config.DEPLOYMENT_GRANT_DENOM);
 
-    if (!depositDeploymentGrant || depositDeploymentGrant.authorization.spend_limit.denom !== this.config.DEPLOYMENT_GRANT_DENOM) {
-      return 0;
-    }
-
-    return parseInt(depositDeploymentGrant.authorization.spend_limit.amount);
+    return limit ? parseInt(limit.amount, 10) : 0;
   }
 
   /**

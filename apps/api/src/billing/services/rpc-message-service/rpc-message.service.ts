@@ -12,6 +12,8 @@ import { BasicAllowance, MsgExec, MsgGrant, MsgGrantAllowance, MsgRevoke, MsgRev
 import addYears from "date-fns/addYears";
 import { singleton } from "tsyringe";
 
+import { BillingConfigService } from "../billing-config/billing-config.service";
+
 export interface SpendingAuthorizationMsgOptions {
   granter: string;
   grantee: string;
@@ -52,6 +54,12 @@ export interface UpdateDeploymentMsgOptions {
 
 @singleton()
 export class RpcMessageService {
+  readonly #deploymentDenom: string;
+
+  constructor(billingConfig: BillingConfigService) {
+    this.#deploymentDenom = billingConfig.get("DEPLOYMENT_GRANT_DENOM");
+  }
+
   getFeesAllowanceGrantMsg({ limit, expiration, granter, grantee }: Omit<SpendingAuthorizationMsgOptions, "denom">) {
     return {
       typeUrl: `/${MsgGrantAllowance.$type}`,
@@ -86,13 +94,27 @@ export class RpcMessageService {
           authorization: {
             typeUrl: `/${DepositAuthorization.$type}`,
             value: DepositAuthorization.encode(
-              DepositAuthorization.fromPartial({
-                spendLimit: {
-                  denom,
-                  amount: limit.toString()
-                },
-                scopes: [DepositAuthorization_Scope.deployment]
-              })
+              this.#deploymentDenom === "uact"
+                ? DepositAuthorization.fromPartial({
+                    spendLimit: {
+                      denom,
+                      amount: "0"
+                    },
+                    spendLimits: [
+                      {
+                        denom,
+                        amount: limit.toString()
+                      }
+                    ],
+                    scopes: [DepositAuthorization_Scope.deployment]
+                  })
+                : DepositAuthorization.fromPartial({
+                    spendLimit: {
+                      denom,
+                      amount: limit.toString()
+                    },
+                    scopes: [DepositAuthorization_Scope.deployment]
+                  })
             ).finish()
           },
           expiration
