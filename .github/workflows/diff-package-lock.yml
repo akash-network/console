@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   diff:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, akash]
     steps:
       - name: Checkout base commit
         uses: actions/checkout@v4

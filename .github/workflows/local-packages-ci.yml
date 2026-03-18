@@ -22,7 +22,7 @@ jobs:
     needs: should-validate
     if: needs.should-validate.outputs.has_changes == 'true'
     name: Validate local packages
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, akash]
 
     steps:
       - name: Checkout repository

@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   setup:
-    runs-on: [self-hosted, akash]
+    runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.matrix.outputs.value }}
     steps:

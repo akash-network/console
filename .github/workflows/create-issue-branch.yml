@@ -7,7 +7,7 @@ on:
 jobs:
   create-branch:
     if: github.event.label.name == 'ready-for-dev'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, akash]
     permissions:
       contents: write
       issues: write
