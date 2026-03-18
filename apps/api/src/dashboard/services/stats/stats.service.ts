@@ -6,7 +6,7 @@ import uniqBy from "lodash/uniqBy";
 import { singleton } from "tsyringe";
 
 import { Memoize } from "@src/caching/helpers";
-import type { BmeDashboardDataResponse } from "@src/dashboard/http-schemas/bme-dashboard-data/bme-dashboard-data.schema";
+import type { BmeDashboardDataResponse, BmePeriodData } from "@src/dashboard/http-schemas/bme-dashboard-data/bme-dashboard-data.schema";
 import { BmeStatusHistoryResponse } from "@src/dashboard/http-schemas/bme-status-history/bme-status-history.schema";
 import { GraphDataResponse } from "@src/dashboard/http-schemas/graph-data/graph-data.schema";
 import { LeasesDurationParams, LeasesDurationQuery, LeasesDurationResponse } from "@src/dashboard/http-schemas/leases-duration/leases-duration.schema";
@@ -29,7 +29,7 @@ type BlockMetricConfig = {
   getter: (block: Block) => number;
   isRelative?: boolean;
   dashboardKey?: DashboardGraphDataName;
-  bmeDashboardKey?: keyof BmeDashboardDataResponse;
+  bmeDashboardKey?: keyof BmePeriodData;
   requireBme?: boolean;
 };
 
@@ -238,17 +238,31 @@ export class StatsService {
   }
 
   private async fetchDailyBlockSnapshots(attributes: (keyof Block)[], getter: (block: Block) => number, requireBme?: boolean): Promise<DateValue[]> {
-    const result = await this.statsRepository.findDailyBlockSnapshots(attributes, { requireBme });
+    const [result, latestBlock] = await Promise.all([
+      this.statsRepository.findDailyBlockSnapshots(attributes, { requireBme }),
+      this.statsRepository.findLatestBlockWithAttributes(attributes, { requireBme })
+    ]);
 
-    return result.map(day => ({
+    const stats = result.map(day => ({
       date: day.date,
       value: getter(day.lastBlock!)
     }));
+
+    if (latestBlock) {
+      const blockDateStr = latestBlock.datetime.toISOString().slice(0, 10);
+      const lastSnapshotDateStr = stats.length > 0 ? new Date(stats[stats.length - 1].date).toISOString().slice(0, 10) : null;
+
+      if (!lastSnapshotDateStr || blockDateStr > lastSnapshotDateStr) {
+        stats.push({ date: latestBlock.datetime, value: getter(latestBlock) });
+      }
+    }
+
+    return stats;
   }
 
   private async buildGraphDataResponse(
     stats: DateValue[],
-    options?: { dashboardKey?: DashboardGraphDataName; bmeDashboardKey?: keyof BmeDashboardDataResponse }
+    options?: { dashboardKey?: DashboardGraphDataName; bmeDashboardKey?: keyof BmePeriodData }
   ): Promise<GraphDataResponse> {
     if (options?.dashboardKey) {
       const dashboardData = await this.getDashboardData();
@@ -264,8 +278,8 @@ export class StatsService {
       const bmeDashboardData = await this.getBmeDashboardData();
 
       return {
-        currentValue: bmeDashboardData[options.bmeDashboardKey],
-        compareValue: stats[stats.length - 2]?.value ?? 0,
+        currentValue: bmeDashboardData.now[options.bmeDashboardKey],
+        compareValue: bmeDashboardData.compare[options.bmeDashboardKey],
         snapshots: stats
       };
     }
@@ -305,7 +319,7 @@ export class StatsService {
     const bmeDashboardData = await this.getBmeDashboardData();
 
     return {
-      currentValue: bmeDashboardData.collateralRatio,
+      currentValue: bmeDashboardData.now.collateralRatio,
       compareValue: stats[stats.length - 2]?.value ?? 0,
       snapshots: stats
     };
@@ -313,7 +327,7 @@ export class StatsService {
 
   @Memoize({ ttlInSeconds: minutesToSeconds(5) })
   async getBmeDashboardData(): Promise<BmeDashboardDataResponse> {
-    const { now, compare } = await this.statsRepository.findBmeDashboardData();
+    const { now, compare, secondCompare } = await this.statsRepository.findBmeDashboardData();
 
     let collateralRatio = now.collateralRatio;
 
@@ -325,22 +339,42 @@ export class StatsService {
       }
     }
 
-    const daily = (nowTotal: number, compareTotal: number) => nowTotal - compareTotal;
+    const daily = (total: number, prevTotal: number) => total - prevTotal;
 
     return {
-      outstandingAct: now.outstandingUact,
-      vaultAkt: now.vaultUakt,
-      collateralRatio,
-      totalAktBurnedForAct: now.totalUaktBurnedForUact,
-      dailyAktBurnedForAct: daily(now.totalUaktBurnedForUact, compare.totalUaktBurnedForUact),
-      totalActMinted: now.totalUactMinted,
-      dailyActMinted: daily(now.totalUactMinted, compare.totalUactMinted),
-      totalActBurnedForAkt: now.totalUactBurnedForUakt,
-      dailyActBurnedForAkt: daily(now.totalUactBurnedForUakt, compare.totalUactBurnedForUakt),
-      totalAktReminted: now.totalUaktReminted,
-      dailyAktReminted: daily(now.totalUaktReminted, compare.totalUaktReminted),
-      netAktBurned: now.totalUaktBurnedForUact - now.totalUaktReminted,
-      dailyNetAktBurned: daily(now.totalUaktBurnedForUact - now.totalUaktReminted, compare.totalUaktBurnedForUact - compare.totalUaktReminted)
+      now: {
+        outstandingAct: now.outstandingUact,
+        vaultAkt: now.vaultUakt,
+        collateralRatio,
+        totalAktBurnedForAct: now.totalUaktBurnedForUact,
+        dailyAktBurnedForAct: daily(now.totalUaktBurnedForUact, compare.totalUaktBurnedForUact),
+        totalActMinted: now.totalUactMinted,
+        dailyActMinted: daily(now.totalUactMinted, compare.totalUactMinted),
+        totalActBurnedForAkt: now.totalUactBurnedForUakt,
+        dailyActBurnedForAkt: daily(now.totalUactBurnedForUakt, compare.totalUactBurnedForUakt),
+        totalAktReminted: now.totalUaktReminted,
+        dailyAktReminted: daily(now.totalUaktReminted, compare.totalUaktReminted),
+        netAktBurned: now.totalUaktBurnedForUact - now.totalUaktReminted,
+        dailyNetAktBurned: daily(now.totalUaktBurnedForUact - now.totalUaktReminted, compare.totalUaktBurnedForUact - compare.totalUaktReminted)
+      },
+      compare: {
+        outstandingAct: compare.outstandingUact,
+        vaultAkt: compare.vaultUakt,
+        collateralRatio: compare.collateralRatio,
+        totalAktBurnedForAct: compare.totalUaktBurnedForUact,
+        dailyAktBurnedForAct: daily(compare.totalUaktBurnedForUact, secondCompare.totalUaktBurnedForUact),
+        totalActMinted: compare.totalUactMinted,
+        dailyActMinted: daily(compare.totalUactMinted, secondCompare.totalUactMinted),
+        totalActBurnedForAkt: compare.totalUactBurnedForUakt,
+        dailyActBurnedForAkt: daily(compare.totalUactBurnedForUakt, secondCompare.totalUactBurnedForUakt),
+        totalAktReminted: compare.totalUaktReminted,
+        dailyAktReminted: daily(compare.totalUaktReminted, secondCompare.totalUaktReminted),
+        netAktBurned: compare.totalUaktBurnedForUact - compare.totalUaktReminted,
+        dailyNetAktBurned: daily(
+          compare.totalUaktBurnedForUact - compare.totalUaktReminted,
+          secondCompare.totalUaktBurnedForUact - secondCompare.totalUaktReminted
+        )
+      }
     };
   }
 

@@ -89,7 +89,7 @@ export type GraphResponse = {
   compareValue: number;
 };
 
-export type BmeDashboardData = {
+export type BmePeriodData = {
   outstandingAct: number;
   vaultAkt: number;
   collateralRatio: number;
@@ -103,4 +103,9 @@ export type BmeDashboardData = {
   totalAktReminted: number;
   dailyNetAktBurned: number;
   netAktBurned: number;
+};
+
+export type BmeDashboardData = {
+  now: BmePeriodData;
+  compare: BmePeriodData;
 };

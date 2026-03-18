@@ -1,7 +1,7 @@
-const STATUS_COLORS: Record<string, string> = {
-  healthy: "bg-green-500/20 text-green-700 dark:text-green-400",
-  warning: "bg-yellow-500/20 text-yellow-700 dark:text-yellow-400",
-  halt: "bg-red-500/20 text-red-700 dark:text-red-400"
+const STATUS_CONFIG: Record<string, { color: string; label: string }> = {
+  healthy: { color: "bg-green-500/20 text-green-400", label: "Healthy" },
+  warning: { color: "bg-yellow-500/20 text-yellow-400", label: "Warning" },
+  halt: { color: "bg-red-500/20 text-red-400", label: "Halted" }
 };
 
 const SIZE_CLASSES = {
@@ -9,8 +9,15 @@ const SIZE_CLASSES = {
   md: "px-3 py-1 text-sm"
 } as const;
 
-export function BmeStatusBadge({ status, size = "md" }: { status: string; size?: keyof typeof SIZE_CLASSES }) {
-  const colorClass = STATUS_COLORS[status] ?? "bg-muted text-muted-foreground";
+function parseStatus(raw: string): string {
+  return raw.replace(/^mint_status_/i, "").toLowerCase();
+}
 
-  return <span className={`inline-block rounded-full font-semibold capitalize ${SIZE_CLASSES[size]} ${colorClass}`}>{status}</span>;
+export function BmeStatusBadge({ status, size = "md" }: { status: string; size?: keyof typeof SIZE_CLASSES }) {
+  const key = parseStatus(status);
+  const config = STATUS_CONFIG[key];
+  const colorClass = config?.color ?? "bg-muted text-muted-foreground";
+  const label = config?.label ?? key;
+
+  return <span className={`inline-block rounded-full font-semibold ${SIZE_CLASSES[size]} ${colorClass}`}>{label}</span>;
 }

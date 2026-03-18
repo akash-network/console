@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const BmeDashboardDataResponseSchema = z.object({
+const BmePeriodSchema = z.object({
   outstandingAct: z.number(),
   vaultAkt: z.number(),
   collateralRatio: z.number(),
@@ -14,6 +14,13 @@ export const BmeDashboardDataResponseSchema = z.object({
   totalAktReminted: z.number(),
   dailyNetAktBurned: z.number(),
   netAktBurned: z.number()
+});
+
+export type BmePeriodData = z.infer<typeof BmePeriodSchema>;
+
+export const BmeDashboardDataResponseSchema = z.object({
+  now: BmePeriodSchema,
+  compare: BmePeriodSchema
 });
 
 export type BmeDashboardDataResponse = z.infer<typeof BmeDashboardDataResponseSchema>;

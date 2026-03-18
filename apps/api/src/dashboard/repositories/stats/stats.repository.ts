@@ -71,6 +71,17 @@ export class StatsRepository {
     });
   }
 
+  async findLatestBlockWithAttributes(attributes: (keyof Block)[], options?: { requireBme?: boolean }): Promise<Block | null> {
+    return Block.findOne({
+      attributes: [...new Set([...attributes, "datetime" as keyof Block])],
+      where: {
+        isProcessed: true,
+        ...(options?.requireBme ? { vaultUakt: { [Op.ne]: null } } : { totalUUsdSpent: { [Op.not]: null } })
+      },
+      order: [["height", "DESC"]]
+    });
+  }
+
   async findDailyBlockSnapshots(attributes: (keyof Block)[], options?: { requireBme?: boolean }) {
     return Day.findAll({
       attributes: ["date"],
@@ -180,7 +191,7 @@ export class StatsRepository {
     );
   }
 
-  async findBmeDashboardData(): Promise<{ now: BmeDashboardRow; compare: BmeDashboardRow }> {
+  async findBmeDashboardData(): Promise<{ now: BmeDashboardRow; compare: BmeDashboardRow; secondCompare: BmeDashboardRow }> {
     const rows = await this.#chainDb.query<BmeDashboardRow & { period: string }>(
       `/* dashboard-stats:bme-dashboard */ WITH akt_price AS (
           SELECT "aktPrice" FROM "day"
@@ -189,10 +200,10 @@ export class StatsRepository {
           LIMIT 1
         ), latest AS (
           SELECT b.*
-          FROM "day" d
-          INNER JOIN "block" b ON b."height" = d."lastBlockHeight"
+          FROM "block" b
           WHERE b."vaultUakt" IS NOT NULL
-          ORDER BY d."date" DESC
+            AND b."isProcessed" = true
+          ORDER BY b."height" DESC
           LIMIT 1
         ), compare AS (
           SELECT b.*
@@ -200,6 +211,14 @@ export class StatsRepository {
           INNER JOIN "block" b ON b."height" = d."lastBlockHeight"
           WHERE b."vaultUakt" IS NOT NULL
             AND d."date" <= (SELECT DATE("datetime") - INTERVAL '1 day' FROM latest)
+          ORDER BY d."date" DESC
+          LIMIT 1
+        ), second_compare AS (
+          SELECT b.*
+          FROM "day" d
+          INNER JOIN "block" b ON b."height" = d."lastBlockHeight"
+          WHERE b."vaultUakt" IS NOT NULL
+            AND d."date" <= (SELECT DATE("datetime") - INTERVAL '1 day' FROM compare)
           ORDER BY d."date" DESC
           LIMIT 1
         )
@@ -227,7 +246,20 @@ export class StatsRepository {
           COALESCE("totalUactMinted", 0) AS "totalUactMinted",
           COALESCE("totalUactBurnedForUakt", 0) AS "totalUactBurnedForUakt",
           COALESCE("totalUaktReminted", 0) AS "totalUaktReminted"
-        FROM compare`,
+        FROM compare
+        UNION ALL
+        SELECT 'second_compare' AS "period",
+          COALESCE("outstandingUact", 0) AS "outstandingUact",
+          COALESCE("vaultUakt", 0) AS "vaultUakt",
+          CASE
+            WHEN "outstandingUact" IS NULL OR "outstandingUact" = 0 THEN 0
+            ELSE ROUND((COALESCE("vaultUakt", 0) * COALESCE((SELECT "aktPrice" FROM akt_price), 0) / "outstandingUact")::numeric, 6)::float
+          END AS "collateralRatio",
+          COALESCE("totalUaktBurnedForUact", 0) AS "totalUaktBurnedForUact",
+          COALESCE("totalUactMinted", 0) AS "totalUactMinted",
+          COALESCE("totalUactBurnedForUakt", 0) AS "totalUactBurnedForUakt",
+          COALESCE("totalUaktReminted", 0) AS "totalUaktReminted"
+        FROM second_compare`,
       { type: QueryTypes.SELECT }
     );
 
@@ -243,8 +275,9 @@ export class StatsRepository {
 
     const nowRow = rows.find(r => r.period === "now") ?? emptyRow;
     const compareRow = rows.find(r => r.period === "compare") ?? emptyRow;
+    const secondCompareRow = rows.find(r => r.period === "second_compare") ?? emptyRow;
 
-    return { now: nowRow, compare: compareRow };
+    return { now: nowRow, compare: compareRow, secondCompare: secondCompareRow };
   }
 
   async findClosedLeases(owner: string, query: { dseq?: string; startDate: Date; endDate: Date }) {

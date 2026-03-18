@@ -392,7 +392,7 @@ describe(StatsService.name, () => {
         { date: day2, lastBlock: { totalUaktBurnedForUact: 300 } },
         { date: day3, lastBlock: { totalUaktBurnedForUact: 600 } }
       ] as unknown as Day[]);
-      mockBmeDashboardData(statsRepository, { totalUaktBurnedForUact: 600 }, { totalUaktBurnedForUact: 300 });
+      mockBmeDashboardData(statsRepository, { totalUaktBurnedForUact: 600 }, { totalUaktBurnedForUact: 300 }, { totalUaktBurnedForUact: 100 });
 
       const result = await service.getGraphData("dailyAktBurnedForAct");
 
@@ -468,7 +468,8 @@ describe(StatsService.name, () => {
       mockBmeDashboardData(
         statsRepository,
         { totalUaktBurnedForUact: 3500, totalUaktReminted: 1000 },
-        { totalUaktBurnedForUact: 2000, totalUaktReminted: 500 }
+        { totalUaktBurnedForUact: 2000, totalUaktReminted: 500 },
+        { totalUaktBurnedForUact: 1000, totalUaktReminted: 200 }
       );
 
       const result = await service.getGraphData("dailyNetAktBurned");
@@ -492,7 +493,7 @@ describe(StatsService.name, () => {
         { date: day2, lastBlock: { outstandingUact: 7500 } },
         { date: day3, lastBlock: { outstandingUact: 10000 } }
       ] as unknown as Day[]);
-      mockBmeDashboardData(statsRepository, { outstandingUact: 10000 });
+      mockBmeDashboardData(statsRepository, { outstandingUact: 10000 }, { outstandingUact: 7500 });
 
       const result = await service.getGraphData("outstandingAct");
 
@@ -515,7 +516,7 @@ describe(StatsService.name, () => {
         { date: day2, lastBlock: { vaultUakt: 4000 } },
         { date: day3, lastBlock: { vaultUakt: 5000 } }
       ] as unknown as Day[]);
-      mockBmeDashboardData(statsRepository, { vaultUakt: 5000 });
+      mockBmeDashboardData(statsRepository, { vaultUakt: 5000 }, { vaultUakt: 4000 });
 
       const result = await service.getGraphData("vaultAkt");
 
@@ -677,7 +678,8 @@ describe(StatsService.name, () => {
   function mockBmeDashboardData(
     statsRepository: ReturnType<typeof setup>["statsRepository"],
     nowOverrides: Record<string, number> = {},
-    compareOverrides: Record<string, number> = {}
+    compareOverrides: Record<string, number> = {},
+    secondCompareOverrides: Record<string, number> = {}
   ) {
     const emptyRow = {
       outstandingUact: 0,
@@ -690,7 +692,8 @@ describe(StatsService.name, () => {
     };
     statsRepository.findBmeDashboardData.mockResolvedValue({
       now: { ...emptyRow, ...nowOverrides },
-      compare: { ...emptyRow, ...compareOverrides }
+      compare: { ...emptyRow, ...compareOverrides },
+      secondCompare: { ...emptyRow, ...secondCompareOverrides }
     });
   }
 });
