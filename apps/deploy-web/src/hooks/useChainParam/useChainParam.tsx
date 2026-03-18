@@ -11,6 +11,8 @@ type MinDeposit = {
   act: number;
 };
 
+export type MinDepositDenom = keyof MinDeposit;
+
 type ContextType = {
   minDeposit: MinDeposit;
 };

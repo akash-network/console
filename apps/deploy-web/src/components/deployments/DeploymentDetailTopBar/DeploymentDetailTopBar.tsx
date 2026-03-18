@@ -19,7 +19,7 @@ import { useWallet } from "@src/context/WalletProvider";
 import { useCurrencyFormatter } from "@src/hooks/useCurrencyFormatter/useCurrencyFormatter";
 import { useDeploymentMetrics } from "@src/hooks/useDeploymentMetrics";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
-import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom";
+import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom/useManagedWalletDenom";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import { usePricing } from "@src/hooks/usePricing/usePricing";
 import { useUser } from "@src/hooks/useUser";
@@ -28,7 +28,7 @@ import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import { averageBlockTime } from "@src/utils/priceUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { UrlService } from "@src/utils/urlUtils";
-import { DeploymentDepositModal } from "../DeploymentDepositModal";
+import { DeploymentDepositModal } from "../DeploymentDepositModal/DeploymentDepositModal";
 
 export const DEPENDENCIES = {
   Button,
