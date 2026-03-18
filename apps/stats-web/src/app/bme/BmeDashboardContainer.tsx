@@ -12,10 +12,11 @@ export const BmeDashboardContainer: React.FunctionComponent = () => {
   const { data: statusHistory, isLoading: isLoadingStatusHistory } = useBmeStatusHistory();
 
   const isLoading = isLoadingDashboard || isLoadingStatusHistory;
+  const hasData = dashboardData?.now && dashboardData?.compare;
 
   return (
     <div className="mt-8">
-      {dashboardData && (
+      {hasData && (
         <>
           <Title className="mb-4 text-2xl font-semibold">BME Dashboard</Title>
 
@@ -30,7 +31,7 @@ export const BmeDashboardContainer: React.FunctionComponent = () => {
         </>
       )}
 
-      {isLoading && !dashboardData && (
+      {isLoading && !hasData && (
         <div className="flex items-center justify-center p-4">
           <Spinner size="large" />
         </div>
