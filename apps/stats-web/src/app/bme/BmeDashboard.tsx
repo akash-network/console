@@ -5,7 +5,6 @@ import { Separator } from "@akashnetwork/ui/components";
 
 import { StatsCard } from "../(home)/StatsCard";
 import { BmeStatusBadge } from "./BmeStatusBadge";
-import { BmeStatusTimeline } from "./BmeStatusTimeline";
 
 import { Title } from "@/components/Title";
 import { percIncrease, udenomToDenom } from "@/lib/mathHelpers";
@@ -208,16 +207,6 @@ export const BmeDashboard: React.FunctionComponent<BmeDashboardProps> = ({ dashb
           tooltip="Current mint status derived from the latest circuit breaker event"
         />
       </div>
-
-      {statusHistory.length > 0 && (
-        <>
-          <Separator className="mb-8 mt-8" />
-          <Title subTitle className="mb-4">
-            Circuit Breaker History
-          </Title>
-          <BmeStatusTimeline statusHistory={statusHistory} />
-        </>
-      )}
     </>
   );
 };
