@@ -102,10 +102,11 @@ interface ApplyDefaultsOptions extends Options {
 }
 
 async function getExternalConfig(packageJson: Record<string, any>): Promise<Required<Pick<Options, "noExternal" | "external">>> {
-  const internalPackages = Object.keys(packageJson.dependencies).filter(
-    name => name !== "@akashnetwork/env-loader" && name.startsWith("@akashnetwork/") && packageJson.dependencies[name] === "*"
-  );
+  const isInternalPackage = (name: string, packageDetails: Record<string, any>) =>
+    name !== "@akashnetwork/env-loader" && name.startsWith("@akashnetwork/") && packageDetails.dependencies[name] === "*";
+  const internalPackages = Object.keys(packageJson.dependencies).filter(dep => isInternalPackage(dep, packageJson));
 
+  const internalDeps = new Set<string>(internalPackages);
   const externalDeps = new Set<string>();
   await Promise.all(
     internalPackages.map(async internalPackageName => {
@@ -113,8 +114,14 @@ async function getExternalConfig(packageJson: Record<string, any>): Promise<Requ
       const pkgJson = JSON.parse(await fs.readFile(pkgJsonPath, "utf8"));
       const deps = { ...pkgJson.dependencies, ...pkgJson.peerDependencies };
       Object.keys(deps).forEach(dep => {
-        if (internalPackages.includes(dep)) return;
-        if (isInternalPackageDependency(internalPackageName, dep)) {
+        if (internalDeps.has(dep)) return;
+
+        if (isInternalPackage(dep, pkgJson)) {
+          internalDeps.add(dep);
+          return;
+        }
+
+        if (hasOwnCopyOfPackage(internalPackageName, dep)) {
           // if package is not hoisted, we need to bundle it inside the app
           // otherwise this package won't be found in runtime
           console.warn(
@@ -127,10 +134,10 @@ async function getExternalConfig(packageJson: Record<string, any>): Promise<Requ
     })
   );
 
-  return { noExternal: internalPackages, external: [...externalDeps] };
+  return { noExternal: [...internalDeps], external: [...externalDeps] };
 }
 
-function isInternalPackageDependency(packageName: string, dependency: string): boolean {
+function hasOwnCopyOfPackage(packageName: string, dependency: string): boolean {
   const pathToPackage = import.meta.resolve(join(packageName, "package.json"));
   const possiblyInternalPackagePath = fileURLToPath(import.meta.resolve(join(pathToPackage, "..", "node_modules", dependency)));
   return existsSync(possiblyInternalPackagePath);
