@@ -5,10 +5,10 @@ import { FormattedTime } from "react-intl";
 import { Address, Button, Checkbox, TableCell, TableRow } from "@akashnetwork/ui/components";
 import { Bin, Edit } from "iconoir-react";
 
-import { AKTAmount } from "@src/components/shared/AKTAmount";
 import type { AllowanceType } from "@src/types/grant";
 import { getAllowanceTitleByType } from "@src/utils/grants";
 import { coinToUDenom } from "@src/utils/priceUtils";
+import { DenomAmount } from "../shared/DenomAmount/DenomAmount";
 
 type Props = {
   allowance: AllowanceType;
@@ -31,7 +31,7 @@ export const AllowanceIssuedRow: React.FunctionComponent<Props> = ({ allowance, 
       <TableCell align="center">
         {limit ? (
           <>
-            <AKTAmount uakt={coinToUDenom(limit)} /> AKT
+            <DenomAmount amount={coinToUDenom(limit)} denom={limit.denom} />
           </>
         ) : (
           <span>Unlimited</span>

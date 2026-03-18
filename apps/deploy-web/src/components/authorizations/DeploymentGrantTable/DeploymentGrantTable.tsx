@@ -18,8 +18,7 @@ import {
 import { createColumnHelper, flexRender, getCoreRowModel, getPaginationRowModel, useReactTable } from "@tanstack/react-table";
 import { Bin, Edit } from "iconoir-react";
 
-import { AKTAmount } from "@src/components/shared/AKTAmount";
-import { useUsdcDenom as useUsdcDenomOriginal } from "@src/hooks/useDenom";
+import { DenomAmount } from "@src/components/shared/DenomAmount/DenomAmount";
 import type { GrantType } from "@src/types/grant";
 import { coinToUDenom } from "@src/utils/priceUtils";
 import { LinkTo } from "../../shared/LinkTo";
@@ -36,11 +35,10 @@ export const DEPENDENCIES = {
   TableHead,
   TableHeader,
   TableRow,
-  AKTAmount,
+  DenomAmount,
   LinkTo,
   Bin,
-  Edit,
-  useUsdcDenom: useUsdcDenomOriginal
+  Edit
 };
 
 interface Props {
@@ -70,7 +68,6 @@ export const DeploymentGrantTable: React.FC<Props> = ({
   pageSize,
   dependencies: d = DEPENDENCIES
 }) => {
-  const usdcDenom = d.useUsdcDenom();
   const selectGrants = (checked: boolean, grant: GrantType) => {
     setSelectedGrants(prev => {
       return checked ? prev.concat([grant]) : prev.filter(x => x.grantee !== grant.grantee);
@@ -95,7 +92,7 @@ export const DeploymentGrantTable: React.FC<Props> = ({
 
           return (
             <div className="text-center">
-              <d.AKTAmount uakt={coinToUDenom(value)} /> {value.denom === usdcDenom ? "USDC" : value.denom.toUpperCase().replace("U", "")}
+              <d.DenomAmount amount={coinToUDenom(value)} denom={value.denom} />
             </div>
           );
         },

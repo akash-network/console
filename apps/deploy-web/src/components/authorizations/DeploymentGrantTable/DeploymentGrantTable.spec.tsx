@@ -151,7 +151,6 @@ describe(DeploymentGrantTable.name, () => {
         dependencies={
           {
             ...MockComponents(DEPENDENCIES),
-            useUsdcDenom: () => "ibc/usdc-test-denom",
             ...input.dependencies
           } as typeof DEPENDENCIES
         }

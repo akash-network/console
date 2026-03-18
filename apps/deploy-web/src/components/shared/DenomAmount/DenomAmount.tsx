@@ -4,23 +4,31 @@ import { FormattedNumber, FormattedNumberParts } from "react-intl";
 
 import { usePricing } from "@src/hooks/usePricing/usePricing";
 import { udenomToDenom } from "@src/utils/mathHelpers";
-import { AKTLabel } from "./AKTLabel";
+import { DenomLabel } from "../DenomLabel/DenomLabel";
 
-type Props = {
-  uakt: number;
-  showAKTLabel?: boolean;
-  showUSD?: boolean;
-  digits?: number;
-  notation?: "standard" | "scientific" | "engineering" | "compact" | undefined;
+export const DEPENDENCIES = {
+  FormattedNumber,
+  FormattedNumberParts,
+  DenomLabel,
+  usePricing
 };
 
-export const AKTAmount: React.FunctionComponent<Props> = ({ uakt, showUSD, showAKTLabel, digits = 6, notation }) => {
-  const { isLoaded: isPriceLoaded, aktToUSD } = usePricing();
-  const aktAmount = udenomToDenom(uakt, 6);
+type Props = {
+  amount: number;
+  denom: string;
+  showUSD?: boolean;
+  digits?: number;
+  notation?: "standard" | "scientific" | "engineering" | "compact";
+  dependencies?: typeof DEPENDENCIES;
+};
+
+export function DenomAmount({ amount, denom, showUSD, digits = 6, notation, dependencies: d = DEPENDENCIES }: Props) {
+  const { isLoaded: isPriceLoaded, udenomToUsd } = d.usePricing();
+  const denomAmount = udenomToDenom(amount);
 
   return (
     <>
-      <FormattedNumberParts value={aktAmount} maximumFractionDigits={digits} minimumFractionDigits={digits} notation={notation}>
+      <d.FormattedNumberParts value={denomAmount} maximumFractionDigits={digits} minimumFractionDigits={digits} notation={notation}>
         {parts => (
           <>
             {parts.map((part, i) => {
@@ -43,14 +51,14 @@ export const AKTAmount: React.FunctionComponent<Props> = ({ uakt, showUSD, showA
             })}
           </>
         )}
-      </FormattedNumberParts>
-      {showAKTLabel && <AKTLabel />}
-      {isPriceLoaded && showUSD && aktAmount > 0 && (
+      </d.FormattedNumberParts>
+      <d.DenomLabel denom={denom} />
+      {isPriceLoaded && showUSD && denomAmount > 0 && (
         <small className="text-secondary-foreground">
           &nbsp;(
-          <FormattedNumber style="currency" currency="USD" value={aktToUSD(aktAmount) || 0} notation="compact" />)
+          <d.FormattedNumber style="currency" currency="USD" value={udenomToUsd(amount, denom) || 0} notation="compact" />)
         </small>
       )}
     </>
   );
-};
+}
