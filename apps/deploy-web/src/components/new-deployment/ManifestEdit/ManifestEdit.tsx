@@ -19,7 +19,6 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useCertificate } from "@src/hooks/useCertificate/useCertificate";
 import { useImportSimpleSdl } from "@src/hooks/useImportSimpleSdl";
-import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom/useManagedWalletDenom";
 import { useSupportsACT } from "@src/hooks/useSupportsACT/useSupportsACT";
 import { useWhen } from "@src/hooks/useWhen";
 import { useDepositParams } from "@src/queries/useSaveSettings";
@@ -78,7 +77,6 @@ export const DEPENDENCIES = {
   useCertificate,
   useSdlBuilder,
   useImportSimpleSdl,
-  useManagedWalletDenom,
   useDepositParams,
   useMuiTheme,
   useMediaQuery,
@@ -132,16 +130,17 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
   const { data: depositParams } = d.useDepositParams();
   const defaultDeposit = depositParams || appConfig.NEXT_PUBLIC_DEFAULT_INITIAL_DEPOSIT;
   const wallet = d.useWallet();
-  const managedDenom = d.useManagedWalletDenom();
   const { enqueueSnackbar } = d.useSnackbar();
   const services = d.useImportSimpleSdl(isValidSdl ? editedManifest : null);
 
   useWhen(
     wallet.isManaged && sdlDenom === "uakt" && editedManifest,
     () => {
-      setEditedManifest(prev => (prev ? prev.replace(/uakt/g, managedDenom) : prev));
+      if (wallet.isManaged) {
+        setEditedManifest(prev => (prev ? prev.replace(/uakt/g, wallet.denom) : prev));
+      }
     },
-    [editedManifest, wallet.isManaged, sdlDenom]
+    [editedManifest, wallet.isManaged, wallet.denom, sdlDenom]
   );
   useWhen(hasComponent("ssh"), () => {
     setSelectedSdlEditMode("builder");
@@ -256,11 +255,11 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
         return;
       }
 
-      if (isManaged) {
+      if (wallet.isManaged) {
         sdl = appendAuditorRequirement(sdl);
 
-        if (managedDenom && managedDenom !== "uakt") {
-          sdl = sdl.replace(/uakt/g, managedDenom);
+        if (wallet.denom !== "uakt") {
+          sdl = sdl.replace(/uakt/g, wallet.denom);
         }
       }
 

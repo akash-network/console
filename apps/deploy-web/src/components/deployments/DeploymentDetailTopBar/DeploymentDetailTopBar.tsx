@@ -19,7 +19,6 @@ import { useWallet } from "@src/context/WalletProvider";
 import { useCurrencyFormatter } from "@src/hooks/useCurrencyFormatter/useCurrencyFormatter";
 import { useDeploymentMetrics } from "@src/hooks/useDeploymentMetrics";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
-import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom/useManagedWalletDenom";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import { usePricing } from "@src/hooks/usePricing/usePricing";
 import { useUser } from "@src/hooks/useUser";
@@ -46,7 +45,6 @@ export const DEPENDENCIES = {
   useCurrencyFormatter,
   useDeploymentMetrics,
   useManagedDeploymentConfirm,
-  useManagedWalletDenom,
   usePreviousRoute,
   usePricing,
   useUser,
@@ -76,11 +74,10 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
   dependencies: d = DEPENDENCIES
 }) => {
   const { analyticsService } = d.useServices();
-  const managedDenom = d.useManagedWalletDenom();
   const { changeDeploymentName, getDeploymentData, getDeploymentName } = d.useLocalNotes();
   const { udenomToUsd } = d.usePricing();
   const router = d.useRouter();
-  const { signAndBroadcastTx, isManaged } = d.useWallet();
+  const wallet = d.useWallet();
   const [isDepositingDeployment, setIsDepositingDeployment] = useState(false);
   const storageDeploymentData = getDeploymentData(deployment?.dseq);
   const deploymentName = getDeploymentName(deployment?.dseq);
@@ -107,7 +104,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
     }
 
     const message = TransactionMessageData.getCloseDeploymentMsg(address, deployment.dseq);
-    const response = await signAndBroadcastTx([message]);
+    const response = await wallet.signAndBroadcastTx([message]);
     if (response) {
       onDeploymentClose();
       removeLeases();
@@ -138,7 +135,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
       deposit,
       deployment.escrowAccount.state.funds[0]?.denom || ""
     );
-    const response = await signAndBroadcastTx([message]);
+    const response = await wallet.signAndBroadcastTx([message]);
     if (response) {
       loadDeploymentDetail();
 
@@ -251,7 +248,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
               Add funds
             </d.Button>
 
-            {isManaged && (
+            {wallet.isManaged && (
               <div className="ml-4 flex items-center gap-2">
                 <d.Switch checked={deploymentSetting.data?.autoTopUpEnabled} onCheckedChange={setAutoTopUpEnabled} disabled={deploymentSetting.isLoading} />
                 <span>Auto top-up</span>
@@ -259,7 +256,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
                   title={
                     <div className="space-y-2">
                       <div>
-                        <div>Estimated amount: ${udenomToUsd(deploymentSetting.data?.estimatedTopUpAmount || 0, managedDenom)}</div>
+                        <div>Estimated amount: ${udenomToUsd(deploymentSetting.data?.estimatedTopUpAmount || 0, wallet.denom)}</div>
                         <div>Check period: {formatDuration(intervalToDuration({ start: 0, end: deploymentSetting.data?.topUpFrequencyMs || 0 }))}</div>
                       </div>
                       <div className="text-xs text-muted-foreground">

@@ -7,10 +7,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom/useManagedWalletDenom";
 import { useSdlServiceManager } from "@src/hooks/useSdlServiceManager/useSdlServiceManager";
 import { useSupportsACT } from "@src/hooks/useSupportsACT/useSupportsACT";
-import { useWhen } from "@src/hooks/useWhen";
 import { useGpuModels } from "@src/queries/useGpuQuery";
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { SdlBuilderFormValuesSchema } from "@src/types";
@@ -59,21 +57,18 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(
     const [serviceCollapsed, setServiceCollapsed] = useState(isGitProviderTemplate ? [0] : []);
 
     const wallet = useWallet();
-    const managedDenom = useManagedWalletDenom();
 
-    useWhen(
-      wallet.isManaged,
-      () => {
+    useEffect(() => {
+      if (wallet.isManaged) {
         formServices.forEach((service, index) => {
           const { denom } = service.placement.pricing;
 
-          if (denom !== managedDenom) {
-            setValue(`services.${index}.placement.pricing.denom`, managedDenom);
+          if (denom !== wallet.denom) {
+            setValue(`services.${index}.placement.pricing.denom`, wallet.denom);
           }
         });
-      },
-      [formServices, sdlString]
-    );
+      }
+    }, [formServices, sdlString, wallet.isManaged, wallet.denom]);
 
     React.useImperativeHandle(ref, () => ({
       getSdl: getSdl,

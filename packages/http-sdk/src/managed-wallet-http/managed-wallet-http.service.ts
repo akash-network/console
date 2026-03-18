@@ -6,7 +6,7 @@ export interface ApiWalletOutput {
   id: string;
   userId: string;
   address: string;
-  denom?: string;
+  denom: string;
   creditAmount: number;
   isTrialing: boolean;
   createdAt: Date;
