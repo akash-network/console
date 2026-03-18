@@ -71,7 +71,7 @@ export class StatsRepository {
     });
   }
 
-  async findDailyBlockSnapshots(attributes: (keyof Block)[]) {
+  async findDailyBlockSnapshots(attributes: (keyof Block)[], options?: { requireBme?: boolean }) {
     return Day.findAll({
       attributes: ["date"],
       include: [
@@ -79,7 +79,8 @@ export class StatsRepository {
           model: Block,
           as: "lastBlock",
           attributes: attributes,
-          required: true
+          required: true,
+          where: options?.requireBme ? { vaultUakt: { [Op.ne]: null } } : undefined
         }
       ],
       order: [["date", "ASC"]]

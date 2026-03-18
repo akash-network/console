@@ -369,6 +369,7 @@ describe(StatsService.name, () => {
         { date: day2, lastBlock: { totalUaktBurnedForUact: 300 } },
         { date: day3, lastBlock: { totalUaktBurnedForUact: 600 } }
       ] as unknown as Day[]);
+      mockBmeDashboardData(statsRepository, { totalUaktBurnedForUact: 600 }, { totalUaktBurnedForUact: 300 });
 
       const result = await service.getGraphData("totalAktBurnedForAct");
 
@@ -391,6 +392,7 @@ describe(StatsService.name, () => {
         { date: day2, lastBlock: { totalUaktBurnedForUact: 300 } },
         { date: day3, lastBlock: { totalUaktBurnedForUact: 600 } }
       ] as unknown as Day[]);
+      mockBmeDashboardData(statsRepository, { totalUaktBurnedForUact: 600 }, { totalUaktBurnedForUact: 300 });
 
       const result = await service.getGraphData("dailyAktBurnedForAct");
 
@@ -413,6 +415,7 @@ describe(StatsService.name, () => {
         { date: day2, lastBlock: { totalUactMinted: 1200 } },
         { date: day3, lastBlock: { totalUactMinted: 2000 } }
       ] as unknown as Day[]);
+      mockBmeDashboardData(statsRepository, { totalUactMinted: 2000 }, { totalUactMinted: 1200 });
 
       const result = await service.getGraphData("totalActMinted");
 
@@ -435,6 +438,11 @@ describe(StatsService.name, () => {
         { date: day2, lastBlock: { totalUaktBurnedForUact: 2000, totalUaktReminted: 500 } },
         { date: day3, lastBlock: { totalUaktBurnedForUact: 3500, totalUaktReminted: 1000 } }
       ] as unknown as Day[]);
+      mockBmeDashboardData(
+        statsRepository,
+        { totalUaktBurnedForUact: 3500, totalUaktReminted: 1000 },
+        { totalUaktBurnedForUact: 2000, totalUaktReminted: 500 }
+      );
 
       const result = await service.getGraphData("netAktBurned");
 
@@ -457,6 +465,11 @@ describe(StatsService.name, () => {
         { date: day2, lastBlock: { totalUaktBurnedForUact: 2000, totalUaktReminted: 500 } },
         { date: day3, lastBlock: { totalUaktBurnedForUact: 3500, totalUaktReminted: 1000 } }
       ] as unknown as Day[]);
+      mockBmeDashboardData(
+        statsRepository,
+        { totalUaktBurnedForUact: 3500, totalUaktReminted: 1000 },
+        { totalUaktBurnedForUact: 2000, totalUaktReminted: 500 }
+      );
 
       const result = await service.getGraphData("dailyNetAktBurned");
 
@@ -479,6 +492,7 @@ describe(StatsService.name, () => {
         { date: day2, lastBlock: { outstandingUact: 7500 } },
         { date: day3, lastBlock: { outstandingUact: 10000 } }
       ] as unknown as Day[]);
+      mockBmeDashboardData(statsRepository, { outstandingUact: 10000 });
 
       const result = await service.getGraphData("outstandingAct");
 
@@ -501,6 +515,7 @@ describe(StatsService.name, () => {
         { date: day2, lastBlock: { vaultUakt: 4000 } },
         { date: day3, lastBlock: { vaultUakt: 5000 } }
       ] as unknown as Day[]);
+      mockBmeDashboardData(statsRepository, { vaultUakt: 5000 });
 
       const result = await service.getGraphData("vaultAkt");
 
@@ -522,6 +537,7 @@ describe(StatsService.name, () => {
         { date: day1, lastBlock: { totalUaktBurnedForUact: null } },
         { date: day2, lastBlock: { totalUaktBurnedForUact: 500 } }
       ] as unknown as Day[]);
+      mockBmeDashboardData(statsRepository, { totalUaktBurnedForUact: 500 });
 
       const result = await service.getGraphData("totalAktBurnedForAct");
 
@@ -539,6 +555,7 @@ describe(StatsService.name, () => {
       const { service, statsRepository } = setup();
 
       statsRepository.findDailyBlockSnapshots.mockResolvedValue([]);
+      mockBmeDashboardData(statsRepository);
 
       const result = await service.getGraphData("totalAktBurnedForAct");
 
@@ -557,6 +574,7 @@ describe(StatsService.name, () => {
         { date: day2, collateralRatio: 1.8 },
         { date: day3, collateralRatio: 2.0 }
       ]);
+      mockBmeDashboardData(statsRepository, { collateralRatio: 2.0 });
 
       const result = await service.getGraphData("collateralRatio");
 
@@ -654,5 +672,25 @@ describe(StatsService.name, () => {
       cosmosHttpService,
       coinGeckoHttpService
     };
+  }
+
+  function mockBmeDashboardData(
+    statsRepository: ReturnType<typeof setup>["statsRepository"],
+    nowOverrides: Record<string, number> = {},
+    compareOverrides: Record<string, number> = {}
+  ) {
+    const emptyRow = {
+      outstandingUact: 0,
+      vaultUakt: 0,
+      collateralRatio: 0,
+      totalUaktBurnedForUact: 0,
+      totalUactMinted: 0,
+      totalUactBurnedForUakt: 0,
+      totalUaktReminted: 0
+    };
+    statsRepository.findBmeDashboardData.mockResolvedValue({
+      now: { ...emptyRow, ...nowOverrides },
+      compare: { ...emptyRow, ...compareOverrides }
+    });
   }
 });
