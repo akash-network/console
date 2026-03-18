@@ -200,7 +200,7 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
       });
       this.instrumentationService.recordReloadTriggered(reloadAmountInFiat, resources.balance, threshold, costUntilTargetDateInFiat, log);
     } catch (error) {
-      this.instrumentationService.recordReloadFailed(reloadAmountInFiat, error, log);
+      this.instrumentationService.recordReloadFailed(error, log);
       throw error;
     }
   }
