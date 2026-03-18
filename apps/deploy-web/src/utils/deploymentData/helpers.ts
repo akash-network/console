@@ -1,5 +1,5 @@
 import type { Manifest as AkashManifest, NetworkId, SDLInput } from "@akashnetwork/chain-sdk/web";
-import { generateManifest, generateManifestVersion, manifestToSortedJSON, yaml as sdlYaml } from "@akashnetwork/chain-sdk/web";
+import { generateManifest, generateManifestVersion, manifestToSortedJSON, yaml } from "@akashnetwork/chain-sdk/web";
 
 export class CustomValidationError extends Error {
   constructor(message: string) {
@@ -49,7 +49,7 @@ export function parseSizeStr(str: string) {
 type NetworkType = "beta2" | "beta3";
 
 export function parseSdlInput(yamlJson: string | SDLInput): SDLInput {
-  return typeof yamlJson === "string" ? sdlYaml.template<SDLInput>(yamlJson) : yamlJson;
+  return typeof yamlJson === "string" ? yaml.raw<SDLInput>(yamlJson) : yamlJson;
 }
 
 export function buildManifest(sdlInput: SDLInput, networkId: NetworkId) {
