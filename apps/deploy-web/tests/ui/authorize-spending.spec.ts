@@ -43,7 +43,7 @@ function includeAuthorizationTests(input: { authType: AuthorizationType }) {
     await extension.waitForTransaction("success");
 
     const grantList = authorizationsPage.getListLocator(input.authType);
-    await expect(grantList.locator("tr", { hasText: /10(\.0+?) AKT/ })).toBeVisible({ timeout: 10_000 });
+    await expect(grantList.locator("tr", { hasText: /10(\.0+?)\s*AKT/ })).toBeVisible({ timeout: 10_000 });
   });
 
   test("can revoke spending", async ({ page, context }) => {
