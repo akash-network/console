@@ -90,6 +90,7 @@ export type GraphResponse = {
 };
 
 export type BmePeriodData = {
+  date: string;
   outstandingAct: number;
   vaultAkt: number;
   collateralRatio: number;

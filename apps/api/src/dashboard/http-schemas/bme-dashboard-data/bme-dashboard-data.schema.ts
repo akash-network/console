@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 const BmePeriodSchema = z.object({
+  date: z.string(),
   outstandingAct: z.number(),
   vaultAkt: z.number(),
   collateralRatio: z.number(),

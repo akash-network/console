@@ -109,7 +109,7 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
       } else {
         const data: any = param.seriesData.get(lineSeries);
         toolTip.innerHTML = `<div style='margin-bottom: 0.25rem; font-size: 0.75rem; line-height: 1rem'>
-            ${format(new Date(param.time.toString()), "MMMM d, yy")}
+            ${format(new UTCDateMini(param.time.toString()), "MMMM d, yy")}
             </div>
             <div style="font-weight: 700">${nFormatter(data?.value, 2)}</div>
         `;

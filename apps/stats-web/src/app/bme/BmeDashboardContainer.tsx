@@ -1,4 +1,5 @@
 "use client";
+import { FormattedDate, FormattedTime } from "react-intl";
 import { Spinner } from "@akashnetwork/ui/components";
 
 import { BmeDashboard } from "./BmeDashboard";
@@ -16,7 +17,15 @@ export const BmeDashboardContainer: React.FunctionComponent = () => {
     <div className="mt-8">
       {dashboardData && (
         <>
-          <Title className="mb-8 text-2xl font-semibold">BME Dashboard</Title>
+          <Title className="mb-4 text-2xl font-semibold">BME Dashboard</Title>
+
+          <div className="mb-8">
+            <p className="text-italic text-sm italic text-muted-foreground">
+              Last updated: {!!dashboardData?.now?.date && <FormattedDate value={dashboardData.now.date} />}{" "}
+              {!!dashboardData?.now?.date && <FormattedTime value={dashboardData.now.date} />}
+            </p>
+          </div>
+
           <BmeDashboard dashboardData={dashboardData} statusHistory={statusHistory ?? []} />
         </>
       )}

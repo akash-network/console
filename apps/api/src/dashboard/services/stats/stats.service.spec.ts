@@ -682,6 +682,7 @@ describe(StatsService.name, () => {
     secondCompareOverrides: Record<string, number> = {}
   ) {
     const emptyRow = {
+      datetime: new Date("2024-01-03T12:00:00Z"),
       outstandingUact: 0,
       vaultUakt: 0,
       collateralRatio: 0,
@@ -692,8 +693,8 @@ describe(StatsService.name, () => {
     };
     statsRepository.findBmeDashboardData.mockResolvedValue({
       now: { ...emptyRow, ...nowOverrides },
-      compare: { ...emptyRow, ...compareOverrides },
-      secondCompare: { ...emptyRow, ...secondCompareOverrides }
+      compare: { ...emptyRow, datetime: new Date("2024-01-02T12:00:00Z"), ...compareOverrides },
+      secondCompare: { ...emptyRow, datetime: new Date("2024-01-01T12:00:00Z"), ...secondCompareOverrides }
     });
   }
 });

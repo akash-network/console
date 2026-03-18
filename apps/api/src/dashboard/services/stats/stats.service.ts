@@ -343,6 +343,7 @@ export class StatsService {
 
     return {
       now: {
+        date: now.datetime.toISOString(),
         outstandingAct: now.outstandingUact,
         vaultAkt: now.vaultUakt,
         collateralRatio,
@@ -358,6 +359,7 @@ export class StatsService {
         dailyNetAktBurned: daily(now.totalUaktBurnedForUact - now.totalUaktReminted, compare.totalUaktBurnedForUact - compare.totalUaktReminted)
       },
       compare: {
+        date: compare.datetime.toISOString(),
         outstandingAct: compare.outstandingUact,
         vaultAkt: compare.vaultUakt,
         collateralRatio: compare.collateralRatio,

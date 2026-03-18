@@ -33,6 +33,7 @@ export type BmeStatusHistoryRow = {
 };
 
 export type BmeDashboardRow = {
+  datetime: Date;
   outstandingUact: number;
   vaultUakt: number;
   collateralRatio: number;
@@ -223,6 +224,7 @@ export class StatsRepository {
           LIMIT 1
         )
         SELECT 'now' AS "period",
+          "datetime",
           COALESCE("outstandingUact", 0) AS "outstandingUact",
           COALESCE("vaultUakt", 0) AS "vaultUakt",
           CASE
@@ -236,6 +238,7 @@ export class StatsRepository {
         FROM latest
         UNION ALL
         SELECT 'compare' AS "period",
+          "datetime",
           COALESCE("outstandingUact", 0) AS "outstandingUact",
           COALESCE("vaultUakt", 0) AS "vaultUakt",
           CASE
@@ -249,6 +252,7 @@ export class StatsRepository {
         FROM compare
         UNION ALL
         SELECT 'second_compare' AS "period",
+          "datetime",
           COALESCE("outstandingUact", 0) AS "outstandingUact",
           COALESCE("vaultUakt", 0) AS "vaultUakt",
           CASE
@@ -264,6 +268,7 @@ export class StatsRepository {
     );
 
     const emptyRow: BmeDashboardRow = {
+      datetime: new Date(),
       outstandingUact: 0,
       vaultUakt: 0,
       collateralRatio: 0,
