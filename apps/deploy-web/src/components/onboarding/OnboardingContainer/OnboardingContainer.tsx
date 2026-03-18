@@ -9,7 +9,7 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useCertificate } from "@src/hooks/useCertificate/useCertificate";
 import { useChainParam } from "@src/hooks/useChainParam/useChainParam";
-import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom";
+import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom/useManagedWalletDenom";
 import { useNotificator } from "@src/hooks/useNotificator";
 import { useReturnTo } from "@src/hooks/useReturnTo";
 import { useUser } from "@src/hooks/useUser";
