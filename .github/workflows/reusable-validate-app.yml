@@ -24,7 +24,7 @@ jobs:
   validate:
     needs: should-validate
     if: needs.should-validate.outputs.enabled == 'true'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, akash]
     env:
       TEST_SCRIPT_NAME: ${{ github.event_name == 'merge_group' && 'test' || 'test:cov' }}
     steps:
@@ -99,7 +99,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
 
   test-build:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, akash]
     needs: should-validate
     if: needs.should-validate.outputs.has_changes == 'true'
 
@@ -115,7 +115,7 @@ jobs:
           npm run -w apps/${{ inputs.app }} build:container
 
   result:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, akash] 
     needs: [should-validate, validate, test-build]
     if: always()
     permissions:
