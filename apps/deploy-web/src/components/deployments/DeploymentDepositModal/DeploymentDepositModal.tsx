@@ -8,7 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { z } from "zod";
 
-import { UAKT_DENOM } from "@src/config/denom.config";
+import { UACT_DENOM, UAKT_DENOM } from "@src/config/denom.config";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useAddFundsVerifiedLoginRequiredEventHandler } from "@src/hooks/useAddFundsVerifiedLoginRequiredEventHandler";
@@ -16,9 +16,18 @@ import { usePricing } from "@src/hooks/usePricing/usePricing";
 import { useDenomData, useWalletBalance } from "@src/hooks/useWalletBalance";
 import type { ServiceType } from "@src/types";
 import { denomToUdenom } from "@src/utils/mathHelpers";
-import { UrlService } from "@src/utils/urlUtils";
-import { LeaseSpecDetail } from "../shared/LeaseSpecDetail";
-import { LinkTo } from "../shared/LinkTo";
+import { LeaseSpecDetail } from "../../shared/LeaseSpecDetail";
+import { LinkTo } from "../../shared/LinkTo";
+
+export const DEPENDENCIES = {
+  useServices,
+  useWallet,
+  useWalletBalance,
+  usePricing,
+  useDenomData,
+  useAddFundsVerifiedLoginRequiredEventHandler,
+  useRouter
+};
 
 export type DeploymentDepositModalProps = {
   infoText?: string | ReactNode;
@@ -29,6 +38,7 @@ export type DeploymentDepositModalProps = {
   children?: ReactNode;
   title?: string;
   services?: ServiceType[];
+  dependencies?: typeof DEPENDENCIES;
 };
 
 const formSchema = z.object({
@@ -46,15 +56,16 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
   denom,
   title = "Deployment Deposit",
   infoText = null,
-  services = []
+  services = [],
+  dependencies: d = DEPENDENCIES
 }) => {
-  const { analyticsService } = useServices();
+  const { analyticsService, urlService } = d.useServices();
   const formRef = useRef<HTMLFormElement>(null);
   const [error, setError] = useState("");
-  const { isManaged } = useWallet();
-  const { balance: walletBalance } = useWalletBalance();
-  const pricing = usePricing();
-  const depositData = useDenomData(denom);
+  const { isManaged } = d.useWallet();
+  const { balance: walletBalance } = d.useWalletBalance();
+  const pricing = d.usePricing();
+  const depositData = d.useDenomData(denom);
   const form = useForm<z.infer<typeof formSchema>>({
     defaultValues: {
       amount: 0
@@ -63,8 +74,8 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
   });
   const { handleSubmit, control, watch, setValue, clearErrors } = form;
   const { amount } = watch();
-  const whenLoggedInAndVerified = useAddFundsVerifiedLoginRequiredEventHandler();
-  const router = useRouter();
+  const whenLoggedInAndVerified = d.useAddFundsVerifiedLoginRequiredEventHandler();
+  const router = d.useRouter();
 
   const closePopupAndGoToCheckoutIfPossible = (event: React.MouseEvent) => {
     analyticsService.track("buy_credits_btn_clk", "Amplitude");
@@ -74,7 +85,7 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
   };
 
   const goToCheckout = () => {
-    router.push(UrlService.billing({ openPayment: true }));
+    router.push(urlService.billing({ openPayment: true }));
   };
 
   useEffect(() => {
@@ -214,6 +225,20 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
                 }}
               />
             </div>
+
+            {!isManaged && denom === UACT_DENOM && depositData && (depositData.balance === 0 || depositData.balance < amount) && (
+              <Alert className="mt-4 text-sm">
+                To continue, mint ACT tokens.{" "}
+                <LinkTo
+                  onClick={() => {
+                    handleCancel();
+                    router.push(urlService.mintBurn());
+                  }}
+                >
+                  Go to Mint / Burn
+                </LinkTo>
+              </Alert>
+            )}
 
             {error && (
               <Alert variant="destructive" className="mt-4 text-sm">

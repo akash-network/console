@@ -42,9 +42,9 @@ import { PriceEstimateTooltip } from "../shared/PriceEstimateTooltip";
 import { PricePerTimeUnit } from "../shared/PricePerTimeUnit";
 import { PriceValue } from "../shared/PriceValue";
 import { SpecDetailList } from "../shared/SpecDetailList";
+import type { DeploymentDepositModalProps } from "./DeploymentDepositModal/DeploymentDepositModal";
+import { DeploymentDepositModal } from "./DeploymentDepositModal/DeploymentDepositModal";
 import { DeploymentName } from "./DeploymentName/DeploymentName";
-import type { DeploymentDepositModalProps } from "./DeploymentDepositModal";
-import { DeploymentDepositModal } from "./DeploymentDepositModal";
 import { LeaseChip } from "./LeaseChip";
 
 type Props = {

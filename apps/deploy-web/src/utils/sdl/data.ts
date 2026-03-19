@@ -1,5 +1,7 @@
+import cloneDeep from "lodash/cloneDeep";
 import { nanoid } from "nanoid";
 
+import { UAKT_DENOM } from "@src/config/denom.config";
 import type { ServiceType } from "@src/types";
 
 export const protoTypes = [
@@ -17,7 +19,7 @@ export const defaultHttpOptions = {
   nextTimeout: 60000
 };
 
-export const defaultService: ServiceType = {
+const defaultService: ServiceType = {
   id: nanoid(),
   title: "service-1",
   image: "",
@@ -110,10 +112,19 @@ export const SSH_EXPOSE = {
   to: []
 };
 
-export const defaultSshVMService: ServiceType = {
-  ...defaultService,
-  image: sshVmDistros[0],
-  expose: []
+export const getDefaultService = (options: { supportsACT: boolean; supportsSSH?: boolean }) => {
+  const res = cloneDeep(defaultService);
+
+  if (options.supportsSSH) {
+    res.image = sshVmDistros[0];
+    res.expose = [];
+  }
+
+  if (options.supportsACT) {
+    res.placement.pricing.denom = UAKT_DENOM;
+  }
+
+  return res;
 };
 
 export const nextCases = [

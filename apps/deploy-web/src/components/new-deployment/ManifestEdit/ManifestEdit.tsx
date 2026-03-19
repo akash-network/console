@@ -19,7 +19,7 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useCertificate } from "@src/hooks/useCertificate/useCertificate";
 import { useImportSimpleSdl } from "@src/hooks/useImportSimpleSdl";
-import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom";
+import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom/useManagedWalletDenom";
 import { useSupportsACT } from "@src/hooks/useSupportsACT/useSupportsACT";
 import { useWhen } from "@src/hooks/useWhen";
 import { useDepositParams } from "@src/queries/useSaveSettings";
@@ -33,7 +33,7 @@ import { validateDeploymentData } from "@src/utils/deploymentUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { domainName, handleDocClick, UrlService } from "@src/utils/urlUtils";
 import { useSettings } from "../../../context/SettingsProvider";
-import { DeploymentDepositModal } from "../../deployments/DeploymentDepositModal";
+import { DeploymentDepositModal } from "../../deployments/DeploymentDepositModal/DeploymentDepositModal";
 import { DeploymentMinimumEscrowAlertText } from "../../sdl/DeploymentMinimumEscrowAlertText";
 import { SDLEditor } from "../../sdl/SDLEditor/SDLEditor";
 import { TrialDeploymentBadge } from "../../shared";
@@ -455,7 +455,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
           title="Confirm deployment creation?"
           infoText={
             <d.Alert className="mb-6 text-xs" variant="default">
-              <d.DeploymentMinimumEscrowAlertText />
+              <d.DeploymentMinimumEscrowAlertText denom={sdlDenom} />
               <d.LinkTo onClick={ev => handleDocClick(ev, "https://akash.network/docs/getting-started/intro-to-akash/payments/#escrow-accounts")}>
                 <strong>Learn more.</strong>
               </d.LinkTo>
