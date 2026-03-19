@@ -192,8 +192,12 @@ async function insertBlocks(startHeight: number, endHeight: number) {
 
     // Always fetch block results — BME epoch events fire in EndBlocker regardless of transactions
     blockResults = await getCachedBlockResultsByHeight(i);
-    if (txs.length > 0 && !blockResults) {
-      throw "Block results # " + i + " was not in cache";
+    if (blockResults == null) {
+      // Block results may be missing from old cache that only fetched results for blocks with txs.
+      // Fetch from node and cache for future use.
+      const blockResultJson = await nodeAccessor.getBlockResult(i);
+      blockResults = blockResultJson.result;
+      await blockResultsDb.put(blockHeightToKey(i), JSON.stringify(blockResults));
     }
 
     for (let txIndex = 0; txIndex < txs.length; ++txIndex) {
