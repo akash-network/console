@@ -153,7 +153,7 @@ const DynamicMonacoEditor: React.FunctionComponent<Props> = ({
       onMount={onMount}
       onValidate={onValidate}
       options={{ ...MONACO_OPTIONS, ...options }}
-      wrapperProps={{ "data-testid": "monaco-editor" }}
+      wrapperProps={{ "data-testid": "monaco-editor", className: "amp-mask" }}
       path={path}
     />
   );

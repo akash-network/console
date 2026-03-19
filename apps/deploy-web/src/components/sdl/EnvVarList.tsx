@@ -21,7 +21,7 @@ export const EnvVarList: React.FunctionComponent<Props> = ({ currentService, set
   const { hasComponent } = useSdlBuilder();
   const currentEnvs = currentService.env?.filter(e => !isRemoteDeployEnvHidden || !(e?.key in protectedEnvironmentVariables));
   return (
-    <FormPaper className={cn("whitespace-break-spaces break-all", isRemoteDeployEnvHidden && "!bg-card")}>
+    <FormPaper className={cn("amp-mask whitespace-break-spaces break-all", isRemoteDeployEnvHidden && "!bg-card")}>
       <div className="mb-2 flex items-center">
         <strong className="text-sm">Environment Variables</strong>
 

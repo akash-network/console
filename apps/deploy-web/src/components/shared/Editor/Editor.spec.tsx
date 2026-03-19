@@ -15,7 +15,7 @@ describe(Editor.name || "Editor", () => {
       onChange: () => {},
       onMount: () => {},
       onValidate: () => {},
-      wrapperProps: { "data-testid": "monaco-editor" },
+      wrapperProps: { className: "amp-mask", "data-testid": "monaco-editor" },
       path: "test-path.yaml",
       language: "yaml" as const
     };
