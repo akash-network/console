@@ -2,18 +2,32 @@
 
 import { useEffect, useRef } from "react";
 import { Snackbar } from "@akashnetwork/ui/components";
-import type { ChainContext } from "@cosmos-kit/core";
 import { DefaultModal } from "@cosmos-kit/react";
-import { useAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { useSnackbar } from "notistack";
 
-import chainStore, { useChain } from "@src/store/chainStore";
-import networkStore from "@src/store/networkStore";
+import chainStore, { useSelectedChain } from "@src/store/chainStore";
 import walletStore from "@src/store/walletStore";
 
-type Props = {
-  children: React.ReactNode;
-};
+export function CustodialWalletLayer() {
+  const selectedWalletType = useAtomValue(walletStore.selectedWalletType);
+
+  if (selectedWalletType !== "custodial") {
+    return null;
+  }
+
+  return <CustodialWalletLayerInner />;
+}
+
+function CustodialWalletLayerInner() {
+  return (
+    <>
+      <ChainStoreInitializer />
+      <WalletConnectErrorHandler />
+      <ModalWrapper />
+    </>
+  );
+}
 
 function ChainStoreInitializer() {
   useEffect(() => {
@@ -26,24 +40,9 @@ function ChainStoreInitializer() {
   return null;
 }
 
-export function CustomChainProvider({ children }: Props) {
-  return (
-    <>
-      <ChainStoreInitializer />
-      <WalletConnectErrorHandler />
-      <ModalWrapper />
-      {children}
-    </>
-  );
-}
-
-/**
- * Watches wallet connection state and shows user-friendly messages for WalletConnect errors
- */
 function WalletConnectErrorHandler() {
   const { enqueueSnackbar } = useSnackbar();
-  const { chainRegistryName } = networkStore.useSelectedNetwork();
-  const { message, isWalletError } = useChain(chainRegistryName);
+  const { message, isWalletError } = useSelectedChain();
   const lastShownErrorRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
@@ -63,12 +62,6 @@ function WalletConnectErrorHandler() {
   }, [isWalletError, message, enqueueSnackbar]);
 
   return null;
-}
-
-export type { ChainContext };
-export function useSelectedChain(): ChainContext {
-  const { chainRegistryName } = networkStore.useSelectedNetwork();
-  return useChain(chainRegistryName);
 }
 
 const ModalWrapper = () => {
