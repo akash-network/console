@@ -137,11 +137,11 @@ export class ProviderDashboardService {
       `/* provider-stats:active-resources-at-height */
     SELECT
         COUNT(*) AS "count",
-        SUM("cpuUnits") AS "cpu",
-        SUM("memoryQuantity") AS "memory",
-        SUM("ephemeralStorageQuantity") AS "ephemeralStorage",
-        SUM("persistentStorageQuantity") AS "persistentStorage",
-        SUM("gpuUnits") AS "gpu"
+        COALESCE(SUM("cpuUnits"), 0) AS "cpu",
+        COALESCE(SUM("memoryQuantity"), 0) AS "memory",
+        COALESCE(SUM("ephemeralStorageQuantity"), 0) AS "ephemeralStorage",
+        COALESCE(SUM("persistentStorageQuantity"), 0) AS "persistentStorage",
+        COALESCE(SUM("gpuUnits"), 0) AS "gpu"
     FROM lease
     WHERE
         "providerAddress"=:provider
@@ -153,6 +153,6 @@ export class ProviderDashboardService {
       }
     );
 
-    return activeStats;
+    return activeStats ?? { count: 0, cpu: 0, memory: 0, ephemeralStorage: 0, persistentStorage: 0, gpu: 0 };
   }
 }

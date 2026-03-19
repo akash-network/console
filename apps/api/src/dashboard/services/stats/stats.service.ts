@@ -112,10 +112,16 @@ export class StatsService {
     }
 
     const compareDate = subHours(latestBlockStats.datetime, 24);
-    const compareBlockStats = (await this.statsRepository.findFirstBlockSince(compareDate)) as Block;
+    const compareBlockStats = await this.statsRepository.findFirstBlockSince(compareDate);
+    if (!compareBlockStats) {
+      throw new Error(`No block found since ${compareDate.toISOString()}`);
+    }
 
     const secondCompareDate = subHours(latestBlockStats.datetime, 48);
-    const secondCompareBlockStats = (await this.statsRepository.findFirstBlockSince(secondCompareDate)) as Block;
+    const secondCompareBlockStats = await this.statsRepository.findFirstBlockSince(secondCompareDate);
+    if (!secondCompareBlockStats) {
+      throw new Error(`No block found since ${secondCompareDate.toISOString()}`);
+    }
 
     return {
       now: {

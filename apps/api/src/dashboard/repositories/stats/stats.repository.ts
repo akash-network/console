@@ -15,7 +15,7 @@ export type GpuUtilizationRow = {
   cpu: number;
   gpuUtilization: number;
   gpu: number;
-  count: number;
+  provider_count: number;
   node_count: number;
 };
 
@@ -173,11 +173,11 @@ export class StatsRepository {
     const { dseq, startDate, endDate } = query;
     return Lease.findAll({
       where: {
-        owner: owner,
+        owner,
         closedHeight: { [Op.not]: null },
         "$createdBlock.datetime$": { [Op.gte]: startDate },
         "$closedBlock.datetime$": { [Op.lte]: endDate },
-        ...(dseq ? { dseq: dseq } : {})
+        ...(dseq ? { dseq } : {})
       },
       include: [
         { model: Block, as: "createdBlock" },

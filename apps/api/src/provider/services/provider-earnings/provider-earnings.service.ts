@@ -100,9 +100,9 @@ export class ProviderEarningsService {
 
     return days.reduce(
       (acc, d) => {
-        acc.uakt += d.totalUAkt;
-        acc.uusdc += d.totalUUsdc;
-        acc.uusd += d.totalUAkt * d.aktPrice + d.totalUUsdc;
+        acc.uakt += d.totalUAkt ?? 0;
+        acc.uusdc += d.totalUUsdc ?? 0;
+        acc.uusd += (d.totalUAkt ?? 0) * d.aktPrice + (d.totalUUsdc ?? 0);
         return acc;
       },
       { uakt: 0, uusdc: 0, uusd: 0 }

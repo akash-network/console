@@ -618,9 +618,9 @@ describe(StatsService.name, () => {
       statsRepository.findLatestProcessedBlock.mockResolvedValue(latestBlock as unknown as Block);
       statsRepository.findFirstBlockSince.mockImplementation((since: Date) => {
         if (since < new Date("2024-01-02T00:00:00Z")) {
-          return Promise.resolve(secondCompareBlock) as any;
+          return Promise.resolve(secondCompareBlock) as unknown as ReturnType<typeof statsRepository.findFirstBlockSince>;
         }
-        return Promise.resolve(compareBlock) as any;
+        return Promise.resolve(compareBlock) as unknown as ReturnType<typeof statsRepository.findFirstBlockSince>;
       });
 
       statsRepository.findDailyBlockSnapshots.mockResolvedValue([

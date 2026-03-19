@@ -8,7 +8,7 @@ import { ProviderDashboardService } from "./provider-dashboard.service";
 
 import { createAkashBlock, createProvider } from "@test/seeders";
 
-describe("Provider Dashboard", () => {
+describe(ProviderDashboardService.name, () => {
   let provider: Provider;
   let blocks: Block[];
 
