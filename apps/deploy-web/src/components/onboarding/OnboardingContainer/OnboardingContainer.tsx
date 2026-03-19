@@ -9,7 +9,6 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useCertificate } from "@src/hooks/useCertificate/useCertificate";
 import { useChainParam } from "@src/hooks/useChainParam/useChainParam";
-import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom/useManagedWalletDenom";
 import { useNotificator } from "@src/hooks/useNotificator";
 import { useReturnTo } from "@src/hooks/useReturnTo";
 import { useUser } from "@src/hooks/useUser";
@@ -54,7 +53,6 @@ const DEPENDENCIES = {
   useWallet,
   useCertificate,
   useNotificator,
-  useManagedWalletDenom,
   useReturnTo,
   localStorage: typeof window !== "undefined" ? window.localStorage : null,
   deploymentData,
@@ -86,18 +84,17 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
     windowHistory,
     template: templateService
   } = d.useServices();
-  const { hasManagedWallet, isWalletLoading, connectManagedWallet, address, signAndBroadcastTx } = d.useWallet();
+  const wallet = d.useWallet();
   const { genNewCertificateIfLocalIsInvalid, updateSelectedCertificate } = d.useCertificate();
   const notificator = d.useNotificator();
-  const managedDenom = d.useManagedWalletDenom();
   const { navigateBack } = d.useReturnTo({ defaultReturnTo: "/" });
 
   useEffect(() => {
     const savedStep = d.localStorage?.getItem(ONBOARDING_STEP_KEY);
-    if (!isWalletLoading && hasManagedWallet && !savedStep) {
+    if (!wallet.isWalletLoading && wallet.hasManagedWallet && !savedStep) {
       navigateBack();
     }
-  }, [isWalletLoading, hasManagedWallet, d.localStorage, navigateBack]);
+  }, [wallet.isWalletLoading, wallet.hasManagedWallet, d.localStorage, navigateBack]);
 
   useEffect(() => {
     const savedStep = d.localStorage?.getItem(ONBOARDING_STEP_KEY);
@@ -257,14 +254,14 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
         }
 
         sdl = d.appendAuditorRequirement(sdl);
-        const isUsdc = managedDenom && managedDenom !== "uakt";
+        const isUsdc = wallet.isManaged && wallet.denom !== "uakt";
         if (isUsdc) {
-          sdl = sdl.replace(/uakt/g, managedDenom);
+          sdl = sdl.replace(/uakt/g, wallet.denom);
         }
 
         const minDepositAmount = isUsdc ? minDeposit.usdc : minDeposit.akt;
         const deposit = d.denomToUdenom(minDepositAmount);
-        const dd = await d.deploymentData.NewDeploymentData(chainApiHttpClient, sdl, null, address, deposit);
+        const dd = await d.deploymentData.NewDeploymentData(chainApiHttpClient, sdl, null, wallet.address, deposit);
         d.validateDeploymentData(dd, null);
 
         if (!dd) {
@@ -275,18 +272,18 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
         const newCert = await genNewCertificateIfLocalIsInvalid();
 
         if (newCert) {
-          messages.push(d.TransactionMessageData.getCreateCertificateMsg(address, newCert.cert, newCert.publicKey));
+          messages.push(d.TransactionMessageData.getCreateCertificateMsg(wallet.address, newCert.cert, newCert.publicKey));
         }
 
         messages.push(d.TransactionMessageData.getCreateDeploymentMsg(dd));
-        const response = await signAndBroadcastTx(messages);
+        const response = await wallet.signAndBroadcastTx(messages);
 
         if (response) {
           if (newCert) {
             await updateSelectedCertificate(newCert);
           }
 
-          deploymentLocalStorage.update(address, dd.deploymentId.dseq, {
+          deploymentLocalStorage.update(wallet.address, dd.deploymentId.dseq, {
             manifest: sdl,
             manifestVersion: dd.hash,
             name: templateConfig.name
@@ -299,7 +296,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
           });
 
           d.localStorage?.removeItem(ONBOARDING_STEP_KEY);
-          connectManagedWallet();
+          wallet.connectManagedWallet();
           router.push(urlService.newDeployment({ step: RouteStep.createLeases, dseq: dd.deploymentId.dseq }));
         }
       } catch (error) {
@@ -310,19 +307,16 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
       d,
       router,
       urlService,
-      connectManagedWallet,
+      wallet,
       templateService,
       chainApiHttpClient,
-      address,
       minDeposit,
       genNewCertificateIfLocalIsInvalid,
-      signAndBroadcastTx,
       updateSelectedCertificate,
       deploymentLocalStorage,
       analyticsService,
       notificator,
       errorHandler,
-      managedDenom,
       navigateBack
     ]
   );

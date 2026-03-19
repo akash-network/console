@@ -162,9 +162,9 @@ describe("OnboardingContainer", () => {
   });
 
   it("replaces uakt with managed denom when completing onboarding", async () => {
-    const { child, mockUseManagedWalletDenom, mockNewDeploymentData } = setup();
-
-    mockUseManagedWalletDenom.mockReturnValue("ibc/usdc");
+    const { child, mockNewDeploymentData } = setup({
+      wallet: { hasManagedWallet: true, isManaged: true, denom: "ibc/usdc" }
+    });
 
     const { onComplete } = child.mock.calls[0][0];
     await act(async () => {
@@ -173,13 +173,12 @@ describe("OnboardingContainer", () => {
 
     const sdlArgument = mockNewDeploymentData.mock.calls[0][1];
     expect(sdlArgument).not.toContain("uakt");
-    expect(mockUseManagedWalletDenom).toHaveBeenCalled();
   });
 
   it("does not replace uakt when managed denom is uakt", async () => {
-    const { child, mockUseManagedWalletDenom, mockNewDeploymentData } = setup();
-
-    mockUseManagedWalletDenom.mockReturnValue("uakt");
+    const { child, mockNewDeploymentData } = setup({
+      wallet: { hasManagedWallet: true, isManaged: true, denom: "uakt" }
+    });
 
     const { onComplete } = child.mock.calls[0][0];
     await act(async () => {
@@ -188,13 +187,12 @@ describe("OnboardingContainer", () => {
 
     const sdlArgument = mockNewDeploymentData.mock.calls[0][1];
     expect(sdlArgument).toBe("mock-sdl-content");
-    expect(mockUseManagedWalletDenom).toHaveBeenCalled();
   });
 
-  it("does not corrupt SDL when managed denom is undefined", async () => {
-    const { child, mockUseManagedWalletDenom, mockNewDeploymentData } = setup();
-
-    mockUseManagedWalletDenom.mockReturnValue(undefined);
+  it("does not replace uakt for self-custody wallet", async () => {
+    const { child, mockNewDeploymentData } = setup({
+      wallet: { hasManagedWallet: false }
+    });
 
     const { onComplete } = child.mock.calls[0][0];
     await act(async () => {
@@ -204,14 +202,13 @@ describe("OnboardingContainer", () => {
     const sdlArgument = mockNewDeploymentData.mock.calls[0][1];
     expect(sdlArgument).toBe("mock-sdl-content");
     expect(sdlArgument).not.toContain("undefined");
-    expect(mockUseManagedWalletDenom).toHaveBeenCalled();
   });
 
   function setup(
     input: {
       paymentMethods?: Array<{ id: string; type: string }>;
       user?: { emailVerified?: boolean; userId?: string };
-      wallet?: { hasManagedWallet?: boolean; isWalletLoading?: boolean };
+      wallet?: { hasManagedWallet?: boolean; isWalletLoading?: boolean; isManaged?: boolean; denom?: string };
       windowLocation?: Partial<Location>;
       windowHistory?: Partial<History>;
       savedStep?: string;
@@ -298,6 +295,8 @@ describe("OnboardingContainer", () => {
     const mockUseWallet = vi.fn().mockReturnValue({
       hasManagedWallet: input.wallet?.hasManagedWallet || false,
       isWalletLoading: input.wallet?.isWalletLoading || false,
+      isManaged: input.wallet?.isManaged || false,
+      denom: input.wallet?.denom,
       connectManagedWallet: mockConnectManagedWallet,
       address: "akash1test",
       signAndBroadcastTx: mockSignAndBroadcastTx
@@ -311,8 +310,6 @@ describe("OnboardingContainer", () => {
     });
     const mockNotificator = { success: vi.fn(), error: vi.fn() };
     const mockUseNotificator = vi.fn().mockReturnValue(mockNotificator);
-    const mockUseManagedWalletDenom = vi.fn().mockReturnValue("uakt");
-
     const mockNavigateBack = vi.fn();
     const mockNavigateWithReturnTo = vi.fn();
     const mockUseReturnTo = vi.fn().mockReturnValue({
@@ -393,7 +390,6 @@ describe("OnboardingContainer", () => {
       useCertificate: mockUseCertificate,
       useSnackbar: mockUseSnackbar,
       useNotificator: mockUseNotificator,
-      useManagedWalletDenom: mockUseManagedWalletDenom,
       useReturnTo: mockUseReturnTo,
       localStorage: mockLocalStorage,
       deploymentData: mockDeploymentData,
@@ -434,7 +430,7 @@ describe("OnboardingContainer", () => {
       mockValidateDeploymentData,
       mockAppendAuditorRequirement,
       mockTransactionMessageData,
-      mockUseManagedWalletDenom
+      mockUseWallet
     };
   }
 });
