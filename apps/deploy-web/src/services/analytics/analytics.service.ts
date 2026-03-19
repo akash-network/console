@@ -1,6 +1,7 @@
 "use client";
 
 import * as amplitude from "@amplitude/analytics-browser";
+import { sessionReplayPlugin } from "@amplitude/plugin-session-replay-browser";
 import { event } from "nextjs-google-analytics";
 
 export type AnalyticsUser = {
@@ -138,7 +139,7 @@ const AMPLITUDE_USER_PROPERTIES_MAP = {
 
 const isBrowser = typeof window !== "undefined";
 
-export type Amplitude = Pick<typeof amplitude, "init" | "Identify" | "identify" | "track" | "setUserId">;
+export type Amplitude = Pick<typeof amplitude, "init" | "Identify" | "identify" | "track" | "setUserId" | "add">;
 export type GoogleAnalytics = { event: typeof event };
 
 export class AnalyticsService {
@@ -211,6 +212,10 @@ export class AnalyticsService {
 
     const { serverUrl } = this.options.amplitude;
     const initOptions = serverUrl ? { serverUrl } : undefined;
+
+    const sessionReplayTracking = sessionReplayPlugin();
+    this.amplitudeClient.add(sessionReplayTracking);
+
     this.amplitudeClient.init(this.options.amplitude.apiKey, undefined, initOptions);
     this.amplitudeInitialized = true;
   }

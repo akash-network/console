@@ -29,8 +29,9 @@ describe(AnalyticsService.name, () => {
 
     it("initializes Amplitude when enabled", () => {
       const init = vi.fn();
+      const add = vi.fn();
       const service = setup({
-        amplitude: { init },
+        amplitude: { init, add },
         options: {
           amplitude: { enabled: true, apiKey: mockAmplitudeApiKey },
           ga: { enabled: false, measurementId: mockGaMeasurementId }
@@ -39,6 +40,7 @@ describe(AnalyticsService.name, () => {
 
       service.identify({ id: faker.string.uuid() });
       expect(init).toHaveBeenCalled();
+      expect(add).toHaveBeenCalledWith(expect.objectContaining({ name: "@amplitude/plugin-session-replay-browser" }));
     });
   });
 
@@ -229,6 +231,7 @@ describe(AnalyticsService.name, () => {
       identify: vi.fn(),
       track: vi.fn(),
       setUserId: vi.fn(),
+      add: vi.fn(),
       ...(params.amplitude ?? {})
     };
     const ga = {
