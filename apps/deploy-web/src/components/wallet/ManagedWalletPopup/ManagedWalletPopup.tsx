@@ -4,11 +4,11 @@ import { Button, buttonVariants, Card, CardContent, Separator } from "@akashnetw
 import { cn } from "@akashnetwork/ui/utils";
 import { CoinsSwap, HandCard } from "iconoir-react";
 
-import { useSelectedChain } from "@src/context/CustomChainProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useManagedEscrowFaqModal } from "@src/hooks/useManagedEscrowFaqModal";
 import type { WalletBalance } from "@src/hooks/useWalletBalance";
+import { useSelectedChain } from "@src/store/chainStore";
 import { LinkTo } from "../../shared/LinkTo";
 import { AddFundsLink } from "../../user/AddFundsLink";
 

@@ -5,8 +5,10 @@ import type { ButtonProps } from "@akashnetwork/ui/components";
 import { Button } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { Wallet } from "iconoir-react";
+import { useSetAtom } from "jotai";
 
-import { useSelectedChain } from "@src/context/CustomChainProvider";
+import { useSelectedChain } from "@src/store/chainStore";
+import walletStore from "@src/store/walletStore";
 
 interface Props extends ButtonProps {
   children?: ReactNode;
@@ -15,11 +17,17 @@ interface Props extends ButtonProps {
 
 export const ConnectWalletButton: React.FunctionComponent<Props> = ({ className = "", ...rest }) => {
   const { connect } = useSelectedChain();
+  const setSelectedWalletType = useSetAtom(walletStore.selectedWalletType);
+
+  const connectWallet = () => {
+    setSelectedWalletType("custodial");
+    connect();
+  };
 
   return (
     <Button
       variant="outline"
-      onClick={() => connect()}
+      onClick={connectWallet}
       className={cn("flex items-center gap-2 whitespace-nowrap", className)}
       {...rest}
       data-testid="connect-wallet-btn"
