@@ -60,9 +60,28 @@ function bootstrapInWorker({ PORT, INTERFACE }: RawAppConfig) {
   });
 
   const ready = new Promise<void>((resolve, reject) => {
-    ref.once("message", m => (m === "ready" ? resolve() : undefined));
-    ref.once("error", reject);
-    ref.once("exit", code => (code !== 0 ? reject(new Error(`[${INTERFACE}] exited ${code}`)) : undefined));
+    const onMessage = (m: unknown) => {
+      if (m === "ready") {
+        cleanup();
+        resolve();
+      }
+    };
+    const onError = (err: Error) => {
+      cleanup();
+      reject(err);
+    };
+    const onExit = (code: number) => {
+      cleanup();
+      reject(new Error(`[${INTERFACE}] exited with code ${code} before ready`));
+    };
+    const cleanup = () => {
+      ref.off("message", onMessage);
+      ref.off("error", onError);
+      ref.off("exit", onExit);
+    };
+    ref.on("message", onMessage);
+    ref.once("error", onError);
+    ref.once("exit", onExit);
   });
 
   const exited = new Promise<void>(resolve => {
