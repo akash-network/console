@@ -104,13 +104,13 @@ export class BmeIndexer extends Indexer {
     currentBlock.totalUactBurnedForUakt = (previousBlock?.totalUactBurnedForUakt || 0) + sums.actBurnedForAkt;
     currentBlock.totalUaktReminted = (previousBlock?.totalUaktReminted || 0) + sums.aktReminted;
 
-    // Vault uAKT = AKT deposited via mints minus AKT withdrawn via burns, plus any governance seed
+    // Vault uAKT: carry forward previous balance and apply this block's delta
     if (vaultUaktFromEvent !== null) {
       // EventVaultSeeded provides an absolute snapshot of vault balance
       currentBlock.vaultUakt = vaultUaktFromEvent;
     } else {
-      // Compute from flows: AKT in (mints) minus AKT out (remints)
-      currentBlock.vaultUakt = currentBlock.totalUaktBurnedForUact - currentBlock.totalUaktReminted;
+      // Delta: AKT deposited via mints minus AKT withdrawn via remints this block
+      currentBlock.vaultUakt = (previousBlock?.vaultUakt ?? 0) + sums.aktBurnedForAct - sums.aktReminted;
     }
 
     // Outstanding uACT = total minted - total burned back - spent on deployments
