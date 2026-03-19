@@ -215,11 +215,13 @@ Key points:
 Read @references/api-patterns.md for functional test setup details.
 
 Key points:
+- **Whitebox seeding, blackbox testing**: Seed data at the DB/repository level, but interact only through HTTP
 - Each spec file gets its own database via `TestDatabaseService` (auto-created, migrated, dropped)
-- Test as a black box through HTTP endpoints — don't resolve controllers/services from the DI container
+- Don't resolve controllers/services from the DI container — don't call application services or other endpoints to set up state
 - Mock external HTTP calls with `nock`, not internal services
-- Use `app.request()` (Hono) or `supertest` (NestJS) for making HTTP requests
-- Use existing seeders to create test fixtures in the real database
+- Use a plain HTTP client (`fetch()`-based helpers) for Hono apps, `supertest` for NestJS — avoid framework-internal methods like `app.request()`
+- Each test verifies a single endpoint's behavior in isolation
+- Use function-based seeders to create test fixtures in the real database
 - Write race condition tests for upsert operations
 
 ## Notifications Tests (NestJS)
