@@ -57,6 +57,13 @@
       "when": 1762800000000,
       "tag": "0007_add_bme_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1762900000000,
+      "tag": "0008_migrate_deployments_to_act",
+      "breakpoints": true
     }
   ]
 }
