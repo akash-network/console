@@ -12,9 +12,14 @@ export const DEPENDENCIES = {
   useWalletBalance
 };
 
+export interface BalanceWatchCallbacks {
+  onSuccess?: () => void;
+  onTimeOut?: () => void;
+}
+
 export interface BalanceWatchContextType {
   /** Start watching for a balance increase. Only one watch can be active at a time; calls while already active are no-ops. */
-  start: (snapshotBalance: number, balanceKey?: keyof WalletBalance) => void;
+  start: (snapshotBalance: number, balanceKey?: keyof WalletBalance, callbacks?: BalanceWatchCallbacks) => void;
   stop: () => void;
   isActive: boolean;
   /** Becomes true once the polled balance exceeds the snapshot. Resets on next start. */
@@ -28,6 +33,7 @@ interface ActivePoll {
   balanceKey: keyof WalletBalance;
   attemptCount: number;
   interval: ReturnType<typeof setInterval>;
+  callbacks: BalanceWatchCallbacks | null;
 }
 
 const BalanceWatchContext = createContext<BalanceWatchContextType | null>(null);
@@ -55,7 +61,7 @@ export const BalanceWatchProvider: React.FC<BalanceWatchProviderProps> = ({ chil
   }, []);
 
   const start = useCallback(
-    (snapshotBalance: number, balanceKey: keyof WalletBalance = "totalUsd") => {
+    (snapshotBalance: number, balanceKey: keyof WalletBalance = "totalUsd", callbacks?: BalanceWatchCallbacks) => {
       if (pollRef.current) {
         return;
       }
@@ -70,6 +76,7 @@ export const BalanceWatchProvider: React.FC<BalanceWatchProviderProps> = ({ chil
         snapshotBalance,
         balanceKey,
         attemptCount: 0,
+        callbacks: callbacks ?? null,
         interval: setInterval(() => {
           if (!pollRef.current) {
             return;
@@ -79,6 +86,7 @@ export const BalanceWatchProvider: React.FC<BalanceWatchProviderProps> = ({ chil
 
           if (pollRef.current.attemptCount >= MAX_ATTEMPTS) {
             setIsTimeOut(true);
+            pollRef.current.callbacks?.onTimeOut?.();
             clearInterval(pollRef.current.interval);
             pollRef.current = null;
             setIsActive(false);
@@ -100,6 +108,7 @@ export const BalanceWatchProvider: React.FC<BalanceWatchProviderProps> = ({ chil
 
       if (currentBalance[pollRef.current.balanceKey] > pollRef.current.snapshotBalance) {
         setIsSuccess(true);
+        pollRef.current.callbacks?.onSuccess?.();
         stop();
       }
     },

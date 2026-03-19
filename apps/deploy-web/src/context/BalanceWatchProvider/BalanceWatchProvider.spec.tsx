@@ -322,6 +322,110 @@ describe(BalanceWatchProvider.name, () => {
     vi.useRealTimers();
   });
 
+  it("calls onSuccess callback when balance increases", async () => {
+    const initialBalance = buildWalletBalance({ totalUsd: 100 });
+    const refetchBalance = vi.fn();
+    const onSuccess = vi.fn();
+    const onTimeOut = vi.fn();
+    const useWalletBalance = vi.fn(() => ({
+      balance: initialBalance,
+      refetch: refetchBalance,
+      isLoading: false
+    }));
+
+    const dependencies = {
+      ...DEPENDENCIES,
+      useWalletBalance
+    } as unknown as typeof DEPENDENCIES;
+
+    const TestComponent = () => {
+      const { start } = useBalanceWatch();
+      return (
+        <button data-testid="start" onClick={() => start(100, "totalUsd", { onSuccess, onTimeOut })}>
+          Start
+        </button>
+      );
+    };
+
+    vi.useFakeTimers();
+
+    const { rerender } = render(
+      <BalanceWatchProvider dependencies={dependencies}>
+        <TestComponent />
+      </BalanceWatchProvider>
+    );
+
+    await act(async () => {
+      screen.getByTestId("start").click();
+    });
+
+    useWalletBalance.mockReturnValue({
+      balance: buildWalletBalance({ totalUsd: 200 }),
+      refetch: refetchBalance,
+      isLoading: false
+    });
+
+    await act(async () => {
+      rerender(
+        <BalanceWatchProvider dependencies={dependencies}>
+          <TestComponent />
+        </BalanceWatchProvider>
+      );
+    });
+
+    expect(onSuccess).toHaveBeenCalledTimes(1);
+    expect(onTimeOut).not.toHaveBeenCalled();
+
+    vi.useRealTimers();
+  });
+
+  it("calls onTimeOut callback after max attempts", async () => {
+    const onSuccess = vi.fn();
+    const onTimeOut = vi.fn();
+
+    vi.useFakeTimers();
+
+    const refetchBalance = vi.fn();
+    const walletBalance = buildWalletBalance({ totalUsd: 100 });
+
+    const dependencies = {
+      ...DEPENDENCIES,
+      useWalletBalance: vi.fn(() => ({
+        balance: walletBalance,
+        refetch: refetchBalance,
+        isLoading: false
+      }))
+    } as unknown as typeof DEPENDENCIES;
+
+    const TestComponent = () => {
+      const { start } = useBalanceWatch();
+      return (
+        <button data-testid="start" onClick={() => start(100, "totalUsd", { onSuccess, onTimeOut })}>
+          Start
+        </button>
+      );
+    };
+
+    render(
+      <BalanceWatchProvider dependencies={dependencies}>
+        <TestComponent />
+      </BalanceWatchProvider>
+    );
+
+    await act(async () => {
+      screen.getByTestId("start").click();
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(30000);
+    });
+
+    expect(onTimeOut).toHaveBeenCalledTimes(1);
+    expect(onSuccess).not.toHaveBeenCalled();
+
+    vi.useRealTimers();
+  });
+
   it("throws error when used outside provider", () => {
     const TestComponent = () => {
       useBalanceWatch();

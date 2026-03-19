@@ -158,9 +158,9 @@ describe(MintBurnPage.name, () => {
     );
   });
 
-  it("resets form and refetches balance after successful mint", async () => {
-    const { refetchBalance } = setup({
-      walletBalance: buildWalletBalance({ balanceUAKT: 1_000_000_000 }),
+  it("resets form and starts balance watch after successful mint", async () => {
+    const { startBalanceWatch } = setup({
+      walletBalance: buildWalletBalance({ balanceUAKT: 1_000_000_000, balanceUACT: 50_000_000 }),
       price: 2
     });
 
@@ -169,7 +169,11 @@ describe(MintBurnPage.name, () => {
     });
 
     await waitFor(() => {
-      expect(refetchBalance).toHaveBeenCalledTimes(1);
+      expect(startBalanceWatch).toHaveBeenCalledWith(
+        50_000_000,
+        "balanceUACT",
+        expect.objectContaining({ onSuccess: expect.any(Function), onTimeOut: expect.any(Function) })
+      );
     });
     expect((screen.getByLabelText("To") as HTMLInputElement).value).toBe("");
   });
@@ -248,7 +252,9 @@ describe(MintBurnPage.name, () => {
   function setup(input?: { walletBalance?: WalletBalance | null; price?: number }) {
     const signAndBroadcastTx = vi.fn().mockResolvedValue(true);
     const refetchBalance = vi.fn();
+    const startBalanceWatch = vi.fn();
     const enqueueSnackbar = vi.fn();
+    const closeSnackbar = vi.fn();
 
     const dependencies = {
       ...DEPENDENCIES,
@@ -278,13 +284,21 @@ describe(MintBurnPage.name, () => {
         isLoaded: input?.price !== undefined
       }),
       useSnackbar: () => ({
-        enqueueSnackbar
+        enqueueSnackbar,
+        closeSnackbar
+      }),
+      useBalanceWatch: () => ({
+        start: startBalanceWatch,
+        stop: vi.fn(),
+        isActive: false,
+        isSuccess: false,
+        isTimeOut: false
       }),
       useSupportsACT: () => true
     } as unknown as typeof DEPENDENCIES;
 
     render(<MintBurnPage dependencies={dependencies} />);
 
-    return { signAndBroadcastTx, refetchBalance, enqueueSnackbar };
+    return { signAndBroadcastTx, refetchBalance, startBalanceWatch, enqueueSnackbar };
   }
 });
