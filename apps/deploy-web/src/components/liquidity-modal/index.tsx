@@ -2,12 +2,12 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Spinner } from "@akashnetwork/ui/components";
-import { useWallet as useConnectedWallet, useWalletClient } from "@cosmos-kit/react";
 // import * as Elements from "@leapwallet/elements-umd-types";
 import { Modal } from "@mui/material";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useWallet as useConnectedWallet, useWalletClient } from "@src/store/chainStore";
 
 export type NonUndefined<T> = T extends undefined ? never : T;
 
