@@ -1,11 +1,14 @@
 "use client";
 
+import "@interchain-ui/react/styles";
+import "@interchain-ui/react/globalStyles";
+
 import { useEffect, useRef } from "react";
 import { Snackbar } from "@akashnetwork/ui/components";
-import { DefaultModal } from "@cosmos-kit/react";
 import { useAtom, useAtomValue } from "jotai";
 import { useSnackbar } from "notistack";
 
+import { DefaultWalletModal } from "@src/components/wallet/WalletModal";
 import chainStore, { useSelectedChain } from "@src/store/chainStore";
 import walletStore from "@src/store/walletStore";
 
@@ -16,34 +19,25 @@ export function CustodialWalletLayer() {
     return null;
   }
 
-  return <CustodialWalletLayerInner />;
-}
-
-function CustodialWalletLayerInner() {
   return (
     <>
       <ChainStoreInitializer />
-      <WalletConnectErrorHandler />
       <ModalWrapper />
     </>
   );
 }
 
 function ChainStoreInitializer() {
+  const { enqueueSnackbar } = useSnackbar();
+  const { message, isWalletError } = useSelectedChain();
+  const lastShownErrorRef = useRef<string | undefined>(undefined);
+
   useEffect(() => {
     chainStore.initialize();
     return () => {
       chainStore.cleanup();
     };
   }, []);
-
-  return null;
-}
-
-function WalletConnectErrorHandler() {
-  const { enqueueSnackbar } = useSnackbar();
-  const { message, isWalletError } = useSelectedChain();
-  const lastShownErrorRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     const isProposalExpired = isWalletError && message?.toLowerCase().includes("proposal expired");
@@ -83,5 +77,5 @@ const ModalWrapper = () => {
     }
   }, [isWalletModalOpen, isOpen, isWalletConnected, setIsWalletModalOpen, setSelectedWalletType]);
 
-  return <DefaultModal isOpen={isOpen} setOpen={handleSetOpen} walletRepo={walletRepo} />;
+  return <DefaultWalletModal isOpen={isOpen} setOpen={handleSetOpen} walletRepo={walletRepo} />;
 };

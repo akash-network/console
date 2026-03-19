@@ -11,6 +11,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { GeistSans } from "geist/font/sans";
 import { Provider as JotaiProvider } from "jotai";
 import type { AppProps } from "next/app";
+import dynamic from "next/dynamic";
 import Router from "next/router";
 import { NavigationGuardProvider } from "next-navigation-guard";
 import type { NextSeoProps } from "next-seo/lib/types";
@@ -25,7 +26,6 @@ import { UserProviders } from "@src/components/user/UserProviders/UserProviders"
 import { CustodialWalletLayer } from "@src/components/wallet/CustodialWalletLayer";
 import { ColorModeProvider } from "@src/context/CustomThemeContext";
 import { FlagProvider } from "@src/context/FlagProvider/FlagProvider";
-import { LocalNoteProvider } from "@src/context/LocalNoteProvider";
 import { PaymentPollingProvider } from "@src/context/PaymentPollingProvider";
 import { ServicesProvider } from "@src/context/ServicesProvider";
 import { RootContainerProvider, useRootContainer } from "@src/context/ServicesProvider/RootContainerProvider";
@@ -45,6 +45,8 @@ NProgress.configure({
 Router.events.on("routeChangeStart", () => NProgress.start());
 Router.events.on("routeChangeComplete", () => NProgress.done());
 Router.events.on("routeChangeError", () => NProgress.done());
+
+const LocalNoteProvider = dynamic(() => import("@src/context/LocalNoteProvider").then(mod => mod.LocalNoteProvider), { ssr: false });
 
 const App: React.FunctionComponent<Props> = props => {
   const { Component, pageProps } = props;
