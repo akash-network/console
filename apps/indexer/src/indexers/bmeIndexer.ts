@@ -62,6 +62,7 @@ export class BmeIndexer extends Indexer {
   async afterEveryBlock(currentBlock: Block, previousBlock: Block, dbTransaction: DbTransaction): Promise<void> {
     const rawEvents = await BmeRawEvent.findAll({
       where: { height: currentBlock.height, isProcessed: false },
+      order: [["index", "ASC"]],
       transaction: dbTransaction
     });
 
@@ -85,6 +86,8 @@ export class BmeIndexer extends Indexer {
           vaultUaktFromEvent = amount;
         }
       }
+      // LEDGER_RECORD_CANCELED: no supply impact (record was canceled before execution).
+      // Raw event is kept in bme_raw_event for audit purposes.
     }
 
     if (ledgerRecords.length > 0) {
