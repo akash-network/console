@@ -13,7 +13,9 @@ export const BME_EVENT_TYPES = {
   LEDGER_RECORD_EXECUTED: "akash.bme.v1.EventLedgerRecordExecuted",
   MINT_STATUS_CHANGE: "akash.bme.v1.EventMintStatusChange",
   VAULT_SEEDED: "akash.bme.v1.EventVaultSeeded",
-  LEDGER_RECORD_CANCELED: "akash.bme.v1.EventLedgerRecordCanceled"
+  LEDGER_RECORD_CANCELED: "akash.bme.v1.EventLedgerRecordCanceled",
+  /** Synthetic event: uakt transfer to vault detected in finalize_block_events (governance/upgrade seed) */
+  VAULT_FUNDED_TRANSFER: "indexer.bme.VaultFundedTransfer"
 } as const;
 
 const BME_EVENT_TYPE_VALUES = Object.values(BME_EVENT_TYPES);
@@ -67,6 +69,7 @@ export class BmeIndexer extends Indexer {
     });
 
     let vaultUaktFromEvent: number | null = null;
+    let vaultFundedAmount = 0;
     const blockLevelSums = zeroBmeSums();
     const ledgerRecords: Array<Parameters<typeof BmeLedgerRecord.bulkCreate>[0][number]> = [];
     const statusChanges: Array<Parameters<typeof BmeStatusChange.bulkCreate>[0][number]> = [];
@@ -85,6 +88,10 @@ export class BmeIndexer extends Indexer {
           const amount = safeParseFloat(parsed.newVaultBalance.amount);
           vaultUaktFromEvent = amount;
         }
+      } else if (rawEvent.type === BME_EVENT_TYPES.VAULT_FUNDED_TRANSFER) {
+        // Synthetic event: uakt transfer to vault from governance/upgrade (not a user deposit).
+        // Adds to vault balance as a delta since we don't have an absolute snapshot.
+        vaultFundedAmount += safeParseFloat(rawEvent.data.amount as string);
       }
       // LEDGER_RECORD_CANCELED: no supply impact (record was canceled before execution).
       // Raw event is kept in bme_raw_event for audit purposes.
@@ -113,8 +120,9 @@ export class BmeIndexer extends Indexer {
       // EventVaultSeeded provides an absolute snapshot of vault balance
       currentBlock.vaultUakt = vaultUaktFromEvent;
     } else {
-      // Delta: AKT deposited via mints minus AKT withdrawn via remints this block
-      currentBlock.vaultUakt = (previousBlock?.vaultUakt ?? 0) + sums.aktBurnedForAct - sums.aktReminted;
+      // Delta: AKT deposited via mints minus AKT withdrawn via remints this block,
+      // plus any vault funding from governance proposals or chain upgrades
+      currentBlock.vaultUakt = (previousBlock?.vaultUakt ?? 0) + sums.aktBurnedForAct - sums.aktReminted + vaultFundedAmount;
     }
 
     // Outstanding uACT = total minted - total burned back - spent on deployments

@@ -11,7 +11,7 @@ import { Op } from "sequelize";
 import * as uuid from "uuid";
 
 import { sequelize } from "@src/db/dbConnection";
-import { BME_EVENT_TYPE_VALUES } from "@src/indexers/bmeIndexer";
+import { BME_EVENT_TYPE_VALUES, BME_EVENT_TYPES } from "@src/indexers/bmeIndexer";
 import { ExecutionMode, executionMode, isProd, lastBlockToSync } from "@src/shared/constants";
 import type { BlockResultType } from "@src/shared/types";
 import { decodeIfBase64 } from "@src/shared/utils/base64";
@@ -270,7 +270,8 @@ async function insertBlocks(startHeight: number, endHeight: number) {
     // Extract BME-relevant events from end_block_events (or finalize_block_events in CometBFT ABCI 2.0+)
     const endBlockEvents = blockResults?.finalize_block_events ?? blockResults?.end_block_events;
     if (endBlockEvents) {
-      for (const [eventIndex, event] of endBlockEvents.entries()) {
+      let bmeEventIndex = 0;
+      for (const event of endBlockEvents) {
         if ((BME_EVENT_TYPE_VALUES as readonly string[]).includes(event.type)) {
           const data: Record<string, string | null> = {};
           for (const attr of event.attributes) {
@@ -279,11 +280,34 @@ async function insertBlocks(startHeight: number, endHeight: number) {
           bmeRawEventsToAdd.push({
             id: uuid.v4(),
             height: i,
-            index: eventIndex,
+            index: bmeEventIndex++,
             type: event.type,
             data: data,
             isProcessed: false
           });
+        }
+
+        // Detect vault funding via uakt transfers to the BME vault module account.
+        // These occur during governance proposal execution or chain upgrades in EndBlocker.
+        // User deposits (MsgMintACT) never appear in finalize_block_events, so this is safe from double-counting.
+        if (activeChain.bmeVaultAddress && event.type === "transfer") {
+          const attrs: Record<string, string> = {};
+          for (const attr of event.attributes) {
+            attrs[decodeIfBase64(attr.key)] = attr.value ? decodeIfBase64(attr.value) : "";
+          }
+          if (attrs.recipient === activeChain.bmeVaultAddress && attrs.amount?.includes("uakt")) {
+            const amountMatch = attrs.amount.match(/^(\d+)uakt$/);
+            if (amountMatch) {
+              bmeRawEventsToAdd.push({
+                id: uuid.v4(),
+                height: i,
+                index: bmeEventIndex++,
+                type: BME_EVENT_TYPES.VAULT_FUNDED_TRANSFER,
+                data: { amount: amountMatch[1], denom: "uakt", sender: attrs.sender || null },
+                isProcessed: false
+              });
+            }
+          }
         }
       }
     }
