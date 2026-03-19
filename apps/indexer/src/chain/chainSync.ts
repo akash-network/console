@@ -1,5 +1,6 @@
 import { activeChain } from "@akashnetwork/database/chainDefinitions";
 import { Block, Message } from "@akashnetwork/database/dbSchemas";
+import { BmeRawEvent } from "@akashnetwork/database/dbSchemas/akash";
 import { Day, Transaction, TransactionEvent, TransactionEventAttribute } from "@akashnetwork/database/dbSchemas/base";
 import { fromBase64 } from "@cosmjs/encoding";
 import { decodeTxRaw } from "@cosmjs/proto-signing";
@@ -10,6 +11,7 @@ import { Op } from "sequelize";
 import * as uuid from "uuid";
 
 import { sequelize } from "@src/db/dbConnection";
+import { BME_EVENT_TYPE_VALUES } from "@src/indexers/bmeIndexer";
 import { ExecutionMode, executionMode, isProd, lastBlockToSync } from "@src/shared/constants";
 import type { BlockResultType } from "@src/shared/types";
 import { decodeIfBase64 } from "@src/shared/utils/base64";
@@ -170,6 +172,7 @@ async function insertBlocks(startHeight: number, endHeight: number) {
   let txsEventsToAdd = [];
   let txsEventAttributesToAdd = [];
   let msgsToAdd = [];
+  let bmeRawEventsToAdd = [];
 
   for (let i = startHeight; i <= endHeight; ++i) {
     const getCachedBlockTimer = benchmark.startTimer("getCachedBlockByHeight");
@@ -187,9 +190,14 @@ async function insertBlocks(startHeight: number, endHeight: number) {
     const txs = blockData.block.data.txs;
     let blockResults: BlockResultType | null = null;
 
-    if (txs.length > 0) {
-      blockResults = await getCachedBlockResultsByHeight(i);
-      if (!blockResults) throw "Block results # " + i + " was not in cache";
+    // Always fetch block results — BME epoch events fire in EndBlocker regardless of transactions
+    blockResults = await getCachedBlockResultsByHeight(i);
+    if (blockResults == null) {
+      // Block results may be missing from old cache that only fetched results for blocks with txs.
+      // Fetch from node and cache for future use.
+      const blockResultJson = await nodeAccessor.getBlockResult(i);
+      blockResults = blockResultJson.result;
+      await blockResultsDb.put(blockHeightToKey(i), JSON.stringify(blockResults));
     }
 
     for (let txIndex = 0; txIndex < txs.length; ++txIndex) {
@@ -259,6 +267,27 @@ async function insertBlocks(startHeight: number, endHeight: number) {
       }
     }
 
+    // Extract BME-relevant events from end_block_events (or finalize_block_events in CometBFT ABCI 2.0+)
+    const endBlockEvents = blockResults?.finalize_block_events ?? blockResults?.end_block_events;
+    if (endBlockEvents) {
+      for (const [eventIndex, event] of endBlockEvents.entries()) {
+        if ((BME_EVENT_TYPE_VALUES as readonly string[]).includes(event.type)) {
+          const data: Record<string, string | null> = {};
+          for (const attr of event.attributes) {
+            data[decodeIfBase64(attr.key)] = attr.value ? decodeIfBase64(attr.value) : null;
+          }
+          bmeRawEventsToAdd.push({
+            id: uuid.v4(),
+            height: i,
+            index: eventIndex,
+            type: event.type,
+            data: data,
+            isProcessed: false
+          });
+        }
+      }
+    }
+
     const blockEntry = {
       height: i,
       datetime: new Date(blockData.block.header.time),
@@ -321,11 +350,17 @@ async function insertBlocks(startHeight: number, endHeight: number) {
           await benchmark.measureAsync("createmessages", async () => {
             await Message.bulkCreate(msgsToAdd, { transaction: insertDbTransaction });
           });
+          if (bmeRawEventsToAdd.length > 0) {
+            await benchmark.measureAsync("createBmeRawEvents", async () => {
+              await BmeRawEvent.bulkCreate(bmeRawEventsToAdd, { transaction: insertDbTransaction });
+            });
+          }
           blocksToAdd = [];
           txsToAdd = [];
           txsEventsToAdd = [];
           txsEventAttributesToAdd = [];
           msgsToAdd = [];
+          bmeRawEventsToAdd = [];
           console.log(`Blocks added to db: ${i - startHeight + 1} / ${blockCount} (${(((i - startHeight + 1) * 100) / blockCount).toFixed(2)}%)`);
 
           if (lastInsertedBlock) {
@@ -379,13 +414,12 @@ async function downloadBlock(height: number) {
     blockJson = responseJson.result;
   }
 
-  if (blockJson.block.data.txs.length > 0) {
-    const cachedBlockResult = await getCachedBlockResultsByHeight(height);
+  // Always fetch block results — BME epoch events fire in EndBlocker regardless of transactions
+  const cachedBlockResult = await getCachedBlockResultsByHeight(height);
 
-    if (!cachedBlockResult) {
-      const blockResultJson = await nodeAccessor.getBlockResult(height);
-      await blockResultsDb.put(blockHeightToKey(height), JSON.stringify(blockResultJson.result));
-    }
+  if (!cachedBlockResult) {
+    const blockResultJson = await nodeAccessor.getBlockResult(height);
+    await blockResultsDb.put(blockHeightToKey(height), JSON.stringify(blockResultJson.result));
   }
 
   if (!wasInCache) {

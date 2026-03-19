@@ -71,6 +71,8 @@ export type BlockResultType = {
   }[];
   begin_block_events?: EventType[];
   end_block_events?: EventType[];
+  /** CometBFT ABCI 2.0+ replaces begin/end_block_events with finalize_block_events */
+  finalize_block_events?: EventType[];
   validator_updates: never; // ?
   consensus_param_updates: never; // ?
 };
