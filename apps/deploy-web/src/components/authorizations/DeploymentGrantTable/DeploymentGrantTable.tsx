@@ -88,7 +88,7 @@ export const DeploymentGrantTable: React.FC<Props> = ({
       {
         id: "spendingLimit",
         cell: info => {
-          const value = info.getValue();
+          const value = info.getValue() ?? [];
 
           return (
             <div className="flex flex-wrap justify-center gap-1">

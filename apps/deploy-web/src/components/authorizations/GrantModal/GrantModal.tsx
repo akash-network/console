@@ -93,7 +93,7 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
 
   const defaultSpendLimits = editingGrant
     ? editingGrant.authorization.spend_limits.map(sl => ({
-        denom: sl.denom === usdcDenom ? "usdc" : sl.denom,
+        denom: sl.denom,
         amount: coinToDenom(sl)
       }))
     : [{ denom: isACTSupported ? UACT_DENOM : UAKT_DENOM, amount: 0 }];
@@ -119,7 +119,7 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
     formRef.current?.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
   };
 
-  const onSubmit = async ({ spendLimits, expiration, granteeAddress }: FormValues) => {
+  const authorizeSpending = async ({ spendLimits, expiration, granteeAddress }: FormValues) => {
     setError("");
     clearErrors();
 
@@ -143,7 +143,7 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
     }
   };
 
-  const onAddAktGrant = () => {
+  const addAktGrant = () => {
     append({ denom: UAKT_DENOM, amount: 0 });
   };
 
@@ -175,7 +175,7 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
       title="Authorize Spending"
     >
       <d.Form {...form}>
-        <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
+        <form onSubmit={handleSubmit(authorizeSpending)} ref={formRef}>
           <d.Alert className="mb-4">
             <p className="text-sm text-muted-foreground">
               <d.LinkTo onClick={ev => handleDocClick(ev, "https://akash.network/docs/network-features/authorized-spend/")}>Authorized Spend</d.LinkTo> allows
@@ -202,7 +202,7 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
 
           {canAddAkt && (
             <div className="mb-4">
-              <d.Button variant="outline" size="sm" type="button" className="w-full" onClick={onAddAktGrant}>
+              <d.Button variant="outline" size="sm" type="button" className="w-full" onClick={addAktGrant}>
                 Add AKT Grant
               </d.Button>
             </div>

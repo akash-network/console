@@ -81,9 +81,13 @@ describe(LogCollectorControl.name, () => {
   });
 
   it("updates log-collector placement when target service placement is changed", async () => {
-    const { user, form } = await setup();
+    const { user, form, targetService } = await setup();
     const checkbox = screen.getByRole("checkbox");
     await user.click(checkbox);
+
+    await vi.waitFor(() => {
+      expect(form.getValues("services.1.title")).toBe(`${targetService.title}-log-collector`);
+    });
 
     const newPlacement = buildSDLService().placement;
     await act(async () => {
