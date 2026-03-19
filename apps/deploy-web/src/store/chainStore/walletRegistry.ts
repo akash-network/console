@@ -7,15 +7,7 @@ const registry: Record<string, WalletLoader> = {
     const { wallets } = await import("@cosmos-kit/keplr");
     return wallets;
   },
-  "keplr-mobile": async () => {
-    const { wallets } = await import("@cosmos-kit/keplr");
-    return wallets;
-  },
   "leap-extension": async () => {
-    const { wallets } = await import("@cosmos-kit/leap");
-    return wallets;
-  },
-  "leap-mobile": async () => {
     const { wallets } = await import("@cosmos-kit/leap");
     return wallets;
   },
@@ -25,6 +17,14 @@ const registry: Record<string, WalletLoader> = {
   },
   "cosmos-extension-metamask": async () => {
     const { wallets } = await import("@cosmos-kit/cosmos-extension-metamask");
+    return wallets;
+  },
+  "keplr-mobile": async () => {
+    const { wallets } = await import("@cosmos-kit/keplr");
+    return wallets;
+  },
+  "leap-mobile": async () => {
+    const { wallets } = await import("@cosmos-kit/leap");
     return wallets;
   }
 };
@@ -38,11 +38,6 @@ export async function loadWalletByName(name: string): Promise<MainWalletBase[]> 
 }
 
 export async function loadAllWallets(): Promise<MainWalletBase[]> {
-  const [keplr, leap, cosmostation, metamask] = await Promise.all([
-    import("@cosmos-kit/keplr"),
-    import("@cosmos-kit/leap"),
-    import("@cosmos-kit/cosmostation-extension"),
-    import("@cosmos-kit/cosmos-extension-metamask")
-  ]);
-  return [...keplr.wallets, ...leap.wallets, ...cosmostation.wallets, ...metamask.wallets];
+  const [keplr, leap, cosmostation, metamask] = await Promise.all(Object.values(registry).map(loader => loader()));
+  return [...keplr, ...leap, ...cosmostation, ...metamask];
 }

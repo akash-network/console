@@ -5,6 +5,8 @@ import { Logger, WalletManager } from "@cosmos-kit/core";
 import { akash, akashSandbox, akashTestnet, assetLists } from "@src/chains";
 import { registry } from "@src/utils/customRegistry";
 
+export const CURRENT_WALLET_KEY = "cosmos-kit@2:core//current-wallet";
+
 export function createWalletManager(wallets: MainWalletBase[]): WalletManager {
   const logger = new Logger("WARN");
 
@@ -50,7 +52,7 @@ export function createWalletManager(wallets: MainWalletBase[]): WalletManager {
     {
       duration: 31_556_926_000, // 1 year
       callback: () => {
-        window.localStorage.removeItem("cosmos-kit@2:core//current-wallet");
+        window.localStorage.removeItem(CURRENT_WALLET_KEY);
         window.location.reload();
       }
     }

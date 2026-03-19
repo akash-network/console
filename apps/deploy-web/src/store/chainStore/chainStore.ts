@@ -1,15 +1,21 @@
-import { useMemo } from "react";
-import type { ChainContext, ChainName, DisconnectOptions, MainWalletBase, ManagerContext, State, WalletManager } from "@cosmos-kit/core";
-import type { WalletRepo } from "@cosmos-kit/core";
-import { WalletStatus } from "@cosmos-kit/core";
+import { useEffect, useMemo } from "react";
+import type {
+  ChainContext,
+  ChainName,
+  DisconnectOptions,
+  MainWalletBase,
+  ManagerContext,
+  State,
+  WalletManager,
+  WalletRepo,
+  WalletStatus
+} from "@cosmos-kit/core";
 import type { getDefaultStore } from "jotai";
 import { atom, useAtomValue } from "jotai";
 
 import { getChainWalletContext } from "./utils";
-import { createWalletManager } from "./walletManagerFactory";
+import { CURRENT_WALLET_KEY } from "./walletManagerFactory";
 import { loadAllWallets, loadWalletByName } from "./walletRegistry";
-
-const CURRENT_WALLET_KEY = "cosmos-kit@2:core//current-wallet";
 
 interface ChainStoreOptions {
   store: ReturnType<typeof getDefaultStore>;
@@ -28,6 +34,7 @@ export class ChainStore {
   readonly isLoadingWalletsAtom = atom<boolean>(false);
   readonly modalIsOpenAtom = atom<boolean>(false);
   readonly modalWalletRepoAtom = atom<WalletRepo | undefined>(undefined);
+  readonly selectedWalletNameAtom = atom<string>("");
 
   private allWalletsLoaded = false;
 
@@ -43,40 +50,44 @@ export class ChainStore {
 
     if (!storedWallet) return;
 
-    this.jotaiStore.set(this.isLoadingWalletsAtom, true);
+    this.jotaiStore.set(this.selectedWalletNameAtom, storedWallet);
 
     try {
       const wallets = await loadWalletByName(storedWallet);
-      const manager = createWalletManager(wallets);
-      this.wireActions(manager);
-      this.jotaiStore.set(this.walletManagerAtom, manager);
-      await manager.onMounted();
+      await this.replaceManager(wallets);
     } catch {
       window.localStorage.removeItem(CURRENT_WALLET_KEY);
-    } finally {
-      this.jotaiStore.set(this.isLoadingWalletsAtom, false);
     }
   }
 
   async ensureAllWalletsLoaded(): Promise<void> {
     if (this.allWalletsLoaded) return;
 
+    try {
+      const allWallets = await loadAllWallets();
+      console.log(allWallets);
+      await this.replaceManager(allWallets);
+      this.allWalletsLoaded = true;
+      this.bumpVersion();
+    } catch {
+      // loading failed, allow retry
+    }
+  }
+
+  private async replaceManager(wallets: MainWalletBase[]): Promise<void> {
     this.jotaiStore.set(this.isLoadingWalletsAtom, true);
 
     try {
       const currentManager = this.jotaiStore.get(this.walletManagerAtom);
-
       if (currentManager) {
         currentManager.onUnmounted();
       }
 
-      const allWallets = await loadAllWallets();
-      const manager = createWalletManager(allWallets);
+      const { createWalletManager } = await import("./walletManagerFactory");
+      const manager = createWalletManager(wallets);
       this.wireActions(manager);
       this.jotaiStore.set(this.walletManagerAtom, manager);
       await manager.onMounted();
-      this.allWalletsLoaded = true;
-      this.bumpVersion();
     } finally {
       this.jotaiStore.set(this.isLoadingWalletsAtom, false);
     }
@@ -147,6 +158,10 @@ export class ChainStore {
     this.jotaiStore.set(this.modalIsOpenAtom, open);
   }
 
+  setSelectedWalletName(name: string): void {
+    this.jotaiStore.set(this.selectedWalletNameAtom, name);
+  }
+
   getDisconnectedStub(chainName: ChainName): ChainContext {
     return {
       chainWallet: undefined,
@@ -158,7 +173,7 @@ export class ChainStore {
       address: undefined,
       username: undefined,
       message: undefined,
-      status: WalletStatus.Disconnected,
+      status: "Disconnected" as WalletStatus.Disconnected,
       isWalletDisconnected: true,
       isWalletConnecting: false,
       isWalletConnected: false,
@@ -222,7 +237,7 @@ export function createChainStoreHooks(store: ChainStore) {
     const manager = useAtomValue(store.walletManagerAtom);
     const version = useAtomValue(store.stateVersionAtom);
 
-    return useMemo(() => {
+    const context = useMemo(() => {
       if (!manager) {
         return store.getDisconnectedStub(chainName);
       }
@@ -256,6 +271,19 @@ export function createChainStoreHooks(store: ChainStore) {
       } as ChainContext;
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [manager, version, chainName]);
+
+    useEffect(() => {
+      if (!manager || !context.isWalletDisconnected) return;
+
+      const storedWallet = window.localStorage.getItem(CURRENT_WALLET_KEY);
+      if (storedWallet) {
+        const walletRepo = manager.getWalletRepo(chainName);
+        walletRepo.connect(storedWallet);
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [manager, chainName]);
+
+    return context;
   }
 
   function useManager(): ManagerContext {
@@ -316,7 +344,7 @@ export function createChainStoreHooks(store: ChainStore) {
           mainWallet: undefined,
           chainWallets: [],
           wallet: undefined,
-          status: WalletStatus.Disconnected,
+          status: "Disconnected" as WalletStatus.Disconnected,
           message: undefined
         };
       }
@@ -330,7 +358,7 @@ export function createChainStoreHooks(store: ChainStore) {
           mainWallet: undefined,
           chainWallets: [],
           wallet: undefined,
-          status: WalletStatus.Disconnected,
+          status: "Disconnected" as WalletStatus.Disconnected,
           message: undefined
         };
       }
