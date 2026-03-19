@@ -102,7 +102,7 @@ export class ProviderEarningsService {
       (acc, d) => {
         acc.uakt += d.totalUAkt ?? 0;
         acc.uusdc += d.totalUUsdc ?? 0;
-        acc.uusd += (d.totalUAkt ?? 0) * d.aktPrice + (d.totalUUsdc ?? 0);
+        acc.uusd += (d.totalUAkt ?? 0) * (d.aktPrice ?? 0) + (d.totalUUsdc ?? 0);
         return acc;
       },
       { uakt: 0, uusdc: 0, uusd: 0 }
