@@ -22,6 +22,7 @@ import { CustomIntlProvider } from "@src/components/layout/CustomIntlProvider";
 import { PageHead } from "@src/components/layout/PageHead";
 import { OnboardingRedirectEffect } from "@src/components/onboarding/OnboardingRedirectEffect/OnboardingRedirectEffect";
 import { UserProviders } from "@src/components/user/UserProviders/UserProviders";
+import { BalanceWatchProvider } from "@src/context/BalanceWatchProvider";
 import { CustomChainProvider } from "@src/context/CustomChainProvider";
 import { ColorModeProvider } from "@src/context/CustomThemeContext";
 import { FlagProvider } from "@src/context/FlagProvider/FlagProvider";
@@ -57,12 +58,14 @@ const App: React.FunctionComponent<Props> = props => {
         <UserProviders>
           <FlagProvider>
             <WalletProvider>
-              <PaymentPollingProvider>
-                <NavigationGuardProvider>
-                  <OnboardingRedirectEffect />
-                  <Component {...pageProps} />
-                </NavigationGuardProvider>
-              </PaymentPollingProvider>
+              <BalanceWatchProvider>
+                <PaymentPollingProvider>
+                  <NavigationGuardProvider>
+                    <OnboardingRedirectEffect />
+                    <Component {...pageProps} />
+                  </NavigationGuardProvider>
+                </PaymentPollingProvider>
+              </BalanceWatchProvider>
             </WalletProvider>
           </FlagProvider>
         </UserProviders>
