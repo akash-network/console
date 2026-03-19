@@ -91,7 +91,7 @@ export const DeploymentGrantTable: React.FC<Props> = ({
           const value = info.getValue();
 
           return (
-            <div className="text-center">
+            <div className="flex flex-wrap justify-center gap-1">
               {value.map(limit => (
                 <d.DenomAmount key={limit.denom} amount={coinToUDenom(limit)} denom={limit.denom} />
               ))}

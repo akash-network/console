@@ -32,11 +32,11 @@ export const GranteeRow: React.FunctionComponent<Props> = ({ grant, dependencies
       </d.TableCell>
       <d.TableCell align="right">
         {limits ? (
-          <>
+          <div className="flex flex-wrap justify-end gap-1">
             {limits.map((limit, index) => (
               <d.DenomAmount key={index} amount={coinToUDenom(limit)} denom={limit.denom} />
             ))}
-          </>
+          </div>
         ) : (
           <span>Unlimited</span>
         )}

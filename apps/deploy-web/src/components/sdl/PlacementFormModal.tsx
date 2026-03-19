@@ -7,7 +7,7 @@ import { CustomTooltip, FormField, FormInput, Popup } from "@akashnetwork/ui/com
 import { InfoCircle } from "iconoir-react";
 
 import { UAKT_DENOM } from "@src/config/denom.config";
-import { useSdlDenoms } from "@src/hooks/useDenom";
+import { useSupportedDenoms } from "@src/hooks/useDenom";
 import type { PlacementType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { getAvgCostPerMonth, toReadableDenom, uaktToAKT } from "@src/utils/priceUtils";
@@ -31,7 +31,7 @@ type Props = {
 export const PlacementFormModal: React.FunctionComponent<Props> = ({ control, services, serviceIndex, onClose, placement: _placement }) => {
   const signedByRef = useRef<SignedByRefType>(null);
   const attritubesRef = useRef<AttributesRefType>(null);
-  const supportedSdlDenoms = useSdlDenoms();
+  const supportedSdlDenoms = useSupportedDenoms();
   const currentService = services[serviceIndex];
   const selectedDenom = supportedSdlDenoms.find(x => x.value === currentService.placement.pricing.denom);
 

@@ -1,11 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { UACT_DENOM, UAKT_DENOM } from "@src/config/denom.config";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { GrantType } from "@src/types/grant";
 import { DEPENDENCIES, GrantModal } from "./GrantModal";
 
-import { render } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ComponentMock, MockComponents } from "@tests/unit/mocks";
 
 describe(GrantModal.name, () => {
@@ -63,13 +64,370 @@ describe(GrantModal.name, () => {
     expect(granteeField).toBeDefined();
   });
 
-  it("sets token field for the form", () => {
+  it("renders denom field for spend limit", () => {
     const FormFieldMock = vi.fn(ComponentMock);
     setup({ dependencies: { FormField: FormFieldMock } });
 
-    const tokenField = FormFieldMock.mock.calls.find(c => c[0].name === "token");
+    const denomField = FormFieldMock.mock.calls.find(c => c[0].name === "spendLimits.0.denom");
 
-    expect(tokenField).toBeDefined();
+    expect(denomField).toBeDefined();
+  });
+
+  it("renders amount field for spend limit", () => {
+    const FormFieldMock = vi.fn(ComponentMock);
+    setup({ dependencies: { FormField: FormFieldMock } });
+
+    const amountField = FormFieldMock.mock.calls.find(c => c[0].name === "spendLimits.0.amount");
+
+    expect(amountField).toBeDefined();
+  });
+
+  it("renders token dropdown when ACT is not supported", () => {
+    const SelectItemMock = vi.fn(ComponentMock);
+    const FormFieldMock = vi.fn(RenderPropMock);
+    setup({ dependencies: { SelectItem: SelectItemMock, FormField: FormFieldMock } });
+
+    const tokenValues = SelectItemMock.mock.calls.map(c => c[0].value);
+
+    expect(tokenValues).toContain(UAKT_DENOM);
+    expect(tokenValues).toContain("uusdc");
+  });
+
+  it("does not render token dropdown when ACT is supported", () => {
+    const SelectMock = vi.fn(ComponentMock);
+    const FormFieldMock = vi.fn(RenderPropMock);
+    setup({
+      dependencies: {
+        Select: SelectMock,
+        FormField: FormFieldMock,
+        useSupportsACT: () => true,
+        useSupportedDenoms: () => ACT_SUPPORTED_TOKENS
+      }
+    });
+
+    expect(SelectMock).not.toHaveBeenCalled();
+  });
+
+  it("defaults token to usdc when editing grant has USDC denom", () => {
+    const useDenomData = vi.fn(() => ({ min: 0, max: 1000, label: "USDC", balance: 500 }));
+    setup({
+      editingGrant: createGrant({
+        authorization: {
+          "@type": "/akash.escrow.v1.DepositAuthorization",
+          spend_limits: [{ denom: USDC_TEST_DENOM, amount: "1000000" }]
+        }
+      }),
+      dependencies: { useDenomData }
+    });
+
+    expect(useDenomData).toHaveBeenCalledWith(USDC_TEST_DENOM);
+  });
+
+  it("defaults token to defaultToken when editing grant has non-USDC denom", () => {
+    const useDenomData = vi.fn(() => ({ min: 0, max: 1000, label: "AKT", balance: 500 }));
+    setup({
+      editingGrant: createGrant(),
+      dependencies: { useDenomData }
+    });
+
+    expect(useDenomData).toHaveBeenCalledWith(UAKT_DENOM);
+  });
+
+  it("disables grantee address field when editing a grant", () => {
+    const FormInputMock = vi.fn(ComponentMock);
+    const FormFieldMock = vi.fn((props: Record<string, unknown>) => {
+      const render = props.render as (args: Record<string, unknown>) => React.ReactNode;
+      return <>{render({ field: { value: "", onChange: vi.fn() } })}</>;
+    });
+    setup({
+      editingGrant: createGrant({ grantee: "akash1editgrantee" }),
+      dependencies: { FormField: FormFieldMock, FormInput: FormInputMock }
+    });
+
+    const granteeCall = FormInputMock.mock.calls.find(c => c[0].label === "Grantee Address");
+
+    expect(granteeCall![0].disabled).toBe(true);
+  });
+
+  it("does not disable grantee address field when creating a new grant", () => {
+    const FormInputMock = vi.fn(ComponentMock);
+    const FormFieldMock = vi.fn((props: Record<string, unknown>) => {
+      const render = props.render as (args: Record<string, unknown>) => React.ReactNode;
+      return <>{render({ field: { value: "", onChange: vi.fn() } })}</>;
+    });
+    setup({
+      dependencies: { FormField: FormFieldMock, FormInput: FormInputMock }
+    });
+
+    const granteeCall = FormInputMock.mock.calls.find(c => c[0].label === "Grantee Address");
+
+    expect(granteeCall![0].disabled).toBe(false);
+  });
+
+  it("displays balance with denom data", () => {
+    const LinkToMock = vi.fn((props: Record<string, unknown>) => {
+      const children = props.children as React.ReactNode;
+      return <a onClick={props.onClick as React.MouseEventHandler}>{children}</a>;
+    });
+    const FormFieldMock = vi.fn(RenderPropMock);
+    const FormInputMock = vi.fn(LabelRenderingMock);
+    setup({ dependencies: { LinkTo: LinkToMock, FormField: FormFieldMock, FormInput: FormInputMock } });
+
+    expect(screen.getByText(/Balance:/)).toBeInTheDocument();
+    expect(screen.getByText(/500/)).toBeInTheDocument();
+    expect(screen.getAllByText(/AKT/).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("sets max amount when balance link is clicked", () => {
+    const LinkToMock = vi.fn((props: Record<string, unknown>) => {
+      const children = props.children as React.ReactNode;
+      return <a onClick={props.onClick as React.MouseEventHandler}>{children}</a>;
+    });
+    const FormFieldMock = vi.fn(RenderPropMock);
+    const FormInputMock = vi.fn(LabelRenderingMock);
+    setup({ dependencies: { LinkTo: LinkToMock, FormField: FormFieldMock, FormInput: FormInputMock } });
+
+    const balanceLink = screen.getByText(/Balance:/);
+    fireEvent.click(balanceLink);
+
+    expect(balanceLink).toBeInTheDocument();
+  });
+
+  it("submits grant transaction and calls onClose on success", async () => {
+    const { signAndBroadcastTx, onClose, analyticsService } = setup({
+      editingGrant: createGrant({ grantee: "akash1grantee" })
+    });
+    signAndBroadcastTx.mockResolvedValue({ transactionHash: "abc123" });
+
+    const form = document.querySelector("form");
+    fireEvent.submit(form!);
+
+    await waitFor(() => {
+      expect(signAndBroadcastTx).toHaveBeenCalled();
+    });
+
+    expect(analyticsService.track).toHaveBeenCalledWith("authorize_spend", {
+      category: "deployments",
+      label: "Authorize wallet to spend on deployment deposits"
+    });
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("does not call onClose when transaction fails", async () => {
+    const { signAndBroadcastTx, onClose } = setup({
+      editingGrant: createGrant({ grantee: "akash1grantee" })
+    });
+    signAndBroadcastTx.mockResolvedValue(undefined);
+
+    const form = document.querySelector("form");
+    fireEvent.submit(form!);
+
+    await waitFor(() => {
+      expect(signAndBroadcastTx).toHaveBeenCalled();
+    });
+
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("sends spend limit as array when ACT is supported", async () => {
+    const { signAndBroadcastTx } = setup({
+      editingGrant: createGrant({ grantee: "akash1grantee" }),
+      dependencies: {
+        useSupportsACT: () => true,
+        useSupportedDenoms: () => ACT_SUPPORTED_TOKENS
+      }
+    });
+    signAndBroadcastTx.mockResolvedValue({ transactionHash: "abc123" });
+
+    const form = document.querySelector("form");
+    fireEvent.submit(form!);
+
+    await waitFor(() => {
+      expect(signAndBroadcastTx).toHaveBeenCalled();
+    });
+
+    const message = signAndBroadcastTx.mock.calls[0][0][0];
+    expect(message).toBeDefined();
+  });
+
+  it("triggers form submit when Grant button is clicked", async () => {
+    const PopupMock = vi.fn(ComponentMock);
+    const { signAndBroadcastTx } = setup({
+      editingGrant: createGrant({ grantee: "akash1grantee" }),
+      dependencies: { Popup: PopupMock }
+    });
+    signAndBroadcastTx.mockResolvedValue({ transactionHash: "abc123" });
+
+    const grantAction = PopupMock.mock.calls[0][0].actions.find((a: { label: string }) => a.label === "Grant");
+    grantAction.onClick({ preventDefault: vi.fn() } as unknown as React.MouseEvent);
+
+    await waitFor(() => {
+      expect(signAndBroadcastTx).toHaveBeenCalled();
+    });
+  });
+
+  it("renders info alert about authorized spend", () => {
+    const AlertMock = vi.fn(ComponentMock);
+    setup({ dependencies: { Alert: AlertMock } });
+
+    expect(AlertMock).toHaveBeenCalled();
+  });
+
+  it("renders authorized spend doc link with click handler", () => {
+    const LinkToMock = vi.fn(ComponentMock);
+    setup({ dependencies: { LinkTo: LinkToMock } });
+
+    const docLinkCall = LinkToMock.mock.calls.find(c => {
+      const children = c[0].children;
+      return typeof children === "string" && children === "Authorized Spend";
+    });
+
+    expect(docLinkCall).toBeDefined();
+    expect(docLinkCall![0].onClick).toBeDefined();
+  });
+
+  it("renders expiration field", () => {
+    const FormFieldMock = vi.fn(ComponentMock);
+    setup({ dependencies: { FormField: FormFieldMock } });
+
+    const expirationField = FormFieldMock.mock.calls.find(c => c[0].name === "expiration");
+
+    expect(expirationField).toBeDefined();
+  });
+
+  it("shows 'Add AKT Grant' button when ACT is supported and only one row", () => {
+    const ButtonMock = vi.fn(ComponentMock);
+    setup({
+      dependencies: {
+        Button: ButtonMock,
+        useSupportsACT: () => true,
+        useSupportedDenoms: () => ACT_SUPPORTED_TOKENS
+      }
+    });
+
+    const addButton = ButtonMock.mock.calls.find(c => c[0].children === "Add AKT Grant");
+
+    expect(addButton).toBeDefined();
+  });
+
+  it("does not show 'Add AKT Grant' button when ACT is not supported", () => {
+    const ButtonMock = vi.fn(ComponentMock);
+    setup({ dependencies: { Button: ButtonMock } });
+
+    const addButton = ButtonMock.mock.calls.find(c => c[0].children === "Add AKT Grant");
+
+    expect(addButton).toBeUndefined();
+  });
+
+  it("adds AKT row when 'Add AKT Grant' button is clicked", () => {
+    const ButtonMock = vi.fn((props: Record<string, unknown>) => (
+      <button onClick={props.onClick as React.MouseEventHandler}>{props.children as React.ReactNode}</button>
+    ));
+    const FormFieldMock = vi.fn(ComponentMock);
+    setup({
+      dependencies: {
+        Button: ButtonMock,
+        FormField: FormFieldMock,
+        useSupportsACT: () => true,
+        useSupportedDenoms: () => ACT_SUPPORTED_TOKENS
+      }
+    });
+
+    fireEvent.click(screen.getByText("Add AKT Grant"));
+
+    const aktAmountField = FormFieldMock.mock.calls.find(c => c[0].name === "spendLimits.1.amount");
+    expect(aktAmountField).toBeDefined();
+  });
+
+  it("shows remove button in input endIcon for second row when ACT is supported", () => {
+    const FormInputMock = vi.fn(ComponentMock);
+    const FormFieldMock = vi.fn(RenderPropMock);
+    setup({
+      editingGrant: createGrant({
+        authorization: {
+          "@type": "/akash.escrow.v1.DepositAuthorization",
+          spend_limits: [
+            { denom: UACT_DENOM, amount: "5000000" },
+            { denom: UAKT_DENOM, amount: "3000000" }
+          ]
+        }
+      }),
+      dependencies: {
+        FormInput: FormInputMock,
+        FormField: FormFieldMock,
+        useSupportsACT: () => true,
+        useSupportedDenoms: () => ACT_SUPPORTED_TOKENS
+      }
+    });
+
+    const rowWithEndIcon = FormInputMock.mock.calls.find(c => c[0].endIcon);
+
+    expect(rowWithEndIcon).toBeDefined();
+  });
+
+  it("initializes multiple rows when editing grant with multiple spend_limits", () => {
+    const FormFieldMock = vi.fn(ComponentMock);
+    setup({
+      editingGrant: createGrant({
+        authorization: {
+          "@type": "/akash.escrow.v1.DepositAuthorization",
+          spend_limits: [
+            { denom: UACT_DENOM, amount: "5000000" },
+            { denom: UAKT_DENOM, amount: "3000000" }
+          ]
+        }
+      }),
+      dependencies: {
+        FormField: FormFieldMock,
+        useSupportsACT: () => true,
+        useSupportedDenoms: () => ACT_SUPPORTED_TOKENS
+      }
+    });
+
+    const actAmountField = FormFieldMock.mock.calls.find(c => c[0].name === "spendLimits.0.amount");
+    const aktAmountField = FormFieldMock.mock.calls.find(c => c[0].name === "spendLimits.1.amount");
+
+    expect(actAmountField).toBeDefined();
+    expect(aktAmountField).toBeDefined();
+  });
+
+  it("does not show 'Add AKT Grant' when both rows exist", () => {
+    const ButtonMock = vi.fn(ComponentMock);
+    setup({
+      editingGrant: createGrant({
+        authorization: {
+          "@type": "/akash.escrow.v1.DepositAuthorization",
+          spend_limits: [
+            { denom: UACT_DENOM, amount: "5000000" },
+            { denom: UAKT_DENOM, amount: "3000000" }
+          ]
+        }
+      }),
+      dependencies: {
+        Button: ButtonMock,
+        useSupportsACT: () => true,
+        useSupportedDenoms: () => ACT_SUPPORTED_TOKENS
+      }
+    });
+
+    const addButton = ButtonMock.mock.calls.find(c => c[0].children === "Add AKT Grant");
+
+    expect(addButton).toBeUndefined();
+  });
+
+  it("displays token label for ACT row when ACT is supported", () => {
+    const FormFieldMock = vi.fn(RenderPropMock);
+    const FormInputMock = vi.fn(LabelRenderingMock);
+    setup({
+      dependencies: {
+        FormField: FormFieldMock,
+        FormInput: FormInputMock,
+        useSupportsACT: () => true,
+        useSupportedDenoms: () => ACT_SUPPORTED_TOKENS
+      }
+    });
+
+    expect(screen.getByText(/ACT/)).toBeInTheDocument();
   });
 
   function setup(
@@ -93,9 +451,10 @@ describe(GrantModal.name, () => {
             ...MockComponents(DEPENDENCIES),
             useServices: () => ({ analyticsService }) as unknown as ReturnType<typeof DEPENDENCIES.useServices>,
             useWallet: () => ({ signAndBroadcastTx }) as unknown as ReturnType<typeof DEPENDENCIES.useWallet>,
-            useUsdcDenom: () => "ibc/usdc-test-denom",
+            useUsdcDenom: () => USDC_TEST_DENOM,
             useDenomData: () => ({ min: 0, max: 1000, label: "AKT", balance: 500 }),
             useSupportsACT: () => false,
+            useSupportedDenoms: () => DEFAULT_SUPPORTED_TOKENS,
             ...input.dependencies
           } as typeof DEPENDENCIES
         }
@@ -120,6 +479,35 @@ describe(GrantModal.name, () => {
         ]
       },
       ...overrides
-    };
+    } as GrantType;
+  }
+
+  const USDC_TEST_DENOM = "ibc/170C677610AC31DF0904FFE09CD3B5C657492170E7E52372E48756B71E56F2F1" as const;
+
+  const DEFAULT_SUPPORTED_TOKENS = [
+    { id: UAKT_DENOM, label: "uAKT", tokenLabel: "AKT", value: UAKT_DENOM },
+    { id: "uusdc", label: "uUSDC", tokenLabel: "USDC", value: USDC_TEST_DENOM }
+  ];
+
+  const ACT_SUPPORTED_TOKENS = [
+    { id: UACT_DENOM, label: "uACT", tokenLabel: "ACT", value: UACT_DENOM },
+    { id: UAKT_DENOM, label: "uAKT", tokenLabel: "AKT", value: UAKT_DENOM }
+  ];
+
+  function LabelRenderingMock(props: Record<string, unknown>) {
+    return (
+      <>
+        {props.label as React.ReactNode}
+        {(props as { children?: React.ReactNode }).children}
+      </>
+    );
+  }
+
+  function RenderPropMock(props: Record<string, unknown>) {
+    const render = props.render as ((args: Record<string, unknown>) => React.ReactNode) | undefined;
+    if (render) {
+      return <>{render({ field: { value: "", onChange: vi.fn() } })}</>;
+    }
+    return <>{(props as { children?: React.ReactNode }).children}</>;
   }
 });

@@ -234,10 +234,10 @@ function migrateLegacyDepositDeploymentGrant<
 >(grant: T): GrantOrFalsy<T, U> {
   if (!grant) return grant as GrantOrFalsy<T, U>;
 
-  const spendLimits = grant.authorization.spend_limits ?? [];
+  let spendLimits = grant.authorization.spend_limits ?? [];
 
   if (grant.authorization.spend_limit && grant.authorization.spend_limit.amount !== "0") {
-    spendLimits.push(grant.authorization.spend_limit);
+    spendLimits = spendLimits.concat(grant.authorization.spend_limit);
   }
   return {
     ...grant,
