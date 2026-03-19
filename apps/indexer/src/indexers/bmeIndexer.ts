@@ -12,7 +12,8 @@ import { Indexer } from "./indexer";
 export const BME_EVENT_TYPES = {
   LEDGER_RECORD_EXECUTED: "akash.bme.v1.EventLedgerRecordExecuted",
   MINT_STATUS_CHANGE: "akash.bme.v1.EventMintStatusChange",
-  VAULT_SEEDED: "akash.bme.v1.EventVaultSeeded"
+  VAULT_SEEDED: "akash.bme.v1.EventVaultSeeded",
+  LEDGER_RECORD_CANCELED: "akash.bme.v1.EventLedgerRecordCanceled"
 } as const;
 
 const BME_EVENT_TYPE_VALUES = Object.values(BME_EVENT_TYPES);
