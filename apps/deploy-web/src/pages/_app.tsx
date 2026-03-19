@@ -22,7 +22,7 @@ import { CustomIntlProvider } from "@src/components/layout/CustomIntlProvider";
 import { PageHead } from "@src/components/layout/PageHead";
 import { OnboardingRedirectEffect } from "@src/components/onboarding/OnboardingRedirectEffect/OnboardingRedirectEffect";
 import { UserProviders } from "@src/components/user/UserProviders/UserProviders";
-import { CustomChainProvider } from "@src/context/CustomChainProvider";
+import { CustodialWalletLayer } from "@src/components/wallet/CustodialWalletLayer";
 import { ColorModeProvider } from "@src/context/CustomThemeContext";
 import { FlagProvider } from "@src/context/FlagProvider/FlagProvider";
 import { LocalNoteProvider } from "@src/context/LocalNoteProvider";
@@ -91,9 +91,8 @@ function AppRoot(props: Props & { children: React.ReactNode }) {
                         <PopupProvider>
                           <SettingsProvider>
                             <ServicesProvider>
-                              <CustomChainProvider>
-                                <LocalNoteProvider>{props.children}</LocalNoteProvider>
-                              </CustomChainProvider>
+                              <CustodialWalletLayer />
+                              <LocalNoteProvider>{props.children}</LocalNoteProvider>
                             </ServicesProvider>
                           </SettingsProvider>
                         </PopupProvider>
