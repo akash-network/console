@@ -45,10 +45,10 @@ replicas: 3
 
 resources:
   limits:
-    cpu: "4"
-    ephemeral-storage: "2Gi"
-    memory: "8Gi"
+    cpu: 2
+    ephemeral-storage: 2Gi
+    memory: 4Gi
   requests:
-    cpu: "1"
-    ephemeral-storage: "1Gi"
-    memory: "4Gi"
+    cpu: 250m
+    ephemeral-storage: 1Gi
+    memory: 1Gi
