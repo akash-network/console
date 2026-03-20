@@ -163,8 +163,49 @@ deployment:
       count: 1
 `;
 
+const SDL_WITH_VARS = `
+version: "2.0"
+services:
+  web:
+    image: nginx
+    env:
+      - GITHUB_PAT=\${GITHUB_PAT}
+    expose:
+      - port: 80
+        as: 80
+        to:
+          - global: true
+profiles:
+  compute:
+    web:
+      resources:
+        cpu:
+          units: 0.5
+        memory:
+          size: 512Mi
+        storage:
+          size: 1Gi
+  placement:
+    westcoast:
+      pricing:
+        web:
+          denom: uakt
+          amount: 1000
+deployment:
+  web:
+    westcoast:
+      profile: web
+      count: 1
+`;
+
 describe(SdlService.name, () => {
   describe("generateManifest", () => {
+    it("parses SDL containing template variables without throwing", () => {
+      const { result } = setup({ sdl: SDL_WITH_VARS });
+
+      expect(result.ok).toBe(true);
+    });
+
     it("adds auditor to signedBy anyOf when not present", () => {
       const auditor = "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63";
       const { result } = setup({ sdl: VALID_SDL, allowedAuditors: [auditor] });
