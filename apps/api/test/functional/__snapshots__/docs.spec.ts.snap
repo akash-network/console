@@ -2641,6 +2641,44 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/auth/signup": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "email": {
+                    "format": "email",
+                    "type": "string",
+                  },
+                  "password": {
+                    "minLength": 8,
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "email",
+                  "password",
+                ],
+                "type": "object",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "204": {
+            "description": "User created successfully",
+          },
+        },
+        "security": [],
+        "summary": "Creates a new user without sending a verification email",
+        "tags": [
+          "Auth",
+        ],
+      },
+    },
     "/v1/balances": {
       "get": {
         "parameters": [
@@ -12295,6 +12333,50 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/send-verification-code": {
+      "post": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "codeSentAt": {
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "codeSentAt",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Returns the timestamp when the code was sent",
+          },
+          "429": {
+            "description": "Too many requests",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+        ],
+        "summary": "Sends a verification code to the authenticated user's email",
+        "tags": [
+          "Users",
+        ],
+      },
+    },
     "/v1/send-verification-email": {
       "post": {
         "requestBody": {
@@ -15313,6 +15395,59 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         },
         "security": [],
         "summary": "Checks if the email is verified",
+        "tags": [
+          "Users",
+        ],
+      },
+    },
+    "/v1/verify-email-code": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "code": {
+                        "maxLength": 6,
+                        "minLength": 6,
+                        "pattern": "^\\d{6}$",
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "code",
+                    ],
+                    "type": "object",
+                  },
+                },
+                "required": [
+                  "data",
+                ],
+                "type": "object",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "204": {
+            "description": "Email verified successfully",
+          },
+          "400": {
+            "description": "Invalid or expired code",
+          },
+          "429": {
+            "description": "Too many attempts",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+        ],
+        "summary": "Verifies the email using a 6-digit code",
         "tags": [
           "Users",
         ],
