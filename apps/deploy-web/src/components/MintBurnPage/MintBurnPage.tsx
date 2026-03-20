@@ -12,11 +12,13 @@ import { useWallet } from "@src/context/WalletProvider";
 import { usePricing } from "@src/hooks/usePricing/usePricing";
 import { useSupportsACT } from "@src/hooks/useSupportsACT/useSupportsACT";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
+import { useLedgerRecords } from "@src/queries/useLedgerRecords";
 import { denomToUdenom, roundDecimal, udenomToDenom } from "@src/utils/mathHelpers";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 import { Title } from "../shared/Title";
+import { LedgerRecordsTable } from "./LedgerRecordsTable/LedgerRecordsTable";
 
 export enum MintBurnTab {
   MINT = "mint",
@@ -43,7 +45,9 @@ export const DEPENDENCIES = {
   usePricing,
   useWalletBalance,
   useSnackbar,
-  useSupportsACT
+  useSupportsACT,
+  useLedgerRecords,
+  LedgerRecordsTable
 };
 
 interface MintBurnPageProps {
@@ -57,9 +61,10 @@ export const MintBurnPage: React.FC<MintBurnPageProps> = ({ dependencies: d = DE
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { address, signAndBroadcastTx, isCustodial } = d.useWallet();
-  const { balance, isLoading: isBalanceLoading, refetch: refetchBalance } = d.useWalletBalance();
+  const { balance, isLoading: isBalanceLoading } = d.useWalletBalance();
   const { price, isLoaded: isPriceLoaded } = d.usePricing();
   const { enqueueSnackbar } = d.useSnackbar();
+  const { data: ledgerData, isLoading: isLedgerLoading, invalidate: invalidateLedger } = d.useLedgerRecords(address);
 
   const aktBalance = useMemo(() => (balance ? udenomToDenom(balance.balanceUAKT, 6) : 0), [balance]);
   const actBalance = useMemo(() => (balance ? udenomToDenom(balance.balanceUACT, 6) : 0), [balance]);
@@ -144,7 +149,7 @@ export const MintBurnPage: React.FC<MintBurnPageProps> = ({ dependencies: d = DE
       const success = await signAndBroadcastTx([msg]);
 
       if (success) {
-        refetchBalance();
+        invalidateLedger();
         resetForm();
       }
     } catch (err) {
@@ -156,7 +161,7 @@ export const MintBurnPage: React.FC<MintBurnPageProps> = ({ dependencies: d = DE
     } finally {
       setIsSubmitting(false);
     }
-  }, [address, effectiveFromAmount, insufficientBalance, isMint, signAndBroadcastTx, enqueueSnackbar, refetchBalance, resetForm, d]);
+  }, [address, effectiveFromAmount, insufficientBalance, isMint, signAndBroadcastTx, enqueueSnackbar, invalidateLedger, resetForm, d]);
   const isACTSupported = d.useSupportsACT();
 
   if (!isACTSupported || !isCustodial) {
@@ -165,7 +170,7 @@ export const MintBurnPage: React.FC<MintBurnPageProps> = ({ dependencies: d = DE
 
   return (
     <d.Layout>
-      <div className="mx-auto max-w-lg py-6">
+      <div className="mx-auto max-w-2xl py-6">
         <d.Link href={UrlService.home()} className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
           <d.NavArrowLeft className="h-4 w-4" />
           Back to Dashboard
@@ -262,6 +267,13 @@ export const MintBurnPage: React.FC<MintBurnPageProps> = ({ dependencies: d = DE
         >
           {isSubmitting ? "Processing..." : isMint ? "Mint ACT" : "Burn ACT"}
         </d.Button>
+
+        <d.Card className="mt-6">
+          <d.CardContent className="px-4 pb-4 pt-3">
+            <h3 className="mb-1 text-sm font-medium">History</h3>
+            <d.LedgerRecordsTable records={ledgerData?.records ?? []} isLoading={isLedgerLoading} />
+          </d.CardContent>
+        </d.Card>
       </div>
     </d.Layout>
   );

@@ -158,8 +158,8 @@ describe(MintBurnPage.name, () => {
     );
   });
 
-  it("resets form and refetches balance after successful mint", async () => {
-    const { refetchBalance } = setup({
+  it("resets form and invalidates ledger after successful mint", async () => {
+    const { invalidateLedger } = setup({
       walletBalance: buildWalletBalance({ balanceUAKT: 1_000_000_000 }),
       price: 2
     });
@@ -169,7 +169,7 @@ describe(MintBurnPage.name, () => {
     });
 
     await waitFor(() => {
-      expect(refetchBalance).toHaveBeenCalledTimes(1);
+      expect(invalidateLedger).toHaveBeenCalledTimes(1);
     });
     expect((screen.getByLabelText("To") as HTMLInputElement).value).toBe("");
   });
@@ -248,6 +248,7 @@ describe(MintBurnPage.name, () => {
   function setup(input?: { walletBalance?: WalletBalance | null; price?: number }) {
     const signAndBroadcastTx = vi.fn().mockResolvedValue(true);
     const refetchBalance = vi.fn();
+    const invalidateLedger = vi.fn();
     const enqueueSnackbar = vi.fn();
 
     const dependencies = {
@@ -280,11 +281,17 @@ describe(MintBurnPage.name, () => {
       useSnackbar: () => ({
         enqueueSnackbar
       }),
-      useSupportsACT: () => true
+      useSupportsACT: () => true,
+      useLedgerRecords: () => ({
+        data: null,
+        isLoading: false,
+        invalidate: invalidateLedger
+      }),
+      LedgerRecordsTable: () => null
     } as unknown as typeof DEPENDENCIES;
 
     render(<MintBurnPage dependencies={dependencies} />);
 
-    return { signAndBroadcastTx, refetchBalance, enqueueSnackbar };
+    return { signAndBroadcastTx, refetchBalance, invalidateLedger, enqueueSnackbar };
   }
 });
