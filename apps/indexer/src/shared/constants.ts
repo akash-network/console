@@ -17,7 +17,7 @@ export enum ExecutionMode {
 }
 
 export const executionMode: ExecutionMode = ExecutionMode.SyncOnly;
-export const lastBlockToSync = Number.POSITIVE_INFINITY;
+export const lastBlockToSync = 2552650; // TODO: revert to Number.POSITIVE_INFINITY after snapshot
 
 export const dataFolderPath = path.join(env.DATA_FOLDER, activeChain.code);
 export const concurrentNodeQuery = 5;

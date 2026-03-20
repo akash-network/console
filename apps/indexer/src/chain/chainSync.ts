@@ -11,7 +11,7 @@ import { Op } from "sequelize";
 import * as uuid from "uuid";
 
 import { sequelize } from "@src/db/dbConnection";
-import { BME_EVENT_TYPE_VALUES, BME_EVENT_TYPES } from "@src/indexers/bmeIndexer";
+import { BME_BLOCK_EVENT_TYPE_VALUES, BME_EVENT_TYPES } from "@src/indexers/bmeIndexer";
 import { ExecutionMode, executionMode, isProd, lastBlockToSync } from "@src/shared/constants";
 import type { BlockResultType } from "@src/shared/types";
 import { decodeIfBase64 } from "@src/shared/utils/base64";
@@ -272,7 +272,7 @@ async function insertBlocks(startHeight: number, endHeight: number) {
     if (endBlockEvents) {
       let bmeEventIndex = 0;
       for (const event of endBlockEvents) {
-        if ((BME_EVENT_TYPE_VALUES as readonly string[]).includes(event.type)) {
+        if ((BME_BLOCK_EVENT_TYPE_VALUES as readonly string[]).includes(event.type)) {
           const data: Record<string, string | null> = {};
           for (const attr of event.attributes) {
             data[decodeIfBase64(attr.key)] = attr.value ? decodeIfBase64(attr.value) : null;
