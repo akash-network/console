@@ -1,4 +1,4 @@
-import { fork } from "child_process";
+import { parentPort, Worker } from "node:worker_threads";
 
 import type { RawAppConfig } from "./core/providers/raw-app-config.provider";
 import { bootstrapEntry } from "./bootstrap-entry";
@@ -12,9 +12,26 @@ async function bootstrap(rawAppConfig: RawAppConfig): Promise<void> {
   const port = parseInt(rawAppConfig.PORT?.toString() || "3080", 10) || 3080;
 
   if (INTERFACE === "all") {
-    const bootstrapList = SUPPORTED_INTERFACES.map((interfaceName, index) => bootstrapInChildProcess({ PORT: String(port + index), INTERFACE: interfaceName }));
-    await Promise.all(bootstrapList);
+    const workers = SUPPORTED_INTERFACES.map((interfaceName, index) => bootstrapInWorker({ PORT: String(port + index), INTERFACE: interfaceName }));
+    await Promise.all(workers.map(w => w.ready));
+
+    const forwardSignal = (signal: string) => {
+      workers.forEach(w => w.ref.postMessage(signal));
+    };
+    process.on("SIGTERM", () => forwardSignal("SIGTERM"));
+    process.on("SIGINT", () => forwardSignal("SIGINT"));
+
+    await Promise.all(workers.map(w => w.exited));
     return;
+  }
+
+  if (parentPort) {
+    parentPort.on("message", (code: string) => {
+      if (code === "SIGTERM" || code === "SIGINT") {
+        parentPort?.unref();
+        process.emit(code, code);
+      }
+    });
   }
 
   let appModule: { bootstrap: () => Promise<void> };
@@ -30,35 +47,47 @@ async function bootstrap(rawAppConfig: RawAppConfig): Promise<void> {
   }
 
   await appModule.bootstrap();
-  if (process.send) {
-    process.send("ready");
-  }
+  parentPort?.postMessage("ready");
 }
 
-function bootstrapInChildProcess({ PORT, INTERFACE }: RawAppConfig): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const child = fork(__filename, {
-      stdio: ["inherit", "inherit", "inherit", "ipc"],
-      env: {
-        ...process.env,
-        PORT: String(PORT),
-        INTERFACE: String(INTERFACE)
-      },
-      execArgv: process.execArgv
-    });
-
-    child.once("message", m => (m === "ready" ? resolve() : undefined));
-    child.once("error", reject);
-    child.once("exit", code => (code !== 0 ? reject(new Error(`[${INTERFACE}] exited ${code}`)) : undefined));
-
-    const disconnect = (signal?: NodeJS.Signals) => {
-      if (child.connected) {
-        child.disconnect();
-      }
-      child.kill(signal);
-    };
-    process.on("SIGTERM", disconnect);
-    process.on("SIGINT", disconnect);
-    process.on("exit", disconnect);
+function bootstrapInWorker({ PORT, INTERFACE }: RawAppConfig) {
+  const ref = new Worker(__filename, {
+    env: {
+      ...process.env,
+      PORT: String(PORT),
+      INTERFACE: String(INTERFACE)
+    }
   });
+
+  const ready = new Promise<void>((resolve, reject) => {
+    const onMessage = (m: unknown) => {
+      if (m === "ready") {
+        cleanup();
+        resolve();
+      }
+    };
+    const onError = (err: Error) => {
+      cleanup();
+      reject(err);
+    };
+    const onExit = (code: number) => {
+      cleanup();
+      reject(new Error(`[${INTERFACE}] exited with code ${code} before ready`));
+    };
+    const cleanup = () => {
+      ref.off("message", onMessage);
+      ref.off("error", onError);
+      ref.off("exit", onExit);
+    };
+    ref.on("message", onMessage);
+    ref.once("error", onError);
+    ref.once("exit", onExit);
+  });
+
+  const exited = new Promise<void>(resolve => {
+    ref.once("exit", resolve);
+    ref.once("error", resolve);
+  });
+
+  return { ref, ready, exited };
 }
