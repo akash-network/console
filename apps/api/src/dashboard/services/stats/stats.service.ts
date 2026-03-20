@@ -29,7 +29,7 @@ type BlockMetricConfig = {
   getter: (block: Block) => number;
   isRelative?: boolean;
   dashboardKey?: DashboardGraphDataName;
-  bmeDashboardKey?: keyof BmePeriodData;
+  bmeDashboardKey?: Exclude<keyof BmePeriodData, "date">;
   requireBme?: boolean;
 };
 
@@ -262,7 +262,7 @@ export class StatsService {
 
   private async buildGraphDataResponse(
     stats: DateValue[],
-    options?: { dashboardKey?: DashboardGraphDataName; bmeDashboardKey?: keyof BmePeriodData }
+    options?: { dashboardKey?: DashboardGraphDataName; bmeDashboardKey?: Exclude<keyof BmePeriodData, "date"> }
   ): Promise<GraphDataResponse> {
     if (options?.dashboardKey) {
       const dashboardData = await this.getDashboardData();
