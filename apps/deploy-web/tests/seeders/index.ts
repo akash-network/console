@@ -16,3 +16,4 @@ export * from "./user";
 export * from "./wallet";
 export * from "./walletBalance";
 export * from "./sdlService";
+export * from "./ledgerRecord";
