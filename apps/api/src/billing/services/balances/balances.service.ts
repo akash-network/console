@@ -127,6 +127,10 @@ export class BalancesService {
   }
 
   async #convertToFiatAmount(amount: number): Promise<number> {
+    if (this.config.DEPLOYMENT_GRANT_DENOM === "uact") {
+      return amount;
+    }
+
     const coin = this.config.DEPLOYMENT_GRANT_DENOM === "uakt" ? "akash-network" : "usd-coin";
     return await this.statsService.convertToFiatAmount(amount, coin);
   }
