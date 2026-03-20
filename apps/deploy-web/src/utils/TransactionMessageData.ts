@@ -3,6 +3,7 @@ import { MsgBurnACT, MsgCreateCertificate, MsgMintACT, MsgRevokeCertificate } fr
 import { MsgCloseDeployment, MsgCreateDeployment, MsgUpdateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { MsgUpdateProvider } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { MsgCreateLease } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
+import type { Coin } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 import { MsgSend } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 import { BasicAllowance, MsgGrant, MsgGrantAllowance, MsgRevoke, MsgRevokeAllowance } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 import Long from "long";
@@ -121,7 +122,20 @@ export class TransactionMessageData {
     };
   }
 
-  static getGrantMsg(granter: string, grantee: string, spendLimit: number, expiration: Date, denom: string) {
+  static getGrantMsg(granter: string, grantee: string, spendLimit: Coin | Coin[], expiration: Date) {
+    const authorization = Array.isArray(spendLimit)
+      ? DepositAuthorization.fromPartial({
+          spendLimit: {
+            denom: spendLimit[0]?.denom ?? "uakt",
+            amount: "0"
+          },
+          spendLimits: spendLimit,
+          scopes: [DepositAuthorization_Scope.deployment]
+        })
+      : DepositAuthorization.fromPartial({
+          spendLimit,
+          scopes: [DepositAuthorization_Scope.deployment]
+        });
     return {
       typeUrl: `/${MsgGrant.$type}`,
       value: MsgGrant.fromPartial({
@@ -130,15 +144,7 @@ export class TransactionMessageData {
         grant: {
           authorization: {
             typeUrl: `/${DepositAuthorization.$type}`,
-            value: DepositAuthorization.encode(
-              DepositAuthorization.fromPartial({
-                spendLimit: {
-                  denom,
-                  amount: spendLimit.toString()
-                },
-                scopes: [DepositAuthorization_Scope.deployment]
-              })
-            ).finish()
+            value: DepositAuthorization.encode(authorization).finish()
           },
           expiration
         }

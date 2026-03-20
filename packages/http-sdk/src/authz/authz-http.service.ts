@@ -20,12 +20,26 @@ export interface FeeAllowance {
   };
 }
 
-export interface ExactDepositDeploymentGrant {
+export interface LegacyExactDepositDeploymentGrant {
   authorization: {
     "@type": "/akash.escrow.v1.DepositAuthorization";
+    spend_limits?: SpendLimit[];
     spend_limit: SpendLimit;
   };
   expiration: string;
+}
+
+export interface ExactDepositDeploymentGrant {
+  authorization: {
+    "@type": "/akash.escrow.v1.DepositAuthorization";
+    spend_limits: SpendLimit[];
+  };
+  expiration: string;
+}
+
+export interface LegacyDepositDeploymentGrant extends LegacyExactDepositDeploymentGrant {
+  granter: string;
+  grantee: string;
 }
 
 export interface DepositDeploymentGrant extends ExactDepositDeploymentGrant {
@@ -45,7 +59,7 @@ interface FeeAllowanceResponse {
   allowance: FeeAllowance;
 }
 
-interface DepositDeploymentGrantResponse<T extends ExactDepositDeploymentGrant = DepositDeploymentGrant> {
+interface DepositDeploymentGrantResponse<T extends LegacyExactDepositDeploymentGrant | ExactDepositDeploymentGrant = LegacyDepositDeploymentGrant> {
   grants: T[];
   pagination?: {
     next_key: string | null;
@@ -54,15 +68,9 @@ interface DepositDeploymentGrantResponse<T extends ExactDepositDeploymentGrant =
 }
 
 export class AuthzHttpService {
-  private readonly DEPOSIT_DEPLOYMENT_GRANT_TYPE: ExactDepositDeploymentGrant["authorization"]["@type"] = "/akash.escrow.v1.DepositAuthorization";
-
-  private readonly FEE_ALLOWANCE_TYPE: FeeAllowance["allowance"]["@type"] = "/cosmos.feegrant.v1beta1.BasicAllowance";
+  private readonly DEPOSIT_DEPLOYMENT_GRANT_TYPE: LegacyExactDepositDeploymentGrant["authorization"]["@type"] = "/akash.escrow.v1.DepositAuthorization";
 
   constructor(private readonly httpClient: HttpClient) {}
-
-  get isReady(): boolean {
-    return !!this.httpClient.defaults.baseURL;
-  }
 
   async getFeeAllowancesForGrantee(address: string) {
     const allowances = extractData(await this.httpClient.get<FeeAllowanceListResponse>(`cosmos/feegrant/v1beta1/allowances/${address}`));
@@ -109,26 +117,27 @@ export class AuthzHttpService {
 
   async getDepositDeploymentGrantsForGranterAndGrantee(granter: string, grantee: string): Promise<ExactDepositDeploymentGrant | undefined> {
     const response = extractData(
-      await this.httpClient.get<DepositDeploymentGrantResponse<ExactDepositDeploymentGrant>>("cosmos/authz/v1beta1/grants", {
+      await this.httpClient.get<DepositDeploymentGrantResponse<LegacyExactDepositDeploymentGrant>>("cosmos/authz/v1beta1/grants", {
         params: {
           grantee: grantee,
           granter: granter
         }
       })
     );
-    return response.grants.find(grant => this.isDepositDeploymentGrant(grant));
+    const grant = response.grants.find(grant => this.isDepositDeploymentGrant(grant));
+    return migrateLegacyDepositDeploymentGrant(grant);
   }
 
   async getValidDepositDeploymentGrantsForGranterAndGrantee(granter: string, grantee: string): Promise<ExactDepositDeploymentGrant | undefined> {
     const response = extractData(
-      await this.httpClient.get<DepositDeploymentGrantResponse<ExactDepositDeploymentGrant>>("cosmos/authz/v1beta1/grants", {
+      await this.httpClient.get<DepositDeploymentGrantResponse<LegacyExactDepositDeploymentGrant>>("cosmos/authz/v1beta1/grants", {
         params: {
           grantee: grantee,
           granter: granter
         }
       })
     );
-    return response.grants.find(grant => this.isValidDepositDeploymentGrant(grant));
+    return migrateLegacyDepositDeploymentGrant(response.grants.find(grant => this.isValidDepositDeploymentGrant(grant)));
   }
 
   async hasFeeAllowance(granter: string, grantee: string) {
@@ -149,9 +158,9 @@ export class AuthzHttpService {
     return !!(await this.getValidDepositDeploymentGrantsForGranterAndGrantee(granter, grantee));
   }
 
-  async paginateDepositDeploymentGrants(
+  async paginateDepositDeploymentGrants<T extends ExactDepositDeploymentGrant>(
     options: ({ granter: string } | { grantee: string }) & { limit: number },
-    cb: (page: DepositDeploymentGrantResponse["grants"]) => Promise<void>
+    cb: (page: T[]) => Promise<void>
   ): Promise<void> {
     let nextPageKey: unknown;
     const side = "granter" in options ? "granter" : "grantee";
@@ -165,14 +174,14 @@ export class AuthzHttpService {
       );
       nextPageKey = response.pagination?.next_key;
 
-      await cb(response.grants.filter(grant => this.isValidDepositDeploymentGrant(grant)));
+      await cb(response.grants.filter(grant => this.isValidDepositDeploymentGrant(grant)).map(grant => migrateLegacyDepositDeploymentGrant(grant)));
     } while (nextPageKey);
   }
 
   async getAllDepositDeploymentGrants(options: ({ granter: string } | { grantee: string }) & { limit: number }): Promise<DepositDeploymentGrant[]> {
     const result: DepositDeploymentGrant[] = [];
 
-    await this.paginateDepositDeploymentGrants(options, async page => {
+    await this.paginateDepositDeploymentGrants<DepositDeploymentGrant>(options, async page => {
       result.push(...page);
     });
 
@@ -185,7 +194,7 @@ export class AuthzHttpService {
     const limit = options.limit;
     const offset = options.offset;
 
-    const grants = extractData(
+    const response = extractData(
       await this.httpClient.get<DepositDeploymentGrantResponse>(`cosmos/authz/v1beta1/grants/${side}/${address}`, {
         params: {
           "pagination.limit": limit,
@@ -196,10 +205,11 @@ export class AuthzHttpService {
     );
 
     return {
-      ...grants,
+      ...response,
+      grants: response.grants.map(g => migrateLegacyDepositDeploymentGrant<LegacyDepositDeploymentGrant, DepositDeploymentGrant>(g)),
       pagination: {
-        next_key: grants.pagination?.next_key ?? null,
-        total: parseInt(grants.pagination?.total || "0")
+        next_key: response.pagination?.next_key ?? null,
+        total: parseInt(response.pagination?.total || "0", 10)
       }
     };
   }
@@ -208,11 +218,32 @@ export class AuthzHttpService {
     return !allowance.allowance.expiration || isFuture(new Date(allowance.allowance.expiration));
   }
 
-  private isValidDepositDeploymentGrant(grant: ExactDepositDeploymentGrant) {
+  private isValidDepositDeploymentGrant(grant: LegacyExactDepositDeploymentGrant) {
     return this.isDepositDeploymentGrant(grant) && (!grant.expiration || isFuture(new Date(grant.expiration)));
   }
 
-  private isDepositDeploymentGrant({ authorization }: ExactDepositDeploymentGrant) {
+  private isDepositDeploymentGrant({ authorization }: LegacyExactDepositDeploymentGrant) {
     return authorization["@type"] === this.DEPOSIT_DEPLOYMENT_GRANT_TYPE;
   }
+}
+
+type GrantOrFalsy<T extends LegacyExactDepositDeploymentGrant | null | undefined, U extends ExactDepositDeploymentGrant> = T extends null | undefined ? T : U;
+function migrateLegacyDepositDeploymentGrant<
+  T extends LegacyExactDepositDeploymentGrant | null | undefined,
+  U extends ExactDepositDeploymentGrant = ExactDepositDeploymentGrant
+>(grant: T): GrantOrFalsy<T, U> {
+  if (!grant) return grant as GrantOrFalsy<T, U>;
+
+  let spendLimits = grant.authorization.spend_limits ?? [];
+
+  if (grant.authorization.spend_limit && grant.authorization.spend_limit.amount !== "0") {
+    spendLimits = spendLimits.concat(grant.authorization.spend_limit);
+  }
+  return {
+    ...grant,
+    authorization: {
+      "@type": "/akash.escrow.v1.DepositAuthorization",
+      spend_limits: spendLimits
+    }
+  } as GrantOrFalsy<T, U>;
 }

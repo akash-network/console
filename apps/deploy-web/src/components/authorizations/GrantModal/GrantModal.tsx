@@ -1,60 +1,44 @@
 "use client";
-import { useMemo, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useRef, useState } from "react";
+import { useFieldArray, useForm } from "react-hook-form";
 import { FormattedDate } from "react-intl";
-import {
-  Alert,
-  Form,
-  FormField,
-  FormInput,
-  FormLabel,
-  FormMessage,
-  Popup,
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@akashnetwork/ui/components";
+import { Alert, Button, Form, FormField, FormInput, FormLabel, FormMessage, Popup } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { addYears, format } from "date-fns";
 import { z } from "zod";
 
 import { LinkTo } from "@src/components/shared/LinkTo";
 import { UACT_DENOM, UAKT_DENOM } from "@src/config/denom.config";
-import { useServices as useServicesOriginal } from "@src/context/ServicesProvider";
-import { useWallet as useWalletOriginal } from "@src/context/WalletProvider";
-import { useUsdcDenom as useUsdcDenomOriginal } from "@src/hooks/useDenom";
-import { useSupportsACT as useSupportsACTOriginal } from "@src/hooks/useSupportsACT/useSupportsACT";
-import { useDenomData as useDenomDataOriginal } from "@src/hooks/useWalletBalance";
+import { useServices } from "@src/context/ServicesProvider";
+import { useWallet } from "@src/context/WalletProvider";
+import { useSupportedDenoms, useUsdcDenom } from "@src/hooks/useDenom";
+import { useSupportsACT } from "@src/hooks/useSupportsACT/useSupportsACT";
+import { useDenomData } from "@src/hooks/useWalletBalance";
 import type { GrantType } from "@src/types/grant";
 import { denomToUdenom } from "@src/utils/mathHelpers";
-import { coinToDenom, getUsdcDenom } from "@src/utils/priceUtils";
+import { coinToDenom } from "@src/utils/priceUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { handleDocClick } from "@src/utils/urlUtils";
+import { SpendLimitRow } from "./SpendLimitRow";
 
 export const DEPENDENCIES = {
   Alert,
+  Button,
   Form,
   FormField,
   FormInput,
   FormLabel,
   FormMessage,
-  Popup,
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   FormattedDate,
+  Popup,
   LinkTo,
-  useServices: useServicesOriginal,
-  useWallet: useWalletOriginal,
-  useUsdcDenom: useUsdcDenomOriginal,
-  useDenomData: useDenomDataOriginal,
-  useSupportsACT: useSupportsACTOriginal
+  SpendLimitRow,
+  useServices,
+  useWallet,
+  useUsdcDenom,
+  useDenomData,
+  useSupportsACT,
+  useSupportedDenoms
 };
 
 type Props = {
@@ -64,12 +48,18 @@ type Props = {
   dependencies?: typeof DEPENDENCIES;
 };
 
+const spendLimitSchema = z.object({
+  denom: z.string().min(1, "Token is required."),
+  amount: z.coerce.number().gt(0, "Amount must be greater than 0.")
+});
+
 const formSchema = z.object({
-  token: z.string().min(1, "Token is required."),
-  amount: z.coerce.number().min(0, "Amount must be greater than 0."),
+  spendLimits: z.array(spendLimitSchema).min(1),
   expiration: z.string().min(1, "Expiration is required."),
   granteeAddress: z.string().min(1, "Grantee address is required.")
 });
+
+export type GrantFormValues = z.infer<typeof formSchema>;
 
 export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, address, onClose, dependencies: d = DEPENDENCIES }) => {
   const { analyticsService } = d.useServices();
@@ -78,48 +68,48 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
   const { signAndBroadcastTx } = d.useWallet();
   const usdcDenom = d.useUsdcDenom();
   const isACTSupported = d.useSupportsACT();
-  const defaultToken = isACTSupported ? UACT_DENOM : UAKT_DENOM;
-  const form = useForm<z.infer<typeof formSchema>>({
+  const supportedTokens = d.useSupportedDenoms();
+
+  const defaultSpendLimits = editingGrant
+    ? editingGrant.authorization.spend_limits.map(sl => ({
+        denom: sl.denom,
+        amount: coinToDenom(sl)
+      }))
+    : [{ denom: isACTSupported ? UACT_DENOM : UAKT_DENOM, amount: 0 }];
+
+  const form = useForm<GrantFormValues>({
     defaultValues: {
-      token: editingGrant?.authorization.spend_limit.denom === usdcDenom ? "usdc" : defaultToken,
-      amount: editingGrant ? coinToDenom(editingGrant.authorization.spend_limit) : 0,
+      spendLimits: defaultSpendLimits,
       expiration: format(addYears(new Date(), 1), "yyyy-MM-dd'T'HH:mm"),
       granteeAddress: editingGrant?.grantee ?? ""
     },
     resolver: zodResolver(formSchema)
   });
-  const { handleSubmit, control, watch, clearErrors, setValue } = form;
-  const { amount, granteeAddress, expiration, token } = watch();
-  const denom = token === "usdc" ? usdcDenom : token;
-  const denomData = d.useDenomData(denom);
-  const supportedTokens = useMemo(() => {
-    if (isACTSupported) {
-      return [
-        { id: UACT_DENOM, label: "ACT" },
-        { id: UAKT_DENOM, label: "AKT" }
-      ];
-    }
-
-    return [
-      { id: UAKT_DENOM, label: "AKT" },
-      { id: "usdc", label: "USDC" }
-    ];
-  }, [isACTSupported]);
-  const selectedToken = supportedTokens.find(x => x.id === token);
+  const { handleSubmit, control, watch, clearErrors } = form;
+  const { fields: spendLimitFields, append: appendSpendLimit, remove: removeSpendLimitAt } = useFieldArray({ control, name: "spendLimits" });
+  const watchedSpendLimits = watch("spendLimits");
+  const granteeAddress = watch("granteeAddress");
+  const expiration = watch("expiration");
+  const hasAmount = watchedSpendLimits.some(sl => sl.amount > 0);
+  const canAddAkt = isACTSupported && spendLimitFields.length < 2 && !spendLimitFields.some(f => f.denom === UAKT_DENOM);
 
   const onDepositClick = (event: React.MouseEvent) => {
     event.preventDefault();
     formRef.current?.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
   };
 
-  const onSubmit = async ({ amount, expiration, granteeAddress }: z.infer<typeof formSchema>) => {
+  const authorizeSpending = async ({ spendLimits, expiration, granteeAddress }: GrantFormValues) => {
     setError("");
     clearErrors();
-    const spendLimit = denomToUdenom(amount);
-    const denom = token === "usdc" ? getUsdcDenom() : token;
+
+    const coins = spendLimits.map(sl => ({
+      amount: denomToUdenom(sl.amount).toString(),
+      denom: sl.denom === "usdc" ? usdcDenom : sl.denom
+    }));
+    const spendLimit = isACTSupported ? coins : coins[0];
 
     const expirationDate = new Date(expiration);
-    const message = TransactionMessageData.getGrantMsg(address, granteeAddress, spendLimit, expirationDate, denom);
+    const message = TransactionMessageData.getGrantMsg(address, granteeAddress, spendLimit, expirationDate);
     const response = await signAndBroadcastTx([message]);
 
     if (response) {
@@ -132,9 +122,8 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
     }
   };
 
-  const onBalanceClick = () => {
-    clearErrors();
-    setValue("amount", denomData?.max || 0);
+  const addAktGrant = () => {
+    appendSpendLimit({ denom: UAKT_DENOM, amount: 0 });
   };
 
   return (
@@ -155,7 +144,7 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
           color: "secondary",
           variant: "default",
           side: "right",
-          disabled: !amount,
+          disabled: !hasAmount,
           onClick: onDepositClick
         }
       ]}
@@ -165,7 +154,7 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
       title="Authorize Spending"
     >
       <d.Form {...form}>
-        <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
+        <form onSubmit={handleSubmit(authorizeSpending)} ref={formRef}>
           <d.Alert className="mb-4">
             <p className="text-sm text-muted-foreground">
               <d.LinkTo onClick={ev => handleDocClick(ev, "https://akash.network/docs/network-features/authorized-spend/")}>Authorized Spend</d.LinkTo> allows
@@ -174,61 +163,23 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
             </p>
           </d.Alert>
 
-          <div className="mb-2 mt-2 text-right">
-            <d.LinkTo onClick={() => onBalanceClick()}>
-              Balance: {denomData?.balance} {denomData?.label}
-            </d.LinkTo>
-          </div>
-
-          <div className="mb-4 flex w-full flex-row items-center">
-            <d.FormField
-              control={control}
-              name="token"
-              render={({ field }) => {
-                return (
-                  <div>
-                    <d.FormLabel htmlFor="grant-address">Token</d.FormLabel>
-                    <d.Select value={field.value || ""} onValueChange={field.onChange}>
-                      <d.SelectTrigger id="grant-address">
-                        <d.SelectValue placeholder="Select grant token" />
-                      </d.SelectTrigger>
-                      <d.SelectContent>
-                        <d.SelectGroup>
-                          {supportedTokens.map(token => (
-                            <d.SelectItem key={token.id} value={token.id}>
-                              {token.label}
-                            </d.SelectItem>
-                          ))}
-                        </d.SelectGroup>
-                      </d.SelectContent>
-                    </d.Select>
-
-                    <d.FormMessage />
-                  </div>
-                );
-              }}
+          {spendLimitFields.map((field, index) => (
+            <d.SpendLimitRow
+              key={field.id}
+              index={index}
+              denom={watchedSpendLimits[index]?.denom ?? field.denom}
+              isRemovable={isACTSupported && index > 0}
+              onRemove={() => removeSpendLimitAt(index)}
             />
+          ))}
 
-            <d.FormField
-              control={control}
-              name="amount"
-              render={({ field }) => {
-                return (
-                  <d.FormInput
-                    {...field}
-                    type="number"
-                    label="Spending Limit"
-                    autoFocus
-                    min={0}
-                    step={0.000001}
-                    max={denomData?.max}
-                    startIcon={<span className="pl-2 text-xs">{denomData?.label}</span>}
-                    className="ml-4 flex-grow"
-                  />
-                );
-              }}
-            />
-          </div>
+          {canAddAkt && (
+            <div className="mb-4">
+              <d.Button variant="outline" size="sm" type="button" className="w-full" onClick={addAktGrant}>
+                Add AKT Grant
+              </d.Button>
+            </div>
+          )}
 
           <div className="mb-4 w-full">
             <d.FormField
@@ -250,11 +201,18 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
             />
           </div>
 
-          {!!amount && granteeAddress && (
+          {hasAmount && granteeAddress && (
             <d.Alert>
               <p className="text-sm text-muted-foreground">
-                This address will be able to spend up to {amount} {selectedToken?.label} on your behalf ending on{" "}
-                <d.FormattedDate value={expiration} year="numeric" month="2-digit" day="2-digit" hour="2-digit" minute="2-digit" />.
+                This address will be able to spend up to{" "}
+                {watchedSpendLimits
+                  .filter(sl => sl.amount > 0)
+                  .map(sl => {
+                    const token = supportedTokens.find(t => t.id === sl.denom);
+                    return `${sl.amount} ${token?.tokenLabel ?? sl.denom}`;
+                  })
+                  .join(" and ")}{" "}
+                on your behalf ending on <d.FormattedDate value={expiration} year="numeric" month="2-digit" day="2-digit" hour="2-digit" minute="2-digit" />.
               </p>
             </d.Alert>
           )}

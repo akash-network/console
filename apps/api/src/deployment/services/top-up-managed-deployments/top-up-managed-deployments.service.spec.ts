@@ -543,7 +543,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
       }
     });
     const drainingDeploymentService = mock<DrainingDeploymentService>();
-    const rpcMessageService = new RpcMessageService();
+    const rpcMessageService = new RpcMessageService(billingConfig);
     const cachedBalanceService = mock<CachedBalanceService>();
     const blockHttpService = mock<BlockHttpService>();
     blockHttpService.getCurrentHeight.mockResolvedValue(currentBlockHeight);

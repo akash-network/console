@@ -179,7 +179,10 @@ describe(BatchSigningClientService.name, () => {
     expect(client.getTx).toHaveBeenCalledTimes(1);
   });
 
-  function createTransactionTestData(granter: string): TransactionTestData {
+  function createTransactionTestData(
+    granter: string,
+    billingConfig = mockConfigService<BillingConfigService>({ DEPLOYMENT_GRANT_DENOM: "uakt" })
+  ): TransactionTestData {
     const signedMessage = TxRaw.fromPartial({
       bodyBytes: generateRandomBytes(faker.number.int({ min: 10, max: 100 })),
       authInfoBytes: generateRandomBytes(faker.number.int({ min: 10, max: 100 })),
@@ -190,7 +193,7 @@ describe(BatchSigningClientService.name, () => {
 
     return {
       messages: [
-        new RpcMessageService().getFeesAllowanceGrantMsg({
+        new RpcMessageService(billingConfig).getFeesAllowanceGrantMsg({
           limit: faker.number.int({ min: 5_000_000, max: 10_000_000 }),
           grantee: createAkashAddress(),
           granter

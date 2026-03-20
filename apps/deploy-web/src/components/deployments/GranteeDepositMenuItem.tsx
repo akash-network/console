@@ -18,7 +18,11 @@ export const GranteeDepositMenuItem: React.FunctionComponent<Props> = ({ grant }
     <div className="text-xs">
       <Address address={grant.granter} disableTooltip />
       &nbsp;<small className="text-muted-foreground">|</small>&nbsp;
-      <DenomAmount amount={coinToUDenom(grant.authorization.spend_limit)} denom={grant.authorization.spend_limit.denom} />
+      <span className="inline-flex gap-1">
+        {grant.authorization.spend_limits.map(limit => (
+          <DenomAmount key={limit.denom} amount={coinToUDenom(limit)} denom={limit.denom} />
+        ))}
+      </span>
       &nbsp;
       <small className="text-muted-foreground">
         (Exp:&nbsp;

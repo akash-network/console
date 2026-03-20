@@ -14,7 +14,7 @@ import {
   SelectValue
 } from "@akashnetwork/ui/components";
 
-import { useSdlDenoms } from "@src/hooks/useDenom";
+import { useSupportedDenoms } from "@src/hooks/useDenom";
 import type { ServiceType } from "@src/types";
 
 interface ServicesFieldValues extends FieldValues {
@@ -28,7 +28,7 @@ interface Props<TFieldValues extends ServicesFieldValues, TName extends Path<TFi
 }
 
 export const TokenFormControl = <F extends ServicesFieldValues>({ control, name, defaultValue }: Props<F>): ReactElement<Props<F>> => {
-  const supportedSdlDenoms = useSdlDenoms();
+  const supportedSdlDenoms = useSupportedDenoms();
 
   return (
     <FormField

@@ -15,7 +15,7 @@ export const useUsdcDenom = (dependencies: typeof DEPENDENCIES = DEPENDENCIES): 
   return getUsdcDenom(selectedNetworkId);
 };
 
-export const useSdlDenoms = (dependencies: typeof DEPENDENCIES = DEPENDENCIES) => {
+export const useSupportedDenoms = (dependencies: typeof DEPENDENCIES = DEPENDENCIES) => {
   const usdcDenom = useUsdcDenom(dependencies);
   const supportsACT = dependencies.useSupportsACT();
 

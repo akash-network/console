@@ -83,16 +83,18 @@ export const DeploymentGrantTable: React.FC<Props> = ({
     }),
     columnHelper.accessor(
       row => {
-        return row.authorization.spend_limit;
+        return row.authorization.spend_limits;
       },
       {
         id: "spendingLimit",
         cell: info => {
-          const value = info.getValue();
+          const value = info.getValue() ?? [];
 
           return (
-            <div className="text-center">
-              <d.DenomAmount amount={coinToUDenom(value)} denom={value.denom} />
+            <div className="flex flex-wrap justify-center gap-1">
+              {value.map(limit => (
+                <d.DenomAmount key={limit.denom} amount={coinToUDenom(limit)} denom={limit.denom} />
+              ))}
             </div>
           );
         },

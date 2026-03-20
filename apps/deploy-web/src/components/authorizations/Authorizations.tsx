@@ -21,11 +21,11 @@ import { SettingsLayout, SettingsTabs } from "../settings/SettingsLayout";
 import { ConnectWallet } from "../shared/ConnectWallet";
 import { Title } from "../shared/Title";
 import { DeploymentGrantTable } from "./DeploymentGrantTable/DeploymentGrantTable";
+import { GranteeRow } from "./GranteeRow/GranteeRow";
 import { GrantModal } from "./GrantModal/GrantModal";
 import { AllowanceGrantedRow } from "./AllowanceGrantedRow";
 import { AllowanceModal } from "./AllowanceModal";
 import { FeeGrantTable } from "./FeeGrantTable";
-import { GranteeRow } from "./GranteeRow";
 
 type RefreshingType = "granterGrants" | "granteeGrants" | "allowancesIssued" | "allowancesGranted" | null;
 const defaultRefetchInterval = 30 * 1000;

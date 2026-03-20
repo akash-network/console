@@ -166,11 +166,13 @@ describe(DeploymentGrantTable.name, () => {
       grantee: "akash1grantee",
       expiration: "2025-12-31T00:00:00Z",
       authorization: {
-        "@type": "/akash.deployment.v1beta3.DepositDeploymentAuthorization",
-        spend_limit: {
-          denom: "uakt",
-          amount: "1000000"
-        }
+        "@type": "/akash.escrow.v1.DepositAuthorization",
+        spend_limits: [
+          {
+            denom: "uakt",
+            amount: "1000000"
+          }
+        ]
       },
       ...overrides
     };

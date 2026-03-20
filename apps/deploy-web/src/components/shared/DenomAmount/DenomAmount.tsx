@@ -27,7 +27,7 @@ export function DenomAmount({ amount, denom, showUSD, digits = 6, notation, depe
   const denomAmount = udenomToDenom(amount);
 
   return (
-    <>
+    <span>
       <d.FormattedNumberParts value={denomAmount} maximumFractionDigits={digits} minimumFractionDigits={digits} notation={notation}>
         {parts => (
           <>
@@ -59,6 +59,6 @@ export function DenomAmount({ amount, denom, showUSD, digits = 6, notation, depe
           <d.FormattedNumber style="currency" currency="USD" value={udenomToUsd(amount, denom) || 0} notation="compact" />)
         </small>
       )}
-    </>
+    </span>
   );
 }
