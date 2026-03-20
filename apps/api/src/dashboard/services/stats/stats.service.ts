@@ -1,38 +1,33 @@
-import { AkashBlock as Block, Lease, Provider, ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash";
-import { Day } from "@akashnetwork/database/dbSchemas/base";
+import { AkashBlock as Block } from "@akashnetwork/database/dbSchemas/akash";
 import { CoinGeckoHttpService, CosmosHttpService } from "@akashnetwork/http-sdk";
 import { createOtelLogger } from "@akashnetwork/logging/otel";
-import { differenceInSeconds, minutesToSeconds, sub, subHours } from "date-fns";
+import { differenceInSeconds, minutesToSeconds, subHours } from "date-fns";
 import uniqBy from "lodash/uniqBy";
-import { Op, QueryTypes, Sequelize } from "sequelize";
-import { inject, singleton } from "tsyringe";
+import { singleton } from "tsyringe";
 
 import { Memoize } from "@src/caching/helpers";
-import { CHAIN_DB } from "@src/chain";
+import { BmeStatusHistoryResponse } from "@src/dashboard/http-schemas/bme-status-history/bme-status-history.schema";
 import { GraphDataResponse } from "@src/dashboard/http-schemas/graph-data/graph-data.schema";
 import { LeasesDurationParams, LeasesDurationQuery, LeasesDurationResponse } from "@src/dashboard/http-schemas/leases-duration/leases-duration.schema";
 import { MarketDataParams } from "@src/dashboard/http-schemas/market-data/market-data.schema";
-import type { DashboardConfig } from "@src/dashboard/providers/config.provider";
-import { DASHBOARD_CONFIG } from "@src/dashboard/providers/config.provider";
-import { AuthorizedGraphDataName } from "@src/services/db/statsService";
+import { StatsRepository } from "@src/dashboard/repositories/stats";
 import { ProviderCapacityStats, StatsItem } from "@src/types/provider";
-import { toUTC } from "@src/utils";
 import { forEachInChunks } from "@src/utils/array/array";
 import { createLoggingExecutor } from "@src/utils/logging";
+import type { AuthorizedGraphDataName, DashboardGraphDataName } from "./stats.types";
 
 const numberOrZero: (x: number | undefined | null) => number = (x: number | undefined | null) => (typeof x === "number" ? x : 0);
 
 const logger = createOtelLogger({ context: "StatsService" });
 const runOrLog = createLoggingExecutor(logger);
 
-type GpuUtilizationData = {
-  date: Date;
-  cpuUtilization: number;
-  cpu: number;
-  gpuUtilization: number;
-  gpu: number;
-  count: number;
-  node_count: number;
+type DateValue = { date: Date; value: number };
+
+type BlockMetricConfig = {
+  attributes: (keyof Block)[];
+  getter: (block: Block) => number;
+  isRelative?: boolean;
+  dashboardKey?: DashboardGraphDataName;
 };
 
 export const emptyNetworkCapacity = {
@@ -63,48 +58,70 @@ export const emptyNetworkCapacity = {
   totalPersistentStorage: 0
 };
 
+const blockMetrics: Partial<Record<AuthorizedGraphDataName, BlockMetricConfig>> = {
+  dailyUAktSpent: { attributes: ["totalUAktSpent"], getter: b => numberOrZero(b.totalUAktSpent), dashboardKey: "dailyUAktSpent", isRelative: true },
+  dailyUUsdcSpent: { attributes: ["totalUUsdcSpent"], getter: b => numberOrZero(b.totalUUsdcSpent), dashboardKey: "dailyUUsdcSpent", isRelative: true },
+  dailyUUsdSpent: { attributes: ["totalUUsdSpent"], getter: b => numberOrZero(b.totalUUsdSpent), dashboardKey: "dailyUUsdSpent", isRelative: true },
+  dailyLeaseCount: { attributes: ["totalLeaseCount"], getter: b => numberOrZero(b.totalLeaseCount), dashboardKey: "dailyLeaseCount", isRelative: true },
+  activeStorage: {
+    attributes: ["activeEphemeralStorage", "activePersistentStorage"],
+    getter: b => numberOrZero(b.activeEphemeralStorage) + numberOrZero(b.activePersistentStorage),
+    dashboardKey: "activeStorage"
+  },
+  totalUAktSpent: { attributes: ["totalUAktSpent"], getter: b => numberOrZero(b.totalUAktSpent), dashboardKey: "totalUAktSpent" },
+  totalUUsdcSpent: { attributes: ["totalUUsdcSpent"], getter: b => numberOrZero(b.totalUUsdcSpent), dashboardKey: "totalUUsdcSpent" },
+  totalUUsdSpent: { attributes: ["totalUUsdSpent"], getter: b => numberOrZero(b.totalUUsdSpent), dashboardKey: "totalUUsdSpent" },
+  activeLeaseCount: { attributes: ["activeLeaseCount"], getter: b => numberOrZero(b.activeLeaseCount), dashboardKey: "activeLeaseCount" },
+  totalLeaseCount: { attributes: ["totalLeaseCount"], getter: b => numberOrZero(b.totalLeaseCount), dashboardKey: "totalLeaseCount" },
+  activeCPU: { attributes: ["activeCPU"], getter: b => numberOrZero(b.activeCPU), dashboardKey: "activeCPU" },
+  activeGPU: { attributes: ["activeGPU"], getter: b => numberOrZero(b.activeGPU), dashboardKey: "activeGPU" },
+  activeMemory: { attributes: ["activeMemory"], getter: b => numberOrZero(b.activeMemory), dashboardKey: "activeMemory" },
+  totalAktBurnedForAct: { attributes: ["totalUaktBurnedForUact"], getter: b => numberOrZero(b.totalUaktBurnedForUact) },
+  dailyAktBurnedForAct: { attributes: ["totalUaktBurnedForUact"], getter: b => numberOrZero(b.totalUaktBurnedForUact), isRelative: true },
+  totalActMinted: { attributes: ["totalUactMinted"], getter: b => numberOrZero(b.totalUactMinted) },
+  dailyActMinted: { attributes: ["totalUactMinted"], getter: b => numberOrZero(b.totalUactMinted), isRelative: true },
+  totalActBurnedForAkt: { attributes: ["totalUactBurnedForUakt"], getter: b => numberOrZero(b.totalUactBurnedForUakt) },
+  dailyActBurnedForAkt: { attributes: ["totalUactBurnedForUakt"], getter: b => numberOrZero(b.totalUactBurnedForUakt), isRelative: true },
+  totalAktReminted: { attributes: ["totalUaktReminted"], getter: b => numberOrZero(b.totalUaktReminted) },
+  dailyAktReminted: { attributes: ["totalUaktReminted"], getter: b => numberOrZero(b.totalUaktReminted), isRelative: true },
+  netAktBurned: {
+    attributes: ["totalUaktBurnedForUact", "totalUaktReminted"],
+    getter: b => numberOrZero(b.totalUaktBurnedForUact) - numberOrZero(b.totalUaktReminted)
+  },
+  dailyNetAktBurned: {
+    attributes: ["totalUaktBurnedForUact", "totalUaktReminted"],
+    getter: b => numberOrZero(b.totalUaktBurnedForUact) - numberOrZero(b.totalUaktReminted),
+    isRelative: true
+  },
+  outstandingAct: { attributes: ["outstandingUact"], getter: b => numberOrZero(b.outstandingUact) },
+  vaultAkt: { attributes: ["vaultUakt"], getter: b => numberOrZero(b.vaultUakt) }
+};
+
 @singleton()
 export class StatsService {
-  readonly #dashboardConfig: DashboardConfig;
-  readonly #chainDb: Sequelize;
-
   constructor(
-    @inject(DASHBOARD_CONFIG) dashboardConfig: DashboardConfig,
-    @inject(CHAIN_DB) chainDb: Sequelize,
+    private readonly statsRepository: StatsRepository,
     private readonly cosmosHttpService: CosmosHttpService,
     private readonly coinGeckoHttpService: CoinGeckoHttpService
-  ) {
-    this.#dashboardConfig = dashboardConfig;
-    this.#chainDb = chainDb;
-  }
+  ) {}
 
   async getDashboardData() {
-    const latestBlockStats = await Block.findOne({
-      where: {
-        isProcessed: true,
-        totalUUsdSpent: { [Op.not]: null }
-      },
-      order: [["height", "DESC"]]
-    });
+    const latestBlockStats = await this.statsRepository.findLatestProcessedBlock();
     if (!latestBlockStats) {
       throw new Error("No blocks stats found");
     }
 
     const compareDate = subHours(latestBlockStats.datetime, 24);
-    const compareBlockStats = (await Block.findOne({
-      order: [["datetime", "ASC"]],
-      where: {
-        datetime: { [Op.gte]: compareDate }
-      }
-    })) as Block;
+    const compareBlockStats = await this.statsRepository.findFirstBlockSince(compareDate);
+    if (!compareBlockStats) {
+      throw new Error(`No block found since ${compareDate.toISOString()}`);
+    }
 
     const secondCompareDate = subHours(latestBlockStats.datetime, 48);
-    const secondCompareBlockStats = (await Block.findOne({
-      order: [["datetime", "ASC"]],
-      where: {
-        datetime: { [Op.gte]: secondCompareDate }
-      }
-    })) as Block;
+    const secondCompareBlockStats = await this.statsRepository.findFirstBlockSince(secondCompareDate);
+    if (!secondCompareBlockStats) {
+      throw new Error(`No block found since ${secondCompareDate.toISOString()}`);
+    }
 
     return {
       now: {
@@ -145,128 +162,65 @@ export class StatsService {
   }
 
   async getGraphData(dataName: AuthorizedGraphDataName): Promise<GraphDataResponse> {
-    let attributes: (keyof Block)[] = [];
-    let isRelative = false;
-    let getter: (block: Block) => number;
-
     switch (dataName) {
-      case "dailyUAktSpent":
-        attributes = ["totalUAktSpent"];
-        getter = (block: Block) => numberOrZero(block.totalUAktSpent);
-        isRelative = true;
-        break;
-      case "dailyUUsdcSpent":
-        attributes = ["totalUUsdcSpent"];
-        getter = (block: Block) => numberOrZero(block.totalUUsdcSpent);
-        isRelative = true;
-        break;
-      case "dailyUUsdSpent":
-        attributes = ["totalUUsdSpent"];
-        getter = (block: Block) => numberOrZero(block.totalUUsdSpent);
-        isRelative = true;
-        break;
-      case "dailyLeaseCount":
-        attributes = ["totalLeaseCount"];
-        getter = (block: Block) => numberOrZero(block.totalLeaseCount);
-        isRelative = true;
-        break;
-      case "activeStorage":
-        attributes = ["activeEphemeralStorage", "activePersistentStorage"];
-        getter = (block: Block) => numberOrZero(block.activeEphemeralStorage) + numberOrZero(block.activePersistentStorage);
-        break;
       case "gpuUtilization":
-        return await this.getGpuUtilization();
+        return this.getGpuUtilization();
+      case "collateralRatio":
+        return this.getCollateralRatio();
       default:
-        attributes = [dataName];
-        getter = (block: Block) => numberOrZero(block[dataName]);
+        return this.getBlockGraphData(dataName);
+    }
+  }
+
+  private async getBlockGraphData(dataName: Exclude<AuthorizedGraphDataName, "gpuUtilization" | "collateralRatio">): Promise<GraphDataResponse> {
+    const config = blockMetrics[dataName];
+    if (!config) {
+      throw new Error(`Unknown graph data name: ${dataName}`);
     }
 
-    const result = await Day.findAll({
-      attributes: ["date"],
-      include: [
-        {
-          model: Block,
-          as: "lastBlock",
-          attributes: attributes,
-          required: true
-        }
-      ],
-      order: [["date", "ASC"]]
-    });
+    let stats = await this.fetchDailyBlockSnapshots(config.attributes, config.getter);
 
-    let stats = result.map(day => ({
+    if (dataName === "activeGPU") {
+      stats = stripLeadingZeros(stats);
+    }
+
+    if (config.isRelative) {
+      stats = toRelativeValues(stats);
+    }
+
+    return this.buildGraphDataResponse(stats, config.dashboardKey);
+  }
+
+  private async fetchDailyBlockSnapshots(attributes: (keyof Block)[], getter: (block: Block) => number): Promise<DateValue[]> {
+    const result = await this.statsRepository.findDailyBlockSnapshots(attributes);
+
+    return result.map(day => ({
       date: day.date,
       value: getter(day.lastBlock!)
     }));
+  }
 
-    if (dataName === "activeGPU") {
-      const firstWithValue = stats.findIndex(x => x.value > 0);
-      stats = stats.filter((_, i) => i >= firstWithValue);
+  private async buildGraphDataResponse(stats: DateValue[], dashboardKey?: DashboardGraphDataName): Promise<GraphDataResponse> {
+    if (dashboardKey) {
+      const dashboardData = await this.getDashboardData();
+
+      return {
+        currentValue: numberOrZero(dashboardData.now[dashboardKey]),
+        compareValue: numberOrZero(dashboardData.compare[dashboardKey]),
+        snapshots: stats
+      };
     }
-
-    if (isRelative) {
-      const relativeStats = stats.reduce<{ date: Date; value: number }[]>((arr, dataPoint, index) => {
-        arr[index] = {
-          date: dataPoint.date,
-          value: dataPoint.value - (index > 0 ? stats[index - 1].value : 0)
-        };
-
-        return arr;
-      }, []);
-
-      stats = relativeStats;
-    }
-
-    const dashboardData = await this.getDashboardData();
 
     return {
-      currentValue: numberOrZero(dashboardData.now[dataName]),
-      compareValue: numberOrZero(dashboardData.compare[dataName]),
+      currentValue: stats[stats.length - 1]?.value ?? 0,
+      compareValue: stats[stats.length - 2]?.value ?? 0,
       snapshots: stats
     };
   }
 
   @Memoize({ ttlInSeconds: minutesToSeconds(5) })
   private async getGpuUtilization() {
-    const result = await this.#chainDb.query<GpuUtilizationData>(
-      `/* dashboard-stats:gpu-utilization */ SELECT
-          d."date",
-          ROUND(
-            COALESCE((SUM("activeCPU") + SUM("pendingCPU")) * 100.0 /
-            NULLIF(SUM("activeCPU") + SUM("pendingCPU") + SUM("availableCPU"), 0), 0),
-            2
-          )::float AS "cpuUtilization",
-          COALESCE(SUM("activeCPU") + SUM("pendingCPU") + SUM("availableCPU"), 0)::integer AS "cpu",
-          ROUND(
-            COALESCE((SUM("activeGPU") + SUM("pendingGPU")) * 100.0 /
-            NULLIF(SUM("activeGPU") + SUM("pendingGPU") + SUM("availableGPU"), 0), 0),
-            2
-          )::float AS "gpuUtilization",
-          COALESCE(SUM("activeGPU") + SUM("pendingGPU") + SUM("availableGPU"), 0)::integer AS "gpu",
-          COUNT(*) as provider_count,
-          COALESCE(COUNT(DISTINCT "nodeId"), 0) as node_count
-        FROM "day" d
-        INNER JOIN (
-          SELECT DISTINCT ON("hostUri",DATE("checkDate"))
-            DATE("checkDate") AS date,
-            ps."activeCPU", ps."pendingCPU", ps."availableCPU",
-            ps."activeGPU", ps."pendingGPU", ps."availableGPU",
-            ps."isOnline",
-            n.id as "nodeId"
-          FROM "providerSnapshot" ps
-          INNER JOIN "provider" ON "provider"."owner"=ps."owner"
-          INNER JOIN "providerSnapshotNode" n ON n."snapshotId"=ps.id AND n."gpuAllocatable" > 0
-          LEFT JOIN "providerSnapshotNodeGPU" gpu ON gpu."snapshotNodeId" = n.id
-          WHERE ps."isLastSuccessOfDay" = TRUE
-          ORDER BY "hostUri",DATE("checkDate"),"checkDate" DESC
-        ) "dailyProviderStats"
-        ON DATE(d."date")="dailyProviderStats"."date"
-        GROUP BY d."date"
-        ORDER BY d."date" ASC`,
-      {
-        type: QueryTypes.SELECT
-      }
-    );
+    const result = await this.statsRepository.findGpuUtilization();
 
     const stats = result.map(day => ({
       date: day.date,
@@ -278,6 +232,35 @@ export class StatsService {
       compareValue: stats[stats.length - 2]?.value ?? 0,
       snapshots: stats
     };
+  }
+
+  @Memoize({ ttlInSeconds: minutesToSeconds(5) })
+  private async getCollateralRatio() {
+    const result = await this.statsRepository.findCollateralRatio();
+
+    const stats = result.map(day => ({
+      date: day.date,
+      value: day.collateralRatio
+    }));
+
+    return {
+      currentValue: stats[stats.length - 1]?.value ?? 0,
+      compareValue: stats[stats.length - 2]?.value ?? 0,
+      snapshots: stats
+    };
+  }
+
+  @Memoize({ ttlInSeconds: minutesToSeconds(5) })
+  async getBmeStatusHistory(): Promise<BmeStatusHistoryResponse> {
+    const rows = await this.statsRepository.findBmeStatusHistory();
+
+    return rows.map(row => ({
+      height: row.height,
+      date: row.date,
+      previousStatus: row.previousStatus,
+      newStatus: row.newStatus,
+      collateralRatio: row.collateralRatio
+    }));
   }
 
   @Memoize({ ttlInSeconds: minutesToSeconds(5) })
@@ -371,19 +354,7 @@ export class StatsService {
 
   @Memoize({ ttlInSeconds: 15 })
   async getNetworkCapacity(): Promise<{ resources: ProviderCapacityStats; activeProviderCount: number }> {
-    const providers = await Provider.findAll({
-      where: {
-        deletedHeight: null
-      },
-      include: [
-        {
-          required: true,
-          model: ProviderSnapshot,
-          as: "lastSuccessfulSnapshot",
-          where: { checkDate: { [Op.gte]: toUTC(sub(new Date(), { minutes: this.#dashboardConfig.PROVIDER_UPTIME_GRACE_PERIOD_MINUTES })) } }
-        }
-      ]
-    });
+    const providers = await this.statsRepository.findActiveProvidersWithSnapshots();
 
     const filteredProviders = uniqBy(providers, provider => provider.hostUri);
     const stats = {
@@ -459,20 +430,7 @@ export class StatsService {
   }
 
   async getLeasesDuration(owner: LeasesDurationParams["owner"], query: LeasesDurationQuery): Promise<LeasesDurationResponse> {
-    const { dseq, startDate, endDate } = query;
-    const closedLeases = await Lease.findAll({
-      where: {
-        owner: owner,
-        closedHeight: { [Op.not]: null },
-        "$createdBlock.datetime$": { [Op.gte]: startDate },
-        "$closedBlock.datetime$": { [Op.lte]: endDate },
-        ...(dseq ? { dseq: dseq } : {})
-      },
-      include: [
-        { model: Block, as: "createdBlock" },
-        { model: Block, as: "closedBlock" }
-      ]
-    });
+    const closedLeases = await this.statsRepository.findClosedLeases(owner, query);
 
     const leases = closedLeases.map(x => ({
       dseq: x.dseq,
@@ -497,6 +455,18 @@ export class StatsService {
       leases
     };
   }
+}
+
+function stripLeadingZeros(stats: DateValue[]): DateValue[] {
+  const firstWithValue = stats.findIndex(x => x.value > 0);
+  return firstWithValue >= 0 ? stats.slice(firstWithValue) : stats;
+}
+
+function toRelativeValues(stats: DateValue[]): DateValue[] {
+  return stats.map((dataPoint, index) => ({
+    date: dataPoint.date,
+    value: dataPoint.value - (index > 0 ? stats[index - 1].value : 0)
+  }));
 }
 
 function buildStatItem(active: number, pending: number, available: number): StatsItem {

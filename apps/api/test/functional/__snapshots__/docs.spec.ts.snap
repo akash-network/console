@@ -3813,6 +3813,58 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/bme/status-history": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "properties": {
+                      "collateralRatio": {
+                        "example": 1.5,
+                        "type": "number",
+                      },
+                      "date": {
+                        "example": "2024-01-01T00:00:00.000Z",
+                        "type": "string",
+                      },
+                      "height": {
+                        "example": 12345678,
+                        "type": "integer",
+                      },
+                      "newStatus": {
+                        "example": "warning",
+                        "type": "string",
+                      },
+                      "previousStatus": {
+                        "example": "healthy",
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "height",
+                      "date",
+                      "previousStatus",
+                      "newStatus",
+                      "collateralRatio",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+              },
+            },
+            "description": "Returns BME circuit breaker status change history",
+          },
+        },
+        "security": [],
+        "tags": [
+          "Analytics",
+        ],
+      },
+    },
     "/v1/certificates": {
       "post": {
         "responses": {
@@ -7633,6 +7685,19 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 "activeMemory",
                 "activeStorage",
                 "gpuUtilization",
+                "totalAktBurnedForAct",
+                "dailyAktBurnedForAct",
+                "totalActMinted",
+                "dailyActMinted",
+                "totalActBurnedForAkt",
+                "dailyActBurnedForAkt",
+                "totalAktReminted",
+                "dailyAktReminted",
+                "netAktBurned",
+                "dailyNetAktBurned",
+                "outstandingAct",
+                "vaultAkt",
+                "collateralRatio",
               ],
               "example": "dailyUAktSpent",
               "type": "string",
