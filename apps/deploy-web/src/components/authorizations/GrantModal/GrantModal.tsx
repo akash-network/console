@@ -2,25 +2,9 @@
 import { useRef, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { FormattedDate } from "react-intl";
-import {
-  Alert,
-  Button,
-  Form,
-  FormField,
-  FormInput,
-  FormLabel,
-  FormMessage,
-  Popup,
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@akashnetwork/ui/components";
+import { Alert, Button, Form, FormField, FormInput, FormLabel, FormMessage, Popup } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { addYears, format } from "date-fns";
-import { Bin } from "iconoir-react";
 import { z } from "zod";
 
 import { LinkTo } from "@src/components/shared/LinkTo";
@@ -35,6 +19,7 @@ import { denomToUdenom } from "@src/utils/mathHelpers";
 import { coinToDenom } from "@src/utils/priceUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { handleDocClick } from "@src/utils/urlUtils";
+import { SpendLimitRow } from "./SpendLimitRow";
 
 export const DEPENDENCIES = {
   Alert,
@@ -44,16 +29,10 @@ export const DEPENDENCIES = {
   FormInput,
   FormLabel,
   FormMessage,
-  Popup,
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   FormattedDate,
+  Popup,
   LinkTo,
-  Bin,
+  SpendLimitRow,
   useServices,
   useWallet,
   useUsdcDenom,
@@ -80,7 +59,7 @@ const formSchema = z.object({
   granteeAddress: z.string().min(1, "Grantee address is required.")
 });
 
-type FormValues = z.infer<typeof formSchema>;
+export type GrantFormValues = z.infer<typeof formSchema>;
 
 export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, address, onClose, dependencies: d = DEPENDENCIES }) => {
   const { analyticsService } = d.useServices();
@@ -98,7 +77,7 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
       }))
     : [{ denom: isACTSupported ? UACT_DENOM : UAKT_DENOM, amount: 0 }];
 
-  const form = useForm<FormValues>({
+  const form = useForm<GrantFormValues>({
     defaultValues: {
       spendLimits: defaultSpendLimits,
       expiration: format(addYears(new Date(), 1), "yyyy-MM-dd'T'HH:mm"),
@@ -106,20 +85,20 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
     },
     resolver: zodResolver(formSchema)
   });
-  const { handleSubmit, control, watch, clearErrors, setValue } = form;
-  const { fields, append, remove } = useFieldArray({ control, name: "spendLimits" });
+  const { handleSubmit, control, watch, clearErrors } = form;
+  const { fields: spendLimitFields, append: appendSpendLimit, remove: removeSpendLimitAt } = useFieldArray({ control, name: "spendLimits" });
   const watchedSpendLimits = watch("spendLimits");
   const granteeAddress = watch("granteeAddress");
   const expiration = watch("expiration");
   const hasAmount = watchedSpendLimits.some(sl => sl.amount > 0);
-  const canAddAkt = isACTSupported && fields.length < 2 && !fields.some(f => f.denom === UAKT_DENOM);
+  const canAddAkt = isACTSupported && spendLimitFields.length < 2 && !spendLimitFields.some(f => f.denom === UAKT_DENOM);
 
   const onDepositClick = (event: React.MouseEvent) => {
     event.preventDefault();
     formRef.current?.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
   };
 
-  const authorizeSpending = async ({ spendLimits, expiration, granteeAddress }: FormValues) => {
+  const authorizeSpending = async ({ spendLimits, expiration, granteeAddress }: GrantFormValues) => {
     setError("");
     clearErrors();
 
@@ -144,7 +123,7 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
   };
 
   const addAktGrant = () => {
-    append({ denom: UAKT_DENOM, amount: 0 });
+    appendSpendLimit({ denom: UAKT_DENOM, amount: 0 });
   };
 
   return (
@@ -184,19 +163,13 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
             </p>
           </d.Alert>
 
-          {fields.map((field, index) => (
-            <SpendLimitRow
+          {spendLimitFields.map((field, index) => (
+            <d.SpendLimitRow
               key={field.id}
-              control={control}
               index={index}
               denom={watchedSpendLimits[index]?.denom ?? field.denom}
-              isACTSupported={isACTSupported}
-              supportedTokens={supportedTokens}
               isRemovable={isACTSupported && index > 0}
-              onRemove={() => remove(index)}
-              clearErrors={clearErrors}
-              setValue={setValue}
-              dependencies={d}
+              onRemove={() => removeSpendLimitAt(index)}
             />
           ))}
 
@@ -248,109 +221,5 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
         </form>
       </d.Form>
     </d.Popup>
-  );
-};
-
-type SpendLimitRowProps = {
-  control: ReturnType<typeof useForm<FormValues>>["control"];
-  index: number;
-  denom: string;
-  isACTSupported: boolean;
-  supportedTokens: ReturnType<typeof useSupportedDenoms>;
-  isRemovable: boolean;
-  onRemove: () => void;
-  clearErrors: () => void;
-  setValue: ReturnType<typeof useForm<FormValues>>["setValue"];
-  dependencies: typeof DEPENDENCIES;
-};
-
-const SpendLimitRow: React.FunctionComponent<SpendLimitRowProps> = ({
-  control,
-  index,
-  denom,
-  isACTSupported,
-  supportedTokens,
-  isRemovable,
-  onRemove,
-  clearErrors,
-  setValue,
-  dependencies: d
-}) => {
-  const usdcDenom = d.useUsdcDenom();
-  const resolvedDenom = denom === "usdc" ? usdcDenom : denom;
-  const denomData = d.useDenomData(resolvedDenom);
-  const tokenInfo = supportedTokens.find(t => t.id === denom);
-
-  const onBalanceClick = () => {
-    clearErrors();
-    setValue(`spendLimits.${index}.amount`, denomData?.max || 0);
-  };
-
-  return (
-    <div className="mb-4">
-      <div className="flex w-full flex-row items-center">
-        {!isACTSupported && (
-          <d.FormField
-            control={control}
-            name={`spendLimits.${index}.denom`}
-            render={({ field }) => {
-              return (
-                <div>
-                  <d.FormLabel htmlFor={`grant-token-${index}`}>Token</d.FormLabel>
-                  <d.Select value={field.value || ""} onValueChange={field.onChange}>
-                    <d.SelectTrigger id={`grant-token-${index}`}>
-                      <d.SelectValue placeholder="Select grant token" />
-                    </d.SelectTrigger>
-                    <d.SelectContent>
-                      <d.SelectGroup>
-                        {supportedTokens.map(token => (
-                          <d.SelectItem key={token.id} value={token.id}>
-                            {token.tokenLabel}
-                          </d.SelectItem>
-                        ))}
-                      </d.SelectGroup>
-                    </d.SelectContent>
-                  </d.Select>
-                  <d.FormMessage />
-                </div>
-              );
-            }}
-          />
-        )}
-        <d.FormField
-          control={control}
-          name={`spendLimits.${index}.amount`}
-          render={({ field }) => {
-            return (
-              <d.FormInput
-                {...field}
-                type="number"
-                label={
-                  <div className="mb-2 flex justify-between">
-                    <div>Spending Limit ({tokenInfo?.tokenLabel ?? denom})</div>
-                    <d.LinkTo onClick={() => onBalanceClick()}>
-                      Balance: {denomData?.balance} {denomData?.label}
-                    </d.LinkTo>
-                  </div>
-                }
-                autoFocus={index === 0}
-                min={0}
-                step={0.000001}
-                max={denomData?.max}
-                startIcon={<span className="pl-2 text-xs">{denomData?.label}</span>}
-                endIcon={
-                  isRemovable ? (
-                    <button type="button" className="pr-2" onClick={onRemove}>
-                      <d.Bin className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-                    </button>
-                  ) : undefined
-                }
-                className={isACTSupported ? "flex-grow" : "ml-4 flex-grow"}
-              />
-            );
-          }}
-        />
-      </div>
-    </div>
   );
 };
