@@ -8,6 +8,7 @@ import { DiffPercentageChip } from "@/components/DiffPercentageChip";
 
 interface IStatsCardProps {
   number: React.ReactNode;
+  subNumber?: React.ReactNode;
   text: string;
   diffNumber?: number;
   diffNumberUnit?: string;
@@ -17,7 +18,7 @@ interface IStatsCardProps {
   actionButton?: string | React.ReactNode;
 }
 
-export const StatsCard: React.FunctionComponent<IStatsCardProps> = ({ number, text, tooltip, actionButton, graphPath, diffNumber, diffPercent }) => {
+export const StatsCard: React.FunctionComponent<IStatsCardProps> = ({ number, subNumber, text, tooltip, actionButton, graphPath, diffNumber, diffPercent }) => {
   return (
     <Card className="flex flex-col justify-between">
       <CardHeader className="flex flex-row items-center space-y-0 pb-4">
@@ -44,6 +45,7 @@ export const StatsCard: React.FunctionComponent<IStatsCardProps> = ({ number, te
             </div>
           )}
         </div>
+        {subNumber}
       </CardContent>
 
       {graphPath && (

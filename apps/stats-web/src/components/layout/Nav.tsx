@@ -38,8 +38,11 @@ export const Nav = () => {
             </Link>
           )}
 
-          <div className="ml-8 hidden md:flex">
+          <div className="ml-8 hidden items-center gap-4 md:flex">
             <NetworkSelect />
+            <Link href="/bme" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+              BME
+            </Link>
           </div>
         </div>
 

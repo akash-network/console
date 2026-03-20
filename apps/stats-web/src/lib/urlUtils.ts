@@ -17,6 +17,8 @@ export class UrlService {
   static validator = (address: string) => `/validators/${address}${appendSearchParams({ network: networkStore.selectedNetworkId })}`;
   static proposals = () => "/proposals";
   static proposal = (id: number) => `/proposals/${id}`;
+  static bme = () => "/bme";
+  static bmeGraph = (snapshot: string) => `/bme-graph/${snapshot}`;
 }
 
 export function appendSearchParams(params: { [key: string]: string | number | boolean }) {

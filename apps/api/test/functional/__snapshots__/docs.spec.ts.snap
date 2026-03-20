@@ -3813,6 +3813,158 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/bme/dashboard-data": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "compare": {
+                      "properties": {
+                        "collateralRatio": {
+                          "type": "number",
+                        },
+                        "dailyActBurnedForAkt": {
+                          "type": "number",
+                        },
+                        "dailyActMinted": {
+                          "type": "number",
+                        },
+                        "dailyAktBurnedForAct": {
+                          "type": "number",
+                        },
+                        "dailyAktReminted": {
+                          "type": "number",
+                        },
+                        "dailyNetAktBurned": {
+                          "type": "number",
+                        },
+                        "date": {
+                          "type": "string",
+                        },
+                        "netAktBurned": {
+                          "type": "number",
+                        },
+                        "outstandingAct": {
+                          "type": "number",
+                        },
+                        "totalActBurnedForAkt": {
+                          "type": "number",
+                        },
+                        "totalActMinted": {
+                          "type": "number",
+                        },
+                        "totalAktBurnedForAct": {
+                          "type": "number",
+                        },
+                        "totalAktReminted": {
+                          "type": "number",
+                        },
+                        "vaultAkt": {
+                          "type": "number",
+                        },
+                      },
+                      "required": [
+                        "date",
+                        "outstandingAct",
+                        "vaultAkt",
+                        "collateralRatio",
+                        "dailyAktBurnedForAct",
+                        "totalAktBurnedForAct",
+                        "dailyActMinted",
+                        "totalActMinted",
+                        "dailyActBurnedForAkt",
+                        "totalActBurnedForAkt",
+                        "dailyAktReminted",
+                        "totalAktReminted",
+                        "dailyNetAktBurned",
+                        "netAktBurned",
+                      ],
+                      "type": "object",
+                    },
+                    "now": {
+                      "properties": {
+                        "collateralRatio": {
+                          "type": "number",
+                        },
+                        "dailyActBurnedForAkt": {
+                          "type": "number",
+                        },
+                        "dailyActMinted": {
+                          "type": "number",
+                        },
+                        "dailyAktBurnedForAct": {
+                          "type": "number",
+                        },
+                        "dailyAktReminted": {
+                          "type": "number",
+                        },
+                        "dailyNetAktBurned": {
+                          "type": "number",
+                        },
+                        "date": {
+                          "type": "string",
+                        },
+                        "netAktBurned": {
+                          "type": "number",
+                        },
+                        "outstandingAct": {
+                          "type": "number",
+                        },
+                        "totalActBurnedForAkt": {
+                          "type": "number",
+                        },
+                        "totalActMinted": {
+                          "type": "number",
+                        },
+                        "totalAktBurnedForAct": {
+                          "type": "number",
+                        },
+                        "totalAktReminted": {
+                          "type": "number",
+                        },
+                        "vaultAkt": {
+                          "type": "number",
+                        },
+                      },
+                      "required": [
+                        "date",
+                        "outstandingAct",
+                        "vaultAkt",
+                        "collateralRatio",
+                        "dailyAktBurnedForAct",
+                        "totalAktBurnedForAct",
+                        "dailyActMinted",
+                        "totalActMinted",
+                        "dailyActBurnedForAkt",
+                        "totalActBurnedForAkt",
+                        "dailyAktReminted",
+                        "totalAktReminted",
+                        "dailyNetAktBurned",
+                        "netAktBurned",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "now",
+                    "compare",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Returns BME dashboard data",
+          },
+        },
+        "security": [],
+        "tags": [
+          "Analytics",
+        ],
+      },
+    },
     "/v1/bme/status-history": {
       "get": {
         "responses": {

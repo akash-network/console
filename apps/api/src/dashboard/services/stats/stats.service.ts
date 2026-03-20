@@ -6,6 +6,7 @@ import uniqBy from "lodash/uniqBy";
 import { singleton } from "tsyringe";
 
 import { Memoize } from "@src/caching/helpers";
+import type { BmeDashboardDataResponse, BmePeriodData } from "@src/dashboard/http-schemas/bme-dashboard-data/bme-dashboard-data.schema";
 import { BmeStatusHistoryResponse } from "@src/dashboard/http-schemas/bme-status-history/bme-status-history.schema";
 import { GraphDataResponse } from "@src/dashboard/http-schemas/graph-data/graph-data.schema";
 import { LeasesDurationParams, LeasesDurationQuery, LeasesDurationResponse } from "@src/dashboard/http-schemas/leases-duration/leases-duration.schema";
@@ -28,6 +29,8 @@ type BlockMetricConfig = {
   getter: (block: Block) => number;
   isRelative?: boolean;
   dashboardKey?: DashboardGraphDataName;
+  bmeDashboardKey?: Exclude<keyof BmePeriodData, "date">;
+  requireBme?: boolean;
 };
 
 export const emptyNetworkCapacity = {
@@ -76,25 +79,68 @@ const blockMetrics: Partial<Record<AuthorizedGraphDataName, BlockMetricConfig>> 
   activeCPU: { attributes: ["activeCPU"], getter: b => numberOrZero(b.activeCPU), dashboardKey: "activeCPU" },
   activeGPU: { attributes: ["activeGPU"], getter: b => numberOrZero(b.activeGPU), dashboardKey: "activeGPU" },
   activeMemory: { attributes: ["activeMemory"], getter: b => numberOrZero(b.activeMemory), dashboardKey: "activeMemory" },
-  totalAktBurnedForAct: { attributes: ["totalUaktBurnedForUact"], getter: b => numberOrZero(b.totalUaktBurnedForUact) },
-  dailyAktBurnedForAct: { attributes: ["totalUaktBurnedForUact"], getter: b => numberOrZero(b.totalUaktBurnedForUact), isRelative: true },
-  totalActMinted: { attributes: ["totalUactMinted"], getter: b => numberOrZero(b.totalUactMinted) },
-  dailyActMinted: { attributes: ["totalUactMinted"], getter: b => numberOrZero(b.totalUactMinted), isRelative: true },
-  totalActBurnedForAkt: { attributes: ["totalUactBurnedForUakt"], getter: b => numberOrZero(b.totalUactBurnedForUakt) },
-  dailyActBurnedForAkt: { attributes: ["totalUactBurnedForUakt"], getter: b => numberOrZero(b.totalUactBurnedForUakt), isRelative: true },
-  totalAktReminted: { attributes: ["totalUaktReminted"], getter: b => numberOrZero(b.totalUaktReminted) },
-  dailyAktReminted: { attributes: ["totalUaktReminted"], getter: b => numberOrZero(b.totalUaktReminted), isRelative: true },
+  totalAktBurnedForAct: {
+    attributes: ["totalUaktBurnedForUact"],
+    getter: b => numberOrZero(b.totalUaktBurnedForUact),
+    requireBme: true,
+    bmeDashboardKey: "totalAktBurnedForAct"
+  },
+  dailyAktBurnedForAct: {
+    attributes: ["totalUaktBurnedForUact"],
+    getter: b => numberOrZero(b.totalUaktBurnedForUact),
+    isRelative: true,
+    requireBme: true,
+    bmeDashboardKey: "dailyAktBurnedForAct"
+  },
+  totalActMinted: { attributes: ["totalUactMinted"], getter: b => numberOrZero(b.totalUactMinted), requireBme: true, bmeDashboardKey: "totalActMinted" },
+  dailyActMinted: {
+    attributes: ["totalUactMinted"],
+    getter: b => numberOrZero(b.totalUactMinted),
+    isRelative: true,
+    requireBme: true,
+    bmeDashboardKey: "dailyActMinted"
+  },
+  totalActBurnedForAkt: {
+    attributes: ["totalUactBurnedForUakt"],
+    getter: b => numberOrZero(b.totalUactBurnedForUakt),
+    requireBme: true,
+    bmeDashboardKey: "totalActBurnedForAkt"
+  },
+  dailyActBurnedForAkt: {
+    attributes: ["totalUactBurnedForUakt"],
+    getter: b => numberOrZero(b.totalUactBurnedForUakt),
+    isRelative: true,
+    requireBme: true,
+    bmeDashboardKey: "dailyActBurnedForAkt"
+  },
+  totalAktReminted: {
+    attributes: ["totalUaktReminted"],
+    getter: b => numberOrZero(b.totalUaktReminted),
+    requireBme: true,
+    bmeDashboardKey: "totalAktReminted"
+  },
+  dailyAktReminted: {
+    attributes: ["totalUaktReminted"],
+    getter: b => numberOrZero(b.totalUaktReminted),
+    isRelative: true,
+    requireBme: true,
+    bmeDashboardKey: "dailyAktReminted"
+  },
   netAktBurned: {
     attributes: ["totalUaktBurnedForUact", "totalUaktReminted"],
-    getter: b => numberOrZero(b.totalUaktBurnedForUact) - numberOrZero(b.totalUaktReminted)
+    getter: b => numberOrZero(b.totalUaktBurnedForUact) - numberOrZero(b.totalUaktReminted),
+    requireBme: true,
+    bmeDashboardKey: "netAktBurned"
   },
   dailyNetAktBurned: {
     attributes: ["totalUaktBurnedForUact", "totalUaktReminted"],
     getter: b => numberOrZero(b.totalUaktBurnedForUact) - numberOrZero(b.totalUaktReminted),
-    isRelative: true
+    isRelative: true,
+    requireBme: true,
+    bmeDashboardKey: "dailyNetAktBurned"
   },
-  outstandingAct: { attributes: ["outstandingUact"], getter: b => numberOrZero(b.outstandingUact) },
-  vaultAkt: { attributes: ["vaultUakt"], getter: b => numberOrZero(b.vaultUakt) }
+  outstandingAct: { attributes: ["outstandingUact"], getter: b => numberOrZero(b.outstandingUact), requireBme: true, bmeDashboardKey: "outstandingAct" },
+  vaultAkt: { attributes: ["vaultUakt"], getter: b => numberOrZero(b.vaultUakt), requireBme: true, bmeDashboardKey: "vaultAkt" }
 };
 
 @singleton()
@@ -178,7 +224,7 @@ export class StatsService {
       throw new Error(`Unknown graph data name: ${dataName}`);
     }
 
-    let stats = await this.fetchDailyBlockSnapshots(config.attributes, config.getter);
+    let stats = await this.fetchDailyBlockSnapshots(config.attributes, config.getter, config.requireBme);
 
     if (dataName === "activeGPU") {
       stats = stripLeadingZeros(stats);
@@ -188,25 +234,52 @@ export class StatsService {
       stats = toRelativeValues(stats);
     }
 
-    return this.buildGraphDataResponse(stats, config.dashboardKey);
+    return this.buildGraphDataResponse(stats, { dashboardKey: config.dashboardKey, bmeDashboardKey: config.bmeDashboardKey });
   }
 
-  private async fetchDailyBlockSnapshots(attributes: (keyof Block)[], getter: (block: Block) => number): Promise<DateValue[]> {
-    const result = await this.statsRepository.findDailyBlockSnapshots(attributes);
+  private async fetchDailyBlockSnapshots(attributes: (keyof Block)[], getter: (block: Block) => number, requireBme?: boolean): Promise<DateValue[]> {
+    const [result, latestBlock] = await Promise.all([
+      this.statsRepository.findDailyBlockSnapshots(attributes, { requireBme }),
+      this.statsRepository.findLatestBlockWithAttributes(attributes, { requireBme })
+    ]);
 
-    return result.map(day => ({
+    const stats = result.map(day => ({
       date: day.date,
       value: getter(day.lastBlock!)
     }));
+
+    if (latestBlock) {
+      const blockDateStr = latestBlock.datetime.toISOString().slice(0, 10);
+      const lastSnapshotDateStr = stats.length > 0 ? new Date(stats[stats.length - 1].date).toISOString().slice(0, 10) : null;
+
+      if (!lastSnapshotDateStr || blockDateStr > lastSnapshotDateStr) {
+        stats.push({ date: latestBlock.datetime, value: getter(latestBlock) });
+      }
+    }
+
+    return stats;
   }
 
-  private async buildGraphDataResponse(stats: DateValue[], dashboardKey?: DashboardGraphDataName): Promise<GraphDataResponse> {
-    if (dashboardKey) {
+  private async buildGraphDataResponse(
+    stats: DateValue[],
+    options?: { dashboardKey?: DashboardGraphDataName; bmeDashboardKey?: Exclude<keyof BmePeriodData, "date"> }
+  ): Promise<GraphDataResponse> {
+    if (options?.dashboardKey) {
       const dashboardData = await this.getDashboardData();
 
       return {
-        currentValue: numberOrZero(dashboardData.now[dashboardKey]),
-        compareValue: numberOrZero(dashboardData.compare[dashboardKey]),
+        currentValue: numberOrZero(dashboardData.now[options.dashboardKey]),
+        compareValue: numberOrZero(dashboardData.compare[options.dashboardKey]),
+        snapshots: stats
+      };
+    }
+
+    if (options?.bmeDashboardKey) {
+      const bmeDashboardData = await this.getBmeDashboardData();
+
+      return {
+        currentValue: bmeDashboardData.now[options.bmeDashboardKey],
+        compareValue: bmeDashboardData.compare[options.bmeDashboardKey],
         snapshots: stats
       };
     }
@@ -243,11 +316,78 @@ export class StatsService {
       value: day.collateralRatio
     }));
 
+    const bmeDashboardData = await this.getBmeDashboardData();
+
     return {
-      currentValue: stats[stats.length - 1]?.value ?? 0,
+      currentValue: bmeDashboardData.now.collateralRatio,
       compareValue: stats[stats.length - 2]?.value ?? 0,
       snapshots: stats
     };
+  }
+
+  @Memoize({ ttlInSeconds: minutesToSeconds(5) })
+  async getBmeDashboardData(): Promise<BmeDashboardDataResponse> {
+    const { now, compare, secondCompare } = await this.statsRepository.findBmeDashboardData();
+
+    let collateralRatio = now.collateralRatio;
+
+    if (collateralRatio === 0 && now.outstandingUact > 0 && now.vaultUakt > 0) {
+      const aktPrice = await this.getAktPrice();
+
+      if (aktPrice > 0) {
+        collateralRatio = parseFloat(((now.vaultUakt * aktPrice) / now.outstandingUact).toFixed(6));
+      }
+    }
+
+    const daily = (total: number, prevTotal: number) => total - prevTotal;
+
+    return {
+      now: {
+        date: now.datetime.toISOString(),
+        outstandingAct: now.outstandingUact,
+        vaultAkt: now.vaultUakt,
+        collateralRatio,
+        totalAktBurnedForAct: now.totalUaktBurnedForUact,
+        dailyAktBurnedForAct: daily(now.totalUaktBurnedForUact, compare.totalUaktBurnedForUact),
+        totalActMinted: now.totalUactMinted,
+        dailyActMinted: daily(now.totalUactMinted, compare.totalUactMinted),
+        totalActBurnedForAkt: now.totalUactBurnedForUakt,
+        dailyActBurnedForAkt: daily(now.totalUactBurnedForUakt, compare.totalUactBurnedForUakt),
+        totalAktReminted: now.totalUaktReminted,
+        dailyAktReminted: daily(now.totalUaktReminted, compare.totalUaktReminted),
+        netAktBurned: now.totalUaktBurnedForUact - now.totalUaktReminted,
+        dailyNetAktBurned: daily(now.totalUaktBurnedForUact - now.totalUaktReminted, compare.totalUaktBurnedForUact - compare.totalUaktReminted)
+      },
+      compare: {
+        date: compare.datetime.toISOString(),
+        outstandingAct: compare.outstandingUact,
+        vaultAkt: compare.vaultUakt,
+        collateralRatio: compare.collateralRatio,
+        totalAktBurnedForAct: compare.totalUaktBurnedForUact,
+        dailyAktBurnedForAct: daily(compare.totalUaktBurnedForUact, secondCompare.totalUaktBurnedForUact),
+        totalActMinted: compare.totalUactMinted,
+        dailyActMinted: daily(compare.totalUactMinted, secondCompare.totalUactMinted),
+        totalActBurnedForAkt: compare.totalUactBurnedForUakt,
+        dailyActBurnedForAkt: daily(compare.totalUactBurnedForUakt, secondCompare.totalUactBurnedForUakt),
+        totalAktReminted: compare.totalUaktReminted,
+        dailyAktReminted: daily(compare.totalUaktReminted, secondCompare.totalUaktReminted),
+        netAktBurned: compare.totalUaktBurnedForUact - compare.totalUaktReminted,
+        dailyNetAktBurned: daily(
+          compare.totalUaktBurnedForUact - compare.totalUaktReminted,
+          secondCompare.totalUaktBurnedForUact - secondCompare.totalUaktReminted
+        )
+      }
+    };
+  }
+
+  @Memoize({ ttlInSeconds: minutesToSeconds(5) })
+  private async getAktPrice(): Promise<number> {
+    try {
+      const marketData = await this.getMarketData("akash-network");
+      return marketData.price;
+    } catch {
+      return 0;
+    }
   }
 
   @Memoize({ ttlInSeconds: minutesToSeconds(5) })

@@ -32,6 +32,17 @@ export type BmeStatusHistoryRow = {
   collateralRatio: number;
 };
 
+export type BmeDashboardRow = {
+  datetime: Date;
+  outstandingUact: number;
+  vaultUakt: number;
+  collateralRatio: number;
+  totalUaktBurnedForUact: number;
+  totalUactMinted: number;
+  totalUactBurnedForUakt: number;
+  totalUaktReminted: number;
+};
+
 @injectable()
 export class StatsRepository {
   readonly #chainDb: Sequelize;
@@ -61,7 +72,18 @@ export class StatsRepository {
     });
   }
 
-  async findDailyBlockSnapshots(attributes: (keyof Block)[]) {
+  async findLatestBlockWithAttributes(attributes: (keyof Block)[], options?: { requireBme?: boolean }): Promise<Block | null> {
+    return Block.findOne({
+      attributes: [...new Set([...attributes, "datetime" as keyof Block])],
+      where: {
+        isProcessed: true,
+        ...(options?.requireBme ? { vaultUakt: { [Op.ne]: null } } : { totalUUsdSpent: { [Op.not]: null } })
+      },
+      order: [["height", "DESC"]]
+    });
+  }
+
+  async findDailyBlockSnapshots(attributes: (keyof Block)[], options?: { requireBme?: boolean }) {
     return Day.findAll({
       attributes: ["date"],
       include: [
@@ -69,7 +91,8 @@ export class StatsRepository {
           model: Block,
           as: "lastBlock",
           attributes: attributes,
-          required: true
+          required: true,
+          where: options?.requireBme ? { vaultUakt: { [Op.ne]: null } } : undefined
         }
       ],
       order: [["date", "ASC"]]
@@ -167,6 +190,99 @@ export class StatsRepository {
         type: QueryTypes.SELECT
       }
     );
+  }
+
+  async findBmeDashboardData(): Promise<{ now: BmeDashboardRow; compare: BmeDashboardRow; secondCompare: BmeDashboardRow }> {
+    const rows = await this.#chainDb.query<BmeDashboardRow & { period: string }>(
+      `/* dashboard-stats:bme-dashboard */ WITH akt_price AS (
+          SELECT "aktPrice" FROM "day"
+          WHERE "aktPrice" IS NOT NULL AND "aktPrice" > 0
+          ORDER BY "date" DESC
+          LIMIT 1
+        ), latest AS (
+          SELECT b.*
+          FROM "block" b
+          WHERE b."vaultUakt" IS NOT NULL
+            AND b."isProcessed" = true
+          ORDER BY b."height" DESC
+          LIMIT 1
+        ), compare AS (
+          SELECT b.*
+          FROM "day" d
+          INNER JOIN "block" b ON b."height" = d."lastBlockHeight"
+          WHERE b."vaultUakt" IS NOT NULL
+            AND d."date" <= (SELECT DATE("datetime") - INTERVAL '1 day' FROM latest)
+          ORDER BY d."date" DESC
+          LIMIT 1
+        ), second_compare AS (
+          SELECT b.*
+          FROM "day" d
+          INNER JOIN "block" b ON b."height" = d."lastBlockHeight"
+          WHERE b."vaultUakt" IS NOT NULL
+            AND d."date" <= (SELECT DATE("datetime") - INTERVAL '1 day' FROM compare)
+          ORDER BY d."date" DESC
+          LIMIT 1
+        )
+        SELECT 'now' AS "period",
+          "datetime",
+          COALESCE("outstandingUact", 0) AS "outstandingUact",
+          COALESCE("vaultUakt", 0) AS "vaultUakt",
+          CASE
+            WHEN "outstandingUact" IS NULL OR "outstandingUact" = 0 THEN 0
+            ELSE ROUND((COALESCE("vaultUakt", 0) * COALESCE((SELECT "aktPrice" FROM akt_price), 0) / "outstandingUact")::numeric, 6)::float
+          END AS "collateralRatio",
+          COALESCE("totalUaktBurnedForUact", 0) AS "totalUaktBurnedForUact",
+          COALESCE("totalUactMinted", 0) AS "totalUactMinted",
+          COALESCE("totalUactBurnedForUakt", 0) AS "totalUactBurnedForUakt",
+          COALESCE("totalUaktReminted", 0) AS "totalUaktReminted"
+        FROM latest
+        UNION ALL
+        SELECT 'compare' AS "period",
+          "datetime",
+          COALESCE("outstandingUact", 0) AS "outstandingUact",
+          COALESCE("vaultUakt", 0) AS "vaultUakt",
+          CASE
+            WHEN "outstandingUact" IS NULL OR "outstandingUact" = 0 THEN 0
+            ELSE ROUND((COALESCE("vaultUakt", 0) * COALESCE((SELECT "aktPrice" FROM akt_price), 0) / "outstandingUact")::numeric, 6)::float
+          END AS "collateralRatio",
+          COALESCE("totalUaktBurnedForUact", 0) AS "totalUaktBurnedForUact",
+          COALESCE("totalUactMinted", 0) AS "totalUactMinted",
+          COALESCE("totalUactBurnedForUakt", 0) AS "totalUactBurnedForUakt",
+          COALESCE("totalUaktReminted", 0) AS "totalUaktReminted"
+        FROM compare
+        UNION ALL
+        SELECT 'second_compare' AS "period",
+          "datetime",
+          COALESCE("outstandingUact", 0) AS "outstandingUact",
+          COALESCE("vaultUakt", 0) AS "vaultUakt",
+          CASE
+            WHEN "outstandingUact" IS NULL OR "outstandingUact" = 0 THEN 0
+            ELSE ROUND((COALESCE("vaultUakt", 0) * COALESCE((SELECT "aktPrice" FROM akt_price), 0) / "outstandingUact")::numeric, 6)::float
+          END AS "collateralRatio",
+          COALESCE("totalUaktBurnedForUact", 0) AS "totalUaktBurnedForUact",
+          COALESCE("totalUactMinted", 0) AS "totalUactMinted",
+          COALESCE("totalUactBurnedForUakt", 0) AS "totalUactBurnedForUakt",
+          COALESCE("totalUaktReminted", 0) AS "totalUaktReminted"
+        FROM second_compare`,
+      { type: QueryTypes.SELECT }
+    );
+
+    const emptyRow: BmeDashboardRow = {
+      datetime: new Date(),
+      outstandingUact: 0,
+      vaultUakt: 0,
+      collateralRatio: 0,
+      totalUaktBurnedForUact: 0,
+      totalUactMinted: 0,
+      totalUactBurnedForUakt: 0,
+      totalUaktReminted: 0
+    };
+
+    const nowRow = rows.find(r => r.period === "now") ?? emptyRow;
+    const compareRow = rows.find(r => r.period === "compare") ?? emptyRow;
+    const secondCompareRow = rows.find(r => r.period === "second_compare") ?? emptyRow;
+
+    return { now: nowRow, compare: compareRow, secondCompare: secondCompareRow };
   }
 
   async findClosedLeases(owner: string, query: { dseq?: string; startDate: Date; endDate: Date }) {

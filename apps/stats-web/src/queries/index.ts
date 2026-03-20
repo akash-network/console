@@ -5,3 +5,5 @@ export * from "./useGraphQuery";
 export * from "./useBlocksQuery";
 export * from "./useTransactionsQuery";
 export * from "./useValidatorsQuery";
+export * from "./useBmeDashboardData";
+export * from "./useBmeStatusHistory";
