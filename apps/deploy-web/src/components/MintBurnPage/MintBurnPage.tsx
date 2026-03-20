@@ -8,10 +8,12 @@ import Link from "next/link";
 import { useSnackbar } from "notistack";
 
 import { UAKT_DENOM } from "@src/config/denom.config";
+import { useBalanceWatch } from "@src/context/BalanceWatchProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { usePricing } from "@src/hooks/usePricing/usePricing";
 import { useSupportsACT } from "@src/hooks/useSupportsACT/useSupportsACT";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
+import FourOhFour from "@src/pages/404";
 import { denomToUdenom, roundDecimal, udenomToDenom } from "@src/utils/mathHelpers";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { UrlService } from "@src/utils/urlUtils";
@@ -39,6 +41,7 @@ export const DEPENDENCIES = {
   ArrowUpDown,
   NavArrowLeft,
   FormattedNumber,
+  useBalanceWatch,
   useWallet,
   usePricing,
   useWalletBalance,
@@ -57,9 +60,10 @@ export const MintBurnPage: React.FC<MintBurnPageProps> = ({ dependencies: d = DE
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { address, signAndBroadcastTx, isCustodial } = d.useWallet();
-  const { balance, isLoading: isBalanceLoading, refetch: refetchBalance } = d.useWalletBalance();
+  const { balance, isLoading: isBalanceLoading } = d.useWalletBalance();
   const { price, isLoaded: isPriceLoaded } = d.usePricing();
-  const { enqueueSnackbar } = d.useSnackbar();
+  const { enqueueSnackbar, closeSnackbar } = d.useSnackbar();
+  const balanceWatch = d.useBalanceWatch();
 
   const aktBalance = useMemo(() => (balance ? udenomToDenom(balance.balanceUAKT, 6) : 0), [balance]);
   const actBalance = useMemo(() => (balance ? udenomToDenom(balance.balanceUACT, 6) : 0), [balance]);
@@ -132,8 +136,32 @@ export const MintBurnPage: React.FC<MintBurnPageProps> = ({ dependencies: d = DE
     setActiveTab(prev => (prev === MintBurnTab.MINT ? MintBurnTab.BURN : MintBurnTab.MINT));
   }, []);
 
+  const setupNotifications = useCallback(() => {
+    if (!balance) return;
+
+    const balanceKey = isMint ? "balanceUACT" : "balanceUAKT";
+    const pendingKey = enqueueSnackbar(
+      <d.Snackbar title={isMint ? "Minting ACT..." : "Burning ACT..."} subTitle="Please wait while we update your balance" showLoading />,
+      { variant: "info", persist: true, autoHideDuration: null }
+    );
+    balanceWatch.start(balance[balanceKey], balanceKey, {
+      onSuccess: () => {
+        closeSnackbar(pendingKey);
+        enqueueSnackbar(<d.Snackbar title="Conversion complete!" subTitle="Your balance has been updated" iconVariant="success" />, {
+          variant: "success"
+        });
+      },
+      onTimeOut: () => {
+        closeSnackbar(pendingKey);
+        enqueueSnackbar(<d.Snackbar title="Conversion pending" subTitle="Please refresh the page to check your balance" iconVariant="warning" />, {
+          variant: "warning"
+        });
+      }
+    });
+  }, [balance, balanceWatch, closeSnackbar, d, enqueueSnackbar, isMint]);
+
   const submitForm = useCallback(async () => {
-    if (!address || !effectiveFromAmount || insufficientBalance) return;
+    if (!address || !effectiveFromAmount || insufficientBalance || !balance) return;
 
     setIsSubmitting(true);
     try {
@@ -144,7 +172,7 @@ export const MintBurnPage: React.FC<MintBurnPageProps> = ({ dependencies: d = DE
       const success = await signAndBroadcastTx([msg]);
 
       if (success) {
-        refetchBalance();
+        setupNotifications();
         resetForm();
       }
     } catch (err) {
@@ -156,11 +184,12 @@ export const MintBurnPage: React.FC<MintBurnPageProps> = ({ dependencies: d = DE
     } finally {
       setIsSubmitting(false);
     }
-  }, [address, effectiveFromAmount, insufficientBalance, isMint, signAndBroadcastTx, enqueueSnackbar, refetchBalance, resetForm, d]);
+  }, [address, effectiveFromAmount, insufficientBalance, balance, isMint, signAndBroadcastTx, setupNotifications, resetForm, enqueueSnackbar, d]);
+
   const isACTSupported = d.useSupportsACT();
 
   if (!isACTSupported || !isCustodial) {
-    return null;
+    return <FourOhFour />;
   }
 
   return (
@@ -256,11 +285,13 @@ export const MintBurnPage: React.FC<MintBurnPageProps> = ({ dependencies: d = DE
         <d.Button
           className="w-full"
           size="lg"
-          disabled={!effectiveFromAmount || insufficientBalance || isSubmitting || isBalanceLoading || !isPriceLoaded}
+          disabled={!effectiveFromAmount || insufficientBalance || isSubmitting || balanceWatch.isActive || isBalanceLoading || !isPriceLoaded}
           onClick={submitForm}
           aria-label="Submit"
         >
-          {isSubmitting ? "Processing..." : isMint ? "Mint ACT" : "Burn ACT"}
+          {isSubmitting && "Processing..."}
+          {!isSubmitting && balanceWatch.isActive && "Updating balance..."}
+          {!isSubmitting && !balanceWatch.isActive && (isMint ? "Mint ACT" : "Burn ACT")}
         </d.Button>
       </div>
     </d.Layout>
