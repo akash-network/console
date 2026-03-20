@@ -11,7 +11,7 @@ import { DiffPercentageChip } from "@/components/DiffPercentageChip";
 import { TimeRange } from "@/components/graph/TimeRange";
 import { SELECTED_RANGE_VALUES } from "@/config/date.config";
 import { percIncrease, udenomToDenom } from "@/lib/mathHelpers";
-import type { SNAPSHOT_NOT_FOUND } from "@/lib/snapshotsUrlHelpers";
+import { NOT_FOUND, type SNAPSHOT_NOT_FOUND } from "@/lib/snapshotsUrlHelpers";
 import { useGraphSnapshot } from "@/queries";
 import type { ISnapshotMetadata } from "@/types";
 import { BmeSnapshots } from "@/types";
@@ -64,11 +64,15 @@ export default function GraphContainer({ snapshot }: IGraphProps) {
 
   return (
     <>
-      {!snapshotData && status === "pending" && (
+      {snapshot === NOT_FOUND && <div className="mb-4 mt-16 text-center text-muted-foreground">No data available for this graph.</div>}
+
+      {snapshot !== NOT_FOUND && !snapshotData && status === "pending" && (
         <div className="mb-4 mt-16 flex items-center justify-center">
           <Spinner size="large" />
         </div>
       )}
+
+      {snapshot !== NOT_FOUND && status === "error" && <div className="mb-4 mt-16 text-center text-muted-foreground">Failed to load snapshot data.</div>}
 
       {snapshotData && snapshotMetadata && rangedData && metricDiff && metric && (
         <>
