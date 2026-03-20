@@ -111,8 +111,11 @@ export async function cacheResponse<T>(seconds: number, key: string, refreshRequ
   return await pendingRequest;
 }
 
-export function memoizeAsync<A extends unknown[], R>(fn: (...args: A) => Promise<R>, options?: { cacheItemLimit: number }): (...args: A) => Promise<R> {
-  const cache = new LRUCache<string, Promise<R>>({ max: options?.cacheItemLimit ?? 100 });
+export function memoizeAsync<A extends unknown[], R>(
+  fn: (...args: A) => Promise<R>,
+  options?: { cacheItemLimit: number; ttl?: number }
+): (...args: A) => Promise<R> {
+  const cache = new LRUCache<string, Promise<R>>({ max: options?.cacheItemLimit ?? 100, ttl: options?.ttl });
 
   return (...args: A) => {
     const key = JSON.stringify(args);
