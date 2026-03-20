@@ -26,6 +26,9 @@ import type { Block, Message } from "./dbSchemas/base";
 dotenv.config({ path: ".env.local" });
 dotenv.config();
 
+// Derived from the module name hash, so it's the same across all networks
+export const BME_VAULT_ADDRESS = "akash1klpwzlvfnw7j8gtdd0cuu9vaw9ermsmd37sg55";
+
 export interface ChainDef {
   code: string;
   rpcNodes: string[];
@@ -40,7 +43,6 @@ export interface ChainDef {
   denom: string;
   udenom: string;
   startHeight?: number;
-  bmeVaultAddress?: string;
   customBlockModel?: ModelCtor<Block>;
   customMessageModel?: ModelCtor<Message>;
   customModels?: ModelCtor<Model<any, any>>[];
@@ -60,7 +62,6 @@ export const chainDefinitions: { [key: string]: ChainDef } = {
     bech32Prefix: "akash",
     denom: "akt",
     udenom: "uakt",
-    bmeVaultAddress: "akash1klpwzlvfnw7j8gtdd0cuu9vaw9ermsmd37sg55",
     customBlockModel: AkashBlock,
     customMessageModel: AkashMessage,
     customModels: [
@@ -97,7 +98,6 @@ export const chainDefinitions: { [key: string]: ChainDef } = {
     bech32Prefix: "akash",
     denom: "act",
     udenom: "uact",
-    bmeVaultAddress: "akash1klpwzlvfnw7j8gtdd0cuu9vaw9ermsmd37sg55",
     customBlockModel: AkashBlock,
     customMessageModel: AkashMessage,
     customModels: [
@@ -134,7 +134,6 @@ export const chainDefinitions: { [key: string]: ChainDef } = {
     bech32Prefix: "akash",
     denom: "akt",
     udenom: "uakt",
-    bmeVaultAddress: "akash1klpwzlvfnw7j8gtdd0cuu9vaw9ermsmd37sg55",
     customBlockModel: AkashBlock,
     customMessageModel: AkashMessage,
     customModels: [

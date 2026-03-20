@@ -1,4 +1,4 @@
-import { activeChain } from "@akashnetwork/database/chainDefinitions";
+import { activeChain, BME_VAULT_ADDRESS } from "@akashnetwork/database/chainDefinitions";
 import { Block, Message } from "@akashnetwork/database/dbSchemas";
 import { BmeRawEvent } from "@akashnetwork/database/dbSchemas/akash";
 import { Day, Transaction, TransactionEvent, TransactionEventAttribute } from "@akashnetwork/database/dbSchemas/base";
@@ -290,12 +290,12 @@ async function insertBlocks(startHeight: number, endHeight: number) {
         // Detect vault funding via uakt transfers to the BME vault module account.
         // These occur during governance proposal execution or chain upgrades in EndBlocker.
         // User deposits (MsgMintACT) never appear in finalize_block_events, so this is safe from double-counting.
-        if (activeChain.bmeVaultAddress && event.type === "transfer") {
+        if (event.type === "transfer") {
           const attrs: Record<string, string> = {};
           for (const attr of event.attributes) {
             attrs[decodeIfBase64(attr.key)] = attr.value ? decodeIfBase64(attr.value) : "";
           }
-          if (attrs.recipient === activeChain.bmeVaultAddress && attrs.amount?.includes("uakt")) {
+          if (attrs.recipient === BME_VAULT_ADDRESS && attrs.amount?.includes("uakt")) {
             const amountMatch = attrs.amount.match(/^(\d+)uakt$/);
             if (amountMatch) {
               bmeRawEventsToAdd.push({
