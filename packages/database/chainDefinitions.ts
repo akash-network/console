@@ -26,6 +26,9 @@ import type { Block, Message } from "./dbSchemas/base";
 dotenv.config({ path: ".env.local" });
 dotenv.config();
 
+// Derived from the module name hash, so it's the same across all networks
+export const BME_VAULT_ADDRESS = "akash1klpwzlvfnw7j8gtdd0cuu9vaw9ermsmd37sg55";
+
 export interface ChainDef {
   code: string;
   rpcNodes: string[];
