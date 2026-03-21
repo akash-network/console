@@ -16,6 +16,7 @@ export const createAkashBlock = async (input: Partial<CreationAttributes<AkashBl
     totalTxCount: input.totalTxCount || faker.number.int({ min: 0, max: 10000000 }),
     totalUAktSpent: input.totalUAktSpent || faker.number.int({ min: 0, max: 10000000 }),
     totalUUsdcSpent: input.totalUUsdcSpent || faker.number.int({ min: 0, max: 10000000 }),
+    totalUActSpent: input.totalUActSpent || faker.number.int({ min: 0, max: 10000000 }),
     totalUUsdSpent: input.totalUUsdSpent || faker.number.int({ min: 0, max: 10000000 }),
     activeLeaseCount: input.activeLeaseCount || faker.number.int({ min: 0, max: 10000000 }),
     totalLeaseCount: input.totalLeaseCount || faker.number.int({ min: 0, max: 10000000 }),

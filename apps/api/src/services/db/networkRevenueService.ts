@@ -193,12 +193,15 @@ export async function getDailyRevenue() {
     order: [["date", "ASC"]]
   });
 
-  const stats = result.map(day => ({
-    date: day.date,
-    totalUAktSpent: (day.lastBlockYet as Block).totalUAktSpent || 0,
-    totalUActSpent: ((day.lastBlockYet as Block).totalUUsdcSpent || 0) + ((day.lastBlockYet as Block).totalUActSpent || 0),
-    aktPrice: day.aktPrice || 0 // TODO handle no price
-  }));
+  const stats = result.map(day => {
+    const block = day.lastBlockYet as Block;
+    return {
+      date: day.date,
+      totalUAktSpent: block.totalUAktSpent || 0,
+      totalUActSpent: (block.totalUUsdcSpent || 0) + (block.totalUActSpent || 0),
+      aktPrice: day.aktPrice || 0 // TODO handle no price
+    };
+  });
 
   const relativeStats = stats.reduce<{ date: Date; uakt: number; uact: number; aktPrice: number }[]>((arr, dataPoint, index) => {
     arr[index] = {
