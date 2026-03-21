@@ -15,7 +15,7 @@ export class SdlService {
   }
 
   generateManifest(rawSDL: string): GenerateManifestResult {
-    const potentiallyInvalidSDL = yaml.template<SDLInput>(rawSDL);
+    const potentiallyInvalidSDL = yaml.raw<SDLInput>(rawSDL);
     const deploymentGrantDenom = this.#config.DEPLOYMENT_GRANT_DENOM;
     const sdlPlacement =
       potentiallyInvalidSDL?.profiles?.placement && typeof potentiallyInvalidSDL?.profiles?.placement === "object"
