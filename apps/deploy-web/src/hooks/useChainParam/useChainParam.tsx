@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 
 import { useUsdcDenom } from "@src/hooks/useDenom";
+import { useSupportsACT } from "@src/hooks/useSupportsACT/useSupportsACT";
 import { useDepositParams } from "@src/queries/useSaveSettings";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { useSettings } from "../../context/SettingsProvider";
@@ -20,13 +21,16 @@ type ContextType = {
 export const DEPENDENCIES = {
   useSettings,
   useDepositParams,
-  useUsdcDenom
+  useUsdcDenom,
+  useSupportsACT
 };
 
 export function useChainParam({ dependencies: d = DEPENDENCIES }: { dependencies?: typeof DEPENDENCIES } = {}): ContextType {
   const { isSettingsInit, settings } = d.useSettings();
+  const supportsACT = d.useSupportsACT();
   const { data: depositParams } = d.useDepositParams({
-    enabled: isSettingsInit && !settings.isBlockchainDown
+    enabled: isSettingsInit && !settings.isBlockchainDown,
+    supportsACT
   });
   const usdcDenom = d.useUsdcDenom();
 

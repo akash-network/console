@@ -5,7 +5,7 @@ import { useSnackbar } from "notistack";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
-import type { DepositParams, RpcDepositParams } from "@src/types/deployment";
+import type { DepositParams, RpcDeploymentParams, RpcDepositParams } from "@src/types/deployment";
 import type { UserSettings } from "@src/types/user";
 import { ApiUrlService } from "@src/utils/apiUtils";
 import { QueryKeys } from "./queryKeys";
@@ -35,18 +35,23 @@ export function useSaveSettings() {
   });
 }
 
-async function getDepositParams(chainApiHttpClient: AxiosInstance): Promise<DepositParams[]> {
-  const depositParamsQuery = await chainApiHttpClient.get<RpcDepositParams>(ApiUrlService.depositParams(""));
-  const depositParams = depositParamsQuery.data;
-  return depositParams.param.value ? JSON.parse(depositParams.param.value) : [];
+async function getDepositParams(chainApiHttpClient: AxiosInstance, supportsACT: boolean): Promise<DepositParams[]> {
+  if (supportsACT) {
+    const response = await chainApiHttpClient.get<RpcDeploymentParams>(ApiUrlService.depositParams("", true));
+    return response.data.params.min_deposits ?? [];
+  }
+
+  const response = await chainApiHttpClient.get<RpcDepositParams>(ApiUrlService.depositParams("", false));
+  return response.data.param.value ? JSON.parse(response.data.param.value) : [];
 }
 
 const ONE_HOUR_IN_MS = 60 * 60 * 1000;
-export function useDepositParams(options?: Omit<UseQueryOptions<DepositParams[]>, "queryKey" | "queryFn">) {
+export function useDepositParams(options?: Omit<UseQueryOptions<DepositParams[]>, "queryKey" | "queryFn"> & { supportsACT?: boolean }) {
   const { chainApiHttpClient } = useServices();
+  const supportsACT = options?.supportsACT ?? false;
   return useQuery({
-    queryKey: QueryKeys.getDepositParamsKey(),
-    queryFn: () => getDepositParams(chainApiHttpClient),
+    queryKey: [...QueryKeys.getDepositParamsKey(), supportsACT],
+    queryFn: () => getDepositParams(chainApiHttpClient, supportsACT),
     staleTime: ONE_HOUR_IN_MS,
     gcTime: ONE_HOUR_IN_MS,
     ...options,
