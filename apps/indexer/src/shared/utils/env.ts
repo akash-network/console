@@ -16,5 +16,6 @@ export const env = {
   ACTIVE_CHAIN: process.env.ACTIVE_CHAIN,
   KEEP_CACHE: process.env.KEEP_CACHE === "true",
   STANDBY: process.env.STANDBY === "true",
-  DATA_FOLDER: process.env.DATA_FOLDER ?? "./data"
+  DATA_FOLDER: process.env.DATA_FOLDER ?? "./data",
+  LAST_BLOCK_TO_SYNC: process.env.LAST_BLOCK_TO_SYNC ? parseInt(process.env.LAST_BLOCK_TO_SYNC, 10) : Number.POSITIVE_INFINITY
 };

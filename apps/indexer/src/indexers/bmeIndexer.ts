@@ -36,7 +36,7 @@ const BME_EVENT_TYPE_VALUES = Object.values(BME_EVENT_TYPES);
 
 export { BME_EVENT_TYPE_VALUES };
 
-export const BME_BLOCK_EVENT_TYPE_VALUES = [...BME_EVENT_TYPE_VALUES, ...Object.values(ORACLE_EVENT_TYPES)];
+export const BME_BLOCK_EVENT_TYPE_VALUES = [...BME_EVENT_TYPE_VALUES];
 
 export class BmeIndexer extends Indexer {
   private usdcMigrated = false;
@@ -124,14 +124,29 @@ export class BmeIndexer extends Indexer {
         // Synthetic event: uakt transfer to vault from governance/upgrade (not a user deposit).
         // Adds to vault balance as a delta since we don't have an absolute snapshot.
         vaultFundedAmount += safeParseFloat(rawEvent.data.amount as string);
-      } else if (rawEvent.type === ORACLE_EVENT_TYPES.PRICE_DATA) {
-        const parsed = parsePriceDataEvent(rawEvent.data);
-        if (parsed.denom === "uakt" && parsed.baseDenom === "usd") {
-          aktUsdPrice = parsed.price;
-        }
       }
       // LEDGER_RECORD_CANCELED: no supply impact (record was canceled before execution).
       // Raw event is kept in bme_raw_event for audit purposes.
+    }
+
+    // Oracle price events come via wasm tx (not EndBlocker), so query transaction events directly
+    if (!this.aktMigrated) {
+      const priceAttrs = await sequelize.query<{ key: string; value: string }>(
+        `SELECT tea.key, tea.value FROM transaction_event te
+         JOIN transaction_event_attribute tea ON tea.transaction_event_id = te.id
+         WHERE te.height = :height AND te.type = :type`,
+        { transaction: dbTransaction, type: QueryTypes.SELECT, replacements: { height: currentBlock.height, type: ORACLE_EVENT_TYPES.PRICE_DATA } }
+      );
+      if (priceAttrs.length > 0) {
+        const data: Record<string, string | null> = {};
+        for (const attr of priceAttrs) {
+          data[attr.key] = attr.value;
+        }
+        const parsed = parsePriceDataEvent(data);
+        if ((parsed.denom === "uakt" || parsed.denom === "akt") && parsed.baseDenom === "usd") {
+          aktUsdPrice = parsed.price;
+        }
+      }
     }
 
     if (ledgerRecords.length > 0) {
@@ -145,11 +160,12 @@ export class BmeIndexer extends Indexer {
     }
 
     // AKT → ACT: triggered when oracle becomes healthy
+    let migrationUactMinted = 0;
     if (!this.aktMigrated) {
       const statusBecameHealthy = statusChanges.some(sc => sc.newStatus === "mint_status_healthy");
 
       if (statusBecameHealthy && aktUsdPrice) {
-        await this.migrateAktToAct(dbTransaction, aktUsdPrice);
+        migrationUactMinted = await this.migrateAktToAct(dbTransaction, aktUsdPrice);
         this.aktMigrated = true;
       } else if (statusBecameHealthy && !aktUsdPrice) {
         console.warn(
@@ -162,7 +178,7 @@ export class BmeIndexer extends Indexer {
           transaction: dbTransaction
         });
         if (healthyStatus) {
-          await this.migrateAktToAct(dbTransaction, aktUsdPrice);
+          migrationUactMinted = await this.migrateAktToAct(dbTransaction, aktUsdPrice);
           this.aktMigrated = true;
         }
       }
@@ -172,7 +188,7 @@ export class BmeIndexer extends Indexer {
 
     // Cumulative event-based counters (carry forward + current block delta)
     currentBlock.totalUaktBurnedForUact = (previousBlock?.totalUaktBurnedForUact || 0) + sums.aktBurnedForAct;
-    currentBlock.totalUactMinted = (previousBlock?.totalUactMinted || 0) + sums.actMinted;
+    currentBlock.totalUactMinted = (previousBlock?.totalUactMinted || 0) + sums.actMinted + migrationUactMinted;
     currentBlock.totalUactBurnedForUakt = (previousBlock?.totalUactBurnedForUakt || 0) + sums.actBurnedForAkt;
     currentBlock.totalUaktReminted = (previousBlock?.totalUaktReminted || 0) + sums.aktReminted;
 
@@ -212,11 +228,18 @@ export class BmeIndexer extends Indexer {
    * predictedClosedHeight is preserved (balance/price ratio unchanged by uniform scaling).
    * Idempotent: WHERE denom = 'uakt' ensures no double-conversion.
    */
-  private async migrateAktToAct(dbTransaction: DbTransaction, aktUsdPrice: string): Promise<void> {
+  private async migrateAktToAct(dbTransaction: DbTransaction, aktUsdPrice: string): Promise<number> {
     const rate = parseFloat(aktUsdPrice);
     if (!Number.isFinite(rate) || rate <= 0) {
       throw new Error(`[BmeIndexer] Invalid AKT/USD rate for migration: ${aktUsdPrice}`);
     }
+
+    // Sum the uact balances that will be created by the migration
+    const [balanceResult] = await sequelize.query<{ total: string }>(
+      `SELECT COALESCE(SUM(balance * :rate), 0) AS total FROM deployment WHERE denom = 'uakt' AND "closedHeight" IS NULL`,
+      { transaction: dbTransaction, type: QueryTypes.SELECT, replacements: { rate } }
+    );
+    const migrationUactMinted = parseFloat(balanceResult.total);
 
     await sequelize.query(
       `UPDATE deployment SET denom = 'uact', balance = balance * :rate, deposit = CAST(deposit * :rate AS BIGINT), "withdrawnAmount" = "withdrawnAmount" * :rate WHERE denom = 'uakt' AND "closedHeight" IS NULL`,
@@ -227,5 +250,7 @@ export class BmeIndexer extends Indexer {
       `UPDATE lease SET denom = 'uact', price = price * :rate, "withdrawnAmount" = "withdrawnAmount" * :rate WHERE denom = 'uakt' AND "closedHeight" IS NULL`,
       { transaction: dbTransaction, type: QueryTypes.UPDATE, replacements: { rate } }
     );
+
+    return migrationUactMinted;
   }
 }
