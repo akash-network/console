@@ -106,8 +106,8 @@ const getSnapshotMetadata = (snapshot: Snapshots): { unitFn: (number: number) =>
   switch (snapshot) {
     case Snapshots.dailyUAktSpent:
     case Snapshots.totalUAktSpent:
-    case Snapshots.dailyUUsdcSpent:
-    case Snapshots.totalUUsdcSpent:
+    case Snapshots.dailyUActSpent:
+    case Snapshots.totalUActSpent:
     case Snapshots.dailyUUsdSpent:
     case Snapshots.totalUUsdSpent:
       return { unitFn: x => ({ value: udenomToDenom(x) }) };

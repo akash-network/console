@@ -11,10 +11,10 @@ const SNAPSHOT_URL = {
   [SnapshotsUrlParam.memory]: Snapshots.activeMemory,
   [SnapshotsUrlParam.storage]: Snapshots.activeStorage,
   [SnapshotsUrlParam.totalAKTSpent]: Snapshots.totalUAktSpent,
-  [SnapshotsUrlParam.totalUSDCSpent]: Snapshots.totalUUsdcSpent,
+  [SnapshotsUrlParam.totalACTSpent]: Snapshots.totalUActSpent,
   [SnapshotsUrlParam.totalUSDSpent]: Snapshots.totalUUsdSpent,
   [SnapshotsUrlParam.dailyAktSpent]: Snapshots.dailyUAktSpent,
-  [SnapshotsUrlParam.dailyUsdcSpent]: Snapshots.dailyUUsdcSpent,
+  [SnapshotsUrlParam.dailyActSpent]: Snapshots.dailyUActSpent,
   [SnapshotsUrlParam.dailyUsdSpent]: Snapshots.dailyUUsdSpent,
   [SnapshotsUrlParam.dailyDeploymentCount]: Snapshots.dailyLeaseCount
 };
