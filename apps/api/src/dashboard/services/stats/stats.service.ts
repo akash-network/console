@@ -19,6 +19,9 @@ import type { AuthorizedGraphDataName, DashboardGraphDataName } from "./stats.ty
 
 const numberOrZero: (x: number | undefined | null) => number = (x: number | undefined | null) => (typeof x === "number" ? x : 0);
 
+const combinedActSpent = (b: { totalUUsdcSpent?: number | null; totalUActSpent?: number | null }) =>
+  numberOrZero(b.totalUUsdcSpent) + numberOrZero(b.totalUActSpent);
+
 const logger = createOtelLogger({ context: "StatsService" });
 const runOrLog = createLoggingExecutor(logger);
 
@@ -63,12 +66,7 @@ export const emptyNetworkCapacity = {
 
 const blockMetrics: Partial<Record<AuthorizedGraphDataName, BlockMetricConfig>> = {
   dailyUAktSpent: { attributes: ["totalUAktSpent"], getter: b => numberOrZero(b.totalUAktSpent), dashboardKey: "dailyUAktSpent", isRelative: true },
-  dailyUActSpent: {
-    attributes: ["totalUUsdcSpent", "totalUActSpent"],
-    getter: b => numberOrZero(b.totalUUsdcSpent) + numberOrZero(b.totalUActSpent),
-    dashboardKey: "dailyUActSpent",
-    isRelative: true
-  },
+  dailyUActSpent: { attributes: ["totalUUsdcSpent", "totalUActSpent"], getter: combinedActSpent, dashboardKey: "dailyUActSpent", isRelative: true },
   dailyUUsdSpent: { attributes: ["totalUUsdSpent"], getter: b => numberOrZero(b.totalUUsdSpent), dashboardKey: "dailyUUsdSpent", isRelative: true },
   dailyLeaseCount: { attributes: ["totalLeaseCount"], getter: b => numberOrZero(b.totalLeaseCount), dashboardKey: "dailyLeaseCount", isRelative: true },
   activeStorage: {
@@ -77,11 +75,7 @@ const blockMetrics: Partial<Record<AuthorizedGraphDataName, BlockMetricConfig>> 
     dashboardKey: "activeStorage"
   },
   totalUAktSpent: { attributes: ["totalUAktSpent"], getter: b => numberOrZero(b.totalUAktSpent), dashboardKey: "totalUAktSpent" },
-  totalUActSpent: {
-    attributes: ["totalUUsdcSpent", "totalUActSpent"],
-    getter: b => numberOrZero(b.totalUUsdcSpent) + numberOrZero(b.totalUActSpent),
-    dashboardKey: "totalUActSpent"
-  },
+  totalUActSpent: { attributes: ["totalUUsdcSpent", "totalUActSpent"], getter: combinedActSpent, dashboardKey: "totalUActSpent" },
   totalUUsdSpent: { attributes: ["totalUUsdSpent"], getter: b => numberOrZero(b.totalUUsdSpent), dashboardKey: "totalUUsdSpent" },
   activeLeaseCount: { attributes: ["activeLeaseCount"], getter: b => numberOrZero(b.activeLeaseCount), dashboardKey: "activeLeaseCount" },
   totalLeaseCount: { attributes: ["totalLeaseCount"], getter: b => numberOrZero(b.totalLeaseCount), dashboardKey: "totalLeaseCount" },
@@ -187,12 +181,8 @@ export class StatsService {
         dailyLeaseCount: numberOrZero(latestBlockStats.totalLeaseCount) - numberOrZero(compareBlockStats?.totalLeaseCount),
         totalUAktSpent: latestBlockStats.totalUAktSpent ?? 0,
         dailyUAktSpent: numberOrZero(latestBlockStats.totalUAktSpent) - numberOrZero(compareBlockStats?.totalUAktSpent),
-        totalUActSpent: numberOrZero(latestBlockStats.totalUUsdcSpent) + numberOrZero(latestBlockStats.totalUActSpent),
-        dailyUActSpent:
-          numberOrZero(latestBlockStats.totalUUsdcSpent) +
-          numberOrZero(latestBlockStats.totalUActSpent) -
-          numberOrZero(compareBlockStats?.totalUUsdcSpent) -
-          numberOrZero(compareBlockStats?.totalUActSpent),
+        totalUActSpent: combinedActSpent(latestBlockStats),
+        dailyUActSpent: combinedActSpent(latestBlockStats) - combinedActSpent(compareBlockStats ?? {}),
         totalUUsdSpent: latestBlockStats.totalUUsdSpent ?? 0,
         dailyUUsdSpent: numberOrZero(latestBlockStats.totalUUsdSpent) - numberOrZero(compareBlockStats?.totalUUsdSpent),
         activeCPU: latestBlockStats.activeCPU ?? 0,
@@ -208,12 +198,8 @@ export class StatsService {
         dailyLeaseCount: numberOrZero(compareBlockStats.totalLeaseCount) - numberOrZero(secondCompareBlockStats.totalLeaseCount),
         totalUAktSpent: compareBlockStats.totalUAktSpent ?? 0,
         dailyUAktSpent: numberOrZero(compareBlockStats.totalUAktSpent) - numberOrZero(secondCompareBlockStats.totalUAktSpent),
-        totalUActSpent: numberOrZero(compareBlockStats.totalUUsdcSpent) + numberOrZero(compareBlockStats.totalUActSpent),
-        dailyUActSpent:
-          numberOrZero(compareBlockStats.totalUUsdcSpent) +
-          numberOrZero(compareBlockStats.totalUActSpent) -
-          numberOrZero(secondCompareBlockStats.totalUUsdcSpent) -
-          numberOrZero(secondCompareBlockStats.totalUActSpent),
+        totalUActSpent: combinedActSpent(compareBlockStats),
+        dailyUActSpent: combinedActSpent(compareBlockStats) - combinedActSpent(secondCompareBlockStats),
         totalUUsdSpent: compareBlockStats.totalUUsdSpent ?? 0,
         dailyUUsdSpent: numberOrZero(compareBlockStats.totalUUsdSpent) - numberOrZero(secondCompareBlockStats.totalUUsdSpent),
         activeCPU: compareBlockStats.activeCPU ?? 0,
