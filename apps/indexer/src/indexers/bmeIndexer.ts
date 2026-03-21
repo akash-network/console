@@ -131,20 +131,28 @@ export class BmeIndexer extends Indexer {
 
     // Oracle price events come via wasm tx (not EndBlocker), so query transaction events directly
     if (!this.aktMigrated) {
-      const priceAttrs = await sequelize.query<{ key: string; value: string }>(
-        `SELECT tea.key, tea.value FROM transaction_event te
+      const priceAttrs = await sequelize.query<{ key: string; value: string; eventId: number }>(
+        `SELECT tea.key, tea.value, te.id AS "eventId" FROM transaction_event te
          JOIN transaction_event_attribute tea ON tea.transaction_event_id = te.id
          WHERE te.height = :height AND te.type = :type`,
         { transaction: dbTransaction, type: QueryTypes.SELECT, replacements: { height: currentBlock.height, type: ORACLE_EVENT_TYPES.PRICE_DATA } }
       );
       if (priceAttrs.length > 0) {
-        const data: Record<string, string | null> = {};
+        const eventGroups = new Map<number, Record<string, string | null>>();
         for (const attr of priceAttrs) {
-          data[attr.key] = attr.value;
+          let group = eventGroups.get(attr.eventId);
+          if (!group) {
+            group = {};
+            eventGroups.set(attr.eventId, group);
+          }
+          group[attr.key] = attr.value;
         }
-        const parsed = parsePriceDataEvent(data);
-        if ((parsed.denom === "uakt" || parsed.denom === "akt") && parsed.baseDenom === "usd") {
-          aktUsdPrice = parsed.price;
+        for (const data of eventGroups.values()) {
+          const parsed = parsePriceDataEvent(data);
+          if ((parsed.denom === "uakt" || parsed.denom === "akt") && parsed.baseDenom === "usd") {
+            aktUsdPrice = parsed.price;
+            break;
+          }
         }
       }
     }

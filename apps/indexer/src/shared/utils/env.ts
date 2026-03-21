@@ -17,5 +17,13 @@ export const env = {
   KEEP_CACHE: process.env.KEEP_CACHE === "true",
   STANDBY: process.env.STANDBY === "true",
   DATA_FOLDER: process.env.DATA_FOLDER ?? "./data",
-  LAST_BLOCK_TO_SYNC: process.env.LAST_BLOCK_TO_SYNC ? parseInt(process.env.LAST_BLOCK_TO_SYNC, 10) : Number.POSITIVE_INFINITY
+  LAST_BLOCK_TO_SYNC: (() => {
+    const raw = process.env.LAST_BLOCK_TO_SYNC;
+    if (raw == null || raw === "") return Number.POSITIVE_INFINITY;
+    const n = Number(raw);
+    if (!Number.isSafeInteger(n) || n < 0) {
+      throw new Error(`LAST_BLOCK_TO_SYNC must be a non-negative integer, got: "${raw}"`);
+    }
+    return n;
+  })()
 };
