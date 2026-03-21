@@ -1,10 +1,10 @@
 const AuthorizedGraphDataNamesConst = [
   "dailyUAktSpent",
-  "dailyUUsdcSpent",
+  "dailyUActSpent",
   "dailyUUsdSpent",
   "dailyLeaseCount",
   "totalUAktSpent",
-  "totalUUsdcSpent",
+  "totalUActSpent",
   "totalUUsdSpent",
   "activeLeaseCount",
   "totalLeaseCount",
@@ -33,11 +33,11 @@ export type AuthorizedGraphDataName = (typeof AuthorizedGraphDataNamesConst)[num
 export type DashboardGraphDataName = Extract<
   AuthorizedGraphDataName,
   | "dailyUAktSpent"
-  | "dailyUUsdcSpent"
+  | "dailyUActSpent"
   | "dailyUUsdSpent"
   | "dailyLeaseCount"
   | "totalUAktSpent"
-  | "totalUUsdcSpent"
+  | "totalUActSpent"
   | "totalUUsdSpent"
   | "activeLeaseCount"
   | "totalLeaseCount"

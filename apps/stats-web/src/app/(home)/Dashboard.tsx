@@ -26,7 +26,7 @@ import { AKTLabel } from "@/components/AKTLabel";
 import { HumanReadableBytes } from "@/components/HumanReadableBytes";
 import SearchBar from "@/components/SearchBar";
 import { Title } from "@/components/Title";
-import { USDCLabel } from "@/components/UsdLabel";
+import { ACTLabel } from "@/components/UsdLabel";
 import { percIncrease, udenomToDenom } from "@/lib/mathHelpers";
 import { bytesToShrink } from "@/lib/unitUtils";
 import { UrlService } from "@/lib/urlUtils";
@@ -104,7 +104,7 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
                   />
                 }
                 text="USD spent (24h)"
-                tooltip="Amount spent in the last 24h (USDC + AKT converted to USD)."
+                tooltip="Amount spent in the last 24h (ACT + AKT converted to USD)."
                 graphPath={UrlService.graph(SnapshotsUrlParam.dailyUsdSpent)}
                 diffNumber={udenomToDenom(dashboardData.now.dailyUUsdSpent - dashboardData.compare.dailyUUsdSpent)}
                 diffPercent={percIncrease(dashboardData.compare.dailyUUsdSpent, dashboardData.now.dailyUUsdSpent)}
@@ -123,7 +123,7 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
                   />
                 }
                 text="Total spent USD"
-                tooltip="This is the total amount spent (USDC + AKT converted to USD) to rent computing power on the akash network since the beginning of the network. (March 2021)"
+                tooltip="This is the total amount spent (ACT + AKT converted to USD) to rent computing power on the akash network since the beginning of the network. (March 2021)"
                 graphPath={UrlService.graph(SnapshotsUrlParam.totalUSDSpent)}
                 diffNumber={udenomToDenom(dashboardData.now.totalUUsdSpent - dashboardData.compare.totalUUsdSpent)}
                 diffPercent={percIncrease(dashboardData.compare.totalUUsdSpent, dashboardData.now.totalUUsdSpent)}
@@ -376,45 +376,45 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
               />
             )}
 
-            {dashboardData.now.dailyUUsdcSpent !== undefined && dashboardData.compare.dailyUUsdcSpent !== undefined && (
+            {dashboardData.now.dailyUActSpent !== undefined && dashboardData.compare.dailyUActSpent !== undefined && (
               <StatsCard
                 number={
                   <>
                     <FormattedNumber
-                      value={udenomToDenom(dashboardData.now.dailyUUsdcSpent)}
+                      value={udenomToDenom(dashboardData.now.dailyUActSpent)}
                       maximumFractionDigits={2}
                       notation="compact"
                       compactDisplay="short"
                     />
-                    <USDCLabel />
+                    <ACTLabel />
                   </>
                 }
-                text="USDC spent (24h)"
-                tooltip="Last 24h"
-                graphPath={UrlService.graph(SnapshotsUrlParam.dailyUsdcSpent)}
-                diffNumber={udenomToDenom(dashboardData.now.dailyUUsdcSpent - dashboardData.compare.dailyUUsdcSpent)}
-                diffPercent={percIncrease(dashboardData.compare.dailyUUsdcSpent, dashboardData.now.dailyUUsdcSpent)}
+                text="ACT spent (24h)"
+                tooltip="Last 24h (includes historical USDC at 1:1)"
+                graphPath={UrlService.graph(SnapshotsUrlParam.dailyActSpent)}
+                diffNumber={udenomToDenom(dashboardData.now.dailyUActSpent - dashboardData.compare.dailyUActSpent)}
+                diffPercent={percIncrease(dashboardData.compare.dailyUActSpent, dashboardData.now.dailyUActSpent)}
               />
             )}
 
-            {dashboardData.now.totalUUsdcSpent !== undefined && dashboardData.compare.totalUUsdcSpent !== undefined && (
+            {dashboardData.now.totalUActSpent !== undefined && dashboardData.compare.totalUActSpent !== undefined && (
               <StatsCard
                 number={
                   <>
                     <FormattedNumber
-                      value={udenomToDenom(dashboardData.now.totalUUsdcSpent)}
+                      value={udenomToDenom(dashboardData.now.totalUActSpent)}
                       maximumFractionDigits={2}
                       notation="compact"
                       compactDisplay="short"
                     />
-                    <USDCLabel />
+                    <ACTLabel />
                   </>
                 }
-                text="Total spent USDC"
-                tooltip="This is the total amount of usdc spent to rent computing power on the akash network since the Mainnet 6 upgrade that added usdc support. (August 2023)"
-                graphPath={UrlService.graph(SnapshotsUrlParam.totalUSDCSpent)}
-                diffNumber={udenomToDenom(dashboardData.now.totalUUsdcSpent - dashboardData.compare.totalUUsdcSpent)}
-                diffPercent={percIncrease(dashboardData.compare.totalUUsdcSpent, dashboardData.now.totalUUsdcSpent)}
+                text="Total spent ACT"
+                tooltip="Total ACT spent to rent computing power on the Akash network (includes historical USDC at 1:1)."
+                graphPath={UrlService.graph(SnapshotsUrlParam.totalACTSpent)}
+                diffNumber={udenomToDenom(dashboardData.now.totalUActSpent - dashboardData.compare.totalUActSpent)}
+                diffPercent={percIncrease(dashboardData.compare.totalUActSpent, dashboardData.now.totalUActSpent)}
               />
             )}
           </div>

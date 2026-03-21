@@ -622,7 +622,8 @@ describe(StatsService.name, () => {
         activeLeaseCount: 50,
         totalLeaseCount: 200,
         totalUAktSpent: 1000,
-        totalUUsdcSpent: 2000,
+        totalUUsdcSpent: 1500,
+        totalUActSpent: 500,
         totalUUsdSpent: 3000,
         activeCPU: 500,
         activeGPU: 10,
@@ -638,7 +639,8 @@ describe(StatsService.name, () => {
         activeLeaseCount: 40,
         totalLeaseCount: 150,
         totalUAktSpent: 800,
-        totalUUsdcSpent: 1500,
+        totalUUsdcSpent: 1200,
+        totalUActSpent: 300,
         totalUUsdSpent: 2000,
         activeCPU: 400,
         activeGPU: 8,
@@ -652,7 +654,8 @@ describe(StatsService.name, () => {
         height: 100,
         totalLeaseCount: 100,
         totalUAktSpent: 500,
-        totalUUsdcSpent: 1000,
+        totalUUsdcSpent: 800,
+        totalUActSpent: 200,
         totalUUsdSpent: 1200
       };
 

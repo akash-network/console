@@ -1,7 +1,7 @@
 export enum Snapshots {
   activeLeaseCount = "activeLeaseCount",
   totalUAktSpent = "totalUAktSpent",
-  totalUUsdcSpent = "totalUUsdcSpent",
+  totalUActSpent = "totalUActSpent",
   totalUUsdSpent = "totalUUsdSpent",
   totalLeaseCount = "totalLeaseCount",
   activeCPU = "activeCPU",
@@ -9,7 +9,7 @@ export enum Snapshots {
   activeMemory = "activeMemory",
   activeStorage = "activeStorage",
   dailyUAktSpent = "dailyUAktSpent",
-  dailyUUsdcSpent = "dailyUUsdcSpent",
+  dailyUActSpent = "dailyUActSpent",
   dailyUUsdSpent = "dailyUUsdSpent",
   dailyLeaseCount = "dailyLeaseCount"
 }
@@ -17,7 +17,7 @@ export enum Snapshots {
 export enum SnapshotsUrlParam {
   activeLeases = "active-leases",
   totalAKTSpent = "total-akt-spent",
-  totalUSDCSpent = "total-usdc-spent",
+  totalACTSpent = "total-act-spent",
   totalUSDSpent = "total-usd-spent",
   allTimeDeploymentCount = "all-time-deployment-count",
   compute = "compute",
@@ -25,7 +25,7 @@ export enum SnapshotsUrlParam {
   memory = "memory",
   storage = "storage",
   dailyAktSpent = "daily-akt-spent",
-  dailyUsdcSpent = "daily-usdc-spent",
+  dailyActSpent = "daily-act-spent",
   dailyUsdSpent = "daily-usd-spent",
   dailyDeploymentCount = "daily-deployment-count"
 }
