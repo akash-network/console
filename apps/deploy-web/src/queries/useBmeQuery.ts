@@ -1,15 +1,13 @@
 import type { UseQueryOptions } from "@tanstack/react-query";
 import { useQuery } from "@tanstack/react-query";
 import type { AxiosInstance } from "axios";
+import { millisecondsInMinute } from "date-fns/constants";
 
 import { useServices } from "@src/context/ServicesProvider";
 import type { BmeParams, BmeStatus, RpcBmeParams, RpcBmeStatus } from "@src/types/bme";
 import { ApiUrlService } from "@src/utils/apiUtils";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { QueryKeys } from "./queryKeys";
-
-const FIVE_MINUTES_MS = 5 * 60 * 1000;
-const ONE_MINUTE_MS = 60 * 1000;
 
 async function getBmeParams(chainApiHttpClient: AxiosInstance): Promise<BmeParams> {
   const response = await chainApiHttpClient.get<RpcBmeParams>(ApiUrlService.bmeParams(""));
@@ -39,8 +37,8 @@ export function useBmeParams(options?: Omit<UseQueryOptions<BmeParams>, "queryKe
   return useQuery({
     queryKey: QueryKeys.getBmeParamsKey(),
     queryFn: () => getBmeParams(chainApiHttpClient),
-    staleTime: FIVE_MINUTES_MS,
-    gcTime: FIVE_MINUTES_MS,
+    staleTime: 5 * millisecondsInMinute,
+    gcTime: 5 * millisecondsInMinute,
     ...options,
     enabled: options?.enabled !== false && !chainApiHttpClient.isFallbackEnabled
   });
@@ -51,8 +49,8 @@ export function useBmeStatus(options?: Omit<UseQueryOptions<BmeStatus>, "queryKe
   return useQuery({
     queryKey: QueryKeys.getBmeStatusKey(),
     queryFn: () => getBmeStatus(chainApiHttpClient),
-    staleTime: ONE_MINUTE_MS,
-    refetchInterval: ONE_MINUTE_MS,
+    staleTime: millisecondsInMinute,
+    refetchInterval: millisecondsInMinute,
     ...options,
     enabled: options?.enabled !== false && !chainApiHttpClient.isFallbackEnabled
   });
