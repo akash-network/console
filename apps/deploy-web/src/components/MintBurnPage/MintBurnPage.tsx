@@ -125,23 +125,15 @@ export const MintBurnPage: React.FC<MintBurnPageProps> = ({ dependencies: d = DE
 
   const insufficientBalance = effectiveFromAmount > maxFromAmount;
 
-  const estimatedOutput = useMemo(() => {
-    if (!effectiveRate || !effectiveFromAmount) return 0;
-    return isMint ? effectiveFromAmount * effectiveRate.mint : effectiveFromAmount * effectiveRate.burn;
-  }, [effectiveFromAmount, effectiveRate, isMint]);
-
   const belowMinMint = useMemo(() => {
-    if (!isMint || !bmeParams || !effectiveFromAmount || !estimatedOutput) return false;
-    return estimatedOutput < bmeParams.minMintAct;
-  }, [isMint, bmeParams, effectiveFromAmount, estimatedOutput]);
+    if (!isMint || !bmeParams || !effectiveActAmount) return false;
+    return effectiveActAmount < bmeParams.minMintAct;
+  }, [isMint, bmeParams, effectiveActAmount]);
 
   const isMintDisabled = bmeStatus ? !bmeStatus.mintsAllowed : false;
   const isBurnDisabled = bmeStatus ? !bmeStatus.refundsAllowed : false;
 
-  const isCircuitBreakerWarning = useMemo(() => {
-    if (!bmeStatus || isMintDisabled || isBurnDisabled) return false;
-    return bmeStatus.collateralRatio <= bmeStatus.circuitBreakerWarnThreshold;
-  }, [bmeStatus, isMintDisabled, isBurnDisabled]);
+  const isCircuitBreakerWarning = !!bmeStatus && !isMintDisabled && !isBurnDisabled && bmeStatus.collateralRatio <= bmeStatus.circuitBreakerWarnThreshold;
 
   const focusField = useCallback(
     (fieldDenom: "AKT" | "ACT", currentDisplay: string) => {
@@ -237,7 +229,7 @@ export const MintBurnPage: React.FC<MintBurnPageProps> = ({ dependencies: d = DE
         {isCircuitBreakerWarning && (
           <d.Alert variant="warning" className="mb-4">
             <p className="text-sm">
-              The collateral ratio ({roundDecimal(bmeStatus!.collateralRatio, 4)}) is approaching the circuit breaker threshold. Minting or settling may be
+              The collateral ratio ({roundDecimal(bmeStatus?.collateralRatio ?? 0, 4)}) is approaching the circuit breaker threshold. Minting or settling may be
               paused soon.
             </p>
           </d.Alert>
@@ -315,8 +307,8 @@ export const MintBurnPage: React.FC<MintBurnPageProps> = ({ dependencies: d = DE
         {belowMinMint && bmeParams && (
           <d.Alert variant="destructive" className="mb-4">
             <p className="text-sm">
-              Estimated output ({roundDecimal(estimatedOutput, 2)} ACT) is below the minimum mint amount of {bmeParams.minMintAct} ACT. Increase the amount to
-              proceed.
+              Estimated output ({roundDecimal(effectiveActAmount, 2)} ACT) is below the minimum mint amount of {bmeParams.minMintAct} ACT. Increase the amount
+              to proceed.
             </p>
           </d.Alert>
         )}
