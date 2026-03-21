@@ -12,6 +12,7 @@ import { useWallet } from "@src/context/WalletProvider";
 import { usePricing } from "@src/hooks/usePricing/usePricing";
 import { useSupportsACT } from "@src/hooks/useSupportsACT/useSupportsACT";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
+import { useBmeParams, useBmeStatus } from "@src/queries/useBmeQuery";
 import { useLedgerRecords } from "@src/queries/useLedgerRecords";
 import { denomToUdenom, roundDecimal, udenomToDenom } from "@src/utils/mathHelpers";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
@@ -46,6 +47,8 @@ export const DEPENDENCIES = {
   useWalletBalance,
   useSnackbar,
   useSupportsACT,
+  useBmeParams,
+  useBmeStatus,
   useLedgerRecords,
   LedgerRecordsTable
 };
@@ -64,6 +67,9 @@ export const MintBurnPage: React.FC<MintBurnPageProps> = ({ dependencies: d = DE
   const { balance, isLoading: isBalanceLoading } = d.useWalletBalance();
   const { price, isLoaded: isPriceLoaded } = d.usePricing();
   const { enqueueSnackbar } = d.useSnackbar();
+  const isACTSupported = d.useSupportsACT();
+  const { data: bmeParams } = d.useBmeParams({ enabled: isACTSupported });
+  const { data: bmeStatus } = d.useBmeStatus({ enabled: isACTSupported });
   const { data: ledgerData, isLoading: isLedgerLoading, invalidate: invalidateLedger } = d.useLedgerRecords(address);
 
   const aktBalance = useMemo(() => (balance ? udenomToDenom(balance.balanceUAKT, 6) : 0), [balance]);
@@ -76,15 +82,29 @@ export const MintBurnPage: React.FC<MintBurnPageProps> = ({ dependencies: d = DE
     return Number.isNaN(val) || val < 0 ? 0 : val;
   }, [amount]);
 
+  const effectiveRate = useMemo(() => {
+    if (!price) return undefined;
+    const mintSpread = bmeParams ? bmeParams.mintSpreadBps / 10_000 : 0;
+    const settleSpread = bmeParams ? bmeParams.settleSpreadBps / 10_000 : 0;
+    return {
+      mint: price * (1 - mintSpread),
+      burn: (1 / price) * (1 - settleSpread)
+    };
+  }, [price, bmeParams]);
+
   const aktDisplay = useMemo(() => {
     if (denom === "AKT") return amount;
-    return price && effectiveAmount ? roundDecimal(effectiveAmount / price, 6).toString() : "";
-  }, [denom, amount, effectiveAmount, price]);
+    const rate = isMint ? effectiveRate?.mint : effectiveRate?.burn;
+    if (!rate || !effectiveAmount) return "";
+    return isMint ? roundDecimal(effectiveAmount / rate, 6).toString() : roundDecimal(effectiveAmount * rate, 6).toString();
+  }, [denom, amount, effectiveAmount, effectiveRate, isMint]);
 
   const actDisplay = useMemo(() => {
     if (denom === "ACT") return amount;
-    return price && effectiveAmount ? roundDecimal(effectiveAmount * price, 6).toString() : "";
-  }, [denom, amount, effectiveAmount, price]);
+    const rate = isMint ? effectiveRate?.mint : effectiveRate?.burn;
+    if (!rate || !effectiveAmount) return "";
+    return isMint ? roundDecimal(effectiveAmount * rate, 6).toString() : roundDecimal(effectiveAmount / rate, 6).toString();
+  }, [denom, amount, effectiveAmount, effectiveRate, isMint]);
 
   const fromAmount = isMint ? aktDisplay : actDisplay;
   const toAmount = isMint ? actDisplay : aktDisplay;
@@ -104,6 +124,24 @@ export const MintBurnPage: React.FC<MintBurnPageProps> = ({ dependencies: d = DE
   }, [isMint, aktBalance, actBalance]);
 
   const insufficientBalance = effectiveFromAmount > maxFromAmount;
+
+  const estimatedOutput = useMemo(() => {
+    if (!effectiveRate || !effectiveFromAmount) return 0;
+    return isMint ? effectiveFromAmount * effectiveRate.mint : effectiveFromAmount * effectiveRate.burn;
+  }, [effectiveFromAmount, effectiveRate, isMint]);
+
+  const belowMinMint = useMemo(() => {
+    if (!isMint || !bmeParams || !effectiveFromAmount || !estimatedOutput) return false;
+    return estimatedOutput < bmeParams.minMintAct;
+  }, [isMint, bmeParams, effectiveFromAmount, estimatedOutput]);
+
+  const isMintDisabled = bmeStatus ? !bmeStatus.mintsAllowed : false;
+  const isBurnDisabled = bmeStatus ? !bmeStatus.refundsAllowed : false;
+
+  const isCircuitBreakerWarning = useMemo(() => {
+    if (!bmeStatus || isMintDisabled || isBurnDisabled) return false;
+    return bmeStatus.collateralRatio <= bmeStatus.circuitBreakerWarnThreshold;
+  }, [bmeStatus, isMintDisabled, isBurnDisabled]);
 
   const focusField = useCallback(
     (fieldDenom: "AKT" | "ACT", currentDisplay: string) => {
@@ -138,7 +176,7 @@ export const MintBurnPage: React.FC<MintBurnPageProps> = ({ dependencies: d = DE
   }, []);
 
   const submitForm = useCallback(async () => {
-    if (!address || !effectiveFromAmount || insufficientBalance) return;
+    if (!address || !effectiveFromAmount || insufficientBalance || belowMinMint) return;
 
     setIsSubmitting(true);
     try {
@@ -161,12 +199,14 @@ export const MintBurnPage: React.FC<MintBurnPageProps> = ({ dependencies: d = DE
     } finally {
       setIsSubmitting(false);
     }
-  }, [address, effectiveFromAmount, insufficientBalance, isMint, signAndBroadcastTx, enqueueSnackbar, invalidateLedger, resetForm, d]);
-  const isACTSupported = d.useSupportsACT();
+  }, [address, effectiveFromAmount, insufficientBalance, belowMinMint, isMint, signAndBroadcastTx, enqueueSnackbar, invalidateLedger, resetForm, d]);
 
   if (!isACTSupported || !isCustodial) {
     return null;
   }
+
+  const spreadBps = isMint ? bmeParams?.mintSpreadBps : bmeParams?.settleSpreadBps;
+  const hasSpread = spreadBps !== undefined && spreadBps > 0;
 
   return (
     <d.Layout>
@@ -181,6 +221,27 @@ export const MintBurnPage: React.FC<MintBurnPageProps> = ({ dependencies: d = DE
           Convert between AKT and ACT (Akash Compute Token). ACT is a USD-pegged token used to pay for deployments. Mint ACT by burning AKT at the current
           oracle rate, or burn unused ACT to redeem AKT. ACT has no expiration and is fully refundable.
         </p>
+
+        {isMint && isMintDisabled && (
+          <d.Alert variant="destructive" className="mb-4">
+            <p className="text-sm">Minting is currently disabled due to the circuit breaker. The collateral ratio has fallen below the safe threshold.</p>
+          </d.Alert>
+        )}
+
+        {!isMint && isBurnDisabled && (
+          <d.Alert variant="destructive" className="mb-4">
+            <p className="text-sm">Settling ACT is currently disabled due to the circuit breaker.</p>
+          </d.Alert>
+        )}
+
+        {isCircuitBreakerWarning && (
+          <d.Alert variant="warning" className="mb-4">
+            <p className="text-sm">
+              The collateral ratio ({roundDecimal(bmeStatus!.collateralRatio, 4)}) is approaching the circuit breaker threshold. Minting or settling may be
+              paused soon.
+            </p>
+          </d.Alert>
+        )}
 
         <d.Card className="mb-4">
           <d.CardContent className="space-y-4 p-4">
@@ -226,9 +287,15 @@ export const MintBurnPage: React.FC<MintBurnPageProps> = ({ dependencies: d = DE
                 inputClassName="tabular-nums"
               />
               {isPriceLoaded && price && (
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Rate: {isMint ? `1 AKT = ${roundDecimal(price, 4)} ACT` : `1 ACT = ${roundDecimal(1 / price, 4)} AKT`}
-                </p>
+                <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                  <p>Oracle: 1 AKT = {roundDecimal(price, 4)} ACT</p>
+                  {hasSpread && effectiveRate && (
+                    <p>
+                      Effective: 1 {isMint ? "AKT" : "ACT"} = {roundDecimal(isMint ? effectiveRate.mint : effectiveRate.burn, 4)} {isMint ? "ACT" : "AKT"} (
+                      {(spreadBps! / 100).toFixed(2)}% spread)
+                    </p>
+                  )}
+                </div>
               )}
             </div>
           </d.CardContent>
@@ -244,6 +311,15 @@ export const MintBurnPage: React.FC<MintBurnPageProps> = ({ dependencies: d = DE
             Everything
           </d.Button>
         </div>
+
+        {belowMinMint && bmeParams && (
+          <d.Alert variant="destructive" className="mb-4">
+            <p className="text-sm">
+              Estimated output ({roundDecimal(estimatedOutput, 2)} ACT) is below the minimum mint amount of {bmeParams.minMintAct} ACT. Increase the amount to
+              proceed.
+            </p>
+          </d.Alert>
+        )}
 
         {!isBalanceLoading && insufficientBalance && effectiveFromAmount > 0 && (
           <d.Alert variant="destructive" className="mb-4">
@@ -261,11 +337,20 @@ export const MintBurnPage: React.FC<MintBurnPageProps> = ({ dependencies: d = DE
         <d.Button
           className="w-full"
           size="lg"
-          disabled={!effectiveFromAmount || insufficientBalance || isSubmitting || isBalanceLoading || !isPriceLoaded}
+          disabled={
+            !effectiveFromAmount ||
+            insufficientBalance ||
+            isSubmitting ||
+            isBalanceLoading ||
+            !isPriceLoaded ||
+            belowMinMint ||
+            (isMint && isMintDisabled) ||
+            (!isMint && isBurnDisabled)
+          }
           onClick={submitForm}
           aria-label="Submit"
         >
-          {isSubmitting ? "Processing..." : isMint ? "Mint ACT" : "Burn ACT"}
+          {isSubmitting ? "Processing..." : isMint ? (isMintDisabled ? "Minting Paused" : "Mint ACT") : isBurnDisabled ? "Settling Paused" : "Burn ACT"}
         </d.Button>
 
         <d.Card className="mt-6">

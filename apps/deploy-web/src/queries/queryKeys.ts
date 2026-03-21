@@ -47,6 +47,8 @@ export class QueryKeys {
   static getTemplatesKey = () => ["TEMPLATES"];
   static getProviderAttributesSchema = () => ["PROVIDER_ATTRIBUTES_SCHEMA"];
   static getDepositParamsKey = () => ["DEPOSIT_PARAMS"];
+  static getBmeParamsKey = () => ["BME_PARAMS"];
+  static getBmeStatusKey = () => ["BME_STATUS"];
   static getGpuModelsKey = () => ["GPU_MODELS"];
   static getTrialProvidersKey = () => ["TRIAL_PROVIDERS"];
   static getDeploymentSettingKey = (userId: string, dseq: string) => ["DEPLOYMENT_SETTING", userId, dseq];
