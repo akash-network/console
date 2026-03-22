@@ -53,6 +53,8 @@ export class BmeIndexer extends Indexer {
 
   private aktMigrated = false;
 
+  private healthyStatusSeen = false;
+
   constructor() {
     super();
     this.name = "BmeIndexer";
@@ -79,8 +81,9 @@ export class BmeIndexer extends Indexer {
     this.usdcMigrated = processedNativeCount > 0;
 
     const healthyStatusExists = await BmeStatusChange.count({ where: { newStatus: "mint_status_healthy" } });
-    const aktDeploymentCount = await Deployment.count({ where: { denom: "uakt", closedHeight: null } });
-    this.aktMigrated = healthyStatusExists > 0 && aktDeploymentCount === 0;
+    this.healthyStatusSeen = healthyStatusExists > 0;
+    const aktDeploymentCount = this.healthyStatusSeen ? await Deployment.count({ where: { denom: "uakt", closedHeight: null } }) : 1;
+    this.aktMigrated = this.healthyStatusSeen && aktDeploymentCount === 0;
   }
 
   seed(_genesis: IGenesis): Promise<void> {
@@ -149,8 +152,13 @@ export class BmeIndexer extends Indexer {
       // Raw event is kept in bme_raw_event for audit purposes.
     }
 
-    // Oracle price events come via wasm tx (not EndBlocker), so query transaction events directly
-    if (!this.aktMigrated) {
+    if (!this.healthyStatusSeen && statusChanges.some(sc => sc.newStatus === "mint_status_healthy")) {
+      this.healthyStatusSeen = true;
+    }
+
+    // Oracle price events come via wasm tx (not EndBlocker), so query transaction events directly.
+    // Skip until healthy status is seen — no point querying for AKT/USD price before the oracle is active.
+    if (!this.aktMigrated && this.healthyStatusSeen) {
       const priceAttrs = await sequelize.query<{ key: string; value: string; eventId: number }>(
         `SELECT tea.key, tea.value, te.id AS "eventId" FROM transaction_event te
          JOIN transaction t ON t.id = te.tx_id
