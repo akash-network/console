@@ -132,8 +132,8 @@ export const chainDefinitions: { [key: string]: ChainDef } = {
     logoUrlPNG: "https://console.akash.network/images/chains/akash.png",
     customIndexers: ["AkashStatsIndexer", "BmeIndexer"],
     bech32Prefix: "akash",
-    denom: "akt",
-    udenom: "uakt",
+    denom: "act",
+    udenom: "uact",
     customBlockModel: AkashBlock,
     customMessageModel: AkashMessage,
     customModels: [
