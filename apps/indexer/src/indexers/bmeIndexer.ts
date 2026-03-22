@@ -3,7 +3,7 @@ import { BmeLedgerRecord, BmeRawEvent, BmeStatusChange, Deployment } from "@akas
 import type { Transaction, TransactionEvent } from "@akashnetwork/database/dbSchemas/base";
 import type { DecodedTxRaw } from "@cosmjs/proto-signing";
 import type { Transaction as DbTransaction } from "sequelize";
-import { QueryTypes } from "sequelize";
+import { Op, QueryTypes } from "sequelize";
 
 import type { IGenesis } from "@src/chain/genesisTypes";
 import { sequelize } from "@src/db/dbConnection";
@@ -38,6 +38,14 @@ const BME_EVENT_TYPE_VALUES = Object.values(BME_EVENT_TYPES);
 
 export { BME_EVENT_TYPE_VALUES };
 
+/** Native on-chain BME events (emitted only after the BME module is activated at the upgrade block). */
+const NATIVE_BME_EVENT_TYPES: readonly string[] = [
+  BME_EVENT_TYPES.LEDGER_RECORD_EXECUTED,
+  BME_EVENT_TYPES.MINT_STATUS_CHANGE,
+  BME_EVENT_TYPES.VAULT_SEEDED,
+  BME_EVENT_TYPES.LEDGER_RECORD_CANCELED
+];
+
 export const BME_BLOCK_EVENT_TYPE_VALUES = [...BME_EVENT_TYPE_VALUES];
 
 export class BmeIndexer extends Indexer {
@@ -67,8 +75,8 @@ export class BmeIndexer extends Indexer {
   }
 
   async initCache(): Promise<void> {
-    const processedCount = await BmeRawEvent.count({ where: { isProcessed: true } });
-    this.usdcMigrated = processedCount > 0;
+    const processedNativeCount = await BmeRawEvent.count({ where: { isProcessed: true, type: { [Op.in]: NATIVE_BME_EVENT_TYPES } } });
+    this.usdcMigrated = processedNativeCount > 0;
 
     const healthyStatusExists = await BmeStatusChange.count({ where: { newStatus: "mint_status_healthy" } });
     const aktDeploymentCount = await Deployment.count({ where: { denom: "uakt", closedHeight: null } });
@@ -95,8 +103,10 @@ export class BmeIndexer extends Indexer {
       transaction: dbTransaction
     });
 
-    // USDC → ACT: triggered on first BME event (upgrade block)
-    if (!this.usdcMigrated && rawEvents.length > 0) {
+    // USDC → ACT: triggered when the first native BME event appears (upgrade block).
+    // Synthetic events (indexer.bme.*) can appear before the upgrade, so we only
+    // gate on native on-chain events (akash.bme.v1.*) to avoid premature conversion.
+    if (!this.usdcMigrated && rawEvents.some(e => NATIVE_BME_EVENT_TYPES.includes(e.type))) {
       await this.migrateUsdcToAct(dbTransaction);
       this.usdcMigrated = true;
     }
@@ -143,8 +153,9 @@ export class BmeIndexer extends Indexer {
     if (!this.aktMigrated) {
       const priceAttrs = await sequelize.query<{ key: string; value: string; eventId: number }>(
         `SELECT tea.key, tea.value, te.id AS "eventId" FROM transaction_event te
+         JOIN transaction t ON t.id = te.tx_id
          JOIN transaction_event_attribute tea ON tea.transaction_event_id = te.id
-         WHERE te.height = :height AND te.type = :type`,
+         WHERE te.height = :height AND te.type = :type AND t."hasProcessingError" = false`,
         { transaction: dbTransaction, type: QueryTypes.SELECT, replacements: { height: currentBlock.height, type: ORACLE_EVENT_TYPES.PRICE_DATA } }
       );
       if (priceAttrs.length > 0) {
