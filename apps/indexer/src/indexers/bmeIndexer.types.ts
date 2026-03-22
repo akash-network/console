@@ -45,6 +45,14 @@ export interface ParsedVaultSeeded {
   newVaultBalance: { amount: string; denom: string } | null;
 }
 
+export interface ParsedPriceData {
+  source: string;
+  denom: string;
+  baseDenom: string;
+  price: string;
+  timestamp: string | null;
+}
+
 export interface BmeSums {
   /** AKT consumed to mint ACT — from remint_credit_accrued (AKT goes to vault, not burned) */
   aktBurnedForAct: number;

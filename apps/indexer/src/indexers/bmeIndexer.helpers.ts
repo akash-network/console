@@ -1,4 +1,4 @@
-import type { BmeSums, CoinPrice, LedgerRecordID, ParsedLedgerRecord, ParsedStatusChange, ParsedVaultSeeded } from "./bmeIndexer.types";
+import type { BmeSums, CoinPrice, LedgerRecordID, ParsedLedgerRecord, ParsedPriceData, ParsedStatusChange, ParsedVaultSeeded } from "./bmeIndexer.types";
 
 function parseJsonValue<T>(value: string | null | undefined): T | null {
   if (!value) return null;
@@ -97,6 +97,25 @@ export function parseVaultSeededEvent(data: Record<string, string | null>): Pars
     amount: amount?.amount || "0",
     denom: amount?.denom || "uakt",
     newVaultBalance
+  };
+}
+
+/**
+ * Parse EventPriceData attributes.
+ *
+ * Proto fields (from akash.oracle.v1.EventPriceData):
+ *   source (string), id (DataID: {denom, base_denom}), data (PriceDataState: {price, timestamp})
+ */
+export function parsePriceDataEvent(data: Record<string, string | null>): ParsedPriceData {
+  const id = parseJsonValue<{ denom: string; base_denom: string }>(data.id);
+  const priceData = parseJsonValue<{ price: string; timestamp: string }>(data.data);
+
+  return {
+    source: parseStringAttr(data.source) || "",
+    denom: id?.denom || "",
+    baseDenom: id?.base_denom || "",
+    price: priceData?.price || "0",
+    timestamp: priceData?.timestamp || null
   };
 }
 
