@@ -128,9 +128,6 @@ export class ApiUrlService {
   static bmeParams(apiEndpoint: string) {
     return `${apiEndpoint}/akash/bme/v1/params`;
   }
-  static bmeStatus(apiEndpoint: string) {
-    return `${apiEndpoint}/akash/bme/v1/status`;
-  }
 
   static get baseApiUrl() {
     return services.apiUrlService.getBaseApiUrlFor(networkStore.selectedNetworkId);

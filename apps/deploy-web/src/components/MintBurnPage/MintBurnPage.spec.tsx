@@ -2,7 +2,7 @@ import React from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { WalletBalance } from "@src/hooks/useWalletBalance";
-import type { BmeParams, BmeStatus } from "@src/types/bme";
+import type { BmeParams } from "@src/types/bme";
 import { DEPENDENCIES, MintBurnPage, PRESET_AMOUNTS } from "./MintBurnPage";
 
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -175,20 +175,20 @@ describe(MintBurnPage.name, () => {
     expect((screen.getByLabelText("To") as HTMLInputElement).value).toBe("");
   });
 
-  it("displays oracle rate when price is loaded in mint mode", () => {
+  it("displays rate information when price is loaded in mint mode", () => {
     setup({ price: 4 });
 
-    expect(screen.getByText(/Oracle: 1 AKT = 4 ACT/)).toBeInTheDocument();
+    expect(screen.getByText(/Rate: 1 AKT = 4 ACT/)).toBeInTheDocument();
   });
 
-  it("displays oracle rate when price is loaded in burn mode", () => {
+  it("displays rate information when price is loaded in burn mode", () => {
     setup({ price: 4 });
 
     act(() => {
       fireEvent.click(screen.getByLabelText("Swap tokens"));
     });
 
-    expect(screen.getByText(/Oracle: 1 AKT = 4 ACT/)).toBeInTheDocument();
+    expect(screen.getByText(/Rate: 1 ACT = 0.25 AKT/)).toBeInTheDocument();
   });
 
   it("renders all preset amount buttons", () => {
@@ -246,32 +246,11 @@ describe(MintBurnPage.name, () => {
     expect((screen.getByLabelText("From") as HTMLInputElement).value).toBe("10");
   });
 
-  it("shows effective rate with spread when bmeParams has non-zero mint spread", () => {
-    setup({
-      price: 4,
-      bmeParams: { minMintUact: 10_000_000, minMintAct: 10, mintSpreadBps: 25, settleSpreadBps: 0 }
-    });
-
-    expect(screen.getByText(/Oracle: 1 AKT = 4 ACT/)).toBeInTheDocument();
-    expect(screen.getByText(/Effective:/)).toBeInTheDocument();
-    expect(screen.getByText(/0\.25% spread/)).toBeInTheDocument();
-  });
-
-  it("does not show effective rate when spread is zero", () => {
-    setup({
-      price: 4,
-      bmeParams: { minMintUact: 10_000_000, minMintAct: 10, mintSpreadBps: 0, settleSpreadBps: 0 }
-    });
-
-    expect(screen.getByText(/Oracle: 1 AKT = 4 ACT/)).toBeInTheDocument();
-    expect(screen.queryByText(/Effective:/)).not.toBeInTheDocument();
-  });
-
   it("shows below-minimum-mint error when estimated output is below minMintAct", () => {
     setup({
       walletBalance: buildWalletBalance({ balanceUAKT: 1_000_000_000 }),
       price: 0.5,
-      bmeParams: { minMintUact: 10_000_000, minMintAct: 10, mintSpreadBps: 0, settleSpreadBps: 0 }
+      bmeParams: { minMintUact: 10_000_000, minMintAct: 10 }
     });
 
     const fromInput = screen.getByLabelText("From") as HTMLInputElement;
@@ -291,7 +270,7 @@ describe(MintBurnPage.name, () => {
     setup({
       walletBalance: buildWalletBalance({ balanceUACT: 1_000_000_000 }),
       price: 0.5,
-      bmeParams: { minMintUact: 10_000_000, minMintAct: 10, mintSpreadBps: 0, settleSpreadBps: 0 }
+      bmeParams: { minMintUact: 10_000_000, minMintAct: 10 }
     });
 
     act(() => {
@@ -305,7 +284,7 @@ describe(MintBurnPage.name, () => {
     setup({
       walletBalance: buildWalletBalance({ balanceUAKT: 1_000_000_000 }),
       price: 0.5,
-      bmeParams: { minMintUact: 10_000_000, minMintAct: 10, mintSpreadBps: 0, settleSpreadBps: 0 }
+      bmeParams: { minMintUact: 10_000_000, minMintAct: 10 }
     });
 
     const fromInput = screen.getByLabelText("From") as HTMLInputElement;
@@ -321,84 +300,7 @@ describe(MintBurnPage.name, () => {
     expect(screen.getByRole("button", { name: "Submit" })).toBeDisabled();
   });
 
-  it("disables mint form when mints_allowed is false", () => {
-    setup({
-      walletBalance: buildWalletBalance({ balanceUAKT: 1_000_000_000 }),
-      price: 2,
-      bmeStatus: { mintsAllowed: false, refundsAllowed: true, collateralRatio: 1.5, circuitBreakerWarnThreshold: 1.1 }
-    });
-
-    expect(screen.getByRole("button", { name: "Submit" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Submit" })).toHaveTextContent("Minting Paused");
-    expect(screen.getByText(/Minting is currently disabled/)).toBeInTheDocument();
-  });
-
-  it("disables burn form when refunds_allowed is false", () => {
-    setup({
-      walletBalance: buildWalletBalance({ balanceUACT: 500_000_000 }),
-      price: 2,
-      bmeStatus: { mintsAllowed: true, refundsAllowed: false, collateralRatio: 1.5, circuitBreakerWarnThreshold: 1.1 }
-    });
-
-    act(() => {
-      fireEvent.click(screen.getByLabelText("Swap tokens"));
-    });
-
-    expect(screen.getByRole("button", { name: "Submit" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Submit" })).toHaveTextContent("Settling Paused");
-    expect(screen.getByText(/Settling ACT is currently disabled/)).toBeInTheDocument();
-  });
-
-  it("shows circuit breaker warning when collateral ratio is at warn threshold", () => {
-    setup({
-      price: 2,
-      bmeStatus: { mintsAllowed: true, refundsAllowed: true, collateralRatio: 1.1, circuitBreakerWarnThreshold: 1.1 }
-    });
-
-    expect(screen.getByText(/approaching the circuit breaker threshold/)).toBeInTheDocument();
-  });
-
-  it("does not show circuit breaker warning when collateral ratio is above threshold", () => {
-    setup({
-      price: 2,
-      bmeStatus: { mintsAllowed: true, refundsAllowed: true, collateralRatio: 1.5, circuitBreakerWarnThreshold: 1.1 }
-    });
-
-    expect(screen.queryByText(/approaching the circuit breaker threshold/)).not.toBeInTheDocument();
-  });
-
-  it("does not show circuit breaker warning when circuit breaker is already tripped", () => {
-    setup({
-      price: 2,
-      bmeStatus: { mintsAllowed: false, refundsAllowed: true, collateralRatio: 0.9, circuitBreakerWarnThreshold: 1.1 }
-    });
-
-    expect(screen.queryByText(/approaching the circuit breaker threshold/)).not.toBeInTheDocument();
-    expect(screen.getByText(/Minting is currently disabled/)).toBeInTheDocument();
-  });
-
-  it("applies spread to computed values", () => {
-    setup({
-      walletBalance: buildWalletBalance({ balanceUAKT: 1_000_000_000 }),
-      price: 4,
-      bmeParams: { minMintUact: 10_000_000, minMintAct: 10, mintSpreadBps: 100, settleSpreadBps: 0 }
-    });
-
-    const fromInput = screen.getByLabelText("From") as HTMLInputElement;
-
-    act(() => {
-      fireEvent.focus(fromInput);
-    });
-
-    act(() => {
-      fireEvent.change(fromInput, { target: { value: "100" } });
-    });
-
-    // 100 AKT * 4 (price) * (1 - 100/10000) = 100 * 4 * 0.99 = 396
-    expect((screen.getByLabelText("To") as HTMLInputElement).value).toBe("396");
-  });
-
-  function setup(input?: { walletBalance?: WalletBalance | null; price?: number; bmeParams?: BmeParams; bmeStatus?: BmeStatus }) {
+  function setup(input?: { walletBalance?: WalletBalance | null; price?: number; bmeParams?: BmeParams }) {
     const signAndBroadcastTx = vi.fn().mockResolvedValue(true);
     const refetchBalance = vi.fn();
     const invalidateLedger = vi.fn();
@@ -436,7 +338,6 @@ describe(MintBurnPage.name, () => {
       }),
       useSupportsACT: () => true,
       useBmeParams: () => ({ data: input?.bmeParams, isLoading: false }),
-      useBmeStatus: () => ({ data: input?.bmeStatus, isLoading: false }),
       useLedgerRecords: () => ({
         data: null,
         isLoading: false,
