@@ -1,4 +1,4 @@
-import { activeChain, BME_VAULT_ADDRESS } from "@akashnetwork/database/chainDefinitions";
+import { activeChain, BME_VAULT_ADDRESS, IBC_USDC_DENOMS } from "@akashnetwork/database/chainDefinitions";
 import { Block, Message } from "@akashnetwork/database/dbSchemas";
 import { BmeRawEvent } from "@akashnetwork/database/dbSchemas/akash";
 import { Day, Transaction, TransactionEvent, TransactionEventAttribute } from "@akashnetwork/database/dbSchemas/base";
@@ -11,7 +11,7 @@ import { Op } from "sequelize";
 import * as uuid from "uuid";
 
 import { sequelize } from "@src/db/dbConnection";
-import { BME_EVENT_TYPE_VALUES, BME_EVENT_TYPES } from "@src/indexers/bmeIndexer";
+import { BME_BLOCK_EVENT_TYPE_VALUES, BME_EVENT_TYPES } from "@src/indexers/bmeIndexer";
 import { ExecutionMode, executionMode, isProd, lastBlockToSync } from "@src/shared/constants";
 import type { BlockResultType } from "@src/shared/types";
 import { decodeIfBase64 } from "@src/shared/utils/base64";
@@ -28,6 +28,14 @@ import {
 } from "./dataStore";
 import { nodeAccessor } from "./nodeAccessor";
 import { statsProcessor } from "./statsProcessor"; // eslint-disable-line import-x/no-cycle
+
+function parseEventAttrs(event: { attributes: Array<{ key: string; value: string | null }> }): Record<string, string> {
+  const attrs: Record<string, string> = {};
+  for (const attr of event.attributes) {
+    attrs[decodeIfBase64(attr.key)] = attr.value ? decodeIfBase64(attr.value) : "";
+  }
+  return attrs;
+}
 
 export const setMissingBlock = (height: number) => (missingBlock = height);
 let missingBlock: number;
@@ -271,8 +279,10 @@ async function insertBlocks(startHeight: number, endHeight: number) {
     const endBlockEvents = blockResults?.finalize_block_events ?? blockResults?.end_block_events;
     if (endBlockEvents) {
       let bmeEventIndex = 0;
+      let migrationBurnDetected = false;
+      let migrationBurnedUakt = "0";
       for (const event of endBlockEvents) {
-        if ((BME_EVENT_TYPE_VALUES as readonly string[]).includes(event.type)) {
+        if ((BME_BLOCK_EVENT_TYPE_VALUES as readonly string[]).includes(event.type)) {
           const data: Record<string, string | null> = {};
           for (const attr of event.attributes) {
             data[decodeIfBase64(attr.key)] = attr.value ? decodeIfBase64(attr.value) : null;
@@ -291,10 +301,7 @@ async function insertBlocks(startHeight: number, endHeight: number) {
         // These occur during governance proposal execution or chain upgrades in EndBlocker.
         // User deposits (MsgMintACT) never appear in finalize_block_events, so this is safe from double-counting.
         if (event.type === "transfer") {
-          const attrs: Record<string, string> = {};
-          for (const attr of event.attributes) {
-            attrs[decodeIfBase64(attr.key)] = attr.value ? decodeIfBase64(attr.value) : "";
-          }
+          const attrs = parseEventAttrs(event);
           if (attrs.recipient === BME_VAULT_ADDRESS && attrs.amount?.includes("uakt")) {
             const amountMatch = attrs.amount.match(/^(\d+)uakt$/);
             if (amountMatch) {
@@ -307,6 +314,40 @@ async function insertBlocks(startHeight: number, endHeight: number) {
                 isProcessed: false
               });
             }
+          }
+        }
+
+        // The vault only burns uakt/IBC USDC during migration (never in regular BME ops
+        // where it receives and holds uakt as collateral).
+        // Pattern: burn(old denom) at vault → coinbase(uact) at vault, in sequence.
+        if (event.type === "burn") {
+          const attrs = parseEventAttrs(event);
+          if (attrs.burner === BME_VAULT_ADDRESS) {
+            const uaktBurnMatch = attrs.amount?.match(/^(\d+)uakt$/);
+            const isIbcUsdc = IBC_USDC_DENOMS.some(d => attrs.amount?.endsWith(d));
+            if (uaktBurnMatch || isIbcUsdc) {
+              migrationBurnDetected = true;
+              migrationBurnedUakt = uaktBurnMatch ? uaktBurnMatch[1] : "0";
+            }
+          }
+        }
+
+        if (event.type === "coinbase" && migrationBurnDetected) {
+          const attrs = parseEventAttrs(event);
+          if (attrs.minter === BME_VAULT_ADDRESS) {
+            const match = attrs.amount?.match(/^(\d+)uact$/);
+            if (match) {
+              bmeRawEventsToAdd.push({
+                id: uuid.v4(),
+                height: i,
+                index: bmeEventIndex++,
+                type: BME_EVENT_TYPES.MIGRATION_MINTED,
+                data: { amount: match[1], burnedUakt: migrationBurnedUakt },
+                isProcessed: false
+              });
+            }
+            migrationBurnDetected = false;
+            migrationBurnedUakt = "0";
           }
         }
       }

@@ -29,6 +29,12 @@ dotenv.config();
 // Derived from the module name hash, so it's the same across all networks
 export const BME_VAULT_ADDRESS = "akash1klpwzlvfnw7j8gtdd0cuu9vaw9ermsmd37sg55";
 
+/** Known axlUSDC IBC denoms across networks (must match node/upgrades/software/v2.0.0/deployment.go) */
+export const IBC_USDC_DENOMS = [
+  "ibc/170C677610AC31DF0904FFE09CD3B5C657492170E7E52372E48756B71E56F2F1", // mainnet
+  "ibc/028CD1864059EEFB48A6048376165318E3E82C234390AE5A6D7B22001725B06E" // sandbox
+];
+
 export interface ChainDef {
   code: string;
   rpcNodes: string[];
