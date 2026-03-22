@@ -131,6 +131,9 @@ export class BmeIndexer extends Indexer {
         // Synthetic event: exact uact minted by the chain during BME migration.
         // Created by chainSync.ts when it detects burn(old denom)→coinbase(uact) at BME vault.
         migrationMintedFromEvents += safeParseFloat(rawEvent.data.amount as string);
+        // During migration, AKT from lease escrows is transferred to the vault then immediately burned.
+        // The transfer is already counted in vaultFundedAmount, so subtract the burned AKT to avoid double-counting.
+        vaultFundedAmount -= safeParseFloat((rawEvent.data.burnedUakt as string) || "0");
       }
       // LEDGER_RECORD_CANCELED: no supply impact (record was canceled before execution).
       // Raw event is kept in bme_raw_event for audit purposes.

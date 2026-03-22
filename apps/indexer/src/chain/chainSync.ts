@@ -280,6 +280,7 @@ async function insertBlocks(startHeight: number, endHeight: number) {
     if (endBlockEvents) {
       let bmeEventIndex = 0;
       let migrationBurnDetected = false;
+      let migrationBurnedUakt = "0";
       for (const event of endBlockEvents) {
         if ((BME_BLOCK_EVENT_TYPE_VALUES as readonly string[]).includes(event.type)) {
           const data: Record<string, string | null> = {};
@@ -322,9 +323,11 @@ async function insertBlocks(startHeight: number, endHeight: number) {
         if (event.type === "burn") {
           const attrs = parseEventAttrs(event);
           if (attrs.burner === BME_VAULT_ADDRESS) {
-            const isOldDenom = attrs.amount?.endsWith("uakt") || IBC_USDC_DENOMS.some(d => attrs.amount?.endsWith(d));
-            if (isOldDenom) {
+            const uaktBurnMatch = attrs.amount?.match(/^(\d+)uakt$/);
+            const isIbcUsdc = IBC_USDC_DENOMS.some(d => attrs.amount?.endsWith(d));
+            if (uaktBurnMatch || isIbcUsdc) {
               migrationBurnDetected = true;
+              migrationBurnedUakt = uaktBurnMatch ? uaktBurnMatch[1] : "0";
             }
           }
         }
@@ -339,11 +342,12 @@ async function insertBlocks(startHeight: number, endHeight: number) {
                 height: i,
                 index: bmeEventIndex++,
                 type: BME_EVENT_TYPES.MIGRATION_MINTED,
-                data: { amount: match[1] },
+                data: { amount: match[1], burnedUakt: migrationBurnedUakt },
                 isProcessed: false
               });
             }
             migrationBurnDetected = false;
+            migrationBurnedUakt = "0";
           }
         }
       }
