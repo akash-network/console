@@ -1,9 +1,9 @@
 import type { AkashBlock as Block } from "@akashnetwork/database/dbSchemas/akash";
-import { BmeLedgerRecord, BmeRawEvent, BmeStatusChange, Deployment } from "@akashnetwork/database/dbSchemas/akash";
+import { BmeLedgerRecord, BmeRawEvent, BmeStatusChange, Deployment, Lease } from "@akashnetwork/database/dbSchemas/akash";
 import type { Transaction, TransactionEvent } from "@akashnetwork/database/dbSchemas/base";
 import type { DecodedTxRaw } from "@cosmjs/proto-signing";
 import type { Transaction as DbTransaction } from "sequelize";
-import { Op, QueryTypes } from "sequelize";
+import { QueryTypes } from "sequelize";
 
 import type { IGenesis } from "@src/chain/genesisTypes";
 import { sequelize } from "@src/db/dbConnection";
@@ -77,13 +77,22 @@ export class BmeIndexer extends Indexer {
   }
 
   async initCache(): Promise<void> {
-    const processedNativeCount = await BmeRawEvent.count({ where: { isProcessed: true, type: { [Op.in]: NATIVE_BME_EVENT_TYPES } } });
-    this.usdcMigrated = processedNativeCount > 0;
+    // Derive migration flags from remaining legacy-denom rows, not event history.
+    // This handles cold starts after the transition was already indexed by older code.
+    // Also require BME events to exist — on a fresh reindex the DB starts empty, so
+    // activeUusdcCount=0 would incorrectly mark migration as done before the upgrade.
+    const bmeModuleActive = (await BmeRawEvent.count()) > 0;
+    const activeUusdcCount =
+      (await Deployment.count({ where: { denom: "uusdc", closedHeight: null } })) + (await Lease.count({ where: { denom: "uusdc", closedHeight: null } }));
+    this.usdcMigrated = bmeModuleActive && activeUusdcCount === 0;
 
     const healthyStatusExists = await BmeStatusChange.count({ where: { newStatus: "mint_status_healthy" } });
     this.healthyStatusSeen = healthyStatusExists > 0;
-    const aktDeploymentCount = this.healthyStatusSeen ? await Deployment.count({ where: { denom: "uakt", closedHeight: null } }) : 1;
-    this.aktMigrated = this.healthyStatusSeen && aktDeploymentCount === 0;
+
+    const activeUaktCount = this.healthyStatusSeen
+      ? (await Deployment.count({ where: { denom: "uakt", closedHeight: null } })) + (await Lease.count({ where: { denom: "uakt", closedHeight: null } }))
+      : 1;
+    this.aktMigrated = this.healthyStatusSeen && activeUaktCount === 0;
   }
 
   seed(_genesis: IGenesis): Promise<void> {
@@ -163,7 +172,8 @@ export class BmeIndexer extends Indexer {
         `SELECT tea.key, tea.value, te.id AS "eventId" FROM transaction_event te
          JOIN transaction t ON t.id = te.tx_id
          JOIN transaction_event_attribute tea ON tea.transaction_event_id = te.id
-         WHERE te.height = :height AND te.type = :type AND t."hasProcessingError" = false`,
+         WHERE te.height = :height AND te.type = :type AND t."hasProcessingError" = false
+         ORDER BY te.id ASC`,
         { transaction: dbTransaction, type: QueryTypes.SELECT, replacements: { height: currentBlock.height, type: ORACLE_EVENT_TYPES.PRICE_DATA } }
       );
       if (priceAttrs.length > 0) {
