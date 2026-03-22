@@ -168,12 +168,21 @@ export class BmeIndexer extends Indexer {
           }
           group[attr.key] = attr.value;
         }
+        const aktUsdPrices: string[] = [];
         for (const data of eventGroups.values()) {
           const parsed = parsePriceDataEvent(data);
           if ((parsed.denom === "uakt" || parsed.denom === "akt") && parsed.baseDenom === "usd") {
-            aktUsdPrice = parsed.price;
-            break;
+            aktUsdPrices.push(parsed.price);
           }
+        }
+        if (aktUsdPrices.length === 1) {
+          aktUsdPrice = aktUsdPrices[0];
+        } else if (aktUsdPrices.length > 1) {
+          const distinct = [...new Set(aktUsdPrices)];
+          if (distinct.length > 1) {
+            console.warn(`[BME] Multiple distinct AKT/USD prices at height ${currentBlock.height}: ${distinct.join(", ")}. Using first.`);
+          }
+          aktUsdPrice = aktUsdPrices[0];
         }
       }
     }
