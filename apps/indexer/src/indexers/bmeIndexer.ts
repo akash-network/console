@@ -210,8 +210,8 @@ export class BmeIndexer extends Indexer {
       currentBlock.vaultUakt = (previousBlock?.vaultUakt ?? 0) + sums.aktBurnedForAct - sums.aktReminted + vaultFundedAmount;
     }
 
-    // Outstanding uACT = total minted - total burned back - spent on deployments
-    currentBlock.outstandingUact = currentBlock.totalUactMinted - currentBlock.totalUactBurnedForUakt - (currentBlock.totalUActSpent || 0);
+    // Outstanding uACT = total minted - total burned back (spending is a transfer, not a supply reduction)
+    currentBlock.outstandingUact = currentBlock.totalUactMinted - currentBlock.totalUactBurnedForUakt;
   }
 
   /**
