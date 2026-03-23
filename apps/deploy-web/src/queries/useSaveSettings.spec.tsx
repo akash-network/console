@@ -10,6 +10,7 @@ import type { FallbackableHttpClient } from "@src/services/createFallbackableHtt
 import type { ErrorHandlerService } from "@src/services/error-handler/error-handler.service";
 import { CustomSnackbarProvider } from "../../../../packages/ui/context/CustomSnackbarProvider";
 import { setupQuery } from "../../tests/unit/query-client";
+import type { DEPOSIT_PARAMS_DEPS } from "./useSaveSettings";
 import { useDepositParams, useSaveSettings } from "./useSaveSettings";
 
 import { act, screen } from "@testing-library/react";
@@ -79,7 +80,7 @@ describe("Settings management", () => {
   });
 
   describe(useDepositParams.name, () => {
-    it("should fetch deposit params from module endpoint", async () => {
+    it("should fetch deposit params from module endpoint when ACT is supported", async () => {
       const chainApiHttpClient = mock<FallbackableHttpClient>({
         isFallbackEnabled: false
       } as FallbackableHttpClient);
@@ -88,23 +89,33 @@ describe("Settings management", () => {
         { denom: "uact", amount: "500000" }
       ];
       chainApiHttpClient.get.mockResolvedValue({
-        data: {
-          params: {
-            min_deposits: minDeposits
-          }
-        }
+        data: { params: { min_deposits: minDeposits } }
       });
 
-      const { result } = setupQuery(() => useDepositParams(), {
-        services: {
-          chainApiHttpClient: () => chainApiHttpClient
-        }
-      });
+      const { result } = setupDepositParams({ chainApiHttpClient, supportsACT: true });
 
       await vi.waitFor(() => {
         expect(chainApiHttpClient.get).toHaveBeenCalledWith(expect.stringContaining("akash/deployment"));
         expect(result.current.isSuccess).toBe(true);
         expect(result.current.data).toEqual(minDeposits);
+      });
+    });
+
+    it("should fetch deposit params from legacy endpoint when ACT is not supported", async () => {
+      const chainApiHttpClient = mock<FallbackableHttpClient>({
+        isFallbackEnabled: false
+      } as FallbackableHttpClient);
+      const depositParams = [{ denom: "uakt", amount: "500000" }];
+      chainApiHttpClient.get.mockResolvedValue({
+        data: { param: { value: JSON.stringify(depositParams) } }
+      });
+
+      const { result } = setupDepositParams({ chainApiHttpClient, supportsACT: false });
+
+      await vi.waitFor(() => {
+        expect(chainApiHttpClient.get).toHaveBeenCalledWith(expect.stringContaining("cosmos/params/v1beta1/params"));
+        expect(result.current.isSuccess).toBe(true);
+        expect(result.current.data).toEqual(depositParams);
       });
     });
 
@@ -114,15 +125,22 @@ describe("Settings management", () => {
       } as FallbackableHttpClient);
       chainApiHttpClient.get.mockRejectedValue(new Error("Failed to fetch deposit params"));
 
-      const { result } = setupQuery(() => useDepositParams(), {
-        services: {
-          chainApiHttpClient: () => chainApiHttpClient
-        }
-      });
+      const { result } = setupDepositParams({ chainApiHttpClient, supportsACT: true });
 
       await vi.waitFor(() => {
         expect(result.current.isError).toBe(true);
       });
     });
+
+    function setupDepositParams(input: { chainApiHttpClient: FallbackableHttpClient; supportsACT: boolean }) {
+      const dependencies: typeof DEPOSIT_PARAMS_DEPS = {
+        useSupportsACT: () => input.supportsACT
+      };
+      return setupQuery(() => useDepositParams(undefined, dependencies), {
+        services: {
+          chainApiHttpClient: () => input.chainApiHttpClient
+        }
+      });
+    }
   });
 });

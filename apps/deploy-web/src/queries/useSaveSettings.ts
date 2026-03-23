@@ -5,7 +5,8 @@ import { useSnackbar } from "notistack";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
-import type { DepositParams, RpcDeploymentParams } from "@src/types/deployment";
+import { useSupportsACT } from "@src/hooks/useSupportsACT/useSupportsACT";
+import type { DepositParams, RpcDeploymentParams, RpcDepositParams } from "@src/types/deployment";
 import type { UserSettings } from "@src/types/user";
 import { ApiUrlService } from "@src/utils/apiUtils";
 import { QueryKeys } from "./queryKeys";
@@ -40,12 +41,24 @@ async function getDepositParams(chainApiHttpClient: AxiosInstance): Promise<Depo
   return response.data.params?.min_deposits ?? [];
 }
 
+async function getLegacyDepositParams(chainApiHttpClient: AxiosInstance): Promise<DepositParams[]> {
+  const response = await chainApiHttpClient.get<RpcDepositParams>(ApiUrlService.legacyDepositParams(""));
+  return response.data.param.value ? JSON.parse(response.data.param.value) : [];
+}
+
 const ONE_HOUR_IN_MS = 60 * 60 * 1000;
-export function useDepositParams(options?: Omit<UseQueryOptions<DepositParams[]>, "queryKey" | "queryFn">) {
+const DEPOSIT_PARAMS_DEPS = { useSupportsACT };
+export { DEPOSIT_PARAMS_DEPS };
+export function useDepositParams(
+  options?: Omit<UseQueryOptions<DepositParams[]>, "queryKey" | "queryFn">,
+  dependencies: typeof DEPOSIT_PARAMS_DEPS = DEPOSIT_PARAMS_DEPS
+) {
   const { chainApiHttpClient } = useServices();
+  const supportsACT = dependencies.useSupportsACT();
+
   return useQuery({
     queryKey: QueryKeys.getDepositParamsKey(),
-    queryFn: () => getDepositParams(chainApiHttpClient),
+    queryFn: () => (supportsACT ? getDepositParams(chainApiHttpClient) : getLegacyDepositParams(chainApiHttpClient)),
     staleTime: ONE_HOUR_IN_MS,
     gcTime: ONE_HOUR_IN_MS,
     ...options,
