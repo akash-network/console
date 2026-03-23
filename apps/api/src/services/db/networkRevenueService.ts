@@ -199,7 +199,7 @@ export async function getDailyRevenue() {
       date: day.date,
       totalUAktSpent: block.totalUAktSpent || 0,
       totalUActSpent: (block.totalUUsdcSpent || 0) + (block.totalUActSpent || 0),
-      aktPrice: day.aktPrice || 0 // TODO handle no price
+      aktPrice: day.aktPrice as number
     };
   });
 
