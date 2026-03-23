@@ -10,10 +10,12 @@ describe(DenomExchangeService.name, () => {
   describe("getExchangeRateToUSD", () => {
     describe("when ACT is not supported", () => {
       it("returns CoinGecko market data for akt", async () => {
-        const { service } = setup({ isACTSupported: false });
+        const { service, coinGeckoService, getAggregatedPrice } = setup({ isACTSupported: false });
 
         const result = await service.getExchangeRateToUSD("akt");
 
+        expect(coinGeckoService.getMarketData).toHaveBeenCalledWith("akash-network");
+        expect(getAggregatedPrice).not.toHaveBeenCalled();
         expect(result).toEqual({
           price: 0.56,
           volume: 19000000,
@@ -51,10 +53,13 @@ describe(DenomExchangeService.name, () => {
 
     describe("when ACT is supported", () => {
       it("returns oracle price data", async () => {
-        const { service } = setup({ isACTSupported: true });
+        const { service, coinGeckoService, getAggregatedPrice, getPrices } = setup({ isACTSupported: true });
 
         const result = await service.getExchangeRateToUSD("akt");
 
+        expect(getAggregatedPrice).toHaveBeenCalled();
+        expect(getPrices).toHaveBeenCalled();
+        expect(coinGeckoService.getMarketData).not.toHaveBeenCalledWith("akash-network");
         expect(result).toEqual({
           price: 0.56,
           volume: 0,
@@ -88,11 +93,14 @@ describe(DenomExchangeService.name, () => {
       });
 
       it("returns zero price change when no historical prices available", async () => {
-        const { service } = setup({ isACTSupported: true, emptyHistoricalPrices: true });
+        const { service } = setup({
+          isACTSupported: true,
+          emptyHistoricalPrices: true
+        });
 
         const result = await service.getExchangeRateToUSD("akt");
 
-        expect(result.priceChange24h).toBe(0.56);
+        expect(result.priceChange24h).toBe(0);
         expect(result.priceChangePercentage24).toBe(0);
       });
     });
@@ -118,7 +126,7 @@ describe(DenomExchangeService.name, () => {
     });
 
     const getLatestBlock = vi.fn().mockResolvedValue({
-      block: { header: { height: { toBigInt: () => input.currentHeight ?? 100000n } } }
+      block: { header: { height: { toBigInt: () => input.currentHeight ?? 1000000n } } }
     });
     const getAggregatedPrice = vi.fn().mockResolvedValue({
       aggregatedPrice: { medianPrice: "0.56" }

@@ -1,11 +1,20 @@
 import nock from "nock";
+import { container } from "tsyringe";
 
+import { CORE_CONFIG } from "@src/core";
 import { app } from "@src/rest-app";
 
 describe("Market Data", () => {
   beforeAll(async () => {
     // Clean up any existing nock interceptors
     nock.cleanAll();
+
+    const restApiNodeUrl = container.resolve(CORE_CONFIG).REST_API_NODE_URL;
+
+    nock(restApiNodeUrl)
+      .persist()
+      .get("/cosmos/base/tendermint/v1beta1/node_info")
+      .reply(200, { application_version: { version: "1.4.0" } });
 
     const coinGeckoApiUrl = "https://api.coingecko.com";
 

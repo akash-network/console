@@ -15,12 +15,18 @@ export class BlockchainCapabilitiesService {
   }
 
   async supportsACT(): Promise<boolean> {
-    this.#capabilities.ACT ??= this.#chainSdk.cosmos.base.tendermint.v1beta1.getNodeInfo().then(nodeInfo => {
-      const appVersion = nodeInfo?.applicationVersion?.version?.startsWith("v")
-        ? nodeInfo.applicationVersion.version.slice(1)
-        : nodeInfo?.applicationVersion?.version;
-      return !!appVersion && gte(appVersion, "2.0.0-rc1");
-    });
+    this.#capabilities.ACT ??= this.#chainSdk.cosmos.base.tendermint.v1beta1
+      .getNodeInfo()
+      .then(nodeInfo => {
+        const appVersion = nodeInfo?.applicationVersion?.version?.startsWith("v")
+          ? nodeInfo.applicationVersion.version.slice(1)
+          : nodeInfo?.applicationVersion?.version;
+        return !!appVersion && gte(appVersion, "2.0.0-rc1");
+      })
+      .catch(error => {
+        this.#capabilities.ACT = undefined;
+        return Promise.reject(error);
+      });
     return this.#capabilities.ACT;
   }
 }

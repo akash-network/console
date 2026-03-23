@@ -46,7 +46,8 @@ export class DenomExchangeService {
 
       const latestBlock = await this.#chainSdk.cosmos.base.tendermint.v1beta1.getLatestBlock();
       const currentHeight = latestBlock.block?.header?.height?.toBigInt() ?? 0n;
-      const blockHeight24hAgo = currentHeight - (24n * 60n * 60n) / BigInt(Math.ceil(averageBlockTime));
+      const blocksPerDay = (24n * 60n * 60n) / BigInt(Math.ceil(averageBlockTime));
+      const blockHeight24hAgo = currentHeight > blocksPerDay ? currentHeight - blocksPerDay : 1n;
       const [currentRate, rate24hAgo] = await Promise.all([
         this.#chainSdk.akash.oracle.v1.getAggregatedPrice({ denom: mappedDenom }),
         this.#chainSdk.akash.oracle.v1.getPrices({
@@ -56,6 +57,7 @@ export class DenomExchangeService {
       ]);
       const price = parseFloat(currentRate.aggregatedPrice?.medianPrice ?? "0");
       const price24hAgo = rate24hAgo.prices[0]?.state?.price ? parseFloat(rate24hAgo.prices[0].state.price) : price;
+
       return {
         price,
         volume: 0,

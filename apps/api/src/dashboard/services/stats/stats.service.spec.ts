@@ -1,10 +1,11 @@
 import type { AkashBlock as Block, Provider } from "@akashnetwork/database/dbSchemas/akash";
 import type { Day } from "@akashnetwork/database/dbSchemas/base";
-import type { CoinGeckoHttpService, CosmosHttpService } from "@akashnetwork/http-sdk";
+import type { CosmosHttpService } from "@akashnetwork/http-sdk";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { cacheEngine } from "@src/caching/helpers";
+import type { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
 import type { StatsRepository } from "../../repositories/stats";
 import { StatsService } from "./stats.service";
 import { isValidGraphDataName } from "./stats.types";
@@ -727,31 +728,29 @@ describe(StatsService.name, () => {
     });
 
     it("recalculates collateral ratio from AKT price when ratio is zero but vault and outstanding are positive", async () => {
-      const { service, statsRepository, coinGeckoHttpService } = setup();
+      const { service, statsRepository, denomExchangeService } = setup();
 
       mockBmeDashboardData(statsRepository, { collateralRatio: 0, outstandingUact: 2000, vaultUakt: 1000 });
-      coinGeckoHttpService.getMarketData.mockResolvedValue({
-        market_data: {
-          current_price: { usd: 4 },
-          total_volume: { usd: 0 },
-          market_cap: { usd: 0 },
-          price_change_24h: 0,
-          price_change_percentage_24h: 0
-        },
-        market_cap_rank: 0
-      } as never);
+      denomExchangeService.getExchangeRateToUSD.mockResolvedValue({
+        price: 4,
+        volume: 0,
+        marketCap: 0,
+        marketCapRank: 0,
+        priceChange24h: 0,
+        priceChangePercentage24: 0
+      });
 
       const result = await service.getBmeDashboardData();
 
       expect(result.now.collateralRatio).toBe(2);
-      expect(coinGeckoHttpService.getMarketData).toHaveBeenCalledWith("akash-network");
+      expect(denomExchangeService.getExchangeRateToUSD).toHaveBeenCalledWith("akash-network");
     });
 
     it("keeps collateral ratio as zero when AKT price fetch fails", async () => {
-      const { service, statsRepository, coinGeckoHttpService } = setup();
+      const { service, statsRepository, denomExchangeService } = setup();
 
       mockBmeDashboardData(statsRepository, { collateralRatio: 0, outstandingUact: 2000, vaultUakt: 1000 });
-      coinGeckoHttpService.getMarketData.mockRejectedValue(new Error("API error"));
+      denomExchangeService.getExchangeRateToUSD.mockRejectedValue(new Error("API error"));
 
       const result = await service.getBmeDashboardData();
 
@@ -759,14 +758,14 @@ describe(StatsService.name, () => {
     });
 
     it("does not recalculate collateral ratio when outstandingUact is zero", async () => {
-      const { service, statsRepository, coinGeckoHttpService } = setup();
+      const { service, statsRepository, denomExchangeService } = setup();
 
       mockBmeDashboardData(statsRepository, { collateralRatio: 0, outstandingUact: 0, vaultUakt: 1000 });
 
       const result = await service.getBmeDashboardData();
 
       expect(result.now.collateralRatio).toBe(0);
-      expect(coinGeckoHttpService.getMarketData).not.toHaveBeenCalled();
+      expect(denomExchangeService.getExchangeRateToUSD).not.toHaveBeenCalled();
     });
   });
 
@@ -775,17 +774,17 @@ describe(StatsService.name, () => {
 
     const statsRepository = mock<StatsRepository>();
     const cosmosHttpService = mock<CosmosHttpService>();
-    const coinGeckoHttpService = mock<CoinGeckoHttpService>();
+    const denomExchangeService = mock<DenomExchangeService>();
 
     statsRepository.findActiveProvidersWithSnapshots.mockResolvedValue([]);
 
-    const service = new StatsService(statsRepository, cosmosHttpService, coinGeckoHttpService);
+    const service = new StatsService(statsRepository, cosmosHttpService, denomExchangeService);
 
     return {
       service,
       statsRepository,
       cosmosHttpService,
-      coinGeckoHttpService
+      denomExchangeService
     };
   }
 
