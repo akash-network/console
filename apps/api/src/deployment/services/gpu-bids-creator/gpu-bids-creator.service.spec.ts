@@ -40,7 +40,7 @@ vi.mock("@cosmjs/stargate", async importOriginal => {
     SigningStargateClient: {
       connectWithSigner: vi.fn().mockImplementation(() => Promise.resolve(mockSigningClient))
     },
-    calculateFee: vi.fn().mockReturnValue({ amount: [{ denom: "uact", amount: "2500" }], gas: "100000" })
+    calculateFee: vi.fn().mockReturnValue({ amount: [{ denom: "uakt", amount: "2500" }], gas: "100000" })
   };
 });
 
