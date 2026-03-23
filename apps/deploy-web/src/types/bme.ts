@@ -1,7 +1,7 @@
 /** Response from /akash/bme/v1/params */
 export interface RpcBmeParams {
   params: {
-    min_mint: { denom: string; amount: string };
+    min_mint: Array<{ denom: string; amount: string }>;
   };
 }
 
