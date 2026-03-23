@@ -3,7 +3,7 @@ import "@test/mocks/logger-service.mock";
 import type { BidHttpService, BlockHttpService } from "@akashnetwork/http-sdk";
 import type { Registry } from "@cosmjs/proto-signing";
 import type { SigningStargateClient } from "@cosmjs/stargate";
-import { vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
@@ -15,9 +15,34 @@ import { sdlTemplateWithRam, sdlTemplateWithRamAndInterface } from "./sdl-templa
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
 
+const mockSigningClient = mock<SigningStargateClient>();
+
 vi.mock("timers/promises", () => ({
   setTimeout: vi.fn().mockResolvedValue(undefined)
 }));
+
+vi.mock("@cosmjs/proto-signing", async importOriginal => {
+  const actual = await importOriginal();
+  return {
+    ...(actual as Record<string, unknown>),
+    DirectSecp256k1HdWallet: {
+      fromMnemonic: vi.fn().mockResolvedValue({
+        getAccounts: vi.fn().mockResolvedValue([{ address: "akash1testaddr" }])
+      })
+    }
+  };
+});
+
+vi.mock("@cosmjs/stargate", async importOriginal => {
+  const actual = await importOriginal();
+  return {
+    ...(actual as Record<string, unknown>),
+    SigningStargateClient: {
+      connectWithSigner: vi.fn().mockImplementation(() => Promise.resolve(mockSigningClient))
+    },
+    calculateFee: vi.fn().mockReturnValue({ amount: [{ denom: "uact", amount: "2500" }], gas: "100000" })
+  };
+});
 
 describe(GpuBidsCreatorService.name, () => {
   describe("getModelSdl", () => {
@@ -90,6 +115,22 @@ describe(GpuBidsCreatorService.name, () => {
       const { service } = setup({ rpcNodeEndpoint: undefined });
 
       await expect(service.createGpuBids()).rejects.toThrow("RPC_NODE_ENDPOINT");
+    });
+
+    it("fetches balances with uact denom and creates bids for all models", async () => {
+      const { service, gpuService } = setup();
+      gpuService.getGpuList.mockResolvedValue({
+        gpus: { total: { allocatable: 1, allocated: 0 }, details: {} }
+      } as any);
+      mockSigningClient.getBalance.mockResolvedValue({ amount: "1000000", denom: "uact" });
+      mockSigningClient.simulate.mockResolvedValue(100000);
+      mockSigningClient.sign.mockResolvedValue({ authInfoBytes: new Uint8Array(), bodyBytes: new Uint8Array(), signatures: [] } as any);
+      mockSigningClient.broadcastTx.mockResolvedValue({ code: 0, rawLog: "" } as any);
+
+      await service.createGpuBids();
+
+      expect(mockSigningClient.getBalance).toHaveBeenCalledWith("akash1testaddr", "uact");
+      expect(mockSigningClient.getBalance).toHaveBeenCalledTimes(2);
     });
   });
 
