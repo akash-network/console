@@ -8,14 +8,14 @@ import { AuthorizationsPage, shortenAddress } from "./pages/AuthorizationsPage";
 import { LeapExt } from "./pages/LeapExt";
 
 test.describe("Deployment Authorizations", () => {
-  includeAuthorizationTests({ authType: "deployment" });
+  includeAuthorizationTests({ authType: "deployment", denom: "ACT" });
 });
 
 test.describe("Tx Fee Authorizations", () => {
-  includeAuthorizationTests({ authType: "tx_fee" });
+  includeAuthorizationTests({ authType: "tx_fee", denom: "AKT" });
 });
 
-function includeAuthorizationTests(input: { authType: AuthorizationType }) {
+function includeAuthorizationTests(input: { authType: AuthorizationType; denom: "ACT" | "AKT" }) {
   test.beforeAll(async ({ page, context }) => {
     const authorizationsPage = new AuthorizationsPage(context, page);
     await authorizationsPage.goto();
@@ -43,7 +43,7 @@ function includeAuthorizationTests(input: { authType: AuthorizationType }) {
     await extension.waitForTransaction("success");
 
     const grantList = authorizationsPage.getListLocator(input.authType);
-    await expect(grantList.locator("tr", { hasText: /10(\.0+?)\s*AKT/ })).toBeVisible({ timeout: 10_000 });
+    await expect(grantList.locator("tr", { hasText: new RegExp(`10(\\.0+?)\\s*${input.denom}`) })).toBeVisible({ timeout: 10_000 });
   });
 
   test("can revoke spending", async ({ page, context }) => {
