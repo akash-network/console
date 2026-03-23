@@ -1,11 +1,12 @@
 import { AkashBlock as Block } from "@akashnetwork/database/dbSchemas/akash";
-import { CoinGeckoHttpService, CosmosHttpService } from "@akashnetwork/http-sdk";
+import { CosmosHttpService } from "@akashnetwork/http-sdk";
 import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { differenceInSeconds, minutesToSeconds, subHours } from "date-fns";
 import uniqBy from "lodash/uniqBy";
 import { singleton } from "tsyringe";
 
 import { Memoize } from "@src/caching/helpers";
+import { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
 import type { BmeDashboardDataResponse, BmePeriodData } from "@src/dashboard/http-schemas/bme-dashboard-data/bme-dashboard-data.schema";
 import { BmeStatusHistoryResponse } from "@src/dashboard/http-schemas/bme-status-history/bme-status-history.schema";
 import { GraphDataResponse } from "@src/dashboard/http-schemas/graph-data/graph-data.schema";
@@ -148,8 +149,9 @@ export class StatsService {
   constructor(
     private readonly statsRepository: StatsRepository,
     private readonly cosmosHttpService: CosmosHttpService,
-    private readonly coinGeckoHttpService: CoinGeckoHttpService
-  ) {}
+    private readonly denomExchangeService: DenomExchangeService,
+  ) {
+  }
 
   async getDashboardData() {
     const latestBlockStats = await this.statsRepository.findLatestProcessedBlock();
@@ -551,17 +553,9 @@ export class StatsService {
   }
 
   @Memoize({ ttlInSeconds: minutesToSeconds(5) })
-  async getMarketData(coin: MarketDataParams["coin"]) {
-    const response = await this.coinGeckoHttpService.getMarketData(coin);
-
-    return {
-      price: response.market_data.current_price.usd,
-      volume: response.market_data.total_volume.usd,
-      marketCap: response.market_data.market_cap.usd,
-      marketCapRank: response.market_cap_rank,
-      priceChange24h: response.market_data.price_change_24h,
-      priceChangePercentage24: response.market_data.price_change_percentage_24h
-    };
+  async getMarketData(coin: MarketDataParams["coin"] | "akt" | "usdc") {
+    const result = await this.denomExchangeService.getExchangeRateToUSD(coin);
+    return result;
   }
 
   async convertToFiatAmount(amount: number, denom: MarketDataParams["coin"]): Promise<number> {

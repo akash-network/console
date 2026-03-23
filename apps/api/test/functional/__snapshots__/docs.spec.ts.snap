@@ -8489,12 +8489,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "name": "coin",
             "required": false,
             "schema": {
-              "default": "akash-network",
+              "default": "akt",
               "enum": [
                 "akash-network",
                 "usd-coin",
+                "akt",
+                "usdc",
               ],
-              "example": "akash-network",
+              "example": "akt",
               "type": "string",
             },
           },
