@@ -37,7 +37,7 @@ export function useSaveSettings() {
 
 async function getDepositParams(chainApiHttpClient: AxiosInstance): Promise<DepositParams[]> {
   const response = await chainApiHttpClient.get<RpcDeploymentParams>(ApiUrlService.depositParams(""));
-  return response.data.params.min_deposits ?? [];
+  return response.data.params?.min_deposits ?? [];
 }
 
 const ONE_HOUR_IN_MS = 60 * 60 * 1000;

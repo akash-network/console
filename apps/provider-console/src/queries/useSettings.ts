@@ -8,7 +8,7 @@ import { QueryKeys } from "./queryKeys";
 
 async function getDepositParams() {
   const response = await axios.get<{ params: { min_deposits: DepositParams[] } }>(ApiUrlService.depositParams(browserEnvConfig.NEXT_PUBLIC_API_ENDPOINT));
-  return response.data.params.min_deposits ?? [];
+  return response.data.params?.min_deposits ?? [];
 }
 
 export function useDepositParams(options = {}) {
