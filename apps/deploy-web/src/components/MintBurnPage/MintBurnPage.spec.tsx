@@ -2,6 +2,7 @@ import React from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { WalletBalance } from "@src/hooks/useWalletBalance";
+import type { BmeParams } from "@src/types/bme";
 import { DEPENDENCIES, MintBurnPage, PRESET_AMOUNTS } from "./MintBurnPage";
 
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -245,7 +246,61 @@ describe(MintBurnPage.name, () => {
     expect((screen.getByLabelText("From") as HTMLInputElement).value).toBe("10");
   });
 
-  function setup(input?: { walletBalance?: WalletBalance | null; price?: number }) {
+  it("shows below-minimum-mint error when estimated output is below minMintAct", () => {
+    setup({
+      walletBalance: buildWalletBalance({ balanceUAKT: 1_000_000_000 }),
+      price: 0.5,
+      bmeParams: { minMintUact: 10_000_000, minMintAct: 10 }
+    });
+
+    const fromInput = screen.getByLabelText("From") as HTMLInputElement;
+
+    act(() => {
+      fireEvent.focus(fromInput);
+    });
+
+    act(() => {
+      fireEvent.change(fromInput, { target: { value: "10" } });
+    });
+
+    expect(screen.getByText(/below the minimum mint amount of 10 ACT/)).toBeInTheDocument();
+  });
+
+  it("does not show below-minimum-mint error in burn mode", () => {
+    setup({
+      walletBalance: buildWalletBalance({ balanceUACT: 1_000_000_000 }),
+      price: 0.5,
+      bmeParams: { minMintUact: 10_000_000, minMintAct: 10 }
+    });
+
+    act(() => {
+      fireEvent.click(screen.getByLabelText("Swap tokens"));
+    });
+
+    expect(screen.queryByText(/below the minimum mint amount/)).not.toBeInTheDocument();
+  });
+
+  it("disables submit button when estimated output is below minMintAct", () => {
+    setup({
+      walletBalance: buildWalletBalance({ balanceUAKT: 1_000_000_000 }),
+      price: 0.5,
+      bmeParams: { minMintUact: 10_000_000, minMintAct: 10 }
+    });
+
+    const fromInput = screen.getByLabelText("From") as HTMLInputElement;
+
+    act(() => {
+      fireEvent.focus(fromInput);
+    });
+
+    act(() => {
+      fireEvent.change(fromInput, { target: { value: "10" } });
+    });
+
+    expect(screen.getByRole("button", { name: "Submit" })).toBeDisabled();
+  });
+
+  function setup(input?: { walletBalance?: WalletBalance | null; price?: number; bmeParams?: BmeParams }) {
     const signAndBroadcastTx = vi.fn().mockResolvedValue(true);
     const refetchBalance = vi.fn();
     const invalidateLedger = vi.fn();
@@ -282,6 +337,7 @@ describe(MintBurnPage.name, () => {
         enqueueSnackbar
       }),
       useSupportsACT: () => true,
+      useBmeParams: () => ({ data: input?.bmeParams, isLoading: false }),
       useLedgerRecords: () => ({
         data: null,
         isLoading: false,

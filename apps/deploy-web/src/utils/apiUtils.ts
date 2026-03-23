@@ -125,6 +125,9 @@ export class ApiUrlService {
   static trialProviders() {
     return `${this.baseApiUrl}/v1/trial-providers`;
   }
+  static bmeParams(apiEndpoint: string) {
+    return `${apiEndpoint}/akash/bme/v1/params`;
+  }
 
   static get baseApiUrl() {
     return services.apiUrlService.getBaseApiUrlFor(networkStore.selectedNetworkId);

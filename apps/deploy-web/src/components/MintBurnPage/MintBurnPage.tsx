@@ -12,6 +12,7 @@ import { useWallet } from "@src/context/WalletProvider";
 import { usePricing } from "@src/hooks/usePricing/usePricing";
 import { useSupportsACT } from "@src/hooks/useSupportsACT/useSupportsACT";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
+import { useBmeParams } from "@src/queries/useBmeQuery";
 import { useLedgerRecords } from "@src/queries/useLedgerRecords";
 import { denomToUdenom, roundDecimal, udenomToDenom } from "@src/utils/mathHelpers";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
@@ -46,6 +47,7 @@ export const DEPENDENCIES = {
   useWalletBalance,
   useSnackbar,
   useSupportsACT,
+  useBmeParams,
   useLedgerRecords,
   LedgerRecordsTable
 };
@@ -64,6 +66,8 @@ export const MintBurnPage: React.FC<MintBurnPageProps> = ({ dependencies: d = DE
   const { balance, isLoading: isBalanceLoading } = d.useWalletBalance();
   const { price, isLoaded: isPriceLoaded } = d.usePricing();
   const { enqueueSnackbar } = d.useSnackbar();
+  const isACTSupported = d.useSupportsACT();
+  const { data: bmeParams } = d.useBmeParams();
   const { data: ledgerData, isLoading: isLedgerLoading, invalidate: invalidateLedger } = d.useLedgerRecords(address);
 
   const aktBalance = useMemo(() => (balance ? udenomToDenom(balance.balanceUAKT, 6) : 0), [balance]);
@@ -105,6 +109,11 @@ export const MintBurnPage: React.FC<MintBurnPageProps> = ({ dependencies: d = DE
 
   const insufficientBalance = effectiveFromAmount > maxFromAmount;
 
+  const belowMinMint = useMemo(() => {
+    if (!isMint || !bmeParams || !effectiveActAmount) return false;
+    return effectiveActAmount < bmeParams.minMintAct;
+  }, [isMint, bmeParams, effectiveActAmount]);
+
   const focusField = useCallback(
     (fieldDenom: "AKT" | "ACT", currentDisplay: string) => {
       if (denom !== fieldDenom) {
@@ -138,7 +147,7 @@ export const MintBurnPage: React.FC<MintBurnPageProps> = ({ dependencies: d = DE
   }, []);
 
   const submitForm = useCallback(async () => {
-    if (!address || !effectiveFromAmount || insufficientBalance) return;
+    if (!address || !effectiveFromAmount || insufficientBalance || belowMinMint) return;
 
     setIsSubmitting(true);
     try {
@@ -161,8 +170,7 @@ export const MintBurnPage: React.FC<MintBurnPageProps> = ({ dependencies: d = DE
     } finally {
       setIsSubmitting(false);
     }
-  }, [address, effectiveFromAmount, insufficientBalance, isMint, signAndBroadcastTx, enqueueSnackbar, invalidateLedger, resetForm, d]);
-  const isACTSupported = d.useSupportsACT();
+  }, [address, effectiveFromAmount, insufficientBalance, belowMinMint, isMint, signAndBroadcastTx, enqueueSnackbar, invalidateLedger, resetForm, d]);
 
   if (!isACTSupported || !isCustodial) {
     return null;
@@ -245,6 +253,15 @@ export const MintBurnPage: React.FC<MintBurnPageProps> = ({ dependencies: d = DE
           </d.Button>
         </div>
 
+        {belowMinMint && bmeParams && (
+          <d.Alert variant="destructive" className="mb-4">
+            <p className="text-sm">
+              Estimated output ({roundDecimal(effectiveActAmount, 2)} ACT) is below the minimum mint amount of {bmeParams.minMintAct} ACT. Increase the amount
+              to proceed.
+            </p>
+          </d.Alert>
+        )}
+
         {!isBalanceLoading && insufficientBalance && effectiveFromAmount > 0 && (
           <d.Alert variant="destructive" className="mb-4">
             <p className="text-sm">
@@ -261,7 +278,7 @@ export const MintBurnPage: React.FC<MintBurnPageProps> = ({ dependencies: d = DE
         <d.Button
           className="w-full"
           size="lg"
-          disabled={!effectiveFromAmount || insufficientBalance || isSubmitting || isBalanceLoading || !isPriceLoaded}
+          disabled={!effectiveFromAmount || insufficientBalance || isSubmitting || isBalanceLoading || !isPriceLoaded || belowMinMint}
           onClick={submitForm}
           aria-label="Submit"
         >
