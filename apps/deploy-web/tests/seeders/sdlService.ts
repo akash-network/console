@@ -10,7 +10,7 @@ export const buildSDLService = (overrides: Partial<ServiceType> = {}): ServiceTy
     name: faker.lorem.word(),
     pricing: {
       amount: faker.number.int({ min: 100, max: 10000 }),
-      denom: faker.helpers.arrayElement(["uakt", "uakt"])
+      denom: faker.helpers.arrayElement(["uact", "uact"])
     },
     signedBy: {
       anyOf: [],

@@ -60,7 +60,7 @@ profiles:
       pricing:
         # The name of the service
         web:
-          denom: uakt
+          denom: uact
           amount: 10000
 
 # The deployment section defines how to deploy the services. It is a mapping of service name to deployment configuration.

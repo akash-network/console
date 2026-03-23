@@ -1,7 +1,7 @@
 import cloneDeep from "lodash/cloneDeep";
 import { nanoid } from "nanoid";
 
-import { UAKT_DENOM } from "@src/config/denom.config";
+import { UACT_DENOM } from "@src/config/denom.config";
 import type { ServiceType } from "@src/types";
 
 export const protoTypes = [
@@ -66,7 +66,7 @@ const defaultService: ServiceType = {
     name: "dcloud",
     pricing: {
       amount: 100000,
-      denom: "uakt"
+      denom: "uact"
     },
     signedBy: {
       anyOf: [],
@@ -121,7 +121,7 @@ export const getDefaultService = (options: { supportsACT: boolean; supportsSSH?:
   }
 
   if (options.supportsACT) {
-    res.placement.pricing.denom = UAKT_DENOM;
+    res.placement.pricing.denom = UACT_DENOM;
   }
 
   return res;

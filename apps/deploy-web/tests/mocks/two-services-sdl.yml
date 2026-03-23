@@ -39,10 +39,10 @@ profiles:
     dcloud:
       pricing:
         web:
-          denom: uakt
+          denom: uact
           amount: 1000
         service-2:
-          denom: uakt
+          denom: uact
           amount: 100000
       attributes:
         console/trials: "true"
