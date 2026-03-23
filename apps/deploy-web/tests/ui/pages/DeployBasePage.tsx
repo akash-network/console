@@ -1,5 +1,6 @@
 import type { BrowserContext as Context, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
+import process from "node:process";
 
 import { PROVIDERS_WHITELIST, testEnvConfig } from "../fixture/test-env.config";
 import { LeapExt } from "./LeapExt";
@@ -39,8 +40,28 @@ export class DeployBasePage {
     };
   }
 
+  async #autofixDenom() {
+    const monacoEditor = this.page.getByTestId("monaco-editor");
+    await monacoEditor.waitFor({ state: "visible", timeout: 10_000 });
+
+    await monacoEditor.click();
+
+    const isMac = process.platform === "darwin";
+    const modifier = isMac ? "Meta" : "Control";
+    await this.page.keyboard.press(`Control+A`);
+    await this.page.keyboard.press(`${modifier}+C`);
+    await this.page.evaluate(async () => {
+      const text = await navigator.clipboard.readText();
+      const newText = text.replace(/\buakt\b/g, "uact");
+      await navigator.clipboard.writeText(newText);
+    });
+    await monacoEditor.click();
+    await this.page.keyboard.press(`Control+A`);
+    await this.page.keyboard.press(`${modifier}+V`);
+  }
+
   async createDeployment() {
-    await this.page.getByTestId("monaco-editor").waitFor({ state: "visible", timeout: 10_000 });
+    await this.#autofixDenom();
     await this.page.getByTestId("create-deployment-btn").click();
     await this.page.getByTestId("deposit-modal-continue-button").click();
   }
