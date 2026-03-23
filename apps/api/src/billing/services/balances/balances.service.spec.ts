@@ -82,8 +82,40 @@ describe(BalancesService.name, () => {
     });
   });
 
-  function setup(input?: { limitsUpdate?: Partial<UserWalletInput>; deploymentLimit?: number; fiatAmount?: number }) {
+  describe("toFiatAmount", () => {
+    it("converts uakt amount using market price", async () => {
+      const { service, statsService } = setup({ denom: "uakt" });
+      statsService.convertToFiatAmount.mockResolvedValue(25.5);
+
+      const result = await service.toFiatAmount(25_500_000);
+
+      expect(statsService.convertToFiatAmount).toHaveBeenCalledWith(25.5, "akash-network");
+      expect(result).toBe(25.5);
+    });
+
+    it("converts usdc amount using market price", async () => {
+      const { service, statsService } = setup({ denom: "ibc/170C677610AC31DF0904FFE09CD3B5C657492170E7E52372E48756B71E56F2F1" });
+      statsService.convertToFiatAmount.mockResolvedValue(10.0);
+
+      const result = await service.toFiatAmount(10_000_000);
+
+      expect(statsService.convertToFiatAmount).toHaveBeenCalledWith(10, "usd-coin");
+      expect(result).toBe(10);
+    });
+
+    it("returns 1:1 rate for uact denom", async () => {
+      const { service, statsService } = setup({ denom: "uact" });
+
+      const result = await service.toFiatAmount(25_500_000);
+
+      expect(statsService.convertToFiatAmount).not.toHaveBeenCalled();
+      expect(result).toBe(25.5);
+    });
+  });
+
+  function setup(input?: { limitsUpdate?: Partial<UserWalletInput>; deploymentLimit?: number; fiatAmount?: number; denom?: string }) {
     const billingConfig = mock<BillingConfig>();
+    billingConfig.DEPLOYMENT_GRANT_DENOM = input?.denom ?? "uakt";
     const userWalletRepository = mock<UserWalletRepository>();
     const txManagerService = mock<TxManagerService>();
     const authzHttpService = mock<AuthzHttpService>();
@@ -102,6 +134,6 @@ describe(BalancesService.name, () => {
       vi.spyOn(service, "toFiatAmount").mockResolvedValue(input.fiatAmount);
     }
 
-    return { service, userWalletRepository };
+    return { service, userWalletRepository, statsService };
   }
 });
