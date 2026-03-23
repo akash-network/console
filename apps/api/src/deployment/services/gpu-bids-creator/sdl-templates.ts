@@ -37,7 +37,7 @@ profiles:
     akash:
       pricing:
         obtaingpu:
-          denom: uakt
+          denom: uact
           amount: 100000
 deployment:
   obtaingpuone:
@@ -83,7 +83,7 @@ profiles:
     akash:
       pricing:
         obtaingpu:
-          denom: uakt
+          denom: uact
           amount: 100000
 deployment:
   obtaingpuone:

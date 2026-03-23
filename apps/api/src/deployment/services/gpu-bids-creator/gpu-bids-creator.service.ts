@@ -48,7 +48,7 @@ export class GpuBidsCreatorService {
       registry: this.typeRegistry,
       broadcastTimeoutMs: 30_000
     });
-    const balanceBefore = await client.getBalance(account.address, "uakt");
+    const balanceBefore = await client.getBalance(account.address, "uact");
     const balanceBeforeUAkt = parseFloat(balanceBefore.amount);
     const akt = Math.round((balanceBeforeUAkt / 1_000_000) * 100) / 100;
     this.logger.info({ event: "CLIENT_CONNECTED", balance: akt });
@@ -58,7 +58,7 @@ export class GpuBidsCreatorService {
     await this.createBidsForAllModels(gpuModels, client, account.address, false);
     await this.createBidsForAllModels(gpuModels, client, account.address, true);
 
-    const balanceAfter = await client.getBalance(account.address, "uakt");
+    const balanceAfter = await client.getBalance(account.address, "uact");
     const balanceAfterUAkt = parseFloat(balanceAfter.amount);
     const diff = balanceBeforeUAkt - balanceAfterUAkt;
 
@@ -68,7 +68,7 @@ export class GpuBidsCreatorService {
   private async signAndBroadcast(address: string, client: SigningStargateClient, messages: readonly EncodeObject[]) {
     const simulation = await client.simulate(address, messages, "");
 
-    const fee = calculateFee(Math.round(simulation * 1.35), `${this.config.get("AVERAGE_GAS_PRICE")}uakt`);
+    const fee = calculateFee(Math.round(simulation * 1.35), `${this.config.get("AVERAGE_GAS_PRICE")}uact`);
 
     const txRaw = await client.sign(address, messages, fee, "");
 
@@ -150,7 +150,7 @@ export class GpuBidsCreatorService {
         hash: manifestVersion,
         deposit: {
           amount: {
-            denom: "uakt",
+            denom: "uact",
             amount: "500000" // 0.5 AKT
           },
           sources: [Source.balance]
