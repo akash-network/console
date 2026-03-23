@@ -22,23 +22,17 @@ describe(useSupportedDenoms.name, () => {
     expect(result.current.map(d => d.id)).toEqual(["uakt", "uusdc"]);
   });
 
-  it("returns ACT and AKT when ACT is supported", () => {
+  it("returns only ACT when ACT is supported", () => {
     const { result } = renderHook(() => useSupportedDenoms(buildDependencies({ supportsACT: true })));
 
-    expect(result.current).toHaveLength(2);
-    expect(result.current.map(d => d.id)).toEqual(["uact", "uakt"]);
+    expect(result.current).toHaveLength(1);
+    expect(result.current.map(d => d.id)).toEqual(["uact"]);
   });
 
   it("sets correct properties for ACT denom", () => {
     const { result } = renderHook(() => useSupportedDenoms(buildDependencies({ supportsACT: true })));
 
     expect(result.current[0]).toEqual({ id: "uact", label: "uACT", tokenLabel: "ACT", value: "uact" });
-  });
-
-  it("sets correct properties for AKT denom when ACT is supported", () => {
-    const { result } = renderHook(() => useSupportedDenoms(buildDependencies({ supportsACT: true })));
-
-    expect(result.current[1]).toEqual({ id: "uakt", label: "uAKT", tokenLabel: "AKT", value: "uakt" });
   });
 });
 

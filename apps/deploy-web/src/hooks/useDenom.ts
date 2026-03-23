@@ -23,7 +23,7 @@ export const useSupportedDenoms = (dependencies: typeof DEPENDENCIES = DEPENDENC
     const UAKT = { id: "uakt", label: "uAKT", tokenLabel: "AKT", value: "uakt" };
 
     if (supportsACT) {
-      return [{ id: "uact", label: "uACT", tokenLabel: "ACT", value: "uact" }, UAKT];
+      return [{ id: "uact", label: "uACT", tokenLabel: "ACT", value: "uact" }];
     }
 
     return [UAKT, { id: "uusdc", label: "uUSDC", tokenLabel: "USDC", value: usdcDenom }];
