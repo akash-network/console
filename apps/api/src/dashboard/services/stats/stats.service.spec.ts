@@ -681,6 +681,144 @@ describe(StatsService.name, () => {
     });
   });
 
+  describe("getDashboardData", () => {
+    it("combines totalUUsdcSpent and totalUActSpent into totalUActSpent and dailyUActSpent", async () => {
+      const { service, statsRepository } = setup();
+
+      const latestBlock = {
+        datetime: new Date("2024-01-03T12:00:00Z"),
+        height: 300,
+        activeLeaseCount: 50,
+        totalLeaseCount: 200,
+        totalUAktSpent: 1000,
+        totalUUsdcSpent: 1500,
+        totalUActSpent: 500,
+        totalUUsdSpent: 3000,
+        activeCPU: 500,
+        activeGPU: 10,
+        activeMemory: 1024,
+        activeEphemeralStorage: 2048,
+        activePersistentStorage: 4096,
+        isProcessed: true
+      };
+
+      const compareBlock = {
+        datetime: new Date("2024-01-02T12:00:00Z"),
+        height: 200,
+        activeLeaseCount: 40,
+        totalLeaseCount: 150,
+        totalUAktSpent: 800,
+        totalUUsdcSpent: 1200,
+        totalUActSpent: 300,
+        totalUUsdSpent: 2000,
+        activeCPU: 400,
+        activeGPU: 8,
+        activeMemory: 800,
+        activeEphemeralStorage: 1500,
+        activePersistentStorage: 3000
+      };
+
+      const secondCompareBlock = {
+        datetime: new Date("2024-01-01T12:00:00Z"),
+        height: 100,
+        activeLeaseCount: 30,
+        totalLeaseCount: 100,
+        totalUAktSpent: 500,
+        totalUUsdcSpent: 800,
+        totalUActSpent: 200,
+        totalUUsdSpent: 1200,
+        activeCPU: 300,
+        activeGPU: 5,
+        activeMemory: 600,
+        activeEphemeralStorage: 1000,
+        activePersistentStorage: 2000
+      };
+
+      statsRepository.findLatestProcessedBlock.mockResolvedValue(latestBlock as unknown as Block);
+      statsRepository.findFirstBlockSince.mockImplementation((since: Date) => {
+        if (since < new Date("2024-01-02T00:00:00Z")) {
+          return Promise.resolve(secondCompareBlock) as unknown as ReturnType<typeof statsRepository.findFirstBlockSince>;
+        }
+        return Promise.resolve(compareBlock) as unknown as ReturnType<typeof statsRepository.findFirstBlockSince>;
+      });
+
+      const result = await service.getDashboardData();
+
+      expect(result.now.totalUActSpent).toBe(1500 + 500);
+      expect(result.now.dailyUActSpent).toBe(1500 + 500 - (1200 + 300));
+      expect(result.compare.totalUActSpent).toBe(1200 + 300);
+      expect(result.compare.dailyUActSpent).toBe(1200 + 300 - (800 + 200));
+    });
+
+    it("handles null totalUUsdcSpent and totalUActSpent as zero", async () => {
+      const { service, statsRepository } = setup();
+
+      const latestBlock = {
+        datetime: new Date("2024-01-03T12:00:00Z"),
+        height: 300,
+        activeLeaseCount: 10,
+        totalLeaseCount: 50,
+        totalUAktSpent: 100,
+        totalUUsdcSpent: null,
+        totalUActSpent: null,
+        totalUUsdSpent: 200,
+        activeCPU: 100,
+        activeGPU: 1,
+        activeMemory: 512,
+        activeEphemeralStorage: 1024,
+        activePersistentStorage: 2048,
+        isProcessed: true
+      };
+
+      const compareBlock = {
+        datetime: new Date("2024-01-02T12:00:00Z"),
+        height: 200,
+        activeLeaseCount: 5,
+        totalLeaseCount: 30,
+        totalUAktSpent: 50,
+        totalUUsdcSpent: 100,
+        totalUActSpent: null,
+        totalUUsdSpent: 100,
+        activeCPU: 50,
+        activeGPU: 0,
+        activeMemory: 256,
+        activeEphemeralStorage: 512,
+        activePersistentStorage: 1024
+      };
+
+      const secondCompareBlock = {
+        datetime: new Date("2024-01-01T12:00:00Z"),
+        height: 100,
+        activeLeaseCount: 0,
+        totalLeaseCount: 10,
+        totalUAktSpent: 0,
+        totalUUsdcSpent: null,
+        totalUActSpent: null,
+        totalUUsdSpent: 0,
+        activeCPU: 0,
+        activeGPU: 0,
+        activeMemory: 0,
+        activeEphemeralStorage: 0,
+        activePersistentStorage: 0
+      };
+
+      statsRepository.findLatestProcessedBlock.mockResolvedValue(latestBlock as unknown as Block);
+      statsRepository.findFirstBlockSince.mockImplementation((since: Date) => {
+        if (since < new Date("2024-01-02T00:00:00Z")) {
+          return Promise.resolve(secondCompareBlock) as unknown as ReturnType<typeof statsRepository.findFirstBlockSince>;
+        }
+        return Promise.resolve(compareBlock) as unknown as ReturnType<typeof statsRepository.findFirstBlockSince>;
+      });
+
+      const result = await service.getDashboardData();
+
+      expect(result.now.totalUActSpent).toBe(0);
+      expect(result.now.dailyUActSpent).toBe(-100);
+      expect(result.compare.totalUActSpent).toBe(100);
+      expect(result.compare.dailyUActSpent).toBe(100);
+    });
+  });
+
   describe("getBmeDashboardData", () => {
     it("returns dashboard data with computed daily values", async () => {
       const { service, statsRepository } = setup();
