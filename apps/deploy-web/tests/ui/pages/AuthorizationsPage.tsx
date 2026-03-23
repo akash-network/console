@@ -31,7 +31,7 @@ export class AuthorizationsPage {
   }
 
   async clickGrantButton() {
-    return await this.page.getByRole("button", { name: "Grant" }).click();
+    return await this.page.getByRole("button", { name: /^\s*Grant\s*$/ }).click();
   }
 
   async authorizeSpending(type: AuthorizationType, address: string) {
