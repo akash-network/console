@@ -27,7 +27,7 @@ export const helloWorldManifest = `
         pricing:
           # The name of the service
           web:
-            denom: uakt
+            denom: uact
             amount: 10000
 
   deployment:
