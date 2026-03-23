@@ -8,7 +8,7 @@ import { Required } from "../decorators/requiredDecorator";
  * BmeRawEvent model
  *
  * Staging table for BME block-level events extracted from end_block_events.
- * Only BME-relevant events are stored (EventLedgerRecordExecuted, EventMintStatusChange, EventVaultSeeded).
+ * Only BME-relevant events are stored (EventLedgerRecordExecuted, EventMintStatusChange, EventVaultFunded).
  * Marked as processed after the BmeIndexer consumes them.
  */
 @Table({
