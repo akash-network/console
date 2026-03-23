@@ -20,11 +20,8 @@ export class ApiUrlService {
   static sandboxNodes() {
     return `${browserEnvConfig.NEXT_PUBLIC_CONSOLE_API_URL}/v1/nodes/sandbox`;
   }
-  static depositParams(apiEndpoint: string, supportsACT = false) {
-    if (supportsACT) {
-      return `${apiEndpoint}/akash/deployment/v1beta4/params`;
-    }
-    return `${apiEndpoint}/cosmos/params/v1beta1/params?subspace=deployment&key=MinDeposits`;
+  static depositParams(apiEndpoint: string) {
+    return `${apiEndpoint}/akash/deployment/v1beta4/params`;
   }
   static marketData() {
     return `${browserEnvConfig.NEXT_PUBLIC_CONSOLE_API_URL}/v1/market-data`;

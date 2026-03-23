@@ -79,33 +79,7 @@ describe("Settings management", () => {
   });
 
   describe(useDepositParams.name, () => {
-    it("should fetch deposit params from legacy endpoint when ACT is not supported", async () => {
-      const chainApiHttpClient = mock<FallbackableHttpClient>({
-        isFallbackEnabled: false
-      } as FallbackableHttpClient);
-      const depositParams = [{ denom: "uakt", amount: "1000000" }];
-      chainApiHttpClient.get.mockResolvedValue({
-        data: {
-          param: {
-            value: JSON.stringify(depositParams)
-          }
-        }
-      });
-
-      const { result } = setupQuery(() => useDepositParams({ supportsACT: false }), {
-        services: {
-          chainApiHttpClient: () => chainApiHttpClient
-        }
-      });
-
-      await vi.waitFor(() => {
-        expect(chainApiHttpClient.get).toHaveBeenCalledWith(expect.stringContaining("cosmos/params/v1beta1/params"));
-        expect(result.current.isSuccess).toBe(true);
-        expect(result.current.data).toEqual(depositParams);
-      });
-    });
-
-    it("should fetch deposit params from module endpoint when ACT is supported", async () => {
+    it("should fetch deposit params from module endpoint", async () => {
       const chainApiHttpClient = mock<FallbackableHttpClient>({
         isFallbackEnabled: false
       } as FallbackableHttpClient);
@@ -121,7 +95,7 @@ describe("Settings management", () => {
         }
       });
 
-      const { result } = setupQuery(() => useDepositParams({ supportsACT: true }), {
+      const { result } = setupQuery(() => useDepositParams(), {
         services: {
           chainApiHttpClient: () => chainApiHttpClient
         }

@@ -5,11 +5,8 @@ import networkStore from "@src/store/networkStore";
 import { appendSearchParams } from "./urlUtils";
 
 export class ApiUrlService {
-  static depositParams(apiEndpoint: string, supportsACT: boolean) {
-    if (supportsACT) {
-      return `${apiEndpoint}/akash/deployment/${networkStore.deploymentVersion}/params`;
-    }
-    return `${apiEndpoint}/cosmos/params/v1beta1/params?subspace=deployment&key=MinDeposits`;
+  static depositParams(apiEndpoint: string) {
+    return `${apiEndpoint}/akash/deployment/${networkStore.deploymentVersion}/params`;
   }
   static certificatesList(apiEndpoint: string, address: string) {
     return `${apiEndpoint}/akash/cert/${networkStore.certVersion}/certificates/list?filter.state=valid&filter.owner=${address}`;

@@ -57,43 +57,22 @@ describe(useChainParam.name, () => {
     expect(useDepositParamsSpy).toHaveBeenCalledWith(expect.objectContaining({ enabled: true }));
   });
 
-  it("passes supportsACT=true to useDepositParams when ACT is supported", () => {
-    const { useDepositParamsSpy } = setup({ supportsACT: true });
-
-    expect(useDepositParamsSpy).toHaveBeenCalledWith(expect.objectContaining({ supportsACT: true }));
-  });
-
-  it("passes supportsACT=false to useDepositParams when ACT is not supported", () => {
-    const { useDepositParamsSpy } = setup({ supportsACT: false });
-
-    expect(useDepositParamsSpy).toHaveBeenCalledWith(expect.objectContaining({ supportsACT: false }));
-  });
-
-  function setup(input?: {
-    isSettingsInit?: boolean;
-    isBlockchainDown?: boolean;
-    usdcDenom?: string;
-    depositParams?: DepositParams[] | undefined;
-    supportsACT?: boolean;
-  }) {
+  function setup(input?: { isSettingsInit?: boolean; isBlockchainDown?: boolean; usdcDenom?: string; depositParams?: DepositParams[] | undefined }) {
     const isSettingsInit = input?.isSettingsInit ?? true;
     const isBlockchainDown = input?.isBlockchainDown ?? false;
     const usdcDenom = input?.usdcDenom ?? "ibc/uusdc";
     const depositParams = input?.depositParams;
-    const supportsACT = input?.supportsACT ?? false;
 
     const depositParamsResult = mock<UseQueryResult<DepositParams[], Error>>();
     depositParamsResult.data = depositParams;
     const useDepositParamsSpy = vi.fn().mockReturnValue(depositParamsResult);
     const useUsdcDenomSpy = vi.fn().mockReturnValue(usdcDenom);
-    const useSupportsACTSpy = vi.fn().mockReturnValue(supportsACT);
 
     const { result } = renderHook(() =>
       useChainParam({
         dependencies: {
           useDepositParams: useDepositParamsSpy,
           useUsdcDenom: useUsdcDenomSpy,
-          useSupportsACT: useSupportsACTSpy,
           useSettings: () =>
             ({
               isSettingsInit,
