@@ -203,8 +203,8 @@ function getRate(record: BmeLedgerRecord): number {
     const accrued = record.executed_record?.remint_credit_accrued;
     return accrued ? parseFloat(accrued.price) : 0;
   }
-  const burned = record.executed_record?.burned;
-  return burned ? parseFloat(burned.price) : 0;
+  const issued = record.executed_record?.remint_credit_issued;
+  return issued ? parseFloat(issued.price) : 0;
 }
 
 function getStatusLabel(status: string): string {

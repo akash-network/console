@@ -52,6 +52,36 @@ describe(LedgerRecordsTable.name, () => {
     expect(screen.queryByText("Pending")).toBeInTheDocument();
   });
 
+  it("renders mint record amounts and rate", () => {
+    const record = buildMintLedgerRecord();
+    setup({ records: [record] });
+
+    const accrued = record.executed_record!.remint_credit_accrued!;
+    const minted = record.executed_record!.minted!;
+    const amountIn = (parseInt(accrued.coin.amount) / 1_000_000).toFixed(2);
+    const amountOut = (parseInt(minted.coin.amount) / 1_000_000).toFixed(2);
+    const rate = parseFloat(accrued.price).toFixed(4);
+
+    expect(screen.queryByText(`${amountIn} AKT`)).toBeInTheDocument();
+    expect(screen.queryByText(`${amountOut} ACT`)).toBeInTheDocument();
+    expect(screen.queryByText(rate)).toBeInTheDocument();
+  });
+
+  it("renders burn record amounts and rate", () => {
+    const record = buildBurnLedgerRecord();
+    setup({ records: [record] });
+
+    const burned = record.executed_record!.burned!;
+    const issued = record.executed_record!.remint_credit_issued!;
+    const amountIn = (parseInt(burned.coin.amount) / 1_000_000).toFixed(2);
+    const amountOut = (parseInt(issued.coin.amount) / 1_000_000).toFixed(2);
+    const rate = parseFloat(issued.price).toFixed(4);
+
+    expect(screen.queryByText(`${amountIn} ACT`)).toBeInTheDocument();
+    expect(screen.queryByText(`${amountOut} AKT`)).toBeInTheDocument();
+    expect(screen.queryByText(rate)).toBeInTheDocument();
+  });
+
   it("sorts records by height descending", () => {
     const older = buildMintLedgerRecord({ height: "80000" });
     const newer = buildBurnLedgerRecord({ height: "90000" });
