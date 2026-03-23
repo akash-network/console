@@ -49,15 +49,10 @@ export function coinsToAmount(coins: Coin[] | Coin, denom: string) {
 }
 
 export function percIncrease(a: number, b: number) {
-  let percent: number;
-  if (b !== 0) {
-    if (a !== 0) {
-      percent = (b - a) / a;
-    } else {
-      percent = b;
-    }
-  } else {
-    percent = -a;
+  if (a === 0) {
+    return 0;
   }
+
+  const percent = b !== 0 ? (b - a) / a : -1;
   return roundDecimal(percent, 4);
 }
