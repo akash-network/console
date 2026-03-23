@@ -4202,6 +4202,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "dailyUUsdSpent": {
                           "type": "number",
                         },
+                        "dailyUUsdcSpent": {
+                          "type": "number",
+                        },
                         "date": {
                           "type": "string",
                         },
@@ -4220,6 +4223,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "totalUUsdSpent": {
                           "type": "number",
                         },
+                        "totalUUsdcSpent": {
+                          "type": "number",
+                        },
                       },
                       "required": [
                         "date",
@@ -4231,6 +4237,8 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "dailyUAktSpent",
                         "totalUActSpent",
                         "dailyUActSpent",
+                        "totalUUsdcSpent",
+                        "dailyUUsdcSpent",
                         "totalUUsdSpent",
                         "dailyUUsdSpent",
                         "activeCPU",
@@ -4588,6 +4596,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "dailyUUsdSpent": {
                           "type": "number",
                         },
+                        "dailyUUsdcSpent": {
+                          "type": "number",
+                        },
                         "date": {
                           "type": "string",
                         },
@@ -4606,6 +4617,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "totalUUsdSpent": {
                           "type": "number",
                         },
+                        "totalUUsdcSpent": {
+                          "type": "number",
+                        },
                       },
                       "required": [
                         "date",
@@ -4617,6 +4631,8 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "dailyUAktSpent",
                         "totalUActSpent",
                         "dailyUActSpent",
+                        "totalUUsdcSpent",
+                        "dailyUUsdcSpent",
                         "totalUUsdSpent",
                         "dailyUUsdSpent",
                         "activeCPU",
@@ -7825,10 +7841,12 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               "enum": [
                 "dailyUAktSpent",
                 "dailyUActSpent",
+                "dailyUUsdcSpent",
                 "dailyUUsdSpent",
                 "dailyLeaseCount",
                 "totalUAktSpent",
                 "totalUActSpent",
+                "totalUUsdcSpent",
                 "totalUUsdSpent",
                 "activeLeaseCount",
                 "totalLeaseCount",

@@ -22,6 +22,8 @@ const emptyStats = {
   dailyUAktSpent: 0,
   totalUActSpent: 0,
   dailyUActSpent: 0,
+  totalUUsdcSpent: 0,
+  dailyUUsdcSpent: 0,
   totalUUsdSpent: 0,
   dailyUUsdSpent: 0,
   activeCPU: 0,

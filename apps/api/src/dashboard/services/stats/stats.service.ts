@@ -68,6 +68,7 @@ export const emptyNetworkCapacity = {
 const blockMetrics: Partial<Record<AuthorizedGraphDataName, BlockMetricConfig>> = {
   dailyUAktSpent: { attributes: ["totalUAktSpent"], getter: b => numberOrZero(b.totalUAktSpent), dashboardKey: "dailyUAktSpent", isRelative: true },
   dailyUActSpent: { attributes: ["totalUUsdcSpent", "totalUActSpent"], getter: combinedActSpent, dashboardKey: "dailyUActSpent", isRelative: true },
+  dailyUUsdcSpent: { attributes: ["totalUUsdcSpent", "totalUActSpent"], getter: combinedActSpent, dashboardKey: "dailyUUsdcSpent", isRelative: true },
   dailyUUsdSpent: { attributes: ["totalUUsdSpent"], getter: b => numberOrZero(b.totalUUsdSpent), dashboardKey: "dailyUUsdSpent", isRelative: true },
   dailyLeaseCount: { attributes: ["totalLeaseCount"], getter: b => numberOrZero(b.totalLeaseCount), dashboardKey: "dailyLeaseCount", isRelative: true },
   activeStorage: {
@@ -77,6 +78,7 @@ const blockMetrics: Partial<Record<AuthorizedGraphDataName, BlockMetricConfig>> 
   },
   totalUAktSpent: { attributes: ["totalUAktSpent"], getter: b => numberOrZero(b.totalUAktSpent), dashboardKey: "totalUAktSpent" },
   totalUActSpent: { attributes: ["totalUUsdcSpent", "totalUActSpent"], getter: combinedActSpent, dashboardKey: "totalUActSpent" },
+  totalUUsdcSpent: { attributes: ["totalUUsdcSpent", "totalUActSpent"], getter: combinedActSpent, dashboardKey: "totalUUsdcSpent" },
   totalUUsdSpent: { attributes: ["totalUUsdSpent"], getter: b => numberOrZero(b.totalUUsdSpent), dashboardKey: "totalUUsdSpent" },
   activeLeaseCount: { attributes: ["activeLeaseCount"], getter: b => numberOrZero(b.activeLeaseCount), dashboardKey: "activeLeaseCount" },
   totalLeaseCount: { attributes: ["totalLeaseCount"], getter: b => numberOrZero(b.totalLeaseCount), dashboardKey: "totalLeaseCount" },
@@ -152,9 +154,8 @@ export class StatsService {
   constructor(
     private readonly statsRepository: StatsRepository,
     private readonly cosmosHttpService: CosmosHttpService,
-    private readonly denomExchangeService: DenomExchangeService,
-  ) {
-  }
+    private readonly denomExchangeService: DenomExchangeService
+  ) {}
 
   async getDashboardData() {
     const latestBlockStats = await this.statsRepository.findLatestProcessedBlock();
@@ -185,6 +186,8 @@ export class StatsService {
         dailyUAktSpent: numberOrZero(latestBlockStats.totalUAktSpent) - numberOrZero(compareBlockStats?.totalUAktSpent),
         totalUActSpent: combinedActSpent(latestBlockStats),
         dailyUActSpent: combinedActSpent(latestBlockStats) - combinedActSpent(compareBlockStats ?? {}),
+        totalUUsdcSpent: combinedActSpent(latestBlockStats),
+        dailyUUsdcSpent: combinedActSpent(latestBlockStats) - combinedActSpent(compareBlockStats ?? {}),
         totalUUsdSpent: latestBlockStats.totalUUsdSpent ?? 0,
         dailyUUsdSpent: numberOrZero(latestBlockStats.totalUUsdSpent) - numberOrZero(compareBlockStats?.totalUUsdSpent),
         activeCPU: latestBlockStats.activeCPU ?? 0,
@@ -202,6 +205,8 @@ export class StatsService {
         dailyUAktSpent: numberOrZero(compareBlockStats.totalUAktSpent) - numberOrZero(secondCompareBlockStats.totalUAktSpent),
         totalUActSpent: combinedActSpent(compareBlockStats),
         dailyUActSpent: combinedActSpent(compareBlockStats) - combinedActSpent(secondCompareBlockStats),
+        totalUUsdcSpent: combinedActSpent(compareBlockStats),
+        dailyUUsdcSpent: combinedActSpent(compareBlockStats) - combinedActSpent(secondCompareBlockStats),
         totalUUsdSpent: compareBlockStats.totalUUsdSpent ?? 0,
         dailyUUsdSpent: numberOrZero(compareBlockStats.totalUUsdSpent) - numberOrZero(secondCompareBlockStats.totalUUsdSpent),
         activeCPU: compareBlockStats.activeCPU ?? 0,

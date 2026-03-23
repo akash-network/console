@@ -218,7 +218,10 @@ describe("Dashboard Data", () => {
             (blocks[2].totalUUsdcSpent ?? 0) + (blocks[2].totalUActSpent ?? 0) - (blocks[1].totalUUsdcSpent ?? 0) - (blocks[1].totalUActSpent ?? 0),
           totalUAktSpent: blocks[2].totalUAktSpent,
           totalUUsdSpent: blocks[2].totalUUsdSpent,
-          totalUActSpent: (blocks[2].totalUUsdcSpent ?? 0) + (blocks[2].totalUActSpent ?? 0)
+          totalUActSpent: (blocks[2].totalUUsdcSpent ?? 0) + (blocks[2].totalUActSpent ?? 0),
+          totalUUsdcSpent: (blocks[2].totalUUsdcSpent ?? 0) + (blocks[2].totalUActSpent ?? 0),
+          dailyUUsdcSpent:
+            (blocks[2].totalUUsdcSpent ?? 0) + (blocks[2].totalUActSpent ?? 0) - (blocks[1].totalUUsdcSpent ?? 0) - (blocks[1].totalUActSpent ?? 0)
         })
       );
       expect(data.compare).toEqual(
@@ -238,7 +241,10 @@ describe("Dashboard Data", () => {
             (blocks[1].totalUUsdcSpent ?? 0) + (blocks[1].totalUActSpent ?? 0) - (blocks[0].totalUUsdcSpent ?? 0) - (blocks[0].totalUActSpent ?? 0),
           totalUAktSpent: blocks[1].totalUAktSpent,
           totalUUsdSpent: blocks[1].totalUUsdSpent,
-          totalUActSpent: (blocks[1].totalUUsdcSpent ?? 0) + (blocks[1].totalUActSpent ?? 0)
+          totalUActSpent: (blocks[1].totalUUsdcSpent ?? 0) + (blocks[1].totalUActSpent ?? 0),
+          totalUUsdcSpent: (blocks[1].totalUUsdcSpent ?? 0) + (blocks[1].totalUActSpent ?? 0),
+          dailyUUsdcSpent:
+            (blocks[1].totalUUsdcSpent ?? 0) + (blocks[1].totalUActSpent ?? 0) - (blocks[0].totalUUsdcSpent ?? 0) - (blocks[0].totalUActSpent ?? 0)
         })
       );
     });
