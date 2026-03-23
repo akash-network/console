@@ -14,7 +14,7 @@ export async function getBmeParams(chainApiHttpClient: AxiosInstance): Promise<B
   const response = await chainApiHttpClient.get<RpcBmeParams>(ApiUrlService.bmeParams(""));
   const { params } = response.data;
   const uactCoin = params.min_mint.find(coin => coin.denom === UACT_DENOM);
-  const minMintUact = parseInt(uactCoin?.amount ?? "0", 10);
+  const minMintUact = Number(uactCoin?.amount) || 0;
   return {
     minMintUact,
     minMintAct: udenomToDenom(minMintUact)

@@ -37,6 +37,15 @@ describe(getBmeParams.name, () => {
     expect(result.minMintAct).toBe(0);
   });
 
+  it("falls back to 0 when amount is malformed", async () => {
+    const { result } = await setup({
+      min_mint: [{ denom: "uact", amount: "abc123" }]
+    });
+
+    expect(result.minMintUact).toBe(0);
+    expect(result.minMintAct).toBe(0);
+  });
+
   it("falls back to 0 when min_mint array is empty", async () => {
     const { result } = await setup({
       min_mint: []
