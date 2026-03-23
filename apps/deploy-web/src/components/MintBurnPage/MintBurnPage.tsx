@@ -67,7 +67,7 @@ export const MintBurnPage: React.FC<MintBurnPageProps> = ({ dependencies: d = DE
   const { price, isLoaded: isPriceLoaded } = d.usePricing();
   const { enqueueSnackbar } = d.useSnackbar();
   const isACTSupported = d.useSupportsACT();
-  const { data: bmeParams } = d.useBmeParams({ enabled: isACTSupported });
+  const { data: bmeParams } = d.useBmeParams();
   const { data: ledgerData, isLoading: isLedgerLoading, invalidate: invalidateLedger } = d.useLedgerRecords(address);
 
   const aktBalance = useMemo(() => (balance ? udenomToDenom(balance.balanceUAKT, 6) : 0), [balance]);
