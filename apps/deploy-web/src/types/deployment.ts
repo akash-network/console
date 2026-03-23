@@ -314,6 +314,12 @@ export interface RpcDepositParams {
   };
 }
 
+export interface RpcDeploymentParams {
+  params: {
+    min_deposits: DepositParams[];
+  };
+}
+
 export interface DepositParams {
   denom: string;
   amount: string;

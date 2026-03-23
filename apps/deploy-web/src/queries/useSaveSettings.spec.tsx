@@ -79,18 +79,18 @@ describe("Settings management", () => {
   });
 
   describe(useDepositParams.name, () => {
-    it("should fetch deposit params successfully", async () => {
+    it("should fetch deposit params from module endpoint", async () => {
       const chainApiHttpClient = mock<FallbackableHttpClient>({
         isFallbackEnabled: false
       } as FallbackableHttpClient);
-      const depositParams = {
-        denom: "uakt",
-        minDeposit: "1000000"
-      };
+      const minDeposits = [
+        { denom: "uakt", amount: "500000" },
+        { denom: "uact", amount: "500000" }
+      ];
       chainApiHttpClient.get.mockResolvedValue({
         data: {
-          param: {
-            value: JSON.stringify(depositParams)
+          params: {
+            min_deposits: minDeposits
           }
         }
       });
@@ -102,9 +102,9 @@ describe("Settings management", () => {
       });
 
       await vi.waitFor(() => {
-        expect(chainApiHttpClient.get).toHaveBeenCalledWith(expect.stringContaining("cosmos/params/v1beta1/params"));
+        expect(chainApiHttpClient.get).toHaveBeenCalledWith(expect.stringContaining("akash/deployment"));
         expect(result.current.isSuccess).toBe(true);
-        expect(result.current.data).toEqual(depositParams);
+        expect(result.current.data).toEqual(minDeposits);
       });
     });
 
@@ -121,7 +121,6 @@ describe("Settings management", () => {
       });
 
       await vi.waitFor(() => {
-        expect(chainApiHttpClient.get).toHaveBeenCalledWith(expect.stringContaining("cosmos/params/v1beta1/params"));
         expect(result.current.isError).toBe(true);
       });
     });
