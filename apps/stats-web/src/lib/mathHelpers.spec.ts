@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { percIncrease } from "./mathHelpers";
 
-describe("percIncrease", () => {
+describe(percIncrease.name, () => {
   it("returns standard percentage change for non-zero values", () => {
     expect(percIncrease(100, 150)).toBe(0.5);
   });
