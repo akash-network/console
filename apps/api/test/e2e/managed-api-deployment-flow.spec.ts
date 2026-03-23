@@ -49,7 +49,7 @@ describe("Managed Wallet API Deployment Flow", () => {
             }),
             state: expect.any(String),
             price: expect.objectContaining({
-              denom: "uakt",
+              denom: "uact",
               amount: expect.any(String)
             }),
             created_at: expect.any(String)
@@ -60,7 +60,7 @@ describe("Managed Wallet API Deployment Flow", () => {
           state: expect.objectContaining({
             funds: expect.arrayContaining([
               expect.objectContaining({
-                denom: "uakt",
+                denom: "uact",
                 amount: expect.any(String)
               })
             ])
@@ -76,7 +76,7 @@ describe("Managed Wallet API Deployment Flow", () => {
           state: expect.objectContaining({
             funds: expect.arrayContaining([
               expect.objectContaining({
-                denom: "uakt",
+                denom: "uact",
                 amount: expect.any(String)
               })
             ])
