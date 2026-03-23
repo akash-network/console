@@ -151,7 +151,7 @@ export class GpuBidsCreatorService {
         deposit: {
           amount: {
             denom: "uact",
-            amount: "500000" // 0.5 AKT
+            amount: "500000" // 0.5 ACT
           },
           sources: [Source.balance]
         }
