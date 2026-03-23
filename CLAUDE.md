@@ -20,3 +20,7 @@ See detailed guidelines:
 
 See detailed guidelines:
 @./.claude/instructions/commit-and-pr-conventions.md
+
+## Writing Tests
+
+Always use the `/console-tests` skill when writing, fixing, reviewing, or refactoring tests in this repo.
