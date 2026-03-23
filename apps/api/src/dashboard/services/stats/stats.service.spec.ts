@@ -747,8 +747,12 @@ describe(StatsService.name, () => {
 
       expect(result.now.totalUActSpent).toBe(1500 + 500);
       expect(result.now.dailyUActSpent).toBe(1500 + 500 - (1200 + 300));
+      expect(result.now.totalUUsdcSpent).toBe(1500 + 500);
+      expect(result.now.dailyUUsdcSpent).toBe(1500 + 500 - (1200 + 300));
       expect(result.compare.totalUActSpent).toBe(1200 + 300);
       expect(result.compare.dailyUActSpent).toBe(1200 + 300 - (800 + 200));
+      expect(result.compare.totalUUsdcSpent).toBe(1200 + 300);
+      expect(result.compare.dailyUUsdcSpent).toBe(1200 + 300 - (800 + 200));
     });
 
     it("handles null totalUUsdcSpent and totalUActSpent as zero", async () => {
@@ -815,8 +819,12 @@ describe(StatsService.name, () => {
 
       expect(result.now.totalUActSpent).toBe(0);
       expect(result.now.dailyUActSpent).toBe(-100);
+      expect(result.now.totalUUsdcSpent).toBe(0);
+      expect(result.now.dailyUUsdcSpent).toBe(-100);
       expect(result.compare.totalUActSpent).toBe(100);
       expect(result.compare.dailyUActSpent).toBe(100);
+      expect(result.compare.totalUUsdcSpent).toBe(100);
+      expect(result.compare.dailyUUsdcSpent).toBe(100);
     });
   });
 
