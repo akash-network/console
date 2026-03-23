@@ -1,6 +1,6 @@
 import React, { useContext, useMemo } from "react";
 import type { NetworkId } from "@akashnetwork/chain-sdk";
-import { AuthzHttpService, CertificatesService } from "@akashnetwork/http-sdk";
+import { AuthzHttpService, BmeHttpService, CertificatesService } from "@akashnetwork/http-sdk";
 
 import { UACT_DENOM, UAKT_DENOM, USDC_IBC_DENOMS } from "@src/config/denom.config";
 import { services as rootContainer } from "@src/services/app-di-container/browser-di-container";
@@ -38,6 +38,7 @@ const neverResolvedPromise = new Promise<never>(() => {});
 function createAppContainer<T extends Factories>(settingsState: SettingsContextType, services: Partial<T> | undefined) {
   const di = createChildContainer(rootContainer, {
     authzHttpService: () => new AuthzHttpService(di.chainApiHttpClient),
+    bmeHttpService: () => new BmeHttpService(di.chainApiHttpClient),
     walletBalancesService: () =>
       new WalletBalancesService(di.authzHttpService, di.chainApiHttpClient, {
         uakt: UAKT_DENOM,

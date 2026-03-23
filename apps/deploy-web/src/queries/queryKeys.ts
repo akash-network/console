@@ -79,6 +79,8 @@ export class QueryKeys {
 
   static getWeeklyDeploymentCostKey = () => ["WEEKLY_DEPLOYMENT_COST"];
 
+  static getLedgerRecordsKey = (address?: string) => (address ? ["LEDGER_RECORDS", address] : []);
+
   static getManagedWalletKey = (userId?: string) => ["MANAGED_WALLET", userId || ""];
 
   static getPaymentTransactionsKey = (options?: {
