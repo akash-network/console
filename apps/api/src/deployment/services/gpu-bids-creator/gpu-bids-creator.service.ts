@@ -49,9 +49,9 @@ export class GpuBidsCreatorService {
       broadcastTimeoutMs: 30_000
     });
     const balanceBefore = await client.getBalance(account.address, "uact");
-    const balanceBeforeUAkt = parseFloat(balanceBefore.amount);
-    const akt = Math.round((balanceBeforeUAkt / 1_000_000) * 100) / 100;
-    this.logger.info({ event: "CLIENT_CONNECTED", balance: akt });
+    const balanceBeforeUAct = parseFloat(balanceBefore.amount);
+    const act = Math.round((balanceBeforeUAct / 1_000_000) * 100) / 100;
+    this.logger.info({ event: "CLIENT_CONNECTED", balance: act });
 
     const gpuModels = await this.gpuService.getGpuList();
 
@@ -59,8 +59,8 @@ export class GpuBidsCreatorService {
     await this.createBidsForAllModels(gpuModels, client, account.address, true);
 
     const balanceAfter = await client.getBalance(account.address, "uact");
-    const balanceAfterUAkt = parseFloat(balanceAfter.amount);
-    const diff = balanceBeforeUAkt - balanceAfterUAkt;
+    const balanceAfterUAct = parseFloat(balanceAfter.amount);
+    const diff = balanceBeforeUAct - balanceAfterUAct;
 
     this.logger.info({ event: "GPU_BIDS_CREATED", cost: diff / 1_000_000 });
   }
