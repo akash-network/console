@@ -1,4 +1,4 @@
-import type { BmeSums, CoinPrice, LedgerRecordID, ParsedLedgerRecord, ParsedPriceData, ParsedStatusChange, ParsedVaultSeeded } from "./bmeIndexer.types";
+import type { BmeSums, CoinPrice, LedgerRecordID, ParsedLedgerRecord, ParsedPriceData, ParsedStatusChange, ParsedVaultFunded } from "./bmeIndexer.types";
 
 function parseJsonValue<T>(value: string | null | undefined): T | null {
   if (!value) return null;
@@ -85,11 +85,11 @@ export function parseStatusChangeEvent(data: Record<string, string | null>): Par
 }
 
 /**
- * Parse EventVaultSeeded attributes.
+ * Parse EventVaultFunded attributes.
  *
  * Proto fields: amount (Coin), source (string), new_vault_balance (Coin)
  */
-export function parseVaultSeededEvent(data: Record<string, string | null>): ParsedVaultSeeded {
+export function parseVaultFundedEvent(data: Record<string, string | null>): ParsedVaultFunded {
   const amount = parseJsonValue<{ amount: string; denom: string }>(data.amount);
   const newVaultBalance = parseJsonValue<{ amount: string; denom: string }>(data.new_vault_balance);
 

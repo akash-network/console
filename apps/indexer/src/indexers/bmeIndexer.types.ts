@@ -39,7 +39,7 @@ export interface ParsedStatusChange {
   collateralRatio: string;
 }
 
-export interface ParsedVaultSeeded {
+export interface ParsedVaultFunded {
   amount: string;
   denom: string;
   newVaultBalance: { amount: string; denom: string } | null;

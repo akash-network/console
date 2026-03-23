@@ -13,7 +13,7 @@ import {
   parseLedgerRecordEvent,
   parsePriceDataEvent,
   parseStatusChangeEvent,
-  parseVaultSeededEvent,
+  parseVaultFundedEvent,
   safeParseFloat,
   zeroBmeSums
 } from "./bmeIndexer.helpers";
@@ -22,7 +22,7 @@ import { Indexer } from "./indexer";
 export const BME_EVENT_TYPES = {
   LEDGER_RECORD_EXECUTED: "akash.bme.v1.EventLedgerRecordExecuted",
   MINT_STATUS_CHANGE: "akash.bme.v1.EventMintStatusChange",
-  VAULT_SEEDED: "akash.bme.v1.EventVaultSeeded",
+  VAULT_FUNDED: "akash.bme.v1.EventVaultFunded",
   LEDGER_RECORD_CANCELED: "akash.bme.v1.EventLedgerRecordCanceled",
   /** Synthetic event: uakt transfer to vault detected in finalize_block_events (governance/upgrade seed) */
   VAULT_FUNDED_TRANSFER: "indexer.bme.VaultFundedTransfer",
@@ -42,7 +42,7 @@ export { BME_EVENT_TYPE_VALUES };
 const NATIVE_BME_EVENT_TYPES: readonly string[] = [
   BME_EVENT_TYPES.LEDGER_RECORD_EXECUTED,
   BME_EVENT_TYPES.MINT_STATUS_CHANGE,
-  BME_EVENT_TYPES.VAULT_SEEDED,
+  BME_EVENT_TYPES.VAULT_FUNDED,
   BME_EVENT_TYPES.LEDGER_RECORD_CANCELED
 ];
 
@@ -139,8 +139,8 @@ export class BmeIndexer extends Indexer {
       } else if (rawEvent.type === BME_EVENT_TYPES.MINT_STATUS_CHANGE) {
         const parsed = parseStatusChangeEvent(rawEvent.data);
         statusChanges.push({ height: currentBlock.height, ...parsed });
-      } else if (rawEvent.type === BME_EVENT_TYPES.VAULT_SEEDED) {
-        const parsed = parseVaultSeededEvent(rawEvent.data);
+      } else if (rawEvent.type === BME_EVENT_TYPES.VAULT_FUNDED) {
+        const parsed = parseVaultFundedEvent(rawEvent.data);
         if (parsed.newVaultBalance && parsed.newVaultBalance.denom === "uakt") {
           const amount = safeParseFloat(parsed.newVaultBalance.amount);
           vaultUaktFromEvent = amount;
@@ -249,7 +249,7 @@ export class BmeIndexer extends Indexer {
 
     // Vault uAKT: carry forward previous balance and apply this block's delta
     if (vaultUaktFromEvent !== null) {
-      // EventVaultSeeded provides an absolute snapshot of vault balance
+      // EventVaultFunded provides an absolute snapshot of vault balance
       currentBlock.vaultUakt = vaultUaktFromEvent;
     } else {
       // Delta: AKT deposited via mints minus AKT withdrawn via remints this block,
