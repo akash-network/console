@@ -4193,13 +4193,13 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "dailyLeaseCount": {
                           "type": "number",
                         },
+                        "dailyUActSpent": {
+                          "type": "number",
+                        },
                         "dailyUAktSpent": {
                           "type": "number",
                         },
                         "dailyUUsdSpent": {
-                          "type": "number",
-                        },
-                        "dailyUUsdcSpent": {
                           "type": "number",
                         },
                         "date": {
@@ -4211,13 +4211,13 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "totalLeaseCount": {
                           "type": "number",
                         },
+                        "totalUActSpent": {
+                          "type": "number",
+                        },
                         "totalUAktSpent": {
                           "type": "number",
                         },
                         "totalUUsdSpent": {
-                          "type": "number",
-                        },
-                        "totalUUsdcSpent": {
                           "type": "number",
                         },
                       },
@@ -4229,8 +4229,8 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "dailyLeaseCount",
                         "totalUAktSpent",
                         "dailyUAktSpent",
-                        "totalUUsdcSpent",
-                        "dailyUUsdcSpent",
+                        "totalUActSpent",
+                        "dailyUActSpent",
                         "totalUUsdSpent",
                         "dailyUUsdSpent",
                         "activeCPU",
@@ -4579,13 +4579,13 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "dailyLeaseCount": {
                           "type": "number",
                         },
+                        "dailyUActSpent": {
+                          "type": "number",
+                        },
                         "dailyUAktSpent": {
                           "type": "number",
                         },
                         "dailyUUsdSpent": {
-                          "type": "number",
-                        },
-                        "dailyUUsdcSpent": {
                           "type": "number",
                         },
                         "date": {
@@ -4597,13 +4597,13 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "totalLeaseCount": {
                           "type": "number",
                         },
+                        "totalUActSpent": {
+                          "type": "number",
+                        },
                         "totalUAktSpent": {
                           "type": "number",
                         },
                         "totalUUsdSpent": {
-                          "type": "number",
-                        },
-                        "totalUUsdcSpent": {
                           "type": "number",
                         },
                       },
@@ -4615,8 +4615,8 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "dailyLeaseCount",
                         "totalUAktSpent",
                         "dailyUAktSpent",
-                        "totalUUsdcSpent",
-                        "dailyUUsdcSpent",
+                        "totalUActSpent",
+                        "dailyUActSpent",
                         "totalUUsdSpent",
                         "dailyUUsdSpent",
                         "activeCPU",
@@ -7824,11 +7824,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "schema": {
               "enum": [
                 "dailyUAktSpent",
-                "dailyUUsdcSpent",
+                "dailyUActSpent",
                 "dailyUUsdSpent",
                 "dailyLeaseCount",
                 "totalUAktSpent",
-                "totalUUsdcSpent",
+                "totalUActSpent",
                 "totalUUsdSpent",
                 "activeLeaseCount",
                 "totalLeaseCount",

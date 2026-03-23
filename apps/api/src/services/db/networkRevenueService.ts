@@ -10,7 +10,7 @@ type DalyRevenueType = {
   date: number;
   revenue: number;
   revenueUAkt?: number;
-  revenueUUsdc?: number;
+  revenueUAct?: number;
   aktPrice?: number;
   dateStr?: Date;
 };
@@ -32,14 +32,14 @@ type RevenueStatsType = {
   thirtyDaysAgoAkt?: number;
   sixtyDaysAgoAkt?: number;
   ninetyDaysAgoAkt?: number;
-  nowUsdc?: number;
-  oneDayAgoUsdc?: number;
-  twoDaysAgoUsdc?: number;
-  oneWeekAgoUsdc?: number;
-  twoWeeksAgUsdc?: number;
-  thirtyDaysAgoUsdc?: number;
-  sixtyDaysAgoUsdc?: number;
-  ninetyDaysAgoUsdc?: number;
+  nowAct?: number;
+  oneDayAgoAct?: number;
+  twoDaysAgoAct?: number;
+  oneWeekAgoAct?: number;
+  twoWeeksAgAct?: number;
+  thirtyDaysAgoAct?: number;
+  sixtyDaysAgoAct?: number;
+  ninetyDaysAgoAct?: number;
 };
 
 export const getWeb3IndexRevenue = async (debug?: boolean) => {
@@ -49,7 +49,7 @@ export const getWeb3IndexRevenue = async (debug?: boolean) => {
     date: r.date.getTime() / 1000,
     revenue: round(r.usd, 2),
     revenueUAkt: r.uakt,
-    revenueUUsdc: r.uusdc,
+    revenueUAct: r.uact,
     aktPrice: r.aktPrice,
     dateStr: r.date
   }));
@@ -78,14 +78,14 @@ export const getWeb3IndexRevenue = async (debug?: boolean) => {
     thirtyDaysAgoRevenueUAkt: number = 0,
     sixtyDaysAgoRevenueUAkt: number = 0,
     ninetyDaysAgoRevenueUAkt: number = 0;
-  let totalRevenueUUsdc: number = 0,
-    oneDayAgoRevenueUUsdc: number = 0,
-    twoDaysAgoRevenueUUsdc: number = 0,
-    oneWeekAgoRevenueUUsdc: number = 0,
-    twoWeeksAgoRevenueUUsdc: number = 0,
-    thirtyDaysAgoRevenueUUsdc: number = 0,
-    sixtyDaysAgoRevenueUUsdc: number = 0,
-    ninetyDaysAgoRevenueUUsdc: number = 0;
+  let totalRevenueUAct: number = 0,
+    oneDayAgoRevenueUAct: number = 0,
+    twoDaysAgoRevenueUAct: number = 0,
+    oneWeekAgoRevenueUAct: number = 0,
+    twoWeeksAgoRevenueUAct: number = 0,
+    thirtyDaysAgoRevenueUAct: number = 0,
+    sixtyDaysAgoRevenueUAct: number = 0,
+    ninetyDaysAgoRevenueUAct: number = 0;
 
   days.forEach(b => {
     const date = new Date(b.date * 1000);
@@ -93,46 +93,46 @@ export const getWeb3IndexRevenue = async (debug?: boolean) => {
     if (date <= ninetyDaysAgo) {
       ninetyDaysAgoRevenue += b.revenue;
       ninetyDaysAgoRevenueUAkt += b.revenueUAkt || 0;
-      ninetyDaysAgoRevenueUUsdc += b.revenueUUsdc || 0;
+      ninetyDaysAgoRevenueUAct += b.revenueUAct || 0;
     }
     if (date <= sixtyDaysAgo) {
       sixtyDaysAgoRevenue += b.revenue;
       sixtyDaysAgoRevenueUAkt += b.revenueUAkt || 0;
-      sixtyDaysAgoRevenueUUsdc += b.revenueUUsdc || 0;
+      sixtyDaysAgoRevenueUAct += b.revenueUAct || 0;
     }
     if (date <= thirtyDaysAgo) {
       thirtyDaysAgoRevenue += b.revenue;
       thirtyDaysAgoRevenueUAkt += b.revenueUAkt || 0;
-      thirtyDaysAgoRevenueUUsdc += b.revenueUUsdc || 0;
+      thirtyDaysAgoRevenueUAct += b.revenueUAct || 0;
     }
     if (date <= twoWeeksAgo) {
       twoWeeksAgoRevenue += b.revenue;
       twoWeeksAgoRevenueUAkt += b.revenueUAkt || 0;
-      twoWeeksAgoRevenueUUsdc += b.revenueUUsdc || 0;
+      twoWeeksAgoRevenueUAct += b.revenueUAct || 0;
     }
     if (date <= oneWeekAgo) {
       oneWeekAgoRevenue += b.revenue;
       oneWeekAgoRevenueUAkt += b.revenueUAkt || 0;
-      oneWeekAgoRevenueUUsdc += b.revenueUUsdc || 0;
+      oneWeekAgoRevenueUAct += b.revenueUAct || 0;
     }
     if (date <= twoDaysAgo) {
       twoDaysAgoRevenue += b.revenue;
       twoDaysAgoRevenueUAkt += b.revenueUAkt || 0;
-      twoDaysAgoRevenueUUsdc += b.revenueUUsdc || 0;
+      twoDaysAgoRevenueUAct += b.revenueUAct || 0;
     }
     if (date <= oneDayAgo) {
       oneDayAgoRevenue += b.revenue;
       oneDayAgoRevenueUAkt += b.revenueUAkt || 0;
-      oneDayAgoRevenueUUsdc += b.revenueUUsdc || 0;
+      oneDayAgoRevenueUAct += b.revenueUAct || 0;
     }
 
     totalRevenue += b.revenue;
     totalRevenueUAkt += b.revenueUAkt || 0;
-    totalRevenueUUsdc += b.revenueUUsdc || 0;
+    totalRevenueUAct += b.revenueUAct || 0;
   }, 0);
 
   if (!debug) {
-    days = days.map(({ dateStr, revenueUAkt, revenueUUsdc, aktPrice, ...others }) => others);
+    days = days.map(({ dateStr, revenueUAkt, revenueUAct, aktPrice, ...others }) => others);
   }
 
   let revenueStats: RevenueStatsType = {
@@ -157,14 +157,14 @@ export const getWeb3IndexRevenue = async (debug?: boolean) => {
       thirtyDaysAgoAkt: uaktToAKT(thirtyDaysAgoRevenueUAkt, 6),
       sixtyDaysAgoAkt: uaktToAKT(sixtyDaysAgoRevenueUAkt, 6),
       ninetyDaysAgoAkt: uaktToAKT(ninetyDaysAgoRevenueUAkt, 6),
-      nowUsdc: udenomToDenom(totalRevenueUUsdc, 6),
-      oneDayAgoUsdc: udenomToDenom(oneDayAgoRevenueUUsdc, 6),
-      twoDaysAgoUsdc: udenomToDenom(twoDaysAgoRevenueUUsdc, 6),
-      oneWeekAgoUsdc: udenomToDenom(oneWeekAgoRevenueUUsdc, 6),
-      twoWeeksAgUsdc: udenomToDenom(twoWeeksAgoRevenueUUsdc, 6),
-      thirtyDaysAgoUsdc: udenomToDenom(thirtyDaysAgoRevenueUUsdc, 6),
-      sixtyDaysAgoUsdc: udenomToDenom(sixtyDaysAgoRevenueUUsdc, 6),
-      ninetyDaysAgoUsdc: udenomToDenom(ninetyDaysAgoRevenueUUsdc, 6)
+      nowAct: udenomToDenom(totalRevenueUAct, 6),
+      oneDayAgoAct: udenomToDenom(oneDayAgoRevenueUAct, 6),
+      twoDaysAgoAct: udenomToDenom(twoDaysAgoRevenueUAct, 6),
+      oneWeekAgoAct: udenomToDenom(oneWeekAgoRevenueUAct, 6),
+      twoWeeksAgAct: udenomToDenom(twoWeeksAgoRevenueUAct, 6),
+      thirtyDaysAgoAct: udenomToDenom(thirtyDaysAgoRevenueUAct, 6),
+      sixtyDaysAgoAct: udenomToDenom(sixtyDaysAgoRevenueUAct, 6),
+      ninetyDaysAgoAct: udenomToDenom(ninetyDaysAgoRevenueUAct, 6)
     };
   }
 
@@ -183,7 +183,7 @@ export async function getDailyRevenue() {
       {
         model: Block,
         as: "lastBlockYet",
-        attributes: ["totalUAktSpent", "totalUUsdcSpent"],
+        attributes: ["totalUAktSpent", "totalUUsdcSpent", "totalUActSpent"],
         required: true
       }
     ],
@@ -193,18 +193,21 @@ export async function getDailyRevenue() {
     order: [["date", "ASC"]]
   });
 
-  const stats = result.map(day => ({
-    date: day.date,
-    totalUAktSpent: (day.lastBlockYet as Block).totalUAktSpent || 0,
-    totalUUsdcSpent: (day.lastBlockYet as Block).totalUUsdcSpent || 0,
-    aktPrice: day.aktPrice || 0 // TODO handle no price
-  }));
+  const stats = result.map(day => {
+    const block = day.lastBlockYet as Block;
+    return {
+      date: day.date,
+      totalUAktSpent: block.totalUAktSpent || 0,
+      totalUActSpent: (block.totalUUsdcSpent || 0) + (block.totalUActSpent || 0),
+      aktPrice: day.aktPrice as number
+    };
+  });
 
-  const relativeStats = stats.reduce<{ date: Date; uakt: number; uusdc: number; aktPrice: number }[]>((arr, dataPoint, index) => {
+  const relativeStats = stats.reduce<{ date: Date; uakt: number; uact: number; aktPrice: number }[]>((arr, dataPoint, index) => {
     arr[index] = {
       date: dataPoint.date,
       uakt: dataPoint.totalUAktSpent - (index > 0 ? stats[index - 1].totalUAktSpent : 0),
-      uusdc: dataPoint.totalUUsdcSpent - (index > 0 ? stats[index - 1].totalUUsdcSpent : 0),
+      uact: dataPoint.totalUActSpent - (index > 0 ? stats[index - 1].totalUActSpent : 0),
       aktPrice: dataPoint.aktPrice
     };
 
@@ -215,9 +218,9 @@ export async function getDailyRevenue() {
     date: x.date,
     uakt: x.uakt,
     akt: uaktToAKT(x.uakt, 6),
-    uusdc: x.uusdc,
-    usdc: udenomToDenom(x.uusdc, 6),
-    usd: uaktToAKT(x.uakt, 6) * x.aktPrice + udenomToDenom(x.uusdc, 6),
+    uact: x.uact,
+    act: udenomToDenom(x.uact, 6),
+    usd: uaktToAKT(x.uakt, 6) * x.aktPrice + udenomToDenom(x.uact, 6),
     aktPrice: x.aktPrice
   }));
 }

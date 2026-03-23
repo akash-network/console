@@ -57,8 +57,8 @@ const getTitle = (snapshot: Snapshots): string => {
       return "Active leases";
     case Snapshots.totalUAktSpent:
       return "Total AKT spent";
-    case Snapshots.totalUUsdcSpent:
-      return "Total USDC spent";
+    case Snapshots.totalUActSpent:
+      return "Total ACT spent";
     case Snapshots.totalUUsdSpent:
       return "Total USD spent";
     case Snapshots.totalLeaseCount:
@@ -73,8 +73,8 @@ const getTitle = (snapshot: Snapshots): string => {
       return "Disk storage leased";
     case Snapshots.dailyUAktSpent:
       return "Daily AKT spent";
-    case Snapshots.dailyUUsdcSpent:
-      return "Daily USDC spent";
+    case Snapshots.dailyUActSpent:
+      return "Daily ACT spent";
     case Snapshots.dailyUUsdSpent:
       return "Daily USD spent";
     case Snapshots.dailyLeaseCount:
