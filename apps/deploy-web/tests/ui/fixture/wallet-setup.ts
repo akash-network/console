@@ -136,6 +136,7 @@ export async function approveWalletOperation(popupPage: Page | null) {
 }
 
 export async function unlockWallet(page: Page) {
+  await page.waitForEvent("load", { timeout: 5_000 }).catch(() => {});
   await page.locator("input").fill(WALLET_PASSWORD);
   await page.getByRole("button", { name: /unlock wallet/i }).click();
 }
