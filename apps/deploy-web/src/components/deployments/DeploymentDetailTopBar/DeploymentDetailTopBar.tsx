@@ -21,7 +21,6 @@ import { useDeploymentMetrics } from "@src/hooks/useDeploymentMetrics";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import { usePricing } from "@src/hooks/usePricing/usePricing";
-import { useUser } from "@src/hooks/useUser";
 import { useDeploymentSettingQuery } from "@src/queries/deploymentSettingsQuery";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import { averageBlockTime } from "@src/utils/priceUtils";
@@ -47,7 +46,6 @@ export const DEPENDENCIES = {
   useManagedDeploymentConfirm,
   usePreviousRoute,
   usePricing,
-  useUser,
   useDeploymentSettingQuery,
   usePopup,
   useRouter
@@ -83,8 +81,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
   const deploymentName = getDeploymentName(deployment?.dseq);
   const previousRoute = d.usePreviousRoute();
   const { closeDeploymentConfirm } = d.useManagedDeploymentConfirm();
-  const { user } = d.useUser();
-  const deploymentSetting = d.useDeploymentSettingQuery({ userId: user?.id, dseq: deployment.dseq });
+  const deploymentSetting = d.useDeploymentSettingQuery({ dseq: deployment.dseq });
   const { realTimeLeft, deploymentCost } = d.useDeploymentMetrics({ deployment, leases });
   const { confirm } = d.usePopup();
 

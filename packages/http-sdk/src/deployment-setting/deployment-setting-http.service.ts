@@ -19,6 +19,11 @@ export interface CreateDeploymentSettingInput {
   autoTopUpEnabled: boolean;
 }
 
+export interface CreateDeploymentSettingV2Input {
+  dseq: string;
+  autoTopUpEnabled: boolean;
+}
+
 export interface UpdateDeploymentSettingInput {
   autoTopUpEnabled: boolean;
 }
@@ -43,5 +48,17 @@ export class DeploymentSettingHttpService extends ApiHttpService {
 
   async update(params: FindDeploymentSettingParams, input: UpdateDeploymentSettingInput): Promise<DeploymentSettingOutput> {
     return this.extractApiData(await this.patch<DeploymentSettingOutput>(`/v1/deployment-settings/${params.userId}/${params.dseq}`, { data: input }));
+  }
+
+  async findByDseq(dseq: string): Promise<DeploymentSettingOutput> {
+    return this.extractApiData(await this.get<DeploymentSettingOutput>(`/v2/deployment-settings/${dseq}`));
+  }
+
+  async createV2(input: CreateDeploymentSettingV2Input): Promise<DeploymentSettingOutput> {
+    return this.extractApiData(await this.post<DeploymentSettingOutput>("/v2/deployment-settings", { data: input }));
+  }
+
+  async updateByDseq(dseq: string, input: UpdateDeploymentSettingInput): Promise<DeploymentSettingOutput> {
+    return this.extractApiData(await this.patch<DeploymentSettingOutput>(`/v2/deployment-settings/${dseq}`, { data: input }));
   }
 }

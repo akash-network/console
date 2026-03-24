@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { type FindDeploymentSettingParams, isHttpError } from "@akashnetwork/http-sdk";
+import { isHttpError } from "@akashnetwork/http-sdk";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { millisecondsInMinute } from "date-fns/constants";
 
@@ -7,22 +7,21 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { QueryKeys } from "./queryKeys";
 
-export function useDeploymentSettingQuery(params: Omit<FindDeploymentSettingParams, "userId"> & { userId?: string }) {
-  const wallet = useWallet();
-  const queryKey = useMemo(() => (params.userId ? QueryKeys.getDeploymentSettingKey(params.userId, params.dseq) : []), [params.userId, params.dseq]);
+export const USE_DEPLOYMENT_SETTING_DEPENDENCIES = { useWallet };
+
+export function useDeploymentSettingQuery(
+  params: { dseq: string },
+  dependencies: typeof USE_DEPLOYMENT_SETTING_DEPENDENCIES = USE_DEPLOYMENT_SETTING_DEPENDENCIES
+) {
+  const wallet = dependencies.useWallet();
+  const queryKey = useMemo(() => QueryKeys.getDeploymentSettingKey(params.dseq), [params.dseq]);
   const { deploymentSetting } = useServices();
   const queryClient = useQueryClient();
 
   const query = useQuery({
     queryKey,
-    queryFn: () => {
-      if (!params.userId) {
-        throw new Error("userId is required");
-      }
-
-      return deploymentSetting.findByUserIdAndDseq({ userId: params.userId, dseq: params.dseq });
-    },
-    enabled: !!params.userId && !!params.dseq && !!wallet.isManaged,
+    queryFn: () => deploymentSetting.findByDseq(params.dseq),
+    enabled: !!params.dseq && !!wallet.isManaged,
     staleTime: 5 * millisecondsInMinute,
     retry: (failureCount, error) => {
       if (isHttpError(error) && error.response?.status === 404) {
@@ -38,11 +37,7 @@ export function useDeploymentSettingQuery(params: Omit<FindDeploymentSettingPara
         throw new Error("Cannot update deployment setting for a custodial wallet");
       }
 
-      if (!params.userId) {
-        throw new Error("userId is required");
-      }
-
-      return deploymentSetting.update({ userId: params.userId, dseq: params.dseq }, { autoTopUpEnabled });
+      return deploymentSetting.updateByDseq(params.dseq, { autoTopUpEnabled });
     },
     onSuccess: data => {
       queryClient.setQueryData(queryKey, data);

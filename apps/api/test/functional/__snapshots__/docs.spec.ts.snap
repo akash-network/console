@@ -15915,6 +15915,375 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v2/deployment-settings": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "autoTopUpEnabled": {
+                        "default": false,
+                        "description": "Whether auto top-up is enabled for this deployment",
+                        "type": "boolean",
+                      },
+                      "dseq": {
+                        "description": "Deployment sequence number",
+                        "pattern": "^d+$",
+                        "type": "string",
+                      },
+                      "userId": {
+                        "description": "User ID. Defaults to the current authenticated user if not provided",
+                        "format": "uuid",
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "dseq",
+                    ],
+                    "type": "object",
+                  },
+                },
+                "required": [
+                  "data",
+                ],
+                "type": "object",
+              },
+            },
+          },
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "autoTopUpEnabled": {
+                          "type": "boolean",
+                        },
+                        "createdAt": {
+                          "format": "date-time",
+                          "type": "string",
+                        },
+                        "dseq": {
+                          "pattern": "^d+$",
+                          "type": "string",
+                        },
+                        "estimatedTopUpAmount": {
+                          "type": "number",
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string",
+                        },
+                        "topUpFrequencyMs": {
+                          "type": "number",
+                        },
+                        "updatedAt": {
+                          "format": "date-time",
+                          "type": "string",
+                        },
+                        "userId": {
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "id",
+                        "userId",
+                        "dseq",
+                        "autoTopUpEnabled",
+                        "estimatedTopUpAmount",
+                        "topUpFrequencyMs",
+                        "createdAt",
+                        "updatedAt",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Deployment settings created successfully",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Create deployment settings",
+        "tags": [
+          "Deployment Settings",
+        ],
+      },
+    },
+    "/v2/deployment-settings/{dseq}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dseq",
+            "required": true,
+            "schema": {
+              "description": "Deployment sequence number",
+              "pattern": "^d+$",
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "userId",
+            "required": false,
+            "schema": {
+              "description": "User ID. Defaults to the current authenticated user if not provided",
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "autoTopUpEnabled": {
+                          "type": "boolean",
+                        },
+                        "createdAt": {
+                          "format": "date-time",
+                          "type": "string",
+                        },
+                        "dseq": {
+                          "pattern": "^d+$",
+                          "type": "string",
+                        },
+                        "estimatedTopUpAmount": {
+                          "type": "number",
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string",
+                        },
+                        "topUpFrequencyMs": {
+                          "type": "number",
+                        },
+                        "updatedAt": {
+                          "format": "date-time",
+                          "type": "string",
+                        },
+                        "userId": {
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "id",
+                        "userId",
+                        "dseq",
+                        "autoTopUpEnabled",
+                        "estimatedTopUpAmount",
+                        "topUpFrequencyMs",
+                        "createdAt",
+                        "updatedAt",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Returns deployment settings",
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "message",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Deployment settings not found",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Get deployment settings by dseq",
+        "tags": [
+          "Deployment Settings",
+        ],
+      },
+      "patch": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dseq",
+            "required": true,
+            "schema": {
+              "description": "Deployment sequence number",
+              "pattern": "^d+$",
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "userId",
+            "required": false,
+            "schema": {
+              "description": "User ID. Defaults to the current authenticated user if not provided",
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "autoTopUpEnabled": {
+                        "description": "Whether auto top-up is enabled for this deployment",
+                        "type": "boolean",
+                      },
+                    },
+                    "required": [
+                      "autoTopUpEnabled",
+                    ],
+                    "type": "object",
+                  },
+                },
+                "required": [
+                  "data",
+                ],
+                "type": "object",
+              },
+            },
+          },
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "autoTopUpEnabled": {
+                          "type": "boolean",
+                        },
+                        "createdAt": {
+                          "format": "date-time",
+                          "type": "string",
+                        },
+                        "dseq": {
+                          "pattern": "^d+$",
+                          "type": "string",
+                        },
+                        "estimatedTopUpAmount": {
+                          "type": "number",
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string",
+                        },
+                        "topUpFrequencyMs": {
+                          "type": "number",
+                        },
+                        "updatedAt": {
+                          "format": "date-time",
+                          "type": "string",
+                        },
+                        "userId": {
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "id",
+                        "userId",
+                        "dseq",
+                        "autoTopUpEnabled",
+                        "estimatedTopUpAmount",
+                        "topUpFrequencyMs",
+                        "createdAt",
+                        "updatedAt",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Deployment settings updated successfully",
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "message",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Deployment settings not found",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Update deployment settings",
+        "tags": [
+          "Deployment Settings",
+        ],
+      },
+    },
   },
   "servers": [
     {
