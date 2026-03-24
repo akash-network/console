@@ -42,6 +42,7 @@ export async function getExtensionId(context: BrowserContext): Promise<string> {
 export async function setupWallet(page: Page) {
   const address = await restoreExtensionStorage(page, testEnvConfig.NETWORK_ID);
   await topUpWallet(address);
+  await unlockWallet(page);
 }
 
 export async function createWallet(context: BrowserContext): Promise<{
@@ -69,24 +70,27 @@ export async function createWallet(context: BrowserContext): Promise<{
 export async function connectWalletViaLeap(context: BrowserContext, page: Page) {
   if (!(await isWalletConnected(page))) {
     await page.getByTestId("connect-wallet-btn").click();
-    const [popupPage] = await Promise.all([
-      context.waitForEvent("page", { timeout: 15_000 }).catch(() => null),
-      wait(100).then(() => page.getByRole("button", { name: "Leap Leap" }).click())
-    ]);
+    const popupPagePromise = context.waitForEvent("page").catch(() => null);
 
-    if (popupPage) await connectOrUnlockWallet(popupPage);
-    await isWalletConnected(page);
+    await page.getByRole("button", { name: "Leap Leap" }).click();
+    const popupPage = await Promise.race([popupPagePromise, isWalletConnected(page).then(() => null)]);
+
+    if (popupPage) {
+      await connectOrUnlockWallet(popupPage);
+      await isWalletConnected(page);
+    }
   }
 }
 
 async function connectOrUnlockWallet(popupPage: Page) {
   const buttonLocator = popupPage
     .getByRole("button", { name: /Unlock wallet/i })
-    .or(popupPage.getByRole("button", { name: /connect button in approve connection flow/i }));
+    .or(popupPage.getByRole("button", { name: /connect button in approve connection flow/i }))
+    .or(popupPage.getByRole("button", { name: /Approve/i }));
   const buttonText = (await buttonLocator.textContent())?.trim();
   if (buttonText === "Unlock wallet") {
     await unlockWallet(popupPage);
-  } else if (buttonText === "Connect") {
+  } else if (buttonText === "Connect" || buttonText === "Approve") {
     await buttonLocator.click();
   } else {
     throw new Error(`Unexpected state in wallet popup: ${buttonText}`);
@@ -136,7 +140,7 @@ export async function approveWalletOperation(popupPage: Page | null) {
 }
 
 export async function unlockWallet(page: Page) {
-  await page.waitForEvent("load", { timeout: 5_000 }).catch(() => {});
+  await page.waitForEvent("load", { timeout: 2_000 }).catch(() => {});
   await page.locator("input").fill(WALLET_PASSWORD);
   await page.getByRole("button", { name: /unlock wallet/i }).click();
 }
