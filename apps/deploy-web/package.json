@@ -141,6 +141,8 @@
     "@akashnetwork/net": "*",
     "@akashnetwork/releaser": "*",
     "@chain-registry/types": "^0.50.12",
+    "@cosmjs/amino": "~0.36.1",
+    "@cosmjs/crypto": "~0.36.1",
     "@faker-js/faker": "^9.4.0",
     "@keplr-wallet/types": "^0.12.111",
     "@next/bundle-analyzer": "^14.0.1",

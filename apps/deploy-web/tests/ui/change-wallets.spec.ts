@@ -1,13 +1,13 @@
 import { expect } from "@playwright/test";
 
 import { test } from "./fixture/context-with-extension";
-import { LeapExt } from "./pages/LeapExt";
+import { WebWallet } from "./pages/WebWallet";
 
 test.describe("Custodial wallet", () => {
   test("switching to another wallet in the extension switches the wallet in Console", async ({ page, context }) => {
-    const extension = new LeapExt(context, page);
+    const extension = new WebWallet(context, page);
     await extension.goto();
-    const newWalletAddress = await extension.createAndUseWallet();
+    const newWalletAddress = await extension.switchToNewWallet();
 
     const container = page.getByLabel("Connected wallet name and balance");
     await container.waitFor({ state: "visible", timeout: 20_000 });
@@ -19,7 +19,7 @@ test.describe("Custodial wallet", () => {
   });
 
   test("wallet stays disconnected after disconnecting and reloading", async ({ page, context }) => {
-    const extension = new LeapExt(context, page);
+    const extension = new WebWallet(context, page);
     await extension.goto();
     await extension.disconnectWallet();
 

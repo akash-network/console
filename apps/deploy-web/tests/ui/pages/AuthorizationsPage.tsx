@@ -1,7 +1,7 @@
 import type { BrowserContext as Context, Locator, Page } from "@playwright/test";
 
 import { testEnvConfig } from "../fixture/test-env.config";
-import { LeapExt } from "./LeapExt";
+import { WebWallet } from "./WebWallet";
 
 export type AuthorizationType = "deployment" | "tx_fee";
 
@@ -55,7 +55,7 @@ export class AuthorizationsPage {
   }
 
   async revokeAll(type: AuthorizationType): Promise<void> {
-    const extension = new LeapExt(this.context, this.page);
+    const extension = new WebWallet(this.context, this.page);
     const selectors = AUTHORIZATION_LIST_LABELS[type];
     const hasGrants = await Promise.race([
       this.getListLocator(type)

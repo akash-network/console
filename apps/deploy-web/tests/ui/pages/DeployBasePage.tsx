@@ -3,7 +3,7 @@ import { expect } from "@playwright/test";
 import process from "node:process";
 
 import { PROVIDERS_WHITELIST, testEnvConfig } from "../fixture/test-env.config";
-import { LeapExt } from "./LeapExt";
+import { WebWallet } from "./WebWallet";
 
 export type FeeType = "low" | "medium" | "high";
 export class DeployBasePage {
@@ -97,7 +97,7 @@ export class DeployBasePage {
   }
 
   async signTransaction(feeType: FeeType = this.feeType) {
-    const extension = new LeapExt(this.context, this.page);
+    const extension = new WebWallet(this.context, this.page);
     await extension.acceptTransaction(feeType);
     await extension.waitForTransaction("success");
   }

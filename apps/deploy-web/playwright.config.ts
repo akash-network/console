@@ -19,7 +19,6 @@ export default defineConfig({
   reporter: "html",
   timeout: 60 * 1000,
   globalTimeout: process.env.CI ? 60 * 60 * 1000 : undefined,
-  globalSetup: "./tests/ui/globalSetup/setup-wallet.ts",
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
@@ -28,7 +27,8 @@ export default defineConfig({
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: "retain-on-failure",
     video: "retain-on-failure",
-    actionTimeout: 15_000
+    actionTimeout: 15_000,
+    permissions: ["clipboard-read", "clipboard-write"]
   },
 
   /* Configure projects for major browsers */
