@@ -21,22 +21,6 @@ export const getInitialNetworksConfig = ({ apiBaseUrl }: { apiBaseUrl: string })
     version: netConfig.getVersion(MAINNET_ID)
   },
   {
-    id: TESTNET_ID,
-    title: "BME Testnet",
-    description: "Testnet of the BME feature.",
-    nodesUrl: `${apiBaseUrl}/blockchain-config?network=testnet`,
-    chainId: "testnet-8",
-    chainRegistryName: "akash-testnet",
-    rpcEndpoint: "",
-    enabled: true,
-    deploymentVersion: "v1beta4",
-    marketVersion: "v1beta5",
-    escrowVersion: "v1",
-    certVersion: "v1",
-    providerVersion: "v1beta4",
-    version: null
-  },
-  {
     id: SANDBOX_ID,
     title: "Sandbox",
     description: "Sandbox of the mainnet version.",
@@ -51,5 +35,21 @@ export const getInitialNetworksConfig = ({ apiBaseUrl }: { apiBaseUrl: string })
     escrowVersion: "v1",
     certVersion: "v1",
     providerVersion: "v1beta4"
+  },
+  {
+    id: TESTNET_ID,
+    title: "Testnet",
+    description: "Testnet of the BME feature.",
+    nodesUrl: `${apiBaseUrl}/blockchain-config?network=testnet`,
+    chainId: "testnet-8",
+    chainRegistryName: "akash-testnet",
+    rpcEndpoint: "",
+    enabled: false,
+    deploymentVersion: "v1beta4",
+    marketVersion: "v1beta5",
+    escrowVersion: "v1",
+    certVersion: "v1",
+    providerVersion: "v1beta4",
+    version: null
   }
 ];
