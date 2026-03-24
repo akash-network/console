@@ -33,7 +33,7 @@ export class WebWallet {
   }
 
   acceptTransaction(feeType: FeeType = "low") {
-    setFeeType(feeType);
+    setFeeType(this.page, feeType);
   }
 
   async waitForTransaction(type: "success" | "error"): Promise<void> {
