@@ -6,7 +6,6 @@ import type { RequestFnResponse } from "@openapi-qraft/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { AlertsListContainer, type ChildrenProps as AlertsListViewProps } from "@src/components/alerts/AlertsListContainer/AlertsListContainer";
-import { LocalNoteProvider } from "@src/context/LocalNoteProvider";
 import { queryClient } from "@src/queries";
 
 import { act, render, screen } from "@testing-library/react";
@@ -96,9 +95,7 @@ describe(AlertsListContainer.name, () => {
     render(
       <CustomSnackbarProvider>
         <TestContainerProvider services={services}>
-          <LocalNoteProvider>
-            <AlertsListContainer>{childCapturer.renderChild}</AlertsListContainer>
-          </LocalNoteProvider>
+          <AlertsListContainer>{childCapturer.renderChild}</AlertsListContainer>
         </TestContainerProvider>
       </CustomSnackbarProvider>
     );

@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { CI_CD_TEMPLATE_ID } from "@src/config/remote-deploy.config";
-import type { ContextType as LocalNotesContext } from "@src/context/LocalNoteProvider/LocalNoteContext";
+import type { LocalNotesContextType as LocalNotesContext } from "@src/context/LocalNoteProvider";
 import type { SdlContextProps } from "@src/context/SdlBuilderProvider";
 import type { AppDIContainer } from "@src/context/ServicesProvider";
 import sdlStore from "@src/store/sdlStore";
