@@ -1,8 +1,10 @@
-import { CoreV1Api, KubeConfig, V1Pod } from "@kubernetes/client-node";
+import { CoreV1Api, KubeConfig, V1Pod, Watch } from "@kubernetes/client-node";
 import { setTimeout as delay } from "timers/promises";
 import { singleton } from "tsyringe";
 
+import { AsyncChannel } from "@src/lib/async-channel/async-channel";
 import { ConfigService } from "@src/services/config/config.service";
+import { ErrorHandlerService } from "@src/services/error-handler/error-handler.service";
 import { LoggerService } from "@src/services/logger/logger.service";
 
 /**
@@ -29,6 +31,9 @@ export interface PodInfo {
 
 export type PodCallback = (podInfo: PodInfo, signal: AbortSignal) => void;
 
+/** A pod lifecycle event yielded by the event stream generators. */
+type PodEvent = { type: "added"; podInfo: PodInfo } | { type: "deleted"; podName: string };
+
 /**
  * Discovers Kubernetes pods in the current namespace for log collection
  *
@@ -38,7 +43,17 @@ export type PodCallback = (podInfo: PodInfo, signal: AbortSignal) => void;
  * - Mapping Kubernetes pod objects to simplified PodInfo structures
  * - Determining the current namespace from kubeconfig or environment
  * - Providing pod metadata needed for log collection
- * - Polling for pod changes and notifying via callbacks
+ * - Watching for pod changes via K8s Watch API with polling fallback
+ *
+ * The watch → fallback → retry logic is expressed as composable generators:
+ *
+ *   podEventStream()           — orchestrator: try watch, fall back, retry
+ *     ├── watchEvents()        — yields pod events from K8s Watch API
+ *     └── pollEvents(signal?)  — yields pod events from periodic listing
+ *
+ * The service consumes `for await (const event of podEventStream())` and
+ * manages tracking state. This cleanly separates event production (generators)
+ * from event consumption (trackPod/untrackPod).
  *
  * The service supports namespace override via environment variables
  * and automatically excludes the current pod from discovery to prevent
@@ -46,6 +61,10 @@ export type PodCallback = (podInfo: PodInfo, signal: AbortSignal) => void;
  */
 @singleton()
 export class PodDiscoveryService {
+  private readonly WATCH_RETRY_INTERVAL_MS = 30_000;
+
+  private readonly MAX_POLL_FAILURES = 3;
+
   private readonly controllers = new Map<string, { ac: AbortController; podInfo: PodInfo }>();
 
   private namespace?: string;
@@ -57,12 +76,16 @@ export class PodDiscoveryService {
    * @param kubeConfig - Kubernetes configuration for context and namespace
    * @param config - Service for accessing configuration values
    * @param loggerService - Service for logging application events
+   * @param errorHandlerService - Service for classifying errors (e.g. 403 detection)
+   * @param watch - Kubernetes Watch client for real-time pod events
    */
   constructor(
     private readonly k8sClient: CoreV1Api,
     private readonly kubeConfig: KubeConfig,
     private readonly config: ConfigService,
-    private readonly loggerService: LoggerService
+    private readonly loggerService: LoggerService,
+    private readonly errorHandlerService: ErrorHandlerService,
+    private readonly watch: Watch
   ) {
     this.loggerService.setContext(PodDiscoveryService.name);
   }
@@ -70,103 +93,261 @@ export class PodDiscoveryService {
   /**
    * Watches for pod changes and invokes callback for each discovered pod.
    *
-   * Performs an initial discovery, then enters a polling loop to detect
-   * pod additions and removals. The returned promise stays pending
-   * indefinitely (same contract as the future watch-based implementation).
+   * Performs an initial discovery, then consumes the pod event stream to track
+   * lifecycle changes. Never resolves under normal operation.
    *
    * @param callback - Called for each discovered pod with an AbortSignal that fires when the pod disappears
    */
   async watchPods(callback: PodCallback): Promise<void> {
-    const pods = await this.discoverPodsInNamespace();
+    const { pods, resourceVersion } = await this.discoverPodsInNamespace();
 
     for (const pod of pods) {
       this.trackPod(pod, callback);
     }
 
-    await this.startPodWatch(callback);
+    for await (const event of this.podEventStream(resourceVersion)) {
+      if (event.type === "added") {
+        this.trackPod(event.podInfo, callback);
+      } else {
+        this.untrackPod(event.podName);
+      }
+    }
   }
 
+  // ---------------------------------------------------------------------------
+  // Event stream generators
+  // ---------------------------------------------------------------------------
+
   /**
-   * Enters a polling loop that periodically re-lists pods and reconciles
-   * additions/removals against the tracked set. Never resolves normally.
+   * Top-level orchestrator generator.
+   * - Tries K8s watch. If it connects and later ends, reconnects immediately.
+   * - On 403, yields from permanent polling.
+   * - On other errors, yields from timed polling, then retries watch.
    *
-   * @param callback - Forwarded to trackPod for newly discovered pods
+   * Threads resourceVersion from initial list → watch → polling → next watch
+   * to avoid missing events between transitions. Resets accumulated watch
+   * errors after a successful watch connection.
+   *
+   * @param initialResourceVersion - resourceVersion from the initial pod list, used for the first watch
    */
-  private async startPodWatch(callback: PodCallback): Promise<void> {
-    const pollInterval = this.config.get("POD_POLL_INTERVAL_MS");
-    const ALWAYS_TRUE_TO_RUN_INDEFINITELY = true;
-    const consecutiveErrors: Error[] = [];
-    while (ALWAYS_TRUE_TO_RUN_INDEFINITELY) {
-      await delay(pollInterval);
+  private async *podEventStream(initialResourceVersion?: string): AsyncGenerator<PodEvent> {
+    const watchErrors: Error[] = [];
+    let resourceVersion = initialResourceVersion;
 
+    const ALWAYS_RETRY = true;
+    while (ALWAYS_RETRY) {
       try {
-        const currentPods = await this.discoverPodsInNamespace();
-        const currentPodNames = new Set(currentPods.map(p => p.podName));
-
-        for (const pod of currentPods) {
-          if (!this.controllers.has(pod.podName)) {
-            this.trackPod(pod, callback);
-          }
-        }
-
-        for (const [podName, { podInfo }] of this.controllers) {
-          if (!currentPodNames.has(podName)) {
-            this.untrackPod(podInfo);
-          }
-        }
-
-        consecutiveErrors.length = 0;
+        yield* this.watchEvents(resourceVersion);
+        watchErrors.length = 0;
       } catch (error) {
-        consecutiveErrors.push(error instanceof Error ? error : new Error(String(error)));
-        this.loggerService.error({ event: "POD_POLL_ERROR", error, consecutiveFailures: consecutiveErrors.length });
+        if (this.errorHandlerService.isForbidden(error)) {
+          this.loggerService.warn({
+            event: "POD_WATCH_FORBIDDEN",
+            message: 'Pod watch is forbidden. Ensure the SDL includes permissions: { read: ["logs", "events"] }'
+          });
+          yield* this.pollEvents();
+          return;
+        }
 
-        if (consecutiveErrors.length >= 3) {
-          throw new AggregateError(consecutiveErrors, `Pod polling failed ${consecutiveErrors.length} times consecutively`);
+        watchErrors.push(error instanceof Error ? error : new Error(String(error)));
+        this.loggerService.warn({ event: "POD_WATCH_FAILED_FALLBACK_TO_POLLING", error });
+
+        try {
+          resourceVersion = yield* this.timedPollEvents(this.WATCH_RETRY_INTERVAL_MS);
+        } catch (pollError) {
+          if (pollError instanceof AggregateError && watchErrors.length > 0) {
+            throw new AggregateError([...watchErrors, ...pollError.errors], pollError.message);
+          }
+          throw pollError;
         }
       }
     }
   }
 
   /**
+   * Yields pod events from the K8s Watch API until the watch stream ends.
+   * Throws on 403 or if the watch setup itself fails.
+   *
+   * @param resourceVersion - If provided, watch starts after this version to avoid replaying known events
+   */
+  private async *watchEvents(resourceVersion?: string): AsyncGenerator<PodEvent> {
+    const namespace = this.getCurrentNamespace();
+    const labelSelector = this.config.get("POD_LABEL_SELECTOR");
+    const path = `/api/v1/namespaces/${namespace}/pods`;
+    const channel = new AsyncChannel<PodEvent>();
+
+    let doneError: unknown;
+    let isDone = false;
+
+    await this.watch
+      .watch(
+        path,
+        { labelSelector, resourceVersion },
+        (phase: string, apiObj: V1Pod) => {
+          if (phase === "DELETED") {
+            const podName = apiObj.metadata?.name;
+            if (podName && this.controllers.has(podName)) {
+              channel.push({ type: "deleted", podName });
+            }
+            return;
+          }
+
+          const podInfo = this.processPod(apiObj);
+          if (!podInfo) return;
+
+          if ((phase === "ADDED" || phase === "MODIFIED") && !this.controllers.has(podInfo.podName)) {
+            channel.push({ type: "added", podInfo });
+          }
+        },
+        (err?: unknown) => {
+          isDone = true;
+          doneError = err;
+          channel.close();
+        }
+      )
+      .then(() => {
+        if (!isDone) {
+          this.loggerService.info({ event: "POD_WATCH_ESTABLISHED", path, labelSelector });
+        }
+      });
+
+    yield* channel;
+
+    if (doneError) {
+      throw doneError;
+    }
+
+    this.loggerService.info({ event: "POD_WATCH_ENDED", namespace });
+  }
+
+  /**
+   * Yields pod events from periodic polling. Polls immediately on entry,
+   * then waits pollInterval between cycles. Runs indefinitely until
+   * MAX_POLL_FAILURES consecutive errors (throws AggregateError).
+   * Returns gracefully when the optional signal is aborted.
+   *
+   * @param signal - Optional AbortSignal to stop polling (used for timed watch retries)
+   * @returns The latest resourceVersion from the last successful list, for resuming watch
+   */
+  private async *pollEvents(signal?: AbortSignal): AsyncGenerator<PodEvent, string | undefined> {
+    const pollInterval = this.config.get("POD_POLL_INTERVAL_MS");
+    const consecutiveErrors: Error[] = [];
+    let lastResourceVersion: string | undefined;
+
+    this.loggerService.info({ event: "POLLING_STARTED", pollInterval });
+
+    try {
+      while (!signal?.aborted) {
+        try {
+          const { pods: currentPods, resourceVersion } = await this.discoverPodsInNamespace();
+          lastResourceVersion = resourceVersion;
+          yield* this.reconcilePolledPods(currentPods);
+          consecutiveErrors.length = 0;
+        } catch (error) {
+          consecutiveErrors.push(error instanceof Error ? error : new Error(String(error)));
+          this.loggerService.error({ event: "POD_POLL_ERROR", error, consecutiveFailures: consecutiveErrors.length });
+
+          if (consecutiveErrors.length >= this.MAX_POLL_FAILURES) {
+            throw new AggregateError(consecutiveErrors, `Pod polling failed ${consecutiveErrors.length} times consecutively`);
+          }
+        }
+
+        try {
+          await delay(pollInterval, null, { signal });
+        } catch {
+          return lastResourceVersion;
+        }
+      }
+    } finally {
+      this.loggerService.info({ event: "POLLING_STOPPED" });
+    }
+
+    return lastResourceVersion;
+  }
+
+  /** Polls for a fixed duration, then returns the latest resourceVersion so the caller can resume watch. */
+  private async *timedPollEvents(durationMs: number): AsyncGenerator<PodEvent, string | undefined> {
+    const ac = new AbortController();
+    const timeout = setTimeout(() => ac.abort(), durationMs);
+
+    try {
+      return yield* this.pollEvents(ac.signal);
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  /** Diffs polled pods against tracked state, yielding add/delete events. */
+  private *reconcilePolledPods(currentPods: PodInfo[]): Generator<PodEvent> {
+    const currentPodNames = new Set(currentPods.map(p => p.podName));
+
+    for (const pod of currentPods) {
+      if (!this.controllers.has(pod.podName)) {
+        yield { type: "added", podInfo: pod };
+      }
+    }
+
+    for (const podName of this.controllers.keys()) {
+      if (!currentPodNames.has(podName)) {
+        yield { type: "deleted", podName };
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Pod discovery & filtering
+  // ---------------------------------------------------------------------------
+
+  /**
    * Discovers all pods in the current namespace, excluding the current pod
    *
-   * @returns Promise that resolves to an array of PodInfo objects for discovered pods
+   * @returns Promise that resolves to discovered pods and the list's resourceVersion
    * @throws Error if namespace cannot be determined or Kubernetes API calls fail
    */
-  async discoverPodsInNamespace(): Promise<PodInfo[]> {
+  async discoverPodsInNamespace(): Promise<{ pods: PodInfo[]; resourceVersion?: string }> {
     const namespace = this.getCurrentNamespace();
 
-    this.loggerService.info({ event: "POD_DISCOVERY_STARTED", namespace });
+    this.loggerService.debug({ event: "POD_DISCOVERY_STARTED", namespace });
 
-    const { items: podsRaw } = await this.k8sClient.listNamespacedPod({
+    const response = await this.k8sClient.listNamespacedPod({
       namespace,
       labelSelector: this.config.get("POD_LABEL_SELECTOR")
     });
 
+    const resourceVersion = response.metadata?.resourceVersion;
     const currentPodName = this.config.get("HOSTNAME");
-    const pods = podsRaw.filter(pod => this.isPodReady(pod)).map(pod => this.mapPodToInfo(pod, namespace));
+    const pods = response.items.filter(pod => this.isPodReady(pod)).map(pod => this.mapPodToInfo(pod, namespace));
 
     const targetPods = this.filterOutPodsFromSameDeployment(pods, currentPodName);
 
-    this.loggerService.info({
+    this.loggerService.debug({
       event: "POD_DISCOVERY_COMPLETED",
       namespace,
-      totalPods: podsRaw.length,
+      totalPods: response.items.length,
       readyPods: pods.length,
       targetPods: targetPods.length,
       currentPodName
     });
 
-    return targetPods;
+    return { pods: targetPods, resourceVersion };
   }
+
+  // ---------------------------------------------------------------------------
+  // Pod tracking
+  // ---------------------------------------------------------------------------
 
   /**
    * Starts tracking a pod by creating an AbortController and invoking the callback.
+   * Skips if the pod is already tracked (deduplication guard for watch events).
    *
    * @param podInfo - The pod to track
    * @param callback - Called with the pod info and an AbortSignal tied to this pod's lifecycle
    */
   private trackPod(podInfo: PodInfo, callback: PodCallback): void {
+    if (this.controllers.has(podInfo.podName)) {
+      return;
+    }
+
     const ac = new AbortController();
     this.controllers.set(podInfo.podName, { ac, podInfo });
     this.loggerService.info({
@@ -180,19 +361,45 @@ export class PodDiscoveryService {
   /**
    * Stops tracking a pod by aborting its signal and removing it from the map.
    *
-   * @param podInfo - The pod to untrack
+   * @param podName - Name of the pod to untrack
    */
-  private untrackPod(podInfo: PodInfo): void {
-    const entry = this.controllers.get(podInfo.podName);
+  private untrackPod(podName: string): void {
+    const entry = this.controllers.get(podName);
     if (entry) {
       this.loggerService.info({
         event: "POD_DELETED",
-        podName: podInfo.podName,
-        namespace: podInfo.namespace
+        podName: entry.podInfo.podName,
+        namespace: entry.podInfo.namespace
       });
       entry.ac.abort();
-      this.controllers.delete(podInfo.podName);
+      this.controllers.delete(podName);
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Pod filtering utilities
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Filters a raw V1Pod through readiness and same-deployment checks.
+   *
+   * @param pod - Raw Kubernetes pod object
+   * @returns PodInfo if the pod should be tracked, null otherwise
+   */
+  private processPod(pod: V1Pod): PodInfo | null {
+    if (!this.isPodReady(pod)) {
+      return null;
+    }
+
+    const namespace = this.getCurrentNamespace();
+    const podInfo = this.mapPodToInfo(pod, namespace);
+    const currentPodName = this.config.get("HOSTNAME");
+
+    if (podInfo.podName === currentPodName || this.isPodFromSameDeployment(podInfo.podName, currentPodName)) {
+      return null;
+    }
+
+    return podInfo;
   }
 
   /**
@@ -231,6 +438,10 @@ export class PodDiscoveryService {
   private filterOutPodsFromSameDeployment(pods: PodInfo[], currentPodName: string): PodInfo[] {
     return pods.filter(pod => pod.podName !== currentPodName && !this.isPodFromSameDeployment(pod.podName, currentPodName));
   }
+
+  // ---------------------------------------------------------------------------
+  // Namespace resolution
+  // ---------------------------------------------------------------------------
 
   /**
    * Determines the current namespace for pod discovery

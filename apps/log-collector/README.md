@@ -8,7 +8,7 @@ The Log Collector leverages internal Kubernetes access to discover and stream lo
 
 ## Features
 
-- **Automatic Pod Discovery**: Discovers all pods in the deployment namespace and automatically excludes itself
+- **Automatic Pod Discovery**: Discovers all pods in the deployment namespace using K8s Watch API (with polling fallback) and excludes pods from the same deployment
 - **Real-time Log Streaming**: Streams logs from all discovered pods with automatic reconnection on pod restarts
 - **File-based Output**: Writes raw logs to files organized by namespace and pod name
 - **Automatic Log Rotation**: Rotates log files when they reach configurable size limits
@@ -20,7 +20,7 @@ The Log Collector leverages internal Kubernetes access to discover and stream lo
 ## How It Works
 
 1. **Namespace Discovery**: The collector automatically detects the Kubernetes namespace it's deployed in
-2. **Pod Discovery**: Scans the namespace for all running pods (excluding pods from the same deployment), with optional label-based filtering via `POD_LABEL_SELECTOR`
+2. **Pod Discovery**: Uses the K8s Watch API for real-time pod lifecycle events (ADDED, MODIFIED, DELETED). Pods that become ready after creation are picked up via MODIFIED events. If watch is unavailable (e.g., RBAC lacks the `watch` verb), falls back to periodic polling. On non-403 watch failures, polls temporarily and retries watch every 30 seconds. Excludes pods from the same deployment, with optional label-based filtering via `POD_LABEL_SELECTOR`
 3. **Log Streaming**: Establishes log streams for each pod
 4. **File Output**: Writes collected logs to files for external processing
 5. **Log Rotation**: Automatically rotates log files when they reach the configured size limit, maintaining up to `LOG_MAX_ROTATED_FILES` rotated files
@@ -37,6 +37,8 @@ These are the environment variables you need to configure for production deploym
 | `LOG_MAX_FILE_SIZE_BYTES` | Max file size before rotation               | `10_485_760` (10MB) | `20_971_520` (20MB)                |
 | `LOG_MAX_ROTATED_FILES`   | Max number of rotated files                 | `5`                 | `10`                               |
 | `POD_LABEL_SELECTOR`      | Kubernetes label selector for pod discovery | unset (all pods)    | `"app=web,environment=production"` |
+| `POD_POLL_INTERVAL_MS`    | Interval between poll cycles (fallback mode) | `5000`              | `10000`                            |
+
 ### Log Collection Configuration
 
 **Note**: Output destinations are automatically configured at startup based on environment variables. No manual configuration files needed.
