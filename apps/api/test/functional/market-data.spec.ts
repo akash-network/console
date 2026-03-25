@@ -6,52 +6,36 @@ import { app } from "@src/rest-app";
 
 describe("Market Data", () => {
   beforeAll(async () => {
-    // Clean up any existing nock interceptors
-    nock.cleanAll();
-
     const restApiNodeUrl = container.resolve(CORE_CONFIG).REST_API_NODE_URL;
 
     nock(restApiNodeUrl)
       .persist()
-      .get("/cosmos/base/tendermint/v1beta1/node_info")
-      .reply(200, { application_version: { version: "1.4.0" } });
+      .get("/cosmos/base/tendermint/v1beta1/blocks/latest")
+      .reply(200, { block: { header: { height: "1000000" } } });
 
-    const coinGeckoApiUrl = "https://api.coingecko.com";
-
-    // More permissive nock setup that matches any headers
-    nock(coinGeckoApiUrl)
+    nock(restApiNodeUrl)
       .persist()
-      .get("/api/v3/coins/akash-network")
-      .reply(200, {
-        id: "akash-network",
-        symbol: "akt",
-        name: "Akash Network",
-        market_cap_rank: 207,
-        market_data: {
-          current_price: { usd: 1.39 },
-          total_volume: { usd: 24486696 },
-          market_cap: { usd: 377551881 },
-          price_change_24h: 0.139789,
-          price_change_percentage_24h: 11.16476
-        }
-      });
+      .get("/akash/oracle/v1/aggregated_price/akt")
+      .query(true)
+      .reply(200, { aggregated_price: { median_price: "1.5" } });
 
-    nock(coinGeckoApiUrl)
+    nock(restApiNodeUrl)
       .persist()
-      .get("/api/v3/coins/usd-coin")
-      .reply(200, {
-        id: "usd-coin",
-        symbol: "usdc",
-        name: "USDC",
-        market_cap_rank: 7,
-        market_data: {
-          current_price: { usd: 0.999799 },
-          total_volume: { usd: 5128684853 },
-          market_cap: { usd: 61116243104 },
-          price_change_24h: 0.00003746,
-          price_change_percentage_24h: 0.00375
-        }
-      });
+      .get("/akash/oracle/v1/aggregated_price/usdc")
+      .query(true)
+      .reply(200, { aggregated_price: { median_price: "1.0" } });
+
+    nock(restApiNodeUrl)
+      .persist()
+      .get("/akash/oracle/v1/prices")
+      .query(q => q["filters.asset_denom"] === "akt")
+      .reply(200, { prices: [{ state: { price: "1.25" } }] });
+
+    nock(restApiNodeUrl)
+      .persist()
+      .get("/akash/oracle/v1/prices")
+      .query(q => q["filters.asset_denom"] === "usdc")
+      .reply(200, { prices: [{ state: { price: "0.5" } }] });
   });
 
   afterAll(() => {
@@ -64,32 +48,32 @@ describe("Market Data", () => {
 
       expect(response.status).toBe(200);
       const data = (await response.json()) as any;
-      expect(data.price).toBe(1.39);
-      expect(data.volume).toBe(24486696);
-      expect(data.marketCap).toBe(377551881);
-      expect(data.marketCapRank).toBe(207);
-      expect(data.priceChange24h).toBe(0.139789);
-      expect(data.priceChangePercentage24).toBe(11.16476);
+      expect(data.price).toBe(1.5);
+      expect(data.volume).toBe(0);
+      expect(data.marketCap).toBe(0);
+      expect(data.marketCapRank).toBe(0);
+      expect(data.priceChange24h).toBe(0.25);
+      expect(data.priceChangePercentage24).toBe(20);
     });
 
     [
       {
         coin: "akash-network",
-        price: 1.39,
-        volume: 24486696,
-        marketCap: 377551881,
-        marketCapRank: 207,
-        priceChange24h: 0.139789,
-        priceChangePercentage24: 11.16476
+        price: 1.5,
+        volume: 0,
+        marketCap: 0,
+        marketCapRank: 0,
+        priceChange24h: 0.25,
+        priceChangePercentage24: 20
       },
       {
         coin: "usd-coin",
-        price: 0.999799,
-        volume: 5128684853,
-        marketCap: 61116243104,
-        marketCapRank: 7,
-        priceChange24h: 0.00003746,
-        priceChangePercentage24: 0.00375
+        price: 1.0,
+        volume: 0,
+        marketCap: 0,
+        marketCapRank: 0,
+        priceChange24h: 0.5,
+        priceChangePercentage24: 100
       }
     ].forEach(({ coin, price, volume, marketCap, marketCapRank, priceChange24h, priceChangePercentage24 }) => {
       it(`returns market data for ${coin} when requested`, async () => {

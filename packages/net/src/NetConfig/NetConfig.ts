@@ -4,8 +4,7 @@ export type SupportedChainNetworks = keyof typeof netConfigData;
 
 export class NetConfig {
   readonly networkMap: Partial<Record<string, SupportedChainNetworks>> = {
-    sandbox: "sandbox-2",
-    testnet: "testnet-bme"
+    sandbox: "sandbox-2"
   };
 
   mapped(network: string): SupportedChainNetworks {
@@ -25,7 +24,7 @@ export class NetConfig {
   }
 
   getAllBaseAPIUrls(network: string): string[] {
-    return netConfigData[this.mapped(network)].apiUrls;
+    return netConfigData[this.mapped(network)].apiUrls ?? [];
   }
 
   getBaseAPIUrl(network: string): string {
@@ -45,6 +44,6 @@ export class NetConfig {
   }
 
   getAllBaseRpcUrls(network: string): string[] {
-    return netConfigData[this.mapped(network)].rpcUrls;
+    return netConfigData[this.mapped(network)].rpcUrls ?? [];
   }
 }
