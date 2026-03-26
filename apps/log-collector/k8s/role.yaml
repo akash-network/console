@@ -5,7 +5,10 @@ metadata:
   name: tenant-pod-reader
 rules:
   - apiGroups: [""]
-    resources: ["pods", "pods/log"]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
     verbs: ["get", "list"]
   - apiGroups: [""]
     resources: ["events"]

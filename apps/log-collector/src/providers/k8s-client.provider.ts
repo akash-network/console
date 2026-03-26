@@ -5,7 +5,7 @@
  * services. The KubeConfig is loaded from default sources (kubeconfig file, environment
  * variables, etc.) and used to create API clients.
  */
-import { CoreV1Api, KubeConfig, Log } from "@kubernetes/client-node";
+import { CoreV1Api, KubeConfig, Log, Watch } from "@kubernetes/client-node";
 import { container } from "tsyringe";
 
 // Register KubeConfig with default configuration
@@ -37,5 +37,13 @@ container.register(Log, {
   useFactory: c => {
     const kc = c.resolve(KubeConfig);
     return new Log(kc);
+  }
+});
+
+// Register Watch client using the configured KubeConfig
+container.register(Watch, {
+  useFactory: c => {
+    const kc = c.resolve(KubeConfig);
+    return new Watch(kc);
   }
 });

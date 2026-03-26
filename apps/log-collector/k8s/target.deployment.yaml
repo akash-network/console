@@ -22,6 +22,7 @@ spec:
             - /bin/sh
             - -c
             - |
+              echo "$(date -u +%Y-%m-%dT%H:%M:%S).000Z [INFO] LOG TARGET STARTED <----------"
               while true; do
                 echo "$(date -u +%Y-%m-%dT%H:%M:%S).000Z [INFO] Dummy log message from pod dummy-logging-pod"
                 echo "$(date -u +%Y-%m-%dT%H:%M:%S).000Z [ERROR] This is a test error message"
