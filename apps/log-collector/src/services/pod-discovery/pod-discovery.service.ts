@@ -153,7 +153,7 @@ export class PodDiscoveryService {
         this.loggerService.warn({ event: "POD_WATCH_FAILED_FALLBACK_TO_POLLING", error });
 
         try {
-          resourceVersion = yield* this.timedPollEvents(this.WATCH_RETRY_INTERVAL_MS);
+          resourceVersion = yield* this.pollEvents(AbortSignal.timeout(this.WATCH_RETRY_INTERVAL_MS));
         } catch (pollError) {
           if (pollError instanceof AggregateError && watchErrors.length > 0) {
             throw new AggregateError([...watchErrors, ...pollError.errors], pollError.message);
@@ -263,18 +263,6 @@ export class PodDiscoveryService {
     }
 
     return lastResourceVersion;
-  }
-
-  /** Polls for a fixed duration, then returns the latest resourceVersion so the caller can resume watch. */
-  private async *timedPollEvents(durationMs: number): AsyncGenerator<PodEvent, string | undefined> {
-    const ac = new AbortController();
-    const timeout = setTimeout(() => ac.abort(), durationMs);
-
-    try {
-      return yield* this.pollEvents(ac.signal);
-    } finally {
-      clearTimeout(timeout);
-    }
   }
 
   /** Diffs polled pods against tracked state, yielding add/delete events. */
