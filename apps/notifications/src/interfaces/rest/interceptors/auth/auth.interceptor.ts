@@ -24,7 +24,7 @@ export class AuthInterceptor implements NestInterceptor {
 
     request.ability = defineAbility(can => {
       can("manage", "NotificationChannel", { userId });
-      can(["read", "delete"], "Alert", { userId });
+      can(["create", "read", "delete"], "Alert", { userId });
       can("update", "Alert", ["enabled"], { userId });
       can("manage", "DeploymentAlert", { userId });
     });
