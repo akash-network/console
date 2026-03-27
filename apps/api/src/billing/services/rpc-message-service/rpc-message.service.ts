@@ -3,6 +3,7 @@ import {
   DepositAuthorization_Scope,
   MsgAccountDeposit,
   MsgCreateCertificate,
+  MsgMintACT,
   Scope,
   Source
 } from "@akashnetwork/chain-sdk/private-types/akash.v1";
@@ -263,6 +264,20 @@ export class RpcMessageService {
           dseq
         },
         hash
+      })
+    };
+  }
+
+  getMintACTMsg({ owner, amount }: { owner: string; amount: number }) {
+    return {
+      typeUrl: `/${MsgMintACT.$type}`,
+      value: MsgMintACT.fromPartial({
+        owner,
+        to: owner,
+        coinsToBurn: {
+          denom: "uakt",
+          amount: amount.toString()
+        }
       })
     };
   }
