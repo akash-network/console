@@ -9,6 +9,8 @@ import { DrainingDeployment } from "@src/deployment/types/draining-deployment";
 
 @scoped(Lifecycle.ResolutionScoped)
 export class TopUpManagedDeploymentsInstrumentationService {
+  private readonly USER_SIDE_ERROR_PATTERNS = ["insufficient balance", "deployment closed", "deposit invalid"];
+
   private readonly meter: Meter;
   private readonly jobExecutions: Counter;
   private readonly jobDuration: Histogram;
@@ -144,19 +146,32 @@ export class TopUpManagedDeploymentsInstrumentationService {
     }[];
     error: unknown;
   }): void {
-    this.topUpSummarizer.trackFailedWallet(errorDetails.owner);
-    this.topUpSummarizer.inc("deploymentTopUpErrorCount", errorDetails.items.length);
-
-    this.logger.error({
+    const serialized = this.serializeError(error);
+    const isUserSideError = this.isUserSideError(serialized.message);
+    const log = {
       event: "TOP_UP_DEPLOYMENTS_ERROR",
       ...errorDetails,
-      ...this.serializeError(error),
+      ...serialized,
       dryRun: this.options?.dryRun
-    });
+    };
+
+    if (isUserSideError) {
+      this.topUpSummarizer.inc("userSideErrorCount", errorDetails.items.length);
+      this.logger.warn(log);
+    } else {
+      this.topUpSummarizer.trackFailedWallet(errorDetails.owner);
+      this.topUpSummarizer.inc("deploymentTopUpErrorCount", errorDetails.items.length);
+      this.logger.error(log);
+    }
 
     this.execWhenEnabled(() => {
-      this.chainTxErrors.add(1);
+      this.chainTxErrors.add(1, { error_type: isUserSideError ? "user_side" : "system" });
     });
+  }
+
+  private isUserSideError(message: string): boolean {
+    const lowerMessage = message.toLowerCase();
+    return this.USER_SIDE_ERROR_PATTERNS.some(pattern => lowerMessage.includes(pattern));
   }
 
   recordMessagePreparationError({ error, ...errorDetails }: { deployment: DrainingDeployment; error: unknown }): void {

@@ -61,7 +61,7 @@ describe(TopUpManagedDeploymentsInstrumentationService.name, () => {
   });
 
   describe("recordChainTxError", () => {
-    it("tracks failed wallet and logs error", () => {
+    it("tracks failed wallet and logs error for system errors", () => {
       const { service, logger, summarizer } = setup();
       service.start(100, { dryRun: false });
       const details = createDepositDetails();
@@ -69,7 +69,66 @@ describe(TopUpManagedDeploymentsInstrumentationService.name, () => {
       service.recordChainTxError({ ...details, error: new Error("tx failed") });
 
       expect(summarizer.get("deploymentTopUpErrorCount")).toBe(1);
+      expect(summarizer.get("userSideErrorCount")).toBe(0);
       expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "TOP_UP_DEPLOYMENTS_ERROR" }));
+    });
+
+    it("logs warning for user-side insufficient balance errors", () => {
+      const { service, logger, summarizer } = setup();
+      service.start(100, { dryRun: false });
+      const details = createDepositDetails();
+
+      service.recordChainTxError({ ...details, error: new Error("deposit invalid: insufficient balance") });
+
+      expect(summarizer.get("userSideErrorCount")).toBe(1);
+      expect(summarizer.get("deploymentTopUpErrorCount")).toBe(0);
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "TOP_UP_DEPLOYMENTS_ERROR" }));
+      expect(logger.error).not.toHaveBeenCalled();
+    });
+
+    it("logs warning for user-side deployment closed errors", () => {
+      const { service, logger, summarizer } = setup();
+      service.start(100, { dryRun: false });
+      const details = createDepositDetails();
+
+      service.recordChainTxError({ ...details, error: new Error("Deployment closed") });
+
+      expect(summarizer.get("userSideErrorCount")).toBe(1);
+      expect(summarizer.get("deploymentTopUpErrorCount")).toBe(0);
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "TOP_UP_DEPLOYMENTS_ERROR" }));
+      expect(logger.error).not.toHaveBeenCalled();
+    });
+
+    it("logs warning for user-side deposit invalid errors", () => {
+      const { service, logger, summarizer } = setup();
+      service.start(100, { dryRun: false });
+      const details = createDepositDetails();
+
+      service.recordChainTxError({ ...details, error: new Error("deposit invalid: some reason") });
+
+      expect(summarizer.get("userSideErrorCount")).toBe(1);
+      expect(summarizer.get("deploymentTopUpErrorCount")).toBe(0);
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "TOP_UP_DEPLOYMENTS_ERROR" }));
+    });
+
+    it("records metric with user_side error type for user-side errors", () => {
+      const { service, countersByName } = setup();
+      service.start(100, { dryRun: false });
+      const details = createDepositDetails();
+
+      service.recordChainTxError({ ...details, error: new Error("Deployment closed") });
+
+      expect(countersByName["auto_top_up_chain_tx_errors_total"]?.add).toHaveBeenCalledWith(1, { error_type: "user_side" });
+    });
+
+    it("records metric with system error type for system errors", () => {
+      const { service, countersByName } = setup();
+      service.start(100, { dryRun: false });
+      const details = createDepositDetails();
+
+      service.recordChainTxError({ ...details, error: new Error("tx failed") });
+
+      expect(countersByName["auto_top_up_chain_tx_errors_total"]?.add).toHaveBeenCalledWith(1, { error_type: "system" });
     });
   });
 
