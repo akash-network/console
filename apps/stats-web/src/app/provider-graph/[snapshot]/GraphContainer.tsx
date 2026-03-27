@@ -12,6 +12,7 @@ import { TimeRange } from "@/components/graph/TimeRange";
 import { SELECTED_RANGE_VALUES } from "@/config/date.config";
 import { percIncrease } from "@/lib/mathHelpers";
 import { getProviderSnapshotMetadata } from "@/lib/providerUtils";
+import { useCompletedSnapshots } from "@/hooks/useCompletedSnapshots";
 import type { SNAPSHOT_NOT_FOUND } from "@/lib/snapshotsUrlHelpers";
 import { useProviderGraphSnapshot } from "@/queries";
 import type { ProviderSnapshots } from "@/types";
@@ -28,7 +29,8 @@ export default function GraphContainer({ snapshot }: IGraphProps) {
   const [selectedRange, setSelectedRange] = useState(SELECTED_RANGE_VALUES["7D"]);
   const { data: snapshotData, status } = useProviderGraphSnapshot(snapshot);
   const snapshotMetadata = snapshotData && getProviderSnapshotMetadata(snapshot as ProviderSnapshots);
-  const rangedData = snapshotData && snapshotData.snapshots.slice(Math.max(snapshotData.snapshots.length - selectedRange, 0), snapshotData.snapshots.length);
+  const completedSnapshots = useCompletedSnapshots(snapshotData?.snapshots);
+  const rangedData = completedSnapshots && completedSnapshots.slice(Math.max(completedSnapshots.length - selectedRange, 0), completedSnapshots.length);
   const metric = snapshotMetadata && snapshotMetadata.unitFn(snapshotData.currentValue);
   const metricDiff = snapshotMetadata && snapshotMetadata.unitFn(snapshotData.currentValue - snapshotData.compareValue);
 
