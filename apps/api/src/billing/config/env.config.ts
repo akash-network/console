@@ -36,6 +36,7 @@ export const envSchema = z.object({
     .string()
     .default(AUDITOR)
     .transform(val => (val ? val.split(",").map(addr => addr.trim()) : [])),
+  MASTER_WALLET_TARGET_ACT_BALANCE: z.number({ coerce: true }).default(10_000_000_000),
   TX_SIGNER_BASE_URL: z.string()
 });
 

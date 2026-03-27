@@ -1,9 +1,13 @@
 import { extractData } from "../http/http.service";
 import type { HttpClient } from "../utils/httpClient";
-import type { BmeLedgerFilters, BmeLedgerResponse } from "./types";
+import type { BmeLedgerFilters, BmeLedgerResponse, BmeParamsResponse } from "./types";
 
 export class BmeHttpService {
   constructor(private readonly httpClient: HttpClient) {}
+
+  async getParams(): Promise<BmeParamsResponse> {
+    return extractData(await this.httpClient.get<BmeParamsResponse>("/akash/bme/v1/params"));
+  }
 
   async getLedgerRecords(filters?: BmeLedgerFilters, pagination?: { limit?: number; offset?: number }): Promise<BmeLedgerResponse> {
     const params = new URLSearchParams();

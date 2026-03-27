@@ -52,6 +52,12 @@ export interface BmeLedgerResponse {
   };
 }
 
+export interface BmeParamsResponse {
+  params: {
+    min_mint: Array<{ denom: string; amount: string }>;
+  };
+}
+
 export interface BmeLedgerFilters {
   source?: string;
   denom?: string;
