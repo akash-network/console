@@ -24,7 +24,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version-file: package.json
       - name: Fetch PR head ref (no checkout)
         run: |
           git fetch origin pull/${{ github.event.pull_request.number }}/head
