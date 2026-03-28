@@ -4,8 +4,8 @@ import type { NetworkStore } from "@akashnetwork/network-store";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { ChainContext as CustodialWallet, useSelectedChain } from "@src/context/CustomChainProvider";
 import type { ContextType as WalletContext } from "@src/context/WalletProvider";
+import type { ChainContext as CustodialWallet, useSelectedChain } from "@src/store/chainStore";
 import type * as storedWalletsService from "@src/utils/walletUtils";
 import { DEPENDENCIES, useProviderJwt } from "./useProviderJwt";
 
