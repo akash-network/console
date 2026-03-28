@@ -7,6 +7,10 @@ export class NetConfig {
     sandbox: "sandbox-2"
   };
 
+  isSupported(network: string): boolean {
+    return this.networkMap[network] !== undefined || network in netConfigData;
+  }
+
   mapped(network: string): SupportedChainNetworks {
     if (this.networkMap[network]) {
       return this.networkMap[network];
