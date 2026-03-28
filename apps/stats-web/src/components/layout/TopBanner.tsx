@@ -8,7 +8,7 @@ import { useChainMaintenanceDetails, useGenericBannerDetails, useTopBanner } fro
 
 const healthStatusMessages: Record<Exclude<BlockchainHealthStatus, "healthy">, string> = {
   "rpc-issue": "Stats may be temporarily stale due to connectivity issues.",
-  "chain-down": "Blockchain appears to be down — stats are stale until service is restored."
+  "chain-down": "Blockchain unavailable — stats are stale until service is restored."
 };
 
 function BlockchainHealthBanner({ status }: { status: Exclude<BlockchainHealthStatus, "healthy"> }) {
