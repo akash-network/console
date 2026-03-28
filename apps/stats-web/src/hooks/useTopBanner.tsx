@@ -43,7 +43,7 @@ export function useTopBanner(): ITopBannerContext {
   useEffect(() => {
     function pingBlockchainNode() {
       axios
-        .get<{ isHealthy: boolean }>(`/api/blockchain-node-status?network=${chainNetwork.id}`)
+        .get<{ isHealthy: boolean }>(`/api/blockchain-config/health?network=${chainNetwork.id}`)
         .then(response => {
           setIsBlockchainDown(!response.data.isHealthy);
         })
