@@ -43,17 +43,9 @@ export function useTopBanner(): ITopBannerContext {
   useEffect(() => {
     function pingBlockchainNode() {
       axios
-        .get<Array<{ api: string }>>(chainNetwork.nodesUrl)
+        .get<{ isHealthy: boolean }>(`/api/blockchain-node-status?network=${chainNetwork.id}`)
         .then(response => {
-          const api = response.data[0]?.api;
-          if (!api) {
-            throw new Error("No blockchain API endpoint configured for selected network.");
-          }
-          return axios.get(`${api}/cosmos/base/tendermint/v1beta1/node_info`, { timeout: 5000 });
-        })
-        .then(response => {
-          const isAvailable = response.status >= 200 && response.status < 300;
-          setIsBlockchainDown(!isAvailable);
+          setIsBlockchainDown(!response.data.isHealthy);
         })
         .catch(() => {
           setIsBlockchainDown(true);
@@ -66,7 +58,7 @@ export function useTopBanner(): ITopBannerContext {
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [chainNetwork.nodesUrl, setIsBlockchainDown]);
+  }, [chainNetwork.id, setIsBlockchainDown]);
 
   return useMemo(
     () => ({
