@@ -4,7 +4,7 @@ import type { SnapshotValue } from "@/types";
 
 export function useCompletedSnapshots(snapshots: SnapshotValue[] | undefined) {
   return useMemo(() => {
-    if (!snapshots || snapshots.length === 0) {
+    if (!snapshots || snapshots.length <= 1) {
       return undefined;
     }
 
