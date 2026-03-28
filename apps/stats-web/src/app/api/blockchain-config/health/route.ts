@@ -19,8 +19,13 @@ export async function GET(request: Request) {
   }
 
   const network = result.data;
-  const apiUrl =
-    network === "mainnet" ? serverEnvConfig.DEFAULT_REST_API_NODE_URL_MAINNET ?? netConfig.getBaseAPIUrl("mainnet") : netConfig.getBaseAPIUrl(network);
+
+  let apiUrl: string;
+  try {
+    apiUrl = network === "mainnet" ? serverEnvConfig.DEFAULT_REST_API_NODE_URL_MAINNET ?? netConfig.getBaseAPIUrl("mainnet") : netConfig.getBaseAPIUrl(network);
+  } catch {
+    return NextResponse.json({ status: "rpc-issue" satisfies BlockchainHealthStatus });
+  }
 
   let nodeInfoResponse: Response;
   try {
