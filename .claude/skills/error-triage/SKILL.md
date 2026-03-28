@@ -13,7 +13,7 @@ Scan #console-alerts, diagnose what's actually broken, and create Linear issues 
 
 Use Slack MCP tools to read recent messages from the alerts channel.
 
-```
+```text
 Use ToolSearch to find: slack_read_channel
 Read recent messages from #console-alerts.
 ```
@@ -59,7 +59,7 @@ The `find_error_pattern_logs` tool may not be available (Sift plugin). Fall back
 - :white_check_mark: (checkmark) — the alert has been addressed
 - Thread replies often contain the **Linear issue link** for the fix
 
-If an alert has a checkmark reaction, it's been handled. If it has eyes, someone is investigating — note who. If a thread reply contains a Linear issue link (e.g., `CON-XXX`), record it so you can skip the duplicate check for that alert.
+A checkmark reaction means the alert has been handled. An eyes reaction means someone is investigating — note who. Record any thread reply that contains a Linear issue link (e.g., `CON-XXX`) so you can skip the duplicate check for that alert.
 
 Skip:
 - Deployment approval requests (CI/CD notifications)
@@ -89,7 +89,7 @@ For each alert category that needs attention, investigate enough to write a usef
 **Search the codebase**: This is a monorepo with apps under `apps/` and packages under `packages/`. Use the error details (endpoint, service name, error message) to find the relevant code.
 
 **Query Grafana** — always do this for Grafana alerts (especially "empty" Slack messages):
-```
+```text
 Use ToolSearch to find relevant Grafana tools:
 - query_loki_logs — search application logs for the error pattern
 - query_prometheus — check error rate metrics
@@ -102,7 +102,7 @@ Useful things to look for: frequency, timeline (does it correlate with a deploy?
 
 **Investigate Sentry errors** — always do this for Sentry alerts:
 
-```
+```text
 Use ToolSearch to find Sentry tools:
 - search_issues — find the Sentry issue by error message, service, or title
 - search_issue_events — list recent error events for a specific issue
@@ -241,7 +241,7 @@ Every alert message should be attended to. After triage is complete, reply in th
 
 **Sentry alert replies** — post one detailed reply per Sentry thread:
 
-```
+```text
 ✅ Investigated via Sentry:
 • Error: <error type and message>
 • Scope: <N users affected, N events in last 24h>
