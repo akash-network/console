@@ -1,5 +1,5 @@
 import { MsgAccountDeposit } from "@akashnetwork/chain-sdk/private-types/akash.v1";
-import { MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
+import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { MsgCreateLease } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 import type { LeaseHttpService } from "@akashnetwork/http-sdk";
 import type { MongoAbility } from "@casl/ability";
@@ -20,6 +20,7 @@ import type { TrialValidationService } from "@src/billing/services/trial-validat
 import type { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import type { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import type { FeatureFlagValue } from "@src/core/services/feature-flags/feature-flags";
+import type { NotificationService } from "@src/notifications/services/notification/notification.service";
 import type { UserOutput, UserRepository } from "@src/user/repositories";
 import { createAkashAddress } from "../../../../test/seeders";
 import type { TxManagerService } from "../tx-manager/tx-manager.service";
@@ -292,6 +293,124 @@ describe(ManagedSignerService.name, () => {
       expect(userRepository.findById).not.toHaveBeenCalled();
     });
 
+    it("disables deployment alerts for a single MsgCloseDeployment", async () => {
+      const wallet = UserWalletSeeder.create({
+        userId: "user-123",
+        feeAllowance: 100,
+        deploymentAllowance: 100
+      });
+      const user = UserSeeder.create({ userId: "user-123" });
+      const messages: EncodeObject[] = [
+        {
+          typeUrl: `/${MsgCloseDeployment.$type}`,
+          value: MsgCloseDeployment.fromPartial({ id: { owner: wallet.address, dseq: 456 } })
+        }
+      ];
+
+      const { service, notificationService } = setup({
+        findOneByUserId: jest.fn().mockResolvedValue(wallet),
+        findById: jest.fn().mockResolvedValue(user),
+        signAndBroadcastWithDerivedWallet: jest.fn().mockResolvedValue({
+          code: 0,
+          hash: "tx-hash",
+          rawLog: "success"
+        }),
+        refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined)
+      });
+
+      await service.executeDerivedDecodedTxByUserId("user-123", messages);
+
+      expect(notificationService.disableDeploymentAlerts).toHaveBeenCalledTimes(1);
+      expect(notificationService.disableDeploymentAlerts).toHaveBeenCalledWith({
+        userId: "user-123",
+        walletAddress: wallet.address,
+        dseq: "456"
+      });
+    });
+
+    it("disables deployment alerts for multiple MsgCloseDeployment messages", async () => {
+      const wallet = UserWalletSeeder.create({
+        userId: "user-123",
+        feeAllowance: 100,
+        deploymentAllowance: 100
+      });
+      const user = UserSeeder.create({ userId: "user-123" });
+      const messages: EncodeObject[] = [
+        {
+          typeUrl: `/${MsgCloseDeployment.$type}`,
+          value: MsgCloseDeployment.fromPartial({ id: { owner: wallet.address, dseq: 100 } })
+        },
+        {
+          typeUrl: `/${MsgCloseDeployment.$type}`,
+          value: MsgCloseDeployment.fromPartial({ id: { owner: wallet.address, dseq: 200 } })
+        },
+        {
+          typeUrl: `/${MsgCloseDeployment.$type}`,
+          value: MsgCloseDeployment.fromPartial({ id: { owner: wallet.address, dseq: 300 } })
+        }
+      ];
+
+      const { service, notificationService } = setup({
+        findOneByUserId: jest.fn().mockResolvedValue(wallet),
+        findById: jest.fn().mockResolvedValue(user),
+        signAndBroadcastWithDerivedWallet: jest.fn().mockResolvedValue({
+          code: 0,
+          hash: "tx-hash",
+          rawLog: "success"
+        }),
+        refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined)
+      });
+
+      await service.executeDerivedDecodedTxByUserId("user-123", messages);
+
+      expect(notificationService.disableDeploymentAlerts).toHaveBeenCalledTimes(3);
+      expect(notificationService.disableDeploymentAlerts).toHaveBeenCalledWith({
+        userId: "user-123",
+        walletAddress: wallet.address,
+        dseq: "100"
+      });
+      expect(notificationService.disableDeploymentAlerts).toHaveBeenCalledWith({
+        userId: "user-123",
+        walletAddress: wallet.address,
+        dseq: "200"
+      });
+      expect(notificationService.disableDeploymentAlerts).toHaveBeenCalledWith({
+        userId: "user-123",
+        walletAddress: wallet.address,
+        dseq: "300"
+      });
+    });
+
+    it("does not disable deployment alerts when no MsgCloseDeployment is present", async () => {
+      const wallet = UserWalletSeeder.create({
+        userId: "user-123",
+        feeAllowance: 100,
+        deploymentAllowance: 100
+      });
+      const user = UserSeeder.create({ userId: "user-123" });
+      const messages: EncodeObject[] = [
+        {
+          typeUrl: MsgCreateLease.$type,
+          value: MsgCreateLease.fromPartial({ bidId: { dseq: 123 } })
+        }
+      ];
+
+      const { service, notificationService } = setup({
+        findOneByUserId: jest.fn().mockResolvedValue(wallet),
+        findById: jest.fn().mockResolvedValue(user),
+        signAndBroadcastWithDerivedWallet: jest.fn().mockResolvedValue({
+          code: 0,
+          hash: "tx-hash",
+          rawLog: "success"
+        }),
+        refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined)
+      });
+
+      await service.executeDerivedDecodedTxByUserId("user-123", messages);
+
+      expect(notificationService.disableDeploymentAlerts).not.toHaveBeenCalled();
+    });
+
     it("validates lease provider for all leases regardless of trial status", async () => {
       const wallet = createUserWallet({
         userId: "user-123",
@@ -524,6 +643,7 @@ describe(ManagedSignerService.name, () => {
     transformChainError?: ChainErrorService["toAppError"];
     hasLeases?: LeaseHttpService["hasLeases"];
     decode?: Registry["decode"];
+    disableDeploymentAlerts?: NotificationService["disableDeploymentAlerts"];
   }) {
     const mocks = {
       userWalletRepository: mock<UserWalletRepository>({
@@ -569,6 +689,9 @@ describe(ManagedSignerService.name, () => {
       }),
       managedUserWalletService: mock<ManagedUserWalletService>({
         refillWalletFees: jest.fn()
+      }),
+      notificationService: mock<NotificationService>({
+        disableDeploymentAlerts: input?.disableDeploymentAlerts ?? jest.fn()
       })
     };
 
@@ -589,7 +712,8 @@ describe(ManagedSignerService.name, () => {
       mocks.domainEvents,
       mocks.leaseHttpService,
       mocks.walletReloadJobService,
-      mocks.managedUserWalletService
+      mocks.managedUserWalletService,
+      mocks.notificationService
     );
 
     return { service, registry: registryMock, ...mocks };

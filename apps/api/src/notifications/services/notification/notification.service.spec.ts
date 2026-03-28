@@ -275,6 +275,147 @@ describe(NotificationService.name, () => {
     });
   });
 
+  describe("disableDeploymentAlerts", () => {
+    const input = { userId: "user-1", walletAddress: "akash1abc", dseq: "123" };
+
+    it("fetches alerts and disables when both alerts are enabled", async () => {
+      const { service, api } = setup();
+
+      api.v1.getDeploymentAlerts.mockResolvedValue({
+        data: {
+          data: {
+            dseq: "123",
+            alerts: {
+              deploymentBalance: { notificationChannelId: "ch-1", enabled: true, threshold: 300000, id: "alert-1", status: "active" },
+              deploymentClosed: { notificationChannelId: "ch-2", enabled: true, id: "alert-2", status: "active" }
+            }
+          }
+        }
+      } as never);
+      api.v1.upsertDeploymentAlert.mockResolvedValue({} as never);
+
+      await service.disableDeploymentAlerts(input);
+
+      expect(api.v1.getDeploymentAlerts).toHaveBeenCalledWith({
+        parameters: {
+          path: { dseq: "123" },
+          header: { "x-user-id": "user-1" }
+        }
+      });
+      expect(api.v1.upsertDeploymentAlert).toHaveBeenCalledWith({
+        parameters: {
+          path: { dseq: "123" },
+          header: { "x-owner-address": "akash1abc", "x-user-id": "user-1" }
+        },
+        body: {
+          data: {
+            alerts: {
+              deploymentBalance: { notificationChannelId: "ch-1", enabled: false, threshold: 300000 },
+              deploymentClosed: { notificationChannelId: "ch-2", enabled: false }
+            }
+          }
+        }
+      });
+    });
+
+    it("skips upsert when alerts are already disabled", async () => {
+      const { service, api } = setup();
+
+      api.v1.getDeploymentAlerts.mockResolvedValue({
+        data: {
+          data: {
+            dseq: "123",
+            alerts: {
+              deploymentBalance: { notificationChannelId: "ch-1", enabled: false, threshold: 300000, id: "alert-1", status: "active" },
+              deploymentClosed: { notificationChannelId: "ch-2", enabled: false, id: "alert-2", status: "active" }
+            }
+          }
+        }
+      } as never);
+
+      await service.disableDeploymentAlerts(input);
+
+      expect(api.v1.upsertDeploymentAlert).not.toHaveBeenCalled();
+    });
+
+    it("skips upsert when alerts are suppressed by system", async () => {
+      const { service, api } = setup();
+
+      api.v1.getDeploymentAlerts.mockResolvedValue({
+        data: {
+          data: {
+            dseq: "123",
+            alerts: {
+              deploymentBalance: { notificationChannelId: "ch-1", enabled: true, threshold: 300000, id: "alert-1", status: "active", suppressedBySystem: true },
+              deploymentClosed: { notificationChannelId: "ch-2", enabled: true, id: "alert-2", status: "active", suppressedBySystem: true }
+            }
+          }
+        }
+      } as never);
+
+      await service.disableDeploymentAlerts(input);
+
+      expect(api.v1.upsertDeploymentAlert).not.toHaveBeenCalled();
+    });
+
+    it("skips upsert when no alerts exist", async () => {
+      const { service, api } = setup();
+
+      api.v1.getDeploymentAlerts.mockResolvedValue({
+        data: { data: { dseq: "123", alerts: {} } }
+      } as never);
+
+      await service.disableDeploymentAlerts(input);
+
+      expect(api.v1.upsertDeploymentAlert).not.toHaveBeenCalled();
+    });
+
+    it("catches errors without throwing", async () => {
+      jest.useFakeTimers();
+      const { service, api, logger } = setup();
+
+      api.v1.getDeploymentAlerts.mockRejectedValue(new Error("Network error"));
+
+      await Promise.all([service.disableDeploymentAlerts(input), jest.runAllTimersAsync()]);
+
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "DISABLE_DEPLOYMENT_ALERTS_FAILED", dseq: "123" }));
+      jest.useRealTimers();
+    });
+
+    it("only disables the alert that is enabled", async () => {
+      const { service, api } = setup();
+
+      api.v1.getDeploymentAlerts.mockResolvedValue({
+        data: {
+          data: {
+            dseq: "123",
+            alerts: {
+              deploymentBalance: { notificationChannelId: "ch-1", enabled: false, threshold: 300000, id: "alert-1", status: "active" },
+              deploymentClosed: { notificationChannelId: "ch-2", enabled: true, id: "alert-2", status: "active" }
+            }
+          }
+        }
+      } as never);
+      api.v1.upsertDeploymentAlert.mockResolvedValue({} as never);
+
+      await service.disableDeploymentAlerts(input);
+
+      expect(api.v1.upsertDeploymentAlert).toHaveBeenCalledWith({
+        parameters: {
+          path: { dseq: "123" },
+          header: { "x-owner-address": "akash1abc", "x-user-id": "user-1" }
+        },
+        body: {
+          data: {
+            alerts: {
+              deploymentClosed: { notificationChannelId: "ch-2", enabled: false }
+            }
+          }
+        }
+      });
+    });
+  });
+
   function setup(overrides?: { api?: DeepMockProxy<NotificationsApiClient>; userRepository?: MockProxy<UserRepository>; logger?: MockProxy<LoggerService> }) {
     const api = overrides?.api ?? mockDeep<NotificationsApiClient>();
     const userRepository = overrides?.userRepository ?? mock<UserRepository>();
