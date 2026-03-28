@@ -14,7 +14,7 @@ import { ChainProvider, DefaultModal, useChain } from "@cosmos-kit/react";
 import { useAtom } from "jotai";
 import { useSnackbar } from "notistack";
 
-import { akash, akashSandbox, akashTestnet, assetLists } from "@src/chains";
+import { assetLists, chains } from "@src/chains";
 import networkStore from "@src/store/networkStore";
 import walletStore from "@src/store/walletStore";
 import { registry } from "@src/utils/customRegistry";
@@ -26,7 +26,7 @@ type Props = {
 export function CustomChainProvider({ children }: Props) {
   return (
     <ChainProvider
-      chains={[akash, akashSandbox, akashTestnet]}
+      chains={chains}
       assetLists={assetLists}
       wallets={[...keplr, ...leap, ...cosmostation, ...metamask]}
       walletModal={ModalWrapper}
@@ -46,9 +46,7 @@ export function CustomChainProvider({ children }: Props) {
       endpointOptions={{
         isLazy: true,
         endpoints: {
-          akash: { rest: [], rpc: [] },
-          "akash-sandbox": { rest: [], rpc: [] },
-          "akash-testnet": { rest: [], rpc: [] }
+          ...Object.fromEntries(chains.map(c => [c.chain_name, { rest: [], rpc: [] }]))
         }
       }}
       signerOptions={{

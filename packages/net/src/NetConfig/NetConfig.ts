@@ -4,9 +4,12 @@ export type SupportedChainNetworks = keyof typeof netConfigData;
 
 export class NetConfig {
   readonly networkMap: Partial<Record<string, SupportedChainNetworks>> = {
-    sandbox: "sandbox-2",
-    testnet: "testnet-bme"
+    sandbox: "sandbox-2"
   };
+
+  isSupported(network: string): boolean {
+    return this.networkMap[network] !== undefined || network in netConfigData;
+  }
 
   mapped(network: string): SupportedChainNetworks {
     if (this.networkMap[network]) {
