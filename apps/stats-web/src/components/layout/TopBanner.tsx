@@ -30,7 +30,7 @@ function NetworkDownBanner() {
   return (
     <div className="flex h-[40px] w-full items-center justify-center bg-primary px-3 py-2 md:space-x-4">
       <span className="text-xs font-semibold text-primary-foreground md:text-sm">
-        {isUpgrading ? "We are upgrading the blockchain. Stats are temporarily stale." : "Blockchain unavailable — stats are stale until service is restored."}
+        {isUpgrading ? "We are upgrading the blockchain. Stats are temporarily stale." : "Stats may be temporarily stale due to connectivity issues."}
       </span>
     </div>
   );
