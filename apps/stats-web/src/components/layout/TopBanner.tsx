@@ -3,9 +3,15 @@ import { useIntl } from "react-intl";
 import { Button } from "@akashnetwork/ui/components";
 import { Xmark } from "iconoir-react";
 
+import type { BlockchainHealthStatus } from "@/app/api/blockchain-config/health/route";
 import { useChainMaintenanceDetails, useGenericBannerDetails, useTopBanner } from "@/hooks/useTopBanner";
 
-function NetworkDownBanner() {
+const healthStatusMessages: Record<Exclude<BlockchainHealthStatus, "healthy">, string> = {
+  "rpc-issue": "Stats may be temporarily stale due to connectivity issues.",
+  "chain-down": "Blockchain appears to be down — stats are stale until service is restored."
+};
+
+function BlockchainHealthBanner({ status }: { status: Exclude<BlockchainHealthStatus, "healthy"> }) {
   const { date } = useChainMaintenanceDetails();
   const [isUpgrading, setIsUpgrading] = useState(false);
 
@@ -30,7 +36,7 @@ function NetworkDownBanner() {
   return (
     <div className="flex h-[40px] w-full items-center justify-center bg-primary px-3 py-2 md:space-x-4">
       <span className="text-xs font-semibold text-primary-foreground md:text-sm">
-        {isUpgrading ? "We are upgrading the blockchain. Stats are temporarily stale." : "Stats may be temporarily stale due to connectivity issues."}
+        {isUpgrading ? "We are upgrading the blockchain. Stats are temporarily stale." : healthStatusMessages[status]}
       </span>
     </div>
   );
@@ -71,12 +77,12 @@ export function TopBanner() {
   const {
     isMaintenanceBannerOpen: isMaintananceBannerOpen,
     setIsMaintenanceBannerOpen: setIsMaintananceBannerOpen,
-    isBlockchainDown,
+    blockchainHealthStatus,
     isGenericBannerOpen
   } = useTopBanner();
 
-  if (isBlockchainDown) {
-    return <NetworkDownBanner />;
+  if (blockchainHealthStatus !== "healthy") {
+    return <BlockchainHealthBanner status={blockchainHealthStatus} />;
   }
 
   if (isMaintananceBannerOpen) {

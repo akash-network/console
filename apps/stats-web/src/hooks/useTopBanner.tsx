@@ -3,18 +3,19 @@ import { useVariant } from "@unleash/nextjs/client";
 import axios from "axios";
 import { atom, useAtom } from "jotai";
 
+import type { BlockchainHealthStatus } from "@/app/api/blockchain-config/health/route";
 import { networkStore } from "@/store/network.store";
 
 interface ITopBannerContext {
   hasBanner: boolean;
   setIsMaintenanceBannerOpen: (isMaintenanceBannerOpen: boolean) => void;
   isMaintenanceBannerOpen: boolean;
-  isBlockchainDown: boolean;
+  blockchainHealthStatus: BlockchainHealthStatus;
   isGenericBannerOpen: boolean;
 }
 
 const IS_MAINTENANCE_ATOM = atom(false);
-const IS_BLOCKCHAIN_DOWN_ATOM = atom(false);
+const BLOCKCHAIN_HEALTH_ATOM = atom<BlockchainHealthStatus>("healthy");
 const IS_GENERIC_BANNER_ATOM = atom(false);
 
 export function useTopBanner(): ITopBannerContext {
@@ -22,7 +23,7 @@ export function useTopBanner(): ITopBannerContext {
   const chainNetwork = networkStore.useSelectedNetwork();
 
   const [isMaintenanceBannerOpen, setIsMaintenanceBannerOpen] = useAtom(IS_MAINTENANCE_ATOM);
-  const [isBlockchainDown, setIsBlockchainDown] = useAtom(IS_BLOCKCHAIN_DOWN_ATOM);
+  const [blockchainHealthStatus, setBlockchainHealthStatus] = useAtom(BLOCKCHAIN_HEALTH_ATOM);
 
   const genericBannerFlag = useVariant("generic_banner");
   const [isGenericBannerOpen, setIsGenericBannerOpen] = useAtom(IS_GENERIC_BANNER_ATOM);
@@ -43,12 +44,12 @@ export function useTopBanner(): ITopBannerContext {
   useEffect(() => {
     function pingBlockchainNode() {
       axios
-        .get<{ isHealthy: boolean }>(`/api/blockchain-config/health?network=${chainNetwork.id}`)
+        .get<{ status: BlockchainHealthStatus }>(`/api/blockchain-config/health?network=${chainNetwork.id}`)
         .then(response => {
-          setIsBlockchainDown(!response.data.isHealthy);
+          setBlockchainHealthStatus(response.data.status);
         })
         .catch(() => {
-          setIsBlockchainDown(true);
+          setBlockchainHealthStatus("rpc-issue");
         });
 
       timeoutId = setTimeout(pingBlockchainNode, 5 * 60_000);
@@ -58,17 +59,17 @@ export function useTopBanner(): ITopBannerContext {
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [chainNetwork.id, setIsBlockchainDown]);
+  }, [chainNetwork.id, setBlockchainHealthStatus]);
 
   return useMemo(
     () => ({
-      hasBanner: isMaintenanceBannerOpen || isBlockchainDown || isGenericBannerOpen,
+      hasBanner: isMaintenanceBannerOpen || blockchainHealthStatus !== "healthy" || isGenericBannerOpen,
       isMaintenanceBannerOpen,
       setIsMaintenanceBannerOpen,
-      isBlockchainDown,
+      blockchainHealthStatus,
       isGenericBannerOpen
     }),
-    [isMaintenanceBannerOpen, isBlockchainDown, isGenericBannerOpen]
+    [isMaintenanceBannerOpen, blockchainHealthStatus, isGenericBannerOpen]
   );
 }
 
