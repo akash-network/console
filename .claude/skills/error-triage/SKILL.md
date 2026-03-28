@@ -232,14 +232,14 @@ Every alert message should be attended to. After triage is complete, reply in th
 - When a Linear issue was created, include the **full Linear URL** in the reply (e.g., "✅ Created https://linear.app/akash-network/issue/CON-147/..."). Never use just "CON-147" as plain text — always link it.
 - When an alert maps to an existing Linear issue, reply with the full URL to that issue.
 
-**Avoid duplicate replies** — Sentry threads follow-up alerts (Critical → Warning → Critical) under the same parent message. Before replying:
+**Avoid duplicate replies** — Sentry metric alerts that fire repeatedly (e.g., "Critical: Deploy-Web: High Error Rate" firing 6 times in a day) all thread under the **same parent message** in Slack. Before replying:
 
 1. **Read the thread first** to check for existing replies (from this session or previous triage sessions).
-2. **One reply per thread** — if multiple Sentry alerts are threaded under the same parent, post a single consolidated reply covering all of them, not one reply per sub-alert.
+2. **One reply per Sentry thread** — all repeated firings of the same metric alert share one Slack thread. Post a **single consolidated reply** to the thread with the full investigation summary. Do NOT post separate replies for each sub-alert — that's noise.
 3. **Don't re-reply** — if a thread already has a triage reply (e.g., "✅ CON-147"), skip it unless you have new information to add (e.g., newly filed sub-issues).
 4. **Same for Grafana** — if multiple empty-message alerts resolve to the same root cause, reply once to each unique parent thread, not to every sub-message.
 
-**Sentry alert replies** — for Sentry alerts, include investigation findings in the thread reply:
+**Sentry alert replies** — post one detailed reply per Sentry thread:
 
 ```
 ✅ Investigated via Sentry:
@@ -252,6 +252,8 @@ Every alert message should be attended to. After triage is complete, reply in th
 ```
 
 This gives the team a quick summary without needing to open Sentry. Adjust the format based on what the investigation uncovered — skip fields that aren't relevant (e.g., omit "Release" if there's no release correlation).
+
+**Finding the parent message** — to reply to the correct thread, identify the **earliest message** from that Sentry alert rule. All subsequent firings of the same rule will be threaded under it. Reply to the parent (earliest) message's `thread_ts`, not to individual sub-alerts.
 
 The Slack MCP doesn't support adding emoji reactions, so thread replies with emoji text are the workaround. The goal: by end of day, every message in #console-alerts has a thread reply showing it's been attended to.
 
