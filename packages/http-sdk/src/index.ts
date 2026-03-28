@@ -20,7 +20,6 @@ export * from "./utils/isHttpError";
 export * from "./git-hub/git-hub-http.service";
 export * from "./bme";
 export * from "./cosmos";
-export * from "./coin-gecko";
 export * from "./node";
 export * from "./certificates/certificates.service";
 export * from "./wallet-settings/wallet-settings-http.service";
