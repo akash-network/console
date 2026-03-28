@@ -1,0 +1,44 @@
+{
+  "skill_name": "error-triage",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Can you check #console-alerts and see if there's anything new we need to look at?",
+      "expected_output": "Should read recent messages from #console-alerts via Slack MCP, check reactions and threads for status, categorize and prioritize alerts, investigate as needed, check Linear for duplicates, and propose well-formatted issues for user approval",
+      "files": [],
+      "assertions": [
+        {"name": "slack-channel-read", "description": "Uses Slack MCP tools to read #console-alerts messages"},
+        {"name": "reactions-and-threads-checked", "description": "Checks emoji reactions (:eyes:, :white_check_mark:) and reads threads for context/Linear links"},
+        {"name": "categorized-summary", "description": "Presents a categorized summary table with severity, count, and status"},
+        {"name": "linear-dedup-check", "description": "Searches Linear for existing issues before proposing new ones"},
+        {"name": "structured-issue-proposals", "description": "Proposes issues with correct format: Bug template, Bug + source:error-log labels, CON team, Triage status"}
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "hey check console-alerts, we've been getting some sentry alerts firing this morning. anything critical?",
+      "expected_output": "Should focus on Sentry alerts in #console-alerts, identify critical ones, investigate the affected services, and triage with appropriate urgency",
+      "files": [],
+      "assertions": [
+        {"name": "slack-channel-read", "description": "Uses Slack MCP tools to read #console-alerts messages"},
+        {"name": "sentry-alerts-identified", "description": "Identifies and focuses on Sentry alerts (Critical/Warning, event counts, affected services)"},
+        {"name": "severity-assessment", "description": "Assesses severity correctly and prioritizes critical alerts"},
+        {"name": "linear-dedup-check", "description": "Searches Linear for existing issues before proposing new ones"},
+        {"name": "structured-issue-proposals", "description": "Proposes issues with correct format if new issues are needed"}
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "triage alerts - I think there were some grafana alerts about 5xx errors on the API overnight",
+      "expected_output": "Should read #console-alerts, focus on Grafana 5xx alerts, use Grafana MCP tools to investigate if needed, check Linear for duplicates, and propose issues",
+      "files": [],
+      "assertions": [
+        {"name": "slack-channel-read", "description": "Uses Slack MCP tools to read #console-alerts messages"},
+        {"name": "grafana-alerts-identified", "description": "Identifies Grafana alerts about 5xx errors and extracts service/label info"},
+        {"name": "investigation-attempted", "description": "Attempts to investigate via codebase search or Grafana MCP tools"},
+        {"name": "linear-dedup-check", "description": "Searches Linear for existing issues before proposing new ones"},
+        {"name": "triage-summary-table", "description": "Presents final triage summary table with actions taken per alert"}
+      ]
+    }
+  ]
+}
