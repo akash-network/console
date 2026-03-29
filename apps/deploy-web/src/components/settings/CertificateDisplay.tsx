@@ -3,7 +3,7 @@ import { useState } from "react";
 import { MdAutorenew, MdGetApp } from "react-icons/md";
 import { Button, CustomTooltip, DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, Snackbar, Spinner } from "@akashnetwork/ui/components";
 import { BinMinusIn, Check, MoreHoriz, PlusCircle, Refresh, WarningTriangle } from "iconoir-react";
-import { enqueueSnackbar } from "notistack";
+import { useSnackbar } from "notistack";
 
 import { FormPaper } from "@src/components/sdl/FormPaper";
 import { CustomDropdownLinkItem } from "@src/components/shared/CustomDropdownLinkItem";
@@ -24,6 +24,7 @@ export function CertificateDisplay() {
     regenerateCertificate,
     revokeCertificate
   } = useCertificate();
+  const { enqueueSnackbar } = useSnackbar();
   const { address } = useWallet();
 
   const onRegenerateCert = () => {
