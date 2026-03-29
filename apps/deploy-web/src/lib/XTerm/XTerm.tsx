@@ -146,6 +146,8 @@ const XTerm: React.FunctionComponent<IProps> = props => {
   }));
 
   useEffect(() => {
+    if (!terminalEleRef.current) return;
+
     // Setup the XTerm terminal.
     terminalRef.current = new Terminal({
       ...props.options,
@@ -201,13 +203,25 @@ const XTerm: React.FunctionComponent<IProps> = props => {
     }
 
     // Open terminal
-    terminalRef.current.open(terminalEleRef.current as HTMLDivElement);
+    terminalRef.current.open(terminalEleRef.current);
 
-    fitAddon.fit();
+    try {
+      fitAddon.fit();
+    } catch {
+      // Fit can fail if the renderer is not yet attached due to a race condition
+      // in xterm.js (Viewport._innerRefresh accesses renderer dimensions).
+      // This is safe to ignore — the terminal will render correctly on the next resize.
+    }
 
     return () => {
-      // When the component unmounts dispose of the terminal and all of its listeners.
+      // Dispose the fit addon first to prevent it from triggering a resize
+      // after the terminal renderer has been torn down.
+      fitAddon.dispose();
       terminalRef.current?.dispose();
+      // Null out the ref so that any in-flight async calls (e.g. shell
+      // messages arriving after unmount) become no-ops via the optional
+      // chaining in the imperative handle.
+      terminalRef.current = null;
     };
   }, []);
 
