@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { ApiKeyResponse } from "@akashnetwork/http-sdk";
 import { NextSeo } from "next-seo";
-import { enqueueSnackbar } from "notistack";
+import { useSnackbar } from "notistack";
 
 import { ApiKeyList } from "@src/components/api-keys/ApiKeyList";
 import Layout from "@src/components/layout/Layout";
@@ -14,7 +14,7 @@ export const DEPENDENCIES = {
   ApiKeyList,
   useUserApiKeys,
   useDeleteApiKey,
-  enqueueSnackbar
+  useSnackbar
 };
 
 interface Props {
@@ -23,11 +23,12 @@ interface Props {
 
 export function ApiKeysPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
   const { analyticsService } = useServices();
+  const { enqueueSnackbar } = d.useSnackbar();
   const [apiKeyToDelete, setApiKeyToDelete] = useState<ApiKeyResponse | null>(null);
   const { data: apiKeys, isLoading: isLoadingApiKeys } = d.useUserApiKeys();
   const { mutate: deleteApiKey, isPending: isDeleting } = d.useDeleteApiKey(apiKeyToDelete?.id ?? "", () => {
     setApiKeyToDelete(null);
-    d.enqueueSnackbar("API Key deleted successfully", {
+    enqueueSnackbar("API Key deleted successfully", {
       variant: "success"
     });
   });
