@@ -1,14 +1,14 @@
 "use client";
-import "xterm/css/xterm.css";
+import "@xterm/xterm/css/xterm.css";
 
 import type { Ref } from "react";
 import { useEffect, useRef } from "react";
 import React from "react";
 import { cn } from "@akashnetwork/ui/utils";
+import { FitAddon } from "@xterm/addon-fit";
+import type { IDisposable, ITerminalAddon, ITerminalOptions } from "@xterm/xterm";
+import { Terminal } from "@xterm/xterm";
 import { useTheme } from "next-themes";
-import type { IDisposable, ITerminalAddon, ITerminalOptions } from "xterm";
-import { Terminal } from "xterm";
-import { FitAddon } from "xterm-addon-fit";
 
 import { copyTextToClipboard } from "@src/utils/copyClipboard";
 
@@ -127,14 +127,9 @@ export type XTermRefType = {
 
 const XTerm: React.FunctionComponent<IProps> = props => {
   const { resolvedTheme } = useTheme();
-  /**
-   * The ref for the containing element.
-   */
   const terminalEleRef = useRef<HTMLDivElement | null>(null);
-  /**
-   * XTerm.js Terminal object.
-   */
   const terminalRef = useRef<Terminal | null>(null);
+  const fitAddonRef = useRef<FitAddon | null>(null);
 
   React.useImperativeHandle(props.customRef, () => ({
     write: (data: string | Uint8Array, callback?: () => void) => terminalRef.current?.write(data, callback),
@@ -142,29 +137,18 @@ const XTerm: React.FunctionComponent<IProps> = props => {
     clear: () => terminalRef.current?.clear(),
     reset: () => terminalRef.current?.reset(),
     focus: () => terminalRef.current?.focus()
-    // TODO more commands
   }));
 
   useEffect(() => {
     if (!terminalEleRef.current) return;
 
-    // Setup the XTerm terminal.
-    terminalRef.current = new Terminal({
+    const terminal = new Terminal({
       ...props.options,
-      theme: {
-        background: resolvedTheme === "dark" ? "#1e1e1e" : "white",
-        foreground: resolvedTheme === "dark" ? "white" : "black",
-        cursor: resolvedTheme === "dark" ? "white" : "black",
-        cursorAccent: resolvedTheme === "dark" ? "#1e1e1e" : "white",
-        selectionBackground: resolvedTheme === "dark" ? "white" : "black",
-        selectionForeground: resolvedTheme === "dark" ? "black" : "white",
-        selectionInactiveBackground: resolvedTheme === "dark" ? "white" : "black"
-      },
+      theme: getTheme(resolvedTheme),
       cursorBlink: true
     });
 
-    terminalRef.current.attachCustomKeyEventHandler((keyEvent: KeyboardEvent) => {
-      // Handle pasting with ctrl or cmd + v
+    terminal.attachCustomKeyEventHandler((keyEvent: KeyboardEvent) => {
       if ((keyEvent.ctrlKey || keyEvent.metaKey) && keyEvent.code === "KeyV" && keyEvent.type === "keydown") {
         if (props.onTerminalPaste) {
           navigator.clipboard.readText().then(
@@ -176,54 +160,64 @@ const XTerm: React.FunctionComponent<IProps> = props => {
         }
       }
 
-      // Handle pasting with ctrl or cmd + c
       if ((keyEvent.ctrlKey || keyEvent.metaKey) && keyEvent.code === "KeyC" && keyEvent.type === "keydown") {
-        const selection = terminalRef.current?.getSelection();
+        const selection = terminal.getSelection();
         if (selection) {
           copyTextToClipboard(selection);
           return false;
         }
       }
+
+      if (props.customKeyEventHandler) {
+        return props.customKeyEventHandler(keyEvent);
+      }
+
       return true;
     });
 
     const fitAddon = new FitAddon();
-    terminalRef.current.loadAddon(fitAddon);
+    terminal.loadAddon(fitAddon);
+    fitAddonRef.current = fitAddon;
 
-    // Load addons if the prop exists.
     if (props.addons) {
       props.addons.forEach(addon => {
-        terminalRef.current?.loadAddon(addon);
+        terminal.loadAddon(addon);
       });
     }
 
-    // Add Custom Key Event Handler
-    if (props.customKeyEventHandler) {
-      terminalRef.current.attachCustomKeyEventHandler(props.customKeyEventHandler);
-    }
-
-    // Open terminal
-    terminalRef.current.open(terminalEleRef.current);
+    terminal.open(terminalEleRef.current);
+    terminalRef.current = terminal;
 
     try {
       fitAddon.fit();
     } catch {
       // Fit can fail if the renderer is not yet attached due to a race condition
       // in xterm.js (Viewport._innerRefresh accesses renderer dimensions).
-      // This is safe to ignore — the terminal will render correctly on the next resize.
     }
 
+    const resizeObserver = new ResizeObserver(() => {
+      try {
+        fitAddon.fit();
+      } catch {
+        // Terminal may be mid-disposal during a resize callback.
+      }
+    });
+    resizeObserver.observe(terminalEleRef.current);
+
     return () => {
-      // Dispose the fit addon first to prevent it from triggering a resize
-      // after the terminal renderer has been torn down.
+      resizeObserver.disconnect();
       fitAddon.dispose();
-      terminalRef.current?.dispose();
-      // Null out the ref so that any in-flight async calls (e.g. shell
-      // messages arriving after unmount) become no-ops via the optional
-      // chaining in the imperative handle.
+      fitAddonRef.current = null;
+      terminal.dispose();
       terminalRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    if (terminalRef.current) {
+      terminalRef.current.options.theme = getTheme(resolvedTheme);
+    }
+  }, [resolvedTheme]);
 
   useEffect(() => disposable(props.onBinary && terminalRef.current?.onBinary(props.onBinary)), [props.onBinary]);
   useEffect(() => disposable(props.onCursorMove && terminalRef.current?.onCursorMove(props.onCursorMove)), [props.onCursorMove]);
@@ -236,13 +230,7 @@ const XTerm: React.FunctionComponent<IProps> = props => {
   useEffect(() => disposable(props.onResize && terminalRef.current?.onResize(props.onResize)), [props.onResize]);
   useEffect(() => disposable(props.onTitleChange && terminalRef.current?.onTitleChange(props.onTitleChange)), [props.onTitleChange]);
 
-  return (
-    <div
-      // sx={{ height: "100%", "& .terminal": { height: "100%" } }}
-      className={cn(props.className, "h-full [&>.terminal]:h-full")}
-      ref={terminalEleRef}
-    />
-  );
+  return <div className={cn(props.className, "h-full [&>.terminal]:h-full")} ref={terminalEleRef} />;
 };
 
 export default XTerm;
@@ -250,4 +238,17 @@ export default XTerm;
 function disposable(value: IDisposable | undefined) {
   if (!value) return;
   return () => value.dispose();
+}
+
+function getTheme(resolvedTheme: string | undefined) {
+  const isDark = resolvedTheme === "dark";
+  return {
+    background: isDark ? "#1e1e1e" : "white",
+    foreground: isDark ? "white" : "black",
+    cursor: isDark ? "white" : "black",
+    cursorAccent: isDark ? "#1e1e1e" : "white",
+    selectionBackground: isDark ? "white" : "black",
+    selectionForeground: isDark ? "black" : "white",
+    selectionInactiveBackground: isDark ? "white" : "black"
+  };
 }
