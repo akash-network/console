@@ -5,18 +5,14 @@ import { UACT_DENOM, UAKT_DENOM } from "@src/config/denom.config";
 import { useWallet } from "@src/context/WalletProvider";
 import type { MinDepositDenom } from "@src/hooks/useChainParam/useChainParam";
 import { useChainParam } from "@src/hooks/useChainParam/useChainParam";
-import { useSupportsACT } from "@src/hooks/useSupportsACT/useSupportsACT";
-
 export const DEPENDENCIES = {
   useWallet,
-  useChainParam,
-  useSupportsACT
+  useChainParam
 };
 
 export const DeploymentMinimumEscrowAlertText: FC<{ denom: string; dependencies?: typeof DEPENDENCIES }> = ({ denom, dependencies: d = DEPENDENCIES }) => {
   const { isManaged } = d.useWallet();
   const { minDeposit } = d.useChainParam();
-  const supportsACT = d.useSupportsACT();
   const readableDenom: MinDepositDenom | undefined = useMemo(() => {
     if (denom === UAKT_DENOM) {
       return "akt";
@@ -30,7 +26,7 @@ export const DeploymentMinimumEscrowAlertText: FC<{ denom: string; dependencies?
   }, [denom]);
 
   if (isManaged) {
-    const amount = supportsACT ? minDeposit.act : minDeposit.usdc;
+    const amount = minDeposit.act;
     return (
       <>
         To create a deployment, you need to have at least <b>${amount}</b> in an escrow account.{" "}

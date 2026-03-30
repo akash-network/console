@@ -27,7 +27,7 @@ import type { TemplateCreation } from "@src/types";
 import type { DepositParams } from "@src/types/deployment";
 import { RouteStep } from "@src/types/route-steps.type";
 import { deploymentData } from "@src/utils/deploymentData";
-import { appendAuditorRequirement } from "@src/utils/deploymentData/v1beta3";
+import { appendAuditorRequirement, replaceSdlDenom } from "@src/utils/deploymentData/v1beta3";
 import { validateDeploymentData } from "@src/utils/deploymentUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { domainName, handleDocClick, UrlService } from "@src/utils/urlUtils";
@@ -137,7 +137,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
     wallet.isManaged && sdlDenom === "uakt" && editedManifest,
     () => {
       if (wallet.isManaged) {
-        setEditedManifest(prev => (prev ? prev.replace(/uakt/g, wallet.denom) : prev));
+        setEditedManifest(prev => (prev ? replaceSdlDenom(prev, wallet.denom) : prev));
       }
     },
     [editedManifest, wallet.isManaged, wallet.denom, sdlDenom]
@@ -259,7 +259,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
         sdl = appendAuditorRequirement(sdl);
 
         if (wallet.denom !== "uakt") {
-          sdl = sdl.replace(/uakt/g, wallet.denom);
+          sdl = replaceSdlDenom(sdl, wallet.denom);
         }
       }
 

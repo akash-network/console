@@ -29,13 +29,10 @@ export const PrerequisiteList: React.FunctionComponent<Props> = ({ onClose, onCo
       onContinue();
     }
 
-    if (address && (minDeposit.akt !== undefined || minDeposit.usdc !== undefined || minDeposit.act !== undefined) && !!walletBalance) {
+    if (address && (minDeposit.akt !== undefined || minDeposit.act !== undefined) && !!walletBalance) {
       setIsLoadingPrerequisites(true);
 
-      const isBalanceValidated =
-        walletBalance.balanceUAKT >= denomToUdenom(minDeposit.akt) ||
-        (!isACTSupported && walletBalance.balanceUUSDC >= denomToUdenom(minDeposit.usdc)) ||
-        walletBalance.balanceUACT >= denomToUdenom(minDeposit.act);
+      const isBalanceValidated = walletBalance.balanceUAKT >= denomToUdenom(minDeposit.akt) || walletBalance.balanceUACT >= denomToUdenom(minDeposit.act);
 
       setIsBalanceValidated(isBalanceValidated);
       setIsLoadingPrerequisites(false);
@@ -45,16 +42,7 @@ export const PrerequisiteList: React.FunctionComponent<Props> = ({ onClose, onCo
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    address,
-    walletBalance?.balanceUAKT,
-    walletBalance?.balanceUUSDC,
-    walletBalance?.balanceUACT,
-    minDeposit.akt,
-    minDeposit.usdc,
-    minDeposit.act,
-    isManaged
-  ]);
+  }, [address, walletBalance?.balanceUAKT, walletBalance?.balanceUUSDC, walletBalance?.balanceUACT, minDeposit.akt, minDeposit.act, isACTSupported, isManaged]);
 
   return (
     <Popup
@@ -102,9 +90,7 @@ export const PrerequisiteList: React.FunctionComponent<Props> = ({ onClose, onCo
                     Wallet Balance
                   </Title>
                   <p className="text-sm text-muted-foreground">
-                    {isACTSupported
-                      ? `The balance of the wallet needs to be of at least ${minDeposit.act} ACT or ${minDeposit.akt} AKT to create a deployment.`
-                      : `The balance of the wallet needs to be of at least ${minDeposit.akt} AKT or ${minDeposit.usdc} USDC to create a deployment.`}
+                    {`The balance of the wallet needs to be of at least ${minDeposit.act} ACT to create a deployment.`}
                   </p>
                 </div>
               </li>

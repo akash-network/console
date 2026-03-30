@@ -189,6 +189,32 @@ describe("OnboardingContainer", () => {
     expect(sdlArgument).toBe("mock-sdl-content");
   });
 
+  it("uses act min deposit when managed denom is uact", async () => {
+    const { child, mockDenomToUdenom } = setup({
+      wallet: { hasManagedWallet: true, isManaged: true, denom: "uact" }
+    });
+
+    const { onComplete } = child.mock.calls[0][0];
+    await act(async () => {
+      await onComplete("hello-akash");
+    });
+
+    expect(mockDenomToUdenom).toHaveBeenCalledWith(0.5);
+  });
+
+  it("uses act min deposit when managed denom is ibc", async () => {
+    const { child, mockDenomToUdenom } = setup({
+      wallet: { hasManagedWallet: true, isManaged: true, denom: "ibc/usdc" }
+    });
+
+    const { onComplete } = child.mock.calls[0][0];
+    await act(async () => {
+      await onComplete("hello-akash");
+    });
+
+    expect(mockDenomToUdenom).toHaveBeenCalledWith(0.5);
+  });
+
   it("does not replace uakt for self-custody wallet", async () => {
     const { child, mockNewDeploymentData } = setup({
       wallet: { hasManagedWallet: false }
@@ -272,7 +298,7 @@ describe("OnboardingContainer", () => {
 
     const mockUseUser = vi.fn().mockReturnValue(input.user || { emailVerified: false });
     const mockUsePaymentMethodsQuery = vi.fn().mockReturnValue({ data: input.paymentMethods || [] });
-    const mockUseChainParam = vi.fn().mockReturnValue({ minDeposit: { akt: 0.5, usdc: 5 } });
+    const mockUseChainParam = vi.fn().mockReturnValue({ minDeposit: { akt: 0.5, usdc: 5, act: 0.5 } });
     const mockDenomToUdenom = vi.fn().mockImplementation((amount: number) => amount * 1_000_000);
     const mockErrorHandler = mock<ErrorHandlerService>();
     const mockTemplateService = {
@@ -395,6 +421,7 @@ describe("OnboardingContainer", () => {
       deploymentData: mockDeploymentData,
       validateDeploymentData: mockValidateDeploymentData,
       appendAuditorRequirement: mockAppendAuditorRequirement,
+      replaceSdlDenom: vi.fn((sdl: string, denom: string) => sdl.replace(/uakt/g, denom)),
       helloWorldTemplate: mockHelloWorldTemplate,
       TransactionMessageData: mockTransactionMessageData as unknown as typeof TransactionMessageData,
       useSearchParams,

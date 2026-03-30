@@ -16,7 +16,7 @@ import { usePaymentMethodsQuery } from "@src/queries/usePaymentQueries";
 import { ONBOARDING_STEP_KEY } from "@src/services/storage/keys";
 import { RouteStep } from "@src/types/route-steps.type";
 import { deploymentData } from "@src/utils/deploymentData";
-import { appendAuditorRequirement } from "@src/utils/deploymentData/v1beta3";
+import { appendAuditorRequirement, replaceSdlDenom } from "@src/utils/deploymentData/v1beta3";
 import { validateDeploymentData } from "@src/utils/deploymentUtils";
 import { denomToUdenom } from "@src/utils/mathHelpers";
 import { helloWorldTemplate } from "@src/utils/templates";
@@ -58,6 +58,7 @@ const DEPENDENCIES = {
   deploymentData,
   validateDeploymentData,
   appendAuditorRequirement,
+  replaceSdlDenom,
   helloWorldTemplate,
   TransactionMessageData,
   useSearchParams,
@@ -254,12 +255,11 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
         }
 
         sdl = d.appendAuditorRequirement(sdl);
-        const isUsdc = wallet.isManaged && wallet.denom !== "uakt";
-        if (isUsdc) {
-          sdl = sdl.replace(/uakt/g, wallet.denom);
+        if (wallet.isManaged && wallet.denom && wallet.denom !== "uakt") {
+          sdl = d.replaceSdlDenom(sdl, wallet.denom);
         }
 
-        const minDepositAmount = isUsdc ? minDeposit.usdc : minDeposit.akt;
+        const minDepositAmount = wallet.denom === "uact" ? minDeposit.act : wallet.denom !== "uakt" && wallet.isManaged ? minDeposit.act : minDeposit.akt;
         const deposit = d.denomToUdenom(minDepositAmount);
         const dd = await d.deploymentData.NewDeploymentData(chainApiHttpClient, sdl, null, wallet.address, deposit);
         d.validateDeploymentData(dd, null);
