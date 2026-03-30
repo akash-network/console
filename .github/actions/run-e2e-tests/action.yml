@@ -22,6 +22,10 @@ inputs:
     description: "Slack webhook URL for failure notifications"
     required: false
     default: ""
+  gh-user-to-slack-user:
+    description: "JSON mapping of GitHub usernames to Slack user IDs"
+    required: false
+    default: "{}"
 
 runs:
   using: composite
@@ -40,5 +44,5 @@ runs:
         ref: ${{ inputs.app }}/v${{ inputs.app-version }}
         url: ${{ inputs.app-url }}
         slack-webhook-url: ${{ inputs.slack-webhook-url }}
-        gh-user-to-slack-user: ${{ vars.GH_USER_TO_SLACK_USER }}
+        gh-user-to-slack-user: ${{ inputs.gh-user-to-slack-user }}
         message-title: "Console ${{ inputs.app }} E2E tests failed on ${{ inputs.environment == 'prod' && 'production' || inputs.environment }} ${{ inputs.chain }}"
