@@ -1,12 +1,10 @@
 import { useMemo } from "react";
 
 import { useServices } from "@src/context/ServicesProvider";
-import { useSupportsACT } from "@src/hooks/useSupportsACT/useSupportsACT";
 import { getUsdcDenom } from "@src/utils/priceUtils";
 
 export const DEPENDENCIES = {
-  useServices,
-  useSupportsACT
+  useServices
 };
 
 export const useUsdcDenom = (dependencies: typeof DEPENDENCIES = DEPENDENCIES): string => {
@@ -15,17 +13,8 @@ export const useUsdcDenom = (dependencies: typeof DEPENDENCIES = DEPENDENCIES): 
   return getUsdcDenom(selectedNetworkId);
 };
 
-export const useSupportedDenoms = (dependencies: typeof DEPENDENCIES = DEPENDENCIES) => {
-  const usdcDenom = useUsdcDenom(dependencies);
-  const supportsACT = dependencies.useSupportsACT();
-
+export const useSupportedDenoms = () => {
   return useMemo(() => {
-    const UAKT = { id: "uakt", label: "uAKT", tokenLabel: "AKT", value: "uakt" };
-
-    if (supportsACT) {
-      return [{ id: "uact", label: "uACT", tokenLabel: "ACT", value: "uact" }];
-    }
-
-    return [UAKT, { id: "uusdc", label: "uUSDC", tokenLabel: "USDC", value: usdcDenom }];
-  }, [usdcDenom, supportsACT]);
+    return [{ id: "uact", label: "uACT", tokenLabel: "ACT", value: "uact" }];
+  }, []);
 };

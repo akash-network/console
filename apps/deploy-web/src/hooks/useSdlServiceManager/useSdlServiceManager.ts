@@ -4,20 +4,14 @@ import { useFieldArray, useWatch } from "react-hook-form";
 import { nanoid } from "nanoid";
 
 import { findOwnLogCollectorServiceIndex, isLogCollectorService } from "@src/components/sdl/LogCollectorControl/LogCollectorControl";
-import { useSupportsACT } from "@src/hooks/useSupportsACT/useSupportsACT";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { getDefaultService } from "@src/utils/sdl/data";
 
-export const DEPENDENCIES = {
-  useSupportsACT
-};
-
 type Props = {
   control: Control<SdlBuilderFormValuesType>;
-  dependencies?: typeof DEPENDENCIES;
 };
 
-export const useSdlServiceManager = ({ control, dependencies: d = DEPENDENCIES }: Props) => {
+export const useSdlServiceManager = ({ control }: Props) => {
   const watchedServices = useWatch<SdlBuilderFormValuesType>({ control, name: "services", defaultValue: [] });
   const services = useMemo(() => (Array.isArray(watchedServices) ? (watchedServices as SdlBuilderFormValuesType["services"]) : []), [watchedServices]);
 
@@ -46,11 +40,9 @@ export const useSdlServiceManager = ({ control, dependencies: d = DEPENDENCIES }
     return `service-${nextIndex}`;
   }, [services]);
 
-  const supportsACT = d.useSupportsACT();
-
   const add = useCallback(() => {
-    appendService({ ...getDefaultService({ supportsACT }), id: nanoid(), title: calcNextServiceTitle() });
-  }, [appendService, calcNextServiceTitle, supportsACT]);
+    appendService({ ...getDefaultService(), id: nanoid(), title: calcNextServiceTitle() });
+  }, [appendService, calcNextServiceTitle]);
 
   const remove = useCallback(
     (index: number) => {

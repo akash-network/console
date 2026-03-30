@@ -8,7 +8,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useSdlServiceManager } from "@src/hooks/useSdlServiceManager/useSdlServiceManager";
-import { useSupportsACT } from "@src/hooks/useSupportsACT/useSupportsACT";
 import { useGpuModels } from "@src/queries/useGpuQuery";
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { SdlBuilderFormValuesSchema } from "@src/types";
@@ -40,10 +39,9 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(
     const formRef = useRef<HTMLFormElement>(null);
     const [isInit, setIsInit] = useState(false);
     const { hasComponent, imageList } = useSdlBuilder();
-    const supportsACT = useSupportsACT();
     const form = useForm<SdlBuilderFormValuesType>({
       defaultValues: {
-        services: [getDefaultService({ supportsSSH: hasComponent("ssh"), supportsACT })],
+        services: [getDefaultService({ supportsSSH: hasComponent("ssh") })],
         imageList: imageList,
         hasSSHKey: hasComponent("ssh")
       },

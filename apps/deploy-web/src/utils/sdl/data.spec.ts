@@ -4,28 +4,22 @@ import { UACT_DENOM } from "@src/config/denom.config";
 import { getDefaultService, sshVmDistros } from "./data";
 
 describe(getDefaultService.name, () => {
-  it("sets denom to uact when supportsACT is true", () => {
-    const result = getDefaultService({ supportsACT: true });
+  it("sets denom to uact by default", () => {
+    const result = getDefaultService();
 
     expect(result.placement.pricing.denom).toBe(UACT_DENOM);
   });
 
-  it("keeps default denom when supportsACT is false", () => {
-    const result = getDefaultService({ supportsACT: false });
-
-    expect(result.placement.pricing.denom).toBe("uact");
-  });
-
   it("configures SSH image and clears expose when supportsSSH is true", () => {
-    const result = getDefaultService({ supportsACT: false, supportsSSH: true });
+    const result = getDefaultService({ supportsSSH: true });
 
     expect(result.image).toBe(sshVmDistros[0]);
     expect(result.expose).toEqual([]);
   });
 
   it("returns independent instances on each call", () => {
-    const a = getDefaultService({ supportsACT: false });
-    const b = getDefaultService({ supportsACT: false });
+    const a = getDefaultService();
+    const b = getDefaultService();
 
     a.placement.name = "modified";
 
