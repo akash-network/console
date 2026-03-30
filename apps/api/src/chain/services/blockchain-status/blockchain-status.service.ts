@@ -1,7 +1,6 @@
 import { inject, singleton } from "tsyringe";
 
-import { LoggerService } from "@src/core/providers/logging.provider";
-
+import { LoggerService } from "@src/core";
 import { CHAIN_SDK, type ChainSDK } from "../../providers/chain-sdk.provider";
 
 @singleton()
