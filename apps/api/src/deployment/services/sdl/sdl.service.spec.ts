@@ -280,6 +280,15 @@ describe(SdlService.name, () => {
 
       expect(result.ok).toBeFalsy();
     });
+
+    it("returns error result with message for malformed YAML", () => {
+      const { result } = setup({ sdl: "key: value\n  bad_indent: true" });
+
+      expect(result).toMatchObject({
+        ok: false,
+        value: [expect.objectContaining({ message: expect.stringContaining("bad indentation") })]
+      });
+    });
   });
 
   function setup(input?: { sdl?: string; allowedAuditors?: string[]; deploymentGrantDenom?: string }) {
