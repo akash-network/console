@@ -1,5 +1,6 @@
 import type { GenerateManifestResult, Manifest, NetworkId, SDLInput } from "@akashnetwork/chain-sdk";
 import { generateManifest, generateManifestVersion, yaml } from "@akashnetwork/chain-sdk";
+import { YAMLException } from "js-yaml";
 import { singleton } from "tsyringe";
 
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
@@ -15,7 +16,16 @@ export class SdlService {
   }
 
   generateManifest(rawSDL: string): GenerateManifestResult {
-    const potentiallyInvalidSDL = yaml.raw<SDLInput>(rawSDL);
+    let potentiallyInvalidSDL: SDLInput;
+
+    try {
+      potentiallyInvalidSDL = yaml.raw<SDLInput>(rawSDL);
+    } catch (error) {
+      if (error instanceof YAMLException) {
+        return { ok: false, value: [{ schemaPath: "", instancePath: "", keyword: "yaml", params: {}, message: error.message }] };
+      }
+      throw error;
+    }
     const deploymentGrantDenom = this.#config.DEPLOYMENT_GRANT_DENOM;
     const sdlPlacement =
       potentiallyInvalidSDL?.profiles?.placement && typeof potentiallyInvalidSDL?.profiles?.placement === "object"
