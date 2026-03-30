@@ -5,7 +5,6 @@ import {
   BidHttpService,
   BlockHttpService,
   BmeHttpService,
-  CoinGeckoHttpService,
   CosmosHttpService,
   createHttpClient,
   DeploymentHttpService,
@@ -50,9 +49,6 @@ NON_AXIOS_SERVICES.forEach(Service =>
 );
 
 container.register(GitHubHttpService, { useValue: new GitHubHttpService({ baseURL: "https://raw.githubusercontent.com" }) });
-container.register(CoinGeckoHttpService, {
-  useFactory: instancePerContainerCachingFactory(() => new CoinGeckoHttpService(createHttpClient({ baseURL: "https://api.coingecko.com", adapter: "http" })))
-});
 container.register(NodeHttpService, {
   useFactory: instancePerContainerCachingFactory(
     c => new NodeHttpService(createHttpClient({ baseURL: c.resolve(CoreConfigService).get("NODE_API_BASE_PATH"), adapter: "http" }))

@@ -561,7 +561,7 @@ export class StatsService {
   }
 
   @Memoize({ ttlInSeconds: minutesToSeconds(5) })
-  async getMarketData(coin: MarketDataParams["coin"] | "akt" | "usdc") {
+  async getMarketData(coin: MarketDataParams["coin"] | "akt") {
     const result = await this.denomExchangeService.getExchangeRateToUSD(coin);
     return result;
   }

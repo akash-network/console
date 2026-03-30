@@ -89,18 +89,17 @@ describe(BalancesService.name, () => {
 
       const result = await service.toFiatAmount(25_500_000);
 
-      expect(statsService.convertToFiatAmount).toHaveBeenCalledWith(25.5, "akash-network");
+      expect(statsService.convertToFiatAmount).toHaveBeenCalledWith(25.5, "akt");
       expect(result).toBe(25.5);
     });
 
-    it("converts usdc amount using market price", async () => {
+    it("throws on unknown denom", async () => {
       const { service, statsService } = setup({ denom: "ibc/170C677610AC31DF0904FFE09CD3B5C657492170E7E52372E48756B71E56F2F1" });
       statsService.convertToFiatAmount.mockResolvedValue(10.0);
 
-      const result = await service.toFiatAmount(10_000_000);
-
-      expect(statsService.convertToFiatAmount).toHaveBeenCalledWith(10, "usd-coin");
-      expect(result).toBe(10);
+      await expect(service.toFiatAmount(10_000_000)).rejects.toThrow(
+        `Unsupported deployment grant denom: ibc/170C677610AC31DF0904FFE09CD3B5C657492170E7E52372E48756B71E56F2F1`
+      );
     });
 
     it("returns 1:1 rate for uact denom", async () => {

@@ -8510,9 +8510,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               "default": "akt",
               "enum": [
                 "akash-network",
-                "usd-coin",
                 "akt",
-                "usdc",
               ],
               "example": "akt",
               "type": "string",

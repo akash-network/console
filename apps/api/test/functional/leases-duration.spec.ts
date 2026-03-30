@@ -1,6 +1,5 @@
 import type { AkashBlock, Deployment, DeploymentGroup, Provider } from "@akashnetwork/database/dbSchemas/akash";
 import { faker } from "@faker-js/faker";
-import { subWeeks } from "date-fns";
 
 import { app, initDb } from "@src/rest-app";
 
@@ -16,7 +15,12 @@ describe("GET /v1/leases-duration/{owner}", () => {
   const now = new Date();
   now.setUTCHours(12, 0, 0, 0);
 
-  const dates = [subWeeks(now, 6), subWeeks(now, 5), subWeeks(now, 4), subWeeks(now, 3), subWeeks(now, 2), subWeeks(now, 1), now];
+  const dates = Array.from({ length: 7 }, (_, i) => {
+    const date = new Date(now);
+    const amountOfWeeks = 6 - i;
+    date.setUTCDate(now.getUTCDate() - 7 * amountOfWeeks);
+    return date;
+  });
   const blockDates = [dates[0], dates[2], dates[4], dates[6]];
   const searchDates = [dates[1], dates[5]];
 

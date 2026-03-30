@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const MarketDataParamsSchema = z.object({
-  coin: z.enum(["akash-network", "usd-coin", "akt", "usdc"]).optional().default("akt").openapi({ example: "akt" })
+  coin: z.enum(["akash-network", "akt"]).optional().default("akt").openapi({ example: "akt" })
 });
 
 export const MarketDataResponseSchema = z.object({

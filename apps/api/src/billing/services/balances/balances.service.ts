@@ -131,7 +131,10 @@ export class BalancesService {
       return amount;
     }
 
-    const coin = this.config.DEPLOYMENT_GRANT_DENOM === "uakt" ? "akash-network" : "usd-coin";
+    const coin = this.config.DEPLOYMENT_GRANT_DENOM === "uakt" ? "akt" : null;
+    if (!coin) {
+      throw new Error(`Unsupported deployment grant denom: ${this.config.DEPLOYMENT_GRANT_DENOM}`);
+    }
     return await this.statsService.convertToFiatAmount(amount, coin);
   }
 
