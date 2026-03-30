@@ -69,9 +69,25 @@ describe("XTerm", () => {
   });
 
   it("updates theme when resolvedTheme changes", () => {
-    const { mockTerminal } = setup({ resolvedTheme: "dark" });
+    let currentTheme = "dark";
+    const useThemeMock = () => ({ resolvedTheme: currentTheme });
+    const { mockTerminal, rerender, MockTerminal, MockFitAddon, copyTextToClipboardMock } = setup({ useThemeMock });
 
     expect(mockTerminal.options.theme).toEqual(getTheme("dark"));
+
+    currentTheme = "light";
+    rerender(
+      <XTerm
+        dependencies={{
+          Terminal: MockTerminal as unknown as typeof DEPENDENCIES.Terminal,
+          FitAddon: MockFitAddon as unknown as typeof DEPENDENCIES.FitAddon,
+          useTheme: useThemeMock as unknown as typeof DEPENDENCIES.useTheme,
+          copyTextToClipboard: copyTextToClipboardMock
+        }}
+      />
+    );
+
+    expect(mockTerminal.options.theme).toEqual(getTheme("light"));
   });
 
   it("handles fit failure gracefully", () => {
@@ -94,6 +110,33 @@ describe("XTerm", () => {
 
       expect(customHandler).toHaveBeenCalledWith(event);
       expect(result).toBe(false);
+    });
+
+    it("uses latest customKeyEventHandler via ref after rerender", () => {
+      const firstHandler = vi.fn().mockReturnValue(true);
+      const secondHandler = vi.fn().mockReturnValue(false);
+      const { getKeyHandler, rerender, MockTerminal, MockFitAddon, copyTextToClipboardMock, useThemeMock } = setup({
+        customKeyEventHandler: firstHandler
+      });
+
+      rerender(
+        <XTerm
+          dependencies={{
+            Terminal: MockTerminal as unknown as typeof DEPENDENCIES.Terminal,
+            FitAddon: MockFitAddon as unknown as typeof DEPENDENCIES.FitAddon,
+            useTheme: useThemeMock as unknown as typeof DEPENDENCIES.useTheme,
+            copyTextToClipboard: copyTextToClipboardMock
+          }}
+          customKeyEventHandler={secondHandler}
+        />
+      );
+
+      const handler = getKeyHandler();
+      const event = new KeyboardEvent("keydown", { code: "KeyA" });
+      handler(event);
+
+      expect(secondHandler).toHaveBeenCalledWith(event);
+      expect(firstHandler).not.toHaveBeenCalled();
     });
 
     it("copies selection on Ctrl+C when text is selected", () => {
@@ -157,6 +200,7 @@ describe("XTerm", () => {
     addons?: Array<{ activate: ReturnType<typeof vi.fn>; dispose: ReturnType<typeof vi.fn> }>;
     customKeyEventHandler?: (event: KeyboardEvent) => boolean;
     mockFitAddon?: ReturnType<typeof createMockFitAddon>;
+    useThemeMock?: () => { resolvedTheme: string };
   }) {
     const mockTerminal = createMockTerminal();
     const mockFitAddon = input?.mockFitAddon ?? createMockFitAddon();
@@ -172,7 +216,7 @@ describe("XTerm", () => {
       Object.assign(this, mockFitAddon);
       return mockFitAddon;
     });
-    const useThemeMock = () => ({ resolvedTheme: input?.resolvedTheme ?? "dark" });
+    const useThemeMock = input?.useThemeMock ?? (() => ({ resolvedTheme: input?.resolvedTheme ?? "dark" }));
 
     const result = render(
       <XTerm
@@ -191,6 +235,6 @@ describe("XTerm", () => {
       return mockTerminal.attachCustomKeyEventHandler.mock.calls[0][0] as (event: KeyboardEvent) => boolean;
     };
 
-    return { ...result, mockTerminal, mockFitAddon, MockTerminal, MockFitAddon, copyTextToClipboardMock, getKeyHandler };
+    return { ...result, mockTerminal, mockFitAddon, MockTerminal, MockFitAddon, copyTextToClipboardMock, useThemeMock, getKeyHandler };
   }
 });

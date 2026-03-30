@@ -4,6 +4,7 @@ import "@xterm/xterm/css/xterm.css";
 import type { Ref } from "react";
 import { useEffect, useRef } from "react";
 import React from "react";
+import { LoggerService } from "@akashnetwork/logging";
 import { cn } from "@akashnetwork/ui/utils";
 import { FitAddon } from "@xterm/addon-fit";
 import type { IDisposable, ITerminalAddon, ITerminalOptions } from "@xterm/xterm";
@@ -11,6 +12,8 @@ import { Terminal } from "@xterm/xterm";
 import { useTheme } from "next-themes";
 
 import { copyTextToClipboard } from "@src/utils/copyClipboard";
+
+const logger = LoggerService.forContext("XTerm");
 
 export const DEPENDENCIES = { Terminal, FitAddon, useTheme, copyTextToClipboard };
 
@@ -133,6 +136,16 @@ const XTerm: React.FunctionComponent<IProps & { dependencies?: typeof DEPENDENCI
   const terminalEleRef = useRef<HTMLDivElement | null>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
+  const onTerminalPasteRef = useRef(props.onTerminalPaste);
+  const customKeyEventHandlerRef = useRef(props.customKeyEventHandler);
+
+  useEffect(() => {
+    onTerminalPasteRef.current = props.onTerminalPaste;
+  }, [props.onTerminalPaste]);
+
+  useEffect(() => {
+    customKeyEventHandlerRef.current = props.customKeyEventHandler;
+  }, [props.customKeyEventHandler]);
 
   React.useImperativeHandle(props.customRef, () => ({
     write: (data: string | Uint8Array, callback?: () => void) => terminalRef.current?.write(data, callback),
@@ -153,11 +166,11 @@ const XTerm: React.FunctionComponent<IProps & { dependencies?: typeof DEPENDENCI
 
     terminal.attachCustomKeyEventHandler((keyEvent: KeyboardEvent) => {
       if ((keyEvent.ctrlKey || keyEvent.metaKey) && keyEvent.code === "KeyV" && keyEvent.type === "keydown") {
-        if (props.onTerminalPaste) {
+        if (onTerminalPasteRef.current) {
           navigator.clipboard.readText().then(
-            value => props.onTerminalPaste && props.onTerminalPaste(value),
+            value => onTerminalPasteRef.current?.(value),
             err => {
-              console.error("Async: Could not read text from clipboard: ", err);
+              logger.error({ event: "CLIPBOARD_READ_FAILED", error: err });
             }
           );
         }
@@ -171,8 +184,8 @@ const XTerm: React.FunctionComponent<IProps & { dependencies?: typeof DEPENDENCI
         }
       }
 
-      if (props.customKeyEventHandler) {
-        return props.customKeyEventHandler(keyEvent);
+      if (customKeyEventHandlerRef.current) {
+        return customKeyEventHandlerRef.current(keyEvent);
       }
 
       return true;
