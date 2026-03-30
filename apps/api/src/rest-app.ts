@@ -48,6 +48,7 @@ import {
 } from "./billing";
 import { blockPredictionRouter, blocksRouter } from "./block";
 import { connectUsingSequelize } from "./chain";
+import { blockchainStatusRouter } from "./chain/routes/blockchain-status/blockchain-status.router";
 import { CORE_CONFIG, migratePG } from "./core";
 import {
   bmeDashboardDataRouter,
@@ -157,7 +158,8 @@ const openApiHonoHandlers: OpenApiHonoHandler[] = [
   templatesRouter,
   leasesDurationRouter,
   addressRouter,
-  networkRouter
+  networkRouter,
+  blockchainStatusRouter
 ];
 for (const handler of openApiHonoHandlers) {
   appHono.route("/", handler);
