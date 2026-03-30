@@ -148,14 +148,14 @@ export class ProviderService {
       offset += BATCH_SIZE;
     } while (batch.length === BATCH_SIZE);
 
-    const seenProviders = new Set<string>();
-    const distinctProviders: Provider[] = [];
+    const providerByHostUri = new Map<string, Provider>();
     await forEachInChunks(providersWithAttributesAndAuditors, provider => {
-      if (!seenProviders.has(provider.hostUri)) {
-        seenProviders.add(provider.hostUri);
-        distinctProviders.push(provider);
+      const existing = providerByHostUri.get(provider.hostUri);
+      if (!existing || (!existing.isOnline && provider.isOnline)) {
+        providerByHostUri.set(provider.hostUri, provider);
       }
     });
+    const distinctProviders = Array.from(providerByHostUri.values());
 
     const [auditors, providerAttributeSchema] = await Promise.all([
       this.auditorsService.getAuditors(),
