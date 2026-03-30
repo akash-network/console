@@ -46,6 +46,9 @@ export class ApiUrlService {
   static bmeStatusHistory() {
     return `${this.baseApiUrl}/v1/bme/status-history`;
   }
+  static blockchainStatus() {
+    return `${this.baseApiUrl}/v1/blockchain-status`;
+  }
 
   static mainnetVersion() {
     return `${this.baseApiUrl}/v1/version/mainnet`;

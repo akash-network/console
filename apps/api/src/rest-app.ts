@@ -11,6 +11,7 @@ import { verifyEmailRouter } from "./auth/routes/verify-email/verify-email.route
 import { AuthInterceptor } from "./auth/services/auth.interceptor";
 import { bidsRouter } from "./bid/routes/bids/bids.router";
 import { certificateRouter } from "./certificate/routes/certificate.router";
+import { blockchainStatusRouter } from "./chain/routes/blockchain-status/blockchain-status.router";
 import { HonoErrorHandlerService } from "./core/services/hono-error-handler/hono-error-handler.service";
 import type { OpenApiHonoHandler } from "./core/services/open-api-hono-handler/open-api-hono-handler";
 import { OpenApiDocsService } from "./core/services/openapi-docs/openapi-docs.service";
@@ -157,7 +158,8 @@ const openApiHonoHandlers: OpenApiHonoHandler[] = [
   templatesRouter,
   leasesDurationRouter,
   addressRouter,
-  networkRouter
+  networkRouter,
+  blockchainStatusRouter
 ];
 for (const handler of openApiHonoHandlers) {
   appHono.route("/", handler);

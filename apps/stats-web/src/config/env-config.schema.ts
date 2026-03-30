@@ -24,9 +24,7 @@ export const serverEnvSchema = browserEnvSchema.extend({
   MAINTENANCE_MODE: coercedBoolean().optional().default("false"),
   BASE_API_MAINNET_URL: z.string().url(),
   BASE_API_TESTNET_URL: z.string().url(),
-  BASE_API_SANDBOX_URL: z.string().url(),
-  DEFAULT_REST_API_NODE_URL_MAINNET: z.string().url(),
-  DEFAULT_RPC_NODE_URL_MAINNET: z.string().url()
+  BASE_API_SANDBOX_URL: z.string().url()
 });
 
 export type BrowserEnvConfig = z.infer<typeof browserEnvSchema>;

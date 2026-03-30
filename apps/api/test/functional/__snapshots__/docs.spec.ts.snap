@@ -3588,6 +3588,35 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/blockchain-status": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "isBlockchainReachable": {
+                      "type": "boolean",
+                    },
+                  },
+                  "required": [
+                    "isBlockchainReachable",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Returns blockchain reachability status",
+          },
+        },
+        "security": [],
+        "summary": "Get blockchain reachability status",
+        "tags": [
+          "Chain",
+        ],
+      },
+    },
     "/v1/blocks": {
       "get": {
         "parameters": [
