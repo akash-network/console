@@ -3,7 +3,7 @@ import { useVariant } from "@unleash/nextjs/client";
 import axios from "axios";
 import { atom, useAtom } from "jotai";
 
-import { networkStore } from "@/store/network.store";
+import { ApiUrlService } from "@/lib/apiUtils";
 
 interface ITopBannerContext {
   hasBanner: boolean;
@@ -19,7 +19,6 @@ const IS_GENERIC_BANNER_ATOM = atom(false);
 
 export function useTopBanner(): ITopBannerContext {
   const maintenanceBannerFlag = useVariant("maintenance_banner");
-  const chainNetwork = networkStore.useSelectedNetwork();
 
   const [isMaintenanceBannerOpen, setIsMaintenanceBannerOpen] = useAtom(IS_MAINTENANCE_ATOM);
   const [isBlockchainDown, setIsBlockchainDown] = useAtom(IS_BLOCKCHAIN_DOWN_ATOM);
@@ -43,17 +42,9 @@ export function useTopBanner(): ITopBannerContext {
   useEffect(() => {
     function pingBlockchainNode() {
       axios
-        .get<Array<{ api: string }>>(chainNetwork.nodesUrl)
+        .get<{ isBlockchainReachable: boolean }>(ApiUrlService.blockchainStatus())
         .then(response => {
-          const api = response.data[0]?.api;
-          if (!api) {
-            throw new Error("No blockchain API endpoint configured for selected network.");
-          }
-          return axios.get(`${api}/cosmos/base/tendermint/v1beta1/node_info`, { timeout: 5000 });
-        })
-        .then(response => {
-          const isAvailable = response.status >= 200 && response.status < 300;
-          setIsBlockchainDown(!isAvailable);
+          setIsBlockchainDown(!response.data.isBlockchainReachable);
         })
         .catch(() => {
           setIsBlockchainDown(true);
@@ -66,7 +57,7 @@ export function useTopBanner(): ITopBannerContext {
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [chainNetwork.nodesUrl, setIsBlockchainDown]);
+  }, [setIsBlockchainDown]);
 
   return useMemo(
     () => ({
