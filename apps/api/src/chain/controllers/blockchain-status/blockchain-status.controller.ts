@@ -4,9 +4,13 @@ import { BlockchainStatusService } from "../../services/blockchain-status/blockc
 
 @singleton()
 export class BlockchainStatusController {
-  constructor(private readonly blockchainStatusService: BlockchainStatusService) {}
+  readonly #blockchainStatusService: BlockchainStatusService;
+
+  constructor(blockchainStatusService: BlockchainStatusService) {
+    this.#blockchainStatusService = blockchainStatusService;
+  }
 
   async getStatus() {
-    return this.blockchainStatusService.getStatus();
+    return this.#blockchainStatusService.getStatus();
   }
 }
