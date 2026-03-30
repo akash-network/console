@@ -1,17 +1,18 @@
-import { BmeHttpService, CosmosHttpService, type RestCosmosBankBalancesResponse } from "@akashnetwork/http-sdk";
+import { BmeHttpService } from "@akashnetwork/http-sdk";
 import { createOtelLogger } from "@akashnetwork/logging/otel";
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import { Err, Ok, Result } from "ts-results";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
+import { CHAIN_SDK, type ChainSDK } from "@src/chain/providers/chain-sdk.provider";
 import { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
 import { TimerService } from "@src/core/services/timer/timer.service";
 import type { DryRunOptions } from "@src/core/types/console";
 
-type Balances = RestCosmosBankBalancesResponse["balances"];
+type Balances = Awaited<ReturnType<ChainSDK["cosmos"]["bank"]["v1beta1"]["getAllBalances"]>>["balances"];
 
 @singleton()
 export class MasterWalletMintService {
@@ -26,7 +27,7 @@ export class MasterWalletMintService {
   constructor(
     private readonly billingConfigService: BillingConfigService,
     private readonly txManagerService: TxManagerService,
-    private readonly cosmosHttpService: CosmosHttpService,
+    @inject(CHAIN_SDK) private readonly chainSdk: ChainSDK,
     private readonly denomExchangeService: DenomExchangeService,
     private readonly bmeHttpService: BmeHttpService,
     private readonly rpcMessageService: RpcMessageService,
@@ -65,7 +66,7 @@ export class MasterWalletMintService {
   }
 
   private async fetchWalletBalances(address: string): Promise<Balances> {
-    const { balances } = await this.cosmosHttpService.getBankBalancesByAddress(address);
+    const { balances } = await this.chainSdk.cosmos.bank.v1beta1.getAllBalances({ address });
     return balances;
   }
 
@@ -91,7 +92,11 @@ export class MasterWalletMintService {
     const uactCoin = params.min_mint.find(coin => coin.denom === "uact");
 
     if (!uactCoin) {
-      this.logger.warn({ event: "MASTER_WALLET_MINT_MIN_NOT_FOUND", message: "uact denom not found in BME min_mint params, falling back to 10_000_000", min_mint: params.min_mint });
+      this.logger.warn({
+        event: "MASTER_WALLET_MINT_MIN_NOT_FOUND",
+        message: "uact denom not found in BME min_mint params, falling back to 10_000_000",
+        min_mint: params.min_mint
+      });
       return 10_000_000;
     }
 
@@ -143,7 +148,9 @@ export class MasterWalletMintService {
   /** Polls BME ledger until no pending records remain for this address. */
   private async waitForSettlement(address: string): Promise<Result<void, string>> {
     for (let attempt = 0; attempt < this.MAX_POLL_ATTEMPTS; attempt++) {
-      const { records } = await this.bmeHttpService.getLedgerRecords({ source: address, status: "ledger_record_status_pending" });
+      const { records } = await this.chainSdk.akash.bme.v1.getLedgerRecords({
+        filters: { source: address, status: "ledger_record_status_pending" }
+      });
 
       if (records.length === 0) {
         return Ok.EMPTY;

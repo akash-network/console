@@ -1,11 +1,12 @@
 import { MsgMintACT } from "@akashnetwork/chain-sdk/private-types/akash.v1";
-import type { BmeHttpService, CosmosHttpService } from "@akashnetwork/http-sdk";
+import type { BmeHttpService } from "@akashnetwork/http-sdk";
 import { Ok } from "ts-results";
-import { mock } from "vitest-mock-extended";
+import { mock, mockDeep } from "vitest-mock-extended";
 
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
 import type { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
+import type { ChainSDK } from "@src/chain/providers/chain-sdk.provider";
 import type { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
 import type { TimerService } from "@src/core/services/timer/timer.service";
 import { MasterWalletMintService } from "./master-wallet-mint.service";
@@ -42,12 +43,12 @@ describe(MasterWalletMintService.name, () => {
     });
 
     it("should mint with 2% price slippage margin on AKT to burn", async () => {
-      const { service, masterAddress, cosmosHttpService, rpcMessageService } = setup({
+      const { service, masterAddress, chainSdk, rpcMessageService } = setup({
         targetActBalance: 10_000_000_000,
         balances: { uact: 5_000_000_000, uakt: 99_999_999_999 },
         aktPrice: 0.5
       });
-      mockBalancesOnce(cosmosHttpService, { uact: 10_000_000_000, uakt: 89_799_999_999 });
+      mockBalancesOnce(chainSdk, { uact: 10_000_000_000, uakt: 89_799_999_999 });
 
       const result = await service.mintIfNeeded();
 
@@ -74,33 +75,33 @@ describe(MasterWalletMintService.name, () => {
     });
 
     it("should wait for ledger settlement before confirming mint", async () => {
-      const { service, cosmosHttpService, bmeHttpService } = setup({
+      const { service, chainSdk } = setup({
         targetActBalance: 10_000_000_000,
         balances: { uact: 5_000_000_000, uakt: 99_999_999_999 },
         aktPrice: 0.5
       });
-      mockBalancesOnce(cosmosHttpService, { uact: 10_000_000_000, uakt: 89_799_999_999 });
+      mockBalancesOnce(chainSdk, { uact: 10_000_000_000, uakt: 89_799_999_999 });
 
-      const pendingRecord = createBmeLedgerRecord({ status: "ledger_record_status_pending" });
-      bmeHttpService.getLedgerRecords
-        .mockResolvedValueOnce(createBmeLedgerResponse({ records: [pendingRecord] })) // poll: still pending
-        .mockResolvedValueOnce(createBmeLedgerResponse()); // poll: settled
+      const pendingRecord = createBmeLedgerRecord({ status: 1 });
+      chainSdk.akash.bme.v1.getLedgerRecords
+        .mockResolvedValueOnce(createBmeLedgerResponse({ records: [pendingRecord] }))
+        .mockResolvedValueOnce(createBmeLedgerResponse());
 
       const result = await service.mintIfNeeded();
 
       expect(result).toEqual(Ok.EMPTY);
-      expect(bmeHttpService.getLedgerRecords).toHaveBeenCalledTimes(2);
+      expect(chainSdk.akash.bme.v1.getLedgerRecords).toHaveBeenCalledTimes(2);
     });
 
     it("should fail when ledger settlement times out", async () => {
-      const { service, bmeHttpService } = setup({
+      const { service, chainSdk } = setup({
         targetActBalance: 10_000_000_000,
         balances: { uact: 5_000_000_000, uakt: 99_999_999_999 },
         aktPrice: 0.5
       });
 
-      const pendingRecord = createBmeLedgerRecord({ status: "ledger_record_status_pending" });
-      bmeHttpService.getLedgerRecords.mockResolvedValue(createBmeLedgerResponse({ records: [pendingRecord] }));
+      const pendingRecord = createBmeLedgerRecord({ status: 1 });
+      chainSdk.akash.bme.v1.getLedgerRecords.mockResolvedValue(createBmeLedgerResponse({ records: [pendingRecord] }));
 
       const result = await service.mintIfNeeded();
 
@@ -109,12 +110,12 @@ describe(MasterWalletMintService.name, () => {
     });
 
     it("should fail when ACT balance stays below target after retries", async () => {
-      const { service, cosmosHttpService } = setup({
+      const { service, chainSdk } = setup({
         targetActBalance: 10_000_000_000,
         balances: { uact: 5_000_000_000, uakt: 99_999_999_999 },
         aktPrice: 0.5
       });
-      cosmosHttpService.getBankBalancesByAddress.mockResolvedValue(
+      chainSdk.cosmos.bank.v1beta1.getAllBalances.mockResolvedValue(
         createBankBalancesResponse({
           balances: [
             { denom: "uact", amount: String(5_000_000_000) },
@@ -143,8 +144,8 @@ describe(MasterWalletMintService.name, () => {
     });
   });
 
-  function mockBalancesOnce(cosmosHttpService: ReturnType<typeof setup>["cosmosHttpService"], amounts: { uact: number; uakt: number }) {
-    cosmosHttpService.getBankBalancesByAddress.mockResolvedValueOnce(
+  function mockBalancesOnce(chainSdk: ReturnType<typeof setup>["chainSdk"], amounts: { uact: number; uakt: number }) {
+    chainSdk.cosmos.bank.v1beta1.getAllBalances.mockResolvedValueOnce(
       createBankBalancesResponse({
         balances: [
           { denom: "uact", amount: String(amounts.uact) },
@@ -162,9 +163,10 @@ describe(MasterWalletMintService.name, () => {
     const txManagerService = mock<TxManagerService>();
     txManagerService.getFundingWalletAddress.mockResolvedValue(masterAddress);
 
-    const cosmosHttpService = mock<CosmosHttpService>();
+    const chainSdk = mockDeep<ChainSDK>();
+
     if (input.balances) {
-      cosmosHttpService.getBankBalancesByAddress.mockResolvedValueOnce(
+      chainSdk.cosmos.bank.v1beta1.getAllBalances.mockResolvedValueOnce(
         createBankBalancesResponse({
           balances: [
             { denom: "uact", amount: String(input.balances.uact) },
@@ -174,6 +176,8 @@ describe(MasterWalletMintService.name, () => {
       );
     }
 
+    chainSdk.akash.bme.v1.getLedgerRecords.mockResolvedValue(createBmeLedgerResponse());
+
     const denomExchangeService = mock<DenomExchangeService>();
     if (input.aktPrice !== undefined) {
       denomExchangeService.getExchangeRateToUSD.mockResolvedValue(createDenomExchangeRate({ price: input.aktPrice }));
@@ -181,7 +185,6 @@ describe(MasterWalletMintService.name, () => {
 
     const bmeHttpService = mock<BmeHttpService>();
     bmeHttpService.getParams.mockResolvedValue({ params: { min_mint: [{ denom: "uact", amount: "10000000" }] } });
-    bmeHttpService.getLedgerRecords.mockResolvedValue(createBmeLedgerResponse());
 
     const rpcMessageService = mock<RpcMessageService>();
     rpcMessageService.getMintACTMsg.mockReturnValue({
@@ -197,23 +200,13 @@ describe(MasterWalletMintService.name, () => {
     const service = new MasterWalletMintService(
       billingConfig,
       txManagerService,
-      cosmosHttpService,
+      chainSdk,
       denomExchangeService,
       bmeHttpService,
       rpcMessageService,
       timerService
     );
 
-    return {
-      service,
-      masterAddress,
-      billingConfig,
-      txManagerService,
-      cosmosHttpService,
-      denomExchangeService,
-      bmeHttpService,
-      rpcMessageService,
-      timerService
-    };
+    return { service, masterAddress, billingConfig, txManagerService, chainSdk, denomExchangeService, bmeHttpService, rpcMessageService, timerService };
   }
 });
