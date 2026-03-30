@@ -12,6 +12,8 @@ import { useTheme } from "next-themes";
 
 import { copyTextToClipboard } from "@src/utils/copyClipboard";
 
+export const DEPENDENCIES = { Terminal, FitAddon, useTheme, copyTextToClipboard };
+
 export interface IProps {
   /**
    * Class name to add to the terminal container.
@@ -125,7 +127,8 @@ export type XTermRefType = {
   focus: () => void;
 };
 
-const XTerm: React.FunctionComponent<IProps> = props => {
+const XTerm: React.FunctionComponent<IProps & { dependencies?: typeof DEPENDENCIES }> = props => {
+  const { Terminal, FitAddon, useTheme, copyTextToClipboard } = props.dependencies ?? DEPENDENCIES;
   const { resolvedTheme } = useTheme();
   const terminalEleRef = useRef<HTMLDivElement | null>(null);
   const terminalRef = useRef<Terminal | null>(null);
@@ -240,7 +243,7 @@ function disposable(value: IDisposable | undefined) {
   return () => value.dispose();
 }
 
-function getTheme(resolvedTheme: string | undefined) {
+export function getTheme(resolvedTheme: string | undefined) {
   const isDark = resolvedTheme === "dark";
   return {
     background: isDark ? "#1e1e1e" : "white",
