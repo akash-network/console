@@ -142,20 +142,34 @@ jobs:
 
             const checks = [
               { output: 'static_analyses', ignoreLabel: 'ignore-static-security-analysis' },
-              { output: 'deps_scan', ignoreLabel: 'ignore-apps-deps-scan' }
+              { output: 'deps_scan', ignoreLabel: 'ignore-apps-deps-scan', run: requiredIfPackageLockChanged }
             ];
 
-            for (const { output, ignoreLabel } of checks) {
+            for (const check of checks) {
               if (!prNumber) {
-                core.setOutput(`should_run_${output}`, 'false');
-                core.setOutput(`skip_reason_${output}`, 'No PR found for commit');
-              } else if (labels.includes(ignoreLabel)) {
-                core.setOutput(`should_run_${output}`, 'false');
-                core.setOutput(`skip_reason_${output}`, `Label '${ignoreLabel}' is present`);
+                core.setOutput(`should_run_${check.output}`, 'false');
+                core.setOutput(`skip_reason_${check.output}`, 'No PR found for commit');
+              } else if (labels.includes(check.ignoreLabel)) {
+                core.setOutput(`should_run_${check.output}`, 'false');
+                core.setOutput(`skip_reason_${check.output}`, `Label '${check.ignoreLabel}' is present`);
+              } else if (check.run) {
+                const result = await check.run();
+                core.setOutput(`should_run_${check.output}`, result.required ? 'true' : 'false');
+                core.setOutput(`skip_reason_${check.output}`, result.reason);
               } else {
-                core.setOutput(`should_run_${output}`, 'true');
-                core.setOutput(`skip_reason_${output}`, '');
+                core.setOutput(`should_run_${check.output}`, 'true');
+                core.setOutput(`skip_reason_${check.output}`, '');
               }
+            }
+
+            async function requiredIfPackageLockChanged() {
+              const files = await github.paginate(github.rest.pulls.listFiles, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: Number(prNumber),
+              });
+              const hasLockfileChange = files.some(f => f.filename === 'package-lock.json');
+              return { required: hasLockfileChange, reason: hasLockfileChange ? '' : 'package-lock.json not changed' };
             }
 
       - name: Build matrix from changed files
