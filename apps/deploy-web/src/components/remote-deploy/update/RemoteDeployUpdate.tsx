@@ -9,7 +9,6 @@ import { EnvVarList } from "@src/components/sdl/EnvVarList";
 import { CURRENT_SERVICE, protectedEnvironmentVariables } from "@src/config/remote-deploy.config";
 import { SdlBuilderProvider } from "@src/context/SdlBuilderProvider";
 import { useServices } from "@src/context/ServicesProvider";
-import { useSupportsACT } from "@src/hooks/useSupportsACT/useSupportsACT";
 import { EnvVarManagerService } from "@src/services/remote-deploy/env-var-manager.service";
 import { tokens } from "@src/store/remoteDeployStore";
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
@@ -25,8 +24,7 @@ const RemoteDeployUpdate = ({ sdlString, onManifestChange }: { sdlString: string
   const [token] = useAtom(tokens);
   const { enqueueSnackbar } = useSnackbar();
   const [isEditingEnv, setIsEditingEnv] = useState<number | boolean | null>(false);
-  const supportsACT = useSupportsACT();
-  const { control, watch, setValue } = useForm<SdlBuilderFormValuesType>({ defaultValues: { services: [getDefaultService({ supportsACT })] } });
+  const { control, watch, setValue } = useForm<SdlBuilderFormValuesType>({ defaultValues: { services: [getDefaultService()] } });
   const { fields: services } = useFieldArray({ control, name: "services", keyName: "id" });
   const envVarManagerService = useMemo(() => new EnvVarManagerService(services), [services]);
   const { publicConfig } = useServices();

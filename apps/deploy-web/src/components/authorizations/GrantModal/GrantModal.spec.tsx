@@ -135,7 +135,6 @@ describe(GrantModal.name, () => {
     const { signAndBroadcastTx } = setup({
       editingGrant: createGrant({ grantee: "akash1grantee" }),
       dependencies: {
-        useSupportsACT: () => true,
         useSupportedDenoms: () => ACT_SUPPORTED_TOKENS
       }
     });
@@ -202,7 +201,6 @@ describe(GrantModal.name, () => {
     setup({
       dependencies: {
         Button: ButtonMock,
-        useSupportsACT: () => true,
         useSupportedDenoms: () => ACT_SUPPORTED_TOKENS
       }
     });
@@ -212,13 +210,18 @@ describe(GrantModal.name, () => {
     expect(addButton).toBeDefined();
   });
 
-  it("does not show 'Add AKT Grant' button when ACT is not supported", () => {
+  it("shows 'Add AKT Grant' button when only one row", () => {
     const ButtonMock = vi.fn(ComponentMock);
-    setup({ dependencies: { Button: ButtonMock } });
+    setup({
+      dependencies: {
+        Button: ButtonMock,
+        useSupportedDenoms: () => ACT_SUPPORTED_TOKENS
+      }
+    });
 
     const addButton = ButtonMock.mock.calls.find(c => c[0].children === "Add AKT Grant");
 
-    expect(addButton).toBeUndefined();
+    expect(addButton).toBeDefined();
   });
 
   it("adds second SpendLimitRow when 'Add AKT Grant' button is clicked", () => {
@@ -230,7 +233,6 @@ describe(GrantModal.name, () => {
       dependencies: {
         Button: ButtonMock,
         SpendLimitRow: SpendLimitRowMock,
-        useSupportsACT: () => true,
         useSupportedDenoms: () => ACT_SUPPORTED_TOKENS
       }
     });
@@ -255,7 +257,6 @@ describe(GrantModal.name, () => {
       }),
       dependencies: {
         SpendLimitRow: SpendLimitRowMock,
-        useSupportsACT: () => true,
         useSupportedDenoms: () => ACT_SUPPORTED_TOKENS
       }
     });
@@ -278,7 +279,6 @@ describe(GrantModal.name, () => {
       }),
       dependencies: {
         SpendLimitRow: SpendLimitRowMock,
-        useSupportsACT: () => true,
         useSupportedDenoms: () => ACT_SUPPORTED_TOKENS
       }
     });
@@ -304,7 +304,6 @@ describe(GrantModal.name, () => {
       }),
       dependencies: {
         Button: ButtonMock,
-        useSupportsACT: () => true,
         useSupportedDenoms: () => ACT_SUPPORTED_TOKENS
       }
     });
@@ -337,7 +336,6 @@ describe(GrantModal.name, () => {
             useWallet: () => ({ signAndBroadcastTx }) as unknown as ReturnType<typeof DEPENDENCIES.useWallet>,
             useUsdcDenom: () => USDC_TEST_DENOM,
             useDenomData: () => ({ min: 0, max: 1000, label: "AKT", balance: 500 }),
-            useSupportsACT: () => false,
             useSupportedDenoms: () => DEFAULT_SUPPORTED_TOKENS,
             ...input.dependencies
           } as typeof DEPENDENCIES

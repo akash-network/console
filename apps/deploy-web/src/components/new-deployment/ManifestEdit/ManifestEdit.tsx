@@ -13,13 +13,12 @@ import { useAtom } from "jotai";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSnackbar } from "notistack";
 
-import { UACT_DENOM, UAKT_DENOM } from "@src/config/denom.config";
+import { UACT_DENOM } from "@src/config/denom.config";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useCertificate } from "@src/hooks/useCertificate/useCertificate";
 import { useImportSimpleSdl } from "@src/hooks/useImportSimpleSdl";
-import { useSupportsACT } from "@src/hooks/useSupportsACT/useSupportsACT";
 import { useWhen } from "@src/hooks/useWhen";
 import { useDepositParams } from "@src/queries/useSaveSettings";
 import sdlStore from "@src/store/sdlStore";
@@ -82,8 +81,7 @@ export const DEPENDENCIES = {
   useMediaQuery,
   useSnackbar,
   useRouter,
-  useSearchParams,
-  useSupportsACT
+  useSearchParams
 };
 
 export const ManifestEdit: React.FunctionComponent<Props> = ({
@@ -102,16 +100,14 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
   const [isCheckingPrerequisites, setIsCheckingPrerequisites] = useState(false);
   const [selectedSdlEditMode, setSelectedSdlEditMode] = useAtom(sdlStore.selectedSdlEditMode);
   const [isRepoInputValid, setIsRepoInputValid] = useState(false);
-  const isACTSupported = d.useSupportsACT();
   const sdlDenom = useMemo(() => {
-    const defaultValue = isACTSupported ? UACT_DENOM : UAKT_DENOM;
-    if (!editedManifest) return defaultValue;
+    if (!editedManifest) return UACT_DENOM;
 
     try {
       const sdl: SDLInput = yaml.raw(editedManifest);
       return Object.values(Object.values(sdl.profiles.placement)[0].pricing)[0].denom;
     } catch {
-      return defaultValue;
+      return UACT_DENOM;
     }
   }, [editedManifest]);
 

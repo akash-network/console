@@ -5,7 +5,6 @@ import { CheckCircle, WarningCircle } from "iconoir-react";
 
 import { useWallet } from "@src/context/WalletProvider";
 import { useChainParam } from "@src/hooks/useChainParam/useChainParam";
-import { useSupportsACT } from "@src/hooks/useSupportsACT/useSupportsACT";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
 import { denomToUdenom } from "@src/utils/mathHelpers";
 import { ConnectWallet } from "./ConnectWallet";
@@ -22,7 +21,6 @@ export const PrerequisiteList: React.FunctionComponent<Props> = ({ onClose, onCo
   const { address, isManaged } = useWallet();
   const { balance: walletBalance } = useWalletBalance();
   const { minDeposit } = useChainParam();
-  const isACTSupported = useSupportsACT();
 
   useEffect(() => {
     if (isManaged) {
@@ -42,7 +40,7 @@ export const PrerequisiteList: React.FunctionComponent<Props> = ({ onClose, onCo
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [address, walletBalance?.balanceUAKT, walletBalance?.balanceUUSDC, walletBalance?.balanceUACT, minDeposit.akt, minDeposit.act, isACTSupported, isManaged]);
+  }, [address, walletBalance?.balanceUAKT, walletBalance?.balanceUUSDC, walletBalance?.balanceUACT, minDeposit.akt, minDeposit.act, isManaged]);
 
   return (
     <Popup

@@ -12,7 +12,6 @@ import { UACT_DENOM, UAKT_DENOM } from "@src/config/denom.config";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useSupportedDenoms, useUsdcDenom } from "@src/hooks/useDenom";
-import { useSupportsACT } from "@src/hooks/useSupportsACT/useSupportsACT";
 import { useDenomData } from "@src/hooks/useWalletBalance";
 import type { GrantType } from "@src/types/grant";
 import { denomToUdenom } from "@src/utils/mathHelpers";
@@ -37,7 +36,6 @@ export const DEPENDENCIES = {
   useWallet,
   useUsdcDenom,
   useDenomData,
-  useSupportsACT,
   useSupportedDenoms
 };
 
@@ -67,7 +65,6 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
   const [error, setError] = useState("");
   const { signAndBroadcastTx } = d.useWallet();
   const usdcDenom = d.useUsdcDenom();
-  const isACTSupported = d.useSupportsACT();
   const supportedTokens = d.useSupportedDenoms();
 
   const defaultSpendLimits = editingGrant
@@ -75,7 +72,7 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
         denom: sl.denom,
         amount: coinToDenom(sl)
       }))
-    : [{ denom: isACTSupported ? UACT_DENOM : UAKT_DENOM, amount: 0 }];
+    : [{ denom: UACT_DENOM, amount: 0 }];
 
   const form = useForm<GrantFormValues>({
     defaultValues: {
@@ -91,7 +88,7 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
   const granteeAddress = watch("granteeAddress");
   const expiration = watch("expiration");
   const hasAmount = watchedSpendLimits.some(sl => sl.amount > 0);
-  const canAddAkt = isACTSupported && spendLimitFields.length < 2 && !spendLimitFields.some(f => f.denom === UAKT_DENOM);
+  const canAddAkt = spendLimitFields.length < 2 && !spendLimitFields.some(f => f.denom === UAKT_DENOM);
 
   const onDepositClick = (event: React.MouseEvent) => {
     event.preventDefault();
@@ -106,7 +103,7 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
       amount: denomToUdenom(sl.amount).toString(),
       denom: sl.denom === "usdc" ? usdcDenom : sl.denom
     }));
-    const spendLimit = isACTSupported ? coins : coins[0];
+    const spendLimit = coins;
 
     const expirationDate = new Date(expiration);
     const message = TransactionMessageData.getGrantMsg(address, granteeAddress, spendLimit, expirationDate);
@@ -168,7 +165,7 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
               key={field.id}
               index={index}
               denom={watchedSpendLimits[index]?.denom ?? field.denom}
-              isRemovable={isACTSupported && index > 0}
+              isRemovable={index > 0}
               onRemove={() => removeSpendLimitAt(index)}
             />
           ))}

@@ -7,15 +7,6 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { ComponentMock, MockComponents } from "@tests/unit/mocks";
 
 describe("SpendLimitRow", () => {
-  it("renders FormField for denom when ACT is not supported", () => {
-    const FormFieldMock = vi.fn(ComponentMock);
-    setup({ dependencies: { FormField: FormFieldMock } });
-
-    const denomField = FormFieldMock.mock.calls.find(c => c[0].name === "spendLimits.0.denom");
-
-    expect(denomField).toBeDefined();
-  });
-
   it("renders FormField for amount", () => {
     const FormFieldMock = vi.fn(ComponentMock);
     setup({ dependencies: { FormField: FormFieldMock } });
@@ -23,31 +14,6 @@ describe("SpendLimitRow", () => {
     const amountField = FormFieldMock.mock.calls.find(c => c[0].name === "spendLimits.0.amount");
 
     expect(amountField).toBeDefined();
-  });
-
-  it("renders token dropdown with supported tokens when ACT is not supported", () => {
-    const SelectItemMock = vi.fn(ComponentMock);
-    const FormFieldMock = vi.fn(RenderPropMock);
-    setup({ dependencies: { SelectItem: SelectItemMock, FormField: FormFieldMock } });
-
-    const tokenValues = SelectItemMock.mock.calls.map(c => c[0].value);
-
-    expect(tokenValues).toContain(UAKT_DENOM);
-    expect(tokenValues).toContain("uusdc");
-  });
-
-  it("does not render Select when ACT is supported", () => {
-    const SelectMock = vi.fn(ComponentMock);
-    const FormFieldMock = vi.fn(RenderPropMock);
-    setup({
-      dependencies: {
-        Select: SelectMock,
-        FormField: FormFieldMock,
-        useSupportsACT: () => true
-      }
-    });
-
-    expect(SelectMock).not.toHaveBeenCalled();
   });
 
   it("resolves usdc denom before calling useDenomData", () => {
@@ -187,7 +153,6 @@ describe("SpendLimitRow", () => {
           {
             ...MockComponents(DEPENDENCIES),
             useFormContext: () => ({ control: {}, clearErrors: vi.fn() }),
-            useSupportsACT: () => false,
             useSupportedDenoms: () => DEFAULT_SUPPORTED_TOKENS,
             useUsdcDenom: () => USDC_TEST_DENOM,
             useDenomData: () => DEFAULT_DENOM_DATA,

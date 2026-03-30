@@ -170,7 +170,7 @@ describe(ManifestEdit.name, () => {
         expect.objectContaining({
           handleCancel: expect.any(Function),
           onDeploymentDeposit: expect.any(Function),
-          denom: "uakt",
+          denom: "uact",
           title: "Confirm deployment creation?"
         }),
         expect.anything()
@@ -292,8 +292,7 @@ describe(ManifestEdit.name, () => {
       useRouter: () => mock(),
       useSearchParams: (() => ({
         get: (key: string) => (key === "templateId" ? input?.templateId ?? null : null)
-      })) as unknown as Dependencies["useSearchParams"],
-      useSupportsACT: () => false
+      })) as unknown as Dependencies["useSearchParams"]
     } as unknown as Dependencies;
 
     return render(
