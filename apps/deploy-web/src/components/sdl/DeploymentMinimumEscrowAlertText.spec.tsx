@@ -12,10 +12,10 @@ describe(DeploymentMinimumEscrowAlertText.name, () => {
     expect(screen.getByText("$10")).toBeInTheDocument();
   });
 
-  it("shows USDC dollar amount for managed wallet when act is not supported", () => {
+  it("shows ACT dollar amount for managed wallet regardless of supportsACT", () => {
     setup({ isManaged: true, supportsACT: false, denom: "uakt", minDeposit: { act: 10, akt: 5, usdc: 5 } });
 
-    expect(screen.getByText("$5")).toBeInTheDocument();
+    expect(screen.getByText("$10")).toBeInTheDocument();
   });
 
   it("shows selected denom min deposit for self-custody wallet with uakt", () => {
@@ -53,8 +53,7 @@ describe(DeploymentMinimumEscrowAlertText.name, () => {
   function setup(input: { isManaged: boolean; supportsACT: boolean; denom: string; minDeposit: { act: number; akt: number; usdc: number } }) {
     const dependencies: typeof DEPENDENCIES = {
       useWallet: () => ({ isManaged: input.isManaged }) as ReturnType<typeof DEPENDENCIES.useWallet>,
-      useChainParam: () => ({ minDeposit: input.minDeposit }) as ReturnType<typeof DEPENDENCIES.useChainParam>,
-      useSupportsACT: () => input.supportsACT
+      useChainParam: () => ({ minDeposit: input.minDeposit }) as ReturnType<typeof DEPENDENCIES.useChainParam>
     };
 
     return render(<DeploymentMinimumEscrowAlertText denom={input.denom} dependencies={dependencies} />);

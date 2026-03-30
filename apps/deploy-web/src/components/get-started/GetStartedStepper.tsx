@@ -30,6 +30,7 @@ export const GetStartedStepper: React.FunctionComponent = () => {
   const { minDeposit } = useChainParam();
   const aktBalance = walletBalance ? uaktToAKT(walletBalance.balanceUAKT) : 0;
   const usdcBalance = walletBalance ? udenomToDenom(walletBalance.balanceUUSDC) : 0;
+  const actBalance = walletBalance ? udenomToDenom(walletBalance.balanceUACT) : 0;
 
   useEffect(() => {
     const getStartedStep = localStorage.getItem("getStartedStep");
@@ -141,13 +142,13 @@ export const GetStartedStepper: React.FunctionComponent = () => {
 
           {walletBalance && (
             <div className="my-4 flex items-center space-x-2">
-              {aktBalance >= minDeposit.akt || usdcBalance >= minDeposit.act ? (
+              {aktBalance >= minDeposit.akt || actBalance >= minDeposit.act ? (
                 <Check className="text-green-600" />
               ) : (
                 <CustomTooltip
                   title={
                     <>
-                      If you don&apos;t have {minDeposit.akt} AKT or {minDeposit.act} ACT, you can request authorization for some tokens to get started on our{" "}
+                      If you don&apos;t have {minDeposit.akt} AKT or {minDeposit.act} ACT, you can request some tokens to get started on our{" "}
                       <ExternalLink href="https://discord.gg/akash" text="Discord" />.
                     </>
                   }
