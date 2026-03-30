@@ -373,6 +373,43 @@ describe(ProviderService.name, () => {
     });
   });
 
+  describe("getProviderList", () => {
+    it("should prefer online provider when multiple providers share the same hostUri", async () => {
+      const { service, providerRepository, auditorsService, providerAttributesSchemaService } = setup();
+
+      const sharedHostUri = "https://provider.example.com:8443";
+      const offlineProvider = { ...createProviderWithAttributeSignatures(AUDITOR), hostUri: sharedHostUri, isOnline: false } as unknown as Provider;
+      const onlineProvider = { ...createProviderWithAttributeSignatures(AUDITOR), hostUri: sharedHostUri, isOnline: true } as unknown as Provider;
+
+      providerRepository.getWithAttributesAndAuditors.mockResolvedValue([offlineProvider, onlineProvider]);
+      providerRepository.getProviderWithNodes.mockResolvedValue([]);
+      auditorsService.getAuditors.mockResolvedValue([]);
+      providerAttributesSchemaService.getProviderAttributesSchema.mockResolvedValue(providerAttributeSchemaStub);
+
+      const result = await service.getProviderList();
+
+      expect(result).toHaveLength(1);
+      expect(result[0].owner).toBe(onlineProvider.owner);
+    });
+
+    it("should deduplicate providers with the same hostUri", async () => {
+      const { service, providerRepository, auditorsService, providerAttributesSchemaService } = setup();
+
+      const sharedHostUri = "https://provider.example.com:8443";
+      const provider1 = { ...createProviderWithAttributeSignatures(AUDITOR), hostUri: sharedHostUri, isOnline: false } as unknown as Provider;
+      const provider2 = { ...createProviderWithAttributeSignatures(AUDITOR), hostUri: sharedHostUri, isOnline: false } as unknown as Provider;
+
+      providerRepository.getWithAttributesAndAuditors.mockResolvedValue([provider1, provider2]);
+      providerRepository.getProviderWithNodes.mockResolvedValue([]);
+      auditorsService.getAuditors.mockResolvedValue([]);
+      providerAttributesSchemaService.getProviderAttributesSchema.mockResolvedValue(providerAttributeSchemaStub);
+
+      const result = await service.getProviderList();
+
+      expect(result).toHaveLength(1);
+    });
+  });
+
   describe("getProviderListByAddresses", () => {
     it("should return mapped providers for given addresses", async () => {
       const { service, providerRepository, auditorsService, providerAttributesSchemaService } = setup();
