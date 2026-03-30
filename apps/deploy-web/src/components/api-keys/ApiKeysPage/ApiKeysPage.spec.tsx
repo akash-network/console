@@ -148,7 +148,7 @@ describe(ApiKeysPage.name, () => {
     setup({
       dependencies: {
         useDeleteApiKey,
-        enqueueSnackbar
+        useSnackbar: () => ({ enqueueSnackbar, closeSnackbar: vi.fn() }) as unknown as ReturnType<typeof DEPENDENCIES.useSnackbar>
       }
     });
 
@@ -191,7 +191,7 @@ describe(ApiKeysPage.name, () => {
             ...MockComponents(DEPENDENCIES),
             useUserApiKeys,
             useDeleteApiKey,
-            enqueueSnackbar: vi.fn(),
+            useSnackbar: () => ({ enqueueSnackbar: vi.fn(), closeSnackbar: vi.fn() }) as unknown as ReturnType<typeof DEPENDENCIES.useSnackbar>,
             ...input.dependencies
           }}
         />
