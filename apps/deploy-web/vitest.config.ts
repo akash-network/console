@@ -38,7 +38,10 @@ export default defineConfig({
           alias: {
             ...commonAlias,
             "@interchain-ui/react/styles": path.resolve("./tests/unit/__mocks__/style.ts"),
-            "@interchain-ui/react/globalStyles": path.resolve("./tests/unit/__mocks__/style.ts")
+            "@interchain-ui/react/globalStyles": path.resolve("./tests/unit/__mocks__/style.ts"),
+            "@xterm/xterm/css/xterm.css": path.resolve("./tests/unit/__mocks__/style.ts"),
+            "@xterm/xterm": path.resolve("./tests/unit/__mocks__/xterm.ts"),
+            "@xterm/addon-fit": path.resolve("./tests/unit/__mocks__/xterm-addon-fit.ts")
           }
         }
       },
