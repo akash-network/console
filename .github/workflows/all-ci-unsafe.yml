@@ -158,6 +158,19 @@ jobs:
               }
             }
 
+            if (core.getOutput('should_run_deps_scan') === 'true') {
+              const files = await github.paginate(github.rest.pulls.listFiles, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: Number(prNumber),
+              });
+              const hasLockfileChange = files.some(f => f.filename === 'package-lock.json');
+              if (!hasLockfileChange) {
+                core.setOutput(`should_run_${output}`, 'false');
+                core.setOutput(`skip_reason_${output}`, 'package-lock.json not changed');
+              }
+            }
+
       - name: Build matrix from changed files
         if: steps.check_label.outputs.should_run_static_analyses == 'true'
         id: matrix
@@ -187,7 +200,7 @@ jobs:
 
   security-scan:
     needs: [setup]
-    if: ${{ needs.setup.outputs.should_run_static_analyses == 'true' && needs.setup.outputs.matrix != '' }}
+    if: ${{ needs.setup.outputs.matrix != '' }}
     strategy:
       matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
       fail-fast: false
@@ -199,7 +212,8 @@ jobs:
       path: apps/${{ matrix.workspace }}
       pr_head_ref: ${{ needs.setup.outputs.pr_head_ref }}
       pr_head_repo: ${{ needs.setup.outputs.pr_head_repo }}
-      skip_change_detection: true
+      run_static_analyses: ${{ needs.setup.outputs.should_run_static_analyses == 'true'}}
+      run_deps_scan: ${{ needs.setup.outputs.should_run_deps_scan == 'true' }}
 
   apps-deps-scan:
     needs: [setup]
@@ -211,13 +225,6 @@ jobs:
         with:
           sparse-checkout: |
             .github
-
-      - name: Check snyk status
-        uses: ./.github/actions/poll-check-status
-        with:
-          name: "security/snyk (corysturtevant)"
-          sha: ${{ github.event.workflow_run.head_sha }}
-          check_type: status
 
       - name: Check socketio status
         uses: ./.github/actions/poll-check-status
