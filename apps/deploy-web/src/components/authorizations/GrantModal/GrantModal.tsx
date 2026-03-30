@@ -88,7 +88,9 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
   const granteeAddress = watch("granteeAddress");
   const expiration = watch("expiration");
   const hasAmount = watchedSpendLimits.some(sl => sl.amount > 0);
-  const canAddAkt = spendLimitFields.length < 2 && !spendLimitFields.some(f => f.denom === UAKT_DENOM);
+  const hasActGrant = spendLimitFields.some(f => f.denom === UACT_DENOM);
+  const hasAktGrant = spendLimitFields.some(f => f.denom === UAKT_DENOM);
+  const canAddGrant = spendLimitFields.length < 2 && !(hasActGrant && hasAktGrant);
 
   const onDepositClick = (event: React.MouseEvent) => {
     event.preventDefault();
@@ -119,8 +121,8 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
     }
   };
 
-  const addAktGrant = () => {
-    appendSpendLimit({ denom: UAKT_DENOM, amount: 0 });
+  const addMissingGrant = () => {
+    appendSpendLimit({ denom: hasActGrant ? UAKT_DENOM : UACT_DENOM, amount: 0 });
   };
 
   return (
@@ -165,15 +167,15 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
               key={field.id}
               index={index}
               denom={watchedSpendLimits[index]?.denom ?? field.denom}
-              isRemovable={index > 0}
+              isRemovable={spendLimitFields.length > 1}
               onRemove={() => removeSpendLimitAt(index)}
             />
           ))}
 
-          {canAddAkt && (
+          {canAddGrant && (
             <div className="mb-4">
-              <d.Button variant="outline" size="sm" type="button" className="w-full" onClick={addAktGrant}>
-                Add AKT Grant
+              <d.Button variant="outline" size="sm" type="button" className="w-full" onClick={addMissingGrant}>
+                {hasActGrant ? "Add AKT Grant" : "Add ACT Grant"}
               </d.Button>
             </div>
           )}

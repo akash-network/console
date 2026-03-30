@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 
+import { UACT_DENOM } from "@src/config/denom.config";
 import { useServices } from "@src/context/ServicesProvider";
 import { getUsdcDenom } from "@src/utils/priceUtils";
 
@@ -15,6 +16,6 @@ export const useUsdcDenom = (dependencies: typeof DEPENDENCIES = DEPENDENCIES): 
 
 export const useSupportedDenoms = () => {
   return useMemo(() => {
-    return [{ id: "uact", label: "uACT", tokenLabel: "ACT", value: "uact" }];
+    return [{ id: UACT_DENOM, label: "uACT", tokenLabel: "ACT", value: UACT_DENOM }];
   }, []);
 };
