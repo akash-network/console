@@ -10,15 +10,9 @@ const DENOM_LABELS: Record<string, string> = {
   uact: "ACT"
 };
 
-Handlebars.registerHelper("denomLabel", function (denom: unknown) {
-  if (typeof denom !== "string") {
-    return "";
-  }
+const numberFormatter = new Intl.NumberFormat("en-US");
 
-  return DENOM_LABELS[denom] ?? denom;
-});
-
-Handlebars.registerHelper("udenomToDenom", function (amount: unknown, precision?: unknown) {
+Handlebars.registerHelper("formatBalance", function (amount: unknown, denom: unknown, precision?: unknown) {
   const parsedAmount = typeof amount === "string" ? parseFloat(amount) : Number(amount);
 
   if (isNaN(parsedAmount)) {
@@ -27,8 +21,10 @@ Handlebars.registerHelper("udenomToDenom", function (amount: unknown, precision?
 
   const parsedPrecision = typeof precision === "number" ? precision : 6;
   const multiplier = Math.pow(10, parsedPrecision);
+  const converted = Math.round((parsedAmount / 1_000_000 + Number.EPSILON) * multiplier) / multiplier;
+  const label = typeof denom === "string" ? DENOM_LABELS[denom] ?? denom : "";
 
-  return String(Math.round((parsedAmount / 1_000_000 + Number.EPSILON) * multiplier) / multiplier);
+  return `${numberFormatter.format(converted)} ${label}`.trim();
 });
 
 @Injectable()
