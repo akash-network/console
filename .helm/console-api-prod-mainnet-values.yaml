@@ -40,6 +40,14 @@ jobs:
       - ./dist/instrumentation.js
       - ./dist/console.js
       - gpu-pricing-bot
+  - name: mint-act
+    schedule: "0 6 * * *" # 6:00 AM every day
+    command:
+      - node
+      - --require
+      - ./dist/instrumentation.js
+      - ./dist/console.js
+      - mint-act
 
 replicas: 3
 
