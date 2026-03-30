@@ -4,7 +4,7 @@ This file aggregates all RFC (Request for Comments) contribution guidelines that
 
 ## General Project Description
 
-This is a **monorepo** project using **npm workspaces** and **Turbo** for build orchestration. All projects use **strict TypeScript** configuration (`"strict": true` in all `tsconfig.json` files), ensuring type safety across the entire codebase.
+This is a **monorepo** project using **npm workspaces**. All projects use **strict TypeScript** configuration (`"strict": true` in all `tsconfig.json` files), ensuring type safety across the entire codebase.
 
 ### Project Structure
 
@@ -42,7 +42,7 @@ The monorepo contains multiple applications and shared packages:
 - **Package Manager**: npm 11.11.0
 - **Framework**: Next.js 14.x, Hono, Nest.js
 - **Database**: PostgreSQL with Drizzle ORM and legacy sequelize
-- **Monorepo**: Turborepo, npm workspaces
+- **Monorepo**: npm workspaces
 - **Testing**: Vitest (primary), Jest (legacy in indexer & provider-console), Playwright (e2e), React Testing Library
 - **Styling**: Material-UI, Emotion, Tailwind CSS
 - **State**: React Query, Jotai
@@ -72,22 +72,6 @@ Stop all services:
 npm run dc:down
 ```
 
-#### Using Turbo Repo
-
-Run applications in development mode:
-```bash
-npm run console:dev      # Run console UI with dependencies
-npm run stats:dev        # Run stats UI with dependencies
-npm run api:dev          # Run API with dependencies
-npm run indexer:dev      # Run indexer with dependencies
-```
-
-Run without database dependencies:
-```bash
-npm run console:dev:no-db
-npm run stats:dev:no-db
-```
-
 #### Building Individual Applications
 
 Each application has its own build script. Navigate to the app directory and run:
@@ -97,6 +81,11 @@ npm run build
 ```
 
 ### Running Tests
+
+IMPORTANT: Before pushing, ALWAYS run in the affected app:
+1. `npm test` (runs unit, integration, and functional tests)
+2. `npm run lint -- --quiet`
+3. `npx tsc --noEmit`
 
 #### Unit Tests
 
@@ -122,6 +111,19 @@ cd packages/<package-name>
 npm test
 ```
 
+#### Integration Tests
+
+Integration tests run against real infrastructure (database, etc.) and are currently used in `apps/api`.
+
+- **Naming**: `*.integration.ts` (colocated next to source files, like unit tests)
+- **Running**:
+  ```bash
+  cd apps/api
+  npm run test:integration
+  ```
+- **Setup**: Requires Docker services running via `npm run test:ci-setup`
+- **Vitest project**: Configured as a separate `integration` project in `vitest.config.ts` with its own setup files and extended timeouts (60s test, 30s hook)
+
 #### Functional Tests
 
 Functional tests are available in `apps/api`, `apps/notifications`, `apps/provider-proxy`:
@@ -138,7 +140,7 @@ npm run test:functional -- --watch
 
 Some services require Docker services to be running before functional tests can execute. These services provide `test:ci-setup` and `test:ci-teardown` scripts:
 
-- **`apps/api`**: Requires `db`, `mock-oauth2-server`, and `provider-proxy` services
+- **`apps/api`**:
   ```bash
   cd apps/api
   npm run test:ci-setup    # Start required Docker services
@@ -146,7 +148,7 @@ Some services require Docker services to be running before functional tests can 
   npm run test:ci-teardown # Stop Docker services
   ```
 
-- **`apps/notifications`**: Requires `db` service
+- **`apps/notifications`**:
   ```bash
   cd apps/notifications
   npm run test:ci-setup     # Start database service
