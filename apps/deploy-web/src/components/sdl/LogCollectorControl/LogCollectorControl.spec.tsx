@@ -1,5 +1,6 @@
 import { FormProvider, useForm } from "react-hook-form";
 import { TooltipProvider } from "@akashnetwork/ui/components";
+import { createStore, Provider as JotaiProvider } from "jotai";
 import { describe, expect, it, vi } from "vitest";
 
 import type { SdlBuilderFormValuesType } from "@src/types";
@@ -120,11 +121,13 @@ describe(LogCollectorControl.name, () => {
 
     const user = userEvent.setup();
     const result = render(
-      <TooltipProvider>
-        <TestWrapper>
-          <LogCollectorControl serviceIndex={0} />
-        </TestWrapper>
-      </TooltipProvider>
+      <JotaiProvider store={createStore()}>
+        <TooltipProvider>
+          <TestWrapper>
+            <LogCollectorControl serviceIndex={0} />
+          </TestWrapper>
+        </TooltipProvider>
+      </JotaiProvider>
     );
 
     return {

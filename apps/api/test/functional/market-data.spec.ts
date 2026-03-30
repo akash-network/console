@@ -58,22 +58,13 @@ describe("Market Data", () => {
 
     [
       {
-        coin: "akash-network",
+        coin: "akt",
         price: 1.5,
         volume: 0,
         marketCap: 0,
         marketCapRank: 0,
         priceChange24h: 0.25,
         priceChangePercentage24: 20
-      },
-      {
-        coin: "usd-coin",
-        price: 1.0,
-        volume: 0,
-        marketCap: 0,
-        marketCapRank: 0,
-        priceChange24h: 0.5,
-        priceChangePercentage24: 100
       }
     ].forEach(({ coin, price, volume, marketCap, marketCapRank, priceChange24h, priceChangePercentage24 }) => {
       it(`returns market data for ${coin} when requested`, async () => {
@@ -91,7 +82,7 @@ describe("Market Data", () => {
     });
 
     it(`returns 400 for other coins`, async () => {
-      const response = await app.request(`/v1/market-data/ethereum`);
+      const response = await app.request(`/v1/market-data/usdc`);
 
       expect(response.status).toBe(400);
     });

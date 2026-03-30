@@ -14,10 +14,9 @@ export class DenomExchangeService {
   }
 
   getExchangeRateToUSD = memoizeAsync(
-    async (denom: "akt" | "usdc" | "akash-network" | "usd-coin") => {
+    async (denom: "akt" | "akash-network") => {
       const legacyToNewMapping: Record<string, string> = {
-        "akash-network": "akt",
-        "usd-coin": "usdc"
+        "akash-network": "akt"
       };
       const mappedDenom = legacyToNewMapping[denom] ?? denom;
 
