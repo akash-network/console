@@ -63,32 +63,27 @@ describe(TemplateService.name, () => {
     expect(new TemplateService().interpolate(template, context)).toBe("Env: ");
   });
 
-  describe("denomLabel helper", () => {
-    it("should map known denoms to token labels", () => {
-      const template = "{{denomLabel denom}}";
-      expect(setup().interpolate(template, { denom: "uakt" })).toBe("AKT");
-      expect(setup().interpolate(template, { denom: "uact" })).toBe("ACT");
+  describe("formatBalance helper", () => {
+    it("should convert, format, and label in one call", () => {
+      expect(setup().interpolate("{{formatBalance amount denom 2}}", { amount: 1_234_567_890, denom: "uakt" })).toBe("1,234.57 AKT");
     });
 
-    it("should return denom as-is if unknown", () => {
-      expect(setup().interpolate("{{denomLabel denom}}", { denom: "ufoo" })).toBe("ufoo");
-    });
-  });
-
-  describe("udenomToDenom helper", () => {
-    it("should convert micro-denomination to denom", () => {
-      const template = "{{udenomToDenom balance}}";
-      expect(setup().interpolate(template, { balance: 700_000 })).toBe("0.7");
+    it("should use default precision of 6", () => {
+      expect(setup().interpolate("{{formatBalance amount denom}}", { amount: 700_000, denom: "uact" })).toBe("0.7 ACT");
     });
 
-    it("should accept custom precision as second argument", () => {
-      expect(setup().interpolate("{{udenomToDenom balance 2}}", { balance: 1_234_567 })).toBe("1.23");
+    it("should pass through unknown denom", () => {
+      expect(setup().interpolate("{{formatBalance amount denom 2}}", { amount: 1_000_000, denom: "ufoo" })).toBe("1 ufoo");
+    });
+
+    it("should return empty string for non-numeric amount", () => {
+      expect(setup().interpolate("{{formatBalance amount denom}}", { amount: "abc", denom: "uakt" })).toBe("");
     });
   });
 
   describe("balance alert template", () => {
     const template =
-      '{{#if (eq alert.next.status "TRIGGERED")}}Balance dropped to {{udenomToDenom data.amount 2}} {{denomLabel data.denom}}, which is below the configured threshold{{else}}Balance recovered to {{udenomToDenom data.amount 2}} {{denomLabel data.denom}}, now above threshold{{/if}}';
+      '{{#if (eq alert.next.status "TRIGGERED")}}Balance dropped to {{formatBalance data.amount data.denom 2}}, which is below the configured threshold{{else}}Balance recovered to {{formatBalance data.amount data.denom 2}}, now above threshold{{/if}}';
 
     it("should render triggered alert", () => {
       const context = {
