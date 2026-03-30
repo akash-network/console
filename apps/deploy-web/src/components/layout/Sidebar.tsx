@@ -227,7 +227,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
           {
             title: "Help from Expert",
             icon: props => <HeadsetHelp {...props} />,
-            url: "https://share.hsforms.com/29tSLilX9Qye5Rxrlsz7WPwsaima",
+            url: "https://akash.network/gpus-on-demand/",
             activeRoutes: [],
             target: "_blank",
             isNew: true
