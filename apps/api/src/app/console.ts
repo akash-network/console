@@ -7,6 +7,7 @@ import { Err } from "ts-results";
 import { container } from "tsyringe";
 import { z } from "zod";
 
+import { MasterWalletMintController } from "@src/billing/controllers/master-wallet-mint/master-wallet-mint.controller";
 import { WalletController } from "@src/billing/controllers/wallet/wallet.controller";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { TopUpDeploymentsController } from "@src/deployment/controllers/deployment/top-up-deployments.controller";
@@ -35,6 +36,16 @@ program
   .action(async (options, command) => {
     await executeCliHandler(command.name(), async () => {
       await container.resolve(TopUpDeploymentsController).topUpDeployments(options);
+    });
+  });
+
+program
+  .command("mint-act")
+  .description("Mint ACT from AKT on master wallet to maintain target balance")
+  .option("-d, --dry-run", "Log what would be minted without broadcasting", false)
+  .action(async (options, command) => {
+    await executeCliHandler(command.name(), async () => {
+      return container.resolve(MasterWalletMintController).mint(options);
     });
   });
 
@@ -122,7 +133,15 @@ async function executeCliHandler(name: string, handler: () => Promise<unknown>, 
   });
 }
 
+const SHUTDOWN_TIMEOUT_MS = 30_000;
+
 const shutdown = once(async () => {
+  const forceExit = setTimeout(() => {
+    logger.warn({ event: "SHUTDOWN_TIMEOUT", message: "Forcing exit after timeout" });
+    process.exit(process.exitCode ?? 1);
+  }, SHUTDOWN_TIMEOUT_MS);
+  forceExit.unref();
+
   await container.dispose();
 });
 process.on("SIGTERM", shutdown);
