@@ -90,7 +90,7 @@ export const PrerequisiteList: React.FunctionComponent<Props> = ({ onClose, onCo
                     Wallet Balance
                   </Title>
                   <p className="text-sm text-muted-foreground">
-                    {`The balance of the wallet needs to be of at least ${minDeposit.act} ACT or ${minDeposit.akt} AKT to create a deployment.`}
+                    {`The balance of the wallet needs to be of at least ${minDeposit.act} ACT to create a deployment.`}
                   </p>
                 </div>
               </li>
