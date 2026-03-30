@@ -104,6 +104,31 @@ export function appendAuditorRequirement(yamlStr: string) {
 ${result}`;
 }
 
+export function replaceSdlDenom(yamlStr: string, denom: string): string {
+  const sdlData = yaml.load(yamlStr) as SDLInput;
+  const placementData = sdlData?.profiles?.placement || {};
+
+  for (const [, placement] of Object.entries(placementData)) {
+    const pricing = placement.pricing || {};
+    for (const [, price] of Object.entries(pricing)) {
+      if (price.denom) {
+        price.denom = denom;
+      }
+    }
+  }
+
+  const result = yaml.dump(sdlData, {
+    indent: 2,
+    quotingType: '"',
+    styles: {
+      "!!null": "empty"
+    }
+  });
+
+  return `---
+${result}`;
+}
+
 export async function NewDeploymentData(
   chainApiHttpClient: HttpClient,
   yamlStr: string,
