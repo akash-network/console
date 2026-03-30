@@ -1,3 +1,6 @@
+# Worktrees
+.worktrees
+
 # Logs
 logs
 *.log
