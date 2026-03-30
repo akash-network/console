@@ -8780,61 +8780,6 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
-    "/v1/nodes/{network}": {
-      "get": {
-        "parameters": [
-          {
-            "in": "path",
-            "name": "network",
-            "required": true,
-            "schema": {
-              "enum": [
-                "mainnet",
-                "testnet",
-                "sandbox",
-              ],
-              "type": "string",
-            },
-          },
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "properties": {
-                      "api": {
-                        "type": "string",
-                      },
-                      "id": {
-                        "type": "string",
-                      },
-                      "rpc": {
-                        "type": "string",
-                      },
-                    },
-                    "required": [
-                      "id",
-                      "api",
-                      "rpc",
-                    ],
-                    "type": "object",
-                  },
-                  "type": "array",
-                },
-              },
-            },
-            "description": "List of nodes",
-          },
-        },
-        "security": [],
-        "summary": "Get a list of nodes (api/rpc) for a specific network.",
-        "tags": [
-          "Chain",
-        ],
-      },
-    },
     "/v1/predicted-block-date/{height}": {
       "get": {
         "parameters": [
