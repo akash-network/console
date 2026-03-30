@@ -100,7 +100,7 @@ export const useDenomData = (denom?: string) => {
   const txFeeBuffer = isManaged ? 0 : TX_FEE_BUFFER;
 
   const depositData = useMemo(() => {
-    if (isLoaded && walletBalance && minDeposit && (minDeposit.akt !== undefined || minDeposit.usdc !== undefined || minDeposit.act !== undefined) && price) {
+    if (isLoaded && walletBalance && minDeposit && (minDeposit.akt !== undefined || minDeposit.act !== undefined) && price) {
       let depositData: DenomData | null = null;
       switch (denom) {
         case UAKT_DENOM:
@@ -113,8 +113,8 @@ export const useDenomData = (denom?: string) => {
           break;
         case usdcIbcDenom:
           depositData = {
-            min: minDeposit.usdc,
-            label: "USDC",
+            min: minDeposit.act,
+            label: "ACT",
             balance: udenomToDenom(walletBalance.balanceUUSDC, 6),
             max: udenomToDenom(Math.max(walletBalance.balanceUUSDC - txFeeBuffer, 0), 6)
           };

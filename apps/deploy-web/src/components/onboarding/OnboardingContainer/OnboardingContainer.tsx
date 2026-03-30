@@ -259,7 +259,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
           sdl = d.replaceSdlDenom(sdl, wallet.denom);
         }
 
-        const minDepositAmount = wallet.denom === "uact" ? minDeposit.act : wallet.denom !== "uakt" && wallet.isManaged ? minDeposit.usdc : minDeposit.akt;
+        const minDepositAmount = wallet.denom === "uact" ? minDeposit.act : wallet.denom !== "uakt" && wallet.isManaged ? minDeposit.act : minDeposit.akt;
         const deposit = d.denomToUdenom(minDepositAmount);
         const dd = await d.deploymentData.NewDeploymentData(chainApiHttpClient, sdl, null, wallet.address, deposit);
         d.validateDeploymentData(dd, null);

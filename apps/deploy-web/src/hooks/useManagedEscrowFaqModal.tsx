@@ -58,7 +58,7 @@ export const useManagedEscrowFaqModal = (): {
                 Akash deployments use escrow accounts, also known as deployment deposits, as a way to ensure that a user has enough funds to cover the cost of
                 deploying and running their application on the Akash network. When you create a deployment, you deposit{" "}
                 <FormattedNumber
-                  value={minDeposit.usdc}
+                  value={minDeposit.act}
                   // eslint-disable-next-line react/style-prop-object
                   style="currency"
                   currency="USD"
@@ -70,7 +70,7 @@ export const useManagedEscrowFaqModal = (): {
                 <span className="text-xs italic">Create deployment</span>
                 <div className="flex items-center space-x-2 text-sm">
                   <span className="text-success">Available</span>
-                  <span>{minDeposit.usdc}$</span>
+                  <span>{minDeposit.act}$</span>
                   <ArrowRight className="text-xs" />
                   <span>Deposit</span>
                 </div>
@@ -85,7 +85,7 @@ export const useManagedEscrowFaqModal = (): {
                 <span className="text-xs italic">Close deployment</span>
                 <div className="flex items-center space-x-2 text-sm">
                   <span>Deposit</span>
-                  <span>{minDeposit.usdc}$</span>
+                  <span>{minDeposit.act}$</span>
                   <ArrowRight className="text-xs" />
                   <span className="text-success">Available</span>
                 </div>

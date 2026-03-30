@@ -202,7 +202,7 @@ describe("OnboardingContainer", () => {
     expect(mockDenomToUdenom).toHaveBeenCalledWith(0.5);
   });
 
-  it("uses usdc min deposit when managed denom is ibc usdc", async () => {
+  it("uses act min deposit when managed denom is ibc", async () => {
     const { child, mockDenomToUdenom } = setup({
       wallet: { hasManagedWallet: true, isManaged: true, denom: "ibc/usdc" }
     });
@@ -212,7 +212,7 @@ describe("OnboardingContainer", () => {
       await onComplete("hello-akash");
     });
 
-    expect(mockDenomToUdenom).toHaveBeenCalledWith(5);
+    expect(mockDenomToUdenom).toHaveBeenCalledWith(0.5);
   });
 
   it("does not replace uakt for self-custody wallet", async () => {

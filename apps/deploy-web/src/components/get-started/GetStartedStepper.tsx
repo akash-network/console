@@ -89,8 +89,8 @@ export const GetStartedStepper: React.FunctionComponent = () => {
 
           {!isManagedWallet && (
             <p className="text-muted-foreground">
-              You need at least {minDeposit.akt} AKT or {minDeposit.usdc} USDC in your wallet to deploy on Akash. If you don't have {minDeposit.akt} AKT or{" "}
-              {minDeposit.usdc} USDC, you can switch to the sandbox or ask help in our <ExternalLink href="https://discord.gg/akash" text="Discord" />.
+              You need at least {minDeposit.akt} AKT or {minDeposit.act} ACT in your wallet to deploy on Akash. If you don't have {minDeposit.akt} AKT or{" "}
+              {minDeposit.act} ACT, you can switch to the sandbox or ask help in our <ExternalLink href="https://discord.gg/akash" text="Discord" />.
             </p>
           )}
 
@@ -141,13 +141,13 @@ export const GetStartedStepper: React.FunctionComponent = () => {
 
           {walletBalance && (
             <div className="my-4 flex items-center space-x-2">
-              {aktBalance >= minDeposit.akt || usdcBalance >= minDeposit.usdc ? (
+              {aktBalance >= minDeposit.akt || usdcBalance >= minDeposit.act ? (
                 <Check className="text-green-600" />
               ) : (
                 <CustomTooltip
                   title={
                     <>
-                      If you don&apos;t have {minDeposit.akt} AKT or {minDeposit.usdc} USDC, you can request authorization for some tokens to get started on our{" "}
+                      If you don&apos;t have {minDeposit.akt} AKT or {minDeposit.act} ACT, you can request authorization for some tokens to get started on our{" "}
                       <ExternalLink href="https://discord.gg/akash" text="Discord" />.
                     </>
                   }
