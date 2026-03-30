@@ -85,8 +85,9 @@ function fetchJson<T>(url: string): Promise<T> {
 async function getAppVersion(rpcUrl: string): Promise<string | null> {
   try {
     const abciInfo = await fetchJson<{ result: AbciInfo }>(`${rpcUrl}/abci_info`);
-    if (!abciInfo.result.response.version) return null;
-    return `v${abciInfo.result.response.version}`;
+    const version = abciInfo.result.response.version?.trim();
+    if (!version) return null;
+    return version.startsWith("v") ? version : `v${version}`;
   } catch (error) {
     console.error(`Failed to fetch app version from ${rpcUrl}:`, error);
     return null;
