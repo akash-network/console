@@ -25,6 +25,8 @@ const metaSchema = z.object({
   })
 });
 
+main().catch(console.error);
+
 async function main() {
   console.log(`Generate network configuration: ${networks.join(", ")}`);
   const config: Record<string, unknown> = {};
@@ -42,9 +44,10 @@ async function main() {
         }),
       fetchText(`${baseConfigUrl}/faucet-url.txt`).catch(() => null)
     ]);
+    const appVersion = meta?.apis?.rpc?.[0]?.address ? await getAppVersion(meta?.apis?.rpc[0]?.address) : null;
 
     const networkConfig = {
-      version: meta?.codebase?.recommended_version ?? null,
+      version: appVersion ?? meta?.codebase?.recommended_version ?? null,
       faucetUrl: faucetUrl?.trim() ?? null,
       apiUrls: meta?.apis?.rest?.map(({ address }) => address) ?? [],
       rpcUrls: meta?.apis?.rpc?.map(({ address }) => address) ?? []
@@ -70,13 +73,31 @@ function fetchText(url: string): Promise<string> {
   });
 }
 
-function fetchJson(url: string): Promise<unknown> {
+function fetchJson<T>(url: string): Promise<T> {
   return fetch(url).then(res => {
     if (!res.ok) {
       throw new Error(`Failed to fetch ${url}: ${res.status} ${res.statusText}`);
     }
-    return res.json();
+    return res.json() as Promise<T>;
   });
 }
 
-main().catch(console.error);
+async function getAppVersion(rpcUrl: string): Promise<string | null> {
+  try {
+    const abciInfo = await fetchJson<{ result: AbciInfo }>(`${rpcUrl}/abci_info`);
+    if (!abciInfo.result.response.version) return null;
+    return `v${abciInfo.result.response.version}`;
+  } catch (error) {
+    console.error(`Failed to fetch app version from ${rpcUrl}:`, error);
+    return null;
+  }
+}
+
+interface AbciInfo {
+  response: {
+    data: string;
+    last_block_height: string;
+    last_block_app_hash: string;
+    version: string;
+  };
+}
