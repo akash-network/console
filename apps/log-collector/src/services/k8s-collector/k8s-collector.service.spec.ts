@@ -1,5 +1,5 @@
-import { mock } from "jest-mock-extended";
 import { container } from "tsyringe";
+import { mock } from "vitest-mock-extended";
 
 import { FileDestinationFactory } from "@src/factories/file-destination/file-destination.factory";
 import { PodLogsCollectorFactory } from "@src/factories/pod-logs-collector/pod-logs-collector.factory";

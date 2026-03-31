@@ -1,10 +1,10 @@
 import type * as fsGlobal from "fs";
 import type { ReadStream, WriteStream } from "fs";
-import type { MockProxy } from "jest-mock-extended";
-import { mock } from "jest-mock-extended";
 import type * as pathGlobal from "path";
 import type * as readlineGlobal from "readline";
 import { container } from "tsyringe";
+import type { MockProxy } from "vitest-mock-extended";
+import { mock } from "vitest-mock-extended";
 
 import { ConfigService } from "@src/services/config/config.service";
 import { LoggerService } from "@src/services/logger/logger.service";
