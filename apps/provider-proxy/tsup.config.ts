@@ -21,7 +21,7 @@ export default defineConfig(async overrideOptions =>
     tsconfig: "tsconfig.build.json",
     external: ["pino-pretty"],
     dts: false,
-    onSuccess: overrideOptions.watch && !isProduction ? "node --enable-source-maps dist/server.js" : undefined,
+    onSuccess: overrideOptions.watch && !isProduction ? "npm run prod" : undefined,
     ...overrideOptions
   })
 );

@@ -8,11 +8,11 @@
   "scripts": {
     "build": "NODE_ENV=production tsup && tsc -p tsconfig.build.json",
     "build:container": "dc build provider-proxy",
-    "dev": "tsup src/server.ts --watch",
+    "dev": "tsup --watch",
     "dev:inspect": "NODE_OPTIONS=\"--inspect\" npm run dev",
     "format": "prettier --write ./*.{ts,js,json} **/*.{ts,js,json}",
     "lint": "eslint .",
-    "prod": "node --require ./dist/instrumentation ./dist/server.js",
+    "prod": "node --permission --allow-fs-read=./dist/ --allow-fs-read=./env/ --allow-fs-read=./node_modules/ --allow-fs-read=../../node_modules/ --allow-fs-read=../../packages/env-loader/ --enable-source-maps --require ./dist/instrumentation.js ./dist/server.js",
     "start": "tsup --watch",
     "test": "vitest run --project unit --project functional",
     "test:cov": "vitest run --project unit --project functional --coverage",
