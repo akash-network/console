@@ -60,7 +60,6 @@ import {
   networkCapacityRouter
 } from "./dashboard";
 import { gpuRouter } from "./gpu";
-import { networkRouter } from "./network";
 import { pricingRouter } from "./pricing";
 import { proposalsRouter } from "./proposal";
 import {
@@ -158,7 +157,6 @@ const openApiHonoHandlers: OpenApiHonoHandler[] = [
   templatesRouter,
   leasesDurationRouter,
   addressRouter,
-  networkRouter,
   blockchainStatusRouter
 ];
 for (const handler of openApiHonoHandlers) {
