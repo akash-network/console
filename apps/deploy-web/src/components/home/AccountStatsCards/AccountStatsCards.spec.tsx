@@ -42,21 +42,9 @@ describe(AccountStatsCards.name, () => {
       expect(screen.getByText("Available Balance (AKT)")).toBeInTheDocument();
     });
 
-    it("renders USDC balance card when ACT is not supported", () => {
+    it("renders ACT balance card", () => {
       setup({
         isManagedWallet: false,
-        isACTSupported: false,
-        walletBalance: buildWalletBalance({ balanceUUSDC: 10_000_000 })
-      });
-
-      expect(screen.getByText("Available Balance (USDC)")).toBeInTheDocument();
-      expect(screen.queryByText("Available Balance (ACT)")).not.toBeInTheDocument();
-    });
-
-    it("renders ACT balance card when ACT is supported", () => {
-      setup({
-        isManagedWallet: false,
-        isACTSupported: true,
         walletBalance: buildWalletBalance({ balanceUACT: 10_000_000 })
       });
 
@@ -90,11 +78,9 @@ describe(AccountStatsCards.name, () => {
     costPerMonth?: number | null;
     costPerHour?: number | null;
     isManagedWallet?: boolean;
-    isACTSupported?: boolean;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const usePricing: typeof DEPENDENCIES.usePricing = () => ({ price: 3.5, isLoaded: true, aktToUSD: vi.fn(), udenomToUsd: vi.fn() });
-    const useSupportsACT: typeof DEPENDENCIES.useSupportsACT = () => input?.isACTSupported ?? false;
 
     render(
       <IntlProvider locale="en">
@@ -108,7 +94,6 @@ describe(AccountStatsCards.name, () => {
             ...MockComponents(DEPENDENCIES),
             ...DEPENDENCIES,
             usePricing,
-            useSupportsACT,
             ...input?.dependencies
           }}
         />

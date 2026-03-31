@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { LOG_COLLECTOR_IMAGE } from "@src/config/log-collector.config";
 import type { SdlBuilderFormValuesType } from "@src/types";
-import { DEPENDENCIES, useSdlServiceManager } from "./useSdlServiceManager";
+import { useSdlServiceManager } from "./useSdlServiceManager";
 
 import { act, renderHook } from "@testing-library/react";
 import { buildSDLService } from "@tests/seeders/sdlService";
@@ -177,8 +177,7 @@ describe(useSdlServiceManager.name, () => {
     const { result } = renderHook(
       () =>
         useSdlServiceManager({
-          control: methods.control,
-          dependencies: { ...DEPENDENCIES, useSupportsACT: () => false }
+          control: methods.control
         }),
       {
         wrapper: ({ children }) => <TestWrapper defaultValues={defaultFormValues}>{children}</TestWrapper>

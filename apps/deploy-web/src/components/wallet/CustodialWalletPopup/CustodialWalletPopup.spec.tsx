@@ -23,19 +23,9 @@ describe(CustodialWalletPopup.name, () => {
     expect(screen.getByText("(5 AKT)")).toBeInTheDocument();
   });
 
-  it("renders USDC label when ACT is not supported", () => {
+  it("renders ACT label", () => {
     setup({
-      walletBalance: buildWalletBalance({ totalUUSDC: 10000000 }),
-      isACTSupported: false
-    });
-
-    expect(screen.getByText("USDC")).toBeInTheDocument();
-  });
-
-  it("renders ACT label when ACT is supported", () => {
-    setup({
-      walletBalance: buildWalletBalance({ totalUACT: 10000000 }),
-      isACTSupported: true
+      walletBalance: buildWalletBalance({ totalUACT: 10000000 })
     });
 
     expect(screen.getByText("ACT")).toBeInTheDocument();
@@ -47,16 +37,8 @@ describe(CustodialWalletPopup.name, () => {
     expect(screen.getByText(/Wallet Balance is unknown/)).toBeInTheDocument();
   });
 
-  it("navigates to authorizations page when Authorize Spending is clicked", () => {
-    const { push } = setup();
-
-    fireEvent.click(screen.getByRole("button", { name: /Authorize Spending/ }));
-
-    expect(push).toHaveBeenCalledWith("/settings/authorizations");
-  });
-
   it("navigates to mint-burn page when Mint ACT is clicked", () => {
-    const { push } = setup({ isACTSupported: true });
+    const { push } = setup();
 
     fireEvent.click(screen.getByRole("button", { name: /Mint ACT/ }));
 
@@ -89,13 +71,7 @@ describe(CustodialWalletPopup.name, () => {
     expect(screen.getByTestId("connect-managed-wallet")).toBeInTheDocument();
   });
 
-  function setup(input?: {
-    address?: string;
-    walletBalance?: WalletBalance | null;
-    isACTSupported?: boolean;
-    isSignedInWithTrial?: boolean;
-    user?: Record<string, unknown> | null;
-  }) {
+  function setup(input?: { address?: string; walletBalance?: WalletBalance | null; isSignedInWithTrial?: boolean; user?: Record<string, unknown> | null }) {
     const logout = vi.fn();
     const push = vi.fn();
     const store = createStore();
@@ -107,7 +83,6 @@ describe(CustodialWalletPopup.name, () => {
       useWallet: () => ({ address: input?.address ?? "akash1default", logout }),
       useRouter: () => ({ push }),
       useCustomUser: () => ({ user: input?.user !== undefined ? input.user : { id: "user-1" } }),
-      useSupportsACT: () => input?.isACTSupported ?? false,
       Address: (props: React.HTMLAttributes<HTMLSpanElement> & { address: string }) => <span aria-label={props["aria-label"]}>{props.address}</span>,
       FormattedNumber: ({ value }: { value: number }) => <span>{value}</span>,
       Link: ({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) =>

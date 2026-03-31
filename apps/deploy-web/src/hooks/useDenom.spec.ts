@@ -15,35 +15,27 @@ describe(useUsdcDenom.name, () => {
 });
 
 describe(useSupportedDenoms.name, () => {
-  it("returns AKT and USDC when ACT is not supported", () => {
-    const { result } = renderHook(() => useSupportedDenoms(buildDependencies({ supportsACT: false })));
-
-    expect(result.current).toHaveLength(2);
-    expect(result.current.map(d => d.id)).toEqual(["uakt", "uusdc"]);
-  });
-
-  it("returns only ACT when ACT is supported", () => {
-    const { result } = renderHook(() => useSupportedDenoms(buildDependencies({ supportsACT: true })));
+  it("returns only ACT", () => {
+    const { result } = renderHook(() => useSupportedDenoms());
 
     expect(result.current).toHaveLength(1);
     expect(result.current.map(d => d.id)).toEqual(["uact"]);
   });
 
   it("sets correct properties for ACT denom", () => {
-    const { result } = renderHook(() => useSupportedDenoms(buildDependencies({ supportsACT: true })));
+    const { result } = renderHook(() => useSupportedDenoms());
 
     expect(result.current[0]).toEqual({ id: "uact", label: "uACT", tokenLabel: "ACT", value: "uact" });
   });
 });
 
-function buildDependencies(input: { networkId?: string; supportsACT?: boolean } = {}) {
+function buildDependencies(input: { networkId?: string } = {}) {
   return {
     useServices: () =>
       ({
         networkStore: {
           useSelectedNetworkId: () => input.networkId ?? "mainnet"
         }
-      }) as ReturnType<typeof DEPENDENCIES.useServices>,
-    useSupportsACT: () => input.supportsACT ?? false
+      }) as ReturnType<typeof DEPENDENCIES.useServices>
   } as typeof DEPENDENCIES;
 }
