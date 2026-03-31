@@ -1,7 +1,7 @@
 import { Log as K8sLog } from "@kubernetes/client-node";
-import { mock } from "jest-mock-extended";
 import { PassThrough } from "stream";
 import { container } from "tsyringe";
+import { mock } from "vitest-mock-extended";
 
 import { ErrorHandlerService } from "@src/services/error-handler/error-handler.service";
 import { FileDestinationService } from "@src/services/file-destination/file-destination.service";
@@ -286,7 +286,7 @@ describe(PodLogsCollectorService.name, () => {
 
     const mockWriteStream = mock<NodeJS.WritableStream>();
     const k8sAbortController = new AbortController();
-    const k8sAbortSpy = jest.spyOn(k8sAbortController, "abort");
+    const k8sAbortSpy = vi.spyOn(k8sAbortController, "abort");
 
     fileDestination.getLastLogLines.mockResolvedValue([]);
     fileDestination.createWriteStream.mockResolvedValue(mockWriteStream);

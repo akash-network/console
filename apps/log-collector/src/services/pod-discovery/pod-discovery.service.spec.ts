@@ -1,7 +1,7 @@
 import { faker } from "@faker-js/faker";
 import type { Context, CoreV1Api, KubeConfig, V1Pod, Watch } from "@kubernetes/client-node";
-import { mock } from "jest-mock-extended";
 import { container } from "tsyringe";
+import { mock } from "vitest-mock-extended";
 
 import { ConfigService } from "@src/services/config/config.service";
 import { ErrorHandlerService } from "@src/services/error-handler/error-handler.service";
@@ -261,7 +261,7 @@ describe(PodDiscoveryService.name, () => {
       k8sClient.listNamespacedPod.mockResolvedValue({ items: [pod] });
       watch.watch.mockResolvedValue(new AbortController());
 
-      const callback = jest.fn();
+      const callback = vi.fn();
       podDiscoveryService.watchPods(callback).catch(() => {});
       await flushPromises();
 
@@ -282,7 +282,7 @@ describe(PodDiscoveryService.name, () => {
         return new AbortController();
       });
 
-      const callback = jest.fn();
+      const callback = vi.fn();
       podDiscoveryService.watchPods(callback).catch(() => {});
       await flushPromises();
 
@@ -311,7 +311,7 @@ describe(PodDiscoveryService.name, () => {
         return new AbortController();
       });
 
-      const callback = jest.fn();
+      const callback = vi.fn();
       podDiscoveryService.watchPods(callback).catch(() => {});
       await flushPromises();
 
@@ -345,7 +345,7 @@ describe(PodDiscoveryService.name, () => {
       });
 
       let capturedSignal: AbortSignal | undefined;
-      const callback: PodCallback = jest.fn((_p, signal) => {
+      const callback: PodCallback = vi.fn((_p, signal) => {
         capturedSignal = signal;
       });
 
@@ -371,7 +371,7 @@ describe(PodDiscoveryService.name, () => {
       k8sClient.listNamespacedPod.mockResolvedValue({ items: [pod, pod] });
       watch.watch.mockResolvedValue(new AbortController());
 
-      const callback = jest.fn();
+      const callback = vi.fn();
       podDiscoveryService.watchPods(callback).catch(() => {});
       await flushPromises();
 
@@ -390,7 +390,7 @@ describe(PodDiscoveryService.name, () => {
         return new AbortController();
       });
 
-      const callback = jest.fn();
+      const callback = vi.fn();
       podDiscoveryService.watchPods(callback).catch(() => {});
       await flushPromises();
 
@@ -423,7 +423,7 @@ describe(PodDiscoveryService.name, () => {
         return new AbortController();
       });
 
-      podDiscoveryService.watchPods(jest.fn()).catch(() => {});
+      podDiscoveryService.watchPods(vi.fn()).catch(() => {});
       await flushPromises();
 
       doneCb(Object.assign(new Error("Forbidden"), { statusCode: 403 }));
@@ -434,30 +434,37 @@ describe(PodDiscoveryService.name, () => {
     });
 
     it("should fall back to polling then retry watch on non-403 failure", async () => {
-      const namespace = faker.internet.domainWord();
-      const { podDiscoveryService, k8sClient, watch, loggerService } = setup({
-        KUBERNETES_NAMESPACE_OVERRIDE: namespace,
-        POD_POLL_INTERVAL_MS: "100"
-      });
+      const originalTimeout = AbortSignal.timeout;
+      AbortSignal.timeout = (ms: number) => originalTimeout(Math.min(ms, 200));
 
-      k8sClient.listNamespacedPod.mockResolvedValue({ items: [] });
+      try {
+        const namespace = faker.internet.domainWord();
+        const { podDiscoveryService, k8sClient, watch, loggerService } = setup({
+          KUBERNETES_NAMESPACE_OVERRIDE: namespace,
+          POD_POLL_INTERVAL_MS: "100"
+        });
 
-      let watchCallCount = 0;
-      watch.watch.mockImplementation(async () => {
-        watchCallCount++;
-        throw new Error("connection refused");
-      });
+        k8sClient.listNamespacedPod.mockResolvedValue({ items: [] });
 
-      podDiscoveryService.watchPods(jest.fn()).catch(() => {});
+        let watchCallCount = 0;
+        watch.watch.mockImplementation(async () => {
+          watchCallCount++;
+          throw new Error("connection refused");
+        });
 
-      // First watch attempt fails immediately, falls back to polling
-      await waitFor(() => {
-        expect(loggerService.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "POD_WATCH_FAILED_FALLBACK_TO_POLLING" }));
-      });
+        podDiscoveryService.watchPods(vi.fn()).catch(() => {});
 
-      // After WATCH_RETRY_INTERVAL_MS (30s), watch is retried
-      await waitFor(() => expect(watchCallCount).toBeGreaterThanOrEqual(2), 35000);
-    }, 40000);
+        // First watch attempt fails immediately, falls back to polling
+        await vi.waitFor(() => {
+          expect(loggerService.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "POD_WATCH_FAILED_FALLBACK_TO_POLLING" }));
+        });
+
+        // After WATCH_RETRY_INTERVAL_MS (capped to 200ms), watch is retried
+        await vi.waitFor(() => expect(watchCallCount).toBeGreaterThanOrEqual(2));
+      } finally {
+        AbortSignal.timeout = originalTimeout;
+      }
+    });
 
     it("should detect new pods on polling", async () => {
       const namespace = faker.internet.domainWord();
@@ -491,13 +498,13 @@ describe(PodDiscoveryService.name, () => {
         return new Promise(() => {});
       });
 
-      const callback = jest.fn();
+      const callback = vi.fn();
       podDiscoveryService.watchPods(callback).catch(() => {});
       await flushPromises();
 
       doneCb(Object.assign(new Error("Forbidden"), { statusCode: 403 }));
 
-      await waitFor(() => expect(callback).toHaveBeenCalledTimes(2));
+      await vi.waitFor(() => expect(callback).toHaveBeenCalledTimes(2));
       expect(callback).toHaveBeenLastCalledWith(expect.objectContaining({ podName: "pod-2" }), expect.any(AbortSignal));
     });
 
@@ -534,7 +541,7 @@ describe(PodDiscoveryService.name, () => {
       });
 
       const signals: AbortSignal[] = [];
-      const callback: PodCallback = jest.fn((_p, signal) => {
+      const callback: PodCallback = vi.fn((_p, signal) => {
         signals.push(signal);
       });
 
@@ -543,8 +550,8 @@ describe(PodDiscoveryService.name, () => {
 
       doneCb(Object.assign(new Error("Forbidden"), { statusCode: 403 }));
 
-      await waitFor(() => expect(signals).toHaveLength(2));
-      await waitFor(() => expect(signals[1].aborted).toBe(true));
+      await vi.waitFor(() => expect(signals).toHaveLength(2));
+      await vi.waitFor(() => expect(signals[1].aborted).toBe(true));
       expect(loggerService.info).toHaveBeenCalledWith(expect.objectContaining({ event: "POD_DELETED", podName: "pod-2" }));
     });
 
@@ -568,7 +575,7 @@ describe(PodDiscoveryService.name, () => {
         throw new Error("K8s API unavailable");
       });
 
-      const promise = podDiscoveryService.watchPods(jest.fn());
+      const promise = podDiscoveryService.watchPods(vi.fn());
       await flushPromises();
 
       doneCb(Object.assign(new Error("Forbidden"), { statusCode: 403 }));
@@ -601,7 +608,7 @@ describe(PodDiscoveryService.name, () => {
         throw pollError;
       });
 
-      const promise = podDiscoveryService.watchPods(jest.fn());
+      const promise = podDiscoveryService.watchPods(vi.fn());
       await flushPromises();
 
       doneCb(Object.assign(new Error("Forbidden"), { statusCode: 403 }));
@@ -640,20 +647,4 @@ async function flushPromises(): Promise<void> {
   await Promise.resolve();
   await Promise.resolve();
   await Promise.resolve();
-}
-
-async function waitFor(assertion: () => void, timeout = 2000, interval = 10): Promise<void> {
-  const start = Date.now();
-  const POLL = true;
-  while (POLL) {
-    try {
-      assertion();
-      return;
-    } catch {
-      if (Date.now() - start > timeout) {
-        assertion();
-      }
-      await new Promise(resolve => setTimeout(resolve, interval));
-    }
-  }
 }
