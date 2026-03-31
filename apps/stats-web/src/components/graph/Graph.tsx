@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useRef } from "react";
 import { useIntl } from "react-intl";
 import { UTCDateMini } from "@date-fns/utc";
 import { format } from "date-fns";
+import type { IChartApi, ISeriesApi } from "lightweight-charts";
 import { createChart } from "lightweight-charts";
 import { useTheme } from "next-themes";
 
@@ -23,16 +24,24 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
   const { resolvedTheme } = useTheme();
   const intl = useIntl();
   const graphTheme = getTheme(resolvedTheme);
-  const initialData = useMemo(() => mapSnapshotsToLineSeriesData(rangedData, snapshotMetadata), [rangedData]);
-  const totalGraphData = useMemo(() => mapSnapshotsToLineSeriesData(snapshotData?.snapshots, snapshotMetadata), [rangedData]);
+  const initialData = useMemo(() => mapSnapshotsToLineSeriesData(rangedData, snapshotMetadata), [rangedData, snapshotMetadata]);
+  const totalGraphData = useMemo(() => mapSnapshotsToLineSeriesData(snapshotData?.snapshots, snapshotMetadata), [snapshotData?.snapshots, snapshotMetadata]);
 
-  const chartContainerRef = useRef(null);
-  const tooltipRef = useRef(null);
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<IChartApi | null>(null);
+  const lineSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
   const timer = useRef<number | null>(null);
+  const graphDataRef = useRef<ReturnType<typeof mapSnapshotsToLineSeriesData>>([]);
+  const totalGraphDataRef = useRef(totalGraphData);
+  totalGraphDataRef.current = totalGraphData;
 
+  // Create/recreate chart on mount and theme change
   useEffect(() => {
-    let graphData = [...initialData];
-    let isDisposed = false;
+    if (!chartContainerRef.current) return;
+
+    const axisRightFormatter = (val: number) => nFormatter(val, 2);
+    const axisBottomFormatter = (dateStr: string) => intl.formatDate(dateStr, { day: "numeric", month: "short", timeZone: "utc" });
 
     const chart = createChart(chartContainerRef.current, {
       width: chartContainerRef.current.clientWidth,
@@ -44,13 +53,10 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
       height: 400
     });
 
-    chart.timeScale().fitContent();
-
     const lineSeries = chart.addLineSeries({ color: customColors.akashRed, lineWidth: 2 });
-    lineSeries.setData(graphData);
 
-    const axisRightFormatter = val => nFormatter(val, 2);
-    const axisBottomFormatter = dateStr => intl.formatDate(dateStr, { day: "numeric", month: "short", timeZone: "utc" });
+    chartRef.current = chart;
+    lineSeriesRef.current = lineSeries;
 
     chart.applyOptions({
       localization: {
@@ -68,17 +74,14 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
         borderColor: graphTheme.axis.domain.line.stroke
       },
       crosshair: {
-        // hide the horizontal crosshair line
         horzLine: {
           visible: false,
           labelVisible: false
         },
-        // hide the vertical crosshair label
         vertLine: {
           labelVisible: false
         }
       },
-      // hide the grid lines
       grid: {
         vertLines: {
           visible: false
@@ -94,9 +97,13 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
     const toolTipMargin = 15;
 
     const toolTip = tooltipRef.current;
-    toolTip.style.display = "none";
+    if (toolTip) {
+      toolTip.style.display = "none";
+    }
 
     chart.subscribeCrosshairMove(param => {
+      if (!toolTip || !chartContainerRef.current) return;
+
       if (
         param.point === undefined ||
         !param.time ||
@@ -132,39 +139,65 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
     });
 
     chart.timeScale().subscribeVisibleLogicalRangeChange(logicalRange => {
-      if (logicalRange === null) {
-        return;
-      }
-
-      if (timer.current !== null) {
-        return;
-      }
+      if (logicalRange === null) return;
+      if (timer.current !== null) return;
 
       timer.current = window.setTimeout(() => {
+        const currentTotalData = totalGraphDataRef.current;
+        const currentGraphData = graphDataRef.current;
+
+        if (currentGraphData.length === 0) {
+          timer.current = null;
+          return;
+        }
+
         const rangeFrom = Math.round(logicalRange.from);
-        const range = Math.max(graphData.length - rangeFrom, 0);
-        graphData = [...totalGraphData.slice(range, -graphData.length), ...graphData];
-        if (!isDisposed && lineSeries) {
-          lineSeries.setData(graphData);
+        const range = Math.max(currentGraphData.length - rangeFrom, 0);
+        const newGraphData = [...currentTotalData.slice(range, -currentGraphData.length), ...currentGraphData];
+        graphDataRef.current = newGraphData;
+
+        if (lineSeriesRef.current) {
+          lineSeriesRef.current.setData(newGraphData);
         }
         timer.current = null;
       }, 500);
     });
 
-    // Handle resize
     const handleResize = () => {
-      chart.applyOptions({ width: chartContainerRef.current.clientWidth });
-      chart.resize(chartContainerRef.current.clientWidth, 400);
+      if (chartContainerRef.current && chartRef.current) {
+        chart.applyOptions({ width: chartContainerRef.current.clientWidth });
+        chart.resize(chartContainerRef.current.clientWidth, 400);
+      }
     };
 
     window.addEventListener("resize", handleResize);
 
     return () => {
       window.removeEventListener("resize", handleResize);
-      isDisposed = true;
+      if (timer.current !== null) {
+        clearTimeout(timer.current);
+        timer.current = null;
+      }
+      chartRef.current = null;
+      lineSeriesRef.current = null;
       chart.remove();
     };
-  }, [initialData, resolvedTheme]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolvedTheme]);
+
+  // Update data when range changes
+  useEffect(() => {
+    if (!lineSeriesRef.current || !chartRef.current) return;
+
+    if (timer.current !== null) {
+      clearTimeout(timer.current);
+      timer.current = null;
+    }
+
+    graphDataRef.current = [...initialData];
+    lineSeriesRef.current.setData(initialData);
+    chartRef.current.timeScale().fitContent();
+  }, [initialData]);
 
   return (
     <div className="relative h-[400px]">
@@ -197,7 +230,6 @@ function mapSnapshotsToLineSeriesData(snapshots: SnapshotValue[] | undefined | n
 }
 
 const getTheme = (theme: string | undefined) => {
-  // TODO Use the same colors as the theme
   const color = theme === "dark" ? customColors.white : customColors.black;
 
   return {

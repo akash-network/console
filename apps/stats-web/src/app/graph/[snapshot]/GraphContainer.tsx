@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { FormattedNumber } from "react-intl";
 import { Button, Spinner } from "@akashnetwork/ui/components";
 import { Parser } from "@json2csv/plainjs";
@@ -31,7 +31,10 @@ export default function GraphContainer({ snapshot }: IGraphProps) {
   const { data: snapshotData, status } = useGraphSnapshot(snapshot);
   const snapshotMetadata = snapshotData && getSnapshotMetadata(snapshot as Snapshots);
   const completedSnapshots = useCompletedSnapshots(snapshotData?.snapshots);
-  const rangedData = completedSnapshots && completedSnapshots.slice(Math.max(completedSnapshots.length - selectedRange, 0), completedSnapshots.length);
+  const rangedData = useMemo(
+    () => completedSnapshots && completedSnapshots.slice(Math.max(completedSnapshots.length - selectedRange, 0), completedSnapshots.length),
+    [completedSnapshots, selectedRange]
+  );
   const metric = snapshotMetadata && snapshotMetadata.unitFn(snapshotData.currentValue);
   const metricDiff = snapshotMetadata && snapshotMetadata.unitFn(snapshotData.currentValue - snapshotData.compareValue);
 
