@@ -117,11 +117,6 @@ const MockSelectItem = ({ children, value }: any) => (
   </div>
 );
 
-const MockThreeDSecurePopup = ({ isOpen, clientSecret }: any) => {
-  if (!isOpen) return null;
-  return <div data-testid="three-d-secure-popup" data-client-secret={clientSecret} />;
-};
-
 describe(PaymentPopup.name, () => {
   describe("Rendering", () => {
     it("renders popup when open is true", () => {
@@ -616,7 +611,7 @@ describe(PaymentPopup.name, () => {
     it("does not render ThreeDSecurePopup when 3DS data is null", () => {
       setup({
         open: true,
-        threeDSecureIsOpen: false,
+        threeDSecureIsOpen: true,
         threeDSData: null
       });
 
@@ -1066,3 +1061,8 @@ function setup(
     mockErrorHandler
   };
 }
+
+const MockThreeDSecurePopup = ({ isOpen, clientSecret }: { isOpen: boolean; clientSecret: string }) => {
+  if (!isOpen) return null;
+  return <div data-testid="three-d-secure-popup" data-client-secret={clientSecret} />;
+};
