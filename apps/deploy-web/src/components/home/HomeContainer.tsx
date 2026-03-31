@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import React from "react";
 import dynamic from "next/dynamic";
 
-import { useLocalNotes } from "@src/context/LocalNoteProvider";
+import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";

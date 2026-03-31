@@ -19,7 +19,7 @@ import { OpenNewWindow, Refresh, Xmark } from "iconoir-react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { useLocalNotes } from "@src/context/LocalNoteProvider";
+import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useAllLeases } from "@src/queries/useLeaseQuery";

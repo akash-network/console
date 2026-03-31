@@ -1,4 +1,3 @@
-import { type SetStateAction } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { DeploymentNameModal } from "./DeploymentNameModal";
@@ -33,10 +32,10 @@ describe(LocalNoteManager.name, () => {
 
   it("sets dseq to null when modal onClose is called", () => {
     const DeploymentNameModalMock = vi.fn(ComponentMock as unknown as typeof DeploymentNameModal);
-    const setDseq = vi.fn();
+    const selectDeployment = vi.fn();
     setup({
       dseq: 456,
-      setDseq,
+      selectDeployment,
       dependencies: {
         DeploymentNameModal: DeploymentNameModalMock
       }
@@ -46,15 +45,15 @@ describe(LocalNoteManager.name, () => {
       DeploymentNameModalMock.mock.calls[0][0].onClose();
     });
 
-    expect(setDseq).toHaveBeenCalledWith(null);
+    expect(selectDeployment).toHaveBeenCalledWith(null);
   });
 
   it("sets dseq to null when modal onSaved is called", () => {
     const DeploymentNameModalMock = vi.fn(ComponentMock as unknown as typeof DeploymentNameModal);
-    const setDseq = vi.fn();
+    const selectDeployment = vi.fn();
     setup({
       dseq: 789,
-      setDseq,
+      selectDeployment,
       dependencies: {
         DeploymentNameModal: DeploymentNameModalMock
       }
@@ -64,7 +63,7 @@ describe(LocalNoteManager.name, () => {
       DeploymentNameModalMock.mock.calls[0][0].onSaved();
     });
 
-    expect(setDseq).toHaveBeenCalledWith(null);
+    expect(selectDeployment).toHaveBeenCalledWith(null);
   });
 
   it("passes getDeploymentName from useLocalNotes to modal", () => {
@@ -89,23 +88,24 @@ describe(LocalNoteManager.name, () => {
 
   function setup(input?: {
     dseq?: string | number | null;
-    setDseq?: (value: SetStateAction<string | number | null>) => void;
+    selectDeployment?: (dseq: string | number | null) => void;
     getDeploymentName?: (dseq: string | number | null) => string | null;
     initFavoriteProviders?: () => void;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const dseq = input?.dseq ?? null;
-    const setDseq = input?.setDseq ?? vi.fn();
+    const selectDeployment = input?.selectDeployment ?? vi.fn();
     const getDeploymentName = input?.getDeploymentName ?? vi.fn().mockReturnValue(null);
     const initFavoriteProviders = input?.initFavoriteProviders ?? vi.fn();
 
-    const useDeploymentNameDseq: typeof DEPENDENCIES.useDeploymentNameDseq = () => [dseq, setDseq];
     const useLocalNotes: typeof DEPENDENCIES.useLocalNotes = () => ({
       getDeploymentName,
       changeDeploymentName: vi.fn(),
       getDeploymentData: vi.fn().mockReturnValue(null),
       favoriteProviders: [],
-      updateFavoriteProviders: vi.fn()
+      updateFavoriteProviders: vi.fn(),
+      selectedDeploymentDseq: dseq,
+      selectDeployment
     });
     const useInitFavoriteProviders: typeof DEPENDENCIES.useInitFavoriteProviders = () => initFavoriteProviders;
 
@@ -113,7 +113,6 @@ describe(LocalNoteManager.name, () => {
       <LocalNoteManager
         dependencies={{
           ...MockComponents(DEPENDENCIES, input?.dependencies),
-          useDeploymentNameDseq,
           useLocalNotes,
           useInitFavoriteProviders,
           ...input?.dependencies
@@ -121,6 +120,6 @@ describe(LocalNoteManager.name, () => {
       />
     );
 
-    return { setDseq, getDeploymentName, initFavoriteProviders };
+    return { selectDeployment, getDeploymentName, initFavoriteProviders };
   }
 });

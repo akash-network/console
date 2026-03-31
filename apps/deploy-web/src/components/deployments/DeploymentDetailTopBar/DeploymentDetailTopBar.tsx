@@ -12,8 +12,8 @@ import startOfHour from "date-fns/startOfHour";
 import { Edit, MoreHoriz, NavArrowLeft, Refresh, Upload, XmarkSquare } from "iconoir-react";
 import { useRouter } from "next/navigation";
 
+import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { CustomDropdownLinkItem } from "@src/components/shared/CustomDropdownLinkItem";
-import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useCurrencyFormatter } from "@src/hooks/useCurrencyFormatter/useCurrencyFormatter";

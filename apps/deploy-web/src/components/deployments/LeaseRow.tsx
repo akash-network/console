@@ -8,6 +8,7 @@ import get from "lodash/get";
 import Link from "next/link";
 import { useSnackbar } from "notistack";
 
+import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { AuditorButton } from "@src/components/providers/AuditorButton";
 import { CodeSnippet } from "@src/components/shared/CodeSnippet";
 import { FavoriteButton } from "@src/components/shared/FavoriteButton";
@@ -16,7 +17,6 @@ import { PriceEstimateTooltip } from "@src/components/shared/PriceEstimateToolti
 import { PricePerTimeUnit } from "@src/components/shared/PricePerTimeUnit";
 import { SpecDetail } from "@src/components/shared/SpecDetail";
 import { StatusPill } from "@src/components/shared/StatusPill";
-import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import { useBidInfo } from "@src/queries/useBidQuery";

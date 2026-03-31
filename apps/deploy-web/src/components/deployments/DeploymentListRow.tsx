@@ -21,6 +21,7 @@ import { CalendarArrowDown, Coins, Edit, MoreHoriz, NavArrowRight, Plus, Upload,
 import { keyBy } from "lodash";
 import { useRouter } from "next/navigation";
 
+import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
@@ -34,7 +35,6 @@ import { udenomToDenom } from "@src/utils/mathHelpers";
 import { getAvgCostPerMonth, getTimeLeft } from "@src/utils/priceUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { UrlService } from "@src/utils/urlUtils";
-import { useLocalNotes } from "../../context/LocalNoteProvider";
 import { TrialDeploymentBadge } from "../shared";
 import { CopyTextToClipboardButton } from "../shared/CopyTextToClipboardButton";
 import { CustomDropdownLinkItem } from "../shared/CustomDropdownLinkItem";

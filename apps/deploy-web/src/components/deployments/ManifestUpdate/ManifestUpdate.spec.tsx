@@ -226,7 +226,8 @@ describe(ManifestUpdate.name, () => {
             hash: hashBytes,
             deploymentId: { dseq: "123" }
           }),
-          getManifest: vi.fn().mockReturnValue([])
+          getManifest: vi.fn().mockReturnValue([]),
+          getManifestVersion: vi.fn().mockResolvedValue(base64Hash)
         }
       }
     });
@@ -335,7 +336,8 @@ describe(ManifestUpdate.name, () => {
         isTrialing: false,
         isOnboarding: false,
         switchWalletType: vi.fn(),
-        hasManagedWallet: false
+        hasManagedWallet: false,
+        denom: "uact"
       }) as ReturnType<typeof DEPENDENCIES.useWallet>;
 
     const useProviderList: typeof DEPENDENCIES.useProviderList = () =>

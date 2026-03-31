@@ -5,10 +5,10 @@ import type { TemplateOutput } from "@akashnetwork/http-sdk";
 import { useAtomValue } from "jotai";
 import { useRouter, useSearchParams } from "next/navigation";
 
+import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { Editor } from "@src/components/shared/Editor/Editor";
 import { USER_TEMPLATE_CODE } from "@src/config/deploy.config";
 import { CI_CD_TEMPLATE_ID } from "@src/config/remote-deploy.config";
-import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWhen } from "@src/hooks/useWhen";
