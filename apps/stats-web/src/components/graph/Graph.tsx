@@ -197,7 +197,7 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
     graphDataRef.current = [...initialData];
     lineSeriesRef.current.setData(initialData);
     chartRef.current.timeScale().fitContent();
-  }, [initialData]);
+  }, [initialData, resolvedTheme]);
 
   return (
     <div className="relative h-[400px]">
