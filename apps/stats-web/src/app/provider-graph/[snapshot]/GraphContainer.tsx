@@ -28,7 +28,7 @@ export interface IGraphProps {
 export default function GraphContainer({ snapshot }: IGraphProps) {
   const [selectedRange, setSelectedRange] = useState(SELECTED_RANGE_VALUES["7D"]);
   const { data: snapshotData, status } = useProviderGraphSnapshot(snapshot);
-  const snapshotMetadata = snapshotData && getProviderSnapshotMetadata(snapshot as ProviderSnapshots);
+  const snapshotMetadata = useMemo(() => snapshotData && getProviderSnapshotMetadata(snapshot as ProviderSnapshots), [snapshotData, snapshot]);
   const completedSnapshots = useCompletedSnapshots(snapshotData?.snapshots);
   const rangedData = useMemo(
     () => completedSnapshots && completedSnapshots.slice(Math.max(completedSnapshots.length - selectedRange, 0), completedSnapshots.length),

@@ -141,6 +141,7 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
     chart.timeScale().subscribeVisibleLogicalRangeChange(logicalRange => {
       if (logicalRange === null) return;
       if (timer.current !== null) return;
+      if (logicalRange.from >= 0) return;
 
       timer.current = window.setTimeout(() => {
         const currentTotalData = totalGraphDataRef.current;
@@ -151,13 +152,17 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
           return;
         }
 
-        const rangeFrom = Math.round(logicalRange.from);
-        const range = Math.max(currentGraphData.length - rangeFrom, 0);
-        const newGraphData = [...currentTotalData.slice(range, -currentGraphData.length), ...currentGraphData];
-        graphDataRef.current = newGraphData;
+        const currentStart = Math.max(currentTotalData.length - currentGraphData.length, 0);
+        const prependCount = Math.min(Math.ceil(-logicalRange.from), currentStart);
 
-        if (lineSeriesRef.current) {
-          lineSeriesRef.current.setData(newGraphData);
+        if (prependCount > 0) {
+          const nextStart = currentStart - prependCount;
+          const newGraphData = [...currentTotalData.slice(nextStart, currentStart), ...currentGraphData];
+          graphDataRef.current = newGraphData;
+
+          if (lineSeriesRef.current) {
+            lineSeriesRef.current.setData(newGraphData);
+          }
         }
         timer.current = null;
       }, 500);
