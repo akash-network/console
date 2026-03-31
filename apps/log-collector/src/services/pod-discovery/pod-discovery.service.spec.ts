@@ -434,30 +434,37 @@ describe(PodDiscoveryService.name, () => {
     });
 
     it("should fall back to polling then retry watch on non-403 failure", async () => {
-      const namespace = faker.internet.domainWord();
-      const { podDiscoveryService, k8sClient, watch, loggerService } = setup({
-        KUBERNETES_NAMESPACE_OVERRIDE: namespace,
-        POD_POLL_INTERVAL_MS: "100"
-      });
+      const originalTimeout = AbortSignal.timeout;
+      AbortSignal.timeout = (ms: number) => originalTimeout(Math.min(ms, 200));
 
-      k8sClient.listNamespacedPod.mockResolvedValue({ items: [] });
+      try {
+        const namespace = faker.internet.domainWord();
+        const { podDiscoveryService, k8sClient, watch, loggerService } = setup({
+          KUBERNETES_NAMESPACE_OVERRIDE: namespace,
+          POD_POLL_INTERVAL_MS: "100"
+        });
 
-      let watchCallCount = 0;
-      watch.watch.mockImplementation(async () => {
-        watchCallCount++;
-        throw new Error("connection refused");
-      });
+        k8sClient.listNamespacedPod.mockResolvedValue({ items: [] });
 
-      podDiscoveryService.watchPods(vi.fn()).catch(() => {});
+        let watchCallCount = 0;
+        watch.watch.mockImplementation(async () => {
+          watchCallCount++;
+          throw new Error("connection refused");
+        });
 
-      // First watch attempt fails immediately, falls back to polling
-      await waitFor(() => {
-        expect(loggerService.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "POD_WATCH_FAILED_FALLBACK_TO_POLLING" }));
-      });
+        podDiscoveryService.watchPods(vi.fn()).catch(() => {});
 
-      // After WATCH_RETRY_INTERVAL_MS (30s), watch is retried
-      await waitFor(() => expect(watchCallCount).toBeGreaterThanOrEqual(2), 35000);
-    }, 40000);
+        // First watch attempt fails immediately, falls back to polling
+        await vi.waitFor(() => {
+          expect(loggerService.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "POD_WATCH_FAILED_FALLBACK_TO_POLLING" }));
+        });
+
+        // After WATCH_RETRY_INTERVAL_MS (capped to 200ms), watch is retried
+        await vi.waitFor(() => expect(watchCallCount).toBeGreaterThanOrEqual(2));
+      } finally {
+        AbortSignal.timeout = originalTimeout;
+      }
+    });
 
     it("should detect new pods on polling", async () => {
       const namespace = faker.internet.domainWord();
@@ -497,7 +504,7 @@ describe(PodDiscoveryService.name, () => {
 
       doneCb(Object.assign(new Error("Forbidden"), { statusCode: 403 }));
 
-      await waitFor(() => expect(callback).toHaveBeenCalledTimes(2));
+      await vi.waitFor(() => expect(callback).toHaveBeenCalledTimes(2));
       expect(callback).toHaveBeenLastCalledWith(expect.objectContaining({ podName: "pod-2" }), expect.any(AbortSignal));
     });
 
@@ -543,8 +550,8 @@ describe(PodDiscoveryService.name, () => {
 
       doneCb(Object.assign(new Error("Forbidden"), { statusCode: 403 }));
 
-      await waitFor(() => expect(signals).toHaveLength(2));
-      await waitFor(() => expect(signals[1].aborted).toBe(true));
+      await vi.waitFor(() => expect(signals).toHaveLength(2));
+      await vi.waitFor(() => expect(signals[1].aborted).toBe(true));
       expect(loggerService.info).toHaveBeenCalledWith(expect.objectContaining({ event: "POD_DELETED", podName: "pod-2" }));
     });
 
@@ -640,20 +647,4 @@ async function flushPromises(): Promise<void> {
   await Promise.resolve();
   await Promise.resolve();
   await Promise.resolve();
-}
-
-async function waitFor(assertion: () => void, timeout = 2000, interval = 10): Promise<void> {
-  const start = Date.now();
-  const POLL = true;
-  while (POLL) {
-    try {
-      assertion();
-      return;
-    } catch {
-      if (Date.now() - start > timeout) {
-        assertion();
-      }
-      await new Promise(resolve => setTimeout(resolve, interval));
-    }
-  }
 }
