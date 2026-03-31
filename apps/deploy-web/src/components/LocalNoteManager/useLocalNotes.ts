@@ -42,7 +42,6 @@ export function useLocalNotes(): LocalNotesContextType {
 
   const changeDeploymentName = useCallback(
     (dseq: string | number) => {
-      console.log("select deployment", dseq);
       selectDeployment(dseq);
     },
     [selectDeployment]
