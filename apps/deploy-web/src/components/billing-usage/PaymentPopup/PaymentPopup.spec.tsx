@@ -591,6 +591,47 @@ describe(PaymentPopup.name, () => {
       expect(mockSetShowPaymentSuccess).toHaveBeenCalledWith({ amount: "100", show: true });
       expect(mockOnClose).toHaveBeenCalled();
     });
+
+    it("renders ThreeDSecurePopup when 3DS data is present and open", () => {
+      setup({
+        open: true,
+        threeDSecureIsOpen: true,
+        threeDSData: {
+          clientSecret: "secret_abc",
+          paymentIntentId: "pi_abc",
+          paymentMethodId: "pm_abc"
+        }
+      });
+
+      const popup = screen.getByTestId("three-d-secure-popup");
+      expect(popup).toBeInTheDocument();
+      expect(popup).toHaveAttribute("data-client-secret", "secret_abc");
+    });
+
+    it("does not render ThreeDSecurePopup when 3DS data is null", () => {
+      setup({
+        open: true,
+        threeDSecureIsOpen: true,
+        threeDSData: null
+      });
+
+      expect(screen.queryByTestId("three-d-secure-popup")).not.toBeInTheDocument();
+    });
+
+    it("hides PaymentPopup when 3DS popup is open", () => {
+      setup({
+        open: true,
+        threeDSecureIsOpen: true,
+        threeDSData: {
+          clientSecret: "secret_abc",
+          paymentIntentId: "pi_abc",
+          paymentMethodId: "pm_abc"
+        }
+      });
+
+      expect(screen.queryByTestId("popup")).not.toBeInTheDocument();
+      expect(screen.getByTestId("three-d-secure-popup")).toBeInTheDocument();
+    });
   });
 
   describe("Error Handling", () => {
@@ -821,6 +862,8 @@ function setup(
     isPolling?: boolean;
     pollForPayment?: Mock;
     start3DSecure?: Mock;
+    threeDSecureIsOpen?: boolean;
+    threeDSData?: { clientSecret: string; paymentIntentId: string; paymentMethodId: string } | null;
     stripeErrorResponse?: any;
     mockUse3DSecure?: Mock;
     paymentMethods?: any[];
@@ -910,10 +953,18 @@ function setup(
 
   const mockZodResolver = vi.fn((schema: any) => schema);
 
+  const mockHandle3DSSuccess = vi.fn();
+  const mockHandle3DSError = vi.fn();
+
   const mockUse3DSecure =
     input.mockUse3DSecure ||
     vi.fn().mockReturnValue({
-      start3DSecure: mockStart3DSecure
+      start3DSecure: mockStart3DSecure,
+      isOpen: input.threeDSecureIsOpen ?? false,
+      threeDSData: input.threeDSData ?? null,
+      handle3DSSuccess: mockHandle3DSSuccess,
+      handle3DSError: mockHandle3DSError,
+      isLoading: false
     });
 
   const mockErrorHandler = {
@@ -943,6 +994,7 @@ function setup(
     Xmark: MockXmark,
     Snackbar: MockSnackbar,
     Link: MockLink,
+    ThreeDSecurePopup: MockThreeDSecurePopup,
     useForm: mockUseForm,
     zodResolver: mockZodResolver,
     useSnackbar: vi.fn(() => ({ enqueueSnackbar: mockEnqueueSnackbar })),
@@ -1009,3 +1061,8 @@ function setup(
     mockErrorHandler
   };
 }
+
+const MockThreeDSecurePopup = ({ isOpen, clientSecret }: { isOpen: boolean; clientSecret: string }) => {
+  if (!isOpen) return null;
+  return <div data-testid="three-d-secure-popup" data-client-secret={clientSecret} />;
+};

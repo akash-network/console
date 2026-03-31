@@ -30,6 +30,7 @@ import { useSnackbar } from "notistack";
 import { z } from "zod";
 
 import { getPaymentMethodDisplay } from "@src/components/shared/PaymentMethodCard/PaymentMethodCard";
+import { ThreeDSecurePopup } from "@src/components/shared/PaymentMethodForm/ThreeDSecurePopup";
 import { usePaymentPolling } from "@src/context/PaymentPollingProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { use3DSecure } from "@src/hooks/use3DSecure";
@@ -71,7 +72,8 @@ export const DEPENDENCIES = {
   usePaymentMethodsQuery,
   handleCouponError,
   handleStripeError,
-  useServices
+  useServices,
+  ThreeDSecurePopup
 };
 
 const MINIMUM_PAYMENT_AMOUNT = 20;
@@ -245,143 +247,160 @@ export const PaymentPopup: React.FC<PaymentPopupProps> = ({
   const disabled = isProcessing || !selectedMethodId;
 
   return (
-    <d.Popup
-      open={open}
-      onClose={onClose}
-      title="Add Funds"
-      variant="custom"
-      actions={[
-        {
-          label: "Cancel",
-          variant: "ghost",
-          onClick: onClose,
-          side: "right"
-        }
-      ]}
-    >
-      <div className="space-y-6">
-        <d.Card>
-          <d.CardHeader>
-            <d.CardTitle className="text-lg">Add credits</d.CardTitle>
-          </d.CardHeader>
-          <d.CardContent className="space-y-4">
-            <div>
-              <d.Label>Payment Method</d.Label>
-              {isLoadingPaymentMethods ? (
-                <d.Skeleton className="mt-1 h-10 w-full" />
-              ) : (
-                <>
-                  <d.Select value={selectedMethodId ?? ""} onValueChange={setSelectedMethodId}>
-                    <d.SelectTrigger>
-                      <d.SelectValue placeholder="Select a payment method" />
-                    </d.SelectTrigger>
-                    <d.SelectContent>
-                      {paymentMethods?.map(method => (
-                        <d.SelectItem key={method.id} value={method.id}>
-                          {getPaymentMethodDisplay(method).label}
-                        </d.SelectItem>
-                      ))}
-                    </d.SelectContent>
-                  </d.Select>
-                  {!paymentMethods?.length && (
-                    <d.Alert className="mt-2">
-                      <p className="text-sm">No payment methods available.</p>
-                      <d.Link href={urlService.paymentMethods()} className="mt-1 inline-block text-sm font-medium text-primary underline">
-                        Add a payment method
-                      </d.Link>
-                    </d.Alert>
-                  )}
-                </>
-              )}
-            </div>
-
-            <d.Form {...paymentForm}>
-              <form onSubmit={paymentForm.handleSubmit(onPayment)} className="space-y-4">
-                <d.FormField
-                  control={paymentForm.control}
-                  name="amount"
-                  render={({ field }) => (
-                    <d.FormInput
-                      {...field}
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      placeholder="0.00"
-                      label="Amount (USD)"
-                      autoFocus
-                      onChange={e => {
-                        field.onChange(e);
-                        clearError();
-                      }}
-                    />
-                  )}
-                />
-
-                <d.LoadingButton loading={isProcessing} className="w-full" type="submit" disabled={disabled}>
-                  {isConfirmingPayment || isPolling ? (
-                    "Processing..."
-                  ) : (
-                    <>
-                      Pay <d.FormattedNumber value={amount || 0} style="currency" currency="USD" />
-                    </>
-                  )}
-                </d.LoadingButton>
-              </form>
-            </d.Form>
-
-            {error && (
-              <div className="mx-auto mt-6 max-w-md">
-                <d.Alert variant="destructive" className="mb-4">
-                  <p className="font-medium">Payment Error</p>
-                  <p className="text-sm">{error}</p>
-                  {errorAction && (
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      <strong>Suggestion:</strong> {errorAction}
-                    </p>
-                  )}
-                  <d.Button onClick={clearError} variant="default" size="sm" className="mt-2">
-                    <d.Xmark className="mr-2 h-4 w-4" />
-                    Clear Error
-                  </d.Button>
-                </d.Alert>
+    <>
+      <d.Popup
+        open={open && !threeDSecure.isOpen}
+        onClose={onClose}
+        title="Add Funds"
+        variant="custom"
+        actions={[
+          {
+            label: "Cancel",
+            variant: "ghost",
+            onClick: onClose,
+            side: "right"
+          }
+        ]}
+      >
+        <div className="space-y-6">
+          <d.Card>
+            <d.CardHeader>
+              <d.CardTitle className="text-lg">Add credits</d.CardTitle>
+            </d.CardHeader>
+            <d.CardContent className="space-y-4">
+              <div>
+                <d.Label>Payment Method</d.Label>
+                {isLoadingPaymentMethods ? (
+                  <d.Skeleton className="mt-1 h-10 w-full" />
+                ) : (
+                  <>
+                    <d.Select value={selectedMethodId ?? ""} onValueChange={setSelectedMethodId}>
+                      <d.SelectTrigger>
+                        <d.SelectValue placeholder="Select a payment method" />
+                      </d.SelectTrigger>
+                      <d.SelectContent>
+                        {paymentMethods?.map(method => (
+                          <d.SelectItem key={method.id} value={method.id}>
+                            {getPaymentMethodDisplay(method).label}
+                          </d.SelectItem>
+                        ))}
+                      </d.SelectContent>
+                    </d.Select>
+                    {!paymentMethods?.length && (
+                      <d.Alert className="mt-2">
+                        <p className="text-sm">No payment methods available.</p>
+                        <d.Link href={urlService.paymentMethods()} className="mt-1 inline-block text-sm font-medium text-primary underline">
+                          Add a payment method
+                        </d.Link>
+                      </d.Alert>
+                    )}
+                  </>
+                )}
               </div>
-            )}
-          </d.CardContent>
-        </d.Card>
 
-        <d.Card>
-          <d.CardHeader>
-            <d.CardTitle className="text-lg">Have a coupon code?</d.CardTitle>
-            <d.CardDescription>Enter your coupon code to claim credits</d.CardDescription>
-          </d.CardHeader>
-          <d.CardContent className="space-y-4">
-            <d.Form {...couponForm}>
-              <form onSubmit={couponForm.handleSubmit(onClaimCoupon)} className="space-y-4">
-                <d.FormField
-                  control={couponForm.control}
-                  name="coupon"
-                  render={({ field }) => (
-                    <d.FormInput
-                      {...field}
-                      type="text"
-                      placeholder="Enter coupon code"
-                      label="Coupon Code"
-                      onChange={e => {
-                        field.onChange(e);
-                        clearError();
-                      }}
-                    />
-                  )}
-                />
+              <d.Form {...paymentForm}>
+                <form onSubmit={paymentForm.handleSubmit(onPayment)} className="space-y-4">
+                  <d.FormField
+                    control={paymentForm.control}
+                    name="amount"
+                    render={({ field }) => (
+                      <d.FormInput
+                        {...field}
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="0.00"
+                        label="Amount (USD)"
+                        autoFocus
+                        onChange={e => {
+                          field.onChange(e);
+                          clearError();
+                        }}
+                      />
+                    )}
+                  />
 
-                <d.LoadingButton className="w-full" loading={isApplyingCoupon} type="submit">
-                  Claim coupon
-                </d.LoadingButton>
-              </form>
-            </d.Form>
-          </d.CardContent>
-        </d.Card>
-      </div>
-    </d.Popup>
+                  <d.LoadingButton loading={isProcessing} className="w-full" type="submit" disabled={disabled}>
+                    {isConfirmingPayment || isPolling ? (
+                      "Processing..."
+                    ) : (
+                      <>
+                        Pay <d.FormattedNumber value={amount || 0} style="currency" currency="USD" />
+                      </>
+                    )}
+                  </d.LoadingButton>
+                </form>
+              </d.Form>
+
+              {error && (
+                <div className="mx-auto mt-6 max-w-md">
+                  <d.Alert variant="destructive" className="mb-4">
+                    <p className="font-medium">Payment Error</p>
+                    <p className="text-sm">{error}</p>
+                    {errorAction && (
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        <strong>Suggestion:</strong> {errorAction}
+                      </p>
+                    )}
+                    <d.Button onClick={clearError} variant="default" size="sm" className="mt-2">
+                      <d.Xmark className="mr-2 h-4 w-4" />
+                      Clear Error
+                    </d.Button>
+                  </d.Alert>
+                </div>
+              )}
+            </d.CardContent>
+          </d.Card>
+
+          <d.Card>
+            <d.CardHeader>
+              <d.CardTitle className="text-lg">Have a coupon code?</d.CardTitle>
+              <d.CardDescription>Enter your coupon code to claim credits</d.CardDescription>
+            </d.CardHeader>
+            <d.CardContent className="space-y-4">
+              <d.Form {...couponForm}>
+                <form onSubmit={couponForm.handleSubmit(onClaimCoupon)} className="space-y-4">
+                  <d.FormField
+                    control={couponForm.control}
+                    name="coupon"
+                    render={({ field }) => (
+                      <d.FormInput
+                        {...field}
+                        type="text"
+                        placeholder="Enter coupon code"
+                        label="Coupon Code"
+                        onChange={e => {
+                          field.onChange(e);
+                          clearError();
+                        }}
+                      />
+                    )}
+                  />
+
+                  <d.LoadingButton className="w-full" loading={isApplyingCoupon} type="submit">
+                    Claim coupon
+                  </d.LoadingButton>
+                </form>
+              </d.Form>
+            </d.CardContent>
+          </d.Card>
+        </div>
+      </d.Popup>
+
+      {threeDSecure.threeDSData?.clientSecret && (
+        <d.ThreeDSecurePopup
+          isOpen={threeDSecure.isOpen}
+          onSuccess={threeDSecure.handle3DSSuccess}
+          onError={threeDSecure.handle3DSError}
+          clientSecret={threeDSecure.threeDSData.clientSecret}
+          paymentIntentId={threeDSecure.threeDSData.paymentIntentId}
+          paymentMethodId={threeDSecure.threeDSData.paymentMethodId}
+          title="Payment Authentication"
+          description="Your bank requires additional verification for this payment."
+          successMessage="Payment authenticated successfully!"
+          errorMessage="Please try again or use a different payment method."
+        />
+      )}
+    </>
   );
 };

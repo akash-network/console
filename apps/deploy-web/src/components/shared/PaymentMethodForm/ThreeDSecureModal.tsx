@@ -122,8 +122,13 @@ const ThreeDSecureForm: React.FC<Omit<ThreeDSecureModalProps, "isOpen" | "onClos
     authenticationInProgress.current = true;
 
     try {
-      const result = await stripe.confirmCardPayment(clientSecret, {
-        payment_method: paymentMethodId
+      const result = await stripe.confirmPayment({
+        clientSecret,
+        confirmParams: {
+          payment_method: paymentMethodId,
+          return_url: window.location.href
+        },
+        redirect: "if_required"
       });
       console.log("3D Secure authentication result:", result);
       processAuthenticationResult(result);
