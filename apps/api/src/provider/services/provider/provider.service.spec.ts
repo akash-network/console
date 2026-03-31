@@ -7,6 +7,7 @@ import { Ok } from "ts-results";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { cacheEngine } from "@src/caching/helpers";
 import { AUDITOR } from "@src/deployment/config/provider.config";
 import { createLeaseStatus } from "../../../../test/seeders/lease-status.seeder";
 import { createProviderSeed, createProviderWithAttributeSignatures } from "../../../../test/seeders/provider.seeder";
@@ -374,6 +375,10 @@ describe(ProviderService.name, () => {
   });
 
   describe("getProviderList", () => {
+    beforeEach(() => {
+      cacheEngine.clearAllKeyInCache();
+    });
+
     it("should prefer online provider when multiple providers share the same hostUri", async () => {
       const { service, providerRepository, auditorsService, providerAttributesSchemaService } = setup();
 
@@ -390,6 +395,34 @@ describe(ProviderService.name, () => {
 
       expect(result).toHaveLength(1);
       expect(result[0].owner).toBe(onlineProvider.owner);
+    });
+
+    it("should prefer newest provider when multiple online providers share the same hostUri", async () => {
+      const { service, providerRepository, auditorsService, providerAttributesSchemaService } = setup();
+
+      const sharedHostUri = "https://provider.example.com:8443";
+      const olderOnline = {
+        ...createProviderWithAttributeSignatures(AUDITOR),
+        hostUri: sharedHostUri,
+        isOnline: true,
+        createdHeight: 100
+      } as unknown as Provider;
+      const newerOnline = {
+        ...createProviderWithAttributeSignatures(AUDITOR),
+        hostUri: sharedHostUri,
+        isOnline: true,
+        createdHeight: 200
+      } as unknown as Provider;
+
+      providerRepository.getWithAttributesAndAuditors.mockResolvedValue([olderOnline, newerOnline]);
+      providerRepository.getProviderWithNodes.mockResolvedValue([]);
+      auditorsService.getAuditors.mockResolvedValue([]);
+      providerAttributesSchemaService.getProviderAttributesSchema.mockResolvedValue(providerAttributeSchemaStub);
+
+      const result = await service.getProviderList();
+
+      expect(result).toHaveLength(1);
+      expect(result[0].owner).toBe(newerOnline.owner);
     });
 
     it("should deduplicate providers with the same hostUri", async () => {

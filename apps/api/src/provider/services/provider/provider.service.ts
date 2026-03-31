@@ -151,7 +151,11 @@ export class ProviderService {
     const providerByHostUri = new Map<string, Provider>();
     await forEachInChunks(providersWithAttributesAndAuditors, provider => {
       const existing = providerByHostUri.get(provider.hostUri);
-      if (!existing || (!existing.isOnline && provider.isOnline)) {
+      if (
+        !existing ||
+        (!existing.isOnline && provider.isOnline) ||
+        (existing.isOnline === provider.isOnline && provider.createdHeight > existing.createdHeight)
+      ) {
         providerByHostUri.set(provider.hostUri, provider);
       }
     });
