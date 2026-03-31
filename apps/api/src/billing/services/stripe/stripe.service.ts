@@ -212,10 +212,7 @@ export class StripeService extends Stripe {
           ...params.metadata,
           internal_transaction_id: transaction.id
         },
-        automatic_payment_methods: {
-          enabled: true,
-          allow_redirects: "never"
-        }
+        payment_method_types: ["card", "link"]
       }
     ];
 

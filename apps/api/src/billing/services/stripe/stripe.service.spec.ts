@@ -79,10 +79,7 @@ describe(StripeService.name, () => {
         amount: 10000,
         currency: mockPaymentParams.currency,
         confirm: mockPaymentParams.confirm,
-        automatic_payment_methods: {
-          enabled: true,
-          allow_redirects: "never"
-        },
+        payment_method_types: ["card", "link"],
         metadata: {
           internal_transaction_id: "test-transaction-id"
         }
