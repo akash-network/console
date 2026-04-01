@@ -21,7 +21,7 @@ describe("Provider HTTP proxy", () => {
 
   it("exposes /status endpoint", async () => {
     const providerAddress = generateBech32();
-    const validCertPair = createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
+    const validCertPair = await createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
     const chainServer = await startChainApiServer([validCertPair.cert]);
 
     await startServer({ REST_API_NODE_URL: chainServer.url });
@@ -44,7 +44,7 @@ describe("Provider HTTP proxy", () => {
 
   it("proxies request if provider uses self-signed certificate which is available on chain", async () => {
     const providerAddress = generateBech32();
-    const validCertPair = createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
+    const validCertPair = await createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
 
     const chainServer = await startChainApiServer([validCertPair.cert]);
     const { providerUrl } = await startProviderServer({ certPair: validCertPair });
@@ -69,7 +69,7 @@ describe("Provider HTTP proxy", () => {
 
   it("proxies headers from remote provider host", async () => {
     const providerAddress = generateBech32();
-    const validCertPair = createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
+    const validCertPair = await createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
 
     const chainServer = await startChainApiServer([validCertPair.cert]);
     const { providerUrl } = await startProviderServer({ certPair: validCertPair });
@@ -95,7 +95,7 @@ describe("Provider HTTP proxy", () => {
 
   it("can work without chain API by using cached certificates", async () => {
     const providerAddress = generateBech32();
-    const validCertPair = createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
+    const validCertPair = await createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
 
     const chainServer = await startChainApiServer([validCertPair.cert]);
     const { providerUrl } = await startProviderServer({ certPair: validCertPair });
@@ -130,14 +130,16 @@ describe("Provider HTTP proxy", () => {
 
   it("responds with 495 error if certificate is not on chain", async () => {
     const providerAddress = generateBech32();
-    const validCertPair = createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
+    const validCertPair = await createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
 
     const chainServer = await startChainApiServer([
-      createX509CertPair({
-        commonName: providerAddress,
-        validFrom: new Date(Date.now() + ONE_HOUR),
-        serialNumber: Date.now().toString()
-      }).cert
+      (
+        await createX509CertPair({
+          commonName: providerAddress,
+          validFrom: new Date(Date.now() + ONE_HOUR),
+          serialNumber: Date.now().toString()
+        })
+      ).cert
     ]);
     const { providerUrl } = await startProviderServer({ certPair: validCertPair });
     const requestProvider = () =>
@@ -167,14 +169,14 @@ describe("Provider HTTP proxy", () => {
 
   it("responds with 495 error if server uses invalid certificate", async () => {
     const providerAddress = generateBech32();
-    const validCertPair = createX509CertPair({
+    const validCertPair = await createX509CertPair({
       commonName: providerAddress,
       validFrom: new Date(Date.now() - 24 * ONE_HOUR),
       validTo: new Date(Date.now() - ONE_HOUR)
     });
 
     const chainServer = await startChainApiServer([
-      createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() + ONE_HOUR) }).cert,
+      (await createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() + ONE_HOUR) })).cert,
       validCertPair.cert
     ]);
     const { providerUrl } = await startProviderServer({ certPair: validCertPair });
@@ -207,7 +209,7 @@ describe("Provider HTTP proxy", () => {
 
   it("returns 400 for invalid client certificate", async () => {
     const providerAddress = generateBech32();
-    const validCertPair = createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
+    const validCertPair = await createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
 
     const chainServer = await startChainApiServer([validCertPair.cert]);
     const { providerUrl } = await startProviderServer({
@@ -251,7 +253,7 @@ describe("Provider HTTP proxy", () => {
 
   it("retries fetching chain certificates if chain API is unavailable", async () => {
     const providerAddress = generateBech32();
-    const validCertPair = createX509CertPair({
+    const validCertPair = await createX509CertPair({
       commonName: providerAddress
     });
 
@@ -284,7 +286,7 @@ describe("Provider HTTP proxy", () => {
 
   it("retries if chain API responds with 5xx request", async () => {
     const providerAddress = generateBech32();
-    const validCertPair = createX509CertPair({
+    const validCertPair = await createX509CertPair({
       commonName: providerAddress
     });
 
@@ -318,7 +320,7 @@ describe("Provider HTTP proxy", () => {
 
   it("retries on provider host returning 5xx", async () => {
     const providerAddress = generateBech32();
-    const validCertPair = createX509CertPair({
+    const validCertPair = await createX509CertPair({
       commonName: providerAddress
     });
 
@@ -359,7 +361,7 @@ describe("Provider HTTP proxy", () => {
 
   it("retries on provider host being slow", async () => {
     const providerAddress = generateBech32();
-    const validCertPair = createX509CertPair({
+    const validCertPair = await createX509CertPair({
       commonName: providerAddress
     });
 
@@ -405,7 +407,7 @@ describe("Provider HTTP proxy", () => {
 
   it("responds with 503 if provider returns 500 error", async () => {
     const providerAddress = generateBech32();
-    const validCertPair = createX509CertPair({
+    const validCertPair = await createX509CertPair({
       commonName: providerAddress
     });
 
@@ -438,7 +440,7 @@ describe("Provider HTTP proxy", () => {
 
   it("responds with 503 if provider host is not reachable", async () => {
     const providerAddress = generateBech32();
-    const validCertPair = createX509CertPair({
+    const validCertPair = await createX509CertPair({
       commonName: providerAddress
     });
 
@@ -464,7 +466,7 @@ describe("Provider HTTP proxy", () => {
 
   it("responds with 503 if provider host hangs up connection", async () => {
     const providerAddress = generateBech32();
-    const validCertPair = createX509CertPair({
+    const validCertPair = await createX509CertPair({
       commonName: providerAddress
     });
 
@@ -496,10 +498,10 @@ describe("Provider HTTP proxy", () => {
 
   it("responds with 400 if client certificate is expired", async () => {
     const providerAddress = generateBech32();
-    const validCertPair = createX509CertPair({
+    const validCertPair = await createX509CertPair({
       commonName: providerAddress
     });
-    const invalidClientCertPair = createX509CertPair({
+    const invalidClientCertPair = await createX509CertPair({
       commonName: generateBech32(),
       validFrom: new Date(Date.now() - 2 * ONE_HOUR),
       validTo: new Date(Date.now() - ONE_HOUR)
@@ -547,7 +549,7 @@ describe("Provider HTTP proxy", () => {
 
   it("aborts request if client closes connection before response is received", async () => {
     const providerAddress = generateBech32();
-    const validCertPair = createX509CertPair({
+    const validCertPair = await createX509CertPair({
       commonName: providerAddress
     });
     const chainServer = await startChainApiServer([validCertPair.cert]);
@@ -600,7 +602,7 @@ describe("Provider HTTP proxy", () => {
 
   it("does not crash if client closes connection after reading response", async () => {
     const providerAddress = generateBech32();
-    const validCertPair = createX509CertPair({
+    const validCertPair = await createX509CertPair({
       commonName: providerAddress
     });
     const chainServer = await startChainApiServer([validCertPair.cert]);
@@ -647,8 +649,8 @@ describe("Provider HTTP proxy", () => {
 
   it("supports mtls authentication", async () => {
     const providerAddress = generateBech32();
-    const validCertPair = createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
-    const clientCertPair = createX509CertPair({ commonName: generateBech32() });
+    const validCertPair = await createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
+    const clientCertPair = await createX509CertPair({ commonName: generateBech32() });
 
     const chainServer = await startChainApiServer([validCertPair.cert]);
     const { providerUrl } = await startProviderServer({
@@ -718,7 +720,7 @@ describe("Provider HTTP proxy", () => {
 
   it("supports jwt authentication", async () => {
     const providerAddress = generateBech32();
-    const validCertPair = createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
+    const validCertPair = await createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
 
     const chainServer = await startChainApiServer([validCertPair.cert]);
     const { providerUrl } = await startProviderServer({

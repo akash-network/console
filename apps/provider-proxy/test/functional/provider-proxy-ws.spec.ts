@@ -19,7 +19,7 @@ describe("Provider proxy ws", () => {
 
   it("proxies provider websocket messages", async () => {
     const providerAddress = generateBech32();
-    const certPair = createX509CertPair({ commonName: providerAddress });
+    const certPair = await createX509CertPair({ commonName: providerAddress });
     const chainServer = await startChainApiServer([certPair.cert]);
     const { providerUrl } = await startProviderServer({
       certPair,
@@ -53,7 +53,7 @@ describe("Provider proxy ws", () => {
 
   it("responds to ping messages", async () => {
     const providerAddress = generateBech32();
-    const certPair = createX509CertPair({ commonName: providerAddress });
+    const certPair = await createX509CertPair({ commonName: providerAddress });
     const chainServer = await startChainApiServer([certPair.cert]);
     await startProviderServer({
       certPair,
@@ -79,7 +79,7 @@ describe("Provider proxy ws", () => {
 
   it("does not connect to provider socket until 1st message is sent", async () => {
     const providerAddress = generateBech32();
-    const certPair = createX509CertPair({ commonName: providerAddress });
+    const certPair = await createX509CertPair({ commonName: providerAddress });
     const chainServer = await startChainApiServer([certPair.cert]);
     const { providerUrl } = await startProviderServer({
       certPair,
@@ -104,7 +104,7 @@ describe("Provider proxy ws", () => {
 
   it('does not send message to provider socket if "data" property is empty', async () => {
     const providerAddress = generateBech32();
-    const certPair = createX509CertPair({ commonName: providerAddress });
+    const certPair = await createX509CertPair({ commonName: providerAddress });
     const chainServer = await startChainApiServer([certPair.cert]);
     const { providerUrl } = await startProviderServer({
       certPair,
@@ -130,7 +130,7 @@ describe("Provider proxy ws", () => {
   it("closes provider websocket when client websocket is closed", async () => {
     const onProviderWsClose = vi.fn();
     const providerAddress = generateBech32();
-    const certPair = createX509CertPair({ commonName: providerAddress });
+    const certPair = await createX509CertPair({ commonName: providerAddress });
     const chainServer = await startChainApiServer([certPair.cert]);
     const { providerUrl } = await startProviderServer({
       certPair,
@@ -153,7 +153,7 @@ describe("Provider proxy ws", () => {
 
   it("sends close message if provider socket has been closed", async () => {
     const providerAddress = generateBech32();
-    const certPair = createX509CertPair({ commonName: providerAddress });
+    const certPair = await createX509CertPair({ commonName: providerAddress });
     const chainServer = await startChainApiServer([certPair.cert]);
     const { providerUrl } = await startProviderServer({
       certPair,
@@ -182,7 +182,7 @@ describe("Provider proxy ws", () => {
 
   it('validates server certificate if "chainNetwork" and "providerAddress" are provided', async () => {
     const providerAddress = generateBech32();
-    const validCertPair = createX509CertPair({ commonName: providerAddress });
+    const validCertPair = await createX509CertPair({ commonName: providerAddress });
     const chainServer = await startChainApiServer([validCertPair.cert]);
     const { providerUrl } = await startProviderServer({
       certPair: validCertPair,
@@ -229,7 +229,7 @@ describe("Provider proxy ws", () => {
 
   it("supports mtls authentication", async () => {
     const providerAddress = generateBech32();
-    const certPair = createX509CertPair({ commonName: providerAddress });
+    const certPair = await createX509CertPair({ commonName: providerAddress });
     const chainServer = await startChainApiServer([certPair.cert]);
     const { providerUrl } = await startProviderServer({
       certPair,
@@ -247,7 +247,7 @@ describe("Provider proxy ws", () => {
 
     await new Promise(resolve => ws.once("open", resolve));
 
-    const clientCertPair = createX509CertPair({ commonName: generateBech32() });
+    const clientCertPair = await createX509CertPair({ commonName: generateBech32() });
     ws.send(
       JSON.stringify(
         ourMessage("hello", providerUrl, {
@@ -293,7 +293,7 @@ describe("Provider proxy ws", () => {
 
   it("supports jwt authentication", async () => {
     const providerAddress = generateBech32();
-    const certPair = createX509CertPair({ commonName: providerAddress });
+    const certPair = await createX509CertPair({ commonName: providerAddress });
     const chainServer = await startChainApiServer([certPair.cert]);
     const { providerUrl } = await startProviderServer({
       certPair,

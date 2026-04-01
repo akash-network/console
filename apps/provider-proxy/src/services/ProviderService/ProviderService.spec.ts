@@ -27,8 +27,9 @@ describe(ProviderService.name, () => {
 
     it("returns certificate when one is found", async () => {
       const { service, chainSdk } = setup();
+      const cert = await buildCertificate({ serialNumber: "17B85C634EF9EB05" });
       chainSdk.akash.cert.v1.getCertificates.mockResolvedValue({
-        certificates: [buildCertificate({ serialNumber: "17B85C634EF9EB05" })],
+        certificates: [cert],
         pagination: undefined
       });
 
@@ -69,8 +70,8 @@ describe(ProviderService.name, () => {
     return { service, chainSdk };
   }
 
-  function buildCertificate(params?: CertificateOptions) {
-    const pem = createX509CertPair(params).cert.toString();
+  async function buildCertificate(params?: CertificateOptions) {
+    const pem = (await createX509CertPair(params)).cert.toString();
     const cert = new TextEncoder().encode(pem);
     return { certificate: { cert, state: 1, pubkey: new Uint8Array() }, serial: "" };
   }
