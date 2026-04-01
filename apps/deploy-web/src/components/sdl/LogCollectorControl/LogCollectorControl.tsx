@@ -22,6 +22,7 @@ import { DatadogEnvConfig } from "@src/components/sdl/DatadogEnvConfig/DatadogEn
 import { EphemeralStorageFormControl } from "@src/components/sdl/EphemeralStorageFormControl";
 import { MemoryFormControl } from "@src/components/sdl/MemoryFormControl";
 import { LOG_COLLECTOR_IMAGE } from "@src/config/log-collector.config";
+import { useServices } from "@src/context/ServicesProvider";
 import { useSdlEnv } from "@src/hooks/useSdlEnv/useSdlEnv";
 import { useThrottledEffect } from "@src/hooks/useThrottledEffect/useThrottledEffect";
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
@@ -36,6 +37,7 @@ type Props = {
   serviceIndex: number;
   dependencies?: {
     useSdlEnv: typeof useSdlEnv;
+    useServices: typeof useServices;
   };
 };
 
@@ -43,8 +45,9 @@ const logCollectorLabelSchema = z.object({
   POD_LABEL_SELECTOR: z.string()
 });
 
-export const LogCollectorControl: FC<Props> = ({ serviceIndex, dependencies: d = { useSdlEnv } }) => {
+export const LogCollectorControl: FC<Props> = ({ serviceIndex, dependencies: d = { useSdlEnv, useServices } }) => {
   const [isAdding, setIsAdding] = useState(false);
+  const { analyticsService } = d.useServices();
   const { watch, control } = useFormContext<SdlBuilderFormValuesType>();
   const { append, remove, update } = useFieldArray({ name: `services` });
   const allServices = watch(`services`);
@@ -136,7 +139,11 @@ export const LogCollectorControl: FC<Props> = ({ serviceIndex, dependencies: d =
       </div>
       <CheckboxWithLabel
         checked={isEnabled}
-        onCheckedChange={state => setIsEnabled(state === "indeterminate" ? false : state)}
+        onCheckedChange={state => {
+          const enabled = state === "indeterminate" ? false : state;
+          setIsEnabled(enabled);
+          analyticsService.track(enabled ? "log_collector_enabled" : "log_collector_disabled", { category: "deployments" });
+        }}
         className="ml-4"
         label="Enable log forwarding for this service"
       />{" "}
