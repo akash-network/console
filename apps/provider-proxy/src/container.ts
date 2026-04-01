@@ -1,3 +1,4 @@
+import { createChainNodeWebSDK } from "@akashnetwork/chain-sdk/web";
 import { HttpLoggerInterceptor } from "@akashnetwork/logging/hono";
 import { createOtelLogger } from "@akashnetwork/logging/otel";
 
@@ -13,7 +14,17 @@ export function createContainer(untrustedConfig: Record<string, unknown>) {
 
   const wsStats = new WebsocketStats();
   const appLogger = isLoggingDisabled ? undefined : createOtelLogger({ name: "app" });
-  const providerService = new ProviderService(appConfig.REST_API_NODE_URL, fetch, appLogger);
+  const chainSdk = createChainNodeWebSDK({
+    query: {
+      baseUrl: appConfig.REST_API_NODE_URL,
+      transportOptions: {
+        retry: {
+          maxAttempts: 3
+        }
+      }
+    }
+  });
+  const providerService = new ProviderService(chainSdk, appLogger);
   const certificateValidator = new CertificateValidator(
     Date.now,
     providerService,

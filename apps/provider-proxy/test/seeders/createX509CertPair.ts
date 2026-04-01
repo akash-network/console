@@ -1,27 +1,16 @@
-import { X509Certificate } from "crypto";
-import { pki } from "node-forge";
+import { certificateManager } from "@akashnetwork/chain-sdk";
+import { X509Certificate } from "node:crypto";
 
-export function createX509CertPair(options: CertificateOptions = {}): CertPair {
-  const keys = pki.rsa.generateKeyPair(2048);
-  const cert = pki.createCertificate();
-
-  cert.publicKey = keys.publicKey;
-  cert.serialNumber = options.serialNumber ?? "177831BE7F249E66";
-  cert.validity.notBefore = options.validFrom || new Date();
-  cert.validity.notAfter = options.validTo || nextDay(cert.validity.notBefore);
-
-  const attrs = [
-    { name: "commonName", value: options?.commonName ?? "example.org" },
-    { name: "countryName", value: "US" },
-    { shortName: "ST", value: "Virginia" }
-  ];
-  cert.setSubject(attrs);
-  cert.setIssuer(attrs);
-  cert.sign(keys.privateKey);
+export async function createX509CertPair(options: CertificateOptions = {}): Promise<CertPair> {
+  const cert = await certificateManager.generatePEM(options.commonName ?? "example.org", {
+    serial: BigInt(`0x${options.serialNumber ?? "177831BE7F249E66"}`) as unknown as number,
+    validFrom: options.validFrom ?? new Date(),
+    validTo: options.validTo ?? nextDay(options.validFrom ?? new Date())
+  });
 
   return {
-    cert: new X509Certificate(pki.certificateToPem(cert)),
-    key: pki.privateKeyToPem(keys.privateKey)
+    cert: new X509Certificate(cert.cert),
+    key: cert.privateKey
   };
 }
 

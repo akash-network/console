@@ -21,7 +21,7 @@ export function startChainApiServer(
     const server = http.createServer((req, res) => {
       if (options?.interceptRequest?.(req, res)) return;
 
-      if (!/\/akash\/cert\/(v1|v1beta3)\/certificates\/list/.test(req.url || "")) {
+      if (!/\/akash\/cert\/v1\/certificates\/list/.test(req.url || "")) {
         res.writeHead(404, { Connection: "close" });
         res.end("");
         return;
@@ -40,7 +40,7 @@ export function startChainApiServer(
               serial: BigInt(`0x${cert.serialNumber}`).toString(10),
               certificate: {
                 cert: btoa(cert.toJSON()),
-                pubkey: cert.publicKey.export({ type: "pkcs1", format: "pem" })
+                pubkey: cert.publicKey.export({ type: "spki", format: "pem" })
               }
             }))
         })

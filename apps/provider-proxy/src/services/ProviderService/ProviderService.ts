@@ -1,50 +1,41 @@
+import type { ChainNodeWebSDK } from "@akashnetwork/chain-sdk/web";
 import type { LoggerService } from "@akashnetwork/logging";
 import { X509Certificate } from "crypto";
 
-import { httpRetry } from "../../utils/retry";
-
 export class ProviderService {
-  private certApiModuleVersion = "v1";
+  readonly #chainSdk: ChainNodeWebSDK;
+  readonly #logger?: LoggerService;
 
-  constructor(
-    private readonly chainBaseUrl: string,
-    private readonly fetch: typeof global.fetch,
-    private readonly logger?: LoggerService
-  ) {}
-
-  async getCertificate(providerAddress: string, serialNumber: string): Promise<X509Certificate | null> {
-    const queryParams = new URLSearchParams({
-      "filter.state": "valid",
-      "filter.owner": providerAddress,
-      "filter.serial": BigInt(`0x${serialNumber}`).toString(10),
-      "pagination.limit": "1"
-    });
-
-    const response = await this.fetchCertificate(this.chainBaseUrl, queryParams);
-
-    if (response.status >= 200 && response.status < 300) {
-      const body = (await response.json()) as KnownCertificatesResponseBody;
-      return body.certificates.length === 1 ? new X509Certificate(atob(body.certificates[0].certificate.cert)) : null;
-    }
-
-    return null;
+  constructor(chainSdk: ChainNodeWebSDK, logger?: LoggerService) {
+    this.#chainSdk = chainSdk;
+    this.#logger = logger;
   }
 
-  private async fetchCertificate(baseUrl: string, queryParams: URLSearchParams): Promise<Response> {
-    const response = await httpRetry(
-      () => this.fetch(`${baseUrl}/akash/cert/${this.certApiModuleVersion}/certificates/list?${queryParams}`, { signal: AbortSignal.timeout(5_000) }),
-      {
-        retryIf: response => response.status !== 501 && response.status >= 500,
-        logger: this.logger
-      }
-    );
+  async getCertificate(providerAddress: string, serialNumber: string): Promise<X509Certificate | null> {
+    try {
+      const response = await this.#chainSdk.akash.cert.v1.getCertificates({
+        pagination: {
+          limit: 1
+        },
+        filter: {
+          owner: providerAddress,
+          serial: BigInt(`0x${serialNumber}`).toString(10),
+          state: "valid"
+        }
+      });
+      const cert = response.certificates[0]?.certificate;
+      if (!cert) return null;
 
-    if (response.status === 501) {
-      this.certApiModuleVersion = this.certApiModuleVersion === "v1" ? "v1beta3" : "v1";
-      return this.fetchCertificate(baseUrl, queryParams);
+      return new X509Certificate(cert.cert);
+    } catch (error) {
+      this.#logger?.error({
+        event: "PROVIDER_CERTIFICATE_FETCH_ERROR",
+        providerAddress,
+        serialNumber,
+        error
+      });
+      return null;
     }
-
-    return response;
   }
 
   isValidationServerError(rawBody: unknown): boolean {
@@ -52,12 +43,4 @@ export class ProviderService {
     const body = rawBody.trim();
     return body.startsWith("manifest cross-validation error:") || body.startsWith("hostname not allowed:") || body.includes("validation failed");
   }
-}
-
-interface KnownCertificatesResponseBody {
-  certificates: Array<{
-    certificate: {
-      cert: string;
-    };
-  }>;
 }

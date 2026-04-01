@@ -11,7 +11,7 @@ describe(CertificateValidator.name, () => {
   const ONE_MINUTE = 60 * 1000;
 
   it('returns "unknownCertificate" error result if provider certificate cannot be found', async () => {
-    const { cert } = createX509CertPair({
+    const { cert } = await createX509CertPair({
       validFrom: new Date(),
       validTo: new Date(Date.now() + ONE_MINUTE),
       commonName: "akash1rk090a6mq9gvm0h6ljf8kz8mrxglwwxsk4srxh",
@@ -28,21 +28,19 @@ describe(CertificateValidator.name, () => {
   });
 
   it('returns "fingerprintMismatch" error result if certificate fingerprint does not match', async () => {
-    const { cert } = createX509CertPair({
+    const { cert } = await createX509CertPair({
       validFrom: new Date(),
       validTo: new Date(Date.now() + ONE_MINUTE),
       commonName: "akash1rk090a6mq9gvm0h6ljf8kz8mrxglwwxsk4srxh",
       serialNumber: "177831BE7F249E66"
     });
     const getCertificate = vi.fn(() =>
-      Promise.resolve(
-        createX509CertPair({
-          validFrom: new Date(),
-          validTo: new Date(Date.now() + ONE_MINUTE),
-          commonName: "akash1rk090a6mq9gvm0h6ljf8kz8mrxglwwxsk4srxh",
-          serialNumber: "177831BE7F249E61"
-        }).cert
-      )
+      createX509CertPair({
+        validFrom: new Date(),
+        validTo: new Date(Date.now() + ONE_MINUTE),
+        commonName: "akash1rk090a6mq9gvm0h6ljf8kz8mrxglwwxsk4srxh",
+        serialNumber: "177831BE7F249E61"
+      }).then(x => x.cert)
     );
     const validator = setup({ getCertificate });
 
@@ -54,13 +52,13 @@ describe(CertificateValidator.name, () => {
   });
 
   it("caches provider certificate per provider and serial number", async () => {
-    const { cert } = createX509CertPair({
+    const { cert } = await createX509CertPair({
       validFrom: new Date(),
       validTo: new Date(Date.now() + ONE_MINUTE),
       commonName: "akash1rk090a6mq9gvm0h6ljf8kz8mrxglwwxsk4srxh",
       serialNumber: "177831BE7F249E66"
     });
-    const { cert: anotherCert } = createX509CertPair({
+    const { cert: anotherCert } = await createX509CertPair({
       validFrom: new Date(),
       validTo: new Date(Date.now() + 2 * ONE_MINUTE),
       commonName: "akash1rk090a6mq9gvm0h6ljf8kz8mrxglwwxsk4srxh",
@@ -88,7 +86,7 @@ describe(CertificateValidator.name, () => {
 
   it("returns error if certificate is issued for future use", async () => {
     const validFrom = new Date();
-    const { cert } = createX509CertPair({ validFrom });
+    const { cert } = await createX509CertPair({ validFrom });
     const validator = setup({ now: validFrom.getTime() - ONE_MINUTE });
 
     const result = (await validator.validate(cert, "provider")) as CertValidationResultError;
@@ -100,7 +98,7 @@ describe(CertificateValidator.name, () => {
   it("returns error if certificate expired", async () => {
     const validFrom = new Date();
     const validTo = new Date(validFrom.getTime() + 60 * 1000);
-    const { cert } = createX509CertPair({ validFrom, validTo });
+    const { cert } = await createX509CertPair({ validFrom, validTo });
     const validator = setup({ now: validTo.getTime() + ONE_MINUTE });
 
     const result = (await validator.validate(cert, "provider")) as CertValidationResultError;
@@ -110,7 +108,7 @@ describe(CertificateValidator.name, () => {
   });
 
   it("returns error if certificate does not have serial number", async () => {
-    const cert = Object.create(createX509CertPair().cert) as X509Certificate;
+    const cert = Object.create((await createX509CertPair()).cert) as X509Certificate;
     Object.defineProperty(cert, "serialNumber", { get: () => "" });
     const validator = setup();
 
@@ -121,7 +119,7 @@ describe(CertificateValidator.name, () => {
   });
 
   it("returns error if certificate subject common name is not in bech32 format", async () => {
-    const { cert } = createX509CertPair({ commonName: "test.com" });
+    const { cert } = await createX509CertPair({ commonName: "test.com" });
     const validator = setup();
 
     const result = (await validator.validate(cert, "provider")) as CertValidationResultError;
@@ -131,7 +129,7 @@ describe(CertificateValidator.name, () => {
   });
 
   it("returns error if certificate subject common name is not in bech32 format", async () => {
-    const { cert } = createX509CertPair();
+    const { cert } = await createX509CertPair();
     const validator = setup();
 
     const result = (await validator.validate(cert, "provider")) as CertValidationResultError;
@@ -141,7 +139,7 @@ describe(CertificateValidator.name, () => {
   });
 
   it("returns successful result if all criterias above are met", async () => {
-    const { cert } = createX509CertPair({
+    const { cert } = await createX509CertPair({
       validFrom: new Date(),
       validTo: new Date(Date.now() + ONE_MINUTE),
       commonName: "akash1rk090a6mq9gvm0h6ljf8kz8mrxglwwxsk4srxh",
@@ -156,7 +154,7 @@ describe(CertificateValidator.name, () => {
   });
 
   it("fetches provider certificate only once for concurrent validation of the same certificate", async () => {
-    const { cert } = createX509CertPair({
+    const { cert } = await createX509CertPair({
       validFrom: new Date(),
       validTo: new Date(Date.now() + ONE_MINUTE),
       commonName: "akash1rk090a6mq9gvm0h6ljf8kz8mrxglwwxsk4srxh",
