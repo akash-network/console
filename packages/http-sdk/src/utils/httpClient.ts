@@ -37,10 +37,6 @@ export function createHttpClient(fullConfig: HttpClientOptions = {}): HttpClient
     const resolvedUrl = buildUrl(url, reqConfig?.baseURL ?? baseURL, reqConfig?.params);
     const headers: Record<string, string> = { ...defaultHeaders, ...reqConfig?.headers };
 
-    if (data !== undefined && typeof data !== "string" && method !== "GET" && method !== "HEAD") {
-      headers["Content-Type"] ??= "application/json";
-    }
-
     return resilientAdapter({
       ...reqConfig,
       method,
