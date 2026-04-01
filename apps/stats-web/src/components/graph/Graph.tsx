@@ -24,17 +24,13 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
   const { resolvedTheme } = useTheme();
   const intl = useIntl();
   const graphTheme = getTheme(resolvedTheme);
-  const initialData = useMemo(() => mapSnapshotsToLineSeriesData(rangedData, snapshotMetadata), [rangedData, snapshotMetadata]);
   const totalGraphData = useMemo(() => mapSnapshotsToLineSeriesData(snapshotData?.snapshots, snapshotMetadata), [snapshotData?.snapshots, snapshotMetadata]);
+  const rangedGraphData = useMemo(() => mapSnapshotsToLineSeriesData(rangedData, snapshotMetadata), [rangedData, snapshotMetadata]);
 
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const lineSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
-  const timer = useRef<number | null>(null);
-  const graphDataRef = useRef<ReturnType<typeof mapSnapshotsToLineSeriesData>>([]);
-  const totalGraphDataRef = useRef(totalGraphData);
-  totalGraphDataRef.current = totalGraphData;
 
   // Create/recreate chart on mount and theme change
   useEffect(() => {
@@ -138,36 +134,6 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
       }
     });
 
-    chart.timeScale().subscribeVisibleLogicalRangeChange(logicalRange => {
-      if (logicalRange === null) return;
-      if (timer.current !== null) return;
-      if (logicalRange.from >= 0) return;
-
-      timer.current = window.setTimeout(() => {
-        const currentTotalData = totalGraphDataRef.current;
-        const currentGraphData = graphDataRef.current;
-
-        if (currentGraphData.length === 0) {
-          timer.current = null;
-          return;
-        }
-
-        const currentStart = Math.max(currentTotalData.length - currentGraphData.length, 0);
-        const prependCount = Math.min(Math.ceil(-logicalRange.from), currentStart);
-
-        if (prependCount > 0) {
-          const nextStart = currentStart - prependCount;
-          const newGraphData = [...currentTotalData.slice(nextStart, currentStart), ...currentGraphData];
-          graphDataRef.current = newGraphData;
-
-          if (lineSeriesRef.current) {
-            lineSeriesRef.current.setData(newGraphData);
-          }
-        }
-        timer.current = null;
-      }, 500);
-    });
-
     const handleResize = () => {
       if (chartContainerRef.current && chartRef.current) {
         chart.applyOptions({ width: chartContainerRef.current.clientWidth });
@@ -179,10 +145,6 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
 
     return () => {
       window.removeEventListener("resize", handleResize);
-      if (timer.current !== null) {
-        clearTimeout(timer.current);
-        timer.current = null;
-      }
       chartRef.current = null;
       lineSeriesRef.current = null;
       chart.remove();
@@ -190,19 +152,20 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resolvedTheme]);
 
-  // Update data when range changes
+  // Always load all data; zoom to the selected range
   useEffect(() => {
     if (!lineSeriesRef.current || !chartRef.current) return;
 
-    if (timer.current !== null) {
-      clearTimeout(timer.current);
-      timer.current = null;
-    }
+    lineSeriesRef.current.setData(totalGraphData);
 
-    graphDataRef.current = [...initialData];
-    lineSeriesRef.current.setData(initialData);
-    chartRef.current.timeScale().fitContent();
-  }, [initialData, resolvedTheme]);
+    if (rangedGraphData.length > 0 && rangedGraphData.length < totalGraphData.length) {
+      const from = rangedGraphData[0].time;
+      const to = rangedGraphData[rangedGraphData.length - 1].time;
+      chartRef.current.timeScale().setVisibleRange({ from, to });
+    } else {
+      chartRef.current.timeScale().fitContent();
+    }
+  }, [totalGraphData, rangedGraphData, resolvedTheme]);
 
   return (
     <div className="relative h-[400px]">
