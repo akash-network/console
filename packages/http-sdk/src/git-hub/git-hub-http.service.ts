@@ -1,6 +1,5 @@
-import type { AxiosRequestConfig } from "axios";
-
 import { HttpService } from "../http/http.service";
+import type { HttpRequestConfig } from "../http/http.types";
 
 type ProviderAttributeSchemaDetailValue = { key: string; description: string; value?: string };
 
@@ -47,7 +46,7 @@ export class GitHubHttpService extends HttpService {
   private readonly repository = "console";
   private readonly branch = "main";
 
-  constructor(config?: Pick<AxiosRequestConfig, "baseURL">) {
+  constructor(config?: Pick<HttpRequestConfig, "baseURL">) {
     super(config);
   }
 

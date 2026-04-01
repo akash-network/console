@@ -1,6 +1,5 @@
-import type { AxiosRequestConfig } from "axios";
-
 import { HttpService } from "../http/http.service";
+import type { HttpRequestConfig } from "../http/http.types";
 import type { Denom } from "../types/denom.type";
 
 export interface RawBalance {
@@ -18,7 +17,7 @@ interface BalanceResponse {
 }
 
 export class BalanceHttpService extends HttpService {
-  constructor(config?: Pick<AxiosRequestConfig, "baseURL">) {
+  constructor(config?: Pick<HttpRequestConfig, "baseURL">) {
     super(config);
   }
 

@@ -1,5 +1,4 @@
-import type { AxiosInstance } from "axios";
-
+import type { HttpClient } from "../utils/httpClient";
 import { getAllItems } from "../utils/pagination.utils";
 
 export type RestApiCertificatesResponseType = {
@@ -20,7 +19,7 @@ export type RestApiCertificate = {
 };
 
 export class CertificatesService {
-  constructor(private readonly axios: AxiosInstance) {}
+  constructor(private readonly httpClient: HttpClient) {}
 
   async getCertificates(params: GetCertificatesParams): Promise<RestApiCertificatesResponseType> {
     const queryParams: Record<string, string | number> = {
@@ -32,7 +31,7 @@ export class CertificatesService {
     if (params["pagination.key"]) queryParams["pagination.key"] = params["pagination.key"];
     if (params["pagination.count_total"]) queryParams["pagination.count_total"] = params["pagination.count_total"];
 
-    const response = await this.axios.get<RestApiCertificatesResponseType>("/akash/cert/v1/certificates/list", { params: queryParams });
+    const response = await this.httpClient.get<RestApiCertificatesResponseType>("/akash/cert/v1/certificates/list", { params: queryParams });
     return response.data;
   }
 

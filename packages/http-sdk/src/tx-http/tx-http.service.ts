@@ -1,8 +1,8 @@
 import type { EncodeObject, Registry } from "@cosmjs/proto-signing";
 import type { DeliverTxResponse } from "@cosmjs/stargate";
-import type { AxiosRequestConfig } from "axios";
 
 import { ApiHttpService } from "../api-http/api-http.service";
+import type { HttpRequestConfig } from "../http/http.types";
 
 export interface TxInput {
   userId: string;
@@ -14,7 +14,7 @@ export type TxOutput = Pick<DeliverTxResponse, "code" | "transactionHash" | "raw
 export class TxHttpService extends ApiHttpService {
   constructor(
     private readonly registry: Registry,
-    config?: AxiosRequestConfig
+    config?: HttpRequestConfig
   ) {
     super(config);
   }

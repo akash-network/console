@@ -1,12 +1,11 @@
-import type { AxiosRequestConfig } from "axios";
-
 import { ApiHttpService } from "../api-http/api-http.service";
+import type { HttpRequestConfig } from "../http/http.types";
 import type { UpdateWalletSettingsParams, WalletSettings } from "./wallet-settings.types";
 
 export type { UpdateWalletSettingsParams, WalletSettings };
 
 export class WalletSettingsHttpService extends ApiHttpService {
-  constructor(config?: AxiosRequestConfig) {
+  constructor(config?: HttpRequestConfig) {
     super(config);
   }
 

@@ -1,5 +1,5 @@
-import { AxiosError } from "axios";
+import { HttpError } from "../http/http-error";
 
-export function isHttpError<T = any>(error: unknown): error is AxiosError<T> {
-  return !!error && error instanceof AxiosError;
+export function isHttpError<T = any>(error: unknown): error is HttpError<T> {
+  return error instanceof HttpError;
 }

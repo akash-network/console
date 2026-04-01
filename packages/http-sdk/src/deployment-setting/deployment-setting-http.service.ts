@@ -1,6 +1,5 @@
-import type { AxiosRequestConfig } from "axios";
-
 import { ApiHttpService } from "../api-http/api-http.service";
+import type { HttpRequestConfig } from "../http/http.types";
 
 export interface DeploymentSettingOutput {
   id: number;
@@ -34,7 +33,7 @@ export interface FindDeploymentSettingParams {
 }
 
 export class DeploymentSettingHttpService extends ApiHttpService {
-  constructor(config?: Pick<AxiosRequestConfig, "baseURL">) {
+  constructor(config?: Pick<HttpRequestConfig, "baseURL">) {
     super(config);
   }
 

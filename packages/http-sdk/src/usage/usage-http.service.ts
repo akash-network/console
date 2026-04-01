@@ -1,7 +1,7 @@
-import type { AxiosRequestConfig } from "axios";
 import { format } from "date-fns";
 
 import { HttpService } from "../http/http.service";
+import type { HttpRequestConfig } from "../http/http.types";
 import type { UsageHistory, UsageHistoryStats } from "./usage.types";
 
 type UsageParams = {
@@ -11,7 +11,7 @@ type UsageParams = {
 };
 
 export class UsageHttpService extends HttpService {
-  constructor(config?: AxiosRequestConfig) {
+  constructor(config?: HttpRequestConfig) {
     super(config);
   }
 

@@ -1,7 +1,9 @@
-import type { AxiosAdapter, AxiosError, AxiosResponse, InternalAxiosRequestConfig } from "axios";
-import axios from "axios";
 import type { IBreaker, ICircuitBreakerOptions, IPolicy } from "cockatiel";
 import { circuitBreaker, ConsecutiveBreaker, ConstantBackoff, handleAll, handleWhen, IterableBackoff, retry, wrap } from "cockatiel";
+
+import { executeFetch } from "../../http/execute-fetch";
+import type { HttpAdapter, HttpRequestConfig, HttpResponse } from "../../http/http.types";
+import { HttpError } from "../../http/http-error";
 
 export interface FetchAdapterOptions {
   retries?: number;
@@ -10,14 +12,14 @@ export interface FetchAdapterOptions {
     breaker?: IBreaker;
     halfOpenAfter?: ICircuitBreakerOptions["halfOpenAfter"];
   };
-  adapter?: AxiosAdapter;
-  onFailure?: (error: unknown, requestConfig: InternalAxiosRequestConfig) => AxiosResponse | Promise<AxiosResponse> | undefined | null | void;
+  adapter?: HttpAdapter;
+  onFailure?: (error: unknown, requestConfig: HttpRequestConfig) => HttpResponse | Promise<HttpResponse> | undefined | null | void;
   onSuccess?: () => void;
-  abortPendingWhenOneFail?: (response: AxiosResponse) => boolean;
+  abortPendingWhenOneFail?: (response: HttpResponse) => boolean;
 }
 
 const EXTRA_RETRY_AFTER_DELAY = 10 * 1000;
-export function createFetchAdapter(options: FetchAdapterOptions = {}): AxiosAdapter {
+export function createFetchAdapter(options: FetchAdapterOptions = {}): HttpAdapter {
   const handleNetworkOrIdempotentError = handleWhen(error => isNetworkOrIdempotentRequestError(error));
   const policies: IPolicy[] = [];
 
@@ -38,7 +40,7 @@ export function createFetchAdapter(options: FetchAdapterOptions = {}): AxiosAdap
       maxAttempts: options.retries ?? 3,
       backoff: {
         next: context => {
-          if (!("error" in context.result) || !axios.isAxiosError(context.result.error)) return noBackoff.next();
+          if (!("error" in context.result) || !(context.result.error instanceof HttpError)) return noBackoff.next();
 
           const retryAfterHeader = context.result.error.response?.headers["retry-after"];
           if (!retryAfterHeader) return retryBackoffFallback.next(context);
@@ -62,23 +64,23 @@ export function createFetchAdapter(options: FetchAdapterOptions = {}): AxiosAdap
     fetchPolicy.onSuccess(options.onSuccess);
   }
 
-  const fetchAdapter = options.adapter ?? axios.getAdapter("fetch");
-  const axiosAdapter = async (config: InternalAxiosRequestConfig) => {
+  const fetchAdapter = options.adapter ?? executeFetch;
+  const wrappedAdapter: HttpAdapter = async config => {
     return fetchPolicy
-      .execute(() => fetchAdapter(config), config.signal as AbortSignal)
+      .execute(() => fetchAdapter(config), config.signal)
       .catch(error => {
         const result = options.onFailure?.(error, config);
         return result ? result : Promise.reject(error);
       });
   };
 
-  return options.abortPendingWhenOneFail ? abortableAdapter(axiosAdapter, options.abortPendingWhenOneFail) : axiosAdapter;
+  return options.abortPendingWhenOneFail ? abortableAdapter(wrappedAdapter, options.abortPendingWhenOneFail) : wrappedAdapter;
 }
 
 export function isNetworkOrIdempotentRequestError(error: unknown): boolean {
-  const isNetworkError = error && !axios.isAxiosError(error) && error instanceof Error && "code" in error && error.code;
-  if (isNetworkError) return isRetriableError(error);
-  return axios.isAxiosError(error) && isIdempotentRequestError(error);
+  if (error instanceof HttpError) return isIdempotentRequestError(error);
+  if (error instanceof Error && "code" in error) return isRetriableError(error as ErrorWithCode);
+  return false;
 }
 
 type ErrorWithCode = Error & { code: unknown };
@@ -88,7 +90,7 @@ export function isRetriableError(error: ErrorWithCode): boolean {
 }
 
 const IDEMPOTENT_HTTP_METHODS = ["get", "head", "options", "delete", "put"];
-function isIdempotentRequestError(error: AxiosError): boolean {
+function isIdempotentRequestError(error: HttpError): boolean {
   if (!error.config?.method) return false;
   return (
     IDEMPOTENT_HTTP_METHODS.includes(error.config.method.toLowerCase()) &&
@@ -97,17 +99,13 @@ function isIdempotentRequestError(error: AxiosError): boolean {
   );
 }
 
-function abortableAdapter(defaultAdapter: AxiosAdapter, abortWhen: (response: AxiosResponse) => boolean): AxiosAdapter {
+function abortableAdapter(defaultAdapter: HttpAdapter, abortWhen: (response: HttpResponse) => boolean): HttpAdapter {
   let adapterLevelAbortController = new AbortController();
-  return async (requestConfig: InternalAxiosRequestConfig) => {
-    if (requestConfig.signal) {
-      requestConfig.signal = AbortSignal.any([requestConfig.signal as AbortSignal, adapterLevelAbortController.signal]);
-    } else {
-      requestConfig.signal = adapterLevelAbortController.signal;
-    }
-    return defaultAdapter(requestConfig).catch(error => {
-      if (error.response && abortWhen(error.response)) {
-        // abort all requests sent by this adapter
+  return async requestConfig => {
+    const signal = requestConfig.signal ? AbortSignal.any([requestConfig.signal, adapterLevelAbortController.signal]) : adapterLevelAbortController.signal;
+
+    return defaultAdapter({ ...requestConfig, signal }).catch(error => {
+      if (error instanceof HttpError && error.response && abortWhen(error.response)) {
         adapterLevelAbortController.abort();
         adapterLevelAbortController = new AbortController();
       }

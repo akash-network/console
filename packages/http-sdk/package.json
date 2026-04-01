@@ -19,7 +19,6 @@
   },
   "dependencies": {
     "@akashnetwork/logging": "*",
-    "axios": "^1.7.2",
     "cockatiel": "^3.2.1",
     "date-fns": "^4.1.0",
     "lodash": "^4.17.21",

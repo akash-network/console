@@ -1,6 +1,5 @@
-import type { AxiosRequestConfig } from "axios";
-
 import { HttpService } from "../http/http.service";
+import type { HttpRequestConfig } from "../http/http.types";
 
 type Attribute = {
   key: string;
@@ -100,7 +99,7 @@ type RestAkashBidListResponse = {
 };
 
 export class BidHttpService extends HttpService {
-  constructor(config?: Pick<AxiosRequestConfig, "baseURL">) {
+  constructor(config?: Pick<HttpRequestConfig, "baseURL">) {
     super(config);
   }
 

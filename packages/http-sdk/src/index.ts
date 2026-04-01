@@ -1,3 +1,5 @@
+export * from "./http/http.types";
+export * from "./http/http-error";
 export * from "./http/http.service";
 export * from "./authz/authz-http.service";
 export * from "./api-http/api-http.service";

@@ -1,6 +1,5 @@
-import type { AxiosRequestConfig } from "axios";
-
 import { ApiHttpService } from "../api-http/api-http.service";
+import type { HttpRequestConfig } from "../http/http.types";
 import type {
   ConfirmPaymentParams,
   ConfirmPaymentResponse,
@@ -17,11 +16,11 @@ import type {
 } from "./stripe.types";
 
 export class StripeService extends ApiHttpService {
-  constructor(config?: AxiosRequestConfig) {
+  constructor(config?: HttpRequestConfig) {
     super(config);
   }
 
-  async createSetupIntent(config?: AxiosRequestConfig): Promise<SetupIntentResponse> {
+  async createSetupIntent(config?: HttpRequestConfig): Promise<SetupIntentResponse> {
     return this.extractApiData(await this.post("/v1/stripe/payment-methods/setup", {}, config));
   }
 
@@ -90,14 +89,11 @@ export class StripeService extends ApiHttpService {
 
     const url = `/v1/stripe/transactions/export?${queryParams}`;
 
-    return this.extractData(
-      await this.get(url, {
-        responseType: "blob"
-      })
-    );
+    // Blob endpoints don't return ApiOutput<T> - use extractData with cast
+    return this.extractData(await this.get(url, { responseType: "blob" })) as any;
   }
 
-  async findPrices(config?: AxiosRequestConfig): Promise<StripePrice[]> {
+  async findPrices(config?: HttpRequestConfig): Promise<StripePrice[]> {
     return this.extractApiData(await this.get("/v1/stripe/prices", config));
   }
 }
