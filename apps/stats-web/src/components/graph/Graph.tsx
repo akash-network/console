@@ -24,7 +24,10 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
   const { resolvedTheme } = useTheme();
   const intl = useIntl();
   const graphTheme = getTheme(resolvedTheme);
-  const totalGraphData = useMemo(() => mapSnapshotsToLineSeriesData(snapshotData?.snapshots, snapshotMetadata), [snapshotData?.snapshots, snapshotMetadata]);
+  const totalGraphData = useMemo(
+    () => mapSnapshotsToLineSeriesData(snapshotData?.snapshots?.slice(0, -1), snapshotMetadata),
+    [snapshotData?.snapshots, snapshotMetadata]
+  );
   const rangedGraphData = useMemo(() => mapSnapshotsToLineSeriesData(rangedData, snapshotMetadata), [rangedData, snapshotMetadata]);
 
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -150,7 +153,7 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
       chart.remove();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resolvedTheme]);
+  }, [resolvedTheme, intl.locale]);
 
   // Always load all data; zoom to the selected range
   useEffect(() => {
@@ -165,7 +168,7 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
     } else {
       chartRef.current.timeScale().fitContent();
     }
-  }, [totalGraphData, rangedGraphData, resolvedTheme]);
+  }, [totalGraphData, rangedGraphData, resolvedTheme, intl.locale]);
 
   return (
     <div className="relative h-[400px]">
