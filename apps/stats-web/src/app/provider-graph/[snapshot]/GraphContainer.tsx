@@ -75,7 +75,7 @@ export default function GraphContainer({ snapshot }: IGraphProps) {
         </div>
       )}
 
-      {snapshotData && snapshotMetadata && rangedData && metricDiff && metric && (
+      {snapshotData && snapshotMetadata && completedSnapshots && rangedData && metricDiff && metric && (
         <>
           <div className="mb-4 flex flex-col flex-wrap items-center justify-between sm:flex-row sm:flex-nowrap">
             <div className="mb-4 basis-full sm:mb-0 sm:basis-0">
@@ -91,7 +91,7 @@ export default function GraphContainer({ snapshot }: IGraphProps) {
             <TimeRange selectedRange={selectedRange} onRangeChange={setSelectedRange} />
           </div>
 
-          <Graph rangedData={rangedData} snapshotMetadata={snapshotMetadata} snapshotData={snapshotData} />
+          <Graph rangedData={rangedData} completedSnapshots={completedSnapshots} snapshotMetadata={snapshotMetadata} />
           {snapshotData && (
             <div className="mt-8 text-right">
               <Button variant="outline" color="secondary" onClick={onDownloadCSVClick}>

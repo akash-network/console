@@ -28,7 +28,7 @@ export interface IGraphProps {
 export default function GraphContainer({ snapshot }: IGraphProps) {
   const [selectedRange, setSelectedRange] = useState(SELECTED_RANGE_VALUES["7D"]);
   const { data: snapshotData, status } = useGraphSnapshot(snapshot);
-  const snapshotMetadata = snapshotData && getBmeSnapshotMetadata(snapshot as BmeSnapshots);
+  const snapshotMetadata = useMemo(() => snapshotData && getBmeSnapshotMetadata(snapshot as BmeSnapshots), [snapshotData, snapshot]);
   const completedSnapshots = useCompletedSnapshots(snapshotData?.snapshots);
   const rangedData = useMemo(
     () => completedSnapshots && completedSnapshots.slice(Math.max(completedSnapshots.length - selectedRange, 0), completedSnapshots.length),
@@ -79,7 +79,7 @@ export default function GraphContainer({ snapshot }: IGraphProps) {
 
       {snapshot !== NOT_FOUND && status === "error" && <div className="mb-4 mt-16 text-center text-muted-foreground">Failed to load snapshot data.</div>}
 
-      {snapshotData && snapshotMetadata && rangedData && metricDiff && metric && (
+      {snapshotData && snapshotMetadata && completedSnapshots && rangedData && metricDiff && metric && (
         <>
           <div className="mb-4 flex flex-col flex-wrap items-center justify-between sm:flex-row sm:flex-nowrap">
             <div className="mb-4 basis-full sm:mb-0 sm:basis-0">
@@ -95,7 +95,7 @@ export default function GraphContainer({ snapshot }: IGraphProps) {
             <TimeRange selectedRange={selectedRange} onRangeChange={setSelectedRange} />
           </div>
 
-          <Graph rangedData={rangedData} snapshotMetadata={snapshotMetadata} snapshotData={snapshotData} />
+          <Graph rangedData={rangedData} completedSnapshots={completedSnapshots} snapshotMetadata={snapshotMetadata} />
           {snapshotData && (
             <div className="mt-8 text-right">
               <Button variant="outline" color="secondary" onClick={onDownloadCSVClick}>

@@ -9,33 +9,28 @@ import { useTheme } from "next-themes";
 
 import { customColors } from "@/lib/colors";
 import { nFormatter, roundDecimal } from "@/lib/mathHelpers";
-import type { GraphResponse, ISnapshotMetadata, SnapshotValue } from "@/types";
+import type { ISnapshotMetadata, SnapshotValue } from "@/types";
 
 interface IGraphProps {
   rangedData: SnapshotValue[];
+  completedSnapshots: SnapshotValue[];
   snapshotMetadata: {
     unitFn: (number: any) => ISnapshotMetadata;
     legend?: string;
   };
-  snapshotData: GraphResponse;
 }
 
-const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetadata, snapshotData }) => {
+const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, completedSnapshots, snapshotMetadata }) => {
   const { resolvedTheme } = useTheme();
   const intl = useIntl();
   const graphTheme = getTheme(resolvedTheme);
-  const totalGraphData = useMemo(
-    () => mapSnapshotsToLineSeriesData(snapshotData?.snapshots?.slice(0, -1), snapshotMetadata),
-    [snapshotData?.snapshots, snapshotMetadata]
-  );
-  const rangedGraphData = useMemo(() => mapSnapshotsToLineSeriesData(rangedData, snapshotMetadata), [rangedData, snapshotMetadata]);
+  const totalGraphData = useMemo(() => mapSnapshotsToLineSeriesData(completedSnapshots, snapshotMetadata), [completedSnapshots, snapshotMetadata]);
 
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const lineSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
 
-  // Create/recreate chart on mount and theme change
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
@@ -155,20 +150,20 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resolvedTheme, intl.locale]);
 
-  // Always load all data; zoom to the selected range
   useEffect(() => {
     if (!lineSeriesRef.current || !chartRef.current) return;
 
     lineSeriesRef.current.setData(totalGraphData);
 
-    if (rangedGraphData.length > 0 && rangedGraphData.length < totalGraphData.length) {
-      const from = rangedGraphData[0].time;
-      const to = rangedGraphData[rangedGraphData.length - 1].time;
+    if (rangedData.length > 0 && rangedData.length < totalGraphData.length) {
+      const startIdx = totalGraphData.length - rangedData.length;
+      const from = totalGraphData[startIdx].time;
+      const to = totalGraphData[totalGraphData.length - 1].time;
       chartRef.current.timeScale().setVisibleRange({ from, to });
     } else {
       chartRef.current.timeScale().fitContent();
     }
-  }, [totalGraphData, rangedGraphData, resolvedTheme, intl.locale]);
+  }, [totalGraphData, rangedData, resolvedTheme, intl.locale]);
 
   return (
     <div className="relative h-[400px]">
