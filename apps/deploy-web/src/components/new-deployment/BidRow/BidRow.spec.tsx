@@ -2,7 +2,6 @@ import type { RadioGroupItem } from "@akashnetwork/ui/components";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import { LocalNoteProvider } from "@src/context/LocalNoteProvider/LocalNoteContext";
 import { queryClient } from "@src/queries/queryClient";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { ProviderProxyService } from "@src/services/provider-proxy/provider-proxy.service";
@@ -113,17 +112,15 @@ describe(BidRow.name, () => {
       }) as unknown as ProviderProxyService;
     return render(
       <TestContainerProvider services={{ providerProxy, queryClient: () => queryClient, analyticsService: () => mock<AnalyticsService>() }}>
-        <LocalNoteProvider>
-          <BidRow
-            bid={props?.bid ?? buildDeploymentBid()}
-            selectedBid={props?.selectedBid}
-            handleBidSelected={props?.handleBidSelected || (() => {})}
-            disabled={props?.disabled ?? false}
-            provider={props?.provider ?? buildProvider()}
-            isSendingManifest={props?.isSendingManifest ?? false}
-            components={MockComponents(COMPONENTS, props?.components)}
-          />
-        </LocalNoteProvider>
+        <BidRow
+          bid={props?.bid ?? buildDeploymentBid()}
+          selectedBid={props?.selectedBid}
+          handleBidSelected={props?.handleBidSelected || (() => {})}
+          disabled={props?.disabled ?? false}
+          provider={props?.provider ?? buildProvider()}
+          isSendingManifest={props?.isSendingManifest ?? false}
+          components={MockComponents(COMPONENTS, props?.components)}
+        />
       </TestContainerProvider>
     );
   }

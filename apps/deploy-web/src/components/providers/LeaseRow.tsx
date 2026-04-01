@@ -4,10 +4,10 @@ import { TableCell, TableRow } from "@akashnetwork/ui/components";
 import isEqual from "lodash/isEqual";
 import Link from "next/link";
 
+import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { PriceEstimateTooltip } from "@src/components/shared/PriceEstimateTooltip";
 import { PricePerTimeUnit } from "@src/components/shared/PricePerTimeUnit";
 import { StatusPill } from "@src/components/shared/StatusPill";
-import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import type { LeaseDto } from "@src/types/deployment";
 import { uaktToAKT } from "@src/utils/priceUtils";
 import { UrlService } from "@src/utils/urlUtils";

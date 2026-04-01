@@ -238,7 +238,9 @@ describe(DeploymentDetailTopBar.name, () => {
         getDeploymentData: input?.localNotes?.getDeploymentData ?? (() => null),
         changeDeploymentName: input?.localNotes?.changeDeploymentName ?? vi.fn(),
         favoriteProviders: [],
-        updateFavoriteProviders: vi.fn()
+        updateFavoriteProviders: vi.fn(),
+        selectedDeploymentDseq: null,
+        selectDeployment: vi.fn()
       })) as typeof DEPENDENCIES.useLocalNotes,
       useWallet: vi.fn(() => ({
         signAndBroadcastTx: input?.wallet?.signAndBroadcastTx ?? vi.fn(() => Promise.resolve(true)),
@@ -271,11 +273,6 @@ describe(DeploymentDetailTopBar.name, () => {
       useManagedDeploymentConfirm: vi.fn(() => ({
         closeDeploymentConfirm: vi.fn(() => Promise.resolve(true))
       })) as typeof DEPENDENCIES.useManagedDeploymentConfirm,
-      useUser: vi.fn(() => ({
-        user: { id: "user-1" },
-        isLoading: false,
-        checkSession: vi.fn()
-      })) as unknown as typeof DEPENDENCIES.useUser,
       useDeploymentSettingQuery: vi.fn(() => ({
         data: { autoTopUpEnabled: false, estimatedTopUpAmount: 0, topUpFrequencyMs: 0 },
         setAutoTopUpEnabled: vi.fn(),

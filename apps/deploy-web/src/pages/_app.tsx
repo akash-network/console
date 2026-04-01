@@ -20,12 +20,12 @@ import NProgress from "nprogress";
 import GoogleAnalytics from "@src/components/layout/CustomGoogleAnalytics";
 import { CustomIntlProvider } from "@src/components/layout/CustomIntlProvider";
 import { PageHead } from "@src/components/layout/PageHead";
+import { LocalNoteManager } from "@src/components/LocalNoteManager";
 import { OnboardingRedirectEffect } from "@src/components/onboarding/OnboardingRedirectEffect/OnboardingRedirectEffect";
 import { UserProviders } from "@src/components/user/UserProviders/UserProviders";
 import { CustomChainProvider } from "@src/context/CustomChainProvider";
 import { ColorModeProvider } from "@src/context/CustomThemeContext";
 import { FlagProvider } from "@src/context/FlagProvider/FlagProvider";
-import { LocalNoteProvider } from "@src/context/LocalNoteProvider";
 import { PaymentPollingProvider } from "@src/context/PaymentPollingProvider";
 import { ServicesProvider } from "@src/context/ServicesProvider";
 import { RootContainerProvider, useRootContainer } from "@src/context/ServicesProvider/RootContainerProvider";
@@ -92,7 +92,8 @@ function AppRoot(props: Props & { children: React.ReactNode }) {
                           <SettingsProvider>
                             <ServicesProvider>
                               <CustomChainProvider>
-                                <LocalNoteProvider>{props.children}</LocalNoteProvider>
+                                <LocalNoteManager />
+                                {props.children}
                               </CustomChainProvider>
                             </ServicesProvider>
                           </SettingsProvider>

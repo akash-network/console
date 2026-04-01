@@ -6,7 +6,7 @@ import { cn } from "@akashnetwork/ui/utils";
 import { WarningCircle } from "iconoir-react";
 import { useRouter } from "next/navigation";
 
-import { useLocalNotes } from "@src/context/LocalNoteProvider";
+import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { getSplitText } from "@src/hooks/useShortText";
 import type { ClientProviderList } from "@src/types/provider";
 import { createFilterUnique } from "@src/utils/array";

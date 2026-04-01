@@ -4,7 +4,7 @@ import { Badge, CustomTooltip, RadioGroup, RadioGroupItem, Spinner, TableCell, T
 import { cn } from "@akashnetwork/ui/utils";
 import { CloudXmark, WarningTriangle } from "iconoir-react";
 
-import { useLocalNotes } from "@src/context/LocalNoteProvider";
+import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { useServices } from "@src/context/ServicesProvider";
 import { useProviderStatus } from "@src/queries/useProvidersQuery";
 import type { BidDto } from "@src/types/deployment";

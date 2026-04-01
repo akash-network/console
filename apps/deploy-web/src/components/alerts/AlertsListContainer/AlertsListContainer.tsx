@@ -7,7 +7,7 @@ import { useCallback, useState } from "react";
 import type { components } from "@akashnetwork/react-query-sdk/notifications";
 import { useQueryClient } from "@tanstack/react-query";
 
-import { useLocalNotes } from "@src/context/LocalNoteProvider";
+import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useNotificator } from "@src/hooks/useNotificator";

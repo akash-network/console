@@ -7,8 +7,8 @@ import { useAtom } from "jotai";
 import { useSnackbar } from "notistack";
 import { z } from "zod";
 
-import { useServices } from "../ServicesProvider";
-import { settingsIdAtom } from "../SettingsProvider/settingsStore";
+import { useServices } from "@src/context/ServicesProvider";
+import { settingsIdAtom } from "@src/context/SettingsProvider/settingsStore";
 
 const formSchema = z.object({
   name: z.string()

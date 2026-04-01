@@ -29,6 +29,7 @@ import { useRouter } from "next/navigation";
 import { useSnackbar } from "notistack";
 
 import { SignUpButton } from "@src/components/auth/SignUpButton/SignUpButton";
+import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { AddFundsLink } from "@src/components/user/AddFundsLink";
 import { useServices } from "@src/context/ServicesProvider";
 import { useSettings } from "@src/context/SettingsProvider";
@@ -47,7 +48,6 @@ import { deploymentData } from "@src/utils/deploymentData";
 import { addScriptToHead } from "@src/utils/domUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { domainName, UrlService } from "@src/utils/urlUtils";
-import { useLocalNotes } from "../../../context/LocalNoteProvider";
 import { CustomDropdownLinkItem } from "../../shared/CustomDropdownLinkItem";
 import { CustomNextSeo } from "../../shared/CustomNextSeo";
 import { LinearLoadingSkeleton } from "../../shared/LinearLoadingSkeleton";

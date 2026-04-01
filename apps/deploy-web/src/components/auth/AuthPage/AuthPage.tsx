@@ -176,7 +176,6 @@ export function AuthPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
           <div className="relative mt-4 w-full">
             {(activeView === "forgot-password" && (
               <>
-                test me here?
                 <d.RemoteApiError className="mb-5" error={forgotPassword.error} />
                 <d.ForgotPasswordForm
                   defaultEmail={email}

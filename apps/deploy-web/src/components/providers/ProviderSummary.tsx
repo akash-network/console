@@ -2,12 +2,12 @@
 import type { MouseEventHandler } from "react";
 import { Address, Card, CardContent } from "@akashnetwork/ui/components";
 
+import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { AuditorButton } from "@src/components/providers/AuditorButton";
 import { Uptime } from "@src/components/providers/Uptime";
 import { FavoriteButton } from "@src/components/shared/FavoriteButton";
 import { LabelValue } from "@src/components/shared/LabelValue";
 import { StatusPill } from "@src/components/shared/StatusPill";
-import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import type { ApiProviderList, ClientProviderDetailWithStatus } from "@src/types/provider";
 import { ProviderMap } from "./ProviderMap";
 

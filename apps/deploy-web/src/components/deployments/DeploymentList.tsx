@@ -19,8 +19,8 @@ import { useAtom } from "jotai";
 import Link from "next/link";
 import { NextSeo } from "next-seo";
 
+import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { LinkTo } from "@src/components/shared/LinkTo";
-import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useListSelection } from "@src/hooks/useListSelection/useListSelection";
