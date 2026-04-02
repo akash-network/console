@@ -1824,7 +1824,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
           {
             "in": "query",
             "name": "status",
-            "required": false,
+            "required": true,
             "schema": {
               "description": "Filter by status",
               "enum": [

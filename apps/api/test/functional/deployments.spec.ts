@@ -157,7 +157,7 @@ describe("Deployments API", () => {
     nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
       .persist()
       .get(
-        `/akash/deployment/${deploymentVersion}/deployments/list?filters.owner=${address}&pagination.offset=0&pagination.limit=1&pagination.count_total=true&pagination.reverse=false`
+        `/akash/deployment/${deploymentVersion}/deployments/list?filters.owner=${address}&pagination.limit=1&pagination.offset=0&pagination.count_total=true&pagination.reverse=false&filters.state=active`
       )
       .reply(200, {
         deployments: [defaultDeploymentInfo],
@@ -874,7 +874,7 @@ describe("Deployments API", () => {
       const { userApiKeySecret, wallets } = await mockUser();
       await setupDeploymentInfoMock(wallets, dseq);
 
-      const response = await app.request(`/v1/addresses/${wallets[0].address}/deployments/0/1`, {
+      const response = await app.request(`/v1/addresses/${wallets[0].address}/deployments/0/1?status=active`, {
         method: "GET",
         headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
       });
