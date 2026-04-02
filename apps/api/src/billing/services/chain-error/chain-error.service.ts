@@ -1,5 +1,6 @@
 import { BalanceHttpService } from "@akashnetwork/http-sdk";
 import type { EncodeObject } from "@cosmjs/proto-signing";
+import axios from "axios";
 import createError from "http-errors";
 import { singleton } from "tsyringe";
 
@@ -81,6 +82,11 @@ export class ChainErrorService {
     const clue = clues.find(clue => error.message.toLowerCase().includes(clue.toLowerCase()));
 
     if (!clue) {
+      const upstreamStatus = this.getUpstreamStatusFromCause(error);
+      if (upstreamStatus) {
+        return createError(upstreamStatus, error.message, { originalError: error });
+      }
+
       return error;
     }
 
@@ -90,6 +96,16 @@ export class ChainErrorService {
     const prefixedMessage = messagePrefix ? `${messagePrefix}: ${message}` : message;
 
     return createError(code, prefixedMessage, { originalError: error });
+  }
+
+  private getUpstreamStatusFromCause(error: Error): number | undefined {
+    const { cause } = error;
+    if (!axios.isAxiosError(cause) || !cause.response) {
+      return undefined;
+    }
+
+    const status = cause.response.status;
+    return status >= 500 ? status : undefined;
   }
 
   public async isMasterWalletInsufficientFundsError(error: Error) {

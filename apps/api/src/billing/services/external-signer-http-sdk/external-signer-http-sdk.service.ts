@@ -83,12 +83,12 @@ export class ExternalSignerHttpSdkService {
       if (axios.isAxiosError(error)) {
         const message = this.getErrorMessage(error.response?.data, error.message);
         this.logger.error({ event: "TX_SIGNER_REQUEST_FAILED", status: error.response?.status, message });
-        throw new Error(message);
+        throw new Error(message, { cause: error });
       }
 
       const message = error instanceof Error ? error.message : "Unknown error";
       this.logger.error({ event: "TX_SIGNER_REQUEST_FAILED", message });
-      throw new Error(message);
+      throw new Error(message, { cause: error });
     }
   }
 
