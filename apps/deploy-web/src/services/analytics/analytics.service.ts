@@ -150,14 +150,9 @@ export class AnalyticsService {
   private readonly isAmplitudeEnabled: boolean;
   private amplitudeInitialized = false;
 
-  private get gtag() {
-    return this.getGtag();
-  }
-
   constructor(
     private readonly options: AnalyticsOptions,
     private readonly amplitudeClient: Amplitude = amplitude,
-    private readonly getGtag: () => Gtag.Gtag | undefined = () => (isBrowser ? window.gtag : undefined),
     private readonly getDataLayer: () => Record<string, unknown>[] | undefined = () => (isBrowser ? window.dataLayer : undefined),
     private readonly storage: Pick<Storage, "getItem" | "setItem"> | undefined = isBrowser ? window.localStorage : undefined
   ) {
@@ -181,8 +176,8 @@ export class AnalyticsService {
       return;
     }
 
-    if (this.options.ga.enabled && this.gtag && user.id) {
-      this.gtag("set", { user_id: user.id });
+    if (this.options.ga.enabled && user.id) {
+      this.getDataLayer()?.push({ user_id: user.id });
     }
 
     if (!this.isAmplitudeEnabled) {

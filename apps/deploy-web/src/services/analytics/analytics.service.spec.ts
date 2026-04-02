@@ -95,10 +95,10 @@ describe(AnalyticsService.name, () => {
     it("should only identify in enabled services", () => {
       const identify = vi.fn();
       const setUserId = vi.fn();
-      const gtag = vi.fn();
+      const dataLayer: Record<string, unknown>[] = [];
       const service = setup({
         amplitude: { identify, setUserId },
-        gtag,
+        dataLayer,
         options: {
           amplitude: { enabled: false, apiKey: mockAmplitudeApiKey },
           ga: { enabled: true, measurementId: mockGaMeasurementId }
@@ -108,7 +108,7 @@ describe(AnalyticsService.name, () => {
       const user = { id: faker.string.uuid() };
       service.identify(user);
 
-      expect(gtag).toHaveBeenCalledWith("set", { user_id: user.id });
+      expect(dataLayer).toContainEqual({ user_id: user.id });
       expect(identify).not.toHaveBeenCalled();
       expect(setUserId).not.toHaveBeenCalled();
     });
@@ -157,7 +157,7 @@ describe(AnalyticsService.name, () => {
       service.track("connect_wallet", properties, "Amplitude");
 
       expect(track).toHaveBeenCalledWith("connect_wallet", properties);
-      expect(dataLayer).toHaveLength(0);
+      expect(dataLayer).not.toContainEqual(expect.objectContaining({ event: "connect_wallet" }));
     });
 
     it("should transform GA event names correctly", () => {
@@ -218,7 +218,6 @@ describe(AnalyticsService.name, () => {
   function setup(params: {
     amplitude?: Mocked<Amplitude>;
     dataLayer?: Record<string, unknown>[];
-    gtag?: Gtag.Gtag;
     options?: AnalyticsOptions;
     storage?: Pick<Storage, "getItem" | "setItem">;
   }) {
@@ -245,7 +244,6 @@ describe(AnalyticsService.name, () => {
         ga: { enabled: false, measurementId: mockGaMeasurementId }
       },
       amplitude,
-      () => params.gtag ?? vi.fn(),
       () => dataLayer,
       storage
     );
