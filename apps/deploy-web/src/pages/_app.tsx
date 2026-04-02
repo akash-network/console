@@ -17,7 +17,6 @@ import type { NextSeoProps } from "next-seo/lib/types";
 import { ThemeProvider } from "next-themes";
 import NProgress from "nprogress";
 
-import GoogleAnalytics from "@src/components/layout/CustomGoogleAnalytics";
 import { CustomIntlProvider } from "@src/components/layout/CustomIntlProvider";
 import { PageHead } from "@src/components/layout/PageHead";
 import { LocalNoteManager } from "@src/components/LocalNoteManager";
@@ -52,8 +51,6 @@ const App: React.FunctionComponent<Props> = props => {
   return (
     <AppRoot {...props}>
       <>
-        <GoogleAnalytics />
-
         <UserProviders>
           <FlagProvider>
             <WalletProvider>
