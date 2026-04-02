@@ -109,7 +109,7 @@ describe(AnalyticsService.name, () => {
       const user = { id: faker.string.uuid() };
       service.identify(user);
 
-      expect(gtag).toHaveBeenCalledWith("config", mockGaMeasurementId, { user_id: user.id });
+      expect(gtag).toHaveBeenCalledWith("set", { user_id: user.id });
       expect(identify).not.toHaveBeenCalled();
       expect(setUserId).not.toHaveBeenCalled();
     });

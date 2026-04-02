@@ -1,11 +1,8 @@
 "use client";
 import { useReportWebVitals } from "next/web-vitals";
-import { event, GoogleAnalytics as GAnalytics } from "nextjs-google-analytics";
-
-import { useServices } from "@src/context/ServicesProvider";
+import { event } from "nextjs-google-analytics";
 
 export default function GoogleAnalytics() {
-  const { publicConfig } = useServices();
   useReportWebVitals(({ id, name, label, value }) => {
     event(name, {
       category: label === "web-vital" ? "Web Vitals" : "Next.js custom metric",
@@ -14,5 +11,5 @@ export default function GoogleAnalytics() {
       nonInteraction: true // avoids affecting bounce rate.
     });
   });
-  return <>{!!publicConfig.NEXT_PUBLIC_GA_ENABLED && <GAnalytics trackPageViews />}</>;
+  return null;
 }

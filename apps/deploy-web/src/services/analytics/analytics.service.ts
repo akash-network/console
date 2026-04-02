@@ -185,7 +185,7 @@ export class AnalyticsService {
     }
 
     if (this.options.ga.enabled && this.gtag && user.id) {
-      this.gtag("config", this.options.ga.measurementId, { user_id: user.id });
+      this.gtag("set", { user_id: user.id });
     }
 
     if (!this.isAmplitudeEnabled) {
