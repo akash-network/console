@@ -12,9 +12,11 @@ import { GeistSans } from "geist/font/sans";
 import { Provider as JotaiProvider } from "jotai";
 import type { AppProps } from "next/app";
 import Router from "next/router";
+import { useReportWebVitals } from "next/web-vitals";
 import { NavigationGuardProvider } from "next-navigation-guard";
 import type { NextSeoProps } from "next-seo/lib/types";
 import { ThemeProvider } from "next-themes";
+import { event } from "nextjs-google-analytics";
 import NProgress from "nprogress";
 
 import { CustomIntlProvider } from "@src/components/layout/CustomIntlProvider";
@@ -47,6 +49,15 @@ Router.events.on("routeChangeError", () => NProgress.done());
 
 const App: React.FunctionComponent<Props> = props => {
   const { Component, pageProps } = props;
+
+  useReportWebVitals(({ id, name, label, value }) => {
+    event(name, {
+      category: label === "web-vital" ? "Web Vitals" : "Next.js custom metric",
+      value: Math.round(name === "CLS" ? value * 1000 : value),
+      label: id,
+      nonInteraction: true
+    });
+  });
 
   return (
     <AppRoot {...props}>

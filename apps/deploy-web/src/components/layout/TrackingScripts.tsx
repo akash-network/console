@@ -1,7 +1,5 @@
 "use client";
 import { useEffect } from "react";
-import { useReportWebVitals } from "next/web-vitals";
-import { event } from "nextjs-google-analytics";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { addScriptToBody } from "@src/utils/domUtils";
@@ -9,15 +7,6 @@ import { addScriptToBody } from "@src/utils/domUtils";
 export const TrackingScripts = () => {
   const { publicConfig } = useServices();
   const isProduction = publicConfig.NEXT_PUBLIC_NODE_ENV === "production";
-
-  useReportWebVitals(({ id, name, label, value }) => {
-    event(name, {
-      category: label === "web-vital" ? "Web Vitals" : "Next.js custom metric",
-      value: Math.round(name === "CLS" ? value * 1000 : value),
-      label: id,
-      nonInteraction: true
-    });
-  });
 
   useEffect(() => {
     const shouldShowTracking = publicConfig.NEXT_PUBLIC_TRACKING_ENABLED;
