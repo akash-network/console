@@ -1,6 +1,7 @@
 import type { BalanceHttpService } from "@akashnetwork/http-sdk";
 import type { EncodeObject } from "@cosmjs/proto-signing";
-import { BadRequest, PaymentRequired, ServiceUnavailable } from "http-errors";
+import { AxiosError, AxiosHeaders } from "axios";
+import { BadGateway, BadRequest, PaymentRequired, ServiceUnavailable } from "http-errors";
 import type { Mock } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
@@ -170,6 +171,59 @@ describe(ChainErrorService.name, () => {
       const appErr = await service.toAppError(err, encodeMessages);
       expect(appErr).toBeInstanceOf(PaymentRequired);
       expect(appErr.message).toBe("Insufficient balance");
+    });
+
+    it("returns 502 when cause is an AxiosError with 502 status", async () => {
+      const { service } = setup();
+      const axiosError = new AxiosError("Request failed", "ERR_BAD_RESPONSE", undefined, undefined, {
+        status: 502,
+        data: {},
+        statusText: "Bad Gateway",
+        headers: {},
+        config: { headers: new AxiosHeaders() }
+      });
+      const err = new Error("Bad status on response: 502", { cause: axiosError });
+
+      const appErr = await service.toAppError(err, encodeMessages);
+      expect(appErr).toBeInstanceOf(BadGateway);
+    });
+
+    it("returns upstream 5xx status from cause", async () => {
+      const { service } = setup();
+      const axiosError = new AxiosError("Request failed", "ERR_BAD_RESPONSE", undefined, undefined, {
+        status: 503,
+        data: {},
+        statusText: "Service Unavailable",
+        headers: {},
+        config: { headers: new AxiosHeaders() }
+      });
+      const err = new Error("Service unavailable", { cause: axiosError });
+
+      const appErr = await service.toAppError(err, encodeMessages);
+      expect(appErr).toBeInstanceOf(ServiceUnavailable);
+    });
+
+    it("returns original error when cause is an AxiosError with 4xx status", async () => {
+      const { service } = setup();
+      const axiosError = new AxiosError("Request failed", "ERR_BAD_REQUEST", undefined, undefined, {
+        status: 400,
+        data: {},
+        statusText: "Bad Request",
+        headers: {},
+        config: { headers: new AxiosHeaders() }
+      });
+      const err = new Error("Some upstream error", { cause: axiosError });
+
+      const appErr = await service.toAppError(err, encodeMessages);
+      expect(appErr).toBe(err);
+    });
+
+    it("returns original error when cause is not an AxiosError", async () => {
+      const { service } = setup();
+      const err = new Error("Unknown failure", { cause: new Error("some cause") });
+
+      const appErr = await service.toAppError(err, encodeMessages);
+      expect(appErr).toBe(err);
     });
   });
 
