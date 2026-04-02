@@ -23,6 +23,7 @@
     "prod": "node dist/index.js",
     "test": "vitest run",
     "test:cov": "vitest run --coverage",
+    "test:e2e": "vitest run --config vitest.e2e.config.ts",
     "test:watch": "vitest --watch"
   },
   "dependencies": {
@@ -39,6 +40,7 @@
   "devDependencies": {
     "@akashnetwork/dev-config": "*",
     "@akashnetwork/releaser": "*",
+    "@dotenvx/dotenvx": "1.14.0",
     "@faker-js/faker": "^8.4.1",
     "@swc/core": "^1.11.10",
     "@types/node": "^22.13.11",

@@ -10,11 +10,11 @@ import { K8sCollectorService } from "@src/services/k8s-collector/k8s-collector.s
 import { LoggerService } from "@src/services/logger/logger.service";
 
 /**
- * Bootstraps the log collector application
+ * Bootstraps the log and event collector application
  *
  * Initializes the application by:
  * 1. Setting up the logger context
- * 2. Starting the Kubernetes log collection service
+ * 2. Starting the Kubernetes collector service (logs and events per pod)
  * 3. Handling any errors that occur during startup
  *
  * If an error occurs during startup, the application will:

@@ -92,7 +92,7 @@ describe(FileDestinationService.name, () => {
       mockReadline.createInterface.mockReturnValue(mockRl);
       mockPath.join.mockReturnValue(expectedPath);
 
-      mockRl.on.mockImplementation((event, callback) => {
+      (mockRl.on as ReturnType<typeof vi.fn>).mockImplementation((event: string, callback: (...args: unknown[]) => void) => {
         if (event === "line") {
           callback("2024-01-15T10:30:45.123456789Z INFO First line");
           callback("2024-01-15T10:30:46.123456789Z INFO Second line");
@@ -123,7 +123,7 @@ describe(FileDestinationService.name, () => {
       mockReadline.createInterface.mockReturnValue(mockRl);
       mockPath.join.mockReturnValue(expectedPath);
 
-      mockRl.on.mockImplementation((event, callback) => {
+      (mockRl.on as ReturnType<typeof vi.fn>).mockImplementation((event: string, callback: (...args: unknown[]) => void) => {
         if (event === "line") {
           callback("2024-01-15T10:30:45.123456789Z INFO First line");
           callback("2024-01-15T10:30:46.123456789Z INFO Second line");
@@ -152,7 +152,7 @@ describe(FileDestinationService.name, () => {
       const mockReadStream = mock<ReadStream>();
       const mockRl = mock<readlineGlobal.Interface>();
 
-      mockRl.on.mockImplementation((event, callback) => {
+      (mockRl.on as ReturnType<typeof vi.fn>).mockImplementation((event: string, callback: (...args: unknown[]) => void) => {
         if (event === "line") {
           callback("");
         } else if (event === "close") {
@@ -181,7 +181,7 @@ describe(FileDestinationService.name, () => {
       mockReadline.createInterface.mockReturnValue(mockRl);
       mockPath.join.mockReturnValue(expectedPath);
 
-      mockRl.on.mockImplementation((event, callback) => {
+      (mockRl.on as ReturnType<typeof vi.fn>).mockImplementation((event: string, callback: (...args: unknown[]) => void) => {
         if (event === "error") {
           callback(new Error("File read error"));
         }

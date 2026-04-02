@@ -12,4 +12,4 @@ rules:
     verbs: ["get", "list"]
   - apiGroups: [""]
     resources: ["events"]
-    verbs: ["get", "list"]
+    verbs: ["get", "list", "watch"]
