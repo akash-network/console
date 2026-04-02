@@ -1,30 +1,8 @@
-# Akash Log Collector
+# Akash Log & Event Collector
 
-The Log Collector is a Kubernetes-native application designed to run on Akash Network that automatically collects logs from all pods in a namespace (except itself) and writes them to files for external log agents to process.
+Collects container logs and K8s events from all pods in a namespace and forwards them to external services via Fluent Bit. Designed to run on Akash Network.
 
-## Overview
-
-The Log Collector leverages internal Kubernetes access to discover and stream logs from all pods in its deployment namespace. It automatically excludes itself from log collection to prevent infinite loops and writes the collected logs to files for external log agents to process.
-
-## Features
-
-- **Automatic Pod Discovery**: Discovers all pods in the deployment namespace using K8s Watch API (with polling fallback) and excludes pods from the same deployment
-- **Real-time Log Streaming**: Streams logs from all discovered pods with automatic reconnection on pod restarts
-- **File-based Output**: Writes raw logs to files organized by namespace and pod name
-- **Automatic Log Rotation**: Rotates log files when they reach configurable size limits
-- **Configurable Log Tail**: Configurable log tail lines (default: 100)
-- **File Naming Convention**: `{namespace}_{podName}.log`
-- **Log Collection**: Uses Fluent Bit to collect logs from files and forward to external services
-- **Log Directory**: Logs are stored in `/app/apps/log-collector/log/` within the container
-
-## How It Works
-
-1. **Namespace Discovery**: The collector automatically detects the Kubernetes namespace it's deployed in
-2. **Pod Discovery**: Uses the K8s Watch API for real-time pod lifecycle events (ADDED, MODIFIED, DELETED). Pods that become ready after creation are picked up via MODIFIED events. If watch is unavailable (e.g., RBAC lacks the `watch` verb), falls back to periodic polling. On non-403 watch failures, polls temporarily and retries watch every 30 seconds. Excludes pods from the same deployment, with optional label-based filtering via `POD_LABEL_SELECTOR`
-3. **Log Streaming**: Establishes log streams for each pod
-4. **File Output**: Writes collected logs to files for external processing
-5. **Log Rotation**: Automatically rotates log files when they reach the configured size limit, maintaining up to `LOG_MAX_ROTATED_FILES` rotated files
-6. **Log Collection**: Fluent Bit monitors the log files and forwards them to configured external services like Datadog
+See [Architecture](docs/ARCHITECTURE.md) for how the collector works internally.
 
 ## Configuration
 
