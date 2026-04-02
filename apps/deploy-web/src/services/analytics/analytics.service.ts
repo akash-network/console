@@ -104,7 +104,10 @@ export type AnalyticsEvent =
   | "onboarding_email_verified"
   | "onboarding_payment_method_added"
   | "onboarding_completed"
-  | "onboarding_logout";
+  | "onboarding_logout"
+  | "log_collector_enabled"
+  | "log_collector_disabled"
+  | "log_collector_deployed";
 
 export type AnalyticsCategory =
   | "user"

@@ -14,6 +14,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useSnackbar } from "notistack";
 
 import { UACT_DENOM, UAKT_DENOM } from "@src/config/denom.config";
+import { LOG_COLLECTOR_IMAGE } from "@src/config/log-collector.config";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
@@ -296,6 +297,10 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
           category: "deployments",
           label: "Create deployment in wizard"
         });
+
+        if (sdl.includes(LOG_COLLECTOR_IMAGE)) {
+          analyticsService.track("log_collector_deployed", { category: "deployments" });
+        }
       } else {
         setIsCreatingDeployment(false);
       }
