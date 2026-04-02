@@ -2,8 +2,6 @@
 
 import * as amplitude from "@amplitude/analytics-browser";
 import { sessionReplayPlugin } from "@amplitude/plugin-session-replay-browser";
-import { event } from "nextjs-google-analytics";
-
 export type AnalyticsUser = {
   id?: string;
   anonymous?: boolean;
@@ -143,7 +141,6 @@ const AMPLITUDE_USER_PROPERTIES_MAP = {
 const isBrowser = typeof window !== "undefined";
 
 export type Amplitude = Pick<typeof amplitude, "init" | "Identify" | "identify" | "track" | "setUserId" | "add">;
-export type GoogleAnalytics = { event: typeof event };
 
 export class AnalyticsService {
   private readonly STORAGE_KEY = "analytics_values_cache";
@@ -160,8 +157,8 @@ export class AnalyticsService {
   constructor(
     private readonly options: AnalyticsOptions,
     private readonly amplitudeClient: Amplitude = amplitude,
-    private readonly ga: GoogleAnalytics = { event },
     private readonly getGtag: () => Gtag.Gtag | undefined = () => (isBrowser ? window.gtag : undefined),
+    private readonly getDataLayer: () => Record<string, unknown>[] | undefined = () => (isBrowser ? window.dataLayer : undefined),
     private readonly storage: Pick<Storage, "getItem" | "setItem"> | undefined = isBrowser ? window.localStorage : undefined
   ) {
     this.isAmplitudeEnabled = this.options.amplitude.enabled;
@@ -260,7 +257,8 @@ export class AnalyticsService {
     }
 
     if (this.options.ga.enabled && (!analyticsTarget || analyticsTarget === "GA")) {
-      this.ga?.event(...this.transformGaEvent(eventName, eventProperties));
+      const [name, props] = this.transformGaEvent(eventName, eventProperties);
+      this.getDataLayer()?.push({ event: name, ...props });
     }
   }
 
