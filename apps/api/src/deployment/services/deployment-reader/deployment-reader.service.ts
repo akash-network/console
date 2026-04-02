@@ -4,9 +4,9 @@ import {
   DeploymentHttpService,
   DeploymentInfo,
   DeploymentListResponse,
+  FindAllParams,
   LeaseHttpService,
   LeaseListParams,
-  PaginationParams,
   RestAkashLeaseListResponse
 } from "@akashnetwork/http-sdk";
 import { PromisePool } from "@supercharge/promise-pool";
@@ -111,8 +111,11 @@ export class DeploymentReaderService {
   }): Promise<{ deployments: ListDeploymentsItem[]; total: number; hasMore: boolean }> {
     const wallet = await this.walletReaderService.getWalletByUserId(query.userId);
     const { address: owner } = wallet;
-    const pagination = skip !== undefined || limit !== undefined ? { offset: skip, limit } : undefined;
-    const deploymentReponse = await this.getDeploymentsList({ owner, state: "active", pagination });
+    const deploymentReponse = await this.getDeploymentsList(
+      skip !== undefined
+        ? { owner, state: "active", pagination: { offset: skip, limit } }
+        : { owner, state: "active", pagination: limit !== undefined ? { limit } : undefined }
+    );
     const deployments = deploymentReponse.deployments;
     const total = parseInt(deploymentReponse.pagination.total, 10);
 
@@ -140,21 +143,17 @@ export class DeploymentReaderService {
     reverseSorting
   }: {
     address: string;
-    status?: "active" | "closed";
+    status: "active" | "closed";
     skip?: number;
     limit?: number;
     reverseSorting?: boolean;
   }) {
-    const response = await this.getDeploymentsList({
-      owner: address,
-      state: status,
-      pagination: {
-        offset: skip,
-        limit: limit,
-        reverse: reverseSorting,
-        countTotal: true
-      }
-    });
+    const basePagination = { limit, reverse: reverseSorting, countTotal: true as const };
+    const response = await this.getDeploymentsList(
+      skip === undefined
+        ? { owner: address, state: status, pagination: basePagination }
+        : { owner: address, state: status, pagination: { ...basePagination, offset: skip } }
+    );
     const leaseResponse = await this.leaseHttpService.list({ owner: address, state: "active" });
     const providers = response.deployments.length ? await this.providerService.getProviderList() : ([] as ProviderList[]);
     const providerMap = new Map(providers.map(p => [p.owner, p]));
@@ -332,12 +331,20 @@ export class DeploymentReaderService {
     }
   }
 
-  private async getDeploymentsList(params: { owner: string; state?: "active" | "closed"; pagination?: PaginationParams }): Promise<DeploymentListResponse> {
+  private async getDeploymentsList(params: FindAllParams): Promise<DeploymentListResponse> {
     try {
       return await this.deploymentHttpService.findAll(params);
     } catch (error) {
       if (this.shouldFallbackToDatabase(error)) {
-        return await this.fallbackDeploymentReaderService.findAll(params);
+        return await this.fallbackDeploymentReaderService.findAll({
+          owner: params.owner,
+          state: params.state,
+          skip: params.pagination?.offset,
+          limit: params.pagination?.limit,
+          key: params.pagination?.key,
+          countTotal: params.pagination?.countTotal,
+          reverse: params.pagination?.reverse
+        });
       }
 
       throw error;

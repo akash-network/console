@@ -136,6 +136,16 @@ export interface PaginationParams {
   reverse?: boolean;
 }
 
+/**
+ * Akash blockchain requires `filters.state` when `pagination.offset` is used.
+ * This type enforces that constraint at compile time:
+ * - Without pagination or with key-based pagination: `state` is optional
+ * - With offset-based pagination: `state` is required
+ */
+export type FindAllParams =
+  | { owner: string; state?: "active" | "closed"; pagination?: PaginationParams & { offset?: undefined } }
+  | { owner: string; state: "active" | "closed"; pagination: PaginationParams & { offset: number } };
+
 export class DeploymentHttpService {
   constructor(private readonly httpClient: HttpClient) {}
 
@@ -153,13 +163,15 @@ export class DeploymentHttpService {
   }
 
   /**
-   * Load deployments for an owner with optional pagination
-   * @param owner Owner address
-   * @param state Optional state filter
-   * @param pagination Optional pagination parameters
+   * Load deployments for an owner with optional pagination.
+   * Note: The Akash blockchain requires `state` when offset-based pagination is used.
+   * This constraint is enforced by the {@link FindAllParams} type.
+   * @param input.owner Owner address
+   * @param input.state Optional state filter (required when using offset pagination)
+   * @param input.pagination Optional pagination parameters
    * @returns Paginated response with deployments
    */
-  public async findAll(input: { owner: string; state?: "active" | "closed"; pagination?: PaginationParams }): Promise<DeploymentListResponse> {
+  public async findAll(input: FindAllParams): Promise<DeploymentListResponse> {
     const { owner, state, pagination } = input;
     const baseUrl = this.httpClient.getUri({
       url: `/akash/deployment/v1beta4/deployments/list?filters.owner=${owner}${state ? `&filters.state=${state}` : ""}`

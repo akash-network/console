@@ -164,7 +164,7 @@ describe("Addresses API", () => {
     it("returns paginated deployments for an address", async () => {
       const { address } = await setup();
 
-      const response = await app.request(`/v1/addresses/${address}/deployments/0/10`);
+      const response = await app.request(`/v1/addresses/${address}/deployments/0/10?status=active`);
 
       expect(response.status).toBe(200);
       const result = (await response.json()) as ListWithResourcesResponse;
@@ -198,6 +198,14 @@ describe("Addresses API", () => {
       const { address } = await setup();
 
       const response = await app.request(`/v1/addresses/${address}/deployments/0/invalid`);
+
+      expect(response.status).toBe(400);
+    });
+
+    it("returns 400 when status is missing", async () => {
+      const { address } = await setup();
+
+      const response = await app.request(`/v1/addresses/${address}/deployments/0/10`);
 
       expect(response.status).toBe(400);
     });
@@ -381,7 +389,7 @@ describe("Addresses API", () => {
     nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
       .persist()
       .get(
-        `/akash/deployment/${deploymentVersion}/deployments/list?filters.owner=${address}&pagination.limit=10&pagination.offset=0&pagination.count_total=true&pagination.reverse=false`
+        `/akash/deployment/${deploymentVersion}/deployments/list?filters.owner=${address}&filters.state=active&pagination.limit=10&pagination.offset=0&pagination.count_total=true&pagination.reverse=false`
       )
       .reply(200, {
         deployments: [

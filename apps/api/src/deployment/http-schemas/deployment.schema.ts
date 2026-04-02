@@ -166,7 +166,7 @@ export const ListWithResourcesParamsSchema = z.object({
 });
 
 export const ListWithResourcesQuerySchema = z.object({
-  status: z.enum(["active", "closed"]).optional().openapi({
+  status: z.enum(["active", "closed"]).openapi({
     description: "Filter by status",
     example: "closed"
   }),

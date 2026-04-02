@@ -78,6 +78,73 @@ describe(DeploymentReaderService.name, () => {
       expect(deploymentHttpService.findAll).toHaveBeenCalled();
       expect(fallbackDeploymentReaderService.findAll).toHaveBeenCalled();
     });
+
+    it("forwards pagination as flat skip/limit when falling back to database", async () => {
+      const deploymentList = createDeploymentListResponseSeed({}, 2);
+      const wallet = createUserWallet() as WalletInitialized;
+      const { service, deploymentHttpService, fallbackDeploymentReaderService } = setup({
+        wallet,
+        fallbackDeploymentList: deploymentList
+      });
+
+      deploymentHttpService.findAll.mockRejectedValue(createNetworkError("ECONNRESET"));
+      await service.list({ query: { userId: wallet.userId }, skip: 25, limit: 50 });
+
+      expect(fallbackDeploymentReaderService.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          owner: wallet.address,
+          state: "active",
+          skip: 25,
+          limit: 50
+        })
+      );
+    });
+  });
+
+  describe("listWithResources", () => {
+    it("passes status as state with offset pagination when skip is provided", async () => {
+      const address = "akash1abc";
+      const { service, deploymentHttpService } = setup();
+
+      await service.listWithResources({ address, skip: 10, limit: 100, status: "active" });
+
+      expect(deploymentHttpService.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          owner: address,
+          state: "active",
+          pagination: expect.objectContaining({ offset: 10 })
+        })
+      );
+    });
+
+    it("passes status as state with offset pagination when status is closed", async () => {
+      const address = "akash1abc";
+      const { service, deploymentHttpService } = setup();
+
+      await service.listWithResources({ address, skip: 0, limit: 50, status: "closed" });
+
+      expect(deploymentHttpService.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          owner: address,
+          state: "closed",
+          pagination: expect.objectContaining({ offset: 0 })
+        })
+      );
+    });
+
+    it("passes status as state without offset when skip is not provided", async () => {
+      const address = "akash1abc";
+      const { service, deploymentHttpService } = setup();
+
+      await service.listWithResources({ address, status: "active" });
+
+      expect(deploymentHttpService.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          owner: address,
+          state: "active"
+        })
+      );
+    });
   });
 
   function createNetworkError(code: string): AxiosError {
