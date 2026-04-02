@@ -253,7 +253,7 @@ export class AnalyticsService {
 
     if (this.options.ga.enabled && (!analyticsTarget || analyticsTarget === "GA")) {
       const [name, props] = this.transformGaEvent(eventName, eventProperties);
-      this.getDataLayer()?.push({ event: name, ...props });
+      this.getDataLayer()?.push({ ...props, event: name });
     }
   }
 
