@@ -67,6 +67,13 @@ describe(ChainErrorService.name, () => {
     expect(service.getChainErrorStatus("order not open")).toBe(400);
   });
 
+  it("returns 400 for invalid unit price error", () => {
+    const { service } = setup();
+    expect(
+      service.getChainErrorStatus("rpc error: code = Unknown desc = group dcloud: error: invalid unit price (10000000 > 50000000.000000000000000000uact fails)")
+    ).toBe(400);
+  });
+
   it("returns 402 for insufficient balance error", () => {
     const { service } = setup();
     expect(service.getChainErrorStatus("insufficient balance")).toBe(402);

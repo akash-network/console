@@ -15,6 +15,7 @@ export class ChainErrorService {
     "invalid owner address": 400,
     "bid not open": 400,
     "order not open": 400,
+    "invalid unit price": 400,
     "insufficient balance": 402,
     "bad status on response: 502": 503,
     "bad status on response: 503": 503,
