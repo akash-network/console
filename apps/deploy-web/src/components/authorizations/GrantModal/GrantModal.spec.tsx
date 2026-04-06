@@ -196,7 +196,7 @@ describe(GrantModal.name, () => {
     expect(expirationField).toBeDefined();
   });
 
-  it("shows 'Add AKT Grant' button when ACT is supported and only one row", () => {
+  it("does not show add grant button for new grants since ACT is already the default", () => {
     const ButtonMock = vi.fn(ComponentMock);
     setup({
       dependencies: {
@@ -205,17 +205,23 @@ describe(GrantModal.name, () => {
       }
     });
 
-    const addButton = ButtonMock.mock.calls.find(c => c[0].children === "Add AKT Grant");
+    const addButton = ButtonMock.mock.calls.find(c => c[0].children === "Add ACT Grant" || c[0].children === "Add AKT Grant");
 
-    expect(addButton).toBeDefined();
+    expect(addButton).toBeUndefined();
   });
 
-  it("adds second SpendLimitRow when 'Add AKT Grant' button is clicked", () => {
+  it("shows 'Add ACT Grant' button for legacy uakt-only grant and adds ACT row when clicked", () => {
     const ButtonMock = vi.fn((props: Record<string, unknown>) => (
       <button onClick={props.onClick as React.MouseEventHandler}>{props.children as React.ReactNode}</button>
     ));
     const SpendLimitRowMock = vi.fn(ComponentMock);
     setup({
+      editingGrant: createGrant({
+        authorization: {
+          "@type": "/akash.escrow.v1.DepositAuthorization",
+          spend_limits: [{ denom: UAKT_DENOM, amount: "1000000" }]
+        }
+      }),
       dependencies: {
         Button: ButtonMock,
         SpendLimitRow: SpendLimitRowMock,
@@ -223,7 +229,7 @@ describe(GrantModal.name, () => {
       }
     });
 
-    fireEvent.click(screen.getByText("Add AKT Grant"));
+    fireEvent.click(screen.getByText("Add ACT Grant"));
 
     const secondRow = SpendLimitRowMock.mock.calls.find(c => c[0].index === 1);
     expect(secondRow).toBeDefined();
@@ -296,31 +302,9 @@ describe(GrantModal.name, () => {
       }
     });
 
-    const addAktButton = ButtonMock.mock.calls.find(c => c[0].children === "Add AKT Grant");
-    const addActButton = ButtonMock.mock.calls.find(c => c[0].children === "Add ACT Grant");
+    const addButton = ButtonMock.mock.calls.find(c => c[0].children === "Add ACT Grant");
 
-    expect(addAktButton).toBeUndefined();
-    expect(addActButton).toBeUndefined();
-  });
-
-  it("shows 'Add ACT Grant' button for legacy uakt-only grant", () => {
-    const ButtonMock = vi.fn(ComponentMock);
-    setup({
-      editingGrant: createGrant({
-        authorization: {
-          "@type": "/akash.escrow.v1.DepositAuthorization",
-          spend_limits: [{ denom: UAKT_DENOM, amount: "1000000" }]
-        }
-      }),
-      dependencies: {
-        Button: ButtonMock,
-        useSupportedDenoms: () => ACT_SUPPORTED_TOKENS
-      }
-    });
-
-    const addActButton = ButtonMock.mock.calls.find(c => c[0].children === "Add ACT Grant");
-
-    expect(addActButton).toBeDefined();
+    expect(addButton).toBeUndefined();
   });
 
   function setup(
