@@ -82,9 +82,12 @@ export class GpuPriceService {
           provider = decodedBid.provider || "";
         }
 
-        if (!day || !day.aktPrice) return; // Ignore bids for days where we don't have the AKT price
+        const denom = decodedBid?.price?.denom;
+        const isUakt = denom === "uakt";
+        const isUact = denom === "uact";
 
-        if (decodedBid?.price?.denom !== "uakt") return; // Ignore USDC bids for simplicity
+        if (!isUakt && !isUact) return; // Only accept uakt and uact bids
+        if (isUakt && (!day || !day.aktPrice)) return; // uakt bids need AKT price for USD conversion
 
         const bidGpus = decodedBid.resourcesOffer
           .filter((x: any) => (x.resources?.gpu?.units?.val ? parseInt(uint8arrayToString(x.resources.gpu.units.val)) : 0) > 0)
@@ -93,16 +96,19 @@ export class GpuPriceService {
         // Ignore bids for deployments with more than 1 GPU
         if (bidGpus.length !== 1) return;
 
+        const priceAmount = parseFloat(decodedBid.price!.amount);
+        const aktPrice = day?.aktPrice ?? 0;
+
         const bid = {
           height: x.height,
           txHash: x.transaction.hash,
           datetime: x.block.datetime,
           provider: provider,
-          aktTokenPrice: day.aktPrice,
-          hourlyPrice: this.blockPriceToHourlyPrice(parseFloat(decodedBid.price.amount), day?.aktPrice),
-          monthlyPrice: this.blockPriceToMonthlyPrice(parseFloat(decodedBid.price.amount), day?.aktPrice),
-          hourlyPriceUakt: this.blockPriceToHourlyUakt(parseFloat(decodedBid.price.amount)),
-          monthlyPriceUakt: this.blockPriceToMonthlyUakt(parseFloat(decodedBid.price.amount)),
+          aktTokenPrice: aktPrice,
+          hourlyPrice: isUact ? this.blockPriceToHourlyUsd(priceAmount) : this.blockPriceToHourlyPrice(priceAmount, aktPrice),
+          monthlyPrice: isUact ? this.blockPriceToMonthlyUsd(priceAmount) : this.blockPriceToMonthlyPrice(priceAmount, aktPrice),
+          hourlyPriceUakt: this.blockPriceToHourlyUakt(priceAmount),
+          monthlyPriceUakt: this.blockPriceToMonthlyUakt(priceAmount),
           deployment: {
             owner: d.owner,
             cpuUnits: decodedBid.resourcesOffer
@@ -289,6 +295,14 @@ export class GpuPriceService {
         // vendor/nvidia/model/h100/ram/80Gi/interface/pcie -> nvidia,h100,80Gi,pcie
         return { vendor: vendor, model: model, ram: ram, interface: int };
       });
+  }
+
+  private blockPriceToMonthlyUsd(uactPerBlock: number) {
+    return round((averageBlockCountInAMonth * uactPerBlock) / 1_000_000, 2);
+  }
+
+  private blockPriceToHourlyUsd(uactPerBlock: number) {
+    return round((averageBlockCountInAnHour * uactPerBlock) / 1_000_000, 2);
   }
 
   private blockPriceToMonthlyPrice(uaktPerBlock: number, aktPrice: number) {

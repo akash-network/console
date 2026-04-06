@@ -104,7 +104,7 @@ describe(GpuPriceService.name, () => {
       expect(result.models[0].priceUakt?.currency).toBe("uakt");
     });
 
-    it("ignores bids with USDC denomination", async () => {
+    it("ignores bids with IBC denomination", async () => {
       const provider = createProvider();
       const gpu = createGpuType({
         vendor: "nvidia",
@@ -136,6 +136,46 @@ describe(GpuPriceService.name, () => {
 
       expect(result.models[0].price).toBeNull();
       expect(result.models[0].priceUakt).toBeNull();
+    });
+
+    it("calculates prices from uact bids without requiring AKT price", async () => {
+      const provider = createProvider();
+      const gpu = createGpuType({
+        vendor: "nvidia",
+        model: "h100",
+        ram: "80Gi",
+        interface: "pcie",
+        providers: [provider]
+      });
+
+      const bidData = createMsgCreateBidV5({
+        provider: provider.owner,
+        gpuVendor: "nvidia",
+        gpuModel: "h100",
+        gpuRam: "80Gi",
+        gpuInterface: "pcie",
+        denom: "uact",
+        priceAmount: "1000"
+      });
+
+      const days = [createDay({ aktPrice: null })];
+      const deployment = createDeploymentWithBid({
+        dayId: days[0].id,
+        bidData: bidData.encoded,
+        bidType: `/akash.market.v1beta5.MsgCreateBid`
+      });
+
+      const { service } = setup({
+        gpusForPricing: [gpu],
+        deploymentsWithGpu: [deployment],
+        days
+      });
+
+      const result = await service.getGpuPrices(false);
+
+      expect(result.models[0].price).not.toBeNull();
+      expect(result.models[0].price?.currency).toBe("USD");
+      expect(result.models[0].priceUakt).not.toBeNull();
     });
 
     it("ignores bids for days without AKT price", async () => {
