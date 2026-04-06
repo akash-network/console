@@ -49,14 +49,14 @@ export class ProviderEarningsService {
     return {
       earnings: {
         totalUAktEarned: earnings.uakt,
-        totalUUsdcEarned: earnings.uusdc,
+        totalUUsdcEarned: earnings.uact,
         totalUUsdEarned: earnings.uusd
       }
     };
   }
 
   async getEarningsAtHeight(provider: string, providerCreatedHeight: number, height: number) {
-    const days = await this.#chainDb.query<{ date: string; aktPrice: number; totalUAkt: number; totalUUsdc: number }>(
+    const days = await this.#chainDb.query<{ date: string; aktPrice: number; totalUAkt: number; totalUAct: number }>(
       `/* provider-stats:earnings-at-height */
     WITH provider_leases AS (
       SELECT dseq, price, "createdHeight", "closedHeight","predictedClosedHeight", "denom"
@@ -64,7 +64,7 @@ export class ProviderEarningsService {
       WHERE "providerAddress"=:provider
     )
     SELECT
-      d.date, d."aktPrice",s."totalUAkt",s."totalUUsdc"
+      d.date, d."aktPrice",s."totalUAkt",s."totalUAct"
     FROM day d
     LEFT JOIN LATERAL (
       WITH active_leases AS (
@@ -81,12 +81,12 @@ export class ProviderEarningsService {
       billed_leases AS (
         SELECT
           (CASE WHEN l.denom='uakt' THEN l.price*l.duration ELSE 0 END) AS "uakt_earned",
-          (CASE WHEN l.denom='uusdc' THEN l.price*l.duration ELSE 0 END) AS "uusdc_earned"
+          (CASE WHEN l.denom IN ('uusdc', 'uact') THEN l.price*l.duration ELSE 0 END) AS "uact_earned"
         FROM active_leases l
       )
       SELECT
         SUM(l.uakt_earned) AS "totalUAkt",
-        SUM(l.uusdc_earned) AS "totalUUsdc"
+        SUM(l.uact_earned) AS "totalUAct"
       FROM billed_leases l
     ) AS s ON 1=1
     WHERE d."lastBlockHeightYet" >= :providerCreatedHeight AND d."firstBlockHeight" <= :height
@@ -101,11 +101,11 @@ export class ProviderEarningsService {
     return days.reduce(
       (acc, d) => {
         acc.uakt += d.totalUAkt ?? 0;
-        acc.uusdc += d.totalUUsdc ?? 0;
-        acc.uusd += (d.totalUAkt ?? 0) * (d.aktPrice ?? 0) + (d.totalUUsdc ?? 0);
+        acc.uact += d.totalUAct ?? 0;
+        acc.uusd += (d.totalUAkt ?? 0) * (d.aktPrice ?? 0) + (d.totalUAct ?? 0);
         return acc;
       },
-      { uakt: 0, uusdc: 0, uusd: 0 }
+      { uakt: 0, uact: 0, uusd: 0 }
     );
   }
 }

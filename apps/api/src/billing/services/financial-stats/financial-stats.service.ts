@@ -77,7 +77,7 @@ export class FinancialStatsService {
       FROM trial_deployments_ids
       INNER JOIN deployment d ON d.id="deployment_id"
       INNER JOIN lease l ON l."deploymentId"=d."id"
-      WHERE l.denom='uusdc'
+      WHERE l.denom IN ('uusdc', 'uact')
   ),
   billed_leases AS (
       SELECT
