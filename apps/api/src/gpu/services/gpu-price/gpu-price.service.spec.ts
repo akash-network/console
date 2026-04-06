@@ -175,7 +175,7 @@ describe(GpuPriceService.name, () => {
 
       expect(result.models[0].price).not.toBeNull();
       expect(result.models[0].price?.currency).toBe("USD");
-      expect(result.models[0].priceUakt).not.toBeNull();
+      expect(result.models[0].priceUakt).toBeNull();
     });
 
     it("ignores bids for days without AKT price", async () => {

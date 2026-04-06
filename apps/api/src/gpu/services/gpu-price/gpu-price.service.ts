@@ -107,8 +107,8 @@ export class GpuPriceService {
           aktTokenPrice: aktPrice,
           hourlyPrice: isUact ? this.blockPriceToHourlyUsd(priceAmount) : this.blockPriceToHourlyPrice(priceAmount, aktPrice),
           monthlyPrice: isUact ? this.blockPriceToMonthlyUsd(priceAmount) : this.blockPriceToMonthlyPrice(priceAmount, aktPrice),
-          hourlyPriceUakt: this.blockPriceToHourlyUakt(priceAmount),
-          monthlyPriceUakt: this.blockPriceToMonthlyUakt(priceAmount),
+          hourlyPriceUakt: isUakt ? this.blockPriceToHourlyUakt(priceAmount) : aktPrice ? this.blockPriceToHourlyUakt(priceAmount / aktPrice) : null,
+          monthlyPriceUakt: isUakt ? this.blockPriceToMonthlyUakt(priceAmount) : aktPrice ? this.blockPriceToMonthlyUakt(priceAmount / aktPrice) : null,
           deployment: {
             owner: d.owner,
             cpuUnits: decodedBid.resourcesOffer
@@ -244,16 +244,21 @@ export class GpuPriceService {
     }[]
   ) {
     try {
-      if (!providersWithBestBid || providersWithBestBid.length === 0) return null;
+      const bidsWithUaktPrice = providersWithBestBid.filter(x => x.bestBid.hourlyPriceUakt !== null) as {
+        provider: GpuProviderType;
+        bestBid: GpuBidType & { hourlyPriceUakt: number };
+      }[];
 
-      const prices = providersWithBestBid.map(x => x.bestBid.hourlyPriceUakt);
+      if (!bidsWithUaktPrice || bidsWithUaktPrice.length === 0) return null;
+
+      const prices = bidsWithUaktPrice.map(x => x.bestBid.hourlyPriceUakt);
 
       return {
         currency: "uakt" as const,
         min: Math.min(...prices),
         max: Math.max(...prices),
         avg: round(average(prices), 2),
-        weightedAverage: round(weightedAverage(providersWithBestBid.map(p => ({ value: p.bestBid.hourlyPriceUakt, weight: p.provider.allocatable }))), 2),
+        weightedAverage: round(weightedAverage(bidsWithUaktPrice.map(p => ({ value: p.bestBid.hourlyPriceUakt, weight: p.provider.allocatable }))), 2),
         med: round(median(prices), 2)
       };
     } catch (e) {
