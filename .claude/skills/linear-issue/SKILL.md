@@ -142,7 +142,7 @@ What belongs in the issue:
 - **Affected flows** — which user-facing flows are impacted (e.g., "deployment creation", "wallet funding")
 - **Acceptance criteria** — business-level conditions that define "done"
 - **References** — links to AEPs, Figma, GitHub discussions, specs
-- **Dependencies** — does this depend on or block other work?
+- **Dependencies** — does this depend on or block other work? (tracked via native Linear relationships, not in the description — see Phase 5)
 
 ### Phase 3: Break Into Small Issues
 
@@ -167,9 +167,9 @@ When splitting, each issue should still be a **business-level slice** — not a 
 - **Enablers first** — if the feature needs prerequisite work, that goes in a separate preceding issue
 
 **Issue ordering:**
-- Number the issues or note dependencies explicitly (e.g., "blocked by #1")
 - The first issue should be the one that can be started immediately
 - Each issue should be mergeable on its own without breaking anything
+- Dependencies are tracked via native Linear relationships (blocked by / blocks / related), not in the description text — see Phase 5
 
 **When NOT to split:**
 - Simple bug fixes that are clearly small — just create one issue
@@ -212,7 +212,7 @@ Flows that should work:
 - [ ] ...
 
 ## Notes
-[Dependencies, references, edge cases.]
+[References, edge cases. Do NOT list dependencies here — use native Linear relationships instead.]
 ```
 
 #### Enabler / Chore
@@ -267,6 +267,24 @@ rm "$DESC_FILE"
 Always use `--description-file` (not inline `--description`) and `--no-interactive`. Use `mktemp` for unique temp file names to avoid collisions.
 
 For multi-issue plans, create the parent issue first, then create child issues with `--parent` pointing to the parent's ID.
+
+After creation, **set up relationships** between issues using the Linear MCP `save_issue` tool. Linear supports these native relationship types — use them instead of writing dependencies in the description text:
+
+| Relationship | `save_issue` field | Meaning |
+|---|---|---|
+| **Parent / Sub-issue** | `parentId` | Set during creation with `--parent` or via `save_issue({ id, parentId })` |
+| **Blocked by** | `blockedBy: ["CON-123"]` | This issue cannot start until CON-123 is done |
+| **Blocks** | `blocks: ["CON-456"]` | This issue must be done before CON-456 can start |
+| **Related** | `relatedTo: ["CON-789"]` | Issues are related but don't block each other |
+
+These fields are **append-only** — adding a new relationship never removes existing ones. To remove a relationship, use `removeBlockedBy`, `removeBlocks`, or `removeRelatedTo`.
+
+**Example:** After creating three issues where issue 2 depends on issue 1, and issue 3 is related to both:
+
+```
+save_issue({ id: "CON-102", blockedBy: ["CON-101"] })
+save_issue({ id: "CON-103", relatedTo: ["CON-101", "CON-102"] })
+```
 
 After creation, show the user all issue identifiers/URLs.
 
@@ -340,6 +358,8 @@ rm "$DESC_FILE"
 If splitting into sub-issues, create the new child issues with `--parent <issue-id>` after updating the parent.
 
 If the title also needs improvement, add `--title "<improved title>"` to the update command.
+
+After updating, set up any missing relationships using the Linear MCP `save_issue` tool (see the relationship table in Phase 5). If the issue mentions dependencies in plain text, convert them to native `blockedBy`/`blocks`/`relatedTo` relationships and remove the text from the description.
 
 ## Tips
 
