@@ -8,7 +8,7 @@ import { addYears, format } from "date-fns";
 import { z } from "zod";
 
 import { LinkTo } from "@src/components/shared/LinkTo";
-import { UACT_DENOM } from "@src/config/denom.config";
+import { UACT_DENOM, UAKT_DENOM } from "@src/config/denom.config";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useSupportedDenoms, useUsdcDenom } from "@src/hooks/useDenom";
@@ -88,8 +88,7 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
   const granteeAddress = watch("granteeAddress");
   const expiration = watch("expiration");
   const hasAmount = watchedSpendLimits.some(sl => sl.amount > 0);
-  const hasActGrant = spendLimitFields.some(f => f.denom === UACT_DENOM);
-  const canAddGrant = spendLimitFields.length < 2 && !hasActGrant;
+  const canAddAkt = spendLimitFields.length < 2 && !spendLimitFields.some(f => f.denom === UAKT_DENOM);
 
   const onDepositClick = (event: React.MouseEvent) => {
     event.preventDefault();
@@ -120,8 +119,8 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
     }
   };
 
-  const addActGrant = () => {
-    appendSpendLimit({ denom: UACT_DENOM, amount: 0 });
+  const addAktGrant = () => {
+    appendSpendLimit({ denom: UAKT_DENOM, amount: 0 });
   };
 
   return (
@@ -171,10 +170,10 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
             />
           ))}
 
-          {canAddGrant && (
+          {canAddAkt && (
             <div className="mb-4">
-              <d.Button variant="outline" size="sm" type="button" className="w-full" onClick={addActGrant}>
-                Add ACT Grant
+              <d.Button variant="outline" size="sm" type="button" className="w-full" onClick={addAktGrant}>
+                Add AKT Grant
               </d.Button>
             </div>
           )}
