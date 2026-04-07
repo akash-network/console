@@ -229,7 +229,7 @@ describe(GrantModal.name, () => {
     expect(secondRow).toBeDefined();
   });
 
-  it("passes isRemovable to both rows when two spend limits exist", () => {
+  it("passes isRemovable to second SpendLimitRow but not first", () => {
     const SpendLimitRowMock = vi.fn(ComponentMock);
     setup({
       editingGrant: createGrant({
@@ -249,7 +249,7 @@ describe(GrantModal.name, () => {
 
     const firstRow = SpendLimitRowMock.mock.calls.find(c => c[0].index === 0);
     const secondRow = SpendLimitRowMock.mock.calls.find(c => c[0].index === 1);
-    expect(firstRow![0].isRemovable).toBe(true);
+    expect(firstRow![0].isRemovable).toBe(false);
     expect(secondRow![0].isRemovable).toBe(true);
   });
 

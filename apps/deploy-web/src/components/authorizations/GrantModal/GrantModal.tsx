@@ -165,7 +165,7 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
               key={field.id}
               index={index}
               denom={watchedSpendLimits[index]?.denom ?? field.denom}
-              isRemovable={spendLimitFields.length > 1}
+              isRemovable={index > 0}
               onRemove={() => removeSpendLimitAt(index)}
             />
           ))}
