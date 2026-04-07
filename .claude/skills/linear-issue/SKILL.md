@@ -281,7 +281,7 @@ These fields are **append-only** — adding a new relationship never removes exi
 
 **Example:** After creating three issues where issue 2 depends on issue 1, and issue 3 is related to both:
 
-```
+```javascript
 save_issue({ id: "CON-102", blockedBy: ["CON-101"] })
 save_issue({ id: "CON-103", relatedTo: ["CON-101", "CON-102"] })
 ```
