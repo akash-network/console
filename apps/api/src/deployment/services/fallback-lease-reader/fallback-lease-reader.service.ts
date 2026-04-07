@@ -96,7 +96,7 @@ export class FallbackLeaseReaderService {
   }
 
   private mapDenom(denom: string): string {
-    if (denom === "uusdc" || denom === "uact") {
+    if (denom === "uusdc") {
       const network = this.#coreConfig.NETWORK;
       if (network === "mainnet") {
         return USDC_IBC_DENOMS.mainnetId;
