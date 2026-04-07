@@ -51,31 +51,35 @@ export class K8sEventsCollectorService {
     let doneError: unknown;
     let currentResourceVersion = resourceVersion;
 
-    await this.watch
-      .watch(
-        path,
-        { fieldSelector, resourceVersion },
-        (phase: string, apiObj: CoreV1Event) => {
-          if (apiObj.metadata?.resourceVersion) {
-            currentResourceVersion = apiObj.metadata.resourceVersion;
-          }
-          channel.push({ phase, event: apiObj });
-        },
-        (err?: unknown) => {
-          doneError = err;
-          channel.close();
+    await this.watch.watch(
+      path,
+      { fieldSelector, resourceVersion },
+      (phase: string, apiObj: CoreV1Event) => {
+        if (apiObj.metadata?.resourceVersion) {
+          currentResourceVersion = apiObj.metadata.resourceVersion;
         }
-      )
-      .then(() => {
+        channel.push({ phase, event: apiObj });
+      },
+      (err?: unknown) => {
+        doneError = err;
+        channel.close();
+      }
+    );
+
+    let established = false;
+
+    for await (const { phase, event } of channel) {
+      if (this.signal.aborted) break;
+
+      if (!established) {
         this.loggerService.info({
           event: "POD_EVENTS_WATCH_ESTABLISHED",
           podName: this.podInfo.podName,
           namespace: this.podInfo.namespace
         });
-      });
+        established = true;
+      }
 
-    for await (const { phase, event } of channel) {
-      if (this.signal.aborted) break;
       writeStream.write(this.formatLine(phase, event));
     }
 
