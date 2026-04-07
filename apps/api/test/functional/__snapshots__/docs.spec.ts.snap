@@ -10796,6 +10796,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "dailyLeaseCount": {
                           "type": "number",
                         },
+                        "dailyUActEarned": {
+                          "type": "number",
+                        },
                         "dailyUAktEarned": {
                           "type": "number",
                         },
@@ -10812,6 +10815,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "type": "number",
                         },
                         "totalLeaseCount": {
+                          "type": "number",
+                        },
+                        "totalUActEarned": {
                           "type": "number",
                         },
                         "totalUAktEarned": {
@@ -10834,6 +10840,8 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "dailyUAktEarned",
                         "totalUUsdcEarned",
                         "dailyUUsdcEarned",
+                        "totalUActEarned",
+                        "dailyUActEarned",
                         "totalUUsdEarned",
                         "dailyUUsdEarned",
                         "activeCPU",
@@ -10871,6 +10879,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "dailyLeaseCount": {
                           "type": "number",
                         },
+                        "dailyUActEarned": {
+                          "type": "number",
+                        },
                         "dailyUAktEarned": {
                           "type": "number",
                         },
@@ -10887,6 +10898,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "type": "number",
                         },
                         "totalLeaseCount": {
+                          "type": "number",
+                        },
+                        "totalUActEarned": {
                           "type": "number",
                         },
                         "totalUAktEarned": {
@@ -10909,6 +10923,8 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "dailyUAktEarned",
                         "totalUUsdcEarned",
                         "dailyUUsdcEarned",
+                        "totalUActEarned",
+                        "dailyUActEarned",
                         "totalUUsdEarned",
                         "dailyUUsdEarned",
                         "activeCPU",
@@ -10986,6 +11002,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                   "properties": {
                     "earnings": {
                       "properties": {
+                        "totalUActEarned": {
+                          "type": "number",
+                        },
                         "totalUAktEarned": {
                           "type": "number",
                         },
@@ -10999,6 +11018,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       "required": [
                         "totalUAktEarned",
                         "totalUUsdcEarned",
+                        "totalUActEarned",
                         "totalUUsdEarned",
                       ],
                       "type": "object",
@@ -14572,6 +14592,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "example": 3,
                         "type": "number",
                       },
+                      "dailyActSpent": {
+                        "description": "ACT spent on this date (includes legacy USDC)",
+                        "example": 5.25,
+                        "type": "number",
+                      },
                       "dailyAktSpent": {
                         "description": "AKT tokens spent on this date",
                         "example": 12.5,
@@ -14591,6 +14616,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "description": "Date in YYYY-MM-DD format",
                         "example": "2024-01-15",
                         "type": "string",
+                      },
+                      "totalActSpent": {
+                        "description": "Cumulative ACT spent up to this date (includes legacy USDC)",
+                        "example": 52.5,
+                        "type": "number",
                       },
                       "totalAktSpent": {
                         "description": "Cumulative AKT tokens spent up to this date",
@@ -14615,6 +14645,8 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       "totalAktSpent",
                       "dailyUsdcSpent",
                       "totalUsdcSpent",
+                      "dailyActSpent",
+                      "totalActSpent",
                       "dailyUsdSpent",
                       "totalUsdSpent",
                     ],

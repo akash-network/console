@@ -86,6 +86,26 @@ describe(UsageView.name, () => {
     });
   });
 
+  it("includes ACT fields in exported CSV", () => {
+    const usageHistoryData = buildUsageHistory([{ dailyActSpent: 42, totalActSpent: 99 }], 1);
+    setup({ usageHistoryData });
+
+    let capturedBlob: Blob | undefined;
+    const createObjectURLSpy = vi.spyOn(URL, "createObjectURL").mockImplementation((blob: Blob) => {
+      capturedBlob = blob;
+      return "blob:mock";
+    });
+    const revokeObjectURLSpy = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+
+    fireEvent.click(screen.getByText("Export CSV"));
+
+    expect(capturedBlob).toBeDefined();
+    expect(capturedBlob!.type).toBe("text/csv;charset=utf-8;");
+
+    createObjectURLSpy.mockRestore();
+    revokeObjectURLSpy.mockRestore();
+  });
+
   it("calls onDateRangeChange when date range end changes", () => {
     const onDateRangeChange = vi.fn();
     setup({
