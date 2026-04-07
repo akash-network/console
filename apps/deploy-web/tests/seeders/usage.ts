@@ -12,6 +12,8 @@ export const buildUsageHistoryItem = ({
   totalAktSpent = faker.number.int({ min: 0, max: 1000 }),
   dailyUsdcSpent = faker.number.int({ min: 0, max: 100 }),
   totalUsdcSpent = faker.number.int({ min: 0, max: 1000 }),
+  dailyActSpent = dailyUsdcSpent,
+  totalActSpent = totalUsdcSpent,
   dailyUsdSpent = faker.number.int({ min: 0, max: 100 }),
   totalUsdSpent = faker.number.int({ min: 0, max: 1000 })
 }: UsageHistoryOverride = {}): UsageHistory[number] => {
@@ -22,6 +24,8 @@ export const buildUsageHistoryItem = ({
     totalAktSpent,
     dailyUsdcSpent,
     totalUsdcSpent,
+    dailyActSpent,
+    totalActSpent,
     dailyUsdSpent,
     totalUsdSpent
   };

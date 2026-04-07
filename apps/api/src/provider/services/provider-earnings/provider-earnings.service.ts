@@ -50,6 +50,7 @@ export class ProviderEarningsService {
       earnings: {
         totalUAktEarned: earnings.uakt,
         totalUUsdcEarned: earnings.uact,
+        totalUActEarned: earnings.uact,
         totalUUsdEarned: earnings.uusd
       }
     };

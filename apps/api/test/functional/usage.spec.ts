@@ -283,6 +283,8 @@ describe("GET /v1/usage/history", () => {
       expect(firstItem).toHaveProperty("totalAktSpent");
       expect(firstItem).toHaveProperty("dailyUsdcSpent");
       expect(firstItem).toHaveProperty("totalUsdcSpent");
+      expect(firstItem).toHaveProperty("dailyActSpent");
+      expect(firstItem).toHaveProperty("totalActSpent");
       expect(firstItem).toHaveProperty("dailyUsdSpent");
       expect(firstItem).toHaveProperty("totalUsdSpent");
 
@@ -323,6 +325,8 @@ describe("GET /v1/usage/history", () => {
       expect(day.totalAktSpent).toBe(0);
       expect(day.dailyUsdcSpent).toBe(0);
       expect(day.totalUsdcSpent).toBe(0);
+      expect(day.dailyActSpent).toBe(0);
+      expect(day.totalActSpent).toBe(0);
       expect(day.dailyUsdSpent).toBe(0);
       expect(day.totalUsdSpent).toBe(0);
     });
@@ -353,6 +357,7 @@ describe("GET /v1/usage/history", () => {
     data.forEach(day => {
       expect(day.dailyAktSpent).toBeGreaterThanOrEqual(0);
       expect(day.dailyUsdcSpent).toBeGreaterThanOrEqual(0);
+      expect(day.dailyActSpent).toBeGreaterThanOrEqual(0);
     });
   });
 

@@ -34,6 +34,7 @@ export const ProviderEarningsResponseSchema = z.object({
   earnings: z.object({
     totalUAktEarned: z.number(),
     totalUUsdcEarned: z.number(),
+    totalUActEarned: z.number(),
     totalUUsdEarned: z.number()
   })
 });

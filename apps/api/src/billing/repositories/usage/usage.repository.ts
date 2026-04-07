@@ -15,6 +15,8 @@ export interface BillingUsageRawResult {
   totalAktSpent: number;
   dailyUsdcSpent: number;
   totalUsdcSpent: number;
+  dailyActSpent: number;
+  totalActSpent: number;
   dailyUsdSpent: number;
   totalUsdSpent: number;
 }
@@ -96,6 +98,8 @@ export class UsageRepository {
         COALESCE(SUM(dc.daily_akt_spent) OVER (ORDER BY dr.date), 0) as "totalAktSpent",
         COALESCE(dc.daily_act_spent, 0) as "dailyUsdcSpent",
         COALESCE(SUM(dc.daily_act_spent) OVER (ORDER BY dr.date), 0) as "totalUsdcSpent",
+        COALESCE(dc.daily_act_spent, 0) as "dailyActSpent",
+        COALESCE(SUM(dc.daily_act_spent) OVER (ORDER BY dr.date), 0) as "totalActSpent",
         COALESCE(dc.daily_usd_spent, 0) as "dailyUsdSpent",
         COALESCE(SUM(dc.daily_usd_spent) OVER (ORDER BY dr.date), 0) as "totalUsdSpent"
       FROM date_range dr
@@ -121,6 +125,8 @@ export class UsageRepository {
       totalAktSpent: parseFloat(String(row.totalAktSpent)),
       dailyUsdcSpent: parseFloat(String(row.dailyUsdcSpent)),
       totalUsdcSpent: parseFloat(String(row.totalUsdcSpent)),
+      dailyActSpent: parseFloat(String(row.dailyActSpent)),
+      totalActSpent: parseFloat(String(row.totalActSpent)),
       dailyUsdSpent: parseFloat(String(row.dailyUsdSpent)),
       totalUsdSpent: parseFloat(String(row.totalUsdSpent))
     }));

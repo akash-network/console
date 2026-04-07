@@ -5,6 +5,8 @@ export type UsageHistory = Array<{
   totalAktSpent: number;
   dailyUsdcSpent: number;
   totalUsdcSpent: number;
+  dailyActSpent: number;
+  totalActSpent: number;
   dailyUsdSpent: number;
   totalUsdSpent: number;
 }>;

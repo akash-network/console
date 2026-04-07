@@ -71,6 +71,14 @@ export const UsageHistoryResponseSchema = z.array(
       description: "Cumulative USDC spent up to this date",
       example: 52.5
     }),
+    dailyActSpent: z.number().openapi({
+      description: "ACT spent on this date (includes legacy USDC)",
+      example: 5.25
+    }),
+    totalActSpent: z.number().openapi({
+      description: "Cumulative ACT spent up to this date (includes legacy USDC)",
+      example: 52.5
+    }),
     dailyUsdSpent: z.number().openapi({
       description: "Total USD value spent on this date (AKT + USDC)",
       example: 17.75
