@@ -43,6 +43,30 @@ describe(K8sEventsCollectorService.name, () => {
     expect(writeStream.write).toHaveBeenCalledWith(expect.stringContaining('"reason":"Scheduled"'));
   });
 
+  it("should log POD_EVENTS_WATCH_ESTABLISHED on first event received", async () => {
+    const podInfo = seedPodInfoTestData();
+    const { service, ac, loggerService } = setup({ podInfo });
+
+    const event = seedKubernetesEventTestData({ involvedObject: { kind: "Pod", name: podInfo.podName, namespace: podInfo.namespace } });
+
+    const startPromise = service.collectPodEvents();
+    await vi.waitFor(() => expect(watch.watch).toHaveBeenCalled());
+
+    expect(loggerService.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "POD_EVENTS_WATCH_ESTABLISHED" }));
+
+    fireEvent("ADDED", event);
+    await vi.waitFor(() => expect(loggerService.info).toHaveBeenCalledWith(expect.objectContaining({ event: "POD_EVENTS_WATCH_ESTABLISHED" })));
+
+    fireEvent("MODIFIED", event);
+
+    ac.abort();
+    endWatch();
+    await startPromise;
+
+    expect(loggerService.info).toHaveBeenCalledWith(expect.objectContaining({ event: "POD_EVENTS_WATCH_ESTABLISHED", podName: podInfo.podName }));
+    expect(loggerService.info).toHaveBeenCalledTimes(1);
+  });
+
   it("should only include curated fields in the JSON output", async () => {
     const podInfo = seedPodInfoTestData();
     const { service, ac, writeStream } = setup({ podInfo });
@@ -84,6 +108,7 @@ describe(K8sEventsCollectorService.name, () => {
     await startPromise;
 
     expect(loggerService.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "POD_EVENTS_WATCH_FORBIDDEN", podName: podInfo.podName }));
+    expect(loggerService.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "POD_EVENTS_WATCH_ESTABLISHED" }));
   });
 
   it("should reconnect when watch ends without error", async () => {
