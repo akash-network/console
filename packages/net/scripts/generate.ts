@@ -43,8 +43,8 @@ async function main() {
           return null;
         }),
       fetchText(`${baseConfigUrl}/faucet-url.txt`).catch(() => null),
-      fetchText(`${baseConfigUrl}/api-nodes.txt`).catch(() => null),
-      fetchText(`${baseConfigUrl}/rpc-nodes.txt`).catch(() => null)
+      fetchOptionalText(`${baseConfigUrl}/api-nodes.txt`),
+      fetchOptionalText(`${baseConfigUrl}/rpc-nodes.txt`)
     ]);
 
     const apiUrlsFromTxt = parseNodesTxt(apiNodesTxt);
@@ -93,6 +93,15 @@ function fetchJson<T>(url: string): Promise<T> {
     }
     return res.json() as Promise<T>;
   });
+}
+
+async function fetchOptionalText(url: string): Promise<string | null> {
+  const res = await fetch(url);
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    throw new Error(`Failed to fetch ${url}: ${res.status} ${res.statusText}`);
+  }
+  return res.text();
 }
 
 function mergeUrls(primary: string[], secondary: string[]): string[] {
