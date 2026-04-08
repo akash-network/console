@@ -135,7 +135,6 @@ describe(GrantModal.name, () => {
     const { signAndBroadcastTx } = setup({
       editingGrant: createGrant({ grantee: "akash1grantee" }),
       dependencies: {
-        useSupportsACT: () => true,
         useSupportedDenoms: () => ACT_SUPPORTED_TOKENS
       }
     });
@@ -197,12 +196,11 @@ describe(GrantModal.name, () => {
     expect(expirationField).toBeDefined();
   });
 
-  it("shows 'Add AKT Grant' button when ACT is supported and only one row", () => {
+  it("shows 'Add AKT Grant' button when only one row exists", () => {
     const ButtonMock = vi.fn(ComponentMock);
     setup({
       dependencies: {
         Button: ButtonMock,
-        useSupportsACT: () => true,
         useSupportedDenoms: () => ACT_SUPPORTED_TOKENS
       }
     });
@@ -210,15 +208,6 @@ describe(GrantModal.name, () => {
     const addButton = ButtonMock.mock.calls.find(c => c[0].children === "Add AKT Grant");
 
     expect(addButton).toBeDefined();
-  });
-
-  it("does not show 'Add AKT Grant' button when ACT is not supported", () => {
-    const ButtonMock = vi.fn(ComponentMock);
-    setup({ dependencies: { Button: ButtonMock } });
-
-    const addButton = ButtonMock.mock.calls.find(c => c[0].children === "Add AKT Grant");
-
-    expect(addButton).toBeUndefined();
   });
 
   it("adds second SpendLimitRow when 'Add AKT Grant' button is clicked", () => {
@@ -230,7 +219,6 @@ describe(GrantModal.name, () => {
       dependencies: {
         Button: ButtonMock,
         SpendLimitRow: SpendLimitRowMock,
-        useSupportsACT: () => true,
         useSupportedDenoms: () => ACT_SUPPORTED_TOKENS
       }
     });
@@ -241,7 +229,7 @@ describe(GrantModal.name, () => {
     expect(secondRow).toBeDefined();
   });
 
-  it("passes isRemovable to second SpendLimitRow when ACT is supported", () => {
+  it("passes isRemovable to second SpendLimitRow but not first", () => {
     const SpendLimitRowMock = vi.fn(ComponentMock);
     setup({
       editingGrant: createGrant({
@@ -255,12 +243,13 @@ describe(GrantModal.name, () => {
       }),
       dependencies: {
         SpendLimitRow: SpendLimitRowMock,
-        useSupportsACT: () => true,
         useSupportedDenoms: () => ACT_SUPPORTED_TOKENS
       }
     });
 
+    const firstRow = SpendLimitRowMock.mock.calls.find(c => c[0].index === 0);
     const secondRow = SpendLimitRowMock.mock.calls.find(c => c[0].index === 1);
+    expect(firstRow![0].isRemovable).toBe(false);
     expect(secondRow![0].isRemovable).toBe(true);
   });
 
@@ -278,7 +267,6 @@ describe(GrantModal.name, () => {
       }),
       dependencies: {
         SpendLimitRow: SpendLimitRowMock,
-        useSupportsACT: () => true,
         useSupportedDenoms: () => ACT_SUPPORTED_TOKENS
       }
     });
@@ -290,7 +278,7 @@ describe(GrantModal.name, () => {
     expect(secondRow).toBeDefined();
   });
 
-  it("does not show 'Add AKT Grant' when both rows exist", () => {
+  it("does not show add grant button when both rows exist", () => {
     const ButtonMock = vi.fn(ComponentMock);
     setup({
       editingGrant: createGrant({
@@ -304,7 +292,6 @@ describe(GrantModal.name, () => {
       }),
       dependencies: {
         Button: ButtonMock,
-        useSupportsACT: () => true,
         useSupportedDenoms: () => ACT_SUPPORTED_TOKENS
       }
     });
@@ -337,7 +324,6 @@ describe(GrantModal.name, () => {
             useWallet: () => ({ signAndBroadcastTx }) as unknown as ReturnType<typeof DEPENDENCIES.useWallet>,
             useUsdcDenom: () => USDC_TEST_DENOM,
             useDenomData: () => ({ min: 0, max: 1000, label: "AKT", balance: 500 }),
-            useSupportsACT: () => false,
             useSupportedDenoms: () => DEFAULT_SUPPORTED_TOKENS,
             ...input.dependencies
           } as typeof DEPENDENCIES

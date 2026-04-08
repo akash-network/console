@@ -10,7 +10,6 @@ import { useRouter } from "next/router";
 import { UAKT_DENOM } from "@src/config/denom.config";
 import { useWallet } from "@src/context/WalletProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
-import { useSupportsACT } from "@src/hooks/useSupportsACT/useSupportsACT";
 import type { WalletBalance } from "@src/hooks/useWalletBalance";
 import walletStore from "@src/store/walletStore";
 import { udenomToDenom } from "@src/utils/mathHelpers";
@@ -37,8 +36,7 @@ export const DEPENDENCIES = {
   PriceValue,
   useWallet,
   useRouter,
-  useCustomUser,
-  useSupportsACT
+  useCustomUser
 };
 
 export const CustodialWalletPopup: React.FC<CustodialWalletPopupProps> = ({ walletBalance, dependencies: d = DEPENDENCIES }) => {
@@ -46,11 +44,6 @@ export const CustodialWalletPopup: React.FC<CustodialWalletPopupProps> = ({ wall
   const router = d.useRouter();
   const [isSignedInWithTrial] = useAtom(walletStore.isSignedInWithTrial);
   const { user } = d.useCustomUser();
-  const isACTSupported = d.useSupportsACT();
-
-  const onAuthorizeSpendingClick = () => {
-    router.push(UrlService.settingsAuthorizations());
-  };
 
   return (
     <div className="w-[300px] p-2">
@@ -80,13 +73,9 @@ export const CustodialWalletPopup: React.FC<CustodialWalletPopupProps> = ({ wall
             <d.Separator />
 
             <div className="flex items-center justify-between space-x-2">
-              <span className="text-xs">{isACTSupported ? "ACT" : "USDC"}</span>
+              <span className="text-xs">ACT</span>
               <span>
-                {isACTSupported ? (
-                  <d.FormattedNumber value={udenomToDenom(walletBalance.totalUACT, 2)} style="currency" currency="USD" />
-                ) : (
-                  <d.FormattedNumber value={udenomToDenom(walletBalance.totalUUSDC, 2)} style="currency" currency="USD" />
-                )}
+                <d.FormattedNumber value={udenomToDenom(walletBalance.totalUACT, 2)} style="currency" currency="USD" />
               </span>
             </div>
           </d.CardContent>
@@ -98,17 +87,10 @@ export const CustodialWalletPopup: React.FC<CustodialWalletPopupProps> = ({ wall
       <div className="text-xs text-muted-foreground">Wallet Actions</div>
 
       <div className="flex flex-col items-center justify-end space-y-2 pt-2">
-        {isACTSupported ? (
-          <d.Button onClick={() => router.push(UrlService.mintBurn())} variant="outline" className="w-full space-x-2">
-            <d.Bank />
-            <span>Mint ACT</span>
-          </d.Button>
-        ) : (
-          <d.Button onClick={() => onAuthorizeSpendingClick()} variant="outline" className="w-full space-x-2">
-            <d.Bank />
-            <span>Authorize Spending</span>
-          </d.Button>
-        )}
+        <d.Button onClick={() => router.push(UrlService.mintBurn())} variant="outline" className="w-full space-x-2">
+          <d.Bank />
+          <span>Mint ACT</span>
+        </d.Button>
 
         <d.Button onClick={logout} variant="outline" className="w-full space-x-2">
           <d.LogOut />

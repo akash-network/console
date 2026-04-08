@@ -66,7 +66,7 @@ const defaultService: ServiceType = {
     name: "dcloud",
     pricing: {
       amount: 100000,
-      denom: "uact"
+      denom: UACT_DENOM
     },
     signedBy: {
       anyOf: [],
@@ -112,16 +112,12 @@ export const SSH_EXPOSE = {
   to: []
 };
 
-export const getDefaultService = (options: { supportsACT: boolean; supportsSSH?: boolean }) => {
+export const getDefaultService = (options: { supportsSSH?: boolean } = {}) => {
   const res = cloneDeep(defaultService);
 
   if (options.supportsSSH) {
     res.image = sshVmDistros[0];
     res.expose = [];
-  }
-
-  if (options.supportsACT) {
-    res.placement.pricing.denom = UACT_DENOM;
   }
 
   return res;

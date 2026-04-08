@@ -14,7 +14,6 @@ import { USER_TEMPLATE_CODE } from "@src/config/deploy.config";
 import { useServices } from "@src/context/ServicesProvider";
 import useFormPersist from "@src/hooks/useFormPersist";
 import { useSdlServiceManager } from "@src/hooks/useSdlServiceManager/useSdlServiceManager";
-import { useSupportsACT } from "@src/hooks/useSupportsACT/useSupportsACT";
 import { useGpuModels } from "@src/queries/useGpuQuery";
 import sdlStore from "@src/store/sdlStore";
 import type { ITemplate, SdlBuilderFormValuesType, ServiceType } from "@src/types";
@@ -44,8 +43,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
   const [sdlBuilderSdl, setSdlBuilderSdl] = useAtom(sdlStore.sdlBuilderSdl);
   const { data: gpuModels } = useGpuModels();
   const { enqueueSnackbar } = useSnackbar();
-  const supportsACT = useSupportsACT();
-  const defaultServices = useMemo(() => ({ services: [getDefaultService({ supportsACT })] }), [supportsACT]);
+  const defaultServices = useMemo(() => ({ services: [getDefaultService()] }), []);
   const form = useForm<SdlBuilderFormValuesType>({
     resolver: zodResolver(SdlBuilderFormValuesSchema),
     defaultValues: defaultServices

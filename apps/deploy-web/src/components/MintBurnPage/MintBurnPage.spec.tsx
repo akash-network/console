@@ -336,7 +336,6 @@ describe(MintBurnPage.name, () => {
       useSnackbar: () => ({
         enqueueSnackbar
       }),
-      useSupportsACT: () => true,
       useBmeParams: () => ({ data: input?.bmeParams, isLoading: false }),
       useLedgerRecords: () => ({
         data: null,
