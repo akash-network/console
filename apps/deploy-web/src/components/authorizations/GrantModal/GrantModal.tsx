@@ -99,11 +99,10 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
     setError("");
     clearErrors();
 
-    const coins = spendLimits.map(sl => ({
+    const spendLimit = spendLimits.map(sl => ({
       amount: denomToUdenom(sl.amount).toString(),
       denom: sl.denom === "usdc" ? usdcDenom : sl.denom
     }));
-    const spendLimit = coins;
 
     const expirationDate = new Date(expiration);
     const message = TransactionMessageData.getGrantMsg(address, granteeAddress, spendLimit, expirationDate);
