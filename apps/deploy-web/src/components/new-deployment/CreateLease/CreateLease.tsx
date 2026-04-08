@@ -146,7 +146,8 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
     if (bids && bids.length > 0 && !bidsReceivedTracked.current) {
       bidsReceivedTracked.current = true;
       analyticsService.track("bids_received", {
-        numberOfBids: bids.length
+        numberOfBids: bids.length,
+        dseq
       });
     }
   }, [bids, analyticsService]);
