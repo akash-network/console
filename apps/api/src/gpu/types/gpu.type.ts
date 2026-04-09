@@ -26,8 +26,8 @@ export type GpuBidType = {
   aktTokenPrice: number;
   hourlyPrice: number;
   monthlyPrice: number;
-  hourlyPriceUakt: number;
-  monthlyPriceUakt: number;
+  hourlyPriceUakt: number | null;
+  monthlyPriceUakt: number | null;
   deployment: {
     owner: string;
     cpuUnits: number;

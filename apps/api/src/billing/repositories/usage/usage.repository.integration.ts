@@ -82,6 +82,8 @@ describe(UsageRepository.name, () => {
         totalAktSpent: 0,
         dailyUsdcSpent: 0,
         totalUsdcSpent: 0,
+        dailyActSpent: 0,
+        totalActSpent: 0,
         dailyUsdSpent: 0,
         totalUsdSpent: 0
       });
@@ -176,6 +178,8 @@ describe(UsageRepository.name, () => {
         dailyAktSpent: 0,
         dailyUsdcSpent: 50,
         totalUsdcSpent: 50,
+        dailyActSpent: 50,
+        totalActSpent: 50,
         dailyUsdSpent: 50,
         totalUsdSpent: 50
       });
@@ -220,6 +224,7 @@ describe(UsageRepository.name, () => {
         activeDeployments: 2,
         dailyAktSpent: 200,
         dailyUsdcSpent: 150,
+        dailyActSpent: 150,
         dailyUsdSpent: 750
       });
     });

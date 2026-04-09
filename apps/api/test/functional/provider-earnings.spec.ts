@@ -57,6 +57,7 @@ describe("Provider Earnings API", () => {
       expect(data).toHaveProperty("earnings");
       expect(data.earnings).toHaveProperty("totalUAktEarned");
       expect(data.earnings).toHaveProperty("totalUUsdcEarned");
+      expect(data.earnings).toHaveProperty("totalUActEarned");
       expect(data.earnings).toHaveProperty("totalUUsdEarned");
     });
 

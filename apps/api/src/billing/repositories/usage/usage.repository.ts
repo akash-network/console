@@ -15,6 +15,8 @@ export interface BillingUsageRawResult {
   totalAktSpent: number;
   dailyUsdcSpent: number;
   totalUsdcSpent: number;
+  dailyActSpent: number;
+  totalActSpent: number;
   dailyUsdSpent: number;
   totalUsdSpent: number;
 }
@@ -75,14 +77,14 @@ export class UsageRepository {
             ELSE 0
             END) as numeric), 2) as daily_akt_spent,
           ROUND(CAST(SUM(CASE
-            WHEN denom = 'uusdc'
+            WHEN denom IN ('uusdc', 'uact')
             THEN blocks_in_day * price / 1000000.0
             ELSE 0
-            END) as numeric), 2) as daily_usdc_spent,
+            END) as numeric), 2) as daily_act_spent,
           ROUND(CAST(SUM(CASE
             WHEN denom = 'uakt'
             THEN blocks_in_day * price * COALESCE("aktPrice", 0) / 1000000.0
-            WHEN denom = 'uusdc'
+            WHEN denom IN ('uusdc', 'uact')
             THEN blocks_in_day * price / 1000000.0
             ELSE 0
             END) as numeric), 2) as daily_usd_spent
@@ -94,8 +96,10 @@ export class UsageRepository {
         COUNT(dl.owner) AS "activeDeployments",
         COALESCE(dc.daily_akt_spent, 0) as "dailyAktSpent",
         COALESCE(SUM(dc.daily_akt_spent) OVER (ORDER BY dr.date), 0) as "totalAktSpent",
-        COALESCE(dc.daily_usdc_spent, 0) as "dailyUsdcSpent",
-        COALESCE(SUM(dc.daily_usdc_spent) OVER (ORDER BY dr.date), 0) as "totalUsdcSpent",
+        COALESCE(dc.daily_act_spent, 0) as "dailyUsdcSpent",
+        COALESCE(SUM(dc.daily_act_spent) OVER (ORDER BY dr.date), 0) as "totalUsdcSpent",
+        COALESCE(dc.daily_act_spent, 0) as "dailyActSpent",
+        COALESCE(SUM(dc.daily_act_spent) OVER (ORDER BY dr.date), 0) as "totalActSpent",
         COALESCE(dc.daily_usd_spent, 0) as "dailyUsdSpent",
         COALESCE(SUM(dc.daily_usd_spent) OVER (ORDER BY dr.date), 0) as "totalUsdSpent"
       FROM date_range dr
@@ -104,7 +108,7 @@ export class UsageRepository {
       GROUP BY
         dr.date,
         dc.daily_akt_spent,
-        dc.daily_usdc_spent,
+        dc.daily_act_spent,
         dc.daily_usd_spent
       ORDER BY dr.date ASC;
     `;
@@ -121,6 +125,8 @@ export class UsageRepository {
       totalAktSpent: parseFloat(String(row.totalAktSpent)),
       dailyUsdcSpent: parseFloat(String(row.dailyUsdcSpent)),
       totalUsdcSpent: parseFloat(String(row.totalUsdcSpent)),
+      dailyActSpent: parseFloat(String(row.dailyActSpent)),
+      totalActSpent: parseFloat(String(row.totalActSpent)),
       dailyUsdSpent: parseFloat(String(row.dailyUsdSpent)),
       totalUsdSpent: parseFloat(String(row.totalUsdSpent))
     }));

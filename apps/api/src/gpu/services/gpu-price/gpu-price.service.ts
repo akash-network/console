@@ -82,9 +82,12 @@ export class GpuPriceService {
           provider = decodedBid.provider || "";
         }
 
-        if (!day || !day.aktPrice) return; // Ignore bids for days where we don't have the AKT price
+        const denom = decodedBid?.price?.denom;
+        const isUakt = denom === "uakt";
+        const isUact = denom === "uact";
 
-        if (decodedBid?.price?.denom !== "uakt") return; // Ignore USDC bids for simplicity
+        if (!isUakt && !isUact) return; // Only accept uakt and uact bids
+        if (isUakt && (!day || !day.aktPrice)) return; // uakt bids need AKT price for USD conversion
 
         const bidGpus = decodedBid.resourcesOffer
           .filter((x: any) => (x.resources?.gpu?.units?.val ? parseInt(uint8arrayToString(x.resources.gpu.units.val)) : 0) > 0)
@@ -93,16 +96,19 @@ export class GpuPriceService {
         // Ignore bids for deployments with more than 1 GPU
         if (bidGpus.length !== 1) return;
 
+        const priceAmount = parseFloat(decodedBid.price!.amount);
+        const aktPrice = day?.aktPrice ?? 0;
+
         const bid = {
           height: x.height,
           txHash: x.transaction.hash,
           datetime: x.block.datetime,
           provider: provider,
-          aktTokenPrice: day.aktPrice,
-          hourlyPrice: this.blockPriceToHourlyPrice(parseFloat(decodedBid.price.amount), day?.aktPrice),
-          monthlyPrice: this.blockPriceToMonthlyPrice(parseFloat(decodedBid.price.amount), day?.aktPrice),
-          hourlyPriceUakt: this.blockPriceToHourlyUakt(parseFloat(decodedBid.price.amount)),
-          monthlyPriceUakt: this.blockPriceToMonthlyUakt(parseFloat(decodedBid.price.amount)),
+          aktTokenPrice: aktPrice,
+          hourlyPrice: isUact ? this.blockPriceToHourlyUsd(priceAmount) : this.blockPriceToHourlyPrice(priceAmount, aktPrice),
+          monthlyPrice: isUact ? this.blockPriceToMonthlyUsd(priceAmount) : this.blockPriceToMonthlyPrice(priceAmount, aktPrice),
+          hourlyPriceUakt: isUakt ? this.blockPriceToHourlyUakt(priceAmount) : aktPrice ? this.blockPriceToHourlyUakt(priceAmount / aktPrice) : null,
+          monthlyPriceUakt: isUakt ? this.blockPriceToMonthlyUakt(priceAmount) : aktPrice ? this.blockPriceToMonthlyUakt(priceAmount / aktPrice) : null,
           deployment: {
             owner: d.owner,
             cpuUnits: decodedBid.resourcesOffer
@@ -238,16 +244,21 @@ export class GpuPriceService {
     }[]
   ) {
     try {
-      if (!providersWithBestBid || providersWithBestBid.length === 0) return null;
+      const bidsWithUaktPrice = providersWithBestBid.filter(x => x.bestBid.hourlyPriceUakt !== null) as {
+        provider: GpuProviderType;
+        bestBid: GpuBidType & { hourlyPriceUakt: number };
+      }[];
 
-      const prices = providersWithBestBid.map(x => x.bestBid.hourlyPriceUakt);
+      if (!bidsWithUaktPrice || bidsWithUaktPrice.length === 0) return null;
+
+      const prices = bidsWithUaktPrice.map(x => x.bestBid.hourlyPriceUakt);
 
       return {
         currency: "uakt" as const,
         min: Math.min(...prices),
         max: Math.max(...prices),
         avg: round(average(prices), 2),
-        weightedAverage: round(weightedAverage(providersWithBestBid.map(p => ({ value: p.bestBid.hourlyPriceUakt, weight: p.provider.allocatable }))), 2),
+        weightedAverage: round(weightedAverage(bidsWithUaktPrice.map(p => ({ value: p.bestBid.hourlyPriceUakt, weight: p.provider.allocatable }))), 2),
         med: round(median(prices), 2)
       };
     } catch (e) {
@@ -289,6 +300,14 @@ export class GpuPriceService {
         // vendor/nvidia/model/h100/ram/80Gi/interface/pcie -> nvidia,h100,80Gi,pcie
         return { vendor: vendor, model: model, ram: ram, interface: int };
       });
+  }
+
+  private blockPriceToMonthlyUsd(uactPerBlock: number) {
+    return round((averageBlockCountInAMonth * uactPerBlock) / 1_000_000, 2);
+  }
+
+  private blockPriceToHourlyUsd(uactPerBlock: number) {
+    return round((averageBlockCountInAnHour * uactPerBlock) / 1_000_000, 2);
   }
 
   private blockPriceToMonthlyPrice(uaktPerBlock: number, aktPrice: number) {

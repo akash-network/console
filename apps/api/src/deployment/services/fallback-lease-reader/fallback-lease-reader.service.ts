@@ -103,7 +103,6 @@ export class FallbackLeaseReaderService {
       } else if (network === "sandbox") {
         return USDC_IBC_DENOMS.sandboxId;
       }
-      // Default to mainnet if network is not recognized
       return USDC_IBC_DENOMS.mainnetId;
     }
     return denom;

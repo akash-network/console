@@ -92,6 +92,8 @@ interface LeaseStats {
   dailyUAktEarned: number;
   totalUUsdcEarned: number;
   dailyUUsdcEarned: number;
+  totalUActEarned: number;
+  dailyUActEarned: number;
   totalUUsdEarned: number;
   dailyUUsdEarned: number;
   activeCPU: number;

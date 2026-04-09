@@ -9,6 +9,8 @@ export function createBillingUsage({
   totalAktSpent = faker.number.float({ min: 0, max: 1000, precision: 0.01 }),
   dailyUsdcSpent = faker.number.float({ min: 0, max: 100, precision: 0.01 }),
   totalUsdcSpent = faker.number.float({ min: 0, max: 1000, precision: 0.01 }),
+  dailyActSpent = dailyUsdcSpent,
+  totalActSpent = totalUsdcSpent,
   dailyUsdSpent = faker.number.float({ min: 0, max: 100, precision: 0.01 }),
   totalUsdSpent = faker.number.float({ min: 0, max: 1000, precision: 0.01 })
 }: Partial<BillingUsageRawResult> = {}): BillingUsageRawResult {
@@ -19,6 +21,8 @@ export function createBillingUsage({
     totalAktSpent,
     dailyUsdcSpent,
     totalUsdcSpent,
+    dailyActSpent,
+    totalActSpent,
     dailyUsdSpent,
     totalUsdSpent
   };

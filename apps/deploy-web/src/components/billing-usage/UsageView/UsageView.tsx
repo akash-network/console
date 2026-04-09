@@ -68,9 +68,9 @@ export const UsageView = ({
 
     const historyCsvContent = [
       "Usage History",
-      "Date,Active Deployments,Daily AKT Spent,Total AKT Spent,Daily USDC Spent,Total USDC Spent,Daily USD Spent,Total USD Spent",
+      "Date,Active Deployments,Daily AKT Spent,Total AKT Spent,Daily ACT Spent,Total ACT Spent,Daily USD Spent,Total USD Spent",
       ...usageHistoryData.map(row =>
-        [row.date, row.activeDeployments, row.dailyAktSpent, row.totalAktSpent, row.dailyUsdcSpent, row.totalUsdcSpent, row.dailyUsdSpent, row.totalUsdSpent]
+        [row.date, row.activeDeployments, row.dailyAktSpent, row.totalAktSpent, row.dailyActSpent, row.totalActSpent, row.dailyUsdSpent, row.totalUsdSpent]
           .map(sanitizeCsvField)
           .join(",")
       )
