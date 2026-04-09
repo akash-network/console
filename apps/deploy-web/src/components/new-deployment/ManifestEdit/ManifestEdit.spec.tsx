@@ -168,8 +168,8 @@ describe(ManifestEdit.name, () => {
     await vi.waitFor(() => {
       expect(DeploymentDepositModal).toHaveBeenCalledWith(
         expect.objectContaining({
-          handleCancel: expect.any(Function),
-          onDeploymentDeposit: expect.any(Function),
+          onCancel: expect.any(Function),
+          onSubmit: expect.any(Function),
           denom: "uact",
           title: "Confirm deployment creation?"
         }),

@@ -9,13 +9,13 @@ describe(DeploymentMinimumEscrowAlertText.name, () => {
   it("shows ACT dollar amount for managed wallet when act is supported", () => {
     setup({ isManaged: true, denom: "uact", minDeposit: { act: 10, akt: 5, usdc: 5 } });
 
-    expect(screen.getByText("$10")).toBeInTheDocument();
+    expect(screen.getByText("$10", { exact: false })).toBeInTheDocument();
   });
 
   it("shows ACT dollar amount for managed wallet with uakt denom", () => {
     setup({ isManaged: true, denom: "uakt", minDeposit: { act: 10, akt: 5, usdc: 5 } });
 
-    expect(screen.getByText("$10")).toBeInTheDocument();
+    expect(screen.getByText("$10", { exact: false })).toBeInTheDocument();
   });
 
   it("shows selected denom min deposit for self-custody wallet with uakt", () => {

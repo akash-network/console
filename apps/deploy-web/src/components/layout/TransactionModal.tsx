@@ -10,7 +10,8 @@ export type LoadingState =
   | "updatingDeployment"
   | "creatingLease"
   | "closingDeployment"
-  | "depositingDeployment";
+  | "depositingDeployment"
+  | "mintingACT";
 
 type Props = {
   state?: LoadingState;
@@ -26,10 +27,15 @@ const TITLES: Record<LoadingState, string> = {
   updatingDeployment: "Updating Deployment",
   creatingLease: "Creating Lease",
   closingDeployment: "Closing Deployment",
-  depositingDeployment: "Depositing Deployment"
+  depositingDeployment: "Depositing Deployment",
+  mintingACT: "Minting ACT"
 };
 
-const CRYPTO_STATES: LoadingState[] = ["waitingForApproval", "broadcasting"];
+const DESCRIPTIONS: Partial<Record<LoadingState, string>> = {
+  waitingForApproval: "APPROVE OR REJECT TX TO CONTINUE...",
+  broadcasting: "BROADCASTING TRANSACTION...",
+  mintingACT: "This should only take a moment"
+};
 
 export const TransactionModal: React.FunctionComponent<Props> = ({ state, onClose }) => {
   return state ? (
@@ -49,11 +55,7 @@ export const TransactionModal: React.FunctionComponent<Props> = ({ state, onClos
           <Spinner size="large" className="flex justify-center" />
         </div>
 
-        {CRYPTO_STATES.includes(state) && (
-          <div className="text-sm text-muted-foreground">
-            {state === "waitingForApproval" ? "APPROVE OR REJECT TX TO CONTINUE..." : "BROADCASTING TRANSACTION..."}
-          </div>
-        )}
+        {DESCRIPTIONS[state] && <div className="text-sm text-muted-foreground">{DESCRIPTIONS[state]}</div>}
       </div>
     </Popup>
   ) : null;

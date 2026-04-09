@@ -27,11 +27,7 @@ export const DeploymentMinimumEscrowAlertText: FC<{ denom: string; dependencies?
 
   if (isManaged) {
     const amount = minDeposit.act;
-    return (
-      <>
-        To create a deployment, you need to have at least <b>${amount}</b> in an escrow account.{" "}
-      </>
-    );
+    return <>To create a deployment, you need to have at least $${amount} in an escrow account. </>;
   }
 
   if (!readableDenom) {
@@ -43,9 +39,9 @@ export const DeploymentMinimumEscrowAlertText: FC<{ denom: string; dependencies?
   return (
     <>
       To create a deployment, you need to have at least{" "}
-      <b className="uppercase">
+      <span className="uppercase">
         {minDepositCurrent} {readableDenom}
-      </b>{" "}
+      </span>{" "}
       in an escrow account.{" "}
     </>
   );

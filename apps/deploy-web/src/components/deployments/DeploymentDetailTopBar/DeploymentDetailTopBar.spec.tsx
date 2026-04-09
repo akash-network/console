@@ -286,6 +286,9 @@ describe(DeploymentDetailTopBar.name, () => {
         realTimeLeft: undefined,
         deploymentCost: 0
       })) as typeof DEPENDENCIES.useDeploymentMetrics,
+      useDepositDeployment: vi.fn(() => ({
+        deposit: vi.fn(() => Promise.resolve(true))
+      })) as unknown as typeof DEPENDENCIES.useDepositDeployment,
       useCurrencyFormatter: vi.fn(() => (value: number) => `$${value.toFixed(2)}`) as unknown as typeof DEPENDENCIES.useCurrencyFormatter,
       usePopup: vi.fn(() => ({
         confirm: vi.fn(() => Promise.resolve(true)),
