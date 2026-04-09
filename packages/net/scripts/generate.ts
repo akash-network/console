@@ -32,7 +32,7 @@ async function main() {
   const config: Record<string, unknown> = {};
   for (const network of networks) {
     const baseConfigUrl = `${AKASH_NET_BASE}/${network}`;
-    const [meta, faucetUrl] = await Promise.all([
+    const [meta, faucetUrl, apiNodesTxt, rpcNodesTxt] = await Promise.all([
       fetchJson(`${baseConfigUrl}/meta.json`)
         .then(res => metaSchema.parse(res))
         .catch(error => {
@@ -42,15 +42,28 @@ async function main() {
 
           return null;
         }),
-      fetchText(`${baseConfigUrl}/faucet-url.txt`).catch(() => null)
+      fetchText(`${baseConfigUrl}/faucet-url.txt`).catch(() => null),
+      fetchOptionalText(`${baseConfigUrl}/api-nodes.txt`),
+      fetchOptionalText(`${baseConfigUrl}/rpc-nodes.txt`)
     ]);
-    const appVersion = meta?.apis?.rpc?.[0]?.address ? await getAppVersion(meta?.apis?.rpc[0]?.address) : null;
+
+    const apiUrlsFromTxt = parseNodesTxt(apiNodesTxt);
+    const rpcUrlsFromTxt = parseNodesTxt(rpcNodesTxt);
+
+    const metaApiUrls = meta?.apis?.rest?.map(({ address }) => address) ?? [];
+    const metaRpcUrls = meta?.apis?.rpc?.map(({ address }) => address) ?? [];
+
+    const apiUrls = apiUrlsFromTxt.length ? mergeUrls(apiUrlsFromTxt, metaApiUrls) : metaApiUrls;
+    const rpcUrls = rpcUrlsFromTxt.length ? mergeUrls(rpcUrlsFromTxt, metaRpcUrls) : metaRpcUrls;
+
+    const firstRpcUrl = rpcUrls[0] ?? metaRpcUrls[0];
+    const appVersion = firstRpcUrl ? await getAppVersion(firstRpcUrl) : null;
 
     const networkConfig = {
       version: appVersion ?? meta?.codebase?.recommended_version ?? null,
       faucetUrl: faucetUrl?.trim() ?? null,
-      apiUrls: meta?.apis?.rest?.map(({ address }) => address) ?? [],
-      rpcUrls: meta?.apis?.rpc?.map(({ address }) => address) ?? []
+      apiUrls,
+      rpcUrls
     };
 
     if (networkConfig.apiUrls.length || networkConfig.rpcUrls.length) {
@@ -80,6 +93,35 @@ function fetchJson<T>(url: string): Promise<T> {
     }
     return res.json() as Promise<T>;
   });
+}
+
+async function fetchOptionalText(url: string): Promise<string | null> {
+  const res = await fetch(url);
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    throw new Error(`Failed to fetch ${url}: ${res.status} ${res.statusText}`);
+  }
+  return res.text();
+}
+
+function mergeUrls(primary: string[], secondary: string[]): string[] {
+  const seen = new Set(primary.map(normalizeUrl));
+  const additional = secondary.filter(url => !seen.has(normalizeUrl(url)));
+  return [...primary, ...additional];
+}
+
+function normalizeUrl(url: string): string {
+  const parsed = new URL(url);
+  const defaultPort = parsed.protocol === "https:" ? "443" : "80";
+  return `${parsed.protocol}//${parsed.hostname}:${parsed.port || defaultPort}${parsed.pathname.replace(/\/$/, "")}`;
+}
+
+function parseNodesTxt(content: string | null): string[] {
+  if (!content) return [];
+  return content
+    .split("\n")
+    .map(line => line.trim())
+    .filter(line => line.length > 0 && line.startsWith("http"));
 }
 
 async function getAppVersion(rpcUrl: string): Promise<string | null> {
