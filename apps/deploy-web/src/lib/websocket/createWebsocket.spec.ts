@@ -277,7 +277,7 @@ describe(createWebsocket.name, () => {
 
         expect(websocketFactory).toHaveBeenCalledTimes(6);
         expect(onError).toHaveBeenCalledTimes(1);
-        expect(onError.mock.calls[0][0]?.detail?.message).toMatch(/Generic websocket error/i);
+        expect(onError.mock.calls[0][0]?.detail?.message).toBe("Generic websocket error");
       });
 
       it("do not retrying after successful connection", async () => {
@@ -311,7 +311,7 @@ describe(createWebsocket.name, () => {
         expect(websocketFactory).toHaveBeenCalledTimes(1);
         expect(shouldRetry).toHaveBeenCalledWith(
           expect.objectContaining({
-            message: "websocket error",
+            message: `websocket error: ${closeEvent.code} ${closeEvent.reason}`,
             cause: {
               code: closeEvent.code,
               reason: closeEvent.reason,

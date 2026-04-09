@@ -135,8 +135,11 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
       }),
       onLogReceived
     ).catch(error => {
+      if (abortController.signal.aborted) return;
+
       errorHandler.reportError({
         error,
+        severity: "warning",
         tags: { category: "deployments", label: "followLogs" }
       });
     });

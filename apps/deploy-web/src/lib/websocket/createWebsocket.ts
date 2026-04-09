@@ -137,7 +137,8 @@ export function waitForEvent<T>(target: WsEvents, type: string): Promise<T | und
 
 function createWsError(event: Event): Error {
   if (event instanceof CloseEvent) {
-    return new Error("websocket error", {
+    const reason = event.reason || "unknown reason";
+    return new Error(`websocket error: ${event.code} ${reason}`, {
       cause: {
         code: event.code,
         reason: event.reason,
