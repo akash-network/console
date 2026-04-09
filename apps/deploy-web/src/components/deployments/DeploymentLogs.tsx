@@ -136,6 +136,8 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
       onLogReceived
     ).catch(error => {
       if (abortController.signal.aborted) return;
+      setIsLoadingLogs(false);
+      setIsConnectionEstablished(false);
 
       errorHandler.reportError({
         error,
