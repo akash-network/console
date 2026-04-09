@@ -104,14 +104,12 @@ describe(SessionService.name, () => {
   });
 
   describe("signUp", () => {
-    it("returns error when password violates policy", async () => {
-      const { service, externalHttpClient, consoleApiHttpClient, config } = setup();
+    it("returns error when signup fails", async () => {
+      const { service, consoleApiHttpClient, externalHttpClient } = setup();
 
-      externalHttpClient.post.mockResolvedValueOnce({
+      consoleApiHttpClient.post.mockResolvedValueOnce({
         status: 400,
         data: {
-          code: "invalid_password",
-          policy: "Password must contain at least 8 characters",
           message: "Password is too weak"
         },
         headers: {}
@@ -124,71 +122,36 @@ describe(SessionService.name, () => {
       expect(error).toEqual(
         expect.objectContaining({
           message: "Password is too weak",
-          code: "invalid_password",
-          policy: "Password must contain at least 8 characters"
+          code: "signup_failed"
         })
       );
-      expect(externalHttpClient.post).toHaveBeenCalledTimes(1);
-      expect(externalHttpClient.post).toHaveBeenCalledWith(
-        `${new URL(config.ISSUER_BASE_URL).origin}/dbconnections/signup`,
+      expect(consoleApiHttpClient.post).toHaveBeenCalledTimes(1);
+      expect(consoleApiHttpClient.post).toHaveBeenCalledWith(
+        "/v1/auth/signup",
         {
-          client_id: config.CLIENT_ID,
           email: "user@example.com",
-          password: "weak",
-          connection: "Username-Password-Authentication"
+          password: "weak"
         },
         expect.objectContaining({ validateStatus: expect.any(Function) })
       );
-      expect(consoleApiHttpClient.post).not.toHaveBeenCalled();
+      expect(externalHttpClient.post).not.toHaveBeenCalled();
       expect(externalHttpClient.get).not.toHaveBeenCalled();
     });
 
-    it("returns friendly_message as error message when present", async () => {
-      const { service, externalHttpClient, consoleApiHttpClient, config } = setup();
+    it("returns user_exists when user already exists and sign-in fails", async () => {
+      const { service, consoleApiHttpClient, externalHttpClient } = setup();
 
-      externalHttpClient.post.mockResolvedValueOnce({
-        status: 400,
+      consoleApiHttpClient.post.mockResolvedValueOnce({
+        status: 409,
         data: {
-          friendly_message: "This is a user-friendly error message",
-          message: "Technical error message",
-          description: "Error description"
+          message: "The user already exists."
         },
         headers: {}
       });
 
-      const result = await service.signUp({ email: "user@example.com", password: "Password123!" });
-
-      expect(result.ok).toBe(false);
-      const error = expectErr(result);
-      expect(error).toEqual(
-        expect.objectContaining({
-          message: "This is a user-friendly error message",
-          code: "signup_failed"
-        })
-      );
-      expect(externalHttpClient.post).toHaveBeenCalledTimes(1);
-      expect(externalHttpClient.post).toHaveBeenCalledWith(
-        `${new URL(config.ISSUER_BASE_URL).origin}/dbconnections/signup`,
-        {
-          client_id: config.CLIENT_ID,
-          email: "user@example.com",
-          password: "Password123!",
-          connection: "Username-Password-Authentication"
-        },
-        expect.objectContaining({ validateStatus: expect.any(Function) })
-      );
-      expect(consoleApiHttpClient.post).not.toHaveBeenCalled();
-      expect(externalHttpClient.get).not.toHaveBeenCalled();
-    });
-
-    it("returns error when signup fails for other reasons", async () => {
-      const { service, externalHttpClient, consoleApiHttpClient, config } = setup();
-
-      externalHttpClient.post.mockResolvedValue({
-        status: 409,
-        data: {
-          description: "User already exists"
-        },
+      externalHttpClient.post.mockResolvedValueOnce({
+        status: 401,
+        data: { error_description: "Invalid credentials" },
         headers: {}
       });
 
@@ -202,19 +165,8 @@ describe(SessionService.name, () => {
           code: "user_exists"
         })
       );
-      expect(externalHttpClient.post).toHaveBeenCalledTimes(2);
-      expect(externalHttpClient.post).toHaveBeenCalledWith(
-        `${new URL(config.ISSUER_BASE_URL).origin}/dbconnections/signup`,
-        {
-          client_id: config.CLIENT_ID,
-          email: "user@example.com",
-          password: "Password123!",
-          connection: "Username-Password-Authentication"
-        },
-        expect.objectContaining({ validateStatus: expect.any(Function) })
-      );
-      expect(consoleApiHttpClient.post).not.toHaveBeenCalled();
-      expect(externalHttpClient.get).not.toHaveBeenCalled();
+      expect(consoleApiHttpClient.post).toHaveBeenCalledTimes(1);
+      expect(externalHttpClient.post).toHaveBeenCalledTimes(1);
     });
 
     it("creates local user after successful signup", async () => {
@@ -257,9 +209,9 @@ describe(SessionService.name, () => {
         subscribedToNewsletter: true
       };
 
-      const { service, externalHttpClient, consoleApiHttpClient, config } = setup();
+      const { service, externalHttpClient, consoleApiHttpClient } = setup();
 
-      externalHttpClient.post.mockResolvedValueOnce(signupResponse);
+      consoleApiHttpClient.post.mockResolvedValueOnce(signupResponse);
       externalHttpClient.post.mockResolvedValueOnce(tokenResponse);
       externalHttpClient.get.mockResolvedValueOnce(userInfoResponse);
       consoleApiHttpClient.post.mockResolvedValueOnce({ data: { data: createdUser } });
@@ -269,30 +221,28 @@ describe(SessionService.name, () => {
       expect(result.ok).toBe(true);
       const session = expectOk(result);
 
-      expect(externalHttpClient.post).toHaveBeenNthCalledWith(
+      expect(consoleApiHttpClient.post).toHaveBeenNthCalledWith(
         1,
-        `${new URL(config.ISSUER_BASE_URL).origin}/dbconnections/signup`,
+        "/v1/auth/signup",
         {
-          client_id: config.CLIENT_ID,
           email,
-          password,
-          connection: "Username-Password-Authentication"
+          password
         },
         expect.objectContaining({ validateStatus: expect.any(Function) })
       );
 
       expect(externalHttpClient.post).toHaveBeenNthCalledWith(
-        2,
-        `${new URL(config.ISSUER_BASE_URL).origin}/oauth/token`,
+        1,
+        expect.stringContaining("/oauth/token"),
         expect.objectContaining({
           username: email,
-          password,
-          audience: config.AUDIENCE
+          password
         }),
         expect.objectContaining({ validateStatus: expect.any(Function) })
       );
 
-      expect(consoleApiHttpClient.post).toHaveBeenCalledWith(
+      expect(consoleApiHttpClient.post).toHaveBeenNthCalledWith(
+        2,
         "/v1/register-user",
         {
           wantedUsername: tokenPayload.nickname,
