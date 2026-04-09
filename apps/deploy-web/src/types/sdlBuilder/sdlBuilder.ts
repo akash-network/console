@@ -354,7 +354,7 @@ export const ServiceSchema = z
     params: z
       .object({
         permissions: z.object({
-          read: z.array(z.enum(["deployment", "logs"]))
+          read: z.array(z.enum(["deployment", "logs", "events"]))
         })
       })
       .optional()
