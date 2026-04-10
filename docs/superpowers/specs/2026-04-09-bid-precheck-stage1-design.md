@@ -12,7 +12,7 @@ Stage 1 pre-filters providers using our indexer database to narrow the candidate
 ## Endpoint
 
 ```
-POST /v1/bid-precheck
+POST /v1/bid-screening
 ```
 
 No authentication required (`SECURITY_NONE`) — read-only public data, same as `GET /v1/providers`.

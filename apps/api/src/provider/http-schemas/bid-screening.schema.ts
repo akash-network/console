@@ -33,7 +33,7 @@ const PlacementRequirementsSchema = z.object({
     .default({})
 });
 
-export const BidPrecheckRequestSchema = z.object({
+export const BidScreeningRequestSchema = z.object({
   data: z.object({
     resources: z.array(ResourceUnitSchema).min(1),
     requirements: PlacementRequirementsSchema.default({}),
@@ -41,7 +41,7 @@ export const BidPrecheckRequestSchema = z.object({
   })
 });
 
-export type BidPrecheckRequest = z.infer<typeof BidPrecheckRequestSchema>;
+export type BidScreeningRequest = z.infer<typeof BidScreeningRequestSchema>;
 
 const ProviderMatchSchema = z.object({
   owner: z.string(),
@@ -60,7 +60,7 @@ const ConstraintSchema = z.object({
   actionableFeedback: z.string()
 });
 
-export const BidPrecheckResponseSchema = z.object({
+export const BidScreeningResponseSchema = z.object({
   data: z.object({
     providers: z.array(ProviderMatchSchema),
     total: z.number(),
@@ -69,4 +69,4 @@ export const BidPrecheckResponseSchema = z.object({
   })
 });
 
-export type BidPrecheckResponse = z.infer<typeof BidPrecheckResponseSchema>;
+export type BidScreeningResponse = z.infer<typeof BidScreeningResponseSchema>;

@@ -2,7 +2,7 @@ import { QueryTypes, Sequelize } from "sequelize";
 import { inject, singleton } from "tsyringe";
 
 import { CHAIN_DB } from "@src/chain";
-import type { BidPrecheckRequest } from "@src/provider/http-schemas/bid-precheck.schema";
+import type { BidScreeningRequest } from "@src/provider/http-schemas/bid-screening.schema";
 
 interface ProviderMatchRow {
   owner: string;
@@ -25,7 +25,7 @@ export interface Constraint {
   actionableFeedback: string;
 }
 
-export interface BidPrecheckResult {
+export interface BidScreeningResult {
   providers: ProviderMatchRow[];
   total: number;
   queryTimeMs: number;
@@ -49,14 +49,14 @@ interface AggregatedResources {
 }
 
 @singleton()
-export class BidPrecheckService {
+export class BidScreeningService {
   readonly #chainDb: Sequelize;
 
   constructor(@inject(CHAIN_DB) chainDb: Sequelize) {
     this.#chainDb = chainDb;
   }
 
-  async findMatchingProviders(input: BidPrecheckRequest["data"]): Promise<BidPrecheckResult> {
+  async findMatchingProviders(input: BidScreeningRequest["data"]): Promise<BidScreeningResult> {
     const agg = this.aggregateResources(input.resources);
     const limit = input.limit ?? 50;
 
@@ -73,7 +73,7 @@ export class BidPrecheckService {
     const queryTimeMs = Math.round((performance.now() - start) * 100) / 100;
     const total = Number(countRow?.total ?? 0);
 
-    const result: BidPrecheckResult = { providers, total, queryTimeMs };
+    const result: BidScreeningResult = { providers, total, queryTimeMs };
 
     if (total === 0) {
       result.constraints = await this.diagnoseConstraints(agg, input.requirements);
@@ -82,7 +82,7 @@ export class BidPrecheckService {
     return result;
   }
 
-  aggregateResources(resources: BidPrecheckRequest["data"]["resources"]): AggregatedResources {
+  aggregateResources(resources: BidScreeningRequest["data"]["resources"]): AggregatedResources {
     let totalCpu = 0;
     let totalMemory = 0;
     let totalGpu = 0;
@@ -136,7 +136,7 @@ export class BidPrecheckService {
 
   buildQuery(
     agg: AggregatedResources,
-    requirements: BidPrecheckRequest["data"]["requirements"],
+    requirements: BidScreeningRequest["data"]["requirements"],
     limit: number | undefined,
     isCount: boolean
   ): { sql: string; replacements: Record<string, unknown> } {
@@ -276,7 +276,7 @@ export class BidPrecheckService {
     return { sql, replacements };
   }
 
-  async diagnoseConstraints(agg: AggregatedResources, requirements: BidPrecheckRequest["data"]["requirements"]): Promise<Constraint[]> {
+  async diagnoseConstraints(agg: AggregatedResources, requirements: BidScreeningRequest["data"]["requirements"]): Promise<Constraint[]> {
     const checks: { name: string; sql: string; replacements: Record<string, unknown>; feedback: string }[] = [
       {
         name: "Online providers (baseline)",
