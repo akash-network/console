@@ -29,38 +29,29 @@ export const EmailVerificationStep: React.FunctionComponent<EmailVerificationSte
   const [isResending, setIsResending] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
-  const cooldownRef = useRef(0);
-  const isSendingRef = useRef(false);
   const codeInputRef = useRef<VerificationCodeInputRef>(null);
 
   useEffect(() => {
     if (cooldownSeconds <= 0) return;
 
     const timer = setTimeout(() => {
-      const next = cooldownSeconds - 1;
-      cooldownRef.current = next;
-      setCooldownSeconds(next);
+      setCooldownSeconds(prev => prev - 1);
     }, 1000);
 
     return () => clearTimeout(timer);
   }, [cooldownSeconds]);
 
   const handleResendCode = useCallback(async () => {
-    if (isSendingRef.current || cooldownRef.current > 0) return;
-
-    isSendingRef.current = true;
     setIsResending(true);
     codeInputRef.current?.reset();
 
     try {
       await sendCode();
-      cooldownRef.current = COOLDOWN_DURATION;
       setCooldownSeconds(COOLDOWN_DURATION);
       notificator.success("Verification code sent. Please check your email for the 6-digit code.");
     } catch {
       notificator.error("Failed to send verification code. Please try again later");
     } finally {
-      isSendingRef.current = false;
       setIsResending(false);
     }
   }, [sendCode, notificator]);
@@ -79,7 +70,7 @@ export const EmailVerificationStep: React.FunctionComponent<EmailVerificationSte
         setIsVerifying(false);
       }
     },
-    [verifyCode, notificator, d]
+    [verifyCode, notificator, d.extractErrorMessage]
   );
 
   return (
@@ -102,12 +93,7 @@ export const EmailVerificationStep: React.FunctionComponent<EmailVerificationSte
           <p className="text-sm text-muted-foreground">Didn't receive the code? Check your spam folder or request a new one.</p>
 
           <Button onClick={handleResendCode} variant="outline" disabled={isResending || isVerifying || cooldownSeconds > 0} className="w-full">
-            {isVerifying ? (
-              <>
-                <Spinner size="small" className="mr-2" />
-                Verifying...
-              </>
-            ) : isResending ? (
+            {isResending ? (
               <>
                 <Spinner size="small" className="mr-2" />
                 Sending...

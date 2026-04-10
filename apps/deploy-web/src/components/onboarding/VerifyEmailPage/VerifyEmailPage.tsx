@@ -10,7 +10,11 @@ const DEPENDENCIES = {
   Layout,
   Loading,
   NextSeo,
-  UrlService
+  UrlService,
+  redirect: (url: string) => {
+    window.localStorage.setItem(ONBOARDING_STEP_KEY, OnboardingStepIndex.EMAIL_VERIFICATION.toString());
+    window.location.href = url;
+  }
 };
 
 type VerifyEmailPageProps = {
@@ -19,9 +23,8 @@ type VerifyEmailPageProps = {
 
 export function VerifyEmailPage({ dependencies: d = DEPENDENCIES }: VerifyEmailPageProps) {
   useEffect(() => {
-    window.localStorage.setItem(ONBOARDING_STEP_KEY, OnboardingStepIndex.EMAIL_VERIFICATION.toString());
-    window.location.href = d.UrlService.onboarding({ returnTo: "/" });
-  }, [d.UrlService]);
+    d.redirect(d.UrlService.onboarding({ returnTo: "/" }));
+  }, [d]);
 
   return (
     <d.Layout>
