@@ -1,5 +1,7 @@
 import { faker } from "@faker-js/faker";
 import type { GetUsers200ResponseOneOfInner, ManagementClient } from "auth0";
+import type { Mock } from "vitest";
+import { vi } from "vitest";
 
 import { Auth0Service } from "./auth0.service";
 
@@ -8,7 +10,7 @@ import { createAuth0User } from "@test/seeders";
 describe(Auth0Service.name, () => {
   describe("createUser", () => {
     it("calls managementClient.users.create with verify_email false", async () => {
-      const create = jest.fn().mockResolvedValue({ data: {} });
+      const create = vi.fn().mockResolvedValue({ data: {} });
       const { auth0Service } = setup({ users: { create } });
 
       await auth0Service.createUser({
@@ -28,7 +30,7 @@ describe(Auth0Service.name, () => {
 
   describe("sendVerificationEmail", () => {
     it("calls managementClient.jobs.verifyEmail with user ID", async () => {
-      const verifyEmail = jest.fn().mockResolvedValue(undefined);
+      const verifyEmail = vi.fn().mockResolvedValue(undefined);
       const { auth0Service } = setup({ jobs: { verifyEmail } });
 
       await auth0Service.sendVerificationEmail("auth0|abc123");
@@ -39,7 +41,7 @@ describe(Auth0Service.name, () => {
 
   describe("markEmailVerified", () => {
     it("calls managementClient.users.update with email_verified true", async () => {
-      const update = jest.fn().mockResolvedValue(undefined);
+      const update = vi.fn().mockResolvedValue(undefined);
       const { auth0Service } = setup({ users: { update } });
 
       await auth0Service.markEmailVerified("auth0|xyz789");
@@ -56,7 +58,7 @@ describe(Auth0Service.name, () => {
         email_verified: true
       });
 
-      const mockGetByEmail = jest.fn().mockResolvedValue({ data: [mockUser] });
+      const mockGetByEmail = vi.fn().mockResolvedValue({ data: [mockUser] });
       const { auth0Service } = setup({ usersByEmail: { getByEmail: mockGetByEmail } });
 
       const result = await auth0Service.getUserByEmail(email);
@@ -68,7 +70,7 @@ describe(Auth0Service.name, () => {
     it("returns null when no user is found", async () => {
       const email = faker.internet.email();
 
-      const mockGetByEmail = jest.fn().mockResolvedValue({ data: [] });
+      const mockGetByEmail = vi.fn().mockResolvedValue({ data: [] });
       const { auth0Service } = setup({ usersByEmail: { getByEmail: mockGetByEmail } });
 
       const result = await auth0Service.getUserByEmail(email);
@@ -90,7 +92,7 @@ describe(Auth0Service.name, () => {
         })
       ];
 
-      const mockGetByEmail = jest.fn().mockResolvedValue({ data: mockUsers });
+      const mockGetByEmail = vi.fn().mockResolvedValue({ data: mockUsers });
       const { auth0Service } = setup({ usersByEmail: { getByEmail: mockGetByEmail } });
 
       const result = await auth0Service.getUserByEmail(email);
@@ -100,7 +102,7 @@ describe(Auth0Service.name, () => {
     });
 
     it("returns null for empty email string", async () => {
-      const mockGetByEmail = jest.fn().mockResolvedValue({ data: [] });
+      const mockGetByEmail = vi.fn().mockResolvedValue({ data: [] });
       const { auth0Service } = setup({ usersByEmail: { getByEmail: mockGetByEmail } });
 
       const result = await auth0Service.getUserByEmail("");
@@ -112,9 +114,9 @@ describe(Auth0Service.name, () => {
 
   function setup(
     input: {
-      jobs?: { verifyEmail: jest.Mock };
-      users?: { update?: jest.Mock; create?: jest.Mock };
-      usersByEmail?: { getByEmail: jest.Mock };
+      jobs?: { verifyEmail: Mock };
+      users?: { update?: Mock; create?: Mock };
+      usersByEmail?: { getByEmail: Mock };
     } = {}
   ) {
     const mockManagementClient = {

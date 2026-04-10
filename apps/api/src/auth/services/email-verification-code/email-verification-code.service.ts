@@ -30,12 +30,13 @@ export class EmailVerificationCodeService {
   ) {}
 
   async sendCode(userInternalId: string): Promise<{ codeSentAt: string }> {
-    const user = await this.userRepository.findById(userInternalId);
+    const since = new Date(Date.now() - RATE_LIMIT_WINDOW_MS);
+    const [user, recentCount] = await Promise.all([
+      this.userRepository.findById(userInternalId),
+      this.emailVerificationCodeRepository.countRecentByUserId(userInternalId, since)
+    ]);
     assert(user, 404, "User not found");
     assert(user.email, 400, "User has no email address");
-
-    const since = new Date(Date.now() - RATE_LIMIT_WINDOW_MS);
-    const recentCount = await this.emailVerificationCodeRepository.countRecentByUserId(userInternalId, since);
     assert(recentCount < MAX_CODES_PER_WINDOW, 429, "Too many verification code requests. Please try again later.");
 
     const code = randomInt(100000, 1000000).toString();

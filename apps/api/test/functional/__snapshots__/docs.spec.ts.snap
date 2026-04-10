@@ -15651,8 +15651,6 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                   "data": {
                     "properties": {
                       "code": {
-                        "maxLength": 6,
-                        "minLength": 6,
                         "pattern": "^\\d{6}$",
                         "type": "string",
                       },
