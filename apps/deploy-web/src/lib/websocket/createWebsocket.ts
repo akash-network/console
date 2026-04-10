@@ -137,16 +137,15 @@ export function waitForEvent<T>(target: WsEvents, type: string): Promise<T | und
 
 function createWsError(event: Event): Error {
   if (event instanceof CloseEvent) {
-    const reason = event.reason || "unknown reason";
-    return new Error(`websocket error: ${event.code} ${reason}`, {
+    return new Error("websocket error", {
       cause: {
         code: event.code,
-        reason: event.reason,
+        reason: event.reason || "unknown reason",
         wasClean: event.wasClean
       }
     });
   }
 
   // https://websockets.spec.whatwg.org/#eventdef-websocket-error
-  return new Error("Generic websocket error");
+  return new Error("websocket error");
 }

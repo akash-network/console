@@ -19,7 +19,6 @@ import { useProviderCredentials } from "@src/hooks/useProviderCredentials/usePro
 import { useThrottledCallback } from "@src/hooks/useThrottle";
 import { useLeaseStatus } from "@src/queries/useLeaseQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
-import type { ErrorHandlerService } from "@src/services/error-handler/error-handler.service";
 import { formatK8sEvent, formatLogMessage } from "@src/services/provider-proxy/logFormatters";
 import type { K8sEventMessage, LogEntryMessage, ProviderProxyMessage } from "@src/services/provider-proxy/provider-proxy.service";
 import type { LeaseDto } from "@src/types/deployment";
@@ -136,7 +135,16 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
       }),
       onLogReceived
     ).catch(error => {
-      handleLogsStreamError(error, abortController.signal, errorHandler, setIsLoadingLogs, setIsConnectionEstablished);
+      if (abortController.signal.aborted) return;
+      setIsLoadingLogs(false);
+      setIsConnectionEstablished(false);
+
+      errorHandler.reportError({
+        error,
+        severity: "warning",
+        tags: { category: "deployments", label: "followLogs" },
+        cause: error instanceof Error ? (error as Error & { cause?: unknown }).cause : undefined
+      });
     });
 
     return () => {
@@ -306,21 +314,3 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
     </div>
   );
 };
-
-export function handleLogsStreamError(
-  error: unknown,
-  signal: AbortSignal,
-  errorHandler: ErrorHandlerService,
-  setIsLoadingLogs: (v: boolean) => void,
-  setIsConnectionEstablished: (v: boolean) => void
-): void {
-  if (signal.aborted) return;
-  setIsLoadingLogs(false);
-  setIsConnectionEstablished(false);
-
-  errorHandler.reportError({
-    error,
-    severity: "warning",
-    tags: { category: "deployments", label: "followLogs" }
-  });
-}
