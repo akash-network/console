@@ -24,18 +24,21 @@ const ResourceUnitSchema = z
   });
 
 const PlacementRequirementsSchema = z.object({
-  attributes: z.array(z.object({ key: z.string(), value: z.string() })).default([]),
+  attributes: z
+    .array(z.object({ key: z.string(), value: z.string() }))
+    .max(20)
+    .default([]),
   signedBy: z
     .object({
-      allOf: z.array(z.string()).default([]),
-      anyOf: z.array(z.string()).default([])
+      allOf: z.array(z.string()).max(10).default([]),
+      anyOf: z.array(z.string()).max(10).default([])
     })
     .default({})
 });
 
 export const BidScreeningRequestSchema = z.object({
   data: z.object({
-    resources: z.array(ResourceUnitSchema).min(1),
+    resources: z.array(ResourceUnitSchema).min(1).max(20),
     requirements: PlacementRequirementsSchema.default({}),
     limit: z.number().int().min(1).max(200).default(50)
   })
