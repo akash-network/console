@@ -1,5 +1,5 @@
 import { ResponseError } from "auth0";
-import assert from "http-assert";
+import createError from "http-errors";
 import { singleton } from "tsyringe";
 
 import type { SendVerificationEmailRequestInput } from "@src/auth";
@@ -30,13 +30,22 @@ export class AuthController {
     } catch (error) {
       if (error instanceof ResponseError) {
         if (error.statusCode === 409) {
-          assert(false, 422, "Unable to create account. Please try again or use a different email.");
+          throw createError(422, "Unable to create account. Please try again or use a different email.");
         }
-        const body = JSON.parse(error.body);
-        assert(false, error.statusCode, body.message);
+
+        throw createError(error.statusCode, this.extractAuth0Message(error));
       }
 
       throw error;
+    }
+  }
+
+  private extractAuth0Message(error: ResponseError): string {
+    try {
+      const body = JSON.parse(error.body);
+      return body.message || error.message;
+    } catch {
+      return error.message;
     }
   }
 

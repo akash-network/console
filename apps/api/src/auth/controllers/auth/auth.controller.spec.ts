@@ -9,7 +9,7 @@ import type { EmailVerificationCodeService } from "@src/auth/services/email-veri
 import type { UserService } from "@src/user/services/user/user.service";
 import { AuthController } from "./auth.controller";
 
-import { UserSeeder } from "@test/seeders/user.seeder";
+import { createUser } from "@test/seeders/user.seeder";
 
 describe(AuthController.name, () => {
   describe("signup", () => {
@@ -58,7 +58,7 @@ describe(AuthController.name, () => {
 
   describe("sendVerificationCode", () => {
     it("delegates to emailVerificationCodeService and wraps result in data", async () => {
-      const user = UserSeeder.create();
+      const user = createUser();
       const codeSentAt = new Date().toISOString();
       const { controller, emailVerificationCodeService } = setup({ user });
 
@@ -73,7 +73,7 @@ describe(AuthController.name, () => {
 
   describe("verifyEmailCode", () => {
     it("delegates to emailVerificationCodeService with code", async () => {
-      const user = UserSeeder.create();
+      const user = createUser();
       const { controller, emailVerificationCodeService } = setup({ user });
 
       emailVerificationCodeService.verifyCode.mockResolvedValue(undefined);
@@ -86,10 +86,10 @@ describe(AuthController.name, () => {
 
   function setup(
     input: {
-      user?: ReturnType<typeof UserSeeder.create>;
+      user?: ReturnType<typeof createUser>;
     } = {}
   ) {
-    const user = input.user ?? UserSeeder.create();
+    const user = input.user ?? createUser();
 
     rootContainer.register(AuthService, {
       useValue: mock<AuthService>({

@@ -12,12 +12,12 @@ import type { UserRepository } from "@src/user/repositories/user/user.repository
 import type { RegisterUserInput } from "./user.service";
 import { UserService } from "./user.service";
 
-import { UserSeeder } from "@test/seeders/user.seeder";
+import { createUser } from "@test/seeders/user.seeder";
 
 describe(UserService.name, () => {
   describe("registerUser", () => {
     it("sends verification code when email is not verified", async () => {
-      const user = UserSeeder.create({ emailVerified: false, email: "test@example.com" });
+      const user = createUser({ emailVerified: false, email: "test@example.com" });
       const { service, emailVerificationCodeService, userRepository, notificationService } = setup();
 
       userRepository.upsertOnExternalIdConflict.mockResolvedValue(user);
@@ -30,7 +30,7 @@ describe(UserService.name, () => {
     });
 
     it("does not send verification code when email is already verified", async () => {
-      const user = UserSeeder.create({ emailVerified: true, email: "test@example.com" });
+      const user = createUser({ emailVerified: true, email: "test@example.com" });
       const { service, emailVerificationCodeService, userRepository, notificationService } = setup();
 
       userRepository.upsertOnExternalIdConflict.mockResolvedValue(user);
@@ -42,7 +42,7 @@ describe(UserService.name, () => {
     });
 
     it("logs error but does not throw when verification code send fails", async () => {
-      const user = UserSeeder.create({ emailVerified: false, email: "test@example.com" });
+      const user = createUser({ emailVerified: false, email: "test@example.com" });
       const { service, emailVerificationCodeService, userRepository, notificationService, logger } = setup();
       const sendError = new Error("Send failed");
 

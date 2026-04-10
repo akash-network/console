@@ -14,12 +14,12 @@ import type { NotificationService } from "@src/notifications/services/notificati
 import type { UserRepository } from "@src/user/repositories/user/user.repository";
 import { EmailVerificationCodeService } from "./email-verification-code.service";
 
-import { UserSeeder } from "@test/seeders/user.seeder";
+import { createUser } from "@test/seeders/user.seeder";
 
 describe(EmailVerificationCodeService.name, () => {
   describe("sendCode", () => {
     it("creates a new code and sends notification", async () => {
-      const user = UserSeeder.create({ email: "test@example.com" });
+      const user = createUser({ email: "test@example.com" });
       const createdRecord = createVerificationCodeOutput({ userId: user.id });
       const { service, emailVerificationCodeRepository, userRepository, notificationService } = setup();
 
@@ -41,7 +41,7 @@ describe(EmailVerificationCodeService.name, () => {
     });
 
     it("throws 429 when rate limit exceeded", async () => {
-      const user = UserSeeder.create({ email: "test@example.com" });
+      const user = createUser({ email: "test@example.com" });
       const { service, emailVerificationCodeRepository, userRepository } = setup();
 
       userRepository.findById.mockResolvedValue(user);
@@ -59,7 +59,7 @@ describe(EmailVerificationCodeService.name, () => {
     });
 
     it("throws 400 when user has no email", async () => {
-      const user = UserSeeder.create({ email: null });
+      const user = createUser({ email: null });
       const { service, userRepository } = setup();
 
       userRepository.findById.mockResolvedValue(user);
@@ -71,7 +71,7 @@ describe(EmailVerificationCodeService.name, () => {
   describe("verifyCode", () => {
     it("verifies valid code and marks email as verified", async () => {
       const code = "123456";
-      const user = UserSeeder.create({ userId: "auth0|123" });
+      const user = createUser({ userId: "auth0|123" });
       const record = createVerificationCodeOutput({ userId: user.id, code: hashCode(code), attempts: 0 });
       const { service, emailVerificationCodeRepository, userRepository, auth0Service } = setup();
 
@@ -85,7 +85,7 @@ describe(EmailVerificationCodeService.name, () => {
     });
 
     it("throws and increments attempts for invalid code", async () => {
-      const user = UserSeeder.create({ userId: "auth0|123" });
+      const user = createUser({ userId: "auth0|123" });
       const record = createVerificationCodeOutput({ userId: user.id, code: hashCode("123456"), attempts: 0 });
       const { service, emailVerificationCodeRepository, userRepository } = setup();
 
@@ -97,7 +97,7 @@ describe(EmailVerificationCodeService.name, () => {
     });
 
     it("rejects when max attempts exceeded", async () => {
-      const user = UserSeeder.create({ userId: "auth0|123" });
+      const user = createUser({ userId: "auth0|123" });
       const record = createVerificationCodeOutput({ userId: user.id, code: hashCode("123456"), attempts: 5 });
       const { service, emailVerificationCodeRepository, userRepository } = setup();
 
@@ -109,7 +109,7 @@ describe(EmailVerificationCodeService.name, () => {
     });
 
     it("throws and increments attempts for mismatched length code", async () => {
-      const user = UserSeeder.create({ userId: "auth0|123" });
+      const user = createUser({ userId: "auth0|123" });
       const record = createVerificationCodeOutput({ userId: user.id, code: hashCode("123456"), attempts: 0 });
       const { service, emailVerificationCodeRepository, userRepository } = setup();
 
@@ -122,7 +122,7 @@ describe(EmailVerificationCodeService.name, () => {
 
     it("updates local DB even if Auth0 call fails", async () => {
       const code = "123456";
-      const user = UserSeeder.create({ userId: "auth0|123" });
+      const user = createUser({ userId: "auth0|123" });
       const record = createVerificationCodeOutput({ userId: user.id, code: hashCode(code), attempts: 0 });
       const { service, emailVerificationCodeRepository, userRepository, auth0Service } = setup();
 
@@ -136,7 +136,7 @@ describe(EmailVerificationCodeService.name, () => {
     });
 
     it("rejects when no active code exists", async () => {
-      const user = UserSeeder.create({ userId: "auth0|123" });
+      const user = createUser({ userId: "auth0|123" });
       const { service, emailVerificationCodeRepository, userRepository } = setup();
 
       userRepository.findById.mockResolvedValue(user);

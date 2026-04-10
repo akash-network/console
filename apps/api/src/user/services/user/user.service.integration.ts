@@ -1,6 +1,7 @@
 import { faker } from "@faker-js/faker";
 import type { GetUsers200ResponseOneOfInner } from "auth0";
 import { container } from "tsyringe";
+import { vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { Auth0Service } from "@src/auth/services/auth0/auth0.service";
@@ -15,7 +16,7 @@ import { UserService } from "./user.service";
 describe(UserService.name, () => {
   describe("registerUser", () => {
     it("registers a new user", async () => {
-      const createDefaultNotificationChannel = jest.fn(() => Promise.resolve());
+      const createDefaultNotificationChannel = vi.fn(() => Promise.resolve());
       const { service, analyticsService, logger } = setup({ createDefaultNotificationChannel });
 
       const input: RegisterUserInput = {
@@ -346,7 +347,7 @@ describe(UserService.name, () => {
       }),
       auth0Service,
       mock<EmailVerificationCodeService>({
-        sendCode: jest.fn().mockResolvedValue({ codeSentAt: new Date().toISOString() })
+        sendCode: vi.fn().mockResolvedValue({ codeSentAt: new Date().toISOString() })
       })
     );
 
