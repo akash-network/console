@@ -182,7 +182,7 @@ export const generateSdl = (services: ServiceType[], region?: string) => {
       sdl.services[service.title].params = {
         ...sdl.services[service.title].params,
         permissions: {
-          read: ["deployment", "logs"]
+          read: ["deployment", "logs", "events"]
         }
       };
     }

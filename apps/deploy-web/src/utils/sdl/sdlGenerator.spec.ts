@@ -13,7 +13,7 @@ describe("sdlGenerator", () => {
 
       expect(parsed.services["web-log-collector"].params).toEqual({
         permissions: {
-          read: ["deployment", "logs"]
+          read: ["deployment", "logs", "events"]
         }
       });
     });

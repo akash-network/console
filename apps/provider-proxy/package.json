@@ -21,7 +21,7 @@
     "test:unit": "vitest run --project unit"
   },
   "dependencies": {
-    "@akashnetwork/chain-sdk": "1.0.0-alpha.29",
+    "@akashnetwork/chain-sdk": "^1.0.0-alpha.30",
     "@akashnetwork/env-loader": "*",
     "@akashnetwork/instrumentation": "*",
     "@akashnetwork/logging": "*",
