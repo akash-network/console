@@ -64,6 +64,7 @@ import { pricingRouter } from "./pricing";
 import { proposalsRouter } from "./proposal";
 import {
   auditorsRouter,
+  bidScreeningRouter,
   providerAttributesSchemaRouter,
   providerDashboardRouter,
   providerDeploymentsRouter,
@@ -132,6 +133,7 @@ const openApiHonoHandlers: OpenApiHonoHandler[] = [
   certificateRouter,
   getBalancesRouter,
   providersRouter,
+  bidScreeningRouter,
   auditorsRouter,
   providerAttributesSchemaRouter,
   providerRegionsRouter,
