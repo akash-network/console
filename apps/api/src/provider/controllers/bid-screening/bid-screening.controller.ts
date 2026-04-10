@@ -8,15 +8,6 @@ export class BidScreeningController {
   constructor(private readonly bidScreeningService: BidScreeningService) {}
 
   async screen(input: BidScreeningRequest["data"]): Promise<BidScreeningResponse> {
-    const result = await this.bidScreeningService.findMatchingProviders(input);
-
-    return {
-      data: {
-        providers: result.providers,
-        total: result.total,
-        queryTimeMs: result.queryTimeMs,
-        constraints: result.constraints
-      }
-    };
+    return { data: await this.bidScreeningService.findMatchingProviders(input) };
   }
 }

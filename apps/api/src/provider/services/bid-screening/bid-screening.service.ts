@@ -70,14 +70,15 @@ export class BidScreeningService {
       this.#chainDb.query<ProviderMatchRow>(mainSql, { type: QueryTypes.SELECT, replacements: mainReplacements })
     ]);
 
-    const queryTimeMs = Math.round((performance.now() - start) * 100) / 100;
     const total = Number(countRow?.total ?? 0);
 
-    const result: BidScreeningResult = { providers, total, queryTimeMs };
+    const result: BidScreeningResult = { providers, total, queryTimeMs: 0 };
 
     if (total === 0) {
       result.constraints = await this.diagnoseConstraints(agg, input.requirements);
     }
+
+    result.queryTimeMs = Math.round((performance.now() - start) * 100) / 100;
 
     return result;
   }
@@ -104,6 +105,7 @@ export class BidScreeningService {
 
       if (ru.gpu > 0) {
         maxPerReplicaGpu = Math.max(maxPerReplicaGpu, ru.gpu);
+        // Akash SDL uses a single GPU spec per placement — last resource unit's attributes win
         if (ru.gpuAttributes) {
           gpuVendor = ru.gpuAttributes.vendor;
           gpuModel = ru.gpuAttributes.model;
@@ -166,7 +168,6 @@ export class BidScreeningService {
       wheres.push(`ps."availablePersistentStorage" >= :totalPersistentStorage`);
     }
 
-    // GPU model matching via node-level data
     if (agg.totalGpu > 0 && agg.hasGpuAttributes) {
       joins.push(`INNER JOIN "providerSnapshotNode" psn ON psn."snapshotId" = ps.id`);
       joins.push(`INNER JOIN "providerSnapshotNodeGPU" gpu ON gpu."snapshotNodeId" = psn.id`);
@@ -191,7 +192,6 @@ export class BidScreeningService {
       wheres.push(`(psn."gpuAllocatable" - psn."gpuAllocated") >= :perNodeGpu`);
     }
 
-    // Persistent storage class matching
     if (agg.hasPersistentStorage && agg.persistentStorageClass) {
       replacements.storageClass = agg.persistentStorageClass;
       joins.push(`INNER JOIN "providerSnapshotStorage" pss ON pss."snapshotId" = ps.id`);
@@ -199,7 +199,6 @@ export class BidScreeningService {
       wheres.push(`(pss.allocatable - pss.allocated) >= :totalPersistentStorage`);
     }
 
-    // Provider attribute matching
     const havingClauses: string[] = [];
 
     if (requirements.attributes.length > 0) {
@@ -211,7 +210,6 @@ export class BidScreeningService {
       });
     }
 
-    // Auditor signature matching
     if (requirements.signedBy.anyOf.length > 0 || requirements.signedBy.allOf.length > 0) {
       joins.push(`INNER JOIN "providerAttributeSignature" pas ON pas.provider = p.owner`);
 
@@ -412,19 +410,26 @@ export class BidScreeningService {
       });
     }
 
-    const results: Constraint[] = [];
-    for (const check of checks) {
-      const [row] = await this.#chainDb.query<ConstraintCheckRow>(check.sql, {
-        replacements: check.replacements,
-        type: QueryTypes.SELECT
-      });
-      results.push({
-        name: check.name,
-        count: Number(row.c),
-        actionableFeedback: check.feedback
-      });
+    const [baselineRow] = await this.#chainDb.query<ConstraintCheckRow>(checks[0].sql, {
+      replacements: checks[0].replacements,
+      type: QueryTypes.SELECT
+    });
+    const baselineCount = Number(baselineRow.c);
+
+    if (baselineCount === 0) {
+      return [{ name: checks[0].name, count: 0, actionableFeedback: "No providers are currently online" }];
     }
 
-    return results;
+    const remaining = await Promise.all(
+      checks.slice(1).map(async check => {
+        const [row] = await this.#chainDb.query<ConstraintCheckRow>(check.sql, {
+          replacements: check.replacements,
+          type: QueryTypes.SELECT
+        });
+        return { name: check.name, count: Number(row.c), actionableFeedback: check.feedback };
+      })
+    );
+
+    return [{ name: checks[0].name, count: baselineCount, actionableFeedback: checks[0].feedback }, ...remaining];
   }
 }

@@ -345,11 +345,10 @@ describe(BidScreeningService.name, () => {
 
     it("runs constraint diagnosis when total is 0", async () => {
       const { service, chainDb } = setup();
-      // count query returns 0
       chainDb.query
         .mockResolvedValueOnce([{ total: "0" }] as never)
         .mockResolvedValueOnce([] as never)
-        // diagnoseConstraints: 4 baseline checks (online, cpu, memory, ephemeral)
+        // diagnoseConstraints: baseline first, then cpu/memory/ephemeral in parallel
         .mockResolvedValueOnce([{ c: "72" }] as never)
         .mockResolvedValueOnce([{ c: "60" }] as never)
         .mockResolvedValueOnce([{ c: "50" }] as never)
@@ -388,11 +387,9 @@ describe(BidScreeningService.name, () => {
 
       await service.findMatchingProviders({
         resources: [{ cpu: 1000, memory: 512, gpu: 0, ephemeralStorage: 1024, count: 1 }],
-        requirements: defaultRequirements(),
-        limit: 50
+        requirements: defaultRequirements()
       });
 
-      // The main query (2nd call) replacements should include limit: 50
       const mainQueryCall = chainDb.query.mock.calls[1];
       const mainQueryOptions = mainQueryCall[1] as { replacements: Record<string, unknown> };
       expect(mainQueryOptions.replacements).toHaveProperty("limit", 50);
