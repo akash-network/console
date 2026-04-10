@@ -9,10 +9,10 @@ import type {
   EmailVerificationCodeRepository
 } from "@src/auth/repositories/email-verification-code/email-verification-code.repository";
 import type { Auth0Service } from "@src/auth/services/auth0/auth0.service";
+import { EmailVerificationCodeService } from "@src/auth/services/email-verification-code/email-verification-code.service";
 import type { LoggerService } from "@src/core/providers/logging.provider";
 import type { NotificationService } from "@src/notifications/services/notification/notification.service";
 import type { UserRepository } from "@src/user/repositories/user/user.repository";
-import { EmailVerificationCodeService } from "./email-verification-code.service";
 
 import { createUser } from "@test/seeders/user.seeder";
 

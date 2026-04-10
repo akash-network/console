@@ -59,7 +59,12 @@ export class EmailVerificationCodeService {
   async verifyCode(userInternalId: string, code: string): Promise<void> {
     const auth0UserId = await this.verifyCodeInTransaction(userInternalId, code);
 
-    await this.auth0Service.markEmailVerified(auth0UserId);
+    try {
+      await this.auth0Service.markEmailVerified(auth0UserId);
+    } catch (error) {
+      this.logger.error({ event: "EMAIL_VERIFIED_MARK_AUTH0_FAILED", userId: userInternalId, auth0UserId, error });
+      throw error;
+    }
 
     this.logger.info({ event: "EMAIL_VERIFIED_VIA_CODE", userId: userInternalId });
   }
