@@ -277,7 +277,7 @@ describe(createWebsocket.name, () => {
 
         expect(websocketFactory).toHaveBeenCalledTimes(6);
         expect(onError).toHaveBeenCalledTimes(1);
-        expect(onError.mock.calls[0][0]?.detail?.message).toBe("websocket error");
+        expect(onError.mock.calls[0][0]?.detail?.message).toMatch(/Generic websocket error/i);
       });
 
       it("do not retrying after successful connection", async () => {

@@ -147,5 +147,5 @@ function createWsError(event: Event): Error {
   }
 
   // https://websockets.spec.whatwg.org/#eventdef-websocket-error
-  return new Error("websocket error");
+  return new Error("Generic websocket error");
 }
