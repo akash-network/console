@@ -26,9 +26,6 @@ export const useEmailVerificationRequiredEventHandler = (): ((messageOtherwise: 
               size: "lg",
               onClick: () => {
                 analyticsService.track("resend_verification_email_btn_clk", "Amplitude");
-                if (!user?.id) {
-                  return;
-                }
 
                 auth
                   .sendVerificationCode()
@@ -58,6 +55,6 @@ export const useEmailVerificationRequiredEventHandler = (): ((messageOtherwise: 
 
       return user?.emailVerified ? handler : preventer;
     },
-    [user?.emailVerified, user?.id, requireAction, enqueueSnackbar, auth, analyticsService]
+    [user?.emailVerified, requireAction, enqueueSnackbar, auth, analyticsService]
   );
 };
