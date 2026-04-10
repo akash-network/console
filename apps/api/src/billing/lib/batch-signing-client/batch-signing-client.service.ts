@@ -56,7 +56,7 @@ interface SignAndBroadcastBatchOptions {
  * Transactions are signed locally and then broadcast to the blockchain network.
  */
 export class BatchSigningClientService {
-  private readonly MEMO = "akash console";
+  private readonly MEMO = "akash console - managed";
 
   /**
    * The denomination for transaction fees (uakt = micro AKT).
