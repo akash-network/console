@@ -24,6 +24,7 @@ import { useRouter } from "next/navigation";
 import { useLocalNotes } from "@src/components/LocalNoteManager";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useDepositDeployment } from "@src/hooks/useDepositDeployment/useDepositDeployment";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import { useRealTimeLeft } from "@src/hooks/useRealTimeLeft";
@@ -106,25 +107,21 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
     setOpen(false);
   };
 
-  const onDeploymentDeposit: DeploymentDepositModalProps["onDeploymentDeposit"] = async deposit => {
-    setIsDepositingDeployment(false);
-
-    const message = TransactionMessageData.getDepositDeploymentMsg(
-      address,
-      address,
-      deployment.dseq,
-      deposit,
-      deployment.escrowAccount.state.funds[0]?.denom || ""
-    );
-    const response = await signAndBroadcastTx([message]);
-    if (response) {
+  const { deposit: depositDeployment } = useDepositDeployment({
+    dseq: deployment.dseq,
+    denom: deployment.escrowAccount.state.funds[0]?.denom || "",
+    onSuccess: () => {
       refreshDeployments();
-
       analyticsService.track("deployment_deposit", {
         category: "deployments",
         label: "Deposit to deployment from list"
       });
     }
+  });
+
+  const onDeploymentDeposit: DeploymentDepositModalProps["onSubmit"] = deposit => {
+    setIsDepositingDeployment(false);
+    depositDeployment(deposit);
   };
 
   const onCloseDeployment = async () => {
@@ -365,8 +362,8 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
         <DeploymentDepositModal
           denom={deployment.escrowAccount.state.funds[0]?.denom || ""}
           disableMin
-          handleCancel={() => setIsDepositingDeployment(false)}
-          onDeploymentDeposit={onDeploymentDeposit}
+          onCancel={() => setIsDepositingDeployment(false)}
+          onSubmit={onDeploymentDeposit}
         />
       )}
     </>

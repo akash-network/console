@@ -18,6 +18,7 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useCurrencyFormatter } from "@src/hooks/useCurrencyFormatter/useCurrencyFormatter";
 import { useDeploymentMetrics } from "@src/hooks/useDeploymentMetrics";
+import { useDepositDeployment } from "@src/hooks/useDepositDeployment/useDepositDeployment";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import { usePricing } from "@src/hooks/usePricing/usePricing";
@@ -42,6 +43,7 @@ export const DEPENDENCIES = {
   useLocalNotes,
   useWallet,
   useCurrencyFormatter,
+  useDepositDeployment,
   useDeploymentMetrics,
   useManagedDeploymentConfirm,
   usePreviousRoute,
@@ -123,27 +125,25 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
     router.push(url);
   };
 
-  const onDeploymentDeposit = async (deposit: number) => {
-    setIsDepositingDeployment(false);
-    const message = TransactionMessageData.getDepositDeploymentMsg(
-      address,
-      address,
-      deployment.dseq,
-      deposit,
-      deployment.escrowAccount.state.funds[0]?.denom || ""
-    );
-    const response = await wallet.signAndBroadcastTx([message]);
-    if (response) {
+  const { deposit: depositDeployment } = d.useDepositDeployment({
+    dseq: deployment.dseq,
+    denom: deployment.escrowAccount.state.funds[0]?.denom || "",
+    onSuccess: () => {
       loadDeploymentDetail();
-
       analyticsService.track("deployment_deposit", {
         category: "deployments",
         label: "Deposit deployment in deployment detail"
       });
     }
+  });
 
-    return response;
-  };
+  const onDeploymentDeposit = useCallback(
+    async (deposit: number) => {
+      setIsDepositingDeployment(false);
+      return depositDeployment(deposit);
+    },
+    [depositDeployment]
+  );
 
   const formatCurrency = useCurrencyFormatter();
   const setAutoTopUpEnabled = useCallback(
@@ -166,9 +166,8 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
             return;
           }
 
-          const isSuccess = await onDeploymentDeposit(deposit);
-
-          if (!isSuccess) {
+          const deposited = await onDeploymentDeposit(deposit);
+          if (!deposited) {
             return;
           }
         }
@@ -309,8 +308,8 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
         <d.DeploymentDepositModal
           denom={deployment.escrowAccount.state.funds[0]?.denom || ""}
           disableMin
-          handleCancel={() => setIsDepositingDeployment(false)}
-          onDeploymentDeposit={onDeploymentDeposit}
+          onCancel={() => setIsDepositingDeployment(false)}
+          onSubmit={onDeploymentDeposit}
         />
       )}
     </>

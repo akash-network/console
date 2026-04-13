@@ -449,23 +449,25 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
 
       {isDepositingDeployment && (
         <d.DeploymentDepositModal
-          handleCancel={() => setIsDepositingDeployment(false)}
-          onDeploymentDeposit={onDeploymentDeposit}
+          onCancel={() => setIsDepositingDeployment(false)}
+          onSubmit={onDeploymentDeposit}
           denom={sdlDenom}
           title="Confirm deployment creation?"
-          infoText={
-            <d.Alert className="mb-6 text-xs" variant="default">
+          subtitle={
+            <span>
               <d.DeploymentMinimumEscrowAlertText denom={sdlDenom} />
-              <d.LinkTo onClick={ev => handleDocClick(ev, "https://akash.network/docs/getting-started/intro-to-akash/payments/#escrow-accounts")}>
-                <strong>Learn more.</strong>
+              <d.LinkTo
+                onClick={ev => handleDocClick(ev, "https://akash.network/docs/getting-started/intro-to-akash/payments/#escrow-accounts")}
+                className="text-gray-500 no-underline hover:underline disabled:text-gray-300"
+              >
+                Learn more.
               </d.LinkTo>
-
               {isTrialing && (
-                <div className="mt-2">
+                <span className="mt-2 block">
                   <d.TrialDeploymentBadge />
-                </div>
+                </span>
               )}
-            </d.Alert>
+            </span>
           }
           services={services}
         />
