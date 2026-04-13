@@ -148,16 +148,16 @@ export const LogCollectorControl: FC<Props> = ({ serviceIndex, dependencies: d =
         label="Enable log forwarding for this service"
       />{" "}
       {!isAdding && logCollectorService && (
-        <div>
-          <div>
-            <FormLabel htmlFor="provider" className="mb-2 mt-4 flex items-center">
-              Provider
-              <CustomTooltip title={<>We are actively working on adding support for more providers.</>}>
-                <InfoCircle className="ml-2 text-xs text-muted-foreground" />
-              </CustomTooltip>
-            </FormLabel>
+        <div className="mt-4 flex flex-col gap-4">
+          <div className="rounded-xl border border-border bg-card p-4">
+            <FormLabel className="mb-1">Log Provider Info</FormLabel>
+            <p className="mb-4 text-sm text-muted-foreground">
+              We currently only offer support for <strong>Datadog</strong> but will be adding other options in the future.
+            </p>
+
+            <FormLabel htmlFor="provider">Provider Selection</FormLabel>
             <Select value="DATADOG" disabled>
-              <SelectTrigger id="provider">
+              <SelectTrigger id="provider" className="mt-2">
                 <SelectValue placeholder="Select Provider" />
               </SelectTrigger>
               <SelectContent>
@@ -166,20 +166,25 @@ export const LogCollectorControl: FC<Props> = ({ serviceIndex, dependencies: d =
                 </SelectGroup>
               </SelectContent>
             </Select>
+
+            <div className="ml-10">
+              <DatadogEnvConfig serviceIndex={logCollectorServiceIndex} />
+            </div>
           </div>
 
-          <DatadogEnvConfig serviceIndex={logCollectorServiceIndex} />
+          <div className="rounded-xl border border-border bg-card p-4">
+            <FormLabel className="mb-1">Resources</FormLabel>
+            <p className="mb-4 text-sm text-muted-foreground">This runs as a separate service alongside the main deployment for log collection.</p>
 
-          <div className="mt-4">
             <CpuFormControl control={control} currentService={logCollectorService} serviceIndex={logCollectorServiceIndex} />
-          </div>
 
-          <div className="mt-4">
-            <MemoryFormControl control={control} serviceIndex={logCollectorServiceIndex} />
-          </div>
+            <div className="mt-4">
+              <MemoryFormControl control={control} serviceIndex={logCollectorServiceIndex} />
+            </div>
 
-          <div className="mt-4">
-            <EphemeralStorageFormControl services={allServices} control={control} serviceIndex={logCollectorServiceIndex} />
+            <div className="mt-4">
+              <EphemeralStorageFormControl services={allServices} control={control} serviceIndex={logCollectorServiceIndex} />
+            </div>
           </div>
         </div>
       )}

@@ -29,7 +29,7 @@ export const DatadogEnvConfig: FC<Props> = ({ serviceIndex, dependencies: d = { 
           type="text"
           label="Regional URL"
           className="w-full"
-          placeholder="Example: app.datadoghq.com"
+          placeholder="Example: datadoghq.eu"
           error={!!env.errors.DD_SITE}
         />
         {env.errors.DD_SITE && <p className="mt-2 text-xs font-medium text-destructive">{env.errors.DD_SITE}</p>}
@@ -40,9 +40,9 @@ export const DatadogEnvConfig: FC<Props> = ({ serviceIndex, dependencies: d = { 
           value={env.values.DD_API_KEY}
           onChange={e => env.setValue("DD_API_KEY", e.target.value)}
           type="password"
-          label="API Key"
+          label="Provider API"
           className="w-full"
-          placeholder="Paste your API key here"
+          placeholder="Paste the API key from your provider here"
           error={!!env.errors.DD_API_KEY}
         />
         {env.errors.DD_API_KEY && <p className="mt-2 text-xs font-medium text-destructive">{env.errors.DD_API_KEY}</p>}
