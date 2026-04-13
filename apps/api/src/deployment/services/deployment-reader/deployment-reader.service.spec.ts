@@ -80,6 +80,52 @@ describe(DeploymentReaderService.name, () => {
     });
   });
 
+  describe("listWithResources", () => {
+    it("passes status as state with offset pagination when skip is provided", async () => {
+      const address = "akash1abc";
+      const { service, deploymentHttpService } = setup();
+
+      await service.listWithResources({ address, skip: 10, limit: 100, status: "active" });
+
+      expect(deploymentHttpService.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          owner: address,
+          state: "active",
+          pagination: expect.objectContaining({ offset: 10 })
+        })
+      );
+    });
+
+    it("passes status as state with offset pagination when status is closed", async () => {
+      const address = "akash1abc";
+      const { service, deploymentHttpService } = setup();
+
+      await service.listWithResources({ address, skip: 0, limit: 50, status: "closed" });
+
+      expect(deploymentHttpService.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          owner: address,
+          state: "closed",
+          pagination: expect.objectContaining({ offset: 0 })
+        })
+      );
+    });
+
+    it("passes status as state without offset when skip is not provided", async () => {
+      const address = "akash1abc";
+      const { service, deploymentHttpService } = setup();
+
+      await service.listWithResources({ address, status: "active" });
+
+      expect(deploymentHttpService.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          owner: address,
+          state: "active"
+        })
+      );
+    });
+  });
+
   function createNetworkError(code: string): AxiosError {
     const error = new AxiosError(code);
     error.code = code;
