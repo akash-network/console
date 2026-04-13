@@ -114,18 +114,16 @@ export class PodDiscoveryService {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Event stream generators
-  // ---------------------------------------------------------------------------
-
   /**
    * Top-level orchestrator generator.
-   * - Tries K8s watch. If it connects and later ends, reconnects immediately.
+   * - Tries K8s watch. On clean end, re-lists to anchor a fresh resourceVersion
+   *   before reconnecting (canonical ListAndWatch pattern — avoids tight-loop
+   *   reconnects with a stale resourceVersion the server has already evicted).
    * - On 403, yields from permanent polling.
    * - On other errors, yields from timed polling, then retries watch.
    *
-   * Threads resourceVersion from initial list → watch → polling → next watch
-   * to avoid missing events between transitions. Resets accumulated watch
+   * Threads resourceVersion from initial list → watch → re-list/polling → next
+   * watch to avoid missing events between transitions. Resets accumulated watch
    * errors after a successful watch connection.
    *
    * @param initialResourceVersion - resourceVersion from the initial pod list, used for the first watch
@@ -139,6 +137,9 @@ export class PodDiscoveryService {
       try {
         yield* this.watchEvents(resourceVersion);
         watchErrors.length = 0;
+        const listing = await this.listPodsRaw();
+        yield* this.reconcileTrackedPods(listing.pods);
+        resourceVersion = listing.resourceVersion;
       } catch (error) {
         if (this.errorHandlerService.isForbidden(error)) {
           this.loggerService.warn({
@@ -184,6 +185,13 @@ export class PodDiscoveryService {
         path,
         { labelSelector, resourceVersion },
         (phase: string, apiObj: V1Pod) => {
+          if (phase === "ERROR") {
+            isDone = true;
+            doneError = new Error((apiObj as unknown as { message?: string }).message || "Pod watch terminated by server");
+            channel.close();
+            return;
+          }
+
           if (phase === "DELETED") {
             const podName = apiObj.metadata?.name;
             if (podName && this.controllers.has(podName)) {
@@ -200,6 +208,7 @@ export class PodDiscoveryService {
           }
         },
         (err?: unknown) => {
+          if (isDone) return;
           isDone = true;
           doneError = err;
           channel.close();
@@ -239,9 +248,9 @@ export class PodDiscoveryService {
     try {
       while (!signal?.aborted) {
         try {
-          const { pods: currentPods, resourceVersion } = await this.discoverPodsInNamespace();
-          lastResourceVersion = resourceVersion;
-          yield* this.reconcilePolledPods(currentPods);
+          const listing = await this.listPodsRaw();
+          lastResourceVersion = listing.resourceVersion;
+          yield* this.reconcileTrackedPods(listing.pods);
           consecutiveErrors.length = 0;
         } catch (error) {
           consecutiveErrors.push(error instanceof Error ? error : new Error(String(error)));
@@ -265,27 +274,6 @@ export class PodDiscoveryService {
     return lastResourceVersion;
   }
 
-  /** Diffs polled pods against tracked state, yielding add/delete events. */
-  private *reconcilePolledPods(currentPods: PodInfo[]): Generator<PodEvent> {
-    const currentPodNames = new Set(currentPods.map(p => p.podName));
-
-    for (const pod of currentPods) {
-      if (!this.controllers.has(pod.podName)) {
-        yield { type: "added", podInfo: pod };
-      }
-    }
-
-    for (const podName of this.controllers.keys()) {
-      if (!currentPodNames.has(podName)) {
-        yield { type: "deleted", podName };
-      }
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // Pod discovery & filtering
-  // ---------------------------------------------------------------------------
-
   /**
    * Discovers all pods in the current namespace, excluding the current pod
    *
@@ -294,35 +282,62 @@ export class PodDiscoveryService {
    */
   async discoverPodsInNamespace(): Promise<{ pods: PodInfo[]; resourceVersion?: string }> {
     const namespace = this.getCurrentNamespace();
-
     this.loggerService.debug({ event: "POD_DISCOVERY_STARTED", namespace });
 
-    const response = await this.k8sClient.listNamespacedPod({
-      namespace,
-      labelSelector: this.config.get("POD_LABEL_SELECTOR")
-    });
-
-    const resourceVersion = response.metadata?.resourceVersion;
-    const currentPodName = this.config.get("HOSTNAME");
-    const pods = response.items.filter(pod => this.isPodReady(pod)).map(pod => this.mapPodToInfo(pod, namespace));
-
-    const targetPods = this.filterOutPodsFromSameDeployment(pods, currentPodName);
+    const { pods, totalPods, resourceVersion } = await this.listPodsRaw();
+    const targetPods = pods.filter(pod => this.isPodReady(pod)).map(pod => this.mapPodToInfo(pod, namespace));
 
     this.loggerService.debug({
       event: "POD_DISCOVERY_COMPLETED",
       namespace,
-      totalPods: response.items.length,
-      readyPods: pods.length,
+      totalPods,
       targetPods: targetPods.length,
-      currentPodName
+      currentPodName: this.config.get("HOSTNAME")
     });
 
     return { pods: targetPods, resourceVersion };
   }
 
-  // ---------------------------------------------------------------------------
-  // Pod tracking
-  // ---------------------------------------------------------------------------
+  private async listPodsRaw() {
+    const namespace = this.getCurrentNamespace();
+    const response = await this.k8sClient.listNamespacedPod({
+      namespace,
+      labelSelector: this.config.get("POD_LABEL_SELECTOR")
+    });
+    const currentPodName = this.config.get("HOSTNAME");
+
+    return {
+      pods: response.items.filter(pod => pod.metadata?.name && !this.isPodFromSameDeployment(pod.metadata.name, currentPodName)),
+      totalPods: response.items.length,
+      resourceVersion: response.metadata?.resourceVersion
+    };
+  }
+
+  /**
+   * Reconciles the tracked pod set against a fresh pod listing.
+   *
+   * Additions are driven by ready pods only, but deletions are checked
+   * against every pod present in the namespace — a pod that is still there
+   * but transiently `Ready=False` must keep its existing stream, matching
+   * the watch behavior that only untracks on a real `DELETED` event.
+   */
+  private *reconcileTrackedPods(pods: V1Pod[]): Generator<PodEvent> {
+    const namespace = this.getCurrentNamespace();
+    const existingPodNames = new Set(pods.map(pod => pod.metadata?.name).filter(Boolean));
+    const readyPods = pods.filter(pod => this.isPodReady(pod)).map(pod => this.mapPodToInfo(pod, namespace));
+
+    for (const pod of readyPods) {
+      if (!this.controllers.has(pod.podName)) {
+        yield { type: "added", podInfo: pod };
+      }
+    }
+
+    for (const podName of this.controllers.keys()) {
+      if (!existingPodNames.has(podName)) {
+        yield { type: "deleted", podName };
+      }
+    }
+  }
 
   /**
    * Starts tracking a pod by creating an AbortController and invoking the callback.
@@ -364,10 +379,6 @@ export class PodDiscoveryService {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Pod filtering utilities
-  // ---------------------------------------------------------------------------
-
   /**
    * Filters a raw V1Pod through readiness and same-deployment checks.
    *
@@ -405,6 +416,8 @@ export class PodDiscoveryService {
    * @returns true if the pod belongs to the same deployment
    */
   private isPodFromSameDeployment(podName: string, currentPodName: string): boolean {
+    if (podName === currentPodName) return true;
+
     const currentParts = currentPodName.split("-");
     if (currentParts.length < 3) return false;
     const currentDeployment = currentParts.slice(0, -2).join("-");
@@ -415,21 +428,6 @@ export class PodDiscoveryService {
 
     return podDeployment === currentDeployment;
   }
-
-  /**
-   * Filters out all pods from the same deployment as the current pod.
-   *
-   * @param pods - Array of discovered pods
-   * @param currentPodName - Name of the current pod
-   * @returns Array of pods excluding all pods from the same deployment
-   */
-  private filterOutPodsFromSameDeployment(pods: PodInfo[], currentPodName: string): PodInfo[] {
-    return pods.filter(pod => pod.podName !== currentPodName && !this.isPodFromSameDeployment(pod.podName, currentPodName));
-  }
-
-  // ---------------------------------------------------------------------------
-  // Namespace resolution
-  // ---------------------------------------------------------------------------
 
   /**
    * Determines the current namespace for pod discovery

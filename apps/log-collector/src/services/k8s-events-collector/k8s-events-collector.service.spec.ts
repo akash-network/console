@@ -12,7 +12,7 @@ import { seedPodInfoTestData } from "@test/seeders/pod-info.seeder";
 describe(K8sEventsCollectorService.name, () => {
   it("should watch events filtered by pod name and write formatted lines", async () => {
     const podInfo = seedPodInfoTestData();
-    const { service, ac, watch, writeStream } = setup({ podInfo });
+    const { service, ac, watch, writeStream, fireEvent, endWatch } = setup({ podInfo });
 
     const event = seedKubernetesEventTestData({
       involvedObject: { kind: "Pod", name: podInfo.podName, namespace: podInfo.namespace },
@@ -45,7 +45,7 @@ describe(K8sEventsCollectorService.name, () => {
 
   it("should log POD_EVENTS_WATCH_ESTABLISHED on first event received", async () => {
     const podInfo = seedPodInfoTestData();
-    const { service, ac, loggerService } = setup({ podInfo });
+    const { service, ac, watch, loggerService, fireEvent, endWatch } = setup({ podInfo });
 
     const event = seedKubernetesEventTestData({ involvedObject: { kind: "Pod", name: podInfo.podName, namespace: podInfo.namespace } });
 
@@ -69,7 +69,7 @@ describe(K8sEventsCollectorService.name, () => {
 
   it("should only include curated fields in the JSON output", async () => {
     const podInfo = seedPodInfoTestData();
-    const { service, ac, writeStream } = setup({ podInfo });
+    const { service, ac, watch, writeStream, fireEvent, endWatch } = setup({ podInfo });
 
     const event = seedKubernetesEventTestData({
       metadata: { resourceVersion: "200", uid: "some-uid", name: "event-name", creationTimestamp: new Date() },
@@ -96,7 +96,7 @@ describe(K8sEventsCollectorService.name, () => {
 
   it("should log POD_EVENTS_WATCH_FORBIDDEN and return on 403 error", async () => {
     const podInfo = seedPodInfoTestData();
-    const { service, loggerService, errorHandlerService } = setup({ podInfo });
+    const { service, watch, loggerService, errorHandlerService, endWatch } = setup({ podInfo });
 
     const forbiddenError = Object.assign(new Error("Forbidden"), { statusCode: 403 });
     errorHandlerService.isForbidden.mockReturnValue(true);
@@ -112,8 +112,7 @@ describe(K8sEventsCollectorService.name, () => {
   });
 
   it("should reconnect when watch ends without error", async () => {
-    const podInfo = seedPodInfoTestData();
-    const { service, ac } = setup({ podInfo });
+    const { service, ac, watch, endWatch } = setup();
 
     const startPromise = service.collectPodEvents();
     await vi.waitFor(() => expect(watch.watch).toHaveBeenCalledTimes(1));
@@ -126,26 +125,95 @@ describe(K8sEventsCollectorService.name, () => {
     await startPromise;
   });
 
-  it("should pass resourceVersion from last event on reconnect", async () => {
-    const podInfo = seedPodInfoTestData();
-    const { service, ac } = setup({ podInfo });
-
-    const event = seedKubernetesEventTestData({ metadata: { resourceVersion: "456" } });
+  it("passes the last-seen resourceVersion on normal reconnect to avoid duplicates", async () => {
+    const { service, ac, watch, fireEvent, endWatch, watchResourceVersionAt } = setup();
 
     const startPromise = service.collectPodEvents();
     await vi.waitFor(() => expect(watch.watch).toHaveBeenCalledTimes(1));
 
-    fireEvent("ADDED", event);
+    fireEvent("ADDED", seedKubernetesEventTestData({ metadata: { resourceVersion: "456" } }));
+    endWatch();
+    await vi.waitFor(() => expect(watch.watch).toHaveBeenCalledTimes(2));
+
+    expect(watchResourceVersionAt(1)).toBe("456");
+
+    ac.abort();
+    endWatch();
+    await startPromise;
+  });
+
+  it("does not write ERROR phase events to the output stream", async () => {
+    const { service, ac, watch, writeStream, fireEvent, endWatch, STATUS_TOO_OLD_RESOURCE_VERSION } = setup();
+    const normalEvent = seedKubernetesEventTestData({ reason: "Scheduled", lastTimestamp: "2025-06-15T10:30:00.000Z" as unknown as Date });
+
+    const startPromise = service.collectPodEvents();
+    await vi.waitFor(() => expect(watch.watch).toHaveBeenCalledTimes(1));
+
+    fireEvent("ERROR", STATUS_TOO_OLD_RESOURCE_VERSION);
+    fireEvent("ADDED", normalEvent);
+    await vi.waitFor(() => expect(writeStream.write).toHaveBeenCalled());
+
+    ac.abort();
+    endWatch();
+    await startPromise;
+
+    expect(writeStream.write).toHaveBeenCalledTimes(1);
+    expect(writeStream.write).toHaveBeenCalledWith(expect.stringContaining('"phase":"ADDED"'));
+  });
+
+  it("skips duplicate events on reconnect by uid:resourceVersion", async () => {
+    const { service, ac, watch, writeStream, fireEvent, endWatch } = setup();
+
+    const event1 = seedKubernetesEventTestData({
+      metadata: { uid: "uid-1", resourceVersion: "100" },
+      reason: "Scheduled",
+      lastTimestamp: "2025-06-15T10:30:00.000Z" as unknown as Date
+    });
+    const event2 = seedKubernetesEventTestData({
+      metadata: { uid: "uid-2", resourceVersion: "101" },
+      reason: "Started",
+      lastTimestamp: "2025-06-15T10:30:01.000Z" as unknown as Date
+    });
+
+    const startPromise = service.collectPodEvents();
+    await vi.waitFor(() => expect(watch.watch).toHaveBeenCalledTimes(1));
+
+    fireEvent("ADDED", event1);
+    fireEvent("ADDED", event2);
+    await vi.waitFor(() => expect(writeStream.write).toHaveBeenCalledTimes(2));
 
     endWatch();
     await vi.waitFor(() => expect(watch.watch).toHaveBeenCalledTimes(2));
 
-    expect(watch.watch).toHaveBeenLastCalledWith(
-      expect.any(String),
-      expect.objectContaining({ resourceVersion: "456" }),
-      expect.any(Function),
-      expect.any(Function)
-    );
+    fireEvent("ADDED", event1);
+    fireEvent("ADDED", event2);
+    const event3 = seedKubernetesEventTestData({
+      metadata: { uid: "uid-3", resourceVersion: "200" },
+      reason: "Pulled",
+      lastTimestamp: "2025-06-15T10:31:00.000Z" as unknown as Date
+    });
+    fireEvent("ADDED", event3);
+    await vi.waitFor(() => expect(writeStream.write).toHaveBeenCalledTimes(3));
+
+    ac.abort();
+    endWatch();
+    await startPromise;
+
+    expect(writeStream.write).toHaveBeenCalledTimes(3);
+  });
+
+  it("reconnects without a resourceVersion after an ERROR phase event", async () => {
+    const { service, ac, watch, fireEvent, endWatch, watchResourceVersionAt, STATUS_TOO_OLD_RESOURCE_VERSION } = setup();
+
+    const startPromise = service.collectPodEvents();
+    await vi.waitFor(() => expect(watch.watch).toHaveBeenCalledTimes(1));
+
+    fireEvent("ADDED", seedKubernetesEventTestData({ metadata: { resourceVersion: "111" } }));
+    fireEvent("ERROR", STATUS_TOO_OLD_RESOURCE_VERSION);
+    endWatch();
+    await vi.waitFor(() => expect(watch.watch).toHaveBeenCalledTimes(2));
+
+    expect(watchResourceVersionAt(1)).toBeUndefined();
 
     ac.abort();
     endWatch();
@@ -154,7 +222,7 @@ describe(K8sEventsCollectorService.name, () => {
 
   it("should throw on non-403 watch error", async () => {
     const podInfo = seedPodInfoTestData();
-    const { service, errorHandlerService } = setup({ podInfo });
+    const { service, watch, errorHandlerService, endWatch } = setup({ podInfo });
 
     const watchError = new Error("connection refused");
     errorHandlerService.isForbidden.mockReturnValue(false);
@@ -169,7 +237,7 @@ describe(K8sEventsCollectorService.name, () => {
 
   it("should stop when signal is aborted", async () => {
     const podInfo = seedPodInfoTestData();
-    const { service, ac } = setup({ podInfo });
+    const { service, ac, watch, endWatch } = setup({ podInfo });
 
     const startPromise = service.collectPodEvents();
     await vi.waitFor(() => expect(watch.watch).toHaveBeenCalled());
@@ -181,23 +249,16 @@ describe(K8sEventsCollectorService.name, () => {
     expect(watch.watch).toHaveBeenCalledTimes(1);
   });
 
-  let watch: ReturnType<typeof mock<Watch>>;
-  let eventCb: (phase: string, apiObj: CoreV1Event) => void;
-  let doneCb: (err?: unknown) => void;
-  const fireEvent = (phase: string, event: CoreV1Event) => eventCb(phase, event);
-  const endWatch = (err?: unknown) => doneCb(err);
-
   function setup(input: { podInfo?: ReturnType<typeof seedPodInfoTestData> } = {}) {
     const podInfo = input.podInfo ?? seedPodInfoTestData();
     const ac = new AbortController();
 
-    watch = mock<Watch>();
-    eventCb = () => {};
-    doneCb = () => {};
+    const watch = mock<Watch>();
+    const handlers: { eventCb?: (phase: string, apiObj: CoreV1Event) => void; doneCb?: (err?: unknown) => void } = {};
 
     watch.watch.mockImplementation(async (_path, _params, cb, done) => {
-      eventCb = cb;
-      doneCb = done;
+      handlers.eventCb = cb;
+      handlers.doneCb = done;
       return new AbortController();
     });
 
@@ -213,6 +274,24 @@ describe(K8sEventsCollectorService.name, () => {
 
     const service = new K8sEventsCollectorService(podInfo, fileDestination, watch, loggerService, errorHandlerService, ac.signal);
 
-    return { service, ac, watch, loggerService, errorHandlerService, fileDestination, writeStream };
+    return {
+      service,
+      ac,
+      watch,
+      loggerService,
+      errorHandlerService,
+      fileDestination,
+      writeStream,
+      fireEvent: (phase: string, event: CoreV1Event) => handlers.eventCb?.(phase, event),
+      endWatch: (err?: unknown) => handlers.doneCb?.(err),
+      watchResourceVersionAt: (callIndex: number) => (watch.watch.mock.calls[callIndex]?.[1] as { resourceVersion?: string } | undefined)?.resourceVersion,
+      STATUS_TOO_OLD_RESOURCE_VERSION: {
+        kind: "Status",
+        status: "Failure",
+        message: "too old resource version: 12345",
+        reason: "Expired",
+        code: 410
+      } as unknown as CoreV1Event
+    };
   }
 });

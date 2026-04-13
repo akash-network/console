@@ -8,6 +8,10 @@ import type { LoggerService } from "@src/services/logger/logger.service";
 import type { PodInfo } from "@src/services/pod-discovery/pod-discovery.service";
 
 export class K8sEventsCollectorService {
+  private lastWrittenTimestamp?: string;
+
+  private writtenEventKeys = new Set<string>();
+
   constructor(
     private readonly podInfo: PodInfo,
     private readonly fileDestination: FileDestinationService,
@@ -55,6 +59,10 @@ export class K8sEventsCollectorService {
       path,
       { fieldSelector, resourceVersion },
       (phase: string, apiObj: CoreV1Event) => {
+        if (phase === "ERROR") {
+          currentResourceVersion = undefined;
+          return;
+        }
         if (apiObj.metadata?.resourceVersion) {
           currentResourceVersion = apiObj.metadata.resourceVersion;
         }
@@ -80,6 +88,10 @@ export class K8sEventsCollectorService {
         established = true;
       }
 
+      if (this.isDuplicateEvent(event)) {
+        continue;
+      }
+
       writeStream.write(this.formatLine(phase, event));
     }
 
@@ -88,6 +100,29 @@ export class K8sEventsCollectorService {
     }
 
     return currentResourceVersion;
+  }
+
+  private isDuplicateEvent(event: CoreV1Event): boolean {
+    const uid = event.metadata?.uid;
+    const rv = event.metadata?.resourceVersion;
+    if (!uid || !rv) return false;
+
+    const timestamp = String(event.lastTimestamp ?? event.eventTime ?? "");
+
+    if (this.lastWrittenTimestamp && timestamp < this.lastWrittenTimestamp) {
+      return true;
+    }
+
+    if (timestamp !== this.lastWrittenTimestamp) {
+      this.writtenEventKeys.clear();
+      this.lastWrittenTimestamp = timestamp;
+    }
+
+    const key = `${uid}:${rv}`;
+    if (this.writtenEventKeys.has(key)) return true;
+
+    this.writtenEventKeys.add(key);
+    return false;
   }
 
   private formatLine(phase: string, event: CoreV1Event): string {

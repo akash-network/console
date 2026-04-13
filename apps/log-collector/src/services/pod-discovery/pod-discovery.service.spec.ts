@@ -65,7 +65,6 @@ describe(PodDiscoveryService.name, () => {
       event: "POD_DISCOVERY_COMPLETED",
       namespace,
       totalPods: 5,
-      readyPods: 5,
       targetPods: 2,
       currentPodName
     });
@@ -407,6 +406,144 @@ describe(PodDiscoveryService.name, () => {
     });
   });
 
+  describe("watchPods — clean watch end reconnect", () => {
+    it("re-lists and reconnects with a fresh resourceVersion after a clean watch end", async () => {
+      const namespace = faker.internet.domainWord();
+      const { podDiscoveryService, captureWatchHandlers, mockListsSequence } = setup({ KUBERNETES_NAMESPACE_OVERRIDE: namespace });
+      const watch = captureWatchHandlers();
+      mockListsSequence([{ resourceVersion: "rv-1" }, { resourceVersion: "rv-2" }]);
+
+      podDiscoveryService.watchPods(vi.fn()).catch(() => {});
+      await vi.waitFor(() => expect(watch.resourceVersionAt(0)).toBe("rv-1"));
+
+      watch.endWatchCleanly();
+
+      await vi.waitFor(() => expect(watch.resourceVersionAt(1)).toBe("rv-2"));
+    });
+
+    it("tracks new pods discovered when re-listing after a clean watch end", async () => {
+      const namespace = faker.internet.domainWord();
+      const { podDiscoveryService, captureWatchHandlers, mockListsSequence, readyPod } = setup({
+        KUBERNETES_NAMESPACE_OVERRIDE: namespace
+      });
+      const watch = captureWatchHandlers();
+      const pod1 = readyPod({ name: "pod-1", namespace });
+      const pod2 = readyPod({ name: "pod-2", namespace });
+      mockListsSequence([{ items: [pod1] }, { items: [pod1, pod2] }]);
+
+      const callback = vi.fn();
+      podDiscoveryService.watchPods(callback).catch(() => {});
+      await vi.waitFor(() => expect(callback).toHaveBeenCalledTimes(1));
+
+      watch.endWatchCleanly();
+
+      await vi.waitFor(() => expect(callback).toHaveBeenCalledTimes(2));
+      expect(callback).toHaveBeenLastCalledWith(expect.objectContaining({ podName: "pod-2" }), expect.any(AbortSignal));
+    });
+
+    it("aborts signals for pods missing on the re-list after a clean watch end", async () => {
+      const namespace = faker.internet.domainWord();
+      const { podDiscoveryService, loggerService, captureWatchHandlers, mockListsSequence, readyPod } = setup({
+        KUBERNETES_NAMESPACE_OVERRIDE: namespace
+      });
+      const watch = captureWatchHandlers();
+      const pod1 = readyPod({ name: "pod-1", namespace });
+      const pod2 = readyPod({ name: "pod-2", namespace });
+      mockListsSequence([{ items: [pod1, pod2] }, { items: [pod1] }]);
+
+      const signals: AbortSignal[] = [];
+      const callback: PodCallback = vi.fn((_p, signal) => signals.push(signal));
+
+      podDiscoveryService.watchPods(callback).catch(() => {});
+      await vi.waitFor(() => expect(signals).toHaveLength(2));
+
+      watch.endWatchCleanly();
+
+      await vi.waitFor(() => expect(signals[1].aborted).toBe(true));
+      expect(loggerService.info).toHaveBeenCalledWith(expect.objectContaining({ event: "POD_DELETED", podName: "pod-2" }));
+    });
+
+    it("falls back to polling when the server emits an ERROR watch event", async () => {
+      const originalTimeout = AbortSignal.timeout;
+      AbortSignal.timeout = (ms: number) => originalTimeout(Math.min(ms, 200));
+
+      try {
+        const namespace = faker.internet.domainWord();
+        const { podDiscoveryService, k8sClient, loggerService, captureWatchHandlers, STATUS_TOO_OLD_RESOURCE_VERSION } = setup({
+          KUBERNETES_NAMESPACE_OVERRIDE: namespace,
+          POD_POLL_INTERVAL_MS: "100"
+        });
+        const watch = captureWatchHandlers();
+        k8sClient.listNamespacedPod.mockResolvedValue({ items: [] });
+
+        podDiscoveryService.watchPods(vi.fn()).catch(() => {});
+        await flushPromises();
+
+        watch.fireEvent("ERROR", STATUS_TOO_OLD_RESOURCE_VERSION);
+
+        await vi.waitFor(() => {
+          expect(loggerService.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "POD_WATCH_FAILED_FALLBACK_TO_POLLING" }));
+        });
+      } finally {
+        AbortSignal.timeout = originalTimeout;
+      }
+    });
+
+    it("still falls back to polling when an ERROR event is followed by a clean stream close", async () => {
+      const originalTimeout = AbortSignal.timeout;
+      AbortSignal.timeout = (ms: number) => originalTimeout(Math.min(ms, 200));
+
+      try {
+        const namespace = faker.internet.domainWord();
+        const { podDiscoveryService, k8sClient, loggerService, captureWatchHandlers, STATUS_TOO_OLD_RESOURCE_VERSION } = setup({
+          KUBERNETES_NAMESPACE_OVERRIDE: namespace,
+          POD_POLL_INTERVAL_MS: "100"
+        });
+        const watch = captureWatchHandlers();
+        k8sClient.listNamespacedPod.mockResolvedValue({ items: [] });
+
+        podDiscoveryService.watchPods(vi.fn()).catch(() => {});
+        await flushPromises();
+
+        watch.fireEvent("ERROR", STATUS_TOO_OLD_RESOURCE_VERSION);
+        watch.endWatchCleanly();
+
+        await vi.waitFor(() => {
+          expect(loggerService.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "POD_WATCH_FAILED_FALLBACK_TO_POLLING" }));
+        });
+      } finally {
+        AbortSignal.timeout = originalTimeout;
+      }
+    });
+
+    it("keeps tracking a pod that becomes not-ready between watches", async () => {
+      const namespace = faker.internet.domainWord();
+      const { podDiscoveryService, k8sClient, captureWatchHandlers, mockListsSequence, readyPod, loggerService } = setup({
+        KUBERNETES_NAMESPACE_OVERRIDE: namespace
+      });
+      const watch = captureWatchHandlers();
+      const podReady = readyPod({ name: "pod-1", namespace });
+      const podSameButNotReady: V1Pod = {
+        ...podReady,
+        status: { ...podReady.status, conditions: [{ type: "Ready", status: "False" }] }
+      };
+      mockListsSequence([{ items: [podReady] }, { items: [podSameButNotReady] }]);
+
+      const signals: AbortSignal[] = [];
+      const callback: PodCallback = vi.fn((_p, signal) => signals.push(signal));
+
+      podDiscoveryService.watchPods(callback).catch(() => {});
+      await vi.waitFor(() => expect(signals).toHaveLength(1));
+
+      watch.endWatchCleanly();
+
+      await vi.waitFor(() => expect(k8sClient.listNamespacedPod).toHaveBeenCalledTimes(2));
+      await flushPromises();
+      expect(signals[0].aborted).toBe(false);
+      expect(loggerService.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "POD_DELETED", podName: "pod-1" }));
+    });
+  });
+
   describe("watchPods — fallback to polling", () => {
     it("should fall back to polling permanently on 403", async () => {
       const namespace = faker.internet.domainWord();
@@ -639,7 +776,54 @@ describe(PodDiscoveryService.name, () => {
 
     const podDiscoveryService = new PodDiscoveryService(k8sClient, kubeConfig, config, loggerService, errorHandlerService, watch);
 
-    return { podDiscoveryService, k8sClient, kubeConfig, config, loggerService, watch, errorHandlerService };
+    const handlers: { eventCb?: (phase: string, obj: unknown) => void; doneCb?: (err?: unknown) => void } = {};
+    const captureWatchHandlers = () => {
+      watch.watch.mockImplementation(async (_path, _params, cb, done) => {
+        handlers.eventCb = cb as (phase: string, obj: unknown) => void;
+        handlers.doneCb = done;
+        return new AbortController();
+      });
+      return {
+        fireEvent: (phase: string, obj: unknown) => handlers.eventCb?.(phase, obj),
+        endWatchCleanly: () => handlers.doneCb?.(),
+        resourceVersionAt: (callIndex: number) => (watch.watch.mock.calls[callIndex]?.[1] as { resourceVersion?: string } | undefined)?.resourceVersion
+      };
+    };
+
+    const mockListsSequence = (responses: Array<{ items?: V1Pod[]; resourceVersion?: string }>) => {
+      let call = 0;
+      k8sClient.listNamespacedPod.mockImplementation(async () => {
+        const response = responses[Math.min(call++, responses.length - 1)];
+        return { items: response.items ?? [], metadata: { resourceVersion: response.resourceVersion } };
+      });
+    };
+
+    const readyPod = (params: { name: string; namespace: string }): V1Pod =>
+      seedKubernetesPodTestData({
+        metadata: { name: params.name, namespace: params.namespace },
+        spec: { containers: [{ name: "app" }] },
+        status: { phase: "Running", conditions: [{ type: "Ready", status: "True" }] }
+      });
+
+    return {
+      podDiscoveryService,
+      k8sClient,
+      kubeConfig,
+      config,
+      loggerService,
+      watch,
+      errorHandlerService,
+      captureWatchHandlers,
+      mockListsSequence,
+      readyPod,
+      STATUS_TOO_OLD_RESOURCE_VERSION: {
+        kind: "Status",
+        status: "Failure",
+        message: "too old resource version: 12345",
+        reason: "Expired",
+        code: 410
+      }
+    };
   }
 });
 
