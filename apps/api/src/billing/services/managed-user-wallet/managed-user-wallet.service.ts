@@ -1,16 +1,18 @@
 import { AuthzHttpService } from "@akashnetwork/http-sdk";
-import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { EncodeObject } from "@cosmjs/proto-signing";
+import { ConstantBackoff, handleWhenResult, type IPolicy, retry } from "cockatiel";
 import add from "date-fns/add";
 import addDays from "date-fns/addDays";
 import isAfter from "date-fns/isAfter";
 import subDays from "date-fns/subDays";
 import assert from "http-assert";
+import { BadGateway } from "http-errors";
 import { singleton } from "tsyringe";
 
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import type { UserWalletOutput } from "@src/billing/repositories";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
+import { LoggerService } from "@src/core/providers/logging.provider";
 import { Trace, withSpan } from "@src/core/services/tracing/tracing.service";
 import type { ManagedSignerService } from "../managed-signer/managed-signer.service";
 import { RpcMessageService, SpendingAuthorizationMsgOptions } from "../rpc-message-service/rpc-message.service";
@@ -30,13 +32,20 @@ interface SpendingAuthorizationOptions {
 
 @singleton()
 export class ManagedUserWalletService {
-  private readonly logger = createOtelLogger({ context: ManagedUserWalletService.name });
+  private readonly feeGrantVerifyPolicy: IPolicy = retry(
+    handleWhenResult(res => !res),
+    {
+      maxAttempts: 2,
+      backoff: new ConstantBackoff(0)
+    }
+  );
 
   constructor(
     @InjectBillingConfig() private readonly config: BillingConfig,
     private readonly txManagerService: TxManagerService,
     private readonly rpcMessageService: RpcMessageService,
-    private readonly authzHttpService: AuthzHttpService
+    private readonly authzHttpService: AuthzHttpService,
+    private readonly logger: LoggerService
   ) {}
 
   async createAndAuthorizeTrialSpending(signer: ManagedSignerService, { addressIndex }: { addressIndex: number }) {
@@ -124,8 +133,40 @@ export class ManagedUserWalletService {
 
       messages.push(this.rpcMessageService.getFeesAllowanceGrantMsg(options));
 
-      return await signer.executeFundingTx(messages);
+      const result = await signer.executeFundingTx(messages);
+
+      if (hasValidFeeAllowance) {
+        await this.ensureFeeAllowanceLanded(signer, options);
+      }
+
+      return result;
     });
+  }
+
+  private async ensureFeeAllowanceLanded(signer: ManagedSignerService, options: Omit<SpendingAuthorizationMsgOptions, "denom">) {
+    if (await this.authzHttpService.hasFeeAllowance(options.granter, options.grantee)) {
+      return;
+    }
+    const hasFeeAllowance = await this.feeGrantVerifyPolicy.execute(async () => {
+      this.logger.warn({
+        event: "FEE_GRANT_SILENTLY_DROPPED",
+        granter: options.granter,
+        grantee: options.grantee
+      });
+
+      await signer.executeFundingTx([this.rpcMessageService.getFeesAllowanceGrantMsg(options)]);
+
+      return await this.authzHttpService.hasFeeAllowance(options.granter, options.grantee);
+    });
+
+    if (!hasFeeAllowance) {
+      this.logger.error({
+        event: "FEE_GRANT_REISSUE_FAILED",
+        granter: options.granter,
+        grantee: options.grantee
+      });
+      throw new BadGateway();
+    }
   }
 
   private async authorizeDeploymentSpending(signer: ManagedSignerService, options: SpendingAuthorizationMsgOptions) {

@@ -7,6 +7,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { BillingConfig } from "@src/billing/providers";
 import type { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
+import type { LoggerService } from "@src/core/providers/logging.provider";
 import type { ManagedSignerService } from "../managed-signer/managed-signer.service";
 import type { RpcMessageService } from "../rpc-message-service/rpc-message.service";
 import { ManagedUserWalletService } from "./managed-user-wallet.service";
@@ -68,6 +69,73 @@ describe(ManagedUserWalletService.name, () => {
     });
   });
 
+  describe("fee grant silent-drop recovery", () => {
+    it("verifies the grant landed after a batched revoke+grant tx", async () => {
+      const { service, signer, rpcMessageService, authzHttpService, logger } = setup();
+      const wallet = { address: createAkashAddress(), isTrialing: false, createdAt: faker.date.past() };
+
+      authzHttpService.hasFeeAllowance.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
+
+      await service.refillWalletFees(signer, wallet);
+
+      expect(authzHttpService.hasFeeAllowance).toHaveBeenCalledTimes(2);
+      expect(rpcMessageService.getRevokeAllowanceMsg).toHaveBeenCalledTimes(1);
+      expect(signer.executeFundingTx).toHaveBeenCalledTimes(1);
+      expect(logger.warn).not.toHaveBeenCalledWith(expect.objectContaining({ event: "FEE_GRANT_SILENTLY_DROPPED" }));
+      expect(logger.error).not.toHaveBeenCalledWith(expect.objectContaining({ event: "FEE_GRANT_REISSUE_FAILED" }));
+    });
+
+    it("re-issues the grant when the post-tx check reports it missing", async () => {
+      const { service, signer, rpcMessageService, authzHttpService, logger } = setup();
+      const wallet = { address: createAkashAddress(), isTrialing: false, createdAt: faker.date.past() };
+      const grantMsg = { typeUrl: "/fee-grant", value: {} } as unknown as EncodeObject;
+
+      rpcMessageService.getFeesAllowanceGrantMsg.mockReturnValue(grantMsg);
+      authzHttpService.hasFeeAllowance
+        .mockResolvedValueOnce(true) // pre-tx: prior allowance exists, revoke is batched
+        .mockResolvedValueOnce(false) // post-tx: grant silently dropped
+        .mockResolvedValueOnce(true); // post-retry: grant re-issued successfully
+
+      await service.refillWalletFees(signer, wallet);
+
+      expect(authzHttpService.hasFeeAllowance).toHaveBeenCalledTimes(3);
+      expect(signer.executeFundingTx).toHaveBeenCalledTimes(2);
+      expect(signer.executeFundingTx).toHaveBeenNthCalledWith(2, [grantMsg]);
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "FEE_GRANT_SILENTLY_DROPPED" }));
+      expect(logger.warn).toHaveBeenCalledTimes(1);
+      expect(logger.error).not.toHaveBeenCalledWith(expect.objectContaining({ event: "FEE_GRANT_REISSUE_FAILED" }));
+    });
+
+    it("throws BadGateway after the retry policy is exhausted", async () => {
+      const { service, signer, authzHttpService, logger } = setup();
+      const wallet = { address: createAkashAddress(), isTrialing: false, createdAt: faker.date.past() };
+
+      authzHttpService.hasFeeAllowance.mockResolvedValueOnce(true).mockResolvedValue(false);
+
+      await expect(service.refillWalletFees(signer, wallet)).rejects.toMatchObject({ status: 502 });
+
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "FEE_GRANT_SILENTLY_DROPPED" }));
+      expect(logger.warn).toHaveBeenCalledTimes(3);
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "FEE_GRANT_REISSUE_FAILED" }));
+      expect(logger.error).toHaveBeenCalledTimes(1);
+    });
+
+    it("skips post-tx verification when no prior allowance existed", async () => {
+      const { service, signer, rpcMessageService, authzHttpService, logger } = setup();
+      const wallet = { address: createAkashAddress(), isTrialing: false, createdAt: faker.date.past() };
+
+      authzHttpService.hasFeeAllowance.mockResolvedValue(false);
+
+      await service.refillWalletFees(signer, wallet);
+
+      expect(authzHttpService.hasFeeAllowance).toHaveBeenCalledTimes(1);
+      expect(rpcMessageService.getRevokeAllowanceMsg).not.toHaveBeenCalled();
+      expect(signer.executeFundingTx).toHaveBeenCalledTimes(1);
+      expect(logger.warn).not.toHaveBeenCalled();
+      expect(logger.error).not.toHaveBeenCalled();
+    });
+  });
+
   function setup() {
     const config: BillingConfig = {
       TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT: 500000,
@@ -81,14 +149,16 @@ describe(ManagedUserWalletService.name, () => {
     const rpcMessageService = mock<RpcMessageService>();
     const authzHttpService = mock<AuthzHttpService>();
     const signer = mock<ManagedSignerService>();
+    const logger = mock<LoggerService>();
 
     txManagerService.getFundingWalletAddress.mockResolvedValue(createAkashAddress());
     authzHttpService.hasFeeAllowance.mockResolvedValue(false);
     rpcMessageService.getFeesAllowanceGrantMsg.mockReturnValue({ typeUrl: "/fee-grant", value: {} } as unknown as EncodeObject);
+    rpcMessageService.getRevokeAllowanceMsg.mockReturnValue({ typeUrl: "/fee-revoke", value: {} } as unknown as EncodeObject);
     signer.executeFundingTx.mockResolvedValue({ code: 0, hash: "hash", rawLog: "[]" } as never);
 
-    const service = new ManagedUserWalletService(config, txManagerService, rpcMessageService, authzHttpService);
+    const service = new ManagedUserWalletService(config, txManagerService, rpcMessageService, authzHttpService, logger);
 
-    return { service, signer, config, txManagerService, rpcMessageService, authzHttpService };
+    return { service, signer, config, txManagerService, rpcMessageService, authzHttpService, logger };
   }
 });
