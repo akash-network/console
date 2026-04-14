@@ -34,6 +34,11 @@ jobs:
         if: github.event_name != 'merge_group'
         run: npm run lint -w ./packages --if-present -- --quiet
 
+      - name: Ensure there are no leftovers
+        if: github.event_name == 'pull_request'
+        run: |
+          npm run knip -- $(ls -d ./packages/*/ | sed 's|/$||' | xargs -I{} echo --workspace {})
+
       - name: Type checking
         run: npm run validate:types -w ./packages --if-present
 

@@ -1,5 +1,4 @@
 import { JwtTokenManager } from "@akashnetwork/chain-sdk";
-import type { SupportedChainNetworks } from "@akashnetwork/net";
 import { Secp256k1HdWallet } from "@cosmjs/amino";
 import { setTimeout as wait } from "timers/promises";
 import type { TLSSocket } from "tls";
@@ -12,7 +11,6 @@ import { request } from "../setup/proxyServer";
 import { startServer, stopServer } from "../setup/proxyServer";
 
 describe("Provider HTTP proxy", () => {
-  const network: SupportedChainNetworks = "sandbox-2";
   const ONE_HOUR = 60 * 60 * 1000;
 
   afterEach(async () => {
@@ -55,8 +53,7 @@ describe("Provider HTTP proxy", () => {
       body: JSON.stringify({
         method: "GET",
         url: `${providerUrl}/200.txt`,
-        providerAddress,
-        network
+        providerAddress
       })
     });
 
@@ -80,8 +77,7 @@ describe("Provider HTTP proxy", () => {
       body: JSON.stringify({
         method: "GET",
         url: `${providerUrl}/headers.json`,
-        providerAddress,
-        network
+        providerAddress
       })
     });
 
@@ -106,8 +102,7 @@ describe("Provider HTTP proxy", () => {
       body: JSON.stringify({
         method: "GET",
         url: `${providerUrl}/200.txt`,
-        providerAddress,
-        network
+        providerAddress
       })
     });
     await chainServer.close();
@@ -117,8 +112,7 @@ describe("Provider HTTP proxy", () => {
       body: JSON.stringify({
         method: "GET",
         url: `${providerUrl}/200.txt`,
-        providerAddress,
-        network
+        providerAddress
       })
     });
 
@@ -148,8 +142,7 @@ describe("Provider HTTP proxy", () => {
         body: JSON.stringify({
           method: "GET",
           url: `${providerUrl}/200.txt`,
-          providerAddress,
-          network
+          providerAddress
         })
       });
     await startServer({ REST_API_NODE_URL: chainServer.url });
@@ -188,8 +181,7 @@ describe("Provider HTTP proxy", () => {
         body: JSON.stringify({
           method: "GET",
           url: `${providerUrl}/200.txt`,
-          providerAddress,
-          network
+          providerAddress
         })
       });
 
@@ -223,7 +215,6 @@ describe("Provider HTTP proxy", () => {
         method: "GET",
         url: `${providerUrl}/200.txt`,
         providerAddress,
-        network,
         auth: {
           type: "mtls",
           certPem: "-----BEGIN CERTIFICATE-----\r\ninvalid  certificate\r\n-----END CERTIFICATE-----\r\n",
@@ -269,8 +260,7 @@ describe("Provider HTTP proxy", () => {
       body: JSON.stringify({
         method: "GET",
         url: `${providerUrl}/200.txt`,
-        providerAddress,
-        network
+        providerAddress
       })
     });
     await wait(200); // intentional delay to ensure retry logic works
@@ -308,8 +298,7 @@ describe("Provider HTTP proxy", () => {
       body: JSON.stringify({
         method: "GET",
         url: `${providerUrl}/200.txt`,
-        providerAddress,
-        network
+        providerAddress
       })
     });
 
@@ -349,8 +338,7 @@ describe("Provider HTTP proxy", () => {
       body: JSON.stringify({
         method: "GET",
         url: `${providerUrl}/5xx-once`,
-        providerAddress,
-        network
+        providerAddress
       })
     });
 
@@ -395,7 +383,6 @@ describe("Provider HTTP proxy", () => {
         method: "GET",
         url: `${providerUrl}/slow-once`,
         providerAddress,
-        network,
         timeout: 200
       })
     });
@@ -428,8 +415,7 @@ describe("Provider HTTP proxy", () => {
       body: JSON.stringify({
         method: "GET",
         url: `${providerUrl}/500`,
-        providerAddress,
-        network
+        providerAddress
       })
     });
 
@@ -454,7 +440,6 @@ describe("Provider HTTP proxy", () => {
         method: "GET",
         url: providerUrl,
         providerAddress,
-        network,
         timeout: 100
       })
     });
@@ -486,8 +471,7 @@ describe("Provider HTTP proxy", () => {
       body: JSON.stringify({
         method: "GET",
         url: `${providerUrl}/hangs-up`,
-        providerAddress,
-        network
+        providerAddress
       })
     });
 
@@ -519,7 +503,6 @@ describe("Provider HTTP proxy", () => {
         method: "GET",
         url: `${providerUrl}/200.txt`,
         providerAddress,
-        network,
         auth: {
           type: "mtls",
           certPem: invalidClientCertPair.cert.toString(),
@@ -582,7 +565,6 @@ describe("Provider HTTP proxy", () => {
         method: "GET",
         url: `${providerUrl}/long-response`,
         providerAddress,
-        network,
         auth: {
           type: "mtls",
           certPem: validCertPair.cert.toString(),
@@ -631,7 +613,6 @@ describe("Provider HTTP proxy", () => {
         method: "GET",
         url: `${providerUrl}/long-response`,
         providerAddress,
-        network,
         auth: {
           type: "mtls",
           certPem: validCertPair.cert.toString(),
@@ -672,7 +653,6 @@ describe("Provider HTTP proxy", () => {
         method: "GET",
         url: `${providerUrl}/auth`,
         providerAddress,
-        network,
         auth: {
           type: "mtls",
           certPem: clientCertPair.cert.toString(),
@@ -690,7 +670,6 @@ describe("Provider HTTP proxy", () => {
         method: "GET",
         url: `${providerUrl}/auth`,
         providerAddress,
-        network,
         auth: {
           type: "mtls",
           certPem: "asdasdasd",
@@ -750,7 +729,6 @@ describe("Provider HTTP proxy", () => {
         method: "GET",
         url: `${providerUrl}/auth`,
         providerAddress,
-        network,
         auth: {
           type: "jwt",
           token
@@ -767,7 +745,6 @@ describe("Provider HTTP proxy", () => {
         method: "GET",
         url: `${providerUrl}/auth`,
         providerAddress,
-        network,
         auth: {
           type: "jwt",
           token: "testst"

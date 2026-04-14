@@ -1,6 +1,5 @@
 import type * as unleashModule from "@unleash/nextjs";
 import type { GetServerSidePropsContext } from "next";
-import type { UnleashClient } from "unleash-proxy-client";
 import { describe, expect, it, type Mock, vi } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
@@ -66,6 +65,7 @@ describe(FeatureFlagService.name, () => {
     });
   });
 
+  type UnleashClient = ReturnType<typeof unleashModule.flagsClient>;
   function setup(options?: { enableAll?: boolean; isEnabled?: Mock }): {
     service: FeatureFlagService;
     unleash: typeof unleashModule;

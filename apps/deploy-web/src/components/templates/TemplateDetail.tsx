@@ -10,7 +10,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import Markdown from "@src/components/shared/Markdown";
-import ViewPanel from "@src/components/shared/ViewPanel";
+import { ViewPanel } from "@src/components/shared/ViewPanel";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import type { ApiTemplate } from "@src/types";
 import { RouteStep } from "@src/types/route-steps.type";

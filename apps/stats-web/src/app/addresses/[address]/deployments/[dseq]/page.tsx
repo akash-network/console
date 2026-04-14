@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import { DeploymentInfo } from "./DeploymentInfo";
 
-import PageContainer from "@/components/PageContainer";
+import { PageContainer } from "@/components/PageContainer";
 import { Title } from "@/components/Title";
 import { networkId } from "@/config/env-config.schema";
 import { createLogger } from "@/lib/createLogger/createLogger";

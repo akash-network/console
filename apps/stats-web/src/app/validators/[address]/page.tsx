@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import { ValidatorsInfo } from "./ValidatorInfo";
 
-import PageContainer from "@/components/PageContainer";
+import { PageContainer } from "@/components/PageContainer";
 import { Title } from "@/components/Title";
 import { networkId } from "@/config/env-config.schema";
 import { serverFetch } from "@/lib/serverFetch";

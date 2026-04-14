@@ -12,7 +12,7 @@ import { CustomDropdownLinkItem } from "@src/components/shared/CustomDropdownLin
 import { Editor } from "@src/components/shared/Editor/Editor";
 import { LinearLoadingSkeleton } from "@src/components/shared/LinearLoadingSkeleton";
 import { SelectCheckbox } from "@src/components/shared/SelectCheckbox";
-import ViewPanel from "@src/components/shared/ViewPanel";
+import { ViewPanel } from "@src/components/shared/ViewPanel";
 import { useServices } from "@src/context/ServicesProvider";
 import { useProviderApiActions } from "@src/hooks/useProviderApiActions";
 import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";

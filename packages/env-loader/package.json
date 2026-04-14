@@ -14,9 +14,6 @@
   },
   "main": "src/index.js",
   "types": "index.d.ts",
-  "bin": {
-    "detect-env-files": "src/detect-files-stdout.js"
-  },
   "scripts": {
     "format": "prettier --write ./*.{ts,json} **/*.{ts,json}",
     "lint": "eslint ."

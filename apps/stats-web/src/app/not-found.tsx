@@ -1,7 +1,7 @@
 import { ArrowLeft } from "iconoir-react";
 import Link from "next/link";
 
-import PageContainer from "@/components/PageContainer";
+import { PageContainer } from "@/components/PageContainer";
 import { Title } from "@/components/Title";
 import { UrlService } from "@/lib/urlUtils";
 

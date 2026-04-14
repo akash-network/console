@@ -180,7 +180,7 @@ describe("Provider proxy ws", () => {
     );
   });
 
-  it('validates server certificate if "chainNetwork" and "providerAddress" are provided', async () => {
+  it('validates server certificate if "providerAddress" are provided', async () => {
     const providerAddress = generateBech32();
     const validCertPair = await createX509CertPair({ commonName: providerAddress });
     const chainServer = await startChainApiServer([validCertPair.cert]);
@@ -201,8 +201,7 @@ describe("Provider proxy ws", () => {
     ws.send(
       JSON.stringify(
         ourMessage("test1", providerUrl, {
-          providerAddress: generateBech32(),
-          chainNetwork: "sandbox-2"
+          providerAddress: generateBech32()
         })
       )
     );
@@ -218,8 +217,7 @@ describe("Provider proxy ws", () => {
     ws.send(
       JSON.stringify(
         ourMessage("test2", providerUrl, {
-          providerAddress,
-          chainNetwork: "sandbox-2"
+          providerAddress
         })
       )
     );
@@ -377,8 +375,7 @@ describe("Provider proxy ws", () => {
         .map(char => char.charCodeAt(0))
         .join(","),
       url: `${url}/test`,
-      providerAddress: extra?.providerAddress || generateBech32(),
-      network: extra?.chainNetwork || "sandbox-2"
+      providerAddress: extra?.providerAddress || generateBech32()
     };
   }
 

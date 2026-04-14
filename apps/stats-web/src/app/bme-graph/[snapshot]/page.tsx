@@ -6,7 +6,7 @@ import Link from "next/link";
 
 import GraphContainer from "./GraphContainer";
 
-import PageContainer from "@/components/PageContainer";
+import { PageContainer } from "@/components/PageContainer";
 import { urlParamToBmeSnapshot } from "@/lib/snapshotsUrlHelpers";
 import { UrlService } from "@/lib/urlUtils";
 import type { BmeSnapshotsUrlParam } from "@/types";

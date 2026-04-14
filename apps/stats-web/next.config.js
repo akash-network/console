@@ -3,6 +3,11 @@ const { version, repository } = require("./package.json");
 const { withSentryConfig } = require("@sentry/nextjs");
 
 try {
+  /**
+   * File may not exist, so we wrap in try-catch and only run if it exists.
+   * Additionally, added @lintignore to prevent static analysis tools from reporting errors in case the file doesn't exist.
+   * @lintignore
+   */
   const { browserEnvSchema } = require("./env-config.schema");
 
   browserEnvSchema.parse(process.env);

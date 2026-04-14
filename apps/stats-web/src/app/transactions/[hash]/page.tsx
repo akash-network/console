@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { TransactionInfo } from "./TransactionInfo";
 
-import PageContainer from "@/components/PageContainer";
+import { PageContainer } from "@/components/PageContainer";
 import { Title } from "@/components/Title";
 import { TxMessageRow } from "@/components/transactions/TxMessageRow";
 import { networkId } from "@/config/env-config.schema";

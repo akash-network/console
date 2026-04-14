@@ -39,7 +39,7 @@ import { TrialDeploymentBadge } from "../../shared";
 import { CustomNextSeo } from "../../shared/CustomNextSeo";
 import { LinkTo } from "../../shared/LinkTo";
 import { PrerequisiteList } from "../../shared/PrerequisiteList";
-import ViewPanel from "../../shared/ViewPanel";
+import { ViewPanel } from "../../shared/ViewPanel";
 import type { SdlBuilderRefType } from "../SdlBuilder";
 import { SdlBuilder } from "../SdlBuilder";
 import { ShareDeployButton } from "../ShareDeployButton/ShareDeployButton";
