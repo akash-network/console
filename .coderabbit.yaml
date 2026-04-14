@@ -1,0 +1,107 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: "en"
+early_access: false
+tone_instructions: >
+  Be concise. Focus on bugs, security, concurrency and correctness.
+  Skip style nitpicks and obvious comments. Read CLAUDE.md to understand the codebase and its patterns before reviewing.
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  sequence_diagrams: false
+  review_status: true
+  collapse_walkthrough: true
+  path_filters:
+    - "!**/__generated__/**"
+    - "!**/generated/**"
+    - "!**/*.xml"
+    - "!**/*.svg"
+    - "!**/*.png"
+    - "!**/*.jpg"
+    - "!**/*.gif"
+    - "!**/*.lock"
+    - "!dist/**"
+  path_instructions:
+    - path: "apps/{api,tx-signer,log-collector,provider-proxy}/**/*.ts"
+      instructions: >
+        Focus on: SQL injection, command injection, auth bypass,
+        race conditions and concurrency issues (especially in patterns like get -> check -> mutate), missing DB transaction boundaries,
+        forbidden external API calls inside DB transactions,
+        unvalidated user input reaching Drizzle queries,
+        error leaking internal details to clients.
+        Check that request-scoped DI is used correctly (no singleton
+        holding request state). Verify async error handling in route
+        handlers.
+    - path: "apps/notifications/**/*.ts"
+      instructions: >
+        Focus on security, concurrency, and NestJS DI lifecycle issues.
+        Check for missing guards/interceptors on new endpoints.
+    - path: "apps/indexer/**/*.ts"
+      instructions: >
+        Focus on DB query correctness, missing indexes for new queries,
+        transaction safety, and idempotency of blockchain event processing.
+    - path: "apps/{deploy-web,stats-web,provider-console}/**/*.{ts,tsx}"
+      instructions: >
+        Focus on: XSS via dangerouslySetInnerHTML or unescaped user content,
+        missing error boundaries, leaked sensitive data in client bundles
+        (env vars, keys), incorrect use of server vs client components,
+        missing loading/error states in data fetching, stale cache issues
+        with React Query. Skip CSS/styling opinions.
+    - path: "packages/database/**/*.ts"
+      instructions: >
+        Check migration safety: avoid locking operations on large tables,
+        ensure backward compatibility (no column drops without deprecation),
+        verify index additions won't cause long locks.
+    - path: "packages/**/*.ts"
+      instructions: >
+        Focus on breaking changes to public API surface,
+        type safety, and missing exports.
+    - path: "**/drizzle/**/*.sql"
+      instructions: >
+        Review raw SQL migrations for: destructive operations (DROP COLUMN/TABLE)
+        without prior deprecation, long-running locks (ALTER on large tables
+        without CONCURRENTLY), missing default values for NOT NULL columns
+        on existing tables, data loss risk from type changes.
+    - path: "**/env/.env*"
+      instructions: >
+        Check for secrets or credentials committed in plain text.
+        Verify new env vars have corresponding entries in example files.
+    - path: ".github/workflows/**/*.yml"
+      instructions: >
+        Check for: missing pinned action versions (use SHA not tag),
+        secrets exposed in logs, overly broad permissions, missing
+        concurrency groups that could cause race conditions.
+    - path: "**/*.spec.ts"
+      instructions: >
+        Check that tests use a setup() function (not beforeEach with
+        shared mutable state). Verify meaningful assertions, not just
+        snapshot coverage. Skip style comments.
+        Ensure that tests doesn't reference secrets and instead generate them dynamically.
+  pre_merge_checks:
+    docstrings:
+      mode: "off"
+    title:
+      mode: "off"
+    description:
+      mode: "off"
+    issue_assessment:
+      mode: "off"
+  auto_review:
+    enabled: true
+    ignore_title_keywords:
+      - "WIP"
+      - "DO NOT MERGE"
+      - "DRAFT"
+    drafts: false
+    base_branches:
+      - "main"
+knowledge_base:
+  learnings:
+    scope: "auto"
+  issues:
+    scope: "auto"
+  pull_requests:
+    scope: "auto"
+chat:
+  auto_reply: true
