@@ -6,9 +6,15 @@ on:
       - main-sdk-next
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   should-deploy:
     name: Decide Whether to Deploy
+    permissions:
+      contents: read
+      pull-requests: read
     uses: ./.github/workflows/reusable-should-validate.yml
     with:
       path: apps/console-web
@@ -49,6 +55,9 @@ jobs:
     needs: [build-beta-testnet, build-beta]
     name: Deploy to Beta Testnet
     if: needs.build-beta-testnet.outputs.base_image_tag != ''
+    permissions:
+      contents: read
+      deployments: write
     uses: ./.github/workflows/reusable-deploy-k8s.yml
     secrets: inherit
     with:

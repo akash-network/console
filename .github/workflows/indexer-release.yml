@@ -13,12 +13,18 @@ on:
         type: boolean
         default: false
 
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false # don't cancel deployments!
 
 jobs:
   setup:
+    permissions:
+      contents: read
+      actions: read
     uses: ./.github/workflows/reusable-deploy-setup.yml
     with:
       app: indexer

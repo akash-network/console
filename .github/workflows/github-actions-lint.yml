@@ -7,6 +7,9 @@ on:
       - .github/actions/**
       - .github/workflows/**
 
+permissions:
+  contents: read
+
 jobs:
   lint:
     runs-on: [self-hosted, akash]
