@@ -33,6 +33,10 @@ on:
         description: "snyk token used to test code for security issues"
         required: true
 
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
   should-validate-unsafe:
     if: ${{ !inputs.skip_change_detection }}

@@ -6,6 +6,9 @@ on:
     - cron: "0 15 * * *"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build-and-deploy-templates:
     runs-on: [self-hosted, akash]

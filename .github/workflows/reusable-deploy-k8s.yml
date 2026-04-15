@@ -89,6 +89,9 @@ on:
         description: >-
           Whether to require manual approval before proceeding with the deployment.
 
+permissions:
+  contents: read
+
 # 1 pending + 1 in-progress workflows
 concurrency:
   group: deploy-${{ inputs.app }}-${{ inputs.environment }}-${{ inputs.chain || 'NA' }}

@@ -13,6 +13,9 @@ on:
         type: boolean
         default: false
 
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false # don't cancel deployments!
@@ -20,6 +23,9 @@ concurrency:
 jobs:
   setup:
     uses: ./.github/workflows/reusable-deploy-setup.yml
+    permissions:
+      contents: read
+      actions: read
     with:
       app: tx-signer
       image_tag: ${{ inputs.image_tag || github.ref_name }}

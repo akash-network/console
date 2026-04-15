@@ -26,6 +26,9 @@ on:
         description: "The prod Docker image tag"
         value: ${{ jobs.build-prod.outputs.image_tag }}
 
+permissions:
+  contents: read
+
 jobs:
   release:
     name: Create Release
