@@ -41,8 +41,10 @@ export class StripeController {
     const { currentUser } = this.authService;
 
     const stripeCustomerId = await this.stripe.getStripeCustomerId(currentUser);
+    const userWallet = await this.userWalletRepository.findOneByUserId(currentUser.id);
+    const isFreeTrial = userWallet?.isTrialing ?? false;
 
-    const setupIntent = await this.stripe.createSetupIntent(stripeCustomerId);
+    const setupIntent = await this.stripe.createSetupIntent(stripeCustomerId, { isFreeTrial });
     return { data: { clientSecret: setupIntent.client_secret } };
   }
 

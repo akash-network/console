@@ -770,16 +770,31 @@ describe(StripeService.name, () => {
   });
 
   describe("createSetupIntent", () => {
-    it("creates setup intent with correct parameters", async () => {
+    it("creates setup intent with correct parameters when not a free trial", async () => {
       const { service } = setup();
       const stripeData = StripeSeederCreate();
       jest.spyOn(service.setupIntents, "create").mockResolvedValue(stripeData.setupIntent);
 
-      const result = await service.createSetupIntent(TEST_CONSTANTS.CUSTOMER_ID);
+      const result = await service.createSetupIntent(TEST_CONSTANTS.CUSTOMER_ID, { isFreeTrial: false });
       expect(service.setupIntents.create).toHaveBeenCalledWith({
         customer: TEST_CONSTANTS.CUSTOMER_ID,
         usage: "off_session",
         payment_method_types: ["card", "link"]
+      });
+      expect(result).toEqual(stripeData.setupIntent);
+    });
+
+    it("creates setup intent with free trial metadata when user is trialing", async () => {
+      const { service } = setup();
+      const stripeData = StripeSeederCreate();
+      jest.spyOn(service.setupIntents, "create").mockResolvedValue(stripeData.setupIntent);
+
+      const result = await service.createSetupIntent(TEST_CONSTANTS.CUSTOMER_ID, { isFreeTrial: true });
+      expect(service.setupIntents.create).toHaveBeenCalledWith({
+        customer: TEST_CONSTANTS.CUSTOMER_ID,
+        usage: "off_session",
+        payment_method_types: ["card", "link"],
+        metadata: { is_free_trial: "true" }
       });
       expect(result).toEqual(stripeData.setupIntent);
     });
