@@ -111,6 +111,50 @@ describe(StripeController.name, () => {
     });
   });
 
+  describe("createSetupIntent", () => {
+    it("passes isFreeTrial true when user wallet is trialing", async () => {
+      const { controller, stripe, userWalletRepository, user } = setup();
+      const clientSecret = faker.string.alphanumeric(32);
+
+      userWalletRepository.findOneByUserId.mockResolvedValue({ isTrialing: true } as any);
+      stripe.getStripeCustomerId.mockResolvedValue(user.stripeCustomerId!);
+      stripe.createSetupIntent.mockResolvedValue({ client_secret: clientSecret } as any);
+
+      const result = await controller.createSetupIntent();
+
+      expect(stripe.createSetupIntent).toHaveBeenCalledWith(user.stripeCustomerId, { isFreeTrial: true });
+      expect(result).toEqual({ data: { clientSecret } });
+    });
+
+    it("passes isFreeTrial false when user wallet is not trialing", async () => {
+      const { controller, stripe, userWalletRepository, user } = setup();
+      const clientSecret = faker.string.alphanumeric(32);
+
+      userWalletRepository.findOneByUserId.mockResolvedValue({ isTrialing: false } as any);
+      stripe.getStripeCustomerId.mockResolvedValue(user.stripeCustomerId!);
+      stripe.createSetupIntent.mockResolvedValue({ client_secret: clientSecret } as any);
+
+      const result = await controller.createSetupIntent();
+
+      expect(stripe.createSetupIntent).toHaveBeenCalledWith(user.stripeCustomerId, { isFreeTrial: false });
+      expect(result).toEqual({ data: { clientSecret } });
+    });
+
+    it("defaults isFreeTrial to true when no wallet exists", async () => {
+      const { controller, stripe, userWalletRepository, user } = setup();
+      const clientSecret = faker.string.alphanumeric(32);
+
+      userWalletRepository.findOneByUserId.mockResolvedValue(undefined);
+      stripe.getStripeCustomerId.mockResolvedValue(user.stripeCustomerId!);
+      stripe.createSetupIntent.mockResolvedValue({ client_secret: clientSecret } as any);
+
+      const result = await controller.createSetupIntent();
+
+      expect(stripe.createSetupIntent).toHaveBeenCalledWith(user.stripeCustomerId, { isFreeTrial: true });
+      expect(result).toEqual({ data: { clientSecret } });
+    });
+  });
+
   describe("applyCoupon", () => {
     it("returns transactionId and transactionStatus on successful coupon", async () => {
       const { controller, stripe, user } = setup();
