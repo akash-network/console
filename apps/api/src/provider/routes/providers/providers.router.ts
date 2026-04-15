@@ -1,3 +1,4 @@
+import { z } from "@hono/zod-openapi";
 import type { TypedResponse } from "hono";
 import { container } from "tsyringe";
 
@@ -125,4 +126,52 @@ providersRouter.openapi(activeLeasesGraphDataRoute, async function routeProvider
   const graphData = await container.resolve(ProviderController).getProviderActiveLeasesGraphData(providerAddress);
 
   return c.json(graphData);
+});
+
+const repeatedValue = z.union([z.string(), z.array(z.string())]).transform(v => (Array.isArray(v) ? v : [v]));
+const providersByAttributesRoute = createRoute({
+  method: "get",
+  path: "/v1/providers-host-uri",
+  tags: ["Providers"],
+  security: SECURITY_NONE,
+  cache: {
+    maxAge: 60 * 60
+  },
+  request: {
+    query: z.object({
+      attr: repeatedValue
+        .transform(v =>
+          v.map(pair => {
+            const separatorIndex = pair.indexOf(":");
+            return separatorIndex === -1 ? { key: pair, value: "" } : { key: pair.slice(0, separatorIndex), value: pair.slice(separatorIndex + 1) };
+          })
+        )
+        .optional()
+        .default([]),
+      signedByAllOf: repeatedValue.optional(),
+      signedByAnyOf: repeatedValue.optional()
+    })
+  },
+  responses: {
+    200: {
+      description: "Returns a list of provider host URIs matching the given attributes and signatures",
+      content: {
+        "application/json": {
+          schema: z.object({
+            data: z.array(z.string())
+          })
+        }
+      }
+    },
+    400: {
+      description: "Invalid request"
+    }
+  }
+});
+
+providersRouter.openapi(providersByAttributesRoute, async function routeGetProvidersByAttributes(c) {
+  const { attr, signedByAllOf, signedByAnyOf } = c.req.valid("query");
+  const signatures = signedByAllOf || signedByAnyOf ? { allOf: signedByAllOf ?? [], anyOf: signedByAnyOf ?? [] } : undefined;
+  const providerHostUris = await container.resolve(ProviderController).getProvidersByAttributes(attr, signatures);
+  return c.json(providerHostUris);
 });

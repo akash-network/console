@@ -1,3 +1,4 @@
+import { Attribute, SignedBy } from "@akashnetwork/chain-sdk";
 import { singleton } from "tsyringe";
 
 import { ProviderCleanupService } from "@src/billing/services/provider-cleanup/provider-cleanup.service";
@@ -46,5 +47,10 @@ export class ProviderController {
 
   async getProviderActiveLeasesGraphData(providerAddress: string) {
     return await this.providerStatsService.getProviderActiveLeasesGraphData(providerAddress);
+  }
+
+  async getProvidersByAttributes(attributes: Attribute[], signatures?: Partial<SignedBy>) {
+    const hostUris = await this.providerService.getProvidersHostUriByAttributes(attributes, signatures);
+    return { data: hostUris };
   }
 }

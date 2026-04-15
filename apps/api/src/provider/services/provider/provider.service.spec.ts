@@ -4,7 +4,7 @@ import type { ProviderAttributesSchema } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
 import { AxiosError } from "axios";
 import { Ok } from "ts-results";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { cacheEngine } from "@src/caching/helpers";
@@ -508,13 +508,33 @@ describe(ProviderService.name, () => {
     });
   });
 
+  describe("getProvidersHostUriByAttributes", () => {
+    it("delegates call to provider repository", async () => {
+      const { service, providerRepository } = setup();
+
+      const attributes = [
+        { key: "region", value: "us-west" },
+        { key: "tier", value: "premium" }
+      ];
+      const signatures = { allOf: ["auditor1", "auditor2"] };
+      const expectedHostUris = ["https://provider1.example.com:8443", "https://provider2.example.com:8443"];
+
+      providerRepository.getProvidersHostUriByAttributes.mockResolvedValue(expectedHostUris);
+
+      const result = await service.getProvidersHostUriByAttributes(attributes, signatures);
+
+      expect(providerRepository.getProvidersHostUriByAttributes).toHaveBeenCalledWith(attributes, signatures);
+      expect(result).toEqual(expectedHostUris);
+    });
+  });
+
   function setup() {
     const providerProxyService = mock<ProviderProxyService>();
     const providerRepository = mock<ProviderRepository>();
     const providerAttributesSchemaService = mock<ProviderAttributesSchemaService>();
     const auditorsService = mock<AuditorService>();
     const jwtTokenService = mock<ProviderJwtTokenService>({
-      generateJwtToken: jest.fn().mockResolvedValue(Ok("mock-jwt-token"))
+      generateJwtToken: vi.fn().mockResolvedValue(Ok("mock-jwt-token"))
     });
 
     const service = new ProviderService(providerProxyService, providerRepository, providerAttributesSchemaService, auditorsService, jwtTokenService);
