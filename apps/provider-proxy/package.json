@@ -4,7 +4,6 @@
   "description": "Proxy that allows communication between the Web UI and providers",
   "license": "Apache-2.0",
   "author": "Akash Network",
-  "main": "main.js",
   "scripts": {
     "build": "NODE_ENV=production tsup && tsc -p tsconfig.build.json",
     "build:container": "dc build provider-proxy",
@@ -39,8 +38,6 @@
     "@akashnetwork/docker": "*",
     "@akashnetwork/releaser": "*",
     "@cosmjs/amino": "~0.36.1",
-    "@types/cors": "^2.8.13",
-    "@types/express": "^4.17.16",
     "@types/node": "^24.0.0",
     "@types/ws": "^8.5.4",
     "@typescript-eslint/eslint-plugin": "^7.12.0",

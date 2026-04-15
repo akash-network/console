@@ -1,12 +1,12 @@
 import React from "react";
 import { describe, expect, it } from "vitest";
 
-import { UserAwareFlagProvider } from "./FlagProvider";
+import { FlagProvider } from "./FlagProvider";
 
 import { render } from "@testing-library/react";
 import { ComponentMock } from "@tests/unit/mocks";
 
-describe(UserAwareFlagProvider.name, () => {
+describe(FlagProvider.name, () => {
   it("passes userId from useUser to the custom FlagProvider", () => {
     const testUser = { id: "my-user-id" };
     const customFlagProvider = ({ config, children }: any) => (
@@ -21,9 +21,9 @@ describe(UserAwareFlagProvider.name, () => {
     });
 
     const { getByTestId } = render(
-      <UserAwareFlagProvider components={{ FlagProvider: customFlagProvider, useUser: customUseUser, WaitForFeatureFlags: ComponentMock }}>
+      <FlagProvider components={{ FlagProvider: customFlagProvider, useUser: customUseUser, WaitForFeatureFlags: ComponentMock }}>
         <div data-testid="child" />
-      </UserAwareFlagProvider>
+      </FlagProvider>
     );
 
     expect(getByTestId("flag-provider").textContent).toContain("my-user-id");

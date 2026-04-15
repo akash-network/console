@@ -6,12 +6,10 @@
   "license": "Apache-2.0",
   "author": "",
   "exports": {
-    ".": "./src/index.ts",
     "./package.json": "./package.json",
     "./notifications": "./src/notifications/index.ts",
     "./notifications/create-react-query-client": "./src/notifications/create-react-query-client.ts"
   },
-  "main": "src/index.ts",
   "scripts": {
     "format": "prettier --write ./*.{js,json} **/*.{ts,js,json}",
     "gen": "npm run sdk:gen:react-query -w ../../apps/notifications && npm run lint:fix && npm run format",

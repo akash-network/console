@@ -1,0 +1,125 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "tags": ["-lintignore"],
+  "exclude": ["exports", "types", "enumMembers"],
+  "ignoreBinaries": [
+    "dc",
+    "drizzle-kit",
+    "eslint",
+    "prettier",
+    "tsc",
+    "script/safe-deps-install.sh"
+  ],
+  "ignoreDependencies": [
+    "@akashnetwork/releaser",
+    "@typescript-eslint/eslint-plugin",
+    "@typescript-eslint/parser",
+    "eslint-config-next",
+    "eslint-import-resolver-typescript",
+    "eslint-plugin-simple-import-sort",
+    "postcss-import",
+    "postcss-nesting"
+  ],
+  "workspaces": {
+    ".": {
+      "entry": [".eslintrc.js", ".prettierrc.js"],
+      "ignoreDependencies": [
+        "@interchain-ui/react",
+        "drizzle-orm",
+        "nock",
+        "pg",
+        "eslint-plugin-import-x",
+        "vitest"
+      ]
+    },
+    "apps/api": {
+      "entry": ["scripts/buildAkashTemplatesCache.ts"],
+      "project": ["src/**/*.ts", "test/**/*.ts", "scripts/**/*.ts"],
+      "ignore": [
+        "test/seeders/balance.seeder.ts"
+      ],
+      "ignoreDependencies": ["protobufjs"],
+      "drizzle": false
+    },
+    "apps/deploy-web": {
+      "entry": ["next.config.js", "postcss.config.js", "src/pages/**/*.tsx", "src/pages/**/*.ts"],
+      "ignoreDependencies": [
+        "sharp",
+        "@nivo/core",
+        "@react-spring/web",
+        "webpack"
+      ]
+    },
+    "apps/stats-web": {
+      "entry": ["src/app/**/*.tsx", "src/app/**/*.ts"],
+      "ignoreDependencies": ["sharp", "webpack"]
+    },
+    "apps/indexer": {
+      "entry": ["drizzle.config.ts"],
+      "project": ["src/**/*.ts"],
+      "ignoreDependencies": ["protobufjs"],
+      "drizzle": false
+    },
+    "apps/notifications": {
+      "entry": ["src/interfaces/*/index.ts"],
+      "project": ["src/**/*.ts", "test/**/*.ts"],
+      "drizzle": false,
+      "ignoreDependencies": ["source-map-support"]
+    },
+    "apps/log-collector": {
+      "project": ["src/**/*.ts", "test/**/*.ts"]
+    },
+    "apps/provider-proxy": {
+      "project": ["src/**/*.ts", "test/**/*.ts"]
+    },
+    "apps/tx-signer": {
+      "project": ["src/**/*.ts", "test/**/*.ts"],
+      "ignoreDependencies": ["@akashnetwork/env-loader", "protobufjs"]
+    },
+    "apps/provider-console": {
+      "ignore": ["**/*"],
+      "ignoreDependencies": [".*"],
+      "jest": false,
+      "next": false
+    },
+    "packages/database": {
+      "project": ["dbSchemas/**/*.ts", "*.ts"]
+    },
+    "packages/dev-config": {
+      "entry": [
+        ".eslintrc.base.js",
+        ".eslintrc.ts.js",
+        ".eslintrc.next.js",
+        "tsup-plugins.ts",
+        "eslint-plugin-akash/index.js"
+      ],
+      "ignoreDependencies": ["eslint-plugin-akash", "next"]
+    },
+    "packages/env-loader": {},
+    "packages/http-sdk": {
+      "project": ["src/**/*.ts"]
+    },
+    "packages/instrumentation": {
+      "project": ["src/**/*.ts"]
+    },
+    "packages/logging": {
+      "project": ["src/**/*.ts"],
+      "ignoreDependencies": ["@opentelemetry/api", "hono"]
+    },
+    "packages/net": {
+      "project": ["src/**/*.ts", "scripts/**/*.ts"]
+    },
+    "packages/network-store": {},
+    "packages/react-query-proxy": {},
+    "packages/react-query-sdk": {
+      "ignoreDependencies": [
+        "@openapi-qraft/tanstack-query-react-types",
+        "@tanstack/query-core",
+        "@tanstack/react-query"
+      ]
+    },
+    "packages/ui": {
+      "ignoreDependencies": ["next"]
+    }
+  }
+}

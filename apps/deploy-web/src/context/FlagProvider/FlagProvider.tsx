@@ -15,7 +15,7 @@ const COMPONENTS = {
 
 export type Props = { components?: typeof COMPONENTS };
 
-export const UserAwareFlagProvider: FCWithChildren<Props> = ({ children, components: c = COMPONENTS }) => {
+export const FlagProvider: FCWithChildren<Props> = ({ children, components: c = COMPONENTS }) => {
   const { publicConfig } = useServices();
   const { user } = c.useUser();
   const isEnableAll = publicConfig.NEXT_PUBLIC_UNLEASH_ENABLE_ALL;
@@ -34,8 +34,6 @@ export const UserAwareFlagProvider: FCWithChildren<Props> = ({ children, compone
     </c.FlagProvider>
   );
 };
-
-export const FlagProvider = UserAwareFlagProvider;
 
 function WaitForFeatureFlags({ children }: { children: ReactNode }) {
   const client = useUnleashClient();

@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { Button } from "@akashnetwork/ui/components";
 
-import PageContainer from "@/components/PageContainer";
+import { PageContainer } from "@/components/PageContainer";
 import { Title } from "@/components/Title";
 import { errorHandler } from "@/services/di";
 

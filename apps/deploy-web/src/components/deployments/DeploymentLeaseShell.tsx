@@ -5,7 +5,7 @@ import { cn } from "@akashnetwork/ui/utils";
 import { OpenInWindow, WarningCircle } from "iconoir-react";
 import Link from "next/link";
 
-import ViewPanel from "@src/components/shared/ViewPanel";
+import { ViewPanel } from "@src/components/shared/ViewPanel";
 import { useServices } from "@src/context/ServicesProvider";
 import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import { XTerm } from "@src/lib/XTerm";

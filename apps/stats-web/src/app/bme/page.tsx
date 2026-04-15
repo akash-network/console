@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { BmeDashboardContainer } from "./BmeDashboardContainer";
 
-import PageContainer from "@/components/PageContainer";
+import { PageContainer } from "@/components/PageContainer";
 
 export const metadata: Metadata = {
   title: "BME Stats"

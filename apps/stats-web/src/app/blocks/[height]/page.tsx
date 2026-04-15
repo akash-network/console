@@ -7,7 +7,7 @@ import { z } from "zod";
 import { BlockInfo } from "./BlockInfo";
 
 import { TransactionRow } from "@/components/blockchain/TransactionRow";
-import PageContainer from "@/components/PageContainer";
+import { PageContainer } from "@/components/PageContainer";
 import { Title } from "@/components/Title";
 import { networkId } from "@/config/env-config.schema";
 import { createLogger } from "@/lib/createLogger/createLogger";

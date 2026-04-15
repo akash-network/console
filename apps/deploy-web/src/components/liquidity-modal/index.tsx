@@ -1,5 +1,7 @@
 "use client";
 
+import "../../types/global";
+
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Spinner } from "@akashnetwork/ui/components";
 import { useWallet as useConnectedWallet, useWalletClient } from "@cosmos-kit/react";

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { BlocksTable } from "./BlocksTable";
 
-import PageContainer from "@/components/PageContainer";
+import { PageContainer } from "@/components/PageContainer";
 import { Title } from "@/components/Title";
 
 export const metadata: Metadata = {

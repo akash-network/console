@@ -29,7 +29,6 @@ To view the API documentation during development:
 
 The generated SDKs are stored in common packages for reuse across the project:
 
-- HTTP SDK: `packages/http-sdk/src/generated/NotificationSDK.ts`
 - React Query SDK: `packages/react-query-sdk/src/notifications/`
 
 ### Client Usage
@@ -37,12 +36,13 @@ The generated SDKs are stored in common packages for reuse across the project:
 Generate TypeScript SDK clients from the API:
 
 ```bash
-# Generate HTTP client SDK
-npm run sdk:gen:http
-
 # Generate React Query client SDK
 npm run sdk:gen:react-query
 ```
+
+React client sdk actually supports both cases:
+- frontend client with react-query
+- regular http client which can be used in backend services
 
 ### Using Generated React Query Hooks
 
@@ -50,7 +50,7 @@ First, create the API client in your application:
 
 ```typescript
 // Import the SDK creator and dependencies
-import { createAPIClient } from "@akashnetwork/react-query-sdk/notifications";
+import { createReactQueryApiClient } from "@akashnetwork/react-query-sdk/notifications/create-react-query-client";
 import { requestFn } from "@openapi-qraft/react";
 import { QueryClient } from "@tanstack/react-query";
 
@@ -58,7 +58,7 @@ import { QueryClient } from "@tanstack/react-query";
 const queryClient = new QueryClient();
 
 // Initialize the API client
-const api = createAPIClient({
+const api = createReactQueryApiClient({
   requestFn,
   queryClient,
   baseUrl: "http://localhost:3001" // Your API URL
@@ -106,4 +106,22 @@ function MyComponent() {
     </button>
   );
 }
+```
+
+### Using Generated client in backend services
+
+```ts
+import { createAPIClient } from "@akashnetwork/react-query-sdk/notifications";
+import { requestFn } from "@openapi-qraft/react";
+
+const api = createAPIClient({
+  requestFn,
+  baseUrl: "http://notifications-api-url:3001"
+});
+
+const contactPoint = await api.v1.getContactPoint({
+  path: {
+    id: '1'
+  }
+});
 ```

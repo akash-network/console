@@ -39,5 +39,5 @@ runs:
         if [[ "$APP_UNDER_TEST" == "all" ]]; then
           npm run safe-install
         else
-          npm run safe-install -- -w "apps/$APP_UNDER_TEST"
+          npm run safe-install -- --include-workspace-root -w "apps/$APP_UNDER_TEST"
         fi

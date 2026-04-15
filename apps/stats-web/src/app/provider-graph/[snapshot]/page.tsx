@@ -6,7 +6,7 @@ import Link from "next/link";
 
 import GraphContainer from "./GraphContainer";
 
-import PageContainer from "@/components/PageContainer";
+import { PageContainer } from "@/components/PageContainer";
 import { urlParamToProviderSnapshot } from "@/lib/snapshotsUrlHelpers";
 import { UrlService } from "@/lib/urlUtils";
 import type { ProviderSnapshotsUrlParam } from "@/types";

@@ -70,5 +70,3 @@ export const ViewPanel: React.FunctionComponent<Props> = ({
     </div>
   );
 };
-
-export default ViewPanel;

@@ -138,4 +138,3 @@ export const YourAccount: React.FunctionComponent<Props> = ({
     </>
   );
 };
-export default YourAccount;

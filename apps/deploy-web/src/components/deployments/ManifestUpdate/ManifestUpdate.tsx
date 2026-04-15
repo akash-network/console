@@ -8,7 +8,7 @@ import { useSnackbar as useSnackbarOriginal } from "notistack";
 
 import { LinearLoadingSkeleton } from "@src/components/shared/LinearLoadingSkeleton";
 import { LinkTo } from "@src/components/shared/LinkTo";
-import ViewPanel from "@src/components/shared/ViewPanel";
+import { ViewPanel } from "@src/components/shared/ViewPanel";
 import { useServices } from "@src/context/ServicesProvider";
 import { useSettings as useSettingsOriginal } from "@src/context/SettingsProvider";
 import { useWallet as useWalletOriginal } from "@src/context/WalletProvider";

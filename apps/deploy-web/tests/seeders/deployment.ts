@@ -1,5 +1,5 @@
+import type { QueryInput as DeepPartial } from "@akashnetwork/chain-sdk";
 import { faker } from "@faker-js/faker";
-import type { DeepPartial } from "cosmjs-types/helpers";
 import { merge } from "lodash";
 
 import type { USDC_IBC_DENOMS } from "@src/config/denom.config";

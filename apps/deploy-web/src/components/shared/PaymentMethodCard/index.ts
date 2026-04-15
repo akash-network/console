@@ -1,1 +1,0 @@
-export { PaymentMethodCard } from "./PaymentMethodCard";
