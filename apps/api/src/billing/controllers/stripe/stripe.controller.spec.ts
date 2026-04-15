@@ -4,7 +4,7 @@ import { container } from "tsyringe";
 import { mock } from "vitest-mock-extended";
 
 import { AuthService } from "@src/auth/services/auth.service";
-import type { UserWalletRepository } from "@src/billing/repositories";
+import type { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import type { PayingUser } from "@src/billing/services/paying-user/paying-user";
 import type { StripeService } from "@src/billing/services/stripe/stripe.service";
 import type { StripeErrorService } from "@src/billing/services/stripe-error/stripe-error.service";
@@ -116,9 +116,9 @@ describe(StripeController.name, () => {
       const { controller, stripe, userWalletRepository, user } = setup();
       const clientSecret = faker.string.alphanumeric(32);
 
-      userWalletRepository.findOneByUserId.mockResolvedValue({ isTrialing: true } as any);
+      userWalletRepository.findOneByUserId.mockResolvedValue(mock<UserWalletOutput>({ isTrialing: true }));
       stripe.getStripeCustomerId.mockResolvedValue(user.stripeCustomerId!);
-      stripe.createSetupIntent.mockResolvedValue({ client_secret: clientSecret } as any);
+      stripe.createSetupIntent.mockResolvedValue(mock<Stripe.SetupIntent>({ client_secret: clientSecret }));
 
       const result = await controller.createSetupIntent();
 
@@ -130,9 +130,9 @@ describe(StripeController.name, () => {
       const { controller, stripe, userWalletRepository, user } = setup();
       const clientSecret = faker.string.alphanumeric(32);
 
-      userWalletRepository.findOneByUserId.mockResolvedValue({ isTrialing: false } as any);
+      userWalletRepository.findOneByUserId.mockResolvedValue(mock<UserWalletOutput>({ isTrialing: false }));
       stripe.getStripeCustomerId.mockResolvedValue(user.stripeCustomerId!);
-      stripe.createSetupIntent.mockResolvedValue({ client_secret: clientSecret } as any);
+      stripe.createSetupIntent.mockResolvedValue(mock<Stripe.SetupIntent>({ client_secret: clientSecret }));
 
       const result = await controller.createSetupIntent();
 
@@ -146,7 +146,7 @@ describe(StripeController.name, () => {
 
       userWalletRepository.findOneByUserId.mockResolvedValue(undefined);
       stripe.getStripeCustomerId.mockResolvedValue(user.stripeCustomerId!);
-      stripe.createSetupIntent.mockResolvedValue({ client_secret: clientSecret } as any);
+      stripe.createSetupIntent.mockResolvedValue(mock<Stripe.SetupIntent>({ client_secret: clientSecret }));
 
       const result = await controller.createSetupIntent();
 
