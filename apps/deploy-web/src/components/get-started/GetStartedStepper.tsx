@@ -18,16 +18,23 @@ import { RouteStep } from "@src/types/route-steps.type";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { uaktToAKT } from "@src/utils/priceUtils";
 import { UrlService } from "@src/utils/urlUtils";
-import LiquidityModal from "../liquidity-modal";
 import { ExternalLink } from "../shared/ExternalLink";
 import { WalletConnectionButtons } from "../wallet/WalletConnectionButtons";
 import { QontoConnector, QontoStepIcon } from "./Stepper";
 
-export const GetStartedStepper: React.FunctionComponent = () => {
+export const DEPENDENCIES = {
+  useWallet,
+  useWalletBalance,
+  useChainParam,
+  WalletConnectionButtons,
+  AddFundsLink
+};
+
+export const GetStartedStepper: React.FunctionComponent<{ dependencies?: typeof DEPENDENCIES }> = ({ dependencies: d = DEPENDENCIES }) => {
   const [activeStep, setActiveStep] = useState(0);
-  const { isWalletConnected, address, isManaged: isManagedWallet, isTrialing } = useWallet();
-  const { refetch: refetchBalances, balance: walletBalance } = useWalletBalance();
-  const { minDeposit } = useChainParam();
+  const { isWalletConnected, isManaged: isManagedWallet, isTrialing } = d.useWallet();
+  const { balance: walletBalance } = d.useWalletBalance();
+  const { minDeposit } = d.useChainParam();
   const aktBalance = walletBalance ? uaktToAKT(walletBalance.balanceUAKT) : 0;
   const usdcBalance = walletBalance ? udenomToDenom(walletBalance.balanceUUSDC) : 0;
   const actBalance = walletBalance ? udenomToDenom(walletBalance.balanceUACT) : 0;
@@ -98,10 +105,10 @@ export const GetStartedStepper: React.FunctionComponent = () => {
           <div className="flex items-center space-x-4">
             {isManagedWallet && (
               <div className="flex items-start gap-2">
-                <AddFundsLink className={cn("hover:no-underline", buttonVariants({ variant: "default" }))} href={UrlService.billing({ openPayment: true })}>
+                <d.AddFundsLink className={cn("hover:no-underline", buttonVariants({ variant: "default" }))} href={UrlService.billing({ openPayment: true })}>
                   <HandCard className="text-xs" />
                   <span className="m-2 whitespace-nowrap">Add Funds</span>
-                </AddFundsLink>
+                </d.AddFundsLink>
               </div>
             )}
           </div>
@@ -136,7 +143,7 @@ export const GetStartedStepper: React.FunctionComponent = () => {
                 <span>Billing is not set up</span>
               </div>
 
-              <WalletConnectionButtons className="gap-2" connectManagedWalletButtonClassName="mr-2 w-full md:w-auto" />
+              <d.WalletConnectionButtons className="gap-2" connectManagedWalletButtonClassName="mr-2 w-full md:w-auto" />
             </div>
           )}
 
@@ -165,7 +172,6 @@ export const GetStartedStepper: React.FunctionComponent = () => {
                   You have <strong>{aktBalance}</strong> AKT and <strong>{usdcBalance}</strong> USDC
                 </span>
               )}
-              {!isManagedWallet && isWalletConnected && <LiquidityModal address={address} aktBalance={aktBalance} refreshBalances={refetchBalances} />}
             </div>
           )}
         </StepContent>

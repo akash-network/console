@@ -12,9 +12,9 @@ module.exports = {
         project: ["./tsconfig.json"]
       }
     },
-    "import-x/external-module-folders": ["node_modules", "dist", "build", "public", "Leap"]
+    "import-x/external-module-folders": ["node_modules", "dist", "build", "public"]
   },
-  ignorePatterns: ["node_modules", "dist", "build", "public", "Leap"],
+  ignorePatterns: ["node_modules", "dist", "build", "public"],
   rules: {
     "@typescript-eslint/no-unused-vars": ["error", { ignoreRestSiblings: true, argsIgnorePattern: "^_" }],
     "simple-import-sort/imports": [

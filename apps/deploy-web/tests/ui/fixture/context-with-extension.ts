@@ -5,7 +5,7 @@ import { selectChainNetwork } from "../actions/selectChainNetwork";
 import { injectWebWallet } from "./web-wallet/injectWebWallet";
 import { injectUIConfig, test as baseTest } from "./base-test";
 import { testEnvConfig } from "./test-env.config";
-import { connectWalletViaLeap, topUpWallet } from "./wallet-setup";
+import { connectWalletViaKeplr, topUpWallet } from "./wallet-setup";
 
 // @see https://playwright.dev/docs/chrome-extensions
 export const test = baseTest.extend<ExtensionContext>({
@@ -41,11 +41,11 @@ export async function createPage(context: BrowserContext): Promise<Page> {
 
   if (testEnvConfig.NETWORK_ID !== "mainnet") {
     await page.goto(testEnvConfig.BASE_URL);
-    await connectWalletViaLeap(context, page);
+    await connectWalletViaKeplr(context, page);
     await selectChainNetwork(page, testEnvConfig.NETWORK_ID);
   }
 
   await page.goto(testEnvConfig.BASE_URL);
-  await connectWalletViaLeap(context, page);
+  await connectWalletViaKeplr(context, page);
   return page;
 }

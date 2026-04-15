@@ -1,14 +1,9 @@
-import type { NetworkId } from "@akashnetwork/chain-sdk";
 import { netConfig } from "@akashnetwork/net";
-import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import type { BrowserContext, Page } from "@playwright/test";
-import fs from "fs";
-import path from "path";
 import { setTimeout as wait } from "timers/promises";
 
 import { isWalletConnected } from "../uiState/isWalletConnected";
 import { testEnvConfig } from "./test-env.config";
-import { clickWalletSelectorDropdown } from "./testing-helpers";
 
 const WALLET_PASSWORD = "12345678";
 
@@ -39,40 +34,12 @@ export async function getExtensionId(context: BrowserContext): Promise<string> {
   return extensionId;
 }
 
-export async function setupWallet(page: Page) {
-  const address = await restoreExtensionStorage(page, testEnvConfig.NETWORK_ID);
-  await topUpWallet(address);
-  await unlockWallet(page);
-}
-
-export async function createWallet(context: BrowserContext): Promise<{
-  extPage: Page;
-  address: string;
-}> {
-  const extPage = await getExtensionPage(context);
-  await extPage.waitForLoadState("load");
-
-  await clickWalletSelectorDropdown(extPage);
-  await extPage.getByRole("button", { name: /import wallet/i }).click();
-  await extPage.getByRole("button", { name: /recovery phrase/i }).click();
-  const tmpWallet = await DirectSecp256k1HdWallet.generate(12, { prefix: "akash" });
-  await fillInMnemonic(extPage, tmpWallet.mnemonic);
-  await extPage.getByRole("button", { name: /import wallet/i }).click();
-
-  const accounts = await tmpWallet.getAccounts();
-
-  return {
-    extPage,
-    address: accounts[0].address
-  };
-}
-
-export async function connectWalletViaLeap(context: BrowserContext, page: Page) {
+export async function connectWalletViaKeplr(context: BrowserContext, page: Page) {
   if (!(await isWalletConnected(page))) {
     await page.getByTestId("connect-wallet-btn").click();
     const popupPagePromise = context.waitForEvent("page").catch(() => null);
 
-    await page.getByRole("button", { name: "Leap Leap" }).click();
+    await page.getByRole("button", { name: "Keplr Keplr" }).click();
     const popupPage = await Promise.race([popupPagePromise, isWalletConnected(page).then(() => null)]);
 
     if (popupPage) {
@@ -145,39 +112,6 @@ export async function unlockWallet(page: Page) {
   await page.getByRole("button", { name: /unlock wallet/i }).click();
 }
 
-export async function importWalletToLeap(page: Page, mnemonic: string) {
-  await page.getByText(/import an existing wallet/i).click();
-  await page.getByText(/recovery phrase/i).click();
-  await fillInMnemonic(page, mnemonic);
-
-  await page.getByRole("button", { name: /Continue/i }).click();
-  await page.waitForTimeout(2000);
-  await page.getByRole("checkbox", { name: "Wallet 1" }).setChecked(true);
-  await page.getByRole("button", { name: /Proceed/i }).click();
-
-  // Set password
-  await page.getByPlaceholder("Enter password").fill(WALLET_PASSWORD);
-  await page.getByPlaceholder("Confirm password").fill(WALLET_PASSWORD);
-  await page.locator("button", { hasText: /Set Password/i }).click();
-
-  await page.waitForLoadState("domcontentloaded");
-
-  return await DirectSecp256k1HdWallet.fromMnemonic(mnemonic, {
-    prefix: "akash"
-  });
-}
-
-async function fillInMnemonic(page: Page, mnemonic: string) {
-  const mnemonicArray = mnemonic.trim().split(" ");
-
-  await page.locator('input[type="text"]:first-of-type').first().focus();
-
-  for (const word of mnemonicArray) {
-    await page.locator("input:focus").fill(word);
-    await page.keyboard.press("Tab");
-  }
-}
-
 export async function topUpWallet(address: string, attempt = 0) {
   try {
     const balance = await getBalance(address);
@@ -227,29 +161,4 @@ async function getBalance(address: string) {
   const data = await response.json();
   if (!response.ok) return 0;
   return data.balances.find((balance: Record<string, string>) => balance.denom === "uakt")?.amount || 0;
-}
-
-/**
- * To get the extension storage, follow these steps:
- * 1. Open Chrome with Leap extension installed
- * 2. Open DevTools (F12) on Leap extension page
- * 3. Run this in the script:
- *    ```js
- *    chrome.storage.local.get(null, (data) => {
- *      const json = JSON.stringify(data, null, 2);
- *      const blob = new Blob([json], {type: 'application/json'});
- *      const url = URL.createObjectURL(blob);
- *      const a = document.createElement('a');
- *      a.href = url;
- *      a.download = 'leapExtensionLocalStorage.json';
- *      a.click();
- *    });
- *    ```
- *
- * @see https://github.com/microsoft/playwright/issues/14949
- */
-export async function restoreExtensionStorage(page: Page, networkId: NetworkId): Promise<string> {
-  const extensionStorage = JSON.parse(fs.readFileSync(path.join(__dirname, `leapExtensionLocalStorage.${networkId}.json`), "utf8"));
-  await page.evaluate(data => chrome.storage.local.set(data), extensionStorage);
-  return extensionStorage["active-wallet"].addresses.akash;
 }
