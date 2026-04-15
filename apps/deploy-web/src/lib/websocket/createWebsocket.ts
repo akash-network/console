@@ -68,6 +68,12 @@ export function createWebsocket(input: CreateWebsocketInput): WsEvents {
 
             clearInterval(pingPongTimerId);
 
+            // If signal is aborted, resolve silently — the close/error is expected
+            if (input.signal?.aborted) {
+              resolve();
+              return;
+            }
+
             if (isFailed || input.shouldRetry?.(error)) {
               reject(error);
             } else {

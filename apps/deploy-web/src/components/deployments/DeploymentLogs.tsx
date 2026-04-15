@@ -135,16 +135,14 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
       }),
       onLogReceived
     ).catch(error => {
-      if (!abortController.signal.aborted) {
-        setIsLoadingLogs(false);
-        setIsConnectionEstablished(false);
-      }
+      if (abortController.signal.aborted) return;
+
+      setIsLoadingLogs(false);
+      setIsConnectionEstablished(false);
 
       errorHandler.reportError({
         error,
-        severity: abortController.signal.aborted ? "warning" : "error",
-        tags: { category: "deployments", label: "followLogs" },
-        cause: error instanceof Error ? (error as Error & { cause?: unknown }).cause : undefined
+        tags: { category: "deployments", label: "followLogs" }
       });
     });
 
