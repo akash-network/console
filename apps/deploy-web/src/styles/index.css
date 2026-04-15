@@ -129,16 +129,6 @@ body {
   pointer-events: all !important;
 }
 
-#leap-elements-portal.leap-ui.dark {
-  /* hsl(357deg, 100%, 62.9%) */
-  --primary: 357 100% 62.9%;
-  /* hsl(0deg, 85.7%, 97.3%) */
-  --primary-foreground: 0 85.7% 97.3%;
-  /* hsl(357deg, 100%, 62.9%) */
-  --ring: 357 100% 62.9%;
-  /* Low border radius */
-  --radius: 0.25rem;
-}
 
 .monaco-editor {
   position: absolute !important;

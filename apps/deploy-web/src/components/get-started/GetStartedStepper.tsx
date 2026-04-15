@@ -18,15 +18,14 @@ import { RouteStep } from "@src/types/route-steps.type";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { uaktToAKT } from "@src/utils/priceUtils";
 import { UrlService } from "@src/utils/urlUtils";
-import LiquidityModal from "../liquidity-modal";
 import { ExternalLink } from "../shared/ExternalLink";
 import { WalletConnectionButtons } from "../wallet/WalletConnectionButtons";
 import { QontoConnector, QontoStepIcon } from "./Stepper";
 
 export const GetStartedStepper: React.FunctionComponent = () => {
   const [activeStep, setActiveStep] = useState(0);
-  const { isWalletConnected, address, isManaged: isManagedWallet, isTrialing } = useWallet();
-  const { refetch: refetchBalances, balance: walletBalance } = useWalletBalance();
+  const { isWalletConnected, isManaged: isManagedWallet, isTrialing } = useWallet();
+  const { balance: walletBalance } = useWalletBalance();
   const { minDeposit } = useChainParam();
   const aktBalance = walletBalance ? uaktToAKT(walletBalance.balanceUAKT) : 0;
   const usdcBalance = walletBalance ? udenomToDenom(walletBalance.balanceUUSDC) : 0;
@@ -165,7 +164,6 @@ export const GetStartedStepper: React.FunctionComponent = () => {
                   You have <strong>{aktBalance}</strong> AKT and <strong>{usdcBalance}</strong> USDC
                 </span>
               )}
-              {!isManagedWallet && isWalletConnected && <LiquidityModal address={address} aktBalance={aktBalance} refreshBalances={refetchBalances} />}
             </div>
           )}
         </StepContent>

@@ -4,9 +4,5 @@ declare global {
   interface Window extends KeplrWindow {
     wallet: Keplr | undefined;
     dataLayer?: Record<string, unknown>[];
-    LeapElements?: {
-      mountElements: (args: any) => void;
-      WalletType: any;
-    };
   }
 }
