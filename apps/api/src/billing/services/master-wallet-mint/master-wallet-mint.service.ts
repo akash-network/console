@@ -42,7 +42,8 @@ export class MasterWalletMintService {
   async mintIfNeeded(options?: DryRunOptions): Promise<Result<void, string>> {
     const address = await this.txManagerService.getFundingWalletAddress();
     const balances = await this.fetchWalletBalances(address);
-    const deficit = this.billingConfigService.get("MASTER_WALLET_TARGET_ACT_BALANCE") - this.findBalance(balances, "uact");
+    const currentUactBalance = this.findBalance(balances, "uact");
+    const deficit = this.billingConfigService.get("MASTER_WALLET_TARGET_ACT_BALANCE") - currentUactBalance;
 
     if (deficit <= 0) {
       this.logger.info({ event: "MASTER_WALLET_MINT_SKIPPED", deficit });
@@ -55,14 +56,15 @@ export class MasterWalletMintService {
       return calculation;
     }
 
-    const aktToBurn = calculation.val;
+    const aktToBurn = calculation.val.akt;
+    const expectedActBalance = currentUactBalance + calculation.val.act;
 
     if (options?.dryRun) {
-      this.logger.info({ event: "MASTER_WALLET_MINT_DRY_RUN", deficit, aktToBurn });
+      this.logger.info({ event: "MASTER_WALLET_MINT_DRY_RUN", deficit, aktToBurn, expectedActToMint: calculation.val.act, expectedActBalance });
       return Ok.EMPTY;
     }
 
-    return this.executeMint(address, aktToBurn);
+    return this.executeMint(address, aktToBurn, expectedActBalance);
   }
 
   private async fetchWalletBalances(address: string): Promise<Balances> {
@@ -73,7 +75,7 @@ export class MasterWalletMintService {
   /**
    * Computes the final AKT amount to burn: applies oracle price with slippage, enforces BME min mint, and caps to available AKT minus reserve.
    */
-  private async calculateAktToBurn(actDeficit: number, balances: Balances): Promise<Result<number, string>> {
+  private async calculateAktToBurn(actDeficit: number, balances: Balances): Promise<Result<{ akt: number; act: number }, string>> {
     const [{ price }, minMintUact] = await Promise.all([this.denomExchangeService.getExchangeRateToUSD("akt"), this.getMinMintAmount()]);
 
     if (!price || price <= 0) {
@@ -84,7 +86,16 @@ export class MasterWalletMintService {
     const minAktToBurn = Math.ceil((minMintUact / price) * this.PRICE_SLIPPAGE_MULTIPLIER);
     const aktToBurn = Math.ceil((Math.max(actDeficit, minMintUact) / price) * this.PRICE_SLIPPAGE_MULTIPLIER);
 
-    return this.capToAvailableAkt(balances, aktToBurn, minAktToBurn);
+    const capped = this.capToAvailableAkt(balances, aktToBurn, minAktToBurn);
+
+    if (capped.err) {
+      return capped;
+    }
+
+    return Ok({
+      akt: capped.val,
+      act: Math.floor((capped.val * price) / this.PRICE_SLIPPAGE_MULTIPLIER)
+    });
   }
 
   private async getMinMintAmount(): Promise<number> {
@@ -122,12 +133,12 @@ export class MasterWalletMintService {
   }
 
   /**
-   * Broadcasts MsgMintACT, waits for ledger settlement, and verifies ACT balance meets target.
+   * Broadcasts MsgMintACT, waits for ledger settlement, and verifies ACT balance reaches the expected post-mint value.
    */
-  private async executeMint(address: string, aktToBurn: number): Promise<Result<void, string>> {
+  private async executeMint(address: string, aktToBurn: number, expectedActBalance: number): Promise<Result<void, string>> {
     const message = this.rpcMessageService.getMintACTMsg({ owner: address, amount: aktToBurn });
 
-    this.logger.info({ event: "MASTER_WALLET_MINT_STARTED", aktToBurn, address });
+    this.logger.info({ event: "MASTER_WALLET_MINT_STARTED", aktToBurn, expectedActBalance, address });
     const tx = await this.txManagerService.signAndBroadcastWithFundingWallet([message as EncodeObject]);
 
     if (tx.code !== 0) {
@@ -142,7 +153,7 @@ export class MasterWalletMintService {
       return settlement;
     }
 
-    return this.verifyBalanceAboveTarget(address);
+    return this.verifyMintedBalance(address, aktToBurn, expectedActBalance);
   }
 
   /** Polls BME ledger until no pending records remain for this address. */
@@ -163,28 +174,41 @@ export class MasterWalletMintService {
     return Err("Ledger polling timed out waiting for mint settlement");
   }
 
-  /** Polls ACT balance until it meets the configured target, retrying up to 3 minutes. */
-  private async verifyBalanceAboveTarget(address: string): Promise<Result<void, string>> {
-    const target = this.billingConfigService.get("MASTER_WALLET_TARGET_ACT_BALANCE");
+  /**
+   * Polls the wallet's ACT balance until it reaches the expected post-mint value, retrying up to 3 minutes.
+   * @param address - Master wallet address to query balances for.
+   * @param aktBurned - AKT amount burned in the mint tx, included in the failure log for context.
+   * @param expectedActBalance - Minimum ACT balance (in uact) expected after the mint settles.
+   * @returns Ok when balance reaches the threshold, Err if still below expected after all retries.
+   */
+  private async verifyMintedBalance(address: string, aktBurned: number, expectedActBalance: number): Promise<Result<void, string>> {
+    let actBalance = 0;
 
     for (let attempt = 0; attempt < this.MAX_BALANCE_CHECK_ATTEMPTS; attempt++) {
       const balances = await this.fetchWalletBalances(address);
-      const actBalance = this.findBalance(balances, "uact");
+      actBalance = this.findBalance(balances, "uact");
 
-      if (actBalance >= target) {
-        this.logger.info({ event: "MASTER_WALLET_MINT_CONFIRMED", address, actBalance, target });
+      if (actBalance >= expectedActBalance) {
+        this.logger.info({ event: "MASTER_WALLET_MINT_CONFIRMED", address, actBalance, expectedActBalance });
         return Ok.EMPTY;
       }
 
-      this.logger.debug({ event: "MASTER_WALLET_MINT_BALANCE_PENDING", actBalance, target, attempt });
+      this.logger.debug({ event: "MASTER_WALLET_MINT_BALANCE_PENDING", actBalance, expectedActBalance, attempt });
       await this.timerService.delay(this.BALANCE_CHECK_INTERVAL_MS);
     }
 
-    this.logger.error({ event: "MASTER_WALLET_MINT_FAILED", message: "ACT balance still below target after mint" });
-    return Err("ACT balance still below target after mint");
+    this.logger.error({
+      event: "MASTER_WALLET_MINT_FAILED",
+      message: "ACT balance still below expected after mint",
+      actBalance,
+      aktBurned,
+      expectedActBalance
+    });
+
+    return Err("ACT balance still below expected after mint");
   }
 
-  private findBalance(balances: Balances, denom: string): number {
+  private findBalance(balances: Balances, denom: "uact" | "uakt"): number {
     return parseFloat(balances.find(b => b.denom === denom)?.amount || "0");
   }
 }
