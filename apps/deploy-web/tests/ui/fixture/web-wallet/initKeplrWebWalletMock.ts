@@ -1,4 +1,4 @@
-export function initLeapWebWalletMock(options: { rpcHandlerName: string }) {
+export function initKeplrWebWalletMock(options: { rpcHandlerName: string }) {
   async function rpc(method: string, ...args: unknown[]): Promise<unknown> {
     const result: string = await (window as any)[options.rpcHandlerName](method, args);
     return result;
@@ -18,7 +18,7 @@ export function initLeapWebWalletMock(options: { rpcHandlerName: string }) {
     };
   }
 
-  const leap = {
+  const keplr = {
     async enable() {},
     async disconnect() {},
     async experimentalSuggestChain(chainInfo: any) {
@@ -61,5 +61,5 @@ export function initLeapWebWalletMock(options: { rpcHandlerName: string }) {
     }
   };
 
-  Object.defineProperty(window, "leap", { value: leap, writable: false, configurable: false });
+  Object.defineProperty(window, "keplr", { value: keplr, writable: false, configurable: false });
 }

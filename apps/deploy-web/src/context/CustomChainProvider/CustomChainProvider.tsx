@@ -9,7 +9,6 @@ import type { ChainContext, WalletModalProps } from "@cosmos-kit/core";
 import { wallets as metamask } from "@cosmos-kit/cosmos-extension-metamask";
 import { wallets as cosmostation } from "@cosmos-kit/cosmostation-extension";
 import { wallets as keplr } from "@cosmos-kit/keplr";
-import { wallets as leap } from "@cosmos-kit/leap";
 import { ChainProvider, DefaultModal, useChain } from "@cosmos-kit/react";
 import { useAtom } from "jotai";
 import { useSnackbar } from "notistack";
@@ -28,7 +27,7 @@ export function CustomChainProvider({ children }: Props) {
     <ChainProvider
       chains={chains}
       assetLists={assetLists}
-      wallets={[...keplr, ...leap, ...cosmostation, ...metamask]}
+      wallets={[...keplr, ...cosmostation, ...metamask]}
       walletModal={ModalWrapper}
       sessionOptions={{
         duration: 31_556_926_000, // 1 year

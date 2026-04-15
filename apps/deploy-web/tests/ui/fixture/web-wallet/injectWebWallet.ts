@@ -2,7 +2,7 @@ import type { Page } from "@playwright/test";
 
 import type { FeeType } from "./CosmjsWebWallet";
 import { CosmjsWebWallet } from "./CosmjsWebWallet";
-import { initLeapWebWalletMock } from "./initLeapWebWalletMock";
+import { initKeplrWebWalletMock } from "./initKeplrWebWalletMock";
 
 export type { FeeType } from "./CosmjsWebWallet";
 
@@ -23,7 +23,7 @@ export function setFeeType(page: Page, feeType: FeeType) {
 
 export async function switchWebWallet(page: Page, mnemonic: string) {
   await getWallet(page).switchWallet(mnemonic);
-  await page.evaluate(() => window.dispatchEvent(new Event("leap_keystorechange")));
+  await page.evaluate(() => window.dispatchEvent(new Event("keplr_keystorechange")));
 }
 
 const RPC_HANDLER_NAME = "__akashCosmjsWalletRpc";
@@ -36,7 +36,7 @@ export async function injectWebWallet(page: Page, mnemonic: string) {
     const result = await (wallet[method] as (...args: unknown[]) => Promise<unknown>)(...args);
     return result;
   });
-  await page.addInitScript(initLeapWebWalletMock, {
+  await page.addInitScript(initKeplrWebWalletMock, {
     rpcHandlerName: RPC_HANDLER_NAME
   });
 }

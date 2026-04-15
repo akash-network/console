@@ -49,8 +49,6 @@ export type AnalyticsEvent =
   | "create_gpu_deployment"
   | "authorize_spend"
   | "navigate_tab"
-  | "leap_get_more_tokens"
-  | "leap_tx_complete"
   | "deploy_sdl"
   | "preview_sdl"
   | "import_sdl"
@@ -126,7 +124,6 @@ export type EventProperties = {
 
 const GA_EVENTS = {
   successful_tx: "successful_transaction",
-  leap_tx_complete: "leap_transaction_complete",
   revoke_all_certificates: "revoke_all_certificate"
 };
 

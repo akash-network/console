@@ -69,7 +69,7 @@ The following flows are already covered by automated E2E tests:
 
 Most operations need to be tested for both wallet types:
 
-- **Custodial Wallets** (Keplr, Leap, etc.) - User controls private keys
+- **Custodial Wallets** (Keplr, Cosmostation, etc.) - User controls private keys
 - **Managed Wallets** - Console manages wallet on behalf of user
 
 ---
@@ -157,12 +157,12 @@ Most operations need to be tested for both wallet types:
 
 ### B. **Wallet Integration Flows**
 
-#### B1. **Custodial Wallet Connection Flow** (Keplr, Leap, etc.)
+#### B1. **Custodial Wallet Connection Flow** (Keplr, Cosmostation, etc.)
 
 - [ ] **Initial Wallet Connection**
 
   - [ ] User clicks "Connect Wallet" button
-  - [ ] Wallet extension modal opens (Keplr/Leap/Cosmostation)
+  - [ ] Wallet extension modal opens (Keplr/Cosmostation)
   - [ ] User selects account from wallet extension
   - [ ] User approves connection in wallet extension
   - [ ] Wallet connects and balance displays
