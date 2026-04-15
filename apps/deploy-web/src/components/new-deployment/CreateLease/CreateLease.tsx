@@ -190,7 +190,8 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
 
       analyticsService.track("send_manifest", {
         category: "deployments",
-        label: "Send manifest after creating lease"
+        label: "Send manifest after creating lease",
+        dseq
       });
 
       if (!localDeploymentData || !localDeploymentData.manifest) {
@@ -322,7 +323,8 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
 
       analyticsService.track("create_lease", {
         category: "deployments",
-        label: "Create lease"
+        label: "Create lease",
+        dseq
       });
 
       if (newLocalCert) {

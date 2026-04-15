@@ -291,7 +291,8 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
 
         analyticsService.track("create_deployment", {
           category: "deployments",
-          label: "Create deployment in wizard"
+          label: "Create deployment in wizard",
+          dseq: dd.deploymentId.dseq
         });
 
         if (sdl.includes(LOG_COLLECTOR_IMAGE)) {
