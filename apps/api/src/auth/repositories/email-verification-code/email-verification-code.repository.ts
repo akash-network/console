@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gt, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -28,25 +28,41 @@ export class EmailVerificationCodeRepository extends BaseRepository<Table, Email
     return new EmailVerificationCodeRepository(this.pg, this.table, this.txManager).withAbility(...abilityParams) as this;
   }
 
-  async findActiveByUserIdForUpdate(userId: string): Promise<EmailVerificationCodeOutput | undefined> {
+  async upsert(data: { userId: string; email: string; code: string; expiresAt: Date }): Promise<EmailVerificationCodeOutput> {
     const [result] = await this.cursor
-      .select()
-      .from(this.table)
-      .where(and(eq(this.table.userId, userId), gt(this.table.expiresAt, sql`now()`)))
-      .orderBy(desc(this.table.createdAt))
-      .limit(1)
-      .for("update");
+      .insert(this.table)
+      .values({
+        userId: data.userId,
+        email: data.email,
+        code: data.code,
+        expiresAt: data.expiresAt,
+        attempts: 0
+      })
+      .onConflictDoUpdate({
+        target: this.table.userId,
+        set: {
+          email: data.email,
+          code: data.code,
+          expiresAt: data.expiresAt,
+          attempts: 0,
+          createdAt: sql`now()`
+        }
+      })
+      .returning();
+
+    return this.toOutput(result);
+  }
+
+  async findByUserId(userId: string): Promise<EmailVerificationCodeOutput | undefined> {
+    const [result] = await this.cursor.select().from(this.table).where(eq(this.table.userId, userId));
 
     return result ? this.toOutput(result) : undefined;
   }
 
-  async countRecentByUserId(userId: string, since: Date): Promise<number> {
-    const [result] = await this.cursor
-      .select({ count: count() })
-      .from(this.table)
-      .where(and(eq(this.table.userId, userId), gt(this.table.createdAt, since)));
+  async findByUserIdForUpdate(userId: string): Promise<EmailVerificationCodeOutput | undefined> {
+    const [result] = await this.cursor.select().from(this.table).where(eq(this.table.userId, userId)).for("update");
 
-    return result?.count ?? 0;
+    return result ? this.toOutput(result) : undefined;
   }
 
   async incrementAttempts(id: string): Promise<void> {

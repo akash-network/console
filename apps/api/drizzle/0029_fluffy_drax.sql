@@ -14,5 +14,4 @@ EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
 --> statement-breakpoint
-CREATE INDEX IF NOT EXISTS "email_verification_codes_user_id_idx" ON "email_verification_codes" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX IF NOT EXISTS "email_verification_codes_expires_at_idx" ON "email_verification_codes" USING btree ("expires_at");
+CREATE UNIQUE INDEX IF NOT EXISTS "email_verification_codes_user_id_idx" ON "email_verification_codes" USING btree ("user_id");

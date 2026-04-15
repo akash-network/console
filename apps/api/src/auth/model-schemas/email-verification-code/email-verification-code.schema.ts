@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, integer, pgTable, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
+import { integer, pgTable, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { Users } from "@src/user/model-schemas";
 
@@ -20,7 +20,6 @@ export const EmailVerificationCodes = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull()
   },
   table => ({
-    userIdIdx: index("email_verification_codes_user_id_idx").on(table.userId),
-    expiresAtIdx: index("email_verification_codes_expires_at_idx").on(table.expiresAt)
+    userIdIdx: uniqueIndex("email_verification_codes_user_id_idx").on(table.userId)
   })
 );

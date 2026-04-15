@@ -24,12 +24,12 @@ describe(EmailVerificationCodeService.name, () => {
       const { service, emailVerificationCodeRepository, userRepository, notificationService } = setup();
 
       userRepository.findById.mockResolvedValue(user);
-      emailVerificationCodeRepository.countRecentByUserId.mockResolvedValue(0);
-      emailVerificationCodeRepository.create.mockResolvedValue(createdRecord);
+      emailVerificationCodeRepository.findByUserId.mockResolvedValue(undefined);
+      emailVerificationCodeRepository.upsert.mockResolvedValue(createdRecord);
 
       const result = await service.sendCode(user.id);
 
-      expect(emailVerificationCodeRepository.create).toHaveBeenCalledWith(
+      expect(emailVerificationCodeRepository.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
           userId: user.id,
           email: user.email,
@@ -40,14 +40,37 @@ describe(EmailVerificationCodeService.name, () => {
       expect(result.codeSentAt).toBe(createdRecord.createdAt);
     });
 
-    it("throws 429 when rate limit exceeded", async () => {
+    it("upserts over an existing code outside cooldown", async () => {
       const user = createUser({ email: "test@example.com" });
+      const existingRecord = createVerificationCodeOutput({
+        userId: user.id,
+        expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString()
+      });
+      const newRecord = createVerificationCodeOutput({ userId: user.id });
       const { service, emailVerificationCodeRepository, userRepository } = setup();
 
       userRepository.findById.mockResolvedValue(user);
-      emailVerificationCodeRepository.countRecentByUserId.mockResolvedValue(5);
+      emailVerificationCodeRepository.findByUserId.mockResolvedValue(existingRecord);
+      emailVerificationCodeRepository.upsert.mockResolvedValue(newRecord);
 
-      await expect(service.sendCode(user.id)).rejects.toThrow();
+      const result = await service.sendCode(user.id);
+
+      expect(emailVerificationCodeRepository.upsert).toHaveBeenCalled();
+      expect(result.codeSentAt).toBe(newRecord.createdAt);
+    });
+
+    it("throws 429 when within cooldown window", async () => {
+      const user = createUser({ email: "test@example.com" });
+      const recentRecord = createVerificationCodeOutput({
+        userId: user.id,
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString()
+      });
+      const { service, emailVerificationCodeRepository, userRepository } = setup();
+
+      userRepository.findById.mockResolvedValue(user);
+      emailVerificationCodeRepository.findByUserId.mockResolvedValue(recentRecord);
+
+      await expect(service.sendCode(user.id)).rejects.toThrow("Too many verification code requests");
     });
 
     it("throws 404 when user not found", async () => {
@@ -76,7 +99,7 @@ describe(EmailVerificationCodeService.name, () => {
       const { service, emailVerificationCodeRepository, userRepository, auth0Service } = setup();
 
       userRepository.findById.mockResolvedValue(user);
-      emailVerificationCodeRepository.findActiveByUserIdForUpdate.mockResolvedValue(record);
+      emailVerificationCodeRepository.findByUserIdForUpdate.mockResolvedValue(record);
 
       await service.verifyCode(user.id, code);
 
@@ -90,7 +113,7 @@ describe(EmailVerificationCodeService.name, () => {
       const { service, emailVerificationCodeRepository, userRepository } = setup();
 
       userRepository.findById.mockResolvedValue(user);
-      emailVerificationCodeRepository.findActiveByUserIdForUpdate.mockResolvedValue(record);
+      emailVerificationCodeRepository.findByUserIdForUpdate.mockResolvedValue(record);
 
       await expect(service.verifyCode(user.id, "999999")).rejects.toThrow("Invalid verification code");
       expect(emailVerificationCodeRepository.incrementAttempts).toHaveBeenCalledWith(record.id);
@@ -102,22 +125,27 @@ describe(EmailVerificationCodeService.name, () => {
       const { service, emailVerificationCodeRepository, userRepository } = setup();
 
       userRepository.findById.mockResolvedValue(user);
-      emailVerificationCodeRepository.findActiveByUserIdForUpdate.mockResolvedValue(record);
+      emailVerificationCodeRepository.findByUserIdForUpdate.mockResolvedValue(record);
 
       await expect(service.verifyCode(user.id, "123456")).rejects.toThrow();
       expect(emailVerificationCodeRepository.incrementAttempts).not.toHaveBeenCalled();
     });
 
-    it("throws and increments attempts for mismatched length code", async () => {
+    it("rejects when code is expired", async () => {
+      const code = "123456";
       const user = createUser({ userId: "auth0|123" });
-      const record = createVerificationCodeOutput({ userId: user.id, code: hashCode("123456"), attempts: 0 });
+      const record = createVerificationCodeOutput({
+        userId: user.id,
+        code: hashCode(code),
+        attempts: 0,
+        expiresAt: new Date(Date.now() - 1000).toISOString()
+      });
       const { service, emailVerificationCodeRepository, userRepository } = setup();
 
       userRepository.findById.mockResolvedValue(user);
-      emailVerificationCodeRepository.findActiveByUserIdForUpdate.mockResolvedValue(record);
+      emailVerificationCodeRepository.findByUserIdForUpdate.mockResolvedValue(record);
 
-      await expect(service.verifyCode(user.id, "12345")).rejects.toThrow("Invalid verification code");
-      expect(emailVerificationCodeRepository.incrementAttempts).toHaveBeenCalledWith(record.id);
+      await expect(service.verifyCode(user.id, code)).rejects.toThrow("Verification code expired");
     });
 
     it("updates local DB even if Auth0 call fails", async () => {
@@ -127,7 +155,7 @@ describe(EmailVerificationCodeService.name, () => {
       const { service, emailVerificationCodeRepository, userRepository, auth0Service } = setup();
 
       userRepository.findById.mockResolvedValue(user);
-      emailVerificationCodeRepository.findActiveByUserIdForUpdate.mockResolvedValue(record);
+      emailVerificationCodeRepository.findByUserIdForUpdate.mockResolvedValue(record);
       auth0Service.markEmailVerified.mockRejectedValue(new Error("Auth0 unavailable"));
 
       await expect(service.verifyCode(user.id, code)).rejects.toThrow("Auth0 unavailable");
@@ -140,7 +168,7 @@ describe(EmailVerificationCodeService.name, () => {
       const { service, emailVerificationCodeRepository, userRepository } = setup();
 
       userRepository.findById.mockResolvedValue(user);
-      emailVerificationCodeRepository.findActiveByUserIdForUpdate.mockResolvedValue(undefined);
+      emailVerificationCodeRepository.findByUserIdForUpdate.mockResolvedValue(undefined);
 
       await expect(service.verifyCode(user.id, "123456")).rejects.toThrow();
     });
