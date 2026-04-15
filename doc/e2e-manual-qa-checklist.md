@@ -162,7 +162,7 @@ Most operations need to be tested for both wallet types:
 - [ ] **Initial Wallet Connection**
 
   - [ ] User clicks "Connect Wallet" button
-  - [ ] Wallet extension modal opens (Keplr/Cosmostation)
+  - [ ] Wallet extension modal opens (Keplr/Cosmostation/MetaMask)
   - [ ] User selects account from wallet extension
   - [ ] User approves connection in wallet extension
   - [ ] Wallet connects and balance displays
