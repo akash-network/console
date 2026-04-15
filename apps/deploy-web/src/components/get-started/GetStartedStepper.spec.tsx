@@ -54,9 +54,9 @@ describe(GetStartedStepper.name, () => {
       })) as unknown as (typeof DEPENDENCIES)["useWallet"],
       useWalletBalance: vi.fn(() => ({
         balance:
-          input?.balanceUAKT !== undefined
+          input?.balanceUAKT !== undefined || input?.balanceUUSDC !== undefined || input?.balanceUACT !== undefined
             ? {
-                balanceUAKT: input.balanceUAKT,
+                balanceUAKT: input?.balanceUAKT ?? 0,
                 balanceUUSDC: input?.balanceUUSDC ?? 0,
                 balanceUACT: input?.balanceUACT ?? 0
               }
