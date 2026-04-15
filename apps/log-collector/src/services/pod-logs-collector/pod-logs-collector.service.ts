@@ -1,6 +1,7 @@
 import { Log as K8sLog } from "@kubernetes/client-node";
 import { LogOptions } from "@kubernetes/client-node/dist/log";
 import { PassThrough } from "stream";
+import { setTimeout as delay } from "timers/promises";
 import { singleton } from "tsyringe";
 
 import { ErrorHandlerService } from "@src/services/error-handler/error-handler.service";
@@ -32,6 +33,12 @@ export class PodLogsCollectorService {
   };
 
   /**
+   * Backoff between reopening the K8s log stream after it closes.
+   * Keeps the loop from hammering the API on persistent errors.
+   */
+  private readonly LOG_STREAM_RECONNECT_BACKOFF_MS = 500;
+
+  /**
    * Creates a new PodLogsCollectorService instance
    *
    * @param podInfo - Information about the pod to collect logs from
@@ -56,10 +63,9 @@ export class PodLogsCollectorService {
    * Starts log collection for all containers in the pod
    *
    * This method:
-   * 1. Retrieves the last log lines with the same timestamp to determine resumption point
-   * 2. Checks if the pod has any containers to collect from
-   * 3. Starts concurrent log collection for all containers
-   * 4. Uses timestamp-based resumption to avoid duplicate logs
+   * 1. Checks if the pod has any containers to collect from
+   * 2. Starts concurrent log collection for all containers
+   * 3. Uses timestamp-based resumption to avoid duplicate logs
    *
    * @returns Promise that resolves when all log collection has been initiated
    * @throws Error if file destination operations fail
@@ -67,8 +73,6 @@ export class PodLogsCollectorService {
    */
   async collectPodLogs(): Promise<void> {
     if (this.signal?.aborted) return;
-
-    const logLine = await this.fileDestination.getLastLogLines();
 
     if (this.podInfo.containerNames.length === 0) {
       this.loggerService.warn({
@@ -80,7 +84,7 @@ export class PodLogsCollectorService {
     }
 
     try {
-      await this.startLogCollectionForAllContainers(this.podInfo.containerNames, logLine[0]?.timestamp);
+      await this.startLogCollectionForAllContainers(this.podInfo.containerNames);
     } catch (error) {
       if (this.errorHandlerService.isForbidden(error)) {
         this.loggerService.warn({
@@ -102,28 +106,65 @@ export class PodLogsCollectorService {
    * Uses error aggregation to handle failures from individual containers gracefully.
    *
    * @param containerNames - Array of container names to collect logs from
-   * @param lastTimestamp - Timestamp to resume from, prevents duplicate log collection
    * @returns Promise that resolves when all log collection has been initiated
    * @throws AggregateError if any container fails to start log collection
    */
-  private async startLogCollectionForAllContainers(containerNames: string[], lastTimestamp?: number | null): Promise<void> {
-    const collectionPromises = containerNames.map(async containerName => {
-      const logStream = new PassThrough();
-      const writePromise = this.write(logStream);
+  private async startLogCollectionForAllContainers(containerNames: string[]): Promise<void> {
+    const collectionPromises = containerNames.map(containerName => this.collectContainerLogs(containerName));
+    await this.errorHandlerService.aggregateConcurrentResults(collectionPromises, "container log collection");
+  }
 
-      this.loggerService.info({
-        event: "CONTAINER_LOG_COLLECTION_STARTED",
-        podName: this.podInfo.podName,
-        namespace: this.podInfo.namespace,
-        containerName
-      });
-
-      const k8sPromise = this.startKubernetesLogStream(containerName, logStream, lastTimestamp);
-
-      await Promise.all([writePromise, k8sPromise]);
+  /**
+   * Collects logs for a single container until the pod-level signal is aborted.
+   *
+   * Acquires the stable write stream once, then repeatedly opens fresh K8s log
+   * streams and pipes them into it. A close on the K8s side (apiserver restart,
+   * LB timeout, network blip, container restart) triggers a reconnect; only
+   * an aborted signal stops the loop.
+   *
+   * @param containerName - Name of the container to collect logs from
+   * @throws Error on 403 Forbidden — bubbles up to stop pod-level collection
+   */
+  private async collectContainerLogs(containerName: string): Promise<void> {
+    const writeStream = await this.fileDestination.createWriteStream();
+    this.loggerService.info({
+      event: "CONTAINER_LOG_COLLECTION_STARTED",
+      podName: this.podInfo.podName,
+      namespace: this.podInfo.namespace,
+      containerName
     });
 
-    await this.errorHandlerService.aggregateConcurrentResults(collectionPromises, "container log collection");
+    try {
+      while (!this.signal?.aborted) {
+        try {
+          await this.streamContainerLogsOnce(containerName, writeStream);
+        } catch (error) {
+          if (this.errorHandlerService.isForbidden(error)) throw error;
+          this.loggerService.warn({
+            event: "CONTAINER_LOG_STREAM_ERROR",
+            podName: this.podInfo.podName,
+            namespace: this.podInfo.namespace,
+            containerName,
+            error
+          });
+        }
+
+        if (this.signal?.aborted) break;
+        await delay(this.LOG_STREAM_RECONNECT_BACKOFF_MS, null, { signal: this.signal }).catch(() => undefined);
+      }
+    } finally {
+      writeStream.end();
+    }
+  }
+
+  /**
+   * Runs one stream session: sets up the K8s → file pipe, waits for it to
+   * end (close or error), unwinds on failure. Resolves on clean close.
+   */
+  private async streamContainerLogsOnce(containerName: string, writeStream: NodeJS.WritableStream): Promise<void> {
+    const lastLogLines = await this.fileDestination.getLastLogLines();
+    const logStream = new PassThrough();
+    await Promise.all([this.startKubernetesLogStream(containerName, logStream, lastLogLines[0]?.timestamp), this.write(logStream, writeStream, lastLogLines)]);
   }
 
   /**
@@ -135,69 +176,69 @@ export class PodLogsCollectorService {
    * - Filter out empty lines
    * - Detect and skip duplicate log lines by comparing against all last log lines with same timestamp
    * - Write processed logs to the stable file destination
-   * - Resolve on stream close (when signal fires) or reject on stream errors
+   * - Resolve on stream close or reject on stream errors
+   *
+   * Does NOT end the provided `writeStream` — the caller owns its lifetime and
+   * reuses it across reconnects.
    *
    * @param logStream - The PassThrough stream to configure for log processing
+   * @param writeStream - Stable destination stream (owned by the caller)
+   * @param lastLogLines - Previously written lines used to deduplicate replays at the start of the stream
    * @returns Promise that resolves on stream close or rejects on stream errors
    */
-  private write(logStream: PassThrough): Promise<void> {
+  private write(logStream: PassThrough, writeStream: NodeJS.WritableStream, lastLogLines: { line: string; timestamp?: number | null }[]): Promise<void> {
     return new Promise<void>((resolve, reject) => {
-      (async () => {
-        try {
-          const writeStream = await this.fileDestination.createWriteStream();
-          const lastLogLines = await this.fileDestination.getLastLogLines();
+      let remainingBuffer: Buffer<ArrayBufferLike> = Buffer.alloc(0);
+      const deduplicator = this.createDeduplicator(lastLogLines);
 
-          let remainingBuffer: Buffer<ArrayBufferLike> = Buffer.alloc(0);
-          const deduplicator = this.createDeduplicator(lastLogLines);
+      const onWriteStreamError = (error: Error) => {
+        this.loggerService.error({
+          event: "WRITE_STREAM_ERROR",
+          error,
+          podName: this.podInfo.podName,
+          namespace: this.podInfo.namespace
+        });
+        reject(error);
+        logStream.destroy();
+      };
+      writeStream.on("error", onWriteStreamError);
 
-          writeStream.on("error", error => {
-            this.loggerService.error({
-              event: "WRITE_STREAM_ERROR",
-              error,
-              podName: this.podInfo.podName,
-              namespace: this.podInfo.namespace
-            });
-            reject(error);
-          });
+      logStream.on("error", error => {
+        this.loggerService.error({
+          event: "LOG_STREAM_ERROR",
+          error,
+          podName: this.podInfo.podName,
+          namespace: this.podInfo.namespace
+        });
+        writeStream.off("error", onWriteStreamError);
+        reject(error);
+      });
 
-          logStream.on("error", error => {
-            this.loggerService.error({
-              event: "LOG_STREAM_ERROR",
-              error,
-              podName: this.podInfo.podName,
-              namespace: this.podInfo.namespace
-            });
-            reject(error);
-          });
+      logStream.on("close", () => {
+        this.loggerService.info({
+          event: "LOG_STREAM_CLOSED",
+          podName: this.podInfo.podName,
+          namespace: this.podInfo.namespace
+        });
+        writeStream.off("error", onWriteStreamError);
+        resolve();
+      });
 
-          logStream.on("close", () => {
-            this.loggerService.info({
-              event: "LOG_STREAM_CLOSED",
-              podName: this.podInfo.podName,
-              namespace: this.podInfo.namespace
-            });
-            writeStream.end(() => resolve());
-          });
+      logStream.on("data", (chunk: Buffer) => {
+        const { lines, remaining } = this.splitChunkIntoLines(remainingBuffer, chunk);
+        remainingBuffer = remaining;
 
-          logStream.on("data", (chunk: Buffer) => {
-            const { lines, remaining } = this.splitChunkIntoLines(remainingBuffer, chunk);
-            remainingBuffer = remaining;
+        const outputLines = deduplicator(lines);
 
-            const outputLines = deduplicator(lines);
-
-            if (outputLines.length > 0) {
-              const outputContent = outputLines.join("\n") + "\n";
-              const canContinue = writeStream.write(outputContent);
-              if (!canContinue) {
-                logStream.pause();
-                writeStream.once("drain", () => logStream.resume());
-              }
-            }
-          });
-        } catch (error) {
-          reject(error);
+        if (outputLines.length > 0) {
+          const outputContent = outputLines.join("\n") + "\n";
+          const canContinue = writeStream.write(outputContent);
+          if (!canContinue) {
+            logStream.pause();
+            writeStream.once("drain", () => logStream.resume());
+          }
         }
-      })();
+      });
     });
   }
 
@@ -289,14 +330,12 @@ export class PodLogsCollectorService {
     const k8sAbortRef: { current?: AbortController } = {};
 
     if (this.signal) {
-      this.signal.addEventListener(
-        "abort",
-        () => {
-          k8sAbortRef.current?.abort();
-          logStream.destroy();
-        },
-        { once: true }
-      );
+      const onAbort = () => {
+        k8sAbortRef.current?.abort();
+        logStream.destroy();
+      };
+      this.signal.addEventListener("abort", onAbort, { once: true });
+      logStream.once("close", () => this.signal?.removeEventListener("abort", onAbort));
 
       if (this.signal.aborted) {
         logStream.destroy();
@@ -304,7 +343,12 @@ export class PodLogsCollectorService {
       }
     }
 
-    k8sAbortRef.current = await this.k8sLogClient.log(this.podInfo.namespace, this.podInfo.podName, containerName, logStream, logStreamOptions);
+    try {
+      k8sAbortRef.current = await this.k8sLogClient.log(this.podInfo.namespace, this.podInfo.podName, containerName, logStream, logStreamOptions);
+    } catch (error) {
+      logStream.destroy();
+      throw error;
+    }
 
     if (this.signal?.aborted) {
       k8sAbortRef.current?.abort();
