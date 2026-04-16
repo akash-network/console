@@ -1,52 +1,81 @@
 "use client";
-import React from "react";
-import { Alert, Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@akashnetwork/ui/components";
-import { Check, Mail, Refresh } from "iconoir-react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Spinner } from "@akashnetwork/ui/components";
+import { Mail, Refresh } from "iconoir-react";
 
 import { Title } from "@src/components/shared/Title";
+import { useNotificator } from "@src/hooks/useNotificator";
+import type { AppError } from "@src/types";
+import { extractErrorMessage } from "@src/utils/errorUtils";
+import type { VerificationCodeInputRef } from "./VerificationCodeInput";
+import { VerificationCodeInput } from "./VerificationCodeInput";
+
+const COOLDOWN_DURATION = 60;
+
+export const DEPENDENCIES = {
+  useNotificator,
+  extractErrorMessage
+};
 
 interface EmailVerificationStepProps {
-  isEmailVerified: boolean;
-  isResending: boolean;
-  isChecking: boolean;
-  onResendEmail: () => void;
-  onCheckVerification: () => void;
-  onContinue: () => void;
+  sendCode: () => Promise<void>;
+  verifyCode: (code: string) => Promise<void>;
+  dependencies?: typeof DEPENDENCIES;
 }
 
-export const EmailVerificationStep: React.FunctionComponent<EmailVerificationStepProps> = ({
-  isEmailVerified,
-  isResending,
-  isChecking,
-  onResendEmail,
-  onCheckVerification,
-  onContinue
-}) => {
+export const EmailVerificationStep: React.FunctionComponent<EmailVerificationStepProps> = ({ sendCode, verifyCode, dependencies: d = DEPENDENCIES }) => {
+  const notificator = d.useNotificator();
+
+  const [isResending, setIsResending] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
+  const codeInputRef = useRef<VerificationCodeInputRef>(null);
+
+  useEffect(() => {
+    if (cooldownSeconds <= 0) return;
+
+    const timer = setTimeout(() => {
+      setCooldownSeconds(prev => prev - 1);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [cooldownSeconds]);
+
+  const handleResendCode = useCallback(async () => {
+    setIsResending(true);
+    codeInputRef.current?.reset();
+
+    try {
+      await sendCode();
+      setCooldownSeconds(COOLDOWN_DURATION);
+      notificator.success("Verification code sent. Please check your email for the 6-digit code.");
+    } catch {
+      notificator.error("Failed to send verification code. Please try again later");
+    } finally {
+      setIsResending(false);
+    }
+  }, [sendCode, notificator]);
+
+  const handleVerifyCode = useCallback(
+    async (code: string) => {
+      setIsVerifying(true);
+
+      try {
+        await verifyCode(code);
+        notificator.success("Your email has been successfully verified");
+      } catch (error) {
+        notificator.error(d.extractErrorMessage(error as AppError));
+        codeInputRef.current?.reset();
+      } finally {
+        setIsVerifying(false);
+      }
+    },
+    [verifyCode, notificator, d.extractErrorMessage]
+  );
+
   return (
     <div className="mx-auto max-w-md space-y-6 text-center">
       <Title>Verify Your Email</Title>
-
-      {isEmailVerified ? (
-        <Alert className="mx-auto flex max-w-md flex-row items-center gap-2 text-left" variant="success">
-          <div className="rounded-full bg-card p-3">
-            <Check className="h-6 w-6" />
-          </div>
-          <div>
-            <h4 className="font-medium">Email Verified</h4>
-            <p className="text-sm">Your email has been successfully verified.</p>
-          </div>
-        </Alert>
-      ) : (
-        <Alert className="mx-auto flex max-w-md flex-row items-center gap-2 text-left" variant="warning">
-          <div className="rounded-full bg-card p-3">
-            <Mail className="h-4 w-4" />
-          </div>
-          <div>
-            <h4 className="font-medium">Email Verification Required</h4>
-            <p className="text-sm">Please verify your email address to continue.</p>
-          </div>
-        </Alert>
-      )}
 
       <Card className="mx-auto max-w-md">
         <CardHeader>
@@ -56,29 +85,26 @@ export const EmailVerificationStep: React.FunctionComponent<EmailVerificationSte
             </div>
           </div>
           <CardTitle>Email Verification</CardTitle>
-          <CardDescription>
-            {isEmailVerified ? "Your email has been verified successfully." : "We've sent a verification link to your email address."}
-          </CardDescription>
+          <CardDescription>We've sent a 6-digit verification code to your email address.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {!isEmailVerified ? (
-            <>
-              <p className="text-sm text-muted-foreground">Didn't receive the email? Check your spam folder or request a new verification email.</p>
-              <div className="flex gap-2">
-                <Button onClick={onResendEmail} variant="outline" disabled={isResending} className="flex-1">
-                  <Refresh className="mr-2 h-4 w-4" />
-                  {isResending ? "Sending..." : "Resend Email"}
-                </Button>
-                <Button onClick={onCheckVerification} disabled={isChecking} className="flex-1">
-                  {isChecking ? "Checking..." : "Check Verification"}
-                </Button>
-              </div>
-            </>
-          ) : (
-            <Button onClick={onContinue} className="w-full">
-              Continue
-            </Button>
-          )}
+          <VerificationCodeInput ref={codeInputRef} onComplete={handleVerifyCode} disabled={isVerifying} />
+
+          <p className="text-sm text-muted-foreground">Didn't receive the code? Check your spam folder or request a new one.</p>
+
+          <Button onClick={handleResendCode} variant="outline" disabled={isResending || isVerifying || cooldownSeconds > 0} className="w-full">
+            {isResending ? (
+              <>
+                <Spinner size="small" className="mr-2" />
+                Sending...
+              </>
+            ) : (
+              <>
+                <Refresh className="mr-2 h-4 w-4" />
+                {cooldownSeconds > 0 ? `Resend Code (${cooldownSeconds}s)` : "Resend Code"}
+              </>
+            )}
+          </Button>
         </CardContent>
       </Card>
     </div>
