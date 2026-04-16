@@ -14,10 +14,11 @@ import type { LoadingState } from "@src/components/layout/TransactionModal";
 import { TransactionModal } from "@src/components/layout/TransactionModal";
 import { useAllowance } from "@src/hooks/useAllowance";
 import { useManagedWallet } from "@src/hooks/useManagedWallet";
+import { useSelectedChain } from "@src/hooks/useSelectedChain/useSelectedChain";
 import { useUser } from "@src/hooks/useUser";
 import { useWhen } from "@src/hooks/useWhen";
+import { useManager } from "@src/lib/cosmos-kit-jotai";
 import { useBalances } from "@src/queries/useBalancesQuery";
-import { useManager, useSelectedChain } from "@src/store/chainStore";
 import networkStore from "@src/store/networkStore";
 import walletStore from "@src/store/walletStore";
 import type { AppError } from "@src/types";
@@ -94,7 +95,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const { user } = useUser();
   const userWallet = useSelectedChain();
   const { wallet: managedWallet, isLoading: isManagedWalletLoading, create: createManagedWallet, createError: managedWalletError } = useManagedWallet();
-  const [, setIsWalletModelOpen] = useAtom(walletStore.isWalletModalOpen);
   const [selectedWalletType, setSelectedWalletType] = useAtom(walletStore.selectedWalletType);
   const {
     address: walletAddress,
@@ -102,7 +102,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     isWalletConnected
   } = useMemo(() => (selectedWalletType === "managed" && managedWallet) || userWallet, [managedWallet, userWallet, selectedWalletType]);
   const { refetch: refetchBalances } = useBalances(walletAddress);
-  const { addEndpoints } = useManager();
+  const custodialWalletManager = useManager();
   const managedMarker = useMemo((): ManagedWalletMarker => {
     if (!!managedWallet && managedWallet?.address === walletAddress) {
       return { isManaged: true, denom: managedWallet.denom };
@@ -140,12 +140,12 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => {
     if (!settings.apiEndpoint || !settings.rpcEndpoint) return;
 
-    addEndpoints({
+    custodialWalletManager?.addEndpoints({
       akash: { rest: [settings.apiEndpoint], rpc: [settings.rpcEndpoint] },
       "akash-sandbox": { rest: [settings.apiEndpoint], rpc: [settings.rpcEndpoint] },
       "akash-testnet": { rest: [settings.apiEndpoint], rpc: [settings.rpcEndpoint] }
     });
-  }, [addEndpoints, settings.apiEndpoint, settings.rpcEndpoint]);
+  }, [custodialWalletManager, settings.apiEndpoint, settings.rpcEndpoint]);
 
   useEffect(() => {
     setSettingsId(walletAddress || null);
@@ -164,7 +164,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
 
     if (selectedWalletType === "managed" && !userWallet.isWalletConnected) {
-      setIsWalletModelOpen(true);
       userWallet.connect();
     }
 
@@ -352,7 +351,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       value={{
         address: walletAddress as string,
         walletName: username as string,
-        isWalletConnected: isWalletConnected,
+        isWalletConnected,
         isWalletLoaded,
         connectManagedWallet,
         logout,

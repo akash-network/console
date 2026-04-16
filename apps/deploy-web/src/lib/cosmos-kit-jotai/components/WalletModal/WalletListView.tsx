@@ -3,7 +3,7 @@ import type { ChainWalletBase, Wallet } from "@cosmos-kit/core";
 import type { ConnectModalWalletListProps } from "@interchain-ui/react";
 import { ConnectModalHead, ConnectModalWalletList } from "@interchain-ui/react";
 
-import { chainStore } from "@src/store/chainStore";
+import { useChainStore } from "../../context/ChainStoreProvider";
 
 function getWalletProp(wallet: Wallet) {
   const { prettyName, mode, name, logo, mobileDisabled } = wallet;
@@ -17,6 +17,7 @@ function getWalletProp(wallet: Wallet) {
 }
 
 function DynamicWalletList({ wallets, onClose }: { wallets: ChainWalletBase[]; onClose: () => void }) {
+  const chainStore = useChainStore();
   const [isLargeScreen, setIsLargeScreen] = useState(true);
 
   const onWalletClicked = useCallback(

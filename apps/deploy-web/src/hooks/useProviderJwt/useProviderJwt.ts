@@ -4,7 +4,7 @@ import { atom, useAtom } from "jotai";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { useSelectedChain } from "@src/store/chainStore";
+import { useSelectedChain } from "../useSelectedChain/useSelectedChain";
 
 const JWT_TOKEN_ATOM = atom<string | null>(null);
 

@@ -7,7 +7,7 @@ import type { ThemeProviderProps } from "@interchain-ui/react";
 import { ConnectModal, ThemeProvider } from "@interchain-ui/react";
 import { useAtomValue } from "jotai";
 
-import { chainStore } from "@src/store/chainStore";
+import { useChainStore } from "../../context/ChainStoreProvider";
 import { WalletListView } from "./WalletListView";
 
 const MODAL_VIEWS = { ...defaultModalViews, WalletList: WalletListView };
@@ -27,6 +27,10 @@ type WalletModalComponentProps = WalletModalProps &
     includeAllWalletsOnMobile?: boolean;
   };
 
+/**
+ * This can be removed when this issue is resolved:
+ * https://github.com/hyperweb-io/cosmos-kit/issues/599
+ */
 export function WalletModal({
   isOpen,
   setOpen,
@@ -42,6 +46,7 @@ export function WalletModal({
   modalChildrenClassName,
   modalContentStyles
 }: WalletModalComponentProps) {
+  const chainStore = useChainStore();
   const [currentView, setCurrentView] = useState(ModalView.WalletList);
   const [qrState, setQRState] = useState(State.Init);
   const [qrMsg, setQRMsg] = useState("");

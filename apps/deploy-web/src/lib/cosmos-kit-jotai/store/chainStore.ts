@@ -3,10 +3,12 @@ import type { getDefaultStore } from "jotai";
 import { atom } from "jotai";
 
 import { CURRENT_WALLET_KEY } from "./constants";
-import { loadAllWallets, loadWalletByName } from "./walletRegistry";
+import type { WalletManagerOptions } from "./walletManagerFactory";
 
 export interface ChainStoreOptions {
   store: ReturnType<typeof getDefaultStore>;
+  walletsRegistry: WalletsRegistry;
+  walletManagerOptions: Omit<WalletManagerOptions, "wallets">;
 }
 
 export class ChainStore {
@@ -14,7 +16,9 @@ export class ChainStore {
     return new ChainStore(options);
   }
 
-  private readonly jotaiStore: ReturnType<typeof getDefaultStore>;
+  private readonly jotaiStore: ChainStoreOptions["store"];
+  private readonly walletsRegistry: ChainStoreOptions["walletsRegistry"];
+  private readonly walletManagerOptions: ChainStoreOptions["walletManagerOptions"];
 
   readonly walletManagerAtom = atom<WalletManager | null>(null);
   readonly stateVersionAtom = atom(0);
@@ -28,6 +32,8 @@ export class ChainStore {
 
   constructor(options: ChainStoreOptions) {
     this.jotaiStore = options.store;
+    this.walletsRegistry = options.walletsRegistry;
+    this.walletManagerOptions = options.walletManagerOptions;
   }
 
   async initialize(): Promise<void> {
@@ -42,7 +48,7 @@ export class ChainStore {
 
     try {
       this.jotaiStore.set(this.isInitializingAtom, true);
-      const wallets = await loadWalletByName(storedWallet);
+      const wallets = await loadWalletByName(this.walletsRegistry, storedWallet);
       await this.replaceManager(wallets);
     } catch {
       window.localStorage?.removeItem(CURRENT_WALLET_KEY);
@@ -55,9 +61,9 @@ export class ChainStore {
     if (this.walletsLoadingPromise) return this.walletsLoadingPromise;
 
     this.jotaiStore.set(this.isInitializingAtom, true);
-    this.walletsLoadingPromise = loadAllWallets()
+    this.walletsLoadingPromise = loadAllWallets(this.walletsRegistry)
       .then(wallets => this.replaceManager(wallets))
-      .then(() => this.bumpVersion())
+      .then(() => this.forceUpdate())
       .catch(() => {
         // loading failed, allow retry
         this.walletsLoadingPromise = null;
@@ -75,14 +81,14 @@ export class ChainStore {
     }
 
     const { createWalletManager } = await import("./walletManagerFactory");
-    const manager = createWalletManager(wallets);
-    this.wireActions(manager);
+    const manager = createWalletManager({ ...this.walletManagerOptions, wallets });
+    this.linkManagerToStore(manager);
     this.jotaiStore.set(this.walletManagerAtom, manager);
     await manager.onMounted();
   }
 
-  private wireActions(manager: WalletManager): void {
-    const bump = () => this.bumpVersion();
+  private linkManagerToStore(manager: WalletManager): void {
+    const forceUpdate = () => this.forceUpdate();
     const setModalOpen = (open: boolean) => {
       this.jotaiStore.set(this.modalIsOpenAtom, open);
     };
@@ -93,38 +99,38 @@ export class ChainStore {
     manager.setActions({
       viewOpen: setModalOpen,
       viewWalletRepo: setModalWalletRepo,
-      data: bump,
-      state: bump,
-      message: bump
+      data: forceUpdate,
+      state: forceUpdate,
+      message: forceUpdate
     });
 
     manager.walletRepos.forEach(wr => {
       wr.setActions({
         viewOpen: setModalOpen,
         viewWalletRepo: setModalWalletRepo,
-        render: bump
+        render: forceUpdate
       });
       wr.wallets.forEach(w => {
         w.setActions({
-          data: bump,
-          state: bump,
-          message: bump
+          data: forceUpdate,
+          state: forceUpdate,
+          message: forceUpdate
         });
       });
     });
 
     manager.mainWallets.forEach(w => {
       w.setActions({
-        data: bump,
-        state: bump,
-        message: bump,
-        clientState: bump,
-        clientMessage: bump
+        data: forceUpdate,
+        state: forceUpdate,
+        message: forceUpdate,
+        clientState: forceUpdate,
+        clientMessage: forceUpdate
       });
     });
   }
 
-  private bumpVersion(): void {
+  private forceUpdate(): void {
     this.jotaiStore.set(this.stateVersionAtom, v => v + 1);
   }
 
@@ -157,4 +163,19 @@ export class ChainStore {
 
 function getCurrentWalletName() {
   return typeof window !== "undefined" ? window.localStorage.getItem(CURRENT_WALLET_KEY) : null;
+}
+
+type WalletsRegistry = Record<string, () => Promise<{ wallets: MainWalletBase[] }>>;
+export async function loadWalletByName(registry: WalletsRegistry, name: string): Promise<MainWalletBase[]> {
+  const loader = registry[name];
+  if (!loader) {
+    throw new Error(`Unknown wallet: ${name}`);
+  }
+  const { wallets } = await loader();
+  return wallets;
+}
+
+export async function loadAllWallets(registry: WalletsRegistry): Promise<MainWalletBase[]> {
+  const wallets = await Promise.all(Object.keys(registry).map(name => loadWalletByName(registry, name)));
+  return wallets.flat();
 }

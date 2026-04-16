@@ -5,7 +5,7 @@ import { Button, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { Wallet } from "iconoir-react";
 
-import { useSelectedChain } from "@src/store/chainStore";
+import { useSelectedChain } from "@src/hooks/useSelectedChain/useSelectedChain";
 
 interface Props extends ButtonProps {
   children?: ReactNode;
