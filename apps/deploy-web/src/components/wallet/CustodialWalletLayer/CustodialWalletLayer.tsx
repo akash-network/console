@@ -3,13 +3,13 @@
 import "@interchain-ui/react/styles";
 import "@interchain-ui/react/globalStyles";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { Snackbar } from "@akashnetwork/ui/components";
 import { useAtom, useAtomValue } from "jotai";
+import dynamic from "next/dynamic";
 import { useSnackbar } from "notistack";
 
-import { DefaultWalletModal } from "@src/components/wallet/WalletModal";
-import chainStore, { useSelectedChain } from "@src/store/chainStore";
+import { chainStore, useSelectedChain } from "@src/store/chainStore";
 import walletStore from "@src/store/walletStore";
 
 export function CustodialWalletLayer() {
@@ -58,24 +58,25 @@ function ChainStoreInitializer() {
   return null;
 }
 
-const ModalWrapper = () => {
-  const { isWalletConnected } = useSelectedChain();
-  const [isWalletModalOpen, setIsWalletModalOpen] = useAtom(walletStore.isWalletModalOpen);
-  const [, setSelectedWalletType] = useAtom(walletStore.selectedWalletType);
-  const [isOpen] = useAtom(chainStore.modalIsOpenAtom);
-  const [walletRepo] = useAtom(chainStore.modalWalletRepoAtom);
+const WalletModal = dynamic(() => import("@src/components/wallet/WalletModal").then(mod => mod.WalletModal), { ssr: false });
 
-  const handleSetOpen = (open: boolean) => {
+function ModalWrapper() {
+  const [, setIsWalletModalOpen] = useAtom(walletStore.isWalletModalOpen);
+  const walletType = useAtomValue(walletStore.selectedWalletType);
+  const isOpen = useAtomValue(chainStore.modalIsOpenAtom);
+  const walletRepo = useAtomValue(chainStore.modalWalletRepoAtom);
+
+  const handleSetOpen = useCallback((open: boolean) => {
     chainStore.setModalOpen(open);
-  };
+  }, []);
 
   useEffect(() => {
     setIsWalletModalOpen(isOpen);
+  }, [isOpen, setIsWalletModalOpen]);
 
-    if (isWalletModalOpen && !isOpen && isWalletConnected) {
-      setSelectedWalletType("custodial");
-    }
-  }, [isWalletModalOpen, isOpen, isWalletConnected, setIsWalletModalOpen, setSelectedWalletType]);
+  if (walletType !== "custodial") {
+    return null;
+  }
 
-  return <DefaultWalletModal isOpen={isOpen} setOpen={handleSetOpen} walletRepo={walletRepo} />;
-};
+  return <WalletModal isOpen={isOpen} setOpen={handleSetOpen} walletRepo={walletRepo} />;
+}

@@ -7,7 +7,7 @@ import type { ThemeProviderProps } from "@interchain-ui/react";
 import { ConnectModal, ThemeProvider } from "@interchain-ui/react";
 import { useAtomValue } from "jotai";
 
-import chainStore from "@src/store/chainStore";
+import { chainStore } from "@src/store/chainStore";
 import { WalletListView } from "./WalletListView";
 
 const MODAL_VIEWS = { ...defaultModalViews, WalletList: WalletListView };
@@ -170,8 +170,4 @@ export function WalletModal({
       </ConnectModal>
     </ThemeProvider>
   );
-}
-
-export function DefaultWalletModal({ isOpen, setOpen, walletRepo }: WalletModalProps) {
-  return <WalletModal isOpen={isOpen} setOpen={setOpen} walletRepo={walletRepo} />;
 }

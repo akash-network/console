@@ -3,7 +3,7 @@ import type { ChainWalletBase, Wallet } from "@cosmos-kit/core";
 import type { ConnectModalWalletListProps } from "@interchain-ui/react";
 import { ConnectModalHead, ConnectModalWalletList } from "@interchain-ui/react";
 
-import chainStore from "@src/store/chainStore";
+import { chainStore } from "@src/store/chainStore";
 
 function getWalletProp(wallet: Wallet) {
   const { prettyName, mode, name, logo, mobileDisabled } = wallet;

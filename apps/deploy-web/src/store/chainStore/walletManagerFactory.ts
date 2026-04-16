@@ -2,7 +2,7 @@ import { GasPrice } from "@cosmjs/stargate";
 import type { MainWalletBase } from "@cosmos-kit/core";
 import { Logger, WalletManager } from "@cosmos-kit/core";
 
-import { akash, akashSandbox, akashTestnet, assetLists } from "@src/chains";
+import { assetLists, chains } from "@src/chains";
 import { registry } from "@src/utils/customRegistry";
 
 export const CURRENT_WALLET_KEY = "cosmos-kit@2:core//current-wallet";
@@ -11,7 +11,7 @@ export function createWalletManager(wallets: MainWalletBase[]): WalletManager {
   const logger = new Logger("WARN");
 
   return new WalletManager(
-    [akash, akashSandbox, akashTestnet],
+    chains,
     wallets,
     logger,
     false, // throwErrors

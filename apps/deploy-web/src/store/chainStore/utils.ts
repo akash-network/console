@@ -3,7 +3,7 @@ import { WalletStatus } from "@cosmos-kit/core";
 
 /**
  * Builds a ChainWalletContext from a ChainWalletBase instance.
- * Ported from @cosmos-kit/react-lite/esm/utils.js
+ * Copied from @cosmos-kit/react-lite/esm/utils.js
  */
 export function getChainWalletContext(chainId: string, wallet: ChainWalletBase | undefined, sync = true): ChainWalletContext {
   const walletAssert = (func: ((...args: any[]) => any) | undefined, params: any[] = [], name: string) => {

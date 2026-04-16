@@ -11,6 +11,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { GeistSans } from "geist/font/sans";
 import { Provider as JotaiProvider } from "jotai";
 import type { AppProps } from "next/app";
+import dynamic from "next/dynamic";
 import Router from "next/router";
 import { NavigationGuardProvider } from "next-navigation-guard";
 import type { NextSeoProps } from "next-seo/lib/types";
@@ -19,7 +20,6 @@ import NProgress from "nprogress";
 
 import { CustomIntlProvider } from "@src/components/layout/CustomIntlProvider";
 import { PageHead } from "@src/components/layout/PageHead";
-import { LocalNoteManager } from "@src/components/LocalNoteManager";
 import { OnboardingRedirectEffect } from "@src/components/onboarding/OnboardingRedirectEffect/OnboardingRedirectEffect";
 import { UserProviders } from "@src/components/user/UserProviders/UserProviders";
 import { CustodialWalletLayer } from "@src/components/wallet/CustodialWalletLayer";
@@ -70,6 +70,9 @@ const App: React.FunctionComponent<Props> = props => {
 
 export default App;
 
+const LocalNoteManager = dynamic(() => import("@src/components/LocalNoteManager/LocalNoteManager").then(mod => mod.LocalNoteManager), {
+  ssr: false
+});
 function AppRoot(props: Props & { children: React.ReactNode }) {
   const { queryClient } = useRootContainer();
   return (
