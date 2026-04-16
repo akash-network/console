@@ -1,4 +1,5 @@
 import { createOtelLogger } from "@akashnetwork/logging/otel";
+import { context as otelContext, propagation, trace } from "@opentelemetry/api";
 import { secondsInMinute } from "date-fns";
 import { Context, Next } from "hono";
 import { BadRequest, Unauthorized } from "http-errors";
@@ -59,7 +60,7 @@ export class AuthInterceptor implements HonoInterceptor {
           const currentUser = await this.userRepository.findByUserId(userId);
           await this.auth(currentUser);
           c.set("user", currentUser);
-          return await next();
+          return await this.#nextWithUserContext(currentUser, next);
         }
 
         if (apiKey) {
@@ -70,7 +71,7 @@ export class AuthInterceptor implements HonoInterceptor {
             await Promise.all([currentUser ? this.markApiKeyAsUsed(apiKeyOutput) : null, this.auth(currentUser)]);
             c.set("user", currentUser);
 
-            return await next();
+            return await this.#nextWithUserContext(currentUser, next);
           } catch (error) {
             this.logger.error(error);
             throw new Unauthorized("Invalid API key");
@@ -85,6 +86,21 @@ export class AuthInterceptor implements HonoInterceptor {
 
   clearLastUserActivityCache(): void {
     this.lastUserActivityCache.clear();
+  }
+
+  async #nextWithUserContext(user: UserOutput | undefined, next: Next) {
+    if (!user) {
+      return await next();
+    }
+
+    const activeContext = otelContext.active();
+    const currentBaggage = propagation.getBaggage(activeContext) ?? propagation.createBaggage();
+    const newBaggage = currentBaggage.setEntry("user.id", { value: user.id });
+    const contextWithBaggage = propagation.setBaggage(activeContext, newBaggage);
+
+    trace.getSpan(activeContext)?.setAttribute("user.id", user.id);
+
+    return await otelContext.with(contextWithBaggage, () => next());
   }
 
   private async auth(user?: UserOutput) {
