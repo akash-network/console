@@ -59,7 +59,29 @@ function extract_metadata(tag, timestamp, record)
 
     -- Set extracted metadata in the record for Datadog integration
     record["service"] = service
-    record["ddtags"]  = "pod_name:" .. pod_name .. ",service:" .. service
+
+    local tags = "pod_name:" .. pod_name .. ",service:" .. service
+
+    local akash_tags = {
+        { env = "AKASH_DEPLOYMENT_SEQUENCE", key = "deployment_sequence" },
+        { env = "AKASH_ORDER_SEQUENCE",      key = "order_sequence" },
+        { env = "AKASH_GROUP_SEQUENCE",       key = "group_sequence" },
+        { env = "AKASH_CLUSTER_PUBLIC_HOSTNAME", key = "cluster_hostname" }
+    }
+
+    for _, t in ipairs(akash_tags) do
+        local val = os.getenv(t.env)
+        if val and val ~= "" then
+            tags = tags .. "," .. t.key .. ":" .. val
+        end
+    end
+
+    record["ddtags"] = tags
+
+    local hostname = os.getenv("AKASH_CLUSTER_PUBLIC_HOSTNAME")
+    if hostname and hostname ~= "" then
+        record["hostname"] = hostname
+    end
 
     return 1, timestamp, record
 end
