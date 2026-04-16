@@ -2,7 +2,7 @@ import type { MainWalletBase, WalletManager, WalletRepo } from "@cosmos-kit/core
 import type { getDefaultStore } from "jotai";
 import { atom } from "jotai";
 
-import { CURRENT_WALLET_KEY } from "./walletManagerFactory";
+import { CURRENT_WALLET_KEY } from "./constants";
 import { loadAllWallets, loadWalletByName } from "./walletRegistry";
 
 export interface ChainStoreOptions {
@@ -19,12 +19,12 @@ export class ChainStore {
   readonly walletManagerAtom = atom<WalletManager | null>(null);
   readonly stateVersionAtom = atom(0);
   readonly isInitializedAtom = atom(false);
-  readonly isLoadingWalletsAtom = atom(false);
   readonly modalIsOpenAtom = atom(false);
   readonly modalWalletRepoAtom = atom<WalletRepo | undefined>(undefined);
   readonly selectedWalletNameAtom = atom("");
+  readonly isInitializingAtom = atom(!!getCurrentWalletName());
 
-  private allWalletsLoaded = false;
+  private walletsLoadingPromise: Promise<void> | null = null;
 
   constructor(options: ChainStoreOptions) {
     this.jotaiStore = options.store;
@@ -34,50 +34,51 @@ export class ChainStore {
     if (this.jotaiStore.get(this.isInitializedAtom)) return;
     this.jotaiStore.set(this.isInitializedAtom, true);
 
-    const storedWallet = typeof window !== "undefined" ? window.localStorage.getItem(CURRENT_WALLET_KEY) : null;
+    const storedWallet = getCurrentWalletName();
 
     if (!storedWallet) return;
 
     this.jotaiStore.set(this.selectedWalletNameAtom, storedWallet);
 
     try {
+      this.jotaiStore.set(this.isInitializingAtom, true);
       const wallets = await loadWalletByName(storedWallet);
       await this.replaceManager(wallets);
     } catch {
       window.localStorage?.removeItem(CURRENT_WALLET_KEY);
+    } finally {
+      this.jotaiStore.set(this.isInitializingAtom, false);
     }
   }
 
-  async ensureAllWalletsLoaded(): Promise<void> {
-    if (this.allWalletsLoaded) return;
+  ensureAllWalletsLoaded(): Promise<void> {
+    if (this.walletsLoadingPromise) return this.walletsLoadingPromise;
 
-    try {
-      const allWallets = await loadAllWallets();
-      await this.replaceManager(allWallets);
-      this.allWalletsLoaded = true;
-      this.bumpVersion();
-    } catch {
-      // loading failed, allow retry
-    }
+    this.jotaiStore.set(this.isInitializingAtom, true);
+    this.walletsLoadingPromise = loadAllWallets()
+      .then(wallets => this.replaceManager(wallets))
+      .then(() => this.bumpVersion())
+      .catch(() => {
+        // loading failed, allow retry
+        this.walletsLoadingPromise = null;
+      })
+      .finally(() => {
+        this.jotaiStore.set(this.isInitializingAtom, false);
+      });
+    return this.walletsLoadingPromise;
   }
 
   private async replaceManager(wallets: MainWalletBase[]): Promise<void> {
-    this.jotaiStore.set(this.isLoadingWalletsAtom, true);
-
-    try {
-      const currentManager = this.jotaiStore.get(this.walletManagerAtom);
-      if (currentManager) {
-        currentManager.onUnmounted();
-      }
-
-      const { createWalletManager } = await import("./walletManagerFactory");
-      const manager = createWalletManager(wallets);
-      this.wireActions(manager);
-      this.jotaiStore.set(this.walletManagerAtom, manager);
-      await manager.onMounted();
-    } finally {
-      this.jotaiStore.set(this.isLoadingWalletsAtom, false);
+    const currentManager = this.jotaiStore.get(this.walletManagerAtom);
+    if (currentManager) {
+      currentManager.onUnmounted();
     }
+
+    const { createWalletManager } = await import("./walletManagerFactory");
+    const manager = createWalletManager(wallets);
+    this.wireActions(manager);
+    this.jotaiStore.set(this.walletManagerAtom, manager);
+    await manager.onMounted();
   }
 
   private wireActions(manager: WalletManager): void {
@@ -127,6 +128,10 @@ export class ChainStore {
     this.jotaiStore.set(this.stateVersionAtom, v => v + 1);
   }
 
+  getManager(): WalletManager | null {
+    return this.jotaiStore.get(this.walletManagerAtom);
+  }
+
   cleanup(): void {
     const manager = this.jotaiStore.get(this.walletManagerAtom);
     if (manager) {
@@ -141,11 +146,15 @@ export class ChainStore {
     }
   }
 
-  setModalOpen(open: boolean): void {
+  toggleModalOpen(open: boolean): void {
     this.jotaiStore.set(this.modalIsOpenAtom, open);
   }
 
   setSelectedWalletName(name: string): void {
     this.jotaiStore.set(this.selectedWalletNameAtom, name);
   }
+}
+
+function getCurrentWalletName() {
+  return typeof window !== "undefined" ? window.localStorage.getItem(CURRENT_WALLET_KEY) : null;
 }

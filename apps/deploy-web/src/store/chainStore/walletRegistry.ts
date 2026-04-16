@@ -1,32 +1,12 @@
 import type { MainWalletBase } from "@cosmos-kit/core";
 
-type WalletLoader = () => Promise<MainWalletBase[]>;
-
-const registry: Record<string, WalletLoader> = {
-  "keplr-extension": async () => {
-    const { wallets } = await import("@cosmos-kit/keplr");
-    return wallets;
-  },
-  "leap-extension": async () => {
-    const { wallets } = await import("@cosmos-kit/leap");
-    return wallets;
-  },
-  "cosmostation-extension": async () => {
-    const { wallets } = await import("@cosmos-kit/cosmostation-extension");
-    return wallets;
-  },
-  "cosmos-extension-metamask": async () => {
-    const { wallets } = await import("@cosmos-kit/cosmos-extension-metamask");
-    return wallets;
-  },
-  "keplr-mobile": async () => {
-    const { wallets } = await import("@cosmos-kit/keplr");
-    return wallets;
-  },
-  "leap-mobile": async () => {
-    const { wallets } = await import("@cosmos-kit/leap");
-    return wallets;
-  }
+const registry: Record<string, () => Promise<{ wallets: MainWalletBase[] }>> = {
+  "keplr-extension": () => import("@cosmos-kit/keplr"),
+  "leap-extension": () => import("@cosmos-kit/leap"),
+  "cosmostation-extension": () => import("@cosmos-kit/cosmostation-extension"),
+  "cosmos-extension-metamask": () => import("@cosmos-kit/cosmos-extension-metamask"),
+  "keplr-mobile": () => import("@cosmos-kit/keplr"),
+  "leap-mobile": () => import("@cosmos-kit/leap")
 };
 
 export async function loadWalletByName(name: string): Promise<MainWalletBase[]> {
@@ -34,10 +14,11 @@ export async function loadWalletByName(name: string): Promise<MainWalletBase[]> 
   if (!loader) {
     throw new Error(`Unknown wallet: ${name}`);
   }
-  return loader();
+  const { wallets } = await loader();
+  return wallets;
 }
 
 export async function loadAllWallets(): Promise<MainWalletBase[]> {
-  const [keplr, leap, cosmostation, metamask] = await Promise.all(Object.values(registry).map(loader => loader()));
-  return [...keplr, ...leap, ...cosmostation, ...metamask];
+  const wallets = await Promise.all(Object.keys(registry).map(name => loadWalletByName(name)));
+  return wallets.flat();
 }

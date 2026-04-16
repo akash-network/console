@@ -4,8 +4,7 @@ import { Logger, WalletManager } from "@cosmos-kit/core";
 
 import { assetLists, chains } from "@src/chains";
 import { registry } from "@src/utils/customRegistry";
-
-export const CURRENT_WALLET_KEY = "cosmos-kit@2:core//current-wallet";
+import { CURRENT_WALLET_KEY } from "./constants";
 
 export function createWalletManager(wallets: MainWalletBase[]): WalletManager {
   const logger = new Logger("WARN");

@@ -1,14 +1,11 @@
 "use client";
-import type { ReactNode } from "react";
-import React from "react";
+import { type ReactNode, useCallback, useState } from "react";
 import type { ButtonProps } from "@akashnetwork/ui/components";
-import { Button } from "@akashnetwork/ui/components";
+import { Button, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { Wallet } from "iconoir-react";
-import { useSetAtom } from "jotai";
 
 import { useSelectedChain } from "@src/store/chainStore";
-import walletStore from "@src/store/walletStore";
 
 interface Props extends ButtonProps {
   children?: ReactNode;
@@ -17,12 +14,16 @@ interface Props extends ButtonProps {
 
 export const ConnectWalletButton: React.FunctionComponent<Props> = ({ className = "", ...rest }) => {
   const { connect } = useSelectedChain();
-  const setSelectedWalletType = useSetAtom(walletStore.selectedWalletType);
+  const [isConnecting, setIsConnecting] = useState(false);
 
-  const connectWallet = () => {
-    setSelectedWalletType("custodial");
-    connect();
-  };
+  const connectWallet = useCallback(async () => {
+    setIsConnecting(true);
+    try {
+      await connect();
+    } finally {
+      setIsConnecting(false);
+    }
+  }, [connect, setIsConnecting]);
 
   return (
     <Button
@@ -33,7 +34,7 @@ export const ConnectWalletButton: React.FunctionComponent<Props> = ({ className 
       data-testid="connect-wallet-btn"
     >
       <Wallet className="text-xs" />
-      <span>Connect Wallet</span>
+      {isConnecting ? <Spinner size="medium" /> : <span>Connect Wallet</span>}
     </Button>
   );
 };

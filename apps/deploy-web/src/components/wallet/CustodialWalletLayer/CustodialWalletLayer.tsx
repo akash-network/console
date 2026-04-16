@@ -13,12 +13,6 @@ import { chainStore, useSelectedChain } from "@src/store/chainStore";
 import walletStore from "@src/store/walletStore";
 
 export function CustodialWalletLayer() {
-  const selectedWalletType = useAtomValue(walletStore.selectedWalletType);
-
-  if (selectedWalletType !== "custodial") {
-    return null;
-  }
-
   return (
     <>
       <ChainStoreInitializer />
@@ -58,25 +52,20 @@ function ChainStoreInitializer() {
   return null;
 }
 
-const WalletModal = dynamic(() => import("@src/components/wallet/WalletModal").then(mod => mod.WalletModal), { ssr: false });
+const WalletModal = dynamic(() => import("@src/components/wallet/WalletModal/WalletModal").then(mod => mod.WalletModal), { ssr: false });
 
 function ModalWrapper() {
   const [, setIsWalletModalOpen] = useAtom(walletStore.isWalletModalOpen);
-  const walletType = useAtomValue(walletStore.selectedWalletType);
   const isOpen = useAtomValue(chainStore.modalIsOpenAtom);
   const walletRepo = useAtomValue(chainStore.modalWalletRepoAtom);
 
-  const handleSetOpen = useCallback((open: boolean) => {
-    chainStore.setModalOpen(open);
+  const toggleOpen = useCallback((open: boolean) => {
+    chainStore.toggleModalOpen(open);
   }, []);
 
   useEffect(() => {
     setIsWalletModalOpen(isOpen);
   }, [isOpen, setIsWalletModalOpen]);
 
-  if (walletType !== "custodial") {
-    return null;
-  }
-
-  return <WalletModal isOpen={isOpen} setOpen={handleSetOpen} walletRepo={walletRepo} />;
+  return <WalletModal isOpen={isOpen} setOpen={toggleOpen} walletRepo={walletRepo} />;
 }

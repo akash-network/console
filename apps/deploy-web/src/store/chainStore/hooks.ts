@@ -4,8 +4,8 @@ import type { ChainContext, ChainName, DisconnectOptions, MainWalletBase, Manage
 import { useAtomValue } from "jotai";
 
 import type { ChainStore } from "./chainStore";
+import { CURRENT_WALLET_KEY } from "./constants";
 import { getChainWalletContext } from "./utils";
-import { CURRENT_WALLET_KEY } from "./walletManagerFactory";
 
 export function createChainStoreHooks(store: ChainStore, networkStore: NetworkStore) {
   function useChain(chainName: ChainName): ChainContext {
@@ -20,21 +20,39 @@ export function createChainStoreHooks(store: ChainStore, networkStore: NetworkSt
 
       return {
         ...chainWalletContext,
-        walletRepo,
-        chain: walletRepo?.chainRecord?.chain,
-        assets: walletRepo?.chainRecord.assetList,
-        openView: () => walletRepo?.openView(),
-        closeView: () => walletRepo?.closeView(),
-        connect: async () => {
-          await store.ensureAllWalletsLoaded();
-          walletRepo?.openView();
+        get walletRepo() {
+          return store.getManager()?.getWalletRepo(chainName);
         },
-        disconnect: (options?: DisconnectOptions) => walletRepo?.disconnect(void 0, true, options),
-        getRpcEndpoint: (...args: any[]) => walletRepo?.getRpcEndpoint?.(...args),
-        getRestEndpoint: (...args: any[]) => walletRepo?.getRestEndpoint?.(...args),
-        getStargateClient: () => walletRepo?.getStargateClient?.(),
-        getCosmWasmClient: () => walletRepo?.getCosmWasmClient?.(),
-        getNameService: () => walletRepo?.getNameService?.()
+        get chain() {
+          return store.getManager()?.getWalletRepo(chainName)?.chainRecord?.chain;
+        },
+        get assets() {
+          return store.getManager()?.getWalletRepo(chainName)?.chainRecord?.assetList;
+        },
+        openView: () => store.getManager()?.getWalletRepo(chainName)?.openView(),
+        closeView: () => store.getManager()?.getWalletRepo(chainName)?.closeView(),
+        async connect() {
+          await store.ensureAllWalletsLoaded();
+          store.getManager()?.getWalletRepo(chainName)?.openView();
+        },
+        disconnect: (options?: DisconnectOptions) =>
+          store
+            .getManager()
+            ?.getWalletRepo(chainName)
+            ?.disconnect(void 0, true, options),
+        getRpcEndpoint: (...args: any[]) =>
+          store
+            .getManager()
+            ?.getWalletRepo(chainName)
+            ?.getRpcEndpoint?.(...args),
+        getRestEndpoint: (...args: any[]) =>
+          store
+            .getManager()
+            ?.getWalletRepo(chainName)
+            ?.getRestEndpoint?.(...args),
+        getStargateClient: () => store.getManager()?.getWalletRepo(chainName)?.getStargateClient?.(),
+        getCosmWasmClient: () => store.getManager()?.getWalletRepo(chainName)?.getCosmWasmClient?.(),
+        getNameService: () => store.getManager()?.getWalletRepo(chainName)?.getNameService?.()
       } as ChainContext;
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [manager, version, chainName]);
@@ -58,45 +76,30 @@ export function createChainStoreHooks(store: ChainStore, networkStore: NetworkSt
     const version = useAtomValue(store.stateVersionAtom);
 
     return useMemo(() => {
-      if (!manager) {
-        return {
-          chainRecords: [],
-          walletRepos: [],
-          mainWallets: [],
-          defaultNameService: "icns",
-          getChainRecord: () => {
-            throw new Error("WalletManager not initialized");
-          },
-          getWalletRepo: () => {
-            throw new Error("WalletManager not initialized");
-          },
-          addChains: () => {
-            throw new Error("WalletManager not initialized");
-          },
-          addEndpoints: () => {},
-          getChainLogo: () => undefined,
-          getNameService: () => {
-            throw new Error("WalletManager not initialized");
-          },
-          on: () => {},
-          off: () => {}
-        } as unknown as ManagerContext;
-      }
+      if (manager) return manager;
 
       return {
-        chainRecords: manager.chainRecords,
-        walletRepos: manager.walletRepos,
-        mainWallets: manager.mainWallets,
-        defaultNameService: manager.defaultNameService,
-        getChainRecord: manager.getChainRecord,
-        getWalletRepo: manager.getWalletRepo,
-        addChains: manager.addChains,
-        addEndpoints: manager.addEndpoints,
-        getChainLogo: manager.getChainLogo,
-        getNameService: manager.getNameService,
-        on: manager.on,
-        off: manager.off
-      };
+        chainRecords: [],
+        walletRepos: [],
+        mainWallets: [],
+        defaultNameService: "icns",
+        getChainRecord: () => {
+          throw new Error("WalletManager not initialized");
+        },
+        getWalletRepo: () => {
+          throw new Error("WalletManager not initialized");
+        },
+        addChains: () => {
+          throw new Error("WalletManager not initialized");
+        },
+        addEndpoints: () => {},
+        getChainLogo: () => undefined,
+        getNameService: () => {
+          throw new Error("WalletManager not initialized");
+        },
+        on: () => {},
+        off: () => {}
+      } as unknown as ManagerContext;
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [manager, version]);
   }

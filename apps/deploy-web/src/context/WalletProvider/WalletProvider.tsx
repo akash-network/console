@@ -353,7 +353,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         address: walletAddress as string,
         walletName: username as string,
         isWalletConnected: isWalletConnected,
-        isWalletLoaded: isWalletLoaded,
+        isWalletLoaded,
         connectManagedWallet,
         logout,
         signAndBroadcastTx,
