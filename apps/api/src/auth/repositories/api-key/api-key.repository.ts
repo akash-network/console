@@ -1,4 +1,4 @@
-import { eq, lt, ne, sql } from "drizzle-orm";
+import { eq, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { and } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
@@ -44,7 +44,9 @@ export class ApiKeyRepository extends BaseRepository<Table, ApiKeyInput, ApiKeyO
     await this.cursor
       .update(this.table)
       .set({ lastUsedAt: sql`now()` })
-      .where(and(eq(this.table.id, id), lt(this.table.lastUsedAt, sql`now() - make_interval(secs => ${throttleTimeSeconds})`)));
+      .where(
+        and(eq(this.table.id, id), or(isNull(this.table.lastUsedAt), lt(this.table.lastUsedAt, sql`now() - make_interval(secs => ${throttleTimeSeconds})`)))
+      );
   }
 
   async updateHash(id: ApiKeyOutput["id"], hashedKey: string): Promise<void> {
