@@ -337,6 +337,23 @@ describe(createWebsocket.name, () => {
 
         expect(websocketFactory).toHaveBeenCalledTimes(1);
       });
+
+      it("resolves silently when websocket is closed before connection is established and signal is aborted", async () => {
+        vi.useFakeTimers();
+        const abortController = new AbortController();
+        const { websocketFactory } = setup({ readyState: WebSocket.CONNECTING });
+
+        const wsEvents = createWebsocket({ websocketFactory, signal: abortController.signal });
+        const onError = vi.fn();
+        wsEvents.addEventListener("error", onError);
+
+        abortController.abort();
+
+        const ws = websocketFactory.mock.results.at(-1)!.value;
+        await Promise.all([dispatchWsEvent(ws, new CloseEvent("close")), vi.runOnlyPendingTimersAsync()]);
+
+        expect(onError).not.toHaveBeenCalled();
+      });
     });
   });
 
