@@ -4,7 +4,7 @@ import { container } from "tsyringe";
 import { mock } from "vitest-mock-extended";
 
 import { AuthService } from "@src/auth/services/auth.service";
-import type { UserWalletRepository } from "@src/billing/repositories";
+import type { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import type { PayingUser } from "@src/billing/services/paying-user/paying-user";
 import type { StripeService } from "@src/billing/services/stripe/stripe.service";
 import type { StripeErrorService } from "@src/billing/services/stripe-error/stripe-error.service";
@@ -108,6 +108,50 @@ describe(StripeController.name, () => {
           transactionStatus: "requires_action"
         }
       });
+    });
+  });
+
+  describe("createSetupIntent", () => {
+    it("passes isFreeTrial true when user wallet is trialing", async () => {
+      const { controller, stripe, userWalletRepository, user } = setup();
+      const clientSecret = faker.string.alphanumeric(32);
+
+      userWalletRepository.findOneByUserId.mockResolvedValue(mock<UserWalletOutput>({ isTrialing: true }));
+      stripe.getStripeCustomerId.mockResolvedValue(user.stripeCustomerId!);
+      stripe.createSetupIntent.mockResolvedValue(mock<Stripe.SetupIntent>({ client_secret: clientSecret }));
+
+      const result = await controller.createSetupIntent();
+
+      expect(stripe.createSetupIntent).toHaveBeenCalledWith(user.stripeCustomerId, { isFreeTrial: true });
+      expect(result).toEqual({ data: { clientSecret } });
+    });
+
+    it("passes isFreeTrial false when user wallet is not trialing", async () => {
+      const { controller, stripe, userWalletRepository, user } = setup();
+      const clientSecret = faker.string.alphanumeric(32);
+
+      userWalletRepository.findOneByUserId.mockResolvedValue(mock<UserWalletOutput>({ isTrialing: false }));
+      stripe.getStripeCustomerId.mockResolvedValue(user.stripeCustomerId!);
+      stripe.createSetupIntent.mockResolvedValue(mock<Stripe.SetupIntent>({ client_secret: clientSecret }));
+
+      const result = await controller.createSetupIntent();
+
+      expect(stripe.createSetupIntent).toHaveBeenCalledWith(user.stripeCustomerId, { isFreeTrial: false });
+      expect(result).toEqual({ data: { clientSecret } });
+    });
+
+    it("defaults isFreeTrial to true when no wallet exists", async () => {
+      const { controller, stripe, userWalletRepository, user } = setup();
+      const clientSecret = faker.string.alphanumeric(32);
+
+      userWalletRepository.findOneByUserId.mockResolvedValue(undefined);
+      stripe.getStripeCustomerId.mockResolvedValue(user.stripeCustomerId!);
+      stripe.createSetupIntent.mockResolvedValue(mock<Stripe.SetupIntent>({ client_secret: clientSecret }));
+
+      const result = await controller.createSetupIntent();
+
+      expect(stripe.createSetupIntent).toHaveBeenCalledWith(user.stripeCustomerId, { isFreeTrial: true });
+      expect(result).toEqual({ data: { clientSecret } });
     });
   });
 

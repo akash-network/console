@@ -51,11 +51,12 @@ export class StripeService extends Stripe {
     });
   }
 
-  async createSetupIntent(customerId: string) {
+  async createSetupIntent(customerId: string, { isFreeTrial }: { isFreeTrial: boolean }) {
     return await this.setupIntents.create({
       customer: customerId,
       usage: "off_session",
-      payment_method_types: ["card", "link"]
+      payment_method_types: ["card", "link"],
+      ...(isFreeTrial && { metadata: { is_free_trial: "true" } })
     });
   }
 
