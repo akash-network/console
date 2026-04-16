@@ -61,6 +61,9 @@ jobs:
           test-wallet-mnemonic: ${{ secrets.CONSOLE_WEB_E2E_TEST_WALLET_MNEMONIC }}
           gh-user-to-slack-user: ${{ vars.GH_USER_TO_SLACK_USER }}
           testing-client-token: ${{ secrets.CONSOLE_WEB_E2E_TESTING_CLIENT_TOKEN_BETA }}
+          auth0-m2m-domain: ${{ secrets.AUTH0_M2M_DOMAIN }}
+          auth0-m2m-client-id: ${{ secrets.AUTH0_M2M_CLIENT_ID }}
+          auth0-m2m-client-secret: ${{ secrets.AUTH0_M2M_CLIENT_SECRET }}
 
   deploy-prod:
     permissions:
