@@ -49,7 +49,13 @@ export class EmailVerificationCodeService {
       expiresAt
     });
 
-    await this.notificationService.createNotification(emailVerificationCodeNotification({ id: userInternalId, email: user.email }, { code }));
+    try {
+      await this.notificationService.createNotification(emailVerificationCodeNotification({ id: userInternalId, email: user.email }, { code }));
+    } catch (error) {
+      await this.emailVerificationCodeRepository.deleteByUserId(userInternalId);
+      this.logger.error({ event: "VERIFICATION_CODE_NOTIFICATION_FAILED", userId: userInternalId, error });
+      throw error;
+    }
 
     this.logger.info({ event: "VERIFICATION_CODE_SENT", userId: userInternalId });
 

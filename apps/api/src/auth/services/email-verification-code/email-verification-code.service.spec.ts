@@ -89,6 +89,20 @@ describe(EmailVerificationCodeService.name, () => {
 
       await expect(service.sendCode(user.id)).rejects.toThrow();
     });
+
+    it("deletes the code record when notification fails", async () => {
+      const user = createUser({ email: "test@example.com" });
+      const createdRecord = createVerificationCodeOutput({ userId: user.id });
+      const { service, emailVerificationCodeRepository, userRepository, notificationService } = setup();
+
+      userRepository.findById.mockResolvedValue(user);
+      emailVerificationCodeRepository.findByUserId.mockResolvedValue(undefined);
+      emailVerificationCodeRepository.upsert.mockResolvedValue(createdRecord);
+      notificationService.createNotification.mockRejectedValue(new Error("Notification service unavailable"));
+
+      await expect(service.sendCode(user.id)).rejects.toThrow("Notification service unavailable");
+      expect(emailVerificationCodeRepository.deleteByUserId).toHaveBeenCalledWith(user.id);
+    });
   });
 
   describe("verifyCode", () => {

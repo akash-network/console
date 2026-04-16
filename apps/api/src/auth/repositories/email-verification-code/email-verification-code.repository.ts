@@ -65,6 +65,10 @@ export class EmailVerificationCodeRepository extends BaseRepository<Table, Email
     return result ? this.toOutput(result) : undefined;
   }
 
+  async deleteByUserId(userId: string): Promise<void> {
+    await this.cursor.delete(this.table).where(eq(this.table.userId, userId));
+  }
+
   async incrementAttempts(id: string): Promise<void> {
     await this.cursor
       .update(this.table)
