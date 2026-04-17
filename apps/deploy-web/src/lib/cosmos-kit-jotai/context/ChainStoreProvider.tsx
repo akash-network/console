@@ -1,8 +1,8 @@
 import { createContext, useContext, useMemo } from "react";
 import { useStore } from "jotai";
 
-import type { ChainStoreOptions } from "../store/chainStore";
-import { ChainStore } from "../store/chainStore";
+import type { ChainStoreOptions } from "../store/ChainStore";
+import { ChainStore } from "../store/ChainStore";
 
 const StoreContext = createContext<ChainStore | null>(null);
 
@@ -14,7 +14,16 @@ export interface ChainStoreProviderProps {
 
 export function ChainStoreProvider({ children, walletsRegistry, walletManagerOptions }: ChainStoreProviderProps) {
   const store = useStore();
-  const chainStore = useMemo(() => new ChainStore({ store, walletsRegistry, walletManagerOptions }), [store, walletsRegistry, walletManagerOptions]);
+  const chainStore = useMemo(
+    () =>
+      new ChainStore({
+        store,
+        walletsRegistry,
+        walletManagerOptions,
+        localStorage: typeof window !== "undefined" ? window.localStorage : undefined
+      }),
+    [store, walletsRegistry, walletManagerOptions]
+  );
   return <StoreContext.Provider value={chainStore}>{children}</StoreContext.Provider>;
 }
 

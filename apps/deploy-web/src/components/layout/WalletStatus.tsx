@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { FormattedNumber } from "react-intl";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, Spinner } from "@akashnetwork/ui/components";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, Skeleton } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import ClickAwayListener from "@mui/material/ClickAwayListener";
 import { NavArrowDown, Wallet } from "iconoir-react";
@@ -88,8 +88,12 @@ export function WalletStatus() {
           <WalletConnectionButtons className="w-full justify-center" connectWalletButtonClassName="w-full md:w-auto" />
         )
       ) : (
-        <div className="flex items-center justify-center p-4">
-          <Spinner size="medium" />
+        <div className="flex items-center space-x-2 rounded-md border bg-accent px-4 py-2">
+          <Skeleton className="h-4 w-4 rounded-full" />
+          <Skeleton className="h-4 w-20" />
+          <div className="text-muted-foreground">|</div>
+          <Skeleton className="h-4 w-16" />
+          <Skeleton className="h-4 w-4" />
         </div>
       )}
     </>

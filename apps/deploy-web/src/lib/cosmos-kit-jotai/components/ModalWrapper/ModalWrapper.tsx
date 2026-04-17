@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 
 import { useChainStore } from "../../context/ChainStoreProvider";
 
-const WalletModal = dynamic(() => import("@src/lib/cosmos-kit-jotai/components/WalletModal/WalletModal").then(mod => mod.WalletModal), { ssr: false });
+const WalletModal = dynamic(() => import("../WalletModal/WalletModal").then(mod => mod.WalletModal), { ssr: false });
 
 export function ModalWrapper() {
   const chainStore = useChainStore();

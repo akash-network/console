@@ -28,7 +28,7 @@ function DynamicWalletList({ wallets, onClose }: { wallets: ChainWalletBase[]; o
         onClose();
       }
     },
-    [onClose]
+    [onClose, chainStore]
   );
 
   useEffect(() => {

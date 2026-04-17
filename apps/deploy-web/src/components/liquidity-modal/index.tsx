@@ -9,7 +9,7 @@ import { Modal } from "@mui/material";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { useWallet as useConnectedWallet, useWalletClient } from "@src/store/chainStore";
+import { useSelectedChain } from "@src/hooks/useSelectedChain/useSelectedChain";
 
 export type NonUndefined<T> = T extends undefined ? never : T;
 
@@ -115,22 +115,17 @@ const LiquidityModal: React.FC<Props> = ({ refreshBalances }) => {
   const isElementsMounted = useRef(false);
 
   const { isWalletConnected } = useWallet();
-  const { client: walletClient } = useWalletClient();
-  const { mainWallet } = useConnectedWallet();
+  const { wallet, enable: enableWallet } = useSelectedChain();
 
-  const walletName = isWalletConnected ? mainWallet?.walletName : undefined;
+  const walletName = isWalletConnected ? wallet?.name : undefined;
 
   const handleConnectWallet = useCallback(() => {
-    if (!isWalletConnected && walletClient) {
-      if (walletClient.enable) {
-        return walletClient.enable("akashnet-2");
-      } else if (walletClient.connect) {
-        return walletClient.connect("akashnet-2");
-      }
+    if (!isWalletConnected) {
+      return enableWallet();
     } else {
       throw new Error("Wallet is not connected");
     }
-  }, [isWalletConnected, walletClient]);
+  }, [isWalletConnected, enableWallet]);
 
   const tabsConfig = useMemo(() => {
     // const txnLifecycleHooks: Partial<Elements.TxnLifecycleHooks<never>> = {
@@ -205,7 +200,7 @@ const LiquidityModal: React.FC<Props> = ({ refreshBalances }) => {
   return (
     <>
       <ToggleLiquidityModalButton onClick={() => setIsOpen(o => !o)} />
-      {walletClient ? (
+      {isWalletConnected ? (
         <Modal keepMounted open={isOpen} onClose={() => setIsOpen(false)} className="flex items-center justify-center">
           <div className="relative h-full max-h-[34rem] w-full max-w-[26rem]">
             {!isElementsReady ? <Spinner className="absolute left-1/2 top-1/2 z-0 -translate-x-1/2 -translate-y-1/2" /> : null}

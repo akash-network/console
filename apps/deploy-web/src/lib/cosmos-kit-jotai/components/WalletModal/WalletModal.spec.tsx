@@ -10,7 +10,7 @@ import { createStore, Provider as JotaiProvider } from "jotai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ChainStoreProvider, useChainStore } from "../../context/ChainStoreProvider";
-import { ChainStore } from "../../store/chainStore";
+import { ChainStore } from "../../store/ChainStore";
 import { WalletModal } from "./WalletModal";
 
 import { fireEvent, render, screen } from "@testing-library/react";
@@ -162,7 +162,7 @@ describe(WalletModal.name, () => {
       expect(screen.getByText("Wallet B")).toBeInTheDocument();
     });
 
-    it("sets selected wallet name in chain store when wallet is clicked", () => {
+    it("sets selected wallet name in chain store when wallet is clicked", async () => {
       const wallet = createMockChainWallet("keplr", "Keplr", WalletStatus.Disconnected);
       const walletRepo = createMockWalletRepo([wallet]);
 
@@ -176,7 +176,7 @@ describe(WalletModal.name, () => {
       });
 
       fireEvent.click(screen.getByText("Keplr"));
-      vi.waitFor(() => chainStore instanceof ChainStore);
+      await vi.waitFor(() => chainStore instanceof ChainStore);
 
       expect((chainStore as unknown as ChainStore).setSelectedWalletName).toHaveBeenCalledWith("keplr");
     });

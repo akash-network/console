@@ -7,41 +7,44 @@ import type { WalletManagerOptions } from "./walletManagerFactory";
 
 export interface ChainStoreOptions {
   store: ReturnType<typeof getDefaultStore>;
+  localStorage?: Storage;
   walletsRegistry: WalletsRegistry;
   walletManagerOptions: Omit<WalletManagerOptions, "wallets">;
 }
 
 export class ChainStore {
-  static create(options: ChainStoreOptions) {
-    return new ChainStore(options);
-  }
-
   private readonly jotaiStore: ChainStoreOptions["store"];
+  private readonly localStorage: ChainStoreOptions["localStorage"];
   private readonly walletsRegistry: ChainStoreOptions["walletsRegistry"];
   private readonly walletManagerOptions: ChainStoreOptions["walletManagerOptions"];
 
   readonly walletManagerAtom = atom<WalletManager | null>(null);
   readonly stateVersionAtom = atom(0);
-  readonly isInitializedAtom = atom(false);
   readonly modalIsOpenAtom = atom(false);
   readonly modalWalletRepoAtom = atom<WalletRepo | undefined>(undefined);
   readonly selectedWalletNameAtom = atom("");
-  readonly isInitializingAtom = atom(!!getCurrentWalletName());
+  readonly isInitializingAtom = atom(!!this.getCurrentWalletName());
 
   private walletsLoadingPromise: Promise<void> | null = null;
+  private initializingPromise: Promise<void> | null = null;
 
   constructor(options: ChainStoreOptions) {
     this.jotaiStore = options.store;
+    this.localStorage = options.localStorage;
     this.walletsRegistry = options.walletsRegistry;
     this.walletManagerOptions = options.walletManagerOptions;
   }
 
-  async initialize(): Promise<void> {
-    if (this.jotaiStore.get(this.isInitializedAtom)) return;
-    this.jotaiStore.set(this.isInitializedAtom, true);
+  initialize(): Promise<void> {
+    this.initializingPromise ??= this.initializeStore().catch(error => {
+      this.initializingPromise = null;
+      return Promise.reject(error);
+    });
+    return this.initializingPromise;
+  }
 
-    const storedWallet = getCurrentWalletName();
-
+  private async initializeStore(): Promise<void> {
+    const storedWallet = this.getCurrentWalletName();
     if (!storedWallet) return;
 
     this.jotaiStore.set(this.selectedWalletNameAtom, storedWallet);
@@ -51,7 +54,8 @@ export class ChainStore {
       const wallets = await loadWalletByName(this.walletsRegistry, storedWallet);
       await this.replaceManager(wallets);
     } catch {
-      window.localStorage?.removeItem(CURRENT_WALLET_KEY);
+      this.localStorage?.removeItem(CURRENT_WALLET_KEY);
+      this.jotaiStore.set(this.selectedWalletNameAtom, "");
     } finally {
       this.jotaiStore.set(this.isInitializingAtom, false);
     }
@@ -60,16 +64,12 @@ export class ChainStore {
   ensureAllWalletsLoaded(): Promise<void> {
     if (this.walletsLoadingPromise) return this.walletsLoadingPromise;
 
-    this.jotaiStore.set(this.isInitializingAtom, true);
     this.walletsLoadingPromise = loadAllWallets(this.walletsRegistry)
       .then(wallets => this.replaceManager(wallets))
       .then(() => this.forceUpdate())
-      .catch(() => {
-        // loading failed, allow retry
+      .catch(error => {
         this.walletsLoadingPromise = null;
-      })
-      .finally(() => {
-        this.jotaiStore.set(this.isInitializingAtom, false);
+        return Promise.reject(error);
       });
     return this.walletsLoadingPromise;
   }
@@ -159,14 +159,14 @@ export class ChainStore {
   setSelectedWalletName(name: string): void {
     this.jotaiStore.set(this.selectedWalletNameAtom, name);
   }
-}
 
-function getCurrentWalletName() {
-  return typeof window !== "undefined" ? window.localStorage.getItem(CURRENT_WALLET_KEY) : null;
+  private getCurrentWalletName() {
+    return this.localStorage?.getItem(CURRENT_WALLET_KEY);
+  }
 }
 
 type WalletsRegistry = Record<string, () => Promise<{ wallets: MainWalletBase[] }>>;
-export async function loadWalletByName(registry: WalletsRegistry, name: string): Promise<MainWalletBase[]> {
+async function loadWalletByName(registry: WalletsRegistry, name: string): Promise<MainWalletBase[]> {
   const loader = registry[name];
   if (!loader) {
     throw new Error(`Unknown wallet: ${name}`);
@@ -175,7 +175,7 @@ export async function loadWalletByName(registry: WalletsRegistry, name: string):
   return wallets;
 }
 
-export async function loadAllWallets(registry: WalletsRegistry): Promise<MainWalletBase[]> {
+async function loadAllWallets(registry: WalletsRegistry): Promise<MainWalletBase[]> {
   const wallets = await Promise.all(Object.keys(registry).map(name => loadWalletByName(registry, name)));
   return wallets.flat();
 }

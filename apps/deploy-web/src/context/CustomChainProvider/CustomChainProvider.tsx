@@ -2,7 +2,9 @@ import { GasPrice } from "@cosmjs/stargate";
 import type { MainWalletBase } from "@cosmos-kit/core";
 
 import { assetLists, chains } from "@src/chains";
+import type { ChainStoreProviderProps } from "@src/lib/cosmos-kit-jotai";
 import { ChainStoreInitializer, ChainStoreProvider, CURRENT_WALLET_KEY, ModalWrapper } from "@src/lib/cosmos-kit-jotai";
+import { registry } from "@src/utils/customRegistry";
 import { useServices } from "../ServicesProvider";
 
 type Props = {
@@ -13,7 +15,7 @@ type Props = {
  * The order of keys is important here.
  * Wallets are rendered in the order they are specified in this registry
  */
-const registry: Record<string, () => Promise<{ wallets: MainWalletBase[] }>> = {
+const WALLETS_PROVIDERS: Record<string, () => Promise<{ wallets: MainWalletBase[] }>> = {
   "keplr-extension": () => import("@cosmos-kit/keplr"),
   "leap-extension": () => import("@cosmos-kit/leap"),
   "cosmostation-extension": () => import("@cosmos-kit/cosmostation-extension"),
@@ -22,7 +24,7 @@ const registry: Record<string, () => Promise<{ wallets: MainWalletBase[] }>> = {
   "leap-mobile": () => import("@cosmos-kit/leap")
 };
 
-const walletManagerOptions = {
+const walletManagerOptions: ChainStoreProviderProps["walletManagerOptions"] = {
   chains,
   assetList: assetLists,
   sessionOptions: {
@@ -45,22 +47,28 @@ const walletManagerOptions = {
   },
   signerOptions: {
     preferredSignType: () => "direct" as const,
-    signingStargate: () =>
-      ({
-        registry,
-        gasPrice: GasPrice.fromString("0.025uakt")
-      }) as any
+    // @ts-expect-error - Mixed @cosmjs/proto-signing library versions. Need to align them
+    signingStargate: () => ({
+      registry: registry,
+      gasPrice: GasPrice.fromString("0.025uakt")
+    })
   }
 };
 
 export function CustomChainProvider({ children }: Props) {
-  const { networkStore } = useServices();
-  const selectedNetwork = networkStore.useSelectedNetwork();
+  console.log("rendering CustomChainProvider");
   return (
-    <ChainStoreProvider walletsRegistry={registry} walletManagerOptions={walletManagerOptions}>
+    <ChainStoreProvider walletsRegistry={WALLETS_PROVIDERS} walletManagerOptions={walletManagerOptions}>
       <ModalWrapper />
-      <ChainStoreInitializer chainName={selectedNetwork.chainRegistryName} />
+      <InitializeChainStoreForSelectedNetwork />
       {children}
     </ChainStoreProvider>
   );
+}
+
+function InitializeChainStoreForSelectedNetwork() {
+  const { networkStore } = useServices();
+  const selectedNetwork = networkStore.useSelectedNetwork();
+
+  return <ChainStoreInitializer chainName={selectedNetwork.chainRegistryName} />;
 }

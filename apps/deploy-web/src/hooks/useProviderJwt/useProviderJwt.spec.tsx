@@ -5,8 +5,9 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { ContextType as WalletContext } from "@src/context/WalletProvider";
-import type { ChainContext as CustodialWallet, useSelectedChain } from "@src/store/chainStore";
+import type { ChainContext as CustodialWallet } from "@src/lib/cosmos-kit-jotai";
 import type * as storedWalletsService from "@src/utils/walletUtils";
+import type { useSelectedChain } from "../useSelectedChain/useSelectedChain";
 import { DEPENDENCIES, useProviderJwt } from "./useProviderJwt";
 
 import { act } from "@testing-library/react";
@@ -172,25 +173,26 @@ describe(useProviderJwt.name, () => {
         useProviderJwt({
           dependencies: {
             ...DEPENDENCIES,
-            useWallet: () => ({
-              address: "akash1234567890",
-              walletName: "test-wallet",
-              isWalletLoaded: true,
-              connectManagedWallet: vi.fn(),
-              logout: vi.fn(),
-              signAndBroadcastTx: vi.fn(),
-              isManaged: false,
-              isWalletConnected: true,
-              isCustodial: false,
-              isWalletLoading: false,
-              isTrialing: false,
-              isOnboarding: false,
-              creditAmount: 0,
-              switchWalletType: vi.fn(),
-              hasManagedWallet: false,
-              managedWalletError: undefined,
-              ...input?.wallet
-            }),
+            useWallet: () =>
+              ({
+                address: "akash1234567890",
+                walletName: "test-wallet",
+                isWalletLoaded: true,
+                connectManagedWallet: vi.fn(),
+                logout: vi.fn(),
+                signAndBroadcastTx: vi.fn(),
+                isManaged: false,
+                isWalletConnected: true,
+                isCustodial: false,
+                isWalletLoading: false,
+                isTrialing: false,
+                isOnboarding: false,
+                creditAmount: 0,
+                switchWalletType: vi.fn(),
+                hasManagedWallet: false,
+                managedWalletError: undefined,
+                ...input?.wallet
+              }) as WalletContext,
             useSelectedChain: () =>
               input?.custodialWallet ??
               mock<CustodialWallet>({

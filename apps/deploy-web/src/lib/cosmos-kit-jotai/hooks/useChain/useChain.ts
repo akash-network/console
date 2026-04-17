@@ -12,6 +12,7 @@ export function useChain(chainName: ChainName): ChainContext {
   const store = useChainStore();
   const manager = useAtomValue(store.walletManagerAtom);
   const version = useAtomValue(store.stateVersionAtom);
+  const isInitializing = useAtomValue(store.isInitializingAtom);
 
   const context = useMemo(() => {
     const walletRepo = manager?.getWalletRepo(chainName);
@@ -55,7 +56,6 @@ export function useChain(chainName: ChainName): ChainContext {
       getCosmWasmClient: () => store.getManager()?.getWalletRepo(chainName)?.getCosmWasmClient?.(),
       getNameService: () => store.getManager()?.getWalletRepo(chainName)?.getNameService?.()
     } as ChainContext;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [manager, version, chainName]);
 
   useEffect(() => {
@@ -66,8 +66,12 @@ export function useChain(chainName: ChainName): ChainContext {
       const walletRepo = manager.getWalletRepo(chainName);
       walletRepo.connect(storedWallet);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [manager, chainName]);
 
-  return context;
+  return useMemo(() => {
+    if (isInitializing) {
+      return Object.create(context, { isWalletConnecting: { value: true } });
+    }
+    return context;
+  }, [context, isInitializing]);
 }
