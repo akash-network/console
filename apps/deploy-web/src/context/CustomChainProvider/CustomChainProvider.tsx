@@ -1,28 +1,34 @@
 import { GasPrice } from "@cosmjs/stargate";
-import type { MainWalletBase } from "@cosmos-kit/core";
 
 import { assetLists, chains } from "@src/chains";
-import type { ChainStoreProviderProps } from "@src/lib/cosmos-kit-jotai";
+import type { ChainStoreProviderProps, WalletsRegistry } from "@src/lib/cosmos-kit-jotai";
 import { ChainStoreInitializer, ChainStoreProvider, CURRENT_WALLET_KEY, ModalWrapper } from "@src/lib/cosmos-kit-jotai";
 import { registry } from "@src/utils/customRegistry";
 import { useServices } from "../ServicesProvider";
 
 type Props = {
   children: React.ReactNode;
+  dependencies?: typeof DEPENDENCIES;
+};
+
+export const DEPENDENCIES = {
+  ChainStoreProvider,
+  ModalWrapper,
+  ChainStoreInitializer,
+  useServices
 };
 
 /**
- * The order of keys is important here.
- * Wallets are rendered in the order they are specified in this registry
+ * The order of entries is important here.
+ * Wallets are rendered in the order they are specified in this registry.
+ * Each entry maps wallet names to a shared loader so each package is imported only once.
  */
-const WALLETS_PROVIDERS: Record<string, () => Promise<{ wallets: MainWalletBase[] }>> = {
-  "keplr-extension": () => import("@cosmos-kit/keplr"),
-  "leap-extension": () => import("@cosmos-kit/leap"),
-  "cosmostation-extension": () => import("@cosmos-kit/cosmostation-extension"),
-  "cosmos-extension-metamask": () => import("@cosmos-kit/cosmos-extension-metamask"),
-  "keplr-mobile": () => import("@cosmos-kit/keplr"),
-  "leap-mobile": () => import("@cosmos-kit/leap")
-};
+const WALLETS_PROVIDERS: WalletsRegistry = [
+  { names: ["keplr-extension", "keplr-mobile"], loader: () => import("@cosmos-kit/keplr") },
+  { names: ["leap-extension", "leap-mobile", "leap-metamask-cosmos-snap"], loader: () => import("@cosmos-kit/leap") },
+  { names: ["cosmostation-extension"], loader: () => import("@cosmos-kit/cosmostation-extension") },
+  { names: ["cosmos-extension-metamask"], loader: () => import("@cosmos-kit/cosmos-extension-metamask") }
+];
 
 const walletManagerOptions: ChainStoreProviderProps["walletManagerOptions"] = {
   chains,
@@ -55,19 +61,19 @@ const walletManagerOptions: ChainStoreProviderProps["walletManagerOptions"] = {
   }
 };
 
-export function CustomChainProvider({ children }: Props) {
+export function CustomChainProvider({ children, dependencies: d = DEPENDENCIES }: Props) {
   return (
-    <ChainStoreProvider walletsRegistry={WALLETS_PROVIDERS} walletManagerOptions={walletManagerOptions}>
-      <ModalWrapper />
-      <InitializeChainStoreForSelectedNetwork />
+    <d.ChainStoreProvider walletsRegistry={WALLETS_PROVIDERS} walletManagerOptions={walletManagerOptions}>
+      <d.ModalWrapper />
+      <InitializeChainStoreForSelectedNetwork dependencies={d} />
       {children}
-    </ChainStoreProvider>
+    </d.ChainStoreProvider>
   );
 }
 
-function InitializeChainStoreForSelectedNetwork() {
-  const { networkStore } = useServices();
+function InitializeChainStoreForSelectedNetwork({ dependencies: d = DEPENDENCIES }: Pick<Props, "dependencies">) {
+  const { networkStore } = d.useServices();
   const selectedNetwork = networkStore.useSelectedNetwork();
 
-  return <ChainStoreInitializer chainName={selectedNetwork.chainRegistryName} />;
+  return <d.ChainStoreInitializer chainName={selectedNetwork.chainRegistryName} />;
 }

@@ -4,4 +4,5 @@ export { ModalWrapper } from "./components/ModalWrapper/ModalWrapper";
 export { WalletListView } from "./components/WalletModal/WalletListView";
 export { ChainStoreProvider, useChainStore, type ChainStoreProviderProps } from "./context/ChainStoreProvider";
 export { CURRENT_WALLET_KEY } from "./store/constants";
+export type { WalletsRegistry, WalletsRegistryEntry } from "./store/ChainStore";
 export { useManager, type ManagerContext } from "./hooks/useManager/useManager";

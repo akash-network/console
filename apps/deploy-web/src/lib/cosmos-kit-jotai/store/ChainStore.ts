@@ -165,17 +165,22 @@ export class ChainStore {
   }
 }
 
-type WalletsRegistry = Record<string, () => Promise<{ wallets: MainWalletBase[] }>>;
+export type WalletsRegistryEntry = {
+  names: string[];
+  loader: () => Promise<{ wallets: MainWalletBase[] }>;
+};
+export type WalletsRegistry = WalletsRegistryEntry[];
+
 async function loadWalletByName(registry: WalletsRegistry, name: string): Promise<MainWalletBase[]> {
-  const loader = registry[name];
-  if (!loader) {
+  const entry = registry.find(e => e.names.includes(name));
+  if (!entry) {
     throw new Error(`Unknown wallet: ${name}`);
   }
-  const { wallets } = await loader();
+  const { wallets } = await entry.loader();
   return wallets;
 }
 
 async function loadAllWallets(registry: WalletsRegistry): Promise<MainWalletBase[]> {
-  const wallets = await Promise.all(Object.keys(registry).map(name => loadWalletByName(registry, name)));
-  return wallets.flat();
+  const wallets = await Promise.all(registry.map(entry => entry.loader()));
+  return wallets.flatMap(({ wallets }) => wallets);
 }
