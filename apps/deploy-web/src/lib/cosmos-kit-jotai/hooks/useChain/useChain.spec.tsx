@@ -1,10 +1,10 @@
 import type { ReactNode } from "react";
-import type { MainWalletBase } from "@cosmos-kit/core";
 import { createStore, Provider as JotaiProvider } from "jotai";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { akash, akashAssetList } from "@src/chains/akash";
 import { ChainStoreProvider } from "../../context/ChainStoreProvider";
+import type { WalletsRegistry } from "../../store/ChainStore";
 import { CURRENT_WALLET_KEY } from "../../store/constants";
 import { useChain } from "./useChain";
 
@@ -147,13 +147,13 @@ describe(useChain.name, () => {
     });
   });
 
-  function setup(input?: { chainName?: string; walletsRegistry?: Record<string, () => Promise<{ wallets: MainWalletBase[] }>> }) {
+  function setup(input?: { chainName?: string; walletsRegistry?: WalletsRegistry }) {
     const chainName = input?.chainName ?? "akash";
     const store = createStore();
 
     const wrapper = ({ children }: { children: ReactNode }) => (
       <JotaiProvider store={store}>
-        <ChainStoreProvider walletsRegistry={input?.walletsRegistry ?? {}} walletManagerOptions={{ chains: [akash], assetList: [akashAssetList] }}>
+        <ChainStoreProvider walletsRegistry={input?.walletsRegistry ?? []} walletManagerOptions={{ chains: [akash], assetList: [akashAssetList] }}>
           {children}
         </ChainStoreProvider>
       </JotaiProvider>
@@ -163,8 +163,6 @@ describe(useChain.name, () => {
   }
 });
 
-function createKeplrRegistry(): Record<string, () => Promise<{ wallets: MainWalletBase[] }>> {
-  return {
-    "keplr-extension": () => import("@cosmos-kit/keplr")
-  };
+function createKeplrRegistry(): WalletsRegistry {
+  return [{ names: ["keplr-extension", "keplr-mobile"], loader: () => import("@cosmos-kit/keplr") }];
 }

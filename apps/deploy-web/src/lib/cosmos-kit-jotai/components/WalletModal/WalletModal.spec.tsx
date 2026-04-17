@@ -228,7 +228,7 @@ describe(WalletModal.name, () => {
 
     render(
       <JotaiProvider store={jotaiStore}>
-        <ChainStoreProvider walletsRegistry={{}} walletManagerOptions={{ chains: [], assetList: [] }}>
+        <ChainStoreProvider walletsRegistry={[]} walletManagerOptions={{ chains: [], assetList: [] }}>
           <MockChainStoreProvider selectedWalletName={input.selectedWalletName} onRenderChainStore={input.onRenderChainStore}>
             <WalletModal isOpen={input.isOpen} setOpen={input.setOpen ?? vi.fn()} walletRepo={walletRepo} />
           </MockChainStoreProvider>

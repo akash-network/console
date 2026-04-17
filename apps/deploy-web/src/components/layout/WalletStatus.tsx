@@ -89,11 +89,11 @@ export function WalletStatus() {
         )
       ) : (
         <div className="flex items-center space-x-2 rounded-md border bg-accent px-4 py-2">
-          <Skeleton className="h-4 w-4 rounded-full" />
-          <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-4 w-4 rounded-full bg-muted-foreground/20" />
+          <Skeleton className="h-4 w-20 bg-muted-foreground/20" />
           <div className="text-muted-foreground">|</div>
-          <Skeleton className="h-4 w-16" />
-          <Skeleton className="h-4 w-4" />
+          <Skeleton className="h-4 w-16 bg-muted-foreground/20" />
+          <Skeleton className="h-4 w-4 bg-muted-foreground/20" />
         </div>
       )}
     </>
