@@ -64,6 +64,8 @@ jobs:
           auth0-m2m-domain: ${{ secrets.AUTH0_M2M_DOMAIN }}
           auth0-m2m-client-id: ${{ secrets.AUTH0_M2M_CLIENT_ID }}
           auth0-m2m-client-secret: ${{ secrets.AUTH0_M2M_CLIENT_SECRET }}
+          mailsac-api-key: ${{ secrets.MAILSAC_API_KEY }}
+          email-verification-strategy: ${{ vars.EMAIL_VERIFICATION_STRATEGY || 'mailsac' }}
 
   deploy-prod:
     permissions:

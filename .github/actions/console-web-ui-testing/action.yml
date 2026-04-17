@@ -30,6 +30,13 @@ inputs:
   auth0-m2m-client-secret:
     description: Auth0 M2M client secret
     required: true
+  mailsac-api-key:
+    description: Mailsac API key for email verification
+    required: true
+  email-verification-strategy:
+    description: Email verification strategy (mailsac or auth0-ticket)
+    required: false
+    default: "mailsac"
 
 runs:
   using: "composite"
@@ -54,6 +61,8 @@ runs:
         AUTH0_M2M_DOMAIN: ${{ inputs.auth0-m2m-domain }}
         AUTH0_M2M_CLIENT_ID: ${{ inputs.auth0-m2m-client-id }}
         AUTH0_M2M_CLIENT_SECRET: ${{ inputs.auth0-m2m-client-secret }}
+        MAILSAC_API_KEY: ${{ inputs.mailsac-api-key }}
+        EMAIL_VERIFICATION_STRATEGY: ${{ inputs.email-verification-strategy }}
         USER_DATA_DIR: ${{ runner.temp }}/chrome-profile-${{ github.run_id }}-${{ github.run_attempt }}
         CI: "true"
       shell: bash

@@ -24,10 +24,6 @@ export async function signInViaUI(page: Page, input: { email: string; password: 
   await page.getByRole("button", { name: /log in/i }).click();
 }
 
-export function generateTestCredentials(): { email: string; password: string } {
-  const id = crypto.randomUUID().slice(0, 8);
-  return {
-    email: `e2e-${id}@test.akash.network`,
-    password: `E2e!${crypto.randomUUID()}`
-  };
+export function generateTestPassword(): string {
+  return `E2e!${crypto.randomUUID()}`;
 }

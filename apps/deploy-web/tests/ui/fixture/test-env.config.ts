@@ -15,7 +15,9 @@ export const testEnvSchema = z.object({
   }),
   AUTH0_M2M_DOMAIN: z.string({ required_error: "Auth0 M2M domain for management API calls (e.g. 'your-tenant.us.auth0.com')" }).trim().min(1),
   AUTH0_M2M_CLIENT_ID: z.string({ required_error: "Auth0 M2M client ID for management API" }).trim().min(1),
-  AUTH0_M2M_CLIENT_SECRET: z.string({ required_error: "Auth0 M2M client secret for management API" }).min(1)
+  AUTH0_M2M_CLIENT_SECRET: z.string({ required_error: "Auth0 M2M client secret for management API" }).trim().min(1),
+  MAILSAC_API_KEY: z.string({ required_error: "Mailsac API key for email verification" }).trim().min(1),
+  EMAIL_VERIFICATION_STRATEGY: z.enum(["mailsac", "auth0-ticket"]).default("mailsac")
 });
 
 export const testEnvConfig = testEnvSchema.parse({
@@ -25,7 +27,9 @@ export const testEnvConfig = testEnvSchema.parse({
   E2E_TESTING_CLIENT_TOKEN: process.env.E2E_TESTING_CLIENT_TOKEN,
   AUTH0_M2M_DOMAIN: process.env.AUTH0_M2M_DOMAIN,
   AUTH0_M2M_CLIENT_ID: process.env.AUTH0_M2M_CLIENT_ID,
-  AUTH0_M2M_CLIENT_SECRET: process.env.AUTH0_M2M_CLIENT_SECRET
+  AUTH0_M2M_CLIENT_SECRET: process.env.AUTH0_M2M_CLIENT_SECRET,
+  MAILSAC_API_KEY: process.env.MAILSAC_API_KEY,
+  EMAIL_VERIFICATION_STRATEGY: process.env.EMAIL_VERIFICATION_STRATEGY
 });
 
 export const PROVIDERS_WHITELIST = {
