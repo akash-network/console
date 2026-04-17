@@ -1,6 +1,5 @@
-import { generateTestCredentials, signUpViaUI } from "./actions/auth";
+import { generateTestPassword, signUpViaUI } from "./actions/auth";
 import { expect, test } from "./fixture/managed-wallet-test";
-import { testEnvConfig } from "./fixture/test-env.config";
 import { HomePage } from "./pages/HomePage";
 import { OnboardingPage } from "./pages/OnboardingPage";
 
@@ -14,10 +13,11 @@ test.describe("Managed wallet onboarding", () => {
     }
   });
 
-  test("completes free trial start, signup, and email verification", async ({ page, auth0 }) => {
+  test("completes free trial start, signup, and email verification", async ({ page, auth0, emailVerification }) => {
     test.setTimeout(2 * 60 * 1000);
 
-    const { email, password } = generateTestCredentials();
+    const email = emailVerification.generateEmail();
+    const password = generateTestPassword();
     const homePage = new HomePage(page);
     const onboardingPage = new OnboardingPage(page);
 
@@ -40,18 +40,12 @@ test.describe("Managed wallet onboarding", () => {
       await expect(onboardingPage.getCheckVerificationButton()).toBeVisible({ timeout: 15_000 });
     });
 
-    await test.step("verify email via Auth0 verification link", async () => {
+    await test.step("verify email via verification link", async () => {
       const auth0User = await auth0.getUserByEmail(email);
       expect(auth0User).toBeTruthy();
       testUserId = auth0User!.user_id;
 
-      const verifyEmailUrl = `${testEnvConfig.BASE_URL}/user/verify-email?email=${encodeURIComponent(email)}`;
-      const verificationUrl = await auth0.createEmailVerificationTicket(testUserId!, verifyEmailUrl);
-
-      const verificationPage = await page.context().newPage();
-      await verificationPage.goto(verificationUrl);
-      await verificationPage.getByText("Your email was verified").waitFor({ timeout: 15_000 });
-      await verificationPage.close();
+      await emailVerification.verify({ context: page.context(), email, userId: testUserId! });
     });
 
     await test.step("confirm email verification on onboarding page", async () => {
