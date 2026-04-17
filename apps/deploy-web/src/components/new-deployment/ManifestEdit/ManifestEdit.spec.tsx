@@ -178,6 +178,54 @@ describe(ManifestEdit.name, () => {
     });
   });
 
+  it("replaces non-wallet denom in SDL for managed wallet", async () => {
+    const setEditedManifest = vi.fn();
+    const sdlWithUsdcDenom = [
+      "version: '2.0'",
+      "services:",
+      "  web:",
+      "    image: nginx",
+      "    expose:",
+      "      - port: 80",
+      "        to:",
+      "          - global: true",
+      "profiles:",
+      "  compute:",
+      "    web:",
+      "      resources:",
+      "        cpu: { units: 1 }",
+      "        memory: { size: 512Mi }",
+      "        storage: [{ size: 1Gi }]",
+      "  placement:",
+      "    dcloud:",
+      "      pricing:",
+      "        web:",
+      "          denom: ibc/170C677610AC31DF0904FFE09CD3B5C657492170E7E52372E48756B71E56F2F1",
+      "          amount: 1000",
+      "deployment:",
+      "  web:",
+      "    dcloud:",
+      "      profile: web",
+      "      count: 1"
+    ].join("\n");
+
+    setup({
+      editedManifest: sdlWithUsdcDenom,
+      isManaged: true,
+      walletDenom: "uact",
+      setEditedManifest
+    });
+
+    await vi.waitFor(() => {
+      expect(setEditedManifest).toHaveBeenCalled();
+    });
+
+    const updater = setEditedManifest.mock.calls[0][0] as (prev: string) => string;
+    const result = updater(sdlWithUsdcDenom);
+    expect(result).toContain("denom: uact");
+    expect(result).not.toContain("ibc/170C677610AC31DF0904FFE09CD3B5C657492170E7E52372E48756B71E56F2F1");
+  });
+
   it("tracks create_deployment_btn_clk event when Create Deployment is clicked", async () => {
     const analyticsService = mock<AppDIContainer["analyticsService"]>();
     setup({ editedManifest: "some-manifest", analyticsService });
@@ -211,6 +259,7 @@ describe(ManifestEdit.name, () => {
     isGitProviderTemplate?: boolean;
     isBlockchainDown?: boolean;
     isManaged?: boolean;
+    walletDenom?: string;
     hasComponents?: string[];
     templateId?: string | null;
     SDLEditor?: Mock;
@@ -219,9 +268,11 @@ describe(ManifestEdit.name, () => {
     DeploymentDepositModal?: Mock;
     analyticsService?: AppDIContainer["analyticsService"];
     selectedSdlEditMode?: "yaml" | "builder";
+    setEditedManifest?: Mock;
   }) {
     const hasComponents = new Set(input?.hasComponents ?? []);
     const analyticsService = input?.analyticsService ?? mock<AppDIContainer["analyticsService"]>();
+    const setEditedManifest = input?.setEditedManifest ?? vi.fn();
     const store = createStore();
 
     if (input?.selectedSdlEditMode) {
@@ -266,6 +317,7 @@ describe(ManifestEdit.name, () => {
         isWalletLoaded: true,
         isManaged: input?.isManaged ?? false,
         isTrialing: false,
+        denom: input?.walletDenom,
         signAndBroadcastTx: vi.fn().mockResolvedValue({})
       })) as unknown as Dependencies["useWallet"],
       useCertificate: () =>
@@ -306,7 +358,7 @@ describe(ManifestEdit.name, () => {
         <JotaiStoreProvider store={store}>
           <ManifestEdit
             editedManifest={input?.editedManifest !== undefined ? input.editedManifest : "some-manifest"}
-            setEditedManifest={vi.fn()}
+            setEditedManifest={setEditedManifest}
             onTemplateSelected={vi.fn()}
             selectedTemplate={(input?.selectedTemplate as any) ?? null}
             isGitProviderTemplate={input?.isGitProviderTemplate}
