@@ -56,7 +56,6 @@ const walletManagerOptions: ChainStoreProviderProps["walletManagerOptions"] = {
 };
 
 export function CustomChainProvider({ children }: Props) {
-  console.log("rendering CustomChainProvider");
   return (
     <ChainStoreProvider walletsRegistry={WALLETS_PROVIDERS} walletManagerOptions={walletManagerOptions}>
       <ModalWrapper />
