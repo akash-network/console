@@ -1,4 +1,4 @@
-import { and, eq, lt, ne, SQL, sql } from "drizzle-orm";
+import { and, eq, isNull, lt, ne, or, SQL, sql } from "drizzle-orm";
 import { PgUpdateSetSource } from "drizzle-orm/pg-core";
 import { singleton } from "tsyringe";
 
@@ -66,7 +66,7 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
         and(
           // keep new line
           eq(this.table.id, id),
-          lt(this.table.lastActiveAt, sql`now() - make_interval(secs => ${options.throttleTimeSeconds})`)
+          or(isNull(this.table.lastActiveAt), lt(this.table.lastActiveAt, sql`now() - make_interval(secs => ${options.throttleTimeSeconds})`))
         )
       );
   }

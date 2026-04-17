@@ -151,7 +151,7 @@ describe(ApiKeyRepository.name, () => {
       expect(after?.lastUsedAt).toBe(before?.lastUsedAt);
     });
 
-    it("does not update lastUsedAt when it is null", async () => {
+    it("updates lastUsedAt when it is null", async () => {
       const { apiKeyRepository, createTestUser } = setup();
       const user = await createTestUser();
 
@@ -165,7 +165,7 @@ describe(ApiKeyRepository.name, () => {
       await apiKeyRepository.markAsUsed(apiKey.id, 60);
 
       const updated = await apiKeyRepository.findById(apiKey.id);
-      expect(updated?.lastUsedAt).toBeNull();
+      expect(updated?.lastUsedAt).not.toBeNull();
     });
   });
 
