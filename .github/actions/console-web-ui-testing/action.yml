@@ -21,6 +21,15 @@ inputs:
   testing-client-token:
     description: E2E testing client token which allows to bypass captcha verification
     required: true
+  auth0-m2m-domain:
+    description: Auth0 M2M domain for management API calls
+    required: true
+  auth0-m2m-client-id:
+    description: Auth0 M2M client ID
+    required: true
+  auth0-m2m-client-secret:
+    description: Auth0 M2M client secret
+    required: true
 
 runs:
   using: "composite"
@@ -42,6 +51,9 @@ runs:
         TEST_WALLET_MNEMONIC: ${{ inputs.test-wallet-mnemonic }}
         BASE_URL: ${{ inputs.url }}
         E2E_TESTING_CLIENT_TOKEN: ${{ inputs.testing-client-token }}
+        AUTH0_M2M_DOMAIN: ${{ inputs.auth0-m2m-domain }}
+        AUTH0_M2M_CLIENT_ID: ${{ inputs.auth0-m2m-client-id }}
+        AUTH0_M2M_CLIENT_SECRET: ${{ inputs.auth0-m2m-client-secret }}
         USER_DATA_DIR: ${{ runner.temp }}/chrome-profile-${{ github.run_id }}-${{ github.run_attempt }}
         CI: "true"
       shell: bash
