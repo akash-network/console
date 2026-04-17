@@ -32,7 +32,7 @@ import { legacyRouter } from "./routers/legacyRouter";
 import { web3IndexRouter } from "./routers/web3indexRouter";
 import { bytesToHumanReadableSize } from "./utils/files";
 import { addressRouter } from "./address";
-import { apiKeysRouter, sendVerificationEmailRouter } from "./auth";
+import { apiKeysRouter, sendVerificationCodeRouter, sendVerificationEmailRouter, signupRouter, verifyEmailCodeRouter } from "./auth";
 import {
   getBalancesRouter,
   getWalletListRouter,
@@ -123,6 +123,9 @@ const openApiHonoHandlers: OpenApiHonoHandler[] = [
   userSettingsRouter,
   userTemplatesRouter,
   sendVerificationEmailRouter,
+  sendVerificationCodeRouter,
+  signupRouter,
+  verifyEmailCodeRouter,
   verifyEmailRouter,
   deploymentSettingRouter,
   deploymentsRouter,
