@@ -1,4 +1,3 @@
-// TODO: replace this import with @akashnetwork/chain-sdk when it exports those types
 import type { Attribute, SignedBy } from "@akashnetwork/chain-sdk";
 import {
   Provider,

@@ -1,3 +1,4 @@
+import { Attribute, SignedBy } from "@akashnetwork/chain-sdk";
 import { Provider, ProviderSnapshot, ProviderSnapshotNode, ProviderSnapshotNodeGPU } from "@akashnetwork/database/dbSchemas/akash";
 import type { ProviderAttributesSchema } from "@akashnetwork/http-sdk";
 import { AxiosError } from "axios";
@@ -262,5 +263,9 @@ export class ProviderService {
         checkDate: ps.checkDate
       }))
     };
+  }
+
+  async getProvidersHostUriByAttributes(attributes: Attribute[], signatures?: Partial<SignedBy>): Promise<string[]> {
+    return await this.providerRepository.getProvidersHostUriByAttributes(attributes, signatures);
   }
 }
