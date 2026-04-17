@@ -4,7 +4,6 @@ import { Button, buttonVariants, Card, CardContent, Separator } from "@akashnetw
 import { cn } from "@akashnetwork/ui/utils";
 import { CoinsSwap, HandCard } from "iconoir-react";
 
-import { useSelectedChain } from "@src/context/CustomChainProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useManagedEscrowFaqModal } from "@src/hooks/useManagedEscrowFaqModal";
@@ -29,14 +28,12 @@ export const DEPENDENCIES = {
   FormattedNumber,
   useWallet,
   useManagedEscrowFaqModal,
-  useSelectedChain,
   useServices
 };
 
 export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBalance, dependencies: d = DEPENDENCIES }) => {
   const { isManaged, isTrialing, switchWalletType } = d.useWallet();
   const { showManagedEscrowFaqModal } = d.useManagedEscrowFaqModal();
-  const { connect, isWalletConnected } = d.useSelectedChain();
   const { urlService } = d.useServices();
 
   return (
@@ -101,7 +98,7 @@ export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBa
           <span className="whitespace-nowrap">Add Funds</span>
         </d.AddFundsLink>
         <d.Separator className="my-2 bg-secondary/90 dark:bg-white/10" />
-        <d.Button onClick={isWalletConnected ? switchWalletType : connect} variant="outline" className="w-full space-x-2">
+        <d.Button onClick={switchWalletType} variant="outline" className="w-full space-x-2">
           <d.CoinsSwap />
           <span>Switch to Wallet Payments</span>
         </d.Button>

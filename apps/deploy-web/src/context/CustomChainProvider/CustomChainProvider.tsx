@@ -1,117 +1,73 @@
-"use client";
-import "@interchain-ui/react/styles";
-import "@interchain-ui/react/globalStyles";
-
-import { useEffect, useRef } from "react";
-import { Snackbar } from "@akashnetwork/ui/components";
 import { GasPrice } from "@cosmjs/stargate";
-import type { ChainContext, WalletModalProps } from "@cosmos-kit/core";
-import { wallets as metamask } from "@cosmos-kit/cosmos-extension-metamask";
-import { wallets as cosmostation } from "@cosmos-kit/cosmostation-extension";
-import { wallets as keplr } from "@cosmos-kit/keplr";
-import { wallets as leap } from "@cosmos-kit/leap";
-import { ChainProvider, DefaultModal, useChain } from "@cosmos-kit/react";
-import { useAtom } from "jotai";
-import { useSnackbar } from "notistack";
+import type { MainWalletBase } from "@cosmos-kit/core";
 
 import { assetLists, chains } from "@src/chains";
-import networkStore from "@src/store/networkStore";
-import walletStore from "@src/store/walletStore";
+import type { ChainStoreProviderProps } from "@src/lib/cosmos-kit-jotai";
+import { ChainStoreInitializer, ChainStoreProvider, CURRENT_WALLET_KEY, ModalWrapper } from "@src/lib/cosmos-kit-jotai";
 import { registry } from "@src/utils/customRegistry";
+import { useServices } from "../ServicesProvider";
 
 type Props = {
   children: React.ReactNode;
 };
 
+/**
+ * The order of keys is important here.
+ * Wallets are rendered in the order they are specified in this registry
+ */
+const WALLETS_PROVIDERS: Record<string, () => Promise<{ wallets: MainWalletBase[] }>> = {
+  "keplr-extension": () => import("@cosmos-kit/keplr"),
+  "leap-extension": () => import("@cosmos-kit/leap"),
+  "cosmostation-extension": () => import("@cosmos-kit/cosmostation-extension"),
+  "cosmos-extension-metamask": () => import("@cosmos-kit/cosmos-extension-metamask"),
+  "keplr-mobile": () => import("@cosmos-kit/keplr"),
+  "leap-mobile": () => import("@cosmos-kit/leap")
+};
+
+const walletManagerOptions: ChainStoreProviderProps["walletManagerOptions"] = {
+  chains,
+  assetList: assetLists,
+  sessionOptions: {
+    duration: 31_556_926_000, // 1 year
+    callback: () => {
+      window.localStorage.removeItem(CURRENT_WALLET_KEY);
+      window.location.reload();
+    }
+  },
+  walletConnectOptions: {
+    signClient: {
+      projectId: process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID as string
+    }
+  },
+  endpointOptions: {
+    isLazy: true,
+    endpoints: {
+      ...Object.fromEntries(chains.map(c => [c.chain_name, { rest: [], rpc: [] }]))
+    }
+  },
+  signerOptions: {
+    preferredSignType: () => "direct" as const,
+    // @ts-expect-error - Mixed @cosmjs/proto-signing library versions. Need to align them
+    signingStargate: () => ({
+      registry: registry,
+      gasPrice: GasPrice.fromString("0.025uakt")
+    })
+  }
+};
+
 export function CustomChainProvider({ children }: Props) {
   return (
-    <ChainProvider
-      chains={chains}
-      assetLists={assetLists}
-      wallets={[...keplr, ...leap, ...cosmostation, ...metamask]}
-      walletModal={ModalWrapper}
-      sessionOptions={{
-        duration: 31_556_926_000, // 1 year
-        callback: () => {
-          console.log("session expired");
-          window.localStorage.removeItem("cosmos-kit@2:core//current-wallet");
-          window.location.reload();
-        }
-      }}
-      walletConnectOptions={{
-        signClient: {
-          projectId: process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID as string
-        }
-      }}
-      endpointOptions={{
-        isLazy: true,
-        endpoints: {
-          ...Object.fromEntries(chains.map(c => [c.chain_name, { rest: [], rpc: [] }]))
-        }
-      }}
-      signerOptions={{
-        preferredSignType: () => "direct",
-        signingStargate: () =>
-          ({
-            registry,
-            gasPrice: GasPrice.fromString("0.025uakt")
-          }) as any
-      }}
-    >
-      <WalletConnectErrorHandler />
+    <ChainStoreProvider walletsRegistry={WALLETS_PROVIDERS} walletManagerOptions={walletManagerOptions}>
+      <ModalWrapper />
+      <InitializeChainStoreForSelectedNetwork />
       {children}
-    </ChainProvider>
+    </ChainStoreProvider>
   );
 }
 
-/**
- * Watches wallet connection state and shows user-friendly messages for WalletConnect errors
- */
-function WalletConnectErrorHandler() {
-  const { enqueueSnackbar } = useSnackbar();
-  const { chainRegistryName } = networkStore.useSelectedNetwork();
-  const { message, isWalletError } = useChain(chainRegistryName);
-  const lastShownErrorRef = useRef<string | undefined>(undefined);
+function InitializeChainStoreForSelectedNetwork() {
+  const { networkStore } = useServices();
+  const selectedNetwork = networkStore.useSelectedNetwork();
 
-  useEffect(() => {
-    const isProposalExpired = isWalletError && message?.toLowerCase().includes("proposal expired");
-
-    // Only show snackbar if this is a new error (not already shown)
-    if (isProposalExpired && lastShownErrorRef.current !== message) {
-      lastShownErrorRef.current = message;
-      enqueueSnackbar(
-        <Snackbar title="Wallet connection timed out" subTitle="The connection request expired. Please try connecting again." iconVariant="warning" />,
-        { variant: "warning", autoHideDuration: 6000 }
-      );
-    }
-
-    // Reset when error clears
-    if (!isWalletError) {
-      lastShownErrorRef.current = undefined;
-    }
-  }, [isWalletError, message, enqueueSnackbar]);
-
-  return null;
+  return <ChainStoreInitializer chainName={selectedNetwork.chainRegistryName} />;
 }
-
-export type { ChainContext };
-export function useSelectedChain(): ChainContext {
-  const { chainRegistryName } = networkStore.useSelectedNetwork();
-  return useChain(chainRegistryName);
-}
-
-const ModalWrapper = (props: WalletModalProps) => {
-  const { isWalletConnected } = useSelectedChain();
-  const [isWalletModalOpen, setIsWalletModalOpen] = useAtom(walletStore.isWalletModalOpen);
-  const [, setSelectedWalletType] = useAtom(walletStore.selectedWalletType);
-
-  useEffect(() => {
-    setIsWalletModalOpen(props.isOpen);
-
-    if (isWalletModalOpen && !props.isOpen && isWalletConnected) {
-      setSelectedWalletType("custodial");
-    }
-  }, [isWalletModalOpen, props.isOpen, isWalletConnected]);
-
-  return <DefaultModal {...props} isOpen={props.isOpen} setOpen={props.setOpen} />;
-};

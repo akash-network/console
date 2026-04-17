@@ -2,9 +2,9 @@ import { useCallback, useEffect, useMemo } from "react";
 import { JwtTokenManager, type JwtTokenPayload } from "@akashnetwork/chain-sdk/web";
 import { atom, useAtom } from "jotai";
 
-import { useSelectedChain } from "@src/context/CustomChainProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useSelectedChain } from "../useSelectedChain/useSelectedChain";
 
 const JWT_TOKEN_ATOM = atom<string | null>(null);
 

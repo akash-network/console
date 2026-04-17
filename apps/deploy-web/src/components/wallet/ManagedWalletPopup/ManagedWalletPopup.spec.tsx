@@ -65,18 +65,17 @@ describe(ManagedWalletPopup.name, () => {
     expect(switchWalletType).toHaveBeenCalledTimes(1);
   });
 
-  it("calls connect when Switch to Wallet Payments is clicked and wallet is not connected", () => {
-    const { connect } = setup({ isWalletConnected: false });
+  it("calls switchWalletType when Switch to Wallet Payments is clicked and wallet is not connected", () => {
+    const { switchWalletType } = setup({ isWalletConnected: false });
 
     fireEvent.click(screen.getByRole("button", { name: /Switch to Wallet Payments/ }));
 
-    expect(connect).toHaveBeenCalledTimes(1);
+    expect(switchWalletType).toHaveBeenCalledTimes(1);
   });
 
   function setup(input?: { walletBalance?: WalletBalance | null; isManaged?: boolean; isTrialing?: boolean; isWalletConnected?: boolean }) {
     const switchWalletType = vi.fn();
     const showManagedEscrowFaqModal = vi.fn();
-    const connect = vi.fn();
 
     const dependencies = {
       ...DEPENDENCIES,
@@ -86,10 +85,6 @@ describe(ManagedWalletPopup.name, () => {
         switchWalletType
       }),
       useManagedEscrowFaqModal: () => ({ showManagedEscrowFaqModal }),
-      useSelectedChain: () => ({
-        connect,
-        isWalletConnected: input?.isWalletConnected ?? false
-      }),
       useServices: () => ({
         urlService: {
           billing: ({ openPayment }: { openPayment?: boolean } = {}) => (openPayment ? "/billing?openPayment=true" : "/billing")
@@ -110,6 +105,6 @@ describe(ManagedWalletPopup.name, () => {
 
     render(<ManagedWalletPopup walletBalance={input?.walletBalance ?? null} dependencies={dependencies} />);
 
-    return { switchWalletType, showManagedEscrowFaqModal, connect };
+    return { switchWalletType, showManagedEscrowFaqModal };
   }
 });
