@@ -292,8 +292,14 @@ describe("OnboardingContainer", () => {
       update: vi.fn()
     };
 
+    const mockSetSelectedNetworkId = vi.fn();
+    const mockNetworkStore = {
+      useSelectedNetworkIdStore: vi.fn().mockReturnValue(["mainnet", mockSetSelectedNetworkId])
+    };
+
     const mockAppConfig = {
-      NEXT_PUBLIC_DEFAULT_INITIAL_DEPOSIT: "5000000"
+      NEXT_PUBLIC_DEFAULT_INITIAL_DEPOSIT: "5000000",
+      NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID: "sandbox"
     };
 
     const mockUseUser = vi.fn().mockReturnValue(input.user || { emailVerified: false });
@@ -315,7 +321,8 @@ describe("OnboardingContainer", () => {
       errorHandler: mockErrorHandler,
       windowLocation,
       windowHistory,
-      template: mockTemplateService
+      template: mockTemplateService,
+      networkStore: mockNetworkStore
     });
     const mockUseRouter = vi.fn().mockReturnValue(mockRouter);
     const mockUseWallet = vi.fn().mockReturnValue({
@@ -457,7 +464,8 @@ describe("OnboardingContainer", () => {
       mockValidateDeploymentData,
       mockAppendAuditorRequirement,
       mockTransactionMessageData,
-      mockUseWallet
+      mockUseWallet,
+      mockSetSelectedNetworkId
     };
   }
 });
