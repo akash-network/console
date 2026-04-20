@@ -41,7 +41,7 @@ export class DenomExchangeService {
 
         if (!oracleRate.priceHealth?.isHealthy) {
           this.#logger.warn({ event: "ORACLE_PRICE_UNHEALTHY", denom: mappedDenom });
-          return this.#getFallbackExchangeRateToUSD();
+          return await this.#getFallbackExchangeRateToUSD();
         }
 
         const price = parseFloat(oracleRate.aggregatedPrice?.medianPrice ?? "0");
@@ -57,7 +57,7 @@ export class DenomExchangeService {
         };
       } catch (error) {
         this.#logger.warn({ event: "ORACLE_RPC_FAILED", denom: mappedDenom, error });
-        return this.#getFallbackExchangeRateToUSD();
+        return await this.#getFallbackExchangeRateToUSD();
       }
     },
     { cacheItemLimit: 10, ttl: minutesToMilliseconds(10) }

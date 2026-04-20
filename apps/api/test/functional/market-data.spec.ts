@@ -17,13 +17,13 @@ describe("Market Data", () => {
       .persist()
       .get("/akash/oracle/v1/aggregated_price/akt")
       .query(true)
-      .reply(200, { aggregated_price: { median_price: "1.5" } });
+      .reply(200, { aggregated_price: { median_price: "1.5" }, price_health: { is_healthy: true } });
 
     nock(restApiNodeUrl)
       .persist()
       .get("/akash/oracle/v1/aggregated_price/usdc")
       .query(true)
-      .reply(200, { aggregated_price: { median_price: "1.0" } });
+      .reply(200, { aggregated_price: { median_price: "1.0" }, price_health: { is_healthy: true } });
 
     nock(restApiNodeUrl)
       .persist()
