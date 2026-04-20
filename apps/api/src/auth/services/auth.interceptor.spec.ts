@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { isHttpError } from "http-errors";
 import { container as globalContainer } from "tsyringe";
+import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
@@ -33,19 +34,19 @@ describe(AuthInterceptor.name, () => {
       await callInterceptor();
       await callInterceptor();
 
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       try {
-        jest.setSystemTime(new Date(Date.now() + 25 * 60 * 1000));
+        vi.setSystemTime(new Date(Date.now() + 25 * 60 * 1000));
         await callInterceptor();
         await callInterceptor();
 
-        jest.setSystemTime(new Date(Date.now() + 31 * 60 * 1000));
+        vi.setSystemTime(new Date(Date.now() + 31 * 60 * 1000));
         await callInterceptor();
         await callInterceptor();
 
         expect(di.resolve(UserRepository).markAsActive).toHaveBeenCalledTimes(2);
       } finally {
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     });
   });
@@ -98,18 +99,18 @@ describe(AuthInterceptor.name, () => {
       await callInterceptor();
       await callInterceptor();
 
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       try {
-        jest.setSystemTime(new Date(Date.now() + 25 * 60 * 1000));
+        vi.setSystemTime(new Date(Date.now() + 25 * 60 * 1000));
         await callInterceptor();
         await callInterceptor();
 
-        jest.setSystemTime(new Date(Date.now() + 31 * 60 * 1000));
+        vi.setSystemTime(new Date(Date.now() + 31 * 60 * 1000));
         await callInterceptor();
         await callInterceptor();
         expect(di.resolve(UserRepository).markAsActive).toHaveBeenCalledTimes(2);
       } finally {
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     });
   });
@@ -121,16 +122,16 @@ describe(AuthInterceptor.name, () => {
     di.registerInstance(
       UserRepository,
       mock<UserRepository>({
-        findByUserId: jest.fn().mockImplementation(async () => input?.user ?? createUser()),
-        findById: jest.fn().mockImplementation(async () => input?.user ?? createUser()),
-        markAsActive: jest.fn()
+        findByUserId: vi.fn().mockImplementation(async () => input?.user ?? createUser()),
+        findById: vi.fn().mockImplementation(async () => input?.user ?? createUser()),
+        markAsActive: vi.fn()
       })
     );
     di.registerInstance(AuthService, mock());
     di.registerInstance(
       UserAuthTokenService,
       mock<UserAuthTokenService>({
-        getValidUserId: jest.fn().mockImplementation(async () => {
+        getValidUserId: vi.fn().mockImplementation(async () => {
           if (input?.tokenBehavior === "throw") {
             throw new Error("Invalid token");
           }
@@ -145,7 +146,7 @@ describe(AuthInterceptor.name, () => {
     di.registerInstance(
       ApiKeyAuthService,
       mock<ApiKeyAuthService>({
-        getAndValidateApiKeyFromHeader: jest.fn().mockImplementation(async () => ({
+        getAndValidateApiKeyFromHeader: vi.fn().mockImplementation(async () => ({
           id: "123",
           userId: input?.user?.id
         }))

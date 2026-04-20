@@ -13,10 +13,12 @@ export function collectOtel() {
   const spanContext = currentSpan?.spanContext();
   const currentBaggage = propagation.getBaggage(context.active());
   const jobId = currentBaggage?.getEntry("job.id")?.value;
+  const userId = currentBaggage?.getEntry("user.id")?.value;
 
   return {
     ...spanContext,
-    ...(jobId && { jobId })
+    ...(jobId && { jobId }),
+    ...(userId && { userId })
   };
 }
 
