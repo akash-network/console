@@ -2,7 +2,7 @@ import z from "zod";
 
 import { extractData } from "../http/http.service";
 import type { HttpClient } from "../utils/httpClient";
-import { loadWithPagination } from "../utils/pagination.utils";
+import { getAllItems } from "../utils/pagination.utils";
 
 const AttributeSchema = z.object({
   key: z.string(),
@@ -167,7 +167,14 @@ export class DeploymentHttpService {
     const defaultLimit = 1000;
 
     if (!pagination) {
-      const allDeployments = await loadWithPagination<DeploymentInfo>(baseUrl, "deployments", defaultLimit, this.httpClient);
+      const allDeployments = await getAllItems<DeploymentInfo>(async params => {
+        const response = extractData(
+          await this.httpClient.get<DeploymentListResponse>(baseUrl, {
+            params: { "pagination.limit": defaultLimit, ...params }
+          })
+        );
+        return { items: response.deployments, pagination: response.pagination };
+      });
       return {
         deployments: allDeployments,
         pagination: {

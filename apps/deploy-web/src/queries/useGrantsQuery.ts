@@ -1,11 +1,12 @@
 import type { DepositDeploymentGrant } from "@akashnetwork/http-sdk";
+import { getAllItems } from "@akashnetwork/http-sdk";
 import type { UseQueryOptions } from "@tanstack/react-query";
 import { useQuery } from "@tanstack/react-query";
 import type { AxiosInstance } from "axios";
 
 import { useServices } from "@src/context/ServicesProvider";
 import type { AllowanceType, PaginatedAllowanceType, PaginatedGrantType } from "@src/types/grant";
-import { ApiUrlService, loadWithPagination } from "@src/utils/apiUtils";
+import { ApiUrlService } from "@src/utils/apiUtils";
 import { QueryKeys } from "./queryKeys";
 
 export function useGranterGrants(
@@ -54,7 +55,12 @@ export function useAllowancesIssued(
 }
 
 async function getAllowancesGranted(chainApiHttpClient: AxiosInstance, address: string) {
-  return await loadWithPagination<AllowanceType[]>(ApiUrlService.allowancesGranted("", address), "allowances", 1000, chainApiHttpClient);
+  return getAllItems<AllowanceType>(async params => {
+    const response = await chainApiHttpClient.get(ApiUrlService.allowancesGranted("", address), {
+      params: { "pagination.limit": 1000, ...params }
+    });
+    return { items: response.data.allowances, pagination: response.data.pagination };
+  });
 }
 
 export function useAllowancesGranted(address: string, options: Omit<UseQueryOptions<AllowanceType[]>, "queryKey" | "queryFn"> = {}) {
