@@ -1,5 +1,6 @@
-import { generateTestPassword, signUpViaUI } from "./actions/auth";
-import { expect, test } from "./fixture/managed-wallet-test";
+import { generateTestPassword } from "./actions/auth";
+import { expect, test } from "./fixture/onboarding-test";
+import { AuthPage } from "./pages/AuthPage";
 import { HomePage } from "./pages/HomePage";
 import { OnboardingPage } from "./pages/OnboardingPage";
 
@@ -19,6 +20,7 @@ test.describe("Managed wallet onboarding", () => {
     const email = emailVerification.generateEmail();
     const password = generateTestPassword();
     const homePage = new HomePage(page);
+    const authPage = new AuthPage(page);
     const onboardingPage = new OnboardingPage(page);
 
     await test.step("start trial from home page", async () => {
@@ -31,12 +33,12 @@ test.describe("Managed wallet onboarding", () => {
     });
 
     await test.step("sign up with email and password", async () => {
-      await page.waitForURL(/\/login.*tab=signup/);
-      await signUpViaUI(page, { email, password });
+      await authPage.waitForSignUpTab();
+      await authPage.signUp({ email, password });
     });
 
     await test.step("arrive at email verification step", async () => {
-      await page.waitForURL(/\/signup/);
+      await onboardingPage.waitForPage();
       await expect(onboardingPage.getCheckVerificationButton()).toBeVisible({ timeout: 15_000 });
     });
 

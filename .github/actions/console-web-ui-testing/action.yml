@@ -37,6 +37,12 @@ inputs:
     description: Email verification strategy (mailsac or auth0-ticket)
     required: false
     default: "mailsac"
+  test-user-email:
+    description: Pre-registered test user email for authenticated tests
+    required: false
+  test-user-password:
+    description: Pre-registered test user password for authenticated tests
+    required: false
 
 runs:
   using: "composite"
@@ -63,6 +69,8 @@ runs:
         AUTH0_M2M_CLIENT_SECRET: ${{ inputs.auth0-m2m-client-secret }}
         MAILSAC_API_KEY: ${{ inputs.mailsac-api-key }}
         EMAIL_VERIFICATION_STRATEGY: ${{ inputs.email-verification-strategy }}
+        TEST_USER_EMAIL: ${{ inputs.test-user-email }}
+        TEST_USER_PASSWORD: ${{ inputs.test-user-password }}
         USER_DATA_DIR: ${{ runner.temp }}/chrome-profile-${{ github.run_id }}-${{ github.run_attempt }}
         CI: "true"
       shell: bash
