@@ -55,6 +55,56 @@ describe(DenomExchangeService.name, () => {
       expect(result.priceChange24h).toBe(0);
       expect(result.priceChangePercentage24).toBe(0);
     });
+
+    it("falls back to DB price when oracle reports unhealthy", async () => {
+      const { service, dayRepository, logger } = setup({ isHealthy: false, latestAktPrice: 1.23 });
+
+      const result = await service.getExchangeRateToUSD("akt");
+
+      expect(dayRepository.getLatestAktPrice).toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "ORACLE_PRICE_UNHEALTHY" }));
+      expect(result).toEqual({
+        price: 1.23,
+        volume: 0,
+        marketCap: 0,
+        marketCapRank: 0,
+        priceChange24h: 0,
+        priceChangePercentage24: 0
+      });
+    });
+
+    it("falls back to DB price when oracle RPC fails", async () => {
+      const { service, dayRepository, logger } = setup({ oracleThrows: true, latestAktPrice: 0.99 });
+
+      const result = await service.getExchangeRateToUSD("akt");
+
+      expect(dayRepository.getLatestAktPrice).toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "ORACLE_RPC_FAILED" }));
+      expect(result).toEqual({
+        price: 0.99,
+        volume: 0,
+        marketCap: 0,
+        marketCapRank: 0,
+        priceChange24h: 0,
+        priceChangePercentage24: 0
+      });
+    });
+
+    it("returns zero price when oracle fails and DB has no price", async () => {
+      const { service, logger } = setup({ oracleThrows: true, latestAktPrice: null });
+
+      const result = await service.getExchangeRateToUSD("akt");
+
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "ORACLE_RPC_FAILED" }));
+      expect(result).toEqual({
+        price: 0,
+        volume: 0,
+        marketCap: 0,
+        marketCapRank: 0,
+        priceChange24h: 0,
+        priceChangePercentage24: 0
+      });
+    });
   });
 
   function setup(input: {
@@ -86,7 +136,7 @@ describe(DenomExchangeService.name, () => {
     chainSdk.akash.oracle.v1.getPrices.mockImplementation(getPrices);
 
     const dayRepository = mock<DayRepository>();
-    dayRepository.getLatestAktPrice.mockResolvedValue(input.latestAktPrice ?? 1.23);
+    dayRepository.getLatestAktPrice.mockResolvedValue("latestAktPrice" in input ? input.latestAktPrice : 1.23);
 
     const logger = mock<LoggerService>();
 
