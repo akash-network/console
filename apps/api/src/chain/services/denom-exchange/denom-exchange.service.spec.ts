@@ -136,7 +136,7 @@ describe(DenomExchangeService.name, () => {
     chainSdk.akash.oracle.v1.getPrices.mockImplementation(getPrices);
 
     const dayRepository = mock<DayRepository>();
-    dayRepository.getLatestAktPrice.mockResolvedValue("latestAktPrice" in input ? input.latestAktPrice : 1.23);
+    dayRepository.getLatestAktPrice.mockResolvedValue("latestAktPrice" in input ? input.latestAktPrice! : 1.23);
 
     const logger = mock<LoggerService>();
 
