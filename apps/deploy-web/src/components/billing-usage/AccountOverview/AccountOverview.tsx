@@ -174,7 +174,7 @@ export const AccountOverview: React.FunctionComponent<{ dependencies?: typeof DE
             </d.CardHeader>
             <d.CardContent>
               <div className="flex flex-col gap-1">
-                <p className="text-2xl font-bold leading-none">
+                <p className="text-2xl font-bold leading-none" aria-label="Available balance amount">
                   {walletBalance && <d.FormattedNumber value={walletBalance.totalDeploymentGrantsUSD} style="currency" currency="USD" />}
                 </p>
                 <p className="text-sm text-muted-foreground">
