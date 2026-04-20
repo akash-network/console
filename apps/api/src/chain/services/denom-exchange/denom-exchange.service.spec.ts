@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { mockDeep } from "vitest-mock-extended";
+import { mock, mockDeep } from "vitest-mock-extended";
 
 import type { ChainSDK } from "@src/chain/providers/chain-sdk.provider";
+import type { LoggerService } from "@src/core/providers/logging.provider";
+import type { DayRepository } from "@src/gpu/repositories/day.repository";
 import { DenomExchangeService } from "./denom-exchange.service";
 
 describe(DenomExchangeService.name, () => {
@@ -55,24 +57,41 @@ describe(DenomExchangeService.name, () => {
     });
   });
 
-  function setup(input: { currentHeight?: bigint; historicalPrice?: string; emptyHistoricalPrices?: boolean }) {
+  function setup(input: {
+    currentHeight?: bigint;
+    historicalPrice?: string;
+    emptyHistoricalPrices?: boolean;
+    isHealthy?: boolean;
+    oracleThrows?: boolean;
+    latestAktPrice?: number | null;
+  }) {
     const getLatestBlock = vi.fn().mockResolvedValue({
       block: { header: { height: { toBigInt: () => input.currentHeight ?? 1000000n } } }
     });
     const getAggregatedPrice = vi.fn().mockResolvedValue({
-      aggregatedPrice: { medianPrice: "0.56" }
+      aggregatedPrice: { medianPrice: "0.56" },
+      priceHealth: { isHealthy: input.isHealthy ?? true }
     });
     const getPrices = vi.fn().mockResolvedValue({
       prices: input.emptyHistoricalPrices ? [] : [{ state: { price: input.historicalPrice ?? "0.5" } }]
     });
+
+    if (input.oracleThrows) {
+      getLatestBlock.mockRejectedValue(new Error("RPC connection refused"));
+    }
 
     const chainSdk = mockDeep<ChainSDK>();
     chainSdk.cosmos.base.tendermint.v1beta1.getLatestBlock.mockImplementation(getLatestBlock);
     chainSdk.akash.oracle.v1.getAggregatedPrice.mockImplementation(getAggregatedPrice);
     chainSdk.akash.oracle.v1.getPrices.mockImplementation(getPrices);
 
-    const service = new DenomExchangeService(chainSdk);
+    const dayRepository = mock<DayRepository>();
+    dayRepository.getLatestAktPrice.mockResolvedValue(input.latestAktPrice ?? 1.23);
 
-    return { service, getLatestBlock, getAggregatedPrice, getPrices };
+    const logger = mock<LoggerService>();
+
+    const service = new DenomExchangeService(chainSdk, dayRepository, logger);
+
+    return { service, getLatestBlock, getAggregatedPrice, getPrices, dayRepository, logger };
   }
 });
