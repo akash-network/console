@@ -83,8 +83,11 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
     errorHandler,
     windowLocation,
     windowHistory,
-    template: templateService
+    template: templateService,
+    networkStore,
+    publicConfig
   } = d.useServices();
+  const [selectedNetworkId, setSelectedNetworkId] = networkStore.useSelectedNetworkIdStore();
   const wallet = d.useWallet();
   const { genNewCertificateIfLocalIsInvalid, updateSelectedCertificate } = d.useCertificate();
   const notificator = d.useNotificator();
@@ -164,6 +167,10 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
   );
 
   const handleStartTrial = useCallback(() => {
+    if (selectedNetworkId !== publicConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID) {
+      setSelectedNetworkId(publicConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID);
+    }
+
     analyticsService.track("onboarding_free_trial_started", {
       category: "onboarding"
     });
@@ -181,7 +188,18 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
     } else {
       router.push(urlService.newSignup({ fromSignup: "true" }));
     }
-  }, [analyticsService, handleStepComplete, user?.userId, user?.emailVerified, handleStepChange, router, urlService]);
+  }, [
+    analyticsService,
+    handleStepComplete,
+    user?.userId,
+    user?.emailVerified,
+    handleStepChange,
+    router,
+    urlService,
+    selectedNetworkId,
+    publicConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID,
+    setSelectedNetworkId
+  ]);
 
   const handlePaymentMethodComplete = useCallback(() => {
     if (paymentMethods.length > 0) {

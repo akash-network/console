@@ -13,8 +13,8 @@ test.describe("Managed wallet onboarding", () => {
     }
   });
 
-  test("completes free trial start, signup, and email verification", async ({ page, auth0, emailVerification }) => {
-    test.setTimeout(2 * 60 * 1000);
+  test("completes full onboarding from free trial to welcome", async ({ page, auth0, emailVerification }) => {
+    test.setTimeout(3 * 60 * 1000);
 
     const email = emailVerification.generateEmail();
     const password = generateTestPassword();
@@ -52,6 +52,37 @@ test.describe("Managed wallet onboarding", () => {
       await onboardingPage.getCheckVerificationButton().click();
       await expect(onboardingPage.getEmailVerifiedAlert()).toBeVisible({ timeout: 15_000 });
       await onboardingPage.getContinueButton().click();
+    });
+
+    await test.step("add payment method via Stripe", async () => {
+      await expect(onboardingPage.getAddPaymentMethodButton()).toBeVisible({ timeout: 30_000 });
+
+      await onboardingPage.fillStripeAddress({
+        name: "E2E Test User",
+        line1: "123 Test Street",
+        city: "San Francisco",
+        state: "CA",
+        zip: "94105"
+      });
+
+      await onboardingPage.fillStripeCard({
+        number: "4242424242424242",
+        expiry: "12/30",
+        cvc: "123"
+      });
+
+      await onboardingPage.submitPaymentMethod();
+    });
+
+    await test.step("start trial", async () => {
+      await expect(onboardingPage.getStartTrialButton()).toBeVisible({ timeout: 30_000 });
+      await onboardingPage.getStartTrialButton().click();
+    });
+
+    await test.step("verify welcome step shows trial credits", async () => {
+      await expect(onboardingPage.getWelcomeHeading()).toBeVisible({ timeout: 60_000 });
+      await expect(onboardingPage.getTrialActiveBadge()).toBeVisible();
+      await expect(onboardingPage.getTrialCreditsText()).toBeVisible();
     });
   });
 });
