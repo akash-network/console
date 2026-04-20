@@ -49,7 +49,9 @@ export class QueryKeys {
   static getDepositParamsKey = () => ["DEPOSIT_PARAMS"];
   static getBmeParamsKey = () => ["BME_PARAMS"];
   static getGpuModelsKey = () => ["GPU_MODELS"];
+  static getGpuPricesKey = () => ["GPU_PRICES"];
   static getTrialProvidersKey = () => ["TRIAL_PROVIDERS"];
+  static getBidScreeningKey = (params: unknown) => ["BID_SCREENING", params];
   static getDeploymentSettingKey = (dseq: string) => ["DEPLOYMENT_SETTING", dseq];
   static getApiKeysKey = (userId: string) => ["API_KEYS", userId];
 

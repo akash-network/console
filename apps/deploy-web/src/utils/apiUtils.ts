@@ -29,6 +29,9 @@ export class ApiUrlService {
   static providers(apiEndpoint: string) {
     return `${apiEndpoint}/akash/provider/${networkStore.providerVersion}/providers`;
   }
+  static bidScreening() {
+    return `${this.baseApiUrl}/v1/bid-screening`;
+  }
   static providerList() {
     return `${this.baseApiUrl}/v1/providers`;
   }
@@ -118,6 +121,9 @@ export class ApiUrlService {
   }
   static gpuModels() {
     return `${this.baseApiUrl}/v1/gpu-models`;
+  }
+  static gpuPrices() {
+    return `${this.baseApiUrl}/v1/gpu-prices`;
   }
   static auditors() {
     return `${this.baseApiUrl}/v1/auditors`;

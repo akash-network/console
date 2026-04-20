@@ -7,9 +7,9 @@ import { RouteStep } from "@src/types/route-steps.type";
 import { UrlService } from "@src/utils/urlUtils";
 
 const steps: Step[] = [
-  { id: 0, name: "Choose Template" },
-  { id: 1, name: "Create Deployment" },
-  { id: 2, name: "Choose providers" }
+  { id: 0, name: "Choose template" },
+  { id: 1, name: "Configure & match providers" },
+  { id: 2, name: "Review & deploy" }
 ];
 
 export const CustomizedSteppers = ({ activeStep }: React.PropsWithChildren<{ activeStep: number }>) => {

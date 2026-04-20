@@ -18,6 +18,7 @@ import type { TemplateCreation } from "@src/types";
 import { RouteStep } from "@src/types/route-steps.type";
 import { hardcodedTemplates } from "@src/utils/templates";
 import Layout from "../../layout/Layout";
+import { ConfigureProviders } from "../ConfigureProviders/ConfigureProviders";
 import { CreateLease } from "../CreateLease/CreateLease";
 import { ManifestEdit } from "../ManifestEdit/ManifestEdit";
 import { CustomizedSteppers } from "../Stepper";
@@ -34,6 +35,7 @@ export const DEPENDENCIES = {
   Layout,
   TemplateList,
   ManifestEdit,
+  ConfigureProviders,
   CreateLease,
   Editor,
   CustomizedSteppers,
@@ -49,7 +51,7 @@ const STEPS = [RouteStep.chooseTemplate, RouteStep.editDeployment, RouteStep.cre
 
 export const NewDeploymentContainer: FC<NewDeploymentContainerProps> = ({ template: requestedTemplate, templateId, dependencies: d = DEPENDENCIES }) => {
   const { urlService, sdlAnalyzer } = d.useServices();
-  const [isGitProviderTemplate, setIsGitProviderTemplate] = useState<boolean>(false);
+  const [, setIsGitProviderTemplate] = useState<boolean>(false);
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateCreation | null>(null);
   const [editedManifest, setEditedManifest] = useState("");
   const deploySdl = useAtomValue(sdlStore.deploySdl);
@@ -178,12 +180,11 @@ export const NewDeploymentContainer: FC<NewDeploymentContainerProps> = ({ templa
         <d.TemplateList onChangeGitProvider={setIsGitProviderTemplate} onTemplateSelected={setSelectedTemplate} setEditedManifest={setEditedManifest} />
       )}
       {activeStepName === RouteStep.editDeployment && (
-        <d.ManifestEdit
+        <d.ConfigureProviders
           selectedTemplate={selectedTemplate}
           onTemplateSelected={setSelectedTemplate}
           editedManifest={editedManifest}
           setEditedManifest={setEditedManifest}
-          isGitProviderTemplate={isGitProviderTemplate}
         />
       )}
       {activeStepName === RouteStep.createLeases && <d.CreateLease dseq={dseq as string} />}
