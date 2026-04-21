@@ -17,4 +17,8 @@ export class HomePage {
     await this.page.getByRole("button", { name: /account menu/i }).hover();
     await this.page.getByText("Sign in").click();
   }
+
+  getAddFundsLink() {
+    return this.page.getByRole("link", { name: /add funds/i });
+  }
 }
