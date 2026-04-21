@@ -25,7 +25,7 @@ export default defineConfig(async overrideOptions =>
     external: ["pino-pretty"],
     dts: false,
     plugins: [...(isProduction ? [copyDrizzlePlugin] : [])],
-    onSuccess: overrideOptions.watch && !isProduction ? "node --enable-source-maps dist/server.js" : undefined,
+    onSuccess: overrideOptions.watch && !isProduction ? "npm run prod" : undefined,
     ...overrideOptions
   })
 );
