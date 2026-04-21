@@ -232,6 +232,10 @@ jobs:
         uses: github/codeql-action/analyze@v4
         with:
           category: "/language:${{matrix.language}}"
+          # Override GITHUB_SHA/REF (default branch under workflow_run) so the
+          # "CodeQL" check lands on the PR head. Ignored for fork PRs.
+          sha: ${{ env.PARENT_WORKFLOW_HEAD_SHA }}
+          ref: refs/pull/${{ steps.associated_pr.outputs.number }}/head
       - name: Wait for CodeQL status
         if: ${{ matrix.wait-for-check && !contains(fromJSON(steps.associated_pr.outputs.labels), 'ignore-codeql-security') }}
         uses: ./.github/actions/poll-check-status
