@@ -57,7 +57,7 @@ describe(EmailVerificationStep.name, () => {
   });
 
   it("shows error notification when resend fails", async () => {
-    const sendCode = vi.fn().mockRejectedValue(new Error("Network error"));
+    const sendCode = vi.fn().mockRejectedValue(new Error("Please wait before requesting a new verification code."));
     const { mockNotificator } = setup({ sendCode });
 
     const buttons = screen.queryAllByRole("button");
@@ -66,7 +66,7 @@ describe(EmailVerificationStep.name, () => {
       fireEvent.click(resendButton);
     });
 
-    expect(mockNotificator.error).toHaveBeenCalledWith("Failed to send verification code. Please try again later");
+    expect(mockNotificator.error).toHaveBeenCalledWith("Please wait before requesting a new verification code.");
   });
 
   it("starts cooldown after successful resend", async () => {

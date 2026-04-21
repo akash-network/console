@@ -49,12 +49,12 @@ export const EmailVerificationStep: React.FunctionComponent<EmailVerificationSte
       await sendCode();
       setCooldownSeconds(COOLDOWN_DURATION);
       notificator.success("Verification code sent. Please check your email for the 6-digit code.");
-    } catch {
-      notificator.error("Failed to send verification code. Please try again later");
+    } catch (error) {
+      notificator.error(d.extractErrorMessage(error as AppError));
     } finally {
       setIsResending(false);
     }
-  }, [sendCode, notificator]);
+  }, [sendCode, notificator, d.extractErrorMessage]);
 
   const handleVerifyCode = useCallback(
     async (code: string) => {
