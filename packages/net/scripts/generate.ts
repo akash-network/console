@@ -61,10 +61,11 @@ async function main() {
     const appVersion = firstRpcUrl ? await getAppVersion(firstRpcUrl) : null;
 
     const metaFaucetUrl = meta?.faucets?.[0]?.url ?? null;
+    const resolvedFaucetUrl = faucetUrl !== null ? faucetUrl.trim() || null : metaFaucetUrl?.trim() || null;
 
     const networkConfig = {
       version: appVersion ?? meta?.codebase?.recommended_version ?? null,
-      faucetUrl: faucetUrl?.trim() || metaFaucetUrl?.trim() || null,
+      faucetUrl: resolvedFaucetUrl,
       apiUrls,
       rpcUrls
     };
