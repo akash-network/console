@@ -9,15 +9,25 @@ on:
   workflow_run:
     workflows: ["CI"]
     types: [completed]
+  # pull_request: # uncomment to test this workflow in PR
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.workflow_run.head_branch }}
+  group: ${{ github.workflow }}-${{ github.event.workflow_run.head_branch || github.head_ref }}
   cancel-in-progress: true
 
 permissions:
   contents: read
   pull-requests: read
   checks: write # to create check run on related PR
+
+# Normalizes the parent-CI context into a single set of env vars so downstream
+# jobs don't need to branch on `github.event_name`. On `workflow_run` these come
+# from the triggering run; on `pull_request` (used for testing this workflow
+# in-place) they're synthesized from the PR payload.
+env:
+  PARENT_WORKFLOW_CONCLUSION: ${{ github.event.workflow_run.conclusion || github.event.pull_request && 'success' }}
+  PARENT_WORKFLOW_EVENT: ${{ github.event.workflow_run.event || github.event_name }}
+  PARENT_WORKFLOW_HEAD_SHA: ${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha }}
 
 jobs:
   create-check-run:
@@ -27,19 +37,29 @@ jobs:
       check_run_id: ${{ steps.create_check.outputs.check_run_id }}
       skip_reason: ${{ steps.decide.outputs.skip_reason }}
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          sparse-checkout: .github
+      - name: Get associated PR
+        id: associated_pr
+        uses: ./.github/actions/associated-pr
+        with:
+          ref: ${{ env.PARENT_WORKFLOW_HEAD_SHA }}
+          display-pr-details: 'true'
+
       - name: Decide whether to run scan
         id: decide
         run: | # shell
-          if [ "${{ github.event.workflow_run.conclusion }}" != "success" ]; then
+          if [ "${PARENT_WORKFLOW_CONCLUSION}" != "success" ]; then
             echo "run_scan=false" >> "$GITHUB_OUTPUT"
-            echo "skip_reason=Upstream CI conclusion is '${{ github.event.workflow_run.conclusion }}'" >> "$GITHUB_OUTPUT"
+            echo "skip_reason=Upstream CI conclusion is '${PARENT_WORKFLOW_CONCLUSION}'" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          # workflow_run.event is the triggering event of the upstream workflow (e.g. pull_request)
-          if [ "${{ github.event.workflow_run.event }}" != "pull_request" ]; then
+          if [ "${PARENT_WORKFLOW_EVENT}" != "pull_request" ]; then
             echo "run_scan=false" >> "$GITHUB_OUTPUT"
-            echo "skip_reason=Upstream CI was not triggered by pull_request (event=${{ github.event.workflow_run.event }})" >> "$GITHUB_OUTPUT"
+            echo "skip_reason=Upstream CI was not triggered by pull_request (event=${PARENT_WORKFLOW_EVENT})" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -51,7 +71,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: | # js
-            const sha = context.payload.workflow_run.head_sha;
+            const sha = process.env.PARENT_WORKFLOW_HEAD_SHA;
             const workflowRunUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
             const res = await github.rest.checks.create({
               name: "security-scan",
@@ -59,6 +79,7 @@ jobs:
               repo: context.repo.repo,
               head_sha: sha,
               status: "in_progress",
+              details_url: workflowRunUrl,
               output: {
                 title: "Security scan",
                 summary: `Initializing... Managed in [this workflow run](${workflowRunUrl})`
@@ -73,7 +94,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.matrix.outputs.value }}
-      should_run: ${{ !contains(fromJson(steps.associated_pr.outputs.labels), 'ignore-static-analyses') }}
+      should_run: ${{ !contains(fromJSON(steps.associated_pr.outputs.labels), 'ignore-static-analyses') }}
       pr_head_ref: ${{ steps.associated_pr.outputs.head_ref }}
       pr_head_repo: ${{ steps.associated_pr.outputs.head_repo }}
     steps:
@@ -84,11 +105,10 @@ jobs:
         id: associated_pr
         uses: ./.github/actions/associated-pr
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
-          display-pr-details: 'true'
+          ref: ${{ env.PARENT_WORKFLOW_HEAD_SHA }}
 
       - name: Build matrix from changed files
-        if: steps.associated_pr.outputs.labels != '' && steps.associated_pr.outputs.labels != '[]'
+        if: ${{ !contains(fromJSON(steps.associated_pr.outputs.labels), 'ignore-static-security-analysis') }}
         id: matrix
         env:
           GH_TOKEN: ${{ github.token }}
@@ -107,10 +127,12 @@ jobs:
           done
 
           if [ ${#changed_apps[@]} -eq 0 ]; then
+            echo "No changed apps detected, skipping static analyses"
             echo "value=" >> "$GITHUB_OUTPUT"
           else
             workspaces=$(printf '"%s",' "${changed_apps[@]}")
             workspaces="[${workspaces%,}]"
+            echo "Changed apps detected: ${changed_apps[*]}"
             echo 'value={"workspace":'"$workspaces"'}' >> "$GITHUB_OUTPUT"
           fi
 
@@ -118,7 +140,7 @@ jobs:
     needs: [setup-static-analyses]
     if: ${{ needs.setup-static-analyses.outputs.should_run == 'true' && needs.setup-static-analyses.outputs.matrix != '' }}
     strategy:
-      matrix: ${{ fromJson(needs.setup-static-analyses.outputs.matrix) }}
+      matrix: ${{ fromJSON(needs.setup-static-analyses.outputs.matrix) }}
       fail-fast: false
     uses: ./.github/workflows/reusable-validate-app-unsafe.yml
     secrets:
@@ -144,28 +166,27 @@ jobs:
         id: associated_pr
         uses: ./.github/actions/associated-pr
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
-          display-pr-details: 'true'
+          ref: ${{ env.PARENT_WORKFLOW_HEAD_SHA }}
           export-file-changes: package-lock.json
 
       - name: Check snyk status
         if: >-
-          contains(fromJson(steps.associated_pr.outputs.changes), 'package-lock.json')
-          && !contains(fromJson(steps.associated_pr.outputs.labels), 'ignore-apps-deps-scan')
+          contains(fromJSON(steps.associated_pr.outputs.changes), 'package-lock.json')
+          && !contains(fromJSON(steps.associated_pr.outputs.labels), 'ignore-apps-deps-scan')
         uses: ./.github/actions/poll-check-status
         with:
           name: "security/snyk (corysturtevant)"
-          sha: ${{ github.event.workflow_run.head_sha }}
+          sha: ${{ env.PARENT_WORKFLOW_HEAD_SHA }}
           check_type: status
 
       - name: Check socketio status
         if: >-
-          contains(fromJson(steps.associated_pr.outputs.changes), 'package-lock.json')
-          && !contains(fromJson(steps.associated_pr.outputs.labels), 'ignore-apps-deps-scan')
+          contains(fromJSON(steps.associated_pr.outputs.changes), 'package-lock.json')
+          && !contains(fromJSON(steps.associated_pr.outputs.labels), 'ignore-apps-deps-scan')
         uses: ./.github/actions/poll-check-status
         with:
           name: "Socket Security: Pull Request Alerts"
-          sha: ${{ github.event.workflow_run.head_sha }}
+          sha: ${{ env.PARENT_WORKFLOW_HEAD_SHA }}
 
   codeql-scan:
     if: needs.create-check-run.outputs.run_scan == 'true'
@@ -191,6 +212,7 @@ jobs:
         include:
           - language: actions
           - language: javascript-typescript
+            wait-for-check: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -198,19 +220,25 @@ jobs:
         id: associated_pr
         uses: ./.github/actions/associated-pr
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
-          display-pr-details: 'true'
+          ref: ${{ env.PARENT_WORKFLOW_HEAD_SHA }}
       - name: Initialize CodeQL
-        if: ${{ !contains(fromJson(steps.associated_pr.outputs.labels), 'ignore-codeql-scan') }}
+        if: ${{ !contains(fromJSON(steps.associated_pr.outputs.labels), 'ignore-codeql-security') }}
         uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
           build-mode: none
       - name: Perform CodeQL Analysis
-        if: ${{ !contains(fromJson(steps.associated_pr.outputs.labels), 'ignore-codeql-scan') }}
+        if: ${{ !contains(fromJSON(steps.associated_pr.outputs.labels), 'ignore-codeql-security') }}
         uses: github/codeql-action/analyze@v4
         with:
           category: "/language:${{matrix.language}}"
+      - name: Wait for CodeQL status
+        if: ${{ matrix.wait-for-check && !contains(fromJSON(steps.associated_pr.outputs.labels), 'ignore-codeql-security') }}
+        uses: ./.github/actions/poll-check-status
+        with:
+          name: "CodeQL"
+          sha: ${{ env.PARENT_WORKFLOW_HEAD_SHA }}
+          max_retries: 10
 
   finalize:
     runs-on: ubuntu-latest
@@ -222,7 +250,7 @@ jobs:
         env:
           RUN_SCAN: ${{ needs.create-check-run.outputs.run_scan }}
           SKIP_REASON: ${{ needs.create-check-run.outputs.skip_reason }}
-          RELATED_WORKFLOW_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          RELATED_WORKFLOW_CONCLUSION: ${{ env.PARENT_WORKFLOW_CONCLUSION }}
           STATIC_ANALYSES_RESULT: ${{ needs.static-analyses.result }}
           APPS_DEPS_SCAN_RESULT: ${{ needs.apps-deps-scan.result }}
           CODEQL_SCAN_RESULT: ${{ needs.codeql-scan.result }}
@@ -230,8 +258,7 @@ jobs:
           emit_output() {
             local conclusion="$1"
             local summary="$2"
-            local workflow_run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-            summary="$summary"$'\n\n'"Managed in [this workflow run]($workflow_run_url)"
+
             {
               echo "conclusion=$conclusion"
               echo "summary<<SUMMARY_EOF"
@@ -260,8 +287,8 @@ jobs:
           for scan in "${scans[@]}"; do
             label="${scan%%|*}"
             result="${scan#*|}"
-            if [[ "$result" == "success" ]]; then
-              details+=("$label: passed")
+            if [[ "$result" == "success" || "$result" == "skipped" ]]; then
+              details+=("$label: passed (result=$result)")
             else
               conclusion="failure"
               details+=("$label: failed (result=$result)")
@@ -279,8 +306,9 @@ jobs:
           SUMMARY: ${{ steps.final.outputs.summary }}
         with:
           script: | # js
-            const sha = context.payload.workflow_run.head_sha;
+            const sha = process.env.PARENT_WORKFLOW_HEAD_SHA;
             const checkRunId = Number(process.env.CHECK_RUN_ID);
+            const workflowRunUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
 
             await github.rest.checks.update({
               owner: context.repo.owner,
@@ -288,6 +316,7 @@ jobs:
               check_run_id: checkRunId,
               head_sha: sha,
               status: "completed",
+              details_url: workflowRunUrl,
               conclusion: process.env.CONCLUSION,
               output: {
                 title: "Security scan",

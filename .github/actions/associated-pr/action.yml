@@ -99,33 +99,34 @@ runs:
             .filter(Boolean);
           core.setOutput('changes', '[]');
           core.setOutput('labels', '[]');
-          let pr = context.payload.pull_request;
 
-          if (!pr || pr.head?.sha !== commitSha) {
-            const maxRetries = 5;
-            const baseDelay = 2000;
+          let pr;
+          const maxRetries = 5;
+          const baseDelay = 2000;
 
-            // Retry logic to handle timing issues with GitHub API
-            // Sometimes the commit-PR association isn't immediately available after merge
-            for (let attempt = 0; attempt < maxRetries; attempt++) {
-              if (attempt > 0) {
-                // Exponential backoff: 2s, 4s, 8s, 16s, 32s
-                const delay = baseDelay * Math.pow(2, attempt - 1);
-                core.info(`PR not found, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})...`);
-                await new Promise(resolve => setTimeout(resolve, delay));
-              }
+          // Always fetch from the API rather than reading context.payload.pull_request:
+          // the webhook payload is frozen at event-fire time and does not reflect
+          // label/metadata changes made afterwards.
+          // Retry logic also handles timing issues where the commit-PR association
+          // isn't immediately available after merge.
+          for (let attempt = 0; attempt < maxRetries; attempt++) {
+            if (attempt > 0) {
+              // Exponential backoff: 2s, 4s, 8s, 16s, 32s
+              const delay = baseDelay * Math.pow(2, attempt - 1);
+              core.info(`PR not found, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})...`);
+              await new Promise(resolve => setTimeout(resolve, delay));
+            }
 
-              const response = await github.rest.repos.listPullRequestsAssociatedWithCommit({
-                commit_sha: commitSha,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-              });
+            const response = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+              commit_sha: commitSha,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
 
-              if (response.data && response.data.length > 0) {
-                pr = response.data[0];
-                core.info(`Found PR #${pr.number} on attempt ${attempt + 1}`);
-                break;
-              }
+            if (response.data && response.data.length > 0) {
+              pr = response.data[0];
+              core.info(`Found PR #${pr.number} on attempt ${attempt + 1}`);
+              break;
             }
           }
 
