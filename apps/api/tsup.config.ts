@@ -25,7 +25,7 @@ export default defineConfig(async overrideOptions =>
     external: ["pino-pretty"],
     dts: false,
     plugins: [...(isProduction ? [copyDrizzlePlugin] : [])],
-    onSuccess: overrideOptions.watch && !isProduction ? "npm run prod" : undefined,
+    onSuccess: overrideOptions.watch && !isProduction ? "NODE_OPTIONS='--allow-worker' npm run prod" : undefined,
     ...overrideOptions
   })
 );
