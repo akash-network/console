@@ -216,6 +216,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          ref: ${{ env.PARENT_WORKFLOW_HEAD_SHA }}
       - name: Get associated PR
         id: associated_pr
         uses: ./.github/actions/associated-pr
@@ -262,7 +264,8 @@ jobs:
           emit_output() {
             local conclusion="$1"
             local summary="$2"
-
+            local workflow_run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            summary="$summary"$'\n\n'"Managed in [this workflow run]($workflow_run_url)"
             {
               echo "conclusion=$conclusion"
               echo "summary<<SUMMARY_EOF"
