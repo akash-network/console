@@ -23,7 +23,7 @@
     "lint": "eslint .",
     "migration:exec": "drizzle-kit migrate",
     "migration:pull": "drizzle-kit pull",
-    "prod": "node --max-old-space-size=8192 --require ./dist/instrumentation.js ./dist/index.js",
+    "prod": "node --permission --allow-fs-read=./dist/ --allow-fs-read=./env/ --allow-fs-read=./node_modules/ --allow-fs-read=../../node_modules/ --allow-fs-read=../../packages/env-loader/ --allow-fs-read=./data/ --allow-fs-write=./data/ --max-old-space-size=8192 --enable-source-maps --require ./dist/instrumentation.js ./dist/index.js",
     "start": "tsup --watch",
     "validate:types": "tsc -p tsconfig.strict.json --noEmit && echo"
   },
