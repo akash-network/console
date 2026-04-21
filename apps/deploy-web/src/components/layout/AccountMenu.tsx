@@ -44,6 +44,7 @@ export function AccountMenu() {
                   size="icon"
                   variant="outline"
                   className="h-9 w-9 bg-accent"
+                  aria-label="Account menu"
                   onClick={() => (username ? router.push(urlService.userProfile(username)) : null)}
                   onMouseOver={() => setOpen(true)}
                 >

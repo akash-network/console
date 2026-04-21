@@ -3,6 +3,10 @@ import type { Page } from "@playwright/test";
 export class OnboardingPage {
   constructor(readonly page: Page) {}
 
+  async waitForPage() {
+    await this.page.waitForURL(/\/signup/);
+  }
+
   async startFreeTrial() {
     await this.page.getByRole("button", { name: /start free trial/i }).click();
   }
