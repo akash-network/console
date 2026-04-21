@@ -22,7 +22,8 @@ const metaSchema = z.object({
   apis: z.object({
     rest: z.array(apiSchema),
     rpc: z.array(apiSchema)
-  })
+  }),
+  faucets: z.array(z.object({ url: z.string() })).optional()
 });
 
 main().catch(console.error);
@@ -59,9 +60,12 @@ async function main() {
     const firstRpcUrl = rpcUrls[0] ?? metaRpcUrls[0];
     const appVersion = firstRpcUrl ? await getAppVersion(firstRpcUrl) : null;
 
+    const metaFaucetUrl = meta?.faucets?.[0]?.url ?? null;
+    const resolvedFaucetUrl = faucetUrl !== null ? faucetUrl.trim() || null : metaFaucetUrl?.trim() || null;
+
     const networkConfig = {
       version: appVersion ?? meta?.codebase?.recommended_version ?? null,
-      faucetUrl: faucetUrl?.trim() ?? null,
+      faucetUrl: resolvedFaucetUrl,
       apiUrls,
       rpcUrls
     };
