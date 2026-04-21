@@ -34,7 +34,7 @@ inputs:
     description: Mailsac API key for email verification
     required: true
   email-verification-strategy:
-    description: Email verification strategy (mailsac-code, mailsac, or auth0-ticket)
+    description: Email verification strategy (mailsac-code or auth0-ticket)
     required: false
     default: "mailsac-code"
   test-user-email:
