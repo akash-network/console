@@ -17,7 +17,7 @@
     "migration:gen": "drizzle-kit generate",
     "migration:init": "node script/init-db.js",
     "preprod": "npm run migration:exec:prod",
-    "prod": "node --require @opentelemetry/auto-instrumentations-node/register dist/main.js",
+    "prod": "node --permission --allow-fs-read=./dist/ --allow-fs-read=./env/ --allow-fs-read=./node_modules/ --allow-fs-read=../../node_modules/ --allow-fs-read=../../packages/env-loader/ --enable-source-maps --require @opentelemetry/auto-instrumentations-node/register ./dist/main.js",
     "sdk:gen:http": "npm run sdk:gen:swagger && rimraf ../../packages/react-query-sdk/src/notifications && openapi-qraft --plugin tanstack-query-react --plugin openapi-typescript ./swagger/swagger.json -o ../../packages/react-query-sdk/src/notifications",
     "sdk:gen:swagger": "rimraf ./swagger && npm run build && INTERFACE=swagger-gen node dist/main.js",
     "start": "node dist/main.js",
