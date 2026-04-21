@@ -33,6 +33,7 @@ import {
 import { deploymentSettingRouter } from "@src/deployment/routes/deployment-setting/deployment-setting.router";
 import { deploymentsRouter } from "@src/deployment/routes/deployments/deployments.router";
 import { leasesRouter } from "@src/deployment/routes/leases/leases.router";
+import { shellExecRouter } from "@src/deployment/routes/shell-exec/shell-exec.router";
 import { gpuRouter } from "@src/gpu";
 import { pricingRouter } from "@src/pricing";
 import { proposalsRouter } from "@src/proposal";
@@ -77,6 +78,7 @@ export const openApiHonoHandlers: OpenApiHonoHandler[] = [
   deploymentSettingRouter,
   deploymentsRouter,
   leasesRouter,
+  shellExecRouter,
   apiKeysRouter,
   bidsRouter,
   certificateRouter,
