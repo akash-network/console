@@ -39,21 +39,15 @@ test.describe("Managed wallet onboarding", () => {
 
     await test.step("arrive at email verification step", async () => {
       await onboardingPage.waitForPage();
-      await expect(onboardingPage.getCheckVerificationButton()).toBeVisible({ timeout: 15_000 });
+      await expect(onboardingPage.getFirstVerificationCodeDigit()).toBeVisible({ timeout: 15_000 });
     });
 
-    await test.step("verify email via verification link", async () => {
+    await test.step("verify email via verification code", async () => {
       const auth0User = await auth0.getUserByEmail(email);
       expect(auth0User).toBeTruthy();
       testUserId = auth0User!.user_id;
 
       await emailVerification.verify({ context: page.context(), email, userId: testUserId! });
-    });
-
-    await test.step("confirm email verification on onboarding page", async () => {
-      await onboardingPage.getCheckVerificationButton().click();
-      await expect(onboardingPage.getEmailVerifiedAlert()).toBeVisible({ timeout: 15_000 });
-      await onboardingPage.getContinueButton().click();
     });
 
     await test.step("add payment method via Stripe", async () => {

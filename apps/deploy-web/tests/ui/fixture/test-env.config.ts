@@ -17,7 +17,7 @@ export const testEnvSchema = z.object({
   AUTH0_M2M_CLIENT_ID: z.string({ required_error: "Auth0 M2M client ID for management API" }).trim().min(1),
   AUTH0_M2M_CLIENT_SECRET: z.string({ required_error: "Auth0 M2M client secret for management API" }).trim().min(1),
   MAILSAC_API_KEY: z.string({ required_error: "Mailsac API key for email verification" }).trim().min(1),
-  EMAIL_VERIFICATION_STRATEGY: z.enum(["mailsac", "mailsac-code", "auth0-ticket"]).default("mailsac"),
+  EMAIL_VERIFICATION_STRATEGY: z.enum(["mailsac", "mailsac-code", "auth0-ticket"]).default("mailsac-code"),
   TEST_USER_EMAIL: z.string().optional(),
   TEST_USER_PASSWORD: z.string().optional()
 });
