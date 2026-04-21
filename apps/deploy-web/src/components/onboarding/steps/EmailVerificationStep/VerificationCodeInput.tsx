@@ -119,6 +119,7 @@ export const VerificationCodeInput = React.forwardRef<VerificationCodeInputRef, 
           autoComplete={index === 0 ? "one-time-code" : "off"}
           inputMode="numeric"
           value={digit}
+          onFocus={e => e.currentTarget.select()}
           onChange={e => handleDigitChange(index, e.target.value)}
           onKeyDown={e => handleKeyDown(index, e)}
           className="h-12 w-12"

@@ -93,7 +93,7 @@ export class SessionService {
       }
     );
 
-    const isUserExists = signupResponse.status === 409;
+    const isUserExists = signupResponse.status === 422;
     if (signupResponse.status >= 400 && !isUserExists) {
       return Err({
         message: signupResponse.data?.message || "Signup failed",

@@ -25,7 +25,7 @@ export const useEmailVerificationRequiredEventHandler = (): ((messageOtherwise: 
               side: "left",
               size: "lg",
               onClick: () => {
-                analyticsService.track("resend_verification_email_btn_clk", "Amplitude");
+                analyticsService.track("send_verification_code_btn_clk", "Amplitude");
 
                 auth
                   .sendVerificationCode()

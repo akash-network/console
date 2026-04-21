@@ -142,9 +142,9 @@ describe(SessionService.name, () => {
       const { service, consoleApiHttpClient, externalHttpClient } = setup();
 
       consoleApiHttpClient.post.mockResolvedValueOnce({
-        status: 409,
+        status: 422,
         data: {
-          message: "The user already exists."
+          message: "Unable to create account. Please try again or use a different email."
         },
         headers: {}
       });

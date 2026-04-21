@@ -65,7 +65,7 @@ export const EmailVerificationStep: React.FunctionComponent<EmailVerificationSte
         notificator.success("Your email has been successfully verified");
       } catch (error) {
         notificator.error(d.extractErrorMessage(error as AppError));
-        codeInputRef.current?.reset();
+        setTimeout(() => codeInputRef.current?.reset(), 0);
       } finally {
         setIsVerifying(false);
       }

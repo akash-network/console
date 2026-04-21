@@ -13,7 +13,7 @@ const DEPENDENCIES = {
   UrlService,
   redirect: (url: string) => {
     window.localStorage.setItem(ONBOARDING_STEP_KEY, OnboardingStepIndex.EMAIL_VERIFICATION.toString());
-    window.location.href = url;
+    window.location.replace(url);
   }
 };
 
