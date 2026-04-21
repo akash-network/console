@@ -4,7 +4,6 @@ import { singleton } from "tsyringe";
 
 import { EmailVerificationCodeRepository } from "@src/auth/repositories/email-verification-code/email-verification-code.repository";
 import { Auth0Service } from "@src/auth/services/auth0/auth0.service";
-import { WithTransaction } from "@src/core";
 import { LoggerService } from "@src/core/providers/logging.provider";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { emailVerificationCodeNotification } from "@src/notifications/services/notification-templates/email-verification-code-notification";
@@ -36,7 +35,7 @@ export class EmailVerificationCodeService {
     const existing = await this.emailVerificationCodeRepository.findByUserId(userInternalId);
     if (existing) {
       const isWithinCooldown = new Date(existing.expiresAt).getTime() > Date.now() + CODE_EXPIRY_MS - COOLDOWN_MS;
-      assert(!isWithinCooldown, 429, "Too many verification code requests. Please try again later.");
+      assert(!isWithinCooldown, 429, "Please wait before requesting a new verification code.");
     }
 
     const code = randomInt(100000, 1000000).toString();
@@ -63,24 +62,7 @@ export class EmailVerificationCodeService {
   }
 
   async verifyCode(userInternalId: string, code: string): Promise<void> {
-    const auth0UserId = await this.verifyCodeInTransaction(userInternalId, code);
-
-    try {
-      await this.auth0Service.markEmailVerified(auth0UserId);
-    } catch (error) {
-      this.logger.error({ event: "EMAIL_VERIFIED_MARK_AUTH0_FAILED", userId: userInternalId, auth0UserId, error });
-      throw error;
-    }
-
-    this.logger.info({ event: "EMAIL_VERIFIED_VIA_CODE", userId: userInternalId });
-  }
-
-  @WithTransaction()
-  private async verifyCodeInTransaction(userInternalId: string, code: string): Promise<string> {
-    const [user, record] = await Promise.all([
-      this.userRepository.findById(userInternalId),
-      this.emailVerificationCodeRepository.findByUserIdForUpdate(userInternalId)
-    ]);
+    const [user, record] = await Promise.all([this.userRepository.findById(userInternalId), this.emailVerificationCodeRepository.findByUserId(userInternalId)]);
     assert(user, 404, "User not found");
     assert(user.userId, 400, "User has no Auth0 ID");
     assert(record, 400, "No active verification code. Please request a new one.");
@@ -94,6 +76,13 @@ export class EmailVerificationCodeService {
 
     await this.userRepository.updateById(userInternalId, { emailVerified: true });
 
-    return user.userId;
+    try {
+      await this.auth0Service.markEmailVerified(user.userId);
+    } catch (error) {
+      this.logger.error({ event: "EMAIL_VERIFIED_MARK_AUTH0_FAILED", userId: userInternalId, auth0UserId: user.userId, error });
+      throw error;
+    }
+
+    this.logger.info({ event: "EMAIL_VERIFIED_VIA_CODE", userId: userInternalId });
   }
 }

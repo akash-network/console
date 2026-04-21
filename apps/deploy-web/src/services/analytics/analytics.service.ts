@@ -74,7 +74,7 @@ export type AnalyticsEvent =
   | "delete_api_key"
   | "close_deposit_modal"
   | "buy_credits_btn_clk"
-  | "resend_verification_email_btn_clk"
+  | "send_verification_code_btn_clk"
   | "builder_mode_btn_clk"
   | "yml_mode_btn_clk"
   | "bid_selected"

@@ -21,27 +21,28 @@ export const useEmailVerificationRequiredEventHandler = (): ((messageOtherwise: 
           message: messageOtherwise,
           actions: ({ close }) => [
             {
-              label: "Resend verification email",
+              label: "Send verification code",
               side: "left",
               size: "lg",
               onClick: () => {
-                analyticsService.track("resend_verification_email_btn_clk", "Amplitude");
-                if (!user?.id) {
-                  return;
-                }
+                analyticsService.track("send_verification_code_btn_clk", "Amplitude");
 
                 auth
-                  .sendVerificationEmail(user.id)
+                  .sendVerificationCode()
                   .then(() => {
                     enqueueSnackbar(
-                      <Snackbar title="Email requested" subTitle="Please check your email and click a verification link" iconVariant="success" />,
+                      <Snackbar
+                        title="Verification code sent"
+                        subTitle="Please check your email for the 6-digit code and verify in the onboarding page"
+                        iconVariant="success"
+                      />,
                       {
                         variant: "success"
                       }
                     );
                   })
                   .catch(() => {
-                    enqueueSnackbar(<Snackbar title="Failed to request email" subTitle="Please try again later or contact support" iconVariant="error" />, {
+                    enqueueSnackbar(<Snackbar title="Failed to send code" subTitle="Please try again later or contact support" iconVariant="error" />, {
                       variant: "error"
                     });
                   })
@@ -54,6 +55,6 @@ export const useEmailVerificationRequiredEventHandler = (): ((messageOtherwise: 
 
       return user?.emailVerified ? handler : preventer;
     },
-    [user?.emailVerified, user?.id, requireAction, enqueueSnackbar]
+    [user?.emailVerified, requireAction, enqueueSnackbar, auth, analyticsService]
   );
 };
